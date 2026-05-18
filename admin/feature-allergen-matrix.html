@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>🧪 Alergenová matice — APPEK</title>
+<script src="_feature_lang.js"></script>
+<style>
+:root {
+  --gold-1: #BA7517; --gold-2: #854F0B;
+  --text-1: #1d1d1f; --text-2: #424245; --text-3: #6e6e73;
+  --bg: #fafafa; --card: #fff; --border: #e5e5e7;
+  --ok: #208438; --warn: #c66800; --err: #b30019;
+}
+* { box-sizing: border-box; }
+body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; padding: 16px; color: var(--text-1); }
+.wrap { max-width: 1500px; margin: 0 auto; }
+.head { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
+.head h1 { font-size: 26px; margin: 0 0 6px; }
+.head .sub { color: var(--text-3); font-size: 13.5px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { display: inline-block; padding: 9px 16px; border-radius: 8px; background: linear-gradient(180deg, var(--gold-1), var(--gold-2)); color: #fff; text-decoration: none; font-size: 13px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; }
+.btn.ghost { background: var(--card); color: var(--text-1); border: 1px solid var(--border); }
+.btn.danger { background: linear-gradient(180deg,#ff6b6b,#c62828); }
+.btn:hover { opacity: 0.9; }
+
+/* Stats cards */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.stat-card .l { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; }
+.stat-card .v { font-size: 22px; font-weight: 800; margin-top: 4px; color: var(--gold-1); }
+
+/* Allergen distribution chips */
+.allergen-dist { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 18px; }
+.al-chip { background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 12px; }
+.al-chip .ct { background: var(--gold-1); color: #fff; padding: 2px 8px; border-radius: 999px; margin-left: 6px; font-weight: 700; font-size: 11px; }
+
+/* Matrix table */
+.matrix-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.04); -webkit-overflow-scrolling: touch; max-width: 100%; }
+@media (max-width: 700px) {
+  .head { flex-direction: column; align-items: stretch; }
+  .actions { flex-wrap: wrap; }
+  table.matrix thead th.first { width: 200px; min-width: 200px; }
+  table.matrix thead th.al { height: 120px; }
+}
+table.matrix { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1100px; }
+table.matrix thead th { background: #fafafa; border-bottom: 2px solid var(--border); padding: 10px 8px; font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.3px; position: sticky; top: 0; z-index: 2; }
+table.matrix thead th.al { writing-mode: vertical-rl; transform: rotate(180deg); min-width: 38px; max-width: 38px; padding: 12px 6px; vertical-align: bottom; height: 140px; }
+table.matrix thead th.al .em { font-size: 18px; display: block; margin-bottom: 4px; }
+table.matrix thead th.first { width: 320px; text-align: left; }
+table.matrix thead th.cat { width: 100px; }
+table.matrix tbody tr:nth-child(even) { background: #fafafa; }
+table.matrix tbody tr:hover { background: #fff8e8; }
+table.matrix td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+table.matrix td.name { font-weight: 600; }
+table.matrix td.cislo { font-family: 'SF Mono', monospace; font-size: 11px; color: var(--text-3); }
+table.matrix td.cat { color: var(--text-2); font-size: 12px; }
+table.matrix td.check { text-align: center; }
+.cb { width: 22px; height: 22px; border: 2px solid var(--border); border-radius: 5px; background: #fff; cursor: pointer; display: inline-block; transition: all 0.1s; }
+.cb:hover { border-color: var(--gold-1); transform: scale(1.1); }
+.cb.on { background: linear-gradient(180deg, var(--gold-1), var(--gold-2)); border-color: var(--gold-2); position: relative; }
+.cb.on::after { content: '✓'; color: #fff; font-weight: 800; position: absolute; top: -1px; left: 5px; font-size: 16px; }
+
+/* Quick filter */
+.filter-bar { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filter-bar input, .filter-bar select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font: inherit; font-size: 13px; }
+.filter-bar .label { font-size: 12px; color: var(--text-3); }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--ok); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 1000; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.err { background: var(--err); }
+
+.upsell { max-width: 540px; margin: 80px auto; padding: 36px; background: var(--card); border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); text-align: center; }
+.upsell .em { font-size: 56px; margin-bottom: 16px; }
+.upsell h2 { font-size: 22px; margin: 0 0 10px; }
+.upsell p { color: var(--text-2); line-height: 1.6; margin: 0 0 22px; }
+.upsell .pkg-price { background: rgba(186,117,23,0.08); padding: 14px 18px; border-radius: 10px; margin: 0 0 22px; }
+.upsell .pkg-price .l { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; }
+.upsell .pkg-price .v { font-size: 28px; font-weight: 800; color: var(--gold-1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1 data-i18n="title">🧪 Alergenová matice</h1>
+      <div class="sub" data-i18n="subtitle">EU 1169/2011 — 14 povinných alergenů. Klikni do mřížky pro označení. Mění se okamžitě.</div>
+    </div>
+    <div class="actions">
+      <a href="/admin/" class="btn ghost" data-i18n="back">← Zpět</a>
+      <button class="btn ghost" onclick="exportPdf()" data-i18n="export_pdf">📄 Export PDF</button>
+      <button class="btn" onclick="bulkTemplate()" data-i18n="bulk_fill">⚡ Hromadně vyplnit</button>
+    </div>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+window.T = {
+  title:        { cs: '🧪 Alergenová matice',                                                                      en: '🧪 Allergen matrix',                                                                       es: '🧪 Matriz de alérgenos' },
+  subtitle:     { cs: 'EU 1169/2011 — 14 povinných alergenů. Klikni do mřížky pro označení. Mění se okamžitě.', en: 'EU 1169/2011 — 14 mandatory allergens. Click cells to toggle. Auto-saves immediately.',     es: 'UE 1169/2011 — 14 alérgenos obligatorios. Haz clic para marcar. Se guarda al instante.' },
+  back:         { cs: '← Zpět',                                                                                    en: '← Back',                                                                                   es: '← Atrás' },
+  export_pdf:   { cs: '📄 Export PDF',                                                                             en: '📄 Export PDF',                                                                            es: '📄 Exportar PDF' },
+  bulk_fill:    { cs: '⚡ Hromadně vyplnit',                                                                       en: '⚡ Bulk fill',                                                                              es: '⚡ Rellenar en masa' },
+  total_prods:  { cs: 'Produktů celkem',                                                                            en: 'Total products',                                                                           es: 'Productos en total' },
+  with_aller:   { cs: 'S alergeny',                                                                                  en: 'With allergens',                                                                           es: 'Con alérgenos' },
+  without_aller:{ cs: 'Bez alergenů',                                                                                en: 'Without allergens',                                                                        es: 'Sin alérgenos' },
+  eu14:         { cs: 'EU14 alergenů',                                                                               en: 'EU14 allergens',                                                                           es: 'Alérgenos UE14' },
+  search:       { cs: 'Hledat:',                                                                                     en: 'Search:',                                                                                  es: 'Buscar:' },
+  search_ph:    { cs: 'Název nebo kód…',                                                                              en: 'Name or code…',                                                                            es: 'Nombre o código…' },
+  category:     { cs: 'Kategorie:',                                                                                   en: 'Category:',                                                                                es: 'Categoría:' },
+  all_cats:     { cs: 'Všechny',                                                                                      en: 'All',                                                                                      es: 'Todas' },
+  showing:      { cs: 'Zobrazuje',                                                                                    en: 'Showing',                                                                                  es: 'Mostrando' },
+  of:           { cs: 'z',                                                                                            en: 'of',                                                                                       es: 'de' },
+  col_product:  { cs: 'Výrobek',                                                                                      en: 'Product',                                                                                  es: 'Producto' },
+  col_cat:      { cs: 'Kategorie',                                                                                    en: 'Category',                                                                                 es: 'Categoría' },
+  no_match:     { cs: 'Žádné produkty neodpovídají filtru.',                                                          en: 'No products match the filter.',                                                            es: 'Ningún producto coincide con el filtro.' },
+  err_locked_t: { cs: 'Funkce vyžaduje balíček Lahůdky',                                                              en: 'Feature requires the Deli package',                                                        es: 'La función requiere el paquete Charcutería' },
+  unlock_pkg:   { cs: '🔓 Dokoupit balíček',                                                                          en: '🔓 Buy package',                                                                            es: '🔓 Comprar paquete' },
+  pkg_price_l:  { cs: 'Cena balíčku Lahůdky',                                                                          en: 'Deli package price',                                                                       es: 'Precio del paquete Charcutería' },
+  pkg_lifetime: { cs: 'Jednorázově, doživotně',                                                                        en: 'One-time, lifetime',                                                                       es: 'Pago único, de por vida' },
+  err_generic:  { cs: 'Chyba',                                                                                          en: 'Error',                                                                                    es: 'Error' },
+  alergen:      { cs: 'alergen',                                                                                        en: 'allergen',                                                                                 es: 'alérgeno' },
+  alergens:     { cs: 'alergenů',                                                                                       en: 'allergens',                                                                                es: 'alérgenos' },
+};
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+const t = key => featureLang.t(window.T[key] || key);
+document.title = t('title') + ' — APPEK';
+featureLang.renderPills();
+featureLang.applyToDom();
+const toast = (msg, isErr = false) => {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  setTimeout(() => t.classList.remove('show'), 2200);
+};
+
+let allergens = {};
+let products = [];
+let filterText = '';
+let filterCat = '';
+
+async function load() {
+  try {
+    const r = await fetch('/api/feature_allergen_matrix.php');
+    if (r.status === 402) {
+      const j = await r.json();
+      $('#content').innerHTML = `
+        <div class="upsell">
+          <div class="em">🔒</div>
+          <h2>${t('err_locked_t')}</h2>
+          <p>${j.message || ''}</p>
+          <div class="pkg-price">
+            <div class="l">${t('pkg_price_l')}</div>
+            <div class="v">2 490 Kč</div>
+            <div class="l" style="margin-top:4px">${t('pkg_lifetime')}</div>
+          </div>
+          <a href="https://appek.cz/checkout.html?addon=lahudky" target="_blank" class="btn">${t('unlock_pkg')}</a>
+        </div>
+      `;
+      return;
+    }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    allergens = j.allergens || {};
+    products  = j.vyrobky || [];
+    render(j.stats);
+  } catch (e) {
+    $('#content').innerHTML = `<div class="upsell"><div class="em">❌</div><h2>Chyba</h2><p>${e.message}</p></div>`;
+  }
+}
+
+function render(stats) {
+  const alKeys = Object.keys(allergens);
+  const cats = [...new Set(products.map(p => p.kategorie_nazev).filter(Boolean))];
+
+  // Filter
+  const filtered = products.filter(p => {
+    if (filterCat && p.kategorie_nazev !== filterCat) return false;
+    if (filterText) {
+      const t = filterText.toLowerCase();
+      return (p.nazev || '').toLowerCase().includes(t) || (p.cislo || '').toLowerCase().includes(t);
+    }
+    return true;
+  });
+
+  let html = '';
+
+  // Stats
+  if (stats) {
+    html += `<div class="stats">
+      <div class="stat-card"><div class="l">${t('total_prods')}</div><div class="v">${stats.total_products}</div></div>
+      <div class="stat-card"><div class="l">${t('with_aller')}</div><div class="v">${stats.products_with_allergens}</div></div>
+      <div class="stat-card"><div class="l">${t('without_aller')}</div><div class="v">${stats.total_products - stats.products_with_allergens}</div></div>
+      <div class="stat-card"><div class="l">${t('eu14')}</div><div class="v">${alKeys.length}</div></div>
+    </div>`;
+
+    // Distribution chips
+    html += `<div class="allergen-dist">`;
+    for (const [k, info] of Object.entries(stats.allergen_distribution || {})) {
+      html += `<span class="al-chip">${info.label}<span class="ct">${info.count}</span></span>`;
+    }
+    html += `</div>`;
+  }
+
+  // Filter bar
+  html += `<div class="filter-bar">
+    <span class="label">${t('search')}</span>
+    <input type="search" id="f-text" placeholder="${t('search_ph')}" value="${filterText.replace(/"/g,'&quot;')}">
+    <span class="label">${t('category')}</span>
+    <select id="f-cat">
+      <option value="">${t('all_cats')}</option>
+      ${cats.map(c => `<option value="${c}" ${c === filterCat ? 'selected' : ''}>${c}</option>`).join('')}
+    </select>
+    <span class="label" style="margin-left:auto">${t('showing')} ${filtered.length} ${t('of')} ${products.length}</span>
+  </div>`;
+
+  // Matrix
+  html += `<div class="matrix-wrap"><table class="matrix">
+    <thead>
+      <tr>
+        <th class="first">${t('col_product')}</th>
+        <th class="cat">${t('col_cat')}</th>
+        ${alKeys.map(k => {
+          const label = allergens[k];
+          const parts = label.split(' ');
+          const em = parts[0];
+          const txt = parts.slice(1).join(' ');
+          return `<th class="al" title="${label}"><span class="em">${em}</span>${txt}</th>`;
+        }).join('')}
+      </tr>
+    </thead>
+    <tbody>
+      ${filtered.map(p => `
+        <tr data-id="${p.id}">
+          <td class="name">${p.nazev}<br><span class="cislo">${p.cislo || ''}</span></td>
+          <td class="cat">${p.kategorie_ikona || ''} ${p.kategorie_nazev || '—'}</td>
+          ${alKeys.map(k => {
+            const on = p.alergeny_arr.includes(k);
+            return `<td class="check"><span class="cb ${on ? 'on' : ''}" data-id="${p.id}" data-al="${k}" onclick="toggle(${p.id}, '${k}')"></span></td>`;
+          }).join('')}
+        </tr>
+      `).join('')}
+      ${filtered.length === 0 ? '<tr><td colspan="' + (alKeys.length + 2) + '" style="text-align:center;padding:40px;color:#86868b">' + t('no_match') + '</td></tr>' : ''}
+    </tbody>
+  </table></div>`;
+
+  $('#content').innerHTML = html;
+
+  // Wire filters
+  $('#f-text')?.addEventListener('input', e => { filterText = e.target.value; render(stats); $('#f-text').focus(); });
+  $('#f-cat')?.addEventListener('change', e => { filterCat = e.target.value; render(stats); });
+}
+
+async function toggle(vyrobekId, alergen) {
+  const p = products.find(x => x.id === vyrobekId);
+  if (!p) return;
+  const has = p.alergeny_arr.includes(alergen);
+  if (has) p.alergeny_arr = p.alergeny_arr.filter(a => a !== alergen);
+  else     p.alergeny_arr.push(alergen);
+
+  // Optimistic UI
+  const el = document.querySelector(`tr[data-id="${vyrobekId}"] .cb[data-al="${alergen}"]`);
+  if (el) el.classList.toggle('on');
+
+  try {
+    const r = await fetch('/api/feature_allergen_matrix.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vyrobek_id: vyrobekId, alergeny: p.alergeny_arr }),
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const cnt = p.alergeny_arr.length;
+    toast(`✓ ${p.nazev}: ${cnt} ${cnt === 1 ? t('alergen') : t('alergens')}`);
+  } catch (e) {
+    // Revert
+    if (has) p.alergeny_arr.push(alergen);
+    else     p.alergeny_arr = p.alergeny_arr.filter(a => a !== alergen);
+    if (el) el.classList.toggle('on');
+    toast('❌ ' + e.message, true);
+  }
+}
+
+async function bulkTemplate() {
+  const t = prompt('Hromadné vyplnění alergenů:\n\n1 = Pečivo (lepek)\n2 = Cukrářské (lepek, vejce, mléko)\n3 = Lahůdky (lepek, vejce, mléko, hořčice)\n4 = Mléčné (mléko)\n5 = Veganské (zruš mléko, vejce)\n\nZadej číslo (1-5):');
+  if (!t) return;
+  const templates = {
+    '1': { name: 'Pečivo',       cat: 'Pečivo',     allergens: ['lepek'] },
+    '2': { name: 'Cukrářské',    cat: 'Cukrářské',  allergens: ['lepek', 'vejce', 'mleko'] },
+    '3': { name: 'Lahůdky',      cat: 'Lahůdky',    allergens: ['lepek', 'vejce', 'mleko', 'horcice'] },
+    '4': { name: 'Mléčné',       cat: null,         allergens: ['mleko'], filter: p => /mlék|máslo|sýr|smetan|jogurt/i.test(p.nazev) },
+    '5': { name: 'Veganské',     cat: null,         allergens: [], filter: p => /vegan|vegetar/i.test(p.nazev), remove: true },
+  };
+  const tpl = templates[t.trim()];
+  if (!tpl) return alert('Neznámá šablona.');
+
+  const targets = products.filter(p => {
+    if (tpl.cat && p.kategorie_nazev !== tpl.cat) return false;
+    if (tpl.filter && !tpl.filter(p)) return false;
+    return true;
+  });
+
+  if (!targets.length) return alert('Žádné produkty nevyhovují šabloně.');
+  if (!confirm(`Aplikovat šablonu "${tpl.name}" na ${targets.length} produktů?`)) return;
+
+  let ok = 0, fail = 0;
+  for (const p of targets) {
+    let newAlergeny = [...new Set([...p.alergeny_arr, ...tpl.allergens])];
+    if (tpl.remove) newAlergeny = [];
+    try {
+      const r = await fetch('/api/feature_allergen_matrix.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vyrobek_id: p.id, alergeny: newAlergeny }),
+      });
+      if (r.ok) { p.alergeny_arr = newAlergeny; ok++; } else fail++;
+    } catch (e) { fail++; }
+  }
+  toast(`✓ Šablona "${tpl.name}": OK ${ok}, fail ${fail}`);
+  load(); // refresh
+}
+
+function exportPdf() {
+  // Simple print-to-PDF using browser
+  window.print();
+}
+
+load();
+</script>
+</body>
+</html>

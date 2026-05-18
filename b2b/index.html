@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#BA7517">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Appek B2B">
+<!-- 🔒 B2B aplikace = neindexovat veřejnými vyhledávači -->
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="googlebot" content="noindex, nofollow">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<link rel="manifest" href="manifest.json">
+<title>APPEK B2B – B2B objednávky</title>
+<!-- 🛡️ Detekce starých prohlížečů (Banner pokud chybí fetch / Promise / CSS vars) -->
+<script>
+(function() {
+  try {
+    var ok = typeof window.fetch === 'function'
+          && typeof window.Promise === 'function'
+          && window.CSS && window.CSS.supports && CSS.supports('color', 'var(--x)');
+    if (ok) return;
+    var ua = navigator.userAgent || '';
+    var name = 'Prohlížeč';
+    if (/MSIE|Trident/i.test(ua)) name = 'Internet Explorer';
+    else if (/Edge\/1[2-7]/.test(ua)) name = 'Starý Edge';
+    else if (/Chrome\/[0-7]\d\./.test(ua)) name = 'Starý Chrome';
+    document.addEventListener('DOMContentLoaded', function() {
+      var b = document.createElement('div');
+      b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#FFF8E5;border-bottom:2px solid #BA7517;padding:14px 20px;font-family:sans-serif;font-size:14px;line-height:1.5;color:#854F0B';
+      b.innerHTML = '⚠️ <strong>' + name + ' je zastaralý.</strong> Pro pohodlné objednávání aktualizujte prohlížeč.\
+        <button onclick="this.parentNode.remove()" style="float:right;background:transparent;border:1px solid #BA7517;color:#854F0B;padding:4px 10px;border-radius:4px;cursor:pointer">✕</button>';
+      document.body.insertBefore(b, document.body.firstChild);
+    });
+  } catch (e) {}
+})();
+</script>
+<link rel="stylesheet" href="style.css?v=2.5.5">
+</head>
+<body>
+
+<!-- Login screen -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">A</div>
+      <h1>APPEK B2B</h1>
+      <p>B2B objednávkový systém</p>
+    </div>
+    <form id="login-form" class="login-form">
+      <label>
+        <span>E-mail</span>
+        <input type="email" name="email" required autocomplete="email">
+      </label>
+      <label>
+        <span>Heslo</span>
+        <input type="password" name="heslo" required autocomplete="current-password">
+      </label>
+      <button type="submit" class="btn-primary">Přihlásit se</button>
+      <p id="login-error" class="error-msg" style="display:none;"></p>
+      <div id="demo-banner" style="display:none;margin-top:14px;padding:12px 16px;background:rgba(186,117,23,0.1);border-left:3px solid #BA7517;border-radius:8px;font-size:13px;line-height:1.5">
+        🧪 <strong>Demo režim</strong> — přihlašovací údaje předvyplněny. Session 15 min, auto-reset každou hodinu.
+        <br><small id="demo-reset-time" style="color:#86868b"></small>
+      </div>
+    </form>
+    <p class="login-help">Nemáte přístup? Kontaktujte dodavatele.</p>
+  </div>
+</div>
+
+<script>
+// 🧪 B2B Demo auto-login detection + 15min idle logout
+(async function() {
+  try {
+    const r = await fetch('/api/demo_status.php', { cache: 'no-cache' });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (!j.demo) return;
+
+    // Auto-fill B2B credentials (preferuj j.b2b, fallback na j.credentials)
+    const creds = j.b2b || j.credentials || null;
+    if (!creds) return;
+
+    const form = document.getElementById('login-form');
+    if (form) {
+      const emailInput = form.querySelector('input[name="email"]');
+      const heslInput  = form.querySelector('input[name="heslo"]');
+      if (emailInput) emailInput.value = creds.email;
+      if (heslInput)  heslInput.value  = creds.password;
+    }
+    const banner = document.getElementById('demo-banner');
+    if (banner) {
+      banner.style.display = 'block';
+      const rt = document.getElementById('demo-reset-time');
+      if (rt && j.reset_at) rt.textContent = '🔄 Další reset: ' + j.reset_at;
+    }
+
+    // Idle-logout timer (15 min default)
+    window.__demoIdleSec = j.session_ttl || 900;
+    window.__demoLastActivity = Date.now();
+    const resetIdle = () => { window.__demoLastActivity = Date.now(); };
+    ['click', 'keypress', 'scroll', 'touchstart', 'mousemove'].forEach(ev => {
+      document.addEventListener(ev, resetIdle, { passive: true });
+    });
+
+    setInterval(() => {
+      const idleMs = Date.now() - window.__demoLastActivity;
+      const ttlMs = window.__demoIdleSec * 1000;
+      if (idleMs >= ttlMs) {
+        document.cookie = 'PHPSESSID=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
+        try { localStorage.removeItem('appek_b2b'); } catch (e) {}
+        alert('⏱️ Demo session vypršela (15 min). Stránka se obnoví.');
+        window.location.href = '/b2b/';
+      } else if (idleMs >= ttlMs - 60000) {
+        const bn = document.getElementById('demo-banner');
+        if (bn && !bn.dataset.warned) {
+          bn.dataset.warned = '1';
+          bn.style.background = 'rgba(255,149,0,0.15)';
+          bn.style.borderLeftColor = '#ff9500';
+          bn.innerHTML = '⏱️ <strong>Demo session vyprší za 1 min</strong> — pokračuj v práci pro prodloužení.';
+        }
+      }
+    }, 30000);
+  } catch (e) { /* ignore */ }
+})();
+</script>
+
+<!-- Hlavní aplikace -->
+<div id="app" class="app" style="display:none;">
+  <header class="header">
+    <div class="header-row header-row-top">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <div class="logo-text">
+          <strong>APPEK B2B</strong>
+          <span>B2B objednávky</span>
+        </div>
+      </div>
+      <div class="b2b-lang-pills" role="group" aria-label="Jazyk / Language / Idioma">
+        <button type="button" class="b2b-lang-pill" data-lang="cs" onclick="setB2bLang('cs')" title="Čeština">
+          <span class="b2b-lang-flag">🇨🇿</span><span class="b2b-lang-code">CS</span>
+        </button>
+        <button type="button" class="b2b-lang-pill" data-lang="en" onclick="setB2bLang('en')" title="English">
+          <span class="b2b-lang-flag">🇬🇧</span><span class="b2b-lang-code">EN</span>
+        </button>
+        <button type="button" class="b2b-lang-pill" data-lang="es" onclick="setB2bLang('es')" title="Español">
+          <span class="b2b-lang-flag">🇪🇸</span><span class="b2b-lang-code">ES</span>
+        </button>
+      </div>
+      <div class="header-actions">
+        <button id="pos-toggle" class="icon-btn icon-btn-pos" title="Přepnout dotykový (POS) režim" aria-label="POS režim" onclick="togglePosMode()">
+          <span class="pos-icon-on">📱</span>
+          <span class="pos-icon-off">🖥️</span>
+        </button>
+        <button id="dark-toggle" class="icon-btn" title="Přepnout tmavý režim" aria-label="Tmavý režim" onclick="toggleDarkMode()">
+          <span class="dark-toggle-sun">☀️</span>
+          <span class="dark-toggle-moon">🌙</span>
+        </button>
+        <button id="fullscreen-btn" class="icon-btn icon-btn-fs" title="Přepnout celou obrazovku" aria-label="Celá obrazovka" onclick="toggleFullscreen()">
+          <span class="fs-icon-enter">⛶</span>
+          <span class="fs-icon-exit">⛔</span>
+        </button>
+        <button id="logout-btn" class="logout-icon-btn" title="Odhlásit" aria-label="Odhlásit">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="header-row header-row-bottom">
+      <span id="user-name"></span>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="catalog">🥖 Katalog</button>
+    <button class="tab" data-tab="checkout">🛒 Košík<span id="cart-badge" class="tab-badge" style="display:none"></span></button>
+    <button class="tab" data-tab="history">📋 Historie</button>
+    <button class="tab" data-tab="stats">📊 Přehled</button>
+  </nav>
+
+  <!-- POS layout: vlevo obsah, vpravo přilepený košík (mobile = pod sebou) -->
+  <div class="layout">
+    <main id="content" class="content"></main>
+    <aside id="cart-panel" class="cart-panel"></aside>
+  </div>
+
+  <!-- Footer — kontakt, copyright, breathing room pod tlačítky -->
+  <footer class="app-footer">
+    <div class="app-footer-inner">
+      <div class="app-footer-brand">
+        <div class="app-footer-logo">A</div>
+        <div>
+          <strong>APPEK B2B s.r.o.</strong>
+          <div class="app-footer-sub">B2B objednávkový systém</div>
+        </div>
+      </div>
+      <div class="app-footer-contact" id="app-footer-contact">
+        <!-- Vyplní se z DB nastavení (firma_telefon, firma_email, firma_adresa) -->
+      </div>
+      <div class="app-footer-copy">
+        © <span id="app-footer-year"></span> APPEK B2B s.r.o. · Všechna práva vyhrazena
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal()" style="display:none">
+  <div class="modal-card" id="modal-card"></div>
+</div>
+
+<!-- ↑ Scroll-to-top button (jen PC, zobrazí se po scrollu) -->
+<button id="scroll-top-btn" class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Nahoru" title="Nahoru na začátek katalogu">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="18 15 12 9 6 15"></polyline>
+  </svg>
+</button>
+
+<script src="/admin/_barcode_scanner.js"></script>
+<script src="i18n.js?v=2.2"></script>
+<script src="app.js?v=2.5.5"></script>
+<script>
+// 📷 USB barcode scanner — automaticky naslouchá rychlému keyboard inputu
+if (window.appekScanner) {
+  appekScanner.listenUsbInput((code) => {
+    // V POS módu — automaticky najdi a přidej do košíku
+    if (typeof addByEan === 'function') {
+      addByEan(code);
+    } else if (typeof addByScan === 'function') {
+      addByScan(code);
+    } else {
+      // Najdi v aktivním catalog a klikni
+      const card = document.querySelector(`[data-ean="${code}"], [data-cislo="${code}"]`);
+      if (card) card.click();
+      else console.log('Naskenovaný kód neznámý:', code);
+    }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#BA7517">
+<!-- 🔒 Bezpečnost: B2B administrace = neindexovat veřejnými vyhledávači -->
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="googlebot" content="noindex, nofollow">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="APPEK">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="APPEK B2B">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-apple.svg">
+<link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+<title>APPEK B2B – Administrace</title>
+<!--
+  🛡️ Detekce starých prohlížečů — běží PŘED načtením CSS/JS aplikace.
+  Pokud prohlížeč nemá fetch / Promise / CSS variables, ukáže přátelský banner
+  a doporučí aktualizaci. Aplikace pojede dál (best-effort) i tak.
+-->
+<script>
+(function() {
+  try {
+    // Minimum: fetch, Promise, CSS variables, querySelector
+    var ok = typeof window.fetch === 'function'
+          && typeof window.Promise === 'function'
+          && typeof document.querySelector === 'function'
+          && window.CSS && window.CSS.supports && CSS.supports('color', 'var(--x)');
+    if (ok) return;
+
+    // Detekuj jméno prohlížeče pro lepší hlášku
+    var ua = navigator.userAgent || '';
+    var name = 'Prohlížeč';
+    if (/MSIE|Trident/i.test(ua)) name = 'Internet Explorer';
+    else if (/Edge\/1[2-7]/.test(ua)) name = 'Starý Edge';
+    else if (/Chrome\/[0-7]\d\./.test(ua)) name = 'Starý Chrome';
+    else if (/Firefox\/[0-6]\d\./.test(ua)) name = 'Starý Firefox';
+    else if (/Safari/.test(ua) && /Version\/[0-9]\./.test(ua)) name = 'Starý Safari';
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var banner = document.createElement('div');
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#FFF8E5;border-bottom:2px solid #BA7517;padding:14px 20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;line-height:1.5;color:#854F0B;box-shadow:0 2px 8px rgba(0,0,0,0.1)';
+      banner.innerHTML = '⚠️ <strong>' + name + ' je zastaralý.</strong> Aplikace může fungovat omezeně.\
+        <br><span style="font-size:12px">Pro 100% funkčnost prosím aktualizujte prohlížeč:\
+        <a href="https://www.google.com/chrome/" style="color:#BA7517;text-decoration:underline" target="_blank">Chrome</a>,\
+        <a href="https://www.microsoft.com/edge" style="color:#BA7517;text-decoration:underline" target="_blank">Edge</a>,\
+        <a href="https://www.mozilla.org/firefox/" style="color:#BA7517;text-decoration:underline" target="_blank">Firefox</a>.</span>\
+        <button onclick="this.parentNode.remove()" style="float:right;background:transparent;border:1px solid #BA7517;color:#854F0B;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;margin-left:10px">✕ Zavřít</button>';
+      document.body.insertBefore(banner, document.body.firstChild);
+    });
+  } catch (e) {
+    // Kdyby i tahle detekce selhala (úplně starý browser), nic neudělá
+  }
+})();
+</script>
+<link rel="stylesheet" href="admin.css?v=2.5.5">
+</head>
+<body>
+
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">A</div>
+      <h1>APPEK B2B</h1>
+      <p data-i18n="login_title">Administrace</p>
+    </div>
+    <form id="login-form" class="login-form">
+      <label>
+        <span data-i18n="login_email">E-mail</span>
+        <input type="email" name="email" required autocomplete="email" value="admin@appek.cz">
+      </label>
+      <label>
+        <span data-i18n="login_password">Heslo</span>
+        <input type="password" name="heslo" required autocomplete="current-password">
+      </label>
+      <button type="submit" class="btn-primary" data-i18n="login_submit">Přihlásit se</button>
+      <p id="login-error" class="error-msg" style="display:none;"></p>
+      <div id="demo-banner" style="display:none;margin-top:18px;padding:12px 16px;background:rgba(186,117,23,0.1);border-left:3px solid #BA7517;border-radius:8px;font-size:13px;line-height:1.5">
+        🧪 <strong>Demo režim</strong> — přihlašovací údaje předvyplněny. Session 15 min, auto-reset každou hodinu.
+        <br><small id="demo-reset-time" style="color:#86868b"></small>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// 🧪 Demo auto-login detection + 15min idle logout
+(async function() {
+  try {
+    const r = await fetch('/api/demo_status.php', { cache: 'no-cache' });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (!j.demo) return;
+
+    // Auto-fill credentials
+    const form = document.getElementById('login-form');
+    if (form) {
+      form.querySelector('input[name="email"]').value = j.credentials.email;
+      form.querySelector('input[name="heslo"]').value = j.credentials.password;
+    }
+    const banner = document.getElementById('demo-banner');
+    if (banner) {
+      banner.style.display = 'block';
+      const rt = document.getElementById('demo-reset-time');
+      if (rt && j.reset_at) rt.textContent = '🔄 Další reset: ' + j.reset_at;
+    }
+
+    // Idle-logout timer (15 min default, configurable přes session_ttl)
+    window.__demoIdleSec = j.session_ttl || 900;
+    window.__demoLastActivity = Date.now();
+
+    const resetIdle = () => { window.__demoLastActivity = Date.now(); };
+    ['click', 'keypress', 'scroll', 'touchstart', 'mousemove'].forEach(ev => {
+      document.addEventListener(ev, resetIdle, { passive: true });
+    });
+
+    // Check každých 30 sekund
+    setInterval(() => {
+      const idleMs = Date.now() - window.__demoLastActivity;
+      const ttlMs = window.__demoIdleSec * 1000;
+      if (idleMs >= ttlMs) {
+        // Logout
+        document.cookie = 'PHPSESSID=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
+        try { localStorage.removeItem('appek_admin'); } catch (e) {}
+        alert('⏱️ Demo session vypršela (15 min). Stránka se obnoví.');
+        window.location.href = '/admin/';
+      } else if (idleMs >= ttlMs - 60000) {
+        // 1 min warning
+        const banner = document.getElementById('demo-banner');
+        if (banner && !banner.dataset.warned) {
+          banner.dataset.warned = '1';
+          banner.style.background = 'rgba(255,149,0,0.15)';
+          banner.style.borderLeftColor = '#ff9500';
+          banner.innerHTML = '⏱️ <strong>Demo session vyprší za 1 min</strong> — pokračuj v práci pro prodloužení.';
+        }
+      }
+    }, 30000);
+  } catch (e) { /* ignore */ }
+})();
+</script>
+
+<div id="app" class="admin-app" style="display:none;">
+  <!-- ♿ Skip link pro screen readery / keyboard navigaci -->
+  <a href="#content" class="skip-link">Přeskočit na obsah</a>
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">A</div>
+      <strong>APPEK B2B</strong>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">📊</span> <span data-i18n="nav_dashboard">Přehled</span>
+      </button>
+      <button class="nav-item" data-page="objednavky">
+        <span class="nav-icon">📋</span> <span data-i18n="nav_orders">Objednávky</span>
+      </button>
+      <button class="nav-item" data-page="vyroba">
+        <span class="nav-icon">🥖</span> <span data-i18n="nav_production">Výrobní list</span>
+      </button>
+      <button class="nav-item" data-page="dodaci_listy">
+        <span class="nav-icon">📄</span> <span data-i18n="nav_delivery">Dodací listy</span>
+      </button>
+      <button class="nav-item" data-page="faktury">
+        <span class="nav-icon">💰</span> <span data-i18n="nav_invoices">Faktury</span>
+      </button>
+      <button class="nav-item" data-page="vyrobky">
+        <span class="nav-icon">📦</span> <span data-i18n="nav_products">Výrobky</span>
+      </button>
+      <button class="nav-item" data-page="katalog">
+        <span class="nav-icon">📑</span> <span data-i18n="nav_catalog">PDF nabídka</span>
+      </button>
+      <button class="nav-item" data-page="stitky">
+        <span class="nav-icon">🏷️</span> <span data-i18n="nav_labels">Štítky a cenovky</span>
+      </button>
+      <button class="nav-item" data-page="haccp">
+        <span class="nav-icon">📋</span> <span data-i18n="nav_haccp">HACCP</span>
+      </button>
+      <button class="nav-item" data-page="odberatele">
+        <span class="nav-icon">👥</span> <span data-i18n="nav_customers">Odběratelé</span>
+      </button>
+      <button class="nav-item" data-page="nastaveni">
+        <span class="nav-icon">⚙️</span> <span data-i18n="nav_settings">Nastavení</span>
+      </button>
+
+    </nav>
+    <!-- 📌 Pin + 🔲 Collapse toggle -->
+    <div class="sidebar-utils">
+      <button class="sidebar-collapse" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Skrýt menu — zůstanou jen ikony (PC)" aria-label="Skrýt menu">
+        <span class="sidebar-collapse-icon">◀</span>
+        <span class="sidebar-collapse-label-on">Zobrazit menu</span>
+        <span class="sidebar-collapse-label-off">Skrýt menu</span>
+      </button>
+      <button class="sidebar-pin" id="sidebar-pin-btn" onclick="toggleSidebarPin()" title="Připnout boční menu (zůstane fixované při scrollu)" aria-label="Připnout boční menu">
+        <span class="sidebar-pin-icon">📌</span>
+        <span class="sidebar-pin-label-on">Připnuto</span>
+        <span class="sidebar-pin-label-off">Připnout menu</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-wrap">
+    <header class="topbar">
+      <div class="topbar-user">
+        <div class="topbar-datum-svatek" id="topbar-datum-svatek">—</div>
+        <span class="topbar-sep" aria-hidden="true"></span>
+        <span class="topbar-user-greet" data-i18n="greet">Vítejte,</span>
+        <span id="admin-name" class="topbar-user-name"></span>
+        <span id="admin-role-badge" class="role-badge" style="display:none;"></span>
+      </div>
+      <div class="topbar-search">
+        <button type="button" class="btn-cmdk-trigger" onclick="window.openCmdk?.()" title="Vyhledat nebo skočit (⌘K / Ctrl+K)" aria-label="Quick search">
+          <span class="btn-cmdk-icon">🔍</span>
+          <span class="btn-cmdk-label" data-i18n="search">Hledat objednávky, výrobky, odběratele…</span>
+          <span class="btn-cmdk-kbd">⌘K</span>
+        </button>
+      </div>
+      <div class="topbar-actions">
+        <!-- 🔄 Update available — auto-detect, klik = otevři updater.html -->
+        <a id="update-pill" href="/admin/updater.html" style="display:none;align-items:center;gap:6px;padding:7px 14px;background:linear-gradient(135deg,#208438,#1f9244);color:#fff;border-radius:999px;text-decoration:none;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(34,197,94,0.3);animation:pulseUpd 2s ease-in-out infinite" title="Klikni pro aktualizaci">
+          <span style="font-size:16px">🔄</span>
+          <span id="update-pill-text">Nová verze</span>
+        </a>
+        <style>
+          @keyframes pulseUpd {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); box-shadow: 0 4px 14px rgba(34,197,94,0.5); }
+          }
+        </style>
+        <button type="button" class="btn-notif" id="btn-notifications" onclick="toggleNotifPanel()" title="Notifikace" aria-label="Notifikace">
+          <span class="btn-notif-icon">🔔</span>
+          <span class="btn-notif-badge" id="notif-badge" style="display:none">0</span>
+        </button>
+        <a href="../b2b/" target="_blank" class="btn-prodejna" title="Otevřít online B2B portál v novém okně">
+          <span class="btn-prodejna-icon">🛒</span>
+          <span class="btn-prodejna-label" data-i18n="online_b2b">online B2B</span>
+          <span class="btn-prodejna-label-short">B2B</span>
+          <span class="btn-prodejna-arrow">↗</span>
+        </a>
+        <button id="fullscreen-btn" class="btn-fullscreen" title="Přepnout celou obrazovku (F11)" onclick="toggleFullscreen()" aria-label="Celá obrazovka">
+          <span class="btn-fs-icon-enter">⛶</span>
+          <span class="btn-fs-icon-exit">⛔</span>
+          <span class="btn-fs-label" data-i18n="fullscreen">Celá obrazovka</span>
+        </button>
+        <button id="logout-btn" class="btn-logout" title="Odhlásit">
+          <span class="btn-logout-icon">↩</span>
+          <span class="btn-logout-label" data-i18n="logout">Odhlásit</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 🎁 SUBHEADER — velké balíčky pod hlavičkou (zobrazí se jen když má customer aktivované) -->
+    <div id="package-subheader" class="package-subheader" role="navigation" aria-label="Aktivní balíčky">
+      <div class="pkg-sub-label">🎁 Tvé balíčky:</div>
+      <div id="topbar-package-badges" class="topbar-pkg-badges"></div>
+    </div>
+
+    <main id="content" class="main-content"></main>
+  </div>
+
+  <!-- 📱 Bottom navigation pro mobile (skryté na desktopu, zobrazené pod 768px) -->
+  <nav class="bottom-nav" id="bottom-nav" aria-label="Mobilní navigace">
+    <div class="bottom-nav-grid">
+      <button class="bottom-nav-item" data-page="dashboard" onclick="navigate('dashboard')" aria-label="Přehled">
+        <span class="bn-icon">📊</span>
+        <span>Přehled</span>
+      </button>
+      <button class="bottom-nav-item" data-page="objednavky" onclick="navigate('objednavky')" aria-label="Objednávky">
+        <span class="bn-icon">📋</span>
+        <span>Objednávky</span>
+      </button>
+      <button class="bottom-nav-item" data-page="vyrobky" onclick="navigate('vyrobky')" aria-label="Výrobky">
+        <span class="bn-icon">📦</span>
+        <span>Výrobky</span>
+      </button>
+      <button class="bottom-nav-item" data-page="odberatele" onclick="navigate('odberatele')" aria-label="Odběratelé">
+        <span class="bn-icon">👥</span>
+        <span>Odběratelé</span>
+      </button>
+      <button class="bottom-nav-item" data-page="nastaveni" onclick="navigate('nastaveni')" aria-label="Nastavení">
+        <span class="bn-icon">⚙️</span>
+        <span>Nastavení</span>
+      </button>
+    </div>
+  </nav>
+</div>
+
+<div id="modal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="modal-title"></h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="modal-body" class="modal-body"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js" defer></script>
+<script src="i18n.js?v=2.0"></script>
+<script src="i18n_auto.js?v=2.5.5"></script>
+<script src="admin.js?v=2.5.5"></script>
+<script>
+// 🔄 AUTO-CHECK pro update — admin loadne → ptáme se vendora.
+//    Pokud je dostupná novější verze, ukáže pulsující zelený pill v topbaru.
+(async function autoCheckUpdate() {
+  try {
+    const vRes = await fetch('/api/version.php', { cache: 'no-cache' });
+    if (!vRes.ok) return;
+    const v = await vRes.json();
+    if (!v.version || !v.license_key) return;
+    const current = v.version;
+    const license = v.license_key.toUpperCase();
+
+    const endpoints = [
+      'https://appek.cz/api/updates_check.php',
+      'https://vendor.appek.cz/api/updates_check.php',
+      '/api/updates_check.php',
+    ];
+    let res = null;
+    for (const url of endpoints) {
+      try {
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            license_key: license, current_version: current, channel: 'stable',
+            packages: ['core', 'cukrarna', 'lahudky', 'restaurace', 'catering', 'sezona'],
+          }),
+        });
+        if (!r.ok) continue;
+        const j = await r.json();
+        if (j.ok) { res = j; break; }
+      } catch (e) {}
+    }
+    if (!res || !res.update_available) return;
+    const pill = document.getElementById('update-pill');
+    const text = document.getElementById('update-pill-text');
+    if (pill && text) {
+      text.textContent = `🆕 Nová verze ${res.latest?.version || ''}`;
+      pill.style.display = 'inline-flex';
+      pill.title = `Z verze ${current} → ${res.latest?.version}. Klikni pro aktualizaci.`;
+    }
+    if (typeof window.toastInfo === 'function') {
+      setTimeout(() => window.toastInfo(`🆕 Nová verze ${res.latest?.version} k dispozici · klikni nahoře`), 800);
+    }
+  } catch (e) {}
+})();
+</script>
+
+<!-- 📱 PWA: Service Worker + Install prompt -->
+<script>
+(function() {
+  // Registrace service workeru
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js', { scope: '/admin/' })
+        .then((reg) => {
+          console.log('[PWA] SW registered, scope:', reg.scope);
+          // Detekce nové verze
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            newWorker?.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                showSWUpdateBanner();
+              }
+            });
+          });
+        })
+        .catch((err) => console.warn('[PWA] SW register failed:', err));
+    });
+  }
+
+  // ─── Install prompt — zachyť beforeinstallprompt event ─────────
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallBanner();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    hideInstallBanner();
+    deferredPrompt = null;
+    try { localStorage.setItem('appek_pwa_installed', '1'); } catch (e) {}
+  });
+
+  function getLang() {
+    return (window.appekCurrentLang || localStorage.getItem('appek_lang') || 'cs').substring(0,2).toLowerCase();
+  }
+
+  const PWA_I18N = {
+    cs: {
+      install_title: '📱 Nainstalovat APPEK jako aplikaci',
+      install_body: 'Rychlejší přístup z plochy, offline mód, push notifikace.',
+      install_btn: 'Instalovat',
+      install_later: 'Později',
+      update_title: '🔄 Nová verze APPEK',
+      update_body: 'Aktualizace připravena — refresh aplikuje změny.',
+      update_btn: 'Aktualizovat',
+    },
+    en: {
+      install_title: '📱 Install APPEK as app',
+      install_body: 'Faster access from home screen, offline mode, push notifications.',
+      install_btn: 'Install',
+      install_later: 'Later',
+      update_title: '🔄 New APPEK version',
+      update_body: 'Update ready — refresh to apply.',
+      update_btn: 'Update',
+    },
+    es: {
+      install_title: '📱 Instalar APPEK como app',
+      install_body: 'Acceso rápido desde inicio, modo offline, notificaciones push.',
+      install_btn: 'Instalar',
+      install_later: 'Más tarde',
+      update_title: '🔄 Nueva versión APPEK',
+      update_body: 'Actualización lista — refresca para aplicar.',
+      update_btn: 'Actualizar',
+    },
+  };
+
+  function t(key) {
+    const lang = getLang();
+    return (PWA_I18N[lang] || PWA_I18N.cs)[key] || PWA_I18N.cs[key];
+  }
+
+  function showInstallBanner() {
+    // Skip if uživatel už nainstaloval nebo banner odmítl v posledních 7 dnech
+    try {
+      if (localStorage.getItem('appek_pwa_installed') === '1') return;
+      const dismissed = parseInt(localStorage.getItem('appek_pwa_dismissed') || '0', 10);
+      if (dismissed && (Date.now() - dismissed) < 7 * 24 * 60 * 60 * 1000) return;
+    } catch (e) {}
+
+    if (document.getElementById('pwa-install-banner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'pwa-install-banner';
+    banner.style.cssText = `
+      position: fixed; bottom: 14px; right: 14px; left: 14px;
+      max-width: 380px; margin-left: auto;
+      background: linear-gradient(135deg, #1d1d1f, #2d2d30);
+      color: #fff; padding: 16px 18px; border-radius: 14px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+      z-index: 99999; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex; gap: 12px; align-items: flex-start;
+      animation: pwa-slide-in 0.4s ease-out;
+    `;
+    banner.innerHTML = `
+      <div style="font-size:30px;line-height:1">📱</div>
+      <div style="flex:1">
+        <strong style="display:block;font-size:14px;margin-bottom:4px">${t('install_title')}</strong>
+        <span style="font-size:12.5px;color:rgba(255,255,255,0.75);line-height:1.5">${t('install_body')}</span>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button id="pwa-install-go" style="background:linear-gradient(180deg,#BA7517,#854F0B);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">${t('install_btn')}</button>
+          <button id="pwa-install-later" style="background:transparent;color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.15);padding:8px 14px;border-radius:8px;font-family:inherit;font-size:13px;cursor:pointer">${t('install_later')}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(banner);
+
+    document.getElementById('pwa-install-go').onclick = async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        try { localStorage.setItem('appek_pwa_installed', '1'); } catch (e) {}
+      }
+      deferredPrompt = null;
+      hideInstallBanner();
+    };
+    document.getElementById('pwa-install-later').onclick = () => {
+      try { localStorage.setItem('appek_pwa_dismissed', String(Date.now())); } catch (e) {}
+      hideInstallBanner();
+    };
+
+    // Auto-add animation CSS once
+    if (!document.getElementById('pwa-banner-styles')) {
+      const st = document.createElement('style');
+      st.id = 'pwa-banner-styles';
+      st.textContent = `@keyframes pwa-slide-in { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`;
+      document.head.appendChild(st);
+    }
+  }
+
+  function hideInstallBanner() {
+    const b = document.getElementById('pwa-install-banner');
+    if (b) b.remove();
+  }
+
+  function showSWUpdateBanner() {
+    if (document.getElementById('pwa-update-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'pwa-update-banner';
+    banner.style.cssText = `
+      position: fixed; top: 14px; right: 14px;
+      background: #0058b8; color: #fff;
+      padding: 14px 18px; border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,88,184,0.4);
+      z-index: 99999; font-family: -apple-system, sans-serif;
+      max-width: 340px;
+    `;
+    banner.innerHTML = `
+      <strong style="display:block;font-size:14px;margin-bottom:4px">${t('update_title')}</strong>
+      <span style="font-size:12.5px;display:block;margin-bottom:10px">${t('update_body')}</span>
+      <button id="pwa-update-go" style="background:#fff;color:#0058b8;border:none;padding:7px 14px;border-radius:6px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">${t('update_btn')}</button>
+    `;
+    document.body.appendChild(banner);
+    document.getElementById('pwa-update-go').onclick = () => window.location.reload();
+  }
+})();
+</script>
+
+</body>
+</html>

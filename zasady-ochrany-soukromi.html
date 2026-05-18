@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#BA7517">
+<title>Zásady ochrany soukromí — APPEK B2B</title>
+<style>
+* , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; background: #fafafa; color: #1d1d1f; line-height: 1.65; padding: 24px; }
+.wrap { max-width: 820px; margin: 0 auto; }
+.topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 0 28px; border-bottom: 1px solid #e5e5e7; margin-bottom: 32px; }
+.brand { font-weight: 800; font-size: 18px; text-decoration: none; color: #1d1d1f; }
+.brand span { background: linear-gradient(135deg, #BA7517, #F59E0B); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.lang { display: flex; gap: 4px; }
+.lang button { background: rgba(0,0,0,0.06); border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.lang button.active { background: #BA7517; color: #fff; }
+article { background: #fff; border-radius: 18px; padding: 48px 56px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+h1 { font-size: 32px; font-weight: 800; margin-bottom: 10px; letter-spacing: -1px; }
+.meta { font-size: 13px; color: #6e6e73; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #e5e5e7; }
+h2 { font-size: 18px; font-weight: 700; margin: 34px 0 12px; display: flex; align-items: center; gap: 10px; }
+h2 .num { background: linear-gradient(135deg, #BA7517, #854F0B); color: #fff; width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+p, ul, ol { margin-bottom: 12px; font-size: 14.5px; }
+ul, ol { padding-left: 22px; }
+li { margin-bottom: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 14px 0; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e5e5e7; }
+th { background: #fafafa; font-weight: 700; }
+code { background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Menlo, monospace; font-size: 13px; }
+.highlight { background: rgba(186,117,23,0.08); border-left: 4px solid #BA7517; padding: 14px 18px; border-radius: 8px; margin: 14px 0; font-size: 14px; }
+footer { text-align: center; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e5e5e7; font-size: 13px; color: #6e6e73; }
+footer a { color: #BA7517; text-decoration: none; }
+@media (max-width: 720px) { body { padding: 14px; } article { padding: 28px 22px; } h1 { font-size: 26px; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <a href="/" class="brand">📦 <span>APPEK B2B</span></a>
+    <div class="lang">
+      <button onclick="setLang('cs')" id="lang-cs" class="active">CS</button>
+      <button onclick="setLang('en')" id="lang-en">EN</button>
+      <button onclick="setLang('es')" id="lang-es">ES</button>
+    </div>
+  </div>
+
+  <article>
+    <h1 data-i18n="title">Zásady ochrany osobních údajů</h1>
+    <div class="meta" data-i18n="meta">📅 Platné od 17. května 2026 · 📄 Verze 1.0 · 🔒 GDPR compliant</div>
+
+    <h2><span class="num">1</span><span data-i18n="h1">Úvod</span></h2>
+    <p data-i18n="p1">Tyto zásady popisují, jak provozovatel APPEK B2B (dále jen „Správce") zpracovává osobní údaje v souladu s Nařízením EU 2016/679 (GDPR) a zákonem č. 110/2019 Sb.</p>
+
+    <h2><span class="num">2</span><span data-i18n="h2">Správce osobních údajů</span></h2>
+    <table>
+      <tr><th data-i18n="t2_subject">Subjekt</th><td data-i18n="t2_subject_v">[Doplnit obchodní jméno]</td></tr>
+      <tr><th data-i18n="t2_ico">IČO</th><td data-i18n="t2_ico_v">[Doplnit]</td></tr>
+      <tr><th data-i18n="t2_addr">Sídlo</th><td data-i18n="t2_addr_v">[Doplnit]</td></tr>
+      <tr><th>E-mail</th><td><a href="mailto:gdpr@appek.cz">gdpr@appek.cz</a></td></tr>
+    </table>
+
+    <h2><span class="num">3</span><span data-i18n="h3">Jaké údaje zpracováváme</span></h2>
+    <p data-i18n="p3">Při nákupu licence a používání APPEK shromažďujeme:</p>
+    <ul>
+      <li data-i18n="p3_a"><strong>Identifikační údaje</strong>: jméno, příjmení, název firmy, IČO, DIČ</li>
+      <li data-i18n="p3_b"><strong>Kontaktní údaje</strong>: e-mail, telefon, fakturační adresa</li>
+      <li data-i18n="p3_c"><strong>Platební údaje</strong>: zpracovává platební brána (Stripe/GoPay), my pouze ID transakce</li>
+      <li data-i18n="p3_d"><strong>Technické údaje</strong>: IP adresa, user-agent, datum přístupu (audit log)</li>
+      <li data-i18n="p3_e"><strong>Údaje o licenci</strong>: licenční klíč, stav, datum vydání/expirace</li>
+    </ul>
+
+    <h2><span class="num">4</span><span data-i18n="h4">Účel a právní základ zpracování</span></h2>
+    <table>
+      <thead><tr><th data-i18n="t4_purpose">Účel</th><th data-i18n="t4_basis">Právní základ</th><th data-i18n="t4_retention">Doba</th></tr></thead>
+      <tbody>
+        <tr><td data-i18n="t4_r1_p">Plnění smlouvy (vydání licence, podpora)</td><td>čl. 6(1)(b) GDPR</td><td data-i18n="t4_r1_t">Doba platnosti licence + 3 roky</td></tr>
+        <tr><td data-i18n="t4_r2_p">Vedení účetní evidence</td><td data-i18n="t4_r2_b">čl. 6(1)(c) GDPR (zákonná povinnost)</td><td data-i18n="t4_r2_t">10 let</td></tr>
+        <tr><td data-i18n="t4_r3_p">Marketingová komunikace</td><td data-i18n="t4_r3_b">čl. 6(1)(a) GDPR (souhlas)</td><td data-i18n="t4_r3_t">Do odvolání</td></tr>
+        <tr><td data-i18n="t4_r4_p">Oprávněný zájem (bezpečnost, audit log)</td><td>čl. 6(1)(f) GDPR</td><td data-i18n="t4_r4_t">2 roky</td></tr>
+      </tbody>
+    </table>
+
+    <h2><span class="num">5</span><span data-i18n="h5">Komu předáváme údaje</span></h2>
+    <p data-i18n="p5">Údaje předáváme pouze v nezbytném rozsahu těmto třetím stranám:</p>
+    <ul>
+      <li data-i18n="p5_a"><strong>Stripe Payments Europe, Ltd.</strong> (Irsko) — zpracování karetních plateb</li>
+      <li data-i18n="p5_b"><strong>GoPay s.r.o.</strong> (CZ) — zpracování CZ plateb</li>
+      <li data-i18n="p5_c"><strong>Hostinger</strong> (Litva) — hostingová infrastruktura</li>
+      <li data-i18n="p5_d"><strong>Účetní firma</strong> — vystavení a evidence faktur</li>
+      <li data-i18n="p5_e"><strong>Státní orgány</strong> — finanční úřad, ÚOOÚ, soud (na vyžádání)</li>
+    </ul>
+
+    <h2><span class="num">6</span><span data-i18n="h6">Vaše práva</span></h2>
+    <p data-i18n="p6">Jako subjekt údajů máte tato práva:</p>
+    <ul>
+      <li data-i18n="p6_a"><strong>Právo na přístup</strong> (čl. 15) — vědět co o vás zpracováváme</li>
+      <li data-i18n="p6_b"><strong>Právo na opravu</strong> (čl. 16) — opravit nepřesné údaje</li>
+      <li data-i18n="p6_c"><strong>Právo na výmaz</strong> (čl. 17) — „právo být zapomenut"</li>
+      <li data-i18n="p6_d"><strong>Právo na omezení</strong> (čl. 18) — pozastavit zpracování</li>
+      <li data-i18n="p6_e"><strong>Právo na přenositelnost</strong> (čl. 20) — strukturovaný export</li>
+      <li data-i18n="p6_f"><strong>Právo vznést námitku</strong> (čl. 21) — proti zpracování z oprávněného zájmu</li>
+      <li data-i18n="p6_g"><strong>Právo nebýt předmětem automatizovaného rozhodování</strong> (čl. 22)</li>
+      <li data-i18n="p6_h"><strong>Právo podat stížnost</strong> u <a href="https://www.uoou.cz" target="_blank">ÚOOÚ</a></li>
+    </ul>
+    <div class="highlight" data-i18n="p6_how"><strong>Jak uplatnit svá práva:</strong> Pošlete e-mail na <a href="mailto:gdpr@appek.cz"><code>gdpr@appek.cz</code></a> s předmětem „GDPR žádost". Odpovíme do 30 dnů (v náročných případech do 60 dnů).</div>
+
+    <h2><span class="num">7</span><span data-i18n="h7">Zabezpečení údajů</span></h2>
+    <ul>
+      <li data-i18n="p7_a">HTTPS všude (TLS 1.3, Let's Encrypt nebo Hostinger SSL)</li>
+      <li data-i18n="p7_b">Bcrypt hashe hesel (cost 10)</li>
+      <li data-i18n="p7_c">HMAC SHA-256 pro licenční klíče</li>
+      <li data-i18n="p7_d">2FA (TOTP) pro vendor administraci</li>
+      <li data-i18n="p7_e">Audit log všech akcí</li>
+      <li data-i18n="p7_f">Rate limiting na public endpointy</li>
+      <li data-i18n="p7_g">Pravidelné zálohy DB (separated storage)</li>
+    </ul>
+
+    <h2><span class="num">8</span><span data-i18n="h8">Cookies</span></h2>
+    <p data-i18n="p8">Web <code>appek.cz</code> používá pouze <strong>technicky nezbytné cookies</strong>:</p>
+    <ul>
+      <li><code>appek_lang</code> <span data-i18n="p8_lang">— uložení zvoleného jazyka (CS/EN/ES)</span></li>
+      <li><code>PHPSESSID</code> <span data-i18n="p8_sess">— session cookie pro přihlášení</span></li>
+    </ul>
+    <p data-i18n="p8_note">Analytické ani marketingové cookies <strong>nepoužíváme</strong>. Pokud bychom je zavedli, budete o tom informováni cookie bannerem.</p>
+
+    <h2><span class="num">9</span><span data-i18n="h9">Mezinárodní přenos</span></h2>
+    <p data-i18n="p9">Vaše údaje zpracováváme primárně v EU. Pokud je zpracovává Stripe (Irsko/USA), platí <a href="https://stripe.com/legal/privacy-center" target="_blank">jejich Privacy Policy</a> s SCC standardními smluvními doložkami.</p>
+
+    <h2><span class="num">10</span><span data-i18n="h10">Změny zásad</span></h2>
+    <p data-i18n="p10">Tyto zásady můžeme aktualizovat. Aktualizovaná verze je zveřejněna na <code>appek.cz/zasady-ochrany-soukromi.html</code> s uvedením data poslední změny.</p>
+
+    <footer><p data-i18n="footer_text">📅 Naposledy aktualizováno: 17. května 2026 · <a href="/">← Zpět na APPEK</a> · <a href="/obchodni-podminky.html">Obchodní podmínky</a></p></footer>
+  </article>
+</div>
+
+<script>
+const I18N = {
+  cs: {
+    title: 'Zásady ochrany osobních údajů',
+    meta: '📅 Platné od 17. května 2026 · 📄 Verze 1.0 · 🔒 GDPR compliant',
+    h1: 'Úvod', h2: 'Správce osobních údajů', h3: 'Jaké údaje zpracováváme',
+    h4: 'Účel a právní základ zpracování', h5: 'Komu předáváme údaje',
+    h6: 'Vaše práva', h7: 'Zabezpečení údajů', h8: 'Cookies',
+    h9: 'Mezinárodní přenos', h10: 'Změny zásad',
+    p1: 'Tyto zásady popisují, jak provozovatel APPEK B2B (dále jen „Správce") zpracovává osobní údaje v souladu s Nařízením EU 2016/679 (GDPR) a zákonem č. 110/2019 Sb.',
+    t2_subject: 'Subjekt', t2_subject_v: '[Doplnit obchodní jméno]',
+    t2_ico: 'IČO', t2_ico_v: '[Doplnit]',
+    t2_addr: 'Sídlo', t2_addr_v: '[Doplnit]',
+    p3: 'Při nákupu licence a používání APPEK shromažďujeme:',
+    p3_a: '<strong>Identifikační údaje</strong>: jméno, příjmení, název firmy, IČO, DIČ',
+    p3_b: '<strong>Kontaktní údaje</strong>: e-mail, telefon, fakturační adresa',
+    p3_c: '<strong>Platební údaje</strong>: zpracovává platební brána (Stripe/GoPay), my pouze ID transakce',
+    p3_d: '<strong>Technické údaje</strong>: IP adresa, user-agent, datum přístupu (audit log)',
+    p3_e: '<strong>Údaje o licenci</strong>: licenční klíč, stav, datum vydání/expirace',
+    t4_purpose: 'Účel', t4_basis: 'Právní základ', t4_retention: 'Doba',
+    t4_r1_p: 'Plnění smlouvy (vydání licence, podpora)', t4_r1_t: 'Doba platnosti licence + 3 roky',
+    t4_r2_p: 'Vedení účetní evidence', t4_r2_b: 'čl. 6(1)(c) GDPR (zákonná povinnost)', t4_r2_t: '10 let',
+    t4_r3_p: 'Marketingová komunikace', t4_r3_b: 'čl. 6(1)(a) GDPR (souhlas)', t4_r3_t: 'Do odvolání',
+    t4_r4_p: 'Oprávněný zájem (bezpečnost, audit log)', t4_r4_t: '2 roky',
+    p5: 'Údaje předáváme pouze v nezbytném rozsahu těmto třetím stranám:',
+    p5_a: '<strong>Stripe Payments Europe, Ltd.</strong> (Irsko) — zpracování karetních plateb',
+    p5_b: '<strong>GoPay s.r.o.</strong> (CZ) — zpracování CZ plateb',
+    p5_c: '<strong>Hostinger</strong> (Litva) — hostingová infrastruktura',
+    p5_d: '<strong>Účetní firma</strong> — vystavení a evidence faktur',
+    p5_e: '<strong>Státní orgány</strong> — finanční úřad, ÚOOÚ, soud (na vyžádání)',
+    p6: 'Jako subjekt údajů máte tato práva:',
+    p6_a: '<strong>Právo na přístup</strong> (čl. 15) — vědět co o vás zpracováváme',
+    p6_b: '<strong>Právo na opravu</strong> (čl. 16) — opravit nepřesné údaje',
+    p6_c: '<strong>Právo na výmaz</strong> (čl. 17) — „právo být zapomenut"',
+    p6_d: '<strong>Právo na omezení</strong> (čl. 18) — pozastavit zpracování',
+    p6_e: '<strong>Právo na přenositelnost</strong> (čl. 20) — strukturovaný export',
+    p6_f: '<strong>Právo vznést námitku</strong> (čl. 21) — proti zpracování z oprávněného zájmu',
+    p6_g: '<strong>Právo nebýt předmětem automatizovaného rozhodování</strong> (čl. 22)',
+    p6_h: '<strong>Právo podat stížnost</strong> u <a href="https://www.uoou.cz" target="_blank">ÚOOÚ</a>',
+    p6_how: '<strong>Jak uplatnit svá práva:</strong> Pošlete e-mail na <a href="mailto:gdpr@appek.cz"><code>gdpr@appek.cz</code></a> s předmětem „GDPR žádost". Odpovíme do 30 dnů (v náročných případech do 60 dnů).',
+    p7_a: 'HTTPS všude (TLS 1.3, Let\'s Encrypt nebo Hostinger SSL)',
+    p7_b: 'Bcrypt hashe hesel (cost 10)',
+    p7_c: 'HMAC SHA-256 pro licenční klíče',
+    p7_d: '2FA (TOTP) pro vendor administraci',
+    p7_e: 'Audit log všech akcí',
+    p7_f: 'Rate limiting na public endpointy',
+    p7_g: 'Pravidelné zálohy DB (separated storage)',
+    p8: 'Web <code>appek.cz</code> používá pouze <strong>technicky nezbytné cookies</strong>:',
+    p8_lang: '— uložení zvoleného jazyka (CS/EN/ES)',
+    p8_sess: '— session cookie pro přihlášení',
+    p8_note: 'Analytické ani marketingové cookies <strong>nepoužíváme</strong>. Pokud bychom je zavedli, budete o tom informováni cookie bannerem.',
+    p9: 'Vaše údaje zpracováváme primárně v EU. Pokud je zpracovává Stripe (Irsko/USA), platí <a href="https://stripe.com/legal/privacy-center" target="_blank">jejich Privacy Policy</a> s SCC standardními smluvními doložkami.',
+    p10: 'Tyto zásady můžeme aktualizovat. Aktualizovaná verze je zveřejněna na <code>appek.cz/zasady-ochrany-soukromi.html</code> s uvedením data poslední změny.',
+    footer_text: '📅 Naposledy aktualizováno: 17. května 2026 · <a href="/">← Zpět na APPEK</a> · <a href="/obchodni-podminky.html">Obchodní podmínky</a>',
+  },
+  en: {
+    title: 'Privacy Policy',
+    meta: '📅 Effective from May 17, 2026 · 📄 Version 1.0 · 🔒 GDPR compliant',
+    h1: 'Introduction', h2: 'Data Controller', h3: 'What Data We Process',
+    h4: 'Purpose and Legal Basis', h5: 'Recipients of Data',
+    h6: 'Your Rights', h7: 'Data Security', h8: 'Cookies',
+    h9: 'International Transfer', h10: 'Policy Changes',
+    p1: 'This policy describes how the operator of APPEK B2B (hereinafter "Controller") processes personal data in accordance with EU Regulation 2016/679 (GDPR) and Act No. 110/2019 Sb.',
+    t2_subject: 'Entity', t2_subject_v: '[Fill in business name]',
+    t2_ico: 'Business ID', t2_ico_v: '[Fill in]',
+    t2_addr: 'Address', t2_addr_v: '[Fill in]',
+    p3: 'When purchasing a license and using APPEK, we collect:',
+    p3_a: '<strong>Identification data</strong>: first name, last name, company name, business ID, VAT ID',
+    p3_b: '<strong>Contact data</strong>: e-mail, phone, billing address',
+    p3_c: '<strong>Payment data</strong>: processed by payment gateway (Stripe/GoPay), we only store transaction ID',
+    p3_d: '<strong>Technical data</strong>: IP address, user-agent, access date (audit log)',
+    p3_e: '<strong>License data</strong>: license key, status, issue/expiration date',
+    t4_purpose: 'Purpose', t4_basis: 'Legal Basis', t4_retention: 'Retention',
+    t4_r1_p: 'Contract performance (license issuance, support)', t4_r1_t: 'License validity + 3 years',
+    t4_r2_p: 'Accounting records', t4_r2_b: 'Art. 6(1)(c) GDPR (legal obligation)', t4_r2_t: '10 years',
+    t4_r3_p: 'Marketing communication', t4_r3_b: 'Art. 6(1)(a) GDPR (consent)', t4_r3_t: 'Until withdrawn',
+    t4_r4_p: 'Legitimate interest (security, audit log)', t4_r4_t: '2 years',
+    p5: 'We share data only to the necessary extent with these third parties:',
+    p5_a: '<strong>Stripe Payments Europe, Ltd.</strong> (Ireland) — card payment processing',
+    p5_b: '<strong>GoPay s.r.o.</strong> (CZ) — CZ payment processing',
+    p5_c: '<strong>Hostinger</strong> (Lithuania) — hosting infrastructure',
+    p5_d: '<strong>Accounting firm</strong> — invoice issuance and records',
+    p5_e: '<strong>State authorities</strong> — tax office, UOOU, court (upon request)',
+    p6: 'As a data subject, you have these rights:',
+    p6_a: '<strong>Right of access</strong> (Art. 15) — know what we process about you',
+    p6_b: '<strong>Right to rectification</strong> (Art. 16) — correct inaccurate data',
+    p6_c: '<strong>Right to erasure</strong> (Art. 17) — "right to be forgotten"',
+    p6_d: '<strong>Right to restriction</strong> (Art. 18) — pause processing',
+    p6_e: '<strong>Right to portability</strong> (Art. 20) — structured export',
+    p6_f: '<strong>Right to object</strong> (Art. 21) — against processing on legitimate interest',
+    p6_g: '<strong>Right not to be subject to automated decision-making</strong> (Art. 22)',
+    p6_h: '<strong>Right to lodge complaint</strong> with <a href="https://www.uoou.cz" target="_blank">UOOU</a>',
+    p6_how: '<strong>How to exercise your rights:</strong> Send e-mail to <a href="mailto:gdpr@appek.cz"><code>gdpr@appek.cz</code></a> with subject "GDPR request". We respond within 30 days (in complex cases up to 60 days).',
+    p7_a: 'HTTPS everywhere (TLS 1.3, Let\'s Encrypt or Hostinger SSL)',
+    p7_b: 'Bcrypt password hashes (cost 10)',
+    p7_c: 'HMAC SHA-256 for license keys',
+    p7_d: '2FA (TOTP) for vendor administration',
+    p7_e: 'Audit log of all actions',
+    p7_f: 'Rate limiting on public endpoints',
+    p7_g: 'Regular DB backups (separated storage)',
+    p8: 'The <code>appek.cz</code> website uses only <strong>technically necessary cookies</strong>:',
+    p8_lang: '— saves selected language (CS/EN/ES)',
+    p8_sess: '— session cookie for login',
+    p8_note: 'We do <strong>NOT use</strong> analytical or marketing cookies. If we introduced them, you would be informed via cookie banner.',
+    p9: 'Your data is primarily processed within the EU. If processed by Stripe (Ireland/USA), <a href="https://stripe.com/legal/privacy-center" target="_blank">their Privacy Policy</a> applies with SCC standard contractual clauses.',
+    p10: 'We may update this policy. The updated version is published on <code>appek.cz/zasady-ochrany-soukromi.html</code> with the last change date.',
+    footer_text: '📅 Last updated: May 17, 2026 · <a href="/">← Back to APPEK</a> · <a href="/obchodni-podminky.html">Terms and Conditions</a>',
+  },
+  es: {
+    title: 'Política de Privacidad',
+    meta: '📅 Efectivo desde 17 de mayo de 2026 · 📄 Versión 1.0 · 🔒 Compatible con GDPR',
+    h1: 'Introducción', h2: 'Responsable del tratamiento', h3: 'Qué datos procesamos',
+    h4: 'Finalidad y base legal', h5: 'Destinatarios de los datos',
+    h6: 'Sus derechos', h7: 'Seguridad de los datos', h8: 'Cookies',
+    h9: 'Transferencia internacional', h10: 'Cambios de política',
+    p1: 'Esta política describe cómo el operador de APPEK B2B (en adelante "Responsable") procesa datos personales de acuerdo con el Reglamento UE 2016/679 (GDPR) y la Ley n.º 110/2019 Sb.',
+    t2_subject: 'Entidad', t2_subject_v: '[Rellenar razón social]',
+    t2_ico: 'NIF empresa', t2_ico_v: '[Rellenar]',
+    t2_addr: 'Dirección', t2_addr_v: '[Rellenar]',
+    p3: 'Al comprar una licencia y usar APPEK, recopilamos:',
+    p3_a: '<strong>Datos de identificación</strong>: nombre, apellido, nombre de empresa, NIF, identificador fiscal',
+    p3_b: '<strong>Datos de contacto</strong>: correo, teléfono, dirección de facturación',
+    p3_c: '<strong>Datos de pago</strong>: procesados por la pasarela (Stripe/GoPay), solo almacenamos ID de transacción',
+    p3_d: '<strong>Datos técnicos</strong>: dirección IP, user-agent, fecha de acceso (log de auditoría)',
+    p3_e: '<strong>Datos de licencia</strong>: clave de licencia, estado, fecha de emisión/expiración',
+    t4_purpose: 'Finalidad', t4_basis: 'Base legal', t4_retention: 'Período',
+    t4_r1_p: 'Ejecución del contrato (licencia, soporte)', t4_r1_t: 'Validez de licencia + 3 años',
+    t4_r2_p: 'Registros contables', t4_r2_b: 'Art. 6(1)(c) GDPR (obligación legal)', t4_r2_t: '10 años',
+    t4_r3_p: 'Comunicación de marketing', t4_r3_b: 'Art. 6(1)(a) GDPR (consentimiento)', t4_r3_t: 'Hasta revocación',
+    t4_r4_p: 'Interés legítimo (seguridad, log de auditoría)', t4_r4_t: '2 años',
+    p5: 'Compartimos datos solo en la medida necesaria con estas terceras partes:',
+    p5_a: '<strong>Stripe Payments Europe, Ltd.</strong> (Irlanda) — procesamiento de tarjetas',
+    p5_b: '<strong>GoPay s.r.o.</strong> (CZ) — procesamiento de pagos CZ',
+    p5_c: '<strong>Hostinger</strong> (Lituania) — infraestructura de hosting',
+    p5_d: '<strong>Empresa contable</strong> — emisión y registro de facturas',
+    p5_e: '<strong>Autoridades estatales</strong> — agencia tributaria, UOOU, tribunal (a solicitud)',
+    p6: 'Como sujeto de datos, tiene estos derechos:',
+    p6_a: '<strong>Derecho de acceso</strong> (Art. 15) — saber qué procesamos sobre usted',
+    p6_b: '<strong>Derecho de rectificación</strong> (Art. 16) — corregir datos inexactos',
+    p6_c: '<strong>Derecho de supresión</strong> (Art. 17) — "derecho al olvido"',
+    p6_d: '<strong>Derecho a limitación</strong> (Art. 18) — pausar el procesamiento',
+    p6_e: '<strong>Derecho a portabilidad</strong> (Art. 20) — exportación estructurada',
+    p6_f: '<strong>Derecho de oposición</strong> (Art. 21) — al procesamiento por interés legítimo',
+    p6_g: '<strong>Derecho a no ser objeto de decisiones automatizadas</strong> (Art. 22)',
+    p6_h: '<strong>Derecho a presentar reclamación</strong> ante <a href="https://www.uoou.cz" target="_blank">UOOU</a>',
+    p6_how: '<strong>Cómo ejercer sus derechos:</strong> Envíe correo a <a href="mailto:gdpr@appek.cz"><code>gdpr@appek.cz</code></a> con asunto "Solicitud GDPR". Respondemos en 30 días (en casos complejos hasta 60 días).',
+    p7_a: 'HTTPS en todas partes (TLS 1.3, Let\'s Encrypt o Hostinger SSL)',
+    p7_b: 'Hashes Bcrypt de contraseñas (cost 10)',
+    p7_c: 'HMAC SHA-256 para claves de licencia',
+    p7_d: '2FA (TOTP) para administración del vendedor',
+    p7_e: 'Log de auditoría de todas las acciones',
+    p7_f: 'Rate limiting en endpoints públicos',
+    p7_g: 'Copias de seguridad regulares de BD (almacenamiento separado)',
+    p8: 'El sitio <code>appek.cz</code> usa solo <strong>cookies técnicamente necesarias</strong>:',
+    p8_lang: '— guarda el idioma seleccionado (CS/EN/ES)',
+    p8_sess: '— cookie de sesión para login',
+    p8_note: 'NO usamos cookies analíticas ni de marketing. Si las introdujéramos, se le informaría mediante banner de cookies.',
+    p9: 'Sus datos se procesan principalmente en la UE. Si los procesa Stripe (Irlanda/EE.UU.), se aplica <a href="https://stripe.com/legal/privacy-center" target="_blank">su Política de Privacidad</a> con cláusulas contractuales estándar SCC.',
+    p10: 'Podemos actualizar esta política. La versión actualizada se publica en <code>appek.cz/zasady-ochrany-soukromi.html</code> con la fecha del último cambio.',
+    footer_text: '📅 Última actualización: 17 de mayo de 2026 · <a href="/">← Volver a APPEK</a> · <a href="/obchodni-podminky.html">Términos y Condiciones</a>',
+  },
+};
+
+let lang = (localStorage.getItem('appek_lang') || 'cs').toLowerCase();
+if (!['cs','en','es'].includes(lang)) lang = 'cs';
+
+function setLang(l) {
+  lang = l;
+  localStorage.setItem('appek_lang', l);
+  document.documentElement.lang = l;
+  document.querySelectorAll('.lang button').forEach(b => b.classList.remove('active'));
+  document.getElementById('lang-' + l).classList.add('active');
+  const t = I18N[l];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (t[k]) el.innerHTML = t[k];
+  });
+}
+
+setLang(lang);
+
+// 🏢 Načti business info — vsaď do tabulky správce
+(async function() {
+  try {
+    const r = await fetch('/api/business_info.php', { cache: 'default' });
+    if (!r.ok) return;
+    const bi = await r.json();
+    if (!bi || typeof bi !== 'object') return;
+    function apply() {
+      const map = {
+        't2_subject_v': bi.business_name,
+        't2_ico_v':     bi.business_ico,
+        't2_addr_v':    bi.business_address_full,
+      };
+      Object.entries(map).forEach(([k, v]) => {
+        if (!v) return;
+        document.querySelectorAll(`[data-i18n="${k}"]`).forEach(el => el.textContent = v);
+      });
+      if (bi.business_gdpr_email) {
+        document.querySelectorAll('a[href^="mailto:gdpr@"]').forEach(a => {
+          a.href = 'mailto:' + bi.business_gdpr_email;
+          a.querySelectorAll('code').forEach(c => c.textContent = bi.business_gdpr_email);
+        });
+      }
+    }
+    apply();
+    const orig = window.setLang;
+    window.setLang = function(l) { orig(l); apply(); };
+  } catch (e) {}
+})();
+</script>
+
+</body>
+</html>
