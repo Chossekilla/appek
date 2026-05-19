@@ -7,11 +7,11 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 | Metric | Start | Aktuální | Cíl |
 |---|---|---|---|
 | CS frází celkem | 15800 | 15844 | — |
-| SK překlady (`SK_EXTRA`) | 8561 | 11105 | ≥ 14500 (≥ 92%) |
-| DE překlady (`DE_EXTRA`) | 8513 | 11057 | ≥ 14500 (≥ 92%) |
-| SK pokrytí (po rule fallbacks) | 48.3% | 69.3% | ≥ 92% |
-| DE pokrytí | 48.1% | 68.9% | ≥ 92% |
-| Poslední batch | — | 6 | — |
+| SK překlady (`SK_EXTRA`) | 8561 | 11566 | ≥ 14500 (≥ 92%) |
+| DE překlady (`DE_EXTRA`) | 8513 | 11518 | ≥ 14500 (≥ 92%) |
+| SK pokrytí (po rule fallbacks) | 48.3% | 71.8% | ≥ 92% |
+| DE pokrytí | 48.1% | 71.4% | ≥ 92% |
+| Poslední batch | — | 7 | — |
 | Datum start | 2026-05-19 | — | — |
 
 ---
@@ -152,9 +152,29 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 
 ---
 
+## Batch 7 — 2026-05-19
+
+- **Téma:** N letter (461 entries) — N-tech (NDA/NPS/NOT), Nabídka (4), Nahlásit (5), Nahrát (5), Nainstalovat, Najít (4), Naplnit (2), Naplánovat (5), Naprogramovat, Naskenovat (5), Nastavení/Nastaveno, Native/Nativní, Načíst cluster (8), Načítání cluster (8), Ne / Neaktivní (4), Nealkoholické, Nedávné (5), Neděle, Nefakturováno, Nehmotný majetek, Nejaktivnější, Nejbližší, Nej- comparatives (~22), Nekonečné scrollování, Nekvalifikovaný/Nekvalitní, Nelze cluster (11), Nemoc, Není cluster (10), Neobsahuje (4), Neomezené (2), Neonová, Neověřené (2), Neplatné/Neplatný cluster (16), Neplánovaná (4), Nepodařilo (7), Nepodporovaný (3), Nepotvrzený, Nepoužitelný, Nepravidelná, Nepřetržitý provoz, Nesouhlasit, Nespolehlivé, Nesprávný (3), Nestabilní, Nesynchronizovaný (2), Net Promoter Score, Neuhrazeno, Neuloženo, Neurgentní, Neutrální, Nevyhovuje/Nevyřešeno, Nezaměstnanost, Nezbytné cookies, Nezničitelný, Neznámý zdroj, Neúspěšný, Nešifrované spojení, Nic (4), Nikdy, Nizozemsko → Niederlande, Norsko, Norská koruna, Notebook, Notifikace cluster (24), Nová cluster (15), Nový cluster (12), Nula/Null/Nulový, Nutriční hodnoty, Nuxt.js, Nábor → Personalbeschaffung, Náhled (5), Nájemné, Nájezd km, Nákladní auto, Náklady (4), Nákupní cena/košík, Námořní přeprava, Náplň + Náplně povidla džemy, Nápojový lístek, Nápověda → Pomocník / Hilfe, Náprava, Návod k použití, Návratnost, Návrh (5), Návštěv (3), Název cluster (8), Nízk* (7), Nějaké/Někde/Někdo/Několik/Některé, Německo, Nůž (3)
+- **Přidáno SK:** 461 (11105 → 11566)
+- **Přidáno DE:** 461 (11057 → 11518)
+- **Pokrytí po batchi:** SK 71.8%, DE 71.4%
+- **Verify:** ✓ gen běh OK.
+- **Commit:** *(následuje)*
+- **Poznámky:**
+  - `Nizozemsko` → SK `Holandsko`, DE `Niederlande`
+  - `Nezaměstnanost` → DE `Arbeitslosigkeit`
+  - `Nábor` → DE `Personalbeschaffung`, `Nájem*` → DE `Miete*`
+  - `Napřesrok` → SK `Nabudúce`, DE `Nächstes Jahr`
+  - `Na shledanou` → SK `Dovidenia`, DE `Auf Wiedersehen`
+  - `Není zač` → SK `Niet za čo`, DE `Gern geschehen` (správný DE zdvořilostní obrat)
+  - `Notifikace` → SK plural `Notifikácie` (CS singular sometimes treated as plural)
+  - `Nestabilní` → DE `Instabil`, `Nešifrované spojení` → `Unverschlüsselte Verbindung`
+
+---
+
 ## 🔭 Plán na další batche
 
-- **Batch 7:** N (467) — Nákup, Náklady, Nastavení, Notifikace, Náhled, Nahoru, Nepoužitý...
+- **Batch 8:** O (351) + part of P (~250) — Objednávky cluster, Otevřít, Odběratel, Odměny, Plán, Platba
 - **Batch 4:** F-words (172) + G-words (52) — `Faktur*` cluster
 - **Batch 5+:** N-words (467), O-words (351 — `Objednávk*` cluster), P-words (1045!), S-words (984), T (372), V (710), Z (407)
 
