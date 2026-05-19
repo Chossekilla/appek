@@ -7,11 +7,11 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 | Metric | Start | Aktuální | Cíl |
 |---|---|---|---|
 | CS frází celkem | 15800 | 15844 | — |
-| SK překlady (`SK_EXTRA`) | 8561 | 9079 | ≥ 14500 (≥ 92%) |
-| DE překlady (`DE_EXTRA`) | 8513 | 9031 | ≥ 14500 (≥ 92%) |
-| SK pokrytí (po rule fallbacks) | 48.3% | 58.0% | ≥ 92% |
-| DE pokrytí | 48.1% | 57.3% | ≥ 92% |
-| Poslední batch | — | 2 | — |
+| SK překlady (`SK_EXTRA`) | 8561 | 9526 | ≥ 14500 (≥ 92%) |
+| DE překlady (`DE_EXTRA`) | 8513 | 9478 | ≥ 14500 (≥ 92%) |
+| SK pokrytí (po rule fallbacks) | 48.3% | 60.5% | ≥ 92% |
+| DE pokrytí | 48.1% | 59.8% | ≥ 92% |
+| Poslední batch | — | 3 | — |
 | Datum start | 2026-05-19 | — | — |
 
 ---
@@ -46,7 +46,7 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 - **Přidáno DE:** 349 (8682 → 9031)
 - **Pokrytí po batchi:** SK 58.0%, DE 57.3%
 - **Verify:** ✓ gen_i18n_extra.py běh OK, ✓ brace balance OK, ✓ 9/9 spot-check entries v bundlu (SK + DE).
-- **Commit:** *(následuje)*
+- **Commit:** `ca6452b` `i18n: batch 2 — +349 SK + +349 DE (C/Č cluster — Cena, Cenovka, Ctrl+*, Customer*, Číselník*)`
 - **Poznámky:**
   - `Časová zóna` → SK `Časové pásmo` (slovenština používá pásmo místo zóna pro tento význam)
   - `Číselník` → DE `Codeliste` (oficiální překlad pro číselník v IT/admin kontextu); některé varianty (`Číselník MJ` → `Codeliste ME`, `Číselník PSČ` → `Codeliste PLZ`) — abbreviace lokalizovaná
@@ -59,9 +59,30 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 
 ---
 
+## Batch 3 — 2026-05-19
+
+- **Téma:** Kompletní D-cluster (447 entries) — Datum*, Doba*, Dokument*, Dodací list*, Doklad*, Doručit/Doručení*, Doporuč*, Doprava*, Děkujeme*, DPH/DUZP, Den*, Denní*, Drobné*, Duplikovat*, Dvoufaktorové ověření
+- **Přidáno SK:** 447 (9079 → 9526)
+- **Přidáno DE:** 447 (9031 → 9478)
+- **Pokrytí po batchi:** SK 60.5%, DE 59.8%
+- **Verify:** ✓ gen_i18n_extra.py běh OK, ✓ brace balance OK, ✓ 9/9 spot-checks.
+- **Commit:** *(následuje)*
+- **Poznámky:**
+  - `Doba přípravy` → SK `Čas prípravy`, DE `Zubereitungszeit`
+  - `Dušičky` → SK `Pamiatka zosnulých`, DE `Allerseelen`
+  - `Den díkůvzdání` → DE `Erntedankfest` (DE ekvivalent thanksgivingu)
+  - `DPH` → DE `MwSt.` (konzistentní s glosářem v TRANSLATIONS_WORK.md)
+  - `Doprava Česká pošta` → SK `Doprava Slovenská pošta` (lokalizace názvu národní pošty)
+  - `Dárek zdarma` → SK `Darček zadarmo` (SK preferuje "darček", "zadarmo")
+  - `Doručit po 16:00` → DE `Nach 16:00 zustellen` (CET formát zachován)
+  - `Dáme jídlo` (název delivery služby) ponecháno beze změny v obou — registered brand
+  - `Dlouhá definice catering kalkulace` (1 entry) přeložena celá v obou jazycích — preserves emphasis a strukturu
+
+---
+
 ## 🔭 Plán na další batche
 
-- **Batch 3:** D-words (447 missing) — vč. `Daň*`, `Dashboard`, `Dodací list*`, `Doklad*`, Dárkové poukazy, Dodavatel, Doprava, Dovolená
+- **Batch 4:** E-words (131) + F-words (172) + G-words (52) + H-words (243) — `Faktura*` cluster, `Heslo*`, `Hold*`, EAN, Effects, Emoji, Email, FAQ, ...
 - **Batch 4:** F-words (172) + G-words (52) — `Faktur*` cluster
 - **Batch 5+:** N-words (467), O-words (351 — `Objednávk*` cluster), P-words (1045!), S-words (984), T (372), V (710), Z (407)
 
