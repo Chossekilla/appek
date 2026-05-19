@@ -7,11 +7,23 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 | Metric | Start | Aktuální | Cíl |
 |---|---|---|---|
 | CS frází celkem | 15800 | 15844 | — |
-| SK překlady (`SK_EXTRA`) | 8561 | 11566 | ≥ 14500 (≥ 92%) |
-| DE překlady (`DE_EXTRA`) | 8513 | 11518 | ≥ 14500 (≥ 92%) |
-| SK pokrytí (po rule fallbacks) | 48.3% | 71.8% | ≥ 92% |
-| DE pokrytí | 48.1% | 71.4% | ≥ 92% |
-| Poslední batch | — | 7 | — |
+| SK překlady (`SK_EXTRA`) | 8561 | **15204** | ≥ 14500 (≥ 92%) ✅ |
+| DE překlady (`DE_EXTRA`) | 8513 | **15156** | ≥ 14500 (≥ 92%) ✅ |
+| SK pokrytí (po rule fallbacks) | 48.3% | **92.4%** | ≥ 92% ✅ |
+| DE pokrytí | 48.1% | **92.3%** | ≥ 92% ✅ |
+| Poslední batch | — | **13** | — |
+
+## ✅ HOTOVO · 2026-05-19
+
+Cíl ≥92% dosažen pro SK i DE.
+
+**Souhrn:**
+- Začátek: SK 48.3% (8561 záznamů) / DE 48.1% (8513 záznamů)
+- Konec: SK **92.4%** (15204 záznamů) / DE **92.3%** (15156 záznamů)
+- Přidáno: **+6643 SK + +6643 DE** ve 13 batchich
+- Bundle: 1.30 MB (`admin/i18n_extra.js`)
+
+Hlavní vlákno teď může mergovat / buildovat.
 | Datum start | 2026-05-19 | — | — |
 
 ---
@@ -172,9 +184,14 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 
 ---
 
-## 🔭 Plán na další batche
+## Batch 8–13 (souhrn) — 2026-05-19
 
-- **Batch 8:** O (351) + part of P (~250) — Objednávky cluster, Otevřít, Odběratel, Odměny, Plán, Platba
+- **Batch 8:** O cluster (~345). Objednávka, Obnovit, Odběratel, Odebrat, Odeslat, Odhlásit, Odměny, Označit, Ověřit, Otevřít, Ovoce. Commit `d02c463`.
+- **Batch 9:** P part 1 (~515). PDF/PWA, Pekařský, Plán, Platba, Pobočka, Pole, Pomoc, Potvrdit, Pouze, Použít, Povolit, Poznámka, Pozvat, Počet. Commit `62cc4d8`.
+- **Batch 10:** P part 2 (~516). Pracovní, Premium, Pro cluster, Procent, Profil, Promo, Provoz, První, Práce, Právo, Průměr, Push, Pátek, Pět, Před, Předvolby, Přepnout, Připomenout, Přihlásit, Přijmout, Připojit, Pří*. Commit `8475ef3`.
+- **Batch 11:** R + T clusters (~599). React, Reklam*, Receptury, Registr*, Resetovat, Restart, Rezervace, Roční, Rusko, Rychlý, TLS, Telefon, Tento, Termín, Test, Tisk, Tlačítko, Top, Trasování, Trend, Tržby, Týmový. Commit `7f382ad`.
+- **Batch 12:** S cluster (~974). SLA/SMS/SMTP, Schválit, Sdílet, Server, Servis, Sezónní, Skupina, Sleva, Sloučit, Smazat, Smlouva, Souhlas, Spravovat, Spustit, Synchronizace, Stránka, Stáhnout, Středa, Stůl, Svátek, Šablona-related. Commit `934ae89`.
+- **Batch 13:** V cluster (~691). Vada, Validace, Variabilní symbol, Vegan, Velikonoční, Velikost, Verifikace, Verze, Vyhledat, Vymazat, Vyplnit, Vytvořit, Vzhled, Výrobek, Výroba, Výchozí, Vítejte, V cloudu/poriadku/přípravě, VIP/VPN/VPS. Commit *(následuje)*.
 - **Batch 4:** F-words (172) + G-words (52) — `Faktur*` cluster
 - **Batch 5+:** N-words (467), O-words (351 — `Objednávk*` cluster), P-words (1045!), S-words (984), T (372), V (710), Z (407)
 
