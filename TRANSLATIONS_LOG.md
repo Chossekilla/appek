@@ -7,11 +7,11 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 | Metric | Start | Aktuální | Cíl |
 |---|---|---|---|
 | CS frází celkem | 15800 | 15844 | — |
-| SK překlady (`SK_EXTRA`) | 8561 | 8730 | ≥ 14500 (≥ 92%) |
-| DE překlady (`DE_EXTRA`) | 8513 | 8682 | ≥ 14500 (≥ 92%) |
-| SK pokrytí (po rule fallbacks) | 48.3% | 56.0% | ≥ 92% |
-| DE pokrytí | 48.1% | 55.3% | ≥ 92% |
-| Poslední batch | — | 1 | — |
+| SK překlady (`SK_EXTRA`) | 8561 | 9079 | ≥ 14500 (≥ 92%) |
+| DE překlady (`DE_EXTRA`) | 8513 | 9031 | ≥ 14500 (≥ 92%) |
+| SK pokrytí (po rule fallbacks) | 48.3% | 58.0% | ≥ 92% |
+| DE pokrytí | 48.1% | 57.3% | ≥ 92% |
+| Poslední batch | — | 2 | — |
 | Datum start | 2026-05-19 | — | — |
 
 ---
@@ -23,7 +23,7 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 - **Přidáno DE:** 169 (8513 → 8682)
 - **Pokrytí po batchi:** SK 56.0%, DE 55.3%
 - **Verify:** ✓ `gen_i18n_extra.py` proběhlo, ✓ JS bundle brace-balanced (736 042 bytes), ✓ 10/10 spot-check entries presence.
-- **Commit:** *(následuje)*
+- **Commit:** `0cceb66` `i18n: batch 1 — +169 SK + +169 DE (buttons + country codes + holidays + A/B common)`
 - **Poznámky:**
   - `+ Nová slevová úroveň` → SK `+ Nová zľavová úroveň`, DE `+ Neue Rabattstufe`
   - `BOZP` → SK ponecháno `BOZP` (regionální termín existuje stejně), DE přeloženo na `Arbeitsschutz`
@@ -39,10 +39,29 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 
 ---
 
+## Batch 2 — 2026-05-19
+
+- **Téma:** C-cluster (`Cena*`, `Cenovka*`, `Cenov*`, `Ctrl+*`, `Customer*`, `Compliance*`, `Cookies*`) + všechny Č-words (časomíra, černobílé, čínský jüan, číselník*, čtvrtletní report, …)
+- **Přidáno SK:** 349 (8730 → 9079)
+- **Přidáno DE:** 349 (8682 → 9031)
+- **Pokrytí po batchi:** SK 58.0%, DE 57.3%
+- **Verify:** ✓ gen_i18n_extra.py běh OK, ✓ brace balance OK, ✓ 9/9 spot-check entries v bundlu (SK + DE).
+- **Commit:** *(následuje)*
+- **Poznámky:**
+  - `Časová zóna` → SK `Časové pásmo` (slovenština používá pásmo místo zóna pro tento význam)
+  - `Číselník` → DE `Codeliste` (oficiální překlad pro číselník v IT/admin kontextu); některé varianty (`Číselník MJ` → `Codeliste ME`, `Číselník PSČ` → `Codeliste PLZ`) — abbreviace lokalizovaná
+  - `Černý pepř` → SK `Čierne korenie` (slovenština používá "korenie" místo "pepř")
+  - `Cooking` → ponecháno mimo batch, plánováno pro food/restaurace klastr
+  - `Ctrl+Z — Vrátit` → DE `Ctrl+Z — Rückgängig` (klasický DE výraz pro undo)
+  - `Cenová stráž` → DE `Preiswächter` (kreativní překlad, popisuje funkci monitoringu cen)
+  - `CV` → SK `CV`, DE `Lebenslauf` (DE má etablovaný překlad)
+  - `Často kupované společně` a `Často kupované spolu` mají v CS oba variantní zápis — DE/SK překlad sjednocen na `Häufig zusammen gekauft` / `Často kupované spolu`
+
+---
+
 ## 🔭 Plán na další batche
 
-- **Batch 2:** C-words (305 missing) — z toho hodně common admin (`Cena`, `Cenová ...`, `Cookie`, `Cyber`, `Č-words`)
-- **Batch 3:** D-words (447 missing) — vč. `Daň*`, `Dashboard`, `Dodací list*`, `Doklad*`
+- **Batch 3:** D-words (447 missing) — vč. `Daň*`, `Dashboard`, `Dodací list*`, `Doklad*`, Dárkové poukazy, Dodavatel, Doprava, Dovolená
 - **Batch 4:** F-words (172) + G-words (52) — `Faktur*` cluster
 - **Batch 5+:** N-words (467), O-words (351 — `Objednávk*` cluster), P-words (1045!), S-words (984), T (372), V (710), Z (407)
 
