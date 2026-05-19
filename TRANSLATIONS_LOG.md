@@ -7,11 +7,11 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 | Metric | Start | Aktuální | Cíl |
 |---|---|---|---|
 | CS frází celkem | 15800 | 15844 | — |
-| SK překlady (`SK_EXTRA`) | 8561 | 9526 | ≥ 14500 (≥ 92%) |
-| DE překlady (`DE_EXTRA`) | 8513 | 9478 | ≥ 14500 (≥ 92%) |
-| SK pokrytí (po rule fallbacks) | 48.3% | 60.5% | ≥ 92% |
-| DE pokrytí | 48.1% | 59.8% | ≥ 92% |
-| Poslední batch | — | 3 | — |
+| SK překlady (`SK_EXTRA`) | 8561 | 10121 | ≥ 14500 (≥ 92%) |
+| DE překlady (`DE_EXTRA`) | 8513 | 10073 | ≥ 14500 (≥ 92%) |
+| SK pokrytí (po rule fallbacks) | 48.3% | 63.8% | ≥ 92% |
+| DE pokrytí | 48.1% | 63.2% | ≥ 92% |
+| Poslední batch | — | 4 | — |
 | Datum start | 2026-05-19 | — | — |
 
 ---
@@ -80,9 +80,30 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 
 ---
 
+## Batch 4 — 2026-05-19
+
+- **Téma:** E + F + G + H letters celé (~595 entries) — E-mail/Email cluster, Export cluster (15), Externí, EBIT/EBITDA/ERP, Eskalace, Espresso, Filter cluster (35), Faktura cluster (7), Finanční/Finální (16), Foto (4), Formulář, FTP, Filter keys F1-F12 (8), Google services (7), GDPR, Gantt, Generovat (4), HACCP, HTTP errors (12), Heslo cluster (24), Hesla, Historie (8), Hlas* (12), Hlavní (20), Hledat (8), Hodnocení (10), Hodnota (10), Home office, Hostess, Hot* (6), Hotovo* (5), Hotovost (3), Hořčice, Hreflang, Hromadný (6), Hvězdička (3), Hybrid (8)
+- **Přidáno SK:** 595 (9526 → 10121)
+- **Přidáno DE:** 595 (9478 → 10073)
+- **Pokrytí po batchi:** SK 63.8%, DE 63.2%
+- **Verify:** ✓ gen běh OK, ✓ brace balance, ✓ 9/9 spot-checks.
+- **Commit:** *(následuje)*
+- **Poznámky:**
+  - `Egypt` → DE `Ägypten`, `Estonsko` → SK `Estónsko`, `Finsko` → SK `Fínsko`, `Francie` → SK `Francúzsko` (země správně v každém jazyce)
+  - `HDP` → DE `BIP` (BruttoInlandsProdukt)
+  - `Eidam` → DE `Edamer` (sýr s vlastním DE pravopisem)
+  - `Hořčice` → SK `Horčica`, `Hořčík` → SK `Horčík`, DE `Senf` vs `Magnesium`
+  - `Generální ředitel` → DE `Geschäftsführer`, `Finanční ředitel` → `Finanzdirektor`
+  - `Fronta` → DE `Warteschlange` (kontext: queue, ne fronta jako linie)
+  - `Hospoda` → DE `Kneipe` (zachován neformální tón)
+  - `Hákový metla` (oprava CS překlepu) → SK `Hákový hák`, DE `Knethaken`
+  - HTTP status kódy ponechány v originálním anglickém znění (standard)
+
+---
+
 ## 🔭 Plán na další batche
 
-- **Batch 4:** E-words (131) + F-words (172) + G-words (52) + H-words (243) — `Faktura*` cluster, `Heslo*`, `Hold*`, EAN, Effects, Emoji, Email, FAQ, ...
+- **Batch 5:** I (145) + J (63) + K (314) + L (164) — IBAN, Import, Inflation, Kategorie, Kompozice, KPI, Klient, Likvidita, Logistika
 - **Batch 4:** F-words (172) + G-words (52) — `Faktur*` cluster
 - **Batch 5+:** N-words (467), O-words (351 — `Objednávk*` cluster), P-words (1045!), S-words (984), T (372), V (710), Z (407)
 
