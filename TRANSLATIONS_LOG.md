@@ -7,11 +7,11 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 | Metric | Start | Aktuální | Cíl |
 |---|---|---|---|
 | CS frází celkem | 15800 | 15844 | — |
-| SK překlady (`SK_EXTRA`) | 8561 | 10121 | ≥ 14500 (≥ 92%) |
-| DE překlady (`DE_EXTRA`) | 8513 | 10073 | ≥ 14500 (≥ 92%) |
-| SK pokrytí (po rule fallbacks) | 48.3% | 63.8% | ≥ 92% |
-| DE pokrytí | 48.1% | 63.2% | ≥ 92% |
-| Poslední batch | — | 4 | — |
+| SK překlady (`SK_EXTRA`) | 8561 | 10626 | ≥ 14500 (≥ 92%) |
+| DE překlady (`DE_EXTRA`) | 8513 | 10578 | ≥ 14500 (≥ 92%) |
+| SK pokrytí (po rule fallbacks) | 48.3% | 66.6% | ≥ 92% |
+| DE pokrytí | 48.1% | 66.1% | ≥ 92% |
+| Poslední batch | — | 5 | — |
 | Datum start | 2026-05-19 | — | — |
 
 ---
@@ -101,9 +101,33 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 
 ---
 
+## Batch 5 — 2026-05-19
+
+- **Téma:** I + J + K letters (~505 entries) — IBAN/IMAP/ID, Import cluster (10), Incident, Index, Indie/Indien, Infografika, Inflace, Influencer, Integrace cluster (33: GitHub/GitLab/Slack/Stripe/PayPal/etc.), Interaktivní (12), Interní (4), Inventura/Inventář, Italie/Italský, IČO, JCB/JPEG/JSON, Jablečný, Java/JavaScript, Jazyk (4), Jednatel, Jméno (3), Just-in-time, Jídelní lístek, KYC, Kaizen, Kalendář, Kanada, Kanban, Karta cluster (5), Karton/Kartony, Kategorie cluster (8), Klikněte cluster (15), Klient, Klíčové (5), Knowledge base, Kodex, Komentář (6), Komentovat, Komise/Komisionování, Konec cluster (8), Konfigurace (5), Konflikt (3), Kontakt (5), Konverze (5), Kopírovat, Korea, Koruna česká, Korýši, Kosher, Košík je prázdný, Krabice/Krabicovka, Kredit (2), Kritická (4), Krize, Krok cluster (8), Kruhový graf, Krájecí stroj, Krájet (3), Krátký, Krém, Kupní smlouva, Kupón (3), Kurkuma, Kurýr (4), Kusovník, Kvartil, Květen, Káva (5), Kód (6), Křížová kontaminace
+- **Přidáno SK:** 505 (10121 → 10626)
+- **Přidáno DE:** 505 (10073 → 10578)
+- **Pokrytí po batchi:** SK 66.6%, DE 66.1%
+- **Verify:** ✓ gen běh, ✓ bundle valid, ✓ 8/8 spot-checks (9. byl test pro non-existující frázi).
+- **Commit:** *(následuje)*
+- **Poznámky:**
+  - `Inflace` → DE `Inflation`
+  - `Inkaso` → DE `Lastschrift`
+  - `IČO` → DE `Firmen-ID` (DE nemá přímý ekvivalent CZ identifikátoru)
+  - `Indie` → SK `India`, DE `Indien` (země)
+  - `Jednatel` → SK `Konateľ`, DE `Geschäftsführer`
+  - `Květen` → SK `Máj`
+  - `Karton (krabice)` → DE `Karton (Schachtel)`, `Krabička` → DE `Schachtel`
+  - `Klient` → DE `Kunde` (klient v B2B kontextu)
+  - `Komise` → DE `Provision` (kontext: provize, ne komise = výbor)
+  - `Komisionování` → DE `Kommissionierung`
+  - `Klouzavý průměr` → SK `Kĺzavý priemer`, DE `Gleitender Durchschnitt`
+  - `Krabicovka pro gastro výrobce` → DE `Schachtelvarianten für Gastro-Hersteller` (volný překlad)
+
+---
+
 ## 🔭 Plán na další batche
 
-- **Batch 5:** I (145) + J (63) + K (314) + L (164) — IBAN, Import, Inflation, Kategorie, Kompozice, KPI, Klient, Likvidita, Logistika
+- **Batch 6:** L (164) + M (329) — `Limity*`, `Logistika*`, `M-words` (Materiály, Manažer, Menu)
 - **Batch 4:** F-words (172) + G-words (52) — `Faktur*` cluster
 - **Batch 5+:** N-words (467), O-words (351 — `Objednávk*` cluster), P-words (1045!), S-words (984), T (372), V (710), Z (407)
 
