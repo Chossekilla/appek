@@ -7,11 +7,11 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 | Metric | Start | Aktuální | Cíl |
 |---|---|---|---|
 | CS frází celkem | 15800 | 15844 | — |
-| SK překlady (`SK_EXTRA`) | 8561 | 10626 | ≥ 14500 (≥ 92%) |
-| DE překlady (`DE_EXTRA`) | 8513 | 10578 | ≥ 14500 (≥ 92%) |
-| SK pokrytí (po rule fallbacks) | 48.3% | 66.6% | ≥ 92% |
-| DE pokrytí | 48.1% | 66.1% | ≥ 92% |
-| Poslední batch | — | 5 | — |
+| SK překlady (`SK_EXTRA`) | 8561 | 11105 | ≥ 14500 (≥ 92%) |
+| DE překlady (`DE_EXTRA`) | 8513 | 11057 | ≥ 14500 (≥ 92%) |
+| SK pokrytí (po rule fallbacks) | 48.3% | 69.3% | ≥ 92% |
+| DE pokrytí | 48.1% | 68.9% | ≥ 92% |
+| Poslední batch | — | 6 | — |
 | Datum start | 2026-05-19 | — | — |
 
 ---
@@ -125,9 +125,36 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 
 ---
 
+## Batch 6 — 2026-05-19
+
+- **Téma:** L + M letters (~480) — LED/LIFO/LOT/LPG/LTL/LTV, Laboratoř, Lahev, Lahůdkárna, Laravel, Laser, Latence, Latte (3), Lazy loading, Lead cluster (8), Lean, Leasing, Leden→Január, Lednice, Ledová káva, Legenda (4), Letadlo + Letadlový režim, Letecký, Letní (6), Letos, Levné/Levný, Licence (3), Liché řádky, Lidské zdroje, Liga, Light, Lightbox, Likvidace (4), Likér, Limetky, Limit cluster (4), Lineární (4), Link odeslán, Linked list, LinkedIn (2), Linode, Listopad, Litva, Live (4), Lněná semínka, Load balancer/testy, Loading spinner, Loajální zákazník, Local deployment, Lock screen, Lodí, Logistika, Logo + Logo a vzhled, Lokace cluster (10), Londýn (GMT), Long press, Loni, Lookalike, Lookbook, Lopatka, Lotyšsko, Loyalty program, Lucembursko, Lungo, Luxusní (2), Léto, Lístek (3), Lívanec — pak M-words: MAU/MD/MRR/MTBF/MTTR, Macaron, Macchiato, Macro-influencer, Madrid (CET), Maestro, Mailchimp, Major (3), Major incident, Makroekonomie, Malware (2), Malá (2), Malé písmeno, Malý (2), Man in the middle, Managed (3), Manažer cluster (6), Mandel, Mangan, Manipulant, Manuální (8), Mapa rizik, Mapování (2), Margarín, Marinovat, Marketing cluster (10), Marketplace, Maroko, Marže, Masopust, Mastercard, Matcha, Mate, Material Design, Materiál, Max cluster (5), Maximum cluster (8), Maximální (4), Mazání (2), Maďarsko + Maďarský forint, Medián + Mediánová tržba, Medové perníčky, Mega/Mega-influencer, Member price, Memoization, MoU, Memory (3), Menu engineering, Meta (5), Method, Mexické peso/Mexiko, Mezery (3), Mezi (10), Mezitím, Micro-influencer, Microdata, Microservices, Microsoft (2), Middle mile, Migrace (3), Mikro (8), Milestone, Miliarda/Milion/Miliony, Mimo (5), Mimořádný, Min/Mince/Minerálka, Mini (2), Minimal (5), Minimum (6), Minor (2), Minulé (4), Minut/Minuta/Minuty, Miska, Mistr/Mistrovství, Mitigace, Mix-and-match, Mizí (3), Mladý, Mletá pepř, Mluví o nás, Mléčné výrobky + Mléko Vejce Lepek, Mlýn, Mlčenlivost, Mnoho/Mnohokrát děkujeme, Množstevní sleva, Množství (2), Mobil/Mobilní (8), Mocha, Modifikovat, Modulární licence, Mohlo by vás zajímat, Money-back guarantee, Monitorování (2), Monochromatic, Monolithic, Monthly report, Motivační dopis, Mouky a směsi, Mozzarella, Možná (3), Možnost, Multi (5), MultiSport, Multiplayer hry, Multiplikátor bodů, Musíte přijmout, Mute (2), Muškát, Mytí rukou, Málo, Mám, Máta, Máte (4), Mátový sirup, Mé projekty, Médium, Méně (3), Míchat, Mínili jste, Mínus, Míra odchodu, Mísa, Místní (4), Místo (3), Mýtický, Mějte se hezky, Měkká střídka, Měkký stín, Měkkýši, Měna (2), Mění nastavení, Měrka, Město, Měsíc (2), Měsíční (7), Měď, Měřící (2), Můj (3), Může obsahovat stopy, Můžeme/Můžete/Můžeš (5)
+- **Přidáno SK:** 479 (10626 → 11105)
+- **Přidáno DE:** 479 (10578 → 11057)
+- **Pokrytí po batchi:** SK 69.3%, DE 68.9%
+- **Verify:** ✓ gen běh OK, ✓ bundle valid.
+- **Commit:** *(následuje)*
+- **Poznámky:**
+  - `Leden` → SK `Január`, `Listopad` → SK/DE `November`
+  - `Lepek` → DE `Gluten` (správný DE pojem)
+  - `Letadlový režim` → SK `Letový režim`, DE `Flugmodus`
+  - `Levný` → SK `Lacný` (preferovaný překlad pro "levný")
+  - `Loni` → SK `Vlani`, DE `Letztes Jahr`
+  - `Lucembursko` → SK `Luxembursko`, DE `Luxemburg`
+  - `Manažer` → SK `Manažér` (SK má diakritiku), DE `Manager`
+  - `Mandel` → SK `Mandľa`, DE `Mandel` (CS=DE pro mandle)
+  - `Maturitní` → DE `Abitur-` (kontext: maturitní zkouška)
+  - `Masopust` → SK `Fašiangy`, DE `Fasching`
+  - `Mlčenlivost` → DE `Verschwiegenheit` (kontext: NDA / mlčenlivost o údajích)
+  - `Manipulant` → DE `Lagerarbeiter` (kontext: warehouse worker)
+  - `Mezi-státní přenos` → DE `Grenzüberschreitende Übermittlung` (GDPR pojem)
+  - `Měkká střídka` / `Hutná střídka` (pekařský termín) → SK přeloženo, DE `Weiche/Dichte Krume`
+  - `Mokrá / suchá střídka` (jen na zboží konkrétní typ)
+
+---
+
 ## 🔭 Plán na další batche
 
-- **Batch 6:** L (164) + M (329) — `Limity*`, `Logistika*`, `M-words` (Materiály, Manažer, Menu)
+- **Batch 7:** N (467) — Nákup, Náklady, Nastavení, Notifikace, Náhled, Nahoru, Nepoužitý...
 - **Batch 4:** F-words (172) + G-words (52) — `Faktur*` cluster
 - **Batch 5+:** N-words (467), O-words (351 — `Objednávk*` cluster), P-words (1045!), S-words (984), T (372), V (710), Z (407)
 
