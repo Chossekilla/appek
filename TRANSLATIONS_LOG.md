@@ -19,9 +19,41 @@ Cíl ≥92% dosažen pro SK i DE.
 
 **Souhrn:**
 - Začátek: SK 48.3% (8561 záznamů) / DE 48.1% (8513 záznamů)
-- Konec: SK **92.4%** (15204 záznamů) / DE **92.3%** (15156 záznamů)
-- Přidáno: **+6643 SK + +6643 DE** ve 13 batchich
+- Konec: SK **92.4%** (15347 záznamů) / DE **92.3%** (15305 záznamů)
+- Přidáno: **+6786 SK + +6792 DE** v 15 batchich
 - Bundle: 1.30 MB (`admin/i18n_extra.js`)
+
+## Batch 14–15 — modal audit (po dokončení)
+
+Po /verify modal okna ověřeno + opraveno:
+
+### Batch 14 — modal title fixes (~10 entries SK+DE)
+Statické modal tituly s emoji prefixem (před chyběly v lookupu):
+- `✂️ Rozdělit účet na části`, `💰 Rozdělit platbu`, `🔗 Sloučit účty`
+- `📊 Import — Auto-match výsledky (3/4)`, `📊 Import — Mapping sloupců (2/4)`, `📊 Import — Hotovo! (4/4)`
+- `📋 Šablony layoutu`, `📜 Webhook log`, `🗺️ Správa zón`, `🚚 Přesunout účet`
+
+### Batch 15 — CORE UI from `admin/i18n.js` (~133 entries SK+DE) — kritická oprava
+Hardcoded i18n.js dictionary (300+ klíčů) měla CS/EN/ES, ale chyběl SK+DE overlay pro bare slova:
+- Akce: `Uložit`, `Zavřít`, `Zrušit`, `Upravit`, `Pohyb`, `Aplikovat`, `Mapování`
+- Statusy: `Aktivní`, `Blokován`, `Uhrazeno`, `Uloženo`, `Zrušeno`, `Zrušená`
+- Confirm: `Ano`, `Ne, čisté prostředí`, `Ano, nahrát demo`
+- Empty states: `Zatím žádné DL/faktury/objednávky/výrobky` (6 variant), `Žádné výsledky`, `🤷 Žádné výsledky`
+- Onboarding/setup texty (long descriptions)
+- Sekční tituly s emoji: `🏠 Kde to chceš provozovat?`, `🎨 Logo a vzhled`, `🥖 Výroba`, `💾 Zálohy`, `🔑 Licence`, `📋 HACCP nastavení`, atd.
+- Pomocné fráze: `Vyber…`, `Vyber odběratele…`, `← Zpět`, `den`, `z`
+- Glosář: `Cena bez DPH` → `Preis ohne MwSt.`, `Cena s DPH` → `Preis inkl. MwSt.`, `Přehled` → `Übersicht`, `Chyba` → `Fehler`
+
+### ⚠️ Nepřeložitelné architekturně
+Tyto modal tituly mají v JS source-codu řetězení (`+ cislo`, `${var}`) — i18n DOM-walker matchuje jen kompletní textové uzly, takže runtime výsledek se nikdy nenalezne v lookup tabulce:
+- `openModal('💰 Platba účtu #' + cislo, ...)` → runtime: `💰 Platba účtu #ABC123` ❌
+- `openModal('📅 Kapacita pro ' + datum, ...)` → runtime: `📅 Kapacita pro 2026-05-19` ❌
+- ~25 dalších s `${var}` interpolací (Faktura ${f.cislo}, Akce #${e.id}, atd.)
+
+**Fix vyžaduje úpravu zdrojového kódu** (`admin/admin.js`) — refaktor na 2 textové uzly s placeholder substitucí. Mimo můj scope — předávám hlavnímu vláknu jako TODO.
+
+### Modal architektura
+i18n_auto.js má MutationObserver attached na `#modal` (subtree: true), takže každý nový text node v modalu se automaticky překládá přes `I18N_LOOKUP`. Bundle z `i18n_extra.js` se merge-uje do `I18N_LOOKUP` před prvním otevřením modalu. Modal body strings jsou pokryté kompletně, jen tituly s template literals nelze.
 
 Hlavní vlákno teď může mergovat / buildovat.
 | Datum start | 2026-05-19 | — | — |
