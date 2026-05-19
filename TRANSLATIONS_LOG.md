@@ -55,6 +55,61 @@ Tyto modal tituly mají v JS source-codu řetězení (`+ cislo`, `${var}`) — i
 ### Modal architektura
 i18n_auto.js má MutationObserver attached na `#modal` (subtree: true), takže každý nový text node v modalu se automaticky překládá přes `I18N_LOOKUP`. Bundle z `i18n_extra.js` se merge-uje do `I18N_LOOKUP` před prvním otevřením modalu. Modal body strings jsou pokryté kompletně, jen tituly s template literals nelze.
 
+## Batch 16 — HACCP module (~88 entries SK+DE) — 2026-05-19
+
+Po /přelož haccp ověřena a doplněna pokrytí HACCP modulu (`renderHaccp` v admin.js, ~573 references). Bylo přeloženo:
+
+### Tabs / hlavní UI
+`📋 Produktové karty`, `📈 Grafy (šablony postupu)`, `⚙️ Defaultní hodnoty`, `Produktové karty, plán kritických bodů a dokumentace`, `🪄 Auto-vyplnit HACCP karty`, `🪄 Auto-vyplnit vše`, `HACCP karta`, `Hledat (název, číslo)...`, `Všechny kategorie`, `Žádné výrobky`, `— nevyplněno —`, `+ vytvoř šablony`
+
+### HACCP_FIELDS — popisky polí
+`Cílový trh` → `Zielmarkt`, `Skladování` → `Lagerung`, `Způsob užití` → `Verwendung`, `Podmínky a způsob distribuce` → `Bedingungen und Art der Distribution`
+
+### HACCP_FIELDS — placeholders
+`např. Běžné pečivo pšeničné`, `název na obale`, `ČR`, `k přímé konzumaci`, `do 25 °C, suché místo`, `výrobek určen pro prodej…`, `bez omezení (nevhodné pro diabetiky, coeliky)`
+
+### HACCP_POSTUP_TEMPLATE — názvy kroků výrobního postupu
+`Dávkování surovin`, `Smísení / hnětení těsta`, `Zrání / kynutí těsta`, `Dělení na klonky`, `Ukládání do přepravek`
+*(ostatní kroky — Příjem surovin, Pečení, Chladnutí, Expedice — byly už v dictu z dřívějších batches)*
+
+### HACCP_KB_TEMPLATE — kritické body (rizika + opatření)
+**Rizika (popis):** `Kontaminace mikroorganizmy / škůdci`, `Mykotoxiny, rezidua pesticidů, těžké kovy`, `Pomnožení MO, tvorba toxinů`, `Nedostatečné prohřátí — přežití patogenů`, `Sekundární kontaminace, kondenzace`, `Mechanická kontaminace při manipulaci`
+
+**Opatření:** `Ověření dodavatelů, atesty, vizuální kontrola obalů a DMT, kontrola teploty`, `Atesty dodavatelů, kontrola specifikací`, `Dodržení podmínek skladování, FIFO, kontrola teploty a vlhkosti`, `Hygiena pracoviště a pracovníků, dezinfekce nářadí`, `Kontrola teploty pece a doby pečení dle receptury`, `Chlazení v čistém prostředí, dostatečný odvod par`, `Kontrola teploty skladu, FIFO, čistota přepravek`, `Čisté přepravky, hygiena, kontrola DMT`
+
+### HACCP_VYSLEDKY — výsledky auditu
+`✓ V pořádku` → `✓ V poriadku` / `✓ In Ordnung`
+`⚠ S připomínkami` → `⚠ S pripomienkami` / `⚠ Mit Anmerkungen`
+`✗ Nevyhovuje` → `✗ Nevyhovuje` / `✗ Nicht bestanden`
+
+### haccpRenderGrafy (Šablony výrobního postupu)
+`Šablona` → `Vorlage`, `Použito` → `Verwendet`, `📈 Šablony výrobního postupu (HACCP grafy)`, `🔄 Importovat výchozí sadu`, `🔗 Přiřadit` → `Zuweisen`, `✨ Doplnit popisy kroků`, `Název kroku`, long onboarding text
+
+### haccpRenderDefaulty (Defaultní hodnoty)
+`⚙️ Defaultní hodnoty pro všechny výrobky`, `➕ Vlastní pole`, `+ Přidat pole`, `💾 Uložit defaulty`, `(libovolně přidaná pole nad rámec standardu)`, `Vyplň jednou — hodnoty se použijí u každého výrobku, který nemá svůj přepis.`, `Žádná vlastní pole. Klepni na „+ Přidat pole" pro vytvoření.`
+
+### haccpRenderDokumenty + audity
+`Žádné firemní HACCP dokumenty`, `🔍 Provedené interní audity`, `Vnitřní audit`, `Zatím žádné audity. Klikni „+ Přidat audit" výše.`
+
+### Seed dat / placeholders
+`APPEK pekařství...`, `Vaše firma s.r.o.`, `Hana Mašková`, `Jemné pečivo`, `Pšeničné se zdobením`, `Pšeničné základní`, `Speciální (dalamánky)`, `Surovina (např. mouka pšeničná hladká)`
+
+### Tooltipy a hlášky
+`Vytiskne všechny vybrané HACCP karty za sebou` → `Druckt alle ausgewählten HACCP-Karten nacheinander`
+`Otevře všechny vybrané karty v jednom okně — vhodné pro Uložit jako PDF`
+`Stáhne CSV souhrn všech polí HACCP karet (pro účetní / sklad)`
+`Nejprve potřebuješ HACCP grafy (šablony). Naimportovat výchozí sadu (5 šablon) automaticky?`
+`Všechny popisy jsou už vyplněné`, `✓ Popisy doplněny`
+
+**Glosář (kritické HACCP termíny SK/DE):**
+- `Kontaminace mikroorganizmy` → SK `Kontaminácia mikroorganizmami`, DE `Kontamination durch Mikroorganismen`
+- `MO` (mikroorganizmy) → SK/DE `MO` (zkratka zachována)
+- `DMT` (datum minimální trvanlivosti) → SK `DMT`, DE `MHD` (Mindesthaltbarkeitsdatum)
+- `CCP` (Critical Control Point) → CCP (mezinárodní standard, zachován v obou)
+- `CP` (Control Point) → CP (zachován)
+- `FIFO` → FIFO
+- `Kynutí` → SK `Kysnutie`, DE `Gärung`
+
 Hlavní vlákno teď může mergovat / buildovat.
 | Datum start | 2026-05-19 | — | — |
 

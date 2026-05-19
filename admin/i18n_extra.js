@@ -6,7 +6,7 @@
 // =============================================================
 
 const I18N_EXTRA = {
-  // 🇸🇰 Slovenčina — 14640 frází
+  // 🇸🇰 Slovenčina — 14641 frází
   sk: {
     '(HTML — můžeš použít tagy, inline styly)': '(HTML — môžeš použiť tagy, inline štýly)',
     '(bez názvu)': '(bez názvu)',
@@ -13401,6 +13401,7 @@ const I18N_EXTRA = {
     'Zpětná vazba': 'Spätná väzba',
     'Způsob dopravy': 'Spôsob dopravy',
     'Způsob platby': 'Spôsob platby',
+    'Způsob užití': 'Spôsob použitia',
     'Zrušeno': 'Zrušené',
     'Zrušená': 'Zrušená',
     'Zrušení rezervace': 'Zrušenie rezervácie',
@@ -14465,7 +14466,7 @@ const I18N_EXTRA = {
     '💾 Uložit': '💾 Uložiť',
     '💾 Uložit a pokračovat': '💾 Uložiť a pokračovať',
     '💾 Uložit a zavřít': '💾 Uložiť a zavrieť',
-    '💾 Uložit defaulty': '💾 Uložiť východiská',
+    '💾 Uložit defaulty': '💾 Uložiť predvolené',
     '💾 Uložit nastavení': '💾 Uložiť nastavenia',
     '💾 Uložit snímek kalkulace': '💾 Uložiť snímku kalkulácie',
     '💾 Uložit změny': '💾 Uložiť zmeny',
@@ -14650,7 +14651,7 @@ const I18N_EXTRA = {
     '🪑 Stoly': '🪑 Stoly',
   },
 
-  // 🇩🇪 Deutsch — 14624 frází
+  // 🇩🇪 Deutsch — 14625 frází
   de: {
     '(HTML — můžeš použít tagy, inline styly)': '(HTML — Sie können Tags, Inline-Styles verwenden)',
     '(bez názvu)': '(ohne Namen)',
@@ -28031,6 +28032,7 @@ const I18N_EXTRA = {
     'Zpětná vazba': 'Feedback',
     'Způsob dopravy': 'Versandart',
     'Způsob platby': 'Zahlungsweise',
+    'Způsob užití': 'Verwendung',
     'Zrušeno': 'Storniert',
     'Zrušená': 'Storniert',
     'Zrušení rezervace': 'Reservierungsstornierung',
@@ -29093,7 +29095,7 @@ const I18N_EXTRA = {
     '💾 Uložit': '💾 Speichern',
     '💾 Uložit a pokračovat': '💾 Speichern und fortfahren',
     '💾 Uložit a zavřít': '💾 Speichern und schließen',
-    '💾 Uložit defaulty': '💾 Standards speichern',
+    '💾 Uložit defaulty': '💾 Standardwerte speichern',
     '💾 Uložit nastavení': '💾 Einstellungen speichern',
     '💾 Uložit snímek kalkulace': '💾 Kalkulations-Snapshot speichern',
     '💾 Uložit změny': '💾 Änderungen speichern',
