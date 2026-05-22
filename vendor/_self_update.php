@@ -213,13 +213,15 @@ function self_update_apply(string $zipPath, array &$log, ?string $webroot = null
             $cfgFile = $webroot . '/api/config.php';
             if (file_exists($cfgFile)) {
                 $cfg = file_get_contents($cfgFile);
-                if (preg_match("/APP_VERSION[^']*'([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9]+)?)'/", $cfg, $m)) {
+                if (preg_match("/APP_VERSION'[^']*'([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9]+)?)'/", $cfg, $m)) {
                     $version = $m[1];
                 }
             }
         }
 
-        return ['ok' => true, 'version' => $version, 'health' => null, 'backupDir' => $backupDir];
+        $health = self_update_health_check($webroot, $version);
+        logStep($health['ok'] ? '✅ Health check OK' : '⚠️ Health check nahlásil problém', $log);
+        return ['ok' => true, 'version' => $version, 'health' => $health, 'backupDir' => $backupDir];
 
     } catch (Throwable $e) {
         logStep('❌ CHYBA: ' . $e->getMessage(), $log);
@@ -285,7 +287,7 @@ function self_update_build_customer_zip(string $webroot, array &$log): ?array {
         $cfgFile = $webroot . '/api/config.php';
         if (file_exists($cfgFile)) {
             $cfg = file_get_contents($cfgFile);
-            if (preg_match("/APP_VERSION[^']*'([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9]+)?)'/", $cfg, $m)) {
+            if (preg_match("/APP_VERSION'[^']*'([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9]+)?)'/", $cfg, $m)) {
                 $version = $m[1];
             }
         }
@@ -527,6 +529,31 @@ function self_update_verify_bundle_integrity(string $zipPath): array {
 
     $result['ok'] = true;
     return $result;
+}
+
+/**
+ * Ověří, že nasazená verze sedí a kritické soubory jsou na místě.
+ * @return array {ok:bool, checks: array<string,{ok:bool,value?:string}>}
+ */
+function self_update_health_check(string $webroot, string $expectedVersion): array {
+    $checks = [];
+
+    $cfg = @file_get_contents($webroot . '/api/config.php') ?: '';
+    preg_match("/APP_VERSION'[^']*'([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9]+)?)'/", $cfg, $m);
+    $apiVer = $m[1] ?? '?';
+    $checks['api_version'] = ['ok' => $apiVer === $expectedVersion, 'value' => $apiVer];
+
+    $vv = trim(@file_get_contents($webroot . '/vendor/.appek-version') ?: '');
+    $checks['vendor_version'] = ['ok' => $vv === $expectedVersion, 'value' => $vv ?: '?'];
+
+    foreach (['index.html', 'vendor/index.php', 'api/_license.php', 'admin/admin.js', 'b2b/app.js'] as $f) {
+        $p = $webroot . '/' . $f;
+        $checks['file:' . $f] = ['ok' => is_file($p) && filesize($p) > 100];
+    }
+
+    $allOk = true;
+    foreach ($checks as $c) { if (!$c['ok']) { $allOk = false; break; } }
+    return ['ok' => $allOk, 'checks' => $checks];
 }
 
 /**

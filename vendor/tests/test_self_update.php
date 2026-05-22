@@ -36,6 +36,25 @@ self_update_rollback($rbBak, $rbRoot, $rbLog);
 if (@file_get_contents($rbRoot . '/admin/admin.js') !== 'PUVODNI') $fails[] = 'rollback neobnovil admin/admin.js';
 exec('rm -rf ' . escapeshellarg($rbRoot) . ' ' . escapeshellarg($rbBak));
 
+// — health check test —
+$hcRoot = sys_get_temp_dir() . '/appek-test-hc-' . getmypid();
+@mkdir($hcRoot . '/api', 0777, true);
+@mkdir($hcRoot . '/vendor', 0777, true);
+@mkdir($hcRoot . '/admin', 0777, true);
+@mkdir($hcRoot . '/b2b', 0777, true);
+file_put_contents($hcRoot . '/api/config.php', "<?php define('APP_VERSION', '3.0.0');");
+file_put_contents($hcRoot . '/vendor/.appek-version', '3.0.0');
+file_put_contents($hcRoot . '/index.html', str_repeat('x', 200));
+file_put_contents($hcRoot . '/vendor/index.php', str_repeat('x', 200));
+file_put_contents($hcRoot . '/api/_license.php', str_repeat('x', 200));
+file_put_contents($hcRoot . '/admin/admin.js', str_repeat('x', 200));
+file_put_contents($hcRoot . '/b2b/app.js', str_repeat('x', 200));
+$hc = self_update_health_check($hcRoot, '3.0.0');
+if (empty($hc['ok'])) $fails[] = 'health check měl projít, ale nahlásil chybu';
+$hcBad = self_update_health_check($hcRoot, '9.9.9');
+if (!empty($hcBad['ok'])) $fails[] = 'health check měl selhat na nesedící verzi';
+exec('rm -rf ' . escapeshellarg($hcRoot));
+
 echo implode("\n", $log) . "\n";
 if ($fails) { echo "❌ TEST FAIL:\n - " . implode("\n - ", $fails) . "\n"; exit(1); }
-echo "✅ TEST PASS — apply + preserve + rollback OK\n";
+echo "✅ TEST PASS — apply + preserve + rollback + health OK\n";
