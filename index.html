@@ -30,17 +30,20 @@ a:hover { color: #854F0B; }
 img { max-width: 100%; display: block; }
 
 /* ============ TOPBAR ============ */
+/* prázdný horní pruh nad hlavičkou (jen PC) */
+.top-strip {
+  position: fixed; top: 0; left: 0; right: 0; height: 36px; z-index: 101;
+  background: linear-gradient(135deg, #BA7517 0%, #854F0B 100%);
+}
 .topbar {
-  position: fixed; top: 14px; left: 16px; right: 16px; z-index: 100;
-  background: rgba(255, 255, 255, 0.9);
+  position: fixed; top: 36px; left: 0; right: 0; z-index: 100;
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 16px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   padding: 14px 0;
 }
-.topbar .container { display: flex; align-items: center; justify-content: space-between; gap: 36px; max-width: none; }
+.topbar .container { display: flex; align-items: center; justify-content: space-between; gap: 36px; max-width: 1400px; }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; color: #1d1d1f; flex-shrink: 0; }
 .logo-icon {
   width: 36px; height: 36px; border-radius: 9px;
@@ -352,7 +355,8 @@ footer ul li a:hover { color: #fff; }
   footer .container { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 640px) {
-  .topbar { padding: 8px 0; }
+  .topbar { padding: 8px 0; top: 0; }
+  .top-strip { display: none; }
   .topbar .container { gap: 8px; }
   .topbar nav { display: none; }
   .topbar .cta { gap: 5px; flex-wrap: nowrap; }
@@ -1709,6 +1713,7 @@ img[loading="lazy"].loaded {
 <body>
 
 <!-- TOPBAR -->
+<div class="top-strip" aria-hidden="true"></div>
 <header class="topbar">
   <div class="container">
     <a href="/" class="logo">
