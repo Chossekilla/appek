@@ -6,7 +6,7 @@
 // =============================================================
 
 const I18N_EXTRA = {
-  // 🇸🇰 Slovenčina — 14641 frází
+  // 🇸🇰 Slovenčina — 14637 frází
   sk: {
     '(HTML — můžeš použít tagy, inline styly)': '(HTML — môžeš použiť tagy, inline štýly)',
     '(bez názvu)': '(bez názvu)',
@@ -14475,11 +14475,7 @@ const I18N_EXTRA = {
     '💾 Zálohy databáze': '💾 Zálohy databázy',
     '📂 Historie kalkulací': '📂 História kalkulácií',
     '📂 Otevřít uloženou šablonu': '📂 Otvoriť uloženú šablónu',
-    '📃 Dodací list': '📃 Dodací list',
-    '📃 Dodací listy': '📃 Dodacie listy',
     '📄 FA': '📄 FA',
-    '📃 Vytvořit DL': '📃 Vytvoriť DL',
-    '📃 Vytvořit dodací list': '📃 Vytvoriť dodací list',
     '📅 Datum akce': '📅 Dátum akcie',
     '📅 Datum akce *': '📅 Dátum akcie *',
     '📅 Datum dodání *': '📅 Dátum dodania *',
@@ -14651,7 +14647,7 @@ const I18N_EXTRA = {
     '🪑 Stoly': '🪑 Stoly',
   },
 
-  // 🇩🇪 Deutsch — 14625 frází
+  // 🇩🇪 Deutsch — 14621 frází
   de: {
     '(HTML — můžeš použít tagy, inline styly)': '(HTML — Sie können Tags, Inline-Styles verwenden)',
     '(bez názvu)': '(ohne Namen)',
@@ -29104,11 +29100,7 @@ const I18N_EXTRA = {
     '💾 Zálohy databáze': '💾 Datenbank-Backups',
     '📂 Historie kalkulací': '📂 Kalkulationshistorie',
     '📂 Otevřít uloženou šablonu': '📂 Gespeicherte Vorlage öffnen',
-    '📃 Dodací list': '📃 Lieferschein',
-    '📃 Dodací listy': '📃 Lieferscheine',
     '📄 FA': '📄 RG',
-    '📃 Vytvořit DL': '📃 LS erstellen',
-    '📃 Vytvořit dodací list': '📃 Lieferschein erstellen',
     '📅 Datum akce': '📅 Eventdatum',
     '📅 Datum akce *': '📅 Eventdatum *',
     '📅 Datum dodání *': '📅 Lieferdatum *',
