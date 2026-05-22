@@ -1,0 +1,863 @@
+[
+ {
+  "cs": "Neúplné záznamy (bez názvu, ceny nebo jednotky) se přeskočí. Smazané se importují jako skryté.",
+  "en": "Incomplete records (without a name, price or unit) are skipped. Deleted ones are imported as hidden.",
+  "es": "Los registros incompletos (sin nombre, precio o unidad) se omiten. Los eliminados se importan como ocultos.",
+  "sk": "Neúplné záznamy (bez názvu, ceny alebo jednotky) sa preskočia. Vymazané sa importujú ako skryté.",
+  "de": "Unvollständige Datensätze (ohne Name, Preis oder Einheit) werden übersprungen. Gelöschte werden als ausgeblendet importiert."
+ },
+ {
+  "cs": "nikdy",
+  "en": "never",
+  "es": "nunca",
+  "sk": "nikdy",
+  "de": "nie"
+ },
+ {
+  "cs": "Nikdy nesdílej email s nikým",
+  "en": "Never share the email with anyone",
+  "es": "Nunca comparta el correo electrónico con nadie",
+  "sk": "Nikdy s nikým nezdieľajte e-mail",
+  "de": "Geben Sie die E-Mail niemals an Dritte weiter"
+ },
+ {
+  "cs": "NOVINKA",
+  "en": "NEW",
+  "es": "NOVEDAD",
+  "sk": "NOVINKA",
+  "de": "NEU"
+ },
+ {
+  "cs": "nová",
+  "en": "new",
+  "es": "nuevo",
+  "sk": "nová",
+  "de": "neu"
+ },
+ {
+  "cs": "Nová objednávka #{cislo} od {odberatel}",
+  "en": "New order #{cislo} from {odberatel}",
+  "es": "Nuevo pedido #{cislo} de {odberatel}",
+  "sk": "Nová objednávka #{cislo} od {odberatel}",
+  "de": "Neue Bestellung #{cislo} von {odberatel}"
+ },
+ {
+  "cs": "Nová objednávka — interní notifikace pekárně",
+  "en": "New order — internal notification to the bakery",
+  "es": "Nuevo pedido — notificación interna para la panadería",
+  "sk": "Nová objednávka — interná notifikácia pre pekáreň",
+  "de": "Neue Bestellung — interne Benachrichtigung an die Bäckerei"
+ },
+ {
+  "cs": "nově přidáno do sortimentu",
+  "en": "newly added to the assortment",
+  "es": "recién añadido al surtido",
+  "sk": "novo pridané do sortimentu",
+  "de": "neu zum Sortiment hinzugefügt"
+ },
+ {
+  "cs": "nově vystavené",
+  "en": "newly issued",
+  "es": "recién emitido",
+  "sk": "novo vystavené",
+  "de": "neu ausgestellt"
+ },
+ {
+  "cs": "NÁKLADY CELKEM",
+  "en": "TOTAL COSTS",
+  "es": "COSTES TOTALES",
+  "sk": "NÁKLADY SPOLU",
+  "de": "GESAMTKOSTEN"
+ },
+ {
+  "cs": "Název;Jednotka;Cena;Obsah;Alergen\nPšeničná mouka T530;g;360;25000;lepek\nCukr krupice;g;1290;50000;\nMléko polotučné;ml;22;1000;mléko",
+  "en": "Name;Unit;Price;Content;Allergen\nWheat flour T530;g;360;25000;gluten\nCaster sugar;g;1290;50000;\nSemi-skimmed milk;ml;22;1000;milk",
+  "es": "Nombre;Unidad;Precio;Contenido;Alérgeno\nHarina de trigo T530;g;360;25000;gluten\nAzúcar granulado;g;1290;50000;\nLeche semidesnatada;ml;22;1000;leche",
+  "sk": "Názov;Jednotka;Cena;Obsah;Alergén\nPšeničná múka T530;g;360;25000;lepok\nKryštálový cukor;g;1290;50000;\nMlieko polotučné;ml;22;1000;mlieko",
+  "de": "Name;Einheit;Preis;Inhalt;Allergen\nWeizenmehl T530;g;360;25000;Gluten\nFeinkristallzucker;g;1290;50000;\nFettarme Milch;ml;22;1000;Milch"
+ },
+ {
+  "cs": "Objednej si webhosting (PHP 8.0+, MySQL 5.7+ / MariaDB) — stačí ten nejlevnější tarif",
+  "en": "Order web hosting (PHP 8.0+, MySQL 5.7+ / MariaDB) — the cheapest plan is enough",
+  "es": "Contrate un alojamiento web (PHP 8.0+, MySQL 5.7+ / MariaDB) — basta con el plan más económico",
+  "sk": "Objednajte si webhosting (PHP 8.0+, MySQL 5.7+ / MariaDB) — stačí ten najlacnejší tarif",
+  "de": "Bestellen Sie ein Webhosting (PHP 8.0+, MySQL 5.7+ / MariaDB) — der günstigste Tarif genügt"
+ },
+ {
+  "cs": "Objednávka #{cislo} — DORUČENA",
+  "en": "Order #{cislo} — DELIVERED",
+  "es": "Pedido #{cislo} — ENTREGADO",
+  "sk": "Objednávka #{cislo} — DORUČENÁ",
+  "de": "Bestellung #{cislo} — ZUGESTELLT"
+ },
+ {
+  "cs": "Objednávka #{cislo} — EXPEDOVÁNA",
+  "en": "Order #{cislo} — DISPATCHED",
+  "es": "Pedido #{cislo} — EXPEDIDO",
+  "sk": "Objednávka #{cislo} — EXPEDOVANÁ",
+  "de": "Bestellung #{cislo} — VERSANDT"
+ },
+ {
+  "cs": "Objednávka #{cislo} — potvrzena",
+  "en": "Order #{cislo} — confirmed",
+  "es": "Pedido #{cislo} — confirmado",
+  "sk": "Objednávka #{cislo} — potvrdená",
+  "de": "Bestellung #{cislo} — bestätigt"
+ },
+ {
+  "cs": "Objednávka #{cislo} — připravena",
+  "en": "Order #{cislo} — ready",
+  "es": "Pedido #{cislo} — preparado",
+  "sk": "Objednávka #{cislo} — pripravená",
+  "de": "Bestellung #{cislo} — bereit"
+ },
+ {
+  "cs": "Objednávka #{cislo} — ve výrobě",
+  "en": "Order #{cislo} — in production",
+  "es": "Pedido #{cislo} — en producción",
+  "sk": "Objednávka #{cislo} — vo výrobe",
+  "de": "Bestellung #{cislo} — in Produktion"
+ },
+ {
+  "cs": "Objednávka #{cislo} — ZRUŠENA",
+  "en": "Order #{cislo} — CANCELLED",
+  "es": "Pedido #{cislo} — CANCELADO",
+  "sk": "Objednávka #{cislo} — ZRUŠENÁ",
+  "de": "Bestellung #{cislo} — STORNIERT"
+ },
+ {
+  "cs": "Objednávka doručena",
+  "en": "Order delivered",
+  "es": "Pedido entregado",
+  "sk": "Objednávka doručená",
+  "de": "Bestellung zugestellt"
+ },
+ {
+  "cs": "Objednávka expedována (na cestě)",
+  "en": "Order dispatched (on the way)",
+  "es": "Pedido expedido (en camino)",
+  "sk": "Objednávka expedovaná (na ceste)",
+  "de": "Bestellung versandt (unterwegs)"
+ },
+ {
+  "cs": "Objednávka na cestě!",
+  "en": "Order on the way!",
+  "es": "¡Pedido en camino!",
+  "sk": "Objednávka na ceste!",
+  "de": "Bestellung unterwegs!"
+ },
+ {
+  "cs": "Objednávka potvrzena",
+  "en": "Order confirmed",
+  "es": "Pedido confirmado",
+  "sk": "Objednávka potvrdená",
+  "de": "Bestellung bestätigt"
+ },
+ {
+  "cs": "Objednávka přijata",
+  "en": "Order received",
+  "es": "Pedido recibido",
+  "sk": "Objednávka prijatá",
+  "de": "Bestellung eingegangen"
+ },
+ {
+  "cs": "Objednávka ve výrobě",
+  "en": "Order in production",
+  "es": "Pedido en producción",
+  "sk": "Objednávka vo výrobe",
+  "de": "Bestellung in Produktion"
+ },
+ {
+  "cs": "Objednávka zrušena",
+  "en": "Order cancelled",
+  "es": "Pedido cancelado",
+  "sk": "Objednávka zrušená",
+  "de": "Bestellung storniert"
+ },
+ {
+  "cs": "obsah",
+  "en": "content",
+  "es": "contenido",
+  "sk": "obsah",
+  "de": "Inhalt"
+ },
+ {
+  "cs": "Ochrana před omylem provedenými mazacími akcemi. Vypnete-li toto, smazání proběhne po jediném potvrzení.",
+  "en": "Protection against accidental deletion actions. If you turn this off, deletion proceeds after a single confirmation.",
+  "es": "Protección contra acciones de eliminación realizadas por error. Si desactiva esta opción, la eliminación se realizará tras una sola confirmación.",
+  "sk": "Ochrana pred omylom vykonanými mazacími akciami. Ak toto vypnete, vymazanie prebehne po jedinom potvrdení.",
+  "de": "Schutz vor versehentlich ausgeführten Löschaktionen. Wenn Sie dies deaktivieren, erfolgt das Löschen nach einer einzigen Bestätigung."
+ },
+ {
+  "cs": "Od které buňky archu začít — užitečné když máš část archu už použitou.",
+  "en": "Which sheet cell to start from — useful when part of the sheet is already used.",
+  "es": "Desde qué celda de la hoja empezar — útil cuando ya ha utilizado parte de la hoja.",
+  "sk": "Od ktorej bunky hárka začať — užitočné, keď máte časť hárka už použitú.",
+  "de": "Ab welcher Zelle des Bogens begonnen werden soll — nützlich, wenn ein Teil des Bogens bereits verwendet wurde."
+ },
+ {
+  "cs": "Odběratel může v detailu vypnout notifikace pro sebe individuálně.",
+  "en": "The customer can disable notifications for themselves individually in the detail.",
+  "es": "El cliente puede desactivar las notificaciones para sí mismo de forma individual en el detalle.",
+  "sk": "Odberateľ môže v detaile vypnúť notifikácie pre seba individuálne.",
+  "de": "Der Abnehmer kann die Benachrichtigungen im Detail individuell für sich deaktivieren."
+ },
+ {
+  "cs": "odběratel zatím nemá žádné předchozí objednávky",
+  "en": "the customer does not have any previous orders yet",
+  "es": "el cliente aún no tiene ningún pedido anterior",
+  "sk": "odberateľ zatiaľ nemá žiadne predchádzajúce objednávky",
+  "de": "der Abnehmer hat noch keine vorherigen Bestellungen"
+ },
+ {
+  "cs": "Odběratel:",
+  "en": "Customer:",
+  "es": "Cliente:",
+  "sk": "Odberateľ:",
+  "de": "Abnehmer:"
+ },
+ {
+  "cs": "Odběratelé → ten odběratel → zkontroluj „Login email\" + nastav jim heslo. Případně Odběratelé → „Pozvánka\" pošle reset link.",
+  "en": "Customers → that customer → check „Login email\" + set their password. Alternatively, Customers → „Invitation\" sends a reset link.",
+  "es": "Clientes → ese cliente → compruebe „Login email\" + asígnele una contraseña. Como alternativa, Clientes → „Invitación\" envía un enlace de restablecimiento.",
+  "sk": "Odberatelia → ten odberateľ → skontrolujte „Login email\" + nastavte im heslo. Prípadne Odberatelia → „Pozvánka\" pošle reset link.",
+  "de": "Abnehmer → der betreffende Abnehmer → prüfen Sie „Login email\" + legen Sie ihm ein Passwort fest. Alternativ sendet Abnehmer → „Einladung\" einen Reset-Link."
+ },
+ {
+  "cs": "Odpočinek a první kvasný proces 30–90 min při teplotě 26–28 °C a vlhkosti 70–75 % v zakryté nádobě nebo na válu. Probíhá uvolnění lepku a tvorba aroma.",
+  "en": "Resting and the first fermentation process for 30–90 min at a temperature of 26–28 °C and humidity of 70–75 % in a covered container or on the worktop. Gluten relaxation and aroma development take place.",
+  "es": "Reposo y primer proceso de fermentación durante 30–90 min a una temperatura de 26–28 °C y humedad del 70–75 % en un recipiente cubierto o sobre la mesa de trabajo. Se produce la relajación del gluten y el desarrollo del aroma.",
+  "sk": "Odpočinok a prvý kvasný proces 30–90 min pri teplote 26–28 °C a vlhkosti 70–75 % v zakrytej nádobe alebo na vále. Prebieha uvoľnenie lepku a tvorba arómy.",
+  "de": "Ruhephase und erster Gärprozess für 30–90 min bei einer Temperatur von 26–28 °C und einer Luftfeuchtigkeit von 70–75 % in einem abgedeckten Behälter oder auf der Arbeitsfläche. Es findet die Entspannung des Glutens und die Aromabildung statt."
+ },
+ {
+  "cs": "Operace je nevratná",
+  "en": "The operation is irreversible",
+  "es": "La operación es irreversible",
+  "sk": "Operácia je nevratná",
+  "de": "Der Vorgang ist unumkehrbar"
+ },
+ {
+  "cs": "Otevře dialog v sekci Výrobky. Podporuje CSV i JSON formát.",
+  "en": "Opens a dialog in the Products section. Supports both CSV and JSON formats.",
+  "es": "Abre un diálogo en la sección Productos. Admite los formatos CSV y JSON.",
+  "sk": "Otvorí dialóg v sekcii Výrobky. Podporuje CSV aj JSON formát.",
+  "de": "Öffnet einen Dialog im Bereich Produkte. Unterstützt sowohl das CSV- als auch das JSON-Format."
+ },
+ {
+  "cs": "Otevři Pohodu na počítači kde běží účetnictví",
+  "en": "Open Pohoda on the computer where the accounting runs",
+  "es": "Abra Pohoda en el ordenador donde se ejecuta la contabilidad",
+  "sk": "Otvorte Pohodu na počítači, kde beží účtovníctvo",
+  "de": "Öffnen Sie Pohoda auf dem Computer, auf dem die Buchhaltung läuft"
+ },
+ {
+  "cs": "Otevřít POS v novém okně",
+  "en": "Open POS in a new window",
+  "es": "Abrir el POS en una nueva ventana",
+  "sk": "Otvoriť POS v novom okne",
+  "de": "POS in einem neuen Fenster öffnen"
+ },
+ {
+  "cs": "Otevřít v této záložce",
+  "en": "Open in this tab",
+  "es": "Abrir en esta pestaña",
+  "sk": "Otvoriť v tejto záložke",
+  "de": "In diesem Tab öffnen"
+ },
+ {
+  "cs": "Outlook:",
+  "en": "Outlook:",
+  "es": "Outlook:",
+  "sk": "Outlook:",
+  "de": "Outlook:"
+ },
+ {
+  "cs": "Ověří, že PHP mail() funguje.",
+  "en": "Verifies that PHP mail() works.",
+  "es": "Verifica que PHP mail() funciona.",
+  "sk": "Overí, že PHP mail() funguje.",
+  "de": "Überprüft, ob PHP mail() funktioniert."
+ },
+ {
+  "cs": "Pak si nahraj webovou kopii",
+  "en": "Then upload the web copy",
+  "es": "Luego suba la copia web",
+  "sk": "Potom si nahrajte webovú kópiu",
+  "de": "Laden Sie dann die Web-Kopie hoch"
+ },
+ {
+  "cs": "Payload",
+  "en": "Payload",
+  "es": "Payload",
+  "sk": "Payload",
+  "de": "Payload"
+ },
+ {
+  "cs": "PDF nabídka pro klienta · PDF smlouva s podmínkami a podpisy · PDF zálohová faktura (50 %).",
+  "en": "PDF offer for the client · PDF contract with terms and signatures · PDF advance invoice (50 %).",
+  "es": "Oferta PDF para el cliente · Contrato PDF con condiciones y firmas · Factura PDF de anticipo (50 %).",
+  "sk": "PDF ponuka pre klienta · PDF zmluva s podmienkami a podpismi · PDF zálohová faktúra (50 %).",
+  "de": "PDF-Angebot für den Kunden · PDF-Vertrag mit Bedingungen und Unterschriften · PDF-Anzahlungsrechnung (50 %)."
+ },
+ {
+  "cs": "Per výrobek — paralelní výpočet podle stanic · bulk editor.",
+  "en": "Per product — parallel calculation by stations · bulk editor.",
+  "es": "Por producto — cálculo paralelo por estaciones · editor masivo.",
+  "sk": "Na výrobok — paralelný výpočet podľa staníc · bulk editor.",
+  "de": "Pro Produkt — parallele Berechnung nach Stationen · Bulk-Editor."
+ },
+ {
+  "cs": "pevná",
+  "en": "fixed",
+  "es": "fijo",
+  "sk": "pevná",
+  "de": "fest"
+ },
+ {
+  "cs": "Pečení (CCP)",
+  "en": "Baking (CCP)",
+  "es": "Horneado (CCP)",
+  "sk": "Pečenie (CCP)",
+  "de": "Backen (CCP)"
+ },
+ {
+  "cs": "Platnost od *",
+  "en": "Valid from *",
+  "es": "Válido desde *",
+  "sk": "Platnosť od *",
+  "de": "Gültig ab *"
+ },
+ {
+  "cs": "Plný přístup včetně mazání faktur, objednávek, výrobků",
+  "en": "Full access including deletion of invoices, orders, products",
+  "es": "Acceso completo, incluida la eliminación de facturas, pedidos y productos",
+  "sk": "Plný prístup vrátane mazania faktúr, objednávok, výrobkov",
+  "de": "Vollzugriff einschließlich Löschen von Rechnungen, Bestellungen, Produkten"
+ },
+ {
+  "cs": "Plovoucí tlačítko „Tisknout vše\" v rohu obrazovky — dávkový tisk více dokladů najednou.",
+  "en": "Floating „Print all\" button in the corner of the screen — batch printing of multiple documents at once.",
+  "es": "Botón flotante „Imprimir todo\" en la esquina de la pantalla — impresión por lotes de varios documentos a la vez.",
+  "sk": "Plávajúce tlačidlo „Tlačiť všetko\" v rohu obrazovky — dávková tlač viacerých dokladov naraz.",
+  "de": "Schwebende Schaltfläche „Alles drucken\" in der Ecke des Bildschirms — Stapeldruck mehrerer Belege auf einmal."
+ },
+ {
+  "cs": "plánovaná",
+  "en": "scheduled",
+  "es": "programado",
+  "sk": "plánovaná",
+  "de": "geplant"
+ },
+ {
+  "cs": "PNG / JPG / WEBP — doporučuji čtvercové 400×400 s průhledným pozadím.",
+  "en": "PNG / JPG / WEBP — I recommend a square 400×400 with a transparent background.",
+  "es": "PNG / JPG / WEBP — recomiendo una imagen cuadrada de 400×400 con fondo transparente.",
+  "sk": "PNG / JPG / WEBP — odporúčam štvorcový 400×400 s priehľadným pozadím.",
+  "de": "PNG / JPG / WEBP — ich empfehle ein quadratisches 400×400 mit transparentem Hintergrund."
+ },
+ {
+  "cs": "Po souhlasu dostává push při změně stavu objednávky (expedována, doručena...).",
+  "en": "After consent, they receive a push when the order status changes (dispatched, delivered...).",
+  "es": "Tras el consentimiento, recibe una notificación push cuando cambia el estado del pedido (expedido, entregado...).",
+  "sk": "Po súhlase dostáva push pri zmene stavu objednávky (expedovaná, doručená...).",
+  "de": "Nach Zustimmung erhält er einen Push bei Änderung des Bestellstatus (versandt, zugestellt...)."
+ },
+ {
+  "cs": "Po uložení nastavení se údaje automaticky zobrazí na všech nově generovaných fakturách a dodacích listech.\n        Existující PDF se aktualizují při dalším otevření.",
+  "en": "After saving the settings, the data is automatically displayed on all newly generated invoices and delivery notes.\n        Existing PDFs are updated upon the next opening.",
+  "es": "Después de guardar la configuración, los datos se muestran automáticamente en todas las facturas y albaranes recién generados.\n        Los PDF existentes se actualizan en la siguiente apertura.",
+  "sk": "Po uložení nastavení sa údaje automaticky zobrazia na všetkých novo generovaných faktúrach a dodacích listoch.\n        Existujúce PDF sa aktualizujú pri ďalšom otvorení.",
+  "de": "Nach dem Speichern der Einstellungen werden die Daten automatisch auf allen neu generierten Rechnungen und Lieferscheinen angezeigt.\n        Bestehende PDFs werden beim nächsten Öffnen aktualisiert."
+ },
+ {
+  "cs": "Po zapnutí CRONu bude server každou noc vytvořit zálohu DB (jen tabulky, bez uploads). Staré se automaticky rotují (denní 30, měsíční 12).",
+  "en": "After enabling CRON, the server will create a DB backup every night (tables only, without uploads). Old ones are automatically rotated (30 daily, 12 monthly).",
+  "es": "Tras activar CRON, el servidor creará cada noche una copia de seguridad de la base de datos (solo tablas, sin uploads). Las antiguas se rotan automáticamente (30 diarias, 12 mensuales).",
+  "sk": "Po zapnutí CRONu bude server každú noc vytvárať zálohu DB (len tabuľky, bez uploads). Staré sa automaticky rotujú (denné 30, mesačné 12).",
+  "de": "Nach dem Aktivieren von CRON erstellt der Server jede Nacht ein Backup der Datenbank (nur Tabellen, ohne Uploads). Alte werden automatisch rotiert (30 täglich, 12 monatlich)."
+ },
+ {
+  "cs": "podle města/PSČ",
+  "en": "by city/postal code",
+  "es": "por ciudad/código postal",
+  "sk": "podľa mesta/PSČ",
+  "de": "nach Stadt/PLZ"
+ },
+ {
+  "cs": "Podporované formáty: .zip (více faktur), .isdoc, .xml",
+  "en": "Supported formats: .zip (multiple invoices), .isdoc, .xml",
+  "es": "Formatos admitidos: .zip (varias facturas), .isdoc, .xml",
+  "sk": "Podporované formáty: .zip (viac faktúr), .isdoc, .xml",
+  "de": "Unterstützte Formate: .zip (mehrere Rechnungen), .isdoc, .xml"
+ },
+ {
+  "cs": "POHODA",
+  "en": "POHODA",
+  "es": "POHODA",
+  "sk": "POHODA",
+  "de": "POHODA"
+ },
+ {
+  "cs": "POHODA mServer, FlexiBee REST — live sync.",
+  "en": "POHODA mServer, FlexiBee REST — live sync.",
+  "es": "POHODA mServer, FlexiBee REST — sincronización en vivo.",
+  "sk": "POHODA mServer, FlexiBee REST — live sync.",
+  "de": "POHODA mServer, FlexiBee REST — Live-Sync."
+ },
+ {
+  "cs": "Pokud APPEK běží na cloudu, otevři port 444 ve firewallu / VPN",
+  "en": "If APPEK runs in the cloud, open port 444 in the firewall / VPN",
+  "es": "Si APPEK se ejecuta en la nube, abra el puerto 444 en el firewall / VPN",
+  "sk": "Ak APPEK beží na cloude, otvorte port 444 vo firewalle / VPN",
+  "de": "Wenn APPEK in der Cloud läuft, öffnen Sie Port 444 in der Firewall / im VPN"
+ },
+ {
+  "cs": "Pokud vás zdržuje, můžete vypnout (ale doporučujeme pro ostrý provoz nechat).",
+  "en": "If it slows you down, you can turn it off (but we recommend leaving it on for live operation).",
+  "es": "Si le ralentiza, puede desactivarlo (pero recomendamos dejarlo activado para el funcionamiento real).",
+  "sk": "Ak vás zdržuje, môžete ho vypnúť (ale odporúčame ho pre ostrú prevádzku nechať).",
+  "de": "Wenn es Sie aufhält, können Sie es deaktivieren (wir empfehlen jedoch, es für den Echtbetrieb aktiviert zu lassen)."
+ },
+ {
+  "cs": "Pokyny pro řidiče:",
+  "en": "Instructions for the driver:",
+  "es": "Instrucciones para el conductor:",
+  "sk": "Pokyny pre vodiča:",
+  "de": "Anweisungen für den Fahrer:"
+ },
+ {
+  "cs": "Polo\\u017eky",
+  "en": "Polo\\u017eky",
+  "es": "Polo\\u017eky",
+  "sk": "Polo\\u017eky",
+  "de": "Polo\\u017eky"
+ },
+ {
+  "cs": "Položky které se přičtou ke každé kalkulaci výrobku (vedle ceny surovin) — energie, práce, balení, nájem rozpočítaný na ks…",
+  "en": "Items added to every product calculation (alongside the ingredient price) — energy, labour, packaging, rent allocated per piece…",
+  "es": "Conceptos que se suman a cada cálculo del producto (junto al precio de los ingredientes) — energía, mano de obra, embalaje, alquiler repartido por unidad…",
+  "sk": "Položky, ktoré sa pripočítajú ku každej kalkulácii výrobku (popri cene surovín) — energia, práca, balenie, nájom rozpočítaný na ks…",
+  "de": "Posten, die zu jeder Produktkalkulation hinzugerechnet werden (neben dem Zutatenpreis) — Energie, Arbeit, Verpackung, auf das Stück umgelegte Miete…"
+ },
+ {
+  "cs": "Pomalé načítání",
+  "en": "Slow loading",
+  "es": "Carga lenta",
+  "sk": "Pomalé načítavanie",
+  "de": "Langsames Laden"
+ },
+ {
+  "cs": "Pomnožení MO při nesprávné teplotě",
+  "en": "Microorganism multiplication at an incorrect temperature",
+  "es": "Multiplicación de microorganismos a temperatura incorrecta",
+  "sk": "Pomnoženie MO pri nesprávnej teplote",
+  "de": "Vermehrung von Mikroorganismen bei falscher Temperatur"
+ },
+ {
+  "cs": "Pomnožení MO, tvorba toxinů",
+  "en": "Microorganism multiplication, toxin formation",
+  "es": "Multiplicación de microorganismos, formación de toxinas",
+  "sk": "Pomnoženie MO, tvorba toxínov",
+  "de": "Vermehrung von Mikroorganismen, Bildung von Toxinen"
+ },
+ {
+  "cs": "Ponechej prázdné = vykreslí se ze záznamu výrobku",
+  "en": "Leave empty = it will be rendered from the product record",
+  "es": "Deje vacío = se mostrará a partir del registro del producto",
+  "sk": "Ponechajte prázdne = vykreslí sa zo záznamu výrobku",
+  "de": "Leer lassen = wird aus dem Produktdatensatz dargestellt"
+ },
+ {
+  "cs": "popis",
+  "en": "description",
+  "es": "descripción",
+  "sk": "popis",
+  "de": "Beschreibung"
+ },
+ {
+  "cs": "Porce → hmotnost → cena · text na dortu · upload fotky předlohy · výběr příchutě/dekorace.",
+  "en": "Portion → weight → price · text on the cake · upload of a reference photo · selection of flavour/decoration.",
+  "es": "Porción → peso → precio · texto en la tarta · subida de una foto de referencia · selección de sabor/decoración.",
+  "sk": "Porcia → hmotnosť → cena · text na torte · upload fotky predlohy · výber príchute/dekorácie.",
+  "de": "Portion → Gewicht → Preis · Text auf der Torte · Upload eines Vorlagenfotos · Auswahl von Geschmack/Dekoration."
+ },
+ {
+  "cs": "Poslední chyba:",
+  "en": "Last error:",
+  "es": "Último error:",
+  "sk": "Posledná chyba:",
+  "de": "Letzter Fehler:"
+ },
+ {
+  "cs": "Poslední záloha",
+  "en": "Last backup",
+  "es": "Última copia de seguridad",
+  "sk": "Posledná záloha",
+  "de": "Letztes Backup"
+ },
+ {
+  "cs": "Postup vytvoření nabídky",
+  "en": "Procedure for creating an offer",
+  "es": "Procedimiento para crear una oferta",
+  "sk": "Postup vytvorenia ponuky",
+  "de": "Vorgehensweise zur Erstellung eines Angebots"
+ },
+ {
+  "cs": "posíláš zboží",
+  "en": "you send goods",
+  "es": "envía mercancía",
+  "sk": "posielate tovar",
+  "de": "Sie versenden Ware"
+ },
+ {
+  "cs": "Potvrzení nové objednávky (odběrateli)",
+  "en": "New order confirmation (to the customer)",
+  "es": "Confirmación de nuevo pedido (al cliente)",
+  "sk": "Potvrdenie novej objednávky (odberateľovi)",
+  "de": "Bestätigung der neuen Bestellung (an den Abnehmer)"
+ },
+ {
+  "cs": "Potvrzení objednávky #{cislo} (dodání {datum})",
+  "en": "Order confirmation #{cislo} (delivery {datum})",
+  "es": "Confirmación del pedido #{cislo} (entrega {datum})",
+  "sk": "Potvrdenie objednávky #{cislo} (dodanie {datum})",
+  "de": "Bestätigung der Bestellung #{cislo} (Lieferung {datum})"
+ },
+ {
+  "cs": "Pouze název + cena",
+  "en": "Name + price only",
+  "es": "Solo nombre + precio",
+  "sk": "Iba názov + cena",
+  "de": "Nur Name + Preis"
+ },
+ {
+  "cs": "Pouze název, cena, EAN",
+  "en": "Name, price, EAN only",
+  "es": "Solo nombre, precio, EAN",
+  "sk": "Iba názov, cena, EAN",
+  "de": "Nur Name, Preis, EAN"
+ },
+ {
+  "cs": "pouze přes HTTPS",
+  "en": "only via HTTPS",
+  "es": "solo a través de HTTPS",
+  "sk": "iba cez HTTPS",
+  "de": "nur über HTTPS"
+ },
+ {
+  "cs": "Použití v Money S3 / POHODA / Fakturoid:",
+  "en": "Use in Money S3 / POHODA / Fakturoid:",
+  "es": "Uso en Money S3 / POHODA / Fakturoid:",
+  "sk": "Použitie v Money S3 / POHODA / Fakturoid:",
+  "de": "Verwendung in Money S3 / POHODA / Fakturoid:"
+ },
+ {
+  "cs": "Poznámka:",
+  "en": "Note:",
+  "es": "Nota:",
+  "sk": "Poznámka:",
+  "de": "Hinweis:"
+ },
+ {
+  "cs": "Pozor:",
+  "en": "Caution:",
+  "es": "Atención:",
+  "sk": "Pozor:",
+  "de": "Achtung:"
+ },
+ {
+  "cs": "Pozvat první odběratele (sekce Odběratelé)",
+  "en": "Invite the first customers (Customers section)",
+  "es": "Invitar a los primeros clientes (sección Clientes)",
+  "sk": "Pozvať prvých odberateľov (sekcia Odberatelia)",
+  "de": "Die ersten Abnehmer einladen (Bereich Abnehmer)"
+ },
+ {
+  "cs": "Počet záloh",
+  "en": "Number of backups",
+  "es": "Número de copias de seguridad",
+  "sk": "Počet záloh",
+  "de": "Anzahl der Backups"
+ },
+ {
+  "cs": "Počítač v provozovně (Mac / Windows / Linux) s XAMPP / MAMP",
+  "en": "A computer at the premises (Mac / Windows / Linux) with XAMPP / MAMP",
+  "es": "Un ordenador en el establecimiento (Mac / Windows / Linux) con XAMPP / MAMP",
+  "sk": "Počítač v prevádzke (Mac / Windows / Linux) s XAMPP / MAMP",
+  "de": "Ein Computer im Betrieb (Mac / Windows / Linux) mit XAMPP / MAMP"
+ },
+ {
+  "cs": "Praha 1",
+  "en": "Praha 1",
+  "es": "Praha 1",
+  "sk": "Praha 1",
+  "de": "Praha 1"
+ },
+ {
+  "cs": "Praha 1, 2, 3...",
+  "en": "Praha 1, 2, 3...",
+  "es": "Praha 1, 2, 3...",
+  "sk": "Praha 1, 2, 3...",
+  "de": "Praha 1, 2, 3..."
+ },
+ {
+  "cs": "Pravidla pro automatické generování objednávek (např. „Hotel Beránek každé pondělí 30× chleba\"). Cron každý den ráno vygeneruje obj na zítřek.",
+  "en": "Rules for automatic order generation (e.g. „Hotel Beránek every Monday 30× bread\"). Every morning the cron generates the order for tomorrow.",
+  "es": "Reglas para la generación automática de pedidos (p. ej. „Hotel Beránek cada lunes 30× pan\"). Cada mañana el cron genera el pedido para mañana.",
+  "sk": "Pravidlá pre automatické generovanie objednávok (napr. „Hotel Beránek každý pondelok 30× chlieb\"). Cron každý deň ráno vygeneruje obj. na zajtra.",
+  "de": "Regeln für die automatische Generierung von Bestellungen (z. B. „Hotel Beránek jeden Montag 30× Brot\"). Jeden Morgen generiert der Cron die Bestellung für morgen."
+ },
+ {
+  "cs": "Pravidla:",
+  "en": "Rules:",
+  "es": "Reglas:",
+  "sk": "Pravidlá:",
+  "de": "Regeln:"
+ },
+ {
+  "cs": "Pravidlo je aktivní (cron ho bude spouštět)",
+  "en": "The rule is active (the cron will run it)",
+  "es": "La regla está activa (el cron la ejecutará)",
+  "sk": "Pravidlo je aktívne (cron ho bude spúšťať)",
+  "de": "Die Regel ist aktiv (der Cron wird sie ausführen)"
+ },
+ {
+  "cs": "Pravidlo platí pro celou kategorii NEBO konkrétní výrobek. Výrobek vyhrává nad kategorií.",
+  "en": "The rule applies to an entire category OR a specific product. The product wins over the category.",
+  "es": "La regla se aplica a toda una categoría O a un producto concreto. El producto prevalece sobre la categoría.",
+  "sk": "Pravidlo platí pre celú kategóriu ALEBO konkrétny výrobok. Výrobok vyhráva nad kategóriou.",
+  "de": "Die Regel gilt für eine ganze Kategorie ODER ein bestimmtes Produkt. Das Produkt hat Vorrang vor der Kategorie."
+ },
+ {
+  "cs": "Presů celkem:",
+  "en": "Total presses:",
+  "es": "Total de prensados:",
+  "sk": "Presov spolu:",
+  "de": "Pressvorgänge insgesamt:"
+ },
+ {
+  "cs": "Priorita slev (zleva nejvyšší):",
+  "en": "Discount priority (highest from the left):",
+  "es": "Prioridad de descuentos (la más alta desde la izquierda):",
+  "sk": "Priorita zliav (zľava najvyššia):",
+  "de": "Rabattpriorität (von links die höchste):"
+ },
+ {
+  "cs": "Pro celý sortiment, kde není jiné pravidlo",
+  "en": "For the entire assortment where there is no other rule",
+  "es": "Para todo el surtido donde no hay otra regla",
+  "sk": "Pre celý sortiment, kde nie je iné pravidlo",
+  "de": "Für das gesamte Sortiment, wo es keine andere Regel gibt"
+ },
+ {
+  "cs": "Pro evidenci, neaktualizuje cena_baleni",
+  "en": "For records, does not update cena_baleni",
+  "es": "Para registro, no actualiza cena_baleni",
+  "sk": "Pre evidenciu, neaktualizuje cena_baleni",
+  "de": "Für die Erfassung, aktualisiert cena_baleni nicht"
+ },
+ {
+  "cs": "Pro koho je nabídka — určuje, jaké ceny se zobrazí (sleva, pevné ceny).",
+  "en": "Who the offer is for — determines which prices are displayed (discount, fixed prices).",
+  "es": "Para quién es la oferta — determina qué precios se muestran (descuento, precios fijos).",
+  "sk": "Pre koho je ponuka — určuje, aké ceny sa zobrazia (zľava, pevné ceny).",
+  "de": "Für wen das Angebot bestimmt ist — legt fest, welche Preise angezeigt werden (Rabatt, Festpreise)."
+ },
+ {
+  "cs": "Pro který systém:",
+  "en": "For which system:",
+  "es": "Para qué sistema:",
+  "sk": "Pre ktorý systém:",
+  "de": "Für welches System:"
+ },
+ {
+  "cs": "Pro malé štítky",
+  "en": "For small labels",
+  "es": "Para etiquetas pequeñas",
+  "sk": "Pre malé štítky",
+  "de": "Für kleine Etiketten"
+ },
+ {
+  "cs": "Pro pekaře — výrobní list, objednávky",
+  "en": "For bakers — production sheet, orders",
+  "es": "Para panaderos — hoja de producción, pedidos",
+  "sk": "Pre pekárov — výrobný list, objednávky",
+  "de": "Für Bäcker — Produktionsblatt, Bestellungen"
+ },
+ {
+  "cs": "Pro práci večer / OLED",
+  "en": "For working in the evening / OLED",
+  "es": "Para trabajar por la noche / OLED",
+  "sk": "Pre prácu večer / OLED",
+  "de": "Für die Arbeit am Abend / OLED"
+ },
+ {
+  "cs": "Pro slevy, akce",
+  "en": "For discounts, promotions",
+  "es": "Para descuentos, promociones",
+  "sk": "Pre zľavy, akcie",
+  "de": "Für Rabatte, Aktionen"
+ },
+ {
+  "cs": "Pro stálé zákazníky vytvořte pravidlo: Nastavení → 🥖 Výroba → 🔁 Opakující se objednávky → + Nové pravidlo.",
+  "en": "For regular customers, create a rule: Settings → 🥖 Production → 🔁 Recurring orders → + New rule.",
+  "es": "Para clientes habituales, cree una regla: Configuración → 🥖 Producción → 🔁 Pedidos recurrentes → + Nueva regla.",
+  "sk": "Pre stálych zákazníkov vytvorte pravidlo: Nastavenia → 🥖 Výroba → 🔁 Opakujúce sa objednávky → + Nové pravidlo.",
+  "de": "Erstellen Sie für Stammkunden eine Regel: Einstellungen → 🥖 Produktion → 🔁 Wiederkehrende Bestellungen → + Neue Regel."
+ },
+ {
+  "cs": "Pro řidiče — dodací listy, expedice",
+  "en": "For drivers — delivery notes, dispatch",
+  "es": "Para conductores — albaranes, expedición",
+  "sk": "Pre vodičov — dodacie listy, expedícia",
+  "de": "Für Fahrer — Lieferscheine, Versand"
+ },
+ {
+  "cs": "Prodejní bez DPH",
+  "en": "Selling price excl. VAT",
+  "es": "Precio de venta sin IVA",
+  "sk": "Predajná cena bez DPH",
+  "de": "Verkaufspreis ohne MwSt."
+ },
+ {
+  "cs": "Prodejní s DPH",
+  "en": "Selling price incl. VAT",
+  "es": "Precio de venta con IVA",
+  "sk": "Predajná cena s DPH",
+  "de": "Verkaufspreis inkl. MwSt."
+ },
+ {
+  "cs": "Produktová mřížka",
+  "en": "Product grid",
+  "es": "Cuadrícula de productos",
+  "sk": "Produktová mriežka",
+  "de": "Produktraster"
+ },
+ {
+  "cs": "Produktové karty, plán kritických bodů a dokumentace",
+  "en": "Product cards, critical points plan and documentation",
+  "es": "Fichas de producto, plan de puntos críticos y documentación",
+  "sk": "Produktové karty, plán kritických bodov a dokumentácia",
+  "de": "Produktkarten, Plan der kritischen Punkte und Dokumentation"
+ },
+ {
+  "cs": "Propagace",
+  "en": "Promotion",
+  "es": "Promoción",
+  "sk": "Propagácia",
+  "de": "Werbung"
+ },
+ {
+  "cs": "Propagovat čísla i do dodacích listů a faktur",
+  "en": "Propagate the numbers to delivery notes and invoices too",
+  "es": "Propagar los números también a los albaranes y las facturas",
+  "sk": "Propagovať čísla aj do dodacích listov a faktúr",
+  "de": "Die Nummern auch in Lieferscheine und Rechnungen übernehmen"
+ },
+ {
+  "cs": "Provoz:",
+  "en": "Operation:",
+  "es": "Funcionamiento:",
+  "sk": "Prevádzka:",
+  "de": "Betrieb:"
+ },
+ {
+  "cs": "prázdná pole",
+  "en": "empty fields",
+  "es": "campos vacíos",
+  "sk": "prázdne polia",
+  "de": "leere Felder"
+ },
+ {
+  "cs": "prázdné",
+  "en": "empty",
+  "es": "vacío",
+  "sk": "prázdne",
+  "de": "leer"
+ },
+ {
+  "cs": "Push nefunguje",
+  "en": "Push does not work",
+  "es": "Las notificaciones push no funcionan",
+  "sk": "Push nefunguje",
+  "de": "Push funktioniert nicht"
+ },
+ {
+  "cs": "Před tiskem zkontroluj v dialogu Tisku:",
+  "en": "Before printing, check in the Print dialog:",
+  "es": "Antes de imprimir, compruebe en el diálogo de Impresión:",
+  "sk": "Pred tlačou skontrolujte v dialógu Tlače:",
+  "de": "Prüfen Sie vor dem Drucken im Druckdialog:"
+ },
+ {
+  "cs": "Předčíslí (text před číslem) se nemění. Počáteční číslo určuje, kde řada začne — další vystavený doklad dostane další číslo.",
+  "en": "The prefix (text before the number) does not change. The starting number determines where the series begins — the next issued document receives the next number.",
+  "es": "El prefijo (texto delante del número) no cambia. El número inicial determina dónde comienza la serie — el siguiente documento emitido recibe el número siguiente.",
+  "sk": "Predčíslie (text pred číslom) sa nemení. Počiatočné číslo určuje, kde rad začne — ďalší vystavený doklad dostane ďalšie číslo.",
+  "de": "Das Präfix (Text vor der Nummer) ändert sich nicht. Die Anfangsnummer bestimmt, wo die Reihe beginnt — der nächste ausgestellte Beleg erhält die nächste Nummer."
+ },
+ {
+  "cs": "Přehled / dashboard",
+  "en": "Overview / dashboard",
+  "es": "Resumen / panel de control",
+  "sk": "Prehľad / dashboard",
+  "de": "Übersicht / Dashboard"
+ },
+ {
+  "cs": "přehled skladu",
+  "en": "stock overview",
+  "es": "resumen del almacén",
+  "sk": "prehľad skladu",
+  "de": "Lagerübersicht"
+ },
+ {
+  "cs": "Přehled tržeb, top výrobky a top odběratelé za zvolené období",
+  "en": "Overview of revenue, top products and top customers for the selected period",
+  "es": "Resumen de ingresos, productos top y clientes top para el período seleccionado",
+  "sk": "Prehľad tržieb, top výrobky a top odberatelia za zvolené obdobie",
+  "de": "Übersicht über Umsätze, Top-Produkte und Top-Abnehmer für den gewählten Zeitraum"
+ },
+ {
+  "cs": "přepočítat na:",
+  "en": "recalculate to:",
+  "es": "recalcular a:",
+  "sk": "prepočítať na:",
+  "de": "umrechnen auf:"
+ },
+ {
+  "cs": "Přepsat existující alergeny u výrobků (jinak doplní jen prázdná)",
+  "en": "Overwrite existing allergens for products (otherwise only empty ones are filled in)",
+  "es": "Sobrescribir los alérgenos existentes de los productos (de lo contrario, solo se rellenan los vacíos)",
+  "sk": "Prepísať existujúce alergény pri výrobkoch (inak doplní len prázdne)",
+  "de": "Bestehende Allergene bei Produkten überschreiben (andernfalls werden nur leere ergänzt)"
+ },
+ {
+  "cs": "Přepsat existující odběratele (podle čísla)",
+  "en": "Overwrite existing customers (by number)",
+  "es": "Sobrescribir los clientes existentes (por número)",
+  "sk": "Prepísať existujúcich odberateľov (podľa čísla)",
+  "de": "Bestehende Abnehmer überschreiben (nach Nummer)"
+ },
+ {
+  "cs": "Přepsat existující výrobky (podle čísla / IDVyrobek)",
+  "en": "Overwrite existing products (by number / IDVyrobek)",
+  "es": "Sobrescribir los productos existentes (por número / IDVyrobek)",
+  "sk": "Prepísať existujúce výrobky (podľa čísla / IDVyrobek)",
+  "de": "Bestehende Produkte überschreiben (nach Nummer / IDVyrobek)"
+ },
+ {
+  "cs": "přepíše obsah",
+  "en": "overwrites the content",
+  "es": "sobrescribe el contenido",
+  "sk": "prepíše obsah",
+  "de": "überschreibt den Inhalt"
+ },
+ {
+  "cs": "Přepíše obsah dokumentů aktualizovanou verzí dle aktuální legislativy 2025 (178/2002, 852/2004, 2073/2005, 1169/2011, zákon 110/1997 Sb.)",
+  "en": "Overwrites the content of the documents with an updated version according to the current 2025 legislation (178/2002, 852/2004, 2073/2005, 1169/2011, Act 110/1997 Coll.)",
+  "es": "Sobrescribe el contenido de los documentos con una versión actualizada conforme a la legislación vigente de 2025 (178/2002, 852/2004, 2073/2005, 1169/2011, Ley 110/1997 Rec.)",
+  "sk": "Prepíše obsah dokumentov aktualizovanou verziou podľa aktuálnej legislatívy 2025 (178/2002, 852/2004, 2073/2005, 1169/2011, zákon 110/1997 Z. z.)",
+  "de": "Überschreibt den Inhalt der Dokumente mit einer aktualisierten Version gemäß der aktuellen Gesetzgebung 2025 (178/2002, 852/2004, 2073/2005, 1169/2011, Gesetz 110/1997 Slg.)"
+ }
+]

@@ -1,0 +1,849 @@
+[
+ {
+  "cs": "Vlastní rozvržení cenovek pomocí drag &amp; drop",
+  "en": "Custom price label layout using drag &amp; drop",
+  "es": "Diseño personalizado de etiquetas mediante drag &amp; drop",
+  "sk": "Vlastné rozloženie cenoviek pomocou drag &amp; drop",
+  "de": "Eigenes Preisschild-Layout per drag &amp; drop"
+ },
+ {
+  "cs": "Vlastní řidiči + evidence Wolt/Bolt/Dáme jídlo/Foodora · live status doručení · integrace.",
+  "en": "Own drivers + Wolt/Bolt/Dáme jídlo/Foodora tracking · live delivery status · integration.",
+  "es": "Conductores propios + registro de Wolt/Bolt/Dáme jídlo/Foodora · estado de entrega en vivo · integración.",
+  "sk": "Vlastní vodiči + evidencia Wolt/Bolt/Dáme jídlo/Foodora · živý stav doručenia · integrácia.",
+  "de": "Eigene Fahrer + Wolt/Bolt/Dáme jídlo/Foodora-Erfassung · Live-Lieferstatus · Integration."
+ },
+ {
+  "cs": "Vlevo info, vpravo cena",
+  "en": "Info on the left, price on the right",
+  "es": "Información a la izquierda, precio a la derecha",
+  "sk": "Vľavo informácie, vpravo cena",
+  "de": "Links Info, rechts Preis"
+ },
+ {
+  "cs": "Vlhčení vodou nebo mašlovacím vejcem, posyp dle typu výrobku (mák, sezam, sůl, kmín, sýr, směs Maroko/Pikant/Fénix, ořechy, slunečnice, vločky). Rovnoměrná aplikace před zasazením do pece.",
+  "en": "Moisten with water or egg wash, topping according to the product type (poppy seeds, sesame, salt, caraway, cheese, Maroko/Pikant/Fénix mix, nuts, sunflower seeds, flakes). Even application before placing in the oven.",
+  "es": "Humedecer con agua o huevo batido, espolvorear según el tipo de producto (semillas de amapola, sésamo, sal, comino, queso, mezcla Maroko/Pikant/Fénix, nueces, semillas de girasol, copos). Aplicación uniforme antes de meter al horno.",
+  "sk": "Vlhčenie vodou alebo mašľovacím vajcom, posyp podľa typu výrobku (mak, sezam, soľ, rasca, syr, zmes Maroko/Pikant/Fénix, orechy, slnečnica, vločky). Rovnomerná aplikácia pred zasadením do pece.",
+  "de": "Befeuchten mit Wasser oder Eistreiche, Bestreuung je nach Produkttyp (Mohn, Sesam, Salz, Kümmel, Käse, Mischung Maroko/Pikant/Fénix, Nüsse, Sonnenblumenkerne, Flocken). Gleichmäßiges Auftragen vor dem Einschießen in den Ofen."
+ },
+ {
+  "cs": "Voliteln\\u00e1\\u2026",
+  "en": "Optional\\u2026",
+  "es": "Opcional\\u2026",
+  "sk": "Voliteľn\\u00e9\\u2026",
+  "de": "Optional\\u2026"
+ },
+ {
+  "cs": "Volitelné — vyber design štítku z editoru (nebo nech „Bez šablony\" = výchozí cenovka).",
+  "en": "Optional — choose a label design from the editor (or leave „No template\" = default price label).",
+  "es": "Opcional — elija un diseño de etiqueta en el editor (o deje „Sin plantilla\" = etiqueta predeterminada).",
+  "sk": "Voliteľné — vyberte dizajn štítku z editora (alebo nechajte „Bez šablóny\" = predvolená cenovka).",
+  "de": "Optional — wählen Sie ein Etikettendesign im Editor (oder lassen Sie „Ohne Vorlage\" = Standard-Preisschild)."
+ },
+ {
+  "cs": "Vrstva + cena u objednávky.",
+  "en": "Layer + price for the order.",
+  "es": "Capa + precio en el pedido.",
+  "sk": "Vrstva + cena pri objednávke.",
+  "de": "Schicht + Preis bei der Bestellung."
+ },
+ {
+  "cs": "Vyber design — bude vyrenderován s placeholders, můžeš pak ručně upravit. Aktuální obsah těla bude přepsán.",
+  "en": "Choose a design — it will be rendered with placeholders, then you can edit it manually. The current body content will be overwritten.",
+  "es": "Elija un diseño — se renderizará con marcadores de posición y luego podrá editarlo manualmente. El contenido actual del cuerpo se sobrescribirá.",
+  "sk": "Vyberte dizajn — vyrenderuje sa so zástupnými symbolmi, potom ho môžete ručne upraviť. Aktuálny obsah tela bude prepísaný.",
+  "de": "Wählen Sie ein Design — es wird mit Platzhaltern gerendert, danach können Sie es manuell anpassen. Der aktuelle Inhalt des Textkörpers wird überschrieben."
+ },
+ {
+  "cs": "Vyber které tě zajímají — můžeš aktivovat kdykoliv později. Core (objednávky/faktury/HACCP) je vždy zdarma.",
+  "en": "Choose the ones you are interested in — you can activate them anytime later. Core (orders/invoices/HACCP) is always free.",
+  "es": "Elija los que le interesen — puede activarlos en cualquier momento más tarde. El núcleo (pedidos/facturas/HACCP) siempre es gratis.",
+  "sk": "Vyberte tie, ktoré vás zaujímajú — môžete ich aktivovať kedykoľvek neskôr. Core (objednávky/faktúry/HACCP) je vždy zdarma.",
+  "de": "Wählen Sie die, die Sie interessieren — Sie können sie jederzeit später aktivieren. Core (Bestellungen/Rechnungen/HACCP) ist immer kostenlos."
+ },
+ {
+  "cs": "Vyber rozměr archu, který máš v tiskárně",
+  "en": "Choose the sheet size you have in your printer",
+  "es": "Elija el tamaño de hoja que tiene en la impresora",
+  "sk": "Vyberte rozmer hárka, ktorý máte v tlačiarni",
+  "de": "Wählen Sie das Bogenformat, das Sie im Drucker haben"
+ },
+ {
+  "cs": "Vyber rozměr papíru, který máš v tiskárně. Najdeš na obalu samolepicích archů (Avery, Printky, SEVT…).",
+  "en": "Choose the paper size you have in your printer. You can find it on the packaging of self-adhesive sheets (Avery, Printky, SEVT…).",
+  "es": "Elija el tamaño de papel que tiene en la impresora. Lo encontrará en el embalaje de las hojas autoadhesivas (Avery, Printky, SEVT…).",
+  "sk": "Vyberte rozmer papiera, ktorý máte v tlačiarni. Nájdete ho na obale samolepiacich hárkov (Avery, Printky, SEVT…).",
+  "de": "Wählen Sie das Papierformat, das Sie im Drucker haben. Sie finden es auf der Verpackung der selbstklebenden Bögen (Avery, Printky, SEVT…)."
+ },
+ {
+  "cs": "Vyber stůl kam host přechází.",
+  "en": "Choose the table the guest is moving to.",
+  "es": "Elija la mesa a la que se traslada el huésped.",
+  "sk": "Vyberte stôl, kam hosť prechádza.",
+  "de": "Wählen Sie den Tisch, an den der Gast wechselt."
+ },
+ {
+  "cs": "vyber surovinu",
+  "en": "choose an ingredient",
+  "es": "elija un ingrediente",
+  "sk": "vyberte surovinu",
+  "de": "Zutat wählen"
+ },
+ {
+  "cs": "Vyber typ instalace. Můžeš později kdykoliv migrovat (přesun je jednoduchý — exportneš DB, naimportuješ jinde).",
+  "en": "Choose the installation type. You can migrate anytime later (the move is simple — you export the DB and import it elsewhere).",
+  "es": "Elija el tipo de instalación. Puede migrar en cualquier momento más tarde (el traslado es sencillo — exporta la base de datos y la importa en otro lugar).",
+  "sk": "Vyberte typ inštalácie. Môžete neskôr kedykoľvek migrovať (presun je jednoduchý — exportujete DB a naimportujete inde).",
+  "de": "Wählen Sie den Installationstyp. Sie können jederzeit später migrieren (der Umzug ist einfach — Sie exportieren die DB und importieren sie woanders)."
+ },
+ {
+  "cs": "Vyber výrobky, které mají používat tuto šablonu. Aktuálně přiřazené jsou zaškrtnuté.",
+  "en": "Choose the products that should use this template. Currently assigned ones are checked.",
+  "es": "Elija los productos que deben usar esta plantilla. Los asignados actualmente están marcados.",
+  "sk": "Vyberte výrobky, ktoré majú používať túto šablónu. Aktuálne priradené sú zaškrtnuté.",
+  "de": "Wählen Sie die Produkte, die diese Vorlage verwenden sollen. Aktuell zugewiesene sind angehakt."
+ },
+ {
+  "cs": "Vyber šablonu — načte se do editoru s prvky.",
+  "en": "Choose a template — it will load into the editor with elements.",
+  "es": "Elija una plantilla — se cargará en el editor con elementos.",
+  "sk": "Vyberte šablónu — načíta sa do editora s prvkami.",
+  "de": "Wählen Sie eine Vorlage — sie wird mit Elementen in den Editor geladen."
+ },
+ {
+  "cs": "Vybraný jazyk se uloží lokálně do prohlížeče (per-zařízení) a aplikuje okamžitě.\n        Většina UI je přeložena; nepřeložené řetězce zůstávají v češtině.",
+  "en": "The selected language is saved locally in the browser (per device) and applied immediately.\n        Most of the UI is translated; untranslated strings remain in Czech.",
+  "es": "El idioma seleccionado se guarda localmente en el navegador (por dispositivo) y se aplica de inmediato.\n        La mayor parte de la interfaz está traducida; las cadenas no traducidas permanecen en checo.",
+  "sk": "Vybraný jazyk sa uloží lokálne do prehliadača (per zariadenie) a aplikuje sa okamžite.\n        Väčšina rozhrania je preložená; nepreložené reťazce zostávajú v češtine.",
+  "de": "Die gewählte Sprache wird lokal im Browser (pro Gerät) gespeichert und sofort angewendet.\n        Der Großteil der Benutzeroberfläche ist übersetzt; nicht übersetzte Zeichenketten bleiben auf Tschechisch."
+ },
+ {
+  "cs": "Vybraný výrobek se vykreslí v editoru namísto zástupných textů — uvidíš jak bude šablona vypadat s reálnými daty (název, cena, EAN, alergeny, hmotnost…).",
+  "en": "The selected product is rendered in the editor instead of placeholder texts — you will see how the template looks with real data (name, price, EAN, allergens, weight…).",
+  "es": "El producto seleccionado se renderiza en el editor en lugar de los textos de marcador de posición — verá cómo se ve la plantilla con datos reales (nombre, precio, EAN, alérgenos, peso…).",
+  "sk": "Vybraný výrobok sa vykreslí v editore namiesto zástupných textov — uvidíte, ako bude šablóna vyzerať s reálnymi dátami (názov, cena, EAN, alergény, hmotnosť…).",
+  "de": "Das ausgewählte Produkt wird im Editor anstelle der Platzhaltertexte dargestellt — Sie sehen, wie die Vorlage mit echten Daten aussieht (Name, Preis, EAN, Allergene, Gewicht…)."
+ },
+ {
+  "cs": "Vybrat/zrušit vše",
+  "en": "Select/deselect all",
+  "es": "Seleccionar/deseleccionar todo",
+  "sk": "Vybrať/zrušiť všetko",
+  "de": "Alle auswählen/abwählen"
+ },
+ {
+  "cs": "vybráno",
+  "en": "selected",
+  "es": "seleccionado",
+  "sk": "vybrané",
+  "de": "ausgewählt"
+ },
+ {
+  "cs": "Vygenerovat PDF",
+  "en": "Generate PDF",
+  "es": "Generar PDF",
+  "sk": "Vygenerovať PDF",
+  "de": "PDF generieren"
+ },
+ {
+  "cs": "Vyhláška č. 18/2024 Sb.",
+  "en": "Decree No. 18/2024 Coll.",
+  "es": "Decreto n.º 18/2024 Coll.",
+  "sk": "Vyhláška č. 18/2024 Z. z.",
+  "de": "Verordnung Nr. 18/2024 Slg."
+ },
+ {
+  "cs": "vyplň cenu a obsah balení —",
+  "en": "fill in the price and package contents —",
+  "es": "rellene el precio y el contenido del paquete —",
+  "sk": "vyplňte cenu a obsah balenia —",
+  "de": "geben Sie Preis und Packungsinhalt ein —"
+ },
+ {
+  "cs": "vyplň cenu a obsah —",
+  "en": "fill in the price and contents —",
+  "es": "rellene el precio y el contenido —",
+  "sk": "vyplňte cenu a obsah —",
+  "de": "geben Sie Preis und Inhalt ein —"
+ },
+ {
+  "cs": "Vyplň jednou — hodnoty se použijí u každého výrobku, který nemá svůj přepis.",
+  "en": "Fill in once — the values are used for every product that does not have its own override.",
+  "es": "Rellene una vez — los valores se usan para cada producto que no tenga su propia anulación.",
+  "sk": "Vyplňte raz — hodnoty sa použijú pri každom výrobku, ktorý nemá svoj prepis.",
+  "de": "Einmal ausfüllen — die Werte werden für jedes Produkt verwendet, das keine eigene Überschreibung hat."
+ },
+ {
+  "cs": "Vyplň složení — alergeny se detekují automaticky.",
+  "en": "Fill in the composition — allergens are detected automatically.",
+  "es": "Rellene la composición — los alérgenos se detectan automáticamente.",
+  "sk": "Vyplňte zloženie — alergény sa detegujú automaticky.",
+  "de": "Geben Sie die Zusammensetzung ein — Allergene werden automatisch erkannt."
+ },
+ {
+  "cs": "VYPNOUT",
+  "en": "TURN OFF",
+  "es": "DESACTIVAR",
+  "sk": "VYPNÚŤ",
+  "de": "AUSSCHALTEN"
+ },
+ {
+  "cs": "Vypnut",
+  "en": "Off",
+  "es": "Desactivado",
+  "sk": "Vypnuté",
+  "de": "Aus"
+ },
+ {
+  "cs": "Vystavení DL → Faktura (ISDOC export pro účetní)",
+  "en": "Issuing a delivery note → Invoice (ISDOC export for accountants)",
+  "es": "Emisión de albarán → Factura (exportación ISDOC para contabilidad)",
+  "sk": "Vystavenie dodacieho listu → Faktúra (ISDOC export pre účtovníkov)",
+  "de": "Ausstellung eines Lieferscheins → Rechnung (ISDOC-Export für Buchhalter)"
+ },
+ {
+  "cs": "Vytisknout cenovky (Štítky a cenovky)",
+  "en": "Print price labels (Labels and price labels)",
+  "es": "Imprimir etiquetas (Etiquetas)",
+  "sk": "Vytlačiť cenovky (Štítky a cenovky)",
+  "de": "Preisschilder drucken (Etiketten und Preisschilder)"
+ },
+ {
+  "cs": "Vytvoř 2+ pod-účty z položek",
+  "en": "Create 2+ sub-accounts from items",
+  "es": "Cree 2+ subcuentas a partir de los artículos",
+  "sk": "Vytvorte 2+ podúčty z položiek",
+  "de": "Erstellen Sie 2+ Unterkonten aus Positionen"
+ },
+ {
+  "cs": "Vytvoř MySQL databázi v admin panelu hostingu (poznamenej si název / user / heslo)",
+  "en": "Create a MySQL database in the hosting admin panel (note down the name / user / password)",
+  "es": "Cree una base de datos MySQL en el panel de administración del hosting (anote el nombre / usuario / contraseña)",
+  "sk": "Vytvorte MySQL databázu v admin paneli hostingu (poznačte si názov / user / heslo)",
+  "de": "Erstellen Sie eine MySQL-Datenbank im Hosting-Adminpanel (notieren Sie Name / User / Passwort)"
+ },
+ {
+  "cs": "Vytvoř první objednávku — buď ručně nebo dorazí přes B2B portal od odběratele.",
+  "en": "Create the first order — either manually or it arrives via the B2B portal from a customer.",
+  "es": "Cree el primer pedido — ya sea manualmente o llega a través del portal B2B desde un cliente.",
+  "sk": "Vytvorte prvú objednávku — buď ručne, alebo dorazí cez B2B portál od odberateľa.",
+  "de": "Erstellen Sie die erste Bestellung — entweder manuell oder sie kommt über das B2B-Portal von einem Abnehmer."
+ },
+ {
+  "cs": "Vytvoř service-user s rolí pro REST API přístup (Nastavení → Uživatelé)",
+  "en": "Create a service user with a role for REST API access (Settings → Users)",
+  "es": "Cree un usuario de servicio con un rol para el acceso a la API REST (Configuración → Usuarios)",
+  "sk": "Vytvorte service-user s rolou pre prístup k REST API (Nastavenia → Používatelia)",
+  "de": "Erstellen Sie einen Service-User mit einer Rolle für den REST-API-Zugriff (Einstellungen → Benutzer)"
+ },
+ {
+  "cs": "Vytvoř vlastní sezónní okna (např. „Letní speciály\", „Adventní cukroví\", …).",
+  "en": "Create your own seasonal windows (e.g. „Summer specials\", „Advent pastries\", …).",
+  "es": "Cree sus propias ventanas de temporada (p. ej. „Especiales de verano\", „Dulces de Adviento\", …).",
+  "sk": "Vytvorte vlastné sezónne okná (napr. „Letné špeciály\", „Adventné cukrovinky\", …).",
+  "de": "Erstellen Sie eigene Saisonfenster (z. B. „Sommer-Spezialitäten\", „Adventsgebäck\", …)."
+ },
+ {
+  "cs": "vyzkoušení",
+  "en": "trial",
+  "es": "prueba",
+  "sk": "vyskúšanie",
+  "de": "Ausprobieren"
+ },
+ {
+  "cs": "Vyzkoušet PWA push notifikace (zdarma)",
+  "en": "Try PWA push notifications (free)",
+  "es": "Probar las notificaciones push PWA (gratis)",
+  "sk": "Vyskúšať PWA push notifikácie (zdarma)",
+  "de": "PWA-Push-Benachrichtigungen ausprobieren (kostenlos)"
+ },
+ {
+  "cs": "Vyžaduje upgrade licence.",
+  "en": "Requires a license upgrade.",
+  "es": "Requiere una actualización de licencia.",
+  "sk": "Vyžaduje upgrade licencie.",
+  "de": "Erfordert ein Lizenz-Upgrade."
+ },
+ {
+  "cs": "Vánoční cukroví — uzávěrka 15.12.",
+  "en": "Christmas pastries — deadline 15 Dec.",
+  "es": "Dulces de Navidad — fecha límite 15.12.",
+  "sk": "Vianočné cukrovinky — uzávierka 15.12.",
+  "de": "Weihnachtsgebäck — Annahmeschluss 15.12."
+ },
+ {
+  "cs": "víc dat naráz",
+  "en": "more data at once",
+  "es": "más datos a la vez",
+  "sk": "viac dát naraz",
+  "de": "mehr Daten auf einmal"
+ },
+ {
+  "cs": "Více adres oddělte čárkou.",
+  "en": "Separate multiple addresses with a comma.",
+  "es": "Separe varias direcciones con una coma.",
+  "sk": "Viacero adries oddeľte čiarkou.",
+  "de": "Trennen Sie mehrere Adressen mit einem Komma."
+ },
+ {
+  "cs": "Více adres oddělte čárkou. Prázdné = použije se E-mail firmy.",
+  "en": "Separate multiple addresses with a comma. Empty = the company e-mail is used.",
+  "es": "Separe varias direcciones con una coma. Vacío = se usa el correo electrónico de la empresa.",
+  "sk": "Viacero adries oddeľte čiarkou. Prázdne = použije sa e-mail firmy.",
+  "de": "Trennen Sie mehrere Adressen mit einem Komma. Leer = es wird die Firmen-E-Mail verwendet."
+ },
+ {
+  "cs": "výchozí měna, sazby DPH a formát data",
+  "en": "default currency, VAT rates and date format",
+  "es": "moneda predeterminada, tipos de IVA y formato de fecha",
+  "sk": "predvolená mena, sadzby DPH a formát dátumu",
+  "de": "Standardwährung, MwSt.-Sätze und Datumsformat"
+ },
+ {
+  "cs": "Výdejní místa po celé ČR/EU. Štítky, sledování, dobírka.",
+  "en": "Pickup points throughout the Czech Republic/EU. Labels, tracking, cash on delivery.",
+  "es": "Puntos de recogida por toda la República Checa/UE. Etiquetas, seguimiento, contra reembolso.",
+  "sk": "Výdajné miesta po celej ČR/EÚ. Štítky, sledovanie, dobierka.",
+  "de": "Abholstellen in der ganzen Tschechischen Republik/EU. Etiketten, Sendungsverfolgung, Nachnahme."
+ },
+ {
+  "cs": "Výrobek nemá hmotnost/kus — doplň ji v editoru výrobku",
+  "en": "The product has no weight/piece — add it in the product editor",
+  "es": "El producto no tiene peso/unidad — añádalo en el editor de productos",
+  "sk": "Výrobok nemá hmotnosť/kus — doplňte ju v editore výrobku",
+  "de": "Das Produkt hat kein Gewicht/Stück — ergänzen Sie es im Produkteditor"
+ },
+ {
+  "cs": "výrobek → kategorie → sortiment pravidlo → globální → základní cena",
+  "en": "product → category → assortment rule → global → base price",
+  "es": "producto → categoría → regla de surtido → global → precio base",
+  "sk": "výrobok → kategória → pravidlo sortimentu → globálne → základná cena",
+  "de": "Produkt → Kategorie → Sortimentsregel → global → Basispreis"
+ },
+ {
+  "cs": "Výrobky s touto sezónou budou unassign.",
+  "en": "Products with this season will be unassigned.",
+  "es": "Los productos con esta temporada serán desasignados.",
+  "sk": "Výrobky s touto sezónou budú odpriradené.",
+  "de": "Produkte mit dieser Saison werden die Zuordnung verlieren."
+ },
+ {
+  "cs": "VÝROBNÍ NÁKLAD / kus",
+  "en": "PRODUCTION COST / piece",
+  "es": "COSTE DE PRODUCCIÓN / unidad",
+  "sk": "VÝROBNÉ NÁKLADY / kus",
+  "de": "PRODUKTIONSKOSTEN / Stück"
+ },
+ {
+  "cs": "Výška (px)",
+  "en": "Height (px)",
+  "es": "Altura (px)",
+  "sk": "Výška (px)",
+  "de": "Höhe (px)"
+ },
+ {
+  "cs": "Všechny suroviny ze složení už máš v databázi.",
+  "en": "You already have all ingredients from the composition in the database.",
+  "es": "Ya tiene todos los ingredientes de la composición en la base de datos.",
+  "sk": "Všetky suroviny zo zloženia už máte v databáze.",
+  "de": "Sie haben bereits alle Zutaten der Zusammensetzung in der Datenbank."
+ },
+ {
+  "cs": "Web Push — odběratelé dostanou zprávu jako mobilní notifikaci",
+  "en": "Web Push — customers receive the message as a mobile notification",
+  "es": "Web Push — los clientes reciben el mensaje como una notificación móvil",
+  "sk": "Web Push — odberatelia dostanú správu ako mobilnú notifikáciu",
+  "de": "Web Push — Abnehmer erhalten die Nachricht als mobile Benachrichtigung"
+ },
+ {
+  "cs": "Webhosting s PHP 8+ a MySQL",
+  "en": "Web hosting with PHP 8+ and MySQL",
+  "es": "Alojamiento web con PHP 8+ y MySQL",
+  "sk": "Webhosting s PHP 8+ a MySQL",
+  "de": "Webhosting mit PHP 8+ und MySQL"
+ },
+ {
+  "cs": "webovou kopií",
+  "en": "with a web copy",
+  "es": "con una copia web",
+  "sk": "webovou kópiou",
+  "de": "mit einer Webkopie"
+ },
+ {
+  "cs": "Windows 98",
+  "en": "Windows 98",
+  "es": "Windows 98",
+  "sk": "Windows 98",
+  "de": "Windows 98"
+ },
+ {
+  "cs": "Workflow zálohy + doplatek · auto-výpočet 50 % · stat panel čekajících / uhrazených · jeden klik na \"Uhrazeno\".",
+  "en": "Deposit + balance payment workflow · auto-calculation of 50% · status panel of pending / paid · one click for \"Paid\".",
+  "es": "Flujo de trabajo de anticipo + pago restante · cálculo automático del 50 % · panel de estado de pendientes / pagados · un clic en \"Pagado\".",
+  "sk": "Workflow zálohy + doplatok · automatický výpočet 50 % · stavový panel čakajúcich / uhradených · jeden klik na \"Uhradené\".",
+  "de": "Workflow für Anzahlung + Restzahlung · automatische Berechnung von 50 % · Statuspanel ausstehender / bezahlter · ein Klick auf \"Bezahlt\"."
+ },
+ {
+  "cs": "XAMPP",
+  "en": "XAMPP",
+  "es": "XAMPP",
+  "sk": "XAMPP",
+  "de": "XAMPP"
+ },
+ {
+  "cs": "XAMPP Control Panel",
+  "en": "XAMPP Control Panel",
+  "es": "XAMPP Control Panel",
+  "sk": "XAMPP Control Panel",
+  "de": "XAMPP Control Panel"
+ },
+ {
+  "cs": "YYMMDD-NNN",
+  "en": "YYMMDD-NNN",
+  "es": "YYMMDD-NNN",
+  "sk": "YYMMDD-NNN",
+  "de": "YYMMDD-NNN"
+ },
+ {
+  "cs": "z databáze · předvyplní cenu, EAN, alergeny",
+  "en": "from the database · pre-fills price, EAN, allergens",
+  "es": "desde la base de datos · rellena previamente precio, EAN, alérgenos",
+  "sk": "z databázy · predvyplní cenu, EAN, alergény",
+  "de": "aus der Datenbank · füllt Preis, EAN, Allergene vor"
+ },
+ {
+  "cs": "Z katalogu: ' + esc(p.vyrobek_cislo || '') + '",
+  "en": "From the catalog: ' + esc(p.vyrobek_cislo || '') + '",
+  "es": "Del catálogo: ' + esc(p.vyrobek_cislo || '') + '",
+  "sk": "Z katalógu: ' + esc(p.vyrobek_cislo || '') + '",
+  "de": "Aus dem Katalog: ' + esc(p.vyrobek_cislo || '') + '"
+ },
+ {
+  "cs": "Z objednávek (automaticky)",
+  "en": "From orders (automatically)",
+  "es": "De los pedidos (automáticamente)",
+  "sk": "Z objednávok (automaticky)",
+  "de": "Aus Bestellungen (automatisch)"
+ },
+ {
+  "cs": "Z objednávky:",
+  "en": "From the order:",
+  "es": "Del pedido:",
+  "sk": "Z objednávky:",
+  "de": "Aus der Bestellung:"
+ },
+ {
+  "cs": "z toho cukry (g)",
+  "en": "of which sugars (g)",
+  "es": "de los cuales azúcares (g)",
+  "sk": "z toho cukry (g)",
+  "de": "davon Zucker (g)"
+ },
+ {
+  "cs": "z toho nasycené (g)",
+  "en": "of which saturates (g)",
+  "es": "de los cuales saturadas (g)",
+  "sk": "z toho nasýtené (g)",
+  "de": "davon gesättigte Fettsäuren (g)"
+ },
+ {
+  "cs": "Zadej cílovou hodnotu.",
+  "en": "Enter the target value.",
+  "es": "Introduzca el valor objetivo.",
+  "sk": "Zadajte cieľovú hodnotu.",
+  "de": "Geben Sie den Zielwert ein."
+ },
+ {
+  "cs": "Zadejte platnou emailovou adresu",
+  "en": "Enter a valid email address",
+  "es": "Introduzca una dirección de correo electrónico válida",
+  "sk": "Zadajte platnú emailovú adresu",
+  "de": "Geben Sie eine gültige E-Mail-Adresse ein"
+ },
+ {
+  "cs": "Zapnout mně\"",
+  "en": "Turn on for me\"",
+  "es": "Activar para mí\"",
+  "sk": "Zapnúť mne\"",
+  "de": "Für mich einschalten\""
+ },
+ {
+  "cs": "Zapnout synchronizaci",
+  "en": "Turn on synchronization",
+  "es": "Activar la sincronización",
+  "sk": "Zapnúť synchronizáciu",
+  "de": "Synchronisierung einschalten"
+ },
+ {
+  "cs": "ZAPNUTO",
+  "en": "ON",
+  "es": "ACTIVADO",
+  "sk": "ZAPNUTÉ",
+  "de": "EIN"
+ },
+ {
+  "cs": "Zatím nefakturováno",
+  "en": "Not invoiced yet",
+  "es": "Aún no facturado",
+  "sk": "Zatiaľ nefakturované",
+  "de": "Noch nicht in Rechnung gestellt"
+ },
+ {
+  "cs": "Zatím nemáš žádné výrobky.",
+  "en": "You have no products yet.",
+  "es": "Aún no tiene ningún producto.",
+  "sk": "Zatiaľ nemáte žiadne výrobky.",
+  "de": "Sie haben noch keine Produkte."
+ },
+ {
+  "cs": "zatím v plánu",
+  "en": "still planned",
+  "es": "aún previsto",
+  "sk": "zatiaľ v pláne",
+  "de": "noch in Planung"
+ },
+ {
+  "cs": "Zatím žádné ceníky. Klepněte na \"+ Nová skupina\".",
+  "en": "No price lists yet. Click \"+ New group\".",
+  "es": "Aún no hay listas de precios. Haga clic en \"+ Nuevo grupo\".",
+  "sk": "Zatiaľ žiadne cenníky. Kliknite na \"+ Nová skupina\".",
+  "de": "Noch keine Preislisten. Klicken Sie auf \"+ Neue Gruppe\"."
+ },
+ {
+  "cs": "Zatím žádné kategorie. Přidejte první klepnutím na tlačítko nahoře.",
+  "en": "No categories yet. Add the first one by clicking the button at the top.",
+  "es": "Aún no hay categorías. Añada la primera haciendo clic en el botón de arriba.",
+  "sk": "Zatiaľ žiadne kategórie. Pridajte prvú kliknutím na tlačidlo hore.",
+  "de": "Noch keine Kategorien. Fügen Sie die erste hinzu, indem Sie auf die Schaltfläche oben klicken."
+ },
+ {
+  "cs": "Zatím žádné slevové skupiny. Klepněte na \"+ Nová skupina\".",
+  "en": "No discount groups yet. Click \"+ New group\".",
+  "es": "Aún no hay grupos de descuento. Haga clic en \"+ Nuevo grupo\".",
+  "sk": "Zatiaľ žiadne zľavové skupiny. Kliknite na \"+ Nová skupina\".",
+  "de": "Noch keine Rabattgruppen. Klicken Sie auf \"+ Neue Gruppe\"."
+ },
+ {
+  "cs": "Zatím žádní odběratelé v této skupině.",
+  "en": "No customers in this group yet.",
+  "es": "Aún no hay clientes en este grupo.",
+  "sk": "Zatiaľ žiadni odberatelia v tejto skupine.",
+  "de": "Noch keine Abnehmer in dieser Gruppe."
+ },
+ {
+  "cs": "Začni psát…",
+  "en": "Start typing…",
+  "es": "Empiece a escribir…",
+  "sk": "Začnite písať…",
+  "de": "Beginnen Sie zu tippen…"
+ },
+ {
+  "cs": "Zaškrtni pole, která se mají na cenovce vytisknout. Šedé/odškrtnuté = nezobrazí se.",
+  "en": "Check the fields that should be printed on the price label. Greyed out/unchecked = will not be shown.",
+  "es": "Marque los campos que deben imprimirse en la etiqueta. En gris/desmarcados = no se mostrarán.",
+  "sk": "Zaškrtnite polia, ktoré sa majú na cenovke vytlačiť. Sivé/odškrtnuté = nezobrazia sa.",
+  "de": "Haken Sie die Felder an, die auf dem Preisschild gedruckt werden sollen. Ausgegraut/nicht angehakt = werden nicht angezeigt."
+ },
+ {
+  "cs": "Zaškrtni výrobky, ze kterých chceš tisknout cenovky. Můžeš filtrovat podle stavu a kategorie.",
+  "en": "Check the products from which you want to print price labels. You can filter by status and category.",
+  "es": "Marque los productos de los que desea imprimir etiquetas. Puede filtrar por estado y categoría.",
+  "sk": "Zaškrtnite výrobky, z ktorých chcete tlačiť cenovky. Môžete filtrovať podľa stavu a kategórie.",
+  "de": "Haken Sie die Produkte an, von denen Sie Preisschilder drucken möchten. Sie können nach Status und Kategorie filtern."
+ },
+ {
+  "cs": "Zaškrtni, které položky menu uvidí jednotlivé role po přihlášení. Super admin vidí vždy všechno.",
+  "en": "Check which menu items each role will see after logging in. The super admin always sees everything.",
+  "es": "Marque qué elementos del menú verá cada rol después de iniciar sesión. El superadministrador siempre lo ve todo.",
+  "sk": "Zaškrtnite, ktoré položky menu uvidia jednotlivé roly po prihlásení. Super admin vidí vždy všetko.",
+  "de": "Haken Sie an, welche Menüpunkte die einzelnen Rollen nach der Anmeldung sehen. Der Super-Admin sieht immer alles."
+ },
+ {
+  "cs": "Zaškrtněte výrobky",
+  "en": "Check the products",
+  "es": "Marque los productos",
+  "sk": "Zaškrtnite výrobky",
+  "de": "Haken Sie die Produkte an"
+ },
+ {
+  "cs": "ZDARMA",
+  "en": "FREE",
+  "es": "GRATIS",
+  "sk": "ZDARMA",
+  "de": "KOSTENLOS"
+ },
+ {
+  "cs": "zdarma navždy",
+  "en": "free forever",
+  "es": "gratis para siempre",
+  "sk": "zdarma navždy",
+  "de": "für immer kostenlos"
+ },
+ {
+  "cs": "Zde zadej URL bez /c/firma, kód firmy zvlášť, uživatele + heslo → 🔌 Test spojení",
+  "en": "Enter the URL without /c/firma here, the company code separately, user + password → 🔌 Test connection",
+  "es": "Introduzca aquí la URL sin /c/firma, el código de empresa por separado, usuario + contraseña → 🔌 Probar conexión",
+  "sk": "Sem zadajte URL bez /c/firma, kód firmy zvlášť, používateľa + heslo → 🔌 Test spojenia",
+  "de": "Geben Sie hier die URL ohne /c/firma ein, den Firmencode separat, Benutzer + Passwort → 🔌 Verbindung testen"
+ },
+ {
+  "cs": "Zdobení / kus",
+  "en": "Decoration / piece",
+  "es": "Decoración / unidad",
+  "sk": "Zdobenie / kus",
+  "de": "Dekoration / Stück"
+ },
+ {
+  "cs": "Zdobení / náplň",
+  "en": "Decoration / filling",
+  "es": "Decoración / relleno",
+  "sk": "Zdobenie / náplň",
+  "de": "Dekoration / Füllung"
+ },
+ {
+  "cs": "Zdobení / náplň —",
+  "en": "Decoration / filling —",
+  "es": "Decoración / relleno —",
+  "sk": "Zdobenie / náplň —",
+  "de": "Dekoration / Füllung —"
+ },
+ {
+  "cs": "Zdroj:",
+  "en": "Source:",
+  "es": "Fuente:",
+  "sk": "Zdroj:",
+  "de": "Quelle:"
+ },
+ {
+  "cs": "Zkopírujte token (vidíte ho jen 1×!) a zadejte do účetního SW URL:",
+  "en": "Copy the token (you see it only once!) and enter the URL in the accounting software:",
+  "es": "Copie el token (lo verá solo 1 vez) e introduzca la URL en el software de contabilidad:",
+  "sk": "Skopírujte token (vidíte ho len 1×!) a zadajte do účtovného SW URL:",
+  "de": "Kopieren Sie das Token (Sie sehen es nur 1×!) und geben Sie die URL in die Buchhaltungssoftware ein:"
+ },
+ {
+  "cs": "Změna je okamžitá, ukládá se do prohlížeče (per zařízení).",
+  "en": "The change is immediate, it is saved in the browser (per device).",
+  "es": "El cambio es inmediato, se guarda en el navegador (por dispositivo).",
+  "sk": "Zmena je okamžitá, ukladá sa do prehliadača (per zariadenie).",
+  "de": "Die Änderung erfolgt sofort, sie wird im Browser (pro Gerät) gespeichert."
+ },
+ {
+  "cs": "Změňte vzhled administrace. Funkčnost zůstává stejná, mění se jen barvy, fonty a tvary.",
+  "en": "Change the appearance of the administration. The functionality stays the same, only colors, fonts and shapes change.",
+  "es": "Cambie el aspecto de la administración. La funcionalidad sigue siendo la misma, solo cambian los colores, las fuentes y las formas.",
+  "sk": "Zmeňte vzhľad administrácie. Funkčnosť zostáva rovnaká, menia sa len farby, fonty a tvary.",
+  "de": "Ändern Sie das Erscheinungsbild der Administration. Die Funktionalität bleibt gleich, es ändern sich nur Farben, Schriften und Formen."
+ },
+ {
+  "cs": "Zobrazují se na všech tištěných dokumentech (FA, DL, výrobní list).",
+  "en": "They appear on all printed documents (invoice, delivery note, production sheet).",
+  "es": "Aparecen en todos los documentos impresos (factura, albarán, hoja de producción).",
+  "sk": "Zobrazujú sa na všetkých tlačených dokumentoch (faktúra, dodací list, výrobný list).",
+  "de": "Sie erscheinen auf allen gedruckten Dokumenten (Rechnung, Lieferschein, Produktionsblatt)."
+ },
+ {
+  "cs": "Zobrazí se na konci faktury a dodacího listu. Více řádků = Enter.",
+  "en": "It appears at the end of the invoice and the delivery note. Multiple lines = Enter.",
+  "es": "Aparece al final de la factura y del albarán. Varias líneas = Enter.",
+  "sk": "Zobrazí sa na konci faktúry a dodacieho listu. Viac riadkov = Enter.",
+  "de": "Es erscheint am Ende der Rechnung und des Lieferscheins. Mehrere Zeilen = Enter."
+ },
+ {
+  "cs": "Zobrazí se vlevo nahoře na kartě výrobku v online prodejně. Nezávislé na slevě (sleva se vyjede automaticky podle cenové skupiny).",
+  "en": "It appears at the top left of the product card in the online shop. Independent of the discount (the discount is applied automatically according to the price group).",
+  "es": "Aparece en la parte superior izquierda de la ficha del producto en la tienda online. Independiente del descuento (el descuento se aplica automáticamente según el grupo de precios).",
+  "sk": "Zobrazí sa vľavo hore na karte výrobku v online predajni. Nezávislé od zľavy (zľava sa uplatní automaticky podľa cenovej skupiny).",
+  "de": "Es erscheint oben links auf der Produktkarte im Online-Shop. Unabhängig vom Rabatt (der Rabatt wird automatisch nach der Preisgruppe angewendet)."
+ },
+ {
+  "cs": "Zákon č. 110/1997 Sb.",
+  "en": "Act No. 110/1997 Coll.",
+  "es": "Ley n.º 110/1997 Coll.",
+  "sk": "Zákon č. 110/1997 Z. z.",
+  "de": "Gesetz Nr. 110/1997 Slg."
+ },
+ {
+  "cs": "zálohovou fakturu",
+  "en": "a proforma invoice",
+  "es": "una factura proforma",
+  "sk": "zálohovú faktúru",
+  "de": "eine Anzahlungsrechnung"
+ },
+ {
+  "cs": "Zóny jsou samostatná plátna (sál, terasa, bar, salon). Stoly se přiřazují k zóně.",
+  "en": "Zones are separate canvases (hall, terrace, bar, lounge). Tables are assigned to a zone.",
+  "es": "Las zonas son lienzos independientes (sala, terraza, bar, salón). Las mesas se asignan a una zona.",
+  "sk": "Zóny sú samostatné plátna (sála, terasa, bar, salónik). Stoly sa priraďujú k zóne.",
+  "de": "Zonen sind eigenständige Leinwände (Saal, Terrasse, Bar, Salon). Tische werden einer Zone zugeordnet."
+ },
+ {
+  "cs": "~5 minut",
+  "en": "~5 minutes",
+  "es": "~5 minutos",
+  "sk": "~5 minút",
+  "de": "~5 Minuten"
+ },
+ {
+  "cs": "Účet je aktivní",
+  "en": "The account is active",
+  "es": "La cuenta está activa",
+  "sk": "Účet je aktívny",
+  "de": "Das Konto ist aktiv"
+ },
+ {
+  "cs": "Účet je prázdný",
+  "en": "The account is empty",
+  "es": "La cuenta está vacía",
+  "sk": "Účet je prázdny",
+  "de": "Das Konto ist leer"
+ },
+ {
+  "cs": "účetní systémy",
+  "en": "accounting systems",
+  "es": "sistemas de contabilidad",
+  "sk": "účtovné systémy",
+  "de": "Buchhaltungssysteme"
+ },
+ {
+  "cs": "časově omezená akční nabídka",
+  "en": "a time-limited promotional offer",
+  "es": "una oferta promocional por tiempo limitado",
+  "sk": "časovo obmedzená akčná ponuka",
+  "de": "ein zeitlich begrenztes Aktionsangebot"
+ },
+ {
+  "cs": "Časté problémy:",
+  "en": "Common problems:",
+  "es": "Problemas frecuentes:",
+  "sk": "Časté problémy:",
+  "de": "Häufige Probleme:"
+ },
+ {
+  "cs": "červeně",
+  "en": "in red",
+  "es": "en rojo",
+  "sk": "červeno",
+  "de": "in Rot"
+ },
+ {
+  "cs": "Šablony chlebíček/bageta s kategoriemi a ingrediencemi · cena se počítá automaticky · alergeny.",
+  "en": "Open sandwich/baguette templates with categories and ingredients · the price is calculated automatically · allergens.",
+  "es": "Plantillas de canapé/baguette con categorías e ingredientes · el precio se calcula automáticamente · alérgenos.",
+  "sk": "Šablóny chlebíček/bageta s kategóriami a ingredienciami · cena sa počíta automaticky · alergény.",
+  "de": "Vorlagen für Belegtbrot/Baguette mit Kategorien und Zutaten · der Preis wird automatisch berechnet · Allergene."
+ },
+ {
+  "cs": "Štítky a cenovky → Cenovky z výrobků:",
+  "en": "Labels and price labels → Price labels from products:",
+  "es": "Etiquetas → Etiquetas a partir de productos:",
+  "sk": "Štítky a cenovky → Cenovky z výrobkov:",
+  "de": "Etiketten und Preisschilder → Preisschilder aus Produkten:"
+ },
+ {
+  "cs": "Šířka (px)",
+  "en": "Width (px)",
+  "es": "Anchura (px)",
+  "sk": "Šírka (px)",
+  "de": "Breite (px)"
+ },
+ {
+  "cs": "žádné",
+  "en": "none",
+  "es": "ninguno",
+  "sk": "žiadne",
+  "de": "keine"
+ },
+ {
+  "cs": "Žádné / None",
+  "en": "None / None",
+  "es": "Ninguno / None",
+  "sk": "Žiadne / None",
+  "de": "Keine / None"
+ },
+ {
+  "cs": "Žádné aktivní objednávky. ☕ Kafe je na řadě.",
+  "en": "No active orders. ☕ Time for a coffee.",
+  "es": "No hay pedidos activos. ☕ Toca un café.",
+  "sk": "Žiadne aktívne objednávky. ☕ Káva je na rade.",
+  "de": "Keine aktiven Bestellungen. ☕ Zeit für einen Kaffee."
+ },
+ {
+  "cs": "Žádné alergeny ze 14 EU detekovány.",
+  "en": "No allergens of the 14 EU ones detected.",
+  "es": "No se han detectado alérgenos de los 14 de la UE.",
+  "sk": "Žiadne alergény zo 14 EÚ nedetegované.",
+  "de": "Keine Allergene der 14 EU-Allergene erkannt."
+ },
+ {
+  "cs": "Žádné FA",
+  "en": "No invoices",
+  "es": "Sin facturas",
+  "sk": "Žiadne faktúry",
+  "de": "Keine Rechnungen"
+ },
+ {
+  "cs": "Žádné produkty v menu",
+  "en": "No products in the menu",
+  "es": "No hay productos en el menú",
+  "sk": "Žiadne produkty v menu",
+  "de": "Keine Produkte im Menü"
+ },
+ {
+  "cs": "Žádné uložené snímky",
+  "en": "No saved snapshots",
+  "es": "No hay capturas guardadas",
+  "sk": "Žiadne uložené snímky",
+  "de": "Keine gespeicherten Aufnahmen"
+ },
+ {
+  "cs": "Žádné šablony zatím nejsou. Naimportuj výchozí sadu (5 šablon pro pekařství) — pak je můžeš upravit a přiřadit k výrobkům.",
+  "en": "There are no templates yet. Import the default set (5 templates for a bakery) — then you can edit them and assign them to products.",
+  "es": "Aún no hay plantillas. Importe el conjunto predeterminado (5 plantillas para panadería) — luego podrá editarlas y asignarlas a productos.",
+  "sk": "Zatiaľ nie sú žiadne šablóny. Naimportujte predvolenú sadu (5 šablón pre pekáreň) — potom ich môžete upraviť a priradiť k výrobkom.",
+  "de": "Es gibt noch keine Vorlagen. Importieren Sie das Standardset (5 Vorlagen für eine Bäckerei) — danach können Sie sie anpassen und Produkten zuordnen."
+ },
+ {
+  "cs": "žádní volní odběratelé",
+  "en": "no available customers",
+  "es": "no hay clientes disponibles",
+  "sk": "žiadni voľní odberatelia",
+  "de": "keine verfügbaren Abnehmer"
+ },
+ {
+  "cs": "Σ Fixní celkem",
+  "en": "Σ Fixed total",
+  "es": "Σ Total fijo",
+  "sk": "Σ Fixné celkom",
+  "de": "Σ Fixkosten gesamt"
+ },
+ {
+  "cs": "Σ Suroviny",
+  "en": "Σ Ingredients",
+  "es": "Σ Ingredientes",
+  "sk": "Σ Suroviny",
+  "de": "Σ Zutaten"
+ },
+ {
+  "cs": "Σ Suroviny celkem",
+  "en": "Σ Ingredients total",
+  "es": "Σ Total ingredientes",
+  "sk": "Σ Suroviny celkom",
+  "de": "Σ Zutaten gesamt"
+ },
+ {
+  "cs": "Σ Zdobení / kus",
+  "en": "Σ Decoration / piece",
+  "es": "Σ Decoración / unidad",
+  "sk": "Σ Zdobenie / kus",
+  "de": "Σ Dekoration / Stück"
+ },
+ {
+  "cs": "„Prodáváme po\" se vytiskne za cenou (např. „/ ks\"). „Obsah balení\" slouží pro automatický přepočet ceny za 1 kg / 1 l.",
+  "en": "„Sold by\" is printed after the price (e.g. „/ pc\"). „Package contents\" is used for the automatic recalculation of the price per 1 kg / 1 l.",
+  "es": "„Vendemos por\" se imprime después del precio (p. ej. „/ ud\"). „Contenido del paquete\" sirve para el recálculo automático del precio por 1 kg / 1 l.",
+  "sk": "„Predávame po\" sa vytlačí za cenou (napr. „/ ks\"). „Obsah balenia\" slúži na automatický prepočet ceny za 1 kg / 1 l.",
+  "de": "„Verkauft pro\" wird hinter dem Preis gedruckt (z. B. „/ Stk.\"). „Packungsinhalt\" dient der automatischen Umrechnung des Preises pro 1 kg / 1 l."
+ }
+]
