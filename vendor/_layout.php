@@ -260,7 +260,7 @@ function vendor_render_topbar(array $user, string $currentPage = ''): void {
         </div>
         <div class="actions-master">
           <span class="user-chip-master">👤 <?= htmlspecialchars($user['display_name'] ?? $user['username']) ?></span>
-          <a href="https://appek.cz/" target="_blank" rel="noopener" title="Otevřít appek.cz" style="font-size:16px;text-decoration:none">🌐</a>
+          <a href="https://appek.cz/" target="_blank" rel="noopener" title="Otevřít appek.cz" style="font-size:16px;text-decoration:none;border:1.5px solid #BA7517;border-radius:8px;padding:3px 7px;background:#fff7e6">🌐</a>
           <a href="index.php?logout=1" class="logout-link">Odhlásit</a>
         </div>
       </div>
