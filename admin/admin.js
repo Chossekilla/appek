@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.119';
+const APPEK_ADMIN_JS_VERSION = '2.9.120';
 
 (async function detectStaleCode() {
   try {
@@ -3852,6 +3852,11 @@ function renderCasovyGraf(data) {
 // =============================================================
 // OBJEDNÁVKY
 // =============================================================
+// 🔴 v2.9.120 — červená tečka „doklad byl po vytvoření upraven" (obj/fa/dl seznamy)
+function upravenoDot(edited) {
+  return edited ? ' <span class="upraveno-dot" title="Doklad byl po vytvoření upraven"></span>' : '';
+}
+
 async function renderObjednavky(filters = {}) {
   const c0 = document.getElementById('content');
   if (c0) c0.innerHTML = `
@@ -3956,7 +3961,7 @@ async function renderObjednavky(filters = {}) {
                 <td class="col-check" onclick="event.stopPropagation();">
                   <input type="checkbox" ${isSel(o.id) ? 'checked' : ''} onchange="objToggleSelect(${o.id}, this.checked)" data-obj-check="${o.id}">
                 </td>
-                <td><strong>${esc(o.cislo)}</strong></td>
+                <td><strong>${esc(o.cislo)}</strong>${upravenoDot(o.pocet_zmen > 0)}</td>
                 <td>
                   <div>${esc(o.odberatel_nazev)}</div>
                   ${o.misto_nazev ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px">📍 ${esc(o.misto_nazev)}</div>` : ''}
@@ -3997,7 +4002,7 @@ async function renderObjednavky(filters = {}) {
               <label class="obj-card-check" onclick="event.stopPropagation();">
                 <input type="checkbox" ${isSel(o.id) ? 'checked' : ''} onchange="objToggleSelect(${o.id}, this.checked)" data-obj-check="${o.id}">
               </label>
-              <div class="obj-card-cislo">${esc(o.cislo)}</div>
+              <div class="obj-card-cislo">${esc(o.cislo)}${upravenoDot(o.pocet_zmen > 0)}</div>
               <span class="status ${o.stav}">${statusLabel(o.stav)}</span>
             </div>
             <div class="obj-card-odb">${esc(o.odberatel_nazev)}</div>
@@ -6271,7 +6276,7 @@ async function renderDodaciListy(filters = {}) {
                 <td class="col-check" onclick="event.stopPropagation();">
                   <input type="checkbox" ${sel ? 'checked' : ''} onchange="dlToggleSelect(${d.id}, this.checked)" data-dl-check="${d.id}">
                 </td>
-                <td><strong>${esc(d.cislo)}</strong></td>
+                <td><strong>${esc(d.cislo)}</strong>${upravenoDot(d.obsah_upraveno)}</td>
                 <td onclick="event.stopPropagation();">
                   ${d.objednavka_id
                     ? `<a href="#" onclick="openObjednavkaDetail(${d.objednavka_id});return false" class="doc-badge obj">🛒 ${esc(d.objednavka_cislo)}</a>`
@@ -6320,7 +6325,7 @@ async function renderDodaciListy(filters = {}) {
         data.dodaci_listy.map((d) => `
           <div class="dl-card" onclick="openDodaciListDetail(${d.id})">
             <div class="dl-card-head">
-              <div class="dl-card-cislo">${esc(d.cislo)}</div>
+              <div class="dl-card-cislo">${esc(d.cislo)}${upravenoDot(d.obsah_upraveno)}</div>
               ${dlStavBadge(d)}
             </div>
             <div class="dl-card-odb">${esc(d.odberatel_nazev)}</div>
@@ -7078,7 +7083,7 @@ async function renderFaktury(filters = {}) {
                 <td class="col-check" onclick="event.stopPropagation();">
                   <input type="checkbox" ${sel ? 'checked' : ''} onchange="faToggleSelect(${f.id}, this.checked)" data-fa-check="${f.id}">
                 </td>
-                <td><strong>${esc(f.cislo)}</strong></td>
+                <td><strong>${esc(f.cislo)}</strong>${upravenoDot(f.obsah_upraveno)}</td>
                 <td>
                   <div>${esc(f.odberatel_nazev)}</div>
                   ${f.pobocky_nazvy ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px">📍 ${esc(f.pobocky_nazvy)}${f.pobocka_adresa ? ' — ' + esc(f.pobocka_adresa) : ''}</div>` : ''}
@@ -7121,7 +7126,7 @@ async function renderFaktury(filters = {}) {
         data.faktury.map((f) => `
           <div class="faktura-card" onclick="openFakturaDetail(${f.id})">
             <div class="faktura-card-head">
-              <div class="faktura-card-cislo">${esc(f.cislo)}</div>
+              <div class="faktura-card-cislo">${esc(f.cislo)}${upravenoDot(f.obsah_upraveno)}</div>
               ${stavUhradyBadge(f.stav_uhrady)}
             </div>
             <div class="faktura-card-odb">${esc(f.odberatel_nazev)}</div>

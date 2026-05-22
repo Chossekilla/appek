@@ -107,7 +107,7 @@ try {
         $sql = "
             SELECT dl.id, dl.cislo, dl.objednavka_id,
                    dl.datum_vystaveni, dl.datum_dodani,
-                   dl.castka_celkem, dl.fakturovano,
+                   dl.castka_celkem, dl.fakturovano, dl.obsah_upraveno,
                    o.cislo AS objednavka_cislo,
                    od.id AS odberatel_id,
                    od.nazev AS odberatel_nazev,
@@ -249,7 +249,8 @@ try {
                     UPDATE dodaci_listy SET
                         odberatel_id = :o, misto_dodani_id = :m,
                         datum_vystaveni = :dv, datum_dodani = :dd,
-                        castka_celkem = :ce, poznamka = :pz
+                        castka_celkem = :ce, poznamka = :pz,
+                        obsah_upraveno = NOW()
                     WHERE id = :id
                 ")->execute([
                     'o' => $odb_id, 'm' => $misto_id,

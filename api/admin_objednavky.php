@@ -350,7 +350,9 @@ if ($method === 'GET') {
                COUNT(DISTINCT p.id) AS pocet_polozek,
                COUNT(DISTINCT dl.id) AS pocet_dl,
                COUNT(DISTINCT fdl.faktura_id) AS pocet_faktur,
-               MIN(fdl.faktura_id) AS prvni_faktura_id
+               MIN(fdl.faktura_id) AS prvni_faktura_id,
+               (SELECT COUNT(*) FROM objednavky_zmeny oz
+                 WHERE oz.objednavka_id = o.id AND oz.akce = 'upravena') AS pocet_zmen
         FROM objednavky o
         JOIN odberatele od ON od.id = o.odberatel_id
         LEFT JOIN mista_dodani md ON md.id = o.misto_dodani_id

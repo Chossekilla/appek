@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "2.9.119";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje */
+  --appek-css-version: "2.9.120";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -17700,4 +17700,16 @@ html.density-extreme body:not(.sidebar-pinned) .sidebar-nav .nav-icon {
   }
   /* search „Načíst z produktu" — input se smrští, ne 220px napevno */
   #st-vyrobek-search { min-width: 0 !important; }
+}
+
+/* ═══ 🔴 v2.9.120 — tečka „doklad upraven po vytvoření" (obj/fa/dl seznamy) ═══ */
+.upraveno-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e0322d;
+  vertical-align: middle;
+  margin-left: 5px;
+  flex-shrink: 0;
 }

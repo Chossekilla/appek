@@ -56,7 +56,7 @@ if ($method === 'GET') {
     $sql = "
         SELECT f.id, f.cislo, f.datum_vystaveni, f.datum_splatnosti,
                f.castka_celkem, f.castka_uhrazeno, f.variabilni_symbol, f.odeslano_email,
-               f.rucni,
+               f.rucni, f.obsah_upraveno,
                od.nazev AS odberatel_nazev,
                CASE
                    WHEN f.castka_uhrazeno >= f.castka_celkem THEN 'uhrazena'
@@ -179,7 +179,8 @@ if ($method === 'PUT') {
                 $dph += $b * (float) $p['sazba_dph'] / 100;
             }
             $pdo->prepare("
-                UPDATE faktury SET castka_bez_dph = :b, castka_dph = :d, castka_celkem = :c
+                UPDATE faktury SET castka_bez_dph = :b, castka_dph = :d, castka_celkem = :c,
+                       obsah_upraveno = NOW()
                 WHERE id = :id
             ")->execute([
                 'b' => round($bez, 2), 'd' => round($dph, 2),

@@ -345,10 +345,12 @@ function apply_full_schema(PDO $pdo): void {
         // dodaci_listy (admin_dashboard.php query)
         'dodaci_listy' => [
             'rucni' => "ADD COLUMN rucni TINYINT(1) NOT NULL DEFAULT 0",
+            'obsah_upraveno' => "ADD COLUMN obsah_upraveno DATETIME NULL",
         ],
         // faktury (admin_faktury.php query)
         'faktury' => [
             'odeslano_email' => "ADD COLUMN odeslano_email DATETIME NULL",
+            'obsah_upraveno' => "ADD COLUMN obsah_upraveno DATETIME NULL",
         ],
         // nastaveni — zajisti sloupce
         'nastaveni' => [
