@@ -1,0 +1,36 @@
+# 🔒 v2.6.0 SECURITY: api/ ochrana
+Options -Indexes
+
+# Skrýt dotfiles
+<FilesMatch "^\.">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# Skrýt config.local.php (obsahuje DB password)
+<FilesMatch "^(config\.local\.php|_pohoda\.php|_flexibee\.php|_customer_integrace\.php)$">
+  # Tyto soubory jsou JEN required z PHP, nikdy přímo HTTP requestem
+  # Pokud někdo přijde s ?file=config.local.php nebo přímou cestou:
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>
+
+# _* lib soubory (PHP includes) — nesmí být přímý HTTP
+<FilesMatch "^_">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>
+
+# Skrýt logy + zálohy + temp
+<FilesMatch "\.(log|sql|backup|bak|old)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>

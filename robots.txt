@@ -1,0 +1,33 @@
+# APPEK B2B — robots.txt pro sales / marketing page
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /install.php
+Disallow: /uploads/
+
+# Skrýt admin/vendor/demo z bot scanu
+Disallow: /pirat/
+Disallow: /vendor/
+Disallow: /demo/
+
+# Sitemap
+Sitemap: https://appek.cz/sitemap.xml
+
+# AI scrapers — povolit některé, blokovat agresivní
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /

@@ -1,0 +1,4514 @@
+/* =========================================================
+   APPEK B2B – frontend pro odběratele (POS layout)
+   ========================================================= */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary: #BA7517;
+  --primary-dark: #854F0B;
+  --primary-light: #FAEEDA;
+  --primary-border: #FAC775;
+  --bg: #FBFAF7;          /* světlejší pozadí — víc bílé */
+  --surface: #FFFFFF;
+  --surface-2: #F6F4EE;   /* o trochu světlejší než dříve */
+  --text: #2C2C2A;
+  --text-2: #5F5E5A;
+  --text-3: #888780;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-2: rgba(0, 0, 0, 0.16);
+  --success-bg: #EAF3DE;
+  --success-text: #27500A;
+  --info-bg: #E6F1FB;
+  --info-text: #0C447C;
+  --danger-bg: #FCEBEB;
+  --danger-text: #A32D2D;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px; line-height: 1.5; color: var(--text); background: var(--bg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+input, select, textarea { font-family: inherit; font-size: 15px; }
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* =========================================================
+   LOGIN SCREEN
+   ========================================================= */
+.login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.login-card { background: var(--surface); border-radius: var(--radius-xl); padding: 32px; max-width: 400px; width: 100%; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06); }
+.login-logo { text-align: center; margin-bottom: 28px; }
+.login-logo-icon {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--primary-light); color: var(--primary-dark);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 600; margin-bottom: 12px;
+}
+.login-logo h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+.login-logo p { color: var(--text-2); font-size: 13px; }
+.login-form { display: flex; flex-direction: column; gap: 16px; }
+.login-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-2); }
+.login-form input { padding: 12px 14px; border: 1px solid var(--border-2); border-radius: var(--radius-md); background: var(--surface); }
+.login-form input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.1); }
+.login-help { text-align: center; margin-top: 20px; font-size: 12px; color: var(--text-3); }
+.error-msg { color: var(--danger-text); font-size: 13px; padding: 8px 12px; background: var(--danger-bg); border-radius: var(--radius-sm); }
+
+/* =========================================================
+   GLOBÁLNÍ TLAČÍTKA
+   ========================================================= */
+.btn-primary { background: var(--primary); color: white; padding: 12px 20px; border-radius: var(--radius-md); font-size: 15px; font-weight: 500; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { background: var(--text-3); cursor: not-allowed; }
+.btn-link { color: var(--primary); font-size: 13px; padding: 6px 10px; }
+
+/* =========================================================
+   HLAVNÍ LAYOUT
+   ========================================================= */
+.app { max-width: 1400px; margin: 0 auto; padding: 16px; }
+.header {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-row-top {
+  justify-content: flex-start;
+}
+.header-row-top .logo { flex: 0 0 auto; }
+.header-row-top .b2b-lang-pills { margin-left: 24px; }
+.header-row-top .header-actions { margin-left: auto; }
+.header-row-bottom {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 13px;
+  color: var(--text-2);
+  min-width: 0;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+.logo-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.logo-text {
+  min-width: 0;
+  overflow: hidden;
+}
+.logo-text strong {
+  display: block;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.logo-text span {
+  display: block;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* Kulaté tlačítko Odhlásit */
+.logout-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid var(--border);
+}
+.logout-icon-btn:hover {
+  background: var(--danger-bg, #FEE);
+  color: var(--danger-text, #C04040);
+  border-color: var(--danger-text, #C04040);
+}
+.logout-icon-btn:active { transform: scale(0.95); }
+
+#user-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  line-height: 1.4;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+#user-name strong {
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.header-pobocka {
+  font-size: 13px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Záložky (Katalog / Pokladna / Historie / Přehled) */
+.tabs { display: flex; gap: 6px; padding: 6px; background: #2C2C2A; border-radius: var(--radius-md); margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); overflow: hidden; }
+.tab { flex: 1 1 0; min-width: 0; padding: 14px 16px; font-size: 15px; color: rgba(255,255,255,0.7); border-radius: 8px; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; background: transparent; overflow: hidden; }
+.tab:hover:not(.active) { color: white; background: rgba(255,255,255,0.08); }
+.tab.active { background: var(--surface); color: var(--primary-dark); box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-weight: 600; }
+.tab .tab-badge { background: var(--primary); color: white; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; flex-shrink: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* Tab s badge: ikona/text může shrinkovat aby badge nepřesahoval */
+.tab > :not(.tab-badge) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tab.active .tab-badge { background: var(--primary-dark); color: white; }
+.badge { display: none; margin-left: 6px; padding: 2px 7px; background: var(--primary); color: white; border-radius: 999px; font-size: 11px; }
+.badge.show { display: inline-block; }
+
+/* =========================================================
+   POS LAYOUT — vlevo obsah, vpravo přilepený košík
+   ========================================================= */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  align-items: start;
+}
+.content { min-height: 400px; }
+.cart-panel {
+  position: sticky;
+  top: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+/* Když je košík prázdný (skrýt panel úplně) */
+.cart-panel.hidden { display: none; }
+/* Pokud nejsme na záložce s košíkem (Historie / Přehled), schováme úplně */
+.layout.no-cart { grid-template-columns: 1fr; }
+.layout.no-cart .cart-panel { display: none; }
+
+/* Hlavička panelu */
+.cart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.cart-head h3 { font-size: 16px; font-weight: 600; }
+.cart-clear { color: var(--text-3); font-size: 12px; padding: 4px 8px; }
+.cart-clear:hover { color: var(--danger-text); }
+
+/* Seznam položek v panelu */
+.cart-list { flex: 1; overflow-y: auto; margin: 0 -8px; padding: 0 8px; min-height: 0; }
+.cart-empty { color: var(--text-3); text-align: center; padding: 30px 12px; font-size: 13px; }
+
+.cart-item { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; padding: 10px 12px 10px 30px; border-bottom: 1px dashed var(--border); border-radius: 6px; margin: 0 -8px; position: relative; }
+.cart-item:nth-child(even) { background: #FBFAF6; }
+.cart-item:hover { background: var(--primary-light); }
+.cart-item:last-child { border-bottom: none; }
+.cart-item-name { font-size: 15px; font-weight: 600; line-height: 1.2; color: var(--text); margin-bottom: 0; }
+.cart-item-price { font-size: 14px; font-weight: 700; color: var(--primary-dark); text-align: right; white-space: nowrap; align-self: start; line-height: 1.2; }
+
+/* Trash ikona vlevo u položky v košíkovém panelu */
+.cart-item-del {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-3);
+  border-radius: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s;
+  opacity: 0.55;
+}
+.cart-item-del svg { display: block; pointer-events: none; }
+.cart-item:hover .cart-item-del { opacity: 1; }
+.cart-item-del:hover {
+  background: var(--danger-bg);
+  border-color: var(--danger-text);
+  color: var(--danger-text);
+  opacity: 1;
+  transform: translateY(-50%) scale(1.1);
+}
+.cart-item-del:active { transform: translateY(-50%) scale(0.92); }
+html.dark .cart-item-del { color: var(--text-3); }
+html.dark .cart-item-del:hover { background: var(--danger-bg); color: var(--danger-text); }
+/* Zebra stripe v košíku — v dark módu světlejší surface místo bílého #FBFAF6 */
+html.dark .cart-item:nth-child(even) { background: var(--surface-2); }
+html.dark .cart-item:hover { background: var(--primary-light); color: var(--primary-dark); }
+.cart-item-meta { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; grid-column: 1 / -1; margin-top: 6px; }
+.cart-item-unit {
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+  line-height: 1.3;
+  padding-top: 2px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.cart-item-unit strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  letter-spacing: 0.1px;
+}
+.cart-item-unit s { font-size: 11px; color: var(--text-3); }
+
+/* Větší qty buttony v košíku — pohodlnější klikání */
+.cart-item .qty-btn { width: 30px; height: 30px; font-size: 16px; }
+.cart-item .qty-val {
+  font-size: 19px;
+  min-width: 34px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.2px;
+}
+.cart-item .qty { display: flex; align-items: center; gap: 4px; }
+
+/* Vertikální stack: horní řada (−/qty/+) + spodní řada (−10/+10) */
+.cart-item .qty-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.cart-item .qty-chips {
+  display: flex;
+  gap: 5px;
+}
+.cart-item .qty-chip-min,
+.cart-item .qty-chip-plus {
+  height: 26px;
+  min-width: 46px;
+  padding: 0 10px;
+  border: 1px solid var(--primary-border);
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.1s;
+  letter-spacing: 0.3px;
+}
+.cart-item .qty-chip-min:hover,
+.cart-item .qty-chip-plus:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.cart-item .qty-chip-min:active,
+.cart-item .qty-chip-plus:active { transform: scale(0.92); }
+
+/* Souhrn dole v panelu */
+.cart-summary { padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--border); }
+.cart-summary-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; color: var(--text-2); }
+.cart-summary-row.total { padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--border); font-size: 20px; font-weight: 700; color: var(--text); }
+.cart-summary-row.cart-summary-saved {
+  background: #EAF3DE;
+  color: #27500A;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.cart-item-saved {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: #27500A;
+  font-weight: 600;
+  margin-top: -26px;  /* posunuto nahoru — sedí v úrovni qty-chips na pravé straně */
+  line-height: 1.2;
+  max-width: 60%;     /* aby se netáhlo pod qty stack */
+}
+.cart-cta {
+  width: 100%;
+  margin-top: 12px;
+  padding: 13px 18px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.12s ease, filter 0.18s ease, box-shadow 0.18s ease;
+}
+.cart-cta-green {
+  background: linear-gradient(180deg, #34c759 0%, #28a745 45%, #1e8e3e 100%) !important;
+  color: #fff !important;
+  border: 1px solid #1e8e3e !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 2px 5px rgba(30, 142, 62, 0.25),
+    0 6px 14px rgba(30, 142, 62, 0.18);
+}
+.cart-cta-green::before {
+  content: '';
+  position: absolute;
+  inset: 1px 1px auto 1px;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 100%);
+  border-radius: 999px 999px 0 0;
+  pointer-events: none;
+}
+.cart-cta-green:hover {
+  background: linear-gradient(180deg, #34c759 0%, #28a745 45%, #1e8e3e 100%) !important;
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.45) inset,
+    0 3px 8px rgba(30, 142, 62, 0.35),
+    0 10px 22px rgba(30, 142, 62, 0.25);
+}
+.cart-cta-green:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18) inset;
+}
+
+/* =========================================================
+   SECTION HEADER
+   ========================================================= */
+.section-title { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+.section-sub { font-size: 13px; color: var(--text-2); margin-bottom: 16px; }
+
+/* =========================================================
+   KATEGORIE
+   ========================================================= */
+/* Pruh kategorií jako vlastní karta - vizuálně oddělené od katalogu */
+.categories-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.categories { display: flex; gap: 10px; flex-wrap: wrap; }
+.cat {
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 500;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-2);
+  transition: all 0.15s;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.cat:hover {
+  border-color: var(--primary-border);
+  color: var(--text);
+  background: #FBFAF6;
+}
+.cat.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 2px 6px rgba(186, 117, 23, 0.25);
+  font-weight: 600;
+}
+.cat-icon { font-size: 18px; }
+.cat-img { width: 24px; height: 24px; border-radius: 4px; object-fit: cover; display: block; }
+
+/* =========================================================
+   KARTY VÝROBKŮ
+   ========================================================= */
+/* Dynamický grid — min 150px na sloupec, automaticky kolik se vejde
+   - 320px viewport: 2 sloupce (150+150+gap = ~310)
+   - 414px (iPhone Pro): 2 sloupce (širší karty)
+   - 600px+: 3 sloupce
+   - 800px+: 4 sloupce
+   - atd. */
+.grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+  gap: 8px;
+}
+@media (min-width: 600px) {
+  .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important; gap: 14px; }
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all 0.15s;
+  user-select: none;
+  -webkit-user-select: none;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  position: relative;
+}
+/* === Barevný proužek nahoře dle kategorie (na dálku viditelný) === */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: linear-gradient(180deg,
+    hsl(var(--cat-hue, 30), 70%, 55%) 0%,
+    hsl(var(--cat-hue, 30), 65%, 48%) 100%);
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: 0 1px 2px hsla(var(--cat-hue, 30), 50%, 30%, 0.18);
+}
+/* === KATEGORIE TAG — pilulka v levém horním rohu obrázku === */
+.card-kat-tag {
+  position: absolute;
+  top: 14px;          /* posunuto pod proužek */
+  left: 8px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px 4px 6px;
+  background: hsl(var(--cat-hue, 30), 70%, 48%);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  box-shadow:
+    0 2px 6px hsla(var(--cat-hue, 30), 60%, 30%, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.3) inset;
+  max-width: calc(100% - 56px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+.card-kat-ikona {
+  font-size: 13px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25));
+}
+.card-kat-nazev {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hover — drobné zvýraznění barvou kategorie */
+.card:hover {
+  border-color: hsl(var(--cat-hue, 30), 55%, 60%);
+  box-shadow: 0 4px 14px hsla(var(--cat-hue, 30), 55%, 50%, 0.22);
+  transform: translateY(-1px);
+}
+/* Vybraná karta - výraznější s tmavším pozadím */
+.card.in-cart {
+  border: 2px solid var(--primary);
+  background: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.15), 0 4px 12px rgba(186, 117, 23, 0.1);
+  transform: translateY(-1px);
+}
+.card.in-cart .card-img-wrap { background: rgba(255, 255, 255, 0.5); }
+.card.in-cart .card-name { color: var(--primary-dark); }
+.card.in-cart .card-price { color: var(--primary-dark); font-size: 18px; }
+/* Obrázek je nižší — 16/9 místo 4/3, ušetří hodně vertikálního místa */
+.card-img-wrap { position: relative; aspect-ratio: 1/1; background: var(--surface-2); overflow: hidden; transition: background 0.15s; max-width: 100%; }
+@media (min-width: 700px) {
+  .card-img-wrap { aspect-ratio: 16/9; }
+}
+.card-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: clamp(28px, 8vw, 48px); color: var(--text-3); background: linear-gradient(135deg, var(--surface-2) 0%, #fff 100%); }
+.card-badges { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; z-index: 3; }
+.card-badge { background: var(--primary); color: white; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.18); white-space: nowrap; }
+.card-badge-top { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); }
+.card-badge-sale { background: linear-gradient(135deg, #34c759 0%, #1e8e3e 100%); }
+
+/* === Status badges (Akce / Novinka / Doprodej) — VLEVO nahoře pod proužkem === */
+.card-status-badges {
+  position: absolute;
+  top: 14px;   /* pod 8px proužkem dle kategorie */
+  left: 8px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+  pointer-events: none;
+  max-width: calc(100% - 56px);
+}
+/* Sleva % a Top badge — VPRAVO pod hvězdičkou (fav: top:6 right:6 končí ~36) */
+/* Hvězdička je 20×20 na top:15 right:10 → končí cca top:35.
+   Sleva % a Top badge sedí níž — výraznější mezera od hvězdičky. */
+.card-badges-right-top { top: 52px; right: 10px; }
+.card-badges-right-top2 { top: 84px; right: 10px; }
+.card-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.22);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.25) inset;
+  white-space: nowrap;
+}
+.card-status-novinka {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+}
+.card-status-akce {
+  background: linear-gradient(135deg, #34c759 0%, #1e8e3e 100%);
+}
+.card-status-doprodej {
+  background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+}
+
+/* === VYPRODÁNO overlay — překryje celou kartu šedým nádechem + diagonální páskou === */
+.card.is-vyprodano {
+  filter: grayscale(0.8);
+  opacity: 0.85;
+}
+.card.is-vyprodano .card-img-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.4);
+  z-index: 2;
+  pointer-events: none;
+}
+.card-vyprodano-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  background: rgba(180, 30, 30, 0.92);
+  color: #fff;
+  padding: 8px 22px;
+  font-size: 16px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-radius: 6px;
+  z-index: 5;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Dark mode tweaks */
+html.dark .card-status-novinka { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+html.dark .card-status-akce { background: linear-gradient(135deg, #22c55e 0%, #16803c 100%); }
+html.dark .card-status-doprodej { background: linear-gradient(135deg, #d97706 0%, #92400e 100%); }
+html.dark .card-vyprodano-overlay { background: rgba(220, 38, 38, 0.95); }
+.card-body { padding: 12px 14px 14px; flex: 1; display: flex; flex-direction: column; }
+.card-name { font-size: 15px; font-weight: 600; margin-bottom: 3px; line-height: 1.25; }
+.card-unit { font-size: 12px; color: var(--text-3); margin-bottom: 10px; flex: 1; }
+.card-foot { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.card-price { font-size: 18px; font-weight: 700; color: var(--primary-dark); white-space: nowrap; transition: font-size 0.15s; }
+.card-price-block { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+.card-price-original { font-size: 12px; color: var(--text-3); text-decoration: line-through; margin-bottom: 1px; }
+.card-price-sale { color: #27500A !important; font-size: 18px; }
+
+/* =========================================================
+   QTY OVLÁDÁNÍ (+ / -) — sdílené pro karty i košík
+   ========================================================= */
+.qty { display: flex; align-items: center; gap: 4px; }
+.qty-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); font-size: 18px; font-weight: 500; display: flex; align-items: center; justify-content: center; transition: all 0.1s; flex-shrink: 0; cursor: pointer; }
+.qty-btn:hover { background: var(--primary-light); border-color: var(--primary-border); color: var(--primary-dark); }
+.qty-btn:active { transform: scale(0.92); }
+.qty-val { font-size: 16px; font-weight: 600; min-width: 24px; text-align: center; }
+.qty-val { font-size: 14px; font-weight: 600; min-width: 24px; text-align: center; }
+
+/* =========================================================
+   POKLADNA — formulář
+   ========================================================= */
+.checkout-section {
+  background: #F5F8FC;
+  border: 1px solid #D8E3EF;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.form-row { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: center; margin-bottom: 14px; font-size: 14px; }
+.form-row:last-child { margin-bottom: 0; }
+/* Sloupcový stack uvnitř form-row (label | stack) — pro chips + input + hint pod sebou */
+.form-row-stack { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.form-label { color: var(--text-2); }
+.input { width: 100%; padding: 10px 14px; border: 1px solid var(--border-2); border-radius: var(--radius-md); background: var(--surface); }
+.input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.1); }
+textarea.input { resize: vertical; min-height: 60px; font-size: 14px; }
+
+.toggle-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.toggle { padding: 9px 14px; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); cursor: pointer; }
+.toggle.active { background: var(--primary-light); color: var(--primary-dark); border-color: var(--primary-border); font-weight: 600; }
+.toggle:hover:not(.active) { background: var(--surface-2); }
+.checkout-hint {
+  margin-top: 6px;
+  padding: 10px 14px;
+  background: #FBFAF6;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* =========================================================
+   HISTORIE
+   ========================================================= */
+.history-row { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 8px; gap: 12px; transition: all 0.15s; cursor: pointer; }
+.history-row:hover { background: var(--surface-2); border-color: var(--primary-border); }
+.history-row:nth-child(even) { background: #FBFAF6; }
+.history-row:nth-child(even):hover { background: var(--surface-2); }
+.history-info { font-size: 14px; flex: 1; min-width: 0; }
+.history-date { font-weight: 500; margin-bottom: 2px; }
+.history-meta { color: var(--text-2); font-size: 12px; }
+.status { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.status.nova { background: var(--info-bg); color: var(--info-text); }
+.status.potvrzena, .status.ve_vyrobe, .status.pripravena { background: var(--primary-light); color: var(--primary-dark); }
+.status.dorucena { background: var(--success-bg); color: var(--success-text); }
+.status.expedovana { background: var(--info-bg); color: var(--info-text); }
+.status.zrusena { background: var(--danger-bg); color: var(--danger-text); }
+
+/* =========================================================
+   PŘEHLED
+   ========================================================= */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat { background: var(--surface-2); padding: 16px; border-radius: var(--radius-md); }
+.stat-label { font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+.stat-value { font-size: 24px; font-weight: 600; }
+.bar-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.bar-row:last-child { border-bottom: none; }
+.bar-head { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
+.bar-track { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--primary); }
+
+.empty { text-align: center; padding: 60px 20px; color: var(--text-3); font-size: 14px; }
+
+/* =========================================================
+   MOBILE — košík se přesune pod katalog
+   ========================================================= */
+/* Mobile rules below — see end of file */
+/* MODAL + DETAIL OBJEDNÁVKY */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: flex-start; justify-content: center;
+  z-index: 1000;
+  overflow-y: auto;
+  padding: 40px 16px;
+}
+.modal-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  width: 100%; max-width: 720px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+.modal-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-head h2 { font-size: 18px; font-weight: 600; }
+.modal-close {
+  background: none; border: none; font-size: 24px; cursor: pointer;
+  color: var(--text-3); padding: 4px 10px; border-radius: 6px;
+}
+.modal-close:hover { background: var(--surface-2); color: var(--text); }
+.detail-meta-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px; margin-bottom: 16px;
+}
+.detail-meta-box { background: var(--surface-2); padding: 10px 12px; border-radius: 8px; }
+
+/* Tabulka položek v modálu */
+.modal-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.modal-items-table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-3);
+  padding: 6px 4px;
+  border-bottom: 2px solid var(--border);
+}
+.modal-items-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-items-table tbody tr:hover {
+  background: var(--surface-2);
+}
+
+/* Akční tlačítka v modálu položek */
+.modal-polozky-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.detail-meta-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.detail-meta-value { font-size: 14px; font-weight: 600; color: var(--text); }
+.detail-locked {
+  background: #FAEEDA; color: #854F0B;
+  padding: 10px 14px; border-radius: 8px; font-size: 13px;
+  margin-bottom: 14px; display: flex; gap: 8px; align-items: center;
+}
+.detail-editable {
+  background: var(--success-bg); color: var(--success-text);
+  padding: 10px 14px; border-radius: 8px; font-size: 13px;
+  margin-bottom: 14px; display: flex; gap: 8px; align-items: center;
+}
+.detail-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+.detail-table th, .detail-table td {
+  padding: 8px 10px; text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.detail-table th { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; }
+.detail-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.history-zmen-list {
+  margin-top: 14px; padding: 12px; background: var(--surface-2);
+  border-radius: 8px; font-size: 12px;
+}
+.history-zmen-list h4 { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.history-zmena-row { padding: 6px 0; border-bottom: 1px dashed var(--border); }
+.history-zmena-row:last-child { border-bottom: none; }
+.modal-actions {
+  display: flex; gap: 8px; margin-top: 16px;
+  padding-top: 14px; border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.modal-actions .grow { flex: 1; }
+.btn-cancel-order {
+  background: var(--danger-bg); color: var(--danger-text);
+  padding: 10px 14px; border-radius: 8px; border: none; font-size: 13px;
+  cursor: pointer; font-weight: 500;
+}
+.btn-cancel-order:hover { background: #F8DCDC; }
+.history-row { cursor: pointer; transition: background 0.15s; border-radius: 8px; }
+.history-row:hover { background: var(--surface-2); }
+.editor-item-row {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.editor-item-row .qty {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--surface-2); border-radius: 8px; padding: 2px;
+}
+.editor-item-row .qty-btn {
+  width: 30px; height: 30px; border: none; background: transparent;
+  border-radius: 6px; font-size: 16px; cursor: pointer;
+}
+.editor-item-row .qty-btn:hover { background: white; }
+.editor-item-row .qty-val { min-width: 32px; text-align: center; font-weight: 600; font-size: 14px; }
+.editor-item-row .x-btn {
+  background: transparent; border: none; color: var(--text-3); cursor: pointer;
+  font-size: 18px; padding: 4px 8px; border-radius: 6px;
+}
+.editor-item-row .x-btn:hover { background: var(--danger-bg); color: var(--danger-text); }
+.editor-add-row { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+.editor-add-row select { flex: 1; }
+
+/* =========================================================
+   MOBILE — komplexní mobilní úpravy pro POS layout
+   Phone landscape do tabletu (do 700px = mobile, 700-900px = tablet)
+   ========================================================= */
+
+/* Tablet: košík pod katalog */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .cart-panel {
+    position: static;
+    max-height: none;
+    margin-top: 12px;
+  }
+}
+
+/* Mobile: kompaktnější celý interface */
+@media (max-width: 700px) {
+  .app { padding: 8px; }
+
+  /* Hlavička: drobné mobilní úpravy (struktura je už v základu) */
+  .header {
+    padding: 12px;
+  }
+  .logo-icon { width: 40px; height: 40px; font-size: 17px; }
+  .logo-text strong { font-size: 14px; }
+  .logo-text span { font-size: 11px; }
+  .header-row-bottom { font-size: 12px; }
+  #user-name strong { font-size: 13px; }
+  .header-pobocka { font-size: 12px; }
+
+  /* Tabs: menší padding, ikony nad text */
+  .tabs {
+    gap: 4px;
+    padding: 4px;
+  }
+  .tab {
+    padding: 10px 4px;
+    font-size: 12px;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .tab .tab-badge {
+    font-size: 10px;
+    padding: 2px 5px;
+    margin-left: 3px;
+  }
+
+  /* Velmi úzké displeje (iPhone SE, malé Androidy) */
+  @media (max-width: 380px) {
+    .tab { font-size: 11px; padding: 9px 3px; gap: 4px; }
+    .tab .tab-badge { font-size: 9px; padding: 1px 4px; }
+  }
+
+  /* Katalog: 2 sloupce na malých displejích, větší dotykové cíle */
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .card { min-width: 0; }
+  .card-body { padding: 10px; min-width: 0; }
+  .card-name {
+    font-size: 13px;
+    line-height: 1.25;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .card-meta { font-size: 11px; }
+  .card-price { font-size: 16px; }
+  .card-foot {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .qty {
+    flex-shrink: 0;
+  }
+
+  /* Tlačítka v košíku: větší pro prst (Apple Human Interface = 44pt) */
+  .qty-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+  .qty-val { min-width: 32px; font-size: 16px; }
+
+  /* Kategorie filtr — zalomit na víc řádků místo scrollu, větší */
+  .categories-wrap {
+    overflow-x: visible;
+    padding: 10px;
+    margin: 0 0 12px;
+    border-radius: 12px;
+  }
+  /* Kategorie jako uniformní grid — vždy 3 sloupce, všechny tlačítka stejně velká */
+  .categories {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .cat {
+    flex: none;
+    padding: 10px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: normal;        /* aby se dlouhé názvy zalomily */
+    line-height: 1.15;
+    min-height: 56px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;     /* ikona nad textem */
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-align: center;
+    border-radius: 8px;
+  }
+  .cat .cat-icon { font-size: 20px; }
+  .cat .cat-img { width: 24px; height: 24px; }
+  /* Velmi úzký mobil (≤ 380px, iPhone SE) — 2 sloupce */
+  @media (max-width: 380px) {
+    .categories { grid-template-columns: repeat(2, 1fr); }
+    .cat { min-height: 60px; font-size: 13px; }
+  }
+
+  /* Košík: full-width na mobilu */
+  .cart-panel { padding: 12px; }
+  .cart-item-name { font-size: 14px; }
+  .cart-cta { padding: 14px; font-size: 16px; }
+
+  /* Pokladna: jednosloupcové formy */
+  .form-row { grid-template-columns: 1fr; gap: 6px; }
+  .form-label { font-size: 12px; color: var(--text-3); }
+  .toggle-group { flex-wrap: wrap; }
+  .toggle { flex: 1; min-width: 0; padding: 10px 6px; font-size: 12px; }
+
+  /* Historie: kompaktní řádky */
+  .history-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 12px;
+  }
+  .history-row .status { align-self: flex-end; }
+
+  /* Section title menší */
+  .section-title { font-size: 18px; }
+  .section-sub { font-size: 12px; }
+
+  /* MODALY na mobilu - full screen jako bottom sheet */
+  .modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+  .modal-card {
+    border-radius: 16px 16px 0 0;
+    margin-top: auto;
+    max-height: 95vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+    max-width: 100%;
+  }
+  .modal-head h2 { font-size: 16px; }
+  .modal-close {
+    width: 40px; height: 40px;
+    font-size: 28px;
+  }
+
+  /* Detail objednávky - meta boxy přes celou šířku */
+  .detail-meta-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .detail-meta-box { padding: 8px 10px; }
+  .detail-meta-label { font-size: 10px; }
+  .detail-meta-value { font-size: 13px; }
+
+  /* Detail tabulka - menší font */
+  .detail-table th, .detail-table td {
+    padding: 6px 4px;
+    font-size: 12px;
+  }
+  .detail-table th { font-size: 10px; }
+
+  /* Editor - velikost qty pro prst */
+  .editor-item-row .qty-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .editor-item-row .qty-val {
+    min-width: 28px;
+    font-size: 15px;
+  }
+  .editor-item-row .x-btn { font-size: 22px; padding: 6px 10px; }
+
+  /* Modal akce: tlačítka pod sebou když málo místa */
+  .modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .modal-actions .grow { display: none; }
+  .modal-actions button,
+  .modal-actions .btn-cancel-order,
+  .modal-actions .btn-primary,
+  .modal-actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+    font-size: 14px;
+  }
+}
+
+/* Velmi malé telefony (320-380px) */
+@media (max-width: 380px) {
+  .grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .card-body { padding: 8px; }
+  .card-name { font-size: 12px; }
+  .card-price { font-size: 14px; }
+  .tab { padding: 8px 4px; font-size: 11px; }
+  .tab .tab-badge { font-size: 9px; padding: 2px 5px; }
+}
+
+/* iOS safe areas - notch a home indicator */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .app {
+    padding-left: max(5px, env(safe-area-inset-left));
+    padding-right: max(5px, env(safe-area-inset-right));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+}
+
+/* =========================================================
+   POSLEDNÍ OBJEDNÁVKY — blok nad katalogem (znovu objednat)
+   ========================================================= */
+.last-orders {
+  background: linear-gradient(135deg, #FFF8E5 0%, #FAEEDA 100%);
+  border: 1px solid var(--primary-border, #E5C499);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+.last-orders-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.last-orders-title {
+  font-size: 14px;
+  margin: 0;
+  color: var(--text, #2C1810);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.last-orders-more {
+  font-size: 12px;
+  color: var(--primary-dark, #854F0B);
+  background: none;
+  border: 0;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.last-orders-more:hover { background: rgba(186, 117, 23, 0.1); }
+.last-orders-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+/* Mini karta objednávky */
+.order-mini {
+  background: white;
+  border: 1px solid #E5C499;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+.order-mini-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.order-mini-head strong {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.order-mini-castka {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.order-mini-meta {
+  font-size: 11px;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.order-mini-items {
+  font-size: 11px;
+  color: var(--text-2);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+.order-mini-reorder {
+  margin-top: 4px;
+  background: var(--primary);
+  color: white;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+}
+.order-mini-reorder:hover { background: var(--primary-dark); }
+
+/* Mini karta — 4 tlačítka v řadě */
+.order-mini-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.order-mini-actions .oc-btn {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+}
+
+/* Seznam položek v mini kartě — 2 sloupce */
+.order-mini-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 11px;
+  color: var(--text-2);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px 10px;
+}
+.order-mini-list li {
+  padding: 1px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.oml-qty {
+  font-weight: 700;
+  color: var(--primary-dark);
+  display: inline-block;
+  min-width: 22px;
+}
+.oml-more {
+  color: var(--text-3);
+  font-style: italic;
+  grid-column: 1 / -1;
+}
+
+/* Status badge v mini kartě */
+.order-mini .status {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Grid: 3 sloupce na desktop, 1 na mobilu */
+.last-orders-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+/* Malá varianta tlačítek pro mini karty */
+.oc-btn-sm {
+  padding: 7px 8px !important;
+  font-size: 12px !important;
+  font-weight: 600;
+  min-height: 32px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.oc-btn-sm .oc-btn-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Disabled (šedý) stav pro DL/FA bez existujícího dokumentu */
+.oc-btn-disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #f5f5f5;
+  color: #999;
+  border: 1px dashed #ccc;
+}
+
+/* Tablet+: 2 sloupce */
+@media (min-width: 600px) {
+  .last-orders-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Horní košík lišta v katalogu */
+.cart-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--primary-light);
+  border: 1px solid var(--primary-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.cart-top-info { min-width: 0; flex-shrink: 1; }
+.cart-top-actions { flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.cart-top-btn,
+.cart-top-btn-clear { flex-shrink: 0; }
+
+@media (max-width: 480px) {
+  /* Úzké iPhone: cart-info na první řádek, tlačítka pod ním přes celou šíř */
+  .cart-top-bar { padding: 8px 10px; gap: 6px; }
+  .cart-top-bar .cart-top-info { font-size: 13px; flex: 1 1 100%; }
+  .cart-top-bar .cart-top-actions { flex: 1 1 100%; gap: 6px; }
+  .cart-top-bar .cart-top-btn { padding: 8px 12px; font-size: 12px; flex: 1; }
+}
+.cart-top-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text);
+}
+.cart-top-icon {
+  font-size: 18px;
+}
+.cart-top-sep {
+  color: var(--text-3);
+}
+.cart-top-total {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--primary-dark);
+}
+.cart-top-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.cart-top-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.cart-top-btn:hover {
+  background: var(--primary-dark);
+}
+.cart-top-btn-green {
+  background: #22863a;
+}
+.cart-top-btn-green:hover {
+  background: #1a6e2e;
+}
+.cart-top-btn-clear {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.cart-top-btn-clear:hover {
+  background: #ffe0e0;
+  border-color: #d99;
+}
+
+/* Inline košík v checkoutu */
+.checkout-cart-inline {
+  background: #FFF9F0;
+  border: 1px solid var(--primary-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.checkout-cart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.checkout-cart-head h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+.checkout-cart-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.checkout-cart-item:last-child {
+  border-bottom: none;
+}
+.checkout-ci-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.checkout-ci-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.checkout-ci-price {
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-size: 20px;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+.checkout-ci-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 6px;
+}
+.checkout-ci-unit {
+  font-size: 12px;
+  color: var(--text-3);
+  margin: 2px 0 8px;
+}
+.checkout-ci-unit s {
+  color: var(--text-3);
+}
+.checkout-ci-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.checkout-ci-controls .qty-btn {
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
+}
+.checkout-ci-controls .qty-input {
+  width: 44px;
+  height: 32px;
+}
+.checkout-ci-controls .qty-quick-wide {
+  height: 32px;
+  min-width: 36px;
+}
+.checkout-ci-controls .qty-btn-del {
+  width: 32px;
+  height: 32px;
+}
+.checkout-cart-summary {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 2px solid var(--primary);
+}
+
+/* Velké zelené tlačítko odeslat */
+.btn-submit-green {
+  background: #22863a;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 28px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(34, 134, 58, 0.3);
+}
+.btn-submit-green:hover {
+  background: #1a6e2e;
+  box-shadow: 0 4px 12px rgba(34, 134, 58, 0.4);
+}
+/* Desktop+: 3 sloupce */
+@media (min-width: 900px) {
+  .last-orders-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Tlačítko Znovu objednat v historii */
+.history-row-with-action {
+  cursor: default !important;
+  align-items: center;
+}
+.history-row-with-action .history-info {
+  cursor: pointer;
+}
+.history-row-with-action .status {
+  cursor: pointer;
+}
+.history-reorder {
+  font-size: 13px !important;
+  padding: 8px 14px !important;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Mobil: tlačítko pod řádek */
+@media (max-width: 640px) {
+  .history-row-with-action {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .history-row-with-action .history-info {
+    flex: 1 1 60%;
+    min-width: 0;
+  }
+  .history-row-with-action .status {
+    flex-shrink: 0;
+  }
+  .history-reorder {
+    width: 100%;
+    flex: 1 1 100%;
+    margin-top: 4px;
+  }
+}
+
+/* Mini výpis položek v last-order-card */
+.last-order-items {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  border-top: 1px dashed #E5C499;
+  border-bottom: 1px dashed #E5C499;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2, #5D4733);
+}
+.last-order-items li {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.last-order-items li .qty {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--primary-dark, #854F0B);
+  min-width: 22px;
+}
+.last-order-items li .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.last-order-items li.unavailable {
+  color: var(--text-3, #855);
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.last-order-items li.more {
+  color: var(--text-3, #855);
+  font-style: italic;
+  font-size: 11px;
+  padding-top: 2px;
+}
+
+/* =========================================================
+   HISTORIE — karty s položkami a cenami
+   ========================================================= */
+.history-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.15s;
+}
+.history-card:nth-child(even) {
+  background: #FBFAF6;
+}
+.history-card:hover {
+  border-color: var(--primary-border);
+  box-shadow: 0 2px 8px rgba(186, 117, 23, 0.08);
+}
+.history-card-head {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.history-card-head:hover { opacity: 0.85; }
+.history-card-cislo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.history-card-cislo strong {
+  color: var(--text);
+  font-size: 15px;
+}
+.history-card-meta {
+  font-size: 13px;
+  color: var(--text-3);
+}
+.history-card-items {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.history-card-items li {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  gap: 8px;
+  padding: 2px 0;
+  align-items: baseline;
+}
+.history-card-items li .hci-qty {
+  font-weight: 700;
+  color: var(--primary-dark);
+  text-align: right;
+}
+.history-card-items li .hci-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-card-items li .hci-price {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.history-card-reorder {
+  width: 100%;
+  font-size: 14px;
+  padding: 10px;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--primary);
+  color: white;
+  font-weight: 500;
+  font-family: inherit;
+}
+.history-card-reorder:hover { background: var(--primary-dark); }
+.history-card-reorder:active { transform: scale(0.98); }
+
+/* =========================================================
+   STŘÍDAVÉ ODLIŠENÍ KARET HISTORIE — even/odd
+   ========================================================= */
+.history-card:nth-child(odd) {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.history-card:nth-child(even) {
+  background: #FBFAF6;
+  border-color: #E8E4DC;
+}
+.history-card {
+  transition: all 0.15s;
+}
+.history-card:hover {
+  border-color: var(--primary-border);
+  box-shadow: 0 2px 8px rgba(186, 117, 23, 0.06);
+}
+
+/* =========================================================
+   (Sticky mini-bar pro katalog byl odstraněn - rozbíjel layout.
+    Místo toho: na mobilu je v katalogu místo cart-panelu
+    jen kompaktní CTA tlačítko, viz kód v app.js)
+   ========================================================= */
+
+/* =========================================================
+   ORDER CARDS — sjednocená karta pro Katalog (poslední 3) i Historii
+   ========================================================= */
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.order-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.15s;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+/* Střídavé barvy pro lepší čitelnost */
+.orders-list .order-card:nth-child(even) {
+  background: #FBFAF6;
+  border-color: #E8E4DC;
+}
+html.dark .orders-list .order-card { background: var(--surface); border-color: var(--border-2); }
+html.dark .orders-list .order-card:nth-child(even) { background: var(--surface-2); border-color: var(--border-2); }
+.order-card:hover {
+  border-color: var(--primary-border);
+  box-shadow: 0 2px 8px rgba(186, 117, 23, 0.06);
+}
+.order-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  flex-wrap: wrap;
+}
+.order-card-head strong {
+  font-size: 15px;
+  color: var(--text);
+  word-break: break-all;
+  min-width: 0;
+}
+.order-card-meta {
+  font-size: 13px;
+  color: var(--text-3);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.order-card-items {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.order-card-items li {
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+.order-card-items li:last-child { border-bottom: none; }
+.order-card-items li.unavailable {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+.order-card-items li .oci-main {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+}
+.order-card-items li .oci-qty {
+  font-weight: 700;
+  color: var(--primary-dark);
+  text-align: right;
+}
+.order-card-items li .oci-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.order-card-items li .oci-price {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+/* Mobil: víc vzduchu mezi řádky, větší font */
+@media (max-width: 600px) {
+  .order-card-items li {
+    padding: 8px 0;
+  }
+  .order-card-items li .oci-main {
+    grid-template-columns: 30px 1fr auto;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .order-card-items li .oci-name {
+    white-space: normal;        /* na mobilu zalomit, ne ořezat */
+    line-height: 1.3;
+  }
+  .order-card-items li .oci-price {
+    font-size: 13px;
+    color: var(--primary-dark);
+  }
+}
+/* Detailní rozpis pod každou položkou v historii — dezent */
+.order-card-items li .oci-detail {
+  margin-left: 44px;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--text-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+  align-items: baseline;
+  line-height: 1.4;
+}
+.order-card-items li .oci-d {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  white-space: nowrap;
+}
+.order-card-items li .oci-d-lbl {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+.order-card-items li .oci-d strong {
+  color: var(--text-2);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.order-card-items li .oci-d-sep {
+  color: var(--border-2);
+}
+/* Zelený highlight pro rabat / slevu / ušetřeno */
+.order-card-items li .oci-d-saving .oci-d-lbl,
+.order-card-items li .oci-d-saving strong {
+  color: var(--success-text);
+}
+.order-card-items li .oci-d s {
+  color: var(--text-3);
+  font-size: 10.5px;
+}
+@media (max-width: 600px) {
+  /* Mobil: schovej technické chunky (DPH, bez DPH, atd.), ukaž jen rabat */
+  .order-card-items li .oci-detail {
+    margin-left: 0;
+    margin-top: 4px;
+    font-size: 11px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    line-height: 1.3;
+  }
+  /* Schovej technické chunky a separátory */
+  .order-card-items li .oci-detail > .oci-d:not(.oci-d-saving),
+  .order-card-items li .oci-detail > .oci-d-sep { display: none; }
+  /* Saving chunks — výrazné jako mini-pilulky */
+  .order-card-items li .oci-d-saving {
+    background: #DCFCE7;
+    color: var(--success-text);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+  }
+  /* Pokud nemá rabat, schovej celý detail box (modern :has() podpora 2023+) */
+  .order-card-items li .oci-detail:not(:has(.oci-d-saving)) { display: none; }
+}
+
+/* Akční tlačítka — kompaktní řada */
+.order-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.oc-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.15s;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.oc-btn-ghost {
+  background: white;
+  color: var(--primary-dark);
+  border: 1px solid var(--primary-border, #E5C499);
+}
+.oc-btn-ghost:hover {
+  background: var(--primary-light);
+}
+
+/* Plný/zkrácený text v tlačítkách Dodací list / Faktura */
+.oc-btn-text-full { display: inline; }
+.oc-btn-text-short { display: none; }
+@media (max-width: 700px) {
+  .oc-btn-text-full { display: none; }
+  .oc-btn-text-short { display: inline; }
+}
+.oc-btn-primary {
+  position: relative;
+  background: linear-gradient(180deg, #34c759 0%, #28a745 45%, #1e8e3e 100%);
+  color: white;
+  border: 1px solid #1e8e3e;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 2px 5px rgba(30, 142, 62, 0.25),
+    0 6px 14px rgba(30, 142, 62, 0.18);
+  flex: 1.5 1 auto; /* o trochu širší */
+  overflow: hidden;
+  transition: transform 0.12s ease, filter 0.18s ease, box-shadow 0.18s ease;
+}
+.oc-btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 1px 1px auto 1px;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 100%);
+  border-radius: 999px 999px 0 0;
+  pointer-events: none;
+}
+.oc-btn-primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.45) inset,
+    0 3px 8px rgba(30, 142, 62, 0.35),
+    0 10px 22px rgba(30, 142, 62, 0.25);
+}
+.oc-btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18) inset;
+}
+
+/* Mobil: tlačítka můžou se zalomit, vždy mají min šířku */
+@media (max-width: 480px) {
+  .oc-btn {
+    font-size: 12px;
+    padding: 8px 6px;
+    min-width: 60px;
+  }
+}
+
+/* =========================================================
+   KARTA VÝROBKU — fixed vyšky pro zarovnání, žádné skoky
+   ========================================================= */
+.card {
+  display: flex;
+  flex-direction: column;
+}
+.card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.card-name {
+  /* Vždy 2 řádky pro stejnou výšku napříč kartami */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.5em;
+  line-height: 1.25;
+}
+.card-unit {
+  flex-shrink: 0;
+  margin-bottom: 6px;
+}
+
+/* Cena na vlastním řádku + koš vpravo */
+.card-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+  margin-bottom: 8px;
+  min-height: 36px;
+}
+
+/* Řada s ovládáním množství: − [input] + */
+.card-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* +/− tlačítka — větší, fixní úzká; množství je ještě vyšší (dominantní) */
+.card-qty-row .qty-btn {
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  height: 42px !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  border: 1.5px solid var(--border-2) !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  padding: 0 !important;
+}
+.card-qty-row .qty-input {
+  flex: 1 1 auto !important;
+  height: 50px !important;        /* o ~8 px vyšší než tlačítka — počet kusů dominuje */
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  border-radius: 10px !important;
+  border: 2px solid var(--primary-border) !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  min-width: 0 !important;
+}
+
+/* Editovatelný input množství */
+.qty-input {
+  flex: 1;
+  height: 32px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--primary-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: 0;
+  min-width: 0;
+  -moz-appearance: textfield;
+}
+.qty-input::-webkit-inner-spin-button,
+.qty-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.qty-input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+  background: white;
+}
+
+/* Druhý řádek: +5 a +10 */
+.card-qty-quick-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.qty-quick-wide {
+  flex: 1;
+  height: 28px;
+  border: 1px solid var(--primary-border);
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.qty-quick-wide:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+/* Minus varianta — vizuálně odlišená (decentní červená), aby uživatel viděl, že odečítá */
+.qty-quick-wide.qty-quick-minus {
+  background: #FEE2E2;
+  color: #B91C1C;
+  border-color: rgba(185, 28, 28, 0.25);
+}
+.qty-quick-wide.qty-quick-minus:hover {
+  background: #B91C1C;
+  color: white;
+  border-color: #B91C1C;
+}
+
+/* "+ Přidat" tlačítko — full width když není v košíku */
+.qty-btn-add {
+  flex: 1;
+  height: 36px;
+  background: var(--primary);
+  color: white;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.qty-btn-add:hover {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+/* Smazat z košíku (koš) */
+.qty-btn-del {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e0c8c8;
+  background: #fff5f5;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s;
+}
+.qty-btn-del:hover {
+  background: #ffe0e0;
+  border-color: #d99;
+}
+
+/* Rychlá tlačítka +5 / +10 */
+.qty-quick {
+  flex-shrink: 0;
+  height: 28px;
+  min-width: 30px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--primary-dark);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.1s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.qty-quick:hover {
+  background: var(--primary-light);
+  border-color: var(--primary-border);
+}
+.qty-quick:active { transform: scale(0.95); }
+
+/* (Velikost qty-btn nastavena výše v .card-qty-row .qty-btn — 30×34 px) */
+
+/* Zabraňme zvětšování/zmenšování karty kvůli in-cart stínům */
+.card.in-cart {
+  /* Předchozí translateY -1px byl hlavní viník skoků */
+  transform: none;
+}
+
+/* Mobil: na úzkých kartách (320-360px viewport, 2 sloupce = ~150px karta)
+   schovej +10 aby se +5 a + vešly */
+@media (max-width: 380px) {
+  .qty-quick:last-child {
+    /* +10 schovat na opravdu malých */
+    display: none;
+  }
+}
+
+/* ===================================================================
+   MODERN FEATURES (v9.29):
+   Quick Reorder, Šablony, Catalog search, Oblíbené,
+   Toasts, Dark mode, Header actions
+   =================================================================== */
+
+/* --- HEADER actions --- */
+.header-actions { display: flex; align-items: center; gap: 6px; }
+
+/* --- 🌐 Language switcher — segmented pill v B2B headeru --- */
+.b2b-lang-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.65));
+  border: 1px solid rgba(186, 117, 23, 0.25);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(186, 117, 23, 0.08), inset 0 1px 0 rgba(255,255,255,0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  flex-shrink: 0;
+}
+.b2b-lang-pill {
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 5px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: #854F0B;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  line-height: 1;
+  position: relative;
+}
+.b2b-lang-pill:hover {
+  background: rgba(186, 117, 23, 0.1);
+  color: #5C3608;
+}
+.b2b-lang-pill.is-active {
+  background: linear-gradient(180deg, #FBBF24, #BA7517);
+  color: #fff;
+  box-shadow: 0 2px 5px rgba(186, 117, 23, 0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.b2b-lang-pill.is-active:hover {
+  background: linear-gradient(180deg, #FCD34D, #C8821F);
+}
+.b2b-lang-flag {
+  font-size: 14px;
+  line-height: 1;
+  filter: saturate(1.1);
+}
+.b2b-lang-code {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+html.dark .b2b-lang-pills {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+html.dark .b2b-lang-pill { color: rgba(255,255,255,0.7); }
+html.dark .b2b-lang-pill:hover { background: rgba(255,255,255,0.08); color: #fff; }
+html.dark .b2b-lang-pill.is-active {
+  background: linear-gradient(180deg, #FBBF24, #BA7517);
+  color: #fff;
+}
+@media (max-width: 768px) {
+  .b2b-lang-pills { padding: 2px; }
+  .header-row-top .b2b-lang-pills { margin-left: 12px; }
+  .b2b-lang-pill { padding: 4px 7px; }
+  .b2b-lang-code { display: none; }
+  .b2b-lang-flag { font-size: 16px; }
+}
+
+.icon-btn {
+  background: rgba(0,0,0,0.04);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 16px;
+  transition: background 0.15s, transform 0.12s;
+  padding: 0;
+}
+.icon-btn:hover { background: rgba(186,117,23,0.08); color: var(--primary-dark); }
+.icon-btn:active { transform: translateY(1px); }
+.dark-toggle-sun { display: none; }
+.dark-toggle-moon { display: inline; }
+html.dark .dark-toggle-sun { display: inline; }
+html.dark .dark-toggle-moon { display: none; }
+
+/* --- Fullscreen toggle ikona — přepíná enter/exit podle stavu --- */
+.fs-icon-enter { display: inline; font-size: 15px; line-height: 1; }
+.fs-icon-exit { display: none; font-size: 15px; line-height: 1; }
+html.is-fullscreen .fs-icon-enter { display: none; }
+html.is-fullscreen .fs-icon-exit { display: inline; }
+html.is-fullscreen .icon-btn-fs {
+  background: rgba(220, 38, 38, 0.12);
+  color: #B91C1C;
+}
+html.is-fullscreen .icon-btn-fs:hover {
+  background: rgba(220, 38, 38, 0.2);
+  color: #991B1B;
+}
+
+/* --- QUICK REORDER BAR --- */
+.quick-reorder-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #FFF8E7 0%, #FAEEDA 100%);
+  border: 1.5px solid var(--primary-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(186, 117, 23, 0.10);
+  flex-wrap: wrap;
+}
+.quick-reorder-info {
+  display: flex; align-items: center; gap: 12px;
+  flex: 1; min-width: 220px;
+}
+.quick-reorder-icon {
+  font-size: 30px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 50%;
+  width: 50px; height: 50px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.quick-reorder-title {
+  font-size: 15px; font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 2px;
+}
+.quick-reorder-meta {
+  font-size: 12px; color: var(--text-2);
+}
+.quick-reorder-btn {
+  background: linear-gradient(180deg, #34c759 0%, #28a745 45%, #1e8e3e 100%);
+  color: #fff;
+  border: 1px solid #1e8e3e;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.18);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.35) inset,
+    0 2px 5px rgba(30,142,62,0.25),
+    0 6px 14px rgba(30,142,62,0.18);
+  transition: transform 0.12s, filter 0.18s;
+}
+.quick-reorder-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.quick-reorder-btn:active { transform: translateY(1px); }
+
+/* --- ŠABLONY --- */
+.sablony-bar {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+.sablony-head {
+  display: flex; align-items: baseline; gap: 10px;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.sablony-title {
+  font-size: 14px; font-weight: 700;
+  color: var(--primary-dark);
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.sablony-count-badge {
+  background: var(--primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+}
+.sablony-hint {
+  font-size: 11px; color: var(--text-3);
+}
+.sablony-list {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.sablona-chip {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--primary-light);
+  border: 1px solid var(--primary-border);
+  transition: box-shadow 0.15s, transform 0.12s;
+}
+.sablona-chip:hover { box-shadow: 0 2px 6px rgba(186,117,23,0.15); transform: translateY(-1px); }
+.sablona-use {
+  background: transparent;
+  border: none;
+  padding: 7px 12px 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--primary-dark);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.sablona-use:hover { background: rgba(255,255,255,0.4); }
+.sablona-use strong { font-weight: 600; }
+.sablona-count {
+  font-size: 11px; color: var(--text-3); font-weight: 500;
+  background: rgba(255,255,255,0.5);
+  padding: 1px 6px; border-radius: 999px;
+}
+.sablona-del {
+  background: transparent;
+  border: none; border-left: 1px solid var(--primary-border);
+  padding: 0 10px;
+  font-size: 13px;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.sablona-del:hover { background: rgba(163,45,45,0.08); color: var(--danger-text); }
+
+/* --- CATALOG SEARCH --- */
+.catalog-search { position: relative; margin: 12px 0; }
+.catalog-search-input {
+  width: 100%;
+  padding: 11px 38px 11px 14px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+}
+.catalog-search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(186,117,23,0.12);
+}
+.catalog-search-clear {
+  position: absolute;
+  right: 6px; top: 50%;
+  transform: translateY(-50%);
+  background: var(--surface-2);
+  border: none;
+  border-radius: 50%;
+  width: 26px; height: 26px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-3);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.catalog-search-clear:hover { background: var(--border-2); color: var(--text); }
+
+/* --- OBLÍBENÉ (hvězdička na kartě) --- */
+.card-fav {
+  position: absolute;
+  top: 15px; right: 10px;
+  background: rgba(255,255,255,0.85);
+  border: none;
+  border-radius: 50%;
+  width: 20px; height: 20px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: transform 0.12s, background 0.15s;
+  z-index: 2;
+  padding: 0;
+}
+.card-fav:hover { transform: scale(1.1); background: #fff; }
+.card-fav.is-fav { background: rgba(250, 199, 117, 0.9); }
+.card-fav.is-fav:hover { background: var(--primary-border); }
+.cat.cat-oblibene { border-color: var(--primary-border); }
+.cat.cat-oblibene.active { background: var(--primary); color: #fff; }
+
+/* --- TOAST notifikace --- */
+.app-toast {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  z-index: 9999;
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid rgba(39, 80, 10, 0.2);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.25s, transform 0.25s;
+  max-width: 360px;
+  pointer-events: none;
+}
+.app-toast.show { opacity: 1; transform: translateY(0); }
+.app-toast-error {
+  background: var(--danger-bg); color: var(--danger-text);
+  border-color: rgba(163,45,45,0.2);
+}
+@media (max-width: 600px) {
+  .app-toast { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+}
+
+/* ===================================================================
+   DARK MODE
+   =================================================================== */
+html.dark {
+  --primary: #FBBA5E;
+  --primary-dark: #FAC775;
+  --primary-light: #3A2A12;
+  --primary-border: #6D4B1F;
+  --bg: #161514;
+  --surface: #1F1D1B;
+  --surface-2: #28252B;
+  --text: #F5F2EC;
+  --text-2: #B5B0A4;
+  --text-3: #8A857A;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-2: rgba(255, 255, 255, 0.16);
+  --success-bg: #1F3014;
+  --success-text: #9FCB6F;
+  --info-bg: #14283D;
+  --info-text: #82B8E8;
+  --danger-bg: #3A1E1E;
+  --danger-text: #E89A9A;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+html.dark body { background: var(--bg); color: var(--text); }
+html.dark .card,
+html.dark .login-card,
+html.dark .modal-card,
+html.dark .order-mini,
+html.dark .last-orders,
+html.dark .sablony-bar,
+html.dark .cart-panel,
+html.dark .stat-card,
+html.dark .checkout-block {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.dark .header { background: var(--surface); border-bottom-color: var(--border); }
+html.dark .tabs { background: var(--surface); border-bottom-color: var(--border); }
+html.dark .tab { color: var(--text-2); }
+html.dark .tab.active { color: var(--primary); }
+html.dark .cat { background: var(--surface-2); color: var(--text-2); border-color: var(--border); }
+html.dark .cat.active { background: var(--primary); color: #1F1D1B; }
+html.dark input,
+html.dark select,
+html.dark textarea,
+html.dark .form-input,
+html.dark .catalog-search-input {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--border-2) !important;
+}
+html.dark input::placeholder { color: var(--text-3); }
+html.dark .quick-reorder-bar {
+  background: linear-gradient(135deg, #2A1F0F 0%, #3A2A12 100%);
+  border-color: var(--primary-border);
+}
+html.dark .quick-reorder-icon { background: rgba(255,255,255,0.08); }
+html.dark .sablona-chip { background: var(--primary-light); }
+html.dark .card-fav { background: rgba(0,0,0,0.6); color: #fff; }
+html.dark .card-fav.is-fav { background: rgba(250, 199, 117, 0.25); }
+html.dark .app-toast { background: var(--success-bg); color: var(--success-text); }
+html.dark .empty { background: var(--surface); color: var(--text-2); }
+html.dark .modal-overlay { background: rgba(0,0,0,0.7); }
+html.dark .login-screen { background: var(--bg); }
+html.dark .login-card { background: var(--surface); }
+html.dark .login-logo-icon { background: var(--primary); color: #1F1D1B; }
+
+/* ===================================================================
+   COMPACT QTY CHIPS (+5 / +10) — náhrada za qty-quick-wide
+   Vejdou se vedle základního ovládání na jeden řádek
+   =================================================================== */
+.card-qty-row-full {
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+.qty-chip {
+  flex: 0 0 auto;
+  min-width: 32px;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--primary-border);
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.15s, color 0.15s, border-color 0.15s;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.qty-chip:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.qty-chip:active { transform: scale(0.92); }
+
+/* V checkoutu jsou trochu větší (32px) */
+.checkout-ci-controls .qty-chip { height: 32px; min-width: 34px; font-size: 12px; }
+
+/* Mobil — ještě menší, jen čísla bez prefixu by neměla smysl, ale tlačítka snížíme */
+@media (max-width: 480px) {
+  .qty-chip { min-width: 30px; padding: 0 4px; font-size: 10.5px; }
+}
+
+/* Velmi úzký mobil (<360px, 2-sloupcový grid) — +10 skryjeme jako dřív */
+@media (max-width: 360px) {
+  .card-qty-row .qty-chip:last-child { display: none; }
+}
+
+/* ===================================================================
+   CHECKOUT — sjednocená action tlačítka (nahoře i dole shodná)
+   =================================================================== */
+.checkout-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+/* Shared action block — Uložit šablonu + Odeslat objednávku (+ volitelně Zpět) */
+.checkout-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.checkout-actions-with-back {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* Tlačítko "← Zpět" — minimální link */
+.checkout-actions-back {
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.checkout-actions-back:hover { background: var(--surface-2); color: var(--text); }
+
+/* Tlačítko "📌 Uložit jako šablonu" — amber pilulka */
+.checkout-actions-save {
+  color: var(--primary-dark);
+  font-weight: 600;
+  font-size: 13px;
+  background: var(--primary-light);
+  border: 1px solid var(--primary-border);
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, transform 0.12s;
+}
+.checkout-actions-save:hover { background: var(--primary-border); transform: translateY(-1px); }
+.checkout-actions-save:active { transform: translateY(1px); }
+
+/* Tlačítko "✅ Odeslat objednávku" — zelený pill */
+.checkout-actions-submit {
+  margin-left: auto;
+  padding: 11px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.2px;
+  background: linear-gradient(180deg, #34c759 0%, #28a745 45%, #1e8e3e 100%);
+  border: 1px solid #1e8e3e;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.18);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.35) inset,
+    0 2px 5px rgba(30,142,62,0.25),
+    0 6px 14px rgba(30,142,62,0.18);
+  transition: transform 0.12s, filter 0.18s;
+}
+.checkout-actions-submit:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.checkout-actions-submit:active { transform: translateY(1px); }
+
+/* Dolní akční řádek (nad footerem) — větší a výraznější CTA */
+.checkout-actions-with-back .checkout-actions-submit {
+  padding: 16px 36px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.4) inset,
+    0 3px 8px rgba(30,142,62,0.35),
+    0 10px 24px rgba(30,142,62,0.25);
+}
+.checkout-actions-with-back .checkout-actions-save {
+  padding: 12px 20px;
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .checkout-head-row { align-items: stretch; }
+  .checkout-actions {
+    width: 100%;
+    flex-direction: row;
+  }
+  .checkout-actions-back { flex: 0 0 auto; padding: 8px 10px; }
+  .checkout-actions-save { flex: 1; text-align: center; }
+  .checkout-actions-submit { flex: 2; text-align: center; margin-left: 0; }
+}
+
+/* === CELKEM (CHECKOUT TOTAL) — vlastní samostatný blok dole === */
+.checkout-total-block {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #FFF8E7 0%, #FAEEDA 100%);
+  border: 1.5px solid var(--primary-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 8px rgba(186, 117, 23, 0.10);
+}
+.checkout-total-head {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--primary-dark);
+  margin-bottom: 8px;
+}
+.checkout-total-rows .cart-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.checkout-total-rows .cart-summary-row.total {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 2px solid var(--primary);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+.checkout-total-rows .cart-summary-saved {
+  color: var(--success-text);
+  font-weight: 600;
+}
+
+html.dark .checkout-total-block {
+  background: linear-gradient(135deg, #2A1F0F 0%, #3A2A12 100%);
+  border-color: var(--primary-border);
+}
+html.dark .checkout-total-head { color: var(--primary); }
+html.dark .checkout-total-rows .cart-summary-row.total { color: var(--primary); border-top-color: var(--primary); }
+html.dark .checkout-actions-save { background: var(--primary-light); color: var(--primary-dark); border-color: var(--primary-border); }
+html.dark .checkout-actions-save:hover { background: var(--primary-border); }
+
+/* Dark mode pro nové chipy */
+html.dark .qty-chip { background: var(--primary-light); color: var(--primary-dark); border-color: var(--primary-border); }
+html.dark .qty-chip:hover { background: var(--primary); color: #1F1D1B; }
+html.dark .checkout-head-save { background: var(--primary-light); color: var(--primary-dark); border-color: var(--primary-border); }
+html.dark .checkout-head-save:hover { background: var(--primary-border); }
+
+/* ===================================================================
+   TYP OBJEDNÁVKY — karty s ikonou + popisem
+   =================================================================== */
+.form-hint {
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.5;
+  display: block;
+  margin-top: 4px;
+}
+.typ-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+.typ-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  font-family: inherit;
+  position: relative;
+  color: var(--text);
+}
+.typ-card:hover {
+  border-color: var(--primary-border);
+  background: linear-gradient(135deg, #FFFCF5 0%, #FAEEDA40 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(186, 117, 23, 0.08);
+}
+.typ-card.active {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, #FFF8E7 0%, #FAEEDA 100%);
+  box-shadow: 0 2px 12px rgba(186, 117, 23, 0.15), 0 0 0 2px rgba(186, 117, 23, 0.15);
+}
+.typ-card.active::after {
+  content: '✓';
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 14px;
+  color: var(--primary);
+  font-weight: 700;
+}
+.typ-card-icon {
+  font-size: 26px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.typ-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.typ-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.typ-card.active .typ-card-title { color: var(--primary-dark); }
+.typ-card-desc {
+  font-size: 11.5px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.typ-help {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--info-bg);
+  color: var(--info-text);
+  border-left: 3px solid var(--info-text);
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.typ-help strong { font-weight: 700; }
+
+/* --- DATE CHIPS (rychlá volba dne pro Naplánovaná) --- */
+.date-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.date-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 70px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-2);
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  color: var(--text);
+}
+.date-chip:hover {
+  border-color: var(--primary-border);
+  background: var(--primary-light);
+  transform: translateY(-1px);
+}
+.date-chip.active {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, #FFF8E7 0%, #FAEEDA 100%);
+  color: var(--primary-dark);
+}
+.date-chip-label {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+.date-chip-date {
+  font-size: 10.5px;
+  color: var(--text-3);
+  line-height: 1;
+}
+.date-chip.active .date-chip-date { color: var(--primary-dark); }
+
+@media (max-width: 600px) {
+  .typ-cards { grid-template-columns: 1fr; }
+  .date-chip { min-width: 60px; padding: 6px 10px; }
+  .date-chip-label { font-size: 11px; }
+}
+
+/* Dark mode varianty */
+html.dark .typ-card { background: var(--surface); border-color: var(--border); }
+html.dark .typ-card:hover { background: var(--surface-2); border-color: var(--primary-border); }
+html.dark .typ-card.active { background: var(--primary-light); border-color: var(--primary); }
+html.dark .typ-card.active .typ-card-title { color: var(--primary); }
+html.dark .typ-help { background: var(--info-bg); color: var(--info-text); border-left-color: var(--info-text); }
+html.dark .date-chip { background: var(--surface-2); border-color: var(--border-2); color: var(--text); }
+html.dark .date-chip:hover { background: var(--primary-light); }
+html.dark .date-chip.active { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+
+/* ===================================================================
+   💰 POKLADNA — profesionální POS-style řádky
+   Layout per row:
+   ┌────┬──────────────────────┬───────────────┬────────┬──┐
+   │ 🥖 │ Název · drobné meta  │ [-][ qty ][+] │ Cena   │ ✕│
+   │    │                      │ [+5] [+10]    │        │  │
+   └────┴──────────────────────┴───────────────┴────────┴──┘
+   - barevný proužek vlevo dle kategorie
+   - zebra alternace pozadí
+   - velký čtvercový qty input
+   - menší název, výraznější cena
+   =================================================================== */
+
+.checkout-cart-inline {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.checkout-cart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.checkout-cart-head h3 {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-2);
+}
+.checkout-cart-items {
+  display: flex;
+  flex-direction: column;
+}
+
+/* === POKLADNA — sjednocená tabulková mřížka přes subgrid ===
+   ┌────┬───────────────┬───────┬───────┬───────┬──────┬─────┬───────┬────┐
+   │ 70 │  minmax 140   │ 110   │  90   │  90   │  70  │auto │ 110   │ 36 │
+   │mini│ název         │ tvoje │ běžná │ rabat │sleva │ qty │celkem │ ✕  │
+   └────┴───────────────┴───────┴───────┴───────┴──────┴─────┴───────┴────┘
+   ============================================================== */
+.pokladna-tabulka {
+  display: grid;
+  grid-template-columns:
+    96px               /* 1 — miniatura 82+padding */
+    auto               /* 2 — název (fits content) */
+    1fr                /* 3 — spacer (tlačí ceny doprostřed) */
+    110px              /* 4 — tvoje cena */
+    90px               /* 5 — běžná cena */
+    90px               /* 6 — rabat */
+    70px               /* 7 — sleva */
+    1fr                /* 8 — spacer (mezera před qty) */
+    auto               /* 9 — qty */
+    24px               /* 10 — gap mezi qty a celkem */
+    110px              /* 11 — celkem */
+    20px               /* 12 — gap mezi celkem a trashem */
+    44px;              /* 13 — trash (s 8px margin-right) */
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pokladna-row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  position: relative;
+  border-top: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.pokladna-row:first-child { border-top: none; }
+.pokladna-row:nth-child(odd):not(.pokladna-row-header) { background: rgba(0,0,0,0.018); }
+.pokladna-row:hover:not(.pokladna-row-header) { background: rgba(186, 117, 23, 0.05); }
+
+/* Standardní datová buňka — bez vertikálních dělítek (ty jsou jen v hlavičce),
+   ale 1px transparent border-right pro identické box-sizing jako hlavička */
+.pr-cell {
+  padding: 10px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  min-width: 0;
+  white-space: nowrap;
+  position: relative;
+  border-right: 1px solid transparent;  /* match hlavičku 1px → obsah přesně pod ní */
+  box-sizing: border-box;
+}
+.pr-cell.pr-spacer,
+.pr-cell.pr-spacer-narrow { padding: 0; }
+.pr-cell .dash { color: var(--text-3); }
+/* Trash — odsun od pravého okraje tabulky */
+.pr-cell.pokladna-row-del {
+  margin-right: 8px;
+  justify-self: end;
+}
+
+/* Barevný proužek vlevo dle kategorie — na první buňce v každém řádku */
+.pokladna-row:not(.pokladna-row-header) > .pr-cell:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: 0 2px 2px 0;
+  background: var(--row-accent, var(--primary));
+}
+
+/* ═══ HLAVIČKA tabulky ═══ */
+.pokladna-row-header {
+  background: linear-gradient(180deg, #FFF8E7 0%, #FAEEDA 100%) !important;
+  border-bottom: 2px solid #E8C988;
+}
+.pokladna-row-header .ph-cell {
+  padding: 8px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  border-right: 1px solid transparent;  /* match data buňky pro perfektní zarovnání, ale neviditelné */
+  min-height: 30px;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+.pokladna-row-header .ph-cell:last-child { border-right: none; }
+.pokladna-row-header .ph-cell-empty {
+  color: var(--text-3);
+  font-weight: 600;
+  font-size: 9.5px;
+}
+.pokladna-row-header .ph-cell-h {
+  color: #854F0B;
+}
+/* Spacer buňky v hlavičce — žádný border, žádný padding */
+.pokladna-row-header .ph-cell-spacer,
+.pokladna-row-header .ph-cell-spacer-narrow {
+  border-right: none;
+  padding: 0;
+  min-height: 0;
+}
+/* Hlavička pro Množství / Celkem — bez pravého borderu (mezera za nimi) */
+.pokladna-row-header > .ph-cell:nth-child(9),    /* Množství */
+.pokladna-row-header > .ph-cell:nth-child(11) {  /* Celkem */
+  border-right: none;
+}
+
+/* Miniatura výrobku (82×82) — fotka nebo emoji fallback */
+.pokladna-row-ikona {
+  padding: 7px 7px 7px 10px;  /* odsadit od levého proužku kategorie */
+  justify-content: flex-start;
+}
+.pokladna-row-ikona > * {
+  width: 82px;
+  height: 82px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.pokladna-row-ikona img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pokladna-row-emoji {
+  font-size: 36px;
+  background: linear-gradient(135deg, var(--surface-2) 0%, #fff 100%);
+}
+.pokladna-row-ikona img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pokladna-row-emoji {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  background: linear-gradient(135deg, var(--surface-2) 0%, #fff 100%);
+}
+
+/* Velký název pro důchodce — čitelný i ze 2 m */
+.pokladna-row-nazev {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.1px;
+  padding: 10px 14px 10px 12px;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+/* === HLAVIČKA cenových sloupců — jen jednou nahoře === */
+.pokladna-ceny-header-row {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom: none;
+  background: transparent !important;
+}
+.pokladna-ceny-header-row::before { display: none; }  /* žádný proužek u hlavičky */
+.pokladna-ceny-header-row:hover { background: transparent !important; }
+.pokladna-ceny-grid.is-header {
+  background: linear-gradient(180deg, #FFF8E7 0%, #FAEEDA 100%);
+  border-color: #E8C988;
+}
+.pokladna-ceny-cell-header {
+  padding: 6px 10px;
+  text-align: center;
+  border-right: 1px solid #E8D5B0;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #854F0B;
+  white-space: nowrap;
+  line-height: 1.2;
+  background: transparent;
+}
+.pokladna-ceny-cell-header:last-child { border-right: none; }
+/* === CENOVÁ TABULKA — hlavička JEN nahoře, řádky se s ní zarovnají ===
+   Společná šablona sloupců (proměnná --ceny-cols):
+   ┌──────────────┬──────────────┬──────────────┬─────────┐
+   │ Tvoje cena   │ Běžná cena   │ Rabat / ks   │ Sleva   │
+   │   120px      │   100px      │   100px      │  70px   │
+   └──────────────┴──────────────┴──────────────┴─────────┘
+   ============================================================ */
+
+/* (Legacy: --ceny-cols a .pokladna-ceny-grid byly nahrazeny subgridem v .pokladna-tabulka) */
+/* Stylování datových buněk cenové části — barvy a font sizes */
+.pokladna-cell-now {
+  background: #FFFCF5;
+  border-left: 1px solid #F0E6D0;
+}
+.pokladna-cell-now strong {
+  color: var(--primary-dark);
+  font-size: 15px;
+  font-weight: 700;
+}
+.pokladna-cell-was s {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+.pokladna-cell-save {
+  background: #F8FDF4;
+}
+.pokladna-cell-save strong {
+  color: var(--success-text);
+  font-weight: 700;
+  font-size: 13px;
+}
+.pokladna-cell-sleva { padding: 6px 4px; }
+
+/* === DETAILNÍ ŘÁDEK pod každou položkou — info pro odběratele === */
+.pokladna-row-detail {
+  grid-column: 1 / -1;
+  padding: 6px 14px 10px 96px;  /* zarovnáno pod název (po šířce miniatury 96px) */
+  font-size: 11px;
+  color: var(--text-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.012);
+}
+.pokladna-row-detail:last-child { border-bottom: none; }
+.pokladna-row-detail .prd-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+.pokladna-row-detail .prd-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+.pokladna-row-detail .prd-val {
+  color: var(--text-2);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pokladna-row-detail .prd-sep {
+  color: var(--border-2);
+  font-weight: 500;
+}
+.pokladna-row-detail .prd-saving .prd-val {
+  color: var(--success-text);
+}
+.pokladna-row-detail .prd-saving .prd-label {
+  color: var(--success-text);
+}
+
+html.dark .pokladna-row-detail {
+  background: rgba(255, 255, 255, 0.025);
+  border-bottom-color: var(--border);
+}
+
+/* Na mobilu detail jako jednoduchý seznam pod kartou */
+@media (max-width: 800px) {
+  .pokladna-row-detail {
+    padding: 8px 12px;
+    background: var(--surface-2);
+    border-radius: 0 0 8px 8px;
+    margin-top: -8px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-top: none;
+  }
+}
+.pokladna-row-jednotka {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 2px;
+}
+.pokladna-row-saleflag {
+  display: inline-flex;
+  align-items: center;
+  background: var(--success-bg);
+  color: var(--success-text);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+/* Dark mode */
+html.dark .pokladna-tabulka {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.dark .pokladna-row-header {
+  background: linear-gradient(180deg, #2A1F0F 0%, #3A2A12 100%) !important;
+  border-bottom-color: var(--primary-border);
+}
+html.dark .pokladna-row-header .ph-cell-h { color: var(--primary); }
+html.dark .pokladna-row-header .ph-cell { border-right-color: var(--primary-border); }
+html.dark .pokladna-cell-now { background: rgba(186, 117, 23, 0.10); }
+html.dark .pokladna-cell-now strong { color: var(--primary); }
+html.dark .pokladna-cell-save { background: rgba(34, 134, 58, 0.10); }
+html.dark .pokladna-row:nth-child(odd):not(.pokladna-row-header) { background: rgba(255, 255, 255, 0.025); }
+html.dark .pokladna-ceny-grid {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+html.dark .pokladna-ceny-cell { border-right-color: var(--border); }
+html.dark .pokladna-ceny-cell.now { background: rgba(186, 117, 23, 0.08); }
+html.dark .pokladna-ceny-cell.now strong { color: var(--primary); }
+html.dark .pokladna-ceny-cell.save { background: rgba(34, 134, 58, 0.10); }
+
+/* MOBIL — sloupce se nevejdou, takže přepneme do "data-label" stylu */
+@media (max-width: 700px) {
+  .pokladna-ceny-header { display: none; }
+  .pokladna-ceny-grid {
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+  .pokladna-ceny-cell {
+    flex-direction: column;
+    padding: 5px 8px;
+    align-items: flex-start;
+    text-align: left;
+    gap: 1px;
+  }
+  .pokladna-ceny-cell::before {
+    content: attr(data-label);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-3);
+    line-height: 1;
+  }
+}
+
+/* === Velký čtvercový QTY ovladač — pixel-perfect zarovnání ===
+   Top row:    [−] [ qty ] [+]  ← všechny 44px vysoké, baseline = střed
+   Bottom row: [ +5  ] [ +10 ]   ← chips přes plnou šířku qty bloku
+   Celá šířka:  36 + 4 + 56 + 4 + 36 = 136 px
+   ============================================================ */
+.pokladna-row-qty {
+  display: grid;
+  grid-template-columns: 30px 56px 30px;
+  grid-template-rows: 44px auto;
+  column-gap: 4px;
+  row-gap: 4px;
+  align-items: center;
+  justify-items: stretch;
+  width: 124px;
+}
+.pokladna-qty-minus,
+.pokladna-qty-plus {
+  height: 34px;          /* menší než počet (44px) */
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1;
+  padding: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--border-2);
+  background: var(--surface);
+  color: var(--text);
+}
+.pokladna-qty-num {
+  height: 44px;          /* zůstává největší — počet kusů je důležitý */
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1;
+  padding: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--border-2);
+  background: var(--surface);
+  color: var(--text);
+}
+.pokladna-qty-minus,
+.pokladna-qty-plus {
+  cursor: pointer;
+  transition: background 0.12s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+.pokladna-qty-minus:hover,
+.pokladna-qty-plus:hover {
+  background: var(--primary-light);
+  border-color: var(--primary-border);
+  color: var(--primary-dark);
+}
+.pokladna-qty-minus:active,
+.pokladna-qty-plus:active { transform: scale(0.94); }
+.pokladna-qty-num {
+  /* Input je vizuálně zvýrazněn amber borderem, ale stále 1.5px = stejné jako sousední */
+  border-color: var(--primary-border);
+  -moz-appearance: textfield;
+  outline: none;
+}
+.pokladna-qty-num::-webkit-inner-spin-button,
+.pokladna-qty-num::-webkit-outer-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+.pokladna-qty-num:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.18);
+  background: white;
+}
+
+/* Chip řada pod ovladačem — přesně pod minus..plus blokem */
+.pokladna-qty-quick {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+}
+.pokladna-qty-chip {
+  flex: 1 1 0;
+  height: 26px;
+  border: 1px solid var(--primary-border);
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.3px;
+  transition: background 0.12s, color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pokladna-qty-chip:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* Cena za řádek — velká, výrazná, v amber rámečku jako odděleně */
+.pokladna-row-cena {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  /* Amber rámeček kolem ceny — vizuálně oddělená od ostatních buněk */
+  background: linear-gradient(180deg, #FFF8E7 0%, #FAEEDA 100%);
+  border: 1.5px solid var(--primary-border);
+  border-radius: 10px;
+  padding: 10px 6px;
+  box-shadow: 0 1px 2px rgba(186, 117, 23, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  letter-spacing: 0;
+  /* Box vyplní celý sloupec — žádný overflow */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+html.dark .pokladna-row-cena {
+  background: linear-gradient(180deg, #2A1F0F 0%, #3A2A12 100%);
+  border-color: var(--primary-border);
+  color: var(--primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Smazat ikona — košík s minusem (semantic: odebrat z košíku) */
+.pokladna-row-del {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+.pokladna-row-del svg {
+  display: block;
+  pointer-events: none;
+}
+.pokladna-row-del:hover {
+  background: var(--danger-bg);
+  border-color: var(--danger-text);
+  color: var(--danger-text);
+  transform: scale(1.04);
+}
+.pokladna-row-del:active { transform: scale(0.94); }
+
+/* Mobile: subgrid nepoužitelný, fallback na flow-based 3-řádkový layout */
+@media (max-width: 800px) {
+  /* Skryj desktopovou hlavičku — na mobilu jsou labely uvnitř buněk */
+  .pokladna-row-header,
+  .pokladna-row.pokladna-row-header { display: none !important; }
+  .pokladna-row-header * { display: none !important; }
+
+  .pokladna-tabulka {
+    display: block;
+    background: transparent;
+    border: none;
+  }
+  /* Spacery na mobilu schovat */
+  .pr-spacer, .pr-spacer-narrow,
+  .ph-cell-spacer, .ph-cell-spacer-narrow { display: none !important; }
+  .pokladna-row {
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    grid-template-rows: auto auto auto;
+    gap: 6px 10px;
+    padding: 10px 12px 10px 14px;
+    background: var(--surface);          /* respektuje dark mode */
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .pokladna-row:hover { background: var(--surface-2); }
+  .pr-cell { padding: 4px 0; font-size: 12px; white-space: normal; }
+  .pokladna-row-ikona {
+    grid-column: 1; grid-row: 1 / 3;
+    padding: 0;
+    justify-self: start;
+  }
+  .pokladna-row-ikona > * { width: 60px; height: 60px; }
+  .pokladna-row-emoji { font-size: 26px; }
+  .pokladna-row-nazev {
+    grid-column: 2 / 4;
+    grid-row: 1;
+    padding: 0;
+    font-size: 15px;
+  }
+  /* Cenové buňky na mobilu — wrap do 2×2 gridu pod název */
+  .pokladna-cell-now,
+  .pokladna-cell-was,
+  .pokladna-cell-save,
+  .pokladna-cell-sleva {
+    grid-column: 2 / 4;
+    background: var(--surface-2);
+    border-radius: 6px;
+    padding: 4px 8px !important;
+    display: flex;
+    justify-content: space-between;
+    text-align: left;
+    font-size: 12px;
+  }
+  .pokladna-cell-now { grid-row: 2; background: #FFFCF5; }
+  .pokladna-cell-was { grid-row: 3; }
+  .pokladna-cell-save { grid-row: 4; background: #F8FDF4; }
+  .pokladna-cell-sleva { grid-row: 5; }
+  /* Label před hodnotou */
+  .pokladna-cell-now::before { content: 'Vaše cena'; color: var(--text-3); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+  .pokladna-cell-was::before { content: 'Běžná cena'; color: var(--text-3); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+  .pokladna-cell-save::before { content: 'Rabat / ks'; color: var(--text-3); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+  .pokladna-cell-sleva::before { content: 'Sleva'; color: var(--text-3); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+
+  .pokladna-row-qty {
+    grid-column: 1 / 3;
+    grid-row: 6;
+    grid-template-columns: 34px 48px 34px;
+  }
+  .pokladna-qty-minus,
+  .pokladna-qty-plus { height: 32px; width: 30px; font-size: 14px; }
+  .pokladna-qty-num { height: 42px; width: 50px; font-size: 17px; }
+  .pokladna-row-cena {
+    grid-column: 3;
+    grid-row: 6;
+    font-size: 14px;
+    align-self: center;
+    padding: 7px 8px;
+    width: auto;
+    min-width: 80px;
+  }
+  .pokladna-row-del {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 30px;
+    height: 30px;
+  }
+  .pokladna-row-del svg { width: 15px; height: 15px; }
+  .pokladna-row-nazev { font-size: 16px; }
+  .pokladna-row-saleflag { font-size: 11px; padding: 2px 6px; }
+}
+
+/* Dark mode */
+html.dark .pokladna-row:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
+html.dark .pokladna-row:hover { background: rgba(186, 117, 23, 0.08); }
+html.dark .pokladna-row-ikona { background: var(--surface-2); }
+html.dark .pokladna-qty-minus,
+html.dark .pokladna-qty-plus {
+  background: var(--surface-2);
+  border-color: var(--border-2);
+  color: var(--text);
+}
+html.dark .pokladna-qty-minus:hover,
+html.dark .pokladna-qty-plus:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+html.dark .pokladna-qty-num { background: var(--surface-2); border-color: var(--primary-border); color: var(--text); }
+html.dark .pokladna-qty-num:focus { background: var(--surface); border-color: var(--primary); }
+html.dark .pokladna-qty-chip { background: var(--primary-light); color: var(--primary-dark); border-color: var(--primary-border); }
+html.dark .pokladna-qty-chip:hover { background: var(--primary); color: #1F1D1B; }
+html.dark .pokladna-row-cena { color: var(--primary); }
+html.dark .pokladna-row-del { background: transparent; border-color: var(--border); }
+html.dark .pokladna-row-del:hover { background: var(--danger-bg); color: var(--danger-text); }
+
+/* ===================================================================
+   📜 FOOTER aplikace — kontakt + copyright + breathing room
+   =================================================================== */
+.app-footer {
+  margin-top: 40px;
+  padding: 28px 20px 22px;
+  background: linear-gradient(180deg, transparent 0%, rgba(186, 117, 23, 0.04) 100%);
+  border-top: 1px solid var(--border);
+}
+.app-footer-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 32px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.app-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.app-footer-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: Georgia, serif;
+  flex-shrink: 0;
+}
+.app-footer-brand strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+.app-footer-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 1px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.app-footer-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  text-align: right;
+  font-size: 12.5px;
+}
+.app-footer-contact a {
+  color: var(--text-2);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.app-footer-contact a:hover { color: var(--primary-dark); }
+.app-footer-copy {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-3);
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+
+@media (max-width: 700px) {
+  .app-footer { margin-top: 32px; padding: 22px 16px 18px; }
+  .app-footer-inner {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .app-footer-contact {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
+html.dark .app-footer {
+  background: linear-gradient(180deg, transparent 0%, rgba(186, 117, 23, 0.08) 100%);
+  border-top-color: var(--border);
+}
+
+/* === Dark mode — kategorie tag výraznější (tmavší pozadí) === */
+html.dark .card-kat-tag {
+  background: hsl(var(--cat-hue, 30), 60%, 42%);
+  box-shadow:
+    0 2px 6px hsla(var(--cat-hue, 30), 50%, 15%, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.15) inset;
+}
+
+/* ===================================================================
+   ↑ SCROLL TO TOP — fixed v rohu, zobrazí se po scrollu
+   =================================================================== */
+.scroll-top-btn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  border: 1px solid var(--primary-dark);
+  cursor: pointer;
+  display: none;        /* defaultně skryté */
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.25) inset,
+    0 4px 12px rgba(186, 117, 23, 0.35),
+    0 8px 24px rgba(186, 117, 23, 0.22);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.25s ease;
+  z-index: 200;
+  opacity: 0;
+}
+.scroll-top-btn.is-visible {
+  display: inline-flex;
+  opacity: 1;
+  animation: stb-fade-in 0.3s ease both;
+}
+@keyframes stb-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.scroll-top-btn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 6px 16px rgba(186, 117, 23, 0.45),
+    0 12px 30px rgba(186, 117, 23, 0.28);
+}
+.scroll-top-btn:active { transform: translateY(0); }
+.scroll-top-btn svg { display: block; }
+
+/* Na mobilu menší + víc od kraje */
+@media (max-width: 700px) {
+  .scroll-top-btn {
+    bottom: 18px;
+    right: 18px;
+    width: 42px;
+    height: 42px;
+  }
+  .scroll-top-btn svg { width: 18px; height: 18px; }
+}
+
+/* ===================================================================
+   📏 Jednotky a hmotnosti — vizuální podpora
+   =================================================================== */
+.qty-val-unit {
+  font-size: 0.55em;
+  font-weight: 500;
+  color: var(--text-3);
+  margin-left: 2px;
+  white-space: nowrap;
+}
+.cart-item-weight {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+/* Mobile — schovat ks/g vedle čísla (jednotka je už pod tlačítky v pokladně),
+   aby se v souhrnu nepřetékalo */
+@media (max-width: 700px) {
+  .cart-item .qty-val-unit { display: none; }
+  .cart-item-weight { font-size: 10px; padding: 1px 5px; margin-left: 4px; }
+}
+.cart-summary-weight {
+  color: var(--text-2);
+  font-weight: 500;
+}
+.cart-summary-weight span:last-child {
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+.pokladna-qty-jed {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-3);
+  font-weight: 700;
+  margin-top: 1px;
+  line-height: 1;
+}
+.pokladna-row-weight {
+  font-size: 10px;
+  color: var(--text-3);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* ===================================================================
+   📱 POS / DOTYKOVÝ REŽIM — větší tiles, sticky košík, ideální pro tablet
+   Aktivuje se přidáním třídy `.pos-mode` na <body>
+   =================================================================== */
+
+/* Toggle button v headeru — ikonové přepínání */
+.icon-btn-pos .pos-icon-off { display: none; }
+.icon-btn-pos .pos-icon-on  { display: inline; }
+body.pos-mode .icon-btn-pos { background: var(--primary); color: white; }
+body.pos-mode .icon-btn-pos .pos-icon-off { display: inline; }
+body.pos-mode .icon-btn-pos .pos-icon-on  { display: none; }
+
+/* === POS mode: layout fixes === */
+body.pos-mode {
+  /* Žádné hover efekty (touch zařízení) */
+  cursor: default;
+}
+body.pos-mode .card:hover,
+body.pos-mode .qty-btn:hover,
+body.pos-mode .cat:hover {
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Větší tap targets — Apple HIG ≥ 44 pt */
+body.pos-mode .qty-btn,
+body.pos-mode .qty-quick-wide,
+body.pos-mode .qty-chip,
+body.pos-mode .cat,
+body.pos-mode .tab,
+body.pos-mode .icon-btn,
+body.pos-mode .btn-primary {
+  min-height: 48px;
+}
+
+/* Katalog — 4 tiles vedle sebe (POS) */
+body.pos-mode .grid {
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 10px !important;
+}
+/* Na úzkých zařízeních redukovat */
+@media (max-width: 900px) {
+  body.pos-mode .grid { grid-template-columns: repeat(3, 1fr) !important; }
+}
+@media (max-width: 600px) {
+  body.pos-mode .grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+body.pos-mode .card {
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: rgba(186,117,23,0.18);
+  transition: transform 0.08s, box-shadow 0.15s;
+}
+body.pos-mode .card:active {
+  transform: scale(0.97);
+}
+body.pos-mode .card-img-wrap { aspect-ratio: 1; }   /* čtvercové tiles */
+body.pos-mode .card-name {
+  font-size: 14px;
+  font-weight: 600;
+  -webkit-line-clamp: 2;
+}
+body.pos-mode .card-price {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Hvězdičkové ikony / detail ikony větší pro touch */
+body.pos-mode .card-fav {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+}
+
+/* Kategorie chipsy — VELKÉ, jasné, mřížka */
+body.pos-mode .categories {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
+  gap: 8px !important;
+}
+body.pos-mode .cat {
+  padding: 12px 8px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  min-height: 56px !important;
+  border-radius: 12px !important;
+}
+
+/* Horní taby (Katalog/Košík/Historie/Přehled) — větší */
+body.pos-mode .tabs {
+  gap: 6px;
+  padding: 6px;
+}
+body.pos-mode .tab {
+  font-size: 15px;
+  padding: 14px 12px;
+  min-height: 54px;
+  font-weight: 600;
+}
+
+/* Boční košík — sticky, full height, větší v POS módu */
+body.pos-mode .layout {
+  align-items: flex-start;
+}
+body.pos-mode .cart-panel {
+  position: sticky;
+  top: 12px;
+  align-self: flex-start;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 0 0 360px;
+}
+body.pos-mode .cart-panel .cart-item-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+body.pos-mode .cart-panel .cart-item-price {
+  font-size: 17px;
+  font-weight: 800;
+}
+body.pos-mode .cart-panel .qty-btn {
+  width: 40px !important;
+  height: 40px !important;
+  font-size: 18px !important;
+}
+body.pos-mode .cart-panel .qty-val {
+  font-size: 18px;
+  font-weight: 800;
+  min-width: 34px;
+}
+body.pos-mode .cart-panel .qty-chip-min,
+body.pos-mode .cart-panel .qty-chip-plus {
+  font-size: 13px;
+  padding: 7px 10px;
+  min-height: 36px;
+}
+
+/* Celková částka v košíku — velká */
+body.pos-mode .cart-total,
+body.pos-mode .cart-summary,
+body.pos-mode .cart-summary-amount {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+/* Hlavní CTA tlačítka — velká, ozdobená */
+body.pos-mode .btn-primary,
+body.pos-mode .checkout-actions-submit {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  padding: 16px 22px !important;
+  min-height: 60px !important;
+  letter-spacing: 0.3px;
+}
+
+/* Velké +/− na kartě katalogu — ještě výraznější v POS */
+body.pos-mode .card-qty-row .qty-btn {
+  width: 42px !important;
+  height: 48px !important;
+  font-size: 20px !important;
+}
+body.pos-mode .card-qty-row .qty-input {
+  height: 56px !important;
+  font-size: 24px !important;
+}
+
+/* Search input — větší (touch klávesnice) */
+body.pos-mode .search-input,
+body.pos-mode .catalog-search {
+  font-size: 16px !important;
+  padding: 12px 16px !important;
+  min-height: 48px !important;
+}
+
+/* POS na malých displejích (≤900px) — košík přejde pod katalog jako sticky bottom sheet by bylo přehnané, takže ho zachováme stranou ale užší */
+@media (max-width: 1100px) {
+  body.pos-mode .cart-panel { flex-basis: 300px; }
+}
+@media (max-width: 900px) {
+  body.pos-mode .layout {
+    flex-direction: column;
+  }
+  body.pos-mode .cart-panel {
+    position: static;
+    flex-basis: auto;
+    max-height: none;
+    width: 100%;
+  }
+}
+
+/* Dark mode toggle u POS button */
+html.dark body.pos-mode .icon-btn-pos { background: var(--primary-dark); color: #111; }
+
+/* ===================================================================
+   📂 Katalogové sekce — oddělovače kategorií (pečivo, koláče, atd.)
+   =================================================================== */
+.catalog-section {
+  margin-bottom: 24px;
+}
+.catalog-section + .catalog-section {
+  margin-top: 8px;
+}
+.catalog-section-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 16px;
+  padding: 16px 22px 16px 18px;
+  background: linear-gradient(90deg,
+    hsl(var(--sec-hue, 30), 60%, 94%) 0%,
+    hsl(var(--sec-hue, 30), 60%, 98%) 50%,
+    transparent 100%
+  );
+  border-left: 6px solid hsl(var(--sec-hue, 30), 60%, 55%);
+  border-radius: 12px 0 0 12px;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.1;
+  letter-spacing: -0.3px;
+}
+.catalog-section-icon {
+  font-size: 44px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.catalog-section-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catalog-section-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-2);
+  background: rgba(0, 0, 0, 0.08);
+  padding: 5px 14px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+}
+@media (max-width: 600px) {
+  .catalog-section { margin-bottom: 22px; }
+  .catalog-section-head {
+    font-size: 24px;
+    padding: 12px 16px 12px 12px;
+    gap: 10px;
+    border-left-width: 5px;
+  }
+  .catalog-section-icon { font-size: 32px; }
+  .catalog-section-count { font-size: 12px; padding: 3px 10px; }
+}
+html.dark .catalog-section-head {
+  background: linear-gradient(90deg,
+    hsl(var(--sec-hue, 30), 40%, 14%) 0%,
+    hsl(var(--sec-hue, 30), 30%, 10%) 50%,
+    transparent 100%
+  );
+  border-left-color: hsl(var(--sec-hue, 30), 60%, 50%);
+  color: var(--text);
+}
+html.dark .catalog-section-count {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-2);
+}
+
+/* =========================================================
+   🌙 DARK MODE — defensive overrides pro problémové komponenty
+   (hardcoded white backgrounds, hover stavy, mini-karty)
+   ========================================================= */
+/* Mobile: pokladna-row hardcoded white → surface */
+html.dark .pokladna-tabulka,
+html.dark .pokladna-row { background: var(--surface) !important; color: var(--text); }
+html.dark .pokladna-row:hover { background: var(--surface-2) !important; }
+
+/* Pokladna qty input focus */
+html.dark .pokladna-qty-num:focus { background: var(--surface-2); color: var(--text); }
+html.dark .pokladna-qty-minus,
+html.dark .pokladna-qty-plus,
+html.dark .pokladna-qty-num { background: var(--surface); color: var(--text); border-color: var(--border-2); }
+
+/* qty-input focus a chip-button */
+html.dark .qty-input:focus { background: var(--surface-2); }
+html.dark .qty-chip-min,
+html.dark .qty-chip-plus { background: var(--surface); color: var(--text); border-color: var(--border-2); }
+html.dark .oc-btn-ghost { background: var(--surface); color: var(--primary); border-color: var(--primary-border); }
+html.dark .editor-item-row .qty-btn:hover { background: var(--surface-2); }
+html.dark .card-fav:hover { background: var(--surface-2); }
+html.dark .pokladna-qty-chip { background: var(--surface); color: var(--text); border-color: var(--border-2); }
+
+/* Cipro: cislo doplňky (priste) hard-coded white background */
+html.dark .cislo-priste { background: var(--surface-2); color: var(--primary); border-color: var(--border-2); }
+
+/* Cart summary weight — v dark mode čitelná amber barva */
+html.dark .cart-summary-weight span:last-child { color: var(--primary); }
+/* Cart-item-weight badge — v dark dobře čitelný */
+html.dark .cart-item-weight { background: var(--surface); color: var(--text); border: 1px solid var(--border-2); }
+
+/* === KOMPLEXNÍ DARK MODE FIX — všechny známé hardcoded cream/light backgrounds === */
+/* Pravidlo: cream #FBFAF6 (zebra) → --surface-2 */
+html.dark .cart-item:nth-child(even),
+html.dark .history-row:nth-child(even),
+html.dark [class*="-row"]:nth-child(even) { background: var(--surface-2); }
+
+/* Cream #FFF9F0 a #FFFCF5 (info/highlight pozadí) → --surface */
+html.dark [style*="background:#FFF9F0"],
+html.dark [style*="background: #FFF9F0"],
+html.dark [style*="background:#FFFCF5"],
+html.dark [style*="background: #FFFCF5"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* Cool light blue #F5F8FC, #E6F1FB → --info-bg / --surface */
+html.dark [style*="background:#F5F8FC"],
+html.dark [style*="background: #F5F8FC"] {
+  background: var(--surface) !important;
+  border-color: var(--border-2) !important;
+}
+
+/* Pokladna-cell-now / save (mobile rows) — hardcoded #FFFCF5 / #F8FDF4 */
+html.dark .pokladna-cell-now,
+html.dark .pokladna-cell-save { background: var(--surface-2) !important; }
+
+/* Highlight greens (#DCFCE7, #B91C1C) — adaptivní */
+html.dark [style*="background:#DCFCE7"],
+html.dark [style*="background: #DCFCE7"] { background: var(--success-bg) !important; color: var(--success-text) !important; }
+
+/* Light red danger #FEE2E2, #fff5f5, #ffe0e0 — adaptivní */
+html.dark [style*="background:#FEE2E2"],
+html.dark [style*="background: #FEE2E2"] { background: var(--danger-bg) !important; color: var(--danger-text) !important; }
+
+/* Top dark tabs (header) — už tmavé na obou módech, OK */
+
+/* Btn-cancel-order hover #F8DCDC */
+html.dark .btn-cancel-order:hover { background: var(--danger-bg); color: var(--danger-text); }
+
+/* Border colors hardcoded (cream/amber) */
+html.dark [style*="border:1px solid #E8D5B0"],
+html.dark [style*="border: 1px solid #E8D5B0"],
+html.dark [style*="border:1px solid #E8E4DC"],
+html.dark [style*="border: 1px solid #E8E4DC"] { border-color: var(--border-2) !important; }
+
+/* Page background fallback */
+html.dark body, html.dark .app { background: var(--bg); color: var(--text); }
+
+/* === SOUHRN OBJEDNÁVKY (checkout) — dark mode komplet === */
+html.dark .checkout-section {
+  background: var(--surface);
+  border-color: var(--border-2);
+  color: var(--text);
+}
+html.dark .checkout-cart-inline {
+  background: var(--surface);
+  border-color: var(--border-2);
+  color: var(--text);
+}
+html.dark .typ-card {
+  background: var(--surface);
+  border-color: var(--border-2);
+  color: var(--text);
+}
+html.dark .typ-card:hover {
+  background: var(--surface-2);
+  border-color: var(--primary-border);
+}
+html.dark .typ-card.active {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary-dark);
+}
+html.dark .typ-card.active .typ-card-title { color: var(--primary); }
+
+/* Date chips — selektor data den */
+html.dark .date-chip {
+  background: var(--surface);
+  border-color: var(--border-2);
+  color: var(--text);
+}
+html.dark .date-chip:hover {
+  background: var(--surface-2);
+  border-color: var(--primary-border);
+}
+html.dark .date-chip.active {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+html.dark .date-chip.active .date-chip-date { color: var(--primary); }
+
+/* Souhrn — vnitřní background v summary boxu */
+html.dark [class*="cart-summary"] [style*="background:#FAEEDA"],
+html.dark .checkout-section [style*="background:#FAEEDA"] {
+  background: var(--primary-light) !important;
+  color: var(--primary-dark);
+}
+
+/* Typ help blok (modrá info) */
+html.dark .typ-help {
+  background: var(--info-bg);
+  color: var(--info-text);
+  border-left-color: var(--info-text);
+}
+
+html.dark .order-mini { background: var(--surface-2); border-color: var(--border-2); color: var(--text); }
+html.dark .order-mini * { color: inherit; }
+
+html.dark .pokladna-row:hover { background: var(--surface-2) !important; }
+html.dark .pokladna-row { background: var(--surface); color: var(--text); }
+
+html.dark .editor-item-row .qty-btn:hover { background: var(--surface-2); }
+html.dark .card-fav:hover { background: var(--surface-2); }
+
+/* Hardcoded #fff / white v různých kartách → surface */
+html.dark .last-orders,
+html.dark .last-order-mini,
+html.dark .ld-card,
+html.dark [class*="-mini"]:not(.qty-mini) { background: var(--surface); color: var(--text); }
+
+/* Vyrobek miniatura placeholder, info banner */
+html.dark [style*="background:#FFF9F0"],
+html.dark [style*="background: #FFF9F0"],
+html.dark [style*="background:#FFFAF1"],
+html.dark [style*="background:#FFF8E5"] { background: var(--surface-2) !important; color: var(--text) !important; }
+
+/* Modré/zelené/červené info banery — adaptivní pozadí */
+html.dark [style*="background:#E6F1FB"],
+html.dark [style*="background: #E6F1FB"] { background: var(--info-bg) !important; color: var(--info-text) !important; }
+html.dark [style*="background:#FAEEDA"],
+html.dark [style*="background: #FAEEDA"] { background: var(--primary-light) !important; color: var(--primary-dark) !important; }
+html.dark [style*="background:#FCEBEB"] { background: var(--danger-bg) !important; color: var(--danger-text) !important; }
+
+/* =========================================================
+   📱 LANDSCAPE PHONE + 📲 TABLET — 701-1100 px
+   Doplnění breakpointů pro mezi-zónu (landscape mobil, tablet)
+   ========================================================= */
+@media (min-width: 701px) and (max-width: 1100px) {
+  /* Layout — POS panel zachovat ale košík užší */
+  .layout { gap: 12px; }
+  .cart-panel { flex: 0 0 280px; }
+
+  /* Katalog — 3 sloupce na tabletu (lepší než 2) */
+  .grid { grid-template-columns: repeat(3, 1fr) !important; }
+
+  /* Karty produktů — vetší ikony pro touch */
+  .card-name { font-size: 14px; }
+  .card-price { font-size: 17px; }
+  .qty-btn { width: 38px; height: 38px; font-size: 16px; }
+
+  /* Tabs — větší, touch friendly */
+  .tab { font-size: 14px; padding: 12px 14px; min-height: 48px; }
+
+  /* Header */
+  .header { padding: 14px 16px; }
+  .logo-text strong { font-size: 16px; }
+  .logo-text span { font-size: 12px; }
+
+  /* Modal */
+  .modal-overlay { padding: 20px; align-items: center; }
+  .modal-card { max-width: 90vw !important; max-height: 92vh !important; border-radius: 12px !important; height: auto !important; }
+  .modal-body { padding: 20px 24px; }
+}
+
+/* Landscape phone (krátká výška, široký) */
+@media (max-height: 500px) and (orientation: landscape) {
+  .header { padding: 8px 12px; }
+  .tabs { padding: 4px; gap: 4px; }
+  .tab { font-size: 13px; padding: 8px 10px; min-height: 38px; }
+  .modal-card { max-height: 96vh !important; }
+}
+
+/* iPad portrait (768-820px) — speciální optimalizace */
+@media (min-width: 768px) and (max-width: 820px) and (orientation: portrait) {
+  .grid { grid-template-columns: repeat(3, 1fr) !important; }
+  .cart-panel { flex: 0 0 260px; }
+}
+
+/* iPad landscape (≥ 1024px) — POS-like layout */
+@media (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
+  .grid { grid-template-columns: repeat(4, 1fr) !important; }
+  .cart-panel { flex: 0 0 340px; }
+}
+
+/* =============================================================
+   🆕 v2.0.72 — All-Device Ready: universal responzivní polish
+   Pokrývá phone (320-480), small tablet (481-768), tablet (768-1024),
+   desktop (≥1024). Zabraňuje overflow, fix-uje touch targety, klamp
+   typography pro plynulé škálování.
+   ============================================================= */
+
+/* Universal overflow prevence — žádný horizontální scroll na žádné stránce */
+html, body { max-width: 100vw; overflow-x: hidden; }
+
+/* Fluid typography — plynulé škálování dle viewport (clamp = min/preferred/max) */
+:root {
+  --fs-h1: clamp(20px, 4.5vw, 26px);
+  --fs-h2: clamp(17px, 3vw, 20px);
+  --fs-body: clamp(14px, 1.8vw, 15px);
+  --fs-small: clamp(11px, 1.3vw, 12px);
+}
+.section-title { font-size: var(--fs-h1); }
+.section-sub { font-size: var(--fs-small); }
+
+/* Touch targety — všechna interaktivní tlačítka min 44pt (Apple HIG) */
+@media (hover: none) and (pointer: coarse) {
+  button, .btn-primary, .btn-secondary, .tab, .cat, .qty-btn, input, select, textarea {
+    min-height: 44px;
+  }
+  .qty-btn { min-width: 44px; }
+  .typ-card { min-height: 80px; padding: 14px; }
+  /* Větší tap area u order card */
+  .order-card-head, .order-card-meta { padding: 12px; }
+}
+
+/* Image safety — fotky výrobků se nikdy nepřetékají */
+img { max-width: 100%; height: auto; }
+
+/* Tabulky — universal scroll-x wrapper jako fallback (kdyby data-label nestačilo) */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Modal — flexibilní velikost pro všechny viewporty */
+.modal-card {
+  max-width: min(720px, 95vw);
+  max-height: min(900px, 92vh);
+  margin: auto;
+}
+@media (max-width: 600px) {
+  .modal-overlay { padding: 12px; align-items: flex-start; padding-top: 5vh; }
+  .modal-card { max-width: 100% !important; max-height: 90vh !important; border-radius: 14px !important; }
+  .modal-head { padding: 16px 18px !important; }
+  .modal-body { padding: 16px 18px !important; }
+  .modal-head h2 { font-size: 17px !important; }
+  .modal-actions { flex-wrap: wrap; gap: 8px; }
+  .modal-actions button { flex: 1 1 100px; min-width: 100px; }
+}
+
+/* Detail objednávky — tabulka se na mobilu transformuje na stacked karty */
+@media (max-width: 600px) {
+  .detail-meta-grid { grid-template-columns: 1fr 1fr !important; gap: 8px; }
+  .detail-meta-box { padding: 10px !important; }
+  .detail-meta-label { font-size: 10.5px; }
+  .detail-meta-value { font-size: 13.5px; }
+
+  .detail-table { font-size: 13px; }
+  .detail-table th:nth-child(3),
+  .detail-table td:nth-child(3) { display: none; } /* skry "Cena/ks" sloupec, zůstane v Celkem */
+  .detail-table th, .detail-table td { padding: 8px 6px !important; }
+}
+
+/* Velmi malé telefony (≤ 360px iPhone SE 1st gen, Galaxy Fold) */
+@media (max-width: 360px) {
+  .header { padding: 10px !important; }
+  .logo-icon { width: 34px !important; height: 34px !important; font-size: 14px !important; }
+  .logo-text strong { font-size: 13px !important; }
+  .logo-text span { display: none !important; }   /* skry tagline aby zbyl prostor */
+  .b2b-lang-pill { padding: 4px 6px !important; }
+  .header-actions { gap: 4px; }
+  .logout-icon-btn { width: 36px; height: 36px; }
+  .grid { gap: 6px; }
+  .card-body { padding: 8px !important; }
+  .card-name { font-size: 12px !important; }
+  .card-price { font-size: 15px !important; }
+  /* Date chips se na ultra-mobile zmenší */
+  .date-chip { padding: 8px 6px !important; font-size: 11px !important; }
+  .date-chip-date { font-size: 10px !important; }
+  /* Typ-card grid → 1 sloupec */
+  .typ-cards { grid-template-columns: 1fr !important; }
+}
+
+/* Tablet portrait (601-900px) — košík pod katalogem + 3-col grid */
+@media (min-width: 601px) and (max-width: 900px) {
+  .grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .cart-panel { padding: 14px; }
+  .typ-cards { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* Desktop wide (≥ 1400px) — maximální využití plochy */
+@media (min-width: 1400px) {
+  .app { max-width: 1400px; margin: 0 auto; }
+  .grid { grid-template-columns: repeat(5, 1fr); }
+  .cart-panel { flex: 0 0 380px; }
+}
+
+/* Print friendly — pokud někdo tiskne objednávku */
+@media print {
+  .header, .tabs, .cart-panel, .checkout-actions, .modal-close,
+  .b2b-lang-pills, .logout-icon-btn, button { display: none !important; }
+  .modal-card { box-shadow: none !important; max-width: 100% !important; }
+  body { background: #fff; color: #000; }
+}
+
+/* Bezpečná ochrana: dlouhé texty (emaily, URL) wrap-ují */
+.order-card-meta, .recent-odb-name, .odberatel-card-nazev,
+.checkout-section, .detail-meta-value {
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Form inputs — na malých displejích bez zoom-in pri focusu (iOS) */
+input, select, textarea {
+  font-size: 16px;     /* 16px = bez auto-zoom na iOS */
+}
+@media (min-width: 768px) {
+  input, select, textarea { font-size: 15px; }
+}
+
+/* 🆕 v2.5 — B2B Doprava + Platba karty (checkout) */
+.b2b-pay-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+}
+.b2b-pay-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.b2b-pay-card:hover {
+  border-color: var(--primary-border, #BA7517);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+.b2b-pay-card.active {
+  border-color: var(--primary, #BA7517);
+  background: linear-gradient(135deg, #FFF8E7, #FEF3C7);
+  box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.15);
+}
+.b2b-pay-ico {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.b2b-pay-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.b2b-pay-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-1, #1d1d1f);
+  line-height: 1.25;
+}
+.b2b-pay-desc {
+  font-size: 12px;
+  color: var(--text-3, #6e6e73);
+  line-height: 1.4;
+}
+.b2b-pay-card.active .b2b-pay-name {
+  color: #854F0B;
+}
+@media (max-width: 640px) {
+  .b2b-pay-card { padding: 12px; gap: 10px; }
+  .b2b-pay-ico { font-size: 24px; }
+  .b2b-pay-name { font-size: 13px; }
+  .b2b-pay-desc { font-size: 11px; }
+}

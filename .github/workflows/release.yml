@@ -1,0 +1,47 @@
+name: 📦 Release ZIP
+
+# Spustí se při push tagu ve formátu v1.0.0, v1.1.0, atd.
+# Vytvoří GitHub Release + nahraje appek-vX.Y.Z.zip jako asset.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write  # potřeba pro vytvoření release
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: ver
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify APP_VERSION matches tag
+        run: |
+          CFG_VERSION=$(grep -oP "(?<=APP_VERSION', ')[^']+" api/config.php | head -1)
+          TAG_VERSION="${{ steps.ver.outputs.version }}"
+          if [ "$CFG_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ APP_VERSION ($CFG_VERSION) v api/config.php se neshoduje s tagem ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "✅ APP_VERSION $CFG_VERSION matches tag v$TAG_VERSION"
+
+      - name: Build distribution ZIP
+        run: |
+          chmod +x build-zip.sh
+          ./build-zip.sh "${{ steps.ver.outputs.version }}"
+          ls -lh appek-v${{ steps.ver.outputs.version }}.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Appek B2B v${{ steps.ver.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: appek-v${{ steps.ver.outputs.version }}.zip
+          fail_on_unmatched_files: true

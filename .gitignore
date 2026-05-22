@@ -1,0 +1,37 @@
+# Citlivé soubory (vygenerované installerem)
+api/config.local.php
+api/.installed
+
+# Uživatelská data
+uploads/
+*.log
+
+# Zálohy
+api/zalohy/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# PHP cache
+*.phpx
+
+# Build/distribuce (necommitujte do gitu)
+*.zip
+*.tar.gz
+*.bak
+*.bak-*
+*.STABLE-*
+*.orig
+APPEK_*/
+
+# 🔒 Lokální config se secrety — NIKDY do gitu (DB hesla, Stripe/GoPay klíče)
+*.local.php
+config.local.php
+vendor_db_config.local.php
+.installed

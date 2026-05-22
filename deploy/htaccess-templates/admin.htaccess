@@ -1,0 +1,75 @@
+# =============================================================
+# 🔐 admin.appek.cz — Admin panel (skrytý)
+# =============================================================
+# BEZPEČNOSTNÍ vrstva navíc — možnost IP whitelist, 2FA, no-index.
+
+Options -Indexes
+ServerSignature Off
+
+# Force HTTPS
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# 🚫 Žádné indexování — admin nikdy v Googlu
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+  # Maximální HSTS
+  Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-XSS-Protection "1; mode=block"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
+  Header always set Cross-Origin-Resource-Policy "same-site"
+
+  # CSP — povolit chart.js z jsdelivr (jediný external)
+  Header always set Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self';"
+
+  # Cache-Control pro HTML — žádné cachování
+  <FilesMatch "\.(html|php)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
+# 🛡️ IP WHITELIST (volitelně — odkomentuj a doplň své IP)
+# <RequireAll>
+#   Require ip 127.0.0.1
+#   Require ip ::1
+#   Require ip 1.2.3.4         # tvoje veřejná IP
+#   Require ip 1.2.3.0/24       # tvůj rozsah
+# </RequireAll>
+
+# Rate limiting na login endpoint
+<IfModule mod_security2.c>
+  SecRuleEngine On
+  # ...vendor-specific rules
+</IfModule>
+
+# Cache CSS/JS s cache busting
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+</IfModule>
+
+# Gzip
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json
+</IfModule>
+
+# Block sensitive files
+<FilesMatch "\.(env|log|sql|gitignore|gitattributes|md|json|yml|yaml|bak|old|tmp)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>

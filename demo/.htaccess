@@ -1,0 +1,54 @@
+# ════════════════════════════════════════════════════════════════
+# 🧪 DEMO subdomain — 15-min session timeout + auto-reset každou hodinu
+# ════════════════════════════════════════════════════════════════
+#
+# Tato .htaccess platí pro demo.appek.cz (a podsložky včetně /admin/, /b2b/, /api/).
+# Pokud máš demo subdoménu nasměrovanou na public_html/demo/, tohle se aplikuje.
+
+Options -Indexes
+ServerSignature Off
+
+# Force HTTPS
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# ⏱️ SESSION TIMEOUT — 15 minut idle
+<IfModule mod_php8.c>
+  php_value session.gc_maxlifetime 900
+  php_value session.cookie_lifetime 900
+  php_value session.gc_probability 1
+  php_value session.gc_divisor 10
+</IfModule>
+<IfModule mod_php7.c>
+  php_value session.gc_maxlifetime 900
+  php_value session.cookie_lifetime 900
+</IfModule>
+
+# Cookie scope — pouze pro demo subdoménu
+<IfModule mod_headers.c>
+  Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+  Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains"
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin"
+</IfModule>
+
+# Blokuj citlivé soubory
+<FilesMatch "\.(env|log|sql|gitignore|md|json|yml|yaml|bak|old|tmp|key|pem|crt)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+<FilesMatch "\.local\.php$">
+  Require all denied
+</FilesMatch>
+
+# Auto-reset banner header (informativní)
+<IfModule mod_headers.c>
+  Header set X-APPEK-Demo "true"
+  Header set X-APPEK-Session-TTL "900"
+</IfModule>

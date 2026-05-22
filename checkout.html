@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#BA7517">
+<title>Objednávka — APPEK</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    background: linear-gradient(135deg, #f5f5f7 0%, #e8e8eb 100%);
+    color: #1d1d1f; min-height: 100vh; padding: 20px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 0; margin-bottom: 30px;
+  }
+  .brand { font-weight: 800; font-size: 18px; color: #1d1d1f; text-decoration: none; }
+  .brand span { background: linear-gradient(135deg, #BA7517, #F59E0B); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .lang { display: flex; gap: 4px; }
+  .lang button {
+    background: rgba(0,0,0,0.06); border: none; padding: 6px 10px; border-radius: 6px;
+    font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  .lang button.active { background: #BA7517; color: #fff; }
+
+  .grid { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: #fff; border-radius: 18px; padding: 28px 30px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+  .card h2 { font-size: 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+  .card h2 small { font-weight: 400; color: #86868b; font-size: 13px; }
+
+  .pkg-list { display: flex; flex-direction: column; gap: 10px; }
+  .pkg {
+    border: 2px solid #e5e5e7; border-radius: 14px; padding: 14px 18px;
+    cursor: pointer; transition: all 0.15s; display: flex; gap: 14px; align-items: center;
+  }
+  .pkg:hover { border-color: #d2d2d7; background: #fafafa; }
+  .pkg.selected { border-color: #BA7517; background: rgba(186,117,23,0.05); }
+  .pkg.core { background: rgba(186,117,23,0.08); border-color: #BA7517; }
+  .pkg.core .pkg-name::after { content: " ⭐"; }
+  .pkg .pkg-icon { font-size: 26px; }
+  .pkg .pkg-body { flex: 1; }
+  .pkg .pkg-name { font-weight: 700; font-size: 15px; }
+  .pkg .pkg-desc { font-size: 12px; color: #86868b; margin-top: 2px; line-height: 1.5; }
+  .pkg .pkg-price { font-weight: 700; font-size: 16px; color: #1d1d1f; }
+
+  .form-row { margin-bottom: 14px; }
+  .form-row.split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #1d1d1f; }
+  label small { font-weight: 400; color: #86868b; }
+  input[type="text"], input[type="email"], input[type="tel"], input[type="url"], textarea, select {
+    width: 100%; padding: 11px 14px; border: 1px solid #d2d2d7; border-radius: 10px;
+    font-family: inherit; font-size: 14px; box-sizing: border-box; background: #fff;
+  }
+  input:focus, textarea:focus, select:focus { outline: 2px solid #BA7517; border-color: #BA7517; }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .sidebar {
+    position: sticky; top: 20px;
+  }
+  .summary {
+    background: #fff; border-radius: 18px; padding: 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+  .summary h3 { font-size: 16px; margin-bottom: 14px; }
+  .sum-row {
+    display: flex; justify-content: space-between; padding: 8px 0;
+    font-size: 14px; border-bottom: 1px solid #f0f0f3;
+  }
+  .sum-row:last-of-type { border-bottom: none; }
+  .sum-row.total {
+    border-top: 2px solid #1d1d1f; padding-top: 12px; margin-top: 8px;
+    font-weight: 700; font-size: 17px;
+  }
+  .btn {
+    display: block; width: 100%; padding: 14px;
+    background: linear-gradient(180deg, #BA7517, #854F0B);
+    color: #fff; border: none; border-radius: 12px;
+    font-weight: 700; font-size: 15px; cursor: pointer;
+    margin-top: 18px; font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(186,117,23,0.3); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn.secondary { background: #fff; color: #1d1d1f; border: 1px solid #d2d2d7; }
+
+  .info-banner {
+    background: rgba(186,117,23,0.08); border-left: 4px solid #BA7517;
+    padding: 12px 16px; border-radius: 10px; font-size: 13px; line-height: 1.6;
+    margin-bottom: 18px;
+  }
+  .note { font-size: 12px; color: #86868b; line-height: 1.6; margin-top: 14px; }
+
+  .success-state {
+    text-align: center; padding: 40px 20px;
+  }
+  .success-state .ico { font-size: 56px; margin-bottom: 14px; }
+  .success-state h2 { font-size: 22px; margin-bottom: 10px; }
+  .success-state .order-no {
+    display: inline-block; background: #1d1d1f; color: #fff;
+    padding: 8px 16px; border-radius: 10px;
+    font-family: 'SF Mono', Menlo, monospace; font-size: 14px;
+    margin: 12px 0;
+  }
+  .success-state .payment-box {
+    background: rgba(186,117,23,0.05); border: 1px solid rgba(186,117,23,0.2);
+    border-radius: 12px; padding: 18px 20px; margin: 18px auto; max-width: 480px;
+    text-align: left;
+  }
+  .success-state .payment-box dt { font-size: 11px; color: #86868b; text-transform: uppercase; letter-spacing: 0.4px; }
+  .success-state .payment-box dd { font-size: 15px; font-weight: 600; margin: 2px 0 10px; }
+
+  .err-box {
+    background: #fde7e9; color: #a8232f; padding: 12px 16px;
+    border-radius: 10px; margin-bottom: 14px; font-size: 14px;
+    display: none;
+  }
+  .err-box.show { display: block; }
+
+  /* ═══════════════════════════════════════════════════════ */
+  /* 🎯 CONVINCE BUYER section                                */
+  /* ═══════════════════════════════════════════════════════ */
+  .convince { margin-bottom: 30px; }
+  .conv-hero {
+    background: linear-gradient(135deg, #1d1d1f 0%, #2d2d30 60%, #BA7517 100%);
+    color: #fff; border-radius: 18px;
+    padding: 50px 40px;
+    text-align: center;
+    margin-bottom: 18px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  }
+  .conv-hero h1 {
+    font-size: 38px; font-weight: 800; margin: 0 0 14px;
+    line-height: 1.15; letter-spacing: -0.5px;
+  }
+  .conv-hero h1 .hl {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .conv-hero p {
+    font-size: 17px; opacity: 0.92; max-width: 720px; margin: 0 auto 28px;
+    line-height: 1.55;
+  }
+  .conv-trust {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; max-width: 800px; margin: 0 auto;
+  }
+  .ct-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: rgba(255,255,255,0.1); padding: 14px 16px; border-radius: 12px;
+    text-align: left; backdrop-filter: blur(8px);
+  }
+  .ct-item .ct-em { font-size: 26px; line-height: 1; }
+  .ct-item strong { display: block; font-size: 14px; margin-bottom: 2px; }
+  .ct-item div { font-size: 12.5px; opacity: 0.85; }
+
+  /* VS SAAS comparison */
+  .vs-saas {
+    background: #fff; border-radius: 18px; padding: 32px 32px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    margin-bottom: 18px;
+  }
+  .vs-h {
+    text-align: center; font-size: 22px; font-weight: 800;
+    margin-bottom: 22px; color: #1d1d1f;
+  }
+  .vs-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  .vs-col {
+    border-radius: 14px; padding: 22px 24px;
+    background: #fafafa; border: 1px solid #e8e8e8;
+  }
+  .vs-col.saas { background: #fef7f7; border-color: #fee; }
+  .vs-col.appek {
+    background: linear-gradient(135deg, #fff8e8 0%, #fff 100%);
+    border: 2px solid #BA7517;
+    box-shadow: 0 4px 14px rgba(186, 117, 23, 0.12);
+  }
+  .vs-title {
+    font-size: 15px; font-weight: 800; margin-bottom: 12px;
+    color: #1d1d1f;
+  }
+  .vs-col.saas .vs-title { color: #b30019; }
+  .vs-col.appek .vs-title { color: #BA7517; }
+  .vs-col ul { list-style: none; padding: 0; margin: 0; }
+  .vs-col li {
+    padding: 6px 0; font-size: 13.5px; color: #3a3a3c; line-height: 1.5;
+  }
+
+  /* STEPS */
+  .steps-conv {
+    background: #fff; border-radius: 18px; padding: 26px 30px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+  .sc-title { text-align: center; font-size: 17px; font-weight: 700; margin-bottom: 22px; }
+  .sc-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    flex-wrap: wrap;
+  }
+  .sc-step {
+    flex: 1; min-width: 130px;
+    display: flex; align-items: center; gap: 10px;
+    background: #fafafa; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid #ececef;
+  }
+  .sc-step.done {
+    background: linear-gradient(135deg, #DCFCE7, #BBF7D0);
+    border-color: #34c759;
+  }
+  .sc-num {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, #BA7517, #854F0B); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+  }
+  .sc-step.done .sc-num { background: linear-gradient(135deg, #34c759, #1f9244); }
+  .sc-step strong { font-size: 13px; color: #1d1d1f; display: block; }
+  .sc-d { font-size: 11.5px; color: #6e6e73; margin-top: 1px; }
+  .sc-arrow { color: #c7c7cc; font-size: 18px; flex-shrink: 0; }
+
+  /* MOBILE */
+  @media (max-width: 720px) {
+    .conv-hero { padding: 32px 22px; }
+    .conv-hero h1 { font-size: 26px; }
+    .conv-hero p { font-size: 14.5px; }
+    .vs-grid { grid-template-columns: 1fr; }
+    .vs-saas { padding: 22px 18px; }
+    .vs-h { font-size: 18px; }
+    .sc-row { flex-direction: column; }
+    .sc-arrow { transform: rotate(90deg); margin: 4px 0; }
+    .sc-step { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="./" class="brand">📦 <span>APPEK</span></a>
+    <div class="lang">
+      <button onclick="setLang('cs')" id="lang-cs" class="active">CS</button>
+      <button onclick="setLang('en')" id="lang-en">EN</button>
+      <button onclick="setLang('es')" id="lang-es">ES</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- 🎯 PŘESVĚDČIT KE KOUPI — hero, trust, proč APPEK         -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="convince">
+    <div class="conv-hero">
+      <h1 data-i18n="conv_h1">Jednou koupíte. <span class="hl">Navždy vlastníte.</span></h1>
+      <p data-i18n="conv_lead">Žádné měsíční poplatky, žádný subscription burnout. Stáhněte si APPEK na <strong>svůj hosting</strong> a vlastníte data i kód. Klíč přijde e-mailem do 24 h.</p>
+      <div class="conv-trust">
+        <div class="ct-item"><span class="ct-em">✅</span><div><strong data-i18n="ct_1_t">Doživotní licence</strong><div data-i18n="ct_1_d">žádné předplatné</div></div></div>
+        <div class="ct-item"><span class="ct-em">🏠</span><div><strong data-i18n="ct_2_t">Váš hosting, vaše data</strong><div data-i18n="ct_2_d">plná kontrola GDPR</div></div></div>
+        <div class="ct-item"><span class="ct-em">🇨🇿</span><div><strong data-i18n="ct_3_t">Český systém</strong><div data-i18n="ct_3_d">+ EN, ES překlady</div></div></div>
+        <div class="ct-item"><span class="ct-em">🔄</span><div><strong data-i18n="ct_4_t">Updates zdarma</strong><div data-i18n="ct_4_d">první rok</div></div></div>
+      </div>
+    </div>
+
+    <!-- VS SAAS comparison -->
+    <div class="vs-saas">
+      <div class="vs-h" data-i18n="vs_h">Proč ne SaaS jako Storyous nebo Dotykačka?</div>
+      <div class="vs-grid">
+        <div class="vs-col saas">
+          <div class="vs-title" data-i18n="vs_saas">SaaS (měsíční subscription)</div>
+          <ul>
+            <li data-i18n="saas_1">❌ 1 500 — 5 000 Kč / měsíc, navždy</li>
+            <li data-i18n="saas_2">❌ Data v cloudu třetí strany</li>
+            <li data-i18n="saas_3">❌ Vendor lock-in: přestaneš platit = ztratíš vše</li>
+            <li data-i18n="saas_4">❌ Po 3 letech utopeno 54 000 — 180 000 Kč</li>
+            <li data-i18n="saas_5">❌ Žádný přístup k zdrojovému kódu</li>
+            <li data-i18n="saas_6">❌ Změny features pouze v rámci jejich roadmapy</li>
+          </ul>
+        </div>
+        <div class="vs-col appek">
+          <div class="vs-title">✨ APPEK B2B</div>
+          <ul>
+            <li data-i18n="ap_1">✅ <strong>Jednorázově</strong> od 4 990 Kč</li>
+            <li data-i18n="ap_2">✅ Data <strong>u vás na hostingu</strong></li>
+            <li data-i18n="ap_3">✅ Vypneš → data <strong>zůstávají</strong> vám</li>
+            <li data-i18n="ap_4">✅ Návratnost <strong>do 3 měsíců</strong></li>
+            <li data-i18n="ap_5">✅ PHP zdroj — můžete ho <strong>upravit</strong></li>
+            <li data-i18n="ap_6">✅ <strong>Vlastní</strong> integrace přes REST API</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- WORKFLOW STEPS -->
+    <div class="steps-conv">
+      <div class="sc-title" data-i18n="sc_title">⏱️ Cesta od objednávky k živému provozu — pod 30 minut</div>
+      <div class="sc-row">
+        <div class="sc-step">
+          <div class="sc-num">1</div>
+          <div><strong data-i18n="sc1_t">Vyberte balíčky</strong><div class="sc-d" data-i18n="sc1_d">Core + add-ony. 2 minuty.</div></div>
+        </div>
+        <div class="sc-arrow">→</div>
+        <div class="sc-step">
+          <div class="sc-num">2</div>
+          <div><strong data-i18n="sc2_t">Zaplaťte</strong><div class="sc-d" data-i18n="sc2_d">Karta / GoPay / bank. Hned.</div></div>
+        </div>
+        <div class="sc-arrow">→</div>
+        <div class="sc-step">
+          <div class="sc-num">3</div>
+          <div><strong data-i18n="sc3_t">Klíč e-mailem</strong><div class="sc-d" data-i18n="sc3_d">Auto-vystavení. ~5 min.</div></div>
+        </div>
+        <div class="sc-arrow">→</div>
+        <div class="sc-step">
+          <div class="sc-num">4</div>
+          <div><strong data-i18n="sc4_t">Nainstalujte</strong><div class="sc-d" data-i18n="sc4_d">install.php wizard. 5 min.</div></div>
+        </div>
+        <div class="sc-arrow">→</div>
+        <div class="sc-step done">
+          <div class="sc-num">✓</div>
+          <div><strong data-i18n="sc5_t">Provoz</strong><div class="sc-d" data-i18n="sc5_d">Hotovo.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="state-form">
+    <div class="grid">
+      <div>
+        <!-- KROK 1: VOLBA BALÍČKŮ -->
+        <div class="card">
+          <h2 data-i18n="step1">📦 Vyberte balíčky <small data-i18n="step1_sub">— Core je vždy zahrnut</small></h2>
+          <div class="info-banner" data-i18n="banner">
+            Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.
+          </div>
+          <div class="pkg-list" id="pkg-list">
+            <div style="text-align:center;padding:40px;color:#86868b" data-i18n="loading">Načítání balíčků…</div>
+          </div>
+        </div>
+
+        <!-- KROK 2: KONTAKT -->
+        <div class="card" style="margin-top:18px">
+          <h2 data-i18n="step2">👤 Kontaktní údaje</h2>
+          <div class="form-row split">
+            <div>
+              <label data-i18n="lbl_name">Jméno a příjmení *</label>
+              <input type="text" id="customer_name" required>
+            </div>
+            <div>
+              <label data-i18n="lbl_company">Firma <small data-i18n="lbl_optional">(volitelné)</small></label>
+              <input type="text" id="customer_company">
+            </div>
+          </div>
+          <div class="form-row split">
+            <div>
+              <label data-i18n="lbl_email">E-mail *</label>
+              <input type="email" id="customer_email" required>
+            </div>
+            <div>
+              <label data-i18n="lbl_phone">Telefon</label>
+              <input type="tel" id="customer_phone">
+            </div>
+          </div>
+          <div class="form-row split">
+            <div>
+              <label data-i18n="lbl_ico">IČO <small data-i18n="lbl_optional">(volitelné)</small></label>
+              <input type="text" id="customer_ico">
+            </div>
+            <div>
+              <label data-i18n="lbl_dic">DIČ <small data-i18n="lbl_optional">(volitelné)</small></label>
+              <input type="text" id="customer_dic">
+            </div>
+          </div>
+          <div class="form-row">
+            <label data-i18n="lbl_address">Fakturační adresa <small data-i18n="lbl_optional">(volitelné)</small></label>
+            <input type="text" id="customer_address" placeholder="Ulice, město, PSČ">
+          </div>
+          <div class="form-row">
+            <label data-i18n="lbl_install_url">URL kam instalujete <small data-i18n="lbl_install_hint">(např. https://b2b.firma.cz)</small></label>
+            <input type="url" id="install_url" placeholder="https://">
+          </div>
+          <div class="form-row">
+            <label data-i18n="lbl_notes">Poznámka <small data-i18n="lbl_optional">(volitelné)</small></label>
+            <textarea id="notes" data-i18n-placeholder="ph_notes" placeholder="Něco co bychom měli vědět..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOUHRN -->
+      <div class="sidebar">
+        <div class="summary">
+          <h3 data-i18n="summary">Souhrn objednávky</h3>
+          <div id="sum-items">
+            <div class="sum-row" style="color:#86868b;font-style:italic" data-i18n="sum_empty">Zatím nic nevybráno</div>
+          </div>
+          <div class="sum-row total">
+            <span data-i18n="total">Celkem</span>
+            <span id="sum-total">0 Kč</span>
+          </div>
+          <div class="err-box" id="err"></div>
+          <label class="consent" style="display:block;font-size:12.5px;color:#3a3a3c;line-height:1.5;margin:14px 0 6px;cursor:pointer">
+            <input type="checkbox" id="agree-tos" style="margin-right:6px;vertical-align:middle">
+            <span data-i18n="tos_consent">
+              Souhlasím s <a href="obchodni-podminky.html" target="_blank" style="color:#BA7517;font-weight:600">Obchodními podmínkami</a> a
+              <a href="zasady-ochrany-soukromi.html" target="_blank" style="color:#BA7517;font-weight:600">Zásadami ochrany soukromí</a>.
+            </span>
+          </label>
+          <label class="consent" style="display:block;font-size:12.5px;color:#3a3a3c;line-height:1.5;margin:0 0 14px;cursor:pointer">
+            <input type="checkbox" id="agree-instant" style="margin-right:6px;vertical-align:middle">
+            <span data-i18n="instant_consent">
+              <strong>Souhlasím s okamžitým dodáním</strong> licence před uplynutím 14denní lhůty. Beru na vědomí, že tím <strong>ztrácím právo odstoupit</strong> od smlouvy (§ 1837 písm. l OZ).
+            </span>
+          </label>
+          <button class="btn" id="btn-buy" onclick="submitOrder()" disabled data-i18n="btn_buy">
+            Objednat →
+          </button>
+          <p class="note" data-i18n="note">
+            Po odeslání dostanete e-mail s instrukcemi k platbě.
+            Licenční klíč přijde po obdržení platby (obvykle do 24 h).
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="state-success" style="display:none">
+    <div class="card success-state">
+      <div class="ico">✅</div>
+      <h2 data-i18n="success_title">Objednávka přijata!</h2>
+      <p id="success-sub" data-i18n="success_sub">Děkujeme. Vyberte způsob platby:</p>
+      <div class="order-no" id="success-order-no">—</div>
+
+      <!-- PAY OPTIONS -->
+      <div class="pay-options" id="pay-options">
+        <!-- 🆕 v2.4 — Apple Pay / Google Pay přes Stripe Payment Request Button -->
+        <div id="payment-request-container" style="display:none;margin-bottom:8px">
+          <div id="payment-request-button" style="min-height:50px"></div>
+          <div style="text-align:center;font-size:11px;color:#86868b;margin:6px 0">— nebo —</div>
+        </div>
+        <button class="btn pay-card" onclick="payByGoPay()" data-i18n="pay_gopay">💳 GoPay (CZ karty + bank)</button>
+        <button class="btn pay-card" onclick="payByStripe()" data-i18n="pay_stripe">🌍 Stripe (mezinárodní · karta)</button>
+        <button class="btn pay-bank" onclick="showBankInfo()" data-i18n="pay_bank">🏦 Bankovní převod</button>
+      </div>
+
+      <!-- BANK INFO (jen po klik na "Bankovní převod") -->
+      <div id="bank-info" style="display:none">
+        <div class="payment-box">
+          <dl></dl>
+        </div>
+        <p data-i18n="success_email">Potvrzení a instrukce jsme poslali na váš e-mail.</p>
+      </div>
+
+      <!-- GoPay loading -->
+      <div id="gopay-loading" style="display:none;padding:30px;text-align:center;color:#86868b">
+        <div style="font-size:32px;margin-bottom:10px">⏳</div>
+        <strong data-i18n="gopay_loading">Přesměrováváme na GoPay…</strong>
+      </div>
+
+      <div id="gopay-error" style="display:none;background:#fde7e9;color:#a8232f;padding:14px 18px;border-radius:10px;margin-top:12px;text-align:left">
+        <strong data-i18n="gopay_fail">⚠️ GoPay platba selhala</strong>
+        <p style="font-size:13px;margin:4px 0 0" id="gopay-error-msg"></p>
+      </div>
+
+      <a href="./" class="btn secondary" style="display:inline-block;width:auto;padding:10px 24px;margin-top:14px;text-decoration:none" data-i18n="back_home">← Zpět na APPEK</a>
+    </div>
+  </div>
+
+  <style>
+    .pay-options { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; max-width: 720px; margin: 24px auto; }
+    .pay-options .btn { display: flex; align-items: center; justify-content: center; padding: 16px 18px; font-size: 15px; }
+    .pay-card { background: linear-gradient(180deg, #BA7517, #854F0B); color: #fff; }
+    .pay-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(186,117,23,0.4); }
+    .pay-bank { background: #fff; color: #1d1d1f; border: 1px solid #d2d2d7; }
+    .pay-bank:hover { background: #fafafa; }
+    @media (max-width: 720px) {
+      .pay-options { grid-template-columns: 1fr; }
+    }
+  </style>
+
+</div>
+
+<script>
+// ─── i18n ───
+const I18N = {
+  cs: {
+    // 🎯 Convince section
+    conv_h1: 'Jednou koupíte. <span class="hl">Navždy vlastníte.</span>',
+    conv_lead: 'Žádné měsíční poplatky, žádný subscription burnout. Stáhněte si APPEK na <strong>svůj hosting</strong> a vlastníte data i kód. Klíč přijde e-mailem do 24 h.',
+    ct_1_t: 'Doživotní licence', ct_1_d: 'žádné předplatné',
+    ct_2_t: 'Váš hosting, vaše data', ct_2_d: 'plná kontrola GDPR',
+    ct_3_t: 'Český systém', ct_3_d: '+ EN, ES překlady',
+    ct_4_t: 'Updates zdarma', ct_4_d: 'první rok',
+    vs_h: 'Proč ne SaaS jako Storyous nebo Dotykačka?',
+    vs_saas: 'SaaS (měsíční subscription)',
+    saas_1: '❌ 1 500 — 5 000 Kč / měsíc, navždy',
+    saas_2: '❌ Data v cloudu třetí strany',
+    saas_3: '❌ Vendor lock-in: přestaneš platit = ztratíš vše',
+    saas_4: '❌ Po 3 letech utopeno 54 000 — 180 000 Kč',
+    saas_5: '❌ Žádný přístup k zdrojovému kódu',
+    saas_6: '❌ Změny features pouze v rámci jejich roadmapy',
+    ap_1: '✅ <strong>Jednorázově</strong> od 4 990 Kč',
+    ap_2: '✅ Data <strong>u vás na hostingu</strong>',
+    ap_3: '✅ Vypneš → data <strong>zůstávají</strong> vám',
+    ap_4: '✅ Návratnost <strong>do 3 měsíců</strong>',
+    ap_5: '✅ PHP zdroj — můžete ho <strong>upravit</strong>',
+    ap_6: '✅ <strong>Vlastní</strong> integrace přes REST API',
+    sc_title: '⏱️ Cesta od objednávky k živému provozu — pod 30 minut',
+    sc1_t: 'Vyberte balíčky', sc1_d: 'Core + add-ony. 2 minuty.',
+    sc2_t: 'Zaplaťte',         sc2_d: 'Karta / GoPay / bank. Hned.',
+    sc3_t: 'Klíč e-mailem',    sc3_d: 'Auto-vystavení. ~5 min.',
+    sc4_t: 'Nainstalujte',     sc4_d: 'install.php wizard. 5 min.',
+    sc5_t: 'Provoz',           sc5_d: 'Hotovo.',
+
+    step1: '📦 Vyberte balíčky',
+    step1_sub: '— Core je vždy zahrnut',
+    banner: 'Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.',
+    loading: 'Načítání balíčků…',
+    step2: '👤 Kontaktní údaje',
+    lbl_name: 'Jméno a příjmení *',
+    lbl_company: 'Firma',
+    lbl_email: 'E-mail *',
+    lbl_phone: 'Telefon',
+    lbl_ico: 'IČO',
+    lbl_dic: 'DIČ',
+    lbl_address: 'Fakturační adresa',
+    lbl_install_url: 'URL kam instalujete',
+    lbl_install_hint: '(např. https://b2b.firma.cz)',
+    lbl_notes: 'Poznámka',
+    lbl_optional: '(volitelné)',
+    ph_notes: 'Něco co bychom měli vědět…',
+    summary: 'Souhrn objednávky',
+    sum_empty: 'Zatím nic nevybráno',
+    total: 'Celkem',
+    btn_buy: 'Objednat →',
+    note: 'Po odeslání dostanete e-mail s instrukcemi k platbě. Licenční klíč přijde po obdržení platby (obvykle do 24 h).',
+    success_title: 'Objednávka přijata!',
+    success_sub: 'Děkujeme. Vyberte způsob platby:',
+    pay_card: '💳 Zaplatit kartou (GoPay)',
+    pay_gopay: '💳 GoPay (CZ karty + bank)',
+    pay_stripe: '🌍 Stripe (mezinárodní)',
+    pay_bank: '🏦 Bankovní převod',
+    gopay_loading: 'Přesměrováváme na GoPay…',
+    gopay_fail: '⚠️ GoPay platba selhala',
+    success_email: 'Potvrzení a instrukce jsme poslali na váš e-mail.',
+    back_home: '← Zpět na APPEK',
+    err_select: 'Vyberte alespoň jeden balíček.',
+    err_required: 'Vyplňte povinná pole (jméno a e-mail).',
+    err_email: 'Neplatný e-mail.',
+    err_tos: 'Musíte souhlasit s obchodními podmínkami.',
+    err_instant: 'Musíte souhlasit s okamžitým dodáním.',
+    err_server: 'Server error. Zkuste znovu.',
+    tos_consent: 'Souhlasím s Obchodními podmínkami a Zásadami ochrany soukromí.',
+    instant_consent: 'Souhlasím s okamžitým dodáním licence — ztrácím právo odstoupit od smlouvy.',
+    pay_vs: 'Variabilní symbol',
+    pay_amount: 'Částka',
+    pay_msg: 'Zpráva pro příjemce',
+    pay_account: 'Číslo účtu',
+  },
+  en: {
+    // 🎯 Convince
+    conv_h1: 'Buy once. <span class="hl">Own forever.</span>',
+    conv_lead: 'No monthly fees, no subscription burnout. Install APPEK on <strong>your own hosting</strong> — you own data and code. Key arrives via e-mail within 24 h.',
+    ct_1_t: 'Lifetime license', ct_1_d: 'no subscription',
+    ct_2_t: 'Your hosting, your data', ct_2_d: 'full GDPR control',
+    ct_3_t: 'Czech-made', ct_3_d: '+ EN, ES translations',
+    ct_4_t: 'Free updates', ct_4_d: 'first year',
+    vs_h: 'Why not SaaS like Storyous or Dotykačka?',
+    vs_saas: 'SaaS (monthly subscription)',
+    saas_1: '❌ €60—200 / month, forever',
+    saas_2: '❌ Data in third-party cloud',
+    saas_3: '❌ Vendor lock-in: stop paying = lose everything',
+    saas_4: '❌ After 3 years: €2,200 — €7,200 sunk',
+    saas_5: '❌ No access to source code',
+    saas_6: '❌ Features only on their roadmap',
+    ap_1: '✅ <strong>One-time</strong> from €199',
+    ap_2: '✅ Data <strong>on your hosting</strong>',
+    ap_3: '✅ Cancel anytime → data <strong>stays yours</strong>',
+    ap_4: '✅ ROI <strong>under 3 months</strong>',
+    ap_5: '✅ PHP source — <strong>customize freely</strong>',
+    ap_6: '✅ <strong>Your own</strong> integrations via REST API',
+    sc_title: '⏱️ From order to live system — under 30 minutes',
+    sc1_t: 'Pick packages', sc1_d: 'Core + add-ons. 2 minutes.',
+    sc2_t: 'Pay',            sc2_d: 'Card / GoPay / bank. Instant.',
+    sc3_t: 'Key via e-mail', sc3_d: 'Auto-issued. ~5 min.',
+    sc4_t: 'Install',        sc4_d: 'install.php wizard. 5 min.',
+    sc5_t: 'Live',           sc5_d: 'Done.',
+
+    step1: '📦 Choose packages',
+    step1_sub: '— Core is always included',
+    banner: 'One-time price, no monthly fees. Key arrives by e-mail within 24 h.',
+    loading: 'Loading packages…',
+    step2: '👤 Contact details',
+    lbl_name: 'Full name *',
+    lbl_company: 'Company',
+    lbl_email: 'E-mail *',
+    lbl_phone: 'Phone',
+    lbl_ico: 'Company ID',
+    lbl_dic: 'Tax ID',
+    lbl_address: 'Billing address',
+    lbl_install_url: 'Install URL',
+    lbl_install_hint: '(e.g. https://b2b.company.com)',
+    lbl_notes: 'Note',
+    lbl_optional: '(optional)',
+    ph_notes: 'Anything we should know…',
+    summary: 'Order summary',
+    sum_empty: 'Nothing selected yet',
+    total: 'Total',
+    btn_buy: 'Order →',
+    note: 'After submitting you will receive payment instructions by e-mail. License key arrives after payment (usually within 24 h).',
+    success_title: 'Order received!',
+    success_sub: 'Thank you. Choose payment method:',
+    pay_card: '💳 Pay by card (GoPay)',
+    pay_gopay: '💳 GoPay (CZ cards + bank)',
+    pay_stripe: '🌍 Stripe (international)',
+    pay_bank: '🏦 Bank transfer',
+    gopay_loading: 'Redirecting to GoPay…',
+    gopay_fail: '⚠️ GoPay payment failed',
+    success_email: 'We have sent confirmation and instructions to your e-mail.',
+    back_home: '← Back to APPEK',
+    err_select: 'Choose at least one package.',
+    err_required: 'Fill required fields (name and e-mail).',
+    err_email: 'Invalid e-mail.',
+    err_server: 'Server error. Try again.',
+    pay_vs: 'Variable symbol',
+    pay_amount: 'Amount',
+    pay_msg: 'Payment note',
+    pay_account: 'Account number',
+  },
+  es: {
+    // 🎯 Convince
+    conv_h1: 'Compre una vez. <span class="hl">Sea suyo para siempre.</span>',
+    conv_lead: 'Sin cuotas mensuales. Instale APPEK en <strong>su hosting</strong> — datos y código son suyos. La clave llega por correo en 24 h.',
+    ct_1_t: 'Licencia de por vida', ct_1_d: 'sin suscripción',
+    ct_2_t: 'Tu hosting, tus datos', ct_2_d: 'control RGPD total',
+    ct_3_t: 'Sistema checo', ct_3_d: '+ EN, ES traducciones',
+    ct_4_t: 'Updates gratis', ct_4_d: 'primer año',
+    vs_h: '¿Por qué no SaaS como Storyous o Dotykačka?',
+    vs_saas: 'SaaS (cuota mensual)',
+    saas_1: '❌ €60—200 / mes, para siempre',
+    saas_2: '❌ Datos en la nube del proveedor',
+    saas_3: '❌ Vendor lock-in: deja de pagar = pierde todo',
+    saas_4: '❌ A 3 años: €2 200 — €7 200 perdidos',
+    saas_5: '❌ Sin acceso al código fuente',
+    saas_6: '❌ Funciones solo en su hoja de ruta',
+    ap_1: '✅ <strong>Único pago</strong> desde €199',
+    ap_2: '✅ Datos <strong>en tu hosting</strong>',
+    ap_3: '✅ Cancela cuando quieras → datos <strong>tuyos</strong>',
+    ap_4: '✅ ROI <strong>menos de 3 meses</strong>',
+    ap_5: '✅ Código PHP — <strong>personalízalo</strong>',
+    ap_6: '✅ Integraciones <strong>propias</strong> vía REST API',
+    sc_title: '⏱️ Del pedido al sistema en vivo — menos de 30 minutos',
+    sc1_t: 'Elige paquetes', sc1_d: 'Core + add-ons. 2 minutos.',
+    sc2_t: 'Paga',            sc2_d: 'Tarjeta / GoPay / banco. Inmediato.',
+    sc3_t: 'Clave por correo', sc3_d: 'Auto-emitida. ~5 min.',
+    sc4_t: 'Instala',         sc4_d: 'asistente install.php. 5 min.',
+    sc5_t: 'En vivo',         sc5_d: 'Listo.',
+
+    step1: '📦 Elija paquetes',
+    step1_sub: '— Core siempre incluido',
+    banner: 'Precio único, sin cuotas mensuales. La clave llega por correo en 24 h.',
+    loading: 'Cargando paquetes…',
+    step2: '👤 Datos de contacto',
+    lbl_name: 'Nombre completo *',
+    lbl_company: 'Empresa',
+    lbl_email: 'Correo *',
+    lbl_phone: 'Teléfono',
+    lbl_ico: 'NIF empresa',
+    lbl_dic: 'NIF fiscal',
+    lbl_address: 'Dirección de facturación',
+    lbl_install_url: 'URL de instalación',
+    lbl_install_hint: '(p. ej. https://b2b.empresa.es)',
+    lbl_notes: 'Nota',
+    lbl_optional: '(opcional)',
+    ph_notes: 'Algo que debamos saber…',
+    summary: 'Resumen del pedido',
+    sum_empty: 'Aún nada seleccionado',
+    total: 'Total',
+    btn_buy: 'Pedir →',
+    note: 'Tras enviar recibirá instrucciones de pago por correo. La clave llegará tras recibir el pago (normalmente en 24 h).',
+    success_title: '¡Pedido recibido!',
+    success_sub: 'Gracias. Elija método de pago:',
+    pay_card: '💳 Pagar con tarjeta (GoPay)',
+    pay_gopay: '💳 GoPay (tarjetas CZ + banca)',
+    pay_stripe: '🌍 Stripe (internacional)',
+    pay_bank: '🏦 Transferencia bancaria',
+    gopay_loading: 'Redirigiendo a GoPay…',
+    gopay_fail: '⚠️ Pago GoPay falló',
+    success_email: 'Hemos enviado confirmación e instrucciones a su correo.',
+    back_home: '← Volver a APPEK',
+    err_select: 'Elija al menos un paquete.',
+    err_required: 'Rellene campos obligatorios (nombre y correo).',
+    err_email: 'Correo inválido.',
+    err_server: 'Error del servidor. Inténtelo de nuevo.',
+    pay_vs: 'Símbolo variable',
+    pay_amount: 'Importe',
+    pay_msg: 'Mensaje',
+    pay_account: 'Número de cuenta',
+  },
+};
+
+let lang = (localStorage.getItem('appek_lang') || (navigator.language || 'cs').substring(0,2)).toLowerCase();
+if (!['cs','en','es'].includes(lang)) lang = 'cs';
+
+function setLang(l) {
+  lang = l;
+  localStorage.setItem('appek_lang', l);
+  document.documentElement.lang = l;
+  document.querySelectorAll('.lang button').forEach(b => b.classList.remove('active'));
+  document.getElementById('lang-' + l).classList.add('active');
+  applyI18n();
+  renderPackages();
+  renderSummary();
+}
+
+function applyI18n() {
+  const t = I18N[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (t[k] !== undefined) {
+      // pokud hodnota obsahuje HTML tagy → použij innerHTML, jinak textContent
+      if (/<\w+/.test(t[k])) el.innerHTML = t[k];
+      else el.textContent = t[k];
+    }
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const k = el.dataset.i18nPlaceholder;
+    if (t[k] !== undefined) el.placeholder = t[k];
+  });
+}
+
+// ─── Načti balíčky ───
+let PACKAGES = [];
+let SELECTED = new Set();
+
+const apiCandidates = [
+  '/api/shop_packages.php',
+  '../api/shop_packages.php',
+  'https://appek.cz/api/shop_packages.php',
+];
+
+async function loadPackages() {
+  for (const url of apiCandidates) {
+    try {
+      const r = await fetch(url, { cache: 'default' });
+      if (!r.ok) continue;
+      const j = await r.json();
+      if (j.ok && Array.isArray(j.packages) && j.packages.length) {
+        PACKAGES = j.packages;
+        // Auto-select core
+        PACKAGES.forEach(p => { if (p.is_core) SELECTED.add(p.key); });
+        // 🆕 v2.9.116 — předvybrané balíčky z eshopu na úvodní stránce (?packages=key1,key2)
+        try {
+          const pre = new URLSearchParams(location.search).get('packages');
+          if (pre) pre.split(',').forEach(k => {
+            k = k.trim();
+            if (k && PACKAGES.some(p => p.key === k)) SELECTED.add(k);
+          });
+        } catch (e) { /* ignore */ }
+        renderPackages();
+        renderSummary();
+        return;
+      }
+    } catch (e) { /* try next */ }
+  }
+  // Fallback
+  document.getElementById('pkg-list').innerHTML =
+    '<div style="text-align:center;padding:40px;color:#86868b">Nelze načíst balíčky. <a href="./">Zpět na úvod</a></div>';
+}
+
+function renderPackages() {
+  if (!PACKAGES.length) return;
+  const wrap = document.getElementById('pkg-list');
+  wrap.innerHTML = '';
+  PACKAGES.forEach(p => {
+    const nameKey = `name_${lang}`;
+    const descKey = `description_${lang}`;
+    const name = p[nameKey] || p.name_cs;
+    const desc = p[descKey] || p.description_cs || '';
+    const div = document.createElement('div');
+    div.className = 'pkg' + (p.is_core ? ' core selected' : (SELECTED.has(p.key) ? ' selected' : ''));
+    div.dataset.key = p.key;
+    div.innerHTML = `
+      <div class="pkg-icon">${p.icon || '📦'}</div>
+      <div class="pkg-body">
+        <div class="pkg-name">${escapeHtml(name)}</div>
+        <div class="pkg-desc">${escapeHtml(desc)}</div>
+      </div>
+      <div class="pkg-price">${formatPrice(p.price_kc)}</div>
+    `;
+    if (!p.is_core) {
+      div.addEventListener('click', () => togglePkg(p.key));
+    }
+    wrap.appendChild(div);
+  });
+}
+
+function togglePkg(key) {
+  if (SELECTED.has(key)) SELECTED.delete(key);
+  else SELECTED.add(key);
+  renderPackages();
+  renderSummary();
+}
+
+function renderSummary() {
+  const wrap = document.getElementById('sum-items');
+  let total = 0;
+  const lines = [];
+  PACKAGES.forEach(p => {
+    if (SELECTED.has(p.key)) {
+      total += parseFloat(p.price_kc) || 0;
+      const name = p[`name_${lang}`] || p.name_cs;
+      lines.push(`<div class="sum-row"><span>${p.icon || '📦'} ${escapeHtml(name)}</span><span>${formatPrice(p.price_kc)}</span></div>`);
+    }
+  });
+  if (lines.length === 0) {
+    wrap.innerHTML = `<div class="sum-row" style="color:#86868b;font-style:italic">${I18N[lang].sum_empty}</div>`;
+    document.getElementById('btn-buy').disabled = true;
+  } else {
+    wrap.innerHTML = lines.join('');
+    document.getElementById('btn-buy').disabled = false;
+  }
+  document.getElementById('sum-total').textContent = formatPrice(total);
+}
+
+function formatPrice(n) {
+  return Math.round(parseFloat(n) || 0).toLocaleString('cs-CZ') + ' Kč';
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ─── Submit ───
+async function submitOrder() {
+  const err = document.getElementById('err');
+  err.classList.remove('show');
+
+  if (SELECTED.size === 0) { return showErr(I18N[lang].err_select); }
+  const name  = document.getElementById('customer_name').value.trim();
+  const email = document.getElementById('customer_email').value.trim();
+  if (!name || !email) { return showErr(I18N[lang].err_required); }
+  if (!/^.+@.+\..+$/.test(email)) { return showErr(I18N[lang].err_email); }
+
+  // Consent checks
+  if (!document.getElementById('agree-tos').checked) {
+    return showErr(I18N[lang].err_tos || 'Musíte souhlasit s obchodními podmínkami.');
+  }
+  if (!document.getElementById('agree-instant').checked) {
+    return showErr(I18N[lang].err_instant || 'Musíte souhlasit s okamžitým dodáním (ztráta práva na odstoupení).');
+  }
+
+  const total = Array.from(SELECTED).reduce((s, k) => {
+    const p = PACKAGES.find(p => p.key === k); return s + (p ? parseFloat(p.price_kc) : 0);
+  }, 0);
+
+  const payload = {
+    customer_name: name,
+    customer_company: document.getElementById('customer_company').value.trim(),
+    customer_email: email,
+    customer_phone: document.getElementById('customer_phone').value.trim(),
+    customer_ico: document.getElementById('customer_ico').value.trim(),
+    customer_dic: document.getElementById('customer_dic').value.trim(),
+    customer_address: document.getElementById('customer_address').value.trim(),
+    customer_country: 'CZ',
+    install_url: document.getElementById('install_url').value.trim(),
+    notes: document.getElementById('notes').value.trim(),
+    tier: SELECTED.has('core') ? 'custom' : 'addon',
+    packages: Array.from(SELECTED),
+    total_kc: total,
+    currency: 'CZK',
+    payment_method: 'bank',
+    locale: lang,
+  };
+
+  const btn = document.getElementById('btn-buy');
+  btn.disabled = true; btn.textContent = '...';
+
+  const apiBuyCandidates = [
+    '/api/shop_buy.php',
+    '../api/shop_buy.php',
+    'https://appek.cz/api/shop_buy.php',
+  ];
+  let result = null;
+  for (const url of apiBuyCandidates) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      result = await r.json();
+      if (result && result.ok) break;
+    } catch (e) { /* try next */ }
+  }
+  btn.disabled = false; btn.textContent = I18N[lang].btn_buy;
+
+  if (!result || !result.ok) {
+    return showErr((result && result.error) || I18N[lang].err_server);
+  }
+
+  // SUCCESS — store data globally for pay buttons
+  window.__lastOrder = result;
+  document.getElementById('state-form').style.display = 'none';
+  document.getElementById('state-success').style.display = 'block';
+  document.getElementById('success-order-no').textContent = result.order_no;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // 🆕 v2.4 — Inicializuj Apple Pay / Google Pay Payment Request Button
+  initStripePaymentRequest(result);
+}
+
+// =============================================================
+// 🍎 APPLE PAY / 🌐 GOOGLE PAY — Stripe Payment Request Button (v2.4)
+// =============================================================
+async function initStripePaymentRequest(order) {
+  // Lazy-load Stripe.js (jen pokud máme úspěch a budeme potřebovat)
+  if (!window.Stripe) {
+    await new Promise((resolve) => {
+      const s = document.createElement('script');
+      s.src = 'https://js.stripe.com/v3/';
+      s.onload = resolve;
+      s.onerror = resolve; // fail-soft — ostatní platby fungují
+      document.head.appendChild(s);
+    });
+  }
+  if (!window.Stripe) return; // Stripe.js se nepodařilo načíst
+
+  // Vyžaduj backend pro client_secret
+  let intent;
+  try {
+    const apis = ['/api/stripe_payment_intent.php', 'https://appek.cz/api/stripe_payment_intent.php'];
+    for (const url of apis) {
+      try {
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_no: order.order_no }),
+        });
+        if (r.ok) { intent = await r.json(); break; }
+      } catch (e) { /* try next */ }
+    }
+  } catch (e) { /* fail-soft */ }
+  if (!intent || !intent.ok || !intent.client_secret || !intent.publishable_key) return;
+
+  const stripe = window.Stripe(intent.publishable_key);
+  const paymentRequest = stripe.paymentRequest({
+    country: intent.country || 'CZ',
+    currency: intent.currency || 'czk',
+    total: { label: intent.description || 'APPEK', amount: intent.amount },
+    requestPayerName: true,
+    requestPayerEmail: true,
+  });
+
+  // Check pokud zákazník má Apple Pay nebo Google Pay
+  const canMakePaymentResult = await paymentRequest.canMakePayment();
+  if (!canMakePaymentResult) return; // browser nepodporuje → schovej Payment Request UI
+
+  // Zobraz container
+  document.getElementById('payment-request-container').style.display = 'block';
+
+  const elements = stripe.elements();
+  const prButton = elements.create('paymentRequestButton', {
+    paymentRequest,
+    style: { paymentRequestButton: { type: 'default', theme: 'dark', height: '50px' } },
+  });
+  prButton.mount('#payment-request-button');
+
+  paymentRequest.on('paymentmethod', async (ev) => {
+    // Confirm PaymentIntent client-side bez další server round-tripu
+    const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(
+      intent.client_secret,
+      { payment_method: ev.paymentMethod.id },
+      { handleActions: false }
+    );
+    if (confirmError) {
+      ev.complete('fail');
+      alert('Platba selhala: ' + confirmError.message);
+      return;
+    }
+    ev.complete('success');
+    // Pokud vyžaduje 3DS, dokončí to confirmCardPayment ještě jednou
+    if (paymentIntent.status === 'requires_action') {
+      const { error: actionError } = await stripe.confirmCardPayment(intent.client_secret);
+      if (actionError) {
+        alert('Platba selhala při 3D Secure: ' + actionError.message);
+        return;
+      }
+    }
+    // Success → redirect na payment-done
+    window.location.href = '/payment-done.html?order=' + encodeURIComponent(order.order_no);
+  });
+}
+
+// ─── Pay via GoPay ───
+async function payByGoPay() {
+  return _payViaGateway('/api/gopay_init.php', 'gateway_url');
+}
+
+// ─── Pay via Stripe ───
+async function payByStripe() {
+  return _payViaGateway('/api/stripe_init.php', 'session_url');
+}
+
+async function _payViaGateway(endpoint, urlKey) {
+  const order = window.__lastOrder;
+  if (!order) return;
+  document.getElementById('pay-options').style.display = 'none';
+  document.getElementById('gopay-loading').style.display = 'block';
+
+  const apis = [endpoint, 'https://appek.cz' + endpoint];
+  let res = null;
+  for (const url of apis) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_no: order.order_no }),
+      });
+      res = await r.json();
+      if (res && res.ok) break;
+    } catch (e) {}
+  }
+
+  if (!res || !res.ok || !res[urlKey]) {
+    document.getElementById('gopay-loading').style.display = 'none';
+    document.getElementById('pay-options').style.display = 'grid';
+    document.getElementById('gopay-error').style.display = 'block';
+    document.getElementById('gopay-error-msg').textContent =
+      'Chyba: ' + (res?.error || 'unknown') + '. Zkuste jinou metodu.';
+    return;
+  }
+
+  window.location.href = res[urlKey];
+}
+
+// ─── Pay by bank transfer (show details) ───
+function showBankInfo() {
+  const order = window.__lastOrder;
+  if (!order) return;
+  document.getElementById('pay-options').style.display = 'none';
+  document.getElementById('bank-info').style.display = 'block';
+  const inst = order.payment_instructions || {};
+  const dl = document.querySelector('#bank-info .payment-box dl');
+  dl.innerHTML = `
+    <dt>${I18N[lang].pay_account}</dt><dd>${escapeHtml(inst.bank_account || '—')}</dd>
+    <dt>${I18N[lang].pay_amount}</dt><dd>${formatPrice(inst.amount_kc || 0)}</dd>
+    <dt>${I18N[lang].pay_vs}</dt><dd><code>${escapeHtml(inst.variable_symbol || '—')}</code></dd>
+    <dt>${I18N[lang].pay_msg}</dt><dd>${escapeHtml(inst.message || '—')}</dd>
+  `;
+}
+
+function showErr(msg) {
+  const err = document.getElementById('err');
+  err.textContent = msg;
+  err.classList.add('show');
+}
+
+// Init
+setLang(lang);
+loadPackages();
+</script>
+
+</body>
+</html>

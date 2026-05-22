@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>🎉 Event planner — APPEK</title>
+<script src="_feature_lang.js"></script>
+<style>
+:root {
+  --gold-1: #BA7517; --gold-2: #854F0B;
+  --text-1: #1d1d1f; --text-2: #424245; --text-3: #6e6e73;
+  --bg: #fafafa; --card: #fff; --border: #e5e5e7;
+  --ok: #208438;
+}
+* { box-sizing: border-box; }
+body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; padding: 16px; color: var(--text-1); }
+.wrap { max-width: 1200px; margin: 0 auto; }
+.head { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
+.head h1 { font-size: 26px; margin: 0 0 6px; }
+.head .sub { color: var(--text-3); font-size: 13.5px; }
+.btn { display: inline-block; padding: 9px 16px; border-radius: 8px; background: linear-gradient(180deg, var(--gold-1), var(--gold-2)); color: #fff; text-decoration: none; font-size: 13px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; }
+.btn.ghost { background: var(--card); color: var(--text-1); border: 1px solid var(--border); }
+.btn.big { padding: 14px 28px; font-size: 15px; }
+.btn:hover { opacity: 0.9; }
+
+.layout { display: grid; grid-template-columns: 360px 1fr; gap: 18px; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+.input-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; position: sticky; top: 16px; }
+.input-card h2 { font-size: 17px; margin: 0 0 14px; }
+.input-card .field { margin-bottom: 14px; }
+.input-card label { font-size: 12px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; display: block; margin-bottom: 5px; }
+.input-card input, .input-card select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font: inherit; font-size: 14px; }
+.input-card input:focus, .input-card select:focus { outline: none; border-color: var(--gold-1); }
+.hours-hint { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
+.event-types { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.et-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; text-align: center; transition: all 0.15s; }
+.et-card.selected { border-color: var(--gold-1); background: linear-gradient(135deg, #fff, #fff8e8); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(186,117,23,0.15); }
+.et-card .em { font-size: 28px; margin-bottom: 4px; }
+.et-card .nm { font-size: 12px; font-weight: 700; }
+.et-card .ds { font-size: 10px; color: var(--text-3); margin-top: 3px; line-height: 1.3; }
+
+.result-area { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px 28px; min-height: 400px; }
+.result-empty { text-align: center; padding: 80px 20px; color: var(--text-3); }
+.result-empty .em { font-size: 48px; margin-bottom: 12px; }
+
+.totals-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; background: linear-gradient(135deg, var(--gold-1), var(--gold-2)); border-radius: 12px; padding: 18px 20px; color: #fff; margin-bottom: 18px; }
+.totals-bar .tb-it .l { font-size: 11px; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.4px; }
+.totals-bar .tb-it .v { font-size: 22px; font-weight: 800; }
+
+.cat-section { background: #fafafa; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+.cat-section h3 { font-size: 14px; margin: 0 0 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cat-section h3 .total { color: var(--gold-1); font-weight: 800; }
+.cat-section .label { font-size: 12px; color: var(--text-3); margin-bottom: 10px; }
+.cat-section table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cat-section table td { padding: 6px 8px; border-bottom: 1px solid #fff; }
+.cat-section table .name { font-weight: 600; }
+.cat-section table .mn { text-align: right; color: var(--text-2); white-space: nowrap; }
+.cat-section table .pr { text-align: right; color: var(--gold-1); font-weight: 700; white-space: nowrap; }
+
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--ok); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.2); transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 1000; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.err { background: #b30019; }
+
+.upsell { max-width: 540px; margin: 80px auto; padding: 36px; background: var(--card); border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); text-align: center; }
+.upsell .em { font-size: 56px; margin-bottom: 16px; }
+.upsell h2 { font-size: 22px; margin: 0 0 10px; }
+.upsell p { color: var(--text-2); line-height: 1.6; margin: 0 0 22px; }
+.upsell .pkg-price { background: rgba(186,117,23,0.08); padding: 14px 18px; border-radius: 10px; margin: 0 0 22px; }
+.upsell .pkg-price .l { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; }
+.upsell .pkg-price .v { font-size: 28px; font-weight: 800; color: var(--gold-1); }
+
+@media print {
+  .head .actions, .input-card, .et-card { display: none; }
+  .layout { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1 data-i18n="title">🎉 Event planner — Catering kalkulátor</h1>
+      <div class="sub" data-i18n="subtitle">Zadej počet hostů a typ akce. APPEK doporučí přesné množství surovin, výrobků a celkovou cenu.</div>
+    </div>
+    <div class="actions">
+      <a href="/admin/" class="btn ghost" data-i18n="back">← Zpět</a>
+      <button class="btn ghost" onclick="window.print()" data-i18n="print">🖨️ Vytisknout nabídku</button>
+    </div>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+window.T = {
+  title:        { cs: '🎉 Event planner — Catering kalkulátor',                                                                  en: '🎉 Event planner — Catering calculator',                                                              es: '🎉 Event planner — Calculadora de catering' },
+  subtitle:     { cs: 'Zadej počet hostů a typ akce. APPEK doporučí přesné množství surovin, výrobků a celkovou cenu.',     en: 'Enter guest count and event type. APPEK recommends exact quantities of ingredients, products and total price.',  es: 'Introduce nº de invitados y tipo de evento. APPEK recomienda cantidades de ingredientes, productos y precio total.' },
+  back:         { cs: '← Zpět',                                                                                                  en: '← Back',                                                                                              es: '← Atrás' },
+  print:        { cs: '🖨️ Vytisknout nabídku',                                                                                  en: '🖨️ Print offer',                                                                                       es: '🖨️ Imprimir oferta' },
+  upsell_t:     { cs: 'Funkce vyžaduje balíček Catering',                                                                        en: 'Feature requires the Catering package',                                                              es: 'La función requiere el paquete Catering' },
+  pkg_price:    { cs: 'Cena balíčku Catering',                                                                                     en: 'Catering package price',                                                                              es: 'Precio del paquete Catering' },
+  pkg_life:     { cs: 'Jednorázově, doživotně',                                                                                    en: 'One-time, lifetime',                                                                                  es: 'Pago único, de por vida' },
+  unlock:       { cs: '🔓 Dokoupit balíček',                                                                                       en: '🔓 Buy package',                                                                                      es: '🔓 Comprar paquete' },
+  params:       { cs: '📋 Parametry akce',                                                                                          en: '📋 Event parameters',                                                                                  es: '📋 Parámetros del evento' },
+  event_type:   { cs: 'Typ akce',                                                                                                  en: 'Event type',                                                                                          es: 'Tipo de evento' },
+  guests:       { cs: 'Počet hostů',                                                                                                en: 'Number of guests',                                                                                    es: 'Número de invitados' },
+  hours:        { cs: 'Délka akce (hodin)',                                                                                          en: 'Event duration (hours)',                                                                              es: 'Duración (horas)' },
+  hours_hint:   { cs: 'Výchozí pro',                                                                                                en: 'Default for',                                                                                          es: 'Por defecto para' },
+  calc:         { cs: '⚡ Spočítat kalkulaci',                                                                                       en: '⚡ Calculate quote',                                                                                  es: '⚡ Calcular oferta' },
+  ready_t:      { cs: 'Připraveno na kalkulaci',                                                                                    en: 'Ready to calculate',                                                                                  es: 'Listo para calcular' },
+  ready_p:      { cs: 'Vyber typ akce, zadej počet hostů a klikni na <strong>Spočítat kalkulaci</strong>.',                       en: 'Pick an event type, enter the guest count, and click <strong>Calculate quote</strong>.',              es: 'Elige tipo, escribe el nº de invitados y haz clic en <strong>Calcular oferta</strong>.' },
+  computing:    { cs: 'Počítám…',                                                                                                    en: 'Computing…',                                                                                          es: 'Calculando…' },
+  hosts:        { cs: 'hostů',                                                                                                        en: 'guests',                                                                                              es: 'invitados' },
+  h:            { cs: 'h',                                                                                                            en: 'h',                                                                                                    es: 'h' },
+  generated:    { cs: 'Vygenerováno',                                                                                                en: 'Generated',                                                                                          es: 'Generado' },
+  no_vat:       { cs: 'Bez DPH',                                                                                                      en: 'Excl. VAT',                                                                                            es: 'Sin IVA' },
+  vat:          { cs: 'DPH 12 %',                                                                                                      en: 'VAT 12 %',                                                                                              es: 'IVA 12 %' },
+  total:        { cs: 'Celkem',                                                                                                        en: 'Total',                                                                                                es: 'Total' },
+  per_guest:    { cs: 'Na hosta',                                                                                                      en: 'Per guest',                                                                                            es: 'Por invitado' },
+  reco:         { cs: 'doporučeno',                                                                                                    en: 'recommended',                                                                                          es: 'recomendado' },
+  per_host:     { cs: '/host',                                                                                                          en: '/guest',                                                                                                es: '/inv.' },
+  no_prods:     { cs: 'Žádné produkty v této kategorii — přidej v adminu.',                                                            en: 'No products in this category — add them in admin.',                                                    es: 'Sin productos en esta categoría — añádelos en admin.' },
+};
+const $ = (s, el = document) => el.querySelector(s);
+const t = key => featureLang.t(window.T[key] || key);
+document.title = t('title') + ' — APPEK';
+featureLang.renderPills();
+featureLang.applyToDom();
+const toast = (msg, isErr = false) => {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  setTimeout(() => t.classList.remove('show'), 2500);
+};
+
+let templates = {};
+let selectedType = null;
+
+async function loadTemplates() {
+  try {
+    const r = await fetch('/api/feature_event_planner.php');
+    if (r.status === 402) {
+      const j = await r.json();
+      $('#content').innerHTML = `
+        <div class="upsell">
+          <div class="em">🔒</div>
+          <h2>${t('upsell_t')}</h2>
+          <p>${j.message || ''}</p>
+          <div class="pkg-price">
+            <div class="l">${t('pkg_price')}</div>
+            <div class="v">2 990 Kč</div>
+            <div class="l" style="margin-top:4px">${t('pkg_life')}</div>
+          </div>
+          <a href="https://appek.cz/checkout.html?addon=catering" target="_blank" class="btn">${t('unlock')}</a>
+        </div>
+      `;
+      return;
+    }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    templates = j.templates || {};
+    selectedType = Object.keys(templates)[0];
+    renderUI();
+  } catch (e) {
+    $('#content').innerHTML = `<div class="upsell"><div class="em">❌</div><h2>Chyba</h2><p>${e.message}</p></div>`;
+  }
+}
+
+function renderUI() {
+  const tplArr = Object.values(templates);
+
+  $('#content').innerHTML = `
+    <div class="layout">
+      <div class="input-card">
+        <h2>${t('params')}</h2>
+        <div class="field">
+          <label>${t('event_type')}</label>
+          <div class="event-types">
+            ${tplArr.map(tpl => `
+              <div class="et-card ${tpl.id === selectedType ? 'selected' : ''}" onclick="selectType('${tpl.id}')">
+                <div class="em">${tpl.name.split(' ')[0]}</div>
+                <div class="nm">${tpl.name.split(' ').slice(1).join(' ')}</div>
+                <div class="ds">${tpl.desc.substring(0, 40)}…</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="field">
+          <label>${t('guests')}</label>
+          <input type="number" id="guests" value="50" min="1" max="500">
+        </div>
+        <div class="field">
+          <label>${t('hours')}</label>
+          <input type="number" id="hours" value="${templates[selectedType]?.default_hours || 4}" min="1" max="24">
+          <div class="hours-hint" id="hours-hint">${t('hours_hint')} ${templates[selectedType]?.name}: ${templates[selectedType]?.default_hours} h</div>
+        </div>
+        <button class="btn big" onclick="calculate()" style="width:100%">${t('calc')}</button>
+      </div>
+
+      <div class="result-area" id="result">
+        <div class="result-empty">
+          <div class="em">🎉</div>
+          <h3>${t('ready_t')}</h3>
+          <p>${t('ready_p')}</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function selectType(id) {
+  selectedType = id;
+  document.querySelectorAll('.et-card').forEach(c => c.classList.remove('selected'));
+  event.target.closest('.et-card').classList.add('selected');
+  const hours = $('#hours');
+  if (hours) hours.value = templates[id]?.default_hours || 4;
+  const hint = $('#hours-hint');
+  if (hint) hint.textContent = `${t('hours_hint')} ${templates[id]?.name}: ${templates[id]?.default_hours} h`;
+}
+
+async function calculate() {
+  const guests = parseInt($('#guests').value) || 50;
+  const hours = parseInt($('#hours').value) || templates[selectedType]?.default_hours || 4;
+
+  $('#result').innerHTML = `<div class="result-empty"><div class="em">⏳</div><p>${t('computing')}</p></div>`;
+
+  try {
+    const r = await fetch('/api/feature_event_planner.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: selectedType, guests, hours }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+    renderResult(j);
+  } catch (e) {
+    $('#result').innerHTML = `<div class="result-empty"><div class="em">❌</div><h3>${e.message}</h3></div>`;
+  }
+}
+
+function renderResult(j) {
+  const fmt = (n) => Math.round(n).toLocaleString('cs-CZ') + ' Kč';
+  const dateStr = new Date().toLocaleString(featureLang.get() === 'es' ? 'es-ES' : (featureLang.get() === 'en' ? 'en-US' : 'cs-CZ'));
+  let html = `
+    <h2 style="margin:0 0 4px">${j.event_name} · ${j.guests} ${t('hosts')} · ${j.hours} ${t('h')}</h2>
+    <div style="color:#6e6e73;font-size:13px;margin-bottom:18px">${t('generated')}: ${dateStr}</div>
+
+    <div class="totals-bar">
+      <div class="tb-it"><div class="l">${t('no_vat')}</div><div class="v">${fmt(j.totals.castka_bez_dph)}</div></div>
+      <div class="tb-it"><div class="l">${t('vat')}</div><div class="v">${fmt(j.totals.castka_dph)}</div></div>
+      <div class="tb-it"><div class="l">${t('total')}</div><div class="v">${fmt(j.totals.castka_celkem)}</div></div>
+      <div class="tb-it"><div class="l">${t('per_guest')}</div><div class="v">${fmt(j.totals.per_guest)}</div></div>
+    </div>
+  `;
+
+  for (const r of j.recipe) {
+    html += `
+      <div class="cat-section">
+        <h3>📦 ${r.kategorie} <span class="total">${fmt(r.cat_subtotal)}</span></h3>
+        <div class="label">${r.label} · ${t('reco')} ${r.total_units} ${r.jednotka} (${r.per_guest}${t('per_host')})</div>
+        ${r.suggestions.length === 0 ? `<div style="color:#86868b;font-style:italic">${t('no_prods')}</div>` : `
+          <table>
+            ${r.suggestions.map(s => `<tr>
+              <td class="name">${s.nazev}</td>
+              <td><small style="color:#86868b">${s.cislo || ''}</small></td>
+              <td class="mn">${s.mnozstvi} ${s.jednotka}</td>
+              <td class="mn">${s.cena_per_ks} Kč/ks</td>
+              <td class="pr">${fmt(s.subtotal)}</td>
+            </tr>`).join('')}
+          </table>
+        `}
+      </div>
+    `;
+  }
+
+  html += `
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn ghost" onclick="window.print()">${t('print')}</button>
+    </div>
+  `;
+
+  $('#result').innerHTML = html;
+}
+
+loadTemplates();
+</script>
+</body>
+</html>

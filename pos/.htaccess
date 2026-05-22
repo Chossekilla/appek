@@ -1,0 +1,21 @@
+# 🧾 POS — Apache config pro subfolder
+# Zajistí že `/pos/` vrátí index.php (ne 404)
+
+Options -Indexes
+<IfModule mod_negotiation.c>
+  Options -MultiViews
+</IfModule>
+
+DirectoryIndex index.php index.html
+
+# Force PHP handler (některé hostingy potřebují explicitní)
+<IfModule mod_mime.c>
+  AddType application/x-httpd-php .php
+</IfModule>
+
+# Cache buster pro CSS/JS — žádný cache (máme ?v=)
+<IfModule mod_headers.c>
+  <FilesMatch "\.(css|js)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>

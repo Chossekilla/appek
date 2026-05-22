@@ -1,0 +1,49 @@
+# =============================================================
+# 🔑 vendor.appek.cz — License key management
+# =============================================================
+# NEJVYŠŠÍ úroveň security — IP whitelist + 2FA + audit log POVINNÉ.
+
+Options -Indexes
+ServerSignature Off
+
+# Force HTTPS
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# 🚫 Total no-index + max security headers
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex"
+  Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+  Header always set Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none';"
+  # No cache
+  Header set Cache-Control "no-cache, no-store, must-revalidate, private"
+  Header set Pragma "no-cache"
+</IfModule>
+
+# 🛡️ IP WHITELIST — POVINNÉ pro vendor!
+# Odkomentuj a doplň své IP — bez whitelist je tu otevřená brána ke generování klíčů
+# <RequireAll>
+#   Require ip 1.2.3.4           # tvá veřejná IP doma
+#   Require ip 5.6.7.0/24        # tvá kancelář
+#   # Require ip 127.0.0.1       # localhost (test)
+# </RequireAll>
+
+# Rate limiting (volitelně — pomocí mod_evasive nebo cloudflare)
+
+# Block všechny citlivé soubory
+<FilesMatch "\.(env|log|sql|gitignore|md|json|yml|yaml|bak|old|tmp|key|pem|crt|pfx|p12)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+<FilesMatch "\.local\.php$">
+  Require all denied
+</FilesMatch>
