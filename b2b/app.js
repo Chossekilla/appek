@@ -714,17 +714,19 @@ async function loadPosledniObjednavky() {
 function renderHeaderUser() {
   const el = document.getElementById('user-name');
   if (!el) return;
-  const odbName = esc(state.user?.nazev || '');
-  let html = `<strong>${odbName}</strong>`;
-
+  const odbName = state.user?.nazev || '';
+  const initial = (odbName.trim()[0] || 'F').toUpperCase();
+  let sub = '';
   if (state.mistaDodani && state.mistaDodani.length > 0) {
     const aktualni = state.mistaDodani.find(m => m.id == state.checkoutData.misto_dodani_id) || state.mistaDodani[0];
     if (aktualni) {
-      const lokace = [aktualni.nazev, aktualni.mesto].filter(Boolean).join(', ');
-      html += `<span class="header-pobocka">📍 ${esc(lokace)}</span>`;
+      sub = '📍 ' + [aktualni.nazev, aktualni.mesto].filter(Boolean).join(', ');
     }
   }
-  el.innerHTML = html;
+  el.innerHTML = `<span class="b2b-vizitka-ava">${esc(initial)}</span>`
+    + `<span class="b2b-vizitka-info"><strong>${esc(odbName)}</strong>`
+    + (sub ? `<span class="b2b-vizitka-sub">${esc(sub)}</span>` : '')
+    + `</span>`;
 }
 
 async function loadCatalog() {

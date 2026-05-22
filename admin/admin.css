@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "2.9.124";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje */
+  --appek-css-version: "2.9.141";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -445,6 +445,8 @@ body.sidebar-pinned .main-wrap {
     font-size: 0 !important;
     border-radius: 10px;
     text-align: center !important;
+    background: transparent !important;
+    border-color: transparent !important;
   }
   body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
     font-size: 20px !important;
@@ -2704,8 +2706,8 @@ html.dark .nastaveni-tab.active { background: var(--surface); color: var(--prima
   .stat-card .label { font-size: 11px; }
   .stat-card .stat-value,
   .stat-card .value {
-    font-size: 18px;
-    word-break: break-word;
+    font-size: clamp(13px, 3.8vw, 18px);
+    white-space: nowrap;
   }
 
   /* Filtry — důležité aby se nepřetekly */
@@ -11113,6 +11115,9 @@ html.theme-apple .period-tabs .period-tab.active {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04),
               0 2px 6px rgba(0, 0, 0, 0.08) !important;
 }
+@media (max-width: 700px) {
+  html.theme-apple .period-tabs { width: 100%; }
+}
 
 /* ── 4. FORM-ACTIONS bar v modalech — Apple sheet-style ── */
 html.theme-apple .form-actions {
@@ -12235,6 +12240,16 @@ body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
   filter: none !important;
   opacity: 1 !important;
 }
+/* Mobil — pin bez rámečku a pozadí (jen ikona) — platí bez ohledu na body class */
+@media (max-width: 700px) {
+  .sidebar-pin,
+  body.sidebar-pinned .sidebar-pin,
+  body.sidebar-collapsed .sidebar-pin {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
 
 /* Schovat hardcoded version label */
 aside.sidebar::after { display: none !important; content: '' !important; }
@@ -12600,8 +12615,8 @@ aside.sidebar::after { display: none !important; content: '' !important; }
   .stat-card .label { font-size: 11px; }
   .stat-card .stat-value,
   .stat-card .value {
-    font-size: 18px;
-    word-break: break-word;
+    font-size: clamp(13px, 3.8vw, 18px);
+    white-space: nowrap;
   }
 
   /* Filtry — důležité aby se nepřetekly */
@@ -14465,7 +14480,7 @@ html.dark .app-version-footer {
     grid-template-columns: none !important;
     gap: 6px !important;
     justify-content: flex-start !important;
-    padding-bottom: 0 !important;
+    padding-bottom: 3px !important;
     overflow: visible !important;
   }
   .period-tab {

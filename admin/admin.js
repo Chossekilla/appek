@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.124';
+const APPEK_ADMIN_JS_VERSION = '2.9.141';
 
 (async function detectStaleCode() {
   try {
@@ -3648,7 +3648,7 @@ async function renderDashboard(filters = {}) {
           <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="navigate('objednavky')">Vše →</button>
         </div>
         ${d.nedavne.length === 0 ? '<div class="empty-state">Žádné objednávky</div>' : `
-          <table class="table recent-table" style="font-size:13px">
+          <table class="table recent-table" style="font-size:15px">
             <thead><tr><th>Číslo</th><th>Odběratel</th><th>Stav</th><th class="num">Částka</th><th></th></tr></thead>
             <tbody>
               ${d.nedavne.map((o) => `
@@ -3676,7 +3676,7 @@ async function renderDashboard(filters = {}) {
           <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="navigate('dodaci_listy')">Vše →</button>
         </div>
         ${(!d.nedavne_dl || d.nedavne_dl.length === 0) ? '<div class="empty-state">Žádné DL</div>' : `
-          <table class="table recent-table" style="font-size:13px">
+          <table class="table recent-table" style="font-size:15px">
             <thead><tr><th>Číslo</th><th>Odběratel</th><th>FA</th><th class="num">Částka</th><th></th></tr></thead>
             <tbody>
               ${d.nedavne_dl.map((dl) => `
@@ -3704,7 +3704,7 @@ async function renderDashboard(filters = {}) {
           <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="navigate('faktury')">Vše →</button>
         </div>
         ${(!d.nedavne_fa || d.nedavne_fa.length === 0) ? '<div class="empty-state">Žádné faktury</div>' : `
-          <table class="table recent-table" style="font-size:13px">
+          <table class="table recent-table" style="font-size:15px">
             <thead><tr><th>Číslo</th><th>Odběratel</th><th>Stav</th><th class="num">Částka</th><th></th></tr></thead>
             <tbody>
               ${d.nedavne_fa.map((f) => `
@@ -4666,17 +4666,20 @@ function vykreslitNovouObjednavku() {
       </div>
       <div style="background:#EFF6FF;border:1px solid #B5D4F4;border-radius:8px;padding:14px">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#0C447C;margin-bottom:6px;font-weight:600">📍 Místo dodání</div>
-        ${odberatelSelected && s.pobocky.length > 0 ? (() => {
-          const m = s.pobocky.find(p => p.id == s.misto_dodani_id);
-          return m ? `
+        ${!odberatelSelected
+          ? '<div style="font-size:13px;color:#0C447C">Nejdřív vyberte odběratele</div>'
+          : s.pobocky.length === 0
+          ? `<div style="font-size:13px;color:#0C447C">Tento odběratel zatím nemá žádnou pobočku.</div>
+             <button type="button" class="btn-secondary" onclick="editPobocka(${s.odberatel_id}, null, 'novaObjednavka')" style="margin-top:8px;width:100%;font-size:13px;padding:7px 12px">➕ Vytvořit pobočku</button>`
+          : (() => {
+              const m = s.pobocky.find(p => p.id == s.misto_dodani_id);
+              const detail = m ? `
             <div class="modal-party-name">${esc(m.nazev || '')}</div>
             ${m.ulice ? '<div style="font-size:13px;color:#0C447C">' + esc(m.ulice) + '</div>' : ''}
             ${m.mesto ? '<div style="font-size:13px;color:#0C447C">' + (m.psc ? esc(m.psc) + ', ' : '') + esc(m.mesto) + '</div>' : ''}
           ` : '<div style="font-size:13px;color:#0C447C">Vyberte pobočku</div>';
-        })() : '<div style="font-size:13px;color:#0C447C">Nejdřív vyberte odběratele</div>'}
-        <select class="input" id="no-misto" onchange="noState.misto_dodani_id = parseInt(this.value) || null; vykreslitNovouObjednavku()" style="margin-top:8px;width:100%">
-          ${pobockyOptions}
-        </select>
+              return detail + `<select class="input" id="no-misto" onchange="noState.misto_dodani_id = parseInt(this.value) || null; vykreslitNovouObjednavku()" style="margin-top:8px;width:100%">${pobockyOptions}</select>`;
+            })()}
       </div>
     </div>
 
@@ -6315,6 +6318,7 @@ async function renderDodaciListy(filters = {}) {
         <button class="btn-primary btn-green" onclick="dlBulkVystavitFakturu()" title="Vystavit jednu fakturu pro všechny vybrané DL (musí být od stejného odběratele a ještě nefakturované)">💰 Vystavit fakturu</button>
         <button class="btn-secondary" onclick="dlBulkTisk()" title="Otevře tiskový dialog se všemi vybranými DL za sebou">🖨️ Tisk vybrané</button>
         <button class="btn-secondary" onclick="dlBulkExportCsvZip()">📤 Export CSV ZIP</button>
+        <button class="btn-secondary" onclick="dlBulkOdeslatEmailem()" title="Odeslat každý vybraný dodací list e-mailem jeho odběrateli (PDF v příloze)">✉️ Odeslat e-mailem</button>
         <button class="btn-link" onclick="dlClearSelection()">✕ Zrušit výběr</button>
       </div>
     </div>
@@ -6445,6 +6449,57 @@ window.dlBulkVystavitFakturu = async function() {
   } catch (e) {
     alert('Chyba: ' + e.message);
   }
+};
+
+window.dlBulkOdeslatEmailem = function() {
+  const ids = [...(state._dlSelected || [])];
+  if (ids.length === 0) return alert('Nejprve vyber dodací listy.');
+  const list = state._dlList || [];
+  const vybrane = ids.map(id => list.find(x => x.id === id)).filter(Boolean);
+  const bezEmailu = vybrane.filter(d => !d.odberatel_email).length;
+  const radky = vybrane.map(d => `
+    <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span><strong>${esc(d.cislo)}</strong> · ${esc(d.odberatel_nazev || '—')}</span>
+      <span style="color:${d.odberatel_email ? 'var(--text-2)' : 'var(--danger-text)'}">${d.odberatel_email ? esc(d.odberatel_email) : '⚠️ chybí e-mail'}</span>
+    </div>`).join('');
+  openModal('✉️ Odeslat dodací listy e-mailem', `
+    <div style="background:var(--surface-2);border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--text-2)">
+      Každý dodací list se odešle <strong>svému odběrateli</strong> (PDF v příloze).
+      ${bezEmailu > 0 ? `<div style="color:var(--danger-text);margin-top:6px">⚠️ ${bezEmailu}× chybí e-mail odběratele — ty se přeskočí.</div>` : ''}
+    </div>
+    <div style="max-height:240px;overflow:auto;margin-bottom:14px">${radky}</div>
+    <div class="form-row">
+      <label class="form-label" for="dlbe-zprava">💬 Vlastní zpráva (volitelné — připojí se ke všem)</label>
+      <textarea id="dlbe-zprava" class="form-input" rows="3" placeholder="Dobrý den, posíláme přiložený dodací list..." style="font-size:14px;resize:vertical"></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
+      <div style="flex:1"></div>
+      <button class="btn-primary btn-green" onclick="dlBulkOdeslatEmailemProvest()">✉️ Odeslat vše</button>
+    </div>
+  `);
+};
+
+window.dlBulkOdeslatEmailemProvest = async function() {
+  const zprava = (document.getElementById('dlbe-zprava')?.value || '').trim();
+  const ids = [...(state._dlSelected || [])];
+  const list = state._dlList || [];
+  const vybrane = ids.map(id => list.find(x => x.id === id)).filter(Boolean).filter(d => d.odberatel_email);
+  if (vybrane.length === 0) return alert('Žádný z vybraných DL nemá e-mail odběratele.');
+  const btn = document.querySelector('.modal-card .btn-green');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Odesílám…'; }
+  let ok = 0, chyby = 0;
+  for (const d of vybrane) {
+    try {
+      await api('admin_doklad_email.php', {
+        method: 'POST',
+        body: { typ: 'dl', id: d.id, emails: [d.odberatel_email], predmet: '', zprava },
+      });
+      ok++;
+    } catch (e) { chyby++; }
+  }
+  alert(`✓ Odesláno: ${ok}${chyby > 0 ? `\n✗ Chyby: ${chyby}` : ''}`);
+  closeModal();
 };
 
 window.dlBulkTisk = function() {
@@ -10114,8 +10169,9 @@ window.zobrazitDodaciPobocky = async function(pobocka_id, odberatel_id) {
 // =============================================================
 // POBOČKY
 // =============================================================
-window.editPobocka = async function(odberatel_id, pobocka_id = null) {
-  const m = pobocka_id 
+window.editPobocka = async function(odberatel_id, pobocka_id = null, returnTo = null) {
+  const navratFn = { novaObjednavka: 'vykreslitNovouObjednavku', novaFaktura: 'vykreslitRucniFakturu', novyDl: 'vykreslitRucniDl' }[returnTo] || null;
+  const m = pobocka_id
     ? (await api(`admin_pobocky.php?odberatel_id=${odberatel_id}`)).find((x) => x.id == pobocka_id)
     : { aktivni: 1, vychozi: 0 };
 
@@ -10171,14 +10227,14 @@ window.editPobocka = async function(odberatel_id, pobocka_id = null) {
       </div>
     </div>
     <div class="form-actions">
-      <button class="btn-secondary" onclick="editOdberatel(${odberatel_id})">← Zpět na odběratele</button>
+      <button class="btn-secondary" onclick="${navratFn ? navratFn + '()' : `editOdberatel(${odberatel_id})`}">${navratFn ? '← Zpět' : '← Zpět na odběratele'}</button>
       <div style="flex:1"></div>
-      <button class="btn-primary" onclick="ulozitPobocku(${odberatel_id}, ${pobocka_id || 'null'})">Uložit pobočku</button>
+      <button class="btn-primary" onclick="ulozitPobocku(${odberatel_id}, ${pobocka_id || 'null'}, ${returnTo ? `'${returnTo}'` : 'null'})">Uložit pobočku</button>
     </div>
   `);
 };
 
-window.ulozitPobocku = async function(odberatel_id, pobocka_id) {
+window.ulozitPobocku = async function(odberatel_id, pobocka_id, returnTo = null) {
   const data = {
     id: pobocka_id || undefined,
     odberatel_id,
@@ -10202,7 +10258,19 @@ window.ulozitPobocku = async function(odberatel_id, pobocka_id) {
       method: pobocka_id ? 'PUT' : 'POST',
       body: JSON.stringify(data),
     });
-    editOdberatel(odberatel_id);
+    const navrat = {
+      novaObjednavka: { st: () => noState,          render: vykreslitNovouObjednavku },
+      novaFaktura:    { st: () => rucniFakturaState, render: vykreslitRucniFakturu },
+      novyDl:         { st: () => rdlState,          render: vykreslitRucniDl },
+    }[returnTo];
+    if (navrat) {
+      const st = navrat.st();
+      st.pobocky = await api(`admin_pobocky.php?odberatel_id=${odberatel_id}`);
+      if (st.pobocky.length === 1) st.misto_dodani_id = st.pobocky[0].id;
+      navrat.render();
+    } else {
+      editOdberatel(odberatel_id);
+    }
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
@@ -20683,7 +20751,7 @@ function vykreslitRucniFakturu() {
       </div>
       <div style="background:#EFF6FF;border:1px solid #B5D4F4;border-radius:8px;padding:14px">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#0C447C;margin-bottom:6px;font-weight:600">\ud83d\udccd Místo dodání</div>
-        ${odberatelSelected && s.pobocky.length > 0 ? (() => {
+        ${odberatelSelected && s.pobocky.length === 0 ? `<div style="font-size:13px;color:#0C447C">Tento odběratel zatím nemá žádnou pobočku.</div><button type="button" class="btn-secondary" onclick="editPobocka(${s.odberatel_id}, null, 'novaFaktura')" style="margin-top:8px;width:100%;font-size:13px;padding:7px 12px">➕ Vytvořit pobočku</button>` : odberatelSelected && s.pobocky.length > 0 ? (() => {
           const m = s.pobocky.find(p => p.id == s.misto_dodani_id);
           return m ? `
             <div class="modal-party-name">${esc(m.nazev || '')}</div>
@@ -20691,9 +20759,7 @@ function vykreslitRucniFakturu() {
             ${m.mesto ? '<div style="font-size:13px;color:#0C447C">' + (m.psc ? esc(m.psc) + ', ' : '') + esc(m.mesto) + '</div>' : ''}
           ` : '<div style="font-size:13px;color:#0C447C">Vyberte pobo\u010dku</div>';
         })() : '<div style="font-size:13px;color:#0C447C">Nejd\u0159\u00edv vyberte odběratele</div>'}
-        <select class="input" id="rf-pobocka" onchange="rucniFakturaState.misto_dodani_id = parseInt(this.value) || null; vykreslitRucniFakturu()" style="margin-top:8px;width:100%">
-          ${pobockyOptions}
-        </select>
+        ${s.pobocky.length > 0 ? `<select class="input" id="rf-pobocka" onchange="rucniFakturaState.misto_dodani_id = parseInt(this.value) || null; vykreslitRucniFakturu()" style="margin-top:8px;width:100%">${pobockyOptions}</select>` : ''}
       </div>
     </div>
     <div class="doc-meta-row">
@@ -21386,17 +21452,20 @@ function vykreslitRucniDl() {
       </div>
       <div style="background:#EFF6FF;border:1px solid #B5D4F4;border-radius:8px;padding:14px">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#0C447C;margin-bottom:6px;font-weight:600">\ud83d\udccd M\u00edsto dod\u00e1n\u00ed</div>
-        ${odberatelSelected && s.pobocky.length > 0 ? (() => {
-          const m = s.pobocky.find(p => p.id == s.misto_dodani_id);
-          return m ? `
+        ${!odberatelSelected
+          ? '<div style="font-size:13px;color:#0C447C">Nejd\u0159\u00edv vyberte odb\u011bratele</div>'
+          : s.pobocky.length === 0
+          ? `<div style="font-size:13px;color:#0C447C">Tento odb\u011bratel zat\u00edm nem\u00e1 \u017e\u00e1dnou pobo\u010dku.</div>
+             <button type="button" class="btn-secondary" onclick="editPobocka(${s.odberatel_id}, null, 'novyDl')" style="margin-top:8px;width:100%;font-size:13px;padding:7px 12px">\u2795 Vytvo\u0159it pobo\u010dku</button>`
+          : (() => {
+              const m = s.pobocky.find(p => p.id == s.misto_dodani_id);
+              const detail = m ? `
             <div class="modal-party-name">${esc(m.nazev || '')}</div>
             ${m.ulice ? '<div style="font-size:13px;color:#0C447C">' + esc(m.ulice) + '</div>' : ''}
             ${m.mesto ? '<div style="font-size:13px;color:#0C447C">' + (m.psc ? esc(m.psc) + ', ' : '') + esc(m.mesto) + '</div>' : ''}
           ` : '<div style="font-size:13px;color:#0C447C">Vyberte pobo\u010dku</div>';
-        })() : '<div style="font-size:13px;color:#0C447C">Nejd\u0159\u00edv vyberte odb\u011bratele</div>'}
-        <select class="input" id="rdl-misto" onchange="rdlState.misto_dodani_id = parseInt(this.value) || null; vykreslitRucniDl()" style="margin-top:8px;width:100%">
-          ${pobockyOptions}
-        </select>
+              return detail + `<select class="input" id="rdl-misto" onchange="rdlState.misto_dodani_id = parseInt(this.value) || null; vykreslitRucniDl()" style="margin-top:8px;width:100%">${pobockyOptions}</select>`;
+            })()}
       </div>
     </div>
     <div class="doc-meta-row">
@@ -22393,7 +22462,7 @@ window.katalogOdeslatEmail = async function() {
         <label class="form-label">Úvodní text (volitelný — zobrazí se nad tabulkou produktů)</label>
         <textarea class="form-textarea" id="ke-zprava" rows="3" placeholder="např. Dobrý den, posíláme aktuální nabídku našich pekařských výrobků. Ceny jsou platné do…">Dobrý den,
 
-posíláme Vám aktuální nabídku našich výrobků. Ceny v tabulce platí pro Vaši cenovou skupinu.
+posíláme Vám aktuální nabídku našich výrobků.
 
 V případě zájmu nás kontaktujte.</textarea>
       </div>

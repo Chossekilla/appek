@@ -672,17 +672,6 @@ function self_update_verify_bundle_integrity(string $zipPath): array {
   <?php if ($flash_ok): ?><div class="alert ok">✅ <?= htmlspecialchars($flash_ok) ?></div><?php endif; ?>
   <?php if ($flash_err): ?><div class="alert err">❌ <?= htmlspecialchars($flash_err) ?></div><?php endif; ?>
 
-  <?php if ($progressLog): ?>
-    <!-- Progress log: full-width (důležité, ukáže se po akci) -->
-    <div class="su-card">
-      <h2>📋 Průběh</h2>
-      <div class="progress-log">
-        <?php foreach ($progressLog as $line): ?>
-          <div class="<?= strpos($line, '❌') !== false ? 'err' : (strpos($line, '✅') !== false ? 'ok' : '') ?>"><?= htmlspecialchars($line) ?></div>
-        <?php endforeach; ?>
-      </div>
-    </div>
-  <?php endif; ?>
 
   <!-- 🆕 v2.0.80 — 2-column grid: vlevo akce (upload), vpravo info (jak to funguje) -->
   <div class="su-grid">
@@ -723,8 +712,18 @@ function self_update_verify_bundle_integrity(string $zipPath): array {
       </div>
     </div>
 
-    <!-- PRAVÝ SLOUPEC — Info "Jak to funguje" (sticky) -->
+    <!-- PRAVÝ SLOUPEC — Průběh (po akci) vedle uploadu + Info "Jak to funguje" -->
     <aside class="su-col-info">
+      <?php if ($progressLog): ?>
+      <div class="su-card" style="margin-bottom:16px">
+        <h2>📋 Průběh</h2>
+        <div class="progress-log">
+          <?php foreach ($progressLog as $line): ?>
+            <div class="<?= strpos($line, '❌') !== false ? 'err' : (strpos($line, '✅') !== false ? 'ok' : '') ?>"><?= htmlspecialchars($line) ?></div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
       <div class="su-card">
         <h2>🧠 Jak to funguje</h2>
         <div class="su-step">

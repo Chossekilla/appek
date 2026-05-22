@@ -42,6 +42,8 @@ function ensure_notifications_schema(PDO $pdo): void {
                 INDEX idx_kind (kind, created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+        // 🆕 dismissed_at — soft-delete: smazaná notifikace zůstane v DB a NEREGENERUJE se
+        try { $pdo->exec("ALTER TABLE notifications ADD COLUMN dismissed_at DATETIME NULL"); } catch (Throwable $e) { /* sloupec už existuje */ }
     } catch (Throwable $e) { error_log('notifications schema: ' . $e->getMessage()); }
 }
 ensure_notifications_schema($pdo);
@@ -57,10 +59,13 @@ function notif_emit(PDO $pdo, string $kind, string $title, ?string $msg, ?string
         // je title ≠ dedupKey → shoda se nikdy nenašla → notifikace se množily
         // při každém ?fresh=1 (každých ~5 min). Teď dedup podle title = funguje.
         if ($dedupKey) {
+            // Skip re-emit pokud stejná notifikace vznikla < 24h NEBO byla < 7 dnů odmítnuta (dismissed_at).
+            // Tím se smazaná systémová notifikace (záloha, sync…) neskáče hned zpátky.
             $stmt = $pdo->prepare("
                 SELECT 1 FROM notifications
                 WHERE kind = :k AND title = :t
-                  AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                  AND (created_at   > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    OR dismissed_at > DATE_SUB(NOW(), INTERVAL 7 DAY))
                 LIMIT 1
             ");
             $stmt->execute(['k' => $kind, 't' => $title]);
@@ -74,6 +79,17 @@ function notif_emit(PDO $pdo, string $kind, string $title, ?string $msg, ?string
 }
 
 function generate_fresh_notifications(PDO $pdo): void {
+    // 0. Úklid starých duplicit systémových notifikací — nech jen nejnovější per kind
+    foreach (['backup_stale', 'sync_error'] as $sysKind) {
+        try {
+            $pdo->prepare("
+                DELETE FROM notifications
+                WHERE kind = :k
+                  AND id < (SELECT mx FROM (SELECT MAX(id) AS mx FROM notifications WHERE kind = :k2) t)
+            ")->execute(['k' => $sysKind, 'k2' => $sysKind]);
+        } catch (Throwable $e) { /* ignore */ }
+    }
+
     // 1. Nové objednávky (posledních 60 minut, jen jednou per obj)
     try {
         $rs = $pdo->query("
@@ -217,11 +233,11 @@ if ($method === 'GET') {
         generate_fresh_notifications($pdo);
     }
     $limit = max(5, min(100, (int)($_GET['limit'] ?? 30)));
-    $stmt = $pdo->prepare("SELECT * FROM notifications ORDER BY is_read ASC, created_at DESC LIMIT :l");
+    $stmt = $pdo->prepare("SELECT * FROM notifications WHERE dismissed_at IS NULL ORDER BY is_read ASC, created_at DESC LIMIT :l");
     $stmt->bindValue(':l', $limit, PDO::PARAM_INT);
     $stmt->execute();
     $rows = $stmt->fetchAll();
-    $unread = (int) $pdo->query("SELECT COUNT(*) FROM notifications WHERE is_read = 0")->fetchColumn();
+    $unread = (int) $pdo->query("SELECT COUNT(*) FROM notifications WHERE is_read = 0 AND dismissed_at IS NULL")->fetchColumn();
     json_response(['notifications' => $rows, 'unread_count' => $unread]);
 }
 
@@ -241,7 +257,8 @@ if ($method === 'POST' && $action === 'delete') {
     $d = json_input();
     $id = (int) ($d['id'] ?? 0);
     if (!$id) json_error('Chybí id', 400);
-    $pdo->prepare("DELETE FROM notifications WHERE id = :id")->execute(['id' => $id]);
+    // Soft-delete — řádek zůstane s dismissed_at, takže systémová notifikace se NEREGENERUJE.
+    $pdo->prepare("UPDATE notifications SET dismissed_at = NOW(), is_read = 1 WHERE id = :id")->execute(['id' => $id]);
     json_response(['ok' => true]);
 }
 

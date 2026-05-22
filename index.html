@@ -32,11 +32,9 @@ img { max-width: 100%; display: block; }
 /* ============ TOPBAR ============ */
 /* prázdný horní pruh nad hlavičkou (jen PC) */
 .top-strip {
-  position: fixed; top: 0; left: 0; right: 0; height: 36px; z-index: 101;
-  background: linear-gradient(135deg, #BA7517 0%, #854F0B 100%);
+  height: 36px;
 }
 .topbar {
-  position: fixed; top: 36px; left: 0; right: 0; z-index: 100;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -277,27 +275,6 @@ section { padding: 100px 0; }
 .faq-item[open] summary::after { transform: rotate(45deg); }
 .faq-item p { padding-top: 12px; color: #424245; font-size: 15px; }
 
-/* ============ CTA SECTION ============ */
-.cta-section {
-  background: linear-gradient(135deg, #1d1d1f 0%, #2c2c2e 100%);
-  color: #fff;
-  text-align: center;
-  padding: 80px 20px;
-  border-radius: 24px;
-  margin: 80px auto;
-  max-width: 1140px;
-  position: relative;
-  overflow: hidden;
-}
-.cta-section::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse at top, rgba(186, 117, 23, 0.3), transparent 50%);
-}
-.cta-section h2 { font-size: 42px; font-weight: 800; margin-bottom: 16px; position: relative; letter-spacing: -1px; }
-.cta-section p { font-size: 18px; opacity: 0.8; margin-bottom: 32px; position: relative; }
-.cta-section .btn { position: relative; }
-
 /* ============ FOOTER ============ */
 footer {
   background: #1d1d1f; color: #d2d2d7;
@@ -340,6 +317,12 @@ footer ul li a:hover { color: #fff; }
   outline: none; border-color: #BA7517;
   box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.15);
 }
+/* Kontakt sekce — jemné světlé odlišení od FAQ */
+#contact { background: #F7F8FA; }
+/* FB ikona v patičce */
+.footer-fb { display: inline-flex; margin-top: 14px; color: #d2d2d7; transition: color 0.15s; }
+.footer-fb svg { height: 20px; width: auto; }
+.footer-fb:hover { color: #fff; }
 
 /* ============ RESPONSIVE ============ */
 @media (max-width: 980px) {
@@ -1235,6 +1218,24 @@ img[loading="lazy"].loaded {
   body { padding-bottom: 80px; }
 }
 
+/* Back-to-top tlačítko */
+.btn-top {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: #1d1d1f; color: #fff; border: none; cursor: pointer;
+  font-size: 20px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  opacity: 0; visibility: hidden; transform: translateY(10px);
+  transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+  z-index: 95;
+}
+.btn-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
+.btn-top:hover { background: #000; }
+@media (max-width: 768px) {
+  .btn-top { bottom: 88px; right: 16px; }
+}
+
 /* ════════════════════════════════════════════════════════════════════
    🌍 LANG DROPDOWN (PC + mobile)
    ════════════════════════════════════════════════════════════════════ */
@@ -1245,26 +1246,19 @@ img[loading="lazy"].loaded {
 .lang-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: #fff;
-  border: 1px solid rgba(0,0,0,0.12);
-  border-radius: 999px;
+  padding: 4px;
+  background: none;
+  border: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: 14px;
-  color: #1d1d1f;
-  transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-  white-space: nowrap;
+  line-height: 1;
+  transition: transform 0.15s ease;
 }
 .lang-trigger:hover {
-  background: #FFF8E5;
-  border-color: #BA7517;
-  box-shadow: 0 2px 6px rgba(186,117,23,0.12);
+  transform: scale(1.15);
 }
 .lang-trigger-flag {
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1;
 }
 .lang-trigger-code {
@@ -1343,11 +1337,10 @@ img[loading="lazy"].loaded {
 /* Mobile — slightly smaller */
 @media (max-width: 600px) {
   .lang-trigger {
-    padding: 7px 10px;
-    font-size: 13px;
+    padding: 4px;
   }
   .lang-trigger-flag {
-    font-size: 16px;
+    font-size: 20px;
   }
   .lang-trigger-code {
     display: none;            /* na úzkém schovej code, jen vlajka */
@@ -1670,10 +1663,6 @@ img[loading="lazy"].loaded {
   .topbar .lang-dropdown-wrap {
     margin-left: 60px !important;
     margin-right: 60px !important;
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-    border-left: 1px solid rgba(0, 0, 0, 0.10) !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.10) !important;
   }
 }
 
@@ -1682,10 +1671,6 @@ img[loading="lazy"].loaded {
   .topbar .lang-dropdown-wrap {
     margin-left: 30px !important;
     margin-right: 30px !important;
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-    border-left: 1px solid rgba(0, 0, 0, 0.10) !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.10) !important;
   }
 }
 
@@ -1721,12 +1706,12 @@ img[loading="lazy"].loaded {
       APPEK B2B
     </a>
     <nav>
-      <a href="#features" data-i18n="nav_features">Funkce</a>
+      <a href="#features">⚙️ <span data-i18n="nav_features">Funkce</span></a>
       <a href="#mobile" data-i18n="nav_mobile">📱 Mobile</a>
       <a href="#delivery" data-i18n="nav_delivery">🚛 Rozvozy</a>
       <a href="#integrations" data-i18n="nav_integrations">🔌 Integrace</a>
-      <a href="#pricing" data-i18n="nav_pricing">Cena</a>
-      <a href="#faq" data-i18n="nav_faq">FAQ</a>
+      <a href="#pricing">🏷️ <span data-i18n="nav_pricing">Cena</span></a>
+      <a href="#faq">❓ <span data-i18n="nav_faq">FAQ</span></a>
     </nav>
     <div class="cta">
       <!-- 🌍 Language switcher — DROPDOWN (PC + mobile) -->
@@ -1905,8 +1890,8 @@ img[loading="lazy"].loaded {
         </ul>
 
         <div class="mobile-cta">
-          <a href="checkout.html" class="btn btn-primary" data-i18n="mobile_cta_buy">📱 Vyzkoušet teď</a>
-          <a href="https://demo.appek.cz/" target="_blank" class="btn btn-secondary" data-i18n="mobile_cta_demo">🎬 Demo na mobilu</a>
+          <a href="https://demo.appek.cz/b2b/" target="_blank" class="btn btn-primary" data-i18n="mobile_cta_buy">🛒 B2B objednávky</a>
+          <a href="https://demo.appek.cz/" target="_blank" class="btn btn-secondary" data-i18n="mobile_cta_demo">🖥️ B2B administrace</a>
         </div>
       </div>
 
@@ -3477,7 +3462,7 @@ footer .container {
   gap: clamp(20px, 3vw, 40px);
 }
 @media (max-width: 480px) {
-  footer .container { grid-template-columns: 1fr; gap: 24px; text-align: center; }
+  footer .container { grid-template-columns: 1fr 1fr; gap: 24px; text-align: center; }
 }
 
 /* 1️⃣2️⃣  CTA section — okraj se přizpůsobí */
@@ -4323,15 +4308,6 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
   </div>
 </section>
 
-<!-- CTA -->
-<div class="container">
-  <section class="cta-section">
-    <h2 data-i18n="cta_title">Připraveni začít?</h2>
-    <p data-i18n="cta_sub">Vyzkoušejte zdarma 14 dní. Bez kreditky. Bez závazku.</p>
-    <a href="#contact" class="btn btn-primary btn-large" data-i18n="cta_btn">Zarezervovat demo →</a>
-  </section>
-</div>
-
 <!-- CONTACT -->
 <section id="contact">
   <div class="container">
@@ -4388,6 +4364,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         <strong style="font-size:18px;color:#fff">APPEK B2B</strong>
       </div>
       <p data-i18n="footer_brand_d">Krabicový gastro objednávkový systém. Vyrábíte? Prodáváte? Vše v jednom — bez měsíčních poplatků.</p>
+      <a href="https://www.facebook.com/profile.php?id=61590201243782" target="_blank" rel="noopener" class="footer-fb" aria-label="Facebook">
+        <svg viewBox="0 0 320 512" fill="currentColor" aria-hidden="true"><path d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"/></svg>
+      </a>
     </div>
     <div>
       <h5 data-i18n="footer_product">Produkt</h5>
@@ -4509,7 +4488,7 @@ const SALES_I18N = {
   btn_start_14d: { cs: 'Začít zdarma — 14 dní →', en: 'Start free — 14 days →', es: 'Empezar gratis — 14 días →' },
   btn_buy_hero:  { cs: '💳 Koupit licenci →',     en: '💳 Buy license →',          es: '💳 Comprar licencia →' },
   btn_choose:   { cs: 'Vybrat', en: 'Choose', es: 'Elegir' },
-  btn_start_free_short: { cs: 'Začít zdarma →', en: 'Start free →', es: 'Empezar gratis →' },
+  btn_start_free_short: { cs: '🛒 Objednat', en: '🛒 Order', es: '🛒 Pedir' },
 
   // HERO
   hero_badge:   { cs: '🥖 Krabicovka pro gastro výrobce', en: '🥖 Boxed software for food producers', es: '🥖 Software empaquetado para productores' },
@@ -4572,8 +4551,8 @@ const SALES_I18N = {
   mobile_f5_d:     { cs: 'Layout se přepíná od iPhone SE po 4K monitor. Bez horizontálního scrollu.', en: 'Layout adapts from iPhone SE to 4K monitor. No horizontal scroll.', es: 'Layout se adapta de iPhone SE a monitor 4K. Sin scroll horizontal.' },
   mobile_f6_t:     { cs: 'Tmavý režim', en: 'Dark mode', es: 'Modo oscuro' },
   mobile_f6_d:     { cs: 'Auto podle systému — méně světla v noční směně, šetrnější k oku.', en: 'Auto with system — less light on night shift, easier on eyes.', es: 'Auto con sistema — menos luz en turno nocturno, más suave para los ojos.' },
-  mobile_cta_buy:  { cs: '📱 Vyzkoušet teď', en: '📱 Try it now', es: '📱 Probar ahora' },
-  mobile_cta_demo: { cs: '🎬 Demo na mobilu', en: '🎬 Demo on mobile', es: '🎬 Demo en móvil' },
+  mobile_cta_buy:  { cs: '🛒 B2B objednávky', en: '🛒 B2B orders', es: '🛒 Pedidos B2B' },
+  mobile_cta_demo: { cs: '🖥️ B2B administrace', en: '🖥️ B2B administration', es: '🖥️ Administración B2B' },
 
   // HOW IT WORKS
   how_eyebrow: { cs: 'Jak na to', en: 'How to', es: 'Cómo' },
@@ -4653,9 +4632,6 @@ const SALES_I18N = {
   faq_8_a: { cs: 'Faktury vyexportuješ do ISDOC XML (univerzální český standard), CSV nebo JSON. Přímé napojení na Pohodu a FlexiBee; do ostatních účetnictví přes ISDOC import.', en: 'Export invoices to ISDOC XML (universal Czech standard), CSV or JSON. Direct connector for Pohoda and FlexiBee; other accounting via ISDOC import.', es: 'Exporta facturas a ISDOC XML (estándar checo universal), CSV o JSON. Conector directo para Pohoda y FlexiBee; otros vía importación ISDOC.' },
 
   // CTA
-  cta_title: { cs: 'Připraveni začít?', en: 'Ready to start?', es: '¿Listo para empezar?' },
-  cta_sub:   { cs: 'Vyzkoušejte zdarma 14 dní. Bez kreditky. Bez závazku.', en: 'Try free for 14 days. No credit card. No commitment.', es: 'Prueba gratis 14 días. Sin tarjeta. Sin compromiso.' },
-  cta_btn:   { cs: 'Zarezervovat demo →', en: 'Book a demo →', es: 'Reservar demo →' },
 
   // CONTACT
   contact_eyebrow: { cs: 'Kontakt', en: 'Contact', es: 'Contacto' },
@@ -5006,9 +4982,11 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 
 // Topbar shadow při scrollu
 const topbar = document.querySelector('.topbar');
+const btnTop = document.getElementById('btn-top');
 window.addEventListener('scroll', () => {
   if (window.scrollY > 10) topbar.style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)';
   else topbar.style.boxShadow = 'none';
+  if (btnTop) btnTop.classList.toggle('show', window.scrollY > 500);
 });
 
 // FAQ — accordion (jen jeden otevřený)
@@ -5026,8 +5004,10 @@ document.querySelectorAll('.faq-item').forEach(item => {
 <!-- 📱 Sticky CTA pro mobil -->
 <div class="sticky-cta">
   <a href="https://demo.appek.cz" class="btn btn-secondary" data-i18n="btn_try_demo">Vyzkoušet demo</a>
-  <a href="checkout.html" class="btn btn-primary" data-i18n="btn_start_free_short">Začít zdarma →</a>
+  <a href="checkout.html" class="btn btn-primary" data-i18n="btn_start_free_short">🛒 Objednat</a>
 </div>
+
+<button id="btn-top" class="btn-top" aria-label="Nahoru na začátek" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 
 </body>
 </html>
