@@ -22057,27 +22057,29 @@ if (document.readyState === 'loading') {
 //   1) Reverse lookup map (každý cizí jazyk → cs) — pro switch z EN/SK/DE/ES zpět
 //   2) Po změně jazyka: nejdřív restore-to-cs pass, pak translate na cílový jazyk
 //   3) Re-render aktuální stránky pokud existuje navigate()/renderXxx (pro dynamický obsah)
-const I18N_REVERSE_LOOKUP = (function() {
+// 🐞 v2.9.119 FIX: reverse lookup se dřív stavěl jako IIFE při parsování
+// i18n_auto.js — tj. PŘED načtením i18n_extra.js (SK/DE overlay). Navíc četl
+// `window.I18N_EXTRA` ve špatném tvaru (I18N_EXTRA je klíčované jazykem: {sk:{},de:{}},
+// ne CS frází). Důsledek: SK/DE nikdy nebyly v reverse mapě → switch ZPĚT z SK/DE
+// neobnovil text mimo #content (boční menu, topbar zůstaly v cizím jazyce).
+// Fix: reverse mapa je LAZY a staví se z I18N_LOOKUP (ten už má SK/DE namergované
+// z i18n_extra.js). První použití = až při prvním přepnutí jazyka → vše načteno.
+let _i18nReverseLookup = null;
+function getI18nReverseLookup() {
+  if (_i18nReverseLookup) return _i18nReverseLookup;
   const rev = new Map();
   try {
-    for (const [cs, en, es] of I18N_PHRASES) {
-      if (en && en !== cs) rev.set(en, cs);
-      if (es && es !== cs) rev.set(es, cs);
-    }
-    // Doplň SK + DE z I18N_EXTRA (pokud existuje)
-    if (window.I18N_EXTRA && typeof window.I18N_EXTRA === 'object') {
-      for (const cs in window.I18N_EXTRA) {
-        const o = window.I18N_EXTRA[cs];
-        if (o.sk && o.sk !== cs) rev.set(o.sk, cs);
-        if (o.de && o.de !== cs) rev.set(o.de, cs);
-        // EN a ES už máme z I18N_PHRASES, ale doplň pokud chybí
-        if (o.en && o.en !== cs && !rev.has(o.en)) rev.set(o.en, cs);
-        if (o.es && o.es !== cs && !rev.has(o.es)) rev.set(o.es, cs);
+    for (const [cs, entry] of I18N_LOOKUP) {
+      if (!entry) continue;
+      for (const lang of ['en', 'es', 'sk', 'de']) {
+        const tr = entry[lang];
+        if (tr && tr !== cs && !rev.has(tr)) rev.set(tr, cs);
       }
     }
-  } catch (e) {}
+  } catch (e) { console.warn('[i18n] reverse lookup build failed:', e); }
+  _i18nReverseLookup = rev;
   return rev;
-})();
+}
 
 // Restore one text node ke kanonickému CS textu
 function restoreTextNodeToCS(node) {
@@ -22086,7 +22088,7 @@ function restoreTextNodeToCS(node) {
   if (!raw || raw.length < 2 || raw.length > 500) return;
   const trimmed = raw.trim();
   if (!trimmed) return;
-  const cs = I18N_REVERSE_LOOKUP.get(trimmed);
+  const cs = getI18nReverseLookup().get(trimmed);
   if (!cs) return;
   const leading  = raw.match(/^\s*/)[0];
   const trailing = raw.match(/\s*$/)[0];
