@@ -23,6 +23,19 @@ if (@file_get_contents($tmpRoot . '/api/config.local.php') !== "<?php // SENTINE
                                                                     $fails[] = 'config.local.php NEBYL zachován (preserve selhal)';
 
 exec('rm -rf ' . escapeshellarg($tmpRoot));
+
+// — rollback test —
+$rbRoot = sys_get_temp_dir() . '/appek-test-rb-' . getmypid();
+$rbBak  = sys_get_temp_dir() . '/appek-test-bak-' . getmypid();
+@mkdir($rbRoot . '/admin', 0777, true);
+@mkdir($rbBak  . '/admin', 0777, true);
+file_put_contents($rbBak  . '/admin/admin.js', 'PUVODNI');   // záloha = dobrý stav
+file_put_contents($rbRoot . '/admin/admin.js', 'ROZBITE');   // webroot = rozbitý stav
+$rbLog = [];
+self_update_rollback($rbBak, $rbRoot, $rbLog);
+if (@file_get_contents($rbRoot . '/admin/admin.js') !== 'PUVODNI') $fails[] = 'rollback neobnovil admin/admin.js';
+exec('rm -rf ' . escapeshellarg($rbRoot) . ' ' . escapeshellarg($rbBak));
+
 echo implode("\n", $log) . "\n";
 if ($fails) { echo "❌ TEST FAIL:\n - " . implode("\n - ", $fails) . "\n"; exit(1); }
-echo "✅ TEST PASS — apply + preserve OK\n";
+echo "✅ TEST PASS — apply + preserve + rollback OK\n";

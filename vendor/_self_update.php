@@ -86,7 +86,7 @@ function self_update_apply(string $zipPath, array &$log, ?string $webroot = null
         $backupDir = sys_get_temp_dir() . '/appek-self-update-backup-' . date('Ymd-His');
         @mkdir($backupDir, 0755, true);
         // Stručná záloha klíčových dirů (rollback bez ztráty dat)
-        $backupTargets = ['vendor', 'api', 'sales'];
+        $backupTargets = ['vendor', 'api', 'sales', 'admin', 'b2b', 'demo', 'pos', 'floorplan'];
         foreach ($backupTargets as $b) {
             $src = $webroot . '/' . $b;
             if (is_dir($src)) {
@@ -193,7 +193,9 @@ function self_update_apply(string $zipPath, array &$log, ?string $webroot = null
         ];
         foreach ($criticalFiles as $cf) {
             if (!file_exists($webroot . '/' . $cf) || filesize($webroot . '/' . $cf) < 100) {
-                throw new Exception("Post-deploy: $cf je prázdný nebo chybí — rollback potřeba!");
+                logStep("❌ Post-deploy: $cf chybí/prázdný — spouštím auto-rollback", $log);
+                self_update_rollback($backupDir, $webroot, $log);
+                return ['ok' => false, 'error' => "Post-deploy selhal ($cf) — proveden auto-rollback", 'version' => null, 'health' => null];
             }
         }
         logStep('Post-deploy validace OK · vendor.appek.cz aktualizován', $log);
@@ -525,4 +527,29 @@ function self_update_verify_bundle_integrity(string $zipPath): array {
 
     $result['ok'] = true;
     return $result;
+}
+
+/**
+ * Obnoví zálohu zpět do webrootu (po neúspěšném nasazení).
+ */
+function self_update_rollback(string $backupDir, string $webroot, array &$log): bool {
+    if (!is_dir($backupDir)) { logStep('❌ Rollback: záloha nenalezena: ' . $backupDir, $log); return false; }
+    $rsync = trim(@shell_exec('which rsync') ?: '');
+    foreach (scandir($backupDir) ?: [] as $item) {
+        if ($item === '.' || $item === '..') continue;
+        $src = $backupDir . '/' . $item;
+        $dst = $webroot . '/' . $item;
+        if (is_dir($src)) {
+            if ($rsync) {
+                exec($rsync . ' -aI --delete ' . escapeshellarg($src . '/') . ' ' . escapeshellarg($dst . '/'));
+            } else {
+                $c = 0; $s = 0;
+                self_update_copy_dir($src, $dst, [], $c, $s);
+            }
+        } else {
+            @copy($src, $dst);
+        }
+    }
+    logStep('↩️ Rollback dokončen — obnoven stav před nasazením', $log);
+    return true;
 }
