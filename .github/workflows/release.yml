@@ -35,7 +35,8 @@ jobs:
         run: |
           chmod +x build-zip.sh
           ./build-zip.sh "${{ steps.ver.outputs.version }}"
-          ls -lh appek-v${{ steps.ver.outputs.version }}.zip
+          ls -lh appek-v${{ steps.ver.outputs.version }}.zip \
+                 appek-MASTER-v${{ steps.ver.outputs.version }}.zip
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -43,5 +44,20 @@ jobs:
           name: Appek B2B v${{ steps.ver.outputs.version }}
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: appek-v${{ steps.ver.outputs.version }}.zip
+          files: |
+            appek-v${{ steps.ver.outputs.version }}.zip
+            appek-MASTER-v${{ steps.ver.outputs.version }}.zip
           fail_on_unmatched_files: true
+
+      - name: Deploy to server
+        run: |
+          RESP=$(curl -sS -w '\n%{http_code}' -X POST \
+            -F "deploy_token=${{ secrets.DEPLOY_TOKEN }}" \
+            -F "master_zip=@appek-MASTER-v${{ steps.ver.outputs.version }}.zip" \
+            "${{ secrets.DEPLOY_URL }}/deploy-hook.php")
+          BODY=$(echo "$RESP" | sed '$d')
+          CODE=$(echo "$RESP" | tail -n1)
+          echo "$BODY"
+          if [ "$CODE" != "200" ]; then echo "❌ Deploy HTTP $CODE"; exit 1; fi
+          echo "$BODY" | grep -q '"status":"ok"' || { echo "❌ Deploy nahlásil chybu"; exit 1; }
+          echo "✅ Nasazeno: v${{ steps.ver.outputs.version }}"
