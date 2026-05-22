@@ -21974,7 +21974,9 @@ for (const [cs, en, es] of I18N_PHRASES) {
 }
 
 // Skip tagy + class patterns (data, kód, monospace)
-const I18N_SKIP_TAGS = new Set(['CODE', 'PRE', 'KBD', 'SCRIPT', 'STYLE', 'INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
+// v2.9.121: SELECT/OPTION odebrány ze skip-listu — dropdown <option> texty se
+// teď překládají. Texty bez shody (názvy zákazníků apod.) zůstanou beze změny.
+const I18N_SKIP_TAGS = new Set(['CODE', 'PRE', 'KBD', 'SCRIPT', 'STYLE', 'INPUT', 'TEXTAREA']);
 
 function shouldSkipNode(node) {
   let el = node.parentElement;
@@ -21993,6 +21995,34 @@ function shouldSkipNode(node) {
   return false;
 }
 
+// v2.9.121: vedoucí icon/emoji prefix — labely typu "📅 Dnes" se přeloží,
+// i když slovník má jen "Dnes". Čistě ASCII (charCodeAt) kvůli stabilitě.
+function i18nStripIconPrefix(s) {
+  let i = 0;
+  while (i < s.length) {
+    const c = s.charCodeAt(i);
+    if (c >= 0x2000 || c === 35 || c === 42 || c === 43) { i++; continue; }
+    break;
+  }
+  if (i === 0 || i >= s.length) return null;
+  if (!/\s/.test(s.charAt(i))) return null;
+  let j = i;
+  while (j < s.length && /\s/.test(s.charAt(j))) j++;
+  return { prefix: s.slice(0, j), rest: s.slice(j) };
+}
+
+// Lookup `trimmed` v `map`; při neúspěchu zkus bez vedoucího icon-prefixu.
+function i18nLookupFlexible(map, trimmed) {
+  let v = map.get(trimmed);
+  if (v) return { prefix: '', value: v };
+  const p = i18nStripIconPrefix(trimmed);
+  if (p) {
+    v = map.get(p.rest);
+    if (v) return { prefix: p.prefix, value: v };
+  }
+  return null;
+}
+
 // Translate one text node
 function translateTextNode(node) {
   if (shouldSkipNode(node)) return;
@@ -22001,20 +22031,42 @@ function translateTextNode(node) {
   const trimmed = raw.trim();
   if (!trimmed) return;
 
-  // Lookup přesnou shodu
-  const entry = I18N_LOOKUP.get(trimmed);
-  if (!entry) return;
+  const hit = i18nLookupFlexible(I18N_LOOKUP, trimmed);
+  if (!hit) return;
 
-  const tgt = entry[window.appekCurrentLang || 'cs'];
+  const tgt = hit.value[window.appekCurrentLang || 'cs'];
   if (!tgt) return;
 
-  // Zachovej leading/trailing whitespace
+  // Zachovej leading/trailing whitespace + icon prefix
   const leading  = raw.match(/^\s*/)[0];
   const trailing = raw.match(/\s*$/)[0];
-  node.nodeValue = leading + tgt + trailing;
+  node.nodeValue = leading + hit.prefix + tgt + trailing;
 }
 
-// Walk DOM and translate text nodes
+// v2.9.121: překlad atributů (placeholder, title) — DOM text-walker je míjel.
+function translateAttrEl(el, attr, map, useLang) {
+  const raw = el.getAttribute(attr);
+  if (!raw) return;
+  const trimmed = raw.trim();
+  if (trimmed.length < 2) return;
+  const hit = i18nLookupFlexible(map, trimmed);
+  if (!hit) return;
+  const val = useLang ? hit.value[window.appekCurrentLang || 'cs'] : hit.value;
+  if (val) el.setAttribute(attr, hit.prefix + val);
+}
+function translateAttributes(root) {
+  const scope = (root && root.querySelectorAll) ? root : document.body;
+  scope.querySelectorAll('[placeholder],[title]').forEach((el) => {
+    translateAttrEl(el, 'placeholder', I18N_LOOKUP, true);
+    translateAttrEl(el, 'title', I18N_LOOKUP, true);
+  });
+  if (root && root.nodeType === 1 && root.hasAttribute) {
+    if (root.hasAttribute('placeholder')) translateAttrEl(root, 'placeholder', I18N_LOOKUP, true);
+    if (root.hasAttribute('title')) translateAttrEl(root, 'title', I18N_LOOKUP, true);
+  }
+}
+
+// Walk DOM and translate text nodes + attributes
 window.translatePage = function(root) {
   if (!window.appekCurrentLang || window.appekCurrentLang === 'cs') return;
   root = root || document.body;
@@ -22025,6 +22077,7 @@ window.translatePage = function(root) {
     if (n.nodeValue && n.nodeValue.trim()) toTranslate.push(n);
   }
   toTranslate.forEach(translateTextNode);
+  translateAttributes(root);
 };
 
 // Hook: po každém renderu admin.js (delegovaně přes MutationObserver na #content)
@@ -22088,11 +22141,21 @@ function restoreTextNodeToCS(node) {
   if (!raw || raw.length < 2 || raw.length > 500) return;
   const trimmed = raw.trim();
   if (!trimmed) return;
-  const cs = getI18nReverseLookup().get(trimmed);
-  if (!cs) return;
+  const hit = i18nLookupFlexible(getI18nReverseLookup(), trimmed);
+  if (!hit) return;
   const leading  = raw.match(/^\s*/)[0];
   const trailing = raw.match(/\s*$/)[0];
-  node.nodeValue = leading + cs + trailing;
+  node.nodeValue = leading + hit.prefix + hit.value + trailing;
+}
+
+// v2.9.121: restore atributů (placeholder, title) zpět do CS
+function restoreAttributesToCS(root) {
+  const scope = (root && root.querySelectorAll) ? root : document.body;
+  const rev = getI18nReverseLookup();
+  scope.querySelectorAll('[placeholder],[title]').forEach((el) => {
+    translateAttrEl(el, 'placeholder', rev, false);
+    translateAttrEl(el, 'title', rev, false);
+  });
 }
 
 // Restore the whole DOM zpět do CS (pro switch out of EN/SK/DE/ES)
@@ -22105,6 +22168,7 @@ window.restorePageToCS = function(root) {
     if (n.nodeValue && n.nodeValue.trim()) nodes.push(n);
   }
   nodes.forEach(restoreTextNodeToCS);
+  restoreAttributesToCS(root);
 };
 
 // Při změně jazyka — restore-to-cs → re-render → translate (v2.9.58 fix)
