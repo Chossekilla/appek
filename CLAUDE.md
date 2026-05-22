@@ -101,6 +101,24 @@ Architektura: viz `SYNC_ARCHITECTURE.md` ve stejné složce.
 
 ---
 
+## 🚀 Deploy pipeline (květen 2026)
+
+Nasazování na web je automatizované přes GitHub — ŽÁDNÉ ruční nahrávání zipů.
+
+**Postup:** změna v `~/projects/appek.cz` → commit → `./scripts/release.sh X.Y.Z` → hotovo.
+
+- `scripts/release.sh X.Y.Z` — bump verze v `api/config.php`, commit, tag `vX.Y.Z`, push
+- GitHub Actions (`.github/workflows/release.yml`) — na tag postaví MASTER zip a pošle ho na server
+- `vendor/deploy-hook.php` — token endpoint; přijme zip a nasadí přes `vendor/_self_update.php` (apply rutina + záloha + auto-rollback + health check)
+- GitHub Secrets `DEPLOY_TOKEN` + `DEPLOY_URL` jsou nastavené
+- Detail: `docs/superpowers/MANUAL-STEPS-F1.md`
+
+**Lokální dev:** `localhost/appek/` (XAMPP) je kopie `~/projects/appek.cz`; obnovit ji jde `./deploy-local.sh --no-vendor`.
+
+**Apple/Klasik landing redesign:** rozdělaná práce je odložená na git větvi `apple-vzhled-wip`.
+
+---
+
 ## 🚧 Co NENÍ hotové / opensource
 
 ### Sync feature
