@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "2.9.121";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje */
+  --appek-css-version: "2.9.122";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;

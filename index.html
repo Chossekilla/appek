@@ -36,7 +36,7 @@ img { max-width: 100%; display: block; }
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 14px 0;
+  padding: 22px 0;
 }
 .topbar .container { display: flex; align-items: center; justify-content: space-between; gap: 36px; }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; color: #1d1d1f; flex-shrink: 0; }
@@ -253,7 +253,8 @@ section { padding: 100px 0; }
 .pricing-features li.no::before { content: '—'; color: #c7c7cc; }
 
 /* ============ FAQ ============ */
-.faq-list { max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; align-items: start; }
+.faq-list { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; align-items: start; }
+@media (max-width: 760px) { .faq-list { grid-template-columns: 1fr; } }
 .faq-item {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   padding: 24px 0;
@@ -1725,8 +1726,6 @@ img[loading="lazy"].loaded {
       <div class="lang-dropdown-wrap" style="position:relative;margin-right:10px">
         <button id="lang-trigger" onclick="toggleLangDropdown(event)" type="button" aria-haspopup="listbox" aria-expanded="false" class="lang-trigger" title="Vybrat jazyk">
           <span id="lang-trigger-flag" class="lang-trigger-flag">🇨🇿</span>
-          <span id="lang-trigger-code" class="lang-trigger-code">CS</span>
-          <span class="lang-trigger-arrow" aria-hidden="true">▾</span>
         </button>
         <div id="lang-menu" class="lang-menu lang-menu--flags-only" role="listbox" aria-hidden="true">
           <button onclick="setSalesLang('cs')" data-lang="cs" id="lang-cs" class="lang-opt lang-opt--flag-only" role="option" title="Čeština" aria-label="Čeština">🇨🇿</button>
