@@ -38,8 +38,8 @@ img { max-width: 100%; display: block; }
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   padding: 14px 0;
 }
-.topbar .container { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; color: #1d1d1f; }
+.topbar .container { display: flex; align-items: center; justify-content: space-between; gap: 36px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; color: #1d1d1f; flex-shrink: 0; }
 .logo-icon {
   width: 36px; height: 36px; border-radius: 9px;
   background: linear-gradient(135deg, #BA7517 0%, #854F0B 100%);
@@ -47,8 +47,8 @@ img { max-width: 100%; display: block; }
   font-weight: 800; font-size: 19px;
   box-shadow: 0 4px 12px rgba(186, 117, 23, 0.3);
 }
-.topbar nav { display: flex; gap: 28px; }
-.topbar nav a { color: #424245; font-size: 14px; font-weight: 500; }
+.topbar nav { display: flex; gap: 30px; }
+.topbar nav a { color: #424245; font-size: 15px; font-weight: 500; }
 .topbar nav a:hover { color: #BA7517; }
 .topbar .cta { display: flex; gap: 10px; align-items: center; }
 
@@ -253,7 +253,7 @@ section { padding: 100px 0; }
 .pricing-features li.no::before { content: '—'; color: #c7c7cc; }
 
 /* ============ FAQ ============ */
-.faq-list { max-width: 800px; margin: 0 auto; }
+.faq-list { max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; align-items: start; }
 .faq-item {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   padding: 24px 0;
@@ -863,10 +863,10 @@ html, body {
   .trust-badge-icon { font-size: 18px; }
 }
 
-/* Topbar — bez overflow při více jazycích */
+/* Topbar nav — neoříznutý (overflow:hidden dřív ořezával „Funkce") */
 .topbar nav {
   flex-wrap: nowrap;
-  overflow: hidden;
+  flex-shrink: 0;
 }
 @media (max-width: 980px) {
   .topbar nav {
@@ -4373,18 +4373,6 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
   </div>
 </section>
 
-<!-- NEWSLETTER -->
-<div class="container">
-  <div class="newsletter-card">
-    <h2 data-i18n="news_title">📬 Tipy a triky pro váš provoz</h2>
-    <p data-i18n="news_sub">Měsíční newsletter — nové fíčury, návody, akce. Žádný spam, můžete kdykoliv odhlásit.</p>
-    <form class="newsletter-form" onsubmit="event.preventDefault(); alert('✅ Děkujeme za odběr! Brzy se ozveme.');">
-      <input type="email" placeholder="vas@email.cz" required data-i18n-placeholder="news_email_ph">
-      <button type="submit" data-i18n="news_btn">📨 Odebírat</button>
-    </form>
-  </div>
-</div>
-
 <!-- FOOTER -->
 <footer>
   <div class="container">
@@ -4804,11 +4792,6 @@ const SALES_I18N = {
   int_eyebrow: { cs: 'Integrace', en: 'Integrations', es: 'Integraciones' },
   int_title:   { cs: 'Funguje se vším co používáte', en: 'Works with everything you use', es: 'Funciona con todo lo que usas' },
 
-  // NEWSLETTER
-  news_title:     { cs: '📬 Tipy a triky pro váš provoz', en: '📬 Tips & tricks for your business', es: '📬 Consejos para tu negocio' },
-  news_sub:       { cs: 'Měsíční newsletter — nové fíčury, návody, akce. Žádný spam, můžete kdykoliv odhlásit.', en: 'Monthly newsletter — new features, tutorials, deals. No spam, unsubscribe anytime.', es: 'Newsletter mensual — novedades, tutoriales, ofertas. Sin spam, cancela cuando quieras.' },
-  news_email_ph:  { cs: 'vas@email.cz', en: 'your@email.com', es: 'tu@email.es' },
-  news_btn:       { cs: '📨 Odebírat', en: '📨 Subscribe', es: '📨 Suscribirse' },
 };
 
 // Apply translations + language switcher
