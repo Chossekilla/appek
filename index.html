@@ -260,7 +260,7 @@ section { padding: 100px 0; }
 @media (max-width: 760px) { .faq-list { grid-template-columns: 1fr; } }
 .faq-item {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 24px 0;
+  padding: 8px 0;
 }
 .faq-item summary {
   display: flex; justify-content: space-between; align-items: center;
@@ -270,6 +270,7 @@ section { padding: 100px 0; }
 .faq-item summary::-webkit-details-marker { display: none; }
 .faq-item summary::after {
   content: '+'; font-size: 24px; font-weight: 300;
+  line-height: 1;
   color: #BA7517; transition: transform 0.2s;
 }
 .faq-item[open] summary::after { transform: rotate(45deg); }
@@ -792,19 +793,17 @@ html, body {
     border-radius: 0;
     box-shadow: none;
   }
-  /* 🆕 v2.0.88 — Compare table na mobile: skrýt sloupec "Jiný SaaS" (přetýká) */
-  /* Tabulka ukazuje hlavně PŘEDNOSTI APPEK; SaaS sloupec je vedlejší. */
+  /* v2.9 — Compare na mobile: 3 sloupce vejdou (table-layout: fixed) */
   .compare-table { min-width: 0 !important; table-layout: fixed; width: 100%; }
-  .compare-table th:nth-child(3),
-  .compare-table td:nth-child(3) { display: none; }
   .compare-table th, .compare-table td {
     font-size: 13px !important;
     padding: 10px 8px !important;
     word-wrap: break-word;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
-  .compare-table th:first-child, .compare-table td:first-child { width: 55%; }
-  .compare-table th.compare-us, .compare-table td.compare-us-cell { width: 45%; }
+  .compare-table .check-yes, .compare-table .check-no { font-size: 13px !important; }
+  .compare-table th:first-child, .compare-table td:first-child { width: 40%; }
+  .compare-table th.compare-us, .compare-table td.compare-us-cell { width: 30%; }
 }
 /* 🆕 v2.0.88 — Velmi úzké displeje */
 @media (max-width: 480px) {
@@ -2279,6 +2278,7 @@ img[loading="lazy"].loaded {
             </div>
             <div class="stop pending">
               <div class="stop-time">12:30</div>
+              <div class="stop-line"></div>
               <div class="stop-body">
                 <strong>Catering Premium · Blansko</strong>
                 <small>16 položek · 5 430 Kč</small>
@@ -2432,7 +2432,7 @@ img[loading="lazy"].loaded {
     background: #BA7517; box-shadow: 0 0 0 1px #BA7517;
     animation: pulse-stop 2s ease-in-out infinite;
   }
-  .stop:last-child .stop-line { display: none; }
+  .stop:last-child .stop-line { background: transparent; }
   .stop-body strong { display: block; font-size: 13px; font-weight: 600; color: #1d1d1f; margin-bottom: 2px; }
   .stop-body small { font-size: 11px; color: #86868b; }
   .stop-badge {
@@ -3098,7 +3098,7 @@ img[loading="lazy"].loaded {
 
     <div class="ss-cta">
       <a href="https://demo.appek.cz/" target="_blank" class="btn btn-primary" data-i18n="ss_cta_demo">🎬 Vyzkoušet živé demo</a>
-      <a href="#checkout" class="btn btn-secondary" data-i18n="ss_cta_buy">💳 Koupit licenci</a>
+      <a href="checkout.html" class="btn btn-secondary" data-i18n="ss_cta_buy">💳 Koupit licenci</a>
     </div>
   </div>
 </section>
@@ -3392,9 +3392,6 @@ section { padding: clamp(40px, 6vw, 100px) 0; }
     word-wrap: break-word;
     overflow-wrap: anywhere;
   }
-  /* Skryjeme prostřední (SaaS) sloupec, ponecháme jen Nás vs Jiní */
-  .compare-table th:nth-child(3),
-  .compare-table td:nth-child(3) { display: none; }
 }
 
 /* 9️⃣  Stats bar — fluid */
@@ -4015,6 +4012,11 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
 @media (max-width: 760px) {
   .eshop-body { grid-template-columns: 1fr; }
 }
+@media (max-width: 480px) {
+  .eshop-addon { flex-wrap: wrap; row-gap: 6px; }
+  .ea-text { flex-basis: calc(100% - 40px); }
+  .ea-price { margin-left: 40px; }
+}
 </style>
 
 <script>
@@ -4381,7 +4383,6 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
       <h5 data-i18n="footer_company">Společnost</h5>
       <ul>
         <li><a href="#contact" data-i18n="nav_contact">Kontakt</a></li>
-        <li><a href="#about" data-i18n="footer_about">O nás</a></li>
         <li><a href="mailto:info@appek.cz" data-i18n="footer_email">E-mail</a></li>
       </ul>
     </div>
