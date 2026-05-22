@@ -96,6 +96,21 @@ if [[ -f scripts/css-braces.py ]]; then
   fi
 fi
 
+# ─── 🌍 i18n — REGENERACE PŘEKLADOVÉHO BUNDLU ──────────────────
+# 🆕 v2.9.130 — i18n_extra.js (SK/DE overlay) se generuje ze
+# scripts/i18n_dicts_extra.py přes scripts/gen_i18n_extra.py. Build ho teď
+# regeneruje VŽDY — aby žádný balíček neobsahoval zastaralé překlady
+# (předtím to byl ruční krok a snadno se zapomněl). Build SPADNE když gen selže.
+# MUSÍ běžet PŘED deploy manifestem (jinak by hashe neseděly s i18n_extra.js).
+if [[ -f scripts/gen_i18n_extra.py ]]; then
+  if python3 scripts/gen_i18n_extra.py; then
+    echo "✅ i18n_extra.js — překlady regenerovány ze slovníku"
+  else
+    echo "❌ ABORT: gen_i18n_extra.py selhal — oprav scripts/i18n_dicts_extra.py před buildem"
+    exit 1
+  fi
+fi
+
 # ─── 🔐 DEPLOY MANIFEST — SHA-256 každého klientského souboru ────
 # 🆕 v2.9.65 — api/.build-manifest.json říká "co MÁ být na serveru po tomto buildu".
 # admin/deploy-check.php to po deployi porovná s realitou na disku → pozná STALE
