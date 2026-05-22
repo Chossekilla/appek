@@ -23,7 +23,7 @@ jobs:
 
       - name: Verify APP_VERSION matches tag
         run: |
-          CFG_VERSION=$(grep -oP "(?<=APP_VERSION', ')[^']+" api/config.php | head -1)
+          CFG_VERSION=$(sed -nE "s/.*APP_VERSION'[^']*'([0-9]+\.[0-9]+\.[0-9]+)'.*/\1/p" api/config.php | head -1)
           TAG_VERSION="${{ steps.ver.outputs.version }}"
           if [ "$CFG_VERSION" != "$TAG_VERSION" ]; then
             echo "❌ APP_VERSION ($CFG_VERSION) v api/config.php se neshoduje s tagem ($TAG_VERSION)"
