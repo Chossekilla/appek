@@ -2179,11 +2179,34 @@ def read_cs_phrases():
     # Match leading: ['CS_TEXT', ...
     # CS string is single-quoted; may contain escaped \'
     for m in re.finditer(r"^\s*\['((?:[^'\\]|\\.)+)',", content, re.MULTILINE):
-        phrase = m.group(1).replace("\\'", "'").replace('\\"', '"').replace('\\\\', '\\')
+        phrase = js_unstr(m.group(1))
         if phrase not in seen:
             seen.add(phrase)
             phrases.append(phrase)
     return phrases
+
+def js_unstr(s):
+    # v2.9.142+ : decode JS single-quoted string body -> real Python string
+    # (fixes multi-line / apostrophe phrases not matching SK_DICT/DE_DICT)
+    esc = {'n': chr(10), 'r': chr(13), 't': chr(9), 'b': chr(8), 'f': chr(12),
+           "'": "'", '"': '"', '/': '/', '`': '`'}
+    out, i = [], 0
+    while i < len(s):
+        c = s[i]
+        if c == chr(92) and i + 1 < len(s):
+            nx = s[i+1]
+            hexs = s[i+2:i+6]
+            if nx == 'u' and len(hexs) == 4 and all(h in '0123456789abcdefABCDEF' for h in hexs):
+                out.append(chr(int(hexs, 16))); i += 6; continue
+            out.append(esc.get(nx, nx)); i += 2; continue
+        out.append(c); i += 1
+    res = ''.join(out)
+    try:
+        res = res.encode('utf-16', 'surrogatepass').decode('utf-16')
+    except Exception:
+        pass
+    return res
+
 
 def js_escape(s):
     """Escape string for safe JS single-quoted output."""

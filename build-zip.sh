@@ -78,6 +78,7 @@ fi
 if [[ -f b2b/index.html ]]; then
   sed -i.bak -E "s/(app\.js\?v=)[^\"\\']*/\1${VERSION}/g" b2b/index.html
   sed -i.bak -E "s/(style\.css\?v=)[^\"\\']*/\1${VERSION}/g" b2b/index.html
+  sed -i.bak -E "s/(i18n\.js\?v=)[^\"\\']*/\1${VERSION}/g" b2b/index.html
   rm -f b2b/index.html.bak
   echo "🔢 b2b cache busters → ${VERSION}"
 fi

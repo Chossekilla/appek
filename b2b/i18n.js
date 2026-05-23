@@ -991,6 +991,157 @@ const B2B_PHRASES = [
   ['Potvrzení zasláno na e-mail',      'Confirmation sent to email',           'Confirmación enviada por email'],
   ['Brzy se vám ozveme',               'We will contact you soon',             'Te contactaremos pronto'],
   ['Číslo vaší objednávky',            'Your order number',                    'Tu número de pedido'],
+  // b2b EN/ES doplneni 2026-05-22 (+140)
+  ['+10 ks', '+10 pcs', '+10 uds'],
+  ['APPEK B2B portál', 'APPEK B2B portal', 'Portal APPEK B2B'],
+  ['APPEK B2B – B2B objednávky', 'APPEK B2B – B2B orders', 'APPEK B2B – Pedidos B2B'],
+  ['B2B objednávkový systém', 'B2B ordering system', 'Sistema de pedidos B2B'],
+  ['B2B objednávky', 'B2B orders', 'Pedidos B2B'],
+  ['Bankovní převod', 'Bank transfer', 'Transferencia bancaria'],
+  ['Bez DPH', 'Excl. VAT', 'Sin IVA'],
+  ['Bez DPH celkem', 'Total excl. VAT', 'Total sin IVA'],
+  ['byla odeslána. Děkujeme!', 'has been submitted. Thank you!', 'ha sido enviado. ¡Gracias!'],
+  ['Běžná cena', 'Regular price', 'Precio habitual'],
+  ['Běžně', 'Usually', 'Habitualmente'],
+  ['Celková hmotnost položky', 'Total item weight', 'Peso total del artículo'],
+  ['Celková sleva', 'Total discount', 'Descuento total'],
+  ['Cena/ks', 'Price/pc', 'Precio/ud'],
+  ['defaultně zítra', 'defaults to tomorrow', 'por defecto mañana'],
+  ['Demo režim', 'Demo mode', 'Modo demo'],
+  ['Demo session vyprší za 1 min', 'Demo session expires in 1 min', 'La sesión demo expira en 1 min'],
+  ['DL zatím neexistuje', 'Delivery note does not exist yet', 'El albarán aún no existe'],
+  ['Dobírka', 'Cash on delivery', 'Contra reembolso'],
+  ['Dodací list', 'Delivery note', 'Albarán'],
+  ['Dodací list (PDF)', 'Delivery note (PDF)', 'Albarán (PDF)'],
+  ['Dodací list zatím nebyl vytvořen', 'The delivery note has not been created yet', 'El albarán aún no ha sido creado'],
+  ['Dodací údaje', 'Delivery details', 'Datos de entrega'],
+  ['Doprodej', 'Clearance', 'Liquidación'],
+  ['Dostávejte zprávy o stavu vašich objednávek přímo na telefon — zdarma, bez SMS.', 'Receive updates about your order status directly on your phone — free, without SMS.', 'Reciba notificaciones sobre el estado de sus pedidos directamente en su teléfono — gratis, sin SMS.'],
+  ['DPH celkem', 'Total VAT', 'IVA total'],
+  ['FA', 'INV', 'FAC'],
+  ['FA zatím neexistuje', 'Invoice does not exist yet', 'La factura aún no existe'],
+  ['Faktura', 'Invoice', 'Factura'],
+  ['Faktura (PDF)', 'Invoice (PDF)', 'Factura (PDF)'],
+  ['Faktura zatím nebyla vystavena', 'The invoice has not been issued yet', 'La factura aún no ha sido emitida'],
+  ['GoPay (karta + bank)', 'GoPay (card + bank)', 'GoPay (tarjeta + banco)'],
+  ['Hledat výrobek (název, kategorie, kód)…', 'Search product (name, category, code)…', 'Buscar producto (nombre, categoría, código)…'],
+  ['Hotově při převzetí', 'Cash on pickup', 'Efectivo al recoger'],
+  ['jak často se má opakovat', 'how often it should repeat', 'con qué frecuencia se repetirá'],
+  ['jakýkoli den v budoucnu', 'any day in the future', 'cualquier día futuro'],
+  ['jeden den', 'one day', 'un día'],
+  ['Jednorázová', 'One-time', 'Única'],
+  ['již nedostupný v katalogu (přeskočeno).', 'no longer available in the catalog (skipped).', 'ya no disponible en el catálogo (omitido).'],
+  ['Karta online (Stripe)', 'Card online (Stripe)', 'Tarjeta online (Stripe)'],
+  ['Katalog výrobků', 'Product catalog', 'Catálogo de productos'],
+  ['katalogu', 'catalog', 'catálogo'],
+  ['každý den', 'every day', 'cada día'],
+  ['Každý pracovní den v určeném období.', 'Every working day in the specified period.', 'Cada día laborable en el período especificado.'],
+  ['každý týden', 'every week', 'cada semana'],
+  ['Klikni na rychlou volbu nebo vyber datum z kalendáře.', 'Click a quick choice or select a date from the calendar.', 'Haga clic en una opción rápida o seleccione una fecha del calendario.'],
+  ['Ks', 'Pcs', 'Uds'],
+  ['ks)', 'pcs)', 'uds)'],
+  ['Méně', 'Less', 'Menos'],
+  ['Na konkrétní den v budoucnu.', 'For a specific day in the future.', 'Para un día específico en el futuro.'],
+  ['na zítra', 'for tomorrow', 'para mañana'],
+  ['Na zítra, jednou. Nejčastější volba.', 'For tomorrow, once. The most common choice.', 'Para mañana, una vez. La opción más común.'],
+  ['Nahoru', 'Top', 'Arriba'],
+  ['Nahoru na začátek katalogu', 'Back to top of the catalog', 'Volver al inicio del catálogo'],
+  ['Naplánovaná', 'Scheduled', 'Programada'],
+  ['Načíst do košíku', 'Load into cart', 'Cargar en el carrito'],
+  ['Načíst položky této objednávky do košíku', 'Load items from this order into the cart', 'Cargar los artículos de este pedido en el carrito'],
+  ['Načítám možnosti dopravy…', 'Loading shipping options…', 'Cargando opciones de envío…'],
+  ['Načítám možnosti platby…', 'Loading payment options…', 'Cargando métodos de pago…'],
+  ['Ne, díky', 'No, thanks', 'No, gracias'],
+  ['nedostupných přeskočeno)', 'unavailable skipped)', 'no disponibles omitidos)'],
+  ['Nejčastěji objednávané výrobky', 'Most frequently ordered products', 'Productos más pedidos'],
+  ['Nemáte přístup? Kontaktujte dodavatele.', 'No access? Contact your supplier.', '¿No tiene acceso? Contacte con su proveedor.'],
+  ['Novinka', 'New', 'Nuevo'],
+  ['Objednávek', 'Orders', 'Pedidos'],
+  ['Objednávka', 'Order', 'Pedido'],
+  ['objednávka se opakuje', 'order repeats', 'el pedido se repite'],
+  ['objednávka se vytvoří', 'order will be created', 'se creará el pedido'],
+  ['Oblíbený', 'Favorite', 'Favorito'],
+  ['Odebrat 5', 'Remove 5', 'Quitar 5'],
+  ['Opakuje se každý týden ve stejné dny.', 'Repeats every week on the same days.', 'Se repite cada semana los mismos días.'],
+  ['Platí do', 'Valid until', 'Válido hasta'],
+  ['Platí od', 'Valid from', 'Válido desde'],
+  ['pol.', 'items', 'art.'],
+  ['pol. ·', 'items ·', 'art. ·'],
+  ['pol.)', 'items)', 'art.)'],
+  ['položek', 'items', 'artículos'],
+  ['položek ·', 'items ·', 'artículos ·'],
+  ['Položka', 'Item', 'Artículo'],
+  ['Poznámka', 'Note', 'Nota'],
+  ['Průměr', 'Average', 'Promedio'],
+  ['Přehled za měsíc', 'Monthly overview', 'Resumen del mes'],
+  ['Přepnout celou obrazovku', 'Toggle full screen', 'Cambiar a pantalla completa'],
+  ['Přepnout dotykový (POS) režim', 'Toggle touch (POS) mode', 'Cambiar al modo táctil (POS)'],
+  ['Přepnout tmavý režim', 'Toggle dark mode', 'Cambiar al modo oscuro'],
+  ['Přidat', 'Add', 'Añadir'],
+  ['Přidat 10', 'Add 10', 'Añadir 10'],
+  ['Přidat výrobek —', 'Add product —', 'Añadir producto —'],
+  ['Přidávejte výrobky vlevo.', 'Add products on the left.', 'Añada productos a la izquierda.'],
+  ['Příští pondělí', 'Next Monday', 'El próximo lunes'],
+  ['Rabat / ks', 'Discount / pc', 'Descuento / ud'],
+  ['Rabat /ks', 'Discount /pc', 'Descuento /ud'],
+  ['s DPH /ks', 'incl. VAT /pc', 'con IVA /ud'],
+  ['Smazat položku z košíku', 'Remove item from cart', 'Eliminar artículo del carrito'],
+  ['Smazat z košíku', 'Remove from cart', 'Eliminar del carrito'],
+  ['Smazat šablonu', 'Delete template', 'Eliminar plantilla'],
+  ['Souhrn objednávky →', 'Order summary →', 'Resumen del pedido →'],
+  ['Součet hmotností všech položek (ks × hmotnost na kus + kg/g položky)', 'Sum of weights of all items (pcs × weight per piece + kg/g of item)', 'Suma de los pesos de todos los artículos (uds × peso por unidad + kg/g del artículo)'],
+  ['Speciální požadavky...', 'Special requests...', 'Solicitudes especiales...'],
+  ['Statistiky za tento měsíc', 'Statistics for this month', 'Estadísticas de este mes'],
+  ['to', 'to', 'a'],
+  ['to samé jako jednorázová, ale můžeš si vybrat', 'the same as one-time, but you can choose', 'lo mismo que puntual, pero puede elegir'],
+  ['Typ objednávky', 'Order type', 'Tipo de pedido'],
+  ['Týdenní plán', 'Weekly plan', 'Plan semanal'],
+  ['Ulož aktuální košík jako šablonu pro příště', 'Save the current cart as a template for next time', 'Guarde el carrito actual como plantilla para la próxima vez'],
+  ['Uložit změny', 'Save changes', 'Guardar cambios'],
+  ['Vaše /ks', 'Your /pc', 'Su /ud'],
+  ['Vaše poslední objednávky', 'Your recent orders', 'Sus pedidos recientes'],
+  ['Vaše uložené košíky', 'Your saved carts', 'Sus carritos guardados'],
+  ['Vlastní odvoz / pickup', 'Self-pickup', 'Recogida propia'],
+  ['Volitelná poznámka', 'Optional note', 'Nota opcional'],
+  ['volitelné', 'optional', 'opcional'],
+  ['volitelné, jinak běží do odvolání', 'optional, otherwise runs until cancelled', 'opcional, si no se cancela continúa indefinidamente'],
+  ['Vyber den dodání', 'Choose delivery day', 'Elija el día de entrega'],
+  ['VYPRODÁNO', 'SOLD OUT', 'AGOTADO'],
+  ['Vyprázdnit', 'Empty', 'Vaciar'],
+  ['vytvoří se jedna objednávka pro', 'one order will be created for', 'se creará un pedido para'],
+  ['Více', 'More', 'Más'],
+  ['Výrobek', 'Product', 'Producto'],
+  ['Vše', 'All', 'Todo'],
+  ['Vše →', 'All →', 'Todo →'],
+  ['Za 2 týdny', 'In 2 weeks', 'En 2 semanas'],
+  ['Za týden', 'In a week', 'En una semana'],
+  ['Zapnout upozornění?', 'Enable notifications?', '¿Activar notificaciones?'],
+  ['Zatím žádné objednávky', 'No orders yet', 'Aún no hay pedidos'],
+  ['Zkontroluj položky, nastav dodání a odešli', 'Check items, set delivery and submit', 'Revise los artículos, configure la entrega y envíe'],
+  ['Znovu', 'Again', 'De nuevo'],
+  ['Zopakovat poslední objednávku', 'Repeat last order', 'Repetir último pedido'],
+  ['Zpět na detail', 'Back to detail', 'Volver al detalle'],
+  ['Zásilkovna', 'Zásilkovna (parcel locker)', 'Zásilkovna (punto de recogida)'],
+  ['Úprava objednávky', 'Edit order', 'Editar pedido'],
+  ['Útrata', 'Spending', 'Gasto'],
+  ['Šablony jsou uložené lokálně ve vašem prohlížeči — vidíte je jen v tomto zařízení', 'Templates are stored locally in your browser — you see them only on this device', 'Las plantillas se guardan localmente en su navegador — solo las verá en este dispositivo'],
+  ['Žádná data', 'No data', 'Sin datos'],
+  ['Žádné položky. Přidejte alespoň jednu.', 'No items. Add at least one.', 'Sin artículos. Añada al menos uno.'],
+  ['Žádný způsob dopravy zatím není zapnutý. Kontaktuj dodavatele.', 'No shipping method is enabled yet. Contact the supplier.', 'Aún no hay ningún método de envío activado. Contacte con el proveedor.'],
+  ['−5 ks', '−5 pcs', '−5 uds'],
+  ['💰 Celkem k objednání', '💰 Total to order', '💰 Total a pedir'],
+  ['💳 Způsob platby', '💳 Payment method', '💳 Método de pago'],
+  ['🚚 Způsob doručení', '🚚 Delivery method', '🚚 Método de entrega'],
+  // b2b history days/statuses 2026-05-22 (+9)
+  ['Zítra', 'Tomorrow', 'Mañana'],
+  ['Pozítří', 'The day after tomorrow', 'Pasado mañana'],
+  ['Dnes', 'Today', 'Hoy'],
+  ['Včera', 'Yesterday', 'Ayer'],
+  ['Expedována', 'Shipped', 'Enviada'],
+  ['Doručena', 'Delivered', 'Entregada'],
+  ['Zrušena', 'Cancelled', 'Cancelada'],
+  ['Upravena', 'Modified', 'Modificada'],
+  ['Obnovena', 'Restored', 'Restaurada'],
 ];
 
 const B2B_LOOKUP = new Map();
@@ -1004,7 +1155,39 @@ window.tb = function(key) {
   return entry[window.b2bCurrentLang] || key;
 };
 
-const B2B_SKIP_TAGS = new Set(['CODE', 'PRE', 'KBD', 'SCRIPT', 'STYLE', 'INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
+const B2B_SKIP_TAGS = new Set(['CODE', 'PRE', 'KBD', 'SCRIPT', 'STYLE', 'INPUT', 'TEXTAREA']);
+
+function b2bStripIconPrefix(s) {
+  let i = 0;
+  while (i < s.length) {
+    const c = s.charCodeAt(i);
+    if (c >= 0x2000 || c === 35 || c === 42 || c === 43 || c === 0xB7) { i++; continue; }
+    break;
+  }
+  if (i === 0 || i >= s.length || !/\s/.test(s.charAt(i))) return null;
+  let j = i;
+  while (j < s.length && /\s/.test(s.charAt(j))) j++;
+  return { prefix: s.slice(0, j), rest: s.slice(j) };
+}
+
+function b2bLookupFlexible(trimmed) {
+  let v = B2B_LOOKUP.get(trimmed);
+  if (v) return { prefix: '', suffix: '', entry: v };
+  let core = trimmed, prefix = '', suffix = '';
+  const ip = b2bStripIconPrefix(core);
+  if (ip) { prefix += ip.prefix; core = ip.rest; }
+  const nm = core.match(/^[0-9][0-9.,\s]*\s/);
+  if (nm) { prefix += nm[0]; core = core.slice(nm[0].length); }
+  if (core.length >= 3) {
+    const last = core.charCodeAt(core.length - 1);
+    if (last === 0x3A || last === 0xFF1A) { suffix = core.slice(-1); core = core.slice(0, -1); }
+  }
+  if ((prefix || suffix) && core.length >= 2 && core !== trimmed) {
+    v = B2B_LOOKUP.get(core);
+    if (v) return { prefix, suffix, entry: v };
+  }
+  return null;
+}
 
 function b2bTranslateNode(node) {
   let el = node.parentElement;
@@ -1017,13 +1200,24 @@ function b2bTranslateNode(node) {
   if (!raw || raw.length < 2 || raw.length > 500) return;
   const trimmed = raw.trim();
   if (!trimmed) return;
-  const entry = B2B_LOOKUP.get(trimmed);
-  if (!entry) return;
-  const tgt = entry[window.b2bCurrentLang || 'cs'];
+  const hit = b2bLookupFlexible(trimmed);
+  if (!hit) return;
+  const tgt = hit.entry[window.b2bCurrentLang || 'cs'];
   if (!tgt) return;
   const leading  = raw.match(/^\s*/)[0];
   const trailing = raw.match(/\s*$/)[0];
-  node.nodeValue = leading + tgt + trailing;
+  node.nodeValue = leading + hit.prefix + tgt + hit.suffix + trailing;
+}
+
+function b2bTranslateAttr(el, attr) {
+  const raw = el.getAttribute(attr);
+  if (!raw) return;
+  const trimmed = raw.trim();
+  if (trimmed.length < 2) return;
+  const hit = b2bLookupFlexible(trimmed);
+  if (!hit) return;
+  const tgt = hit.entry[window.b2bCurrentLang || 'cs'];
+  if (tgt) el.setAttribute(attr, hit.prefix + tgt + hit.suffix);
 }
 
 window.applyB2bTranslations = function(root) {
@@ -1036,11 +1230,10 @@ window.applyB2bTranslations = function(root) {
     if (n.nodeValue && n.nodeValue.trim()) list.push(n);
   }
   list.forEach(b2bTranslateNode);
-
-  // Placeholders
-  document.querySelectorAll('input[placeholder]').forEach(el => {
-    const tgt = B2B_LOOKUP.get(el.placeholder.trim());
-    if (tgt) el.placeholder = tgt[window.b2bCurrentLang] || el.placeholder;
+  const scope = (root && root.querySelectorAll) ? root : document.body;
+  scope.querySelectorAll('[placeholder],[title]').forEach(el => {
+    b2bTranslateAttr(el, 'placeholder');
+    b2bTranslateAttr(el, 'title');
   });
 };
 
