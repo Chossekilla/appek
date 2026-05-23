@@ -2266,8 +2266,9 @@ const DEFAULT_ROLE_PRAVA = {
 const ALL_NAV_PAGES = [
   { key: 'dashboard',    icon: '📊', label: 'Přehled' },
   { key: 'objednavky',   icon: '📋', label: 'Objednávky' },
-  // 🆕 v2.9.181 — 'vyroba' přejmenováno z "Výrobní list" na "Výroba" (hub se sub-akcemi).
-  // 'haccp' přesunut pod Výroba hub (zrušený jako samostatný top-level item).
+  // 🆕 v2.9.187 — 'vyrobni_list' (=staré 'vyroba') je zpět jako samostatný item.
+  // 'vyroba' je hub se sub-akcemi (HACCP, Sklad, Suroviny, …).
+  { key: 'vyrobni_list', icon: '📋', label: 'Výrobní list' },
   { key: 'vyroba',       icon: '🥖', label: 'Výroba' },
   { key: 'dodaci_listy', icon: '📃', label: 'Dodací listy' },
   { key: 'rozvozy',      icon: '🛣️', label: 'Rozvozové trasy' },
@@ -3377,7 +3378,8 @@ async function navigate(page) {
   try {
     if (page === 'dashboard') await renderDashboard();
     else if (page === 'objednavky') await renderObjednavky();
-    else if (page === 'vyroba') await renderVyroba();
+    else if (page === 'vyroba') await renderVyrobaHub();
+    else if (page === 'vyrobni_list') await renderVyrobniList();
     else if (page === 'dodaci_listy') await renderDodaciListy();
     else if (page === 'rozvozy') await renderRozvozy();
     else if (page === 'recurring') await renderRecurring();
@@ -3891,7 +3893,10 @@ async function renderObjednavky(filters = {}) {
         <h1 class="page-title">Objednávky</h1>
         <p class="page-sub">${list.length} objednávek</p>
       </div>
-      <button class="btn-primary btn-green btn-big-action" onclick="otevritNovouObjednavku()">+ Nová objednávka</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-secondary" onclick="navigate('recurring')" title="Opakující se objednávky (cron)">🔁 Opakující</button>
+        <button class="btn-primary btn-green btn-big-action" onclick="otevritNovouObjednavku()">+ Nová objednávka</button>
+      </div>
     </div>
 
     <div class="stat-grid">
@@ -4495,7 +4500,8 @@ window.smazatPolozku = async function(polozka_id, objednavka_id) {
 
 window.pridatPolozkuForm = async function(objednavka_id) {
   const data = await api('admin_vyrobky.php');
-  const aktivni = data.vyrobky.filter((v) => v.aktivni == 1);
+  // 🐛 fix v2.9.187 — defenzivní fallback pro prázdnou DB / API error
+  const aktivni = (data?.vyrobky || []).filter((v) => v.aktivni == 1);
   
   document.getElementById('add-polozka-form').innerHTML = `
     <div style="display:flex;gap:8px;align-items:flex-end;margin-top:8px;padding:12px;background:var(--surface-2);border-radius:6px;">
@@ -5026,35 +5032,96 @@ window.ulozitNovouObjednavku = async function() {
 // =============================================================
 // VÝROBNÍ LIST (auto + ručně sestavené)
 // =============================================================
-async function renderVyroba() {
+// 🆕 v2.9.187 — Výroba je hub se zaměřením na výrobu (HACCP, Sklad, Suroviny).
+// Sales report + Fixní náklady jsou v Nastavení > Účetní.
+// Opakující se objednávky / Spárování surovin / Kategorie jsou v hlavičkách
+// příslušných stránek (Objednávky, Suroviny, Výrobky).
+async function renderVyrobaHub() {
   const c = document.getElementById('content');
-
-  // 🆕 v2.9.181 — Výroba je teď hub: rychlé akce nahoře (HACCP, Sklad, Suroviny, …)
-  // a pod ním default obsah = Výrobní list (stávající mode auto/manual).
   c.innerHTML = `
     <div class="page-head">
       <div>
         <h1 class="page-title">🥖 Výroba</h1>
-        <p class="page-sub">Výrobní list, HACCP, sklad, suroviny, kalkulace — vše pro výrobu</p>
+        <p class="page-sub">HACCP, sklad surovin, výrobní kalkulace, přehled výroby</p>
       </div>
     </div>
 
-    <!-- 🔗 Rychlé akce — sub-sekce výroby (otevírají vlastní stránky) -->
-    <div class="vyroba-quick-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px">
-      <button class="btn-secondary" onclick="navigate('haccp')">🧪 HACCP</button>
-      <button class="btn-secondary" onclick="navigate('sklad')">📦 Sklad surovin</button>
-      <button class="btn-secondary" onclick="navigate('suroviny')">🌾 Suroviny</button>
-      <button class="btn-secondary" onclick="navigate('kategorie')">🏷️ Kategorie</button>
-      <button class="btn-secondary" onclick="navigate('recurring')">🔁 Opakující objednávky</button>
-      <button class="btn-secondary" onclick="navigate('vyrobni_kalkulace')">🏭 Výrobní kalkulace</button>
-      <button class="btn-secondary" onclick="navigate('export_vyroby')">📊 Přehled výroby</button>
-      <button class="btn-secondary" onclick="navigate('sales_report')">📈 Sales report</button>
-      <button class="btn-secondary" onclick="otevritMatchSlozeni()">🔗 Spárovat suroviny</button>
-      <button class="btn-secondary" onclick="otevritFixniNaklady()">💰 Fixní náklady</button>
+    <div class="nastaveni-row nastaveni-row-3col">
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">🧪 HACCP</h3>
+        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
+          Záznamy o teplotách, sanitaci, kontrolách kritických bodů. Formuláře, grafy, audit log.
+        </p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
+          <button class="btn-primary" onclick="navigate('haccp')">🧪 Otevřít HACCP</button>
+        </div>
+      </div>
+
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">📦 Sklad surovin</h3>
+        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
+          Aktuální stav skladu, příjem/výdej, alerty pod minimální hladinou.
+        </p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
+          <button class="btn-primary" onclick="navigate('sklad')">📦 Otevřít sklad</button>
+          <button class="btn-secondary" onclick="state._suroviny_pod_minimem=true;navigate('suroviny')" title="Suroviny pod minimální hladinou">⚠ Pod minimem</button>
+        </div>
+      </div>
+
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">🌾 Suroviny</h3>
+        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
+          Databáze surovin (mouka, cukr, vejce…) a jejich alergenů. Tlačítko „Spárovat" je nahoře v sekci Suroviny.
+        </p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
+          <button class="btn-primary" onclick="navigate('suroviny')">🌾 Spravovat</button>
+        </div>
+      </div>
+
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">🏭 Výrobní kalkulace</h3>
+        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
+          Spočítá náklady na 1 kus z celé várky — receptura → presy → klonky + zdobení a fixní náklady.
+        </p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
+          <button class="btn-primary" onclick="navigate('vyrobni_kalkulace')">🏭 Otevřít kalkulačku</button>
+        </div>
+      </div>
+
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">📊 Přehled výroby</h3>
+        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
+          Souhrnný přehled všech objednaných výrobků za zvolené období. Vhodné pro plánování. CSV export.
+        </p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
+          <button class="btn-primary" onclick="navigate('export_vyroby')">📊 Otevřít přehled</button>
+        </div>
+      </div>
+
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">📋 Výrobní list</h3>
+        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
+          Souhrn výroby z objednávek nebo ručně sestavený list. K dispozici i jako samostatná položka v menu.
+        </p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
+          <button class="btn-primary" onclick="navigate('vyrobni_list')">📋 Otevřít</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Původní Výrobní list (před v2.9.181 to byla samotná renderVyroba pod 'vyroba' route)
+async function renderVyrobniList() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">📋 Výrobní list</h1>
+        <p class="page-sub">Souhrn výroby z objednávek nebo ručně sestavený list</p>
+      </div>
     </div>
 
-    <!-- Výrobní list — hlavní obsah Výroby (default) -->
-    <h2 style="margin:8px 0 12px;font-size:18px;color:var(--text-2)">📋 Výrobní list</h2>
     <div class="vyroba-mode-tabs">
       <button class="vyroba-mode-tab ${state.vyrobaMode === 'auto' ? 'active' : ''}" onclick="setVyrobaMode('auto')">
         🤖 Z objednávek (automaticky)
@@ -5073,7 +5140,7 @@ async function renderVyroba() {
 
 window.setVyrobaMode = function(mode) {
   state.vyrobaMode = mode;
-  renderVyroba();
+  renderVyrobniList();
 };
 
 async function renderVyrobaAuto() {
@@ -8079,6 +8146,9 @@ async function renderVyrobky(filters = {}) {
     <div class="card-block">${skeletonTable(8)}</div>
   `;
   const d = await api('admin_vyrobky.php');
+  // 🐛 fix v2.9.187 — defenzivní fallback, kdyby endpoint vrátil chybu/prázdnou strukturu
+  d.vyrobky = d.vyrobky || [];
+  d.kategorie = d.kategorie || [];
 
   // Spočítej výrobky v každé kategorii (pro badge)
   const pocetPoKat = {};
@@ -8126,6 +8196,7 @@ async function renderVyrobky(filters = {}) {
         <p class="page-sub">${filtered.length} z ${d.vyrobky.length} výrobků</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="navigate('kategorie')" title="Spravovat kategorie výrobků">🏷️ Kategorie</button>
         <button class="btn-secondary ${reorderMode ? 'btn-active' : ''}" onclick="toggleVyrobkyReorder()" title="${reorderMode ? 'Ukončit řazení' : 'Přesouvat výrobky drag & drop'}">
           ${reorderMode ? '✓ Hotovo' : '🔀 Řadit'}
         </button>
@@ -11149,6 +11220,29 @@ async function renderNastaveni() {
     <div class="card-block" style="padding:16px;margin-bottom:14px">
       <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">📊 Účetní integrace</h2>
       <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Live propojení s českými účetními systémy — automatický export faktur a DL z APPEK.</p>
+    </div>
+
+    <!-- 🆕 v2.9.187 — Sales report + Fixní náklady přesunuté z bývalého tabu Výroba -->
+    <div class="nastaveni-row" style="margin-bottom:14px">
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">📈 Sales report PDF</h3>
+        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
+          Měsíční / roční přehled tržeb, top výrobky, top odběratelé. Vhodné pro účetní + marketing.
+        </p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
+          <button class="btn-primary" onclick="navigate('sales_report')">📊 Otevřít</button>
+        </div>
+      </div>
+
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">💰 Fixní náklady na výrobek</h3>
+        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
+          Položky které se přičtou ke každé kalkulaci výrobku — energie, práce, obal, nájem rozpočítaný na ks.
+        </p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
+          <button class="btn-primary" onclick="otevritFixniNaklady()">💰 Spravovat</button>
+        </div>
+      </div>
     </div>
 
     <!-- 3-sloupcový grid: POHODA + FlexiBee + ISDOC -->
@@ -23034,7 +23128,8 @@ async function renderSuroviny() {
         <p class="page-sub">${filtered.length} z ${list.length} surovin</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="navigate('nastaveni')">← Zpět</button>
+        <button class="btn-secondary" onclick="navigate('vyroba')">← Výroba</button>
+        <button class="btn-secondary" onclick="otevritMatchSlozeni()" title="Projde složení výrobků a napáruje na suroviny">🔗 Spárovat</button>
         <button class="btn-secondary" onclick="openImportCenik('suroviny')" title="Import ceníku z Excel/CSV s auto-matchingem">📊 Import ceníku</button>
         <button class="btn-secondary" onclick="otevritImportSurovin()" title="Hromadný import — základní balíček nebo CSV">📥 JSON / vzorky</button>
         <button class="btn-primary btn-green btn-big-action" onclick="editSurovina()" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nová surovina</button>
