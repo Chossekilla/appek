@@ -187,37 +187,76 @@ function vendor_smtp_send(array $cfg, string $to, string $subject, string $bodyH
  * Hotová šablona pro license e-mail.
  */
 function vendor_mail_template_license(array $license, array $order = []): array {
+    // 🆕 v2.9.198 — rozšířený e-mail: serial nr (order ID), datum, částka, ToS link,
+    // limit liability disclaimer (backup povinnost).
+    $serialNr = $order['order_no'] ?? $order['id'] ?? '—';
+    $orderDate = !empty($order['created_at'])
+        ? date('j. n. Y', strtotime($order['created_at']))
+        : date('j. n. Y');
+    $amount = !empty($order['total_kc'])
+        ? number_format((float) $order['total_kc'], 0, ',', ' ') . ' Kč'
+        : (!empty($order['amount']) ? number_format((float) $order['amount'], 0, ',', ' ') . ' Kč' : '—');
+    $vs = $order['variable_symbol'] ?? preg_replace('/\D/', '', (string) $serialNr);
+    $downloadUrl = 'https://appek.cz/download.php?key=' . urlencode($license['license_key']);
+
     $html = <<<HTML
 <!DOCTYPE html>
 <html><body style="font-family:-apple-system,sans-serif;background:#f5f5f7;padding:24px;color:#1d1d1f">
-  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,0.06)">
+  <div style="max-width:580px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,0.06)">
     <div style="background:linear-gradient(135deg,#1d1d1f,#2d2d30);padding:24px 28px;color:#fff">
       <div style="font-size:28px;font-weight:800;background:linear-gradient(135deg,#BA7517,#F59E0B);-webkit-background-clip:text;-webkit-text-fill-color:transparent">📦 APPEK</div>
-      <div style="font-size:13px;opacity:0.85;margin-top:4px">Vaše licenční klíč je připravený</div>
+      <div style="font-size:13px;opacity:0.85;margin-top:4px">Vaše licence je připravená</div>
     </div>
     <div style="padding:28px">
       <h2 style="margin:0 0 10px;font-size:18px">Dobrý den, {$license['customer_name']},</h2>
       <p style="margin:0 0 16px;color:#3a3a3c;line-height:1.65">
-        Děkujeme za objednávku. Vaše licence pro APPEK B2B je aktivní. Použijete ji při instalaci nebo v adminu.
+        Děkujeme za objednávku. Vaše licence pro APPEK B2B je aktivní. Použijete ji při instalaci.
       </p>
+
+      <!-- 📋 SOUHRN OBJEDNÁVKY -->
+      <div style="background:#f5f5f7;border-radius:10px;padding:14px 18px;margin:18px 0;font-size:13px">
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;color:#3a3a3c">
+          <div style="color:#86868b">Č. objednávky:</div><div><strong>{$serialNr}</strong></div>
+          <div style="color:#86868b">Datum:</div><div>{$orderDate}</div>
+          <div style="color:#86868b">Částka:</div><div><strong>{$amount}</strong></div>
+          <div style="color:#86868b">Variabilní symbol:</div><div>{$vs}</div>
+        </div>
+      </div>
+
+      <!-- 🔑 LICENČNÍ KLÍČ -->
       <div style="background:linear-gradient(135deg,rgba(186,117,23,0.08),rgba(186,117,23,0.02));border-left:4px solid #BA7517;padding:18px 20px;border-radius:8px;margin:20px 0">
         <div style="font-size:11px;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">🔑 Licenční klíč</div>
         <div style="font-family:'SF Mono',Menlo,monospace;font-size:18px;font-weight:700;color:#1d1d1f;margin-top:6px;word-break:break-all">{$license['license_key']}</div>
+        <div style="font-size:11px;color:#86868b;margin-top:8px">Doživotní licence pro jedno zařízení · Aktualizace zdarma 12 měsíců</div>
       </div>
+
       <h3 style="font-size:15px;margin:24px 0 8px">📥 Co dál?</h3>
       <ol style="color:#3a3a3c;line-height:1.7;padding-left:20px;margin:0">
-        <li>Stáhněte si <strong>customer ZIP</strong> z odkazu níže</li>
-        <li>Rozbalte na svém hostingu (Hostinger, Forpsi, …) do <code>public_html/</code></li>
+        <li>Klikněte na <strong>Stáhnout APPEK</strong> níže (link obsahuje váš klíč)</li>
+        <li>Rozbalte ZIP na svém hostingu do <code>public_html/</code></li>
         <li>Otevřete <code>https://váš-web.cz/install.php</code></li>
-        <li>Vložte tento klíč → projdete instalací</li>
+        <li>Vložte výše uvedený klíč → projdete instalací</li>
         <li>Hotovo — APPEK běží</li>
       </ol>
+
       <div style="text-align:center;margin:28px 0">
-        <a href="https://appek.cz/" style="display:inline-block;background:linear-gradient(180deg,#BA7517,#854F0B);color:#fff;padding:12px 26px;border-radius:999px;text-decoration:none;font-weight:600">📥 Stáhnout APPEK</a>
+        <a href="{$downloadUrl}" style="display:inline-block;background:linear-gradient(180deg,#BA7517,#854F0B);color:#fff;padding:12px 26px;border-radius:999px;text-decoration:none;font-weight:600">📥 Stáhnout APPEK</a>
       </div>
+
+      <!-- ⚠️ DŮLEŽITÉ UPOZORNĚNÍ -->
+      <div style="background:rgba(255,149,0,0.08);border-left:3px solid #c66800;padding:12px 16px;border-radius:6px;margin:18px 0;font-size:12px;color:#854F0B;line-height:1.55">
+        <strong>⚠️ Záloha dat je vaše povinnost.</strong> APPEK má vestavěné automatické zálohy databáze
+        — aktivujte je v Nastavení → Údržba → Zálohy. Zálohy uchovávejte mimo produkční hosting.
+        Prodávající nenese odpovědnost za ztrátu dat (§ 8.6 a 8.8 obchodních podmínek).
+      </div>
+
       <p style="font-size:12px;color:#86868b;border-top:1px solid #e5e5e7;padding-top:16px;margin-top:24px;line-height:1.6">
         Tato licence je vázána na e-mail <strong>{$license['customer_email']}</strong>.
-        Klíč si bezpečně uchovejte. Při problémech kontaktujte podporu.
+        Klíč si bezpečně uchovejte. Při problémech: <a href="mailto:support@appek.cz" style="color:#BA7517">support@appek.cz</a>.
+        <br><br>
+        <a href="https://appek.cz/obchodni-podminky.html" style="color:#86868b">Obchodní podmínky</a>
+        ·
+        <a href="https://appek.cz/zasady-ochrany-soukromi.html" style="color:#86868b">Zásady ochrany soukromí (GDPR)</a>
       </p>
     </div>
     <div style="background:#fafafa;padding:14px 28px;font-size:11px;color:#86868b;text-align:center">
@@ -227,16 +266,32 @@ function vendor_mail_template_license(array $license, array $order = []): array 
 </body></html>
 HTML;
 
-    $text  = "APPEK — Vaše licence\n\n";
+    $text  = "APPEK — Vaše licence\n";
+    $text .= str_repeat('=', 40) . "\n\n";
     $text .= "Dobrý den, {$license['customer_name']},\n\n";
-    $text .= "Vaše licenční klíč pro APPEK B2B je aktivní:\n\n";
+    $text .= "Děkujeme za objednávku. Vaše licence pro APPEK B2B je aktivní.\n\n";
+    $text .= "SOUHRN OBJEDNÁVKY\n";
+    $text .= "  Č. objednávky:      {$serialNr}\n";
+    $text .= "  Datum:              {$orderDate}\n";
+    $text .= "  Částka:             {$amount}\n";
+    $text .= "  Variabilní symbol:  {$vs}\n\n";
+    $text .= "LICENČNÍ KLÍČ\n";
     $text .= "    {$license['license_key']}\n\n";
-    $text .= "Co dál:\n";
-    $text .= "  1. Stáhněte customer ZIP z https://appek.cz/\n";
-    $text .= "  2. Rozbalte na hostingu do public_html/\n";
+    $text .= "Doživotní licence pro jedno zařízení · Aktualizace zdarma 12 měsíců.\n\n";
+    $text .= "CO DÁL?\n";
+    $text .= "  1. Stáhněte APPEK z: {$downloadUrl}\n";
+    $text .= "  2. Rozbalte ZIP na hostingu do public_html/\n";
     $text .= "  3. Otevřete https://váš-web.cz/install.php\n";
-    $text .= "  4. Vložte tento klíč\n\n";
-    $text .= "Děkujeme za důvěru!\n\n— APPEK\n";
+    $text .= "  4. Vložte výše uvedený klíč\n\n";
+    $text .= "⚠️ DŮLEŽITÉ: Záloha dat je vaše povinnost. APPEK má vestavěné automatické\n";
+    $text .= "zálohy — aktivujte je v Nastavení > Údržba > Zálohy. Zálohy uchovávejte\n";
+    $text .= "mimo produkční hosting. Prodávající nenese odpovědnost za ztrátu dat\n";
+    $text .= "(§ 8.6 a 8.8 obchodních podmínek).\n\n";
+    $text .= "Tato licence je vázána na e-mail: {$license['customer_email']}\n";
+    $text .= "Support: support@appek.cz\n";
+    $text .= "Obchodní podmínky: https://appek.cz/obchodni-podminky.html\n";
+    $text .= "GDPR: https://appek.cz/zasady-ochrany-soukromi.html\n\n";
+    $text .= "Děkujeme za důvěru!\n— APPEK\n";
 
     return ['html' => $html, 'text' => $text];
 }
