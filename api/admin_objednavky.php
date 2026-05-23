@@ -47,6 +47,16 @@ $pdo = db();
         if (!in_array('jednotka', $cols, true)) {
             $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN jednotka VARCHAR(20) NULL AFTER vyrobek_nazev");
         }
+
+        // 🐛 fix v2.9.166 — chybějící sloupec interni_pozn v `objednavky` shazoval
+        // celý create-objednavka flow s SQLSTATE 1054. Přidat lazy, jako poznamka.
+        $obj_cols = $pdo->query("
+            SELECT COLUMN_NAME FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'objednavky'
+        ")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('interni_pozn', $obj_cols, true)) {
+            $pdo->exec("ALTER TABLE objednavky ADD COLUMN interni_pozn TEXT NULL AFTER poznamka");
+        }
     } catch (Throwable $e) {
         error_log('admin_objednavky auto-migrace volné řádky: ' . $e->getMessage());
     }
