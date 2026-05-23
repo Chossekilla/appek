@@ -9,8 +9,10 @@
   --primary-border: #FAC775;
   --bg: #FDFDFE;       /* skoro bílé — žádný teplý nádech */
   --surface: #FFFFFF;
+  --surface-1: #FFFFFF; /* 🆕 v2.9.223 — alias var(--surface) — admin.js uses --surface-1 v 5 místech */
   --surface-2: #F7F8FA; /* jemně světlejší než předtím, neutrální */
   --text: #2C2C2A;
+  --text-1: #1D1D1F;    /* 🆕 v2.9.223 — alias var(--text) (mírně tmavší) — admin.js uses --text-1 v 16 místech */
   --text-2: #5F5E5A;
   --text-3: #888780;
   --border: rgba(0, 0, 0, 0.08);

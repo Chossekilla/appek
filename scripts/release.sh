@@ -65,6 +65,21 @@ if [[ "$CUR" != "$VERSION" ]]; then
     fi
   done
 
+  # 🐛 fix v2.9.223 — bump APPEK_ADMIN_JS_VERSION (v admin.js) + --appek-css-version
+  # (v admin.css), jinak detectStaleCode() semverCompare hlásí 'stale code' a může
+  # triggerovat infinite cache-clear loop, když existuje api/.update-manifest.json
+  # s vyšší verzí. Také footer ukazuje warning při version mismatch.
+  if [[ -f admin/admin.js ]]; then
+    sed -i.bak -E "s/(APPEK_ADMIN_JS_VERSION\s*=\s*')[0-9]+\.[0-9]+\.[0-9]+/\1${VERSION}/" admin/admin.js
+    rm -f admin/admin.js.bak
+    git add admin/admin.js
+  fi
+  if [[ -f admin/admin.css ]]; then
+    sed -i.bak -E "s/(--appek-css-version:\s*\")[0-9]+\.[0-9]+\.[0-9]+/\1${VERSION}/" admin/admin.css
+    rm -f admin/admin.css.bak
+    git add admin/admin.css
+  fi
+
   git add api/config.php
   git commit -m "chore: release v$VERSION"
 fi
