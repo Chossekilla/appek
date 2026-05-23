@@ -166,6 +166,17 @@ $typ_label_velky = $typ === 'fa' ? 'Faktura' : ($typ === 'dl' ? 'Dodací list' :
 $zprava_html = $zprava ? '<p>' . nl2br(htmlspecialchars($zprava)) . '</p>' : '';
 $zprava_plain = $zprava ? $zprava . "\n\n" : '';
 
+// 🐛 fix v2.9.162 — body se přizpůsobí podle toho, jestli PDF příloha skutečně proběhla.
+// Předtím vždy říkalo "v příloze najdete PDF", i když fallback poslal jen odkaz → uživatel
+// dostal e-mail bez přílohy a bez odkazu, slepá ulička.
+$has_attachment = $pdf_content !== null;
+$intro_html = $has_attachment
+    ? 'V příloze najdete PDF ' . htmlspecialchars($typ_label) . ' <strong>' . htmlspecialchars($cislo) . '</strong>.'
+    : htmlspecialchars($typ_label_velky) . ' <strong>' . htmlspecialchars($cislo) . '</strong> najdete zde: <a href="' . htmlspecialchars($pdf_url) . '" style="color:#BA7517;font-weight:600;text-decoration:underline">' . htmlspecialchars($pdf_url) . '</a>';
+$intro_plain = $has_attachment
+    ? "v příloze najdete PDF $typ_label $cislo."
+    : "$typ_label_velky $cislo najdete zde: $pdf_url";
+
 $html_telo = '
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
@@ -173,7 +184,7 @@ $html_telo = '
   <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,0.05)">
     <h1 style="color:#BA7517;font-size:22px;margin:0 0 12px">' . htmlspecialchars($typ_label_velky) . ' ' . htmlspecialchars($cislo) . '</h1>
     <p style="color:#666;font-size:14px;margin:0 0 20px">Dobrý den,</p>
-    <p style="font-size:14px;line-height:1.6">v příloze najdete PDF ' . htmlspecialchars($typ_label) . ' <strong>' . htmlspecialchars($cislo) . '</strong>.</p>
+    <p style="font-size:14px;line-height:1.6">' . $intro_html . '</p>
     ' . $zprava_html . '
     <p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #eee;font-size:13px;color:#888">
       S pozdravem,<br><strong>' . htmlspecialchars($firma_nazev) . '</strong>
@@ -181,7 +192,7 @@ $html_telo = '
   </div>
 </body></html>';
 
-$plain_telo = "Dobrý den,\n\nv příloze najdete PDF $typ_label $cislo.\n\n" . $zprava_plain . "S pozdravem,\n$firma_nazev";
+$plain_telo = "Dobrý den,\n\n" . $intro_plain . "\n\n" . $zprava_plain . "S pozdravem,\n$firma_nazev";
 
 // === Odeslání ===
 $odeslano = 0;
