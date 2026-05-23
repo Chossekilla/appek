@@ -40,6 +40,7 @@ jobs:
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
+        continue-on-error: true
         with:
           name: Appek B2B v${{ steps.ver.outputs.version }}
           tag_name: ${{ github.ref_name }}
