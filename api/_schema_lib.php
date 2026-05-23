@@ -189,6 +189,61 @@ function ensure_dodaci_listy_schema(PDO $pdo): void {
 }
 
 /**
+ * 🆕 v2.9.216 — sklad_polozky pivot (PR2 z multi-warehouse spec).
+ * Stav per (sklad × item). Migrace existujících suroviny.sklad_stav +
+ * vyrobky.sklad_stav do SK01 (defaultní sklad).
+ */
+function ensure_sklad_polozky_schema(PDO $pdo): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS sklad_polozky (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                sklad_id INT NOT NULL,
+                item_typ ENUM('surovina','vyrobek') NOT NULL,
+                item_id INT NOT NULL,
+                stav DECIMAL(12,3) NOT NULL DEFAULT 0,
+                min_stav DECIMAL(12,3) NULL,
+                cil_stav DECIMAL(12,3) NULL,
+                vytvoreno DATETIME DEFAULT CURRENT_TIMESTAMP,
+                upraveno DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_sklad_item (sklad_id, item_typ, item_id),
+                INDEX idx_item (item_typ, item_id),
+                INDEX idx_sklad (sklad_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
+        // Migrace: pokud sklad_polozky je prázdná, naimportovat z suroviny.sklad_stav + vyrobky.sklad_stav do SK01
+        $cnt = (int) $pdo->query("SELECT COUNT(*) FROM sklad_polozky")->fetchColumn();
+        if ($cnt === 0) {
+            $sk01Id = (int) $pdo->query("SELECT id FROM sklady WHERE kod = 'SK01' LIMIT 1")->fetchColumn();
+            if ($sk01Id > 0) {
+                // Suroviny — všechny (i s NULL stav → 0)
+                try {
+                    $pdo->exec("
+                        INSERT IGNORE INTO sklad_polozky (sklad_id, item_typ, item_id, stav, min_stav)
+                        SELECT $sk01Id, 'surovina', id, COALESCE(stock_aktualni, 0), stock_minimalni
+                        FROM suroviny WHERE aktivni = 1
+                    ");
+                } catch (Throwable $e) { /* tabulka surovin možná chybí sloupce */ }
+                // Výrobky
+                try {
+                    $pdo->exec("
+                        INSERT IGNORE INTO sklad_polozky (sklad_id, item_typ, item_id, stav, min_stav, cil_stav)
+                        SELECT $sk01Id, 'vyrobek', id, COALESCE(sklad_stav, 0), sklad_min, sklad_cil
+                        FROM vyrobky WHERE aktivni = 1
+                    ");
+                } catch (Throwable $e) { /* vyrobky možná nemá sklad_* sloupce */ }
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('ensure_sklad_polozky_schema: ' . $e->getMessage());
+    }
+}
+
+/**
  * 🆕 v2.9.215 — Multi-warehouse `sklady` tabulka (z spec 2026-05-23).
  * Customer (pekař/firma) může mít více skladů: suchý, lednice, mrazák, atd.
  * Idempotent — vytvoří tabulku + default SK01 'Hlavní sklad'.

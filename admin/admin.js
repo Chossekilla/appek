@@ -5155,8 +5155,9 @@ async function renderSkladyInline() {
               ` : ''}
               ${s.adresa ? `<div style="font-size:12px;color:var(--text-2)">📍 ${esc(s.adresa)}</div>` : ''}
               ${s.poznamka ? `<div style="font-size:11.5px;color:var(--text-3);font-style:italic">${esc(s.poznamka)}</div>` : ''}
-              <div style="display:flex;gap:6px;margin-top:auto;padding-top:8px">
-                <button class="btn-secondary" onclick="editSklad(${s.id})" style="font-size:12px;padding:6px 12px">✏️ Upravit</button>
+              <div style="display:flex;gap:6px;margin-top:auto;padding-top:8px;flex-wrap:wrap">
+                <button class="btn-primary" onclick="otevritSklad(${s.id}, '${esc(s.nazev)}', '${esc(s.kod)}')" style="font-size:12px;padding:6px 12px">📋 Detail</button>
+                <button class="btn-secondary" onclick="editSklad(${s.id})" style="font-size:12px;padding:6px 12px">✏️</button>
                 <button class="btn-secondary" onclick="smazatSklad(${s.id}, '${esc(s.nazev)}')" style="font-size:12px;padding:6px 12px;background:#fde7e9;color:#a8232f;border-color:#fde7e9">🗑️</button>
               </div>
             </div>
@@ -5164,7 +5165,7 @@ async function renderSkladyInline() {
         </div>
       `}
       <p style="font-size:11px;color:var(--text-3);margin-top:14px">
-        ℹ️ Položky v skladech (suroviny + výrobky) a pohyby (příjem/výdej/přesun) budou v dalším update.
+        ℹ️ Klikni <strong>📋 Detail</strong> pro správu položek ve skladu. Pohyby (příjem/výdej/přesun) přijdou v dalším update.
       </p>
     `;
   } catch (e) {
@@ -5268,6 +5269,193 @@ window.smazatSklad = async function(id, nazev) {
   if (!confirm(`Smazat sklad "${nazev}"? (Pokud má položky / pohyby, bude jen deaktivován.)`)) return;
   try {
     const r = await api('admin_sklady.php?id=' + id, { method: 'DELETE' });
+    renderSkladyInline();
+  } catch (e) {
+    alert('Chyba: ' + e.message);
+  }
+};
+
+// 🆕 v2.9.216 — Detail skladu (modal) — seznam přiřazených položek s edit
+window.otevritSklad = async function(skladId, nazev, kod) {
+  openModal(`🏭 ${kod} · ${nazev}`, `
+    <div id="sklad-detail-content" style="min-height:200px">⏳ Načítám položky…</div>
+  `);
+  try {
+    const r = await api('admin_sklad_polozky.php?sklad_id=' + skladId);
+    const items = r.polozky || [];
+    const suroviny = items.filter(p => p.item_typ === 'surovina');
+    const vyrobky = items.filter(p => p.item_typ === 'vyrobek');
+    const c = document.getElementById('sklad-detail-content');
+    if (!c) return;
+
+    const renderTable = (rows, typLabel, typIcon) => rows.length === 0 ? '' : `
+      <h3 style="margin:16px 0 8px;font-size:14px;color:var(--text-2)">${typIcon} ${typLabel} <span style="color:var(--text-3);font-weight:400">(${rows.length})</span></h3>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--surface-2);color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:0.4px">
+            <th style="padding:8px 10px;text-align:left">Kód</th>
+            <th style="padding:8px 10px;text-align:left">Název</th>
+            <th style="padding:8px 10px;text-align:right">Stav</th>
+            <th style="padding:8px 10px;text-align:right">Min</th>
+            <th style="padding:8px 10px;text-align:right">Cíl</th>
+            <th style="padding:8px 10px;text-align:right">Akce</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(p => {
+            const stav = parseFloat(p.stav) || 0;
+            const min = p.min_stav !== null ? parseFloat(p.min_stav) : null;
+            const underMin = min !== null && stav <= min;
+            return `
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:8px 10px;font-family:monospace;color:var(--text-3);font-size:11.5px">${esc(p.cislo || '—')}</td>
+                <td style="padding:8px 10px"><strong>${esc(p.nazev || '?')}</strong></td>
+                <td style="padding:8px 10px;text-align:right;${underMin ? 'color:#c66800;font-weight:700' : ''}">${stav.toFixed(2)} ${esc(p.jednotka || '')}${underMin ? ' ⚠️' : ''}</td>
+                <td style="padding:8px 10px;text-align:right;color:var(--text-3)">${min !== null ? min.toFixed(2) : '—'}</td>
+                <td style="padding:8px 10px;text-align:right;color:var(--text-3)">${p.cil_stav !== null ? parseFloat(p.cil_stav).toFixed(2) : '—'}</td>
+                <td style="padding:8px 10px;text-align:right">
+                  <button class="btn-secondary" onclick="editSkladPolozku(${p.id}, ${stav}, ${min ?? 'null'}, ${p.cil_stav ?? 'null'}, '${esc(p.nazev)}')" style="font-size:11px;padding:4px 8px">✏️</button>
+                  <button class="btn-secondary" onclick="odebratPolozku(${p.id}, '${esc(p.nazev)}')" style="font-size:11px;padding:4px 8px;background:#fde7e9;color:#a8232f;border-color:#fde7e9">×</button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+
+    c.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;color:var(--text-3)">${items.length} ${items.length === 1 ? 'položka' : (items.length >= 2 && items.length <= 4 ? 'položky' : 'položek')}</div>
+        <button class="btn-primary" onclick="prirаditPolozku(${skladId})" style="font-size:13px;padding:8px 14px">+ Přiřadit položku</button>
+      </div>
+      ${items.length === 0 ? `
+        <div style="text-align:center;padding:40px 20px;color:var(--text-3)">
+          <div style="font-size:36px;margin-bottom:8px">📭</div>
+          <p>Žádné položky ve skladu. Přiřaď první surovinu nebo výrobek.</p>
+        </div>
+      ` : `
+        ${renderTable(suroviny, 'Suroviny', '🌾')}
+        ${renderTable(vyrobky, 'Výrobky', '📦')}
+      `}
+    `;
+  } catch (e) {
+    const c = document.getElementById('sklad-detail-content');
+    if (c) c.innerHTML = `<div style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ ${esc(e.message)}</div>`;
+  }
+};
+
+// Přiřadit položku do skladu (z detailu skladu)
+window.prirаditPolozku = async function(skladId) {
+  let suroviny = [], vyrobky = [];
+  try {
+    const [sR, vR] = await Promise.all([
+      api('admin_suroviny.php'),
+      api('admin_vyrobky.php'),
+    ]);
+    suroviny = Array.isArray(sR) ? sR : (sR.suroviny || []);
+    vyrobky = (vR && vR.vyrobky) || [];
+  } catch (e) { alert('Chyba načítání: ' + e.message); return; }
+
+  openModal('➕ Přiřadit položku do skladu', `
+    <form onsubmit="event.preventDefault(); ulozitPrirazeni(${skladId})" style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label class="form-label">Typ</label>
+        <select class="form-select" id="pp-typ" onchange="document.getElementById('pp-surovina').style.display=this.value==='surovina'?'block':'none';document.getElementById('pp-vyrobek').style.display=this.value==='vyrobek'?'block':'none'">
+          <option value="surovina">🌾 Surovina</option>
+          <option value="vyrobek">📦 Výrobek</option>
+        </select>
+      </div>
+      <div id="pp-surovina">
+        <label class="form-label">Surovina</label>
+        <select class="form-select" id="pp-surovina-id">
+          ${suroviny.filter(s => s.aktivni).map(s => `<option value="${s.id}">${esc(s.nazev)} (${esc(s.jednotka || '')})</option>`).join('')}
+        </select>
+      </div>
+      <div id="pp-vyrobek" style="display:none">
+        <label class="form-label">Výrobek</label>
+        <select class="form-select" id="pp-vyrobek-id">
+          ${vyrobky.filter(v => v.aktivni).map(v => `<option value="${v.id}">${esc(v.cislo)} — ${esc(v.nazev)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div>
+          <label class="form-label">Stav</label>
+          <input class="form-input" id="pp-stav" type="number" step="0.01" value="0">
+        </div>
+        <div>
+          <label class="form-label">Minimum</label>
+          <input class="form-input" id="pp-min" type="number" step="0.01" placeholder="—">
+        </div>
+        <div>
+          <label class="form-label">Cíl</label>
+          <input class="form-input" id="pp-cil" type="number" step="0.01" placeholder="—">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:12px;margin-top:6px">
+        <button type="button" class="btn-secondary" onclick="closeModal()">Zrušit</button>
+        <button type="submit" class="btn-primary btn-green" style="font-weight:700">💾 Přiřadit</button>
+      </div>
+    </form>
+  `);
+};
+
+window.ulozitPrirazeni = async function(skladId) {
+  const typ = document.getElementById('pp-typ').value;
+  const itemId = parseInt(typ === 'surovina'
+    ? document.getElementById('pp-surovina-id').value
+    : document.getElementById('pp-vyrobek-id').value);
+  if (!itemId) { alert('Vyber položku'); return; }
+
+  try {
+    await api('admin_sklad_polozky.php', {
+      method: 'POST',
+      body: JSON.stringify({
+        sklad_id: skladId,
+        item_typ: typ,
+        item_id: itemId,
+        stav: parseFloat(document.getElementById('pp-stav').value) || 0,
+        min_stav: document.getElementById('pp-min').value || null,
+        cil_stav: document.getElementById('pp-cil').value || null,
+      }),
+    });
+    closeModal();
+    // Re-render detail
+    const sklad = await api('admin_sklady.php?id=' + skladId);
+    otevritSklad(skladId, sklad.nazev, sklad.kod);
+  } catch (e) {
+    alert('Chyba: ' + e.message);
+  }
+};
+
+window.editSkladPolozku = function(id, stav, min, cil, nazev) {
+  const newStav = prompt(`Aktuální stav "${nazev}":`, stav);
+  if (newStav === null) return;
+  const newMin = prompt(`Minimum (prázdné = bez):`, min !== null ? min : '');
+  if (newMin === null) return;
+  const newCil = prompt(`Cíl (prázdné = bez):`, cil !== null ? cil : '');
+  if (newCil === null) return;
+
+  api('admin_sklad_polozky.php?id=' + id, {
+    method: 'PUT',
+    body: JSON.stringify({
+      stav: parseFloat(newStav) || 0,
+      min_stav: newMin === '' ? null : parseFloat(newMin),
+      cil_stav: newCil === '' ? null : parseFloat(newCil),
+    }),
+  }).then(() => {
+    // Re-fetch detail
+    closeModal();
+    // Need skladId — read from modal title? Simpler: re-render whole sklady list
+    renderSkladyInline();
+  }).catch(e => alert('Chyba: ' + e.message));
+};
+
+window.odebratPolozku = async function(id, nazev) {
+  if (!confirm(`Odebrat "${nazev}" ze skladu? (Pouze pokud stav = 0.)`)) return;
+  try {
+    await api('admin_sklad_polozky.php?id=' + id, { method: 'DELETE' });
+    closeModal();
     renderSkladyInline();
   } catch (e) {
     alert('Chyba: ' + e.message);
