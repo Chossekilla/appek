@@ -306,14 +306,19 @@ if ($action === 'fa') {
             $vs = preg_replace('/\D/', '', $cislo_fa);
             $spl_dni = $splatnost_override !== null ? $splatnost_override : $sk['splatnost_dni'];
 
+            // 🐛 fix v2.9.169 — PDO native prepared statements neumožňují reuse stejného
+            // pojmenovaného placeholderu 3x (PDO::ATTR_EMULATE_PREPARES=false). Místo
+            // 3× :dv máme tři distinct placeholdery se stejnou hodnotou.
             $pdo->prepare("
                 INSERT INTO faktury (cislo, odberatel_id, datum_vystaveni, datum_dph, datum_splatnosti,
                                      castka_bez_dph, castka_dph, castka_celkem, variabilni_symbol)
-                VALUES (:c, :o, :dv, :dv, DATE_ADD(:dv, INTERVAL :sp DAY), :bez, :dph, :cel, :vs)
+                VALUES (:c, :o, :dv1, :dv2, DATE_ADD(:dv3, INTERVAL :sp DAY), :bez, :dph, :cel, :vs)
             ")->execute([
                 'c'   => $cislo_fa,
                 'o'   => $sk['odberatel_id'],
-                'dv'  => $datum_vystaveni,
+                'dv1' => $datum_vystaveni,
+                'dv2' => $datum_vystaveni,
+                'dv3' => $datum_vystaveni,
                 'sp'  => $spl_dni,
                 'bez' => round($sum_bez, 2),
                 'dph' => round($sum_dph, 2),
