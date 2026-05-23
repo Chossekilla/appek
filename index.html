@@ -54,6 +54,17 @@ img { max-width: 100%; display: block; }
 .topbar nav a { color: #424245; font-size: 15px; font-weight: 500; }
 .topbar nav a:hover { color: #BA7517; }
 .topbar .cta { display: flex; gap: 10px; align-items: center; }
+.topbar-burger {
+  display: none;
+  background: transparent;
+  border: 1.5px solid #e5e5e7;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  color: #1d1d1f;
+}
 
 .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
 
@@ -347,6 +358,24 @@ footer ul li a:hover { color: #fff; }
   /* Skryj "Vyzkoušet demo" — zůstane jen Koupit + vlajky */
   .topbar .cta .btn-secondary { display: none; }
   .topbar .cta .btn { padding: 7px 12px; font-size: 13px; }
+  .topbar-burger { display: inline-flex; align-items: center; justify-content: center; }
+  .topbar-burger:hover { border-color: #BA7517; color: #BA7517; }
+  .topbar.menu-open .topbar-burger { background: #fff7e6; border-color: #BA7517; color: #BA7517; }
+  .topbar.menu-open nav {
+    display: flex; flex-direction: column; gap: 0;
+    position: absolute; top: 100%; left: 0; right: 0;
+    z-index: 99;
+    background: #fff;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+    padding: 6px 0;
+  }
+  .topbar.menu-open nav a {
+    padding: 14px 24px;
+    border-bottom: 1px solid #f5f5f7;
+    font-size: 16px;
+  }
+  .topbar.menu-open nav a:last-child { border-bottom: 0; }
   .lang-switch { gap: 2px !important; margin-right: 4px !important; }
   .lang-btn { padding: 3px 5px !important; font-size: 18px !important; border-width: 1px !important; }
   .logo { font-size: 16px; gap: 6px; }
@@ -1713,6 +1742,7 @@ img[loading="lazy"].loaded {
       <a href="#faq">❓ <span data-i18n="nav_faq">FAQ</span></a>
     </nav>
     <div class="cta">
+      <button class="topbar-burger" type="button" aria-label="Menu" aria-expanded="false" onclick="toggleNav()">☰</button>
       <!-- 🌍 Language switcher — DROPDOWN (PC + mobile) -->
       <div class="lang-dropdown-wrap" style="position:relative;margin-right:10px">
         <button id="lang-trigger" onclick="toggleLangDropdown(event)" type="button" aria-haspopup="listbox" aria-expanded="false" class="lang-trigger" title="Vybrat jazyk">
@@ -4992,6 +5022,42 @@ document.querySelectorAll('.faq-item').forEach(item => {
       });
     }
   });
+});
+
+// Mobile nav — hamburger toggle (open/close, link click, outside click, ESC)
+window.toggleNav = function() {
+  const tb = document.querySelector('.topbar');
+  if (!tb) return;
+  const btn = document.querySelector('.topbar-burger');
+  const isOpen = tb.classList.toggle('menu-open');
+  if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+};
+document.querySelectorAll('.topbar nav a').forEach(a => {
+  a.addEventListener('click', () => {
+    const tb = document.querySelector('.topbar');
+    if (tb && tb.classList.contains('menu-open')) {
+      tb.classList.remove('menu-open');
+      const btn = document.querySelector('.topbar-burger');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+});
+document.addEventListener('click', (e) => {
+  const tb = document.querySelector('.topbar');
+  if (!tb || !tb.classList.contains('menu-open')) return;
+  if (tb.contains(e.target)) return;
+  tb.classList.remove('menu-open');
+  const btn = document.querySelector('.topbar-burger');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const tb = document.querySelector('.topbar');
+  if (tb && tb.classList.contains('menu-open')) {
+    tb.classList.remove('menu-open');
+    const btn = document.querySelector('.topbar-burger');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
 });
 </script>
 
