@@ -31,6 +31,7 @@
 session_start();
 require_once __DIR__ . '/../api/config.php';
 require_once __DIR__ . '/../api/_admin_auth.php';
+require_once __DIR__ . '/../api/_authz.php';  // 🐛 fix v2.9.186 — aktualni_uzivatel_z_session() volaná níže
 
 $forceUpdateUser = aktualni_uzivatel_z_session();
 if (!$forceUpdateUser || ($forceUpdateUser['role'] ?? '') !== 'admin') {

@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // 🔒 v2.6.0 SECURITY FIX (C1): require ADMIN auth (RCE prevention!)
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_authz.php';  // 🐛 fix v2.9.186 — chybělo, aktualni_uzivatel_z_session() volaná níže
 require_once __DIR__ . '/_license.php';
 
 // 🔒 v2.6.0 CSRF/auth: musí být admin přihlášený s validní session.

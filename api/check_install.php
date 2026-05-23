@@ -19,6 +19,7 @@ header('Content-Type: text/html; charset=utf-8');
 session_start();
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_authz.php';  // 🐛 fix v2.9.186 — aktualni_uzivatel_z_session() volaná níže
 
 $ciUser = aktualni_uzivatel_z_session();
 $keyFile = __DIR__ . '/.check-install-key';
