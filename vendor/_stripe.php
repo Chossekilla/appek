@@ -28,6 +28,20 @@ function stripe_settings(): array {
     $pdo = vendor_db();
     vendor_ensure_settings_table($pdo);
     $rows = $pdo->query("SELECT `key`, `value` FROM vendor_settings WHERE `key` LIKE 'stripe_%'")->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    // 🐛 fix v2.9.192 — pokud uložená hodnota obsahuje sentinel '__KEEP__'
+    // (regrese z v2.9.190 kdy frontend literálně ukládal '__KEEP__'), považuj
+    // jako prázdné a vyčisti DB. Příště user vidí 'chybí' a zadá nový klíč.
+    foreach (['stripe_secret_key', 'stripe_webhook_secret'] as $sk) {
+        if (isset($rows[$sk]) && strpos((string) $rows[$sk], '__KEEP__') !== false) {
+            $rows[$sk] = '';
+            try {
+                $pdo->prepare("UPDATE vendor_settings SET `value` = '' WHERE `key` = :k")
+                    ->execute(['k' => $sk]);
+            } catch (Throwable $e) { /* ignore */ }
+        }
+    }
+
     $cache = array_merge([
         'stripe_enabled'         => '0',
         'stripe_environment'     => 'test',

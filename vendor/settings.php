@@ -26,10 +26,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         foreach ($keys as $k) {
             $v = trim((string) ($_POST[$k] ?? ''));
             if ($k === 'stripe_enabled') $v = isset($_POST['stripe_enabled']) ? '1' : '0';
-            // 🐛 fix v2.9.190 — nepřepisovat masked password input (•••), když user
-            // jen editoval jiné pole. Frontend nově posílá masku jako '__KEEP__'.
-            if (in_array($k, ['stripe_secret_key', 'stripe_webhook_secret'], true) && $v === '__KEEP__') {
-                continue;
+            // 🐛 fix v2.9.190/192 — pro secret keys: pokud prázdné NEBO obsahuje
+            // sentinel '__KEEP__' (kdyby si user kolem masky něco připsal) →
+            // skip (zachovat původní). Validní klíče vždy začínají 'sk_' / 'whsec_'.
+            if (in_array($k, ['stripe_secret_key', 'stripe_webhook_secret'], true)) {
+                if ($v === '' || strpos($v, '__KEEP__') !== false) {
+                    continue;
+                }
             }
             vendor_mail_set($k, $v);
         }
@@ -38,28 +41,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     } catch (Throwable $e) { $flash_err = $e->getMessage(); }
 }
 
-// ─── Stripe test connection (v2.9.190) ──────────────────────────
+// ─── Stripe test connection (v2.9.190/192) ──────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_stripe') {
-    require_once __DIR__ . '/_stripe.php';
-    $resp = stripe_request('GET', '/account');
-    if ($resp['ok'] ?? false) {
-        $name = $resp['business_profile']['name'] ?? $resp['settings']['dashboard']['display_name'] ?? $resp['email'] ?? $resp['id'];
-        $charges = $resp['charges_enabled'] ?? false;
-        $payouts = $resp['payouts_enabled'] ?? false;
-        $country = $resp['country'] ?? '?';
-        $currency = strtoupper($resp['default_currency'] ?? '?');
-        if ($charges && $payouts) {
-            $flash_ok = "✅ Stripe připojen: <strong>" . htmlspecialchars($name) . "</strong> · {$country} · {$currency} · charges + payouts ENABLED.";
+    try {
+        require_once __DIR__ . '/_stripe.php';
+        $resp = stripe_request('GET', '/account');
+        if ($resp['ok'] ?? false) {
+            $name = $resp['business_profile']['name'] ?? $resp['settings']['dashboard']['display_name'] ?? $resp['email'] ?? $resp['id'];
+            $charges = $resp['charges_enabled'] ?? false;
+            $payouts = $resp['payouts_enabled'] ?? false;
+            $country = $resp['country'] ?? '?';
+            $currency = strtoupper($resp['default_currency'] ?? '?');
+            if ($charges && $payouts) {
+                $flash_ok = "✅ Stripe připojen: <strong>" . htmlspecialchars($name) . "</strong> · {$country} · {$currency} · charges + payouts ENABLED.";
+            } else {
+                $issues = [];
+                if (!$charges) $issues[] = 'charges_disabled';
+                if (!$payouts) $issues[] = 'payouts_disabled';
+                $flash_err = "⚠️ Připojeno k <strong>" . htmlspecialchars($name) . "</strong>, ale účet není plně aktivní: " . implode(', ', $issues) . ". Doplň údaje v Stripe Dashboardu (verifikace identity).";
+            }
+            // 🐛 fix v2.9.192 — vendor_audit 5. parametr je ?string, ne array. JSON encode.
+            vendor_audit($pdo, $user, 'stripe_test', null, json_encode(['ok' => true, 'charges' => $charges, 'payouts' => $payouts]));
         } else {
-            $issues = [];
-            if (!$charges) $issues[] = 'charges_disabled';
-            if (!$payouts) $issues[] = 'payouts_disabled';
-            $flash_err = "⚠️ Připojeno k <strong>" . htmlspecialchars($name) . "</strong>, ale účet není plně aktivní: " . implode(', ', $issues) . ". Doplň údaje v Stripe Dashboardu (verifikace identity).";
+            $flash_err = '❌ Stripe test selhal: ' . htmlspecialchars($resp['error'] ?? 'unknown_error');
+            vendor_audit($pdo, $user, 'stripe_test_fail', null, json_encode($resp));
         }
-        vendor_audit($pdo, $user, 'stripe_test', null, ['ok' => true, 'charges' => $charges, 'payouts' => $payouts]);
-    } else {
-        $flash_err = '❌ Stripe test selhal: ' . htmlspecialchars($resp['error'] ?? 'unknown_error');
-        vendor_audit($pdo, $user, 'stripe_test_fail', null, $resp);
+    } catch (Throwable $e) {
+        error_log('vendor stripe test exception: ' . $e->getMessage());
+        $flash_err = '❌ Test exception: ' . htmlspecialchars($e->getMessage());
     }
 }
 
@@ -459,22 +468,23 @@ if (!$totpEnabled) {
         </div>
 
         <?php
-          // 🐛 fix v2.9.190 — secret_key + webhook_secret jsou maskované.
-          // Pokud user upraví jiné pole, neztratí secret. Hodnota '__KEEP__'
-          // signalizuje backendu "nech beze změny". Reálnou hodnotu prozradíme
-          // jen status badge ("nastaveno" / "chybí").
+          // 🐛 fix v2.9.192 — input je vždy prázdný; status badge sděluje stav.
+          // Pokud user nezadá nic, backend skipne (ulož jen vyplněné). Pokud zadá
+          // nový klíč, nahradí. Žádné __KEEP__ trampoty v inputu.
           $hasSk  = !empty($strCfg['stripe_secret_key']);
           $hasWh  = !empty($strCfg['stripe_webhook_secret']);
+          $skMask = $hasSk ? substr($strCfg['stripe_secret_key'], 0, 7) . '••••' . substr($strCfg['stripe_secret_key'], -4) : '';
+          $whMask = $hasWh ? substr($strCfg['stripe_webhook_secret'], 0, 6) . '••••' . substr($strCfg['stripe_webhook_secret'], -4) : '';
         ?>
         <div style="margin-bottom:12px">
           <label>Secret Key <?= $hasSk ? '<span style="font-size:11px;color:#208438;font-weight:600">✓ uloženo</span>' : '<span style="font-size:11px;color:#bf2026;font-weight:600">chybí</span>' ?></label>
-          <input type="password" name="stripe_secret_key" value="<?= $hasSk ? '__KEEP__' : '' ?>" placeholder="sk_test_... nebo sk_live_..." style="font-family:'SF Mono',Menlo,monospace;width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px" autocomplete="off">
-          <?php if ($hasSk): ?><div style="font-size:11px;color:#6e6e73;margin-top:4px">Klíč je uložen. Pro změnu vymaž pole a zadej nový.</div><?php endif; ?>
+          <input type="password" name="stripe_secret_key" value="" placeholder="<?= $hasSk ? htmlspecialchars($skMask) . ' (nech prázdné = zachovat)' : 'sk_test_... nebo sk_live_...' ?>" style="font-family:'SF Mono',Menlo,monospace;width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px" autocomplete="off">
+          <?php if ($hasSk): ?><div style="font-size:11px;color:#6e6e73;margin-top:4px">Klíč je uložen. Vyplň jen pokud chceš změnit.</div><?php endif; ?>
         </div>
 
         <div>
           <label>Webhook Signing Secret <?= $hasWh ? '<span style="font-size:11px;color:#208438;font-weight:600">✓ uloženo</span>' : '<span style="font-size:11px;color:#999;font-weight:600">volitelné</span>' ?></label>
-          <input type="password" name="stripe_webhook_secret" value="<?= $hasWh ? '__KEEP__' : '' ?>" placeholder="whsec_..." style="font-family:'SF Mono',Menlo,monospace;width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px" autocomplete="off">
+          <input type="password" name="stripe_webhook_secret" value="" placeholder="<?= $hasWh ? htmlspecialchars($whMask) . ' (nech prázdné = zachovat)' : 'whsec_...' ?>" style="font-family:'SF Mono',Menlo,monospace;width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px" autocomplete="off">
         </div>
 
         <div style="background:rgba(0,122,255,0.06);border-left:3px solid #0058b8;padding:10px 14px;border-radius:6px;font-size:12px;color:#0058b8;margin-top:8px">
