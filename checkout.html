@@ -445,16 +445,16 @@
       <p id="success-sub" data-i18n="success_sub">Děkujeme. Vyberte způsob platby:</p>
       <div class="order-no" id="success-order-no">—</div>
 
-      <!-- PAY OPTIONS -->
+      <!-- PAY OPTIONS — v2.9.197: Stripe primary, jasný popis -->
       <div class="pay-options" id="pay-options">
         <!-- 🆕 v2.4 — Apple Pay / Google Pay přes Stripe Payment Request Button -->
-        <div id="payment-request-container" style="display:none;margin-bottom:8px">
+        <div id="payment-request-container" style="display:none;margin-bottom:8px;grid-column:1/-1">
           <div id="payment-request-button" style="min-height:50px"></div>
           <div style="text-align:center;font-size:11px;color:#86868b;margin:6px 0">— nebo —</div>
         </div>
-        <button class="btn pay-card" onclick="payByGoPay()" data-i18n="pay_gopay">💳 GoPay (CZ karty + bank)</button>
-        <button class="btn pay-card" onclick="payByStripe()" data-i18n="pay_stripe">🌍 Stripe (mezinárodní · karta)</button>
-        <button class="btn pay-bank" onclick="showBankInfo()" data-i18n="pay_bank">🏦 Bankovní převod</button>
+        <button class="btn pay-card pay-primary" onclick="payByStripe()" data-i18n="pay_stripe">💳 Zaplatit kartou</button>
+        <button class="btn pay-card pay-secondary" onclick="payByGoPay()" data-i18n="pay_gopay">💳 GoPay (CZ karty + bank)</button>
+        <button class="btn pay-bank" onclick="showBankInfo()" data-i18n="pay_bank">🏦 Faktura + bankovní převod</button>
       </div>
 
       <!-- BANK INFO (jen po klik na "Bankovní převod") -->
@@ -485,6 +485,9 @@
     .pay-options .btn { display: flex; align-items: center; justify-content: center; padding: 16px 18px; font-size: 15px; }
     .pay-card { background: linear-gradient(180deg, #BA7517, #854F0B); color: #fff; }
     .pay-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(186,117,23,0.4); }
+    /* v2.9.197 — Stripe = primary (větší, výraznější), GoPay = secondary, bank = tertiary */
+    .pay-primary { font-size: 17px !important; font-weight: 700; padding: 20px 18px !important; }
+    .pay-secondary { opacity: 0.85; }
     .pay-bank { background: #fff; color: #1d1d1f; border: 1px solid #d2d2d7; }
     .pay-bank:hover { background: #fafafa; }
     @media (max-width: 720px) {
@@ -543,10 +546,10 @@ const I18N = {
     note: 'Po odeslání zaplatíte rovnou kartou (Stripe / GoPay) nebo zvolíte platbu převodem na fakturu. Licenční klíč přijde okamžitě po platbě kartou (nebo do 24 h po převodu).',
     success_title: 'Objednávka přijata!',
     success_sub: 'Děkujeme. Vyberte způsob platby:',
-    pay_card: '💳 Zaplatit kartou (GoPay)',
+    pay_card: '💳 Zaplatit kartou',
     pay_gopay: '💳 GoPay (CZ karty + bank)',
-    pay_stripe: '🌍 Stripe (mezinárodní)',
-    pay_bank: '🏦 Bankovní převod',
+    pay_stripe: '💳 Zaplatit kartou',
+    pay_bank: '🏦 Faktura + bankovní převod',
     gopay_loading: 'Přesměrováváme na GoPay…',
     gopay_fail: '⚠️ GoPay platba selhala',
     success_email: 'Potvrzení a instrukce jsme poslali na váš e-mail.',
@@ -613,7 +616,7 @@ const I18N = {
     pay_card: '💳 Pay by card (GoPay)',
     pay_gopay: '💳 GoPay (CZ cards + bank)',
     pay_stripe: '🌍 Stripe (international)',
-    pay_bank: '🏦 Bank transfer',
+    pay_bank: '🏦 Invoice + bank transfer',
     gopay_loading: 'Redirecting to GoPay…',
     gopay_fail: '⚠️ GoPay payment failed',
     success_email: 'We have sent confirmation and instructions to your e-mail.',
@@ -676,7 +679,7 @@ const I18N = {
     pay_card: '💳 Pagar con tarjeta (GoPay)',
     pay_gopay: '💳 GoPay (tarjetas CZ + banca)',
     pay_stripe: '🌍 Stripe (internacional)',
-    pay_bank: '🏦 Transferencia bancaria',
+    pay_bank: '🏦 Factura + transferencia bancaria',
     gopay_loading: 'Redirigiendo a GoPay…',
     gopay_fail: '⚠️ Pago GoPay falló',
     success_email: 'Hemos enviado confirmación e instrucciones a su correo.',

@@ -160,23 +160,44 @@ $isNew = isset($_GET['new']);
 <title>📦 Balíčky — APPEK Master</title>
 <link rel="stylesheet" href="style.css?v=1.4">
 <style>
-  .pkg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 14px; }
+  /* 🆕 v2.9.197 — produktové karty: větší PRICE TAG, jasný visual hierarchy */
+  .pkg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 14px; }
   .pkg-card {
     background: #fff; border: 1px solid #e5e5e7; border-radius: 14px;
-    padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;
+    padding: 20px; display: flex; flex-direction: column; gap: 12px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    position: relative; transition: transform .15s, box-shadow .15s;
   }
+  .pkg-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
   .pkg-card.inactive { opacity: 0.55; border-style: dashed; }
-  .pkg-card .head { display: flex; align-items: center; gap: 10px; }
-  .pkg-card .icon { font-size: 28px; }
-  .pkg-card .name { font-size: 16px; font-weight: 700; }
-  .pkg-card .key  { font-size: 11px; color: #86868b; font-family: 'SF Mono', Menlo, monospace; }
-  .pkg-card .desc { font-size: 13px; color: #6e6e73; line-height: 1.5; min-height: 36px; }
+  .pkg-card.core-card {
+    border: 2px solid #BA7517; background: linear-gradient(180deg, #fff 0%, rgba(186,117,23,0.04) 100%);
+  }
+  .pkg-card.core-card::before {
+    content: '⭐ DOPORUČENO'; position: absolute; top: -10px; left: 16px;
+    background: #BA7517; color: #fff; font-size: 10px; font-weight: 800;
+    padding: 4px 10px; border-radius: 4px; letter-spacing: 0.5px;
+  }
+  .pkg-card .head { display: flex; align-items: center; gap: 12px; }
+  .pkg-card .icon { font-size: 36px; line-height: 1; }
+  .pkg-card .name { font-size: 17px; font-weight: 700; line-height: 1.2; }
+  .pkg-card .key  { font-size: 11px; color: #86868b; font-family: 'SF Mono', Menlo, monospace; margin-top: 2px; }
+  .pkg-card .desc { font-size: 13px; color: #424245; line-height: 1.5; min-height: 36px; }
   .pkg-card .meta { display: flex; gap: 10px; font-size: 12px; color: #86868b; }
-  .pkg-card .price { font-size: 20px; font-weight: 700; color: #1d1d1f; }
-  .pkg-card .price small { font-size: 12px; font-weight: 400; color: #86868b; }
+  /* PRICE TAG — výraznější */
+  .pkg-card .price-tag {
+    background: #f5f5f7; border-radius: 10px; padding: 10px 14px;
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  }
+  .pkg-card .price {
+    font-size: 24px; font-weight: 800; color: #1d1d1f; line-height: 1;
+  }
+  .pkg-card .price-currency { font-size: 13px; font-weight: 600; color: #6e6e73; }
+  .pkg-card .price-alt { font-size: 12px; color: #86868b; }
+  .pkg-card .price-onetime { font-size: 10px; color: #208438; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
   .pkg-card .actions { display: flex; gap: 6px; margin-top: auto; padding-top: 6px; }
   .pkg-card .actions form { margin: 0; }
+  .pkg-card .actions .btn-master { padding: 7px 12px; font-size: 12px; }
   .pkg-badges { display: flex; gap: 4px; flex-wrap: wrap; }
   .pkg-bd { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
   .pkg-bd.core { background: rgba(255,149,0,0.15); color: #c66800; }
@@ -330,7 +351,7 @@ $isNew = isset($_GET['new']);
 
   <div class="pkg-grid">
     <?php foreach ($packages as $p): ?>
-      <div class="pkg-card <?= $p['is_active'] ? '' : 'inactive' ?>">
+      <div class="pkg-card <?= $p['is_active'] ? '' : 'inactive' ?> <?= $p['is_core'] ? 'core-card' : '' ?>">
         <div class="head">
           <span class="icon"><?= htmlspecialchars($p['icon'] ?: '📦') ?></span>
           <div>
@@ -338,10 +359,19 @@ $isNew = isset($_GET['new']);
             <div class="key"><?= htmlspecialchars($p['key']) ?></div>
           </div>
         </div>
+
+        <!-- 💰 PRICE TAG — vrchol karty pro produktovou prezentaci -->
+        <div class="price-tag">
+          <span class="price"><?= number_format((float) $p['price_kc'], 0, ',', ' ') ?></span>
+          <span class="price-currency">Kč</span>
+          <?php if ($p['price_eur']): ?><span class="price-alt">· €<?= number_format((float) $p['price_eur'], 0) ?></span><?php endif; ?>
+          <span class="price-onetime" style="margin-left:auto">JEDNORÁZOVĚ</span>
+        </div>
+
         <div class="desc"><?= htmlspecialchars($p['description_cs'] ?: '—') ?></div>
+
         <div class="pkg-badges">
-          <?php if ($p['is_core']): ?><span class="pkg-bd core">⭐ Core</span><?php endif; ?>
-          <?php if ($p['is_active']): ?><span class="pkg-bd active">Aktivní</span><?php else: ?><span class="pkg-bd inactive">Skryto</span><?php endif; ?>
+          <?php if ($p['is_active']): ?><span class="pkg-bd active">✓ Aktivní v eshopu</span><?php else: ?><span class="pkg-bd inactive">Skryto z eshopu</span><?php endif; ?>
           <?php if ($p['bit_pos'] !== null): ?><span class="pkg-bd" style="background:#eaf3fc;color:#0a4a8b">bit <?= (int) $p['bit_pos'] ?></span><?php endif; ?>
         </div>
 
@@ -360,12 +390,9 @@ $isNew = isset($_GET['new']);
             <span class="pkg-link muted" title="Zatím žádné updates pro tento balíček">🔄 0 updates</span>
           <?php endif; ?>
         </div>
-        <div class="price">
-          <?= number_format((float) $p['price_kc'], 0, ',', ' ') ?> Kč
-          <?php if ($p['price_eur']): ?><small>· €<?= number_format((float) $p['price_eur'], 0) ?></small><?php endif; ?>
-        </div>
+
         <div class="actions">
-          <a href="packages.php?edit=<?= (int) $p['id'] ?>" class="btn-master secondary">✏️ Edit</a>
+          <a href="packages.php?edit=<?= (int) $p['id'] ?>" class="btn-master primary">✏️ Edit</a>
           <form method="POST" style="display:inline">
             <input type="hidden" name="action" value="toggle">
             <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
@@ -374,7 +401,7 @@ $isNew = isset($_GET['new']);
           <form method="POST" style="display:inline" onsubmit="return confirm('Opravdu smazat balíček &quot;<?= htmlspecialchars($p['name_cs']) ?>&quot;?')">
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
-            <button type="submit" class="btn-master secondary" style="background:#fde7e9;color:#a8232f">🗑️</button>
+            <button type="submit" class="btn-master secondary" style="background:#fde7e9;color:#a8232f" title="Smazat balíček">🗑️</button>
           </form>
         </div>
       </div>
