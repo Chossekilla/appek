@@ -526,13 +526,14 @@ if ($method === 'DELETE') {
     if (!$id) json_error('Chybí ID');
 
     // Pokud je výrobek použitý kdekoli (objednávka/DL/FA), jen ho skryj (soft-delete)
+    // 🐛 fix v2.9.169 — native PDO neumožňuje reuse :id 3x; distinct placeholdery.
     $cnt = $pdo->prepare("
         SELECT
-            (SELECT COUNT(*) FROM objednavky_polozky    WHERE vyrobek_id = :id) +
-            (SELECT COUNT(*) FROM dodaci_list_polozky   WHERE vyrobek_id = :id) +
-            (SELECT COUNT(*) FROM faktura_polozky       WHERE vyrobek_id = :id)
+            (SELECT COUNT(*) FROM objednavky_polozky    WHERE vyrobek_id = :id1) +
+            (SELECT COUNT(*) FROM dodaci_list_polozky   WHERE vyrobek_id = :id2) +
+            (SELECT COUNT(*) FROM faktura_polozky       WHERE vyrobek_id = :id3)
     ");
-    $cnt->execute(['id' => $id]);
+    $cnt->execute(['id1' => $id, 'id2' => $id, 'id3' => $id]);
     if ($cnt->fetchColumn() > 0) {
         $pdo->prepare("UPDATE vyrobky SET aktivni = 0 WHERE id = :id")->execute(['id' => $id]);
         json_response(['ok' => true, 'deactivated' => true]);

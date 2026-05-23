@@ -177,16 +177,22 @@ if ($action === 'integration' && $method === 'POST') {
     $d = json_input();
     $sl = $d['sluzba'] ?? '';
     if (!in_array($sl, ['wolt','bolt','dame_jidlo','foodora','vlastni','jiny'], true)) json_error('Neplatná služba', 400);
+    // 🐛 fix v2.9.169 — native PDO neumožňuje reuse placeholderů; každá ON DUPLICATE
+    // klauzule potřebuje vlastní suffix.
+    $povolena = !empty($d['povolena']) ? 1 : 0;
+    $api_key  = $d['api_key'] ?? null;
+    $store_id = $d['store_id'] ?? null;
+    $provize  = (float) ($d['provize_pct'] ?? 0);
     $pdo->prepare("
         INSERT INTO courier_integrations (sluzba, povolena, api_key, store_id, provize_pct)
         VALUES (:s, :p, :k, :si, :pp)
-        ON DUPLICATE KEY UPDATE povolena=:p, api_key=:k, store_id=:si, provize_pct=:pp
+        ON DUPLICATE KEY UPDATE povolena=:p2, api_key=:k2, store_id=:si2, provize_pct=:pp2
     ")->execute([
         's'=>$sl,
-        'p'=>!empty($d['povolena']) ? 1 : 0,
-        'k'=>$d['api_key'] ?? null,
-        'si'=>$d['store_id'] ?? null,
-        'pp'=>(float)($d['provize_pct'] ?? 0),
+        'p'=>$povolena,  'p2'=>$povolena,
+        'k'=>$api_key,   'k2'=>$api_key,
+        'si'=>$store_id, 'si2'=>$store_id,
+        'pp'=>$provize,  'pp2'=>$provize,
     ]);
     json_response(['ok'=>true]);
 }

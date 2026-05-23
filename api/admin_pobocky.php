@@ -111,12 +111,13 @@ if ($method === 'DELETE') {
     if (!$id) json_error('Chybí ID');
 
     // Pokud je pobočka použitá v objednávce nebo DL, jen ji deaktivuj
+    // 🐛 fix v2.9.169 — native PDO neumožňuje reuse :id 2x; distinct placeholdery.
     $cnt = $pdo->prepare("
         SELECT
-            (SELECT COUNT(*) FROM objednavky    WHERE misto_dodani_id = :id) +
-            (SELECT COUNT(*) FROM dodaci_listy  WHERE misto_dodani_id = :id)
+            (SELECT COUNT(*) FROM objednavky    WHERE misto_dodani_id = :id1) +
+            (SELECT COUNT(*) FROM dodaci_listy  WHERE misto_dodani_id = :id2)
     ");
-    $cnt->execute(['id' => $id]);
+    $cnt->execute(['id1' => $id, 'id2' => $id]);
     if ($cnt->fetchColumn() > 0) {
         $pdo->prepare("UPDATE mista_dodani SET aktivni = 0 WHERE id = :id")->execute(['id' => $id]);
         json_response(['ok' => true, 'deactivated' => true]);
