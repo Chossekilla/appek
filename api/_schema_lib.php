@@ -189,6 +189,44 @@ function ensure_dodaci_listy_schema(PDO $pdo): void {
 }
 
 /**
+ * 🆕 v2.9.217 — sklad_pohyby tabulka (PR3 z multi-warehouse spec).
+ * Audit trail všech pohybů: příjem, výdej, inventura, korekce, přesun.
+ * Per pohyb: stav_pred + stav_po + cena_za_jed + poznámka + kdo + kdy.
+ */
+function ensure_sklad_pohyby_schema(PDO $pdo): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS sklad_pohyby_v2 (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                sklad_id INT NOT NULL,
+                sklad_id_cil INT NULL,
+                item_typ ENUM('surovina','vyrobek') NOT NULL,
+                item_id INT NOT NULL,
+                typ ENUM('prijem','vydej','inventura','korekce','presun') NOT NULL,
+                mnozstvi DECIMAL(12,3) NOT NULL,
+                stav_pred DECIMAL(12,3) NULL,
+                stav_po DECIMAL(12,3) NULL,
+                cena_za_jed DECIMAL(10,4) NULL,
+                poznamka VARCHAR(300) NULL,
+                kdo VARCHAR(120) NULL,
+                kdy DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_sklad (sklad_id),
+                INDEX idx_kdy (kdy),
+                INDEX idx_item (item_typ, item_id),
+                INDEX idx_typ (typ)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+        // Pozn.: nová tabulka 'sklad_pohyby_v2' aby koexistovala s legacy
+        // 'sklad_pohyby' (jen surovina_id, bez sklad_id) — žádný conflict.
+    } catch (Throwable $e) {
+        error_log('ensure_sklad_pohyby_schema: ' . $e->getMessage());
+    }
+}
+
+/**
  * 🆕 v2.9.216 — sklad_polozky pivot (PR2 z multi-warehouse spec).
  * Stav per (sklad × item). Migrace existujících suroviny.sklad_stav +
  * vyrobky.sklad_stav do SK01 (defaultní sklad).

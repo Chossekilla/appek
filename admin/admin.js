@@ -5277,6 +5277,8 @@ window.smazatSklad = async function(id, nazev) {
 
 // 🆕 v2.9.216 — Detail skladu (modal) — seznam přiřazených položek s edit
 window.otevritSklad = async function(skladId, nazev, kod) {
+  state._currentSkladId = skladId;  // pro pohybSkladu actions
+  state._currentSkladNazev = nazev;
   openModal(`🏭 ${kod} · ${nazev}`, `
     <div id="sklad-detail-content" style="min-height:200px">⏳ Načítám položky…</div>
   `);
@@ -5313,9 +5315,13 @@ window.otevritSklad = async function(skladId, nazev, kod) {
                 <td style="padding:8px 10px;text-align:right;${underMin ? 'color:#c66800;font-weight:700' : ''}">${stav.toFixed(2)} ${esc(p.jednotka || '')}${underMin ? ' ⚠️' : ''}</td>
                 <td style="padding:8px 10px;text-align:right;color:var(--text-3)">${min !== null ? min.toFixed(2) : '—'}</td>
                 <td style="padding:8px 10px;text-align:right;color:var(--text-3)">${p.cil_stav !== null ? parseFloat(p.cil_stav).toFixed(2) : '—'}</td>
-                <td style="padding:8px 10px;text-align:right">
-                  <button class="btn-secondary" onclick="editSkladPolozku(${p.id}, ${stav}, ${min ?? 'null'}, ${p.cil_stav ?? 'null'}, '${esc(p.nazev)}')" style="font-size:11px;padding:4px 8px">✏️</button>
-                  <button class="btn-secondary" onclick="odebratPolozku(${p.id}, '${esc(p.nazev)}')" style="font-size:11px;padding:4px 8px;background:#fde7e9;color:#a8232f;border-color:#fde7e9">×</button>
+                <td style="padding:8px 10px;text-align:right;white-space:nowrap">
+                  <button class="btn-secondary" onclick="pohybSkladu(${state._currentSkladId || 0}, ${p.id}, 'prijem', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px;background:#dcfce7;color:#15803d;border-color:#dcfce7" title="Příjem">+</button>
+                  <button class="btn-secondary" onclick="pohybSkladu(${state._currentSkladId || 0}, ${p.id}, 'vydej', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px;background:#fef3c7;color:#854F0B;border-color:#fef3c7" title="Výdej">−</button>
+                  <button class="btn-secondary" onclick="pohybSkladu(${state._currentSkladId || 0}, ${p.id}, 'inventura', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px" title="Inventura">📝</button>
+                  <button class="btn-secondary" onclick="pohybSkladu(${state._currentSkladId || 0}, ${p.id}, 'presun', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px" title="Přesun do jiného skladu">↔</button>
+                  <button class="btn-secondary" onclick="editSkladPolozku(${p.id}, ${stav}, ${min ?? 'null'}, ${p.cil_stav ?? 'null'}, '${esc(p.nazev)}')" style="font-size:11px;padding:4px 8px" title="Edit min/cíl">✏️</button>
+                  <button class="btn-secondary" onclick="odebratPolozku(${p.id}, '${esc(p.nazev)}')" style="font-size:11px;padding:4px 8px;background:#fde7e9;color:#a8232f;border-color:#fde7e9" title="Odebrat ze skladu">×</button>
                 </td>
               </tr>
             `;
@@ -5457,6 +5463,101 @@ window.odebratPolozku = async function(id, nazev) {
     await api('admin_sklad_polozky.php?id=' + id, { method: 'DELETE' });
     closeModal();
     renderSkladyInline();
+  } catch (e) {
+    alert('Chyba: ' + e.message);
+  }
+};
+
+// 🆕 v2.9.217 — Pohyby (PR3): příjem / výdej / inventura / přesun
+window.pohybSkladu = async function(skladId, polozkaId, typ, nazev, itemTyp, itemId, jednotka) {
+  const titles = {
+    prijem:    `➕ Příjem · ${nazev}`,
+    vydej:     `➖ Výdej · ${nazev}`,
+    inventura: `📝 Inventura · ${nazev}`,
+    presun:    `↔ Přesun · ${nazev}`,
+  };
+  const labels = {
+    prijem:    'Naskladnit množství',
+    vydej:     'Vyskladnit množství',
+    inventura: 'Aktuální stav (přepíše)',
+    presun:    'Přesunout množství',
+  };
+
+  // Pro přesun načti seznam cílových skladů (vše kromě aktuálního)
+  let sklady = [];
+  if (typ === 'presun') {
+    try {
+      const r = await api('admin_sklady.php');
+      sklady = (r.sklady || []).filter(s => s.id !== skladId && s.aktivni);
+      if (sklady.length === 0) { alert('Nemáš žádný jiný aktivní sklad — vytvoř nový.'); return; }
+    } catch (e) { alert('Chyba: ' + e.message); return; }
+  }
+
+  openModal(titles[typ] || typ, `
+    <form onsubmit="event.preventDefault(); ulozitPohyb(${skladId}, '${typ}', '${itemTyp}', ${itemId})" style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label class="form-label">${labels[typ] || 'Množství'} *</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input class="form-input" id="poh-mn" type="number" step="0.01" required autofocus placeholder="0.00" style="flex:1">
+          <span style="color:var(--text-3);font-size:13px">${esc(jednotka || '')}</span>
+        </div>
+      </div>
+      ${typ === 'presun' ? `
+        <div>
+          <label class="form-label">Cílový sklad *</label>
+          <select class="form-select" id="poh-cil" required>
+            ${sklady.map(s => `<option value="${s.id}">${esc(s.kod)} · ${esc(s.nazev)}</option>`).join('')}
+          </select>
+        </div>
+      ` : ''}
+      ${typ === 'prijem' ? `
+        <div>
+          <label class="form-label">Cena za jednotku (Kč) <small style="color:var(--text-3)">— volitelné</small></label>
+          <input class="form-input" id="poh-cena" type="number" step="0.01" placeholder="—">
+        </div>
+      ` : ''}
+      <div>
+        <label class="form-label">Poznámka ${typ === 'korekce' ? '*' : '<small style="color:var(--text-3)">(volitelná)</small>'}</label>
+        <textarea class="form-input" id="poh-pozn" rows="2" ${typ === 'korekce' ? 'required' : ''} placeholder="${typ === 'inventura' ? 'např. Měsíční inventura' : (typ === 'presun' ? 'např. Přesun do mraziku po výrobě' : '')}"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:12px;margin-top:6px">
+        <button type="button" class="btn-secondary" onclick="otevritSklad(${skladId}, '${esc(state._currentSkladNazev || '')}', '')">← Zpět</button>
+        <button type="submit" class="btn-primary btn-green" style="font-weight:700">${typ === 'prijem' ? '+ Naskladnit' : (typ === 'vydej' ? '− Vyskladnit' : (typ === 'inventura' ? '📝 Uložit inventuru' : '↔ Přesunout'))}</button>
+      </div>
+    </form>
+  `);
+};
+
+window.ulozitPohyb = async function(skladId, typ, itemTyp, itemId) {
+  const mn = parseFloat(document.getElementById('poh-mn').value) || 0;
+  const pozn = document.getElementById('poh-pozn').value.trim();
+  const cenaEl = document.getElementById('poh-cena');
+  const cilEl = document.getElementById('poh-cil');
+
+  const payload = {
+    sklad_id: skladId,
+    item_typ: itemTyp,
+    item_id: itemId,
+    poznamka: pozn || null,
+  };
+  if (typ === 'inventura') payload.novy_stav = mn;
+  else payload.mnozstvi = mn;
+  if (cenaEl && cenaEl.value) payload.cena_za_jed = parseFloat(cenaEl.value);
+  if (typ === 'presun') {
+    payload.sklad_id_z = skladId;
+    payload.sklad_id_do = parseInt(cilEl.value);
+    delete payload.sklad_id;
+  }
+
+  try {
+    const r = await api('admin_sklad_pohyby.php?action=' + typ, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    closeModal();
+    // Re-render detail skladu
+    const sklad = await api('admin_sklady.php?id=' + skladId);
+    otevritSklad(skladId, sklad.nazev, sklad.kod);
   } catch (e) {
     alert('Chyba: ' + e.message);
   }
