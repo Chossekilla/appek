@@ -6,11 +6,13 @@ require_once __DIR__ . '/_admin_auth.php';
 // Endpoint slouží pro DL (?dl_id=N) i pro objednávku (?id=N), token typ rozliší.
 $_email_token = $_GET['token'] ?? '';
 $_token_auth = false;
+$_token_typ   = null;  // 🆕 v2.9.171 — pro objednávku změníme titulek na 'Objednávka'
 if ($_email_token !== '') {
     require_once __DIR__ . '/_email_token.php';
     // Token může být typu 'dl' nebo 'obj' — povolíme oboje.
     $_tok_row = verify_email_token(db(), $_email_token);
     if ($_tok_row && in_array($_tok_row['typ'], ['dl', 'obj'], true)) {
+        $_token_typ = $_tok_row['typ'];
         if ($_tok_row['typ'] === 'dl') {
             $_GET['dl_id'] = (int) $_tok_row['doklad_id'];
         } else {
@@ -24,6 +26,47 @@ if (!$_token_auth) {
 }
 
 $pdo = db();
+
+// 🐛 fix v2.9.171 — dodaci_list.php SELECTuje snapshot sloupce, které nemusí
+// v staré schémě existovat. Bez lazy DDL endpoint padá s SQLSTATE 1054 hned
+// jak ho otevře e-mail recipient přes signed URL token. Idempotentní.
+(function() use ($pdo) {
+    try {
+        $dlp = $pdo->query("
+            SELECT COLUMN_NAME FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dodaci_list_polozky'
+        ")->fetchAll(PDO::FETCH_COLUMN);
+        $dlp_l = array_map('strtolower', $dlp);
+        if ($dlp && !in_array('vyrobek_cislo', $dlp_l, true)) {
+            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN vyrobek_cislo VARCHAR(40) NULL AFTER vyrobek_id");
+        }
+        if ($dlp && !in_array('vyrobek_nazev', $dlp_l, true)) {
+            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN vyrobek_nazev VARCHAR(255) NULL AFTER vyrobek_cislo");
+        }
+        if ($dlp && !in_array('jednotka', $dlp_l, true)) {
+            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN jednotka VARCHAR(20) NULL AFTER vyrobek_nazev");
+        }
+        if ($dlp && !in_array('poznamka', $dlp_l, true)) {
+            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN poznamka TEXT NULL");
+        }
+
+        // dodaci_listy snapshot cols (warning v logu na undefined odb_*_snapshot)
+        $dlh = $pdo->query("
+            SELECT COLUMN_NAME FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dodaci_listy'
+        ")->fetchAll(PDO::FETCH_COLUMN);
+        $dlh_l = array_map('strtolower', $dlh);
+        foreach (['odb_nazev_snapshot' => 'VARCHAR(255)', 'odb_ico_snapshot' => 'VARCHAR(20)',
+                  'odb_dic_snapshot' => 'VARCHAR(20)', 'odb_ulice_snapshot' => 'VARCHAR(255)',
+                  'odb_mesto_snapshot' => 'VARCHAR(120)', 'odb_psc_snapshot' => 'VARCHAR(15)'] as $col => $type) {
+            if ($dlh && !in_array($col, $dlh_l, true)) {
+                $pdo->exec("ALTER TABLE dodaci_listy ADD COLUMN $col $type NULL");
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('dodaci_list.php DDL: ' . $e->getMessage());
+    }
+})();
 
 // =============================================================
 // Helpery — načtení DL (single) podle dl_id NEBO objednávka_id
@@ -188,12 +231,20 @@ $celkem_kc = $dl_render[0]['celkem_kc'];
 
 $bulk_count = count($dl_render);
 $autoprint = !empty($_GET['autoprint']);
+
+// 🆕 v2.9.171 — pokud user otevřel odkaz z e-mailu typu 'obj', titulek dokumentu
+// změníme z 'Dodací list' na 'Objednávka' (a podle toho i tabulku v <body>).
+// Bez tokenu (admin view) zůstává "dodací list" jako historicky.
+$_is_objednavka_view = (isset($_token_typ) && $_token_typ === 'obj');
+$_titulek_nazev = $_is_objednavka_view ? 'Objednávka' : 'Dodací list';
+$_titulek_slovo_2pad = $_is_objednavka_view ? 'objednávky' : 'dodacího listu';
+$_cislo_zobrazit = $_is_objednavka_view ? ($o['cislo'] ?: $cislo_dl) : $cislo_dl;
 ?>
 <!DOCTYPE html>
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<title><?= $bulk_count > 1 ? 'Tisk ' . $bulk_count . ' dodacích listů' : esc($cislo_dl) . ' - dodací list' ?></title>
+<title><?= $bulk_count > 1 ? 'Tisk ' . $bulk_count . ' ' . esc($_titulek_slovo_2pad) : esc($_cislo_zobrazit) . ' - ' . strtolower($_titulek_nazev) ?></title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Helvetica Neue',Arial,sans-serif;color:#2C2C2A;background:#f5f5f0;padding:20px}
@@ -308,8 +359,8 @@ $autoprint = !empty($_GET['autoprint']);
             if ($logoUrl): ?>
         <img src="<?= esc($logoUrl) ?>" style="max-height:18mm;max-width:60mm;margin-bottom:6mm;object-fit:contain" alt="Logo">
       <?php endif; ?>
-      <h1>Dodací list</h1>
-      <div class="cislo">č. <strong><?= esc($cislo_dl) ?></strong></div>
+      <h1><?= esc($_titulek_nazev) ?></h1>
+      <div class="cislo">č. <strong><?= esc($_cislo_zobrazit) ?></strong></div>
     </div>
     <div class="firma">
       <div class="nazev"><?= esc(firma('nazev', 'APPEK B2B')) ?></div>
