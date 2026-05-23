@@ -1375,7 +1375,7 @@ window.openDemoSeed = async function() {
   const proceed = await confirmDialog({
     title: '🎬 Naplnit ukázkovými daty',
     icon: '🎬',
-    msg: `Aplikace přidá:\n• ${will.kategorie || 0} kategorií\n• ${will.vyrobky || 0} výrobků\n• ${will.odberatele || 0} odběratelů (John Doe + 4 varianty)\n• ${will.suroviny || 0} surovin\n• ${will.objednavky || 0} objednávka pro John Doe\n• ${will.dodaci_listy || 0} dodací list (z objednávky)\n• ${will.faktury || 0} faktura (z DL)\n\n👤 John Doe login do B2B:\n   email: john@demo.cz\n   heslo: demo1234\n\nExistující záznamy se zachovají (skipuje duplicity).`,
+    msg: `Aplikace přidá:\n• ${will.kategorie || 0} kategorií\n• ${will.vyrobky || 0} výrobků\n• ${will.odberatele || 0} odběratelů (John Doe + 4 varianty)\n• ${will.suroviny || 0} surovin\n• ${will.objednavky || 0} objednávka pro John Doe\n• ${will.dodaci_listy || 0} dodací list (z objednávky)\n• ${will.faktury || 0} faktura (z DL)\n\n👤 John Doe login do B2B:\n   email: odberatel@demo.cz\n   heslo: demo1234\n\nExistující záznamy se zachovají (skipuje duplicity).`,
     okText: 'Naplnit',
     cancelText: 'Zrušit',
   });

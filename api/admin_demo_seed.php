@@ -58,7 +58,7 @@ function demo_customers(): array {
             'ulice' => 'Demo 1', 'mesto' => 'Praha', 'psc' => '11000',
             'email' => 'john.doe@example.com', 'telefon' => '+420 777 111 111',
             'typ' => 'bistro',
-            'login_email' => 'john@demo.cz', 'heslo' => 'demo1234',
+            'login_email' => 'odberatel@demo.cz', 'heslo' => 'demo1234',
             'is_primary_demo' => true,  // marker pro auto-create order/DL/faktury
         ],
         ['cislo' => 'O0002', 'nazev' => 'John Doe Bakery & Café',  'ico' => '22222222', 'mesto' => 'Brno',       'email' => 'bakery@johndoe.cz', 'typ' => 'kavarna'],
