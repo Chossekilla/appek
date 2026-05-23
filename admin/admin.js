@@ -2264,10 +2264,10 @@ const DEFAULT_ROLE_PRAVA = {
 // Stránka -> ikona + label (pro UI editor rolí). 'rozvozy' tu zůstává — admin
 // si může v Údržbě roli rozšířit a tím přidat zpět do menu, pokud potřebuje.
 const ALL_NAV_PAGES = [
+  // 🆕 v2.9.189 — 'vyroba' je první, je default landing. Od výroby vše vychází.
+  { key: 'vyroba',       icon: '🥖', label: 'Výroba' },
   { key: 'dashboard',    icon: '📊', label: 'Přehled' },
   { key: 'objednavky',   icon: '📋', label: 'Objednávky' },
-  // 🆕 v2.9.188 — 'vyrobni_list' je sub-tab v Výroba (default), ne samostatný button.
-  { key: 'vyroba',       icon: '🥖', label: 'Výroba' },
   { key: 'dodaci_listy', icon: '📃', label: 'Dodací listy' },
   { key: 'rozvozy',      icon: '🛣️', label: 'Rozvozové trasy' },
   { key: 'faktury',      icon: '💰', label: 'Faktury' },
@@ -2333,9 +2333,10 @@ async function showApp() {
   api('admin_role_prava.php').then((r) => {
     if (r?.prava) state.rolePrava = r.prava;
     aplikovatPravaNaMenu();
-    // Pokud aktuální stránka není pro mou roli — přesměruj na dashboard
-    if (!muzeNavigovat(state.current || 'dashboard')) {
-      navigate('dashboard');
+    // 🆕 v2.9.189 — default landing je 'vyroba' (hub), ne 'dashboard'.
+    // Výroba je centrum aplikace pro pekaře/výrobce — vše ostatní z ní vyplývá.
+    if (!muzeNavigovat(state.current || 'vyroba')) {
+      navigate('vyroba');
     }
   }).catch(() => {
     aplikovatPravaNaMenu();
@@ -2360,7 +2361,8 @@ async function showApp() {
       }, 500);
     }
   } else {
-    navigate('dashboard');
+    // 🆕 v2.9.189 — default landing 'vyroba' (hub) místo 'dashboard'.
+    navigate('vyroba');
   }
   // 🎯 Onboarding check — pouze pro super admina, pouze pokud fresh install
   if (isSuperAdmin()) {
@@ -5030,12 +5032,13 @@ window.ulozitNovouObjednavku = async function() {
 // =============================================================
 // VÝROBNÍ LIST (auto + ručně sestavené)
 // =============================================================
-// 🆕 v2.9.188 — Výroba má vodorovné sub-taby. Default = Výrobní list.
-// Ostatní taby (HACCP, Sklad, Kalkulace, Přehled) jsou shortcut na konkrétní stránku.
+// 🆕 v2.9.188/189 — Výroba má vodorovné sub-taby. Default = Výrobní list.
+// Od výroby vše začíná — Suroviny, Sklad, HACCP, Kalkulace, Přehled, Spárování.
 const VYROBA_SUBTABS = [
   { key: 'list',       label: '📋 Výrobní list',  render: () => renderVyrobniListInline() },
-  { key: 'haccp',      label: '🧪 HACCP',          nav: 'haccp' },
+  { key: 'suroviny',   label: '🌾 Suroviny',       nav: 'suroviny' },
   { key: 'sklad',      label: '📦 Sklad',          nav: 'sklad' },
+  { key: 'haccp',      label: '🧪 HACCP',          nav: 'haccp' },
   { key: 'kalkulace',  label: '🏭 Kalkulace',      nav: 'vyrobni_kalkulace' },
   { key: 'prehled',    label: '📊 Přehled výroby', nav: 'export_vyroby' },
 ];
