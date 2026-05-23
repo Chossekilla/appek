@@ -2266,9 +2266,7 @@ const DEFAULT_ROLE_PRAVA = {
 const ALL_NAV_PAGES = [
   { key: 'dashboard',    icon: '📊', label: 'Přehled' },
   { key: 'objednavky',   icon: '📋', label: 'Objednávky' },
-  // 🆕 v2.9.187 — 'vyrobni_list' (=staré 'vyroba') je zpět jako samostatný item.
-  // 'vyroba' je hub se sub-akcemi (HACCP, Sklad, Suroviny, …).
-  { key: 'vyrobni_list', icon: '📋', label: 'Výrobní list' },
+  // 🆕 v2.9.188 — 'vyrobni_list' je sub-tab v Výroba (default), ne samostatný button.
   { key: 'vyroba',       icon: '🥖', label: 'Výroba' },
   { key: 'dodaci_listy', icon: '📃', label: 'Dodací listy' },
   { key: 'rozvozy',      icon: '🛣️', label: 'Rozvozové trasy' },
@@ -5032,96 +5030,65 @@ window.ulozitNovouObjednavku = async function() {
 // =============================================================
 // VÝROBNÍ LIST (auto + ručně sestavené)
 // =============================================================
-// 🆕 v2.9.187 — Výroba je hub se zaměřením na výrobu (HACCP, Sklad, Suroviny).
-// Sales report + Fixní náklady jsou v Nastavení > Účetní.
-// Opakující se objednávky / Spárování surovin / Kategorie jsou v hlavičkách
-// příslušných stránek (Objednávky, Suroviny, Výrobky).
+// 🆕 v2.9.188 — Výroba má vodorovné sub-taby. Default = Výrobní list.
+// Ostatní taby (HACCP, Sklad, Kalkulace, Přehled) jsou shortcut na konkrétní stránku.
+const VYROBA_SUBTABS = [
+  { key: 'list',       label: '📋 Výrobní list',  render: () => renderVyrobniListInline() },
+  { key: 'haccp',      label: '🧪 HACCP',          nav: 'haccp' },
+  { key: 'sklad',      label: '📦 Sklad',          nav: 'sklad' },
+  { key: 'kalkulace',  label: '🏭 Kalkulace',      nav: 'vyrobni_kalkulace' },
+  { key: 'prehled',    label: '📊 Přehled výroby', nav: 'export_vyroby' },
+];
+
 async function renderVyrobaHub() {
   const c = document.getElementById('content');
+  const aktSubTab = state._vyrobaSubTab || 'list';
+
   c.innerHTML = `
     <div class="page-head">
       <div>
         <h1 class="page-title">🥖 Výroba</h1>
-        <p class="page-sub">HACCP, sklad surovin, výrobní kalkulace, přehled výroby</p>
+        <p class="page-sub">Výrobní list, HACCP, sklad surovin, kalkulace a přehled</p>
       </div>
     </div>
 
-    <div class="nastaveni-row nastaveni-row-3col">
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">🧪 HACCP</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Záznamy o teplotách, sanitaci, kontrolách kritických bodů. Formuláře, grafy, audit log.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('haccp')">🧪 Otevřít HACCP</button>
-        </div>
-      </div>
+    <!-- 🗂️ SUB-TABY (vodorovné, na šířku jako Nastavení) -->
+    <div class="nastaveni-tabs" role="tablist">
+      ${VYROBA_SUBTABS.map(t => `
+        <button type="button" role="tab" class="nastaveni-tab ${aktSubTab === t.key ? 'active' : ''}"
+                onclick="vyrobaSetSubTab('${t.key}')" aria-selected="${aktSubTab === t.key}">
+          <span>${t.label}</span>
+        </button>
+      `).join('')}
+    </div>
 
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">📦 Sklad surovin</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Aktuální stav skladu, příjem/výdej, alerty pod minimální hladinou.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('sklad')">📦 Otevřít sklad</button>
-          <button class="btn-secondary" onclick="state._suroviny_pod_minimem=true;navigate('suroviny')" title="Suroviny pod minimální hladinou">⚠ Pod minimem</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">🌾 Suroviny</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Databáze surovin (mouka, cukr, vejce…) a jejich alergenů. Tlačítko „Spárovat" je nahoře v sekci Suroviny.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('suroviny')">🌾 Spravovat</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">🏭 Výrobní kalkulace</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Spočítá náklady na 1 kus z celé várky — receptura → presy → klonky + zdobení a fixní náklady.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('vyrobni_kalkulace')">🏭 Otevřít kalkulačku</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">📊 Přehled výroby</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Souhrnný přehled všech objednaných výrobků za zvolené období. Vhodné pro plánování. CSV export.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('export_vyroby')">📊 Otevřít přehled</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">📋 Výrobní list</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Souhrn výroby z objednávek nebo ručně sestavený list. K dispozici i jako samostatná položka v menu.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('vyrobni_list')">📋 Otevřít</button>
-        </div>
-      </div>
+    <div class="nastaveni-page nastaveni-tab-content">
+      <div id="vyroba-subtab-content"></div>
     </div>
   `;
+
+  // Render aktivního sub-tabu
+  const sub = VYROBA_SUBTABS.find(t => t.key === aktSubTab) || VYROBA_SUBTABS[0];
+  if (sub.render) await sub.render();
+  else if (sub.nav) navigate(sub.nav);  // shortcut sub-tab — naviguje pryč
 }
 
-// Původní Výrobní list (před v2.9.181 to byla samotná renderVyroba pod 'vyroba' route)
-async function renderVyrobniList() {
-  const c = document.getElementById('content');
-  c.innerHTML = `
-    <div class="page-head">
-      <div>
-        <h1 class="page-title">📋 Výrobní list</h1>
-        <p class="page-sub">Souhrn výroby z objednávek nebo ručně sestavený list</p>
-      </div>
-    </div>
+window.vyrobaSetSubTab = function(tabKey) {
+  state._vyrobaSubTab = tabKey;
+  const sub = VYROBA_SUBTABS.find(t => t.key === tabKey);
+  // Pokud má 'nav', přesměruj. Pokud má 'render', překresli sub-tab.
+  if (sub?.nav) {
+    navigate(sub.nav);
+  } else {
+    renderVyrobaHub();
+  }
+};
 
+// Inline render Výrobního listu — žije v #vyroba-subtab-content (ne v #content!)
+async function renderVyrobniListInline() {
+  const c = document.getElementById('vyroba-subtab-content');
+  if (!c) return;
+  c.innerHTML = `
     <div class="vyroba-mode-tabs">
       <button class="vyroba-mode-tab ${state.vyrobaMode === 'auto' ? 'active' : ''}" onclick="setVyrobaMode('auto')">
         🤖 Z objednávek (automaticky)
@@ -5130,17 +5097,21 @@ async function renderVyrobniList() {
         ✋ Ručně sestavené listy
       </button>
     </div>
-
     <div id="vyroba-content"></div>
   `;
-
   if (state.vyrobaMode === 'auto') await renderVyrobaAuto();
   else await renderVyrobaManual();
 }
 
+// Backwards-compat: stará navigate('vyrobni_list') route → otevři Výrobu se sub-tabem 'list'
+async function renderVyrobniList() {
+  state._vyrobaSubTab = 'list';
+  await renderVyrobaHub();
+}
+
 window.setVyrobaMode = function(mode) {
   state.vyrobaMode = mode;
-  renderVyrobniList();
+  renderVyrobniListInline();
 };
 
 async function renderVyrobaAuto() {
