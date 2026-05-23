@@ -60,8 +60,9 @@ if ($method === 'POST') {
 
 if ($method === 'PUT') {
     $d = json_input();
-    if (empty($d['id'])) json_error('Chybí ID');
-    $id = (int) $d['id'];
+    // 🐛 fix v2.9.180 — přijmout ID z query stringu i z body (REST i RPC styl).
+    $id = (int) ($d['id'] ?? $_GET['id'] ?? 0);
+    if (!$id) json_error('Chybí ID');
 
     // Super admin nesmí degradovat sám sebe (zabránit zamknutí systému)
     if ($id === (int) $_SESSION['admin_id'] && isset($d['role']) && $d['role'] !== 'admin') {
