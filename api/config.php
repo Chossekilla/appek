@@ -182,6 +182,21 @@ function dalsi_cislo(PDO $pdo, string $typ, int $rok): string {
     $pdo->prepare("INSERT IGNORE INTO cislovani (typ, rok, predcisli, posledni) VALUES (:t, :r, :p, 0)")
         ->execute(['t' => $typ, 'r' => $rok, 'p' => $vychozi_predcisli]);
 
+    // 🐛 fix v2.9.172 — pokud historický řádek měl predcisli ve starém formátu
+    // (např. "DL" nebo "OBJ" bez roku), upgrade ho na standardní "XX-YYYY-".
+    // Pattern: musí obsahovat aspoň rok+pomlčku, jinak je legacy.
+    $pdo->prepare("
+        UPDATE cislovani
+        SET predcisli = :p
+        WHERE typ = :t AND rok = :r AND (predcisli = :t2 OR predcisli NOT LIKE CONCAT('%', :r2, '-'))
+    ")->execute([
+        'p'  => $vychozi_predcisli,
+        't'  => $typ,
+        'r'  => $rok,
+        't2' => $typ,
+        'r2' => (string) $rok,
+    ]);
+
     // Atomické zvýšení - LAST_INSERT_ID(expr) vrátí novou hodnotu
     $pdo->prepare("
         UPDATE cislovani
@@ -201,7 +216,10 @@ function dalsi_cislo(PDO $pdo, string $typ, int $rok): string {
         $predcisli = $vychozi_predcisli;
     }
 
-    return $predcisli . $next;
+    // 🐛 fix v2.9.172 — formátovat $next na 4 cifry s leading zeros.
+    // Předtím "FA-2026-1" / "FA-2026-2" / ... / "FA-2026-1000"; teď "FA-2026-0001".
+    // Konzistentní s demo seedem a docstringem ("FA-2026-0042").
+    return $predcisli . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
 }
 
 /**
