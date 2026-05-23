@@ -298,7 +298,7 @@ $_cislo_zobrazit = $_is_objednavka_view ? ($o['cislo'] ?: $cislo_dl) : $cislo_dl
 <div class="toolbar">
   <span class="info">
     <?php if ($bulk_count > 1): ?>
-      📦 <strong>Hromadný tisk <?= $bulk_count ?> dodacích listů</strong> · v dialogu „Uložit jako PDF" pro 1 PDF s více stránkami
+      📦 <strong>Hromadný tisk <?= $bulk_count ?> <?= esc($_titulek_slovo_2pad) ?></strong> · v dialogu „Uložit jako PDF" pro 1 PDF s více stránkami
     <?php else: ?>
       💡 Pro PDF klikněte „Tisk" → v dialogu „Uložit jako PDF"
     <?php endif; ?>
@@ -379,8 +379,13 @@ $_cislo_zobrazit = $_is_objednavka_view ? ($o['cislo'] ?: $cislo_dl) : $cislo_dl
   <div style="clear:both"></div>
   <?php if ($o['poznamka']): ?><div class="pozn"><strong>Poznámka:</strong> <?= esc($o['poznamka']) ?></div><?php endif; ?>
   <div class="signatures">
-    <div class="sig-line">Vystavil (dodavatel)</div>
-    <div class="sig-line">Převzal (odběratel)</div>
+    <?php if ($_is_objednavka_view): ?>
+      <div class="sig-line">Vystavil (dodavatel)</div>
+      <div class="sig-line">Objednatel (odběratel)</div>
+    <?php else: ?>
+      <div class="sig-line">Vystavil (dodavatel)</div>
+      <div class="sig-line">Převzal (odběratel)</div>
+    <?php endif; ?>
   </div>
   <div class="foot">
     <?php
