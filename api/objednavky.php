@@ -241,7 +241,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Notifikace odběrateli (po commitu, chyby nelogují selhání objednávky)
         notifikace_nova_objednavka($pdo, $obj_id);
 
-        json_response(['id' => $obj_id, 'cislo' => $cislo], 201);
+        // 🆕 v2.9.203 — pokud zvolil online platbu (stripe/gopay), vytvoř session
+        // a vrať payment_url pro redirect. Pro 'prevod' / 'dobirka' jen json OK.
+        $platba = strtolower(trim((string) ($data['platba'] ?? 'prevod')));
+        $paymentUrl = null;
+        if ($platba === 'stripe' || $platba === 'gopay') {
+            require_once __DIR__ . '/_customer_integrace.php';
+            $celkemKc = round($bez + $dph, 2);
+            $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
+                     . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+
+            // Načti email odběratele pro Stripe Checkout / GoPay
+            $stmtOdb = $pdo->prepare("SELECT nazev, login_email, email FROM odberatele WHERE id = :id");
+            $stmtOdb->execute(['id' => $odberatel_id]);
+            $odb = $stmtOdb->fetch() ?: [];
+            $custEmail = $odb['login_email'] ?: ($odb['email'] ?: '');
+            $custName  = $odb['nazev'] ?: 'Zákazník';
+
+            $payload = [
+                'order_no'         => $cislo,
+                'amount_kc'        => $celkemKc,
+                'currency'         => 'CZK',
+                'description'      => 'Objednávka ' . $cislo,
+                'customer_email'   => $custEmail,
+                'customer_name'    => $custName,
+                'return_url'       => $baseUrl . '/b2b/index.html?paid=' . urlencode($cislo),
+                'cancel_url'       => $baseUrl . '/b2b/index.html?cancelled=' . urlencode($cislo),
+                'notification_url' => $baseUrl . '/api/customer_payment_webhook.php?gw=' . $platba . '&order=' . urlencode($cislo),
+            ];
+            try {
+                if ($platba === 'stripe' && function_exists('customer_int_stripe_create_checkout')) {
+                    $sess = customer_int_stripe_create_checkout($payload);
+                    if (!empty($sess['ok']) && !empty($sess['session_url'])) {
+                        $paymentUrl = $sess['session_url'];
+                    }
+                }
+                if ($platba === 'gopay' && function_exists('customer_int_gopay_create_payment')) {
+                    $sess = customer_int_gopay_create_payment($payload);
+                    if (!empty($sess['ok']) && !empty($sess['gateway_url'])) {
+                        $paymentUrl = $sess['gateway_url'];
+                    }
+                }
+            } catch (Throwable $e) {
+                error_log('objednavky payment_init (' . $platba . '): ' . $e->getMessage());
+            }
+        }
+
+        json_response([
+            'id' => $obj_id,
+            'cislo' => $cislo,
+            'platba' => $platba,
+            'payment_url' => $paymentUrl,
+        ], 201);
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         // Logujeme detaily, klientovi vracíme bezpečnou zprávu

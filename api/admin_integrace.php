@@ -55,6 +55,31 @@ if ($method === 'POST' && $action === 'save_settings' && $service) {
         $shortKey = preg_replace('/^int_' . preg_quote($service, '/') . '_/', '', $k);
         $clean[$shortKey] = $v;
     }
+
+    // 🆕 v2.9.203 — validace klíčů per service
+    if ($service === 'stripe') {
+        $sk = trim($clean['secret_key'] ?? '');
+        if ($sk !== '' && strpos($sk, 'pk_') === 0) {
+            json_error("Tohle je PUBLISHABLE klíč (pk_...). Pro Secret Key použij sk_test_ nebo sk_live_ ze Stripe Dashboardu → API keys.", 400);
+        }
+        if ($sk !== '' && strpos($sk, 'sk_') !== 0) {
+            json_error("Stripe Secret Key musí začínat 'sk_test_' nebo 'sk_live_'.", 400);
+        }
+        $wh = trim($clean['webhook_secret'] ?? '');
+        if ($wh !== '' && strpos($wh, 'whsec_') !== 0) {
+            json_error("Stripe Webhook Secret musí začínat 'whsec_'.", 400);
+        }
+    } elseif ($service === 'gopay') {
+        $goid = trim($clean['goid'] ?? '');
+        $cid  = trim($clean['client_id'] ?? '');
+        if ($goid !== '' && !preg_match('/^\d{7,12}$/', $goid)) {
+            json_error("GoPay GoID musí být 7–12 číslic (najdeš v GoPay účtu → Nastavení).", 400);
+        }
+        if ($cid !== '' && !preg_match('/^\d{7,12}$/', $cid)) {
+            json_error("GoPay Client ID musí být 7–12 číslic (z API klíčů v GoPay obchodním účtu).", 400);
+        }
+    }
+
     customer_int_set($service, $clean);
     json_response(['ok' => true]);
 }

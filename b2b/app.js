@@ -2027,6 +2027,15 @@ window.submitOrder = async function() {
     });
     state.cart = {};
     saveCart();
+
+    // 🆕 v2.9.203 — pokud user zvolil Stripe/GoPay, redirect na platební bránu
+    if (res.payment_url) {
+      // Stripe/GoPay session vytvořená → ihned přesměrovat
+      window.location.href = res.payment_url;
+      return;
+    }
+
+    // prevod / dobirka — žádný redirect, jen potvrzení
     alert(`Objednávka ${res.cislo} byla odeslána. Děkujeme!`);
     switchTab('history');
   } catch (e) {
