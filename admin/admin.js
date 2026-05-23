@@ -5038,7 +5038,8 @@ window.ulozitNovouObjednavku = async function() {
 const VYROBA_SUBTABS = [
   { key: 'list',       label: '🥖 Výrobní list',  render: () => renderVyrobniListInline() },
   { key: 'suroviny',   label: '🌾 Suroviny',       nav: 'suroviny' },
-  { key: 'sklad',      label: '📦 Sklad',          nav: 'sklad' },
+  { key: 'sklady',     label: '🏭 Sklady',         render: () => renderSkladyInline() },  // 🆕 v2.9.215
+  { key: 'sklad',      label: '📦 Stav skladu',    nav: 'sklad' },
   { key: 'haccp',      label: '🧪 HACCP',          nav: 'haccp' },
   { key: 'kalkulace',  label: '🏭 Kalkulace',      nav: 'vyrobni_kalkulace' },
   { key: 'prehled',    label: '📊 Přehled výroby', nav: 'export_vyroby' },
@@ -5112,6 +5113,166 @@ async function renderVyrobniList() {
   state._vyrobaSubTab = 'list';
   await renderVyrobaHub();
 }
+
+// 🆕 v2.9.215 — Sklady management (multi-warehouse). Inline render uvnitř Výroba hubu.
+async function renderSkladyInline() {
+  const c = document.getElementById('vyroba-subtab-content');
+  if (!c) return;
+  c.innerHTML = '⏳ Načítám sklady…';
+  try {
+    const r = await api('admin_sklady.php');
+    const sklady = r.sklady || [];
+    const typIcon = { suchy: '📦', lednice: '❄️', mrazak: '🧊', jiny: '🏭' };
+    const typLabel = { suchy: 'Suchý sklad', lednice: 'Lednice', mrazak: 'Mrazák', jiny: 'Jiný' };
+
+    c.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div>
+          <p style="font-size:13px;color:var(--text-3);margin:0">${sklady.length} ${sklady.length === 1 ? 'sklad' : (sklady.length >= 2 && sklady.length <= 4 ? 'sklady' : 'skladů')} · ${sklady.filter(s => s.aktivni).length} aktivních</p>
+        </div>
+        <button class="btn-primary btn-green" onclick="editSklad()" style="padding:10px 18px;font-size:14px;font-weight:700">+ Nový sklad</button>
+      </div>
+      ${sklady.length === 0 ? `
+        <div class="card-block" style="text-align:center;padding:40px 20px;color:var(--text-3)">
+          <div style="font-size:48px;margin-bottom:10px">🏭</div>
+          <h3 style="margin:0 0 6px">Zatím žádné sklady</h3>
+          <p style="margin:0 0 16px;font-size:13px">Vytvoř svůj první sklad — např. suchý sklad, lednice, mrazák.</p>
+          <button class="btn-primary btn-green" onclick="editSklad()">+ Vytvořit sklad</button>
+        </div>
+      ` : `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+          ${sklady.map(s => `
+            <div class="card-block ${s.aktivni ? '' : 'is-inactive'}" style="${s.aktivni ? '' : 'opacity:0.55;border-style:dashed'};padding:16px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:30px;line-height:1">${typIcon[s.typ] || '🏭'}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:700;font-size:15px;color:var(--text-1)">${esc(s.nazev)}</div>
+                  <div style="font-size:11px;color:var(--text-3);font-family:monospace">${esc(s.kod)} · ${esc(typLabel[s.typ] || s.typ)}</div>
+                </div>
+              </div>
+              ${(s.teplota_min !== null || s.teplota_max !== null) ? `
+                <div style="font-size:12px;color:var(--text-2)">🌡️ ${s.teplota_min !== null ? s.teplota_min : '?'}°C — ${s.teplota_max !== null ? s.teplota_max : '?'}°C</div>
+              ` : ''}
+              ${s.adresa ? `<div style="font-size:12px;color:var(--text-2)">📍 ${esc(s.adresa)}</div>` : ''}
+              ${s.poznamka ? `<div style="font-size:11.5px;color:var(--text-3);font-style:italic">${esc(s.poznamka)}</div>` : ''}
+              <div style="display:flex;gap:6px;margin-top:auto;padding-top:8px">
+                <button class="btn-secondary" onclick="editSklad(${s.id})" style="font-size:12px;padding:6px 12px">✏️ Upravit</button>
+                <button class="btn-secondary" onclick="smazatSklad(${s.id}, '${esc(s.nazev)}')" style="font-size:12px;padding:6px 12px;background:#fde7e9;color:#a8232f;border-color:#fde7e9">🗑️</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `}
+      <p style="font-size:11px;color:var(--text-3);margin-top:14px">
+        ℹ️ Položky v skladech (suroviny + výrobky) a pohyby (příjem/výdej/přesun) budou v dalším update.
+      </p>
+    `;
+  } catch (e) {
+    c.innerHTML = `<div style="background:#fde7e9;color:#a8232f;padding:14px;border-radius:8px">❌ Chyba: ${esc(e.message)}</div>`;
+  }
+}
+
+window.editSklad = async function(id) {
+  let sklad = { id: 0, kod: '', nazev: '', typ: 'jiny', teplota_min: null, teplota_max: null, adresa: '', poznamka: '', aktivni: 1 };
+  if (id) {
+    try {
+      sklad = await api('admin_sklady.php?id=' + id);
+    } catch (e) { alert('Chyba: ' + e.message); return; }
+  }
+  const isNew = !id;
+  openModal(isNew ? '🏭 Nový sklad' : `✏️ Upravit sklad ${sklad.kod}`, `
+    <form id="sklad-form" onsubmit="event.preventDefault(); ulozitSklad(${id || 0})" style="display:flex;flex-direction:column;gap:12px">
+      ${!isNew ? `
+        <div>
+          <label class="form-label">Kód</label>
+          <input class="form-input" id="sk-kod" value="${esc(sklad.kod)}" pattern="[A-Z0-9_-]{2,20}" required style="font-family:monospace;text-transform:uppercase">
+        </div>
+      ` : `
+        <div style="background:rgba(186,117,23,0.08);padding:8px 12px;border-radius:6px;font-size:12px;color:var(--text-2)">
+          ℹ️ Kód bude auto-generován (SK01, SK02, …) — můžeš ho přejmenovat po vytvoření
+        </div>
+      `}
+      <div>
+        <label class="form-label">Název *</label>
+        <input class="form-input" id="sk-nazev" value="${esc(sklad.nazev || '')}" required placeholder="např. Hlavní suchý sklad">
+      </div>
+      <div>
+        <label class="form-label">Typ</label>
+        <select class="form-select" id="sk-typ">
+          <option value="suchy" ${sklad.typ === 'suchy' ? 'selected' : ''}>📦 Suchý sklad</option>
+          <option value="lednice" ${sklad.typ === 'lednice' ? 'selected' : ''}>❄️ Lednice</option>
+          <option value="mrazak" ${sklad.typ === 'mrazak' ? 'selected' : ''}>🧊 Mrazák</option>
+          <option value="jiny" ${sklad.typ === 'jiny' ? 'selected' : ''}>🏭 Jiný</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label class="form-label">Teplota min (°C)</label>
+          <input class="form-input" id="sk-tmin" type="number" step="0.1" value="${sklad.teplota_min ?? ''}" placeholder="např. 0">
+        </div>
+        <div>
+          <label class="form-label">Teplota max (°C)</label>
+          <input class="form-input" id="sk-tmax" type="number" step="0.1" value="${sklad.teplota_max ?? ''}" placeholder="např. 5">
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Adresa / lokace</label>
+        <input class="form-input" id="sk-adresa" value="${esc(sklad.adresa || '')}" placeholder="např. Hlavní budova, místnost 12">
+      </div>
+      <div>
+        <label class="form-label">Poznámka</label>
+        <textarea class="form-input" id="sk-pozn" rows="2" placeholder="(volitelné)">${esc(sklad.poznamka || '')}</textarea>
+      </div>
+      ${!isNew ? `
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+          <input type="checkbox" id="sk-aktivni" ${sklad.aktivni ? 'checked' : ''}>
+          <span>Aktivní</span>
+        </label>
+      ` : ''}
+      <div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:12px;margin-top:6px">
+        <button type="button" class="btn-secondary" onclick="closeModal()">Zrušit</button>
+        <button type="submit" class="btn-primary btn-green" style="font-weight:700">💾 ${isNew ? 'Vytvořit' : 'Uložit'}</button>
+      </div>
+    </form>
+  `);
+};
+
+window.ulozitSklad = async function(id) {
+  const data = {
+    nazev: document.getElementById('sk-nazev').value.trim(),
+    typ: document.getElementById('sk-typ').value,
+    teplota_min: document.getElementById('sk-tmin').value || null,
+    teplota_max: document.getElementById('sk-tmax').value || null,
+    adresa: document.getElementById('sk-adresa').value.trim(),
+    poznamka: document.getElementById('sk-pozn').value.trim(),
+  };
+  const kodEl = document.getElementById('sk-kod');
+  if (kodEl) data.kod = kodEl.value.trim();
+  const aktEl = document.getElementById('sk-aktivni');
+  if (aktEl) data.aktivni = aktEl.checked ? 1 : 0;
+
+  try {
+    if (id) {
+      await api('admin_sklady.php?id=' + id, { method: 'PUT', body: JSON.stringify(data) });
+    } else {
+      await api('admin_sklady.php', { method: 'POST', body: JSON.stringify(data) });
+    }
+    closeModal();
+    renderSkladyInline();
+  } catch (e) {
+    alert('Chyba: ' + e.message);
+  }
+};
+
+window.smazatSklad = async function(id, nazev) {
+  if (!confirm(`Smazat sklad "${nazev}"? (Pokud má položky / pohyby, bude jen deaktivován.)`)) return;
+  try {
+    const r = await api('admin_sklady.php?id=' + id, { method: 'DELETE' });
+    renderSkladyInline();
+  } catch (e) {
+    alert('Chyba: ' + e.message);
+  }
+};
 
 window.setVyrobaMode = function(mode) {
   state.vyrobaMode = mode;

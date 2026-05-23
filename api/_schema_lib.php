@@ -187,3 +187,43 @@ function ensure_dodaci_listy_schema(PDO $pdo): void {
         error_log('ensure_dodaci_listy_schema: ' . $e->getMessage());
     }
 }
+
+/**
+ * 🆕 v2.9.215 — Multi-warehouse `sklady` tabulka (z spec 2026-05-23).
+ * Customer (pekař/firma) může mít více skladů: suchý, lednice, mrazák, atd.
+ * Idempotent — vytvoří tabulku + default SK01 'Hlavní sklad'.
+ */
+function ensure_sklady_schema(PDO $pdo): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS sklady (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                kod VARCHAR(20) UNIQUE NOT NULL,
+                nazev VARCHAR(100) NOT NULL,
+                typ ENUM('suchy','lednice','mrazak','jiny') DEFAULT 'jiny',
+                teplota_min DECIMAL(4,1) NULL,
+                teplota_max DECIMAL(4,1) NULL,
+                adresa VARCHAR(255) NULL,
+                poznamka TEXT NULL,
+                aktivni TINYINT(1) NOT NULL DEFAULT 1,
+                poradi INT NOT NULL DEFAULT 0,
+                vytvoreno DATETIME DEFAULT CURRENT_TIMESTAMP,
+                upraveno DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
+        // Default sklad SK01 jen pokud tabulka byla prázdná
+        $cnt = (int) $pdo->query("SELECT COUNT(*) FROM sklady")->fetchColumn();
+        if ($cnt === 0) {
+            $pdo->exec("
+                INSERT INTO sklady (kod, nazev, typ, aktivni, poradi)
+                VALUES ('SK01', 'Hlavní sklad', 'jiny', 1, 0)
+            ");
+        }
+    } catch (Throwable $e) {
+        error_log('ensure_sklady_schema: ' . $e->getMessage());
+    }
+}
