@@ -243,14 +243,19 @@ if (!$totpEnabled) {
 <title>⚙️ Nastavení — APPEK Master</title>
 <link rel="stylesheet" href="style.css?v=2.0.37">
 <style>
-  /* 🆕 v2.0.96 — 3-sloupcové rozložení nastavení (user request).
-     Desktop wide: 3 cols · laptop: 2 cols · tablet/mobile: 1 col */
+  /* 🆕 v2.9.193 — kompaktnější density (user request).
+     Desktop XL (1600+): 4 cols, desktop: 3 cols, laptop: 2 cols, mobile: 1 col.
+     Padding/font snížen, info boxy menší. Karty s 'span 2' jsou pro formy
+     s 2 sloupci uvnitř. */
   .page-master .settings-grid {
     display: grid !important;
     grid-template-columns: repeat(3, 1fr) !important;
-    gap: 20px;
+    gap: 12px;
     align-items: start;
     width: 100%;
+  }
+  @media (min-width: 1600px) {
+    .page-master .settings-grid { grid-template-columns: repeat(4, 1fr) !important; }
   }
   @media (max-width: 1280px) {
     .page-master .settings-grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -259,25 +264,49 @@ if (!$totpEnabled) {
     .page-master .settings-grid { grid-template-columns: 1fr !important; }
   }
   .settings-card {
-    background: #fff; border-radius: 14px; padding: 24px;
+    background: #fff; border-radius: 10px; padding: 14px 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    min-width: 0;        /* allow shrink in grid */
-    overflow: hidden;    /* contain wide content */
+    min-width: 0;
+    overflow: hidden;
+    display: flex; flex-direction: column; gap: 8px;
   }
-  .settings-card h2 { margin: 0 0 14px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
-  .settings-card .form-row { margin-bottom: 12px; }
-  .settings-card label { display: block; font-size: 12px; font-weight: 600; color: #1d1d1f; margin-bottom: 4px; }
-  .settings-card input[type="text"], .settings-card input[type="password"], .settings-card input[type="email"] {
-    width: 100%; padding: 9px 12px; border: 1px solid #d2d2d7; border-radius: 8px;
-    font-family: inherit; font-size: 13px; box-sizing: border-box;
+  .settings-card h2 {
+    margin: 0; font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+    padding-bottom: 6px; border-bottom: 1px solid #f0f0f2;
   }
-  .status-line { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 10px; font-size: 14px; }
+  .settings-card h2 small { font-size: 10px; font-weight: 500; }
+  .settings-card .form-row { margin-bottom: 0; }
+  .settings-card label {
+    display: block; font-size: 11px; font-weight: 600; color: #1d1d1f;
+    margin-bottom: 3px; letter-spacing: 0.1px;
+  }
+  .settings-card input[type="text"],
+  .settings-card input[type="password"],
+  .settings-card input[type="email"],
+  .settings-card select {
+    width: 100%; padding: 7px 10px; border: 1px solid #d2d2d7; border-radius: 6px;
+    font-family: inherit; font-size: 12px; box-sizing: border-box;
+  }
+  .settings-card p { margin: 0; font-size: 12px; line-height: 1.45; color: #6e6e73; }
+  .settings-card .btn-master { padding: 8px 14px; font-size: 13px; }
+  .settings-card form { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  /* Info box — kompaktnější */
+  .settings-card .info-box {
+    background: rgba(0,122,255,0.06); border-left: 2px solid #0058b8;
+    padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #0058b8;
+    line-height: 1.4;
+  }
+  .settings-card .info-box code { font-size: 10px; padding: 1px 4px; }
+  .status-line { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; font-size: 13px; }
   .status-line.on  { background: rgba(52,199,89,0.12); color: #208438; }
   .status-line.off { background: rgba(255,149,0,0.12); color: #c66800; }
-  .flash { padding: 12px 16px; border-radius: 10px; margin-bottom: 14px; font-size: 14px; }
+  .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
   .flash.ok  { background: #d4edda; color: #155724; }
   .flash.err { background: #f8d7da; color: #721c24; }
-  code { font-family: 'SF Mono', Menlo, monospace; font-size: 12px; background: #f5f5f7; padding: 2px 6px; border-radius: 4px; }
+  code { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; background: #f5f5f7; padding: 1px 5px; border-radius: 3px; }
+  /* Helper: 2-col row uvnitř karty */
+  .settings-card .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 </style>
 </head>
 <body>
@@ -361,7 +390,7 @@ if (!$totpEnabled) {
     </div>
 
     <!-- SMTP / MAIL -->
-    <div class="settings-card" style="grid-column: span 2">
+    <div class="settings-card">
       <h2>📬 E-mail (auto-odeslání licence)</h2>
       <p style="font-size:13px;color:#6e6e73;line-height:1.5;margin-bottom:14px">
         Po označení objednávky jako zaplacena se zákazníkovi auto-odešle e-mail s licencí.
@@ -434,32 +463,35 @@ if (!$totpEnabled) {
     </div>
 
     <!-- STRIPE -->
-    <div class="settings-card" style="grid-column: span 2">
-      <h2>💳 Stripe — mezinárodní karty <small style="font-size:11px;color:#208438">✅ Hotovo</small></h2>
-      <p style="font-size:13px;color:#6e6e73;line-height:1.5;margin-bottom:14px">
-        Mezinárodní karty (Visa/Mastercard/Amex), Apple Pay, Google Pay. Pro získání klíčů:
-        <a href="https://dashboard.stripe.com/apikeys" target="_blank" style="color:#0058b8">dashboard.stripe.com/apikeys</a>.
-      </p>
+    <div class="settings-card">
+      <h2>💳 Stripe <small style="color:#208438">✅</small></h2>
+      <p>Karty, Apple/Google Pay. <a href="https://dashboard.stripe.com/apikeys" target="_blank" style="color:#0058b8">Získat klíče →</a></p>
 
+      <?php
+        $hasSk  = !empty($strCfg['stripe_secret_key']);
+        $hasWh  = !empty($strCfg['stripe_webhook_secret']);
+        $skMask = $hasSk ? substr($strCfg['stripe_secret_key'], 0, 7) . '••••' . substr($strCfg['stripe_secret_key'], -4) : '';
+        $whMask = $hasWh ? substr($strCfg['stripe_webhook_secret'], 0, 6) . '••••' . substr($strCfg['stripe_webhook_secret'], -4) : '';
+      ?>
       <form method="POST">
-        <input type="hidden" name="action" value="save_stripe">
+        <input type="hidden" name="action" value="save_stripe" id="stripe-action">
 
-        <label style="display:flex;align-items:center;gap:8px;margin:8px 0 14px;font-weight:600;font-size:13px">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:12px">
           <input type="checkbox" name="stripe_enabled" value="1" <?= $strCfg['stripe_enabled'] === '1' ? 'checked' : '' ?>>
-          Zapnout Stripe platby v checkout
+          Zapnout v checkout
         </label>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="row-2">
           <div>
             <label>Prostředí</label>
-            <select name="stripe_environment" style="width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-family:inherit;font-size:13px">
-              <option value="test" <?= $strCfg['stripe_environment'] === 'test' ? 'selected' : '' ?>>Test (sk_test_...)</option>
-              <option value="live" <?= $strCfg['stripe_environment'] === 'live' ? 'selected' : '' ?>>Live (sk_live_...)</option>
+            <select name="stripe_environment">
+              <option value="test" <?= $strCfg['stripe_environment'] === 'test' ? 'selected' : '' ?>>Test</option>
+              <option value="live" <?= $strCfg['stripe_environment'] === 'live' ? 'selected' : '' ?>>Live</option>
             </select>
           </div>
           <div>
             <label>Měna</label>
-            <select name="stripe_currency" style="width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-family:inherit;font-size:13px">
+            <select name="stripe_currency">
               <option value="czk" <?= $strCfg['stripe_currency'] === 'czk' ? 'selected' : '' ?>>CZK</option>
               <option value="eur" <?= $strCfg['stripe_currency'] === 'eur' ? 'selected' : '' ?>>EUR</option>
               <option value="usd" <?= $strCfg['stripe_currency'] === 'usd' ? 'selected' : '' ?>>USD</option>
@@ -467,52 +499,33 @@ if (!$totpEnabled) {
           </div>
         </div>
 
-        <?php
-          // 🐛 fix v2.9.192 — input je vždy prázdný; status badge sděluje stav.
-          // Pokud user nezadá nic, backend skipne (ulož jen vyplněné). Pokud zadá
-          // nový klíč, nahradí. Žádné __KEEP__ trampoty v inputu.
-          $hasSk  = !empty($strCfg['stripe_secret_key']);
-          $hasWh  = !empty($strCfg['stripe_webhook_secret']);
-          $skMask = $hasSk ? substr($strCfg['stripe_secret_key'], 0, 7) . '••••' . substr($strCfg['stripe_secret_key'], -4) : '';
-          $whMask = $hasWh ? substr($strCfg['stripe_webhook_secret'], 0, 6) . '••••' . substr($strCfg['stripe_webhook_secret'], -4) : '';
-        ?>
-        <div style="margin-bottom:12px">
-          <label>Secret Key <?= $hasSk ? '<span style="font-size:11px;color:#208438;font-weight:600">✓ uloženo</span>' : '<span style="font-size:11px;color:#bf2026;font-weight:600">chybí</span>' ?></label>
-          <input type="password" name="stripe_secret_key" value="" placeholder="<?= $hasSk ? htmlspecialchars($skMask) . ' (nech prázdné = zachovat)' : 'sk_test_... nebo sk_live_...' ?>" style="font-family:'SF Mono',Menlo,monospace;width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px" autocomplete="off">
-          <?php if ($hasSk): ?><div style="font-size:11px;color:#6e6e73;margin-top:4px">Klíč je uložen. Vyplň jen pokud chceš změnit.</div><?php endif; ?>
+        <div>
+          <label>Secret Key <?= $hasSk ? '<span style="color:#208438">✓</span>' : '<span style="color:#bf2026">chybí</span>' ?></label>
+          <input type="password" name="stripe_secret_key" value="" placeholder="<?= $hasSk ? htmlspecialchars($skMask) : 'sk_test_... / sk_live_...' ?>" style="font-family:'SF Mono',Menlo,monospace" autocomplete="off">
         </div>
 
         <div>
-          <label>Webhook Signing Secret <?= $hasWh ? '<span style="font-size:11px;color:#208438;font-weight:600">✓ uloženo</span>' : '<span style="font-size:11px;color:#999;font-weight:600">volitelné</span>' ?></label>
-          <input type="password" name="stripe_webhook_secret" value="" placeholder="<?= $hasWh ? htmlspecialchars($whMask) . ' (nech prázdné = zachovat)' : 'whsec_...' ?>" style="font-family:'SF Mono',Menlo,monospace;width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px" autocomplete="off">
+          <label>Webhook Secret <?= $hasWh ? '<span style="color:#208438">✓</span>' : '<span style="color:#999">volitelné</span>' ?></label>
+          <input type="password" name="stripe_webhook_secret" value="" placeholder="<?= $hasWh ? htmlspecialchars($whMask) : 'whsec_...' ?>" style="font-family:'SF Mono',Menlo,monospace" autocomplete="off">
         </div>
 
-        <div style="background:rgba(0,122,255,0.06);border-left:3px solid #0058b8;padding:10px 14px;border-radius:6px;font-size:12px;color:#0058b8;margin-top:8px">
-          ℹ️ Webhook URL pro Stripe Dashboard: <code><?= htmlspecialchars(($_SERVER['REQUEST_SCHEME'] ?? 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? 'appek.cz')) ?>/api/stripe_webhook.php</code><br>
-          Event types: <code>checkout.session.completed</code>
+        <div class="info-box">
+          Webhook URL: <code><?= htmlspecialchars(($_SERVER['REQUEST_SCHEME'] ?? 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? 'appek.cz')) ?>/api/stripe_webhook.php</code>
         </div>
 
-        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-          <button type="submit" class="btn-master primary">💾 Uložit Stripe</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button type="submit" class="btn-master primary" onclick="document.getElementById('stripe-action').value='save_stripe'">💾 Uložit</button>
+          <?php if ($hasSk): ?>
+            <button type="submit" class="btn-master" onclick="document.getElementById('stripe-action').value='test_stripe'" style="background:#0058b8;color:#fff;border-color:#0058b8" title="GET /v1/account → ověří klíč + status">
+              🔌 Test
+            </button>
+          <?php endif; ?>
         </div>
       </form>
-
-      <!-- 🆕 v2.9.190 — Test připojení (samostatný form, neukládá změny) -->
-      <?php if ($hasSk): ?>
-        <form method="POST" style="margin-top:8px">
-          <input type="hidden" name="action" value="test_stripe">
-          <button type="submit" class="btn-master" style="background:#0058b8;color:#fff;border-color:#0058b8" title="Volá Stripe API /v1/account — ověří klíč, business name, charges_enabled, payouts_enabled">
-            🔌 Otestovat připojení
-          </button>
-          <span style="font-size:12px;color:#6e6e73;margin-left:8px">
-            Volá GET /v1/account → potvrdí klíč + status účtu (charges/payouts enabled).
-          </span>
-        </form>
-      <?php endif; ?>
     </div>
 
     <!-- GOPAY -->
-    <div class="settings-card" style="grid-column: span 2">
+    <div class="settings-card">
       <h2>💳 GoPay — platební brána <small style="font-size:11px;color:#208438">✅ Hotovo</small></h2>
       <p style="font-size:13px;color:#6e6e73;line-height:1.5;margin-bottom:14px">
         Karty (Visa/Mastercard), Apple Pay, Google Pay, bank převod, PayPal. Pro získání credentials:
@@ -562,7 +575,7 @@ if (!$totpEnabled) {
     </div>
 
     <!-- DPD -->
-    <div class="settings-card" style="grid-column: span 2">
+    <div class="settings-card">
       <h2>🚚 DPD CZ — kurýrní doprava <small style="font-size:11px;color:#208438">✅ Hotovo</small></h2>
       <p style="font-size:13px;color:#6e6e73;line-height:1.5;margin-bottom:14px">
         DPD Shipping Service REST API — vyžaduje B2B kontrakt. Pro získání credentials kontaktuj
@@ -611,7 +624,7 @@ if (!$totpEnabled) {
     </div>
 
     <!-- ZÁSILKOVNA -->
-    <div class="settings-card" style="grid-column: span 2">
+    <div class="settings-card">
       <h2>📦 Zásilkovna (Packeta) <small style="font-size:11px;color:#208438">✅ Hotovo</small></h2>
       <p style="font-size:13px;color:#6e6e73;line-height:1.5;margin-bottom:14px">
         REST API pro vytvoření zásilek + tisk štítků. Pro získání credentials:

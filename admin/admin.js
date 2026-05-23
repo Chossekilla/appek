@@ -2264,7 +2264,8 @@ const DEFAULT_ROLE_PRAVA = {
 // Stránka -> ikona + label (pro UI editor rolí). 'rozvozy' tu zůstává — admin
 // si může v Údržbě roli rozšířit a tím přidat zpět do menu, pokud potřebuje.
 const ALL_NAV_PAGES = [
-  // 🆕 v2.9.189 — 'vyroba' je první, je default landing. Od výroby vše vychází.
+  // 🆕 v2.9.189 — 'vyroba' je první, default landing. Top-nav label 'Výroba'
+  // (hub), uvnitř má sub-tab 'Výrobní list'.
   { key: 'vyroba',       icon: '🥖', label: 'Výroba' },
   { key: 'dashboard',    icon: '📊', label: 'Přehled' },
   { key: 'objednavky',   icon: '📋', label: 'Objednávky' },
@@ -5035,7 +5036,7 @@ window.ulozitNovouObjednavku = async function() {
 // 🆕 v2.9.188/189 — Výroba má vodorovné sub-taby. Default = Výrobní list.
 // Od výroby vše začíná — Suroviny, Sklad, HACCP, Kalkulace, Přehled, Spárování.
 const VYROBA_SUBTABS = [
-  { key: 'list',       label: '🥖 Výroba',         render: () => renderVyrobniListInline() },
+  { key: 'list',       label: '🥖 Výrobní list',  render: () => renderVyrobniListInline() },
   { key: 'suroviny',   label: '🌾 Suroviny',       nav: 'suroviny' },
   { key: 'sklad',      label: '📦 Sklad',          nav: 'sklad' },
   { key: 'haccp',      label: '🧪 HACCP',          nav: 'haccp' },
@@ -5051,7 +5052,7 @@ async function renderVyrobaHub() {
     <div class="page-head">
       <div>
         <h1 class="page-title">🥖 Výroba</h1>
-        <p class="page-sub">Výrobní list, HACCP, sklad surovin, kalkulace a přehled</p>
+        <p class="page-sub">Výrobní list, suroviny, sklad, HACCP, kalkulace a přehled</p>
       </div>
     </div>
 
