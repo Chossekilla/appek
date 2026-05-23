@@ -35,3 +35,7 @@ APPEK_*/
 config.local.php
 vendor_db_config.local.php
 .installed
+
+# i18n batch pipeline — transient vstupy/výstupy parallel-agent překladů
+scripts/b2b_batch_*.json
+scripts/b2b_missing.json
