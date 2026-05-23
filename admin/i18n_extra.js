@@ -6,7 +6,7 @@
 // =============================================================
 
 const I18N_EXTRA = {
-  // 🇸🇰 Slovenčina — 17874 frází
+  // 🇸🇰 Slovenčina — 17881 frází
   sk: {
     '$': '$',
     '% selhání': '% zlyhaní',
@@ -884,6 +884,7 @@ const I18N_EXTRA = {
     'Autolýza': 'Autolýza',
     'Automaticky': 'Automaticky',
     'Automaticky doplní typ, skupinu, trvanlivost, popis, kritické body, jakost a mikrobio podle pravidel pekařské praxe (ČSN, EK 2073/2005). Existující ruční úpravy zachová.': 'Automaticky doplní typ, skupinu, trvanlivosť, popis, kritické body, akosť a mikrobiológiu podľa pravidiel pekárskej praxe (ČSN, EK 2073/2005). Existujúce ručné úpravy zachová.',
+    'Automaticky doplním realistické popisy do všech kroků ve všech HACCP šablonách.\n      Texty jsou napsané podle pekařské praxe (poměry surovin, teploty hnětení/kynutí/pečení, časy, kontroly).': 'Automaticky doplním realistické popisy do všetkých krokov vo všetkých HACCP šablónach.\n      Texty sú napísané podľa pekárskej praxe (pomery surovín, teploty hnetenia/kysnutia/pečenia, časy, kontroly).',
     'Automaticky vytvořit hlavní provozovnu z adresy sídla': 'Automaticky vytvoriť hlavnú prevádzku z adresy sídla',
     'Automaticky zrušeno': 'Automaticky zrušené',
     'Automatická synchronizace': 'Automatická synchronizácia',
@@ -4115,6 +4116,7 @@ const I18N_EXTRA = {
     'Hybrid TOFU verifikace': 'Hybrid TOFU verifikácia',
     'Hybrid deployment': 'Hybrid deployment',
     'Hybrid práce': 'Hybridná práca',
+    'Hybrid sync umožňuje běh na lokálním PC (provoz) s automatickým zrcadlením do cloudu (B2B portál).\n      Vhodné pro gastro provozy se slabým internetem.': 'Hybrid sync umožňuje beh na lokálnom PC (prevádzka) s automatickým zrkadlením do cloudu (B2B portál).\n      Vhodné pre gastro prevádzky so slabým internetom.',
     'Hybrid sync: lokální PC ↔ cloud. Push změn každých 15 minut + manual trigger. Pro provoz na slabém internetu (vesnice).': 'Hybrid sync: lokálne PC ↔ cloud. Push zmien každých 15 minút + manuálny trigger. Pre prevádzku na slabom internete (dedina).',
     'Hybridní': 'Hybridný',
     'Hybridní aplikace': 'Hybridná aplikácia',
@@ -6228,6 +6230,7 @@ const I18N_EXTRA = {
     'Nahraješ Appek na svůj webhosting (Wedos, Hostinger, Forpsi, Active24, WebSupport, jakýkoliv s PHP 8+ a MySQL). Funguje hned online z mobilu i PC, automatické zálohy.': 'Nahráte Appek na svoj webhosting (Wedos, Hostinger, Forpsi, Active24, WebSupport, akýkoľvek s PHP 8+ a MySQL). Funguje hneď online z mobilu aj PC, automatické zálohy.',
     'Nahraješ XLSX/CSV/TSV s ceníkem': 'Nahráte XLSX/CSV/TSV s cenníkom',
     'Nahrajte logo (PNG s průhledným pozadím, min 300×300).': 'Nahrajte logo (PNG s priehľadným pozadím, min 300×300).',
+    'Nahrajte logo firmy — automaticky se z něj vygeneruje i favicon (ikona v záložce prohlížeče).\n          Podporováno PNG / JPG / WEBP, max 5 MB.': 'Nahrajte logo firmy — automaticky sa z neho vygeneruje aj favicon (ikona v záložke prehliadača).\n          Podporované PNG / JPG / WEBP, max 5 MB.',
     'Nahrajte logo — automaticky vygenerujeme favicon. Volitelně si vyberte téma (můžete změnit kdykoliv).': 'Nahrajte logo — automaticky vygenerujeme favicon. Voliteľne si vyberte tému (môžete zmeniť kedykoľvek).',
     'Nahrajte první': 'Nahrajte prvý',
     'Nahraný soubor je k dispozici': 'Nahraný súbor je k dispozícii',
@@ -7139,6 +7142,7 @@ const I18N_EXTRA = {
     'Název události': 'Názov udalosti',
     'Název výrobku': 'Názov výrobku',
     'Název šablony': 'Názov šablóny',
+    'Název;Jednotka;Cena;Obsah;Alergen\nPšeničná mouka T530;g;360;25000;lepek\nCukr krupice;g;1290;50000;\nMléko polotučné;ml;22;1000;mléko': 'Názov;Jednotka;Cena;Obsah;Alergén\nPšeničná múka T530;g;360;25000;lepok\nKryštálový cukor;g;1290;50000;\nMlieko polotučné;ml;22;1000;mlieko',
     'Náš sloupec': 'Náš stĺpec',
     'Nízkokalorické': 'Nízkokalorické',
     'Nízkosacharidové': 'Nízkosacharidové',
@@ -8436,6 +8440,7 @@ const I18N_EXTRA = {
     'Po termínu spotřeby': 'Po termíne spotreby',
     'Po tisku': 'Po tlači',
     'Po uložení': 'Po uložení',
+    'Po uložení nastavení se údaje automaticky zobrazí na všech nově generovaných fakturách a dodacích listech.\n        Existující PDF se aktualizují při dalším otevření.': 'Po uložení nastavení sa údaje automaticky zobrazia na všetkých novo generovaných faktúrach a dodacích listoch.\n        Existujúce PDF sa aktualizujú pri ďalšom otvorení.',
     'Po vytištění uschovej v uzamčeném prostoru.': 'Po vytlačení uschovaj v uzamknutom priestore.',
     'Po výrobě': 'Po výrobe',
     'Po zahájení': 'Po zahájení',
@@ -12630,6 +12635,7 @@ const I18N_EXTRA = {
     'Tady': 'Tu',
     'Tady ještě nic nemáte': 'Tu ešte nič nemáte',
     'Tady jste': 'Tu ste',
+    'Tady najdete odpovědi na nejčastější otázky, návody jak používat hlavní funkce a tipy pro řešení problémů.\n        Pokud něco chybí, kontaktujte dodavatele systému.': 'Tu nájdete odpovede na najčastejšie otázky, návody ako používať hlavné funkcie a tipy na riešenie problémov.\n        Ak niečo chýba, kontaktujte dodávateľa systému.',
     'Tag': 'Tag',
     'Tag zákazníka': 'Tag zákazníka',
     'Tagy': 'Tagy',
@@ -14255,6 +14261,7 @@ const I18N_EXTRA = {
     'Vybrané položky': 'Vybrané položky',
     'Vybrané záznamy': 'Vybrané záznamy',
     'Vybrané řádky': 'Vybrané riadky',
+    'Vybraný jazyk se uloží lokálně do prohlížeče (per-zařízení) a aplikuje okamžitě.\n        Většina UI je přeložena; nepřeložené řetězce zůstávají v češtině.': 'Vybraný jazyk sa uloží lokálne do prehliadača (per zariadenie) a aplikuje sa okamžite.\n        Väčšina rozhrania je preložená; nepreložené reťazce zostávajú v češtine.',
     'Vybraný výrobek se vykreslí v editoru namísto zástupných textů — uvidíš jak bude šablona vypadat s reálnými daty (název, cena, EAN, alergeny, hmotnost…).': 'Vybraný výrobok sa vykreslí v editore namiesto zástupných textov — uvidíte, ako bude šablóna vyzerať s reálnymi dátami (názov, cena, EAN, alergény, hmotnosť…).',
     'Vybraný záznam': 'Vybraný záznam',
     'Vybraný řádek': 'Vybraný riadok',
@@ -17884,7 +17891,7 @@ const I18N_EXTRA = {
     '🪑 Stoly': '🪑 Stoly',
   },
 
-  // 🇩🇪 Deutsch — 17874 frází
+  // 🇩🇪 Deutsch — 17881 frází
   de: {
     '$': '$',
     '% selhání': '% Fehler',
@@ -18762,6 +18769,7 @@ const I18N_EXTRA = {
     'Autolýza': 'Autolyse',
     'Automaticky': 'Automatisch',
     'Automaticky doplní typ, skupinu, trvanlivost, popis, kritické body, jakost a mikrobio podle pravidel pekařské praxe (ČSN, EK 2073/2005). Existující ruční úpravy zachová.': 'Füllt automatisch Typ, Gruppe, Haltbarkeit, Beschreibung, kritische Punkte, Qualität und Mikrobiologie nach den Regeln der Bäckereipraxis (ČSN, EK 2073/2005) aus. Vorhandene manuelle Änderungen bleiben erhalten.',
+    'Automaticky doplním realistické popisy do všech kroků ve všech HACCP šablonách.\n      Texty jsou napsané podle pekařské praxe (poměry surovin, teploty hnětení/kynutí/pečení, časy, kontroly).': 'Ich fülle automatisch realistische Beschreibungen in alle Schritte aller HACCP-Vorlagen ein.\n      Die Texte sind nach der Backpraxis verfasst (Zutatenverhältnisse, Knet-/Gär-/Backtemperaturen, Zeiten, Kontrollen).',
     'Automaticky vytvořit hlavní provozovnu z adresy sídla': 'Hauptfiliale automatisch aus der Anschrift des Firmensitzes erstellen',
     'Automaticky zrušeno': 'Automatisch storniert',
     'Automatická synchronizace': 'Automatische Synchronisation',
@@ -21993,6 +22001,7 @@ const I18N_EXTRA = {
     'Hybrid TOFU verifikace': 'Hybride TOFU-Verifizierung',
     'Hybrid deployment': 'Hybrid-Deployment',
     'Hybrid práce': 'Hybridarbeit',
+    'Hybrid sync umožňuje běh na lokálním PC (provoz) s automatickým zrcadlením do cloudu (B2B portál).\n      Vhodné pro gastro provozy se slabým internetem.': 'Hybrid-Sync ermöglicht den Betrieb auf einem lokalen PC (Betrieb) mit automatischer Spiegelung in die Cloud (B2B-Portal).\n      Geeignet für Gastronomiebetriebe mit schwachem Internet.',
     'Hybrid sync: lokální PC ↔ cloud. Push změn každých 15 minut + manual trigger. Pro provoz na slabém internetu (vesnice).': 'Hybrid-Sync: lokaler PC ↔ Cloud. Push von Änderungen alle 15 Minuten + manueller Trigger. Für den Betrieb bei schwachem Internet (Dorf).',
     'Hybridní': 'Hybrid',
     'Hybridní aplikace': 'Hybride App',
@@ -24106,6 +24115,7 @@ const I18N_EXTRA = {
     'Nahraješ Appek na svůj webhosting (Wedos, Hostinger, Forpsi, Active24, WebSupport, jakýkoliv s PHP 8+ a MySQL). Funguje hned online z mobilu i PC, automatické zálohy.': 'Sie laden Appek auf Ihr Webhosting hoch (Wedos, Hostinger, Forpsi, Active24, WebSupport, jedes mit PHP 8+ und MySQL). Es funktioniert sofort online vom Handy und PC, mit automatischen Backups.',
     'Nahraješ XLSX/CSV/TSV s ceníkem': 'Sie laden eine XLSX/CSV/TSV mit der Preisliste hoch',
     'Nahrajte logo (PNG s průhledným pozadím, min 300×300).': 'Laden Sie ein Logo hoch (PNG mit transparentem Hintergrund, min. 300×300).',
+    'Nahrajte logo firmy — automaticky se z něj vygeneruje i favicon (ikona v záložce prohlížeče).\n          Podporováno PNG / JPG / WEBP, max 5 MB.': 'Laden Sie das Firmenlogo hoch — daraus wird automatisch auch ein Favicon (das Symbol im Browser-Tab) erzeugt.\n          Unterstützt werden PNG / JPG / WEBP, max. 5 MB.',
     'Nahrajte logo — automaticky vygenerujeme favicon. Volitelně si vyberte téma (můžete změnit kdykoliv).': 'Laden Sie ein Logo hoch — wir erzeugen das Favicon automatisch. Wählen Sie optional ein Thema (jederzeit änderbar).',
     'Nahrajte první': 'Laden Sie das erste hoch',
     'Nahraný soubor je k dispozici': 'Hochgeladene Datei ist verfügbar',
@@ -25017,6 +25027,7 @@ const I18N_EXTRA = {
     'Název události': 'Ereignisname',
     'Název výrobku': 'Produktname',
     'Název šablony': 'Vorlagenname',
+    'Název;Jednotka;Cena;Obsah;Alergen\nPšeničná mouka T530;g;360;25000;lepek\nCukr krupice;g;1290;50000;\nMléko polotučné;ml;22;1000;mléko': 'Name;Einheit;Preis;Inhalt;Allergen\nWeizenmehl T530;g;360;25000;Gluten\nFeinkristallzucker;g;1290;50000;\nFettarme Milch;ml;22;1000;Milch',
     'Náš sloupec': 'Unsere Spalte',
     'Nízkokalorické': 'Kalorienarm',
     'Nízkosacharidové': 'Kohlenhydratarm',
@@ -26314,6 +26325,7 @@ const I18N_EXTRA = {
     'Po termínu spotřeby': 'Nach Ablauf des Verbrauchsdatums',
     'Po tisku': 'Nach dem Druck',
     'Po uložení': 'Nach dem Speichern',
+    'Po uložení nastavení se údaje automaticky zobrazí na všech nově generovaných fakturách a dodacích listech.\n        Existující PDF se aktualizují při dalším otevření.': 'Nach dem Speichern der Einstellungen werden die Daten automatisch auf allen neu generierten Rechnungen und Lieferscheinen angezeigt.\n        Bestehende PDFs werden beim nächsten Öffnen aktualisiert.',
     'Po vytištění uschovej v uzamčeném prostoru.': 'Nach dem Drucken in einem verschlossenen Raum aufbewahren.',
     'Po výrobě': 'Nach Produktion',
     'Po zahájení': 'Nach Beginn',
@@ -30508,6 +30520,7 @@ const I18N_EXTRA = {
     'Tady': 'Hier',
     'Tady ještě nic nemáte': 'Hier haben Sie noch nichts',
     'Tady jste': 'Sie sind hier',
+    'Tady najdete odpovědi na nejčastější otázky, návody jak používat hlavní funkce a tipy pro řešení problémů.\n        Pokud něco chybí, kontaktujte dodavatele systému.': 'Hier finden Sie Antworten auf die häufigsten Fragen, Anleitungen zur Nutzung der Hauptfunktionen und Tipps zur Problemlösung.\n        Falls etwas fehlt, wenden Sie sich an den Systemlieferanten.',
     'Tag': 'Tag',
     'Tag zákazníka': 'Kunden-Tag',
     'Tagy': 'Tags',
@@ -32133,6 +32146,7 @@ const I18N_EXTRA = {
     'Vybrané položky': 'Ausgewählte Posten',
     'Vybrané záznamy': 'Ausgewählte Einträge',
     'Vybrané řádky': 'Ausgewählte Zeilen',
+    'Vybraný jazyk se uloží lokálně do prohlížeče (per-zařízení) a aplikuje okamžitě.\n        Většina UI je přeložena; nepřeložené řetězce zůstávají v češtině.': 'Die gewählte Sprache wird lokal im Browser (pro Gerät) gespeichert und sofort angewendet.\n        Der Großteil der Benutzeroberfläche ist übersetzt; nicht übersetzte Zeichenketten bleiben auf Tschechisch.',
     'Vybraný výrobek se vykreslí v editoru namísto zástupných textů — uvidíš jak bude šablona vypadat s reálnými daty (název, cena, EAN, alergeny, hmotnost…).': 'Das ausgewählte Produkt wird im Editor anstelle der Platzhaltertexte dargestellt — Sie sehen, wie die Vorlage mit echten Daten aussieht (Name, Preis, EAN, Allergene, Gewicht…).',
     'Vybraný záznam': 'Ausgewählter Eintrag',
     'Vybraný řádek': 'Ausgewählte Zeile',
