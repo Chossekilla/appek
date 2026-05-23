@@ -112,19 +112,47 @@
     border-top: 2px solid #1d1d1f; padding-top: 14px; margin-top: 6px;
     font-weight: 800; font-size: 18px; letter-spacing: -0.3px;
   }
-  /* 🆕 v2.9.210 — pay radio styling */
-  .pay-radios label {
+  /* 🆕 v2.9.210/214 — pay radio + info popovers */
+  .pay-radios { display: flex; flex-direction: column; gap: 6px; }
+  .pay-radio-row {
     display: flex; align-items: center; gap: 10px;
     padding: 12px 14px; border: 1.5px solid #e5e5e7; border-radius: 10px;
     cursor: pointer; font-size: 13px; text-transform: none; letter-spacing: 0;
-    transition: all 0.15s; margin-bottom: 6px;
+    transition: all 0.15s;
   }
-  .pay-radios label:hover { border-color: #BA7517; background: #faf6ef; }
-  .pay-radios label:has(input:checked) {
+  .pay-radio-row:hover { border-color: #BA7517; background: #faf6ef; }
+  .pay-radio-row:has(input:checked) {
     border-color: #BA7517; background: rgba(186,117,23,0.06);
     box-shadow: 0 2px 6px rgba(186,117,23,0.1);
   }
-  .pay-radios input[type="radio"] { width: 18px; height: 18px; accent-color: #BA7517; }
+  .pay-radio-row input[type="radio"] { width: 18px; height: 18px; accent-color: #BA7517; flex-shrink: 0; }
+  .pay-radio-text { flex: 1; }
+  .pay-info-btn {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #f5f5f7; border: 1px solid #d2d2d7; color: #6e6e73;
+    font-family: 'Georgia', serif; font-style: italic; font-weight: 700; font-size: 13px;
+    cursor: pointer; flex-shrink: 0; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    padding: 0;
+  }
+  .pay-info-btn:hover { background: #BA7517; color: #fff; border-color: #BA7517; }
+  .pay-info-btn.is-open { background: #BA7517; color: #fff; border-color: #BA7517; }
+  .pay-info-box {
+    display: none;
+    margin: 0 0 6px;
+    padding: 14px 16px;
+    background: #fafafa;
+    border: 1px solid #e5e5e7;
+    border-radius: 10px;
+    font-size: 12.5px; line-height: 1.6; color: #424245;
+    text-transform: none; letter-spacing: 0;
+  }
+  .pay-info-box.is-open { display: block; }
+  .pay-info-box strong { display: block; color: #1d1d1f; margin-bottom: 8px; font-size: 13px; }
+  .pay-info-box ol { padding-left: 22px; margin: 0; }
+  .pay-info-box ol li { padding: 3px 0; }
+  .pay-info-box code { font-family: 'SF Mono', Menlo, monospace; font-size: 11.5px; background: #f0f0f3; padding: 1px 5px; border-radius: 3px; }
 
   .btn {
     display: block; width: 100%; padding: 15px;
@@ -401,18 +429,48 @@
           </div>
           <div class="err-box" id="err"></div>
 
-          <!-- 🆕 v2.9.202 — GoPay vynechán, jen Stripe + Faktura -->
+          <!-- 🆕 v2.9.214 — clean radio labels + info pop-overs s detaily aktivace -->
           <div style="margin:14px 0 6px;border-top:1px solid #e5e5e7;padding-top:14px">
             <div style="font-size:13px;font-weight:600;color:#1d1d1f;margin-bottom:8px">💳 Způsob platby</div>
-            <div class="pay-radios" style="display:flex;flex-direction:column;gap:6px">
-              <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;cursor:pointer;font-size:13px" class="pay-radio">
+            <div class="pay-radios">
+
+              <!-- 💳 Karta (Stripe) -->
+              <label class="pay-radio-row">
                 <input type="radio" name="pay_method" value="stripe" checked>
-                <span>💳 <strong>Platba kartou</strong> — Visa / Mastercard / Apple Pay / Google Pay, klíč e-mailem ihned</span>
+                <span class="pay-radio-text">💳 <strong>Platba kartou</strong> — Visa, Mastercard, Apple Pay, Google Pay</span>
+                <button type="button" class="pay-info-btn" aria-label="Detail platby kartou" onclick="togglePayInfo('stripe', event)">i</button>
               </label>
-              <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;cursor:pointer;font-size:13px" class="pay-radio">
+              <div class="pay-info-box" id="pay-info-stripe">
+                <strong>⚡ Co se stane po kliknutí „Objednat"?</strong>
+                <ol>
+                  <li>Přesměrujeme tě na zabezpečenou Stripe Checkout stránku</li>
+                  <li>Zadáš číslo karty (nebo využiješ Apple Pay / Google Pay)</li>
+                  <li>Stripe ti účtuje platbu <strong>okamžitě</strong> (3D Secure pokud banka vyžaduje)</li>
+                  <li>Po úspěšné platbě se vrátíš zpět na APPEK potvrzovací stránku</li>
+                  <li>Licenční klíč <strong>okamžitě</strong> dorazí na zadaný e-mail (formát <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li>
+                  <li>Stáhneš si APPEK ZIP přes odkaz v e-mailu a aktivuješ klíčem v instalátoru</li>
+                </ol>
+                <p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 Stripe je PCI DSS Level 1 certifikován. APPEK nikdy nevidí číslo tvojí karty.</p>
+              </div>
+
+              <!-- 🏦 Faktura + převod -->
+              <label class="pay-radio-row">
                 <input type="radio" name="pay_method" value="invoice">
-                <span>🏦 <strong>Faktura + převod</strong> — klíč po připsání (do 24 h)</span>
+                <span class="pay-radio-text">🏦 <strong>Faktura + bankovní převod</strong></span>
+                <button type="button" class="pay-info-btn" aria-label="Detail platby převodem" onclick="togglePayInfo('invoice', event)">i</button>
               </label>
+              <div class="pay-info-box" id="pay-info-invoice">
+                <strong>📄 Co se stane po kliknutí „Objednat"?</strong>
+                <ol>
+                  <li>Vystavíme fakturu (PDF) na zadané fakturační údaje (IČO / DIČ)</li>
+                  <li>Fakturu obdržíš <strong>okamžitě</strong> na e-mail s instrukcemi (číslo účtu, VS, částka)</li>
+                  <li>Provedeš převod ze svého bankovního účtu</li>
+                  <li>Po připsání částky (obvykle <strong>do 24 h</strong> v pracovní den) ti odešleme licenční klíč</li>
+                  <li>Klíč přijde stejným e-mailem + odkaz na stažení APPEK ZIP</li>
+                </ol>
+                <p style="margin:8px 0 0;font-size:11px;color:#86868b">💡 Vhodné pro firmy s účtováním na fakturu. Splatnost faktury 14 dní.</p>
+              </div>
+
             </div>
           </div>
 
@@ -1068,6 +1126,25 @@ function showErr(msg) {
   err.textContent = msg;
   err.classList.add('show');
 }
+
+// 🆕 v2.9.214 — toggle payment info box (i ikonka pod každou radio platbou)
+window.togglePayInfo = function(key, event) {
+  event && event.preventDefault();
+  event && event.stopPropagation();
+  const box = document.getElementById('pay-info-' + key);
+  if (!box) return;
+  const isOpen = box.classList.contains('is-open');
+  // Zavřít všechny ostatní + jejich btn
+  document.querySelectorAll('.pay-info-box').forEach(b => b.classList.remove('is-open'));
+  document.querySelectorAll('.pay-info-btn').forEach(b => b.classList.remove('is-open'));
+  if (!isOpen) {
+    box.classList.add('is-open');
+    // Find btn — sibling label .pay-radio-row > button
+    const row = box.previousElementSibling;
+    const btn = row && row.querySelector('.pay-info-btn');
+    if (btn) btn.classList.add('is-open');
+  }
+};
 
 // Init
 setLang(lang);
