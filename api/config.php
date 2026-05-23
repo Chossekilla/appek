@@ -182,20 +182,19 @@ function dalsi_cislo(PDO $pdo, string $typ, int $rok): string {
     $pdo->prepare("INSERT IGNORE INTO cislovani (typ, rok, predcisli, posledni) VALUES (:t, :r, :p, 0)")
         ->execute(['t' => $typ, 'r' => $rok, 'p' => $vychozi_predcisli]);
 
-    // 🐛 fix v2.9.172 — pokud historický řádek měl predcisli ve starém formátu
+    // 🐛 fix v2.9.172/173 — pokud historický řádek měl predcisli ve starém formátu
     // (např. "DL" nebo "OBJ" bez roku), upgrade ho na standardní "XX-YYYY-".
-    // Pattern: musí obsahovat aspoň rok+pomlčku, jinak je legacy.
-    $pdo->prepare("
-        UPDATE cislovani
-        SET predcisli = :p
-        WHERE typ = :t AND rok = :r AND (predcisli = :t2 OR predcisli NOT LIKE CONCAT('%', :r2, '-'))
-    ")->execute([
-        'p'  => $vychozi_predcisli,
-        't'  => $typ,
-        'r'  => $rok,
-        't2' => $typ,
-        'r2' => (string) $rok,
-    ]);
+    // v2.9.172 použila LIKE s parametrem → collation mismatch (utf8mb4_unicode_ci
+    // vs utf8mb4_bin). v2.9.173 fix: načteme predcisli PHP-side a porovnáme.
+    $cur = $pdo->prepare("SELECT predcisli FROM cislovani WHERE typ = :t AND rok = :r");
+    $cur->execute(['t' => $typ, 'r' => $rok]);
+    $cur_predcisli = (string) $cur->fetchColumn();
+    $expected_suffix = $rok . '-';
+    if ($cur_predcisli !== '' && !str_ends_with($cur_predcisli, $expected_suffix)) {
+        // Legacy formát — upgrade.
+        $pdo->prepare("UPDATE cislovani SET predcisli = :p WHERE typ = :t AND rok = :r")
+            ->execute(['p' => $vychozi_predcisli, 't' => $typ, 'r' => $rok]);
+    }
 
     // Atomické zvýšení - LAST_INSERT_ID(expr) vrátí novou hodnotu
     $pdo->prepare("
