@@ -11282,8 +11282,11 @@ async function renderNastaveni() {
   `;
 
   const blokUdrzba = `
+    <!-- 🆕 v2.9.220 — Údržba: 2/3-sloupcový grid pro menší prostorové nároky -->
+    <div class="udrzba-grid">
+
     <!-- 🌍 JAZYK APLIKACE -->
-    <div class="card-block">
+    <div class="card-block ug-col">
       <h3 style="margin-bottom:6px;">🌍 ${esc(t('settings_language'))}</h3>
       <p class="page-sub" style="margin-bottom:14px">
         Vybraný jazyk se uloží lokálně do prohlížeče (per-zařízení) a aplikuje okamžitě.
@@ -11307,7 +11310,7 @@ async function renderNastaveni() {
     </div>
 
     <!-- 🎨 VZHLED APLIKACE -->
-    <div class="card-block" style="margin-top:14px">
+    <div class="card-block ug-col">
       <h3 style="margin-bottom:6px;">🎨 Vzhled aplikace</h3>
       <p class="page-sub" style="margin-bottom:14px;">
         Změňte vzhled administrace. Funkčnost zůstává stejná, mění se jen barvy, fonty a tvary.
@@ -11368,7 +11371,7 @@ async function renderNastaveni() {
     </div>
 
     <!-- 🔐 BEZPEČNOST & POTVRZOVÁNÍ -->
-    <div class="card-block">
+    <div class="card-block ug-col">
       <h3 style="margin-bottom:6px;">🔐 Bezpečnost & potvrzování</h3>
       <p class="page-sub" style="margin-bottom:14px;">
         Ochrana před omylem provedenými mazacími akcemi. Vypnete-li toto, smazání proběhne po jediném potvrzení.
@@ -11390,7 +11393,7 @@ async function renderNastaveni() {
     </div>
 
     <!-- 🖨️ HROMADNÝ TISK -->
-    <div class="card-block" style="margin-top:14px">
+    <div class="card-block ug-col">
       <h3 style="margin-bottom:6px;">🖨️ Hromadný tisk</h3>
       <p class="page-sub" style="margin-bottom:14px;">Plovoucí tlačítko „Tisknout vše" v rohu obrazovky — dávkový tisk více dokladů najednou.</p>
       <div class="form-grid">
@@ -11408,7 +11411,7 @@ async function renderNastaveni() {
     </div>
 
     <!-- 🔌 API TOKENY pro účetní systémy -->
-    <div class="card-block" style="margin-top:14px">
+    <div class="card-block ug-col ug-wide">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px">
         <h3 style="margin:0">🔌 API pro účetní systémy <span style="font-size:11px;font-weight:400;background:var(--info-bg);color:var(--info-text);padding:2px 8px;border-radius:6px;margin-left:6px">REST v1</span></h3>
         <button class="btn-primary btn-green" onclick="apiTokenNew()" style="font-size:13px;padding:8px 14px">+ Nový token</button>
@@ -11420,10 +11423,9 @@ async function renderNastaveni() {
       <div id="api-tokens-list" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
     </div>
 
-    <!-- 💾 ZÁLOHY + 🩺 DIAGNOSTIKA — vedle sebe -->
-    <div class="nastaveni-row" style="margin-top:14px">
+    <!-- 💾 ZÁLOHY + 🩺 DIAGNOSTIKA — samostatné karty v gridu -->
 
-      <div class="card-block" id="ns-zalohy-block">
+    <div class="card-block ug-col" id="ns-zalohy-block">
         <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           💾 Zálohy databáze
           <span id="ns-zalohy-overall" style="font-size:11px;font-weight:normal;color:var(--text-3)"></span>
@@ -11442,7 +11444,7 @@ async function renderNastaveni() {
         <div id="ns-zalohy-list" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
       </div>
 
-      <div class="card-block" id="ns-diag-block">
+      <div class="card-block ug-col" id="ns-diag-block">
         <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           🩺 Diagnostika
           <span id="ns-diag-overall" style="font-size:11px;font-weight:normal;color:var(--text-3)"></span>
@@ -11459,12 +11461,10 @@ async function renderNastaveni() {
         </div>
 
         <div id="ns-diag-summary" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
-      </div>
-
     </div>
 
     <!-- 🔑 LICENCE & AKTUALIZACE -->
-    <div class="card-block" id="ns-license-block" style="margin-top:14px">
+    <div class="card-block ug-col ug-wide" id="ns-license-block">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
         <h3 style="margin:0;display:flex;align-items:center;gap:8px">
           🔑 Licence &amp; aktualizace
@@ -11478,7 +11478,7 @@ async function renderNastaveni() {
     </div>
 
     <!-- 📋 BEZPEČNOSTNÍ LIST / CHEAT SHEET — print-ready -->
-    <div class="card-block" id="ns-cheatsheet-block" style="margin-top:14px">
+    <div class="card-block ug-col" id="ns-cheatsheet-block">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
         <h3 style="margin:0;display:flex;align-items:center;gap:8px">
           📋 Bezpečnostní list
@@ -11495,7 +11495,7 @@ async function renderNastaveni() {
     </div>
 
     <!-- 🔄 WEBHOOKS -->
-    <div class="card-block" id="ns-webhooks-block" style="margin-top:14px">
+    <div class="card-block ug-col" id="ns-webhooks-block">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
         <h3 style="margin:0;display:flex;align-items:center;gap:8px">🔄 Webhooks <span style="font-size:11px;font-weight:500;color:var(--text-3)">(out-going HTTP)</span></h3>
         <div style="display:flex;gap:6px">
@@ -11510,7 +11510,7 @@ async function renderNastaveni() {
     </div>
 
     <!-- 📜 ACTIVITY LOG -->
-    <div class="card-block" id="ns-activity-block" style="margin-top:14px">
+    <div class="card-block ug-col" id="ns-activity-block">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
         <h3 style="margin:0;display:flex;align-items:center;gap:8px">📜 Activity log</h3>
         <button class="btn-secondary" onclick="loadActivityLog()" style="font-size:12px;padding:6px 12px">🔄 Refresh</button>
@@ -11522,7 +11522,7 @@ async function renderNastaveni() {
     </div>
 
     <!-- ☁️ SYNC S CLOUDEM — Phase 3 -->
-    <div class="card-block" id="ns-sync-block" style="margin-top:14px">
+    <div class="card-block ug-col ug-wide" id="ns-sync-block">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
         <h3 style="margin:0;display:flex;align-items:center;gap:8px">
           ☁️ Sync s cloudem <span id="ns-sync-mode-badge" style="font-size:11px;font-weight:500;background:var(--surface-2);color:var(--text-3);padding:3px 10px;border-radius:999px"></span>
@@ -11537,6 +11537,8 @@ async function renderNastaveni() {
       </p>
       <div id="ns-sync-status" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
     </div>
+
+    </div><!-- /udrzba-grid -->
   `;
 
   // ❓ FAQ blok — dvousloupcový grid (na mobilu jeden sloupec)
