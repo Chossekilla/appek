@@ -254,7 +254,8 @@ if ($action === 'apply') {
                     $rok = date('Y');
 
                     // ─── 1. Objednávka ────────────────────────────
-                    $cisloObj = 'OBJ-' . $rok . '-0001';
+                    // 🐛 fix v2.9.182 — dalsi_cislo() místo hardcoded 'OBJ-2026-0001'.
+                    $cisloObj = dalsi_cislo($pdo, 'OBJ', (int) $rok);
                     $cnt = $pdo->prepare("SELECT 1 FROM objednavky WHERE cislo = :c");
                     $cnt->execute(['c' => $cisloObj]);
                     if (!$cnt->fetchColumn()) {
@@ -298,7 +299,11 @@ if ($action === 'apply') {
                         $stats['objednavky']++;
 
                         // ─── 2. Dodací list (z objednávky) ────────
-                        $cisloDl = 'DL-' . $rok . '-0001';
+                        // 🐛 fix v2.9.182 — použít dalsi_cislo() místo hardcoded
+                        // 'DL-2026-0001'. Předtím seed kolidovalo s nově generovanými
+                        // čísly (cislovani.posledni se zvyšuje při generaci, takže by
+                        // dalsi_cislo() vrátil 'DL-2026-0002' a hardcoded by konflikt).
+                        $cisloDl = dalsi_cislo($pdo, 'DL', (int) $rok);
                         $pdo->prepare("
                             INSERT INTO dodaci_listy (cislo, objednavka_id, odberatel_id, datum_vystaveni, datum_dodani, castka_celkem, poznamka)
                             VALUES (:c, :oid, :odb, :dv, :dd, :ce, :pz)
@@ -321,7 +326,8 @@ if ($action === 'apply') {
                         $stats['dodaci_listy']++;
 
                         // ─── 3. Faktura (z DL) ────────────────────
-                        $cisloFa = 'FA-' . $rok . '-0001';
+                        // 🐛 fix v2.9.182 — dalsi_cislo() místo hardcoded 'FA-2026-0001'.
+                        $cisloFa = dalsi_cislo($pdo, 'FA', (int) $rok);
                         $datumSplat = date('Y-m-d', strtotime('+14 days'));
                         $varSym = preg_replace('/\D/', '', $cisloFa); // VS = jen číslice z čísla
                         $pdo->prepare("

@@ -10324,7 +10324,12 @@ async function renderNastaveni() {
     { key: 'udrzba',     label: '🛠️ Údržba',            popis: 'Bezpečnost, zálohy DB, diagnostika' },
     { key: 'napoveda',   label: '❓ Nápověda & FAQ',     popis: 'Jak na to — návody a časté dotazy' },
   ];
-  const aktTab = state._nastaveniTab || 'firma';
+  // 🐛 fix v2.9.182 — pokud user měl uložený state._nastaveniTab='vyroba' (smazaný
+  // tab od v2.9.181), fallback do 'firma'. Bez explicitního checku by se zobrazila
+  // prázdná Nastavení stránka (aktivniBlok = undefined → text "undefined").
+  const validTabKeys = TABS.map(t => t.key);
+  let aktTab = state._nastaveniTab || 'firma';
+  if (!validTabKeys.includes(aktTab)) aktTab = 'firma';
 
   // === BLOKY OBSAHU JEDNOTLIVÝCH TABŮ ===
   const blokFirma = `
@@ -10628,128 +10633,6 @@ async function renderNastaveni() {
         <button class="btn-secondary" onclick="pushSendTestAll()">📢 Test všem (${'pošle test všem subscriberům'})</button>
         <button class="btn-secondary" onclick="zapnoutPushAdmin()">🔔 Zapnout mně (admin)</button>
         <button class="btn-secondary" onclick="loadPushStats()">🔄 Obnovit</button>
-      </div>
-    </div>
-  `;
-
-  const blokVyroba = `
-    <!-- VŠE V JEDNOM 3-SLOUPCOVÉM GRIDU — Výroba má spoustu karet, jednotný layout -->
-    <div class="nastaveni-row nastaveni-row-3col">
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">🌾 Suroviny pro výrobu</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Databáze surovin (mouka, cukr, vejce…) a jejich alergenů. Přidejte k výrobkům jako složení receptu.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('suroviny')">🌾 Spravovat</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">📦 Sklad surovin</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Aktuální stav skladu, příjem/výdej, alerty pod minimální hladinou. Otevře <strong>přehled skladu</strong>.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('sklad')">📦 Otevřít sklad</button>
-          <button class="btn-secondary" onclick="state._suroviny_pod_minimem=true;navigate('suroviny')" title="Suroviny pod minimální hladinou">⚠ Pod minimem</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">🏷️ Kategorie výrobků</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Třídění výrobků v katalogu — chleby, pečivo, zákusky… Každá s vlastní ikonou a pořadím.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('kategorie')">🏷️ Spravovat</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">🔁 Opakující se objednávky</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Pravidla pro automatické generování objednávek (např. „Hotel Beránek každé pondělí 30× chleba"). Cron každý den ráno vygeneruje obj na zítřek.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('recurring')">🔁 Spravovat pravidla</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">📈 Sales report PDF</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Měsíční / roční přehled tržeb, top výrobky, top odběratelé. Vhodné pro účetní + marketing.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('sales_report')">📊 Otevřít</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">🔗 Spárovat suroviny ze složení</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Projde textová <strong>Složení</strong> všech výrobků, napáruje na suroviny, chybějící vytvoří a vygeneruje alergeny.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-secondary" onclick="otevritMatchSlozeni()">🔗 Otevřít párování</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">🏭 Výrobní kalkulace</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Spočítá náklady na 1 kus z celé várky — receptura → presy → klonky + zdobení a fixní náklady.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('vyrobni_kalkulace')">🏭 Otevřít kalkulačku</button>
-        </div>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">📊 Přehled výroby</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Souhrnný přehled všech objednaných výrobků za zvolené období (měsíc, rok, vlastní rozsah). Vhodné pro účetnictví a plánování. Lze stáhnout jako CSV nebo vytisknout.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('export_vyroby')">📊 Otevřít přehled</button>
-        </div>
-      </div>
-    </div>
-    <!-- /nastaveni-row-3col Výroba -->
-
-    <!-- FIXNÍ NÁKLADY pro kalkulaci -->
-    <div class="card-block">
-      <h3 style="margin-bottom:6px;">💰 Fixní náklady na výrobek</h3>
-      <p class="page-sub" style="margin-bottom:16px;">
-        Položky které se přičtou ke každé kalkulaci výrobku (vedle ceny surovin) — energie, práce, balení, nájem rozpočítaný na ks…
-      </p>
-      <div id="naklady-container">
-        ${(() => {
-          let items = [];
-          try { items = JSON.parse(n.naklady_polozky || '[]'); } catch (e) {}
-          if (!Array.isArray(items)) items = [];
-          if (items.length === 0) items = [
-            { nazev: 'Energie (plyn, elektřina)', cena_kc: 0 },
-            { nazev: 'Práce', cena_kc: 0 },
-            { nazev: 'Obal', cena_kc: 0 },
-          ];
-          return `
-            <div id="naklady-rows">
-              ${items.map((it, i) => `
-                <div class="naklad-row" data-idx="${i}" style="display:grid;grid-template-columns:1fr 140px auto;gap:8px;margin-bottom:6px;align-items:center">
-                  <input class="form-input" placeholder="Název položky" value="${esc(it.nazev || '')}" data-fld="nazev">
-                  <div style="display:flex;align-items:center;gap:4px">
-                    <input class="form-input" type="number" step="0.01" min="0" placeholder="0,00" value="${parseFloat(it.cena_kc) || 0}" data-fld="cena_kc" style="text-align:right">
-                    <span style="font-size:13px;color:var(--text-3)">Kč</span>
-                  </div>
-                  <button type="button" class="btn-danger" style="padding:6px 10px;font-size:12px" onclick="this.closest('.naklad-row').remove()">×</button>
-                </div>
-              `).join('')}
-            </div>
-            <button type="button" class="btn-secondary" style="margin-top:6px;font-size:13px" onclick="nakladPridejRadek()">+ Přidat položku</button>
-          `;
-        })()}
       </div>
     </div>
   `;
@@ -11375,7 +11258,6 @@ async function renderNastaveni() {
   const blokyTabu = {
     firma:      blokFirmaDoklady,
     notifikace: blokNotifikace,
-    // 🆕 v2.9.181 — 'vyroba: blokVyroba' přesunut do top-level Výroba hubu.
     integrace:  blokIntegrace,
     ucetni:     blokUcetni,
     pristupy:   blokPristupy,
@@ -11385,8 +11267,9 @@ async function renderNastaveni() {
   };
   // Pokud se uloží státní hodnota, kterou nemáme, fallback
   const aktivniBlok = blokyTabu[aktTab] || blokyTabu.firma;
-  // Tab Údržba/Bezpečnost/Přístupy/Nápověda nemají Uložit nastavení button (jen on-change ukládání nebo přechody)
-  const ukazatUlozit = (aktTab === 'firma' || aktTab === 'notifikace' || aktTab === 'vyroba');
+  // Jen Firma + Notifikace mají formulářová pole, která vyžadují "Uložit"
+  // (ostatní taby ukládají on-change nebo navigují na samostatné endpointy).
+  const ukazatUlozit = (aktTab === 'firma' || aktTab === 'notifikace');
 
   c.innerHTML = `
     <div class="page-head">
