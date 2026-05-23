@@ -131,7 +131,20 @@ function generuj_isdoc(PDO $pdo, array $f): string {
     $datum_vys = $f['datum_vystaveni'];
     $datum_dph = $f['datum_dph'] ?: $datum_vys;
     $datum_spl = $f['datum_splatnosti'];
-    $vs        = $f['variabilni_symbol'] ?: preg_replace('/\D/', '', $f['cislo']);
+    // 🐛 fix v2.9.184 — VS fallback z čísla faktury: extract rok + pad sekvence na 4.
+    // Předtím preg_replace('/\D/', '') vrátil 'FA-2026-1' → '20261' (5 cifer, nestandardní
+    // pro účetní programy). Teď '20260001' (8 cifer = rok + 4-pad seq). Pokud sloupec
+    // variabilni_symbol vyplněn → použít beze změny (právní stopa, neopravujeme).
+    if (!empty($f['variabilni_symbol'])) {
+        $vs = $f['variabilni_symbol'];
+    } else {
+        // Extract pattern XX-YYYY-NNNN
+        if (preg_match('/(\d{4})-?(\d+)$/', $f['cislo'], $m)) {
+            $vs = $m[1] . str_pad($m[2], 4, '0', STR_PAD_LEFT);
+        } else {
+            $vs = preg_replace('/\D/', '', $f['cislo']);
+        }
+    }
 
     $bez_total = round((float) $f['castka_bez_dph'], 2);
     $dph_total = round((float) $f['castka_dph'], 2);
@@ -386,12 +399,22 @@ if ($action === 'csv') {
                    'Odběratel', 'IČO', 'DIČ',
                    'Bez DPH', 'DPH', 'Celkem', 'Uhrazeno', 'Poznámka'], ';');
     foreach ($rows as $r) {
+        // 🐛 fix v2.9.184 — VS fallback (stejně jako v ISDOC výše): pokud sloupec
+        // variabilni_symbol není vyplněn, extract rok + pad sekvence z čísla.
+        $vsCsv = $r['variabilni_symbol'];
+        if (empty($vsCsv)) {
+            if (preg_match('/(\d{4})-?(\d+)$/', $r['cislo'], $m)) {
+                $vsCsv = $m[1] . str_pad($m[2], 4, '0', STR_PAD_LEFT);
+            } else {
+                $vsCsv = preg_replace('/\D/', '', $r['cislo']);
+            }
+        }
         fputcsv($out, [
             $r['cislo'],
             $r['datum_vystaveni'],
             $r['datum_dph'],
             $r['datum_splatnosti'],
-            $r['variabilni_symbol'],
+            $vsCsv,
             $r['odberatel'],
             $r['ico'],
             $r['dic'],
