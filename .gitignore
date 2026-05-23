@@ -39,3 +39,5 @@ vendor_db_config.local.php
 # i18n batch pipeline — transient vstupy/výstupy parallel-agent překladů
 scripts/b2b_batch_*.json
 scripts/b2b_missing.json
+scripts/i18n_batch_*.json
+scripts/i18n_missing.json
