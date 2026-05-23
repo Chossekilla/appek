@@ -355,8 +355,9 @@ footer ul li a:hover { color: #fff; }
   .topbar .container { gap: 8px; }
   .topbar nav { display: none; }
   .topbar .cta { gap: 5px; flex-wrap: nowrap; }
-  /* Skryj "Vyzkoušet demo" — zůstane jen Koupit + vlajky */
-  .topbar .cta .btn-secondary { display: none; }
+  /* Mobil: skryj obě CTA tlačítka v topbaru — sticky bottom bar má vlastní Objednat */
+  .topbar .cta .btn-secondary,
+  .topbar .cta .btn-primary { display: none; }
   .topbar .cta .btn { padding: 7px 12px; font-size: 13px; }
   .topbar-burger { display: inline-flex; align-items: center; justify-content: center; }
   .topbar-burger:hover { border-color: #BA7517; color: #BA7517; }
@@ -1742,7 +1743,6 @@ img[loading="lazy"].loaded {
       <a href="#faq">❓ <span data-i18n="nav_faq">FAQ</span></a>
     </nav>
     <div class="cta">
-      <button class="topbar-burger" type="button" aria-label="Menu" aria-expanded="false" onclick="toggleNav()">☰</button>
       <!-- 🌍 Language switcher — DROPDOWN (PC + mobile) -->
       <div class="lang-dropdown-wrap" style="position:relative;margin-right:10px">
         <button id="lang-trigger" onclick="toggleLangDropdown(event)" type="button" aria-haspopup="listbox" aria-expanded="false" class="lang-trigger" title="Vybrat jazyk">
@@ -1758,6 +1758,7 @@ img[loading="lazy"].loaded {
       </div>
       <a href="https://demo.appek.cz" class="btn btn-secondary" data-i18n="btn_try_demo">Vyzkoušet demo</a>
       <a href="checkout.html" class="btn btn-primary" data-i18n="btn_buy_now">🛒 Objednat</a>
+      <button class="topbar-burger" type="button" aria-label="Menu" aria-expanded="false" onclick="toggleNav()">☰</button>
     </div>
   </div>
 </header>
