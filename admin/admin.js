@@ -2266,14 +2266,15 @@ const DEFAULT_ROLE_PRAVA = {
 const ALL_NAV_PAGES = [
   { key: 'dashboard',    icon: '📊', label: 'Přehled' },
   { key: 'objednavky',   icon: '📋', label: 'Objednávky' },
-  { key: 'vyroba',       icon: '🥖', label: 'Výrobní list' },
+  // 🆕 v2.9.181 — 'vyroba' přejmenováno z "Výrobní list" na "Výroba" (hub se sub-akcemi).
+  // 'haccp' přesunut pod Výroba hub (zrušený jako samostatný top-level item).
+  { key: 'vyroba',       icon: '🥖', label: 'Výroba' },
   { key: 'dodaci_listy', icon: '📃', label: 'Dodací listy' },
   { key: 'rozvozy',      icon: '🛣️', label: 'Rozvozové trasy' },
   { key: 'faktury',      icon: '💰', label: 'Faktury' },
   { key: 'vyrobky',      icon: '📦', label: 'Výrobky' },
   { key: 'katalog',      icon: '📑', label: 'PDF nabídka' },
   { key: 'stitky',       icon: '🏷️', label: 'Štítky a cenovky' },
-  { key: 'haccp',        icon: '📋', label: 'HACCP' },
   { key: 'odberatele',   icon: '👥', label: 'Odběratelé' },
   { key: 'nastaveni',    icon: '⚙️', label: 'Nastavení' },
 ];
@@ -5027,15 +5028,33 @@ window.ulozitNovouObjednavku = async function() {
 // =============================================================
 async function renderVyroba() {
   const c = document.getElementById('content');
-  
+
+  // 🆕 v2.9.181 — Výroba je teď hub: rychlé akce nahoře (HACCP, Sklad, Suroviny, …)
+  // a pod ním default obsah = Výrobní list (stávající mode auto/manual).
   c.innerHTML = `
     <div class="page-head">
       <div>
-        <h1 class="page-title">Výrobní list</h1>
-        <p class="page-sub">Souhrn výroby z objednávek nebo ručně sestavený list</p>
+        <h1 class="page-title">🥖 Výroba</h1>
+        <p class="page-sub">Výrobní list, HACCP, sklad, suroviny, kalkulace — vše pro výrobu</p>
       </div>
     </div>
-    
+
+    <!-- 🔗 Rychlé akce — sub-sekce výroby (otevírají vlastní stránky) -->
+    <div class="vyroba-quick-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px">
+      <button class="btn-secondary" onclick="navigate('haccp')">🧪 HACCP</button>
+      <button class="btn-secondary" onclick="navigate('sklad')">📦 Sklad surovin</button>
+      <button class="btn-secondary" onclick="navigate('suroviny')">🌾 Suroviny</button>
+      <button class="btn-secondary" onclick="navigate('kategorie')">🏷️ Kategorie</button>
+      <button class="btn-secondary" onclick="navigate('recurring')">🔁 Opakující objednávky</button>
+      <button class="btn-secondary" onclick="navigate('vyrobni_kalkulace')">🏭 Výrobní kalkulace</button>
+      <button class="btn-secondary" onclick="navigate('export_vyroby')">📊 Přehled výroby</button>
+      <button class="btn-secondary" onclick="navigate('sales_report')">📈 Sales report</button>
+      <button class="btn-secondary" onclick="otevritMatchSlozeni()">🔗 Spárovat suroviny</button>
+      <button class="btn-secondary" onclick="otevritFixniNaklady()">💰 Fixní náklady</button>
+    </div>
+
+    <!-- Výrobní list — hlavní obsah Výroby (default) -->
+    <h2 style="margin:8px 0 12px;font-size:18px;color:var(--text-2)">📋 Výrobní list</h2>
     <div class="vyroba-mode-tabs">
       <button class="vyroba-mode-tab ${state.vyrobaMode === 'auto' ? 'active' : ''}" onclick="setVyrobaMode('auto')">
         🤖 Z objednávek (automaticky)
@@ -5044,10 +5063,10 @@ async function renderVyroba() {
         ✋ Ručně sestavené listy
       </button>
     </div>
-    
+
     <div id="vyroba-content"></div>
   `;
-  
+
   if (state.vyrobaMode === 'auto') await renderVyrobaAuto();
   else await renderVyrobaManual();
 }
@@ -10292,10 +10311,12 @@ async function renderNastaveni() {
   const c = document.getElementById('content');
 
   // 🗂️ Záložky pro Nastavení
+  // 🆕 v2.9.181 — tab '🥖 Výroba' přesunut do top-level Výroba hubu.
+  // Obsah (suroviny, kategorie, kalkulace, fixní náklady, sales report) je dostupný
+  // přes rychlé akce v Výrobě.
   const TABS = [
     { key: 'firma',      label: '🏢 Firma & doklady',  popis: 'Firemní údaje, kontakt, číselné řady, DPH' },
     { key: 'notifikace', label: '📧 Notifikace',        popis: 'E-maily a uzávěrka úprav objednávek' },
-    { key: 'vyroba',     label: '🥖 Výroba',            popis: 'Suroviny, kategorie, kalkulace, náklady' },
     { key: 'integrace',  label: '🔌 Integrace',         popis: 'Stripe + GoPay (platby), Zásilkovna + DPD (doprava) pro tvoje B2B zákazníky.', adminOnly: true },
     { key: 'ucetni',     label: '📊 Účetní',            popis: 'POHODA mServer, FlexiBee REST — live sync.', adminOnly: true },
     { key: 'pristupy',   label: '👥 Přístupy & ceny',   popis: 'Uživatelé a slevové skupiny', adminOnly: true },
@@ -11354,7 +11375,7 @@ async function renderNastaveni() {
   const blokyTabu = {
     firma:      blokFirmaDoklady,
     notifikace: blokNotifikace,
-    vyroba:     blokVyroba,
+    // 🆕 v2.9.181 — 'vyroba: blokVyroba' přesunut do top-level Výroba hubu.
     integrace:  blokIntegrace,
     ucetni:     blokUcetni,
     pristupy:   blokPristupy,
@@ -19456,6 +19477,69 @@ window.spustitMatchSlozeni = async function() {
     alert(report);
     state._suroviny_cache = null; state._suroviny_full_cache = null; // Refresh cache
   } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v2.9.181 — modal s formulářem fixních nákladů. Otevírá se z Výroba hubu
+// (předtím byl form součástí Nastavení→Výroba tabu, ten zrušen).
+window.otevritFixniNaklady = async function() {
+  let items = [];
+  try {
+    const n = await api('admin_nastaveni.php');
+    items = JSON.parse(n.naklady_polozky || '[]');
+    if (!Array.isArray(items)) items = [];
+  } catch (e) { items = []; }
+  if (items.length === 0) items = [
+    { nazev: 'Energie (plyn, elektřina)', cena_kc: 0 },
+    { nazev: 'Práce', cena_kc: 0 },
+    { nazev: 'Obal', cena_kc: 0 },
+  ];
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div class="modal" style="background:var(--bg-1);border-radius:10px;max-width:560px;width:100%;max-height:80vh;overflow:auto;padding:24px">
+      <h2 style="margin:0 0 6px;font-size:20px">💰 Fixní náklady na výrobek</h2>
+      <p class="page-sub" style="margin:0 0 18px;font-size:13px">
+        Položky které se přičtou ke každé kalkulaci výrobku (vedle ceny surovin) — energie, práce, balení, nájem rozpočítaný na ks…
+      </p>
+      <div id="naklady-rows">
+        ${items.map((it, i) => `
+          <div class="naklad-row" data-idx="${i}" style="display:grid;grid-template-columns:1fr 140px auto;gap:8px;margin-bottom:6px;align-items:center">
+            <input class="form-input" placeholder="Název položky" value="${esc(it.nazev || '')}" data-fld="nazev">
+            <input class="form-input" type="number" step="0.01" placeholder="Kč" value="${it.cena_kc || 0}" data-fld="cena_kc">
+            <button type="button" class="btn-danger" style="padding:6px 10px;font-size:12px" onclick="this.closest('.naklad-row').remove()">×</button>
+          </div>
+        `).join('')}
+      </div>
+      <button type="button" class="btn-secondary" style="margin-top:6px;font-size:13px" onclick="nakladPridejRadek()">+ Přidat položku</button>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:24px;border-top:1px solid var(--border);padding-top:16px">
+        <button type="button" class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Zrušit</button>
+        <button type="button" class="btn-primary btn-green" id="naklady-save-btn">💾 Uložit</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById('naklady-save-btn').onclick = async () => {
+    const out = [];
+    document.querySelectorAll('#naklady-rows .naklad-row').forEach(r => {
+      const nazev = r.querySelector('[data-fld="nazev"]')?.value.trim() || '';
+      const cena_kc = parseFloat(r.querySelector('[data-fld="cena_kc"]')?.value) || 0;
+      if (nazev || cena_kc > 0) out.push({ nazev, cena_kc });
+    });
+    try {
+      await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ naklady_polozky: JSON.stringify(out) }) });
+      overlay.remove();
+      const toast = document.createElement('div');
+      toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:14px 22px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:14px;font-weight:500;z-index:9999';
+      toast.textContent = '✓ Fixní náklady uloženy';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2500);
+    } catch (e) {
+      alert('Chyba: ' + (e?.message || e));
+    }
+  };
 };
 
 window.nakladPridejRadek = function() {
