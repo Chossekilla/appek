@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     } catch (Throwable $e) { $flash_err = $e->getMessage(); }
 }
 
-// ─── Stripe test connection (v2.9.190/192) ──────────────────────
+// ─── Stripe test connection (v2.9.190/192/194) ──────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_stripe') {
     try {
         require_once __DIR__ . '/_stripe.php';
@@ -52,16 +52,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_
             $payouts = $resp['payouts_enabled'] ?? false;
             $country = $resp['country'] ?? '?';
             $currency = strtoupper($resp['default_currency'] ?? '?');
+            // 🆕 v2.9.194 — detekce test vs live z prefixu klíče (sk_test_ vs sk_live_).
+            // V test mode jsou charges/payouts často disabled — to je OK, test karty
+            // (4242 4242 4242 4242) fungují i tak přes Payment Intent API.
+            $cfg = stripe_settings();
+            $isTest = strpos((string)($cfg['stripe_secret_key'] ?? ''), 'sk_test_') === 0;
+
             if ($charges && $payouts) {
-                $flash_ok = "✅ Stripe připojen: <strong>" . htmlspecialchars($name) . "</strong> · {$country} · {$currency} · charges + payouts ENABLED.";
+                $modeLabel = $isTest ? '🧪 TEST mode' : '🟢 LIVE mode';
+                $flash_ok = "✅ Stripe připojen: <strong>" . htmlspecialchars($name) . "</strong> · {$country} · {$currency} · {$modeLabel} · charges + payouts ENABLED.";
+            } elseif ($isTest) {
+                // Test mode + charges/payouts disabled = OK pro testing
+                $flash_ok = "✅ Stripe TEST mode připojen: <strong>" . htmlspecialchars($name) . "</strong> · {$country} · {$currency}.<br>"
+                    . "ℹ️ <code>charges_disabled</code> a <code>payouts_disabled</code> jsou v test mode normální — test účet nepřijímá reálné peníze. <strong>Test platby fungují</strong> s kartou <code>4242 4242 4242 4242</code> (exp libovolné budoucí datum, CVC libovolné 3 čísla). Pro live platby aktivuj <a href='https://dashboard.stripe.com/settings/payments' target='_blank' style='color:#fff;text-decoration:underline'>live mode v Stripe Dashboardu</a>.";
             } else {
+                // Live mode + disabled = potřeba KYC
                 $issues = [];
                 if (!$charges) $issues[] = 'charges_disabled';
                 if (!$payouts) $issues[] = 'payouts_disabled';
-                $flash_err = "⚠️ Připojeno k <strong>" . htmlspecialchars($name) . "</strong>, ale účet není plně aktivní: " . implode(', ', $issues) . ". Doplň údaje v Stripe Dashboardu (verifikace identity).";
+                $flash_err = "⚠️ LIVE mode účet <strong>" . htmlspecialchars($name) . "</strong> není plně aktivní: " . implode(', ', $issues) . ". Doplň údaje v <a href='https://dashboard.stripe.com/account/onboarding' target='_blank' style='color:#fff;text-decoration:underline'>Stripe Dashboard → verifikace identity</a>.";
             }
-            // 🐛 fix v2.9.192 — vendor_audit 5. parametr je ?string, ne array. JSON encode.
-            vendor_audit($pdo, $user, 'stripe_test', null, json_encode(['ok' => true, 'charges' => $charges, 'payouts' => $payouts]));
+            vendor_audit($pdo, $user, 'stripe_test', null, json_encode(['ok' => true, 'charges' => $charges, 'payouts' => $payouts, 'mode' => $isTest ? 'test' : 'live']));
         } else {
             $flash_err = '❌ Stripe test selhal: ' . htmlspecialchars($resp['error'] ?? 'unknown_error');
             vendor_audit($pdo, $user, 'stripe_test_fail', null, json_encode($resp));
@@ -69,6 +80,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_
     } catch (Throwable $e) {
         error_log('vendor stripe test exception: ' . $e->getMessage());
         $flash_err = '❌ Test exception: ' . htmlspecialchars($e->getMessage());
+    }
+}
+
+// ─── Stripe test charge — vytvoří 1 Kč test platbu (v2.9.194) ────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_stripe_charge') {
+    try {
+        require_once __DIR__ . '/_stripe.php';
+        // Test payment_intent — token 'tok_visa' (Stripe test token, vždy úspěšný)
+        $resp = stripe_request('POST', '/payment_intents', [
+            'amount' => 100,           // 1 Kč v haléřích
+            'currency' => 'czk',
+            'payment_method' => 'pm_card_visa',  // Stripe test PM
+            'confirm' => 'true',
+            'description' => 'APPEK vendor test charge (1 Kč)',
+            'automatic_payment_methods[enabled]' => 'true',
+            'automatic_payment_methods[allow_redirects]' => 'never',
+        ]);
+        if (($resp['ok'] ?? false) && ($resp['status'] ?? '') === 'succeeded') {
+            $piId = $resp['id'] ?? '';
+            $amount = ($resp['amount'] ?? 0) / 100;
+            $currency = strtoupper($resp['currency'] ?? '');
+            $flash_ok = "✅ TEST PLATBA OK: <strong>{$amount} {$currency}</strong> · payment_intent <code>{$piId}</code>. Stripe je plně funkční pro test platby!";
+        } else {
+            $err = $resp['error'] ?? ($resp['last_payment_error']['message'] ?? 'status: ' . ($resp['status'] ?? '?'));
+            $flash_err = '❌ Test charge selhal: ' . htmlspecialchars($err);
+        }
+        vendor_audit($pdo, $user, 'stripe_test_charge', null, json_encode(['ok' => $resp['ok'] ?? false, 'status' => $resp['status'] ?? null]));
+    } catch (Throwable $e) {
+        error_log('vendor stripe test_charge exception: ' . $e->getMessage());
+        $flash_err = '❌ Test charge exception: ' . htmlspecialchars($e->getMessage());
     }
 }
 
@@ -519,6 +560,11 @@ if (!$totpEnabled) {
             <button type="submit" class="btn-master" onclick="document.getElementById('stripe-action').value='test_stripe'" style="background:#0058b8;color:#fff;border-color:#0058b8" title="GET /v1/account → ověří klíč + status">
               🔌 Test
             </button>
+            <?php if (strpos((string)$strCfg['stripe_secret_key'], 'sk_test_') === 0): ?>
+              <button type="submit" class="btn-master" onclick="document.getElementById('stripe-action').value='test_stripe_charge'" style="background:#208438;color:#fff;border-color:#208438" title="Vytvoří 1 Kč Payment Intent s test kartou pm_card_visa — ověří že platby fungují end-to-end (jen v test mode)">
+                💰 Test platba 1 Kč
+              </button>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
       </form>
