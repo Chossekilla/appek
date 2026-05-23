@@ -4930,13 +4930,26 @@ window.setSalesLang = function(code) {
 
   // Apply text translations — VŽDY innerHTML pro správné renderování <strong>
   // Bezpečné protože SALES_I18N je statický (žádný user input → žádný XSS risk)
-  // Fallback chain: target lang → cs → key. SK/DE pro neexistující klíče padá zpět na CS.
+  // 🆕 v2.9.204 — SK/DE fallback chain (zatím chybí kompletní překlady):
+  //   sk → cs → en → key  (Slovák lépe pochopí CS než EN)
+  //   de → en → cs → key  (Němec lépe pochopí EN než CS)
+  //   en/es/cs → vlastní → cs (kdyby chyběly)
+  const fallbackChain = {
+    sk: ['sk', 'cs', 'en'],
+    de: ['de', 'en', 'cs'],
+    en: ['en', 'cs'],
+    es: ['es', 'en', 'cs'],
+    cs: ['cs', 'en'],
+  };
+  const chain = fallbackChain[code] || ['cs'];
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
     const entry = SALES_I18N[key];
     if (entry) {
-      const text = entry[code] !== undefined ? entry[code]
-                 : (entry.cs !== undefined ? entry.cs : null);
+      let text = null;
+      for (const c of chain) {
+        if (entry[c] !== undefined) { text = entry[c]; break; }
+      }
       if (text !== null) el.innerHTML = text;
     }
   });
