@@ -5024,12 +5024,14 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   });
 });
 
-// Topbar shadow při scrollu
+// Topbar shadow + back-to-top tlačítko (lazy lookup — #btn-top je deklarováno až za tímto skriptem)
 const topbar = document.querySelector('.topbar');
-const btnTop = document.getElementById('btn-top');
 window.addEventListener('scroll', () => {
-  if (window.scrollY > 10) topbar.style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)';
-  else topbar.style.boxShadow = 'none';
+  if (topbar) {
+    if (window.scrollY > 10) topbar.style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)';
+    else topbar.style.boxShadow = 'none';
+  }
+  const btnTop = document.getElementById('btn-top');
   if (btnTop) btnTop.classList.toggle('show', window.scrollY > 500);
 });
 
