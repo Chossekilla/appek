@@ -13,7 +13,7 @@ $pdo = db();
 
 if ($method === 'GET') {
     $stmt = $pdo->query("
-        SELECT id, email, jmeno, role, aktivni, posledni_prihlaseni, created_at
+        SELECT id, email, jmeno, role, aktivni, posledni_login AS posledni_prihlaseni, created_at
         FROM admin_users
         ORDER BY role, jmeno
     ");
