@@ -5354,7 +5354,7 @@ window.otevritSklad = async function(skladId, nazev, kod) {
       body.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div style="font-size:13px;color:var(--text-3)">${items.length} ${items.length === 1 ? 'položka' : (items.length >= 2 && items.length <= 4 ? 'položky' : 'položek')}</div>
-          <button class="btn-primary" onclick="prirаditPolozku(${skladId})" style="font-size:13px;padding:8px 14px">+ Přiřadit položku</button>
+          <button class="btn-primary" onclick="priraditPolozku(${skladId})" style="font-size:13px;padding:8px 14px">+ Přiřadit položku</button>
         </div>
         ${items.length === 0 ? `
           <div style="text-align:center;padding:40px 20px;color:var(--text-3)">
@@ -5430,7 +5430,7 @@ window.otevritSklad = async function(skladId, nazev, kod) {
 };
 
 // Přiřadit položku do skladu (z detailu skladu)
-window.prirаditPolozku = async function(skladId) {
+window.priraditPolozku = async function(skladId) {
   let suroviny = [], vyrobky = [];
   try {
     const [sR, vR] = await Promise.all([
