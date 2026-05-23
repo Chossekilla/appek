@@ -42,6 +42,26 @@ $pdo = db();
                 } catch (Throwable $e) { /* idempotentní */ }
             }
         }
+
+        // 🐛 fix v2.9.167 — INSERT očekává `vyrobek_cislo`, `vyrobek_nazev`, `jednotka`,
+        // `poznamka` snapshot sloupce. Pokud chybí, hromadný DL generator padá SQLSTATE 1054.
+        $dl_cols = $pdo->query("
+            SELECT COLUMN_NAME FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dodaci_list_polozky'
+        ")->fetchAll(PDO::FETCH_COLUMN);
+        $dl_cols_lower = array_map('strtolower', $dl_cols);
+        if (!in_array('vyrobek_cislo', $dl_cols_lower, true)) {
+            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN vyrobek_cislo VARCHAR(40) NULL AFTER vyrobek_id");
+        }
+        if (!in_array('vyrobek_nazev', $dl_cols_lower, true)) {
+            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN vyrobek_nazev VARCHAR(255) NULL AFTER vyrobek_cislo");
+        }
+        if (!in_array('jednotka', $dl_cols_lower, true)) {
+            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN jednotka VARCHAR(20) NULL AFTER vyrobek_nazev");
+        }
+        if (!in_array('poznamka', $dl_cols_lower, true)) {
+            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN poznamka TEXT NULL");
+        }
     } catch (Throwable $e) {
         error_log('admin_dodaci_listy auto-migrace vyrobek_id NULL: ' . $e->getMessage());
     }
