@@ -5035,7 +5035,7 @@ window.ulozitNovouObjednavku = async function() {
 // 🆕 v2.9.188/189 — Výroba má vodorovné sub-taby. Default = Výrobní list.
 // Od výroby vše začíná — Suroviny, Sklad, HACCP, Kalkulace, Přehled, Spárování.
 const VYROBA_SUBTABS = [
-  { key: 'list',       label: '📋 Výrobní list',  render: () => renderVyrobniListInline() },
+  { key: 'list',       label: '🥖 Výroba',         render: () => renderVyrobniListInline() },
   { key: 'suroviny',   label: '🌾 Suroviny',       nav: 'suroviny' },
   { key: 'sklad',      label: '📦 Sklad',          nav: 'sklad' },
   { key: 'haccp',      label: '🧪 HACCP',          nav: 'haccp' },
