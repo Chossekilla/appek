@@ -414,17 +414,13 @@
           </div>
           <div class="err-box" id="err"></div>
 
-          <!-- 🆕 v2.9.200 — Způsob platby v checkout formu (radio) -->
+          <!-- 🆕 v2.9.202 — GoPay vynechán, jen Stripe + Faktura -->
           <div style="margin:14px 0 6px;border-top:1px solid #e5e5e7;padding-top:14px">
             <div style="font-size:13px;font-weight:600;color:#1d1d1f;margin-bottom:8px">💳 Způsob platby</div>
             <div class="pay-radios" style="display:flex;flex-direction:column;gap:6px">
               <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;cursor:pointer;font-size:13px" class="pay-radio">
                 <input type="radio" name="pay_method" value="stripe" checked>
-                <span>💳 <strong>Karta (Stripe)</strong> — okamžitě, klíč e-mailem</span>
-              </label>
-              <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;cursor:pointer;font-size:13px" class="pay-radio">
-                <input type="radio" name="pay_method" value="gopay">
-                <span>💳 <strong>GoPay</strong> — CZ karty + bank, okamžitě</span>
+                <span>💳 <strong>Platba kartou</strong> — Visa / Mastercard / Apple Pay / Google Pay, klíč e-mailem ihned</span>
               </label>
               <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;cursor:pointer;font-size:13px" class="pay-radio">
                 <input type="radio" name="pay_method" value="invoice">
@@ -464,15 +460,13 @@
       <p id="success-sub" data-i18n="success_sub">Děkujeme. Vyberte způsob platby:</p>
       <div class="order-no" id="success-order-no">—</div>
 
-      <!-- PAY OPTIONS — v2.9.197: Stripe primary, jasný popis -->
+      <!-- PAY OPTIONS — v2.9.202: fallback pokud auto-redirect z form selhal -->
       <div class="pay-options" id="pay-options">
-        <!-- 🆕 v2.4 — Apple Pay / Google Pay přes Stripe Payment Request Button -->
         <div id="payment-request-container" style="display:none;margin-bottom:8px;grid-column:1/-1">
           <div id="payment-request-button" style="min-height:50px"></div>
           <div style="text-align:center;font-size:11px;color:#86868b;margin:6px 0">— nebo —</div>
         </div>
         <button class="btn pay-card pay-primary" onclick="payByStripe()" data-i18n="pay_stripe">💳 Zaplatit kartou</button>
-        <button class="btn pay-card pay-secondary" onclick="payByGoPay()" data-i18n="pay_gopay">💳 GoPay (CZ karty + bank)</button>
         <button class="btn pay-bank" onclick="showBankInfo()" data-i18n="pay_bank">🏦 Faktura + bankovní převod</button>
       </div>
 
@@ -921,12 +915,8 @@ async function submitOrder() {
 
   if (payMethod === 'stripe') {
     // Stripe Checkout redirect — žádný mezikrok
-    btn.disabled = true; btn.textContent = '⏳ Přesměrovávám na Stripe…';
+    btn.disabled = true; btn.textContent = '⏳ Přesměrovávám na platební bránu…';
     return payByStripe();
-  }
-  if (payMethod === 'gopay') {
-    btn.disabled = true; btn.textContent = '⏳ Přesměrovávám na GoPay…';
-    return payByGoPay();
   }
 
   // payMethod === 'invoice' → zobraz success se shrnutím + bank info

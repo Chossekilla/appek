@@ -52,27 +52,28 @@ p { color: #6e6e73; line-height: 1.6; margin-bottom: 24px; }
 <script>
 const urlParams = new URLSearchParams(window.location.search);
 const orderNo = urlParams.get('order');
+const sessionId = urlParams.get('session_id'); // Stripe vrací cs_live_/cs_test_
 const root = document.getElementById('root');
 
-// ─── i18n ───
+// ─── i18n ─── (v2.9.202 — generic platební bránu, ne GoPay)
 const PAY_I18N = {
-  cs: { s_title: 'Platba úspěšná!', s_body: 'Děkujeme. Váš licenční klíč byl právě vygenerován a poslán na váš e-mail.',
+  cs: { s_title: 'Platba přijata!', s_body: 'Děkujeme. Váš licenční klíč byl právě vygenerován a poslán na váš e-mail.',
     s_back: '→ Zpět na APPEK', s_email: '📧 Klíč najdete v e-mailu během chvíle. Pokud nepřijde, zkontrolujte spam.',
     e_title: 'Platba neproběhla', e_body: 'Platba byla zrušena nebo selhala.', e_retry: '🔄 Zkusit znovu', e_home: '← Domů',
-    p_title: 'Platba se zpracovává', p_body: 'GoPay ještě potvrzuje platbu. Můžete tuto stránku zavřít — licenci pošleme na e-mail jakmile se platba potvrdí (obvykle do 5 minut).',
-    check_title: 'Ověřujeme platbu…', check_body: 'Vyčkejte prosím chvíli, kontaktujeme GoPay…',
+    p_title: 'Platba se zpracovává', p_body: 'Banka ještě potvrzuje platbu. Můžete tuto stránku zavřít — licenci pošleme na e-mail jakmile se platba potvrdí (obvykle do 5 minut).',
+    check_title: 'Ověřujeme platbu…', check_body: 'Vyčkejte prosím chvíli, kontaktujeme platební bránu…',
     err_missing: 'Chybí číslo objednávky.' },
-  en: { s_title: 'Payment successful!', s_body: 'Thank you. Your license key has been generated and sent to your e-mail.',
+  en: { s_title: 'Payment received!', s_body: 'Thank you. Your license key has been generated and sent to your e-mail.',
     s_back: '→ Back to APPEK', s_email: '📧 Key will arrive by e-mail shortly. If it does not, check spam.',
     e_title: 'Payment failed', e_body: 'Payment was cancelled or failed.', e_retry: '🔄 Try again', e_home: '← Home',
-    p_title: 'Payment processing', p_body: 'GoPay is still confirming payment. You can close this page — we will send the license by e-mail once payment confirms (usually within 5 min).',
-    check_title: 'Verifying payment…', check_body: 'Please wait a moment, contacting GoPay…',
+    p_title: 'Payment processing', p_body: 'Bank is still confirming payment. You can close this page — we will send the license by e-mail once payment confirms (usually within 5 min).',
+    check_title: 'Verifying payment…', check_body: 'Please wait a moment, contacting payment gateway…',
     err_missing: 'Missing order number.' },
-  es: { s_title: '¡Pago exitoso!', s_body: 'Gracias. Su clave de licencia se ha generado y enviado a su correo.',
+  es: { s_title: '¡Pago recibido!', s_body: 'Gracias. Su clave de licencia se ha generado y enviado a su correo.',
     s_back: '→ Volver a APPEK', s_email: '📧 La clave llegará pronto por correo. Si no llega, revise spam.',
     e_title: 'Pago fallido', e_body: 'El pago fue cancelado o falló.', e_retry: '🔄 Intentar de nuevo', e_home: '← Inicio',
-    p_title: 'Pago en proceso', p_body: 'GoPay aún está confirmando el pago. Puede cerrar esta página — enviaremos la licencia por correo cuando el pago se confirme (normalmente en 5 min).',
-    check_title: 'Verificando pago…', check_body: 'Espere un momento, contactando GoPay…',
+    p_title: 'Pago en proceso', p_body: 'El banco aún está confirmando el pago. Puede cerrar esta página — enviaremos la licencia por correo cuando el pago se confirme (normalmente en 5 min).',
+    check_title: 'Verificando pago…', check_body: 'Espere un momento, contactando pasarela de pago…',
     err_missing: 'Falta número de pedido.' },
 };
 let lang = (localStorage.getItem('appek_lang') || 'cs').toLowerCase();
@@ -162,12 +163,28 @@ function renderPending() {
     </div>`;
 }
 
-// Ping shop_status endpoint pro zjištění stavu
+// 🆕 v2.9.202 — pro Stripe session_id voláme verify endpoint který se
+// rovnou zeptá Stripe API (nezávisle na webhooks). Pokud paid → endpoint
+// sám vygeneruje licenci + pošle e-mail (idempotentně).
 (async function() {
-  if (!orderNo) { renderError(t.err_missing); return; }
+  if (!orderNo && !sessionId) { renderError(t.err_missing); return; }
 
-  // Poll až 3× po 3 sekundách
-  for (let i = 0; i < 3; i++) {
+  // 1) PRIMÁRNÍ: Stripe session verify (pokud máme session_id)
+  if (sessionId) {
+    try {
+      const r = await fetch('/api/stripe_session_verify.php?session_id=' + encodeURIComponent(sessionId) + (orderNo ? '&order=' + encodeURIComponent(orderNo) : ''));
+      if (r.ok) {
+        const j = await r.json();
+        if (j.ok && j.status === 'paid') { renderSuccess(); return; }
+        if (j.status === 'failed') { renderError(t.e_body); return; }
+        // status === 'pending' → spadne do polling loop níže
+      }
+    } catch (e) { /* fallback na polling */ }
+  }
+
+  // 2) FALLBACK: polling shop_status (pro invoice/bank flow nebo když verify selhal)
+  if (!orderNo) { renderError(t.err_missing); return; }
+  for (let i = 0; i < 5; i++) {
     try {
       const r = await fetch('/api/shop_status.php?order=' + encodeURIComponent(orderNo));
       if (r.ok) {
