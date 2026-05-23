@@ -5331,20 +5331,88 @@ window.otevritSklad = async function(skladId, nazev, kod) {
     `;
 
     c.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-size:13px;color:var(--text-3)">${items.length} ${items.length === 1 ? 'položka' : (items.length >= 2 && items.length <= 4 ? 'položky' : 'položek')}</div>
-        <button class="btn-primary" onclick="prirаditPolozku(${skladId})" style="font-size:13px;padding:8px 14px">+ Přiřadit položku</button>
+      <div style="display:flex;gap:6px;border-bottom:1px solid var(--border);margin-bottom:14px">
+        <button class="btn-secondary skd-tab ${(state._skladDetailTab || 'polozky') === 'polozky' ? 'is-active' : ''}" onclick="state._skladDetailTab='polozky';otevritSklad(${skladId}, '${esc(state._currentSkladNazev || '')}', '')" style="border-radius:8px 8px 0 0;border-bottom:none;font-size:13px;padding:8px 14px">📋 Položky (${items.length})</button>
+        <button class="btn-secondary skd-tab ${state._skladDetailTab === 'historie' ? 'is-active' : ''}" onclick="state._skladDetailTab='historie';otevritSklad(${skladId}, '${esc(state._currentSkladNazev || '')}', '')" style="border-radius:8px 8px 0 0;border-bottom:none;font-size:13px;padding:8px 14px">📊 Historie pohybů</button>
       </div>
-      ${items.length === 0 ? `
-        <div style="text-align:center;padding:40px 20px;color:var(--text-3)">
-          <div style="font-size:36px;margin-bottom:8px">📭</div>
-          <p>Žádné položky ve skladu. Přiřaď první surovinu nebo výrobek.</p>
-        </div>
-      ` : `
-        ${renderTable(suroviny, 'Suroviny', '🌾')}
-        ${renderTable(vyrobky, 'Výrobky', '📦')}
-      `}
+      <div id="sklad-detail-tab-body"></div>
+      <style>.skd-tab.is-active{background:var(--primary,#BA7517);color:#fff;border-color:var(--primary,#BA7517)}</style>
     `;
+
+    const body = document.getElementById('sklad-detail-tab-body');
+    if ((state._skladDetailTab || 'polozky') === 'polozky') {
+      body.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:13px;color:var(--text-3)">${items.length} ${items.length === 1 ? 'položka' : (items.length >= 2 && items.length <= 4 ? 'položky' : 'položek')}</div>
+          <button class="btn-primary" onclick="prirаditPolozku(${skladId})" style="font-size:13px;padding:8px 14px">+ Přiřadit položku</button>
+        </div>
+        ${items.length === 0 ? `
+          <div style="text-align:center;padding:40px 20px;color:var(--text-3)">
+            <div style="font-size:36px;margin-bottom:8px">📭</div>
+            <p>Žádné položky ve skladu. Přiřaď první surovinu nebo výrobek.</p>
+          </div>
+        ` : `
+          ${renderTable(suroviny, 'Suroviny', '🌾')}
+          ${renderTable(vyrobky, 'Výrobky', '📦')}
+        `}
+      `;
+    } else {
+      body.innerHTML = '⏳ Načítám historii…';
+      try {
+        const hist = await api('admin_sklad_pohyby.php?sklad_id=' + skladId + '&limit=200');
+        const pohyby = hist.pohyby || [];
+        const typLabel = {
+          prijem: { lbl: '➕ Příjem', color: '#15803d' },
+          vydej:  { lbl: '➖ Výdej', color: '#854F0B' },
+          inventura: { lbl: '📝 Inventura', color: '#0058b8' },
+          korekce: { lbl: '🔧 Korekce', color: '#a8232f' },
+          presun: { lbl: '↔ Přesun', color: '#5b21b6' },
+        };
+        if (pohyby.length === 0) {
+          body.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-3)"><div style="font-size:36px;margin-bottom:8px">📭</div><p>Žádné pohyby zatím.</p></div>';
+        } else {
+          body.innerHTML = `
+            <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+              <thead>
+                <tr style="background:var(--surface-2);color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:0.4px">
+                  <th style="padding:8px 8px;text-align:left">Kdy</th>
+                  <th style="padding:8px 8px;text-align:left">Typ</th>
+                  <th style="padding:8px 8px;text-align:left">Položka</th>
+                  <th style="padding:8px 8px;text-align:right">Množství</th>
+                  <th style="padding:8px 8px;text-align:right">Stav po</th>
+                  <th style="padding:8px 8px;text-align:left">Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${pohyby.map(p => {
+                  const t = typLabel[p.typ] || { lbl: p.typ, color: '#6e6e73' };
+                  const isPresun = p.typ === 'presun';
+                  const cilTxt = isPresun && p.sklad_id_cil && p.sklad_id_cil != skladId
+                    ? ` <span style="color:var(--text-3)">→ ${esc(p.sklad_kod_cil || '?')}</span>`
+                    : (isPresun && p.sklad_id != skladId ? ` <span style="color:var(--text-3)">← ${esc(p.sklad_kod || '?')}</span>` : '');
+                  const mn = parseFloat(p.mnozstvi);
+                  const mnTxt = (mn > 0 ? '+' : '') + mn.toFixed(2);
+                  const mnColor = mn > 0 ? '#15803d' : (mn < 0 ? '#a8232f' : '#6e6e73');
+                  return `
+                    <tr style="border-bottom:1px solid var(--border)">
+                      <td style="padding:6px 8px;color:var(--text-3);white-space:nowrap">${esc((p.kdy || '').substring(0, 16).replace('T',' '))}</td>
+                      <td style="padding:6px 8px;color:${t.color};font-weight:600">${t.lbl}${cilTxt}</td>
+                      <td style="padding:6px 8px">${esc(p.item_nazev || '?')}</td>
+                      <td style="padding:6px 8px;text-align:right;color:${mnColor};font-weight:600">${mnTxt}</td>
+                      <td style="padding:6px 8px;text-align:right">${p.stav_po !== null ? parseFloat(p.stav_po).toFixed(2) : '—'}</td>
+                      <td style="padding:6px 8px;color:var(--text-3);font-size:11.5px">${esc(p.poznamka || '')}${p.kdo ? ` <span style="opacity:0.6">· ${esc(p.kdo)}</span>` : ''}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+            <p style="font-size:11px;color:var(--text-3);margin-top:10px">📌 Posledních ${pohyby.length} pohybů. Pohyby jsou seřazené od nejnovějších.</p>
+          `;
+        }
+      } catch (e) {
+        body.innerHTML = `<div style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ ${esc(e.message)}</div>`;
+      }
+    }
   } catch (e) {
     const c = document.getElementById('sklad-detail-content');
     if (c) c.innerHTML = `<div style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ ${esc(e.message)}</div>`;
@@ -11660,15 +11728,7 @@ async function renderNastaveni() {
         </div>
       </div>
 
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">💰 Fixní náklady na výrobek</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Položky které se přičtou ke každé kalkulaci výrobku — energie, práce, obal, nájem rozpočítaný na ks.
-        </p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="otevritFixniNaklady()">💰 Spravovat</button>
-        </div>
-      </div>
+      <!-- 🆕 v2.9.219 — '💰 Fixní náklady' přesunuto do Výrobní kalkulace (tlačítko v page-head) -->
     </div>
 
     <!-- 3-sloupcový grid: POHODA + FlexiBee + ISDOC -->
@@ -32745,6 +32805,7 @@ function vkRender() {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary" onclick="navigate('vyroba')">← Výroba</button>
+        <button class="btn-secondary" onclick="otevritFixniNaklady()" title="Energie, práce, obal — položky přičtené ke každé kalkulaci">💰 Fixní náklady</button>
         <button class="btn-secondary" onclick="vkReset()">↺ Vyčistit</button>
         <button class="btn-secondary" onclick="vkOtevritHistorii()" title="Procházet uložené kalkulace s tehdejšími cenami">📂 Historie</button>
         <button class="btn-primary" onclick="vkUlozitDoHistorie()" title="Uloží snímek aktuální kalkulace včetně cen surovin (pro pozdější porovnání)">💾 Uložit snímek</button>
