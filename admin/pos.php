@@ -196,10 +196,11 @@ $csrfToken  = csrf_token();
       </div>
     </div>
 
-    <div class="pos-payment-bar">
+    <!-- 🆕 v2.9.205 — buttons dynamicky rendrovány z /api/payment_methods.php?context=pos -->
+    <div class="pos-payment-bar" id="pos-payment-bar">
+      <!-- placeholder než JS doběhne (fallback hotove + karta) -->
       <button class="pos-pay-btn is-active" data-pay="hotove" onclick="POS.setPay('hotove')">💵 Hotově</button>
       <button class="pos-pay-btn"           data-pay="karta"  onclick="POS.setPay('karta')">💳 Kartou</button>
-      <button class="pos-pay-btn pos-pay-more" onclick="POS.payMenu(event)">📲 Jiné ▾</button>
     </div>
 
     <div class="pos-type-bar">

@@ -10358,11 +10358,11 @@ async function renderNastaveni() {
 
   // 🗂️ Záložky pro Nastavení
   // 🆕 v2.9.181 — tab '🥖 Výroba' přesunut do top-level Výroba hubu.
-  // Obsah (suroviny, kategorie, kalkulace, fixní náklady, sales report) je dostupný
-  // přes rychlé akce v Výrobě.
+  // 🆕 v2.9.205 — nový tab 💳 Platby (centrální on/off platebních metod).
   const TABS = [
     { key: 'firma',      label: '🏢 Firma & doklady',  popis: 'Firemní údaje, kontakt, číselné řady, DPH' },
     { key: 'notifikace', label: '📧 Notifikace',        popis: 'E-maily a uzávěrka úprav objednávek' },
+    { key: 'platby',     label: '💳 Platby',            popis: 'Zapnout/vypnout platební metody pro POS, B2B a checkout.' },
     { key: 'integrace',  label: '🔌 Integrace',         popis: 'Stripe + GoPay (platby), Zásilkovna + DPD (doprava) pro tvoje B2B zákazníky.', adminOnly: true },
     { key: 'ucetni',     label: '📊 Účetní',            popis: 'POHODA mServer, FlexiBee REST — live sync.', adminOnly: true },
     { key: 'pristupy',   label: '👥 Přístupy & ceny',   popis: 'Uživatelé a slevové skupiny', adminOnly: true },
@@ -11324,9 +11324,21 @@ async function renderNastaveni() {
     </div>
   `;
 
+  // 🆕 v2.9.205 — blokPlatby je placeholder; reálný obsah loaduje renderPlatbyPanel()
+  const blokPlatby = `
+    <div class="card-block" style="padding:16px;margin-bottom:14px">
+      <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">💳 Platební metody</h2>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">
+        Vyber které platební metody chceš nabízet zákazníkům. Změny se hned promítnou do POS, B2B portálu i checkout.
+      </p>
+    </div>
+    <div id="ns-platby-panel">⏳ Načítám…</div>
+  `;
+
   const blokyTabu = {
     firma:      blokFirmaDoklady,
     notifikace: blokNotifikace,
+    platby:     blokPlatby,
     integrace:  blokIntegrace,
     ucetni:     blokUcetni,
     pristupy:   blokPristupy,
@@ -11395,7 +11407,78 @@ async function renderNastaveni() {
   if (aktTab === 'integrace') {
     loadCustomerIntegrace();
   }
+  if (aktTab === 'platby') {
+    loadPaymentMethodsPanel();
+  }
 }
+
+// =============================================================
+// 💳 PAYMENT METHODS (v2.9.205) — centrální on/off
+// =============================================================
+async function loadPaymentMethodsPanel() {
+  const panel = document.getElementById('ns-platby-panel');
+  if (!panel) return;
+  panel.innerHTML = '⏳ Načítám…';
+  try {
+    const r = await api('payment_methods.php');
+    const methods = r.methods || [];
+    // Skupiny podle kategorie
+    const groups = {
+      physical: { title: '🛒 POS — fyzická platba',  items: [], hint: 'V kase / pokladně' },
+      online:   { title: '🌐 Online platební brány', items: [], hint: 'Karta online, pro web checkout a B2B portal' },
+      deferred: { title: '🏦 Odložená platba',        items: [], hint: 'Bankovní převod, faktura, dobírka — B2B portal' },
+      other:    { title: '🎫 Ostatní',                items: [], hint: 'Speciální platební metody pro POS' },
+    };
+    methods.forEach(m => { if (groups[m.cat]) groups[m.cat].items.push(m); });
+
+    const renderGroup = (g) => g.items.length === 0 ? '' : `
+      <div class="card-block" style="margin-bottom:14px;padding:14px 16px">
+        <h3 style="margin:0 0 4px;font-size:14px">${esc(g.title)}</h3>
+        <p style="font-size:12px;color:var(--text-3);margin:0 0 12px">${esc(g.hint)}</p>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${g.items.map(m => `
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+              <input type="checkbox" data-pm-key="${m.key}" ${m.enabled ? 'checked' : ''}>
+              <span style="flex:1">${esc(m.label)}</span>
+              <span style="font-size:10px;color:var(--text-3)">${m.pos ? 'POS' : ''}${m.pos && m.b2b ? ' · ' : ''}${m.b2b ? 'B2B' : ''}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>`;
+
+    panel.innerHTML = `
+      ${renderGroup(groups.physical)}
+      ${renderGroup(groups.online)}
+      ${renderGroup(groups.deferred)}
+      ${renderGroup(groups.other)}
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+        <button class="btn-primary btn-green btn-big-action" onclick="savePaymentMethods()" style="font-size:15px;padding:12px 24px">💾 Uložit změny</button>
+      </div>
+      <p style="font-size:11px;color:var(--text-3);margin-top:10px">
+        ℹ️ Online brány (Stripe / GoPay) vyžadují aktivní credentials v <strong>🔌 Integrace</strong>.
+        Pokud jsou klíče prázdné, metoda se nezobrazí zákazníkům i kdyby byla zapnutá zde.
+      </p>
+    `;
+  } catch (e) {
+    panel.innerHTML = `<div style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ Chyba: ${esc(e.message)}</div>`;
+  }
+}
+
+window.savePaymentMethods = async function() {
+  const checks = document.querySelectorAll('[data-pm-key]');
+  const methods = {};
+  checks.forEach(c => { methods[c.dataset.pmKey] = c.checked; });
+  try {
+    await api('payment_methods.php', { method: 'PUT', body: JSON.stringify({ methods }) });
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:14px 22px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:14px;font-weight:500;z-index:9999';
+    toast.textContent = '✓ Platební metody uloženy';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+  } catch (e) {
+    alert('Chyba: ' + e.message);
+  }
+};
 
 // =============================================================
 // 🔌 CUSTOMER INTEGRACE — Stripe + GoPay + Zásilkovna + DPD (v2.5)

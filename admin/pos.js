@@ -363,16 +363,54 @@
     State.pos_payment = p;
     $$('.pos-pay-btn').forEach(b => b.classList.toggle('is-active', b.dataset.pay === p));
   }
-  function payMenu(e) {
+  // 🆕 v2.9.205 — payment methods z centrálního API (admin Nastavení→Platby toggle).
+  // Cache v paměti pro performance.
+  let __posPaymentMethods = null;
+  async function loadPaymentMethods() {
+    if (__posPaymentMethods !== null) return __posPaymentMethods;
+    try {
+      const r = await fetch('../api/payment_methods.php?context=pos');
+      const j = await r.json();
+      __posPaymentMethods = j.methods || [];
+    } catch (e) {
+      __posPaymentMethods = [
+        { key: 'hotove', label: '💵 Hotově', cat: 'physical' },
+        { key: 'karta', label: '💳 Kartou', cat: 'physical' },
+      ];
+    }
+    return __posPaymentMethods;
+  }
+
+  async function renderPaymentBar() {
+    const bar = document.getElementById('pos-payment-bar');
+    if (!bar) return;
+    const methods = await loadPaymentMethods();
+    if (!methods.length) return;
+    // Rozdělit na primární (physical) a sekundární (other)
+    const primary = methods.filter(m => m.cat === 'physical');
+    const others = methods.filter(m => m.cat === 'other');
+    const html = [];
+    primary.forEach(m => {
+      const isAct = State.pos_payment === m.key ? ' is-active' : '';
+      html.push(`<button class="pos-pay-btn${isAct}" data-pay="${m.key}" onclick="POS.setPay('${m.key}')">${esc(m.label)}</button>`);
+    });
+    if (others.length > 0) {
+      html.push('<button class="pos-pay-btn pos-pay-more" onclick="POS.payMenu(event)">📲 Jiné ▾</button>');
+    }
+    bar.innerHTML = html.join('');
+    // Pokud aktuální State.pos_payment není mezi povolenými → switch na první
+    if (!methods.some(m => m.key === State.pos_payment) && primary.length) {
+      setPay(primary[0].key);
+    }
+  }
+
+  async function payMenu(e) {
     e?.stopPropagation();
     let m = document.querySelector('.pos-pay-menu');
     if (m) { m.remove(); return; }
-    const opts = [
-      { id: 'paypal',    lbl: '💼 PayPal' },
-      { id: 'gift_card', lbl: '🎁 Dárková karta' },
-      { id: 'voucher',   lbl: '🎟️ Voucher' },
-      { id: 'mobile',    lbl: '📱 Mobile Payment' },
-    ];
+    const methods = await loadPaymentMethods();
+    const opts = methods.filter(mm => mm.cat === 'other').map(mm => ({ id: mm.key, lbl: mm.label }));
+    if (!opts.length) return;
     m = document.createElement('div');
     m.className = 'pos-pay-menu';
     m.innerHTML = opts.map(o =>
@@ -1137,6 +1175,8 @@
     $$('.pos-tab-h').forEach(el => {
       el.addEventListener('click', () => setActiveTab(el.dataset.tab));
     });
+    // 🆕 v2.9.205 — render payment bar z centrálního API (admin Nastavení→Platby)
+    renderPaymentBar();
     // Keyboard ⌘K / Ctrl+K → focus search
     document.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
