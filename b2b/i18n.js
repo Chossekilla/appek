@@ -1142,6 +1142,13 @@ const B2B_PHRASES = [
   ['Zrušena', 'Cancelled', 'Cancelada'],
   ['Upravena', 'Modified', 'Modificada'],
   ['Obnovena', 'Restored', 'Restaurada'],
+
+  // — refaktor 2026-05-23: rozdělené runtime konkatenace v app.js / index.html
+  ['je zastaralý.', 'is outdated.', 'está obsoleto.'],
+  ['Pro pohodlné objednávání aktualizujte prohlížeč.', 'Update your browser for comfortable ordering.', 'Actualice su navegador para pedidos cómodos.'],
+  ['Top', 'Top', 'Top'],
+  ['Objednávku můžete upravovat', 'You can edit the order', 'Puede editar el pedido'],
+  ['do', 'until', 'hasta'],
 ];
 
 const B2B_LOOKUP = new Map();

@@ -1489,7 +1489,7 @@ function renderCard(v) {
         ${img}
         ${renderStatusBadges({ isNovinka, isAkce, isDoprodej, isVyprodano })}
         ${maSlevu ? `<div class="card-badges card-badges-right-top"><span class="card-badge card-badge-sale">−${slevaPct}%</span></div>` : ''}
-        ${v.oblibeny == 1 ? `<div class="card-badges card-badges-right-top2"><span class="card-badge card-badge-top">★ Top</span></div>` : ''}
+        ${v.oblibeny == 1 ? `<div class="card-badges card-badges-right-top2"><span class="card-badge card-badge-top">★ <span class="b2b-i18n">Top</span></span></div>` : ''}
         ${isVyprodano ? '<div class="card-vyprodano-overlay">VYPRODÁNO</div>' : ''}
         <button class="card-fav ${isFav ? 'is-fav' : ''}" onclick="event.stopPropagation();toggleOblibeny(${v.id})" title="${isFav ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}" aria-label="Oblíbený">
           ${isFav ? '⭐' : '☆'}
@@ -2204,7 +2204,7 @@ function renderDetailObjednavky(o) {
     </div>
 
     ${lze
-      ? `<div class="detail-editable">✅ Objednávku můžete upravovat ${o.uzaverka ? '<strong>do ' + fmtDateTime(o.uzaverka) + '</strong>' : ''}</div>`
+      ? `<div class="detail-editable">✅ <span class="b2b-i18n">Objednávku můžete upravovat</span> ${o.uzaverka ? '<strong><span class="b2b-i18n">do</span> ' + fmtDateTime(o.uzaverka) + '</strong>' : ''}</div>`
       : `<div class="detail-locked">🔒 ${esc(o.duvod_zamceni || 'Objednávku už nelze upravovat.')}</div>`
     }
 

@@ -17,6 +17,21 @@ for m in re.finditer(r"\[\s*'((?:[^'\\]|\\.)*)'\s*,", i18n):
 CZ = 'ěščřžýáíéúůóťďňĚŠČŘŽÝÁÍÉÚŮÓŤĎŇ'
 LETTER = re.compile('[A-Za-z' + CZ + ']')
 
+# Intentionally NOT translated (brand, language identifiers, codes, units).
+SKIP = {
+    # brand / external services
+    'APPEK B2B', 'APPEK B2B s.r.o.', 'APPEK v…',
+    'DPD CZ', 'GoPay', 'Stripe', 'PayPal', 'Wolt', 'Foodora', 'Bolt Food',
+    # language identifiers (stay in their own language)
+    'CS', 'EN', 'ES', 'SK', 'DE',
+    'English', 'Español', 'Čeština', 'Slovenčina', 'Deutsch',
+    'Jazyk / Language / Idioma',
+    # short codes/abbreviations
+    'DL', 'PDF', 'CSV', 'XLSX', 'IČO', 'DIČ', 'PSČ',
+    # universal units
+    'kg', 'ml', 'g', 'l', 'ks', 'm', 'cm', 'mm', '€', '$',
+}
+
 def strip_icon(s):
     i = 0
     while i < len(s):
@@ -44,11 +59,25 @@ def resolves(s):
 
 def is_code(s):
     if '//' in s or '/*' in s or '*/' in s or '=>' in s: return True
-    return bool(re.search(r'[;=]|\|\||&&|\bfunction\b|\breturn\b|\.\w{2,}\(|\bconst |\blet |\bvar ', s))
+    if '[Promise]' in s: return True
+    # JS string-concat artifacts (broken templates extracted as fragments)
+    if "' +" in s or "+ '" in s or "+ esc(" in s or "+ fmt" in s: return True
+    # Stray unmatched parens / brackets — JS expression artifact
+    if (s.endswith(')') and '(' not in s) or (s.endswith(']') and '[' not in s): return True
+    # JS punctuation/operators in UI text are suspect
+    if re.search(r'[;=]|\|\||&&|\.\w{2,}\(', s): return True
+    # JS keywords (unmistakable, rarely collide with CS/EN/ES UI text)
+    if re.search(r'\b(?:catch|else|function|return|const|let|var|typeof|instanceof)\b', s): return True
+    return False
 
 def ok(s):
     if not (2 <= len(s) <= 200): return False
     if not LETTER.search(s): return False
+    if s in SKIP: return False
+    # URLs / file paths
+    if s.startswith('/') or s.startswith('http://') or s.startswith('https://'): return False
+    # Stray opening bracket / quote artifact
+    if s.startswith('['): return False
     if is_code(s) or '$' in s or '\\' in s: return False
     if s[0] in '"),;:': return False
     return True
@@ -75,7 +104,7 @@ miss = {}
 for t in cand:
     if resolves(t): continue
     key = core_of(t).strip()
-    if len(key) < 2 or key in covered: continue
+    if len(key) < 2 or key in covered or key in SKIP: continue
     miss.setdefault(key, t)
 
 print(f'B2B_PHRASES covered: {len(covered)}')

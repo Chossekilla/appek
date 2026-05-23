@@ -32,7 +32,7 @@
     document.addEventListener('DOMContentLoaded', function() {
       var b = document.createElement('div');
       b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#FFF8E5;border-bottom:2px solid #BA7517;padding:14px 20px;font-family:sans-serif;font-size:14px;line-height:1.5;color:#854F0B';
-      b.innerHTML = '⚠️ <strong>' + name + ' je zastaralý.</strong> Pro pohodlné objednávání aktualizujte prohlížeč.\
+      b.innerHTML = '⚠️ <strong>' + name + ' <span class="b2b-i18n">je zastaralý.</span></strong> <span class="b2b-i18n">Pro pohodlné objednávání aktualizujte prohlížeč.</span>\
         <button onclick="this.parentNode.remove()" style="float:right;background:transparent;border:1px solid #BA7517;color:#854F0B;padding:4px 10px;border-radius:4px;cursor:pointer">✕</button>';
       document.body.insertBefore(b, document.body.firstChild);
     });
