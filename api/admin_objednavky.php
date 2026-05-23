@@ -7,60 +7,10 @@ require_admin();
 $method = $_SERVER['REQUEST_METHOD'];
 $pdo = db();
 
-// Auto-migrace: povolit volné řádky v objednavky_polozky (vyrobek_id NULL + snapshot sloupce)
-(function() use ($pdo) {
-    try {
-        $stmt = $pdo->query("
-            SELECT IS_NULLABLE FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'objednavky_polozky' AND COLUMN_NAME = 'vyrobek_id'
-        ");
-        $isNullable = $stmt->fetchColumn();
-        if ($isNullable === 'NO') {
-            $fk = $pdo->query("
-                SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
-                WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'objednavky_polozky'
-                  AND COLUMN_NAME = 'vyrobek_id'
-                  AND REFERENCED_TABLE_NAME = 'vyrobky'
-            ")->fetchColumn();
-            if ($fk) $pdo->exec("ALTER TABLE objednavky_polozky DROP FOREIGN KEY `$fk`");
-            $pdo->exec("ALTER TABLE objednavky_polozky MODIFY vyrobek_id INT NULL");
-            if ($fk) {
-                try {
-                    $pdo->exec("
-                        ALTER TABLE objednavky_polozky
-                        ADD CONSTRAINT `$fk` FOREIGN KEY (vyrobek_id)
-                        REFERENCES vyrobky(id) ON DELETE SET NULL
-                    ");
-                } catch (Throwable $e) { /* idempotent */ }
-            }
-        }
-        // Snapshot sloupce (pro volné řádky a snapshotování názvu/jednotky/ceny)
-        $cols = $pdo->query("
-            SELECT COLUMN_NAME FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'objednavky_polozky'
-        ")->fetchAll(PDO::FETCH_COLUMN);
-        if (!in_array('vyrobek_nazev', $cols, true)) {
-            $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN vyrobek_nazev VARCHAR(255) NULL AFTER vyrobek_id");
-        }
-        if (!in_array('jednotka', $cols, true)) {
-            $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN jednotka VARCHAR(20) NULL AFTER vyrobek_nazev");
-        }
-
-        // 🐛 fix v2.9.166 — chybějící sloupec interni_pozn v `objednavky` shazoval
-        // celý create-objednavka flow s SQLSTATE 1054. Přidat lazy, jako poznamka.
-        $obj_cols = $pdo->query("
-            SELECT COLUMN_NAME FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'objednavky'
-        ")->fetchAll(PDO::FETCH_COLUMN);
-        if (!in_array('interni_pozn', $obj_cols, true)) {
-            $pdo->exec("ALTER TABLE objednavky ADD COLUMN interni_pozn TEXT NULL AFTER poznamka");
-        }
-    } catch (Throwable $e) {
-        error_log('admin_objednavky auto-migrace volné řádky: ' . $e->getMessage());
-    }
-})();
+// 🔄 v2.9.175 — DDL přesunut do _schema_lib.php (sdílený helper, idempotentní).
+require_once __DIR__ . '/_schema_lib.php';
+ensure_objednavky_polozky_schema($pdo);
+ensure_objednavky_schema($pdo);
 
 function prepocitat_objednavku(PDO $pdo, int $obj_id): void {
     $stmt = $pdo->prepare("

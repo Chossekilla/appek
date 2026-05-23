@@ -27,46 +27,10 @@ if (!$_token_auth) {
 
 $pdo = db();
 
-// 🐛 fix v2.9.171 — dodaci_list.php SELECTuje snapshot sloupce, které nemusí
-// v staré schémě existovat. Bez lazy DDL endpoint padá s SQLSTATE 1054 hned
-// jak ho otevře e-mail recipient přes signed URL token. Idempotentní.
-(function() use ($pdo) {
-    try {
-        $dlp = $pdo->query("
-            SELECT COLUMN_NAME FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dodaci_list_polozky'
-        ")->fetchAll(PDO::FETCH_COLUMN);
-        $dlp_l = array_map('strtolower', $dlp);
-        if ($dlp && !in_array('vyrobek_cislo', $dlp_l, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN vyrobek_cislo VARCHAR(40) NULL AFTER vyrobek_id");
-        }
-        if ($dlp && !in_array('vyrobek_nazev', $dlp_l, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN vyrobek_nazev VARCHAR(255) NULL AFTER vyrobek_cislo");
-        }
-        if ($dlp && !in_array('jednotka', $dlp_l, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN jednotka VARCHAR(20) NULL AFTER vyrobek_nazev");
-        }
-        if ($dlp && !in_array('poznamka', $dlp_l, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN poznamka TEXT NULL");
-        }
-
-        // dodaci_listy snapshot cols (warning v logu na undefined odb_*_snapshot)
-        $dlh = $pdo->query("
-            SELECT COLUMN_NAME FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dodaci_listy'
-        ")->fetchAll(PDO::FETCH_COLUMN);
-        $dlh_l = array_map('strtolower', $dlh);
-        foreach (['odb_nazev_snapshot' => 'VARCHAR(255)', 'odb_ico_snapshot' => 'VARCHAR(20)',
-                  'odb_dic_snapshot' => 'VARCHAR(20)', 'odb_ulice_snapshot' => 'VARCHAR(255)',
-                  'odb_mesto_snapshot' => 'VARCHAR(120)', 'odb_psc_snapshot' => 'VARCHAR(15)'] as $col => $type) {
-            if ($dlh && !in_array($col, $dlh_l, true)) {
-                $pdo->exec("ALTER TABLE dodaci_listy ADD COLUMN $col $type NULL");
-            }
-        }
-    } catch (Throwable $e) {
-        error_log('dodaci_list.php DDL: ' . $e->getMessage());
-    }
-})();
+// 🔄 v2.9.175 — DDL přesunut do _schema_lib.php (sdílený helper, idempotentní).
+require_once __DIR__ . '/_schema_lib.php';
+ensure_dodaci_list_polozky_schema($pdo);
+ensure_dodaci_listy_schema($pdo);
 
 // =============================================================
 // Helpery — načtení DL (single) podle dl_id NEBO objednávka_id

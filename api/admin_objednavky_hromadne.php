@@ -39,31 +39,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $pdo = db();
 
-// 🐛 fix v2.9.167 — hromadný DL generator INSERTuje snapshot sloupce, které
-// nemusí v staré schémě existovat. Lazy DDL přidá chybějící sloupce idempotentně.
-(function() use ($pdo) {
-    try {
-        $dl_cols = $pdo->query("
-            SELECT COLUMN_NAME FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dodaci_list_polozky'
-        ")->fetchAll(PDO::FETCH_COLUMN);
-        $dl_cols_lower = array_map('strtolower', $dl_cols);
-        if ($dl_cols && !in_array('vyrobek_cislo', $dl_cols_lower, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN vyrobek_cislo VARCHAR(40) NULL AFTER vyrobek_id");
-        }
-        if ($dl_cols && !in_array('vyrobek_nazev', $dl_cols_lower, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN vyrobek_nazev VARCHAR(255) NULL AFTER vyrobek_cislo");
-        }
-        if ($dl_cols && !in_array('jednotka', $dl_cols_lower, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN jednotka VARCHAR(20) NULL AFTER vyrobek_nazev");
-        }
-        if ($dl_cols && !in_array('poznamka', $dl_cols_lower, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN poznamka TEXT NULL");
-        }
-    } catch (Throwable $e) {
-        error_log('admin_objednavky_hromadne DDL: ' . $e->getMessage());
-    }
-})();
+// 🔄 v2.9.175 — DDL přesunut do _schema_lib.php (sdílený helper, idempotentní).
+require_once __DIR__ . '/_schema_lib.php';
+ensure_dodaci_list_polozky_schema($pdo);
+ensure_dodaci_listy_schema($pdo);
 
 $d = json_input();
 

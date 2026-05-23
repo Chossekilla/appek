@@ -7,65 +7,10 @@ require_admin();
 $method = $_SERVER['REQUEST_METHOD'];
 $pdo = db();
 
-// Auto-migrace: povolit NULL ve vyrobek_id (volné řádky bez katalogu)
-(function() use ($pdo) {
-    try {
-        // Zjisti, jestli je sloupec NOT NULL
-        $stmt = $pdo->query("
-            SELECT IS_NULLABLE FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'dodaci_list_polozky'
-              AND COLUMN_NAME = 'vyrobek_id'
-        ");
-        $isNullable = $stmt->fetchColumn();
-        if ($isNullable === 'NO') {
-            // Najdi a smaž FK na vyrobky.id (pokud existuje)
-            $fk = $pdo->query("
-                SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE
-                WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'dodaci_list_polozky'
-                  AND COLUMN_NAME = 'vyrobek_id'
-                  AND REFERENCED_TABLE_NAME = 'vyrobky'
-            ")->fetchColumn();
-            if ($fk) {
-                $pdo->exec("ALTER TABLE dodaci_list_polozky DROP FOREIGN KEY `$fk`");
-            }
-            $pdo->exec("ALTER TABLE dodaci_list_polozky MODIFY vyrobek_id INT NULL");
-            // Vrátit FK s ON DELETE SET NULL (pokud byl)
-            if ($fk) {
-                try {
-                    $pdo->exec("
-                        ALTER TABLE dodaci_list_polozky
-                        ADD CONSTRAINT `$fk` FOREIGN KEY (vyrobek_id)
-                        REFERENCES vyrobky(id) ON DELETE SET NULL
-                    ");
-                } catch (Throwable $e) { /* idempotentní */ }
-            }
-        }
-
-        // 🐛 fix v2.9.167 — INSERT očekává `vyrobek_cislo`, `vyrobek_nazev`, `jednotka`,
-        // `poznamka` snapshot sloupce. Pokud chybí, hromadný DL generator padá SQLSTATE 1054.
-        $dl_cols = $pdo->query("
-            SELECT COLUMN_NAME FROM information_schema.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dodaci_list_polozky'
-        ")->fetchAll(PDO::FETCH_COLUMN);
-        $dl_cols_lower = array_map('strtolower', $dl_cols);
-        if (!in_array('vyrobek_cislo', $dl_cols_lower, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN vyrobek_cislo VARCHAR(40) NULL AFTER vyrobek_id");
-        }
-        if (!in_array('vyrobek_nazev', $dl_cols_lower, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN vyrobek_nazev VARCHAR(255) NULL AFTER vyrobek_cislo");
-        }
-        if (!in_array('jednotka', $dl_cols_lower, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN jednotka VARCHAR(20) NULL AFTER vyrobek_nazev");
-        }
-        if (!in_array('poznamka', $dl_cols_lower, true)) {
-            $pdo->exec("ALTER TABLE dodaci_list_polozky ADD COLUMN poznamka TEXT NULL");
-        }
-    } catch (Throwable $e) {
-        error_log('admin_dodaci_listy auto-migrace vyrobek_id NULL: ' . $e->getMessage());
-    }
-})();
+// 🔄 v2.9.175 — DDL přesunut do _schema_lib.php (sdílený helper, idempotentní).
+require_once __DIR__ . '/_schema_lib.php';
+ensure_dodaci_list_polozky_schema($pdo);
+ensure_dodaci_listy_schema($pdo);
 
 try {
     if ($method === 'GET' && isset($_GET['id'])) {
