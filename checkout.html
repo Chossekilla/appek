@@ -176,119 +176,108 @@
   .err-box.show { display: block; }
 
   /* ═══════════════════════════════════════════════════════ */
-  /* 🎯 CONVINCE BUYER section                                */
+  /* 🆕 v2.9.212 — clean modern hero (méně dekorace, větší fokus) */
   /* ═══════════════════════════════════════════════════════ */
-  .convince { margin-bottom: 30px; }
-  .conv-hero {
-    background: linear-gradient(135deg, #1d1d1f 0%, #2d2d30 60%, #BA7517 100%);
-    color: #fff; border-radius: 18px;
-    padding: 50px 40px;
+  .hero-clean {
+    background: #fff;
+    border-radius: 20px;
+    padding: 56px 48px 44px;
+    margin-bottom: 28px;
     text-align: center;
-    margin-bottom: 18px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    border: 1px solid rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03), 0 8px 32px rgba(0,0,0,0.04);
+    position: relative;
+    overflow: hidden;
   }
-  .conv-hero h1 {
-    font-size: 38px; font-weight: 800; margin: 0 0 14px;
-    line-height: 1.15; letter-spacing: -0.5px;
+  /* Subtle brand glow v rohu */
+  .hero-clean::before {
+    content: '';
+    position: absolute; top: -40%; right: -10%;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(186,117,23,0.08) 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
   }
-  .conv-hero h1 .hl {
-    background: linear-gradient(135deg, #FFD700, #FFA500);
+  .hero-clean > * { position: relative; z-index: 1; }
+
+  .hero-clean-eyebrow {
+    display: inline-block;
+    font-size: 12px; font-weight: 700;
+    color: #BA7517; letter-spacing: 1px;
+    text-transform: uppercase;
+    background: rgba(186,117,23,0.08);
+    padding: 6px 14px; border-radius: 999px;
+    margin-bottom: 22px;
+  }
+  .hero-clean-title {
+    font-size: 44px; font-weight: 800;
+    margin: 0 0 16px; line-height: 1.1;
+    letter-spacing: -1px; color: #1d1d1f;
+  }
+  .hero-clean-title .hl {
+    background: linear-gradient(135deg, #BA7517 0%, #F59E0B 50%, #BA7517 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
+    background-clip: text; color: transparent;
   }
-  .conv-hero p {
-    font-size: 17px; opacity: 0.92; max-width: 720px; margin: 0 auto 28px;
-    line-height: 1.55;
+  .hero-clean-lead {
+    font-size: 17px; line-height: 1.6;
+    color: #424245; max-width: 680px; margin: 0 auto 28px;
   }
-  .conv-trust {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 14px; max-width: 800px; margin: 0 auto;
-  }
-  .ct-item {
-    display: flex; align-items: flex-start; gap: 10px;
-    background: rgba(255,255,255,0.1); padding: 14px 16px; border-radius: 12px;
-    text-align: left; backdrop-filter: blur(8px);
-  }
-  .ct-item .ct-em { font-size: 26px; line-height: 1; }
-  .ct-item strong { display: block; font-size: 14px; margin-bottom: 2px; }
-  .ct-item div { font-size: 12.5px; opacity: 0.85; }
+  .hero-clean-lead strong { color: #1d1d1f; font-weight: 700; }
 
-  /* VS SAAS comparison */
-  .vs-saas {
-    background: #fff; border-radius: 18px; padding: 32px 32px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
-    margin-bottom: 18px;
+  /* Trust badges — inline row */
+  .hero-trust-row {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+    margin-bottom: 36px;
   }
-  .vs-h {
-    text-align: center; font-size: 22px; font-weight: 800;
-    margin-bottom: 22px; color: #1d1d1f;
+  .ht-badge {
+    font-size: 13px; color: #424245;
+    background: #f5f5f7;
+    border: 1px solid rgba(0,0,0,0.04);
+    padding: 8px 14px; border-radius: 999px;
+    white-space: nowrap;
   }
-  .vs-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
-  }
-  .vs-col {
-    border-radius: 14px; padding: 22px 24px;
-    background: #fafafa; border: 1px solid #e8e8e8;
-  }
-  .vs-col.saas { background: #fef7f7; border-color: #fee; }
-  .vs-col.appek {
-    background: linear-gradient(135deg, #fff8e8 0%, #fff 100%);
-    border: 2px solid #BA7517;
-    box-shadow: 0 4px 14px rgba(186, 117, 23, 0.12);
-  }
-  .vs-title {
-    font-size: 15px; font-weight: 800; margin-bottom: 12px;
-    color: #1d1d1f;
-  }
-  .vs-col.saas .vs-title { color: #b30019; }
-  .vs-col.appek .vs-title { color: #BA7517; }
-  .vs-col ul { list-style: none; padding: 0; margin: 0; }
-  .vs-col li {
-    padding: 6px 0; font-size: 13.5px; color: #3a3a3c; line-height: 1.5;
-  }
+  .ht-badge strong { color: #1d1d1f; font-weight: 700; }
 
-  /* STEPS */
-  .steps-conv {
-    background: #fff; border-radius: 18px; padding: 26px 30px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  /* Stepper — clean horizontal flow */
+  .stepper-clean {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 4px; max-width: 760px; margin: 0 auto;
+    padding-top: 24px;
+    border-top: 1px solid rgba(0,0,0,0.06);
   }
-  .sc-title { text-align: center; font-size: 17px; font-weight: 700; margin-bottom: 22px; }
-  .sc-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    flex-wrap: wrap;
+  .step-item {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    flex: 0 0 auto; min-width: 0;
   }
-  .sc-step {
-    flex: 1; min-width: 130px;
-    display: flex; align-items: center; gap: 10px;
-    background: #fafafa; padding: 12px 14px; border-radius: 10px;
-    border: 1px solid #ececef;
+  .step-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #fff; border: 2px solid #BA7517; color: #BA7517;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px;
+    transition: all 0.15s;
   }
-  .sc-step.done {
-    background: linear-gradient(135deg, #DCFCE7, #BBF7D0);
-    border-color: #34c759;
+  .step-item.done .step-num {
+    background: #BA7517; color: #fff;
   }
-  .sc-num {
-    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
-    background: linear-gradient(135deg, #BA7517, #854F0B); color: #fff;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 16px;
+  .step-txt { text-align: center; font-size: 12px; line-height: 1.3; }
+  .step-txt strong { display: block; color: #1d1d1f; font-weight: 600; font-size: 12.5px; }
+  .step-txt div { color: #86868b; font-size: 11px; margin-top: 1px; }
+  .step-line {
+    flex: 1; height: 2px; background: linear-gradient(90deg, #BA7517, rgba(186,117,23,0.3));
+    margin-top: -22px; opacity: 0.5; min-width: 16px;
   }
-  .sc-step.done .sc-num { background: linear-gradient(135deg, #34c759, #1f9244); }
-  .sc-step strong { font-size: 13px; color: #1d1d1f; display: block; }
-  .sc-d { font-size: 11.5px; color: #6e6e73; margin-top: 1px; }
-  .sc-arrow { color: #c7c7cc; font-size: 18px; flex-shrink: 0; }
 
   /* MOBILE */
   @media (max-width: 720px) {
-    .conv-hero { padding: 32px 22px; }
-    .conv-hero h1 { font-size: 26px; }
-    .conv-hero p { font-size: 14.5px; }
-    .vs-grid { grid-template-columns: 1fr; }
-    .vs-saas { padding: 22px 18px; }
-    .vs-h { font-size: 18px; }
-    .sc-row { flex-direction: column; }
-    .sc-arrow { transform: rotate(90deg); margin: 4px 0; }
-    .sc-step { width: 100%; }
+    .hero-clean { padding: 40px 24px 32px; }
+    .hero-clean-title { font-size: 30px; letter-spacing: -0.5px; }
+    .hero-clean-lead { font-size: 15px; }
+    .hero-trust-row { gap: 6px; }
+    .ht-badge { font-size: 12px; padding: 6px 12px; }
+    .stepper-clean { flex-direction: column; align-items: stretch; gap: 14px; }
+    .step-item { flex-direction: row; gap: 12px; }
+    .step-txt { text-align: left; }
+    .step-line { display: none; }
   }
 </style>
 </head>
@@ -306,66 +295,36 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════ -->
-  <!-- 🎯 PŘESVĚDČIT KE KOUPI — hero, trust, proč APPEK         -->
+  <!-- 🆕 v2.9.212 — clean modern hero (méně dekorace, větší fokus) -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <div class="convince">
-    <div class="conv-hero">
-      <h1 data-i18n="conv_h1">Jednou koupíte. <span class="hl">Navždy vlastníte.</span></h1>
-      <p data-i18n="conv_lead">Žádné měsíční poplatky, žádný subscription burnout. Stáhněte si APPEK na <strong>svůj hosting</strong> a vlastníte data i kód. Klíč přijde e-mailem do 24 h.</p>
-      <div class="conv-trust">
-        <div class="ct-item"><span class="ct-em">✅</span><div><strong data-i18n="ct_1_t">Doživotní licence</strong><div data-i18n="ct_1_d">žádné předplatné</div></div></div>
-        <div class="ct-item"><span class="ct-em">🏠</span><div><strong data-i18n="ct_2_t">Váš hosting, vaše data</strong><div data-i18n="ct_2_d">plná kontrola GDPR</div></div></div>
-        <div class="ct-item"><span class="ct-em">🇨🇿</span><div><strong data-i18n="ct_3_t">Český systém</strong><div data-i18n="ct_3_d">+ EN, ES překlady</div></div></div>
-        <div class="ct-item"><span class="ct-em">🔄</span><div><strong data-i18n="ct_4_t">Updates zdarma</strong><div data-i18n="ct_4_d">první rok</div></div></div>
-      </div>
+  <div class="hero-clean">
+    <div class="hero-clean-eyebrow" data-i18n="hero_eyebrow">📦 APPEK B2B · Jednorázová licence</div>
+    <h1 class="hero-clean-title" data-i18n="conv_h1">
+      Jednou koupíte. <span class="hl">Navždy vlastníte.</span>
+    </h1>
+    <p class="hero-clean-lead" data-i18n="conv_lead">
+      Žádné měsíční poplatky, žádný subscription burnout. APPEK běží na <strong>vašem hostingu</strong> — vlastníte data i zdrojový PHP kód. Licenční klíč přijde e-mailem ihned po zaplacení.
+    </p>
+
+    <!-- Trust badges — inline horizontální -->
+    <div class="hero-trust-row">
+      <span class="ht-badge">✅ <strong>Doživotní</strong> licence</span>
+      <span class="ht-badge">🏠 <strong>Vaše data</strong> na vašem hostingu</span>
+      <span class="ht-badge">🇨🇿 Český systém + 4 jazyky</span>
+      <span class="ht-badge">🔄 <strong>1 rok updates</strong> zdarma</span>
     </div>
 
-    <!-- ✨ APPEK B2B — co dostanete (žádné srovnání s konkurencí, legální čistka v2.9.196) -->
-    <div class="vs-saas">
-      <div class="vs-h" data-i18n="vs_h">✨ Co dostanete s APPEK B2B</div>
-      <div class="vs-grid">
-        <div class="vs-col appek" style="grid-column: 1 / -1">
-          <ul>
-            <li data-i18n="ap_1">✅ <strong>Jednorázová licence 9 990 Kč</strong> — bez měsíčních poplatků</li>
-            <li data-i18n="ap_2">✅ Data <strong>u vás na hostingu</strong> — plná kontrola GDPR</li>
-            <li data-i18n="ap_3">✅ Vypnete → <strong>data zůstávají vám</strong> (žádný vendor lock-in)</li>
-            <li data-i18n="ap_4">✅ <strong>PHP zdroj</strong> — můžete upravit dle potřeby</li>
-            <li data-i18n="ap_5">✅ <strong>Vlastní integrace</strong> přes REST API (POHODA, FlexiBee, Stripe, GoPay, Zásilkovna)</li>
-            <li data-i18n="ap_6">✅ Updates první rok zdarma · česká podpora · CZ/SK/EN/DE/ES překlady</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <!-- WORKFLOW STEPS -->
-    <div class="steps-conv">
-      <div class="sc-title" data-i18n="sc_title">⏱️ Cesta od objednávky k živému provozu — pod 30 minut</div>
-      <div class="sc-row">
-        <div class="sc-step">
-          <div class="sc-num">1</div>
-          <div><strong data-i18n="sc1_t">Vyberte balíčky</strong><div class="sc-d" data-i18n="sc1_d">Core + add-ony. 2 minuty.</div></div>
-        </div>
-        <div class="sc-arrow">→</div>
-        <div class="sc-step">
-          <div class="sc-num">2</div>
-          <div><strong data-i18n="sc2_t">Zaplaťte</strong><div class="sc-d" data-i18n="sc2_d">Karta / GoPay / bank. Hned.</div></div>
-        </div>
-        <div class="sc-arrow">→</div>
-        <div class="sc-step">
-          <div class="sc-num">3</div>
-          <div><strong data-i18n="sc3_t">Klíč e-mailem</strong><div class="sc-d" data-i18n="sc3_d">Auto-vystavení. ~5 min.</div></div>
-        </div>
-        <div class="sc-arrow">→</div>
-        <div class="sc-step">
-          <div class="sc-num">4</div>
-          <div><strong data-i18n="sc4_t">Nainstalujte</strong><div class="sc-d" data-i18n="sc4_d">install.php wizard. 5 min.</div></div>
-        </div>
-        <div class="sc-arrow">→</div>
-        <div class="sc-step done">
-          <div class="sc-num">✓</div>
-          <div><strong data-i18n="sc5_t">Provoz</strong><div class="sc-d" data-i18n="sc5_d">Hotovo.</div></div>
-        </div>
-      </div>
+    <!-- Workflow stepper — clean horizontální (na mobilu vertikální) -->
+    <div class="stepper-clean" aria-label="4 kroky od objednávky k provozu">
+      <div class="step-item"><div class="step-num">1</div><div class="step-txt"><strong data-i18n="sc1_t">Vyberte balíčky</strong><div data-i18n="sc1_d">2 minuty</div></div></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-num">2</div><div class="step-txt"><strong data-i18n="sc2_t">Zaplaťte</strong><div data-i18n="sc2_d">karta / převod</div></div></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-num">3</div><div class="step-txt"><strong data-i18n="sc3_t">Klíč e-mailem</strong><div data-i18n="sc3_d">ihned</div></div></div>
+      <div class="step-line"></div>
+      <div class="step-item"><div class="step-num">4</div><div class="step-txt"><strong data-i18n="sc4_t">Nainstalujte</strong><div data-i18n="sc4_d">5 min</div></div></div>
+      <div class="step-line"></div>
+      <div class="step-item done"><div class="step-num">✓</div><div class="step-txt"><strong data-i18n="sc5_t">Provoz</strong><div data-i18n="sc5_d">hotovo</div></div></div>
     </div>
   </div>
 
@@ -537,8 +496,9 @@
 const I18N = {
   cs: {
     // 🎯 Convince section
+    hero_eyebrow: '📦 APPEK B2B · Jednorázová licence',
     conv_h1: 'Jednou koupíte. <span class="hl">Navždy vlastníte.</span>',
-    conv_lead: 'Žádné měsíční poplatky, žádný subscription burnout. Stáhněte si APPEK na <strong>svůj hosting</strong> a vlastníte data i kód. Klíč přijde e-mailem do 24 h.',
+    conv_lead: 'Žádné měsíční poplatky, žádný subscription burnout. APPEK běží na <strong>vašem hostingu</strong> — vlastníte data i zdrojový PHP kód. Licenční klíč přijde e-mailem ihned po zaplacení.',
     ct_1_t: 'Doživotní licence', ct_1_d: 'žádné předplatné',
     ct_2_t: 'Váš hosting, vaše data', ct_2_d: 'plná kontrola GDPR',
     ct_3_t: 'Český systém', ct_3_d: '+ EN, ES překlady',
@@ -605,8 +565,9 @@ const I18N = {
   },
   en: {
     // 🎯 Convince
+    hero_eyebrow: '📦 APPEK B2B · One-time license',
     conv_h1: 'Buy once. <span class="hl">Own forever.</span>',
-    conv_lead: 'No monthly fees, no subscription burnout. Install APPEK on <strong>your own hosting</strong> — you own data and code. Key arrives via e-mail within 24 h.',
+    conv_lead: 'No monthly fees, no subscription burnout. APPEK runs on <strong>your own hosting</strong> — you own data and PHP source code. License key arrives by e-mail immediately after payment.',
     ct_1_t: 'Lifetime license', ct_1_d: 'no subscription',
     ct_2_t: 'Your hosting, your data', ct_2_d: 'full GDPR control',
     ct_3_t: 'Czech-made', ct_3_d: '+ EN, ES translations',
@@ -669,8 +630,9 @@ const I18N = {
   },
   es: {
     // 🎯 Convince
+    hero_eyebrow: '📦 APPEK B2B · Licencia única',
     conv_h1: 'Compre una vez. <span class="hl">Sea suyo para siempre.</span>',
-    conv_lead: 'Sin cuotas mensuales. Instale APPEK en <strong>su hosting</strong> — datos y código son suyos. La clave llega por correo en 24 h.',
+    conv_lead: 'Sin cuotas mensuales. APPEK funciona en <strong>su hosting</strong> — los datos y el código PHP son suyos. La clave llega por correo inmediatamente tras el pago.',
     ct_1_t: 'Licencia de por vida', ct_1_d: 'sin suscripción',
     ct_2_t: 'Tu hosting, tus datos', ct_2_d: 'control RGPD total',
     ct_3_t: 'Sistema checo', ct_3_d: '+ EN, ES traducciones',
