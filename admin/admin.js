@@ -1516,7 +1516,7 @@ window.skeletonLine = function(width = '60%', height = '14px') {
     return [
       { kind: 'nav', id: 'dashboard',     icon: '📊', title: 'Přehled',          sub: 'Dashboard se statistikami', page: 'dashboard' },
       { kind: 'nav', id: 'objednavky',    icon: '📋', title: 'Objednávky',       sub: 'Seznam objednávek', page: 'objednavky' },
-      { kind: 'nav', id: 'vyroba',        icon: '🥖', title: 'Výrobní list',     sub: 'Plán výroby na den', page: 'vyroba' },
+      { kind: 'nav', id: 'vyroba',        icon: '🥖', title: 'Výroba',           sub: 'Výrobní list, suroviny, sklad, HACCP', page: 'vyroba' },
       { kind: 'nav', id: 'dodaci_listy',  icon: '📃', title: 'Dodací listy',     sub: '', page: 'dodaci_listy' },
       { kind: 'nav', id: 'faktury',       icon: '💰', title: 'Faktury',          sub: '', page: 'faktury' },
       { kind: 'nav', id: 'vyrobky',       icon: '📦', title: 'Výrobky',          sub: 'Katalog výrobků', page: 'vyrobky' },
@@ -3578,8 +3578,8 @@ async function renderDashboard(filters = {}) {
       <button class="quick-action-btn" onclick="navigate('vyroba')">
         <span class="qa-icon">🥖</span>
         <span class="qa-label">
-          <span class="qa-title">Výrobní list</span>
-          <span class="qa-sub">Souhrn výroby</span>
+          <span class="qa-title">Výroba</span>
+          <span class="qa-sub">Výrobní list, suroviny, sklad, HACCP</span>
         </span>
       </button>
     </div>
