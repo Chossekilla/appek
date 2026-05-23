@@ -238,11 +238,18 @@ if ($method === 'GET') {
         $obj = $stmt->fetch();
         if (!$obj) json_error('Objednávka nenalezena', 404);
 
+        // 🐛 fix v2.9.185 — INNER JOIN vyrobky vyhazovala položky s vyrobek_id NULL
+        // (volné řádky bez katalogu) i položky kde výrobek byl smazán (FK ON DELETE
+        // SET NULL od v2.9.175). Demo data měla 25 ze 47 OBJ "prázdných" (kc>0, ale
+        // detail vrátil 0 položek). LEFT JOIN + COALESCE se snapshot sloupci to fixne.
         $polozky = $pdo->prepare("
-            SELECT p.*, v.nazev AS vyrobek_nazev, v.cislo AS vyrobek_cislo,
-                   v.obrazek_url, j.kod AS jednotka
+            SELECT p.*,
+                   COALESCE(NULLIF(p.vyrobek_nazev, ''), v.nazev) AS vyrobek_nazev,
+                   v.cislo AS vyrobek_cislo,
+                   v.obrazek_url,
+                   COALESCE(NULLIF(p.jednotka, ''), j.kod, 'ks') AS jednotka
             FROM objednavky_polozky p
-            JOIN vyrobky v ON v.id = p.vyrobek_id
+            LEFT JOIN vyrobky v ON v.id = p.vyrobek_id
             LEFT JOIN jednotky j ON j.id = v.jednotka_id
             WHERE p.objednavka_id = :id
         ");
