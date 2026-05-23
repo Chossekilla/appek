@@ -48,7 +48,7 @@ try {
                 'rok'        => $rok,
                 'predcisli'  => $predcisli,
                 'posledni'   => $posledni,
-                'priste'     => $predcisli . ($posledni + 1),
+                'priste'     => $predcisli . str_pad((string) ($posledni + 1), 4, '0', STR_PAD_LEFT),
                 'existuje'   => $r !== null,
             ];
         }
@@ -106,7 +106,7 @@ try {
             'rok'       => $rok,
             'predcisli' => $predcisli,
             'posledni'  => $posledni,
-            'priste'    => $predcisli . ($posledni + 1),
+            'priste'    => $predcisli . str_pad((string) ($posledni + 1), 4, '0', STR_PAD_LEFT),
         ]);
     }
 
