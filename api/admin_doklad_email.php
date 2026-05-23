@@ -9,6 +9,7 @@
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_email_token.php';
 cors_headers();
 require_admin();
 
@@ -58,16 +59,15 @@ try {
         $cislo = $s->fetchColumn();
         if (!$cislo) json_error('Faktura nenalezena', 404);
         $nazev_souboru = 'Faktura-' . $cislo . '.pdf';
-        $pdf_url = $baseUrl . '/api/faktura.php?id=' . $id;
+        $renderer = 'faktura.php';
         $default_predmet = "Faktura $cislo · $firma_nazev";
     } elseif ($typ === 'dl') {
-        $s = $pdo->prepare("SELECT cislo, objednavka_id FROM dodaci_listy WHERE id = :id LIMIT 1");
+        $s = $pdo->prepare("SELECT cislo FROM dodaci_listy WHERE id = :id LIMIT 1");
         $s->execute(['id' => $id]);
-        $r = $s->fetch(PDO::FETCH_ASSOC);
-        if (!$r) json_error('Dodací list nenalezen', 404);
-        $cislo = $r['cislo'];
+        $cislo = $s->fetchColumn();
+        if (!$cislo) json_error('Dodací list nenalezen', 404);
         $nazev_souboru = 'Dodaci-list-' . $cislo . '.pdf';
-        $pdf_url = $baseUrl . '/api/dodaci_list.php?' . ($r['objednavka_id'] ? 'id=' . $r['objednavka_id'] : 'dl_id=' . $id);
+        $renderer = 'dodaci_list.php';
         $default_predmet = "Dodací list $cislo · $firma_nazev";
     } else { // obj
         $s = $pdo->prepare("SELECT cislo FROM objednavky WHERE id = :id LIMIT 1");
@@ -75,9 +75,13 @@ try {
         $cislo = $s->fetchColumn();
         if (!$cislo) json_error('Objednávka nenalezena', 404);
         $nazev_souboru = 'Objednavka-' . $cislo . '.pdf';
-        $pdf_url = $baseUrl . '/api/dodaci_list.php?id=' . $id; // objednávka jde přes dodací list
+        $renderer = 'dodaci_list.php';  // objednávka jde přes dodací list endpoint
         $default_predmet = "Objednávka $cislo · $firma_nazev";
     }
+
+    // 🔐 v2.9.164 — generuj signed token pro public e-mail link (vyhne se admin loginu pro odběratele)
+    $email_token = create_email_token($pdo, $typ, $id, 30);
+    $pdf_url = $baseUrl . '/api/' . $renderer . '?token=' . $email_token;
 } catch (Throwable $e) {
     json_error('Chyba při načítání dokladu: ' . $e->getMessage(), 500);
 }

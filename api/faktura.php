@@ -1,7 +1,22 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
-require_admin();
+
+// 🆕 v2.9.164 — public access přes signed token z e-mailu (alternativa k admin login).
+// Token je vázaný na konkrétní fakturu, takže leak nepustí útočníka jinam.
+$_email_token = $_GET['token'] ?? '';
+$_token_auth = false;
+if ($_email_token !== '') {
+    require_once __DIR__ . '/_email_token.php';
+    $_tok_row = verify_email_token(db(), $_email_token, 'fa');
+    if ($_tok_row) {
+        $_GET['id'] = (int) $_tok_row['doklad_id'];
+        $_token_auth = true;
+    }
+}
+if (!$_token_auth) {
+    require_admin();
+}
 
 $pdo = db();
 

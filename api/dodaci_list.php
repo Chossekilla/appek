@@ -1,7 +1,27 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
-require_admin();
+
+// 🆕 v2.9.164 — public access přes signed token z e-mailu (alternativa k admin login).
+// Endpoint slouží pro DL (?dl_id=N) i pro objednávku (?id=N), token typ rozliší.
+$_email_token = $_GET['token'] ?? '';
+$_token_auth = false;
+if ($_email_token !== '') {
+    require_once __DIR__ . '/_email_token.php';
+    // Token může být typu 'dl' nebo 'obj' — povolíme oboje.
+    $_tok_row = verify_email_token(db(), $_email_token);
+    if ($_tok_row && in_array($_tok_row['typ'], ['dl', 'obj'], true)) {
+        if ($_tok_row['typ'] === 'dl') {
+            $_GET['dl_id'] = (int) $_tok_row['doklad_id'];
+        } else {
+            $_GET['id'] = (int) $_tok_row['doklad_id'];
+        }
+        $_token_auth = true;
+    }
+}
+if (!$_token_auth) {
+    require_admin();
+}
 
 $pdo = db();
 
