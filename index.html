@@ -4953,10 +4953,12 @@ window.setSalesLang = async function(code) {
 
   // Apply text translations — VŽDY innerHTML pro správné renderování <strong>
   // Bezpečné protože SALES_I18N je statický (žádný user input → žádný XSS risk)
-  // 🆕 v2.9.204 — SK/DE fallback chain (zatím chybí kompletní překlady):
-  //   sk → cs → en → key  (Slovák lépe pochopí CS než EN)
-  //   de → en → cs → key  (Němec lépe pochopí EN než CS)
-  //   en/es/cs → vlastní → cs (kdyby chyběly)
+  // 🆕 v2.9.222 — fallback chain priorita:
+  //   sk → cs (Slovák čte česky téměř plynně)
+  //   de → en (Němec radši EN než CS)
+  //   en/es → vlastní → cs (kdyby chyběly)
+  // i18n_extra.js (admin overlay) má cs→sk překlad pro 17 881 admin frází, ale sales
+  // marketing texty tam NEJSOU. Plný překlad sales je inline v SALES_I18N (postupně).
   const fallbackChain = {
     sk: ['sk', 'cs', 'en'],
     de: ['de', 'en', 'cs'],
@@ -4974,13 +4976,13 @@ window.setSalesLang = async function(code) {
     if (entry) {
       let text = null;
       // 1. preferovaný jazyk v SALES_I18N
-      if (entry[code] !== undefined) text = entry[code];
+      if (entry[code] !== undefined && entry[code] !== null) text = entry[code];
       // 2. overlay z i18n_extra.js (pro SK/DE — 17 881 frází)
       if (text === null && overlay && entry.cs && overlay[entry.cs]) text = overlay[entry.cs];
       // 3. fallback chain (sk → cs → en, de → en → cs, atd.)
       if (text === null) {
         for (const c of chain) {
-          if (entry[c] !== undefined) { text = entry[c]; break; }
+          if (entry[c] !== undefined && entry[c] !== null) { text = entry[c]; break; }
         }
       }
       if (text !== null) el.innerHTML = text;

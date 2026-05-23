@@ -5047,7 +5047,15 @@ const VYROBA_SUBTABS = [
 
 async function renderVyrobaHub() {
   const c = document.getElementById('content');
-  const aktSubTab = state._vyrobaSubTab || 'list';
+  // 🆕 v2.9.222 — fix: zajisti že _vyrobaSubTab je VŽDY 'render' typ (ne 'nav').
+  // Předtím když user navigoval ze sub-stránky (např. Kalkulace) zpět na Výrobu,
+  // _vyrobaSubTab === 'kalkulace' (sub.nav: 'vyrobni_kalkulace') → infinite navigate loop.
+  let aktSubTab = state._vyrobaSubTab || 'list';
+  const checkSub = VYROBA_SUBTABS.find(t => t.key === aktSubTab);
+  if (!checkSub || !checkSub.render) {
+    aktSubTab = 'list';
+    state._vyrobaSubTab = 'list';
+  }
 
   c.innerHTML = `
     <div class="page-head">
@@ -5072,19 +5080,21 @@ async function renderVyrobaHub() {
     </div>
   `;
 
-  // Render aktivního sub-tabu
+  // Render aktivního sub-tabu (vždy render type — nav type je filtrován výš)
   const sub = VYROBA_SUBTABS.find(t => t.key === aktSubTab) || VYROBA_SUBTABS[0];
   if (sub.render) await sub.render();
-  else if (sub.nav) navigate(sub.nav);  // shortcut sub-tab — naviguje pryč
 }
 
 window.vyrobaSetSubTab = function(tabKey) {
-  state._vyrobaSubTab = tabKey;
   const sub = VYROBA_SUBTABS.find(t => t.key === tabKey);
-  // Pokud má 'nav', přesměruj. Pokud má 'render', překresli sub-tab.
+  // 🆕 v2.9.222 — 'nav' sub-taby (kalkulace, haccp, sklad, prehled, suroviny) jen
+  // přesměrují pryč — NESMÍ se uložit do _vyrobaSubTab, jinak vznikne nav loop
+  // při návratu na Výrobu (renderVyrobaHub by viděl _vyrobaSubTab='kalkulace' a
+  // znovu zavolal navigate). Ukládáme jen 'render' sub-taby (list, sklady).
   if (sub?.nav) {
     navigate(sub.nav);
-  } else {
+  } else if (sub?.render) {
+    state._vyrobaSubTab = tabKey;
     renderVyrobaHub();
   }
 };
@@ -20070,8 +20080,10 @@ window.otevritFixniNaklady = async function() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+  // 🆕 v2.9.222 — fix: background:var(--bg-1) byla neexistující proměnná → průhledný modal.
+  // Použijeme stejné proměnné jako standardní .modal-card (surface + border + shadow).
   overlay.innerHTML = `
-    <div class="modal" style="background:var(--bg-1);border-radius:10px;max-width:560px;width:100%;max-height:80vh;overflow:auto;padding:24px">
+    <div class="modal" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;max-width:560px;width:100%;max-height:80vh;overflow:auto;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,0.25)">
       <h2 style="margin:0 0 6px;font-size:20px">💰 Fixní náklady na výrobek</h2>
       <p class="page-sub" style="margin:0 0 18px;font-size:13px">
         Položky které se přičtou ke každé kalkulaci výrobku (vedle ceny surovin) — energie, práce, balení, nájem rozpočítaný na ks…
