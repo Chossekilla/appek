@@ -6295,6 +6295,7 @@ async function renderRecurring() {
           <p class="page-sub">${list.length} pravidel · Automatické generování objednávek dle frekvence</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="navigate('objednavky')">← Objednávky</button>
           <button class="btn-secondary" onclick="recurringSpustit()" title="Vygeneruje objednávky na zítra (test)">⚡ Spustit teď (test)</button>
           <button class="btn-primary btn-green btn-big-action" onclick="recurringEdit(null)" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important">+ Nové pravidlo</button>
         </div>
@@ -22376,7 +22377,10 @@ async function renderKategorie() {
         <h1 class="page-title">🏷️ Kategorie výrobků</h1>
         <p class="page-sub">${list.length} ${list.length === 1 ? 'kategorie' : (list.length < 5 ? 'kategorie' : 'kategorií')}</p>
       </div>
-      ${adminOnly(`<button class="btn-primary btn-green btn-big-action" onclick="editKategorie()" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nová kategorie</button>`)}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="navigate('vyrobky')">← Výrobky</button>
+        ${adminOnly(`<button class="btn-primary btn-green btn-big-action" onclick="editKategorie()" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nová kategorie</button>`)}
+      </div>
     </div>
 
     <!-- Desktop: tabulka -->
@@ -23421,7 +23425,7 @@ async function renderSklad() {
         <p class="page-sub">${aktivni.length} aktivních surovin · Hodnota skladu: <strong>${fmt(celkemHodnota)}</strong></p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="navigate('nastaveni')">← Zpět do Nastavení</button>
+        <button class="btn-secondary" onclick="navigate('vyroba')">← Výroba</button>
         <button class="btn-secondary" onclick="navigate('suroviny')">🌾 Spravovat suroviny</button>
       </div>
     </div>
@@ -30438,7 +30442,7 @@ async function renderExportVyroby(filters = {}) {
         <p class="page-sub">Souhrn objednaných výrobků za období · zdroj: objednávky (kromě zrušených), datum dodání</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="navigate('nastaveni')">← Zpět do Nastavení</button>
+        <button class="btn-secondary" onclick="navigate('vyroba')">← Výroba</button>
         <button class="btn-secondary" onclick="window.print()">🖨️ Tisk</button>
         <button class="btn-primary btn-green" onclick="exportVyrobyCsv()">📥 Stáhnout CSV</button>
       </div>
@@ -30769,6 +30773,9 @@ function haccpRender() {
       <div>
         <h1 class="page-title">📋 HACCP</h1>
         <p class="page-sub">Produktové karty, plán kritických bodů a dokumentace</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="navigate('vyroba')">← Výroba</button>
       </div>
     </div>
 
@@ -32737,7 +32744,7 @@ function vkRender() {
         <p class="page-sub">Várka → presy → klonky → cena na 1 kus${currentV ? ' · 🔗 <strong>' + esc(currentV.nazev) + '</strong>' : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="navigate('nastaveni')">← Zpět</button>
+        <button class="btn-secondary" onclick="navigate('vyroba')">← Výroba</button>
         <button class="btn-secondary" onclick="vkReset()">↺ Vyčistit</button>
         <button class="btn-secondary" onclick="vkOtevritHistorii()" title="Procházet uložené kalkulace s tehdejšími cenami">📂 Historie</button>
         <button class="btn-primary" onclick="vkUlozitDoHistorie()" title="Uloží snímek aktuální kalkulace včetně cen surovin (pro pozdější porovnání)">💾 Uložit snímek</button>
