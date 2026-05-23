@@ -26,11 +26,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         foreach ($keys as $k) {
             $v = trim((string) ($_POST[$k] ?? ''));
             if ($k === 'stripe_enabled') $v = isset($_POST['stripe_enabled']) ? '1' : '0';
+            // 🐛 fix v2.9.190 — nepřepisovat masked password input (•••), když user
+            // jen editoval jiné pole. Frontend nově posílá masku jako '__KEEP__'.
+            if (in_array($k, ['stripe_secret_key', 'stripe_webhook_secret'], true) && $v === '__KEEP__') {
+                continue;
+            }
             vendor_mail_set($k, $v);
         }
         vendor_audit($pdo, $user, 'stripe_settings_save', null, null);
         $flash_ok = 'Stripe nastavení uloženo.';
     } catch (Throwable $e) { $flash_err = $e->getMessage(); }
+}
+
+// ─── Stripe test connection (v2.9.190) ──────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_stripe') {
+    require_once __DIR__ . '/_stripe.php';
+    $resp = stripe_request('GET', '/account');
+    if ($resp['ok'] ?? false) {
+        $name = $resp['business_profile']['name'] ?? $resp['settings']['dashboard']['display_name'] ?? $resp['email'] ?? $resp['id'];
+        $charges = $resp['charges_enabled'] ?? false;
+        $payouts = $resp['payouts_enabled'] ?? false;
+        $country = $resp['country'] ?? '?';
+        $currency = strtoupper($resp['default_currency'] ?? '?');
+        if ($charges && $payouts) {
+            $flash_ok = "✅ Stripe připojen: <strong>" . htmlspecialchars($name) . "</strong> · {$country} · {$currency} · charges + payouts ENABLED.";
+        } else {
+            $issues = [];
+            if (!$charges) $issues[] = 'charges_disabled';
+            if (!$payouts) $issues[] = 'payouts_disabled';
+            $flash_err = "⚠️ Připojeno k <strong>" . htmlspecialchars($name) . "</strong>, ale účet není plně aktivní: " . implode(', ', $issues) . ". Doplň údaje v Stripe Dashboardu (verifikace identity).";
+        }
+        vendor_audit($pdo, $user, 'stripe_test', null, ['ok' => true, 'charges' => $charges, 'payouts' => $payouts]);
+    } else {
+        $flash_err = '❌ Stripe test selhal: ' . htmlspecialchars($resp['error'] ?? 'unknown_error');
+        vendor_audit($pdo, $user, 'stripe_test_fail', null, $resp);
+    }
 }
 
 // ─── DPD uložení ────────────────────────────────────────────────
@@ -428,14 +458,23 @@ if (!$totpEnabled) {
           </div>
         </div>
 
+        <?php
+          // 🐛 fix v2.9.190 — secret_key + webhook_secret jsou maskované.
+          // Pokud user upraví jiné pole, neztratí secret. Hodnota '__KEEP__'
+          // signalizuje backendu "nech beze změny". Reálnou hodnotu prozradíme
+          // jen status badge ("nastaveno" / "chybí").
+          $hasSk  = !empty($strCfg['stripe_secret_key']);
+          $hasWh  = !empty($strCfg['stripe_webhook_secret']);
+        ?>
         <div style="margin-bottom:12px">
-          <label>Secret Key</label>
-          <input type="password" name="stripe_secret_key" value="<?= htmlspecialchars($strCfg['stripe_secret_key']) ?>" placeholder="sk_test_... nebo sk_live_..." style="font-family:'SF Mono',Menlo,monospace;width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px">
+          <label>Secret Key <?= $hasSk ? '<span style="font-size:11px;color:#208438;font-weight:600">✓ uloženo</span>' : '<span style="font-size:11px;color:#bf2026;font-weight:600">chybí</span>' ?></label>
+          <input type="password" name="stripe_secret_key" value="<?= $hasSk ? '__KEEP__' : '' ?>" placeholder="sk_test_... nebo sk_live_..." style="font-family:'SF Mono',Menlo,monospace;width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px" autocomplete="off">
+          <?php if ($hasSk): ?><div style="font-size:11px;color:#6e6e73;margin-top:4px">Klíč je uložen. Pro změnu vymaž pole a zadej nový.</div><?php endif; ?>
         </div>
 
         <div>
-          <label>Webhook Signing Secret</label>
-          <input type="password" name="stripe_webhook_secret" value="<?= htmlspecialchars($strCfg['stripe_webhook_secret']) ?>" placeholder="whsec_..." style="font-family:'SF Mono',Menlo,monospace;width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px">
+          <label>Webhook Signing Secret <?= $hasWh ? '<span style="font-size:11px;color:#208438;font-weight:600">✓ uloženo</span>' : '<span style="font-size:11px;color:#999;font-weight:600">volitelné</span>' ?></label>
+          <input type="password" name="stripe_webhook_secret" value="<?= $hasWh ? '__KEEP__' : '' ?>" placeholder="whsec_..." style="font-family:'SF Mono',Menlo,monospace;width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px" autocomplete="off">
         </div>
 
         <div style="background:rgba(0,122,255,0.06);border-left:3px solid #0058b8;padding:10px 14px;border-radius:6px;font-size:12px;color:#0058b8;margin-top:8px">
@@ -443,8 +482,23 @@ if (!$totpEnabled) {
           Event types: <code>checkout.session.completed</code>
         </div>
 
-        <button type="submit" class="btn-master primary" style="margin-top:14px">💾 Uložit Stripe</button>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button type="submit" class="btn-master primary">💾 Uložit Stripe</button>
+        </div>
       </form>
+
+      <!-- 🆕 v2.9.190 — Test připojení (samostatný form, neukládá změny) -->
+      <?php if ($hasSk): ?>
+        <form method="POST" style="margin-top:8px">
+          <input type="hidden" name="action" value="test_stripe">
+          <button type="submit" class="btn-master" style="background:#0058b8;color:#fff;border-color:#0058b8" title="Volá Stripe API /v1/account — ověří klíč, business name, charges_enabled, payouts_enabled">
+            🔌 Otestovat připojení
+          </button>
+          <span style="font-size:12px;color:#6e6e73;margin-left:8px">
+            Volá GET /v1/account → potvrdí klíč + status účtu (charges/payouts enabled).
+          </span>
+        </form>
+      <?php endif; ?>
     </div>
 
     <!-- GOPAY -->
