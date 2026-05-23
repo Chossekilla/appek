@@ -436,12 +436,6 @@
               <a href="zasady-ochrany-soukromi.html" target="_blank" style="color:#BA7517;font-weight:600">Zásadami ochrany soukromí</a>.
             </span>
           </label>
-          <label class="consent" style="display:block;font-size:12.5px;color:#3a3a3c;line-height:1.5;margin:0 0 14px;cursor:pointer">
-            <input type="checkbox" id="agree-instant" style="margin-right:6px;vertical-align:middle">
-            <span data-i18n="instant_consent">
-              <strong>Souhlasím s okamžitým dodáním</strong> licence před uplynutím 14denní lhůty. Beru na vědomí, že tím <strong>ztrácím právo odstoupit</strong> od smlouvy (§ 1837 písm. l OZ).
-            </span>
-          </label>
           <button class="btn" id="btn-buy" onclick="submitOrder()" disabled data-i18n="btn_buy">
             Objednat a zaplatit →
           </button>
@@ -854,9 +848,11 @@ async function submitOrder() {
   if (!document.getElementById('agree-tos').checked) {
     return showErr(I18N[lang].err_tos || 'Musíte souhlasit s obchodními podmínkami.');
   }
-  if (!document.getElementById('agree-instant').checked) {
-    return showErr(I18N[lang].err_instant || 'Musíte souhlasit s okamžitým dodáním (ztráta práva na odstoupení).');
-  }
+  // 🆕 v2.9.206 — agree-instant checkbox odstraněn na žádost user-a.
+  // POZOR: bez tohoto souhlasu má zákazník 14denní právo odstoupit od smlouvy
+  // dle § 1837 OZ. Pokud někdo odstoupí, musíš mu vrátit peníze i když má
+  // licenční klíč. Doporučuji v ToS § 7 ošetřit (např. uvést že klíč je
+  // jednou-použitelná digitální dodávka a po předání není refundovatelný).
 
   const total = Array.from(SELECTED).reduce((s, k) => {
     const p = PACKAGES.find(p => p.key === k); return s + (p ? parseFloat(p.price_kc) : 0);
