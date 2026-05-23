@@ -228,7 +228,10 @@ body::before {
   .demo-card .lead { font-size: 15px; }
   .demo-features { grid-template-columns: repeat(2, 1fr); }
   .demo-info { padding: 14px 16px; }
-  .demo-info .row { flex-wrap: wrap; }
+  .demo-info .row { flex-wrap: nowrap; gap: 8px; }
+  .demo-info .row .lbl { min-width: 52px; flex-shrink: 0; }
+  .demo-info code { min-width: 0; }
+  .demo-info .copy-btn { flex-shrink: 0; }
   .btn { padding: 12px 22px; font-size: 14px; }
 }
 @media (max-width: 420px) {

@@ -26,7 +26,7 @@ $adminEmail = defined('APPEK_DEMO_EMAIL')    ? APPEK_DEMO_EMAIL    : 'demo@appek
 $adminPass  = defined('APPEK_DEMO_PASSWORD') ? APPEK_DEMO_PASSWORD : 'demo1234';
 
 // B2B (odberatele.login_email — viz demo-seed.sql odběratel id=1)
-$b2bEmail   = defined('APPEK_DEMO_B2B_EMAIL')    ? APPEK_DEMO_B2B_EMAIL    : 'odberatel@demo.cz';
+$b2bEmail   = defined('APPEK_DEMO_B2B_EMAIL')    ? APPEK_DEMO_B2B_EMAIL    : 'john@demo.cz';
 $b2bPass    = defined('APPEK_DEMO_B2B_PASSWORD') ? APPEK_DEMO_B2B_PASSWORD : 'demo1234';
 
 echo json_encode([
