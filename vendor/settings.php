@@ -87,13 +87,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_stripe_charge') {
     try {
         require_once __DIR__ . '/_stripe.php';
-        // Test payment_intent — token 'tok_visa' (Stripe test token, vždy úspěšný)
+        // Test payment_intent s pm_card_visa (Stripe test PM, vždy úspěšný v test mode)
+        // 🐛 fix v2.9.195 — Stripe minimum CZK charge je 15 Kč (1500 haléřů), předtím 1 Kč selhal.
         $resp = stripe_request('POST', '/payment_intents', [
-            'amount' => 100,           // 1 Kč v haléřích
+            'amount' => 1500,          // 15 Kč = Stripe minimum pro CZK
             'currency' => 'czk',
             'payment_method' => 'pm_card_visa',  // Stripe test PM
             'confirm' => 'true',
-            'description' => 'APPEK vendor test charge (1 Kč)',
+            'description' => 'APPEK vendor test charge (15 Kč)',
             'automatic_payment_methods[enabled]' => 'true',
             'automatic_payment_methods[allow_redirects]' => 'never',
         ]);
@@ -561,8 +562,8 @@ if (!$totpEnabled) {
               🔌 Test
             </button>
             <?php if (strpos((string)$strCfg['stripe_secret_key'], 'sk_test_') === 0): ?>
-              <button type="submit" class="btn-master" onclick="document.getElementById('stripe-action').value='test_stripe_charge'" style="background:#208438;color:#fff;border-color:#208438" title="Vytvoří 1 Kč Payment Intent s test kartou pm_card_visa — ověří že platby fungují end-to-end (jen v test mode)">
-                💰 Test platba 1 Kč
+              <button type="submit" class="btn-master" onclick="document.getElementById('stripe-action').value='test_stripe_charge'" style="background:#208438;color:#fff;border-color:#208438" title="Vytvoří 15 Kč Payment Intent s test kartou pm_card_visa — Stripe min. 15 Kč pro CZK">
+                💰 Test platba 15 Kč
               </button>
             <?php endif; ?>
           <?php endif; ?>
