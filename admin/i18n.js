@@ -84,7 +84,7 @@ const I18N = {
   // ─────────────── SIDEBAR / NAVIGATION ───────────────
   nav_dashboard:    { cs: 'Přehled',           en: 'Dashboard',         es: 'Panel' },
   nav_orders:       { cs: 'Objednávky',        en: 'Orders',            es: 'Pedidos' },
-  nav_production:   { cs: 'Výrobní list',      en: 'Production list',   es: 'Lista de producción' },
+  nav_production:   { cs: 'Výroba',            en: 'Production',        es: 'Producción' },
   nav_delivery:     { cs: 'Dodací listy',      en: 'Delivery notes',    es: 'Albaranes' },
   nav_invoices:     { cs: 'Faktury',           en: 'Invoices',          es: 'Facturas' },
   nav_products:     { cs: 'Výrobky',           en: 'Products',          es: 'Productos' },
