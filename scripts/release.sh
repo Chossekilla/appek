@@ -53,6 +53,18 @@ fi
 if [[ "$CUR" != "$VERSION" ]]; then
   sed -i.bak -E "s/(define\('APP_VERSION'[^']*')[^']*('\s*\)\s*;)/\1${VERSION}\2/" api/config.php
   rm -f api/config.php.bak
+
+  # 🐛 fix v2.9.201 — auto-bump cache-bust ?v=X.Y.Z v admin/b2b assets,
+  # jinak browsery cachují staré admin.js + style.css a uživatel vidí dnes
+  # mě nesouvislé chyby ('Výrobní list je furt v menu' atd.).
+  for f in admin/index.html b2b/index.html; do
+    if [[ -f "$f" ]]; then
+      sed -i.bak -E "s/\?v=[0-9]+\.[0-9]+\.[0-9]+/?v=${VERSION}/g" "$f"
+      rm -f "${f}.bak"
+      git add "$f"
+    fi
+  done
+
   git add api/config.php
   git commit -m "chore: release v$VERSION"
 fi
