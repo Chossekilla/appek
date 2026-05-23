@@ -83,13 +83,58 @@ const t = PAY_I18N[lang] || PAY_I18N.cs;
 root.innerHTML = `<div class="icon">⏳</div><h1>${t.check_title}</h1><p>${t.check_body}</p>`;
 
 function renderSuccess() {
+  // 🆕 v2.9.200 — bohatší success: order info + "Co dál" kroky
+  const nextSteps = lang === 'en' ? {
+    title: '📥 What\'s next?',
+    steps: [
+      '<strong>Check your e-mail</strong> — your license key + download link arrived (check spam if not)',
+      'Click <strong>Download APPEK</strong> in the e-mail — link contains your key',
+      'Extract ZIP to your hosting <code>public_html/</code>',
+      'Open <code>https://your-site.com/install.php</code> + paste license key',
+      'Installation wizard finishes in ~5 min',
+    ],
+    contact: '<strong>Problems?</strong> Write to <a href="mailto:support@appek.cz" style="color:#BA7517">support@appek.cz</a>',
+  } : lang === 'es' ? {
+    title: '📥 ¿Qué sigue?',
+    steps: [
+      '<strong>Revisa tu correo</strong> — tu clave + enlace de descarga llegaron (revisa spam si no)',
+      'Haz clic en <strong>Descargar APPEK</strong> en el correo',
+      'Extrae ZIP en tu hosting <code>public_html/</code>',
+      'Abre <code>https://tu-sitio.com/install.php</code> + pega la clave',
+      'Asistente termina en ~5 min',
+    ],
+    contact: '<strong>¿Problemas?</strong> Escribe a <a href="mailto:support@appek.cz" style="color:#BA7517">support@appek.cz</a>',
+  } : {
+    title: '📥 Co dál?',
+    steps: [
+      '<strong>Zkontroluj e-mail</strong> — tvůj licenční klíč + odkaz na stažení dorazil (mrkni i do spamu)',
+      'Klikni na <strong>Stáhnout APPEK</strong> v e-mailu — odkaz obsahuje tvůj klíč',
+      'Rozbal ZIP na svém hostingu do <code>public_html/</code>',
+      'Otevři <code>https://váš-web.cz/install.php</code> + vlož licenční klíč',
+      'Instalátor projde za ~5 minut',
+    ],
+    contact: '<strong>Problémy?</strong> Napiš na <a href="mailto:support@appek.cz" style="color:#BA7517">support@appek.cz</a>',
+  };
+
   root.innerHTML = `
     <div class="success">
       <div class="icon">✅</div>
       <h1>${t.s_title}</h1>
       <p>${t.s_body}</p>
       ${orderNo ? `<div class="order-no">${orderNo}</div>` : ''}
-      <div style="margin-top:24px"><a href="/" class="btn">${t.s_back}</a></div>
+
+      <div style="background:#f5f5f7;border-radius:10px;padding:16px 20px;margin:24px 0;text-align:left">
+        <div style="font-size:14px;font-weight:700;margin-bottom:10px">${nextSteps.title}</div>
+        <ol style="color:#3a3a3c;line-height:1.7;padding-left:20px;margin:0;font-size:13px">
+          ${nextSteps.steps.map(s => `<li>${s}</li>`).join('')}
+        </ol>
+      </div>
+
+      <p style="font-size:12px;color:#86868b;margin:16px 0 8px">${nextSteps.contact}</p>
+
+      <div style="margin-top:16px">
+        <a href="/" class="btn">${t.s_back}</a>
+      </div>
       <div class="checking">${t.s_email}</div>
     </div>`;
 }

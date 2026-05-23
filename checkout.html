@@ -413,6 +413,26 @@
             <span id="sum-total">0 Kč</span>
           </div>
           <div class="err-box" id="err"></div>
+
+          <!-- 🆕 v2.9.200 — Způsob platby v checkout formu (radio) -->
+          <div style="margin:14px 0 6px;border-top:1px solid #e5e5e7;padding-top:14px">
+            <div style="font-size:13px;font-weight:600;color:#1d1d1f;margin-bottom:8px">💳 Způsob platby</div>
+            <div class="pay-radios" style="display:flex;flex-direction:column;gap:6px">
+              <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;cursor:pointer;font-size:13px" class="pay-radio">
+                <input type="radio" name="pay_method" value="stripe" checked>
+                <span>💳 <strong>Karta (Stripe)</strong> — okamžitě, klíč e-mailem</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;cursor:pointer;font-size:13px" class="pay-radio">
+                <input type="radio" name="pay_method" value="gopay">
+                <span>💳 <strong>GoPay</strong> — CZ karty + bank, okamžitě</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;cursor:pointer;font-size:13px" class="pay-radio">
+                <input type="radio" name="pay_method" value="invoice">
+                <span>🏦 <strong>Faktura + převod</strong> — klíč po připsání (do 24 h)</span>
+              </label>
+            </div>
+          </div>
+
           <label class="consent" style="display:block;font-size:12.5px;color:#3a3a3c;line-height:1.5;margin:14px 0 6px;cursor:pointer">
             <input type="checkbox" id="agree-tos" style="margin-right:6px;vertical-align:middle">
             <span data-i18n="tos_consent">
@@ -427,11 +447,10 @@
             </span>
           </label>
           <button class="btn" id="btn-buy" onclick="submitOrder()" disabled data-i18n="btn_buy">
-            Objednat →
+            Objednat a zaplatit →
           </button>
           <p class="note" data-i18n="note">
-            Po odeslání zaplatíte rovnou kartou (Stripe / GoPay) nebo zvolíte platbu převodem na fakturu.
-            Licenční klíč přijde okamžitě po platbě kartou (nebo do 24 h po připsání převodu).
+            Po odeslání budete podle volby přesměrováni na platební bránu, nebo dostanete fakturu k převodu. Licenční klíč přijde ihned po platbě kartou (nebo do 24 h po převodu).
           </p>
         </div>
       </div>
@@ -849,6 +868,9 @@ async function submitOrder() {
     const p = PACKAGES.find(p => p.key === k); return s + (p ? parseFloat(p.price_kc) : 0);
   }, 0);
 
+  // 🆕 v2.9.200 — payment method z radio (stripe / gopay / invoice)
+  const payMethod = (document.querySelector('input[name="pay_method"]:checked') || {}).value || 'stripe';
+
   const payload = {
     customer_name: name,
     customer_company: document.getElementById('customer_company').value.trim(),
@@ -864,7 +886,7 @@ async function submitOrder() {
     packages: Array.from(SELECTED),
     total_kc: total,
     currency: 'CZK',
-    payment_method: 'bank',
+    payment_method: payMethod === 'invoice' ? 'bank' : payMethod,
     locale: lang,
   };
 
@@ -894,15 +916,29 @@ async function submitOrder() {
     return showErr((result && result.error) || I18N[lang].err_server);
   }
 
-  // SUCCESS — store data globally for pay buttons
+  // 🆕 v2.9.200 — SUCCESS: rovnou rediregt podle vybrané platby
   window.__lastOrder = result;
+
+  if (payMethod === 'stripe') {
+    // Stripe Checkout redirect — žádný mezikrok
+    btn.disabled = true; btn.textContent = '⏳ Přesměrovávám na Stripe…';
+    return payByStripe();
+  }
+  if (payMethod === 'gopay') {
+    btn.disabled = true; btn.textContent = '⏳ Přesměrovávám na GoPay…';
+    return payByGoPay();
+  }
+
+  // payMethod === 'invoice' → zobraz success se shrnutím + bank info
   document.getElementById('state-form').style.display = 'none';
   document.getElementById('state-success').style.display = 'block';
   document.getElementById('success-order-no').textContent = result.order_no;
+  // Auto-zobraz bank info (user už zvolil 'na fakturu')
+  showBankInfo();
+  // Skryj button options (user už zvolil platbu v form)
+  const opts = document.getElementById('pay-options');
+  if (opts) opts.style.display = 'none';
   window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  // 🆕 v2.4 — Inicializuj Apple Pay / Google Pay Payment Request Button
-  initStripePaymentRequest(result);
 }
 
 // =============================================================

@@ -34,6 +34,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
                     continue;
                 }
             }
+            // 🐛 fix v2.9.200 — odmítnout PUBLISHABLE key (pk_*) v poli pro secret.
+            // Publishable key NESMÍ být na serveru (vytváří checkout sessions, refundy
+            // atd. — to vyžaduje sk_ secret). Customer při payment dostane error.
+            if ($k === 'stripe_secret_key' && $v !== '' && strpos($v, 'pk_') === 0) {
+                throw new Exception("Tohle je PUBLISHABLE klíč (pk_...). Pro Secret Key musí být klíč začínající 'sk_test_' nebo 'sk_live_'. Stripe Dashboard → API keys → Secret key (klikni 'Reveal' a zkopíruj 'sk_...').");
+            }
+            if ($k === 'stripe_secret_key' && $v !== '' && strpos($v, 'sk_') !== 0) {
+                throw new Exception("Secret Key musí začínat 'sk_test_' nebo 'sk_live_'. Tvůj klíč začíná '" . htmlspecialchars(substr($v, 0, 8)) . "...'.");
+            }
+            if ($k === 'stripe_webhook_secret' && $v !== '' && strpos($v, 'whsec_') !== 0) {
+                throw new Exception("Webhook Secret musí začínat 'whsec_'. Tvůj klíč začíná '" . htmlspecialchars(substr($v, 0, 8)) . "...'.");
+            }
             vendor_mail_set($k, $v);
         }
         vendor_audit($pdo, $user, 'stripe_settings_save', null, null);
