@@ -3510,8 +3510,12 @@ async function renderDashboard(filters = {}) {
 
   // 🆕 v2.0.97 — Empty-state banner s demo seed nabídkou
   // 🆕 v2.5.9 — DISMISS button — user může banner skrýt (uloží do localStorage)
-  const isEmpty = (parseInt(d.objednavky?.celkem || 0) === 0)
-    && (parseInt(d.odberatele?.celkem || 0) === 0);
+  // 🐛 fix v2.9.161 — admin_dashboard.php nikdy nevracelo d.objednavky.celkem
+  //   ani d.odberatele.celkem, takže isEmpty bylo VŽDY true a banner permanentní
+  //   i po seedu. Místo neexistujících fieldů se ptáme na nedavne/dl/fa arrays.
+  const isEmpty = !d.nedavne?.length
+    && !d.nedavne_dl?.length
+    && !d.nedavne_fa?.length;
   const dismissedDemo = (() => {
     try { return localStorage.getItem('appek_demo_banner_dismissed') === '1'; }
     catch (e) { return false; }
