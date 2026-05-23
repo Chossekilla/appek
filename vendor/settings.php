@@ -171,8 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
 // ─── SMTP / Mail uložení ────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_mail') {
     try {
-        $keys = ['mail_from_email', 'mail_from_name', 'smtp_enabled', 'smtp_host',
-                 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_encryption'];
+        $keys = ['mail_from_email', 'mail_from_name', 'admin_notification_email',
+                 'smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_encryption'];
         foreach ($keys as $k) {
             $v = trim((string) ($_POST[$k] ?? ''));
             if ($k === 'smtp_enabled') $v = isset($_POST['smtp_enabled']) ? '1' : '0';
@@ -463,6 +463,12 @@ if (!$totpEnabled) {
             <label>From jméno</label>
             <input type="text" name="mail_from_name" value="<?= htmlspecialchars($mailCfg['mail_from_name']) ?>" placeholder="APPEK">
           </div>
+        </div>
+
+        <!-- 🆕 v2.9.208 — Vendor admin notification email -->
+        <div style="margin-bottom:14px">
+          <label>💰 Notifikační e-mail <small>(kam přijde info o nové platbě od zákazníka)</small></label>
+          <input type="email" name="admin_notification_email" value="<?= htmlspecialchars($mailCfg['admin_notification_email'] ?? '') ?>" placeholder="tvoje@email.cz (default = From e-mail výše)">
         </div>
 
         <label style="display:flex;align-items:center;gap:8px;margin:14px 0;font-weight:600;font-size:13px">

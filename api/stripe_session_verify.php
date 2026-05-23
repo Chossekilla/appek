@@ -152,6 +152,15 @@ try {
     vendor_audit($pdo, ['username' => 'stripe_session_verify'], 'shop_auto_paid_verify',
         ['id' => $licenseId, 'license_key' => $key], $orderNo);
 
+    // 🆕 v2.9.208 — admin notifikace (besta-effort, neblokuje response)
+    try {
+        if (function_exists('vendor_send_admin_notification')) {
+            vendor_send_admin_notification($order, ['license_key' => $key]);
+        }
+    } catch (Throwable $e) {
+        error_log('stripe_session_verify admin notification: ' . $e->getMessage());
+    }
+
     echo json_encode([
         'ok' => true,
         'status' => 'paid',

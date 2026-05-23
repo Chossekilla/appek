@@ -118,6 +118,15 @@ try {
 
     vendor_audit($pdo, ['username' => 'stripe_webhook'], 'shop_auto_paid', ['id' => $licenseId, 'license_key' => $key], $orderNo);
 
+    // 🆕 v2.9.208 — admin notifikace (best-effort)
+    try {
+        if (function_exists('vendor_send_admin_notification')) {
+            vendor_send_admin_notification($order, ['license_key' => $key]);
+        }
+    } catch (Throwable $e) {
+        error_log('stripe_webhook admin notification: ' . $e->getMessage());
+    }
+
     http_response_code(200);
     echo 'OK';
 } catch (Throwable $e) {

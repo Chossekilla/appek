@@ -186,6 +186,65 @@ function vendor_smtp_send(array $cfg, string $to, string $subject, string $bodyH
 /**
  * Hotová šablona pro license e-mail.
  */
+// 🆕 v2.9.208 — Notifikace pro vendor admina o nové platbě.
+// Příjemce: vendor_settings.admin_notification_email → fallback mail_from_email.
+function vendor_send_admin_notification(array $order, array $license): bool {
+    $cfg = vendor_mail_settings();
+    $to  = $cfg['admin_notification_email'] ?? '';
+    if (!$to) $to = $cfg['mail_from_email'] ?? '';
+    if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+
+    $orderNo = $order['order_no']     ?? ($order['id'] ?? '—');
+    $amount  = !empty($order['total_kc']) ? number_format((float) $order['total_kc'], 0, ',', ' ') . ' Kč' : '—';
+    $custN   = $order['customer_name']    ?? '—';
+    $custCo  = $order['customer_company'] ?? '';
+    $custE   = $order['customer_email']   ?? '';
+    $custP   = $order['customer_phone']   ?? '';
+    $installUrl = $order['install_url']   ?? '';
+    $licKey  = $license['license_key']    ?? '—';
+    $packages = '';
+    if (!empty($order['packages_json'])) {
+        $pkgs = json_decode($order['packages_json'], true) ?: [];
+        $packages = is_array($pkgs) ? implode(', ', $pkgs) : '';
+    }
+
+    $html = '<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;background:#f5f5f7;padding:24px;color:#1d1d1f">'
+        . '<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,0.06)">'
+        . '<div style="background:linear-gradient(135deg,#208438,#34c759);padding:20px 24px;color:#fff">'
+        . '<div style="font-size:22px;font-weight:800">💰 Nová platba</div>'
+        . '<div style="font-size:13px;opacity:0.92;margin-top:4px">' . htmlspecialchars($amount) . ' · ' . htmlspecialchars($orderNo) . '</div>'
+        . '</div>'
+        . '<div style="padding:24px">'
+        . '<table style="width:100%;font-size:13px;color:#3a3a3c;border-collapse:collapse">'
+        . '<tr><td style="color:#86868b;padding:5px 10px 5px 0">Č. objednávky:</td><td style="padding:5px 0"><strong>' . htmlspecialchars($orderNo) . '</strong></td></tr>'
+        . '<tr><td style="color:#86868b;padding:5px 10px 5px 0">Částka:</td><td style="padding:5px 0"><strong>' . htmlspecialchars($amount) . '</strong></td></tr>'
+        . '<tr><td style="color:#86868b;padding:5px 10px 5px 0">Zákazník:</td><td style="padding:5px 0">' . htmlspecialchars($custN) . ($custCo ? ' (' . htmlspecialchars($custCo) . ')' : '') . '</td></tr>'
+        . '<tr><td style="color:#86868b;padding:5px 10px 5px 0">E-mail:</td><td style="padding:5px 0"><a href="mailto:' . htmlspecialchars($custE) . '" style="color:#BA7517">' . htmlspecialchars($custE) . '</a></td></tr>'
+        . ($custP ? '<tr><td style="color:#86868b;padding:5px 10px 5px 0">Telefon:</td><td style="padding:5px 0">' . htmlspecialchars($custP) . '</td></tr>' : '')
+        . ($installUrl ? '<tr><td style="color:#86868b;padding:5px 10px 5px 0">URL:</td><td style="padding:5px 0"><a href="' . htmlspecialchars($installUrl) . '" style="color:#BA7517">' . htmlspecialchars($installUrl) . '</a></td></tr>' : '')
+        . ($packages ? '<tr><td style="color:#86868b;padding:5px 10px 5px 0">Balíčky:</td><td style="padding:5px 0">' . htmlspecialchars($packages) . '</td></tr>' : '')
+        . '</table>'
+        . '<div style="background:#f5f5f7;border-radius:8px;padding:12px 14px;margin-top:18px;font-family:\'SF Mono\',Menlo,monospace;font-size:13px;font-weight:700;color:#1d1d1f">' . htmlspecialchars($licKey) . '</div>'
+        . '<p style="font-size:12px;color:#86868b;margin:18px 0 0">Licence byla automaticky vygenerována a odeslána zákazníkovi.</p>'
+        . '</div>'
+        . '<div style="background:#fafafa;padding:12px 24px;font-size:11px;color:#86868b;text-align:center">APPEK vendor master · auto-notifikace</div>'
+        . '</div></body></html>';
+
+    $text  = "💰 NOVÁ PLATBA — {$amount}\n";
+    $text .= str_repeat('=', 40) . "\n\n";
+    $text .= "Č. objednávky:  {$orderNo}\n";
+    $text .= "Částka:          {$amount}\n";
+    $text .= "Zákazník:        {$custN}" . ($custCo ? " ({$custCo})" : "") . "\n";
+    $text .= "E-mail:          {$custE}\n";
+    if ($custP) $text .= "Telefon:         {$custP}\n";
+    if ($installUrl) $text .= "URL:             {$installUrl}\n";
+    if ($packages) $text .= "Balíčky:         {$packages}\n";
+    $text .= "Licenční klíč:   {$licKey}\n\n";
+    $text .= "Licence automaticky vygenerována a odeslána zákazníkovi.\n— APPEK vendor master\n";
+
+    return vendor_send_mail($to, "💰 Nová platba: {$amount} · {$orderNo}", $html, $text);
+}
+
 function vendor_mail_template_license(array $license, array $order = []): array {
     // 🆕 v2.9.198 — rozšířený e-mail: serial nr (order ID), datum, částka, ToS link,
     // limit liability disclaimer (backup povinnost).
