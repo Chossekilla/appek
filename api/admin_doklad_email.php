@@ -108,6 +108,14 @@ try {
     if (!$pdf_content || strlen($pdf_content) < 100) {
         throw new RuntimeException('PDF se nepodařilo načíst (prázdné nebo příliš krátké)');
     }
+    // 🐛 fix v2.9.165 — renderer (faktura.php / dodaci_list.php) vrací HTML, ne PDF.
+    // Bez magic-byte kontroly bychom HTML poslali jako .pdf přílohu → klient by
+    // dostal nečitelný soubor a žádný link (intro_html v této větvi link neuvádí).
+    // Proto: pokud content nezačíná na %PDF-, zahodíme attachment a pošleme link.
+    if (substr($pdf_content, 0, 5) !== '%PDF-') {
+        error_log('admin_doklad_email: renderer vrátil non-PDF (HTML?), posílám jen link');
+        $pdf_content = null;
+    }
 } catch (Throwable $e) {
     error_log('admin_doklad_email PDF fetch: ' . $e->getMessage());
     // Pokračujeme bez přílohy — pošleme jen odkaz
