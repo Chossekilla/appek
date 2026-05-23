@@ -34,7 +34,7 @@ const PAYMENT_METHODS_MASTER = [
     'prevod'    => ['label' => '🏦 Bankovní převod',  'cat' => 'deferred', 'default' => true,  'pos' => false, 'b2b' => true],
     'dobirka'   => ['label' => '📦 Dobírka',          'cat' => 'deferred', 'default' => false, 'pos' => false, 'b2b' => true],
     'faktura'   => ['label' => '📄 Faktura + převod', 'cat' => 'deferred', 'default' => true,  'pos' => false, 'b2b' => true],
-    'paypal'    => ['label' => '💼 PayPal',           'cat' => 'other',    'default' => false, 'pos' => true, 'b2b' => false],
+    'paypal'    => ['label' => '💼 PayPal',           'cat' => 'online',   'default' => false, 'pos' => false, 'b2b' => true],
     'gift_card' => ['label' => '🎁 Dárková karta',    'cat' => 'other',    'default' => false, 'pos' => true, 'b2b' => false],
     'voucher'   => ['label' => '🎟️ Voucher',          'cat' => 'other',    'default' => false, 'pos' => true, 'b2b' => false],
     'mobile'    => ['label' => '📱 Mobile Payment',   'cat' => 'other',    'default' => false, 'pos' => true, 'b2b' => false],

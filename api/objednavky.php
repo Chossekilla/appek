@@ -241,11 +241,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Notifikace odběrateli (po commitu, chyby nelogují selhání objednávky)
         notifikace_nova_objednavka($pdo, $obj_id);
 
-        // 🆕 v2.9.203 — pokud zvolil online platbu (stripe/gopay), vytvoř session
+        // 🆕 v2.9.203/209 — pokud zvolil online platbu (stripe/gopay/paypal), vytvoř session
         // a vrať payment_url pro redirect. Pro 'prevod' / 'dobirka' jen json OK.
         $platba = strtolower(trim((string) ($data['platba'] ?? 'prevod')));
         $paymentUrl = null;
-        if ($platba === 'stripe' || $platba === 'gopay') {
+        if ($platba === 'stripe' || $platba === 'gopay' || $platba === 'paypal') {
             require_once __DIR__ . '/_customer_integrace.php';
             $celkemKc = round($bez + $dph, 2);
             $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
@@ -280,6 +280,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $sess = customer_int_gopay_create_payment($payload);
                     if (!empty($sess['ok']) && !empty($sess['gateway_url'])) {
                         $paymentUrl = $sess['gateway_url'];
+                    }
+                }
+                if ($platba === 'paypal' && function_exists('customer_int_paypal_create_order')) {
+                    // PayPal vyžaduje return_url s ?token={order_id} přidáme query parametr ve return
+                    $payload['return_url'] = $baseUrl . '/api/paypal_callback.php?gw=paypal&order=' . urlencode($cislo);
+                    $sess = customer_int_paypal_create_order($payload);
+                    if (!empty($sess['ok']) && !empty($sess['approve_url'])) {
+                        $paymentUrl = $sess['approve_url'];
+                        // Uložíme PayPal order_id pro pozdější capture
+                        try {
+                            $pdo->prepare("UPDATE objednavky SET interni_pozn = CONCAT(IFNULL(interni_pozn,''), '\nPayPal order_id: " . ($sess['order_id'] ?? '') . "') WHERE id = :id")
+                                ->execute(['id' => $obj_id]);
+                        } catch (Throwable $e) { /* idempotent */ }
                     }
                 }
             } catch (Throwable $e) {

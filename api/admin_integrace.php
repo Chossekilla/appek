@@ -78,6 +78,15 @@ if ($method === 'POST' && $action === 'save_settings' && $service) {
         if ($cid !== '' && !preg_match('/^\d{7,12}$/', $cid)) {
             json_error("GoPay Client ID musí být 7–12 číslic (z API klíčů v GoPay obchodním účtu).", 400);
         }
+    } elseif ($service === 'paypal') {
+        $cid = trim($clean['client_id'] ?? '');
+        $env = trim($clean['environment'] ?? 'sandbox');
+        if ($env !== '' && !in_array($env, ['sandbox', 'live'], true)) {
+            json_error("PayPal environment musí být 'sandbox' nebo 'live'.", 400);
+        }
+        if ($cid !== '' && strlen($cid) < 50) {
+            json_error("PayPal Client ID je obvykle ~80 znaků (z developer.paypal.com → My Apps & Credentials).", 400);
+        }
     }
 
     customer_int_set($service, $clean);

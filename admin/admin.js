@@ -11297,6 +11297,18 @@ async function renderNastaveni() {
         <div id="ns-int-gopay" style="display:flex;flex-direction:column;gap:8px">⏳</div>
       </div>
 
+      <!-- 💼 PAYPAL — mezinárodní, EUR/USD/CZK -->
+      <div class="card-block int-card" style="padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+          <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
+            <span style="background:#0070ba;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">💼 PayPal</span>
+          </h3>
+          <div id="ns-int-paypal-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
+        </div>
+        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Mezinárodní platby. Zákazník platí PayPal účtem nebo kartou přes PayPal Checkout.</p>
+        <div id="ns-int-paypal" style="display:flex;flex-direction:column;gap:8px">⏳</div>
+      </div>
+
       <!-- 📦 ZÁSILKOVNA -->
       <div class="card-block int-card" style="padding:18px">
         <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:10px">
@@ -11513,6 +11525,21 @@ const INT_CARDS = {
     ],
     docs: 'https://help.gopay.com/cs/s/dokumentace-pro-vyvojare',
     docsLabel: '📖 GoPay API docs',
+  },
+  // 🆕 v2.9.209 — PayPal pro koncové zákazníky
+  paypal: {
+    label: 'PayPal',
+    color: '#0070ba',
+    statusEl: 'ns-int-paypal-status',
+    formEl: 'ns-int-paypal',
+    fields: [
+      { key: 'environment',   label: 'Režim', type: 'select', options: [['sandbox','🧪 Sandbox'],['live','🟢 Live']], col: 'half' },
+      { key: 'currency',      label: 'Měna',  type: 'select', options: [['CZK','CZK'],['EUR','EUR'],['USD','USD']], col: 'half' },
+      { key: 'client_id',     label: 'Client ID',     type: 'text',     placeholder: 'AYSq3RDGsmBLJE-...' },
+      { key: 'client_secret', label: 'Client Secret', type: 'password', placeholder: 'EGnHDxD_qRPdaLdZz...' },
+    ],
+    docs: 'https://developer.paypal.com/dashboard/applications',
+    docsLabel: '📖 PayPal Developer Dashboard',
   },
   zas: {
     label: 'Zásilkovna',

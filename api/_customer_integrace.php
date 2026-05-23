@@ -42,7 +42,7 @@
 
 require_once __DIR__ . '/config.php';
 
-const CUSTOMER_INT_SERVICES = ['stripe', 'gopay', 'zas', 'dpd'];
+const CUSTOMER_INT_SERVICES = ['stripe', 'gopay', 'paypal', 'zas', 'dpd'];
 
 /**
  * Načte settings pro konkrétní službu.
@@ -275,6 +275,141 @@ function customer_int_gopay_test(): array {
     $token = customer_int_gopay_token();
     if (!$token) return ['ok' => false, 'error' => 'OAuth selhal — zkontroluj client_id / client_secret.'];
     return ['ok' => true, 'message' => 'OAuth OK, token získán.'];
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 💼 PAYPAL — customer-side (v2.9.209)
+// ════════════════════════════════════════════════════════════════════
+// Docs: https://developer.paypal.com/docs/api/orders/v2/
+// OAuth: POST {base}/v1/oauth2/token Basic {client_id:secret}
+// Create order: POST {base}/v2/checkout/orders {intent,purchase_units}
+// Capture: POST {base}/v2/checkout/orders/{id}/capture
+
+function customer_int_paypal_base(): string {
+    $cfg = customer_int_settings('paypal');
+    $env = $cfg['int_paypal_environment'] ?? 'sandbox';
+    return $env === 'live'
+        ? 'https://api-m.paypal.com'
+        : 'https://api-m.sandbox.paypal.com';
+}
+
+function customer_int_paypal_token(): ?string {
+    $cfg = customer_int_settings('paypal');
+    $cid = $cfg['int_paypal_client_id'] ?? '';
+    $sec = $cfg['int_paypal_client_secret'] ?? '';
+    if (!$cid || !$sec) return null;
+
+    $ch = curl_init(customer_int_paypal_base() . '/v1/oauth2/token');
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_USERPWD => $cid . ':' . $sec,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded', 'Accept: application/json'],
+        CURLOPT_POSTFIELDS => 'grant_type=client_credentials',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 20,
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($code !== 200 || !$resp) return null;
+    $j = json_decode($resp, true);
+    return $j['access_token'] ?? null;
+}
+
+function customer_int_paypal_request(string $method, string $endpoint, array $body = []): array {
+    $token = customer_int_paypal_token();
+    if (!$token) return ['ok' => false, 'error' => 'oauth_failed'];
+
+    $ch = curl_init(customer_int_paypal_base() . $endpoint);
+    $opts = [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $token,
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ],
+    ];
+    if ($method === 'POST') {
+        $opts[CURLOPT_POST] = true;
+        if ($body) $opts[CURLOPT_POSTFIELDS] = json_encode($body);
+    } elseif ($method !== 'GET') {
+        $opts[CURLOPT_CUSTOMREQUEST] = $method;
+        if ($body) $opts[CURLOPT_POSTFIELDS] = json_encode($body);
+    }
+    curl_setopt_array($ch, $opts);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    $data = $resp ? json_decode($resp, true) : null;
+    if ($code < 200 || $code >= 300) {
+        return [
+            'ok' => false,
+            'error' => $data['message'] ?? ($data['details'][0]['issue'] ?? "http_$code"),
+            'detail' => $data,
+        ];
+    }
+    return ['ok' => true] + ($data ?: []);
+}
+
+function customer_int_paypal_create_order(array $payload): array {
+    if (!customer_int_enabled('paypal')) return ['ok' => false, 'error' => 'paypal_disabled'];
+    $cfg = customer_int_settings('paypal');
+    $currency = strtoupper($payload['currency'] ?? $cfg['int_paypal_currency'] ?? 'CZK');
+    $amount   = number_format((float) $payload['amount_kc'], 2, '.', '');
+
+    $r = customer_int_paypal_request('POST', '/v2/checkout/orders', [
+        'intent' => 'CAPTURE',
+        'purchase_units' => [[
+            'reference_id' => $payload['order_no'] ?? '',
+            'description'  => $payload['description'] ?? 'Platba',
+            'amount' => [
+                'currency_code' => $currency,
+                'value'         => $amount,
+            ],
+        ]],
+        'application_context' => [
+            'brand_name'  => 'APPEK',
+            'user_action' => 'PAY_NOW',
+            'return_url'  => $payload['return_url'] ?? '',
+            'cancel_url'  => $payload['cancel_url'] ?? ($payload['return_url'] ?? ''),
+        ],
+    ]);
+    if (!($r['ok'] ?? false)) return $r;
+
+    // Najít approve link
+    $approveUrl = null;
+    foreach (($r['links'] ?? []) as $l) {
+        if (($l['rel'] ?? '') === 'approve' || ($l['rel'] ?? '') === 'payer-action') {
+            $approveUrl = $l['href'];
+            break;
+        }
+    }
+    return [
+        'ok'           => true,
+        'order_id'     => $r['id'] ?? null,
+        'status'       => $r['status'] ?? null,
+        'approve_url'  => $approveUrl,
+    ];
+}
+
+function customer_int_paypal_capture_order(string $orderId): array {
+    if (!customer_int_enabled('paypal')) return ['ok' => false, 'error' => 'paypal_disabled'];
+    if (!$orderId) return ['ok' => false, 'error' => 'missing_order_id'];
+    $r = customer_int_paypal_request('POST', '/v2/checkout/orders/' . urlencode($orderId) . '/capture', []);
+    return $r;
+}
+
+function customer_int_paypal_test(): array {
+    if (!customer_int_enabled('paypal')) return ['ok' => false, 'error' => 'PayPal není zapnutý nebo chybí klíče.'];
+    $token = customer_int_paypal_token();
+    if (!$token) return ['ok' => false, 'error' => 'OAuth selhal — zkontroluj client_id / client_secret a prostředí (sandbox/live).'];
+    $cfg = customer_int_settings('paypal');
+    return [
+        'ok' => true,
+        'message' => 'OAuth OK — token získán.',
+        'environment' => $cfg['int_paypal_environment'] ?? 'sandbox',
+    ];
 }
 
 // ════════════════════════════════════════════════════════════════════
