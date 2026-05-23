@@ -12,7 +12,7 @@
     background: linear-gradient(135deg, #f5f5f7 0%, #e8e8eb 100%);
     color: #1d1d1f; min-height: 100vh; padding: 20px;
   }
-  .wrap { max-width: 960px; margin: 0 auto; }
+  .wrap { max-width: 1320px; margin: 0 auto; }
 
   .topbar {
     display: flex; justify-content: space-between; align-items: center;
@@ -27,8 +27,30 @@
   }
   .lang button.active { background: #BA7517; color: #fff; }
 
-  .grid { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
-  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 380px;
+    grid-template-areas: "pkg form summary";
+    gap: 24px;
+    align-items: start;
+  }
+  .pkg-card { grid-area: pkg; }
+  .contact-card { grid-area: form; }
+  .sidebar { grid-area: summary; }
+  @media (max-width: 1080px) {
+    .grid {
+      grid-template-columns: 1fr 380px;
+      grid-template-areas:
+        "pkg summary"
+        "form summary";
+    }
+  }
+  @media (max-width: 820px) {
+    .grid {
+      grid-template-columns: 1fr;
+      grid-template-areas: "pkg" "form" "summary";
+    }
+  }
 
   .card {
     background: #fff; border-radius: 18px; padding: 28px 30px;
@@ -333,10 +355,9 @@
 
   <div id="state-form">
     <div class="grid">
-      <div>
-        <!-- KROK 1: VOLBA BALÍČKŮ -->
-        <div class="card">
-          <h2 data-i18n="step1">📦 Vyberte balíčky <small data-i18n="step1_sub">— Core je vždy zahrnut</small></h2>
+      <!-- KROK 1: VOLBA BALÍČKŮ -->
+      <div class="card pkg-card">
+        <h2 data-i18n="step1">📦 Vyberte balíčky <small data-i18n="step1_sub">— Core je vždy zahrnut</small></h2>
           <div class="info-banner" data-i18n="banner">
             Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.
           </div>
@@ -345,9 +366,9 @@
           </div>
         </div>
 
-        <!-- KROK 2: KONTAKT -->
-        <div class="card" style="margin-top:18px">
-          <h2 data-i18n="step2">👤 Kontaktní údaje</h2>
+      <!-- KROK 2: KONTAKT -->
+      <div class="card contact-card">
+        <h2 data-i18n="step2">👤 Kontaktní údaje</h2>
           <div class="form-row split">
             <div>
               <label data-i18n="lbl_name">Jméno a příjmení *</label>
@@ -391,7 +412,6 @@
             <textarea id="notes" data-i18n-placeholder="ph_notes" placeholder="Něco co bychom měli vědět..."></textarea>
           </div>
         </div>
-      </div>
 
       <!-- SOUHRN -->
       <div class="sidebar">
