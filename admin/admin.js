@@ -6651,7 +6651,7 @@ async function renderSalesReport() {
         <p class="page-sub">Přehled tržeb, top výrobky a top odběratelé za zvolené období</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="navigate('nastaveni')">← Nastavení</button>
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
         <button class="btn-primary btn-green" onclick="salesPrint()">🖨️ Stáhnout / vytisknout</button>
       </div>
     </div>
@@ -12721,7 +12721,8 @@ async function renderPackagePage(pageKey) {
         <h1 class="page-title">${meta.ikona} ${esc(meta.nazev)}</h1>
         <p class="page-sub">${esc(meta.popis)}</p>
       </div>
-      <div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
         <button class="btn-secondary" onclick="navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='balicky';renderNastaveni();},100)">🎁 Správa balíčků</button>
       </div>
     </div>
@@ -12750,6 +12751,9 @@ async function renderCakeConfigurator() {
       <div>
         <h1 class="page-title">🧁 Cukrárna</h1>
         <p class="page-sub">Konfigurátor dortů · Kapacita pečení · Galerie produktů</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
@@ -13429,6 +13433,9 @@ async function renderCateringCalculator() {
         <h1 class="page-title">🥗 Lahůdkárna</h1>
         <p class="page-sub">Catering kalkulátor · Šaržová HACCP evidence · Mix-and-match · Catering objednávky s časem</p>
       </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
+      </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
       <button class="nastaveni-tab ${tab === 'calc' ? 'active' : ''}" onclick="state._lahudkyTab='calc';renderCateringCalculator()">🍱 Catering kalkulátor</button>
@@ -13583,6 +13590,9 @@ async function renderRestaurantPage() {
       <div>
         <h1 class="page-title">🍕 Restaurace / Pizzerie</h1>
         <p class="page-sub">Stolová správa · Kapacita kuchyně · Doba přípravy · Rozvoz a kurýrky</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
@@ -16654,6 +16664,9 @@ async function renderCateringPage() {
         <h1 class="page-title">🎉 Velký catering</h1>
         <p class="page-sub">Firemní objednávky · Cenové úrovně · PDF smlouvy · Záloha 50 %</p>
       </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
+      </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
       <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._catTab='orders';renderCateringPage()">🏢 Firemní objednávky</button>
@@ -17481,6 +17494,9 @@ async function renderSeasonalCatalog() {
       <div>
         <h1 class="page-title">🍰 Sezónní katalog</h1>
         <p class="page-sub">Sezónní okna pro výrobky · B2B portal je filtruje automaticky.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
       </div>
     </div>
 
@@ -18870,7 +18886,7 @@ async function renderDiagnostika() {
         <p class="page-sub">Stav serveru, databáze a aplikace</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="navigate('nastaveni')">← Zpět do Nastavení</button>
+        <button class="btn-secondary" onclick="navigate('nastaveni')">← Nastavení</button>
         <button class="btn-secondary" onclick="diagCopy()" title="Zkopírovat všechna data do schránky (pro support)">📋 Kopírovat info</button>
         <button class="btn-secondary" onclick="diagLint()" title="Projeď všechny PHP soubory v api/ — najdi parse errors">🔬 Lint API</button>
         <button class="btn-secondary" onclick="diagPingMail()" title="Pošle testovací e-mail na firma_email">✉️ Test e-mailu</button>
@@ -20285,10 +20301,13 @@ async function renderUsers() {
     c.innerHTML = `
       <div class="page-head">
         <div>
-          <h1 class="page-title">Uživatelé</h1>
+          <h1 class="page-title">👥 Uživatelé</h1>
           <p class="page-sub">Správa admin přístupů a prodavačů</p>
         </div>
-        <button class="btn-primary btn-green btn-big-action" onclick="otevritUzivatele(null)" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nový uživatel</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn-secondary" onclick="navigate('nastaveni')">← Nastavení</button>
+          <button class="btn-primary btn-green btn-big-action" onclick="otevritUzivatele(null)" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nový uživatel</button>
+        </div>
       </div>
 
       <!-- Desktop: tabulka -->
@@ -20640,10 +20659,13 @@ async function renderCenoveSkupiny() {
     c.innerHTML = `
       <div class="page-head">
         <div>
-          <h1 class="page-title">Slevové skupiny</h1>
+          <h1 class="page-title">💸 Slevové skupiny</h1>
           <p class="page-sub">Definujte slevy pro skupiny zákazníků (procenta nebo pevné ceny)</p>
         </div>
-        <button class="btn-primary btn-green btn-big-action" onclick="otevritSkupinu(null)" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nová skupina</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn-secondary" onclick="navigate('nastaveni')">← Nastavení</button>
+          <button class="btn-primary btn-green btn-big-action" onclick="otevritSkupinu(null)" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nová skupina</button>
+        </div>
       </div>
 
       <!-- Desktop: tabulka -->
@@ -30946,7 +30968,7 @@ function haccpRender() {
   c.innerHTML = `
     <div class="page-head">
       <div>
-        <h1 class="page-title">📋 HACCP</h1>
+        <h1 class="page-title">🛡️ HACCP</h1>
         <p class="page-sub">Produktové karty, plán kritických bodů a dokumentace</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
