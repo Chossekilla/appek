@@ -1,6 +1,6 @@
 {
- "version": "2.9.282",
- "built_at": "2026-05-24T18:48:41Z",
+ "version": "2.9.283",
+ "built_at": "2026-05-24T18:56:34Z",
  "file_count": 227,
  "files": {
   ".htaccess": {
@@ -20,12 +20,12 @@
    "size": 4583
   },
   "admin/admin.css": {
-   "sha256": "9bf381e9c7f965d249d081b38d1315f4d041f1df63dd6158c47a9c3298c5093c",
-   "size": 559147
+   "sha256": "6bab5a4722a71c801fb181ec688e3b65a0463c80b7db1e5cd197639e47785dac",
+   "size": 559524
   },
   "admin/admin.js": {
-   "sha256": "97c9bc76daf354461c53a4a4bd11da197b2562bb9bcf9f73f60794fa69bc674c",
-   "size": 1871791
+   "sha256": "85a7c8b31029584d12e4245190559dd2844a52ff6a105de31f7f353d57abd49d",
+   "size": 1872857
   },
   "admin/clear-cache.html": {
    "sha256": "3f3d549fdcad9b1094ddca2e0c96e96570c73039450cff2ce18a4b31ff0cff03",
@@ -112,7 +112,7 @@
    "size": 573
   },
   "admin/index.html": {
-   "sha256": "b25d0e0483f7fcb66f5b93aec22461eee927e9d1ae100c8fce51f0cec44d2ddb",
+   "sha256": "aea88c330ae598ddc2fa2b2516a2bcdf920537e1f448ef42310edefbdfbf6c22",
    "size": 30645
   },
   "admin/manifest.json": {
@@ -136,7 +136,7 @@
    "size": 12259
   },
   "admin/sw.js": {
-   "sha256": "a03e94af715f470a5139d81ccede59b45ff65f04be7c9a360d9d7acf4be7b4ef",
+   "sha256": "be9cd3d9c5d43a61a07901aea968530963d021fae24760906402b80645774f51",
    "size": 5393
   },
   "admin/updater.html": {
@@ -300,8 +300,8 @@
    "size": 9454
   },
   "api/admin_demo_seed.php": {
-   "sha256": "05ddf0a747bd01e829be0affb9b4dc6ad783b1a3f60e736d15c699e851ab7645",
-   "size": 74932
+   "sha256": "0cbd58aeed95aad80d730d1b467c8626ddb307f4c57437f0729851c02fbd02eb",
+   "size": 76628
   },
   "api/admin_diagnostika.php": {
    "sha256": "ddd17f807d777a702196e062ac0e14bfa7b42d7c75035366d31e0f3344971a36",
@@ -584,7 +584,7 @@
    "size": 9975
   },
   "api/config.php": {
-   "sha256": "a19001b176c291a2b40cfc58dd47ffe869349c51e6c631047506d18e3ada8042",
+   "sha256": "39df530d43fd3493cb757f4bfd4d08420d5d257303dffe239f626ecc48e0ca48",
    "size": 44670
   },
   "api/cron_recurring.php": {
@@ -840,7 +840,7 @@
    "size": 105295
   },
   "b2b/index.html": {
-   "sha256": "72e3996970c6a5a0f0173ab3aa5b6e3101122f2c60e812511d68a3781174778b",
+   "sha256": "e3e7b3d2bb4f8bb9636c3d44feb527259591845bc548958705f5f11d33d315c1",
    "size": 11976
   },
   "b2b/manifest.json": {

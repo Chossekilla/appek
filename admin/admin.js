@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.282';
+const APPEK_ADMIN_JS_VERSION = '2.9.283';
 
 (async function detectStaleCode() {
   try {
@@ -1412,8 +1412,29 @@ window.openDemoSeed = async function() {
   try {
     const r = await api('admin_demo_seed.php?action=apply', { method: 'POST' });
     const summary = `+${r.vyrobky || 0} výrobků, +${r.recepty || 0} receptů, +${r.naskladneno_polozek || 0} naskladnění, +${r.kalkulace_ulozeno || 0} kalkulací`;
-    toastSuccess(summary, 'Demo data připravena 🎉');
-    setTimeout(() => location.reload(), 1200);
+
+    // 🆕 v2.9.283 — Verbose alert pokud něco selhalo (recepty bez surovin, errors)
+    const skipNenalezena = r.recepty_skip_nenalezena_surovina || [];
+    const skipVyrobek = r.recepty_skip_nenalezen_vyrobek || 0;
+    const errors = (r.errors || []).slice(0, 3); // max 3 errors
+
+    if (skipNenalezena.length > 0 || skipVyrobek > 0 || errors.length > 0) {
+      // Verbose dialog místo toastu
+      const details = [
+        summary,
+        '',
+        '⚠️ Některé věci se nedopnily:',
+        skipVyrobek > 0 ? `• ${skipVyrobek} výrobků nenalezeno v DB (chybí cislo nebo název)` : '',
+        skipNenalezena.length > 0 ? `• Suroviny nenalezeny v DB (chybí název nebo alias):\n   ${skipNenalezena.slice(0, 10).join(', ')}${skipNenalezena.length > 10 ? '…' : ''}` : '',
+        errors.length > 0 ? `• Chyby:\n   ${errors.join('\n   ')}` : '',
+        '',
+        '💡 Tip: pro čistý start klikni 🗑️ Reset demo data (smaže VŠE + naplní znova).',
+      ].filter(Boolean).join('\n');
+      alert(details);
+    } else {
+      toastSuccess(summary, 'Demo data připravena 🎉');
+    }
+    setTimeout(() => location.reload(), 1500);
   } catch (e) {
     alert('Chyba: ' + e.message);
   }

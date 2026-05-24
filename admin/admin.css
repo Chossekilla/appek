@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "2.9.282";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "2.9.283";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -885,10 +885,13 @@ html.is-fullscreen .btn-fullscreen {
 .btn-logout-icon { font-size: 15px; }
 
 /* DPH KARTY — 2 sloupce vedle sebe i na mobilu */
+/* 🆕 v2.9.283 — auto-fit fallback pro úzké šířky (<360px) — nepřetečí */
 .dph-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .dph-card {
   background: #fff;
@@ -938,10 +941,15 @@ html.is-fullscreen .btn-fullscreen {
 @media (max-width: 480px) {
   /* Na velmi malých displejích zůstanou 2 sloupce, ale ještě kompaktnější */
   .dph-card { padding: 10px 12px; }
-  .dph-card-nazev { font-size: 12px; }
+  .dph-card-nazev { font-size: 12px; word-break: break-word; }
   .dph-card-sazba { font-size: 15px; }
   .dph-card-meta { font-size: 11px; }
+  .dph-card-actions { flex-wrap: wrap; }
   .dph-card-actions button { font-size: 11px; padding: 5px 6px; min-height: 30px; }
+}
+/* 🆕 v2.9.283 — Velmi úzké phones (<360px) → 1 sloupec fallback */
+@media (max-width: 360px) {
+  .dph-grid { grid-template-columns: 1fr; }
 }
 
 /* OBJ EDIT MODAL — položky jako řádky */

@@ -809,6 +809,21 @@ if ($action === 'apply') {
             } catch (Throwable $e) { /* sklad_pohyby legacy not critical */ }
         };
 
+        // 🆕 v2.9.283 — alias map pro merge mode (kratší názvy v staré DB)
+        $surMergeAliases = [
+            'Mouka pšeničná hladká T530'       => ['Mouka pšeničná hladká', 'Mouka hladká', 'Mouka pšeničná'],
+            'Mouka pšeničná chlebová T1050'    => ['Mouka pšeničná chlebová', 'Mouka chlebová'],
+            'Mouka žitná chlebová T960'        => ['Mouka žitná chlebová', 'Mouka žitná'],
+            'Sůl jedlá'                         => ['Sůl'],
+            'Droždí čerstvé pekařské'           => ['Droždí čerstvé', 'Droždí'],
+            'Vejce slepičí M (1 ks ≈ 60 g)'    => ['Vejce slepičí', 'Vejce'],
+            'Mléko polotučné 1,5%'              => ['Mléko polotučné', 'Mléko'],
+            'Máslo selské 82%'                  => ['Máslo', 'Máslo selské'],
+            'Cukr krystal'                      => ['Cukr'],
+            'Káva zrnková 100% Arabica'         => ['Káva zrnková', 'Káva'],
+            'Mák modrý'                         => ['Mák'],
+        ];
+
         foreach (demo_suroviny() as $s) {
             try {
                 $naskladnit = ((float) ($s['naskladnit_baleni'] ?? 0)) * ((float) ($s['obsah_baleni'] ?? 0));
@@ -816,18 +831,29 @@ if ($action === 'apply') {
                 $cenaJed    = ((float) $s['cena_baleni']) / max(1, (float) $s['obsah_baleni']);
 
                 // Existuje surovina? Pokud ano, MERGE chybějící data
-                $stmt = $pdo->prepare("SELECT id" . ($hasStockAkt ? ", stock_aktualni" : "") . ($hasStockMin ? ", stock_minimalni" : "") . " FROM suroviny WHERE nazev = :n");
+                $selCols = "id" . ($hasStockAkt ? ", stock_aktualni" : "") . ($hasStockMin ? ", stock_minimalni" : "");
+                $stmt = $pdo->prepare("SELECT {$selCols} FROM suroviny WHERE nazev = :n");
                 $stmt->execute(['n' => $s['nazev']]);
                 $existing = $stmt->fetch();
+
+                // 🆕 v2.9.283 — Pokud přesný název nematchuje, zkus aliasy (např. "Mouka pšeničná hladká" → "Mouka pšeničná hladká T530")
+                if (!$existing && isset($surMergeAliases[$s['nazev']])) {
+                    foreach ($surMergeAliases[$s['nazev']] as $alias) {
+                        $stmt->execute(['n' => $alias]);
+                        $existing = $stmt->fetch();
+                        if ($existing) break;
+                    }
+                }
 
                 if ($existing) {
                     $existId = (int) $existing['id'];
                     $surovinaIdByName[$s['nazev']] = $existId;
 
                     // Merge: pokud chybí naskladnění → naskladnit; pokud chybí stock_min → doplnit
+                    // 🆕 v2.9.283 — <= 0 místo === 0.0 (defenzivně proti float precision)
                     $sets = []; $params = ['id' => $existId];
-                    $doplnitStock = $hasStockAkt && (!isset($existing['stock_aktualni']) || (float) $existing['stock_aktualni'] === 0.0);
-                    $doplnitMin   = $hasStockMin && (empty($existing['stock_minimalni']) || (float) $existing['stock_minimalni'] === 0.0);
+                    $doplnitStock = $hasStockAkt && (!isset($existing['stock_aktualni']) || (float) $existing['stock_aktualni'] <= 0);
+                    $doplnitMin   = $hasStockMin && (empty($existing['stock_minimalni']) || (float) $existing['stock_minimalni'] <= 0);
 
                     if ($doplnitStock && $naskladnit > 0) {
                         $sets[] = "stock_aktualni = :sa";
