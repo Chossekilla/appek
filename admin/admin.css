@@ -2835,6 +2835,28 @@ html.dark .seg-tab.active, html.theme-dark .seg-tab.active { color: #fff; }
     overflow-x: hidden;
   }
 
+  /* 🆕 v2.9.236 — GLOBÁLNÍ MOBILE SAFETY NET: nikdy nepřetékej viewport */
+  #content,
+  #content * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  /* Tabulky / containery které mají overflow-x: auto nesmějí mít max-width fixed */
+  #content table.table {
+    max-width: 100%;
+    table-layout: auto;
+  }
+  /* Long text → break-word, žádný horizontal scroll */
+  #content p, #content span, #content div, #content td, #content h1, #content h2, #content h3 {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+  /* Image / canvas / iframe nepřetékat */
+  #content img, #content canvas, #content iframe, #content svg, #content video {
+    max-width: 100%;
+    height: auto;
+  }
+
   /* Page heading menší */
   .page-head {
     flex-direction: column;
@@ -2872,6 +2894,10 @@ html.dark .seg-tab.active, html.theme-dark .seg-tab.active { color: #fff; }
     width: 100%;
     max-width: 100%;
   }
+  /* 🆕 v2.9.236 — Dashboard .stat-grid-dash: Tržby span 2 (top row full width) */
+  .stat-grid-dash .stat-card-wide {
+    grid-column: span 2 !important;
+  }
   .stat-card {
     padding: 12px;
     min-width: 0;
@@ -2884,6 +2910,13 @@ html.dark .seg-tab.active, html.theme-dark .seg-tab.active { color: #fff; }
   .stat-card .value {
     font-size: clamp(13px, 3.8vw, 18px);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* 🆕 v2.9.236 — stat-value-lg na mobile clamp (Tržby card) */
+  .stat-card .stat-value.stat-value-lg,
+  .stat-card .stat-value-lg {
+    font-size: clamp(18px, 5.5vw, 26px) !important;
   }
 
   /* Filtry — důležité aby se nepřetekly */
@@ -12811,6 +12844,10 @@ aside.sidebar::after { display: none !important; content: '' !important; }
     width: 100%;
     max-width: 100%;
   }
+  /* 🆕 v2.9.236 — Dashboard .stat-grid-dash: Tržby span 2 (top row full width) */
+  .stat-grid-dash .stat-card-wide {
+    grid-column: span 2 !important;
+  }
   .stat-card {
     padding: 12px;
     min-width: 0;
@@ -12823,6 +12860,13 @@ aside.sidebar::after { display: none !important; content: '' !important; }
   .stat-card .value {
     font-size: clamp(13px, 3.8vw, 18px);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* 🆕 v2.9.236 — stat-value-lg na mobile clamp (Tržby card) */
+  .stat-card .stat-value.stat-value-lg,
+  .stat-card .stat-value-lg {
+    font-size: clamp(18px, 5.5vw, 26px) !important;
   }
 
   /* Filtry — důležité aby se nepřetekly */

@@ -3892,7 +3892,7 @@ function upravenoDot(edited) {
 async function renderObjednavky(filters = {}) {
   const c0 = document.getElementById('content');
   if (c0) c0.innerHTML = `
-    <div class="page-head"><div><h1 class="page-title">Objednávky</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
+    <div class="page-head"><div><h1 class="page-title">🛒 Objednávky</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
   const params = new URLSearchParams(filters).toString();
@@ -3915,7 +3915,7 @@ async function renderObjednavky(filters = {}) {
   c.innerHTML = `
     <div class="page-head">
       <div>
-        <h1 class="page-title">Objednávky</h1>
+        <h1 class="page-title">🛒 Objednávky</h1>
         <p class="page-sub">${list.length} objednávek</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -6878,7 +6878,7 @@ async function renderDodaciListy(filters = {}) {
   c.innerHTML = `
     <div class="page-head">
       <div>
-        <h1 class="page-title">Dodací listy</h1>
+        <h1 class="page-title">📃 Dodací listy</h1>
         <p class="page-sub">${data.pocet} dodacích listů</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -7730,7 +7730,7 @@ window.upravitDodaciList = async function(id) {
 async function renderFaktury(filters = {}) {
   const c0 = document.getElementById('content');
   if (c0) c0.innerHTML = `
-    <div class="page-head"><div><h1 class="page-title">Faktury</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
+    <div class="page-head"><div><h1 class="page-title">💰 Faktury</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
   const params = new URLSearchParams(filters).toString();
@@ -7743,7 +7743,7 @@ async function renderFaktury(filters = {}) {
   c.innerHTML = `
     <div class="page-head">
       <div>
-        <h1 class="page-title">Faktury</h1>
+        <h1 class="page-title">💰 Faktury</h1>
         <p class="page-sub">${data.faktury.length} faktur</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -8729,7 +8729,7 @@ function vyrobekDocBadges(v) {
 async function renderVyrobky(filters = {}) {
   const c = document.getElementById('content');
   c.innerHTML = `
-    <div class="page-head"><div><h1 class="page-title">Výrobky</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
+    <div class="page-head"><div><h1 class="page-title">📦 Výrobky</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
   const d = await api('admin_vyrobky.php');
@@ -8779,7 +8779,7 @@ async function renderVyrobky(filters = {}) {
   c.innerHTML = `
     <div class="page-head">
       <div>
-        <h1 class="page-title">Výrobky</h1>
+        <h1 class="page-title">📦 Výrobky</h1>
         <p class="page-sub">${filtered.length} z ${d.vyrobky.length} výrobků</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -10167,7 +10167,7 @@ window.odbFilterTyp = window.odbFilterTyp || '';
 async function renderOdberatele() {
   const c0 = document.getElementById('content');
   if (c0) c0.innerHTML = `
-    <div class="page-head"><div><h1 class="page-title">Odběratelé</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
+    <div class="page-head"><div><h1 class="page-title">👥 Odběratelé</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
   const filtrTyp = window.odbFilterTyp || '';
@@ -10213,7 +10213,7 @@ async function renderOdberatele() {
   c.innerHTML = `
     <div class="page-head">
       <div>
-        <h1 class="page-title">Odběratelé</h1>
+        <h1 class="page-title">👥 Odběratelé</h1>
         <p class="page-sub">${list.length} odběratelů${filtrTyp ? ` v kategorii „${esc((window.odbTypByKey(filtrTyp) || {label: 'Nezařazeno'}).label)}"` : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
