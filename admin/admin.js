@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.286';
+const APPEK_ADMIN_JS_VERSION = '2.9.287';
 
 (async function detectStaleCode() {
   try {
@@ -3761,26 +3761,15 @@ async function renderDashboard(filters = {}) {
     <!-- 🆕 v2.9.242 — Alerts widget (akce vyžadující pozornost) -->
     ${renderDashAlerts(d.alerts || {})}
 
-    <!-- TABY OBDOBÍ — v2.9.233 segmented control (icon + label) -->
-    <!-- 🆕 v2.9.285 — JS-based mobile detection (CSS dual-span fix v2.9.282 neúčinkoval) -->
-    <div class="seg-tabs period-tabs-obdobi" role="tablist" style="margin-bottom:14px">
-      ${(() => {
-        const isMob = typeof window !== 'undefined' && window.innerWidth <= 700;
-        const tabs = [
-          { k: 'dnes',    icon: '📅', l: 'Dnes',         short: 'Dnes' },
-          { k: 'tyden',   icon: '📆', l: 'Tento týden',  short: 'Týden' },
-          { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc', short: 'Měsíc' },
-          { k: 'rok',     icon: '📊', l: 'Tento rok',    short: 'Rok' },
-          { k: 'vlastni', icon: '⚙️', l: 'Vlastní',      short: 'Vlastní' },
-        ];
-        return tabs.map(t => `
-          <button type="button" role="tab" class="seg-tab ${obdobi === t.k ? 'active' : ''}"
-                  onclick="dashSetObdobi('${t.k}')" aria-selected="${obdobi === t.k}">
-            <span class="seg-tab-icon">${t.icon}</span>
-            <span class="seg-tab-text">${isMob ? t.short : t.l}</span>
-          </button>
-        `).join('');
-      })()}
+    <!-- TABY OBDOBÍ — v2.9.287 — period-tabs (Skupina A → 1 řádek nowrap), JS short labels mobile -->
+    <div class="period-tabs" role="tablist" style="margin-bottom:14px">
+      ${periodTabsRender([
+        { k: 'dnes',    icon: '📅', l: 'Dnes',         short: 'Dnes' },
+        { k: 'tyden',   icon: '📆', l: 'Tento týden',  short: 'Týden' },
+        { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc', short: 'Měsíc' },
+        { k: 'rok',     icon: '📊', l: 'Tento rok',    short: 'Rok' },
+        { k: 'vlastni', icon: '⚙️', l: 'Vlastní',      short: 'Vlastní' },
+      ], obdobi, 'dashSetObdobi')}
     </div>
 
     ${obdobi === 'vlastni' ? `
@@ -4248,20 +4237,41 @@ window.dashSetObdobi = function(obdobi) {
   renderDashboard({ obdobi });
 };
 
+// 🆕 v2.9.287 — Helper pro sjednocený period-tabs render (Dashboard + Faktury/Obj/DL + Vyroba prehled)
+// Detekuje mobile + použije short label místo full ("Týden" místo "Tento týden")
+// CLASS .period-tab = Skupina A = 1 řádek nowrap shrink (žádné wrapování na mobile)
+window.periodTabsRender = function(tabs, currentKey, onclickFn) {
+  const isMob = typeof window !== 'undefined' && window.innerWidth <= 700;
+  return tabs.map(t => {
+    const label = isMob && t.short ? t.short : t.l;
+    const cls = currentKey === t.k ? 'period-tab active' : 'period-tab';
+    return `<button type="button" class="${cls}" onclick="${onclickFn}('${t.k}')" aria-selected="${currentKey === t.k}"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${label}</span></button>`;
+  }).join('');
+};
+
 // 🆕 v2.9.285 — Resize listener pro re-render period tabs (mobile/desktop přepnutí labelů)
-// Debounced 250ms aby resize spam nepřetížil. Jen pokud je aktuální page = dashboard.
+// 🆕 v2.9.287 — Rozšířeno na všechny page co používají period-tabs
+// Debounced 250ms aby resize spam nepřetížil.
 (function() {
   let resizeTimer;
   let lastIsMobile = typeof window !== 'undefined' && window.innerWidth <= 700;
+  // Mapování route → render funkce (musí být dostupné při resize)
+  const RENDER_BY_PAGE = {
+    'dashboard': () => typeof renderDashboard === 'function' && renderDashboard({}),
+    'faktury':   () => typeof renderFaktury === 'function' && renderFaktury(),
+    'objednavky':() => typeof renderObjednavky === 'function' && renderObjednavky(),
+    'dodaci_listy': () => typeof renderDodaciListy === 'function' && renderDodaciListy(),
+    'export_vyroby': () => typeof renderExportVyroby === 'function' && renderExportVyroby(),
+  };
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       const isMobile = window.innerWidth <= 700;
       if (isMobile !== lastIsMobile) {
         lastIsMobile = isMobile;
-        // Re-render jen pokud je dashboard aktivní
-        if (state.current === 'dashboard' && typeof renderDashboard === 'function') {
-          renderDashboard({});
+        const fn = RENDER_BY_PAGE[state.current];
+        if (fn) {
+          try { fn(); } catch (e) { /* page render race — skip */ }
         }
       }
     }, 250);
@@ -8621,18 +8631,20 @@ function rangeToPeriod(od, doDt) {
 
 function dashStylePeriodHtml(typ, datum_od, datum_do) {
   const currentPeriod = rangeToPeriod(datum_od, datum_do);
+  // 🆕 v2.9.287 — short labels pro mobile (sjednoceno s Dashboard period-tabs)
   const tabs = [
-    { k: 'dnes',    icon: '📅', l: 'Dnes' },
-    { k: 'tyden',   icon: '📆', l: 'Tento týden' },
-    { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc' },
-    { k: 'rok',     icon: '📊', l: 'Tento rok' },
-    { k: 'vlastni', icon: '⚙️', l: 'Vlastní' },
-    { k: 'vse',     icon: '∞',  l: 'Vše' },
+    { k: 'dnes',    icon: '📅', l: 'Dnes',         short: 'Dnes' },
+    { k: 'tyden',   icon: '📆', l: 'Tento týden',  short: 'Týden' },
+    { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc', short: 'Měsíc' },
+    { k: 'rok',     icon: '📊', l: 'Tento rok',    short: 'Rok' },
+    { k: 'vlastni', icon: '⚙️', l: 'Vlastní',      short: 'Vlastní' },
+    { k: 'vse',     icon: '∞',  l: 'Vše',          short: 'Vše' },
   ];
-  const tabsHtml = tabs.map(t => `
-    <button class="period-tab ${currentPeriod === t.k ? 'active' : ''}"
-            onclick="periodTabSet('${typ}', '${t.k}')"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${t.l}</span></button>
-  `).join('');
+  const isMob = typeof window !== 'undefined' && window.innerWidth <= 700;
+  const tabsHtml = tabs.map(t => {
+    const label = isMob && t.short ? t.short : t.l;
+    return `<button class="period-tab ${currentPeriod === t.k ? 'active' : ''}" onclick="periodTabSet('${typ}', '${t.k}')"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${label}</span></button>`;
+  }).join('');
   const customHtml = currentPeriod === 'vlastni' ? `
     <div class="period-custom" style="margin-top:10px">
       <label class="filter-date-wrap">
@@ -32263,17 +32275,15 @@ async function renderExportVyroby(filters = {}) {
       </div>
     </div>
 
-    <!-- TABY OBDOBÍ -->
+    <!-- TABY OBDOBÍ — v2.9.287 — short labels mobile -->
     <div class="period-tabs no-print">
-      ${[
-        { k: 'mesic',         icon: '🗓️', l: 'Tento měsíc' },
-        { k: 'minuly_mesic',  icon: '⬅️', l: 'Minulý měsíc' },
-        { k: 'rok',           icon: '📅', l: 'Tento rok' },
-        { k: 'minuly_rok',    icon: '⬅️', l: 'Minulý rok' },
-        { k: 'vlastni',       icon: '⚙️', l: 'Vlastní' },
-      ].map(t => `
-        <button class="period-tab ${obdobi === t.k ? 'active' : ''}" onclick="exVyrobySetObdobi('${t.k}')"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${t.l}</span></button>
-      `).join('')}
+      ${periodTabsRender([
+        { k: 'mesic',         icon: '🗓️', l: 'Tento měsíc',  short: 'Měsíc' },
+        { k: 'minuly_mesic',  icon: '⬅️', l: 'Minulý měsíc', short: 'Min. měs.' },
+        { k: 'rok',           icon: '📅', l: 'Tento rok',     short: 'Rok' },
+        { k: 'minuly_rok',    icon: '⬅️', l: 'Minulý rok',    short: 'Min. rok' },
+        { k: 'vlastni',       icon: '⚙️', l: 'Vlastní',        short: 'Vlastní' },
+      ], obdobi, 'exVyrobySetObdobi')}
     </div>
 
     <!-- PŘEPÍNAČ SOUHRN / DENNÍ -->
