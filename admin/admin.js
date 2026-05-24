@@ -16837,6 +16837,24 @@ async function renderPOSLauncher() {
         <div style="text-align:center;padding:40px 20px;color:var(--text-3);font-size:13px">⏳ Načítám…</div>
       </div>
     </div>
+
+    <!-- 🆕 v2.9.310 — Editor rychlých voleb pro POS „volnou položku" -->
+    <div id="pos-presets-editor" class="card-block" style="margin-top:16px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h3 style="margin:0;font-size:14px;color:var(--text)">⚙️ Rychlé volby pro „volnou položku" v POS</h3>
+          <small style="font-size:11px;color:var(--text-3)">Tlačítka pod formulářem volné položky — typické položky (Korkovné, Obal, Sleva…). Záporná cena = sleva.</small>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="posPresetsReset()" title="Vrátit na továrenské 4 presety">↺ Reset</button>
+          <button class="btn-primary" style="font-size:11px;padding:5px 12px;font-weight:700" onclick="posPresetsSave()">💾 Uložit</button>
+        </div>
+      </div>
+      <div id="pos-presets-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+        <div style="padding:20px;text-align:center;color:var(--text-3);font-size:12px">⏳ Načítám…</div>
+      </div>
+      <button class="btn-secondary" style="font-size:12px;padding:8px 14px;width:100%" onclick="posPresetsAdd()">+ Přidat preset</button>
+    </div>
   `;
 
   // Asynchronně načti dnešní data
@@ -16954,7 +16972,90 @@ async function renderPOSLauncher() {
       </div>
     `}
   `;
+
+  // Asynchronně načti rychlé volby (presets) pro editor
+  posPresetsLoad();
 }
+
+// 🆕 v2.9.310 — POS rychlé volby (editor v POS Kasa hub) ──────────────
+// Stav držíme v state._posPresets pro re-render mezi přidáním/úpravou
+async function posPresetsLoad() {
+  const list = document.getElementById('pos-presets-list');
+  if (!list) return;
+  try {
+    const r = await api('admin_pos_presets.php');
+    state._posPresets = Array.isArray(r?.presets) ? r.presets : [];
+  } catch (e) {
+    state._posPresets = [];
+    list.innerHTML = `<div style="padding:14px;background:#FEE2E2;color:#991B1B;border-radius:6px;font-size:12px">Chyba: ${esc(e.message)}</div>`;
+    return;
+  }
+  posPresetsRender();
+}
+function posPresetsRender() {
+  const list = document.getElementById('pos-presets-list');
+  if (!list) return;
+  const presets = state._posPresets || [];
+  if (presets.length === 0) {
+    list.innerHTML = `<div style="padding:14px;text-align:center;color:var(--text-3);font-size:12px;background:#FAFAFA;border:1px dashed var(--border);border-radius:6px">Žádné presety. Klikni „+ Přidat preset" níže.</div>`;
+    return;
+  }
+  list.innerHTML = presets.map((p, idx) => {
+    const isNeg = (parseFloat(p.cena) || 0) < 0;
+    return `
+      <div style="display:grid;grid-template-columns:48px minmax(120px,1fr) 90px 70px auto;gap:6px;align-items:center;padding:6px 8px;background:${isNeg ? '#FFF5F5' : '#F7F8FA'};border:1px solid ${isNeg ? '#FCA5A5' : '#E1E5EB'};border-radius:6px">
+        <input type="text" maxlength="4" value="${esc(p.ikona || '')}" placeholder="🛒" onchange="posPresetsUpdate(${idx}, 'ikona', this.value)" style="padding:6px;text-align:center;font-size:18px;border:1px solid var(--border);border-radius:4px;background:#fff" title="Emoji/ikona">
+        <input type="text" maxlength="60" value="${esc(p.nazev || '')}" placeholder="Název položky" onchange="posPresetsUpdate(${idx}, 'nazev', this.value)" style="padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:4px;background:#fff">
+        <input type="number" step="0.01" value="${parseFloat(p.cena) || 0}" onchange="posPresetsUpdate(${idx}, 'cena', this.value)" style="padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:4px;background:#fff;text-align:right;font-variant-numeric:tabular-nums" title="Cena bez DPH (− = sleva)">
+        <select onchange="posPresetsUpdate(${idx}, 'dph', this.value)" style="padding:6px;font-size:13px;border:1px solid var(--border);border-radius:4px;background:#fff" title="DPH %">
+          ${[0, 10, 12, 15, 21].map(v => `<option value="${v}" ${parseFloat(p.dph) === v ? 'selected' : ''}>${v}%</option>`).join('')}
+        </select>
+        <button class="btn-secondary" style="padding:5px 10px;font-size:14px;color:#dc2626;border-color:#FCA5A5" onclick="posPresetsRemove(${idx})" title="Smazat preset">×</button>
+      </div>
+    `;
+  }).join('');
+}
+window.posPresetsUpdate = function(idx, field, value) {
+  if (!state._posPresets || !state._posPresets[idx]) return;
+  if (field === 'cena' || field === 'dph') value = parseFloat(value) || 0;
+  state._posPresets[idx][field] = value;
+};
+window.posPresetsAdd = function() {
+  if (!Array.isArray(state._posPresets)) state._posPresets = [];
+  if (state._posPresets.length >= 24) return alert('Max 24 presetů');
+  state._posPresets.push({ ikona: '🛒', nazev: 'Nový preset', cena: 0, dph: 21 });
+  posPresetsRender();
+};
+window.posPresetsRemove = function(idx) {
+  if (!state._posPresets) return;
+  state._posPresets.splice(idx, 1);
+  posPresetsRender();
+};
+window.posPresetsSave = async function() {
+  if (!Array.isArray(state._posPresets)) return;
+  // Validace: každý preset musí mít nazev
+  for (const p of state._posPresets) {
+    if (!p.nazev || !p.nazev.trim()) return alert('Některý preset nemá vyplněný název. Doplň ho nebo smaž.');
+  }
+  try {
+    const r = await api('admin_pos_presets.php?action=save', {
+      method: 'POST',
+      body: JSON.stringify({ presets: state._posPresets }),
+    });
+    state._posPresets = r.presets || state._posPresets;
+    posPresetsRender();
+    toastSuccess(`✓ Uloženo ${r.saved || 0} presetů. V POS se použijí ihned (cache 5 min).`);
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+window.posPresetsReset = async function() {
+  if (!confirm('Vrátit presety na továrenské 4 (Korkovné, Obal, Sleva, Poplatek)?')) return;
+  try {
+    const r = await api('admin_pos_presets.php?action=reset', { method: 'POST' });
+    state._posPresets = r.presets || [];
+    posPresetsRender();
+    toastSuccess('✓ Resetováno na továrenské defaulty.');
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
 
 window.openPOSWindow = function () {
   // Otevři ve velkém okně bez toolbaru — kiosk-friendly

@@ -834,7 +834,40 @@
   }
 
   // ─── Custom item modal — volná položka bez DB ───────────────
-  function openCustomItem() {
+  // 🆕 v2.9.310 — Rychlé volby (presets) jsou EDITOVATELNÉ v adminu (POS Kasa hub).
+  // Načítají se dynamicky z api/admin_pos_presets.php (cache 5 min v paměti).
+  let _presetsCache = null;
+  let _presetsCachedAt = 0;
+  async function loadPresets() {
+    const now = Date.now();
+    if (_presetsCache && (now - _presetsCachedAt) < 5 * 60 * 1000) return _presetsCache;
+    try {
+      const r = await api('admin_pos_presets.php');
+      _presetsCache = Array.isArray(r?.presets) ? r.presets : [];
+      _presetsCachedAt = now;
+    } catch (e) {
+      _presetsCache = []; // fallback — žádné tlačítka, jen ruční zadání
+    }
+    return _presetsCache;
+  }
+
+  async function openCustomItem() {
+    const presets = await loadPresets();
+    const presetsHtml = presets.length === 0 ? '' : `
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+        ${presets.map((p, idx) => {
+          const isNeg = (parseFloat(p.cena) || 0) < 0;
+          const bg = isNeg ? '#FEE2E2' : '#FFF5DC';
+          const border = isNeg ? '#FCA5A5' : '#FAC775';
+          const color = isNeg ? '#991b1b' : '';
+          const cenaStr = isNeg ? '−' + Math.abs(parseFloat(p.cena)).toFixed(0) : parseFloat(p.cena).toFixed(0);
+          return `<button type="button" onclick='POS._customPreset(${JSON.stringify(p.nazev)}, ${parseFloat(p.cena)}, ${parseFloat(p.dph)})' style="padding:8px 14px;background:${bg};border:1.5px solid ${border};border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;${color ? 'color:' + color : ''}">${esc(p.ikona || '🛒')} ${esc(p.nazev)} ${cenaStr} Kč</button>`;
+        }).join('')}
+      </div>
+      <div style="font-size:11px;color:#9097a3;margin-top:2px">
+        💡 Tipy: edituj v adminu → POS Kasa → ⚙️ Rychlé volby
+      </div>
+    `;
     modal('➕ Volná položka', `
       <div class="fp-prop-section" style="display:flex;flex-direction:column;gap:12px">
         <div>
@@ -845,7 +878,7 @@
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
           <div>
             <label style="display:block;font-size:13px;font-weight:700;margin-bottom:4px;color:#5f6470">Cena (bez DPH) *</label>
-            <input id="pos-ci-cena" type="number" step="0.01" min="0" placeholder="0.00"
+            <input id="pos-ci-cena" type="number" step="0.01" placeholder="0.00"
                    style="width:100%;padding:14px;border:2px solid #e1e5eb;border-radius:10px;font-size:16px;font-family:inherit">
           </div>
           <div>
@@ -864,12 +897,7 @@
                    style="width:100%;padding:14px;border:2px solid #e1e5eb;border-radius:10px;font-size:16px;font-family:inherit">
           </div>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
-          <button type="button" onclick="POS._customPreset('Korkovné', 30, 21)" style="padding:8px 14px;background:#FFF5DC;border:1.5px solid #FAC775;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🍷 Korkovné 30 Kč</button>
-          <button type="button" onclick="POS._customPreset('Obal / krabice', 5, 21)" style="padding:8px 14px;background:#FFF5DC;border:1.5px solid #FAC775;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">📦 Obal 5 Kč</button>
-          <button type="button" onclick="POS._customPreset('Sleva (volná)', -50, 0)" style="padding:8px 14px;background:#FEE2E2;border:1.5px solid #FCA5A5;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#991b1b">🏷️ Sleva −50 Kč</button>
-          <button type="button" onclick="POS._customPreset('Servis / poplatek', 10, 21)" style="padding:8px 14px;background:#FFF5DC;border:1.5px solid #FAC775;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">⚙️ Poplatek 10 Kč</button>
-        </div>
+        ${presetsHtml}
       </div>
     `, `
       <button class="btn-secondary" onclick="POS._closeModal()">Zrušit</button>
