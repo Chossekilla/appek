@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "2.9.276";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "2.9.277";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18468,3 +18468,33 @@ html.density-extreme body:not(.sidebar-pinned) .sidebar-nav .nav-icon {
   transform: none;
 }
 .sklad-card.is-inactive .sklad-card-arrow { display: none; }
+
+/* 🆕 v2.9.277 — Porovnání skladů pivot tabulka mobile responsive */
+.porov-table-wrap {
+  scrollbar-width: thin;
+}
+.porov-table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+.porov-table-wrap::-webkit-scrollbar-track {
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+.porov-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--border-2);
+  border-radius: 4px;
+}
+.porov-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
+}
+@media (max-width: 768px) {
+  .porov-table { font-size: 12px !important; }
+  .porov-table th,
+  .porov-table td { padding: 6px 8px !important; }
+  .porov-table th { font-size: 10px !important; }
+  .porov-scroll-hint { animation: porov-pulse 2s ease-in-out infinite; }
+}
+@keyframes porov-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}

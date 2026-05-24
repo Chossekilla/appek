@@ -696,9 +696,12 @@ if ($action === 'apply') {
         $hasStockAkt = in_array('stock_aktualni', $surCols, true);
         $hasStockMin = in_array('stock_minimalni', $surCols, true);
 
-        // Helper: zápis sklad_pohyby pro audit (legacy tabulka)
+        // Helper: zápis pohybu pro audit
+        // 🆕 v2.9.277 — paralelní zápis do legacy sklad_pohyby + nové sklad_pohyby_v2
+        //              + update sklad_polozky pro výchozí sklad SK01 (pokud existuje)
         $logPrijem = function(int $surId, float $mnozstvi, float $cenaJed, string $note) use ($pdo, &$stats) {
             try {
+                // 1. Legacy sklad_pohyby (single warehouse, just surovina_id)
                 $pdo->exec("
                     CREATE TABLE IF NOT EXISTS sklad_pohyby (
                         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -720,6 +723,89 @@ if ($action === 'apply') {
                     'sid' => $surId, 'mn' => $mnozstvi, 'cj' => $cenaJed, 'pz' => $note,
                 ]);
                 $stats['naskladneno_polozek']++;
+
+                // 2. 🆕 v2.9.277 — Multi-warehouse: paralelní zápis do sklad_polozky + sklad_pohyby_v2
+                try {
+                    // Zajisti tabulky existují
+                    $pdo->exec("
+                        CREATE TABLE IF NOT EXISTS sklady (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            kod VARCHAR(20) UNIQUE,
+                            nazev VARCHAR(120) NOT NULL,
+                            typ VARCHAR(20) DEFAULT 'jiny',
+                            aktivni TINYINT(1) DEFAULT 1,
+                            poradi INT DEFAULT 0,
+                            vytvoreno DATETIME DEFAULT CURRENT_TIMESTAMP
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    ");
+                    $pdo->exec("
+                        CREATE TABLE IF NOT EXISTS sklad_polozky (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            sklad_id INT NOT NULL,
+                            item_typ ENUM('surovina','vyrobek') NOT NULL,
+                            item_id INT NOT NULL,
+                            stav DECIMAL(12,3) NOT NULL DEFAULT 0,
+                            min_stav DECIMAL(12,3) NULL,
+                            cil_stav DECIMAL(12,3) NULL,
+                            vytvoreno DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            upraveno DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                            UNIQUE KEY uk_sklad_item (sklad_id, item_typ, item_id)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    ");
+                    $pdo->exec("
+                        CREATE TABLE IF NOT EXISTS sklad_pohyby_v2 (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            sklad_id INT NOT NULL,
+                            sklad_id_cil INT NULL,
+                            item_typ ENUM('surovina','vyrobek') NOT NULL,
+                            item_id INT NOT NULL,
+                            typ ENUM('prijem','vydej','inventura','korekce','presun') NOT NULL,
+                            mnozstvi DECIMAL(12,3) NOT NULL,
+                            stav_pred DECIMAL(12,3) NULL,
+                            stav_po DECIMAL(12,3) NULL,
+                            cena_za_jed DECIMAL(10,4) NULL,
+                            poznamka VARCHAR(300) NULL,
+                            kdo VARCHAR(120) NULL,
+                            kdy DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            INDEX idx_sklad (sklad_id),
+                            INDEX idx_kdy (kdy),
+                            INDEX idx_item (item_typ, item_id)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    ");
+
+                    // Najdi/vytvoř výchozí sklad SK01
+                    $sk01 = (int) $pdo->query("SELECT id FROM sklady WHERE kod = 'SK01' LIMIT 1")->fetchColumn();
+                    if (!$sk01) {
+                        $pdo->prepare("INSERT INTO sklady (kod, nazev, typ, aktivni, poradi) VALUES ('SK01', 'Hlavní sklad', 'suchy', 1, 0)")->execute();
+                        $sk01 = (int) $pdo->lastInsertId();
+                    }
+
+                    // Aktualizuj sklad_polozky (UPSERT)
+                    $polStmt = $pdo->prepare("SELECT id, stav FROM sklad_polozky WHERE sklad_id = :s AND item_typ = 'surovina' AND item_id = :i LIMIT 1");
+                    $polStmt->execute(['s' => $sk01, 'i' => $surId]);
+                    $pol = $polStmt->fetch();
+                    if ($pol) {
+                        $stavPred = (float) $pol['stav'];
+                        $stavPo = $stavPred + $mnozstvi;
+                        $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :id")->execute(['s' => $stavPo, 'id' => $pol['id']]);
+                    } else {
+                        $stavPred = 0;
+                        $stavPo = $mnozstvi;
+                        $pdo->prepare("INSERT INTO sklad_polozky (sklad_id, item_typ, item_id, stav) VALUES (:s, 'surovina', :i, :st)")
+                            ->execute(['s' => $sk01, 'i' => $surId, 'st' => $stavPo]);
+                    }
+
+                    // Pohyb do v2 audit trailu
+                    $pdo->prepare("
+                        INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, cena_za_jed, poznamka, kdo)
+                        VALUES (:s, 'surovina', :i, 'prijem', :m, :sp, :sP, :c, :p, 'Demo seed')
+                    ")->execute([
+                        's' => $sk01, 'i' => $surId, 'm' => $mnozstvi,
+                        'sp' => $stavPred, 'sP' => $stavPo, 'c' => $cenaJed, 'p' => $note,
+                    ]);
+                } catch (Throwable $e) {
+                    // v2 multi-warehouse je optional — pokud schémá selže, neporušíme legacy
+                }
             } catch (Throwable $e) { /* sklad_pohyby legacy not critical */ }
         };
 

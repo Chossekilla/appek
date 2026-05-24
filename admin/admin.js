@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.276';
+const APPEK_ADMIN_JS_VERSION = '2.9.277';
 
 (async function detectStaleCode() {
   try {
@@ -1412,6 +1412,45 @@ window.openDemoSeed = async function() {
     setTimeout(() => location.reload(), 1200);
   } catch (e) {
     alert('Chyba: ' + e.message);
+  }
+};
+
+// 🆕 v2.9.277 — Reset demo data (smaže VŠE + naplní znova)
+window.resetDemoSeed = async function() {
+  if (!isSuperAdmin()) return alert('Tato akce vyžaduje super admin práva');
+
+  // 1. Strong confirm — 2 kroky
+  const proceed1 = await confirmDialog({
+    title: '⚠️ RESET DEMO DAT',
+    icon: '🗑️',
+    msg: 'Smaže VŠECHNA data v systému (objednávky, výrobky, suroviny, faktury, odběratele, sklad pohyby…) a naplní znova z čistého demo seedu.\n\n⚠️ TOTO NELZE VRÁTIT ZPĚT.\n\nPoužij jen pokud chceš začít s čistým demo. Pokračovat?',
+    okText: '⚠️ Pokračovat',
+    cancelText: 'Zrušit',
+  });
+  if (!proceed1) return;
+
+  // 2. Typed confirmation
+  const typed = prompt('Pro potvrzení napiš velkými písmeny:\n\nSMAZAT VSE');
+  if (typed !== 'SMAZAT VSE') {
+    if (typed !== null) alert('Neshoduje se — reset zrušen');
+    return;
+  }
+
+  try {
+    toastSuccess('⏳ Mažu data…', 'Reset běží');
+    await api('admin_demo_seed.php?action=clear', {
+      method: 'POST',
+      body: JSON.stringify({ confirm: 'SMAZAT VSE' }),
+    });
+    // 3. Naplnit znova
+    const r = await api('admin_demo_seed.php?action=apply', { method: 'POST' });
+    toastSuccess(
+      `+${r.vyrobky || 0} výrobků, +${r.suroviny || 0} surovin, +${r.recepty || 0} receptů, +${r.historie_objednavky || 0} obj`,
+      '✅ Demo resetováno + naplněno'
+    );
+    setTimeout(() => location.reload(), 1500);
+  } catch (e) {
+    alert('Chyba resetu: ' + e.message);
   }
 };
 
@@ -3636,9 +3675,15 @@ async function renderDashboard(filters = {}) {
           Tvá databáze je prázdná. Klikni níže a vytvoří se <strong>John Doe s.r.o.</strong> + 4 varianty odběratelů, 10 výrobků, 1 objednávka, dodací list a faktura. Vše jedním klikem. Smažeš později v Nastavení → Údržba.
         </div>
       </div>
-      <button class="btn-primary btn-green" onclick="openDemoSeed()" style="font-weight:700;padding:10px 20px;font-size:14px;border:none;border-radius:10px;cursor:pointer;white-space:nowrap">
-        🎬 Naplnit demo daty
-      </button>
+      <div style="display:flex;gap:6px;align-items:stretch;flex-shrink:0">
+        <button class="btn-primary btn-green" onclick="openDemoSeed()" style="font-weight:700;padding:10px 20px;font-size:14px;border:none;border-radius:10px;cursor:pointer;white-space:nowrap">
+          🎬 Naplnit demo daty
+        </button>
+        <!-- 🆕 v2.9.277 — Reset (smazat všechno + naplnit znova) -->
+        <button class="btn-secondary" onclick="resetDemoSeed()" title="⚠️ Smazat VŠE + naplnit znova (vyžaduje 2× confirm + typed input)" style="padding:10px 14px;font-size:14px;border-radius:10px;cursor:pointer">
+          🗑️
+        </button>
+      </div>
     </div>
   ` : '';
 
@@ -3947,6 +3992,11 @@ async function renderDashboard(filters = {}) {
   }
 
   // 🆕 v2.9.270 — Provoz widget (Restaurace balíček: tables + kitchen + couriers + POS)
+  // 🆕 v2.9.277 — Cleanup existing timer před novým render (zabraňuje duplikátům)
+  if (window._provozRefreshTimer) {
+    clearInterval(window._provozRefreshTimer);
+    window._provozRefreshTimer = null;
+  }
   if (window._activePackages?.includes('restaurace')) {
     setTimeout(() => loadProvozWidget(), 100);
   }
@@ -4094,14 +4144,22 @@ async function loadProvozWidget() {
     </div>
   `;
 
-  // Auto-refresh každých 60s když je tab viditelný
-  if (!window._provozRefreshTimer) {
-    window._provozRefreshTimer = setInterval(() => {
-      if (document.visibilityState === 'visible' && document.getElementById('dash-provoz-widget')) {
-        loadProvozWidget();
-      }
-    }, 60000);
+  // 🆕 v2.9.277 — Auto-refresh: cleanup pokud widget zmizí, jinak refresh každých 60s
+  if (window._provozRefreshTimer) {
+    clearInterval(window._provozRefreshTimer);
   }
+  window._provozRefreshTimer = setInterval(() => {
+    const el = document.getElementById('dash-provoz-widget');
+    if (!el) {
+      // Widget zmizel (user navigoval jinam) → cleanup
+      clearInterval(window._provozRefreshTimer);
+      window._provozRefreshTimer = null;
+      return;
+    }
+    if (document.visibilityState === 'visible') {
+      loadProvozWidget();
+    }
+  }, 60000);
 }
 
 window.dashSetObdobi = function(obdobi) {
@@ -5938,9 +5996,17 @@ window.spravaPorovnaniRender = async function() {
       return `<strong>${s}</strong>`;
     };
 
+    // 🆕 v2.9.277 — mobile responsive helper: pokud má víc skladů než 2, na mobilu může uživatel scrollnout
+    const skladaCount = sklady.length;
+    const tableWidth = 240 + 60 + skladaCount * 110 + 110 + 90; // px
+
     host.innerHTML = `
-      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">
-        <table class="table" style="margin:0;font-size:13px;min-width:${300 + sklady.length * 120}px">
+      <!-- Scroll hint na mobilu (viditelný jen pokud tabulka přečnívá) -->
+      <div class="porov-scroll-hint" style="display:none;text-align:center;font-size:11px;color:var(--text-3);margin-bottom:6px">
+        ← scroll horizontálně pro další sklady →
+      </div>
+      <div class="porov-table-wrap" style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;-webkit-overflow-scrolling:touch">
+        <table class="table porov-table" style="margin:0;font-size:13px;min-width:${tableWidth}px">
           <thead>
             <tr style="background:var(--surface-2)">
               <th style="position:sticky;left:0;background:var(--surface-2);z-index:2;min-width:240px">Položka</th>
@@ -6012,6 +6078,15 @@ window.spravaPorovnaniRender = async function() {
         💡 Pivot zobrazuje stav každé položky ve všech aktivních skladech. Σ CELKEM = součet napříč sklady. Hodnota = stav × cena_baleni / obsah_baleni (jen pro suroviny s nastavenými cenami). Klikni <strong>🔄 Přesun mezi sklady</strong> pro přesun položek.
       </p>
     `;
+
+    // 🆕 v2.9.277 — Detekuj jestli tabulka přečnívá → zobraz scroll hint
+    setTimeout(() => {
+      const wrap = host.querySelector('.porov-table-wrap');
+      const hint = host.querySelector('.porov-scroll-hint');
+      if (wrap && hint && wrap.scrollWidth > wrap.clientWidth + 10) {
+        hint.style.display = 'block';
+      }
+    }, 50);
   } catch (e) {
     host.innerHTML = `<div style="background:#fde7e9;color:#a8232f;padding:14px;border-radius:8px">❌ ${esc(e.message)}</div>`;
   }
@@ -10380,6 +10455,8 @@ window.editVyrobek = async function(id = null) {
         <div class="vy-modal-toptools">
           <button class="btn-primary btn-green" onclick="ulozitVyrobek(${id})">💾 Uložit</button>
           <a href="../api/vyrobek_pdf.php?id=${id}" target="_blank" class="btn-secondary" style="text-decoration:none">📄 Tisk PDF</a>
+          <!-- 🆕 v2.9.277 — Otevřít kalkulaci s pre-loaded výrobkem -->
+          <button class="btn-secondary" onclick="otevritKalkulaciProVyrobek(${id})" title="Otevři výrobní kalkulaci s pre-loaded recepturou tohoto výrobku">🧮 Kalkulace</button>
         </div>
       ` : ''}
     </div>
@@ -34837,6 +34914,22 @@ window.vkLoadVyrobek = async function(idStr) {
     } catch (e) {}
   }
   vkRender();
+};
+
+// 🆕 v2.9.277 — Zkratka z produktové karty → otevři Kalkulaci s pre-loaded výrobkem
+window.otevritKalkulaciProVyrobek = function(vyrobekId) {
+  if (!vyrobekId) return;
+  closeModal();
+  // Pre-set vyrobek_id před navigací — renderVyrobniKalkulace ho použije
+  vkState.vyrobek_id = parseInt(vyrobekId, 10);
+  vkState.receptura = []; // vyčistit aby se načetla čerstvě
+  navigate('vyrobni_kalkulace');
+  // Po renderu → auto-trigger load
+  setTimeout(() => {
+    if (typeof vkLoadFromVyrobek === 'function') {
+      vkLoadFromVyrobek().catch(e => console.warn('Kalkulace pre-load:', e));
+    }
+  }, 250);
 };
 
 // Načíst recepturu z aktuálně vybraného výrobku (z pivot vyrobek_suroviny)
