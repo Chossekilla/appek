@@ -5125,31 +5125,21 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
   color: var(--text-2);
 }
 
-/* MOBILE: period-taby HORIZONTÁLNÍ PILL ROW (override předchozí grid layout) */
+/* 🆕 v2.9.245 — MOBILE period-taby: NEZALAMOVAT, použít unified design (DRY tokens)
+   User explicit: 'nechci aby se zalomovalo - spíš zmenšovalo vždycky'
+   Předchozí v2.9.118 mobile override dělal flex-wrap + pill — odstraněno.
+   Tokens v :root řeší škálování (clamp), container má overflow-x: auto. */
 @media (max-width: 700px) {
   .period-tabs {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;              /* 🆕 v2.9.118 — wrap → žádný chip nepřetýká přes hranu */
-    grid-template-columns: none !important;
-    gap: 6px !important;
-    box-sizing: border-box !important;
-    max-width: 100% !important;
-    overflow: visible !important;
+    flex-wrap: nowrap !important;            /* NIKDY nezalamovat */
+    overflow-x: auto !important;              /* scroll fallback */
+    -webkit-overflow-scrolling: touch !important;
   }
   .period-tab {
-    flex: 0 1 auto !important;               /* 🆕 v2.9.118 — smí se zmenšit, ať se vejde */
-    box-sizing: border-box !important;
-    max-width: 100% !important;
-    padding: 7px 10px !important;
-    font-size: 12px !important;
+    flex: 1 1 0 !important;                  /* rovnoměrná distribuce */
     white-space: nowrap !important;
-    min-height: 34px !important;
-    text-align: center !important;
-    border-radius: 999px !important;          /* pill, NE rounded square */
+    border-radius: var(--filter-tab-radius) !important; /* z tokenů, ne pill */
   }
-  /* "Vlastní" — full grid reset */
-  .period-tabs .period-tab:nth-child(5):nth-last-child(1) { grid-column: auto !important; flex: 0 0 auto !important; }
 
   /* Štítky — režimové taby (Exped / Cenovky / Moje / Editor) — 2 sloupce */
   .stitky-rezim-tabs {
@@ -7873,9 +7863,9 @@ body.has-bulk-bar .main-content {
   /* Stat-grid: 2 sloupce stačí */
   .stat-grid { grid-template-columns: 1fr 1fr !important; }
 
-  /* Filtr období — spodní lišta */
-  .quick-period-row { flex-wrap: wrap; gap: 4px; }
-  .quick-period-row .period-tab { flex: 1 1 calc(33.33% - 4px); font-size: 11px; padding: 6px; }
+  /* Filtr období — spodní lišta — v2.9.245 NIKDY nezalamovat */
+  .quick-period-row { flex-wrap: nowrap; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .quick-period-row .period-tab { flex: 1 1 0; }
 
   /* Doc-badge — menší */
   .doc-badge { font-size: 10px !important; padding: 2px 6px !important; }
