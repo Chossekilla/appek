@@ -5125,37 +5125,54 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
   color: var(--text-2);
 }
 
-/* 🆕 v2.9.246 — MOBILE filter tabs: 2-SLOUPCOVÝ GRID (user request)
-   Předtím scrollovací řada (uživatel musel scrollovat aby viděl všechno).
-   Teď 2-col grid — user vidí všechny taby najednou, lichý počet → poslední
-   button span 2 (full row). Aplikuje se napříč všemi themes. */
+/* 🆕 v2.9.247 — MOBILE filter tabs: 1 ŘÁDEK NOWRAP + plynulý shrink
+   User: 'nelíbí se mi ovály. proč nejsou hezky v řadě - nowrap jako jinde,
+   ale shrink - zmenšování s velikostí obrazovky. jako je to na přehledu'
+
+   Strategie:
+   - Container: flex (NE grid), nowrap, žádný scroll, žádný overflow
+   - Buttons: flex: 1 1 0 (rovnoměrná distribuce), min-width: 0 (smí shrink pod default)
+   - Fonts/icons clamp() (škálují plynule s viewport)
+   - Border-radius z tokens (NIKDY pill 999px)
+   - Padding kompaktní (6px/4px na mobile)
+   - Aplikuje se napříč všemi themes (default/dark/apple/win98). */
 @media (max-width: 700px) {
   .period-tabs,
   .seg-tabs,
   .vyroba-subtabs,
   .nastaveni-tabs {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 6px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
     overflow-x: visible !important;
     scroll-snap-type: none !important;
+    padding: 4px !important;
   }
   .period-tab,
   .seg-tab,
   .vyroba-subtab,
   .nastaveni-tab {
-    flex: none !important;
-    min-width: 0 !important;
+    flex: 1 1 0 !important;              /* rovnoměrná distribuce, smí shrink */
+    min-width: 0 !important;              /* SMÍ shrinkovat pod default token width */
     width: auto !important;
     white-space: nowrap !important;
-    border-radius: var(--filter-tab-radius) !important;
+    border-radius: var(--filter-tab-radius) !important;  /* NE pill */
+    padding: 6px 4px !important;          /* kompaktní mobile */
+    overflow: hidden !important;
   }
-  /* Lichý počet → poslední button span 2 (full row width) */
-  .period-tabs .period-tab:last-child:nth-child(odd),
-  .seg-tabs .seg-tab:last-child:nth-child(odd),
-  .vyroba-subtabs .vyroba-subtab:last-child:nth-child(odd),
-  .nastaveni-tabs .nastaveni-tab:last-child:nth-child(odd) {
-    grid-column: span 2 !important;
+  /* Icons + text clamp() škálují s viewport (zmenšují se na úzkém okně) */
+  .period-tab-icon, .seg-tab-icon, .vyroba-subtab-icon {
+    font-size: clamp(14px, 4vw, 18px) !important;
+  }
+  .period-tab-text, .seg-tab-text, .vyroba-subtab-text {
+    font-size: clamp(9px, 2.4vw, 11px) !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+  .nastaveni-tab {
+    font-size: clamp(9px, 2.4vw, 11px) !important;
   }
 
   /* Štítky — režimové taby (Exped / Cenovky / Moje / Editor) — 2 sloupce */
