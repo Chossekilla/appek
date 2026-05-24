@@ -210,12 +210,17 @@ Nasazování na web je automatizované přes GitHub — ŽÁDNÉ ruční nahráv
 - ❌ NIKDY `border-radius: 999px` na filter tabs
 - ❌ NIKDY `flex-wrap: wrap !important` (na filter tabs)
 
-**Mobile (<700px) — KANONICKÉ pravidlo:**
-- **Skupina A — `.period-tabs`** → **1 ŘÁDEK nowrap shrink** (5-6 tabů typicky:
-  Dnes/Týden/Měsíc/Rok/Vlastní/Vše — clamp() fonts, flex: 1 1 0, min-width: 0)
-- **Skupina B — `.seg-tabs / .vyroba-subtabs / .nastaveni-tabs`** → **3-SLOUPCOVÝ GRID**
-  (Výroba 7 sub-tabů, Nastavení 9 tabů — `repeat(3, 1fr)`, lichý počet 7 → poslední
-  button `grid-column: span 3` = full row)
+**Breakpoint pravidla — KANONICKÉ:**
+
+| Breakpoint | Skupina A (.period-tabs) | Skupina B (.seg/.vyroba/.nastaveni) |
+|---|---|---|
+| **PC desktop** (>1024px) | 1 řádek flex distribuce | 1 řádek flex distribuce |
+| **Tablet** (700-1024px) | 1 řádek flex distribuce | **3-col grid** ← user request |
+| **Mobile** (<700px) | 1 řádek nowrap shrink (clamp) | **3-col grid** (kompaktnější fonts) |
+
+- Skupina A = period filtry (Dnes/Týden/Měsíc/Rok/Vlastní/Vše) — 5-6 tabů
+- Skupina B = hub tabs (Výroba 7, Nastavení 9, Sklady správa) — víc tabů, nesedí do 1 řádku
+- Lichý počet v Skupině B (7 tabů Výroba) → poslední `grid-column: span 3` (full row)
 
 **Centrální tokens v `:root`** (`--filter-tab-*`) — DRY. Změna v 1 místě = projeví se všude.
 

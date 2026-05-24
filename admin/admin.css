@@ -5125,16 +5125,57 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
   color: var(--text-2);
 }
 
-/* 🆕 v2.9.250 — MOBILE filter tabs — CANONICAL (user explicit, NIKDY MĚNIT):
+/* 🆕 v2.9.252 — MOBILE + TABLET filter tabs — CANONICAL (user explicit, NIKDY MĚNIT):
    - Skupina A (period): .period-tabs → 1 ŘÁDEK nowrap shrink (clamp)
-     (Dashboard/Sales/DL/FA filter — 5-6 tabů elegantně do 1 řádku)
    - Skupina B (3-col grid): .seg-tabs / .vyroba-subtabs / .nastaveni-tabs
-     (Výroba 7 sub-tabů, Nastavení 9 tabů — 3×3 grid)
+     **APLIKUJE SE I NA TABLET** (až do 1024px — user: 'i vetších do tabletu')
    - NIKDY pill (border-radius 999px), NIKDY flex-wrap: wrap
    - clamp() škálování pro fonts/icons
-   Aplikuje se napříč VŠEMI themes (default/dark/apple/win98). */
+   - Všechny themes (default/dark/apple/win98). */
+
+/* ━━━━━ Skupina B → 3-col grid až do TABLET (<1024px) ━━━━━ */
+@media (max-width: 1024px) {
+  .seg-tabs,
+  .vyroba-subtabs,
+  .nastaveni-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    overflow: visible !important;
+    scroll-snap-type: none !important;
+    padding: 6px !important;
+  }
+  .seg-tab,
+  .vyroba-subtab,
+  .nastaveni-tab {
+    flex: none !important;
+    min-width: 0 !important;
+    width: auto !important;
+    white-space: nowrap !important;
+    border-radius: var(--filter-tab-radius) !important;
+    padding: 10px 8px !important;
+    overflow: hidden !important;
+    font-size: clamp(11px, 1.4vw, 13px) !important;
+  }
+  .seg-tab-icon, .vyroba-subtab-icon {
+    font-size: clamp(18px, 2.2vw, 22px) !important;
+  }
+  .seg-tab-text, .vyroba-subtab-text {
+    font-size: clamp(11px, 1.4vw, 13px) !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+  /* Lichý počet (7 Výroba sub-tabů → poslední sám v řádku) → span 3 (full row) */
+  .seg-tabs .seg-tab:nth-child(3n+1):last-child,
+  .vyroba-subtabs .vyroba-subtab:nth-child(3n+1):last-child {
+    grid-column: span 3 !important;
+  }
+}
+
+/* ━━━━━ MOBILE (<700px) — Skupina A 1 řádek + Skupina B kompaktnější fonts ━━━━━ */
 @media (max-width: 700px) {
-  /* ━━━━━ Skupina A: .period-tabs → 1 řádek nowrap shrink ━━━━━ */
+  /* Skupina A: .period-tabs → 1 řádek nowrap shrink */
   .period-tabs {
     display: flex !important;
     flex-direction: row !important;
@@ -5162,28 +5203,17 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
     text-overflow: ellipsis !important;
     max-width: 100% !important;
   }
-
-  /* ━━━━━ Skupina B: .seg-tabs + .vyroba-subtabs + .nastaveni-tabs → 3-SLOUPCOVÝ GRID ━━━━━ */
+  /* Skupina B — kompaktnější padding/fonts (grid layout zděděn z 1024px rule) */
   .seg-tabs,
   .vyroba-subtabs,
   .nastaveni-tabs {
-    display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
     gap: 4px !important;
-    overflow: visible !important;
-    scroll-snap-type: none !important;
     padding: 4px !important;
   }
   .seg-tab,
   .vyroba-subtab,
   .nastaveni-tab {
-    flex: none !important;
-    min-width: 0 !important;
-    width: auto !important;
-    white-space: nowrap !important;
-    border-radius: var(--filter-tab-radius) !important;
     padding: 8px 6px !important;
-    overflow: hidden !important;
     font-size: clamp(9px, 2.4vw, 11px) !important;
   }
   .seg-tab-icon, .vyroba-subtab-icon {
@@ -5191,14 +5221,6 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
   }
   .seg-tab-text, .vyroba-subtab-text {
     font-size: clamp(9px, 2.4vw, 11px) !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    max-width: 100% !important;
-  }
-  /* Lichý počet (7 Výroba sub-tabů → poslední button sám v řádku) — span 3 (full row) */
-  .seg-tabs .seg-tab:nth-child(3n+1):last-child,
-  .vyroba-subtabs .vyroba-subtab:nth-child(3n+1):last-child {
-    grid-column: span 3 !important;
   }
 
   /* Štítky — režimové taby (Exped / Cenovky / Moje / Editor) — 2 sloupce */
