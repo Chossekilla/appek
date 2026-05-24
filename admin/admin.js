@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.291';
+const APPEK_ADMIN_JS_VERSION = '2.9.292';
 
 (async function detectStaleCode() {
   try {
@@ -2483,7 +2483,7 @@ window.openOnboarding = async function(startStep = 0) {
       jazyk: localStorage.getItem('appek_lang') || 'cs',
       install_mode: null,
       detected_os: detectOnboardOS(),
-      demo_data_seed: false,
+      demo_data_seed: true, // 🆕 v2.9.292 — default ANO (user nemusí klikat, demo se naplní)
     },
   };
   renderOnboardingStep();
@@ -3164,45 +3164,81 @@ function _onboardPackagesStep() {
 }
 
 function _onboardDemoDataStep() {
-  const data = state._onboard.data;
+  // 🆕 v2.9.292 — Auto-naplnit demo data BEZ user kliknutí
+  // Žádný výběr, žádný confirm — prostě se naplní. User je informován o průběhu.
+  // Po naplnění tlačítko "Pokračovat" → onboardNext()
+  setTimeout(() => {
+    if (!state._onboard.data.demo_seed_done && !state._onboard.data.demo_seed_running) {
+      state._onboard.data.demo_seed_running = true;
+      _onboardAutoSeed();
+    }
+  }, 100);
+
+  const done = state._onboard.data.demo_seed_done;
+  const stats = state._onboard.data.demo_seed_stats || {};
+  const err = state._onboard.data.demo_seed_error;
+
   return `
-    <h3 style="margin:0 0 8px">🌱 Demo data — chceš začít s ukázkou?</h3>
-    <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">Můžeme ti připravit ukázková data — výrobky, odběratele i pár objednávek. Tak si vyzkoušíš všechny funkce hned.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">
-      <button onclick="window._onboardSetSeed(true)" style="padding:24px;border:2px solid ${data.demo_data_seed ? 'var(--primary)' : 'var(--border)'};border-radius:12px;background:${data.demo_data_seed ? 'var(--surface-2)' : 'var(--surface)'};cursor:pointer;font-family:inherit;text-align:left;transition:all 0.15s">
-        <div style="font-size:38px;margin-bottom:10px">🎁</div>
-        <div style="font-weight:700;font-size:16px;margin-bottom:6px">Ano, nahraj demo data</div>
-        <div style="font-size:12.5px;color:var(--text-3);line-height:1.5">
-          • 15 výrobků (chleby, pečivo, koláče)<br>
-          • 5 odběratelů (s e-maily)<br>
-          • 3 objednávky (různé stavy)<br>
-          • 3 sazby DPH (0/12/21 %)<br>
-          • 5 HACCP karet
+    <h3 style="margin:0 0 8px">🎬 Připravujeme demo data</h3>
+    <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">
+      Naplníme aplikaci kompletní funkční ukázkou — výrobky, recepty, odběratele, objednávky, suroviny naskladněné, kalkulace s marží, POS uživatele, stoly… Vše hned funkční pro demonstraci.
+    </p>
+
+    <div style="padding:18px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8;border-radius:12px;margin-bottom:16px;text-align:center">
+      ${!done && !err ? `
+        <div style="font-size:42px;margin-bottom:10px;animation:spin 2s linear infinite;display:inline-block">⏳</div>
+        <div style="font-weight:700;font-size:15px;color:#854F0B">Nahrávám demo data…</div>
+        <div style="font-size:12px;color:#854F0B;margin-top:6px;opacity:0.8">Trvá to obvykle 5–10 sekund.</div>
+      ` : err ? `
+        <div style="font-size:42px;margin-bottom:10px">⚠️</div>
+        <div style="font-weight:700;font-size:15px;color:#991B1B">${esc(err)}</div>
+        <div style="font-size:12px;color:#7F1D1D;margin-top:6px">Můžete pokračovat — data doplníte později v Nastavení.</div>
+        <button class="btn-secondary" onclick="state._onboard.data.demo_seed_running=false; state._onboard.data.demo_seed_error=null; renderOnboardingStep()" style="margin-top:10px;font-size:12px;padding:6px 14px">🔄 Zkusit znova</button>
+      ` : `
+        <div style="font-size:42px;margin-bottom:10px">✅</div>
+        <div style="font-weight:700;font-size:15px;color:#166534">Demo data připravena</div>
+        <div style="font-size:12px;color:#15803D;margin-top:8px;line-height:1.6">
+          📦 ${stats.vyrobky || 0} výrobků + ${stats.suroviny || 0} surovin (naskladněno)<br>
+          🧬 ${stats.recepty || 0} receptů + ${stats.kalkulace_ulozeno || 0} kalkulací s marží<br>
+          👥 ${stats.odberatele || 0} odběratelů + ${stats.historie_objednavky || 0} obj historie (14 dnů)<br>
+          🍕 ${stats.pos_users || 0} POS users s PIN + ${stats.stoly || 0} stolů + ${stats.kuryrky || 0} kurýrek
         </div>
-        ${data.demo_data_seed ? '<div style="margin-top:10px;color:var(--primary);font-weight:700;font-size:12px">✓ Vybráno</div>' : ''}
-      </button>
-      <button onclick="window._onboardSetSeed(false)" style="padding:24px;border:2px solid ${data.demo_data_seed === false ? 'var(--primary)' : 'var(--border)'};border-radius:12px;background:${data.demo_data_seed === false ? 'var(--surface-2)' : 'var(--surface)'};cursor:pointer;font-family:inherit;text-align:left;transition:all 0.15s">
-        <div style="font-size:38px;margin-bottom:10px">🚀</div>
-        <div style="font-weight:700;font-size:16px;margin-bottom:6px">Začnu s prázdnou aplikací</div>
-        <div style="font-size:12.5px;color:var(--text-3);line-height:1.5">
-          • Čisté prostředí<br>
-          • Vytvoříš si vlastní výrobky<br>
-          • Přidáš své odběratele<br>
-          • Plně pod kontrolou<br>
-          • Doporučeno pro produkci
-        </div>
-        ${data.demo_data_seed === false ? '<div style="margin-top:10px;color:var(--primary);font-weight:700;font-size:12px">✓ Vybráno</div>' : ''}
-      </button>
+      `}
     </div>
+
     <div style="padding:12px;background:var(--info-bg);color:var(--info-text);border-radius:8px;font-size:12.5px">
-      💡 Demo data můžeš kdykoliv smazat v <strong>Nastavení → Údržba → 🧹 Smazat data</strong>. Žádné riziko.
+      💡 Demo data můžeš kdykoliv resetovat v <strong>Dashboard → 🗑️ Reset demo data</strong>. Nebo smaž jednotlivě.
     </div>
+
     <div class="form-actions">
       <button class="btn-secondary" onclick="onboardBack()">← Zpět</button>
       <div style="flex:1"></div>
-      <button class="btn-primary btn-green" onclick="window._onboardApplySeed()" style="font-weight:700;padding:12px 24px">➜ Dál</button>
+      <button class="btn-primary btn-green" ${!done && !err ? 'disabled style="opacity:0.5;cursor:not-allowed;padding:12px 24px;font-weight:700"' : 'onclick="onboardNext()" style="font-weight:700;padding:12px 24px"'}>
+        ${done ? '➜ Pokračovat' : (err ? '➜ Pokračovat bez demo' : '⏳ Čekejte…')}
+      </button>
     </div>
+
+    <style>@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</style>
   `;
+}
+
+// 🆕 v2.9.292 — Auto-spuštění seedu při onboardingu (bez user akce)
+async function _onboardAutoSeed() {
+  try {
+    const res = await api('admin_demo_seed.php?action=apply', {
+      method: 'POST',
+      body: JSON.stringify({ kategorie: state._onboard.data.kategorie_zvolene || [] }),
+    });
+    state._onboard.data.demo_seed_stats = res;
+    state._onboard.data.demo_seed_done = true;
+    state._onboard.data.demo_seed_error = null;
+  } catch (e) {
+    console.error('Onboarding auto-seed failed:', e);
+    state._onboard.data.demo_seed_error = 'Demo data se nepodařilo nahrát: ' + (e.message || 'neznámá chyba');
+  } finally {
+    state._onboard.data.demo_seed_running = false;
+    renderOnboardingStep();
+  }
 }
 
 function _onboardQuickStartStep() {
@@ -10787,13 +10823,11 @@ window.editVyrobek = async function(id = null) {
         <h3 style="margin:0;font-size:15px;color:#854F0B">🌾 Složení / suroviny</h3>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn-secondary" type="button" onclick="vySlozeniAddRow()" style="font-size:13px">+ Přidat surovinu</button>
-          <!-- 🆕 v2.9.290 — Naplnit demo recept (jen pokud výrobek má cislo + recept v demo_recepty) -->
-          ${id && v.cislo && ['RK01','VK01','BS01','CH01','CH02','CR01','SP01','SP02','SE01','NA01'].includes(v.cislo) ? `
-            <button class="btn-secondary" type="button" onclick="vyNaplnitDemoRecept(${id}, '${esc(v.cislo)}')" style="font-size:13px;background:#FEF3C7;border-color:#F0D9B8;color:#854F0B" title="Doplnit recept pro tento demo výrobek ze surovin v DB">🎬 Demo recept</button>
-          ` : ''}
           <button class="btn-secondary" type="button" onclick="vyOdvoditAlergeny()" style="font-size:13px" title="Sečte alergeny ze surovin a vyplní pole Alergeny výše">🧪 Odvodit alergeny</button>
           <button class="btn-secondary" type="button" onclick="vyKalkulace()" style="font-size:13px" title="Přepočítat náklady">💰 Spočítat náklady</button>
         </div>
+        <!-- 🆕 v2.9.292 — Tlačítko "🎬 Demo recept" odstraněno. Demo se naplňuje AUTOMATICKY při onboardingu. -->
+        <!-- (endpoint admin_demo_seed.php?action=seed_one_recipe zůstává pro programové použití) -->
       </div>
 
       <!-- 📏 Hmotnost těsta — auto + ruční přepočet -->
