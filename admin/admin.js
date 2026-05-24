@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.279';
+const APPEK_ADMIN_JS_VERSION = '2.9.280';
 
 (async function detectStaleCode() {
   try {
@@ -1225,6 +1225,10 @@ function renderLicenseLockOverlay(payload) {
          style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#BA7517,#854F0B);color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;margin-bottom:8px">
         ✉️ Kontaktovat dodavatele
       </a>
+      <!-- 🆕 v2.9.280 — podpora telefonem (jen pro kritické situace) -->
+      <div style="font-size:12px;color:#7F1D1D;margin-top:6px">
+        nebo telefon <a href="tel:+420733700808" style="color:#7F1D1D;font-weight:600;text-decoration:none">733 700 808</a>
+      </div>
       <div style="font-size:11px;color:#86868b;margin-top:14px;font-family:monospace">
         Doména: ${location.hostname}<br>
         Reason: ${payload.reason || 'unknown'}
@@ -19624,7 +19628,7 @@ window.openCheatSheet = async function() {
           <tr style="background:#f7f8fa"><td style="padding:10px;font-weight:600;border-top:1px solid #eee">📦 Verze</td><td style="padding:10px;border-top:1px solid #eee">v${esc(ver)}</td></tr>
           <tr><td style="padding:10px;font-weight:600;border-top:1px solid #eee;vertical-align:top">⚠️ Co to znamená</td><td style="padding:10px;border-top:1px solid #eee;font-size:12.5px;color:#555;line-height:1.55">
             Licence je svázaná s emailem <strong>${esc(licEmail)}</strong>. Při instalaci na jiném serveru ti pošleme ověřovací kód na tento email — <strong>NEZTRAĆ k němu přístup</strong>.
-            Pokud změníš email (např. opustíš poskytovatele), kontaktuj nás na <a href="mailto:podpora@appek.cz">podpora@appek.cz</a>.
+            Pokud změníš email (např. opustíš poskytovatele), kontaktuj nás na <a href="mailto:podpora@appek.cz">podpora@appek.cz</a> <span style="color:#888;font-size:11px">· tel <a href="tel:+420733700808" style="color:#888;text-decoration:none">733 700 808</a></span>.
           </td></tr>
         </table>
 
