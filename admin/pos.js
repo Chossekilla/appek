@@ -846,10 +846,13 @@
     // v2.9.43 — žádný confirm dialog (user klikl velké FINISH = vědomé rozhodnutí)
     const btn = $('.pos-finish');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Odesílám…'; }
+    // 🆕 v2.9.270 — Idempotency key (chrání před duplikáty při retry / dvojkliku)
+    const idempotencyKey = (crypto?.randomUUID?.() || 'k_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10));
     try {
       const r = await api('admin_pos.php?action=quick_order', {
         method: 'POST',
         body: JSON.stringify({
+          idempotency_key: idempotencyKey,
           polozky: State.cart.map(it => ({
             vyrobek_id:   it.vyrobek_id,
             nazev:        it.nazev,

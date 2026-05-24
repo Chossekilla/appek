@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.269';
+const APPEK_ADMIN_JS_VERSION = '2.9.270';
 
 (async function detectStaleCode() {
   try {
@@ -3881,6 +3881,9 @@ async function renderDashboard(filters = {}) {
       </button>
     </div>
 
+    <!-- 🆕 v2.9.270 — PROVOZ widget (Restaurace balíček) — provázání tables + kitchen + couriers + POS -->
+    <div id="dash-provoz-widget" style="display:none"></div>
+
     <!-- 3) Přehledy ${obdobiLabel} — graf + top odběratelé/výrobky vedle sebe -->
     <div class="dashboard-row dashboard-row-3col">
       ${d.casovy_graf.length > 1 ? `
@@ -3932,6 +3935,163 @@ async function renderDashboard(filters = {}) {
   // přes innerHTML se podle DOM specifikace NESPUSTÍ → canvas zůstával prázdný.
   if (d.casovy_graf && d.casovy_graf.length > 1) {
     setTimeout(() => renderDashboardRevenueChart(d.casovy_graf), 50);
+  }
+
+  // 🆕 v2.9.270 — Provoz widget (Restaurace balíček: tables + kitchen + couriers + POS)
+  if (window._activePackages?.includes('restaurace')) {
+    setTimeout(() => loadProvozWidget(), 100);
+  }
+}
+
+// 🆕 v2.9.270 — PROVOZ widget — propojuje 4 moduly Restaurace balíčku
+// Robustnost: paralelní fetch, soft-fail per-modul (jeden výpadek nezruší widget),
+// 60s auto-refresh když je tab viditelný (visibility API)
+async function loadProvozWidget() {
+  const host = document.getElementById('dash-provoz-widget');
+  if (!host) return;
+
+  // Paralelní načítání 4 modulů — soft-fail per módule
+  const safeFetch = (url) => api(url).catch(e => ({ error: e.message || 'chyba' }));
+  const [tables, kitchen, couriers, posDnes] = await Promise.all([
+    safeFetch('admin_tables.php?action=capacity'),
+    safeFetch('admin_kitchen.php'),
+    safeFetch('admin_couriers.php'),
+    safeFetch('admin_pos.php?action=quick_history&date=' + new Date().toISOString().slice(0, 10)),
+  ]);
+
+  // Vyhodnocení dat (s fallbacky pro chyby)
+  const cap = tables?.capacity || {};
+  const kStats = kitchen?.stats || {};
+  const cStats = couriers?.stats || {};
+  const posSouhrn = posDnes?.souhrn || {};
+
+  const hasAny = (tables && !tables.error) || (kitchen && !kitchen.error) || (couriers && !couriers.error) || (posDnes && !posDnes.error);
+  if (!hasAny) {
+    host.style.display = 'none';
+    return;
+  }
+  host.style.display = 'block';
+
+  // Vytíženost stolů (%)
+  const totalMist = parseInt(cap.celkem_mist) || 0;
+  const obsazenoMist = parseInt(cap.obsazeno_mist) || 0;
+  const obsazenoPct = totalMist > 0 ? Math.round(obsazenoMist / totalMist * 100) : 0;
+
+  // Kitchen load (%)
+  const kitchenLoad = parseInt(kStats.global_load) || 0;
+  const kIsFull = !!kStats.is_full;
+
+  // POS dnes
+  const posTrzby = parseFloat(posSouhrn['tržby']) || 0;
+  const posPocet = parseInt(posSouhrn.pocet) || 0;
+
+  // Rozvozy aktivní
+  const rozvozyAkt = parseInt(cStats.rozvozy_aktivni) || 0;
+  const rozvozyDnes = parseInt(cStats.rozvozy_dnes_doruceno) || 0;
+
+  // Barva podle vytížení
+  const loadColor = (pct) => pct >= 90 ? '#DC2626' : pct >= 70 ? '#F59E0B' : pct >= 40 ? '#3B82F6' : '#10B981';
+
+  host.innerHTML = `
+    <div class="card-block" style="padding:18px 20px;background:linear-gradient(135deg,#1a1d24,#2d3441);color:#fff;border:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:32px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))">🍕</span>
+          <div>
+            <h3 style="margin:0;font-size:17px;font-weight:700">Provoz · živý přehled</h3>
+            <p style="margin:2px 0 0;font-size:12px;opacity:0.6">Stoly · Kuchyně · Rozvoz · POS dnes</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-secondary" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.12);color:#fff;font-size:12px;padding:6px 12px"
+                  onclick="window.openFloorplanWindow?.()" title="Floor Plan editor">🪑 Stoly</button>
+          <button class="btn-secondary" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.12);color:#fff;font-size:12px;padding:6px 12px"
+                  onclick="window.openPOSWindow?.()" title="POS Kasa">🧾 POS</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+        <!-- Stoly -->
+        <div class="provoz-tile" onclick="window.openFloorplanWindow?.()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-left:4px solid ${loadColor(obsazenoPct)};border-radius:10px;padding:12px 14px;cursor:pointer;transition:background 0.15s ease">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.7">🪑 Stoly</span>
+            <span style="font-size:11px;opacity:0.6">${cap.pocet_stolu || 0} stolů</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <strong style="font-size:24px">${obsazenoPct}%</strong>
+            <span style="font-size:12px;opacity:0.7">obsazenost</span>
+          </div>
+          <div style="margin-top:4px;font-size:11px;opacity:0.6">
+            ${obsazenoMist} / ${totalMist} míst · ${cap.pocet_obsazenych || 0} obsazených stolů
+          </div>
+          <div style="margin-top:6px;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden">
+            <div style="width:${obsazenoPct}%;height:100%;background:${loadColor(obsazenoPct)};transition:width 0.3s ease"></div>
+          </div>
+        </div>
+
+        <!-- Kuchyň -->
+        <div class="provoz-tile" onclick="navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='pkg_restaurace';renderNastaveni();},100)" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-left:4px solid ${loadColor(kitchenLoad)};border-radius:10px;padding:12px 14px;cursor:pointer;transition:background 0.15s ease">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.7">👨‍🍳 Kuchyně</span>
+            ${kIsFull ? '<span style="background:#DC2626;font-size:9px;padding:1px 6px;border-radius:6px;font-weight:700">PLNÁ</span>' : ''}
+          </div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <strong style="font-size:24px">${kitchenLoad}%</strong>
+            <span style="font-size:12px;opacity:0.7">vytížení</span>
+          </div>
+          <div style="margin-top:4px;font-size:11px;opacity:0.6">
+            ${kStats.active_orders || 0} aktivních · ${kStats.preparing || 0} se vaří · ${kStats.ready || 0} hotových
+          </div>
+          <div style="margin-top:6px;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden">
+            <div style="width:${kitchenLoad}%;height:100%;background:${loadColor(kitchenLoad)};transition:width 0.3s ease"></div>
+          </div>
+        </div>
+
+        <!-- Rozvozy -->
+        <div class="provoz-tile" onclick="navigate('rozvozy')" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-left:4px solid #10B981;border-radius:10px;padding:12px 14px;cursor:pointer;transition:background 0.15s ease">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.7">🛵 Rozvoz</span>
+            <span style="font-size:11px;opacity:0.6">${cStats.kuryru_aktivnich || 0} kurýrů</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <strong style="font-size:24px">${rozvozyAkt}</strong>
+            <span style="font-size:12px;opacity:0.7">aktivních</span>
+          </div>
+          <div style="margin-top:4px;font-size:11px;opacity:0.6">
+            ✓ ${rozvozyDnes} dnes doručeno · ${cStats.rozvozy_dnes_planovano || 0} naplánováno
+          </div>
+        </div>
+
+        <!-- POS dnes -->
+        <div class="provoz-tile" onclick="window.openPOSWindow?.()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-left:4px solid #BA7517;border-radius:10px;padding:12px 14px;cursor:pointer;transition:background 0.15s ease">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.7">🧾 POS dnes</span>
+            <span style="font-size:11px;opacity:0.6">${posPocet} účt.</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <strong style="font-size:22px">${Math.round(posTrzby).toLocaleString('cs-CZ')} Kč</strong>
+          </div>
+          <div style="margin-top:4px;font-size:11px;opacity:0.6">
+            💵 ${Math.round(posSouhrn.hotove || 0).toLocaleString('cs-CZ')} hotově · 💳 ${Math.round(posSouhrn.karta || 0).toLocaleString('cs-CZ')} kartou
+          </div>
+        </div>
+      </div>
+
+      ${kIsFull || obsazenoPct >= 90 ? `
+        <div style="margin-top:12px;padding:8px 12px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);border-radius:8px;font-size:12px;color:#FCA5A5">
+          ⚠ ${kIsFull && obsazenoPct >= 90 ? 'Kuchyně i stoly jsou plné — zvažte blokaci nových objednávek' : kIsFull ? 'Kuchyně je plná — auto-block aktivní (pokud nastavené)' : 'Stoly jsou skoro plné'}
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  // Auto-refresh každých 60s když je tab viditelný
+  if (!window._provozRefreshTimer) {
+    window._provozRefreshTimer = setInterval(() => {
+      if (document.visibilityState === 'visible' && document.getElementById('dash-provoz-widget')) {
+        loadProvozWidget();
+      }
+    }, 60000);
   }
 }
 
@@ -5217,11 +5377,11 @@ window.ulozitNovouObjednavku = async function() {
 // 🆕 v2.9.228 — emoji rozlišení (🏭 Sklady vs 🧮 Kalkulace), kratší labely pro mobile
 // 🆕 v2.9.256 — 'Výrobní list' 📋 → 📝 (memo = denní úkoly co péct);
 //              📋 byla moc podobná 📃 Dodací list. 📝 odlišný + intuitivní 'todo'.
+// 🆕 v2.9.270 — 'Stav skladu' přesunut DO 'Sklady' (combined view s surovin stock + sklady)
 const VYROBA_SUBTABS = [
   { key: 'list',       label: '📝 Výrobní list',  render: () => renderVyrobniListInline() },
   { key: 'suroviny',   label: '🌾 Suroviny',       nav: 'suroviny' },
-  { key: 'sklady',     label: '🏭 Sklady',         render: () => renderSkladyInline() },  // 🆕 v2.9.215
-  { key: 'sklad',      label: '📦 Stav skladu',    nav: 'sklad' },
+  { key: 'sklady',     label: '🏭 Sklady',         render: () => renderSkladyInline() },  // 🆕 v2.9.215, v2.9.270 obsahuje i Stav skladu
   { key: 'haccp',      label: '🛡️ HACCP',          nav: 'haccp' },        // 🆕 emoji = bezpečnost potravin
   { key: 'kalkulace',  label: '🧮 Kalkulace',      nav: 'vyrobni_kalkulace' }, // 🆕 emoji = kalkulace
   { key: 'prehled',    label: '📈 Vyrobeno',       nav: 'export_vyroby' },     // 🆕 v2.9.258 — 'Přehled' → 'Vyrobeno' (krátký, jasný; odlišit od Dashboard Přehled)
@@ -5320,20 +5480,97 @@ async function renderVyrobniList() {
 }
 
 // 🆕 v2.9.215 — Sklady management (multi-warehouse). Inline render uvnitř Výroba hubu.
+// 🆕 v2.9.270 — propojení se Stavem skladu (surovin stock summary)
 async function renderSkladyInline() {
   const c = document.getElementById('vyroba-subtab-content');
   if (!c) return;
   c.innerHTML = '⏳ Načítám sklady…';
   try {
-    const r = await api('admin_sklady.php');
+    // Paralelně načti sklady + suroviny stock summary
+    const [r, suroviny] = await Promise.all([
+      api('admin_sklady.php'),
+      // Cachuj sdíleně s renderSuroviny / renderSklad
+      state._suroviny_full_cache
+        ? Promise.resolve(state._suroviny_full_cache)
+        : api('admin_suroviny.php').then(d => { state._suroviny_full_cache = d; return d; }),
+    ]);
     const sklady = r.sklady || [];
     const typIcon = { suchy: '📦', lednice: '❄️', mrazak: '🧊', jiny: '🏭' };
     const typLabel = { suchy: 'Suchý sklad', lednice: 'Lednice', mrazak: 'Mrazák', jiny: 'Jiný' };
 
+    // 🆕 Stav skladu metrics
+    const aktivniSur = (suroviny || []).filter(s => parseInt(s.aktivni) !== 0);
+    const podMinimem = aktivniSur.filter(s => {
+      const min = parseFloat(s.stock_minimalni);
+      const akt = parseFloat(s.stock_aktualni) || 0;
+      return !isNaN(min) && akt <= min;
+    });
+    const beStockuVubec = aktivniSur.filter(s => (parseFloat(s.stock_aktualni) || 0) === 0).length;
+    const hodnotaSkladu = aktivniSur.reduce((sum, s) => {
+      const cb = parseFloat(s.cena_baleni) || 0;
+      const ob = parseFloat(s.obsah_baleni) || 0;
+      const akt = parseFloat(s.stock_aktualni) || 0;
+      if (cb > 0 && ob > 0 && akt > 0) return sum + (cb / ob) * akt;
+      return sum;
+    }, 0);
+
     c.innerHTML = `
+      <!-- 🆕 v2.9.270 — Stav skladu summary (propojení s Sklady) -->
+      <div class="card-block" style="padding:16px 18px;margin-bottom:14px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:28px">📦</span>
+            <div>
+              <h3 style="margin:0;font-size:16px;font-weight:700;color:#854F0B">Stav skladu — souhrn</h3>
+              <p style="margin:2px 0 0;font-size:12px;color:#854F0B;opacity:0.8">${aktivniSur.length} aktivních surovin · ${podMinimem.length > 0 ? `<strong style="color:#991B1B">⚠ ${podMinimem.length} pod minimem</strong>` : '<span style="color:#166534">✓ vše OK</span>'}</p>
+            </div>
+          </div>
+          <button class="btn-primary btn-green" onclick="navigate('sklad')" style="padding:10px 16px;font-size:13px;font-weight:700">
+            📋 Otevřít plný přehled stavu skladu
+          </button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+          <div class="stat-card" style="padding:12px 14px;background:#fff;border:1px solid #F0D9B8;border-radius:10px;cursor:pointer" onclick="navigate('sklad')">
+            <div class="stat-label">Položek v evidenci</div>
+            <div class="stat-value" style="font-size:22px">${aktivniSur.length}</div>
+            <div class="stat-sub">${beStockuVubec > 0 ? `🛒 ${beStockuVubec} bez zásob` : '✓ vše naskladněno'}</div>
+          </div>
+          <div class="stat-card" style="padding:12px 14px;background:#fff;border:1px solid ${podMinimem.length > 0 ? '#FECACA' : '#F0D9B8'};border-radius:10px;cursor:pointer" onclick="state._suroviny_pod_minimem=true;navigate('suroviny')">
+            <div class="stat-label" style="color:${podMinimem.length > 0 ? '#991B1B' : 'var(--text-3)'}">${podMinimem.length > 0 ? '⚠ Pod minimem' : '✓ Nad minimem'}</div>
+            <div class="stat-value" style="color:${podMinimem.length > 0 ? '#991B1B' : 'var(--text-1)'};font-size:22px">${podMinimem.length}</div>
+            <div class="stat-sub">${podMinimem.length > 0 ? '→ doobjednat' : 'vše OK'}</div>
+          </div>
+          <div class="stat-card" style="padding:12px 14px;background:#fff;border:1px solid #F0D9B8;border-radius:10px">
+            <div class="stat-label">Hodnota skladu (orient.)</div>
+            <div class="stat-value" style="font-size:22px">${hodnotaSkladu > 0 ? Math.round(hodnotaSkladu).toLocaleString('cs-CZ') + ' Kč' : '—'}</div>
+            <div class="stat-sub">na základě cen balení</div>
+          </div>
+        </div>
+
+        ${podMinimem.length > 0 ? `
+          <details style="margin-top:12px">
+            <summary style="cursor:pointer;font-size:13px;font-weight:600;color:#991B1B;padding:6px 0">
+              ⚠ ${podMinimem.length} ${podMinimem.length === 1 ? 'položka' : (podMinimem.length < 5 ? 'položky' : 'položek')} k doobjednání
+            </summary>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+              ${podMinimem.slice(0, 12).map(s => `
+                <span class="status zrusena" style="cursor:pointer;font-size:11px"
+                      onclick="editSurovina(${s.id})"
+                      title="Aktuálně: ${parseFloat(s.stock_aktualni).toFixed(2)} ${esc(s.jednotka || 'g')} · min: ${parseFloat(s.stock_minimalni).toFixed(2)} ${esc(s.jednotka || 'g')}">
+                  ${esc(s.nazev)}
+                </span>
+              `).join('')}
+              ${podMinimem.length > 12 ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="state._suroviny_pod_minimem=true;navigate('suroviny')">+${podMinimem.length - 12} dalších</button>` : ''}
+            </div>
+          </details>
+        ` : ''}
+      </div>
+
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
         <div>
-          <p style="font-size:13px;color:var(--text-3);margin:0">${sklady.length} ${sklady.length === 1 ? 'sklad' : (sklady.length >= 2 && sklady.length <= 4 ? 'sklady' : 'skladů')} · ${sklady.filter(s => s.aktivni).length} aktivních</p>
+          <h3 style="margin:0;font-size:15px;font-weight:700">🏭 Sklady (multi-warehouse)</h3>
+          <p style="font-size:13px;color:var(--text-3);margin:2px 0 0">${sklady.length} ${sklady.length === 1 ? 'sklad' : (sklady.length >= 2 && sklady.length <= 4 ? 'sklady' : 'skladů')} · ${sklady.filter(s => s.aktivni).length} aktivních</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <!-- 🆕 v2.9.239 — Správa exportů & inventur (panel s 2 taby per-sklad) -->
@@ -20849,6 +21086,7 @@ async function renderUsers() {
               <th>Jméno</th>
               <th>Email</th>
               <th>Role</th>
+              <th>POS</th>
               <th>Stav</th>
               <th>Poslední přihlášení</th>
               <th></th>
@@ -20860,11 +21098,15 @@ async function renderUsers() {
                 <td><strong>${esc(u.jmeno || '—')}</strong></td>
                 <td>${esc(u.email)}</td>
                 <td><span class="${roleBadgeClass(u.role)}">${esc(roleLabel(u.role))}</span></td>
+                <td>
+                  ${Number(u.ma_pin) === 1 ? '<span class="status dorucena" title="PIN nastaven">🧾 PIN</span>' : '<span style="color:var(--text-3);font-size:11px">—</span>'}
+                  ${Number(u.pos_only) === 1 ? '<br><span class="status zrusena" style="font-size:10px;margin-top:2px" title="Pouze POS, žádný admin">🔒 POS only</span>' : ''}
+                </td>
                 <td>${u.aktivni == 1
                     ? '<span class="status dorucena">Aktivní</span>'
                     : '<span class="status zrusena">Deaktivovaný</span>'}</td>
                 <td style="color:var(--text-3); font-size:13px">
-                  ${u.posledni_prihlaseni ? fmtDateTime(u.posledni_prihlaseni) : '—'}
+                  ${u.posledni_prihlaseni ? fmtDateTime(u.posledni_prihlaseni) : (u.posledni_pos_login ? '🧾 ' + fmtDateTime(u.posledni_pos_login) : '—')}
                 </td>
                 <td onclick="event.stopPropagation();" style="text-align:right">
                   ${u.id != state.admin.id ? `
@@ -21117,11 +21359,40 @@ window.otevritUzivatele = async function(id) {
       </div>
     </div>
 
-    <!-- Heslo -->
-    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px">
-      <label class="form-label" style="margin-bottom:4px">🔑 Heslo${isNew ? ' *' : ''}</label>
-      <input class="form-input" id="u-heslo" type="password" placeholder="${isNew ? 'min. 6 znaků' : 'Nechte prázdné pro zachování stávajícího'}">
+    <!-- Heslo + PIN -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <label class="form-label" style="margin-bottom:4px">🔑 Heslo${isNew ? ' *' : ''}</label>
+        <input class="form-input" id="u-heslo" type="password" placeholder="${isNew ? 'min. 6 znaků' : 'Nechte prázdné'}">
+        <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.4">Pro přihlášení do adminu</div>
+      </div>
+      <!-- 🆕 v2.9.270 — PIN pro POS kasu -->
+      <div style="background:#FFF8F0;border:1px solid #F0D9B8;border-radius:8px;padding:12px 14px">
+        <label class="form-label" style="margin-bottom:4px">🧾 PIN pro POS kasu</label>
+        <input class="form-input" id="u-pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+               autocomplete="off"
+               placeholder="${u.ma_pin ? '••••  (nechte prázdné)' : '4-6 cifer'}"
+               style="font-family:monospace;letter-spacing:4px;font-size:16px">
+        <div style="font-size:11px;color:#854F0B;margin-top:6px;line-height:1.4">
+          ${u.ma_pin ? '✓ PIN nastaven · zadejte nový nebo „null" pro smazání' : 'Bez PIN se nepřihlásí do POS'}
+        </div>
+      </div>
     </div>
+
+    <!-- 🆕 v2.9.270 — POS-only checkbox -->
+    ${!isSelf ? `
+    <div style="background:#FFF5F5;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;margin-bottom:14px">
+      <label class="checkbox-row" style="padding:0;margin:0;align-items:flex-start;gap:10px;cursor:pointer">
+        <input type="checkbox" id="u-pos-only" ${Number(u.pos_only) === 1 ? 'checked' : ''} style="margin-top:2px">
+        <span style="flex:1">
+          <strong style="font-size:13px;color:#7F1D1D">🔒 Pouze POS terminál</strong>
+          <span style="display:block;font-size:11px;color:#991B1B;margin-top:2px;line-height:1.4">
+            Uživatel se nepřihlásí do administrace, jen do POS kasy přes PIN. Vyžaduje nastavený PIN.
+          </span>
+        </span>
+      </label>
+    </div>
+    ` : ''}
 
     <div class="form-actions">
       ${!isNew && !isSelf ? `<div class="form-actions-icons-row"><button class="btn-danger-corner" onclick="smazatUzivatele(${u.id}, '${esc(u.jmeno || u.email).replace(/'/g, '')}')" title="Smazat uživatele" aria-label="Smazat uživatele">🗑️</button></div>` : ''}
@@ -21144,8 +21415,27 @@ window.ulozitUzivatele = async function(id) {
   const aktivniEl = document.getElementById('u-aktivni');
   if (aktivniEl) data.aktivni = aktivniEl.checked ? 1 : 0;
 
+  // 🆕 v2.9.270 — PIN + pos_only
+  const pinEl = document.getElementById('u-pin');
+  if (pinEl) {
+    const pinVal = pinEl.value.trim();
+    if (pinVal === 'null' || pinVal === '__clear__') {
+      data.pin = '__clear__';
+    } else if (pinVal !== '') {
+      if (!/^\d{4,6}$/.test(pinVal)) {
+        return alert('PIN musí mít 4-6 cifer (jen čísla). Zadejte „null" pro smazání PIN.');
+      }
+      data.pin = pinVal;
+    }
+  }
+  const posOnlyEl = document.getElementById('u-pos-only');
+  if (posOnlyEl) data.pos_only = posOnlyEl.checked ? 1 : 0;
+
   if (!data.email) return alert('Email je povinný');
   if (!id && !heslo) return alert('Při vytváření je heslo povinné');
+  if (data.pos_only === 1 && !data.pin && !id) {
+    return alert('„Pouze POS" vyžaduje PIN');
+  }
 
   try {
     if (id) {
@@ -24027,7 +24317,11 @@ window.katalogGenerate = function() {
 // =============================================================
 // === Auto-kategorizace surovin podle klíčových slov v názvu/složení ===
 // Kategorie surovin — pořadí matters (testuje shora dolů, první match vyhrává)
-const SUROVINA_KATEGORIE = [
+//
+// 🆕 v2.9.270 — Editovatelné z UI (otevritKategorieSurovin). Custom verze
+// se ukládá do nastaveni (klíč 'suroviny_kategorie'). Při loadu mergujeme
+// custom s defaults — pokud user smaže výchozí, dostane jen své.
+const SUROVINA_KATEGORIE_DEFAULTS = [
   { key: 'smesi',    icon: '🥨', label: 'Mouky a směsi',      kw: ['směs', 'smes', 'premix', 'předsměs', 'predsmes', 'pekařsk', 'pekarsk', 'diasauer', 'pekamix', 'skandi', 'cereáln', 'cerealn', 'vícezrn', 'vicezrn', 'sedmizrn', 'devítizrn', 'devitizrn', 'celozrn', 'koncentrát', 'koncentrat', 'base ', 'sauer', 'master', 'panettone', 'briosch', 'panin', 'pizza dough', 'fokácc', 'fokacc', 'focacc'] },
   { key: 'mouky',    icon: '🌾', label: 'Mouky a krupice',     kw: ['mouk', 'krupic', 'otrub', 'klíč', 'klic', 'klík', 'klik', 'lepek', 'gluten', 'vločk', 'vlocek', 'müsli', 'musli'] },
   { key: 'tuky',     icon: '🧈', label: 'Tuky',                 kw: ['máslo', 'maslo', 'butter', 'tuk', 'sádlo', 'sadlo', 'olej', 'margar', 'pomaz', 'palmar', 'palmin'] },
@@ -24045,6 +24339,31 @@ const SUROVINA_KATEGORIE = [
   { key: 'ostatni',  icon: '📦', label: 'Ostatní',              kw: [] },
 ];
 
+// 🆕 v2.9.270 — mutable copy, override-able z nastaveni
+let SUROVINA_KATEGORIE = SUROVINA_KATEGORIE_DEFAULTS.map(k => ({ ...k, kw: [...k.kw] }));
+
+// Load custom kategorie z nastaveni (cache, fallback na defaults)
+async function loadSurovinaKategorie() {
+  try {
+    const all = await api('admin_nastaveni.php').catch(() => null);
+    const raw = all && all['suroviny_kategorie'];
+    if (raw) {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        SUROVINA_KATEGORIE = parsed.map(k => ({
+          key: String(k.key || '').replace(/[^a-z0-9_]/gi, '').toLowerCase() || 'kat' + Math.random().toString(36).slice(2, 7),
+          icon: k.icon || '📦',
+          label: k.label || 'Kategorie',
+          kw: Array.isArray(k.kw) ? k.kw : (typeof k.kw === 'string' ? k.kw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean) : []),
+        }));
+        _katCache.clear();
+      }
+    }
+  } catch (e) { /* fallback na defaults */ }
+}
+// Auto-load při startu (po api init)
+setTimeout(() => loadSurovinaKategorie(), 200);
+
 // Cache pro kategorizace (klíč = id, hodnota = key kategorie)
 const _katCache = new Map();
 function kategoriziujSurovinu(s) {
@@ -24059,6 +24378,163 @@ function kategoriziujSurovinu(s) {
   _katCache.set(cacheKey, result);
   return result;
 }
+
+// =============================================================
+// 🆕 v2.9.270 — KATEGORIE SUROVIN editor (3-col grid modal)
+// =============================================================
+const EMOJI_PRESETS = ['🌾','🥨','🧈','🥛','🥚','🍬','🍞','🧂','🥜','🍎','🍫','🥧','🌈','💧','📦','🍇','🍷','🥥','🍯','🌶️','🥕','🌿','🍋','🍓'];
+
+window.otevritKategorieSurovin = function() {
+  // Pokud nikdy neproběhl load, načti teď a otevři po loadu
+  if (!state._katsLoaded) {
+    state._katsLoaded = true;
+    loadSurovinaKategorie().then(() => renderKategorieSurovinModal());
+  } else {
+    renderKategorieSurovinModal();
+  }
+};
+
+function renderKategorieSurovinModal() {
+  // Workng copy — pracujeme s clonem, save → propíše do SUROVINA_KATEGORIE
+  state._katsDraft = SUROVINA_KATEGORIE.map(k => ({ ...k, kw: [...k.kw] }));
+
+  const html = `
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="padding:12px 14px;background:#FFF8F0;border:1px solid #F0D9B8;border-radius:10px;font-size:13px;color:#854F0B;line-height:1.5">
+        💡 <strong>Tip:</strong> Klíčová slova rozhodují, do jaké kategorie surovina spadne (porovnává se s názvem + složením, case-insensitive). Změny se uloží do databáze a aplikují i pro ostatní uživatele.
+      </div>
+      <div id="kats-grid" class="kats-grid"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="pridatKategoriiSurovin()">➕ Přidat kategorii</button>
+        <button class="btn-secondary" onclick="obnovitVychoziKategorie()" title="Vrátí výchozí systémové kategorie (ztratíš vlastní úpravy)">🔄 Obnovit výchozí</button>
+        <div style="flex:1"></div>
+        <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
+        <button class="btn-primary btn-green" onclick="ulozitKategorieSurovin()">💾 Uložit kategorie</button>
+      </div>
+    </div>
+  `;
+  openModal('📂 Kategorie surovin', html);
+  renderKategoriGrid();
+}
+
+function renderKategoriGrid() {
+  const grid = document.getElementById('kats-grid');
+  if (!grid) return;
+  const arr = state._katsDraft || [];
+  grid.innerHTML = arr.map((k, idx) => `
+    <div class="kat-card" data-idx="${idx}">
+      <div class="kat-card-head">
+        <button class="kat-emoji-btn" onclick="vyberEmojiPro(${idx})" title="Změnit emoji">${esc(k.icon)}</button>
+        <input class="form-input kat-label" type="text" value="${esc(k.label)}"
+               placeholder="Název kategorie"
+               oninput="state._katsDraft[${idx}].label = this.value">
+        <button class="btn-danger" style="font-size:11px;padding:4px 8px"
+                onclick="smazatKategoriiSurovin(${idx})" title="Smazat tuto kategorii">🗑️</button>
+      </div>
+      <div class="kat-card-body">
+        <label class="form-label" style="font-size:11px;margin:0 0 4px">Klíčová slova (oddělené čárkou)</label>
+        <textarea class="form-input kat-kw" rows="3"
+                  placeholder="např: mouk, krupic, otrub"
+                  oninput="state._katsDraft[${idx}].kw = this.value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean)">${esc(k.kw.join(', '))}</textarea>
+        <div style="font-size:10px;color:var(--text-3);margin-top:4px">key: <code>${esc(k.key)}</code> · ${k.kw.length} klíč. slov</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.vyberEmojiPro = function(idx) {
+  const current = state._katsDraft[idx]?.icon || '📦';
+  const html = `
+    <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;padding:8px 0">
+      ${EMOJI_PRESETS.map(e => `
+        <button class="emoji-pick ${e === current ? 'is-active' : ''}"
+                onclick="zvolEmoji(${idx}, '${e}')">${e}</button>
+      `).join('')}
+    </div>
+    <div style="margin-top:14px">
+      <label class="form-label">Vlastní emoji nebo text</label>
+      <input class="form-input" id="emoji-custom" value="${esc(current)}" maxlength="4" style="font-size:22px;text-align:center">
+      <button class="btn-primary btn-green" style="margin-top:8px;width:100%"
+              onclick="zvolEmoji(${idx}, document.getElementById('emoji-custom').value)">Použít</button>
+    </div>
+  `;
+  openModal('🎨 Vyberte emoji', html);
+};
+
+window.zvolEmoji = function(idx, emoji) {
+  if (state._katsDraft[idx]) {
+    state._katsDraft[idx].icon = emoji.trim() || '📦';
+  }
+  closeModal();
+  // Re-open kategorie modal
+  setTimeout(() => renderKategorieSurovinModal(), 50);
+};
+
+window.pridatKategoriiSurovin = function() {
+  const newKey = 'kat_' + Math.random().toString(36).slice(2, 7);
+  state._katsDraft.push({
+    key: newKey,
+    icon: '📦',
+    label: 'Nová kategorie',
+    kw: [],
+  });
+  renderKategoriGrid();
+  // Scroll na poslední přidanou
+  setTimeout(() => {
+    const last = document.querySelectorAll('.kat-card');
+    if (last.length) last[last.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 50);
+};
+
+window.smazatKategoriiSurovin = function(idx) {
+  const k = state._katsDraft[idx];
+  if (!k) return;
+  if (k.key === 'ostatni') {
+    alert('Kategorii „Ostatní" nelze smazat — slouží jako fallback pro nezařazené suroviny.');
+    return;
+  }
+  if (!confirm(`Smazat kategorii „${k.label}"?\n\nSuroviny v ní budou přesunuté do "Ostatní".`)) return;
+  state._katsDraft.splice(idx, 1);
+  renderKategoriGrid();
+};
+
+window.obnovitVychoziKategorie = function() {
+  if (!confirm('Obnovit výchozí systémové kategorie? Ztratíš vlastní úpravy.')) return;
+  state._katsDraft = SUROVINA_KATEGORIE_DEFAULTS.map(k => ({ ...k, kw: [...k.kw] }));
+  renderKategoriGrid();
+};
+
+window.ulozitKategorieSurovin = async function() {
+  const draft = state._katsDraft || [];
+  if (draft.length === 0) return alert('Musí zůstat alespoň jedna kategorie');
+  // Validate — zajistit fallback 'ostatni'
+  if (!draft.find(k => k.key === 'ostatni')) {
+    draft.push({ key: 'ostatni', icon: '📦', label: 'Ostatní', kw: [] });
+  }
+  // Validate unique keys
+  const keys = new Set();
+  for (const k of draft) {
+    if (keys.has(k.key)) {
+      // Re-key duplicate
+      k.key = 'kat_' + Math.random().toString(36).slice(2, 7);
+    }
+    keys.add(k.key);
+  }
+  try {
+    await api('admin_nastaveni.php', {
+      method: 'PUT',
+      body: JSON.stringify({ suroviny_kategorie: JSON.stringify(draft) }),
+    });
+    SUROVINA_KATEGORIE = draft.map(k => ({ ...k, kw: [...k.kw] }));
+    _katCache.clear();
+    state._suroviny_full_cache = null; // invalidace cache aby kategoriziujSurovinu re-run
+    closeModal();
+    alert('✓ Kategorie uloženy');
+    if (typeof renderSuroviny === 'function') renderSuroviny();
+  } catch (e) {
+    alert('Chyba ukládání: ' + e.message);
+  }
+};
 
 // =============================================================
 // 📦 SKLAD — samostatný přehled skladu s rychlými akcemi
@@ -24410,6 +24886,7 @@ async function renderSuroviny() {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary" onclick="navigate('vyroba')">← Výroba</button>
+        <button class="btn-secondary" onclick="otevritKategorieSurovin()" title="Spravovat kategorie surovin (přidat, upravit, ikony)">📂 Kategorie</button>
         <button class="btn-secondary" onclick="otevritMatchSlozeni()" title="Projde složení výrobků a napáruje na suroviny">🔗 Spárovat</button>
         <button class="btn-secondary" onclick="openImportCenik('suroviny')" title="Import ceníku z Excel/CSV s auto-matchingem">📊 Import ceníku</button>
         <button class="btn-secondary" onclick="otevritImportSurovin()" title="Hromadný import — základní balíček nebo CSV">📥 JSON / vzorky</button>

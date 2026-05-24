@@ -50,14 +50,9 @@ foreach (['session_secure_start', 'csrf_token', 'package_enabled'] as $fn) {
     }
 }
 
-// 🔒 Auth — pokud není přihlášen, redirect na admin login
+// 🆕 v2.9.270 — Auth: zobrazit PIN keypad pokud žádné session
 session_secure_start();
-if (empty($_SESSION['admin_id'])) {
-    if (!headers_sent()) {
-        header('Location: /admin/?return=' . urlencode('/admin/pos.php'));
-    }
-    exit;
-}
+$appVersion = defined('APP_VERSION') ? APP_VERSION : '0.0.0';
 
 // 🎁 Balíček check — POS Kasa = součást Restaurace balíčku
 if (!package_enabled('restaurace')) {
@@ -69,14 +64,236 @@ if (!package_enabled('restaurace')) {
     </head><body>
     <h1>🧾 POS Kasa není v tvém balíčku</h1>
     <p>POS Kasa je součást balíčku <strong>🍕 Restaurace / Pizzerie</strong>.</p>
-    <p><a href="/admin/#pkg_restaurace">← Aktivovat balíček v administraci</a></p>
+    <p><a href="../admin/#pkg_restaurace">← Aktivovat balíček v administraci</a></p>
     </body></html><?php
     exit;
 }
 
+// Pokud není přihlášen → render PIN keypad screen místo redirect do adminu
+if (empty($_SESSION['admin_id'])) {
+    ?><!DOCTYPE html>
+    <html lang="cs">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#1a1d24">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>APPEK POS — Přihlášení</title>
+    <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+    <link rel="stylesheet" href="pos.css?v=<?= htmlspecialchars($appVersion) ?>">
+    <script>
+      window.POS_LOGIN_CONFIG = {
+        version: <?= json_encode($appVersion) ?>,
+        apiBase: '../api/',
+        adminBase: '../admin/',
+        returnUrl: <?= json_encode($_GET['return'] ?? '') ?>,
+      };
+    </script>
+    </head>
+    <body class="pos-login-body">
+      <div class="pos-login-wrap">
+        <div class="pos-login-card">
+          <div class="pos-login-head">
+            <div class="pos-login-brand">
+              <span class="pos-login-ic">🧾</span>
+              <h1>APPEK POS</h1>
+            </div>
+            <div class="pos-login-sub">Vyberte sebe a zadejte PIN</div>
+          </div>
+
+          <div class="pos-login-users" id="pos-login-users">
+            <div class="pos-login-loading">⏳ Načítám uživatele…</div>
+          </div>
+
+          <div class="pos-login-pin" id="pos-login-pin" hidden>
+            <div class="pos-login-pin-user" id="pos-login-pin-user"></div>
+            <div class="pos-login-pin-dots" id="pos-login-pin-dots">
+              <span class="pos-pin-dot"></span><span class="pos-pin-dot"></span>
+              <span class="pos-pin-dot"></span><span class="pos-pin-dot"></span>
+            </div>
+            <div class="pos-login-pin-err" id="pos-login-pin-err" hidden></div>
+            <div class="pos-login-keypad">
+              <button class="pos-key" data-k="1">1</button>
+              <button class="pos-key" data-k="2">2</button>
+              <button class="pos-key" data-k="3">3</button>
+              <button class="pos-key" data-k="4">4</button>
+              <button class="pos-key" data-k="5">5</button>
+              <button class="pos-key" data-k="6">6</button>
+              <button class="pos-key" data-k="7">7</button>
+              <button class="pos-key" data-k="8">8</button>
+              <button class="pos-key" data-k="9">9</button>
+              <button class="pos-key pos-key-cancel" data-k="cancel">← Zpět</button>
+              <button class="pos-key" data-k="0">0</button>
+              <button class="pos-key pos-key-del" data-k="del">⌫</button>
+            </div>
+          </div>
+
+          <div class="pos-login-foot">
+            <a href="../admin/" class="pos-login-adminlink">🔑 Admin přihlášení (heslem)</a>
+            <div class="pos-login-version">v<?= htmlspecialchars($appVersion) ?></div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+      (function(){
+        const CFG = window.POS_LOGIN_CONFIG;
+        const $ = (s) => document.querySelector(s);
+        const usersBox = $('#pos-login-users');
+        const pinBox = $('#pos-login-pin');
+        const pinUserEl = $('#pos-login-pin-user');
+        const dotsEl = $('#pos-login-pin-dots');
+        const errEl = $('#pos-login-pin-err');
+        let selectedUser = null;
+        let pinBuffer = '';
+        let submitting = false;
+
+        function roleColor(role) {
+          return { admin:'#8B5CF6', prodavac:'#3B82F6', vyroba:'#10B981',
+                   expedice:'#F59E0B', pos:'#EF4444' }[role] || '#6B7280';
+        }
+        function roleLabel(role) {
+          return { admin:'Admin', prodavac:'Prodavač', vyroba:'Výroba',
+                   expedice:'Expedice', pos:'POS kasa' }[role] || role;
+        }
+
+        async function loadUsers() {
+          try {
+            const r = await fetch(CFG.apiBase + 'pos_auth.php?action=users');
+            const d = await r.json();
+            if (!d.ok || !d.users || !d.users.length) {
+              usersBox.innerHTML = '<div class="pos-login-empty">'
+                + '⚠️ Žádný uživatel nemá nastavený PIN.<br>'
+                + '<a href="../admin/#nastaveni" style="color:#BA7517">Nastavit PIN v adminu →</a></div>';
+              return;
+            }
+            usersBox.innerHTML = d.users.map(u => `
+              <button class="pos-login-user-chip" data-id="${u.id}"
+                      style="--chip-color:${roleColor(u.role)}">
+                <span class="pos-login-user-av">${u.iniciala}</span>
+                <span class="pos-login-user-body">
+                  <span class="pos-login-user-nm">${u.jmeno}</span>
+                  <span class="pos-login-user-rl">${roleLabel(u.role)}</span>
+                </span>
+              </button>
+            `).join('');
+            usersBox.querySelectorAll('.pos-login-user-chip').forEach(b => {
+              b.addEventListener('click', () => selectUser(b.dataset.id, b.querySelector('.pos-login-user-nm').textContent));
+            });
+          } catch (e) {
+            usersBox.innerHTML = '<div class="pos-login-empty">⚠️ Chyba: ' + e.message + '</div>';
+          }
+        }
+
+        function selectUser(id, name) {
+          selectedUser = { id: parseInt(id, 10), name };
+          pinBuffer = '';
+          updateDots();
+          errEl.hidden = true;
+          pinUserEl.textContent = name;
+          usersBox.hidden = true;
+          pinBox.hidden = false;
+        }
+
+        function updateDots() {
+          // 4 dots — fill based on PIN length (4-6)
+          const dots = dotsEl.querySelectorAll('.pos-pin-dot');
+          dots.forEach((d, i) => d.classList.toggle('is-on', i < pinBuffer.length));
+          // Vizuální feedback pro 5-6 cifer (rozšiř dots)
+          if (pinBuffer.length > 4 && dots.length < pinBuffer.length) {
+            for (let i = dots.length; i < pinBuffer.length; i++) {
+              const e = document.createElement('span');
+              e.className = 'pos-pin-dot is-on';
+              dotsEl.appendChild(e);
+            }
+          } else if (pinBuffer.length < dots.length && dots.length > 4) {
+            for (let i = dots.length - 1; i >= Math.max(4, pinBuffer.length); i--) {
+              dotsEl.removeChild(dots[i]);
+            }
+          }
+        }
+
+        async function trySubmit() {
+          if (submitting) return;
+          submitting = true;
+          errEl.hidden = true;
+          try {
+            const r = await fetch(CFG.apiBase + 'pos_auth.php?action=login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ user_id: selectedUser.id, pin: pinBuffer }),
+            });
+            const d = await r.json();
+            if (!r.ok || !d.ok) throw new Error(d.error || 'Přihlášení selhalo');
+            // úspěch → reload pos.php (teď budeš mít session)
+            window.location.href = CFG.returnUrl || 'pos.php';
+          } catch (e) {
+            errEl.hidden = false;
+            errEl.textContent = '⚠️ ' + e.message;
+            pinBuffer = '';
+            updateDots();
+            // shake animation
+            dotsEl.classList.add('shake');
+            setTimeout(() => dotsEl.classList.remove('shake'), 400);
+          } finally {
+            submitting = false;
+          }
+        }
+
+        function onKey(k) {
+          if (submitting) return;
+          if (k === 'cancel') {
+            selectedUser = null;
+            pinBuffer = '';
+            pinBox.hidden = true;
+            usersBox.hidden = false;
+            return;
+          }
+          if (k === 'del') {
+            pinBuffer = pinBuffer.slice(0, -1);
+            updateDots();
+            return;
+          }
+          if (/^\d$/.test(k)) {
+            if (pinBuffer.length < 6) {
+              pinBuffer += k;
+              updateDots();
+              if (pinBuffer.length >= 4) {
+                // auto-submit po 4 cifrách s 250ms delay (chance přidat 5./6.)
+                setTimeout(() => {
+                  if (pinBuffer.length === 4) trySubmit();
+                }, 250);
+              }
+            }
+          }
+        }
+
+        document.querySelectorAll('.pos-key').forEach(b => {
+          b.addEventListener('click', () => onKey(b.dataset.k));
+        });
+
+        // HW keyboard
+        document.addEventListener('keydown', (e) => {
+          if (pinBox.hidden) return;
+          if (e.key >= '0' && e.key <= '9') onKey(e.key);
+          else if (e.key === 'Backspace') onKey('del');
+          else if (e.key === 'Enter') trySubmit();
+          else if (e.key === 'Escape') onKey('cancel');
+        });
+
+        loadUsers();
+      })();
+      </script>
+    </body>
+    </html><?php
+    exit;
+}
+
+// 🔒 v2.9.270 — pokud uživatel je pos_only ale dostal se sem přes admin session → OK
 $adminJmeno = $_SESSION['admin_jmeno'] ?? '';
 $adminRole  = $_SESSION['admin_role']  ?? 'admin';
-$appVersion = defined('APP_VERSION') ? APP_VERSION : '0.0.0';
 $csrfToken  = csrf_token();
 ?><!DOCTYPE html>
 <html lang="cs">

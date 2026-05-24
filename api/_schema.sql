@@ -15,8 +15,14 @@ CREATE TABLE IF NOT EXISTS admin_users (
     heslo_hash VARCHAR(255) NOT NULL,
     role VARCHAR(30) DEFAULT 'admin',
     aktivni TINYINT(1) NOT NULL DEFAULT 1,
+    -- 🆕 v2.9.270 — POS PIN login (4-6 cifer, bcrypt hash)
+    pin_hash VARCHAR(255) NULL,
+    pos_only TINYINT(1) NOT NULL DEFAULT 0,
+    posledni_pos_login DATETIME NULL,
     vytvoreno DATETIME DEFAULT CURRENT_TIMESTAMP,
-    posledni_login DATETIME NULL
+    posledni_login DATETIME NULL,
+    INDEX idx_pos_only (pos_only),
+    INDEX idx_aktivni_role (aktivni, role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================

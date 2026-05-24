@@ -323,6 +323,8 @@ if ($method === 'PUT') {
         'export_isdoc_email',
         // HACCP defaultní hodnoty (JSON)
         'haccp_defaults',
+        // 🆕 v2.9.270 — Custom kategorie surovin (JSON array)
+        'suroviny_kategorie',
     ];
 
     $applied = [];

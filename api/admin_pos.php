@@ -30,6 +30,7 @@ if (!package_enabled('restaurace')) {
 $pdo = db();
 
 // 🆕 v2.9.39 — Idempotent migrace POS sloupců v objednavky (běží při každém requestu)
+// 🆕 v2.9.270 — Performance indexy (hot queries: dashboard, quick_history)
 (function() use ($pdo) {
     try {
         $cols = $pdo->query("
@@ -44,6 +45,13 @@ $pdo = db();
         if (!in_array('pos_payment', $cols, true))  try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN pos_payment VARCHAR(20) DEFAULT NULL"); } catch (Throwable $e) {}
         if (!in_array('pos_tip', $cols, true))      try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN pos_tip DECIMAL(10,2) DEFAULT 0"); } catch (Throwable $e) {}
         if (!in_array('pos_uzivatel', $cols, true)) try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN pos_uzivatel VARCHAR(100) DEFAULT NULL"); } catch (Throwable $e) {}
+        // 🆕 v2.9.270 — kompozitní indexy pro hot queries (dashboard provoz, quick_history)
+        try { $pdo->exec("CREATE INDEX idx_puvod_datum ON objednavky (puvod, datum_objednani)"); } catch (Throwable $e) {}
+        try { $pdo->exec("CREATE INDEX idx_pos_payment ON objednavky (pos_payment, datum_objednani)"); } catch (Throwable $e) {}
+        try { $pdo->exec("CREATE INDEX idx_pos_stav ON restaurant_pos_polozky (stav, cas_objednavky)"); } catch (Throwable $e) {}
+        try { $pdo->exec("CREATE INDEX idx_pos_ucet_stav ON restaurant_pos_ucty (stav, otevreno_v)"); } catch (Throwable $e) {}
+        try { $pdo->exec("CREATE INDEX idx_kitchen_stav_pridani ON kitchen_queue (stav, cas_pridani)"); } catch (Throwable $e) {}
+        try { $pdo->exec("CREATE INDEX idx_courier_stav_planovany ON courier_deliveries (stav, cas_planovany)"); } catch (Throwable $e) {}
     } catch (Throwable $e) { /* ignore — staci diagnostika v adminu */ }
 })();
 
@@ -837,6 +845,9 @@ if ($method === 'GET' && $action === 'customers') {
 }
 
 // 🧾 POST ?action=quick_order — vytvoří POS objednávku z košíku (bez stolu)
+// 🆕 v2.9.270 — Idempotence: idempotency_key (klient generuje UUID) →
+//   pokud stejný klíč přijde dvakrát (síťový retry, dvojklik), vrátíme původní výsledek.
+//   Bez tohoto by retry vytvořilo 2× účtenku.
 if ($method === 'POST' && $action === 'quick_order') {
     $data         = json_decode(file_get_contents('php://input'), true) ?? [];
     $polozky      = $data['polozky']      ?? [];
@@ -846,12 +857,40 @@ if ($method === 'POST' && $action === 'quick_order') {
     $pos_tip      = (float)($data['pos_tip']   ?? 0);
     $sleva_pct    = (float)($data['sleva_pct'] ?? 0);
     $poznamka     = trim((string)($data['poznamka'] ?? ''));
+    $idempKey     = trim((string)($data['idempotency_key'] ?? ''));
 
     $allowed_typy     = ['sebou', 'na_miste', 'rozvoz', 'vyzvednuti'];
     $allowed_payments = ['hotove', 'karta', 'paypal', 'gift_card', 'voucher', 'mobile'];
     if (!in_array($pos_typ, $allowed_typy, true))         json_error('Neplatný typ objednávky', 400);
     if (!in_array($pos_payment, $allowed_payments, true)) json_error('Neplatná platební metoda', 400);
     if (empty($polozky) || !is_array($polozky))           json_error('Prázdný košík', 400);
+
+    // 🆕 Idempotence — pokud klient pošle stejný key 2×, vrátíme předchozí výsledek
+    if ($idempKey !== '' && strlen($idempKey) <= 80) {
+        try {
+            // Idempotency tabulka (idempotent CREATE)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS pos_idempotency (
+                    idempotency_key VARCHAR(80) PRIMARY KEY,
+                    objednavka_id INT NULL,
+                    response_json TEXT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_created (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            $st = $pdo->prepare("SELECT response_json FROM pos_idempotency WHERE idempotency_key = :k LIMIT 1");
+            $st->execute(['k' => $idempKey]);
+            $existing = $st->fetchColumn();
+            if ($existing) {
+                // Vrátíme původní response — žádná duplikace
+                $cached = json_decode($existing, true);
+                if (is_array($cached)) {
+                    $cached['idempotent_replay'] = true;
+                    json_response($cached);
+                }
+            }
+        } catch (Throwable $e) { /* soft-fail — pokračujeme bez idempotence */ }
+    }
 
     try {
         $pdo->beginTransaction();
@@ -974,7 +1013,7 @@ if ($method === 'POST' && $action === 'quick_order') {
             }
         } catch (Throwable $e) {}
 
-        json_response([
+        $response = [
             'ok'      => true,
             'id'      => $objId,
             'cislo'   => $cislo,
@@ -983,7 +1022,27 @@ if ($method === 'POST' && $action === 'quick_order') {
             'dph'     => $dphSum,
             'stav'    => $stav,
             'message' => 'POS objednávka vytvořena',
-        ]);
+        ];
+
+        // 🆕 Ulož pro idempotence (pokud klient poslal key)
+        if ($idempKey !== '') {
+            try {
+                $pdo->prepare("
+                    INSERT INTO pos_idempotency (idempotency_key, objednavka_id, response_json)
+                    VALUES (:k, :oid, :r)
+                    ON DUPLICATE KEY UPDATE response_json = :r2
+                ")->execute([
+                    'k'   => $idempKey,
+                    'oid' => $objId,
+                    'r'   => json_encode($response, JSON_UNESCAPED_UNICODE),
+                    'r2'  => json_encode($response, JSON_UNESCAPED_UNICODE),
+                ]);
+                // Cleanup starých záznamů (>30 dnů) — async friendly, prevention overgrowth
+                $pdo->exec("DELETE FROM pos_idempotency WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+            } catch (Throwable $e) { /* soft-fail */ }
+        }
+
+        json_response($response);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         json_error('Chyba vytvoření POS objednávky: ' . $e->getMessage(), 500);

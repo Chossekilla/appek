@@ -18,8 +18,19 @@ if (login_rate_limited($email, $ip, 'admin')) {
     json_error('Příliš mnoho pokusů. Zkuste to za 15 minut.', 429);
 }
 
+// 🆕 v2.9.270 — idempotentní migrace pin_hash/pos_only (kdyby admin_users.php nikdy neproběhlo)
+try {
+    $cols = db()->query("
+        SELECT COLUMN_NAME FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admin_users'
+    ")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('pos_only', $cols, true)) {
+        try { db()->exec("ALTER TABLE admin_users ADD COLUMN pos_only TINYINT(1) NOT NULL DEFAULT 0"); } catch (Throwable $e) {}
+    }
+} catch (Throwable $e) {}
+
 $stmt = db()->prepare("
-    SELECT id, jmeno, heslo_hash, role, aktivni
+    SELECT id, jmeno, heslo_hash, role, aktivni, COALESCE(pos_only, 0) AS pos_only
     FROM admin_users WHERE email = :email LIMIT 1
 ");
 $stmt->execute(['email' => $email]);
@@ -32,6 +43,11 @@ if (!$user || !password_verify($heslo, $user['heslo_hash'])) {
 if (!$user['aktivni']) {
     login_log($email, $ip, 'admin', false);
     json_error('Účet je deaktivován', 403);
+}
+// 🆕 v2.9.270 — POS-only uživatel nesmí do adminu, jen do POS přes PIN
+if (!empty($user['pos_only'])) {
+    login_log($email, $ip, 'admin', false);
+    json_error('Tento účet má přístup pouze do POS kasy (přihlaste se přes PIN v /pos/)', 403);
 }
 
 // Ochrana proti session fixation

@@ -1716,3 +1716,250 @@ html, body {
   min-width: 0 !important;
   overflow-wrap: anywhere !important;
 }
+
+/* ═════════════════════════════════════════════════════════════════
+   🆕 v2.9.270 — POS PIN Login Screen
+   Touch-optimized, Apple/Linear inspirovaný keypad
+   ═════════════════════════════════════════════════════════════════ */
+.pos-login-body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background:
+    radial-gradient(1200px 800px at 10% 10%, rgba(186,117,23,0.15) 0%, transparent 50%),
+    radial-gradient(1200px 800px at 90% 90%, rgba(139,92,246,0.12) 0%, transparent 50%),
+    linear-gradient(135deg, #0f1117 0%, #1a1d24 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.pos-login-wrap {
+  width: 100%;
+  max-width: 480px;
+}
+.pos-login-card {
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px;
+  padding: 28px 24px 20px;
+  box-shadow:
+    0 30px 60px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(255,255,255,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.pos-login-head {
+  text-align: center;
+  margin-bottom: 22px;
+}
+.pos-login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.pos-login-ic {
+  font-size: 32px;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+}
+.pos-login-brand h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.pos-login-sub {
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+}
+
+/* Users grid */
+.pos-login-users {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.pos-login-loading,
+.pos-login-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+}
+.pos-login-user-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  min-height: 56px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 4px solid var(--chip-color, #6B7280);
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.pos-login-user-chip:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.16);
+}
+.pos-login-user-chip:active { transform: scale(0.98); }
+.pos-login-user-av {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--chip-color, #6B7280);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+}
+.pos-login-user-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.pos-login-user-nm {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pos-login-user-rl {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+}
+
+/* PIN keypad */
+.pos-login-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.pos-login-pin-user {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.95);
+}
+.pos-login-pin-dots {
+  display: flex;
+  gap: 12px;
+  min-height: 18px;
+}
+.pos-pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 2px solid rgba(255,255,255,0.18);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.pos-pin-dot.is-on {
+  background: #BA7517;
+  border-color: #BA7517;
+  transform: scale(1.1);
+}
+.pos-login-pin-dots.shake {
+  animation: pos-shake 0.3s ease;
+}
+@keyframes pos-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  50% { transform: translateX(8px); }
+  75% { transform: translateX(-4px); }
+}
+.pos-login-pin-err {
+  font-size: 13px;
+  color: #ef4444;
+  padding: 6px 12px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 8px;
+  text-align: center;
+  max-width: 280px;
+}
+.pos-login-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  max-width: 280px;
+}
+.pos-key {
+  min-height: 64px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s ease, transform 0.05s ease;
+  font-family: inherit;
+}
+.pos-key:hover { background: rgba(255,255,255,0.10); }
+.pos-key:active {
+  background: rgba(186,117,23,0.25);
+  transform: scale(0.96);
+}
+.pos-key-cancel,
+.pos-key-del {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+}
+.pos-key-cancel:hover { color: #ef4444; }
+.pos-key-del:hover { color: #f59e0b; }
+
+/* Footer */
+.pos-login-foot {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.pos-login-adminlink {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.pos-login-adminlink:hover {
+  color: #BA7517;
+  background: rgba(186,117,23,0.08);
+}
+.pos-login-version {
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tablet+ — víc místa na users grid (2-col) */
+@media (min-width: 600px) {
+  .pos-login-users {
+    grid-template-columns: 1fr 1fr;
+    max-height: 56vh;
+  }
+}
