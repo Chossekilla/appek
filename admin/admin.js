@@ -2254,29 +2254,31 @@ window.addEventListener('load', function () {
 // 🔐 Práva v menu podle role — defaults + custom z DB
 // =============================================================
 const DEFAULT_ROLE_PRAVA = {
-  // Pozn.: 'rozvozy' není v menu (přesunuto do Dodací listy a Dashboardu),
-  // ale ponecháno v právech, aby fungoval navigate('rozvozy') přes ikonu/link.
-  admin:    ['dashboard', 'objednavky', 'vyroba', 'dodaci_listy', 'rozvozy', 'faktury', 'vyrobky', 'katalog', 'stitky', 'haccp', 'odberatele', 'nastaveni'],
-  prodavac: ['dashboard', 'objednavky', 'dodaci_listy', 'rozvozy', 'faktury', 'vyrobky', 'katalog', 'stitky', 'odberatele'],
+  // 🆕 v2.9.225 — přidán 'nastroje' (hub pro katalog + stitky). katalog/stitky zůstávají
+  // v právech (volané z hubu přes navigate). 'rozvozy' je teď v menu (pod objednávky).
+  admin:    ['dashboard', 'objednavky', 'rozvozy', 'vyroba', 'dodaci_listy', 'faktury', 'vyrobky', 'nastroje', 'katalog', 'stitky', 'haccp', 'odberatele', 'nastaveni'],
+  prodavac: ['dashboard', 'objednavky', 'rozvozy', 'dodaci_listy', 'faktury', 'vyrobky', 'nastroje', 'katalog', 'stitky', 'odberatele'],
   vyroba:   ['dashboard', 'vyroba', 'vyrobky', 'haccp'],
   expedice: ['dashboard', 'objednavky', 'dodaci_listy', 'rozvozy'],
 };
 // Stránka -> ikona + label (pro UI editor rolí). 'rozvozy' tu zůstává — admin
 // si může v Údržbě roli rozšířit a tím přidat zpět do menu, pokud potřebuje.
 const ALL_NAV_PAGES = [
-  // 🆕 v2.9.189 — 'vyroba' je první, default landing. Top-nav label 'Výroba'
-  // (hub), uvnitř má sub-tab 'Výrobní list'.
-  { key: 'vyroba',       icon: '🥖', label: 'Výroba' },
+  // 🆕 v2.9.225 — reorder: rozvozy pod objednávky (logická order→route souvislost),
+  // katalog+stitky sloučené do 'nastroje' hub (lepší mobile UX, méně sidebar items)
   { key: 'dashboard',    icon: '📊', label: 'Přehled' },
   { key: 'objednavky',   icon: '📋', label: 'Objednávky' },
-  { key: 'dodaci_listy', icon: '📃', label: 'Dodací listy' },
   { key: 'rozvozy',      icon: '🛣️', label: 'Rozvozové trasy' },
+  { key: 'vyroba',       icon: '🥖', label: 'Výroba' },
+  { key: 'dodaci_listy', icon: '📃', label: 'Dodací listy' },
   { key: 'faktury',      icon: '💰', label: 'Faktury' },
   { key: 'vyrobky',      icon: '📦', label: 'Výrobky' },
-  { key: 'katalog',      icon: '📑', label: 'PDF nabídka' },
-  { key: 'stitky',       icon: '🏷️', label: 'Štítky a cenovky' },
+  { key: 'nastroje',     icon: '🛠️', label: 'Nástroje' },
   { key: 'odberatele',   icon: '👥', label: 'Odběratelé' },
   { key: 'nastaveni',    icon: '⚙️', label: 'Nastavení' },
+  // Skryté ale stále routovatelné stránky (z hubu) — pro permission matrix a back nav
+  { key: 'katalog',      icon: '📑', label: 'PDF nabídka',      hidden: true },
+  { key: 'stitky',       icon: '🏷️', label: 'Štítky a cenovky', hidden: true },
 ];
 state.rolePrava = DEFAULT_ROLE_PRAVA;
 
@@ -3389,6 +3391,7 @@ async function navigate(page) {
     else if (page === 'vyrobky') await renderVyrobky();
     else if (page === 'katalog') await renderKatalog();
     else if (page === 'stitky') await renderStitky();
+    else if (page === 'nastroje') await renderNastroje();
     else if (page === 'haccp') await renderHaccp();
     else if (page === 'odberatele') await renderOdberatele();
     else if (page === 'users') await renderUsers();
@@ -20411,7 +20414,7 @@ function vykresliPravaPanel() {
                 <small>${esc(r.popis)}</small>
               </div>
               <div class="role-prava-pages">
-                ${ALL_NAV_PAGES.map((p) => {
+                ${ALL_NAV_PAGES.filter(p => !p.hidden).map((p) => {
                   const checked = allowed.has(p.key);
                   const disabled = r.readonly || p.key === 'dashboard';
                   return `
@@ -22706,6 +22709,78 @@ window.smazatKategorii = async function(id) {
 };
 
 // =============================================================
+// 🛠️ NÁSTROJE — hub stránka (v2.9.225)
+// Sloučení 'PDF nabídka' (katalog) a 'Štítky a cenovky' (stitky)
+// do jednoho menu item kvůli lepšímu mobile UX (méně sidebar items).
+// =============================================================
+async function renderNastroje() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">🛠️ Nástroje</h1>
+        <p class="page-sub">Generování PDF katalogů, tisk štítků a cenovek</p>
+      </div>
+    </div>
+
+    <div class="nastroje-grid">
+      <button class="nastroje-card" onclick="navigate('katalog')" aria-label="Otevřít PDF nabídku">
+        <div class="nastroje-card-icon">📑</div>
+        <div class="nastroje-card-title">PDF nabídka</div>
+        <div class="nastroje-card-desc">Sestav profesionální PDF katalog s vybranými výrobky pro zaslání odběratelům.</div>
+        <div class="nastroje-card-cta">Otevřít →</div>
+      </button>
+
+      <button class="nastroje-card" onclick="navigate('stitky')" aria-label="Otevřít štítky a cenovky">
+        <div class="nastroje-card-icon">🏷️</div>
+        <div class="nastroje-card-title">Štítky a cenovky</div>
+        <div class="nastroje-card-desc">Tisk regálových cenovek, štítků na zboží a etiket — různé velikosti a šablony.</div>
+        <div class="nastroje-card-cta">Otevřít →</div>
+      </button>
+    </div>
+
+    <style>
+      .nastroje-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 14px;
+        margin-top: 8px;
+      }
+      .nastroje-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 24px 22px;
+        text-align: left;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.15s;
+        min-height: 180px;
+      }
+      .nastroje-card:hover {
+        background: var(--surface-2);
+        border-color: var(--primary-border);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(186,117,23,0.08);
+      }
+      .nastroje-card-icon { font-size: 36px; line-height: 1; margin-bottom: 4px; }
+      .nastroje-card-title { font-size: 18px; font-weight: 700; color: var(--text); }
+      .nastroje-card-desc { font-size: 13px; color: var(--text-2); line-height: 1.5; flex: 1; }
+      .nastroje-card-cta { font-size: 13px; font-weight: 600; color: var(--primary); margin-top: 8px; }
+      @media (max-width: 600px) {
+        .nastroje-grid { grid-template-columns: 1fr; }
+        .nastroje-card { min-height: 140px; padding: 18px; }
+        .nastroje-card-icon { font-size: 28px; }
+        .nastroje-card-title { font-size: 16px; }
+      }
+    </style>
+  `;
+}
+
+// =============================================================
 // KATALOG / PDF NABÍDKA
 // Stránka: vybrat kategorie + konkrétní výrobky, sestavit PDF nabídku.
 // =============================================================
@@ -22757,6 +22832,9 @@ async function renderKatalog() {
     c.innerHTML = `
       <div class="page-head">
         <div><h1 class="page-title">📑 PDF nabídka</h1></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="navigate('nastroje')">← Nástroje</button>
+        </div>
       </div>
       <div class="card-block" style="padding:30px;text-align:center">
         <p style="font-size:15px;margin-bottom:8px">Zatím nemáš žádné výrobky.</p>
@@ -22771,6 +22849,9 @@ async function renderKatalog() {
       <div>
         <h1 class="page-title">📑 PDF nabídka</h1>
         <p class="page-sub">Sestav cenovou nabídku pro odběratele — vyber ceník, výrobky a vygeneruj PDF.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="navigate('nastroje')">← Nástroje</button>
       </div>
     </div>
 
@@ -26275,6 +26356,7 @@ async function renderStitky() {
         <p class="page-sub">Tisk na A4 samolepicí archy — pro expedici i prodejnu</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="navigate('nastroje')">← Nástroje</button>
         <button class="btn-secondary" onclick="stitkyTisknout(true)">👁️ Náhled</button>
         <button class="btn-primary btn-green" onclick="stitkyTisknout(false)">🖨️ Tisk</button>
       </div>

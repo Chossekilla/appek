@@ -188,6 +188,8 @@ const I18N = {
   nav_categories:   { cs: 'Kategorie',         en: 'Categories',        es: 'Categorías' },
   nav_users:        { cs: 'Uživatelé',         en: 'Users',             es: 'Usuarios' },
   nav_pricing:      { cs: 'Cenové skupiny',    en: 'Price groups',      es: 'Grupos de precios' },
+  // 🆕 v2.9.225 — Nástroje hub (katalog + štítky)
+  nav_tools:        { cs: 'Nástroje',          en: 'Tools',             es: 'Herramientas' },
 
   // ─────────────── FORMS ───────────────
   form_name:        { cs: 'Název',             en: 'Name',              es: 'Nombre' },

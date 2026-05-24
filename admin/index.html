@@ -161,6 +161,10 @@
       <button class="nav-item" data-page="objednavky">
         <span class="nav-icon">📋</span> <span data-i18n="nav_orders">Objednávky</span>
       </button>
+      <!-- 🆕 v2.9.225 — Rozvozové trasy přesunuto pod Objednávky (logické řazení: order → route) -->
+      <button class="nav-item" data-page="rozvozy">
+        <span class="nav-icon">🛣️</span> <span data-i18n="nav_routes">Rozvozové trasy</span>
+      </button>
       <!-- 🆕 v2.9.213 — 'Výrobní list' → 'Výroba' (hub se sub-taby), HACCP přesunut pod Výrobu -->
       <button class="nav-item" data-page="vyroba">
         <span class="nav-icon">🥖</span> <span data-i18n="nav_production">Výroba</span>
@@ -168,20 +172,15 @@
       <button class="nav-item" data-page="dodaci_listy">
         <span class="nav-icon">📃</span> <span data-i18n="nav_delivery">Dodací listy</span>
       </button>
-      <button class="nav-item" data-page="rozvozy">
-        <span class="nav-icon">🛣️</span> <span data-i18n="nav_routes">Rozvozové trasy</span>
-      </button>
       <button class="nav-item" data-page="faktury">
         <span class="nav-icon">💰</span> <span data-i18n="nav_invoices">Faktury</span>
       </button>
       <button class="nav-item" data-page="vyrobky">
         <span class="nav-icon">📦</span> <span data-i18n="nav_products">Výrobky</span>
       </button>
-      <button class="nav-item" data-page="katalog">
-        <span class="nav-icon">📑</span> <span data-i18n="nav_catalog">PDF nabídka</span>
-      </button>
-      <button class="nav-item" data-page="stitky">
-        <span class="nav-icon">🏷️</span> <span data-i18n="nav_labels">Štítky a cenovky</span>
+      <!-- 🆕 v2.9.225 — Nástroje hub (sloučení PDF nabídka + Štítky a cenovky pro lepší mobile UX) -->
+      <button class="nav-item" data-page="nastroje">
+        <span class="nav-icon">🛠️</span> <span data-i18n="nav_tools">Nástroje</span>
       </button>
       <button class="nav-item" data-page="odberatele">
         <span class="nav-icon">👥</span> <span data-i18n="nav_customers">Odběratelé</span>
