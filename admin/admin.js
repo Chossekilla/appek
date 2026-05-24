@@ -3486,14 +3486,26 @@ function recentMistoLine(row) {
 }
 
 async function renderDashboard(filters = {}) {
-  const obdobi = filters.obdobi || state._dashObdobi || 'mesic';
-  const datum_od = filters.datum_od || state._dashOd || '';
-  const datum_do = filters.datum_do || state._dashDo || '';
+  // 🆕 v2.9.234 — filter persistence přes localStorage (přežije reload + jiný navigate)
+  let savedObdobi = null, savedOd = null, savedDo = null;
+  try {
+    savedObdobi = localStorage.getItem('appek_dash_obdobi');
+    savedOd     = localStorage.getItem('appek_dash_od');
+    savedDo     = localStorage.getItem('appek_dash_do');
+  } catch (e) {}
+  const obdobi = filters.obdobi || state._dashObdobi || savedObdobi || 'mesic';
+  const datum_od = filters.datum_od || state._dashOd || savedOd || '';
+  const datum_do = filters.datum_do || state._dashDo || savedDo || '';
 
-  // Save selection for re-render
+  // Save selection for re-render (state + localStorage)
   state._dashObdobi = obdobi;
   state._dashOd = datum_od;
   state._dashDo = datum_do;
+  try {
+    localStorage.setItem('appek_dash_obdobi', obdobi);
+    if (datum_od) localStorage.setItem('appek_dash_od', datum_od);
+    if (datum_do) localStorage.setItem('appek_dash_do', datum_do);
+  } catch (e) {}
 
   let url = `admin_dashboard.php?obdobi=${obdobi}`;
   if (obdobi === 'vlastni' && datum_od && datum_do) {
@@ -3625,43 +3637,39 @@ async function renderDashboard(filters = {}) {
 
     <p class="period-range">📅 Období: <strong>${obdobiRange}</strong></p>
 
-    <!-- HLAVNÍ STAT BOXY ZA OBDOBÍ — v2.9.233 hero layout (Tržby = primary KPI) -->
-    <div class="dash-stat-hero">
-      <!-- HERO: Tržby — největší, gradient, primary KPI -->
-      <div class="dash-hero-card">
-        <div class="dash-hero-label">💰 Tržby ${obdobiLabel}</div>
-        <div class="dash-hero-value">${fmt(d.obdobi_stats.trzby)}</div>
-        ${d.dny_v_obdobi > 1 ? `<div class="dash-hero-sub">⌀ <strong>${fmt(d.obdobi_stats.prumerne_denne)}</strong> denně</div>` : ''}
-        ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="dash-hero-spark">${sparklineSVG(d.casovy_graf.map(r => +r.trzby), {h: 38, color: '#ffffff'})}</div>` : ''}
+    <!-- HLAVNÍ STAT BOXY ZA OBDOBÍ — v2.9.234 vrácené 4 stejné karty (bez gradient hero) -->
+    <!-- Sparkliny zachované, ale decentnější (menší výška, jen 2 z 4) -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">🛒 Objednávek ${obdobiLabel}</div>
+        <div class="stat-value">${d.obdobi_stats.objednavek}</div>
+        <div class="stat-sub">${d.obdobi_stats.novych || 0} nových · ${d.obdobi_stats.dorucenych || 0} doručených</div>
+        ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="stat-spark">${sparklineSVG(d.casovy_graf.map(r => +r.objednavek), {h: 24, color: '#0a84ff'})}</div>` : ''}
       </div>
-
-      <!-- SECONDARY: 3 menší karty -->
-      <div class="dash-stat-secondary">
-        <div class="stat-card">
-          <div class="stat-label">🛒 Objednávek</div>
-          <div class="stat-value">${d.obdobi_stats.objednavek}</div>
-          <div class="stat-sub">${d.obdobi_stats.novych || 0} nových · ${d.obdobi_stats.dorucenych || 0} doručených</div>
-          ${(d.casovy_graf && d.casovy_graf.length >= 2) ? sparklineSVG(d.casovy_graf.map(r => +r.objednavek), {h: 28, color: '#0a84ff'}) : ''}
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">📅 Dnes objednávek</div>
-          <div class="stat-value">${d.dnes.objednavek}</div>
-          <div class="stat-sub">${fmt(d.dnes.trzby)}</div>
-        </div>
-        ${d.po_splatnosti.pocet > 0 ? `
-          <div class="stat-card stat-warn" style="cursor:pointer" onclick="navigate('faktury');setTimeout(()=>{state._faktury_stav='neuhrazene';renderFaktury()},100)">
-            <div class="stat-label">⚠️ Po splatnosti</div>
-            <div class="stat-value">${fmt(d.po_splatnosti.castka)}</div>
-            <div class="stat-sub">${d.po_splatnosti.pocet} ${d.po_splatnosti.pocet === 1 ? 'faktura' : (d.po_splatnosti.pocet < 5 ? 'faktury' : 'faktur')} · klikni →</div>
-          </div>
-        ` : `
-          <div class="stat-card">
-            <div class="stat-label">✓ Po splatnosti</div>
-            <div class="stat-value" style="color:var(--success-text)">0</div>
-            <div class="stat-sub">vše uhrazeno</div>
-          </div>
-        `}
+      <div class="stat-card">
+        <div class="stat-label">💰 Tržby ${obdobiLabel}</div>
+        <div class="stat-value">${fmt(d.obdobi_stats.trzby)}</div>
+        ${d.dny_v_obdobi > 1 ? `<div class="stat-sub">⌀ ${fmt(d.obdobi_stats.prumerne_denne)} / den</div>` : '<div class="stat-sub">&nbsp;</div>'}
+        ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="stat-spark">${sparklineSVG(d.casovy_graf.map(r => +r.trzby), {h: 24, color: 'var(--primary)'})}</div>` : ''}
       </div>
+      <div class="stat-card">
+        <div class="stat-label">📅 Dnes objednávek</div>
+        <div class="stat-value">${d.dnes.objednavek}</div>
+        <div class="stat-sub">${fmt(d.dnes.trzby)}</div>
+      </div>
+      ${d.po_splatnosti.pocet > 0 ? `
+        <div class="stat-card stat-warn" style="cursor:pointer" onclick="navigate('faktury');setTimeout(()=>{state._faktury_stav='neuhrazene';renderFaktury()},100)" title="Klikni → faktury filtrované jako neuhrazené">
+          <div class="stat-label">⚠️ Po splatnosti</div>
+          <div class="stat-value">${fmt(d.po_splatnosti.castka)}</div>
+          <div class="stat-sub">${d.po_splatnosti.pocet} ${d.po_splatnosti.pocet === 1 ? 'faktura' : (d.po_splatnosti.pocet < 5 ? 'faktury' : 'faktur')} · klikni →</div>
+        </div>
+      ` : `
+        <div class="stat-card">
+          <div class="stat-label">✓ Po splatnosti</div>
+          <div class="stat-value" style="color:var(--success-text)">0</div>
+          <div class="stat-sub">vše uhrazeno</div>
+        </div>
+      `}
     </div>
 
     <!-- 1) Nedávné doklady — objednávky / DL / faktury vedle sebe -->
