@@ -1643,6 +1643,35 @@ body.role-restricted .admin-only { display: none !important; }
   width: 100%;
   height: 24px;
 }
+
+/* 🆕 v2.9.235 — Dashboard stat-grid: Tržby span 2 (širší než ostatní)
+   Desktop: 4 sloupce 1fr 2fr 1fr 1fr (Tržby = 2×)
+   Tablet (<1024px): 2 sloupce 1fr 1fr, Tržby span 2 (full width)
+   Mobile (<600px): 1 col */
+.stat-grid-dash {
+  grid-template-columns: 1fr 2fr 1fr 1fr;
+}
+.stat-card-wide {
+  /* Tržby — širší (auto díky 2fr grid column), lehký primary tint */
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);
+  border-color: var(--primary-border);
+}
+.stat-value-lg {
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+  color: var(--primary-dark);
+}
+@media (max-width: 1024px) {
+  .stat-grid-dash { grid-template-columns: 1fr 1fr; }
+  .stat-card-wide { grid-column: span 2; }
+}
+@media (max-width: 600px) {
+  .stat-grid-dash { grid-template-columns: 1fr; }
+  .stat-card-wide { grid-column: span 1; }
+  .stat-value-lg { font-size: 26px !important; }
+}
+
 .stat-label { font-size: 12px; color: var(--text-3); margin-bottom: 4px; }
 .stat-value { font-size: 24px; font-weight: 600; }
 .stat-value.warn { color: var(--danger-text); }
@@ -4746,37 +4775,67 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
 /* =========================================================
    DASHBOARD — taby období + graf + dashboard layout
    ========================================================= */
+/* 🆕 v2.9.235 — .period-tabs sjednoceno se .seg-tabs designem (segmented control
+   s gradient pozadím, glow active, smooth transitions). Vizuálně konzistentní
+   napříč Dashboard / Výroba / Rozvozy / Sales / Suroviny / Štítky / Email editor. */
 .period-tabs {
   display: flex;
   gap: 6px;
   margin-bottom: 14px;
-  flex-wrap: wrap;
+  padding: 6px;
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
   box-sizing: border-box;
   max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
 }
 .period-tab {
-  padding: 9px 16px;
+  flex: 0 1 auto;
+  padding: 10px 16px;
   box-sizing: border-box;
-  border-radius: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  font-size: 13px;
+  border-radius: 10px;
+  background: transparent;
+  border: 0;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--text-2);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+  white-space: nowrap;
+  font-family: inherit;
+  scroll-snap-align: start;
   -webkit-appearance: none;
   appearance: none;
 }
-.period-tab:hover {
-  background: var(--surface-2);
-  border-color: var(--primary-border);
+.period-tab:hover:not(.active) {
+  background: rgba(186, 117, 23, 0.06);
+  color: var(--text);
 }
 .period-tab.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
+  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 3px 10px rgba(186, 117, 23, 0.32), inset 0 1px 0 rgba(255,255,255,0.15);
 }
+.period-tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .period-tabs { padding: 4px; gap: 4px; border-radius: 12px; }
+  .period-tab { padding: 8px 12px; font-size: 12.5px; }
+}
+/* Dark theme support */
+html.dark .period-tabs, html.theme-dark .period-tabs {
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
+  border-color: rgba(255,255,255,0.08);
+}
+html.dark .period-tab, html.theme-dark .period-tab { color: var(--text-2); }
+html.dark .period-tab.active, html.theme-dark .period-tab.active { color: #fff; }
 
 .period-custom {
   display: flex;
