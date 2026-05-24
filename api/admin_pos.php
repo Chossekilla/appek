@@ -1110,6 +1110,45 @@ if ($method === 'GET' && $action === 'quick_history') {
     }
 }
 
+// 🆕 v2.9.308 — GET ?action=quick_order_detail&id=X — detail jedné POS účtenky (modal)
+// Vrací objednavku + polozky. LEFT JOIN odberatele aby fungovalo i pro POS quick orders
+// bez zákazníka (puvod='pos', odberatel_id může být null nebo dummy).
+if ($method === 'GET' && $action === 'quick_order_detail') {
+    $id = (int) ($_GET['id'] ?? 0);
+    if (!$id) json_error('Chybí ID', 400);
+    try {
+        $st = $pdo->prepare("
+            SELECT o.id, o.cislo, o.datum_objednani, o.castka_celkem, o.castka_bez_dph, o.castka_dph,
+                   o.stav, o.poznamka, o.puvod, o.pos_typ, o.pos_payment, o.pos_tip, o.pos_uzivatel,
+                   o.odberatel_id, COALESCE(od.nazev, '—') AS odberatel_nazev
+            FROM objednavky o
+            LEFT JOIN odberatele od ON od.id = o.odberatel_id
+            WHERE o.id = :id
+        ");
+        $st->execute(['id' => $id]);
+        $obj = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$obj) json_error('Účtenka nenalezena', 404);
+
+        $p = $pdo->prepare("
+            SELECT p.id, p.vyrobek_id,
+                   COALESCE(NULLIF(p.vyrobek_nazev, ''), v.nazev, '?') AS vyrobek_nazev,
+                   p.mnozstvi, COALESCE(p.jednotka, 'ks') AS jednotka,
+                   p.cena_bez_dph, COALESCE(p.sazba_dph, 12) AS sazba_dph,
+                   p.poznamka
+            FROM objednavky_polozky p
+            LEFT JOIN vyrobky v ON v.id = p.vyrobek_id
+            WHERE p.objednavka_id = :id
+            ORDER BY p.id ASC
+        ");
+        $p->execute(['id' => $id]);
+        $obj['polozky'] = $p->fetchAll(PDO::FETCH_ASSOC);
+
+        json_response($obj);
+    } catch (Throwable $e) {
+        json_error('Chyba detailu účtenky: ' . $e->getMessage(), 500);
+    }
+}
+
 // 🆕 v2.9.303 — GET ?action=launcher_summary — pro POS Kasa hub stránku
 // Vrací: souhrn dne (tržby, počet účtenek, hotově/karta split) + last 8 účtenek + TOP 8 prodaných položek
 if ($method === 'GET' && $action === 'launcher_summary') {

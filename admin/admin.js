@@ -16907,18 +16907,23 @@ async function renderPOSLauncher() {
       <div style="margin-bottom:14px">
         <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">🏆 TOP prodané dnes</div>
         <div style="display:flex;flex-direction:column;gap:4px">
-          ${top.map((it, idx) => `
-            <div style="display:flex;justify-content:space-between;gap:8px;padding:6px 10px;background:${idx === 0 ? '#FFF8E5' : '#F7F8FA'};border-radius:6px;font-size:12px;align-items:center">
-              <span style="display:flex;align-items:center;gap:6px;min-width:0">
-                <span style="font-size:11px;color:var(--text-3);min-width:18px">#${idx + 1}</span>
-                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.vyrobek_nazev || '—')}">${esc((it.vyrobek_nazev || '—').slice(0, 32))}</span>
-              </span>
-              <span style="display:flex;gap:8px;align-items:center;white-space:nowrap;font-variant-numeric:tabular-nums">
-                <strong style="color:#BA7517">${parseFloat(it.mnozstvi_sum).toFixed(parseFloat(it.mnozstvi_sum) % 1 ? 1 : 0)}×</strong>
-                <span style="color:var(--text-3);font-size:11px">${fmtCZK(it.trzba_sum)}</span>
-              </span>
-            </div>
-          `).join('')}
+          ${top.map((it, idx) => {
+            const clickable = it.vyrobek_id && it.vyrobek_id > 0;
+            const baseBg = idx === 0 ? '#FFF8E5' : '#F7F8FA';
+            const hoverBg = idx === 0 ? '#FFEEC2' : '#EFF1F4';
+            return `
+              <div ${clickable ? `onclick="editVyrobek(${it.vyrobek_id})" title="Klikni pro detail výrobku" style="cursor:pointer;"` : ''} style="display:flex;justify-content:space-between;gap:8px;padding:6px 10px;background:${baseBg};border-radius:6px;font-size:12px;align-items:center;${clickable ? 'cursor:pointer;transition:background 0.12s ease' : ''}" ${clickable ? `onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='${baseBg}'"` : ''}>
+                <span style="display:flex;align-items:center;gap:6px;min-width:0">
+                  <span style="font-size:11px;color:var(--text-3);min-width:18px">#${idx + 1}</span>
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.vyrobek_nazev || '—')}">${esc((it.vyrobek_nazev || '—').slice(0, 32))}</span>
+                </span>
+                <span style="display:flex;gap:8px;align-items:center;white-space:nowrap;font-variant-numeric:tabular-nums">
+                  <strong style="color:#BA7517">${parseFloat(it.mnozstvi_sum).toFixed(parseFloat(it.mnozstvi_sum) % 1 ? 1 : 0)}×</strong>
+                  <span style="color:var(--text-3);font-size:11px">${fmtCZK(it.trzba_sum)}</span>
+                </span>
+              </div>
+            `;
+          }).join('')}
         </div>
       </div>
     ` : ''}
@@ -16928,7 +16933,7 @@ async function renderPOSLauncher() {
         <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">🧾 Poslední účtenky</div>
         <div style="display:flex;flex-direction:column;gap:4px;max-height:280px;overflow:auto">
           ${orders.map(o => `
-            <div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;padding:6px 10px;background:#F7F8FA;border-radius:6px;font-size:12px;align-items:center">
+            <div onclick="openObjednavkaDetail(${o.id})" title="Klikni pro detail účtenky" style="display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;padding:6px 10px;background:#F7F8FA;border-radius:6px;font-size:12px;align-items:center;cursor:pointer;transition:background 0.12s ease" onmouseover="this.style.background='#FFF8E5'" onmouseout="this.style.background='#F7F8FA'">
               <span style="font-size:14px" title="${esc(o.pos_typ || '')}">${typIcon(o.pos_typ)}</span>
               <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                 <strong style="font-family:monospace;font-size:11px">${esc((o.cislo || '—').slice(-8))}</strong>

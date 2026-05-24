@@ -1153,8 +1153,9 @@
                 <tbody>
                   ${orders.map(o => {
                     const time = (o.datum_objednani || '').slice(11, 16);
+                    // 🆕 v2.9.308 — celý řádek clickable → otevře detail modal
                     return `
-                      <tr data-id="${o.id}">
+                      <tr data-id="${o.id}" onclick="posShowReceiptDetail(${o.id})" style="cursor:pointer" title="Klikni pro detail účtenky">
                         <td><strong>${time}</strong></td>
                         <td><span style="font-family:monospace;font-weight:700">${esc(o.cislo)}</span></td>
                         <td>${esc(o.odberatel_nazev || '—')}${o.pos_uzivatel ? `<div style="font-size:11px;color:#9097a3">obsluhuje ${esc(o.pos_uzivatel)}</div>` : ''}</td>
@@ -1164,10 +1165,10 @@
                         <td>${STAV_BADGE(o.stav)}</td>
                         <td class="num" style="font-weight:800;font-size:15px">${fmt(o.castka_celkem)} Kč</td>
                         <td>
-                          <button class="pos-hist-btn pos-hist-btn-edit" onclick="posOpenOrderInAdmin(${o.id})" title="Otevřít v admin pro úpravu / fakturu / vrácení">
+                          <button class="pos-hist-btn pos-hist-btn-edit" onclick="event.stopPropagation();posOpenOrderInAdmin(${o.id})" title="Otevřít v admin pro úpravu / fakturu / vrácení">
                             ✏️ Upravit
                           </button>
-                          <button class="pos-hist-btn" onclick="posReprintReceipt(${o.id})" title="Znovu vytisknout účtenku">
+                          <button class="pos-hist-btn" onclick="event.stopPropagation();posReprintReceipt(${o.id})" title="Znovu vytisknout účtenku">
                             🖨️
                           </button>
                         </td>
@@ -1217,6 +1218,120 @@
       'width=' + Math.min(1400, screen.availWidth) +
       ',height=' + Math.min(900, screen.availHeight) +
       ',toolbar=no,menubar=no,resizable=yes,scrollbars=yes');
+  };
+
+  // ─── 🆕 v2.9.308 — Detail účtenky (modal) ─────────────────────
+  // Klik na řádek v Účtenkách → modal s položkami, totals, akce
+  window.posShowReceiptDetail = async function(objId) {
+    modal('📜 Účtenka', '<div style="text-align:center;padding:40px;color:#9097a3">⏳ Načítám detail…</div>', '');
+    let d;
+    try { d = await api('admin_pos.php?action=quick_order_detail&id=' + objId); }
+    catch (e) {
+      modal('⚠️ Chyba', `<div style="padding:20px;color:#dc2626">Detail účtenky se nepodařilo načíst: ${esc(e.message)}</div>`,
+        `<button class="btn-secondary" onclick="POS._closeModal()">Zavřít</button>`);
+      return;
+    }
+    const time = (d.datum_objednani || '').replace('T', ' ').slice(0, 16);
+    const polozky = Array.isArray(d.polozky) ? d.polozky : [];
+    const typLabel = TYP_LABEL[d.pos_typ] || d.pos_typ || '—';
+    const payLabel = PAY_LABEL[d.pos_payment] || d.pos_payment || '—';
+    const tip = parseFloat(d.pos_tip) || 0;
+    const polozkySum = polozky.reduce((s, p) => s + (parseFloat(p.cena_bez_dph) || 0) * (parseFloat(p.mnozstvi) || 0) * (1 + (parseFloat(p.sazba_dph) || 12) / 100), 0);
+
+    const body = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;font-size:13px">
+        <div style="background:#F7F8FA;padding:10px 12px;border-radius:8px">
+          <div style="color:#9097a3;font-size:11px;text-transform:uppercase;margin-bottom:2px">Čas</div>
+          <strong>${esc(time)}</strong>
+        </div>
+        <div style="background:#F7F8FA;padding:10px 12px;border-radius:8px">
+          <div style="color:#9097a3;font-size:11px;text-transform:uppercase;margin-bottom:2px">Číslo</div>
+          <strong style="font-family:monospace">${esc(d.cislo || '—')}</strong>
+        </div>
+        <div style="background:#F7F8FA;padding:10px 12px;border-radius:8px">
+          <div style="color:#9097a3;font-size:11px;text-transform:uppercase;margin-bottom:2px">Typ</div>
+          <strong>${esc(typLabel)}</strong>
+        </div>
+        <div style="background:#F7F8FA;padding:10px 12px;border-radius:8px">
+          <div style="color:#9097a3;font-size:11px;text-transform:uppercase;margin-bottom:2px">Platba</div>
+          <strong>${esc(payLabel)}</strong>
+        </div>
+        ${d.pos_uzivatel ? `
+          <div style="background:#F7F8FA;padding:10px 12px;border-radius:8px;grid-column:1/-1">
+            <div style="color:#9097a3;font-size:11px;text-transform:uppercase;margin-bottom:2px">Prodavač</div>
+            <strong>👤 ${esc(d.pos_uzivatel)}</strong>
+          </div>
+        ` : ''}
+        ${d.odberatel_nazev && d.odberatel_nazev !== '—' ? `
+          <div style="background:#EFF6FF;padding:10px 12px;border-radius:8px;grid-column:1/-1">
+            <div style="color:#0C447C;font-size:11px;text-transform:uppercase;margin-bottom:2px">Zákazník</div>
+            <strong>${esc(d.odberatel_nazev)}</strong>
+          </div>
+        ` : ''}
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:#5C6370;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">🛒 Položky (${polozky.length})</div>
+      ${polozky.length === 0
+        ? `<div style="padding:20px;text-align:center;color:#9097a3;background:#FAFAFA;border-radius:8px;font-size:13px">Žádné položky</div>`
+        : `
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:#F7F8FA;color:#5C6370">
+                <th style="text-align:left;padding:8px 10px;font-weight:600">Položka</th>
+                <th style="text-align:right;padding:8px 10px;font-weight:600;width:70px">Mn.</th>
+                <th style="text-align:right;padding:8px 10px;font-weight:600;width:100px">Cena/ks</th>
+                <th style="text-align:right;padding:8px 10px;font-weight:600;width:100px">Celkem</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${polozky.map(p => {
+                const mn = parseFloat(p.mnozstvi) || 0;
+                const cs = (parseFloat(p.cena_bez_dph) || 0) * (1 + (parseFloat(p.sazba_dph) || 12) / 100);
+                const sum = mn * cs;
+                return `
+                  <tr style="border-bottom:1px solid #EFF1F4">
+                    <td style="padding:8px 10px">
+                      ${esc(p.vyrobek_nazev)}
+                      ${p.poznamka ? `<div style="font-size:11px;color:#9097a3;margin-top:2px">💬 ${esc(p.poznamka)}</div>` : ''}
+                    </td>
+                    <td style="text-align:right;padding:8px 10px;font-variant-numeric:tabular-nums">${mn % 1 ? mn.toFixed(2) : mn.toFixed(0)}${p.jednotka && p.jednotka !== 'ks' ? ' ' + esc(p.jednotka) : '×'}</td>
+                    <td style="text-align:right;padding:8px 10px;font-variant-numeric:tabular-nums">${fmt(cs)}</td>
+                    <td style="text-align:right;padding:8px 10px;font-weight:700;font-variant-numeric:tabular-nums">${fmt(sum)} Kč</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `}
+
+      <div style="margin-top:14px;padding-top:12px;border-top:2px solid #E1E5EB">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#5C6370;padding:3px 0">
+          <span>Mezisoučet (bez DPH)</span>
+          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_bez_dph) || 0)} Kč</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#5C6370;padding:3px 0">
+          <span>DPH</span>
+          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_dph) || 0)} Kč</span>
+        </div>
+        ${tip > 0 ? `
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:#BA7517;padding:3px 0">
+            <span>Spropitné</span>
+            <span style="font-variant-numeric:tabular-nums">${fmt(tip)} Kč</span>
+          </div>
+        ` : ''}
+        <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:800;color:#1a1d24;padding:8px 0 0;border-top:1px solid #E1E5EB;margin-top:6px">
+          <span>CELKEM</span>
+          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_celkem) || 0)} Kč</span>
+        </div>
+      </div>
+    `;
+
+    const foot = `
+      <button class="btn-secondary" onclick="POS._closeModal()">Zavřít</button>
+      <button class="btn-secondary" onclick="posReprintReceipt(${objId})">🖨️ Reprint</button>
+      <button class="btn-primary" onclick="POS._closeModal();posOpenOrderInAdmin(${objId})">✏️ Upravit v adminu</button>
+    `;
+    modal('📜 Účtenka ' + (d.cislo || ''), body, foot);
   };
 
   // ─── Re-tisk účtenky ─────────────────────────────────────────
