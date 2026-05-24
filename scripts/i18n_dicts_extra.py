@@ -16438,6 +16438,73 @@ SK_EXTRA = {
     '✓ V pořádku': '✓ V poriadku',
     '⚠ S připomínkami': '⚠ S pripomienkami',
     '✗ Nevyhovuje': '✗ Nevyhovuje',
+
+    # --- v2.9.302 — Nutri labels (POS štítky) ---
+    '🍎 Nutri tabulka': '🍎 Nutričná tabuľka',
+    '⚡ Energie kJ': '⚡ Energia kJ',
+    '🔥 Energie kcal': '🔥 Energia kcal',
+    '🧈 Tuky': '🧈 Tuky',
+    '🌾 Sacharidy': '🌾 Sacharidy',
+    '💪 Bílkoviny': '💪 Bielkoviny',
+    '🧂 Sůl': '🧂 Soľ',
+
+    # --- v2.9.303 — POS launcher (admin) ---
+    '🛒 Dnešní prodeje': '🛒 Dnešné predaje',
+    '🏆 TOP prodané dnes': '🏆 TOP predané dnes',
+    '🧾 Poslední účtenky': '🧾 Posledné účtenky',
+    'Touch-grid register pro pultový prodej': 'Touch-grid pokladnica pre pultový predaj',
+    '🚀 Otevřít POS v novém okně': '🚀 Otvoriť POS v novom okne',
+    '↗️ Otevřít v této záložce': '↗️ Otvoriť v tejto záložke',
+    'ⓘ Co umí POS': 'ⓘ Čo vie POS',
+    'Tržby': 'Tržby',
+    'Účtenek': 'Účteniek',
+    'Tipy': 'Prepitné',
+    'Dnes ještě žádné POS prodeje.': 'Dnes ešte žiadne POS predaje.',
+    'Otevři POS Kasu a začni!': 'Otvor POS Pokladnicu a začni!',
+    'Klikni pro detail účtenky': 'Klikni pre detail účtenky',
+    'Klikni pro detail výrobku': 'Klikni pre detail výrobku',
+    'Obnovit data': 'Obnoviť dáta',
+
+    # --- v2.9.305 — Notifikace ---
+    'Klikni pro rozbalení': 'Klikni pre rozbalenie',
+
+    # --- v2.9.308 — POS receipt detail modal ---
+    '📜 Účtenka': '📜 Účtenka',
+    'Načítám detail…': 'Načítavam detail…',
+    'Detail účtenky se nepodařilo načíst': 'Detail účtenky sa nepodarilo načítať',
+    'Prodavač': 'Predavač',
+    'Zákazník': 'Zákazník',
+    '🛒 Položky': '🛒 Položky',
+    'Žádné položky': 'Žiadne položky',
+    'Mn.': 'Mn.',
+    'Cena/ks': 'Cena/ks',
+    'Mezisoučet (bez DPH)': 'Medzisúčet (bez DPH)',
+    '🖨️ Reprint': '🖨️ Reprint',
+    '✏️ Upravit v adminu': '✏️ Upraviť v admine',
+
+    # --- v2.9.310 — POS rychlé volby editor ---
+    '⚙️ Rychlé volby pro „volnou položku" v POS': '⚙️ Rýchle voľby pre „voľnú položku" v POS',
+    'Tlačítka pod formulářem volné položky — typické položky (Korkovné, Obal, Sleva…). Záporná cena = sleva.': 'Tlačidlá pod formulárom voľnej položky — typické položky (Korkové, Obal, Zľava…). Záporná cena = zľava.',
+    '↺ Reset': '↺ Reset',
+    '+ Přidat preset': '+ Pridať preset',
+    'Žádné presety. Klikni „+ Přidat preset" níže.': 'Žiadne presety. Klikni „+ Pridať preset" nižšie.',
+    'Vrátit na továrenské 4 (Korkovné, Obal, Sleva, Poplatek)?': 'Vrátiť na továrenské 4 (Korkové, Obal, Zľava, Poplatok)?',
+    'Některý preset nemá vyplněný název. Doplň ho nebo smaž.': 'Niektorý preset nemá vyplnený názov. Doplň ho alebo zmaž.',
+    'Resetováno na továrenské defaulty.': 'Resetované na továrenské defaulty.',
+    'Korkovné': 'Korkové',
+    'Obal / krabice': 'Obal / krabica',
+    'Sleva (volná)': 'Zľava (voľná)',
+    'Servis / poplatek': 'Servis / poplatok',
+    '💰 Sleva': '💰 Zľava',
+    '🎁 Spropitné': '🎁 Prepitné',
+
+    # --- v2.9.310 — POS volná položka modal ---
+    'Cena (bez DPH) *': 'Cena (bez DPH) *',
+    'Název položky *': 'Názov položky *',
+    'např. Korkovné, Sleva pro zaměstnance…': 'napr. Korkové, Zľava pre zamestnancov…',
+    'Vyplňte název položky': 'Vyplňte názov položky',
+    'Vyplňte cenu': 'Vyplňte cenu',
+    'Neplatné množství': 'Neplatné množstvo',
 }
 
 DE_EXTRA = {
@@ -32735,6 +32802,73 @@ DE_EXTRA = {
     # --- HACCP_KB_TEMPLATE measures ---
     'Ověření dodavatelů, atesty, vizuální kontrola obalů a DMT, kontrola teploty': 'Lieferantenüberprüfung, Atteste, Sichtkontrolle von Verpackungen und MHD, Temperaturkontrolle',
     'Atesty dodavatelů, kontrola specifikací': 'Lieferantenatteste, Spezifikationskontrolle',
+
+    # --- v2.9.302 — Nutri labels (POS štítky) ---
+    '🍎 Nutri tabulka': '🍎 Nährwerttabelle',
+    '⚡ Energie kJ': '⚡ Energie kJ',
+    '🔥 Energie kcal': '🔥 Energie kcal',
+    '🧈 Tuky': '🧈 Fett',
+    '🌾 Sacharidy': '🌾 Kohlenhydrate',
+    '💪 Bílkoviny': '💪 Eiweiß',
+    '🧂 Sůl': '🧂 Salz',
+
+    # --- v2.9.303 — POS launcher (admin) ---
+    '🛒 Dnešní prodeje': '🛒 Heutige Verkäufe',
+    '🏆 TOP prodané dnes': '🏆 TOP verkauft heute',
+    '🧾 Poslední účtenky': '🧾 Letzte Belege',
+    'Touch-grid register pro pultový prodej': 'Touch-Grid-Kasse für Thekenverkauf',
+    '🚀 Otevřít POS v novém okně': '🚀 POS in neuem Fenster öffnen',
+    '↗️ Otevřít v této záložce': '↗️ In diesem Tab öffnen',
+    'ⓘ Co umí POS': 'ⓘ POS-Funktionen',
+    'Tržby': 'Umsatz',
+    'Účtenek': 'Belege',
+    'Tipy': 'Trinkgeld',
+    'Dnes ještě žádné POS prodeje.': 'Heute noch keine POS-Verkäufe.',
+    'Otevři POS Kasu a začni!': 'POS-Kasse öffnen und starten!',
+    'Klikni pro detail účtenky': 'Klick für Beleg-Details',
+    'Klikni pro detail výrobku': 'Klick für Produkt-Details',
+    'Obnovit data': 'Daten aktualisieren',
+
+    # --- v2.9.305 — Notifikace ---
+    'Klikni pro rozbalení': 'Klick zum Aufklappen',
+
+    # --- v2.9.308 — POS receipt detail modal ---
+    '📜 Účtenka': '📜 Beleg',
+    'Načítám detail…': 'Lade Detail…',
+    'Detail účtenky se nepodařilo načíst': 'Beleg-Detail konnte nicht geladen werden',
+    'Prodavač': 'Verkäufer',
+    'Zákazník': 'Kunde',
+    '🛒 Položky': '🛒 Artikel',
+    'Žádné položky': 'Keine Artikel',
+    'Mn.': 'Anz.',
+    'Cena/ks': 'Preis/Stk',
+    'Mezisoučet (bez DPH)': 'Zwischensumme (ohne MwSt)',
+    '🖨️ Reprint': '🖨️ Nachdruck',
+    '✏️ Upravit v adminu': '✏️ Im Admin bearbeiten',
+
+    # --- v2.9.310 — POS rychlé volby editor ---
+    '⚙️ Rychlé volby pro „volnou položku" v POS': '⚙️ Schnellvorlagen für „freien Artikel" im POS',
+    'Tlačítka pod formulářem volné položky — typické položky (Korkovné, Obal, Sleva…). Záporná cena = sleva.': 'Schaltflächen unter dem Freier-Artikel-Formular — typische Posten (Korkengeld, Verpackung, Rabatt…). Negativer Preis = Rabatt.',
+    '↺ Reset': '↺ Zurücksetzen',
+    '+ Přidat preset': '+ Vorlage hinzufügen',
+    'Žádné presety. Klikni „+ Přidat preset" níže.': 'Keine Vorlagen. Klick unten auf „+ Vorlage hinzufügen".',
+    'Vrátit na továrenské 4 (Korkovné, Obal, Sleva, Poplatek)?': 'Auf werkseitige 4 zurücksetzen (Korkengeld, Verpackung, Rabatt, Gebühr)?',
+    'Některý preset nemá vyplněný název. Doplň ho nebo smaž.': 'Eine Vorlage hat keinen Namen. Ausfüllen oder löschen.',
+    'Resetováno na továrenské defaulty.': 'Auf Werkseinstellungen zurückgesetzt.',
+    'Korkovné': 'Korkengeld',
+    'Obal / krabice': 'Verpackung / Karton',
+    'Sleva (volná)': 'Rabatt (frei)',
+    'Servis / poplatek': 'Service / Gebühr',
+    '💰 Sleva': '💰 Rabatt',
+    '🎁 Spropitné': '🎁 Trinkgeld',
+
+    # --- v2.9.310 — POS volná položka modal ---
+    'Cena (bez DPH) *': 'Preis (ohne MwSt) *',
+    'Název položky *': 'Artikelname *',
+    'např. Korkovné, Sleva pro zaměstnance…': 'z.B. Korkengeld, Mitarbeiterrabatt…',
+    'Vyplňte název položky': 'Artikelname ausfüllen',
+    'Vyplňte cenu': 'Preis ausfüllen',
+    'Neplatné množství': 'Ungültige Menge',
     'Dodržení podmínek skladování, FIFO, kontrola teploty a vlhkosti': 'Einhaltung der Lagerbedingungen, FIFO, Temperatur- und Feuchtigkeitskontrolle',
     'Hygiena pracoviště a pracovníků, dezinfekce nářadí': 'Hygiene des Arbeitsplatzes und der Mitarbeiter, Desinfektion der Werkzeuge',
     'Kontrola teploty pece a doby pečení dle receptury': 'Kontrolle der Ofentemperatur und Backzeit gemäß Rezept',

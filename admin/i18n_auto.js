@@ -24162,6 +24162,73 @@ const I18N_PHRASES = [
   ['Rychlý export — CSV (Excel / účetní)', 'Quick export — CSV (Excel / accounting)', 'Exportación rápida — CSV (Excel / contabilidad)'],
   ['Smazat / deaktivovat sklad', 'Delete / deactivate warehouse', 'Eliminar / desactivar almacén'],
   ['Nelze smazat — sklad obsahuje položek s nenulovým stavem', 'Cannot delete — warehouse contains items with non-zero stock', 'No se puede eliminar — el almacén contiene artículos con stock'],
+
+  // ─── v2.9.302 — Nutri labels (POS štítky) ───
+  ['🍎 Nutri tabulka', '🍎 Nutrition table', '🍎 Tabla nutricional'],
+  ['⚡ Energie kJ', '⚡ Energy kJ', '⚡ Energía kJ'],
+  ['🔥 Energie kcal', '🔥 Energy kcal', '🔥 Energía kcal'],
+  ['🧈 Tuky', '🧈 Fat', '🧈 Grasas'],
+  ['🌾 Sacharidy', '🌾 Carbohydrates', '🌾 Carbohidratos'],
+  ['💪 Bílkoviny', '💪 Protein', '💪 Proteínas'],
+  ['🧂 Sůl', '🧂 Salt', '🧂 Sal'],
+
+  // ─── v2.9.303 — POS launcher hub (admin → Restaurace → POS Kasa) ───
+  ['🛒 Dnešní prodeje', '🛒 Today\'s sales', '🛒 Ventas de hoy'],
+  ['🏆 TOP prodané dnes', '🏆 TOP sold today', '🏆 TOP vendidos hoy'],
+  ['🧾 Poslední účtenky', '🧾 Latest receipts', '🧾 Últimos recibos'],
+  ['Touch-grid register pro pultový prodej', 'Touch-grid register for counter sales', 'Caja touch-grid para ventas en mostrador'],
+  ['🚀 Otevřít POS v novém okně', '🚀 Open POS in new window', '🚀 Abrir POS en nueva ventana'],
+  ['↗️ Otevřít v této záložce', '↗️ Open in this tab', '↗️ Abrir en esta pestaña'],
+  ['ⓘ Co umí POS', 'ⓘ POS features', 'ⓘ Características del POS'],
+  ['Tržby', 'Revenue', 'Ingresos'],
+  ['Účtenek', 'Receipts', 'Recibos'],
+  ['Tipy', 'Tips', 'Propinas'],
+  ['Dnes ještě žádné POS prodeje.', 'No POS sales yet today.', 'Aún no hay ventas POS hoy.'],
+  ['Otevři POS Kasu a začni!', 'Open POS Cashier and start!', '¡Abre la Caja POS y comienza!'],
+  ['Klikni pro detail účtenky', 'Click for receipt detail', 'Haz clic para ver detalle'],
+  ['Klikni pro detail výrobku', 'Click for product detail', 'Haz clic para ver el producto'],
+  ['Obnovit data', 'Refresh data', 'Actualizar datos'],
+
+  // ─── v2.9.305 — Notifikace + dashboard alerts ───
+  ['Klikni pro rozbalení', 'Click to expand', 'Haz clic para expandir'],
+
+  // ─── v2.9.308 — POS receipt detail modal ───
+  ['📜 Účtenka', '📜 Receipt', '📜 Recibo'],
+  ['Načítám detail…', 'Loading detail…', 'Cargando detalle…'],
+  ['Detail účtenky se nepodařilo načíst', 'Failed to load receipt detail', 'No se pudo cargar el detalle del recibo'],
+  ['Prodavač', 'Cashier', 'Cajero'],
+  ['Zákazník', 'Customer', 'Cliente'],
+  ['🛒 Položky', '🛒 Items', '🛒 Artículos'],
+  ['Žádné položky', 'No items', 'Sin artículos'],
+  ['Mn.', 'Qty', 'Cant.'],
+  ['Cena/ks', 'Price/pc', 'Precio/ud'],
+  ['Mezisoučet (bez DPH)', 'Subtotal (excl. VAT)', 'Subtotal (sin IVA)'],
+  ['🖨️ Reprint', '🖨️ Reprint', '🖨️ Reimprimir'],
+  ['✏️ Upravit v adminu', '✏️ Edit in admin', '✏️ Editar en admin'],
+
+  // ─── v2.9.310 — POS rychlé volby editor ───
+  ['⚙️ Rychlé volby pro „volnou položku" v POS', '⚙️ Quick presets for POS "free item"', '⚙️ Preajustes rápidos para "artículo libre" en POS'],
+  ['Tlačítka pod formulářem volné položky — typické položky (Korkovné, Obal, Sleva…). Záporná cena = sleva.', 'Buttons under the free item form — typical items (Corkage, Packaging, Discount…). Negative price = discount.', 'Botones bajo el formulario de artículo libre — artículos típicos (Descorche, Embalaje, Descuento…). Precio negativo = descuento.'],
+  ['↺ Reset', '↺ Reset', '↺ Restablecer'],
+  ['+ Přidat preset', '+ Add preset', '+ Añadir preajuste'],
+  ['Žádné presety. Klikni „+ Přidat preset" níže.', 'No presets. Click "+ Add preset" below.', 'Sin preajustes. Haz clic en "+ Añadir preajuste" abajo.'],
+  ['Vrátit na továrenské 4 (Korkovné, Obal, Sleva, Poplatek)?', 'Reset to factory 4 (Corkage, Packaging, Discount, Fee)?', '¿Restablecer a los 4 de fábrica (Descorche, Embalaje, Descuento, Tarifa)?'],
+  ['Některý preset nemá vyplněný název. Doplň ho nebo smaž.', 'Some preset has no name. Fill it in or delete it.', 'Algún preajuste no tiene nombre. Complétalo o elimínalo.'],
+  ['Resetováno na továrenské defaulty.', 'Reset to factory defaults.', 'Restablecido a valores de fábrica.'],
+  ['Korkovné', 'Corkage', 'Descorche'],
+  ['Obal / krabice', 'Packaging / box', 'Embalaje / caja'],
+  ['Sleva (volná)', 'Discount (free)', 'Descuento (libre)'],
+  ['Servis / poplatek', 'Service / fee', 'Servicio / tarifa'],
+  ['💰 Sleva', '💰 Discount', '💰 Descuento'],
+  ['🎁 Spropitné', '🎁 Tip', '🎁 Propina'],
+
+  // ─── v2.9.310 — POS volná položka modal extras ───
+  ['Cena (bez DPH) *', 'Price (excl. VAT) *', 'Precio (sin IVA) *'],
+  ['Název položky *', 'Item name *', 'Nombre del artículo *'],
+  ['např. Korkovné, Sleva pro zaměstnance…', 'e.g. Corkage, Employee discount…', 'p.ej. Descorche, Descuento empleado…'],
+  ['Vyplňte název položky', 'Fill in item name', 'Rellena el nombre del artículo'],
+  ['Vyplňte cenu', 'Fill in price', 'Rellena el precio'],
+  ['Neplatné množství', 'Invalid quantity', 'Cantidad no válida'],
 ];
 
 // Build lookup index pro O(1) access
