@@ -5222,7 +5222,7 @@ const VYROBA_SUBTABS = [
   { key: 'sklad',      label: '📦 Stav skladu',    nav: 'sklad' },
   { key: 'haccp',      label: '🛡️ HACCP',          nav: 'haccp' },        // 🆕 emoji = bezpečnost potravin
   { key: 'kalkulace',  label: '🧮 Kalkulace',      nav: 'vyrobni_kalkulace' }, // 🆕 emoji = kalkulace
-  { key: 'prehled',    label: '📊 Přehled',        nav: 'export_vyroby' },     // 🆕 zkráceno (bez 'výroby')
+  { key: 'prehled',    label: '📈 Přehled',        nav: 'export_vyroby' },     // 🆕 v2.9.257 — 📊 → 📈 (odlišení od Dashboard 📊 Přehled)
 ];
 
 async function renderVyrobaHub() {
@@ -31161,7 +31161,7 @@ async function renderExportVyroby(filters = {}) {
   c.innerHTML = `
     <div class="page-head">
       <div>
-        <h1 class="page-title">📊 Přehled výroby</h1>
+        <h1 class="page-title">📈 Přehled výroby</h1>
         <p class="page-sub">Souhrn objednaných výrobků za období · zdroj: objednávky (kromě zrušených), datum dodání</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
