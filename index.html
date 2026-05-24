@@ -4366,8 +4366,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         <h3 data-i18n="contact_info_t">Mluvte s námi</h3>
         <p data-i18n="contact_info_d">Rádi vám pomůžeme s výběrem balíčku, nasazením i konfigurací. Bez závazku.</p>
         <ul>
-          <li>📧 <a href="mailto:info@appek.cz">info@appek.cz</a></li>
-          <li>📞 <a href="tel:+420733700808">+420 733 700 808</a></li>
+          <!-- 🆕 v2.9.293 — data-biz atributy pro auto-load z /api/business_info.php (vendor) -->
+          <li>📧 <a href="mailto:info@appek.cz" data-biz-email>info@appek.cz</a></li>
+          <li>📞 <a href="tel:+420733700808" data-biz-phone>+420 733 700 808</a></li>
           <li><span data-i18n="contact_hours">🕐 Po-Pá 9:00-17:00 (CET)</span></li>
           <li><span data-i18n="contact_region">🌍 ČR, SK, EU, mezinárodně</span></li>
         </ul>
@@ -4426,7 +4427,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
       <h5 data-i18n="footer_company">Společnost</h5>
       <ul>
         <li><a href="#contact" data-i18n="nav_contact">Kontakt</a></li>
-        <li><a href="mailto:info@appek.cz" data-i18n="footer_email">E-mail</a></li>
+        <li><a href="mailto:info@appek.cz" data-i18n="footer_email" data-biz-email>E-mail</a></li>
       </ul>
     </div>
     <div>
@@ -5131,6 +5132,50 @@ document.addEventListener('keydown', (e) => {
     if (btn) btn.setAttribute('aria-expanded', 'false');
   }
 });
+
+// =============================================================
+// 🆕 v2.9.293 — Business info loader z /api/business_info.php (vendor settings)
+// =============================================================
+// Centrální zdroj pravdy: vendor/business-info.php → vendor_settings tabulka.
+// Pokud vendor nakonfiguroval business_email / business_phone, použijí se;
+// jinak zůstanou hardcoded fallbacky v HTML (info@appek.cz, 733 700 808).
+(async function loadBusinessInfo() {
+  try {
+    const r = await fetch('/api/business_info.php', { cache: 'no-cache' });
+    if (!r.ok) return;
+    const biz = await r.json();
+    if (biz.error) return;
+
+    // Email — všechny <... data-biz-email> elementy
+    const email = biz.business_email || biz.business_support_email;
+    if (email) {
+      document.querySelectorAll('[data-biz-email]').forEach(el => {
+        const isLink = el.tagName === 'A';
+        if (isLink) el.href = 'mailto:' + email;
+        if (el.textContent.includes('@')) el.textContent = email;
+      });
+    }
+    // Telefon
+    const phone = biz.business_phone;
+    if (phone) {
+      const phoneClean = '+' + phone.replace(/[^\d]/g, '');
+      document.querySelectorAll('[data-biz-phone]').forEach(el => {
+        if (el.tagName === 'A') el.href = 'tel:' + phoneClean;
+        el.textContent = phone;
+      });
+    }
+    // Adresa (volitelně do dalších míst pomocí data-biz-address)
+    const addr = biz.business_address_full;
+    if (addr) {
+      document.querySelectorAll('[data-biz-address]').forEach(el => { el.textContent = addr; });
+    }
+    // Obchodní jméno
+    const name = biz.business_name;
+    if (name) {
+      document.querySelectorAll('[data-biz-name]').forEach(el => { el.textContent = name; });
+    }
+  } catch (e) { /* silent — hardcoded fallback zůstává */ }
+})();
 </script>
 
 <!-- 📱 Sticky CTA pro mobil -->
