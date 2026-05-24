@@ -12620,15 +12620,19 @@ html.theme-apple .btn-cmdk-trigger { box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 html.theme-dark .btn-notif { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
 html.theme-dark .btn-notif-badge { border-color: #1d1d1f; }
 
+/* 🆕 v2.9.264 — Notifikace panel refresh (Dashboard alerts style) */
 .notif-panel {
   position: fixed;
   top: 60px;
   right: 16px;
-  width: min(420px, calc(100vw - 32px));
-  max-height: 70vh;
+  width: min(440px, calc(100vw - 32px));
+  max-height: 75vh;
   background: var(--surface, #fff);
-  border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 4px 20px rgba(0,0,0,0.1);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.04),
+    0 8px 24px rgba(0,0,0,0.10),
+    0 24px 60px rgba(186,117,23,0.12);
   border: 1px solid var(--border, #e8e8ed);
   display: flex;
   flex-direction: column;
@@ -12637,6 +12641,7 @@ html.theme-dark .btn-notif-badge { border-color: #1d1d1f; }
   transform: translateY(-8px) scale(0.97);
   pointer-events: none;
   transition: all 0.18s ease-out;
+  overflow: hidden;
 }
 .notif-panel.show {
   opacity: 1;
@@ -12647,6 +12652,50 @@ html.theme-dark .btn-notif-badge { border-color: #1d1d1f; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #FFF8E7 0%, #FEF3C7 100%);
+  border-bottom: 1px solid #FBBF24;
+}
+.notif-head h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #854F0B;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.notif-head .notif-actions button {
+  font-size: 12px;
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(133,79,11,0.2);
+  border-radius: 8px;
+  color: #854F0B;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.notif-head .notif-actions button:hover {
+  background: #fff;
+  border-color: #BA7517;
+}
+.notif-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.notif-foot {
+  padding: 10px 14px;
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: center;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.notif-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 14px;
 }
 
 .role-badge { padding: 2px 8px; background: var(--primary-light); color: var(--primary-dark); border-radius: 999px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -14084,19 +14133,26 @@ aside.sidebar::after { display: none !important; content: '' !important; }
 
 .notif-actions button:hover { background: var(--surface-2, #f5f5f7); color: var(--text); }
 
-.notif-list { overflow-y: auto; flex: 1; padding: 6px 8px; }
+/* 🆕 v2.9.264 — .notif-list padding override (panel má vlastní) */
+.notif-panel .notif-list { padding: 6px 8px; }
 
 .notif-item {
   display: flex;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background 0.1s;
+  transition: all 0.15s ease;
   position: relative;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
 }
 
-.notif-item:hover { background: var(--surface-2, #f5f5f7); }
+.notif-item:hover {
+  background: var(--surface-2, #f5f5f7);
+  border-color: var(--primary-border);
+  transform: translateX(2px);
+}
 
 .notif-item.is-unread::before {
   content: '';
