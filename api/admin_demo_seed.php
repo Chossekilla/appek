@@ -591,10 +591,13 @@ if ($action === 'apply') {
                     ORDER BY v.id LIMIT 10
                 ")->fetchAll();
 
+                // 🆕 v2.9.295 — defenzivně detekuj zda `aktivni` sloupec existuje (může chybět ve staré DB)
+                $odbColsList = $pdo->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odberatele'")->fetchAll(PDO::FETCH_COLUMN);
+                $hasAktivni = in_array('aktivni', $odbColsList, true);
+                $aktivniWhere = $hasAktivni ? "COALESCE(aktivni, 1) = 1 AND " : "";
                 $odbStmt = $pdo->query("
                     SELECT id, nazev FROM odberatele
-                    WHERE COALESCE(aktivni, 1) = 1
-                      AND nazev != 'POS Walk-in'
+                    WHERE {$aktivniWhere} nazev != 'POS Walk-in'
                     ORDER BY id LIMIT 8
                 ");
                 $odberatelePool = $odbStmt->fetchAll();
@@ -1308,7 +1311,7 @@ if ($action === 'apply') {
         $stats['mista_dodani'] = 0;
         try {
             if ($johnDoeId) {
-                $cnt = (int) $pdo->prepare("SELECT COUNT(*) FROM mista_dodani WHERE odberatel_id = :id");
+                // 🆕 v2.9.295 — fix: byl tu dead code `$cnt = (int) $pdo->prepare(...)` → PDOStatement cast warning
                 $cntStmt = $pdo->prepare("SELECT COUNT(*) FROM mista_dodani WHERE odberatel_id = :id");
                 $cntStmt->execute(['id' => $johnDoeId]);
                 if ((int) $cntStmt->fetchColumn() === 0) {
@@ -1492,10 +1495,12 @@ if ($action === 'apply') {
             }
         } catch (Throwable $e) { /* optional */ }
 
-        $pdo->commit();
+        // 🆕 v2.9.295 — DDL (CREATE TABLE) v MySQL dělá implicit commit, takže outer
+        // commit/rollBack může selhat s "no active transaction". Bezpečný guard:
+        if ($pdo->inTransaction()) $pdo->commit();
         json_response($stats);
     } catch (Throwable $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) $pdo->rollBack();
         json_error('Seed selhal: ' . $e->getMessage(), 500);
     }
 }
