@@ -5166,11 +5166,9 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
     text-overflow: ellipsis !important;
     max-width: 100% !important;
   }
-  /* Lichý počet (7 Výroba sub-tabů → poslední sám v řádku) → span 3 (full row) */
-  .seg-tabs .seg-tab:nth-child(3n+1):last-child,
-  .vyroba-subtabs .vyroba-subtab:nth-child(3n+1):last-child {
-    grid-column: span 3 !important;
-  }
+  /* 🆕 v2.9.253 — Lichý počet (7 Výroba sub-tabů) zůstává span 1 (jen vlevo).
+     User: 'tu full row nech jenom button v levo, třeba se tam něco přidá.
+     a vypadá to divně.' — žádný full-row span. */
 }
 
 /* ━━━━━ MOBILE (<700px) — Skupina A 1 řádek + Skupina B kompaktnější fonts ━━━━━ */

@@ -4157,6 +4157,7 @@ async function renderObjednavky(filters = {}) {
       </div>
       <div class="bulk-bar-actions">
         <button class="btn-secondary" onclick="objBulkPreview()">📋 Náhled</button>
+        <button class="btn-secondary" onclick="objBulkEmail()" title="Odeslat PDF objednávek e-mailem odběratelům">✉️ Odeslat email</button>
         ${adminOnly('<button class="btn-primary" onclick="objBulkAction(\'dl\')">📃 Vytvořit DL</button>')}
         ${adminOnly('<button class="btn-primary btn-green" onclick="objBulkAction(\'fa\')">💰 Vytvořit FA</button>')}
         <button class="btn-link" onclick="objClearSelection()">✕ Zrušit výběr</button>
@@ -4270,6 +4271,67 @@ window.objBulkPreview = async function() {
       </div>
     `, 'wide');
   } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v2.9.253 — Bulk email pro vybrané objednávky (per objednávka PDF na email odběratele)
+window.objBulkEmail = async function() {
+  const ids = [...(state._objSelected || [])];
+  if (ids.length === 0) { alert('Vyber alespoň jednu objednávku.'); return; }
+
+  // Najdi objednávky v state._objList — potřebujeme cislo + odberatel_email
+  const list = state._objList || [];
+  const items = ids.map(id => list.find(o => o.id === id)).filter(Boolean);
+  const sEmailem = items.filter(o => (o.odberatel_email || '').trim() !== '');
+  const bezEmailu = items.filter(o => !(o.odberatel_email || '').trim());
+
+  if (sEmailem.length === 0) {
+    alert('⚠️ Žádná z vybraných objednávek nemá vyplněný e-mail odběratele.');
+    return;
+  }
+
+  let msg = `Odeslat PDF e-mailem pro ${sEmailem.length} ${sEmailem.length === 1 ? 'objednávku' : (sEmailem.length < 5 ? 'objednávky' : 'objednávek')}?`;
+  if (bezEmailu.length > 0) {
+    msg += `\n\n⚠️ ${bezEmailu.length} bez e-mailu (přeskočí):\n` + bezEmailu.slice(0, 5).map(o => `• ${o.cislo} — ${o.odberatel}`).join('\n');
+    if (bezEmailu.length > 5) msg += `\n... a další ${bezEmailu.length - 5}`;
+  }
+  if (!confirm(msg)) return;
+
+  // Progress toast
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--surface);color:var(--text);padding:14px 22px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:13px;font-weight:500;z-index:9999;border:1px solid var(--border)';
+  toast.innerHTML = `📧 Odesílám 0 / ${sEmailem.length}…`;
+  document.body.appendChild(toast);
+
+  let ok = 0, fail = 0;
+  const errs = [];
+  for (let i = 0; i < sEmailem.length; i++) {
+    const o = sEmailem[i];
+    toast.innerHTML = `📧 Odesílám ${i + 1} / ${sEmailem.length} — ${esc(o.cislo)}`;
+    try {
+      await api('admin_doklad_email.php', {
+        method: 'POST',
+        body: JSON.stringify({
+          typ: 'obj',
+          id: o.id,
+          emails: [o.odberatel_email.trim()],
+        }),
+      });
+      ok++;
+    } catch (e) {
+      fail++;
+      errs.push(`${o.cislo} (${o.odberatel}): ${e.message}`);
+    }
+  }
+  toast.remove();
+
+  // Finální shrnutí
+  let summary = `✅ Odesláno: ${ok}`;
+  if (fail > 0) summary += `\n❌ Selhalo: ${fail}\n\n` + errs.slice(0, 10).join('\n');
+  if (bezEmailu.length > 0) summary += `\n⏭️ Přeskočeno bez e-mailu: ${bezEmailu.length}`;
+  alert(summary);
+
+  // Zrušit výběr a refresh
+  objClearSelection();
 };
 
 window.objBulkAction = async function(typ) {
