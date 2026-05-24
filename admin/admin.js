@@ -5184,8 +5184,10 @@ async function renderSkladyInline() {
               ${s.poznamka ? `<div style="font-size:11.5px;color:var(--text-3);font-style:italic">${esc(s.poznamka)}</div>` : ''}
               <div style="display:flex;gap:6px;margin-top:auto;padding-top:8px;flex-wrap:wrap">
                 <button class="btn-primary" onclick="otevritSklad(${s.id}, '${esc(s.nazev)}', '${esc(s.kod)}')" style="font-size:12px;padding:6px 12px">📋 Detail</button>
-                <button class="btn-secondary" onclick="editSklad(${s.id})" style="font-size:12px;padding:6px 12px">✏️</button>
-                <button class="btn-secondary" onclick="smazatSklad(${s.id}, '${esc(s.nazev)}')" style="font-size:12px;padding:6px 12px;background:#fde7e9;color:#a8232f;border-color:#fde7e9">🗑️</button>
+                <button class="btn-secondary" onclick="editSklad(${s.id})" style="font-size:12px;padding:6px 12px" title="Upravit metadata skladu">✏️</button>
+                <button class="btn-secondary" onclick="exportSklad(${s.id}, 'pdf')" style="font-size:12px;padding:6px 12px" title="Rychlý export — HTML print-ready">📄</button>
+                <button class="btn-secondary" onclick="exportSklad(${s.id}, 'csv')" style="font-size:12px;padding:6px 12px" title="Rychlý export — CSV (Excel / účetní)">📊</button>
+                <button class="btn-secondary" onclick="smazatSklad(${s.id}, '${esc(s.nazev)}')" style="font-size:12px;padding:6px 12px;background:#fde7e9;color:#a8232f;border-color:#fde7e9" title="Smazat / deaktivovat sklad">🗑️</button>
               </div>
             </div>
           `).join('')}
@@ -5302,6 +5304,31 @@ window.smazatSklad = async function(id, nazev) {
   }
 };
 
+// 🆕 v2.9.232 — Export skladu (per-sklad: položky + volitelně historie pohybů)
+// Formáty: pdf (HTML print-ready, nové okno), csv (download), xml (download), json (download)
+window.exportSklad = function(skladId, format) {
+  if (!skladId) { alert('Chybí ID skladu'); return; }
+  const url = '../api/admin_sklad_export.php?sklad_id=' + skladId + '&format=' + encodeURIComponent(format);
+  if (format === 'pdf' || format === 'html') {
+    // Otevři v novém okně — uvnitř je 'Tisk / PDF' tlačítko (window.print)
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } else {
+    // CSV / JSON / XML — stahování přes Content-Disposition: attachment header
+    window.location.href = url;
+  }
+};
+
+// Export i s historií pohybů (audit trail) — pro pokročilejší use case
+window.exportSkladSPohyby = function(skladId, format) {
+  if (!skladId) { alert('Chybí ID skladu'); return; }
+  const url = '../api/admin_sklad_export.php?sklad_id=' + skladId + '&format=' + encodeURIComponent(format) + '&pohyby=1';
+  if (format === 'pdf' || format === 'html') {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } else {
+    window.location.href = url;
+  }
+};
+
 // 🆕 v2.9.216 — Detail skladu (modal) — seznam přiřazených položek s edit
 window.otevritSklad = async function(skladId, nazev, kod) {
   state._currentSkladId = skladId;  // pro pohybSkladu actions
@@ -5358,9 +5385,17 @@ window.otevritSklad = async function(skladId, nazev, kod) {
     `;
 
     c.innerHTML = `
-      <div style="display:flex;gap:6px;border-bottom:1px solid var(--border);margin-bottom:14px">
+      <div style="display:flex;gap:6px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap;align-items:end">
         <button class="btn-secondary skd-tab ${(state._skladDetailTab || 'polozky') === 'polozky' ? 'is-active' : ''}" onclick="state._skladDetailTab='polozky';otevritSklad(${skladId}, '${esc(state._currentSkladNazev || '')}', '')" style="border-radius:8px 8px 0 0;border-bottom:none;font-size:13px;padding:8px 14px">📋 Položky (${items.length})</button>
         <button class="btn-secondary skd-tab ${state._skladDetailTab === 'historie' ? 'is-active' : ''}" onclick="state._skladDetailTab='historie';otevritSklad(${skladId}, '${esc(state._currentSkladNazev || '')}', '')" style="border-radius:8px 8px 0 0;border-bottom:none;font-size:13px;padding:8px 14px">📊 Historie pohybů</button>
+        <!-- 🆕 v2.9.232 — Export menu vpravo, oddělené od tabů -->
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center;padding-bottom:4px">
+          <span style="font-size:11px;color:var(--text-3);font-weight:500">Export:</span>
+          <button class="btn-secondary" onclick="exportSklad(${skladId}, 'pdf')" title="HTML print-ready — vytisknout nebo uložit jako PDF" style="font-size:12px;padding:5px 10px">📄 PDF</button>
+          <button class="btn-secondary" onclick="exportSklad(${skladId}, 'csv')" title="CSV pro Excel / Google Sheets / účetní (středník)" style="font-size:12px;padding:5px 10px">📊 CSV</button>
+          <button class="btn-secondary" onclick="exportSklad(${skladId}, 'xml')" title="XML — pro POHODA, Money S3, ABRA" style="font-size:12px;padding:5px 10px">🔌 XML</button>
+          <button class="btn-secondary" onclick="exportSklad(${skladId}, 'json')" title="JSON — pro API integrace" style="font-size:12px;padding:5px 10px">{ } JSON</button>
+        </div>
       </div>
       <div id="sklad-detail-tab-body"></div>
       <style>.skd-tab.is-active{background:var(--primary,#BA7517);color:#fff;border-color:var(--primary,#BA7517)}</style>
@@ -5399,6 +5434,16 @@ window.otevritSklad = async function(skladId, nazev, kod) {
           body.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-3)"><div style="font-size:36px;margin-bottom:8px">📭</div><p>Žádné pohyby zatím.</p></div>';
         } else {
           body.innerHTML = `
+            <!-- 🆕 v2.9.232 — Export s pohyby (kompletní audit trail) -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+              <div style="font-size:13px;color:var(--text-3)">${pohyby.length} pohybů (limit 200, nejnovější první)</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <span style="font-size:11px;color:var(--text-3);font-weight:500">Export včetně pohybů:</span>
+                <button class="btn-secondary" onclick="exportSkladSPohyby(${skladId}, 'pdf')" title="HTML print-ready — vč. audit trailu" style="font-size:12px;padding:5px 10px">📄 PDF</button>
+                <button class="btn-secondary" onclick="exportSkladSPohyby(${skladId}, 'csv')" title="CSV vč. pohybů" style="font-size:12px;padding:5px 10px">📊 CSV</button>
+                <button class="btn-secondary" onclick="exportSkladSPohyby(${skladId}, 'json')" title="JSON vč. pohybů" style="font-size:12px;padding:5px 10px">{ } JSON</button>
+              </div>
+            </div>
             <table style="width:100%;border-collapse:collapse;font-size:12.5px">
               <thead>
                 <tr style="background:var(--surface-2);color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:0.4px">
