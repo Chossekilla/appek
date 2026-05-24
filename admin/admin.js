@@ -3637,20 +3637,15 @@ async function renderDashboard(filters = {}) {
 
     <p class="period-range">📅 Období: <strong>${obdobiRange}</strong></p>
 
-    <!-- HLAVNÍ STAT BOXY ZA OBDOBÍ — v2.9.235 Tržby širší (primary KPI hint bez gradient) -->
+    <!-- HLAVNÍ STAT BOXY ZA OBDOBÍ — v2.9.238 Tržby NA PRAVÉM KRAJI (PC), vždy span 2 -->
+    <!-- Layout PC: [Obj 1fr] [Dnes 1fr] [Splatn 1fr] [💰 TRŽBY 2fr ←] -->
+    <!-- Layout mobile: 2x2, Tržby span 2 (top row full width) -->
     <div class="stat-grid stat-grid-dash">
       <div class="stat-card">
         <div class="stat-label">🛒 Objednávek ${obdobiLabel}</div>
         <div class="stat-value">${d.obdobi_stats.objednavek}</div>
         <div class="stat-sub">${d.obdobi_stats.novych || 0} nových · ${d.obdobi_stats.dorucenych || 0} doručených</div>
         ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="stat-spark">${sparklineSVG(d.casovy_graf.map(r => +r.objednavek), {h: 24, color: '#0a84ff'})}</div>` : ''}
-      </div>
-      <!-- 🆕 v2.9.235 — Tržby span 2 (širší než ostatní, hlavní KPI vizualně) -->
-      <div class="stat-card stat-card-wide">
-        <div class="stat-label">💰 Tržby ${obdobiLabel}</div>
-        <div class="stat-value stat-value-lg">${fmt(d.obdobi_stats.trzby)}</div>
-        ${d.dny_v_obdobi > 1 ? `<div class="stat-sub">⌀ ${fmt(d.obdobi_stats.prumerne_denne)} / den</div>` : '<div class="stat-sub">&nbsp;</div>'}
-        ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="stat-spark">${sparklineSVG(d.casovy_graf.map(r => +r.trzby), {h: 28, color: 'var(--primary)'})}</div>` : ''}
       </div>
       <div class="stat-card">
         <div class="stat-label">📅 Dnes objednávek</div>
@@ -3670,6 +3665,13 @@ async function renderDashboard(filters = {}) {
           <div class="stat-sub">vše uhrazeno</div>
         </div>
       `}
+      <!-- 🆕 v2.9.238 — Tržby přesunuto na konec (vpravo na PC, top row full width na mobile) -->
+      <div class="stat-card stat-card-wide">
+        <div class="stat-label">💰 Tržby ${obdobiLabel}</div>
+        <div class="stat-value stat-value-lg">${fmt(d.obdobi_stats.trzby)}</div>
+        ${d.dny_v_obdobi > 1 ? `<div class="stat-sub">⌀ ${fmt(d.obdobi_stats.prumerne_denne)} / den</div>` : '<div class="stat-sub">&nbsp;</div>'}
+        ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="stat-spark">${sparklineSVG(d.casovy_graf.map(r => +r.trzby), {h: 28, color: 'var(--primary)'})}</div>` : ''}
+      </div>
     </div>
 
     <!-- 1) Nedávné doklady — objednávky / DL / faktury vedle sebe -->

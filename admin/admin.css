@@ -1644,12 +1644,13 @@ body.role-restricted .admin-only { display: none !important; }
   height: 24px;
 }
 
-/* 🆕 v2.9.235 — Dashboard stat-grid: Tržby span 2 (širší než ostatní)
-   Desktop: 4 sloupce 1fr 2fr 1fr 1fr (Tržby = 2×)
-   Tablet (<1024px): 2 sloupce 1fr 1fr, Tržby span 2 (full width)
-   Mobile (<600px): 1 col */
+/* 🆕 v2.9.238 — Dashboard stat-grid: Tržby NA PRAVÉM KRAJI (PC)
+   DOM pořadí: [Obj] [Dnes] [Splatn] [TRŽBY]
+   Desktop: 4 sloupce 1fr 1fr 1fr 2fr (Tržby = 2×, vpravo)
+   Tablet (<1024px): 2x2 grid, Tržby span 2 + order:-1 (top row, full width)
+   Mobile (<600px): 1 col, Tržby PRVNÍ (visual hierarchy) */
 .stat-grid-dash {
-  grid-template-columns: 1fr 2fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 2fr;
 }
 .stat-card-wide {
   /* Tržby — širší (auto díky 2fr grid column), lehký primary tint */
@@ -1664,11 +1665,14 @@ body.role-restricted .admin-only { display: none !important; }
 }
 @media (max-width: 1024px) {
   .stat-grid-dash { grid-template-columns: 1fr 1fr; }
-  .stat-card-wide { grid-column: span 2; }
+  .stat-card-wide {
+    grid-column: span 2;     /* full width row */
+    order: -1;               /* na tablet/mobile: Tržby NAHORU (důležité KPI) */
+  }
 }
 @media (max-width: 600px) {
   .stat-grid-dash { grid-template-columns: 1fr; }
-  .stat-card-wide { grid-column: span 1; }
+  .stat-card-wide { grid-column: span 1; order: -1; }
   .stat-value-lg { font-size: 26px !important; }
 }
 
