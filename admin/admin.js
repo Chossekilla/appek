@@ -5180,7 +5180,11 @@ async function renderSkladyInline() {
         <div>
           <p style="font-size:13px;color:var(--text-3);margin:0">${sklady.length} ${sklady.length === 1 ? 'sklad' : (sklady.length >= 2 && sklady.length <= 4 ? 'sklady' : 'skladů')} · ${sklady.filter(s => s.aktivni).length} aktivních</p>
         </div>
-        <button class="btn-primary btn-green" onclick="editSklad()" style="padding:10px 18px;font-size:14px;font-weight:700">+ Nový sklad</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <!-- 🆕 v2.9.239 — Správa exportů & inventur (panel s 2 taby per-sklad) -->
+          <button class="btn-secondary" onclick="otevritSpravuExportu()" style="padding:10px 16px;font-size:14px" title="Hromadné exporty + provedení inventury pro všechny sklady">📤 Export & inventura</button>
+          <button class="btn-primary btn-green" onclick="editSklad()" style="padding:10px 18px;font-size:14px;font-weight:700">+ Nový sklad</button>
+        </div>
       </div>
       ${sklady.length === 0 ? `
         <div class="card-block" style="text-align:center;padding:40px 20px;color:var(--text-3)">
@@ -5350,6 +5354,275 @@ window.exportSkladSPohyby = function(skladId, format) {
   } else {
     window.location.href = url;
   }
+};
+
+// =============================================================
+// 📤 SPRÁVA EXPORTŮ + INVENTUR — hub modal (v2.9.239)
+// 2 taby: Exporty (per sklad × 4 formáty) + Inventura (batch update)
+// =============================================================
+window.otevritSpravuExportu = async function() {
+  state._spravaTab = state._spravaTab || 'exporty';
+  state._spravaSkladId = state._spravaSkladId || 0;
+  openModal('📤 Správa exportů & inventur', `<div id="sprava-body" style="min-height:300px">⏳ Načítám…</div>`, 'wide');
+  await spravaRender();
+};
+
+async function spravaRender() {
+  const body = document.getElementById('sprava-body');
+  if (!body) return;
+  try {
+    const r = await api('admin_sklady.php');
+    const sklady = (r.sklady || []).filter(s => s.aktivni);
+    if (sklady.length === 0) {
+      body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-3)"><div style="font-size:48px;margin-bottom:10px">🏭</div><p>Žádné aktivní sklady. Vytvoř první sklad.</p></div>';
+      return;
+    }
+
+    const aktTab = state._spravaTab || 'exporty';
+    const typIcon = { suchy: '📦', lednice: '❄️', mrazak: '🧊', jiny: '🏭' };
+
+    body.innerHTML = `
+      <!-- Sub-taby panelu -->
+      <div class="seg-tabs" role="tablist" style="margin-bottom:18px">
+        <button type="button" role="tab" class="seg-tab ${aktTab === 'exporty' ? 'active' : ''}"
+                onclick="state._spravaTab='exporty';spravaRender()" aria-selected="${aktTab === 'exporty'}">
+          <span class="seg-tab-icon">📤</span>
+          <span class="seg-tab-text">Exporty</span>
+        </button>
+        <button type="button" role="tab" class="seg-tab ${aktTab === 'inventura' ? 'active' : ''}"
+                onclick="state._spravaTab='inventura';spravaRender()" aria-selected="${aktTab === 'inventura'}">
+          <span class="seg-tab-icon">📝</span>
+          <span class="seg-tab-text">Inventura</span>
+        </button>
+      </div>
+
+      <div id="sprava-tab-body"></div>
+    `;
+
+    const tabBody = document.getElementById('sprava-tab-body');
+    if (aktTab === 'exporty') {
+      // ─── EXPORTY TAB ──────────────────────────────────────
+      tabBody.innerHTML = `
+        <p style="font-size:13px;color:var(--text-3);margin:0 0 14px;line-height:1.5">
+          Vyber sklad a formát exportu. Volitelně zaškrtni „Včetně pohybů" pro kompletní
+          audit trail (příjem/výdej/inventura/přesun).
+        </p>
+
+        <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface-2);border-radius:8px;margin-bottom:14px;cursor:pointer">
+          <input type="checkbox" id="sprava-pohyby" style="width:18px;height:18px;cursor:pointer">
+          <span style="font-size:13.5px"><strong>Včetně pohybů</strong> — audit trail (posledních ~5000 pohybů per sklad)</span>
+        </label>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+          ${sklady.map(s => `
+            <div class="card-block" style="padding:14px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:28px;line-height:1">${typIcon[s.typ] || '🏭'}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:700;font-size:14px">${esc(s.nazev)}</div>
+                  <div style="font-size:11px;color:var(--text-3);font-family:monospace">${esc(s.kod)}</div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+                <button class="btn-secondary" onclick="spravaExport(${s.id}, 'pdf')" style="font-size:12px;padding:8px 10px" title="HTML print-ready">📄 PDF</button>
+                <button class="btn-secondary" onclick="spravaExport(${s.id}, 'csv')" style="font-size:12px;padding:8px 10px" title="CSV pro Excel">📊 CSV</button>
+                <button class="btn-secondary" onclick="spravaExport(${s.id}, 'xml')" style="font-size:12px;padding:8px 10px" title="XML pro POHODA/Money S3">🔌 XML</button>
+                <button class="btn-secondary" onclick="spravaExport(${s.id}, 'json')" style="font-size:12px;padding:8px 10px" title="JSON pro API">{ } JSON</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      // ─── INVENTURA TAB ────────────────────────────────────
+      const skladId = state._spravaSkladId || sklady[0].id;
+      state._spravaSkladId = skladId;
+      const sklad = sklady.find(s => s.id === skladId);
+      tabBody.innerHTML = `
+        <p style="font-size:13px;color:var(--text-3);margin:0 0 14px;line-height:1.5">
+          Vyber sklad → načti aktuální stavy → zadej skutečné stavy (fyzická inventura) →
+          systém vypočte rozdíly a vytvoří inventurní pohyby pro každou položku, kde se
+          stav liší. <strong>Snapshot zůstává v audit trailu.</strong>
+        </p>
+
+        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:14px">
+          <div style="flex:1;min-width:200px">
+            <label class="form-label">Sklad pro inventuru *</label>
+            <select class="form-select" id="invSkladId" onchange="state._spravaSkladId=parseInt(this.value);spravaRender()">
+              ${sklady.map(s => `<option value="${s.id}" ${s.id === skladId ? 'selected' : ''}>${typIcon[s.typ] || '🏭'} ${esc(s.kod)} · ${esc(s.nazev)}</option>`).join('')}
+            </select>
+          </div>
+          <button class="btn-primary btn-green" onclick="spravaLoadInventura(${skladId})" style="padding:11px 18px;font-size:13px;font-weight:700">📋 Načíst položky skladu</button>
+        </div>
+
+        <div id="sprava-inventura-form"></div>
+      `;
+    }
+  } catch (e) {
+    body.innerHTML = `<div style="background:#fde7e9;color:#a8232f;padding:14px;border-radius:8px">❌ Chyba: ${esc(e.message)}</div>`;
+  }
+}
+
+window.spravaExport = function(skladId, format) {
+  const sPohyby = document.getElementById('sprava-pohyby')?.checked ? '&pohyby=1' : '';
+  const url = '../api/admin_sklad_export.php?sklad_id=' + skladId + '&format=' + encodeURIComponent(format) + sPohyby;
+  if (format === 'pdf' || format === 'html') {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } else {
+    window.location.href = url;
+  }
+};
+
+window.spravaLoadInventura = async function(skladId) {
+  const cont = document.getElementById('sprava-inventura-form');
+  if (!cont) return;
+  cont.innerHTML = '⏳ Načítám položky skladu…';
+  try {
+    const r = await api('admin_sklad_polozky.php?sklad_id=' + skladId);
+    const items = r.polozky || [];
+    if (items.length === 0) {
+      cont.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3)"><div style="font-size:32px;margin-bottom:6px">📭</div><p>Sklad nemá žádné položky. Nejdřív přiřaď suroviny/výrobky.</p></div>';
+      return;
+    }
+
+    cont.innerHTML = `
+      <div style="background:#FFF8E5;border-left:3px solid #BA7517;padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#854F0B;line-height:1.5">
+        💡 <strong>Postup:</strong> Pro každou položku zadej <strong>aktuální fyzický stav</strong>
+        (co skutečně máš na skladě). Položky bez změny můžeš nechat prázdné — nezasáhne je
+        inventurní pohyb. Klikni „Provést inventuru" pro batch commit.
+      </div>
+
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:var(--surface-2);color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:0.4px">
+              <th style="padding:8px 10px;text-align:left">Položka</th>
+              <th style="padding:8px 10px;text-align:right">Systém</th>
+              <th style="padding:8px 10px;text-align:right">Skutečnost</th>
+              <th style="padding:8px 10px;text-align:right">Rozdíl</th>
+              <th style="padding:8px 10px;text-align:left">Jednotka</th>
+            </tr>
+          </thead>
+          <tbody id="inv-tbody">
+            ${items.map(p => {
+              const stav = parseFloat(p.stav) || 0;
+              return `
+                <tr style="border-bottom:1px solid var(--border)" data-polozka-id="${p.id}" data-item-typ="${p.item_typ}" data-item-id="${p.item_id}" data-stav-pred="${stav}">
+                  <td style="padding:8px 10px">
+                    <strong>${esc(p.nazev || '(?)')}</strong>
+                    <div style="font-size:11px;color:var(--text-3)">${p.item_typ === 'surovina' ? '🌾 Surovina' : '📦 Výrobek'}${p.cislo ? ` · ${esc(p.cislo)}` : ''}</div>
+                  </td>
+                  <td style="padding:8px 10px;text-align:right;color:var(--text-3);font-variant-numeric:tabular-nums">${stav.toFixed(2)}</td>
+                  <td style="padding:8px 10px;text-align:right">
+                    <input type="number" step="0.01" min="0" class="form-input inv-input" placeholder="—"
+                           style="width:120px;text-align:right;font-variant-numeric:tabular-nums"
+                           oninput="spravaInvDiffUpdate(this)">
+                  </td>
+                  <td style="padding:8px 10px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums" class="inv-diff" data-diff>—</td>
+                  <td style="padding:8px 10px;color:var(--text-3)">${esc(p.jednotka || '')}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="font-size:13px;color:var(--text-3)">
+          <span id="inv-count">0</span> položek se změnou
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-secondary" onclick="closeModal()">Zavřít</button>
+          <button class="btn-primary btn-green" onclick="spravaProvestInventuru(${skladId})" style="padding:10px 18px;font-weight:700">📝 Provést inventuru</button>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    cont.innerHTML = `<div style="background:#fde7e9;color:#a8232f;padding:14px;border-radius:8px">❌ Chyba: ${esc(e.message)}</div>`;
+  }
+};
+
+window.spravaInvDiffUpdate = function(input) {
+  const tr = input.closest('tr');
+  const pred = parseFloat(tr.dataset.stavPred) || 0;
+  const novy = input.value.trim();
+  const diffCell = tr.querySelector('[data-diff]');
+  if (!novy) {
+    diffCell.textContent = '—';
+    diffCell.style.color = 'var(--text-3)';
+  } else {
+    const novyNum = parseFloat(novy);
+    if (isNaN(novyNum)) return;
+    const diff = novyNum - pred;
+    if (Math.abs(diff) < 0.005) {
+      diffCell.textContent = '0,00';
+      diffCell.style.color = 'var(--text-3)';
+    } else {
+      diffCell.textContent = (diff > 0 ? '+' : '') + diff.toFixed(2);
+      diffCell.style.color = diff > 0 ? '#15803d' : '#a8232f';
+    }
+  }
+  // Update counter (kolik řádků má vyplněnou hodnotu)
+  const filled = document.querySelectorAll('#inv-tbody .inv-input').length > 0
+    ? Array.from(document.querySelectorAll('#inv-tbody .inv-input')).filter(i => i.value.trim() !== '').length
+    : 0;
+  const counter = document.getElementById('inv-count');
+  if (counter) counter.textContent = filled;
+};
+
+window.spravaProvestInventuru = async function(skladId) {
+  const rows = Array.from(document.querySelectorAll('#inv-tbody tr'));
+  const ucinit = [];
+  rows.forEach(tr => {
+    const input = tr.querySelector('.inv-input');
+    const novy = input?.value.trim();
+    if (!novy) return;
+    const novyNum = parseFloat(novy);
+    if (isNaN(novyNum) || novyNum < 0) return;
+    const pred = parseFloat(tr.dataset.stavPred) || 0;
+    if (Math.abs(novyNum - pred) < 0.005) return; // nezměněno
+    ucinit.push({
+      item_typ: tr.dataset.itemTyp,
+      item_id: parseInt(tr.dataset.itemId),
+      novy_stav: novyNum,
+      stav_pred: pred,
+    });
+  });
+
+  if (ucinit.length === 0) {
+    alert('Žádné položky nemají změněný stav. Vyplň aktuální fyzické stavy v sloupci „Skutečnost".');
+    return;
+  }
+
+  if (!confirm(`Provést inventuru pro ${ucinit.length} ${ucinit.length === 1 ? 'položku' : (ucinit.length < 5 ? 'položky' : 'položek')}? Vytvoří se inventurní pohyby s aktuálním datem.`)) return;
+
+  let ok = 0, fail = 0;
+  for (const item of ucinit) {
+    try {
+      await api('admin_sklad_pohyby.php?action=inventura', {
+        method: 'POST',
+        body: JSON.stringify({
+          sklad_id: skladId,
+          item_typ: item.item_typ,
+          item_id: item.item_id,
+          novy_stav: item.novy_stav,
+          poznamka: 'Hromadná inventura ze Správy exportů',
+        }),
+      });
+      ok++;
+    } catch (e) {
+      console.error('Inventura selhala:', item, e);
+      fail++;
+    }
+  }
+
+  const msg = fail > 0
+    ? `⚠️ Inventura: ${ok} OK · ${fail} selhalo (viz konzole)`
+    : `✅ Inventura provedena: ${ok} ${ok === 1 ? 'pohyb' : 'pohybů'}`;
+  alert(msg);
+
+  closeModal();
+  if (typeof renderSkladyInline === 'function') renderSkladyInline();
 };
 
 // 🆕 v2.9.216 — Detail skladu (modal) — seznam přiřazených položek s edit
