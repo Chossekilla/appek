@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.285';
+const APPEK_ADMIN_JS_VERSION = '2.9.286';
 
 (async function detectStaleCode() {
   try {
@@ -35250,11 +35250,16 @@ window.vkScaleApply = function() {
     mult = target / currentKs;
     label = `${target} ks`;
   }
+  // 🆕 v2.9.286 — defenzivní validace mult (must be > 0, finite, sane upper bound 10000×)
+  if (!isFinite(mult) || mult <= 0 || mult > 10000) {
+    return alert(`Neplatný násobitel (${mult}). Zkontroluj cílové hodnoty.`);
+  }
   if (!confirm(`Přepsat aktuální recepturu na ${label} (násobek ${mult.toFixed(3)}×)?\n\nOriginální hodnoty se ztratí. Doporučujeme nejprve uložit snímek (📂 Historie).`)) return;
-  vkState.receptura = vkState.receptura.map(r => ({
-    ...r,
-    mnozstvi: (parseFloat(r.mnozstvi) || 0) * mult,
-  }));
+  vkState.receptura = vkState.receptura.map(r => {
+    // 🆕 v2.9.286 — clamp na non-negative (defenzivně proti NaN/záporu)
+    const novaMn = Math.max(0, (parseFloat(r.mnozstvi) || 0) * mult);
+    return { ...r, mnozstvi: novaMn };
+  });
   vkState.scale_target_ks = 0;
   vkState.scale_target_kg = 0;
   vkRender();

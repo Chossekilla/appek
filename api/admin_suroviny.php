@@ -157,8 +157,12 @@ function detekuj_alergeny_z_textu(string $text): string {
     $text = mb_strtolower($text, 'UTF-8');
     if (trim($text) === '') return '';
 
+    // 🆕 v2.9.286 — Lepek pattern fix: odstraněno `sladk` (false positive "sladký = sweet").
+    //              Slad (ječný/pšeničný/diasauer) se chytá přes `\bslad\b` (boundary).
+    //              Mouka kokosová/mandlová by stále falešně matchla lepek — to je known
+    //              limitation (vyžaduje context-aware classification, mimo regex scope).
     $patterns = [
-        'lepek (obiloviny)' => '/(pšenic|žitn|ječm|ovsen|oves\s|špald|kamut|trit[ic]al|sladk|slad\b|mouka|otrub|krupic|krupk|strouhank|těstovin|kuskus|bulgur|cous?cous|seitan)/u',
+        'lepek (obiloviny)' => '/(pšenic|žitn|ječm|ovsen|oves\s|špald|kamut|trit[ic]al|\bslad\b|sladovan|mouka|otrub|krupic|krupk|strouhank|těstovin|kuskus|bulgur|cous?cous|seitan)/u',
         'korýši'           => '/(krevet|krab|humr|languost|korýš|raček)/u',
         'vejce'            => '/(vejce|vajíčk|vaječ|žloutek|bílek|albumin)/u',
         'ryby'             => '/(ryba|tuňák|losos|sardin|tresk|filé\s+rybí|kavi|sleď)/u',

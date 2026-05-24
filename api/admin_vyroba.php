@@ -220,16 +220,19 @@ if ($method === 'GET') {
 }
 
 // 📤 POST ?action=odepsat_suroviny — automaticky odečte všechny suroviny dle plánu na datum
-//   { datum, poznamka? } → vrátí počet odepsaných surovin + celkem hodnotu
+//   { datum, poznamka?, force?: bool } → vrátí počet odepsaných surovin + celkem hodnotu
+// 🆕 v2.9.286 — Pre-check dostatku + FOR UPDATE lock + dual-write do v2
+// Pokud chybí stav → 409 s deficit_seznam. Pokud force=true, povolí odpis do mínusu (warn).
 if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
     $d = json_input();
     $datum = $d['datum'] ?? '';
+    $force = !empty($d['force']);
     if (!$datum || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum)) json_error('Chybí/neplatný datum');
     $pozn = trim($d['poznamka'] ?? '') ?: ('Výroba ' . $datum);
 
     // Sečti spotřebu (stejně jako v ?action=spotreba)
     $stmt = $pdo->prepare("
-        SELECT s.id AS surovina_id, s.jednotka, s.stock_aktualni,
+        SELECT s.id AS surovina_id, s.nazev, s.jednotka, s.stock_aktualni,
                SUM(op.mnozstvi * vs.mnozstvi) AS potreba
         FROM objednavky o
         JOIN objednavky_polozky op ON op.objednavka_id = o.id
@@ -237,7 +240,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
         JOIN suroviny s            ON s.id = vs.surovina_id
         WHERE o.datum_dodani = :datum
           AND o.stav NOT IN ('zrusena')
-        GROUP BY s.id, s.jednotka, s.stock_aktualni
+        GROUP BY s.id, s.nazev, s.jednotka, s.stock_aktualni
     ");
     $stmt->execute(['datum' => $datum]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -249,33 +252,107 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
 
     try {
         $pdo->beginTransaction();
+
+        // 🆕 PHASE 1: Lock + pre-validace dostatku (FOR UPDATE)
+        // Atomic — jiná transakce nemůže snížit stock dokud necommitneme
+        $surIds = array_filter(array_map(fn($r) => (int) $r['surovina_id'], $rows));
+        if (empty($surIds)) { $pdo->rollBack(); json_error('Žádné valid surovina IDs', 400); }
+        $placeholders = implode(',', array_fill(0, count($surIds), '?'));
+        $lockStmt = $pdo->prepare("SELECT id, stock_aktualni FROM suroviny WHERE id IN ($placeholders) FOR UPDATE");
+        $lockStmt->execute($surIds);
+        $aktualniStavy = [];
+        foreach ($lockStmt->fetchAll(PDO::FETCH_ASSOC) as $sr) {
+            $aktualniStavy[(int) $sr['id']] = (float) $sr['stock_aktualni'];
+        }
+
+        // Pre-check: kterým chybí
+        $deficity = [];
+        foreach ($rows as $r) {
+            $sid = (int) $r['surovina_id'];
+            $potreba = (float) $r['potreba'];
+            if ($potreba <= 0) continue;
+            $pred = $aktualniStavy[$sid] ?? 0;
+            if ($pred < $potreba) {
+                $deficity[] = [
+                    'nazev'   => $r['nazev'],
+                    'potreba' => $potreba,
+                    'na_skladu' => $pred,
+                    'chybi'   => round($potreba - $pred, 3),
+                    'jednotka' => $r['jednotka'],
+                ];
+            }
+        }
+        if (!empty($deficity) && !$force) {
+            $pdo->rollBack();
+            $names = array_slice(array_map(fn($d) => $d['nazev'], $deficity), 0, 5);
+            json_response([
+                'error'    => 'Nedostatek surovin na skladu (' . count($deficity) . ')',
+                'deficity' => $deficity,
+                'tip'      => 'Doplň zásoby na skladu, nebo opakuj s force=true (povolí odpis do mínusu — POZOR audit ztratí přesnost).',
+                'priklady' => implode(', ', $names),
+            ], 409);
+        }
+
+        // 🆕 PHASE 2: Skutečný odpis (legacy + v2)
         $updStock = $pdo->prepare("UPDATE suroviny SET stock_aktualni = :s WHERE id = :id");
         $insPohyb = $pdo->prepare("
             INSERT INTO sklad_pohyby (surovina_id, typ, mnozstvi, jednotka, stock_pred, stock_po, poznamka, kdo)
             VALUES (:sid, 'vydej', :mn, :jed, :pred, :po, :pz, :kdo)
         ");
+        // 🆕 v2.9.286 — dual-write do v2 (multi-warehouse audit) — najdi default SK01
+        $sk01 = (int) $pdo->query("SELECT id FROM sklady WHERE kod = 'SK01' LIMIT 1")->fetchColumn();
+        $insPohybV2 = $sk01 ? $pdo->prepare("
+            INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, poznamka, kdo)
+            VALUES (:sid, 'surovina', :iid, 'vydej', :mn, :sp, :sP, :pz, :kdo)
+        ") : null;
+
         foreach ($rows as $r) {
-            $pred = (float) $r['stock_aktualni'];
+            $sid = (int) $r['surovina_id'];
+            $pred = $aktualniStavy[$sid] ?? 0;
             $potreba = (float) $r['potreba'];
             if ($potreba <= 0) continue;
-            $po = max(0, $pred - $potreba); // nemůže do mínusu
-            $updStock->execute(['s' => $po, 'id' => (int) $r['surovina_id']]);
+            // 🆕 force=true → může do mínusu (audit ztratí přesnost ale uživatel věděl)
+            $po = $force ? ($pred - $potreba) : max(0, $pred - $potreba);
+            $updStock->execute(['s' => $po, 'id' => $sid]);
             $insPohyb->execute([
-                'sid'  => (int) $r['surovina_id'],
+                'sid'  => $sid,
                 'mn'   => $potreba,
                 'jed'  => $r['jednotka'],
                 'pred' => $pred,
                 'po'   => $po,
-                'pz'   => $pozn,
+                'pz'   => $pozn . ($force && $pred < $potreba ? ' [FORCE — záporný stav]' : ''),
                 'kdo'  => $kdo,
             ]);
+            // Dual-write v2 (best-effort, neporušíme legacy pokud selže)
+            if ($insPohybV2) {
+                try {
+                    $insPohybV2->execute([
+                        'sid' => $sk01, 'iid' => $sid,
+                        'mn'  => -$potreba, // záporné = vydej
+                        'sp'  => $pred, 'sP' => $po,
+                        'pz'  => $pozn, 'kdo' => $kdo,
+                    ]);
+                    // Update sklad_polozky stav (synchronizace s legacy)
+                    try {
+                        $pdo->prepare("
+                            INSERT INTO sklad_polozky (sklad_id, item_typ, item_id, stav)
+                            VALUES (:s, 'surovina', :i, :st)
+                            ON DUPLICATE KEY UPDATE stav = :st2
+                        ")->execute(['s' => $sk01, 'i' => $sid, 'st' => $po, 'st2' => $po]);
+                    } catch (Throwable $e) { /* sklad_polozky optional */ }
+                } catch (Throwable $e) { /* v2 optional, soft-fail */ }
+            }
             $odepsano++;
             $celkemMnozstvi += $potreba;
         }
         $pdo->commit();
-        json_response(['ok' => true, 'odepsano' => $odepsano, 'datum' => $datum, 'celkem_mnozstvi' => $celkemMnozstvi]);
+        json_response([
+            'ok' => true, 'odepsano' => $odepsano, 'datum' => $datum,
+            'celkem_mnozstvi' => $celkemMnozstvi,
+            'force_used' => $force, 'deficity_byly' => count($deficity),
+        ]);
     } catch (Throwable $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) $pdo->rollBack();
         json_error('Chyba odpisu: ' . $e->getMessage(), 500);
     }
 }

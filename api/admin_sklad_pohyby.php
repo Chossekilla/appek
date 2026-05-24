@@ -71,8 +71,12 @@ if ($method === 'GET') {
 }
 
 // ─── Helper: získat aktuální stav nebo vytvořit položku ────────
-function get_or_create_polozka(PDO $pdo, int $skladId, string $itemTyp, int $itemId): array {
-    $stmt = $pdo->prepare("SELECT id, stav FROM sklad_polozky WHERE sklad_id = :s AND item_typ = :t AND item_id = :i LIMIT 1");
+// 🆕 v2.9.286 — $lock=true → FOR UPDATE (pessimistic lock proti race condition)
+//              Použij vždy pokud uvnitř transakce a budeš měnit stav.
+function get_or_create_polozka(PDO $pdo, int $skladId, string $itemTyp, int $itemId, bool $lock = false): array {
+    $sql = "SELECT id, stav FROM sklad_polozky WHERE sklad_id = :s AND item_typ = :t AND item_id = :i LIMIT 1";
+    if ($lock) $sql .= " FOR UPDATE";
+    $stmt = $pdo->prepare($sql);
     $stmt->execute(['s' => $skladId, 't' => $itemTyp, 'i' => $itemId]);
     $row = $stmt->fetch();
     if ($row) return ['id' => (int) $row['id'], 'stav' => (float) $row['stav']];
@@ -107,8 +111,17 @@ if ($method === 'POST') {
 
         $pdo->beginTransaction();
         try {
-            $z = get_or_create_polozka($pdo, $skladIdZ, $itemTyp, $itemId);
-            $do = get_or_create_polozka($pdo, $skladIdDo, $itemTyp, $itemId);
+            // 🆕 v2.9.286 — FOR UPDATE lock proti race condition (lost-update problém)
+            // Lock v deterministickém pořadí (nižší ID první) → zabráníš deadlocku.
+            $orderedIds = [$skladIdZ, $skladIdDo];
+            sort($orderedIds);
+            $first = $orderedIds[0]; $second = $orderedIds[1];
+            // Pre-lock obou (vždy v stejném pořadí napříč concurrent transactions)
+            get_or_create_polozka($pdo, $first, $itemTyp, $itemId, true);
+            if ($first !== $second) get_or_create_polozka($pdo, $second, $itemTyp, $itemId, true);
+
+            $z = get_or_create_polozka($pdo, $skladIdZ, $itemTyp, $itemId, true);
+            $do = get_or_create_polozka($pdo, $skladIdDo, $itemTyp, $itemId, true);
             if ($z['stav'] < $mn) {
                 $pdo->rollBack();
                 json_error("Nedostatek na zdrojovém skladu (k dispozici: {$z['stav']})", 409);
@@ -140,7 +153,8 @@ if ($method === 'POST') {
 
     $pdo->beginTransaction();
     try {
-        $p = get_or_create_polozka($pdo, $skladId, $itemTyp, $itemId);
+        // 🆕 v2.9.286 — FOR UPDATE lock pro all single-warehouse akce (prijem/vydej/inventura/korekce)
+        $p = get_or_create_polozka($pdo, $skladId, $itemTyp, $itemId, true);
         $stavPred = $p['stav'];
         $mnozstvi = 0;
         $stavPo = $stavPred;
