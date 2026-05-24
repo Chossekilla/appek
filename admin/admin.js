@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.288';
+const APPEK_ADMIN_JS_VERSION = '2.9.289';
 
 (async function detectStaleCode() {
   try {
@@ -4328,7 +4328,14 @@ async function renderObjednavky(filters = {}) {
     <div class="card-block">${skeletonTable(8)}</div>
   `;
   const params = new URLSearchParams(filters).toString();
-  const list = await api('admin_objednavky.php' + (params ? '?' + params : ''));
+  // 🆕 v2.9.289 — defenzivní fallback (řeší "list.map is not a function")
+  let list;
+  try {
+    list = await api('admin_objednavky.php' + (params ? '?' + params : ''));
+  } catch (e) { list = []; }
+  // Backend může vrátit {objednavky: [...]} nebo přímo [...]
+  if (list && !Array.isArray(list) && Array.isArray(list.objednavky)) list = list.objednavky;
+  if (!Array.isArray(list)) list = [];
   const c = document.getElementById('content');
   state._objList = list;
   if (!state._objSelected) state._objSelected = new Set();
@@ -7361,8 +7368,12 @@ async function loadVyrobaKalendar(rok, mesic) {
 
 async function renderVyrobaManual() {
   const div = document.getElementById('vyroba-content');
-  const list = await api('admin_vyroba.php');
-  
+  // 🆕 v2.9.289 — defenzivní fallback
+  let list;
+  try { list = await api('admin_vyroba.php'); }
+  catch (e) { list = []; }
+  if (!Array.isArray(list)) list = [];
+
   div.innerHTML = `
     <div style="margin-bottom:12px;">
       <button class="btn-primary btn-green btn-big-action" onclick="otevritNovyVyrobniList()" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nový výrobní list</button>
@@ -23940,7 +23951,11 @@ window.rdlVystavit = async function() {
 // KATEGORIE VÝROBKŮ
 // =============================================================
 async function renderKategorie() {
-  const list = await api('admin_kategorie.php');
+  // 🆕 v2.9.289 — defenzivní fallback
+  let list;
+  try { list = await api('admin_kategorie.php'); }
+  catch (e) { list = []; }
+  if (!Array.isArray(list)) list = (list && Array.isArray(list.kategorie)) ? list.kategorie : [];
 
   document.getElementById('content').innerHTML = `
     <div class="page-head">
