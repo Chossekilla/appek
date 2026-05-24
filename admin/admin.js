@@ -2357,11 +2357,11 @@ const DEFAULT_ROLE_PRAVA = {
   prodavac: ['dashboard', 'objednavky', 'rozvozy', 'dodaci_listy', 'faktury', 'vyrobky', 'nastroje', 'katalog', 'stitky', 'odberatele'],
   vyroba:   ['dashboard', 'vyroba', 'vyrobky', 'haccp'],
   expedice: ['dashboard', 'objednavky', 'dodaci_listy', 'rozvozy'],
-  // 🆕 v2.9.306 — pos role rozšířena. Předtím jen ['dashboard'] → sidebar zobrazoval
-  // jen "Přehled" a vypadal zmrzačeně (user: zmizely položky). POS user teď vidí
-  // stejné jako prodavac, jen bez fakturace/nástrojů. POS-only přístup řešen přes
-  // pos_only flag (pos_only=1 → redirect na /pos/ při loginu, plánováno v2.9.307).
-  pos:      ['dashboard', 'objednavky', 'rozvozy', 'dodaci_listy', 'vyrobky', 'odberatele'],
+  // 🆕 v2.9.309 — pos role má teď SAME jako admin. Předtím chybělo Výroba, Nastavení,
+  // Nástroje, HACCP, Faktury, Katalog, Štítky. User: "chybí v menu výroba nastavení a nástroje".
+  // POS-only přístup je řešený přes pos_only flag (kiosk users typu Jarmila/Evžen, kteří chodí
+  // jen do /pos/ keypad screen, ne do /admin/). Prodavač 1 je teď admin role v demo seedu (v2.9.309).
+  pos:      ['dashboard', 'objednavky', 'rozvozy', 'vyroba', 'dodaci_listy', 'faktury', 'vyrobky', 'nastroje', 'katalog', 'stitky', 'haccp', 'odberatele', 'nastaveni'],
 };
 // Stránka -> ikona + label (pro UI editor rolí). 'rozvozy' tu zůstává — admin
 // si může v Údržbě roli rozšířit a tím přidat zpět do menu, pokud potřebuje.

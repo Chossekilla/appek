@@ -992,15 +992,52 @@ if ($method === 'POST' && $action === 'quick_order') {
             VALUES
                 (:o, :vid, :n, :j, :m, :c, :s)
         ");
+        // Pre-discount totals (před aplikací slevy) — pro výpočet sleva polozky
+        $bezDph_orig = 0.0;
+        $dphSum_orig = 0.0;
         foreach ($polozky as $p) {
+            $mn   = (float)($p['mnozstvi']     ?? 1);
+            $cena = (float)($p['cena_bez_dph'] ?? 0);
+            $saz  = (float)($p['sazba_dph']    ?? 21);
+            $bezDph_orig += $mn * $cena;
+            $dphSum_orig += $mn * $cena * ($saz / 100);
             $stItem->execute([
                 'o'   => $objId,
                 'vid' => isset($p['vyrobek_id']) ? (int)$p['vyrobek_id'] : null,
                 'n'   => substr((string)($p['nazev'] ?? '—'), 0, 200),
                 'j'   => substr((string)($p['jednotka'] ?? 'ks'), 0, 10),
-                'm'   => (float)($p['mnozstvi']     ?? 1),
-                'c'   => (float)($p['cena_bez_dph'] ?? 0),
-                's'   => (float)($p['sazba_dph']    ?? 21),
+                'm'   => $mn,
+                'c'   => $cena,
+                's'   => $saz,
+            ]);
+        }
+
+        // 🆕 v2.9.309 — sleva + spropitné JAKO POLOZKY (vidí je admin v detailu objednávky)
+        // Důvod: user "nepropisuje volný řádek-korkovné-sleva-diško do objednávek v adminu"
+        // Vlastní položky (Korkovné apod.) už šly přes hlavní foreach (vyrobek_id=null).
+        // Sleva + tip se ukládaly jen do POS-META poznámky → admin je neviděl jako řádky.
+        // Teď je vložíme jako pseudo-polozky s vyrobek_id=NULL a popisným názvem.
+        if ($sleva_pct > 0 && $sleva_pct <= 100) {
+            $sleva_celkem = round(($bezDph_orig + $dphSum_orig) * ($sleva_pct / 100), 2);
+            $stItem->execute([
+                'o'   => $objId,
+                'vid' => null,
+                'n'   => sprintf('💰 Sleva %s%%', rtrim(rtrim(number_format($sleva_pct, 1, '.', ''), '0'), '.')),
+                'j'   => 'ks',
+                'm'   => 1,
+                'c'   => -$sleva_celkem, // záporná cena
+                's'   => 0,              // sleva v plné výši (bez DPH split)
+            ]);
+        }
+        if ($pos_tip > 0) {
+            $stItem->execute([
+                'o'   => $objId,
+                'vid' => null,
+                'n'   => '🎁 Spropitné',
+                'j'   => 'ks',
+                'm'   => 1,
+                'c'   => $pos_tip,
+                's'   => 0,
             ]);
         }
 
