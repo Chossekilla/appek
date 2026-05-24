@@ -328,7 +328,17 @@ $csrfToken  = csrf_token();
 <!-- HEADER -->
 <header class="pos-header">
   <div class="pos-header-left">
-    <button class="pos-back-btn" onclick="window.close()" title="Zavřít POS">←</button>
+    <!-- 🆕 v2.9.300 — Pokud POS otevřen v same-tab (ne nové okno), window.close() nefunguje
+         → fallback na navigaci zpět do adminu. -->
+    <button class="pos-back-btn" onclick="(function(){
+      try {
+        // Vyzkoušej zavřít — funguje jen pokud otevřeno přes window.open()
+        const opener = window.opener;
+        window.close();
+        // Pokud po 100ms okno stále existuje (close failed), naviguj zpět do admina
+        setTimeout(() => { if (!document.hidden) window.location.href = '../admin/'; }, 120);
+      } catch (e) { window.location.href = '../admin/'; }
+    })()" title="Zavřít POS / Zpět do adminu">←</button>
     <div class="pos-brand">
       <span class="pos-brand-icon">🧾</span>
       <span class="pos-brand-name">APPEK POS</span>

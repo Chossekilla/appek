@@ -757,8 +757,33 @@ if ($action === 'apply') {
         $surovinaIdByName = []; // pro mapování názvů na ID (pro recepty)
         $stats['suroviny_doplneno_stock'] = 0;
 
-        // Detekuj sloupce jednou (cached pro celou smyčku)
+        // 🆕 v2.9.300 — FORCE migrace stock + nutri sloupců (pokud chybí)
+        // Předtím se spoléhalo na admin_suroviny.php auto-migrace, ale demo seed
+        // může běžet PŘED prvním voláním admin_suroviny.php → sloupce chybí → naskladnění selže.
         $surCols = $pdo->query("SHOW COLUMNS FROM suroviny")->fetchAll(PDO::FETCH_COLUMN);
+        $forceCols = [
+            'stock_aktualni'  => 'DECIMAL(12,3) NOT NULL DEFAULT 0',
+            'stock_minimalni' => 'DECIMAL(12,3) DEFAULT NULL',
+            'stock_cilove'    => 'DECIMAL(12,3) DEFAULT NULL',
+            'nutri_energie_kj'    => 'DECIMAL(8,1) DEFAULT NULL',
+            'nutri_energie_kcal'  => 'DECIMAL(8,1) DEFAULT NULL',
+            'nutri_tuky'          => 'DECIMAL(7,2) DEFAULT NULL',
+            'nutri_tuky_nasycene' => 'DECIMAL(7,2) DEFAULT NULL',
+            'nutri_sacharidy'     => 'DECIMAL(7,2) DEFAULT NULL',
+            'nutri_cukry'         => 'DECIMAL(7,2) DEFAULT NULL',
+            'nutri_bilkoviny'     => 'DECIMAL(7,2) DEFAULT NULL',
+            'nutri_sul'           => 'DECIMAL(7,3) DEFAULT NULL',
+            'slozeni'             => 'TEXT DEFAULT NULL',
+            'slozeni_alergeny'    => 'VARCHAR(255) DEFAULT NULL',
+        ];
+        foreach ($forceCols as $col => $type) {
+            if (!in_array($col, $surCols, true)) {
+                try {
+                    $pdo->exec("ALTER TABLE suroviny ADD COLUMN $col $type");
+                    $surCols[] = $col;
+                } catch (Throwable $e) { /* sloupec možná stejně existuje */ }
+            }
+        }
         $hasStockAkt = in_array('stock_aktualni', $surCols, true);
         $hasStockMin = in_array('stock_minimalni', $surCols, true);
 
