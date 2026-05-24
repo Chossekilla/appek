@@ -200,6 +200,33 @@ Nasazování na web je automatizované přes GitHub — ŽÁDNÉ ruční nahráv
 
 ---
 
+## ⛔ NIKDY NEDĚLAT — Permanent Rules (user explicit)
+
+### Filter tabs DESIGN (3× už říkal!)
+**NIKDY pill border-radius (999px / oválné).** Filter tabs musí být:
+- ✅ Rounded square (border-radius z `var(--filter-tab-radius)` = 10px)
+- ✅ Sjednocené napříč všemi themes (default/dark/apple/win98)
+- ✅ Mobile: 1 řádek nowrap, NIKDY wrap, plynulý shrink přes clamp() fonts
+- ✅ Aplikuje se na: `.period-tab`, `.seg-tab`, `.vyroba-subtab`, `.nastaveni-tab`
+- ❌ NIKDY `border-radius: 999px` na filter tabs
+- ❌ NIKDY `flex-wrap: wrap !important` (na filter tabs)
+- ❌ NIKDY 2-sloupcový grid na mobile (user nelíbí)
+
+**Centrální tokens v `:root`** (`--filter-tab-*`) — DRY. Změna v 1 místě = projeví se všude.
+
+Když user řekne "ovály", "oválné", "pill", "už po třetí" — okamžitě hledat
+`border-radius: 999px` v admin.css v context period-tab/seg-tab a smazat
+(nahradit za `var(--filter-tab-radius)`). Pak `grep -B 5 "999px" admin.css`
+pro každý možný override + smazat.
+
+### Layout konzistence
+- Dashboard stat-grid: 75/25 (Tržby+Dnes) + 50/50 (Obj+Splatnost) zachovat
+  **i v mobile** (NE stack do 1 col, user 2× explicit)
+- Page titles s emoji (📊 🛒 📃 💰 📦 👥 🛠️) — sjednocené napříč pages
+- Sparklines decentní (opacity 0.55, max 24-32px height, hide na <600px)
+
+---
+
 ## 📋 Aktuální stav (květen 2026)
 
 - Cache: `admin.css?v=12.81`, `admin.js?v=13.22`
