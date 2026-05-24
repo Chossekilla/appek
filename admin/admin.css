@@ -3188,7 +3188,7 @@ html.theme-apple .nastaveni-tabs {
     margin-bottom: 12px;
   }
 
-  /* Modal: bottom sheet na mobilu */
+  /* 🆕 v2.9.261 — Modal: bottom sheet na mobilu, kompaktní padding (max obsah) */
   .modal-overlay {
     padding: 0;
     align-items: flex-end;
@@ -3198,23 +3198,39 @@ html.theme-apple .nastaveni-tabs {
     max-height: 95vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 16px;
+    padding: 0;                       /* žádný outer padding — head/body řeší vlastní */
     max-width: 100% !important;
     width: 100%;
     margin: 0;
+    box-sizing: border-box;
   }
   .modal-card.wide,
-  .modal-card.modal-card-wide {
+  .modal-card.modal-card-wide,
+  .modal-card.modal-wide {
     max-width: 100% !important;
+  }
+  /* Head — kompaktní mobile padding */
+  .modal-head {
+    padding: 12px 14px !important;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 10;
   }
   .modal-head h2,
   .modal-head h3 { font-size: 16px; }
-  .modal-close {
-    width: 48px;
-    height: 48px;
-    font-size: 0;                /* skryje HTML × — viditelný jen ::before */
+  /* Body — kompaktní mobile padding (víc místa pro obsah) */
+  .modal-body,
+  .modal-card.modal-wide .modal-body {
+    padding: 12px 14px !important;
+    font-size: 14px !important;
   }
-  .modal-close::before { font-size: 32px; }
+  .modal-close {
+    width: 44px;                      /* WCAG 2.1 AA min tap target */
+    height: 44px;
+    font-size: 0;
+  }
+  .modal-close::before { font-size: 28px; }
 
   /* Form actions: tlačítka pod sebou */
   .form-actions {
