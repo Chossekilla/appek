@@ -1644,16 +1644,26 @@ body.role-restricted .admin-only { display: none !important; }
   height: 24px;
 }
 
-/* 🆕 v2.9.238 — Dashboard stat-grid: Tržby NA PRAVÉM KRAJI (PC)
-   DOM pořadí: [Obj] [Dnes] [Splatn] [TRŽBY]
-   Desktop: 4 sloupce 1fr 1fr 1fr 2fr (Tržby = 2×, vpravo)
-   Tablet (<1024px): 2x2 grid, Tržby span 2 + order:-1 (top row, full width)
-   Mobile (<600px): 1 col, Tržby PRVNÍ (visual hierarchy) */
+/* 🆕 v2.9.240 — Dashboard stat-grid: 75/25 + 50/50 layout (user request)
+   DOM pořadí: [Tržby] [Dnes] [Obj] [Splat]
+   PC desktop: Row 1 = Tržby(span 3) + Dnes(span 1) → 75% + 25%
+               Row 2 = Obj(span 2) + Splat(span 2) → 50% + 50%
+   Tablet (<1024px): 2 cols, Tržby full, ostatní 1/2
+   Mobile (<600px): 1 col, vše full width, Tržby první */
 .stat-grid-dash {
-  grid-template-columns: 1fr 1fr 1fr 2fr;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-flow: row;
 }
+.stat-card-trzby {
+  grid-column: span 3;   /* 75% — primary KPI */
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);
+  border-color: var(--primary-border);
+}
+.stat-card-dnes  { grid-column: span 1; }  /* 25% */
+.stat-card-obj   { grid-column: span 2; }  /* 50% */
+.stat-card-splat { grid-column: span 2; }  /* 50% */
+/* Backwards-compat: .stat-card-wide alias na .stat-card-trzby styling */
 .stat-card-wide {
-  /* Tržby — širší (auto díky 2fr grid column), lehký primary tint */
   background: linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);
   border-color: var(--primary-border);
 }
@@ -1664,15 +1674,22 @@ body.role-restricted .admin-only { display: none !important; }
   color: var(--primary-dark);
 }
 @media (max-width: 1024px) {
+  /* Tablet: 2 cols, Tržby full width, ostatní každý 1/2 */
   .stat-grid-dash { grid-template-columns: 1fr 1fr; }
-  .stat-card-wide {
-    grid-column: span 2;     /* full width row */
-    order: -1;               /* na tablet/mobile: Tržby NAHORU (důležité KPI) */
-  }
+  .stat-card-trzby { grid-column: span 2; }
+  .stat-card-dnes  { grid-column: span 1; }
+  .stat-card-obj   { grid-column: span 1; }
+  .stat-card-splat { grid-column: span 1; }
+  .stat-card-wide  { grid-column: span 2; }
 }
 @media (max-width: 600px) {
+  /* Mobile: 1 col, vše full width */
   .stat-grid-dash { grid-template-columns: 1fr; }
-  .stat-card-wide { grid-column: span 1; order: -1; }
+  .stat-card-trzby,
+  .stat-card-dnes,
+  .stat-card-obj,
+  .stat-card-splat,
+  .stat-card-wide { grid-column: span 1; }
   .stat-value-lg { font-size: 26px !important; }
 }
 
@@ -2898,9 +2915,15 @@ html.dark .seg-tab.active, html.theme-dark .seg-tab.active { color: #fff; }
     width: 100%;
     max-width: 100%;
   }
-  /* 🆕 v2.9.236 — Dashboard .stat-grid-dash: Tržby span 2 (top row full width) */
+  /* 🆕 v2.9.240 — Dashboard .stat-grid-dash: Tržby & Obj full width na mobile (768px) */
+  .stat-grid-dash .stat-card-trzby,
+  .stat-grid-dash .stat-card-obj,
   .stat-grid-dash .stat-card-wide {
     grid-column: span 2 !important;
+  }
+  .stat-grid-dash .stat-card-dnes,
+  .stat-grid-dash .stat-card-splat {
+    grid-column: span 1 !important;
   }
   .stat-card {
     padding: 12px;
@@ -12886,9 +12909,15 @@ aside.sidebar::after { display: none !important; content: '' !important; }
     width: 100%;
     max-width: 100%;
   }
-  /* 🆕 v2.9.236 — Dashboard .stat-grid-dash: Tržby span 2 (top row full width) */
+  /* 🆕 v2.9.240 — Dashboard .stat-grid-dash: Tržby & Obj full width na mobile (768px) */
+  .stat-grid-dash .stat-card-trzby,
+  .stat-grid-dash .stat-card-obj,
   .stat-grid-dash .stat-card-wide {
     grid-column: span 2 !important;
+  }
+  .stat-grid-dash .stat-card-dnes,
+  .stat-grid-dash .stat-card-splat {
+    grid-column: span 1 !important;
   }
   .stat-card {
     padding: 12px;

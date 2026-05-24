@@ -3637,41 +3637,45 @@ async function renderDashboard(filters = {}) {
 
     <p class="period-range">📅 Období: <strong>${obdobiRange}</strong></p>
 
-    <!-- HLAVNÍ STAT BOXY ZA OBDOBÍ — v2.9.238 Tržby NA PRAVÉM KRAJI (PC), vždy span 2 -->
-    <!-- Layout PC: [Obj 1fr] [Dnes 1fr] [Splatn 1fr] [💰 TRŽBY 2fr ←] -->
-    <!-- Layout mobile: 2x2, Tržby span 2 (top row full width) -->
+    <!-- HLAVNÍ STAT BOXY ZA OBDOBÍ — v2.9.240 layout 75/25 + 50/50 (user request) -->
+    <!-- PC: Row 1 = [💰 TRŽBY span 3 (75%)] [📅 Dnes span 1 (25%)] -->
+    <!--     Row 2 = [🛒 Objednávek span 2 (50%)] [⚠️ Po splatnosti span 2 (50%)] -->
+    <!-- Mobile: stack 1 col, Tržby první (KPI hierarchy) -->
     <div class="stat-grid stat-grid-dash">
-      <div class="stat-card">
+      <!-- Row 1: Tržby 75% -->
+      <div class="stat-card stat-card-trzby">
+        <div class="stat-label">💰 Tržby ${obdobiLabel}</div>
+        <div class="stat-value stat-value-lg">${fmt(d.obdobi_stats.trzby)}</div>
+        ${d.dny_v_obdobi > 1 ? `<div class="stat-sub">⌀ ${fmt(d.obdobi_stats.prumerne_denne)} / den</div>` : '<div class="stat-sub">&nbsp;</div>'}
+        ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="stat-spark">${sparklineSVG(d.casovy_graf.map(r => +r.trzby), {h: 32, color: 'var(--primary)'})}</div>` : ''}
+      </div>
+      <!-- Row 1: Dnes objednávek 25% -->
+      <div class="stat-card stat-card-dnes">
+        <div class="stat-label">📅 Dnes objednávek</div>
+        <div class="stat-value">${d.dnes.objednavek}</div>
+        <div class="stat-sub">${fmt(d.dnes.trzby)}</div>
+      </div>
+      <!-- Row 2: Objednávek za období 50% -->
+      <div class="stat-card stat-card-obj">
         <div class="stat-label">🛒 Objednávek ${obdobiLabel}</div>
         <div class="stat-value">${d.obdobi_stats.objednavek}</div>
         <div class="stat-sub">${d.obdobi_stats.novych || 0} nových · ${d.obdobi_stats.dorucenych || 0} doručených</div>
         ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="stat-spark">${sparklineSVG(d.casovy_graf.map(r => +r.objednavek), {h: 24, color: '#0a84ff'})}</div>` : ''}
       </div>
-      <div class="stat-card">
-        <div class="stat-label">📅 Dnes objednávek</div>
-        <div class="stat-value">${d.dnes.objednavek}</div>
-        <div class="stat-sub">${fmt(d.dnes.trzby)}</div>
-      </div>
+      <!-- Row 2: Po splatnosti 50% -->
       ${d.po_splatnosti.pocet > 0 ? `
-        <div class="stat-card stat-warn" onclick="navigate('faktury');setTimeout(()=>{state._faktury_stav='neuhrazene';renderFaktury()},100)" title="Klikni → faktury filtrované jako neuhrazené">
+        <div class="stat-card stat-warn stat-card-splat" onclick="navigate('faktury');setTimeout(()=>{state._faktury_stav='neuhrazene';renderFaktury()},100)" title="Klikni → faktury filtrované jako neuhrazené">
           <div class="stat-label">⚠️ Po splatnosti</div>
           <div class="stat-value">${fmt(d.po_splatnosti.castka)}</div>
           <div class="stat-sub">${d.po_splatnosti.pocet} ${d.po_splatnosti.pocet === 1 ? 'faktura' : (d.po_splatnosti.pocet < 5 ? 'faktury' : 'faktur')} · klikni →</div>
         </div>
       ` : `
-        <div class="stat-card">
+        <div class="stat-card stat-card-splat">
           <div class="stat-label">✓ Po splatnosti</div>
           <div class="stat-value" style="color:var(--success-text)">0</div>
           <div class="stat-sub">vše uhrazeno</div>
         </div>
       `}
-      <!-- 🆕 v2.9.238 — Tržby přesunuto na konec (vpravo na PC, top row full width na mobile) -->
-      <div class="stat-card stat-card-wide">
-        <div class="stat-label">💰 Tržby ${obdobiLabel}</div>
-        <div class="stat-value stat-value-lg">${fmt(d.obdobi_stats.trzby)}</div>
-        ${d.dny_v_obdobi > 1 ? `<div class="stat-sub">⌀ ${fmt(d.obdobi_stats.prumerne_denne)} / den</div>` : '<div class="stat-sub">&nbsp;</div>'}
-        ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="stat-spark">${sparklineSVG(d.casovy_graf.map(r => +r.trzby), {h: 28, color: 'var(--primary)'})}</div>` : ''}
-      </div>
     </div>
 
     <!-- 1) Nedávné doklady — objednávky / DL / faktury vedle sebe -->
