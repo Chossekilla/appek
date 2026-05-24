@@ -1803,11 +1803,12 @@ body.role-restricted .admin-only { display: none !important; }
 html.dark .nastaveni-tabs { background: var(--surface-2); border-color: rgba(255,255,255,0.08); }
 html.dark .nastaveni-tab.active { background: var(--primary); color: #fff; }
 
-/* 🆕 v2.9.227 — Výroba sub-taby — vlastní hezčí styling
+/* 🆕 v2.9.227 — Segmented sub-taby — univerzální styling
    Desktop: rovnoměrné rozložení (flex:1), icon nad textem.
    Mobile: horizontal scroll, kompaktnější.
+   v2.9.229 — alias .seg-tabs/.seg-tab pro univerzální použití (Nastavení, …).
 */
-.vyroba-subtabs {
+.vyroba-subtabs, .seg-tabs {
   display: flex;
   gap: 6px;
   margin-bottom: 20px;
@@ -1820,7 +1821,7 @@ html.dark .nastaveni-tab.active { background: var(--primary); color: #fff; }
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
 }
-.vyroba-subtab {
+.vyroba-subtab, .seg-tab {
   flex: 1 1 0;
   min-width: 92px;
   display: flex;
@@ -1843,63 +1844,65 @@ html.dark .nastaveni-tab.active { background: var(--primary); color: #fff; }
   scroll-snap-align: start;
   position: relative;
 }
-.vyroba-subtab-icon {
+.vyroba-subtab-icon, .seg-tab-icon {
   font-size: 22px;
   line-height: 1;
   display: block;
   filter: grayscale(0.15);
   transition: filter 0.18s ease, transform 0.18s ease;
 }
-.vyroba-subtab-text {
+.vyroba-subtab-text, .seg-tab-text {
   font-size: 12.5px;
   letter-spacing: -0.01em;
   line-height: 1.2;
 }
-.vyroba-subtab:hover:not(.active) {
+.vyroba-subtab:hover:not(.active), .seg-tab:hover:not(.active) {
   background: rgba(186, 117, 23, 0.06);
   color: var(--text);
 }
-.vyroba-subtab:hover:not(.active) .vyroba-subtab-icon {
+.vyroba-subtab:hover:not(.active) .vyroba-subtab-icon,
+.seg-tab:hover:not(.active) .seg-tab-icon {
   filter: grayscale(0);
   transform: scale(1.05);
 }
-.vyroba-subtab.active {
+.vyroba-subtab.active, .seg-tab.active {
   background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
   color: #fff;
   font-weight: 600;
   box-shadow: 0 3px 10px rgba(186, 117, 23, 0.32), inset 0 1px 0 rgba(255,255,255,0.15);
 }
-.vyroba-subtab.active .vyroba-subtab-icon {
+.vyroba-subtab.active .vyroba-subtab-icon,
+.seg-tab.active .seg-tab-icon {
   filter: grayscale(0) brightness(1.05);
   transform: scale(1.08);
 }
-.vyroba-subtab:focus-visible {
+.vyroba-subtab:focus-visible, .seg-tab:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 /* Tablet: kompaktnější padding, menší ikony */
 @media (max-width: 980px) {
-  .vyroba-subtab { padding: 10px 8px; min-width: 84px; }
-  .vyroba-subtab-icon { font-size: 20px; }
-  .vyroba-subtab-text { font-size: 12px; }
+  .vyroba-subtab, .seg-tab { padding: 10px 8px; min-width: 84px; }
+  .vyroba-subtab-icon, .seg-tab-icon { font-size: 20px; }
+  .vyroba-subtab-text, .seg-tab-text { font-size: 12px; }
 }
 /* Mobile: kompaktní, scroll, ale stále icon+text */
 @media (max-width: 600px) {
-  .vyroba-subtabs { padding: 4px; gap: 4px; border-radius: 12px; }
-  .vyroba-subtab { padding: 9px 12px; min-width: 78px; flex: 0 0 auto; gap: 3px; }
-  .vyroba-subtab-icon { font-size: 19px; }
-  .vyroba-subtab-text { font-size: 11.5px; }
+  .vyroba-subtabs, .seg-tabs { padding: 4px; gap: 4px; border-radius: 12px; }
+  .vyroba-subtab, .seg-tab { padding: 9px 12px; min-width: 78px; flex: 0 0 auto; gap: 3px; }
+  .vyroba-subtab-icon, .seg-tab-icon { font-size: 19px; }
+  .vyroba-subtab-text, .seg-tab-text { font-size: 11.5px; }
 }
 /* Dark theme support */
-html.dark .vyroba-subtabs,
-html.theme-dark .vyroba-subtabs {
+html.dark .vyroba-subtabs, html.theme-dark .vyroba-subtabs,
+html.dark .seg-tabs, html.theme-dark .seg-tabs {
   background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
   border-color: rgba(255,255,255,0.08);
 }
-html.dark .vyroba-subtab,
-html.theme-dark .vyroba-subtab { color: var(--text-2); }
-html.dark .vyroba-subtab.active,
-html.theme-dark .vyroba-subtab.active { color: #fff; }
+html.dark .vyroba-subtab, html.theme-dark .vyroba-subtab,
+html.dark .seg-tab, html.theme-dark .seg-tab { color: var(--text-2); }
+html.dark .vyroba-subtab.active, html.theme-dark .vyroba-subtab.active,
+html.dark .seg-tab.active, html.theme-dark .seg-tab.active { color: #fff; }
 .form-label { display: block; font-size: 12px; color: var(--text-3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
 .form-input, .form-select, .form-textarea {
   width: 100%; padding: 11px 14px; border: 1px solid var(--border-2);

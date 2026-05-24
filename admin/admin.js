@@ -5062,8 +5062,7 @@ async function renderVyrobaHub() {
   }
 
   // 🆕 v2.9.227 — sub-taby jako stylované segmented control (icon nahoře, label dole)
-  // Desktop: rovnoměrně distribuované přes celou šířku (flex: 1 each)
-  // Mobile: horizontal scroll s snap, zachované icon+label rozložení.
+  // v2.9.229 — refactor na .seg-tabs (univerzální styling, sdílený s Nastavením)
   const splitLabel = (lbl) => {
     // Předpokládám formát "🧪 HACCP" — rozdělím na emoji + zbytek
     const m = lbl.match(/^(\p{Emoji}+|\p{Extended_Pictographic}+|[^\s]+)\s+(.+)$/u);
@@ -5080,14 +5079,14 @@ async function renderVyrobaHub() {
     </div>
 
     <!-- 🗂️ SUB-TABY — segmented control s icon + label -->
-    <div class="vyroba-subtabs" role="tablist">
+    <div class="seg-tabs" role="tablist">
       ${VYROBA_SUBTABS.map(t => {
         const { icon, text } = splitLabel(t.label);
         return `
-        <button type="button" role="tab" class="vyroba-subtab ${aktSubTab === t.key ? 'active' : ''}"
+        <button type="button" role="tab" class="seg-tab ${aktSubTab === t.key ? 'active' : ''}"
                 onclick="vyrobaSetSubTab('${t.key}')" aria-selected="${aktSubTab === t.key}">
-          <span class="vyroba-subtab-icon">${icon}</span>
-          <span class="vyroba-subtab-text">${text}</span>
+          <span class="seg-tab-icon">${icon}</span>
+          <span class="seg-tab-text">${text}</span>
         </button>
       `;
       }).join('')}
@@ -11911,14 +11910,21 @@ async function renderNastaveni() {
       </div>
     </div>
 
-    <!-- 🗂️ ZÁLOŽKY -->
-    <div class="nastaveni-tabs" role="tablist">
-      ${TABS.map(t => `
-        <button type="button" role="tab" class="nastaveni-tab ${aktTab === t.key ? 'active' : ''} ${t.adminOnly ? 'admin-only' : ''}"
+    <!-- 🗂️ ZÁLOŽKY — v2.9.229 segmented control (icon nahoře, label dole) -->
+    <div class="seg-tabs" role="tablist">
+      ${TABS.map(t => {
+        // Rozdělit "🏢 Firma & doklady" na ikona + text (Unicode emoji regex)
+        const m = (t.label || '').match(/^(\p{Emoji}+|\p{Extended_Pictographic}+|[^\s]+)\s+(.+)$/u);
+        const icon = m ? m[1] : '';
+        const text = m ? m[2] : t.label;
+        return `
+        <button type="button" role="tab" class="seg-tab ${aktTab === t.key ? 'active' : ''} ${t.adminOnly ? 'admin-only' : ''}"
                 onclick="nastaveniSetTab('${t.key}')" aria-selected="${aktTab === t.key}">
-          <span>${esc(t.label)}</span>
+          <span class="seg-tab-icon">${icon}</span>
+          <span class="seg-tab-text">${esc(text)}</span>
         </button>
-      `).join('')}
+      `;
+      }).join('')}
     </div>
 
     <div class="nastaveni-page nastaveni-tab-content">
