@@ -16751,53 +16751,168 @@ window.saveReservation = async function(stulId) {
 // =============================================================
 // POS běží jako standalone app (/pos/ folder, vlastní HTML/CSS/JS)
 // — sdílí session s adminem, ale je to jiné okno (fullscreen kiosk friendly)
+// 🆕 v2.9.303 — kompaktní hero + list dnešních prodejů (Co se dnes prodalo)
 async function renderPOSLauncher() {
   const body = document.getElementById('rest-tab-body');
   if (!body) return;
+
+  // Skeleton během načítání
   body.innerHTML = `
-    <div class="card-block" style="max-width:780px;margin:0 auto;padding:32px;text-align:center;background:linear-gradient(180deg,#FFFDF6 0%,#FAF6EC 100%);border:2px solid var(--primary-border,#FAC775);border-radius:18px">
-      <div style="font-size:78px;line-height:1;margin-bottom:14px">🧾</div>
-      <h2 style="margin:0 0 8px;font-size:24px;font-weight:800;color:var(--primary,#BA7517)">POS Kasa</h2>
-      <p style="margin:0 0 18px;color:var(--text-2);font-size:14px;line-height:1.5">
-        Klasický touch-grid POS register pro pultový/take-away prodej.<br>
-        Samostatná aplikace — otevře se v novém okně, ideální pro pokladní terminál nebo tablet.
-      </p>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:24px">
-        <button class="btn-primary" style="font-size:16px;padding:14px 28px;font-weight:800" onclick="openPOSWindow()">
-          🚀 Otevřít POS v novém okně
-        </button>
-        <button class="btn-secondary" style="font-size:14px;padding:14px 22px" onclick="window.open('pos.php','_self')">
-          ↗️ Otevřít v této záložce
-        </button>
+    <style>
+      .pos-launcher-grid { display:grid; grid-template-columns:minmax(280px,1fr) minmax(380px,1.4fr); gap:16px; align-items:start; }
+      @media (max-width:900px) { .pos-launcher-grid { grid-template-columns:1fr; } }
+    </style>
+    <div class="pos-launcher-grid">
+      <div class="card-block" style="padding:18px;background:linear-gradient(180deg,#FFFDF6 0%,#FAF6EC 100%);border:2px solid var(--primary-border,#FAC775);border-radius:14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="font-size:32px;line-height:1">🧾</div>
+          <div>
+            <h2 style="margin:0;font-size:18px;font-weight:800;color:var(--primary,#BA7517)">POS Kasa</h2>
+            <small style="font-size:11px;color:var(--text-3)">Touch-grid register pro pultový prodej</small>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn-primary" style="font-size:15px;padding:12px 16px;font-weight:700" onclick="openPOSWindow()">
+            🚀 Otevřít POS v novém okně
+          </button>
+          <button class="btn-secondary" style="font-size:13px;padding:9px 14px" onclick="window.open('pos.php','_self')">
+            ↗️ Otevřít v této záložce
+          </button>
+        </div>
+        <details style="margin-top:12px;font-size:12px;color:var(--text-2)">
+          <summary style="cursor:pointer;color:var(--text-3);font-size:11px;font-weight:600;user-select:none">ⓘ Co umí POS</summary>
+          <ul style="margin:8px 0 0;padding-left:18px;line-height:1.55">
+            <li>📦 Produktová mřížka s obrázky, kategorie, search</li>
+            <li>💳 6 platebních metod (hotově, karta, PayPal, voucher, gift card, mobile)</li>
+            <li>🛍️ 4 typy objednávky (sebou, na místě, vyzvednutí, rozvoz)</li>
+            <li>🧾 Tisk účtenky 80 mm, slevy, spropitné, poznámky</li>
+            <li>👥 PIN přepínač prodavačů + cart resume</li>
+          </ul>
+          <div style="margin-top:8px;padding:8px 10px;background:#FFFBE9;border:1px solid #F0D88B;border-radius:6px;font-size:11px">
+            💡 Na terminálu si dej <code>/pos/</code> jako záložku na ploše nebo iPad home screen — POS funguje jako PWA.
+          </div>
+        </details>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;text-align:left;margin-top:24px;padding-top:24px;border-top:1px solid var(--border)">
-        <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px">
-          <div style="font-size:22px;margin-bottom:4px">📦</div>
-          <strong style="font-size:13px">Produktová mřížka</strong>
-          <div style="font-size:12px;color:var(--text-2);margin-top:4px">Touch-friendly grid s obrázky, kategorie, filtry, search</div>
+      <div id="pos-launcher-sales" class="card-block" style="padding:14px;min-height:340px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h3 style="margin:0;font-size:14px;color:var(--text)">🛒 Dnešní prodeje</h3>
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="renderPOSLauncher()" title="Obnovit data">↻</button>
         </div>
-        <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px">
-          <div style="font-size:22px;margin-bottom:4px">💳</div>
-          <strong style="font-size:13px">6 platebních metod</strong>
-          <div style="font-size:12px;color:var(--text-2);margin-top:4px">Hotově, karta, PayPal, gift card, voucher, mobile</div>
-        </div>
-        <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px">
-          <div style="font-size:22px;margin-bottom:4px">🛍️</div>
-          <strong style="font-size:13px">4 typy objednávky</strong>
-          <div style="font-size:12px;color:var(--text-2);margin-top:4px">Sebou, na místě, vyzvednutí, rozvoz</div>
-        </div>
-        <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px">
-          <div style="font-size:22px;margin-bottom:4px">🧾</div>
-          <strong style="font-size:13px">Tisk účtenky</strong>
-          <div style="font-size:12px;color:var(--text-2);margin-top:4px">80 mm thermal printer, slevy, spropitné, poznámky</div>
-        </div>
-      </div>
-
-      <div style="margin-top:18px;font-size:12px;color:var(--text-3)">
-        💡 Tip: na pokladním terminálu si dej <code>/pos/</code> jako záložku na ploše nebo iPad home screen — POS funguje jako PWA.
+        <div style="text-align:center;padding:40px 20px;color:var(--text-3);font-size:13px">⏳ Načítám…</div>
       </div>
     </div>
+  `;
+
+  // Asynchronně načti dnešní data
+  let d;
+  try { d = await api('admin_pos.php?action=launcher_summary'); }
+  catch (e) { d = { ok: false, error: e.message }; }
+
+  const panel = document.getElementById('pos-launcher-sales');
+  if (!panel) return; // user mezitím odešel ze stránky
+
+  if (!d || d.ok === false) {
+    panel.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0;font-size:14px;color:var(--text)">🛒 Dnešní prodeje</h3>
+        <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="renderPOSLauncher()">↻</button>
+      </div>
+      <div style="padding:24px;text-align:center;color:var(--text-3);font-size:12px;background:#FFF8E5;border:1px dashed #E8C988;border-radius:8px">
+        ${esc(d?.error || 'Data zatím nedostupná. Endpoint admin_pos.php?action=launcher_summary.')}
+      </div>
+    `;
+    return;
+  }
+
+  const s = d.souhrn || {};
+  const orders = Array.isArray(d.orders) ? d.orders : [];
+  const top = Array.isArray(d.top_items) ? d.top_items : [];
+  const fmtCZK = (n) => (parseFloat(n) || 0).toLocaleString('cs-CZ', { maximumFractionDigits: 0 }) + ' Kč';
+  const fmtTime = (iso) => {
+    if (!iso) return '—';
+    try {
+      const dt = new Date(iso.replace(' ', 'T'));
+      return dt.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return '—'; }
+  };
+  const typIcon = (t) => ({ 'sebou': '🥡', 'na_miste': '🍽️', 'rozvoz': '🛵', 'vyzvednuti': '🏪' })[t] || '🧾';
+  const payIcon = (p) => ({ 'hotove': '💵', 'karta': '💳', 'paypal': '🅿️', 'voucher': '🎫', 'gift': '🎁', 'mobile': '📱' })[p] || '💳';
+
+  // Stat tiles + orders list + top items
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="margin:0;font-size:14px;color:var(--text)">🛒 Dnešní prodeje <small style="font-size:11px;color:var(--text-3);font-weight:400">${esc(d.date || '')}</small></h3>
+      <button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="renderPOSLauncher()" title="Obnovit data">↻</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      <div style="background:#F7F8FA;border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">Tržby</div>
+        <strong style="font-size:18px;color:#15803D;font-variant-numeric:tabular-nums">${fmtCZK(s.trzby)}</strong>
+      </div>
+      <div style="background:#F7F8FA;border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">Účtenek</div>
+        <strong style="font-size:18px;color:var(--text);font-variant-numeric:tabular-nums">${parseInt(s.pocet || 0)}</strong>
+      </div>
+      <div style="background:#F7F8FA;border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">Tipy</div>
+        <strong style="font-size:18px;color:#BA7517;font-variant-numeric:tabular-nums">${fmtCZK(s.tipy)}</strong>
+      </div>
+    </div>
+
+    ${(parseFloat(s.hotove) > 0 || parseFloat(s.karta) > 0) ? `
+      <div style="display:flex;gap:6px;margin-bottom:12px;font-size:11px;color:var(--text-2)">
+        <span style="background:#EFF6FF;color:#0C447C;padding:3px 8px;border-radius:6px">💵 Hotově ${fmtCZK(s.hotove)}</span>
+        <span style="background:#F0FDF4;color:#15803D;padding:3px 8px;border-radius:6px">💳 Karta ${fmtCZK(s.karta)}</span>
+      </div>
+    ` : ''}
+
+    ${top.length > 0 ? `
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">🏆 TOP prodané dnes</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${top.map((it, idx) => `
+            <div style="display:flex;justify-content:space-between;gap:8px;padding:6px 10px;background:${idx === 0 ? '#FFF8E5' : '#F7F8FA'};border-radius:6px;font-size:12px;align-items:center">
+              <span style="display:flex;align-items:center;gap:6px;min-width:0">
+                <span style="font-size:11px;color:var(--text-3);min-width:18px">#${idx + 1}</span>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.vyrobek_nazev || '—')}">${esc((it.vyrobek_nazev || '—').slice(0, 32))}</span>
+              </span>
+              <span style="display:flex;gap:8px;align-items:center;white-space:nowrap;font-variant-numeric:tabular-nums">
+                <strong style="color:#BA7517">${parseFloat(it.mnozstvi_sum).toFixed(parseFloat(it.mnozstvi_sum) % 1 ? 1 : 0)}×</strong>
+                <span style="color:var(--text-3);font-size:11px">${fmtCZK(it.trzba_sum)}</span>
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    ${orders.length > 0 ? `
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">🧾 Poslední účtenky</div>
+        <div style="display:flex;flex-direction:column;gap:4px;max-height:280px;overflow:auto">
+          ${orders.map(o => `
+            <div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;padding:6px 10px;background:#F7F8FA;border-radius:6px;font-size:12px;align-items:center">
+              <span style="font-size:14px" title="${esc(o.pos_typ || '')}">${typIcon(o.pos_typ)}</span>
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                <strong style="font-family:monospace;font-size:11px">${esc((o.cislo || '—').slice(-8))}</strong>
+                <span style="color:var(--text-3);margin-left:6px">${fmtTime(o.datum_objednani)} · ${parseInt(o.pocet_polozek || 0)} pol.</span>
+                ${o.pos_uzivatel ? `<span style="color:var(--text-3);margin-left:6px">· 👤 ${esc(String(o.pos_uzivatel).slice(0, 14))}</span>` : ''}
+              </span>
+              <span title="${esc(o.pos_payment || '')}">${payIcon(o.pos_payment)}</span>
+              <strong style="font-variant-numeric:tabular-nums;color:var(--text)">${fmtCZK(o.castka_celkem)}</strong>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : `
+      <div style="padding:32px 20px;text-align:center;color:var(--text-3);font-size:13px;background:#FAFAFA;border:1px dashed var(--border);border-radius:8px">
+        <div style="font-size:36px;margin-bottom:8px;opacity:0.5">🛒</div>
+        Dnes ještě žádné POS prodeje.<br>
+        <small style="font-size:11px">Otevři POS Kasu a začni!</small>
+      </div>
+    `}
   `;
 }
 

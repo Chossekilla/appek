@@ -1110,4 +1110,66 @@ if ($method === 'GET' && $action === 'quick_history') {
     }
 }
 
+// 🆕 v2.9.303 — GET ?action=launcher_summary — pro POS Kasa hub stránku
+// Vrací: souhrn dne (tržby, počet účtenek, hotově/karta split) + last 8 účtenek + TOP 8 prodaných položek
+if ($method === 'GET' && $action === 'launcher_summary') {
+    try {
+        $date = $_GET['date'] ?? date('Y-m-d');
+        $limit_orders = max(3, min(30, (int)($_GET['limit_orders'] ?? 8)));
+        $limit_items  = max(3, min(30, (int)($_GET['limit_items']  ?? 8)));
+
+        // Souhrn dne (kompaktní)
+        $sum = $pdo->prepare("
+            SELECT
+                COUNT(*) AS pocet,
+                COALESCE(SUM(castka_celkem), 0) AS trzby,
+                COALESCE(SUM(pos_tip), 0) AS tipy,
+                COALESCE(SUM(CASE WHEN pos_payment='hotove' THEN castka_celkem ELSE 0 END), 0) AS hotove,
+                COALESCE(SUM(CASE WHEN pos_payment='karta'  THEN castka_celkem ELSE 0 END), 0) AS karta
+            FROM objednavky
+            WHERE puvod = 'pos' AND DATE(datum_objednani) = :d
+        ");
+        $sum->execute(['d' => $date]);
+        $souhrn = $sum->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        // Posledních N účtenek
+        $ord = $pdo->prepare("
+            SELECT id, cislo, datum_objednani, castka_celkem, pos_typ, pos_payment, pos_uzivatel,
+                   (SELECT COUNT(*) FROM objednavky_polozky p WHERE p.objednavka_id = o.id) AS pocet_polozek
+            FROM objednavky o
+            WHERE puvod = 'pos' AND DATE(datum_objednani) = :d
+            ORDER BY datum_objednani DESC
+            LIMIT {$limit_orders}
+        ");
+        $ord->execute(['d' => $date]);
+        $orders = $ord->fetchAll(PDO::FETCH_ASSOC);
+
+        // TOP N prodaných položek (agregace dle vyrobek_nazev)
+        $top = $pdo->prepare("
+            SELECT p.vyrobek_nazev, COALESCE(p.vyrobek_id, 0) AS vyrobek_id,
+                   SUM(p.mnozstvi) AS mnozstvi_sum,
+                   SUM(p.mnozstvi * COALESCE(p.cena_bez_dph, 0) * (1 + COALESCE(p.sazba_dph, 0) / 100)) AS trzba_sum
+            FROM objednavky_polozky p
+            JOIN objednavky o ON o.id = p.objednavka_id
+            WHERE o.puvod = 'pos' AND DATE(o.datum_objednani) = :d
+              AND p.vyrobek_nazev IS NOT NULL
+            GROUP BY p.vyrobek_nazev, p.vyrobek_id
+            ORDER BY mnozstvi_sum DESC, trzba_sum DESC
+            LIMIT {$limit_items}
+        ");
+        $top->execute(['d' => $date]);
+        $top_items = $top->fetchAll(PDO::FETCH_ASSOC);
+
+        json_response([
+            'ok'        => true,
+            'date'      => $date,
+            'souhrn'    => $souhrn,
+            'orders'    => $orders,
+            'top_items' => $top_items,
+        ]);
+    } catch (Throwable $e) {
+        json_error('Chyba launcher_summary: ' . $e->getMessage(), 500);
+    }
+}
+
 json_error('Neznámá akce: ' . $action, 404);
