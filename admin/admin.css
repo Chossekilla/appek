@@ -5125,20 +5125,37 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
   color: var(--text-2);
 }
 
-/* 🆕 v2.9.245 — MOBILE period-taby: NEZALAMOVAT, použít unified design (DRY tokens)
-   User explicit: 'nechci aby se zalomovalo - spíš zmenšovalo vždycky'
-   Předchozí v2.9.118 mobile override dělal flex-wrap + pill — odstraněno.
-   Tokens v :root řeší škálování (clamp), container má overflow-x: auto. */
+/* 🆕 v2.9.246 — MOBILE filter tabs: 2-SLOUPCOVÝ GRID (user request)
+   Předtím scrollovací řada (uživatel musel scrollovat aby viděl všechno).
+   Teď 2-col grid — user vidí všechny taby najednou, lichý počet → poslední
+   button span 2 (full row). Aplikuje se napříč všemi themes. */
 @media (max-width: 700px) {
-  .period-tabs {
-    flex-wrap: nowrap !important;            /* NIKDY nezalamovat */
-    overflow-x: auto !important;              /* scroll fallback */
-    -webkit-overflow-scrolling: touch !important;
+  .period-tabs,
+  .seg-tabs,
+  .vyroba-subtabs,
+  .nastaveni-tabs {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+    overflow-x: visible !important;
+    scroll-snap-type: none !important;
   }
-  .period-tab {
-    flex: 1 1 0 !important;                  /* rovnoměrná distribuce */
+  .period-tab,
+  .seg-tab,
+  .vyroba-subtab,
+  .nastaveni-tab {
+    flex: none !important;
+    min-width: 0 !important;
+    width: auto !important;
     white-space: nowrap !important;
-    border-radius: var(--filter-tab-radius) !important; /* z tokenů, ne pill */
+    border-radius: var(--filter-tab-radius) !important;
+  }
+  /* Lichý počet → poslední button span 2 (full row width) */
+  .period-tabs .period-tab:last-child:nth-child(odd),
+  .seg-tabs .seg-tab:last-child:nth-child(odd),
+  .vyroba-subtabs .vyroba-subtab:last-child:nth-child(odd),
+  .nastaveni-tabs .nastaveni-tab:last-child:nth-child(odd) {
+    grid-column: span 2 !important;
   }
 
   /* Štítky — režimové taby (Exped / Cenovky / Moje / Editor) — 2 sloupce */
