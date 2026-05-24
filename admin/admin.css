@@ -31,6 +31,23 @@
   --bg-1: var(--surface);      /* alias — modaly */
   --brand: var(--primary);      /* alias — odkazy, akcenty */
   --surface-3: var(--surface-2); /* alias — input bg na cards */
+
+  /* 🆕 v2.9.244 — FILTER TABS DESIGN TOKENS (DRY — change here, applies everywhere)
+     Použito v: .seg-tab, .period-tab, .nastaveni-tab, .vyroba-subtab
+     Themes (default/dark/apple) respektují. Win98 má vlastní hardcoded styling. */
+  --filter-tab-pad-y:        clamp(8px, 1.4vw, 12px);   /* vertical padding škáluje */
+  --filter-tab-pad-x:        clamp(8px, 1.2vw, 14px);   /* horizontal padding škáluje */
+  --filter-tab-radius:       10px;
+  --filter-tab-gap:          4px;                       /* mezi icon a text */
+  --filter-icon-size:        clamp(17px, 2.4vw, 22px);  /* icon škáluje */
+  --filter-text-size:        clamp(11px, 1.5vw, 12.5px); /* label škáluje */
+  --filter-tab-min-width:    72px;                      /* aby šly do scroll na úzkém */
+  --filter-container-pad:    6px;
+  --filter-container-radius: 14px;
+  --filter-container-gap:    4px;
+  --filter-active-bg:        linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+  --filter-active-shadow:    0 3px 10px rgba(186, 117, 23, 0.32), inset 0 1px 0 rgba(255,255,255,0.15);
+  --filter-hover-bg:         rgba(186, 117, 23, 0.06);
 }
 
 html, body {
@@ -1941,166 +1958,144 @@ body.role-restricted .admin-only { display: none !important; }
   .udrzba-grid .ug-wide { grid-column: span 1; }
 }
 
-/* 🗂️ Záložky Nastavení */
-.nastaveni-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 18px;
-  padding: 4px;
-  background: var(--surface-2);
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.nastaveni-tab {
-  flex: 0 0 auto;
-  padding: 10px 14px;
-  background: transparent;
-  border: 0;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-2);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-  white-space: nowrap;
-  text-align: center;
-  font-family: inherit;
-}
-.nastaveni-tab:hover:not(.active) {
-  background: var(--surface);
-  color: var(--text);
-}
-.nastaveni-tab.active {
-  background: var(--primary);
-  color: #fff;
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(186, 117, 23, 0.25);
-}
+/* 🗂️ Záložky Nastavení — kompletní pravidla přesunuty do unified
+   .seg-tabs/.period-tabs/.nastaveni-tabs blok níže (v2.9.244, používá CSS tokens).
+   Zde zůstává jen animace + content fade-in. */
 .nastaveni-tab-content {
-  /* aby přechod mezi tabami vypadal hladce */
   animation: nastaveniTabIn 0.18s ease-out;
 }
 @keyframes nastaveniTabIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-/* Mobil: záložky horizontální scroll, menší font */
-@media (max-width: 700px) {
-  .nastaveni-tabs {
-    padding: 3px;
-    gap: 2px;
-  }
-  .nastaveni-tab {
-    padding: 10px 12px;
-    font-size: 13px;
-    flex: 0 0 auto;
-  }
-}
-html.dark .nastaveni-tabs { background: var(--surface-2); border-color: rgba(255,255,255,0.08); }
-html.dark .nastaveni-tab.active { background: var(--primary); color: #fff; }
 
-/* 🆕 v2.9.227 — Segmented sub-taby — univerzální styling
-   Desktop: rovnoměrné rozložení (flex:1), icon nad textem.
-   Mobile: horizontal scroll, kompaktnější.
-   v2.9.229 — alias .seg-tabs/.seg-tab pro univerzální použití (Nastavení, …).
+/* 🆕 v2.9.244 — FILTER TABS — UNIFIED design (DRY tokens v :root)
+   Aplikuje se na všechny filter use-cases:
+   .seg-tabs / .vyroba-subtabs / .period-tabs / .nastaveni-tabs
+   Pravidla:
+   - NIKDY nezalamovat text (white-space: nowrap)
+   - Vždy škálovat fonts přes clamp() (větší PC → menší mobile)
+   - Container má overflow-x: auto (scroll fallback pokud nevejdou)
+   - Buttons flex: 1 1 0 + min-width: token (rovnoměrná distribuce)
+   - flex-shrink: 0 na text/icon (nestlačit jednotlivé prvky pod 0)
+   - text-overflow: ellipsis (safety pro extrémně dlouhé labely)
+   - Themes: default/dark/apple respektují tokens; Win98 má vlastní override.
 */
-.vyroba-subtabs, .seg-tabs {
+.vyroba-subtabs, .seg-tabs, .period-tabs, .nastaveni-tabs {
   display: flex;
-  gap: 6px;
+  gap: var(--filter-container-gap);
   margin-bottom: 20px;
-  padding: 6px;
+  padding: var(--filter-container-pad);
   background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
-  border-radius: 14px;
+  border-radius: var(--filter-container-radius);
   border: 1px solid var(--border);
   box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
+  box-sizing: border-box;
+  max-width: 100%;
 }
-.vyroba-subtab, .seg-tab {
+.vyroba-subtab, .seg-tab, .period-tab, .nastaveni-tab {
   flex: 1 1 0;
-  min-width: 92px;
+  min-width: var(--filter-tab-min-width);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 12px 10px;
+  gap: var(--filter-tab-gap);
+  padding: var(--filter-tab-pad-y) var(--filter-tab-pad-x);
   background: transparent;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--filter-tab-radius);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--filter-text-size);
   font-weight: 500;
   color: var(--text-2);
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease;
-  white-space: nowrap;
+  white-space: nowrap;             /* NIKDY nezalamovat */
+  overflow: hidden;
+  text-overflow: ellipsis;          /* safety pro dlouhé labely */
   text-align: center;
   scroll-snap-align: start;
   position: relative;
+  box-sizing: border-box;
 }
-.vyroba-subtab-icon, .seg-tab-icon {
-  font-size: 22px;
+.vyroba-subtab-icon, .seg-tab-icon, .period-tab-icon {
+  font-size: var(--filter-icon-size);
   line-height: 1;
   display: block;
+  flex-shrink: 0;
   filter: grayscale(0.15);
   transition: filter 0.18s ease, transform 0.18s ease;
 }
-.vyroba-subtab-text, .seg-tab-text {
-  font-size: 12.5px;
+.vyroba-subtab-text, .seg-tab-text, .period-tab-text {
+  font-size: var(--filter-text-size);
   letter-spacing: -0.01em;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
-.vyroba-subtab:hover:not(.active), .seg-tab:hover:not(.active) {
-  background: rgba(186, 117, 23, 0.06);
+.vyroba-subtab:hover:not(.active),
+.seg-tab:hover:not(.active),
+.period-tab:hover:not(.active),
+.nastaveni-tab:hover:not(.active) {
+  background: var(--filter-hover-bg);
   color: var(--text);
 }
 .vyroba-subtab:hover:not(.active) .vyroba-subtab-icon,
-.seg-tab:hover:not(.active) .seg-tab-icon {
+.seg-tab:hover:not(.active) .seg-tab-icon,
+.period-tab:hover:not(.active) .period-tab-icon {
   filter: grayscale(0);
   transform: scale(1.05);
 }
-.vyroba-subtab.active, .seg-tab.active {
-  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+.vyroba-subtab.active, .seg-tab.active, .period-tab.active, .nastaveni-tab.active {
+  background: var(--filter-active-bg);
   color: #fff;
   font-weight: 600;
-  box-shadow: 0 3px 10px rgba(186, 117, 23, 0.32), inset 0 1px 0 rgba(255,255,255,0.15);
+  box-shadow: var(--filter-active-shadow);
 }
 .vyroba-subtab.active .vyroba-subtab-icon,
-.seg-tab.active .seg-tab-icon {
+.seg-tab.active .seg-tab-icon,
+.period-tab.active .period-tab-icon {
   filter: grayscale(0) brightness(1.05);
   transform: scale(1.08);
 }
-.vyroba-subtab:focus-visible, .seg-tab:focus-visible {
+.vyroba-subtab:focus-visible,
+.seg-tab:focus-visible,
+.period-tab:focus-visible,
+.nastaveni-tab:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
-/* Tablet: kompaktnější padding, menší ikony */
-@media (max-width: 980px) {
-  .vyroba-subtab, .seg-tab { padding: 10px 8px; min-width: 84px; }
-  .vyroba-subtab-icon, .seg-tab-icon { font-size: 20px; }
-  .vyroba-subtab-text, .seg-tab-text { font-size: 12px; }
-}
-/* Mobile: kompaktní, scroll, ale stále icon+text */
-@media (max-width: 600px) {
-  .vyroba-subtabs, .seg-tabs { padding: 4px; gap: 4px; border-radius: 12px; }
-  .vyroba-subtab, .seg-tab { padding: 9px 12px; min-width: 78px; flex: 0 0 auto; gap: 3px; }
-  .vyroba-subtab-icon, .seg-tab-icon { font-size: 19px; }
-  .vyroba-subtab-text, .seg-tab-text { font-size: 11.5px; }
-}
-/* Dark theme support */
+/* Dark theme — respektuje tokens, jen barvy pozadí jemně override */
 html.dark .vyroba-subtabs, html.theme-dark .vyroba-subtabs,
-html.dark .seg-tabs, html.theme-dark .seg-tabs {
+html.dark .seg-tabs, html.theme-dark .seg-tabs,
+html.dark .period-tabs, html.theme-dark .period-tabs,
+html.dark .nastaveni-tabs, html.theme-dark .nastaveni-tabs {
   background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
   border-color: rgba(255,255,255,0.08);
 }
 html.dark .vyroba-subtab, html.theme-dark .vyroba-subtab,
-html.dark .seg-tab, html.theme-dark .seg-tab { color: var(--text-2); }
+html.dark .seg-tab, html.theme-dark .seg-tab,
+html.dark .period-tab, html.theme-dark .period-tab,
+html.dark .nastaveni-tab, html.theme-dark .nastaveni-tab { color: var(--text-2); }
 html.dark .vyroba-subtab.active, html.theme-dark .vyroba-subtab.active,
-html.dark .seg-tab.active, html.theme-dark .seg-tab.active { color: #fff; }
+html.dark .seg-tab.active, html.theme-dark .seg-tab.active,
+html.dark .period-tab.active, html.theme-dark .period-tab.active,
+html.dark .nastaveni-tab.active, html.theme-dark .nastaveni-tab.active { color: #fff; }
+/* Apple theme — jemné akcenty, ale stejný layout */
+html.theme-apple .vyroba-subtabs,
+html.theme-apple .seg-tabs,
+html.theme-apple .period-tabs,
+html.theme-apple .nastaveni-tabs {
+  border-radius: var(--filter-container-radius);
+}
+/* Win98 theme — vlastní hardcoded design (user request: nech jak jsou).
+   Win98 overrides v admin.css níže (řádek 8487+) zachovány beze změny. */
 .form-label { display: block; font-size: 12px; color: var(--text-3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
 .form-input, .form-select, .form-textarea {
   width: 100%; padding: 11px 14px; border: 1px solid var(--border-2);
@@ -4957,107 +4952,12 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
 }
 
 /* =========================================================
-   DASHBOARD — taby období + graf + dashboard layout
+   DASHBOARD — period-tabs (legacy block — kompletní pravidla
+   přesunuty do unified .seg-tabs/.period-tabs/.nastaveni-tabs
+   v2.9.244 nahoře tohoto souboru, používá CSS tokeny v :root)
    ========================================================= */
-/* 🆕 v2.9.235 — .period-tabs sjednoceno se .seg-tabs designem (segmented control
-   s gradient pozadím, glow active, smooth transitions). Vizuálně konzistentní
-   napříč Dashboard / Výroba / Rozvozy / Sales / Suroviny / Štítky / Email editor. */
-.period-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 14px;
-  padding: 6px;
-  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
-  box-sizing: border-box;
-  max-width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x mandatory;
-}
-/* 🆕 v2.9.237 — column layout (icon nahoře, label dole) — sjednoceno se .seg-tabs */
-.period-tab {
-  flex: 1 1 0;
-  min-width: 92px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 12px 10px;
-  box-sizing: border-box;
-  border-radius: 10px;
-  background: transparent;
-  border: 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-2);
-  cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
-  white-space: nowrap;
-  text-align: center;
-  font-family: inherit;
-  scroll-snap-align: start;
-  -webkit-appearance: none;
-  appearance: none;
-  position: relative;
-}
-.period-tab-icon {
-  font-size: 22px;
-  line-height: 1;
-  display: block;
-  filter: grayscale(0.15);
-  transition: filter 0.18s ease, transform 0.18s ease;
-}
-.period-tab-text {
-  font-size: 12.5px;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-.period-tab:hover:not(.active) {
-  background: rgba(186, 117, 23, 0.06);
-  color: var(--text);
-}
-.period-tab:hover:not(.active) .period-tab-icon {
-  filter: grayscale(0);
-  transform: scale(1.05);
-}
-.period-tab.active {
-  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
-  color: #fff;
-  font-weight: 600;
-  box-shadow: 0 3px 10px rgba(186, 117, 23, 0.32), inset 0 1px 0 rgba(255,255,255,0.15);
-}
-.period-tab.active .period-tab-icon {
-  filter: grayscale(0) brightness(1.05);
-  transform: scale(1.08);
-}
-.period-tab:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-/* Tablet: kompaktnější padding, menší ikony */
-@media (max-width: 980px) {
-  .period-tab { padding: 10px 8px; min-width: 84px; }
-  .period-tab-icon { font-size: 20px; }
-  .period-tab-text { font-size: 12px; }
-}
-/* Mobile: scroll, kompaktnější */
-@media (max-width: 600px) {
-  .period-tabs { padding: 4px; gap: 4px; border-radius: 12px; }
-  .period-tab { padding: 9px 12px; min-width: 78px; flex: 0 0 auto; gap: 3px; }
-  .period-tab-icon { font-size: 19px; }
-  .period-tab-text { font-size: 11.5px; }
-}
-/* Dark theme support */
-html.dark .period-tabs, html.theme-dark .period-tabs {
-  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
-  border-color: rgba(255,255,255,0.08);
-}
-html.dark .period-tab, html.theme-dark .period-tab { color: var(--text-2); }
-html.dark .period-tab.active, html.theme-dark .period-tab.active { color: #fff; }
+/* Žádné period-tab CSS zde — viz unified block "FILTER TABS — UNIFIED"
+   v sekci nahoře. Změna stylingu = uprav --filter-* tokeny v :root. */
 
 .period-custom {
   display: flex;
@@ -12119,39 +12019,17 @@ html.density-spacious .faktura-card-castka {
 }
 
 /* =========================================================
-   📑 NASTAVENÍ TABS — responzivní zalomení do víc řádků
-   Místo horizontálního scrollu (uživatel ho nevidí) zalomíme
-   taby do víc řádků na úzkém okně nebo při velkém density.
+   📑 NASTAVENÍ TABS — v2.9.244 NIKDY nezalamovat (user request)
+   Tokens řeší škálování přes clamp() v unified blocku nahoře.
+   Container má overflow-x: auto jako fallback pokud se nevejdou.
    ========================================================= */
-.nastaveni-tabs {
-  flex-wrap: wrap;        /* zalomit do víc řádků pokud se nevejdou */
-  overflow-x: visible;     /* žádný horizontální scroll */
-}
-.nastaveni-tab {
-  /* min-width: max-content; — odstraněno, aby tab mohl shrinkovat */
-  min-width: auto;
-  flex: 0 0 auto;          /* tab má jen svou potřebnou šířku, nezvětšuje se */
-}
-
-/* Spacious + extreme density nebo úzké okno — kompaktnější taby ať se vejdou */
-@media (max-width: 1280px) {
-  .nastaveni-tab {
-    padding: 10px 14px;
-    font-size: 13px;
-  }
-  html.density-spacious .nastaveni-tab { padding: 12px 16px; font-size: 14px; }
-  html.density-extreme .nastaveni-tab { padding: 14px 18px; font-size: 15px; }
-}
-
-/* Extreme density — vždy víc řádků, lepší tap targets */
+/* Density override — extreme density potřebuje větší tap targets */
 html.density-extreme .nastaveni-tabs {
   gap: 6px;
   padding: 6px;
 }
-
-/* Apple téma — segmented control look stále funguje při wrap */
-html.theme-apple .nastaveni-tabs {
-  flex-wrap: wrap;
+html.density-extreme .nastaveni-tab {
+  padding: calc(var(--filter-tab-pad-y) + 4px) calc(var(--filter-tab-pad-x) + 4px);
 }
 
 /* =========================================================
@@ -17566,26 +17444,10 @@ html.dark .tb-app-name { color: #f5f5f7; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   🎯 APPEK v2.9.66 — ZAROVNANÉ SKUPINY TLAČÍTEK (canonical)
-   Nastavení-taby + filtr odběratelů do jednotné mřížky stejně širokých
-   tlačítek (auto-fill grid). Konec ragged řádků různě širokých buttonů —
-   všechny buttony stejně široké, řádky lícují. (Jazyky: inline grid v JS.)
+   🎯 APPEK v2.9.244 — Nastavení-taby + filtr odběratelů
+   v2.9.244: nastaveni-tabs nyní řízeny unified .seg-tabs blok nahoře
+   (DRY tokeny). Zde zůstává jen .odb-typ-pills override (jiný UI prvek).
    ═══════════════════════════════════════════════════════════════ */
-.nastaveni-tabs {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
-  gap: 6px !important;
-  overflow: visible !important;
-}
-.nastaveni-tab {
-  flex: none !important;
-  width: auto !important;
-  min-width: 0 !important;
-  /* 🆕 v2.9.110 — dlouhý popisek („Přístupy & ceny", „Nápověda & FAQ")
-     se ZALOMÍ uvnitř tlačítka místo přetečení z rámečku */
-  white-space: normal !important;
-  overflow-wrap: anywhere !important;
-}
 .odb-typ-pills {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important;
@@ -17598,7 +17460,6 @@ html.dark .tb-app-name { color: #f5f5f7; }
   justify-content: center !important;
 }
 @media (max-width: 700px) {
-  .nastaveni-tabs { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important; }
   .odb-typ-pills  { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
 }
 
