@@ -1517,15 +1517,26 @@ body.role-restricted .admin-only { display: none !important; }
   box-shadow: 0 2px 6px rgba(34, 134, 58, 0.25);
 }
 .btn-icon-corner:active { transform: scale(0.96); }
+/* 🆕 v2.9.262 — Mobile touch targets WCAG 2.1 AA (44×44 min) */
 @media (max-width: 700px) {
-  .btn-icon-corner { width: 40px; height: 40px; font-size: 20px; }
-  /* Form-actions na mobilu má column-reverse + width:100% pro vše —
-     pro icon-corner to zrušíme a posuneme do rohu vedle koše */
+  .btn-icon-corner { width: 44px; height: 44px; font-size: 22px; }
+  /* Form-actions ikona vedle koše — také 44 (přístupnost) */
   .form-actions .btn-icon-corner {
-    width: 36px !important;
+    width: 44px !important;
+    height: 44px !important;
     align-self: flex-start;
     margin-left: 2px;
   }
+  /* Recent doklady icon buttons (Dashboard) — WCAG min */
+  .recent-icon-btn { width: 40px !important; height: 40px !important; }
+  .dashboard-recent-row > .recent-card .recent-icon-btn {
+    width: 40px !important; height: 40px !important;
+  }
+  /* Table inline action buttons (Upravit/Smazat) — min 40 */
+  .table .btn-secondary,
+  .table .btn-danger { min-height: 40px; padding: 8px 12px !important; }
+  /* Doc-badge — min height pro lepší tap */
+  .doc-badge { min-height: 36px; padding: 7px 12px !important; display: inline-flex; align-items: center; }
 }
 
 /* 📨🗑️ Řádek s ikonkami ✉️ + 🗑️ v detailu OBJ/DL/FA (a 🗑️ samostatně v dalších modal)
