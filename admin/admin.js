@@ -5766,9 +5766,9 @@ window.renderVyrobaAutoForDate = async function(datum) {
   div.innerHTML = `
     <!-- Quick-pick datumové taby -->
     <div class="period-tabs">
-      <button class="period-tab ${datum === dnes ? 'active' : ''}" onclick="renderVyrobaAutoForDate('${dnes}')">📅 Dnes</button>
-      <button class="period-tab ${datum === zitra ? 'active' : ''}" onclick="renderVyrobaAutoForDate('${zitra}')">➡️ Zítra</button>
-      <button class="period-tab ${datum === pozitri ? 'active' : ''}" onclick="renderVyrobaAutoForDate('${pozitri}')">⏭️ Pozítří</button>
+      <button class="period-tab ${datum === dnes ? 'active' : ''}" onclick="renderVyrobaAutoForDate('${dnes}')"><span class="period-tab-icon">📅</span><span class="period-tab-text">Dnes</span></button>
+      <button class="period-tab ${datum === zitra ? 'active' : ''}" onclick="renderVyrobaAutoForDate('${zitra}')"><span class="period-tab-icon">➡️</span><span class="period-tab-text">Zítra</span></button>
+      <button class="period-tab ${datum === pozitri ? 'active' : ''}" onclick="renderVyrobaAutoForDate('${pozitri}')"><span class="period-tab-icon">⏭️</span><span class="period-tab-text">Pozítří</span></button>
       <button class="period-tab" onclick="vyrobaToggleKalendar()" id="vy-kal-toggle">📆 Kalendář</button>
     </div>
 
@@ -6355,8 +6355,8 @@ async function renderRozvozy() {
     </div>
 
     <div class="period-tabs">
-      <button class="period-tab ${datum === dnes ? 'active' : ''}" onclick="rozvozSetDatum('${dnes}')">📅 Dnes</button>
-      <button class="period-tab ${datum === zitra ? 'active' : ''}" onclick="rozvozSetDatum('${zitra}')">➡️ Zítra</button>
+      <button class="period-tab ${datum === dnes ? 'active' : ''}" onclick="rozvozSetDatum('${dnes}')"><span class="period-tab-icon">📅</span><span class="period-tab-text">Dnes</span></button>
+      <button class="period-tab ${datum === zitra ? 'active' : ''}" onclick="rozvozSetDatum('${zitra}')"><span class="period-tab-icon">➡️</span><span class="period-tab-text">Zítra</span></button>
       <input class="filter-input" type="date" value="${datum}" onchange="rozvozSetDatum(this.value)" style="max-width:170px;margin-left:8px">
     </div>
 
@@ -7415,16 +7415,16 @@ function rangeToPeriod(od, doDt) {
 function dashStylePeriodHtml(typ, datum_od, datum_do) {
   const currentPeriod = rangeToPeriod(datum_od, datum_do);
   const tabs = [
-    { k: 'dnes',    l: '📅 Dnes' },
-    { k: 'tyden',   l: '📆 Tento týden' },
-    { k: 'mesic',   l: '🗓️ Tento měsíc' },
-    { k: 'rok',     l: '📊 Tento rok' },
-    { k: 'vlastni', l: '⚙️ Vlastní' },
-    { k: 'vse',     l: '∞ Vše' },
+    { k: 'dnes',    icon: '📅', l: 'Dnes' },
+    { k: 'tyden',   icon: '📆', l: 'Tento týden' },
+    { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc' },
+    { k: 'rok',     icon: '📊', l: 'Tento rok' },
+    { k: 'vlastni', icon: '⚙️', l: 'Vlastní' },
+    { k: 'vse',     icon: '∞',  l: 'Vše' },
   ];
   const tabsHtml = tabs.map(t => `
     <button class="period-tab ${currentPeriod === t.k ? 'active' : ''}"
-            onclick="periodTabSet('${typ}', '${t.k}')">${t.l}</button>
+            onclick="periodTabSet('${typ}', '${t.k}')"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${t.l}</span></button>
   `).join('');
   const customHtml = currentPeriod === 'vlastni' ? `
     <div class="period-custom" style="margin-top:10px">
@@ -19662,8 +19662,8 @@ window.emailTemplateEdit = async function(klic, override = null) {
       <!-- Toggle Text / HTML -->
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding:10px 14px;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">
         <div style="display:flex;gap:4px;align-items:center">
-          <button type="button" id="et-mode-text" class="period-tab ${!isHtml ? 'active' : ''}" onclick="emailTplSetMode('text')" style="font-size:13px;padding:8px 16px">📝 Plain text</button>
-          <button type="button" id="et-mode-html" class="period-tab ${isHtml ? 'active' : ''}" onclick="emailTplSetMode('html')" style="font-size:13px;padding:8px 16px">🎨 HTML</button>
+          <button type="button" id="et-mode-text" class="period-tab ${!isHtml ? 'active' : ''}" onclick="emailTplSetMode('text')" style="font-size:13px;padding:8px 16px"><span class="period-tab-icon">📝</span><span class="period-tab-text">Plain text</span></button>
+          <button type="button" id="et-mode-html" class="period-tab ${isHtml ? 'active' : ''}" onclick="emailTplSetMode('html')" style="font-size:13px;padding:8px 16px"><span class="period-tab-icon">🎨</span><span class="period-tab-text">HTML</span></button>
           <input type="hidden" id="et-format" value="${isHtml ? 'html' : 'text'}">
         </div>
         <div id="et-html-tools" style="display:${isHtml ? 'flex' : 'none'};gap:6px;flex-wrap:wrap">
@@ -24684,7 +24684,7 @@ window.surSkladModal = async function(id) {
 
     <!-- Záložky příjem/výdej/inventura -->
     <div class="period-tab-row" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-      <button type="button" class="period-tab active" onclick="surSkladTab('prijem')" data-tab="prijem" style="font-size:14px;padding:10px 16px;font-weight:600">📥 Příjem</button>
+      <button type="button" class="period-tab active" onclick="surSkladTab('prijem')" data-tab="prijem" style="font-size:14px;padding:10px 16px;font-weight:600"><span class="period-tab-icon">📥</span><span class="period-tab-text">Příjem</span></button>
       <button type="button" class="period-tab" onclick="surSkladTab('vydej')" data-tab="vydej" style="font-size:14px;padding:10px 16px;font-weight:600">📤 Výdej</button>
       <button type="button" class="period-tab" onclick="surSkladTab('inventura')" data-tab="inventura" style="font-size:14px;padding:10px 16px;font-weight:600">📋 Inventura</button>
     </div>
@@ -26474,12 +26474,12 @@ async function renderStitky() {
     <div class="card-block" style="padding:16px 18px;margin-bottom:14px">
       <!-- Hlavní režimy vlevo, Expediční štítky (samostatná funkčnost) vpravo s vizuálním oddělením -->
       <div class="stitky-rezim-tabs" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-        <button class="period-tab ${s.rezim === 'cenovky' ? 'active' : ''}" onclick="stSetRezim('cenovky')">🏷️ Cenovky z výrobků</button>
-        <button class="period-tab ${s.rezim === 'moje' ? 'active' : ''}" onclick="stSetRezim('moje')">✏️ Moje štítky</button>
-        <button class="period-tab ${s.rezim === 'editor' ? 'active' : ''}" onclick="stSetRezim('editor')">🛠️ Editor šablon</button>
+        <button class="period-tab ${s.rezim === 'cenovky' ? 'active' : ''}" onclick="stSetRezim('cenovky')"><span class="period-tab-icon">🏷️</span><span class="period-tab-text">Cenovky z výrobků</span></button>
+        <button class="period-tab ${s.rezim === 'moje' ? 'active' : ''}" onclick="stSetRezim('moje')"><span class="period-tab-icon">✏️</span><span class="period-tab-text">Moje štítky</span></button>
+        <button class="period-tab ${s.rezim === 'editor' ? 'active' : ''}" onclick="stSetRezim('editor')"><span class="period-tab-icon">🛠️</span><span class="period-tab-text">Editor šablon</span></button>
         <span style="flex:1"></span>
         <span class="stitky-tabs-sep" aria-hidden="true" style="display:inline-block;width:1px;height:32px;background:var(--border);margin:0 14px 0 0"></span>
-        <button class="period-tab ${s.rezim === 'expedicni' ? 'active' : ''}" onclick="stSetRezim('expedicni')">📦 Expediční štítky</button>
+        <button class="period-tab ${s.rezim === 'expedicni' ? 'active' : ''}" onclick="stSetRezim('expedicni')"><span class="period-tab-icon">📦</span><span class="period-tab-text">Expediční štítky</span></button>
       </div>
 
       <div class="form-grid form-grid-tight" style="margin-bottom:0">
@@ -30714,20 +30714,20 @@ async function renderExportVyroby(filters = {}) {
     <!-- TABY OBDOBÍ -->
     <div class="period-tabs no-print">
       ${[
-        { k: 'mesic',         l: '🗓️ Tento měsíc' },
-        { k: 'minuly_mesic',  l: '⬅️ Minulý měsíc' },
-        { k: 'rok',           l: '📅 Tento rok' },
-        { k: 'minuly_rok',    l: '⬅️ Minulý rok' },
-        { k: 'vlastni',       l: '⚙️ Vlastní' },
+        { k: 'mesic',         icon: '🗓️', l: 'Tento měsíc' },
+        { k: 'minuly_mesic',  icon: '⬅️', l: 'Minulý měsíc' },
+        { k: 'rok',           icon: '📅', l: 'Tento rok' },
+        { k: 'minuly_rok',    icon: '⬅️', l: 'Minulý rok' },
+        { k: 'vlastni',       icon: '⚙️', l: 'Vlastní' },
       ].map(t => `
-        <button class="period-tab ${obdobi === t.k ? 'active' : ''}" onclick="exVyrobySetObdobi('${t.k}')">${t.l}</button>
+        <button class="period-tab ${obdobi === t.k ? 'active' : ''}" onclick="exVyrobySetObdobi('${t.k}')"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${t.l}</span></button>
       `).join('')}
     </div>
 
     <!-- PŘEPÍNAČ SOUHRN / DENNÍ -->
     <div class="period-tabs no-print" style="margin-top:8px">
-      <button class="period-tab ${exMode === 'souhrn' ? 'active' : ''}" onclick="exVyrobySetMode('souhrn')">📊 Souhrn (po výrobcích)</button>
-      <button class="period-tab ${exMode === 'denni' ? 'active' : ''}" onclick="exVyrobySetMode('denni')">📅 Po dnech (pivot)</button>
+      <button class="period-tab ${exMode === 'souhrn' ? 'active' : ''}" onclick="exVyrobySetMode('souhrn')"><span class="period-tab-icon">📊</span><span class="period-tab-text">Souhrn (po výrobcích)</span></button>
+      <button class="period-tab ${exMode === 'denni' ? 'active' : ''}" onclick="exVyrobySetMode('denni')"><span class="period-tab-icon">📅</span><span class="period-tab-text">Po dnech (pivot)</span></button>
     </div>
 
     ${obdobi === 'vlastni' ? `
@@ -31044,9 +31044,9 @@ function haccpRender() {
 
     <div class="card-block" style="padding:8px;margin-bottom:14px">
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="period-tab ${haccpState.tab === 'karty' ? 'active' : ''}" onclick="haccpSetTab('karty')">📋 Produktové karty</button>
-        <button class="period-tab ${haccpState.tab === 'grafy' ? 'active' : ''}" onclick="haccpSetTab('grafy')">📈 Grafy (šablony postupu)</button>
-        <button class="period-tab ${haccpState.tab === 'dokumenty' ? 'active' : ''}" onclick="haccpSetTab('dokumenty')">📚 Dokumentace firmy</button>
+        <button class="period-tab ${haccpState.tab === 'karty' ? 'active' : ''}" onclick="haccpSetTab('karty')"><span class="period-tab-icon">📋</span><span class="period-tab-text">Produktové karty</span></button>
+        <button class="period-tab ${haccpState.tab === 'grafy' ? 'active' : ''}" onclick="haccpSetTab('grafy')"><span class="period-tab-icon">📈</span><span class="period-tab-text">Grafy (šablony postupu)</span></button>
+        <button class="period-tab ${haccpState.tab === 'dokumenty' ? 'active' : ''}" onclick="haccpSetTab('dokumenty')"><span class="period-tab-icon">📚</span><span class="period-tab-text">Dokumentace firmy</span></button>
         <button class="period-tab ${haccpState.tab === 'defaulty' ? 'active' : ''}" onclick="haccpSetTab('defaulty')">⚙️ Defaultní hodnoty</button>
       </div>
     </div>
