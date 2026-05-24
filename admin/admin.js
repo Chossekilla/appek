@@ -2280,10 +2280,12 @@ window.addEventListener('load', function () {
 const DEFAULT_ROLE_PRAVA = {
   // 🆕 v2.9.225 — přidán 'nastroje' (hub pro katalog + stitky). katalog/stitky zůstávají
   // v právech (volané z hubu přes navigate). 'rozvozy' je teď v menu (pod objednávky).
+  // 🆕 v2.9.260 — přidána role 'pos' (jen POS terminál, žádný admin přístup)
   admin:    ['dashboard', 'objednavky', 'rozvozy', 'vyroba', 'dodaci_listy', 'faktury', 'vyrobky', 'nastroje', 'katalog', 'stitky', 'haccp', 'odberatele', 'nastaveni'],
   prodavac: ['dashboard', 'objednavky', 'rozvozy', 'dodaci_listy', 'faktury', 'vyrobky', 'nastroje', 'katalog', 'stitky', 'odberatele'],
   vyroba:   ['dashboard', 'vyroba', 'vyrobky', 'haccp'],
   expedice: ['dashboard', 'objednavky', 'dodaci_listy', 'rozvozy'],
+  pos:      ['dashboard'],  // jen dashboard — POS uživatel pracuje primárně v /pos/ terminálu
 };
 // Stránka -> ikona + label (pro UI editor rolí). 'rozvozy' tu zůstává — admin
 // si může v Údržbě roli rozšířit a tím přidat zpět do menu, pokud potřebuje.
@@ -20819,6 +20821,7 @@ async function renderUsers() {
       prodavac: '🛒 Prodavač',
       vyroba:   '🥖 Výroba',
       expedice: '🚚 Expedice',
+      pos:      '🧾 POS kasa',
     })[r] || r;
 
     const roleBadgeClass = (r) =>
@@ -20953,6 +20956,7 @@ function vykresliPravaPanel() {
     { key: 'prodavac', label: '🛒 Prodavač',     popis: 'Obvykle objednávky, DL, faktury, výrobky' },
     { key: 'vyroba',   label: '🥖 Výroba',       popis: 'Výrobní list, výrobky, HACCP' },
     { key: 'expedice', label: '🚚 Expedice',     popis: 'Jen objednávky a dodací listy' },
+    { key: 'pos',      label: '🧾 POS kasa',     popis: 'Pouze POS terminál (/pos/), žádný admin přístup' },
   ];
 
   blok.innerHTML = `
@@ -21051,12 +21055,13 @@ window.otevritUzivatele = async function(id) {
   const initials = (u.jmeno || u.email || '?').trim()
     .split(/\s+/).map(s => s[0]).join('').slice(0, 2).toUpperCase() || '?';
 
-  // Role definice — drží se beckendu (admin, prodavac, vyroba, expedice)
+  // Role definice — drží se beckendu (admin, prodavac, vyroba, expedice, pos)
   const roleDef = {
     admin:    { label: 'Super admin',  emoji: '👑', desc: 'Plný přístup včetně mazání faktur, objednávek, výrobků' },
     prodavac: { label: 'Prodavač',     emoji: '🛒', desc: 'Vidí vše, vystavuje doklady, ale nesmí mazat' },
     vyroba:   { label: 'Výroba',       emoji: '🥖', desc: 'Pro pekaře — výrobní list, objednávky' },
     expedice: { label: 'Expedice',     emoji: '🚚', desc: 'Pro řidiče — dodací listy, expedice' },
+    pos:      { label: 'POS kasa',     emoji: '🧾', desc: 'Pro obsluhu kasy — pouze POS terminál (žádný admin)' },
   };
 
   openModal(isNew ? '+ Nový uživatel' : `✏️ Upravit: ${u.jmeno || u.email}`, `

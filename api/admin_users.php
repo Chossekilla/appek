@@ -32,8 +32,8 @@ if ($method === 'POST') {
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) json_error('Neplatný email');
     if (strlen($heslo) < 6) json_error('Heslo musí mít alespoň 6 znaků');
-    if (!in_array($role, ['admin','prodavac','vyroba','expedice'], true)) {
-        json_error('Neplatná role');
+    if (!in_array($role, ['admin','prodavac','vyroba','expedice','pos'], true)) {
+        json_error('Neplatná role (admin/prodavac/vyroba/expedice/pos)');
     }
     if ($jmeno === '') $jmeno = $email;
 
@@ -80,8 +80,8 @@ if ($method === 'PUT') {
         $sets[] = "email = :e"; $params['e'] = $d['email'];
     }
     if (isset($d['role'])) {
-        if (!in_array($d['role'], ['admin','prodavac','vyroba','expedice'], true)) {
-            json_error('Neplatná role');
+        if (!in_array($d['role'], ['admin','prodavac','vyroba','expedice','pos'], true)) {
+            json_error('Neplatná role (admin/prodavac/vyroba/expedice/pos)');
         }
         $sets[] = "role = :r"; $params['r'] = $d['role'];
     }
