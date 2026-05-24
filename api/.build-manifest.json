@@ -1,6 +1,6 @@
 {
- "version": "2.9.287",
- "built_at": "2026-05-24T19:25:19Z",
+ "version": "2.9.288",
+ "built_at": "2026-05-24T19:30:30Z",
  "file_count": 227,
  "files": {
   ".htaccess": {
@@ -20,12 +20,12 @@
    "size": 4583
   },
   "admin/admin.css": {
-   "sha256": "25d290e1f20fb2e39a5b3a63b1a78783036269fed7352f840933f873b528e153",
+   "sha256": "b25fce38e6abaeacfebc68385859d59e8f41fdccb38489ddad791fbe4008ce61",
    "size": 559789
   },
   "admin/admin.js": {
-   "sha256": "7b5c86c175c90564f28297802f7d5f08a3ff6a9326ccb7fb73aad60b2a8b1303",
-   "size": 1875713
+   "sha256": "c1e88b86ec7610f5d433bfa4885161efed6ce9c815d56a20a5349edcf419c2c4",
+   "size": 1876825
   },
   "admin/clear-cache.html": {
    "sha256": "3f3d549fdcad9b1094ddca2e0c96e96570c73039450cff2ce18a4b31ff0cff03",
@@ -112,7 +112,7 @@
    "size": 573
   },
   "admin/index.html": {
-   "sha256": "ea9ba185dce15f75f283ebf5339ec86acc53dce68b350ec68164605be7bdb4e2",
+   "sha256": "0c139b09fe93b65a90a129bd5eac46cf8da41a19d88761e4fa6bc91bd517c95d",
    "size": 30645
   },
   "admin/manifest.json": {
@@ -136,7 +136,7 @@
    "size": 12259
   },
   "admin/sw.js": {
-   "sha256": "ea4e528df0b5ef0991fdaa1994ae6528df20e0f5f6df454d2d90b9afe8b2537c",
+   "sha256": "2b928cff344ac702f2fcd3272cddc23c4b3a298adcbb0c887488c1beab76a89b",
    "size": 5393
   },
   "admin/updater.html": {
@@ -584,7 +584,7 @@
    "size": 9975
   },
   "api/config.php": {
-   "sha256": "c22a5b167738e079686ff501ec9f4d1f0253dd77047c564a53bc2a0e33bd32b5",
+   "sha256": "deba02bd517181778ca7fdc589b90826a74971bd0f7f1cbcd3e6413deac8e763",
    "size": 44670
   },
   "api/cron_recurring.php": {
@@ -840,7 +840,7 @@
    "size": 105295
   },
   "b2b/index.html": {
-   "sha256": "3eb2171d112fa9402f6f253378a0155011d778c84e967e43e881752cee5c2206",
+   "sha256": "65911bb3d9f8b630e729028fbc85fbaeb564e0e107072b5453fed56d721b6d19",
    "size": 11976
   },
   "b2b/manifest.json": {

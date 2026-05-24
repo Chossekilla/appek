@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.287';
+const APPEK_ADMIN_JS_VERSION = '2.9.288';
 
 (async function detectStaleCode() {
   try {
@@ -7008,7 +7008,11 @@ window.renderVyrobaAutoForDate = async function(datum) {
   if (state._vyKalShow) loadVyrobaKalendar(calRok, calMesic);
 
   try {
-    const data = await api(`admin_vyroba.php?datum=${datum}`);
+    let data = await api(`admin_vyroba.php?datum=${datum}`);
+    // 🆕 v2.9.288 — defenzivní fallback pro broken/empty API response
+    if (!data || typeof data !== 'object') data = {};
+    if (!Array.isArray(data.souhrn)) data.souhrn = [];
+    if (!Array.isArray(data.po_pobockach)) data.po_pobockach = [];
     const dd = document.getElementById('vyroba-data');
 
     if (data.souhrn.length === 0) {
@@ -8086,10 +8090,17 @@ window.recurringSpustit = async function() {
 
 async function renderDodaciListy(filters = {}) {
   const params = new URLSearchParams(filters).toString();
-  const data = await api('admin_dodaci_listy.php' + (params ? '?' + params : ''));
+  let data;
+  try {
+    data = await api('admin_dodaci_listy.php' + (params ? '?' + params : ''));
+  } catch (e) { data = null; }
+  // 🆕 v2.9.288 — defenzivní fallback
+  if (!data || typeof data !== 'object') data = { dodaci_listy: [], souhrn: {} };
+  if (!Array.isArray(data.dodaci_listy)) data.dodaci_listy = [];
+  if (!data.souhrn || typeof data.souhrn !== 'object') data.souhrn = {};
 
   if (!state._dlSelected) state._dlSelected = new Set();
-  state._dlList = data.dodaci_listy || [];
+  state._dlList = data.dodaci_listy;
 
   const c = document.getElementById('content');
   c.innerHTML = `
@@ -8953,7 +8964,16 @@ async function renderFaktury(filters = {}) {
     <div class="card-block">${skeletonTable(8)}</div>
   `;
   const params = new URLSearchParams(filters).toString();
-  const data = await api('admin_faktury.php' + (params ? '?' + params : ''));
+  let data;
+  try {
+    data = await api('admin_faktury.php' + (params ? '?' + params : ''));
+  } catch (e) {
+    data = null;
+  }
+  // 🆕 v2.9.288 — defenzivní fallback (server může vrátit error/prázdno)
+  if (!data || typeof data !== 'object') data = { faktury: [], souhrn: {} };
+  if (!Array.isArray(data.faktury)) data.faktury = [];
+  if (!data.souhrn || typeof data.souhrn !== 'object') data.souhrn = { celkem: 0, celkem_kc: 0, po_splatnosti_kc: 0 };
   const c = document.getElementById('content');
 
   if (!state._faSelected) state._faSelected = new Set();
@@ -11418,14 +11438,17 @@ async function renderOdberatele() {
   if (filtrTyp) qs.set('typ', filtrTyp);
   if (filtrQ) qs.set('q', filtrQ);
   const url = qs.toString() ? `admin_odberatele.php?${qs.toString()}` : 'admin_odberatele.php';
-  const [list, stats] = await Promise.all([
-    api(url),
+  let [list, stats] = await Promise.all([
+    api(url).catch(() => []),
     api('admin_odberatele.php?action=typy_stats').catch(() => []),
   ]);
+  // 🆕 v2.9.288 — defenzivní fallback (server může vrátit error/non-array)
+  if (!Array.isArray(list)) list = [];
+  if (!Array.isArray(stats)) stats = [];
   const c = document.getElementById('content');
 
   // Spočítej celkový počet (suma ze stats) pro pillsy "Vše"
-  const totalAll = (stats || []).reduce((s, r) => s + parseInt(r.pocet || 0, 10), 0);
+  const totalAll = stats.reduce((s, r) => s + parseInt(r.pocet || 0, 10), 0);
 
   // Pillsy — typy odběratele (větší + samostatná ikona pro CSS scaling)
   const typPillsy = `
