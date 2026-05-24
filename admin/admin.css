@@ -1859,20 +1859,40 @@ body.role-restricted .admin-only { display: none !important; }
   cursor: pointer;
 }
 
-/* 🆕 v2.9.234 — decentní sparkline uvnitř stat-card (jemně viditelný, hover = full) */
+/* 🆕 v2.9.267 — sparkline jako PODKRES (watermark) pod částkou — Stripe/Linear style.
+   Předtím sparkline pod číslem (stat-card column). Nyní je absolutně pozicovaný
+   na pozadí karty, číslo + label zůstanou nad ním. Elegantní, méně rušivé. */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
 .stat-spark {
-  margin-top: 10px;
-  opacity: 0.55;
-  transition: opacity 0.2s ease;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;                          /* spodní polovina karty */
+  opacity: 0.18;                        /* podkres — sotva viditelný */
+  transition: opacity 0.2s ease, height 0.2s ease;
+  pointer-events: none;
   line-height: 0;
+  z-index: 0;
 }
 .stat-card:hover .stat-spark {
-  opacity: 0.95;
+  opacity: 0.45;                        /* na hover se zvýrazní */
+  height: 70%;
 }
 .stat-spark svg {
   display: block;
   width: 100%;
-  height: 24px;
+  height: 100%;                         /* fill celou výšku spark containeru */
+}
+/* Obsah karty nad podkresem */
+.stat-card > .stat-label,
+.stat-card > .stat-value,
+.stat-card > .stat-sub {
+  position: relative;
+  z-index: 1;
 }
 
 /* 🆕 v2.9.243 — Dashboard stat-grid: 75/25 + 50/50 layout NA VŠECH velikostech
