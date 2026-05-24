@@ -1053,7 +1053,7 @@ async function loadNotifList(triggerFresh = false) {
         const newestAt = items.map(x => x.created_at).sort().reverse()[0];
 
         html.push(`
-          <div class="notif-item ${isUnread ? 'is-unread' : ''} sev-${esc(first.severity)} is-grouped" data-kind="${esc(kind)}" data-ids="${ids}">
+          <div class="notif-item ${isUnread ? 'is-unread' : ''} sev-${esc(first.severity)} is-grouped" data-kind="${esc(kind)}" data-ids="${ids}" onclick="toggleNotifGroup('${esc(kind)}')" style="cursor:pointer">
             <div class="notif-icon">${notifIcon(kind, first.severity)}</div>
             <div class="notif-body">
               <div class="notif-title">
@@ -1061,7 +1061,7 @@ async function loadNotifList(triggerFresh = false) {
                 ${unreadCount > 0 ? `<span class="notif-count-badge">${unreadCount}</span>` : ''}
                 <button class="notif-expand-btn" onclick="event.stopPropagation();toggleNotifGroup('${esc(kind)}')" title="Rozbalit">▾</button>
               </div>
-              <div class="notif-msg">Klikni na šipku pro rozbalení</div>
+              <div class="notif-msg">Klikni pro rozbalení (${items.length}× v skupině)</div>
               <div class="notif-time">Nejnovější: ${fmtAgo(newestAt)}</div>
             </div>
             <button class="notif-del" onclick="event.stopPropagation();deleteNotifGroup('${esc(kind)}', '${ids}')" title="Smazat všechny">×</button>

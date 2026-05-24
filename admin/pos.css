@@ -496,8 +496,13 @@ button { font-family: inherit; cursor: pointer; }
 .pos-cust-btn:hover { background: #FFF5DC; border-style: solid; }
 
 /* Cart list */
+/* 🐛 v2.9.307 — min-height: 120px chrání proti kolapsu když fixed sekce
+   pod ní (summary + payment + type + total + actions) sečetly víc než
+   viewport. Předtím flex:1 bez min-height kolaboval na 0 → user
+   neviděl řádky košíku. */
 .pos-cart-list {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 120px;
   overflow-y: auto;
   background: #fff;
   -webkit-overflow-scrolling: touch;
@@ -1007,7 +1012,15 @@ button { font-family: inherit; cursor: pointer; }
 /* ═════════════════════════════════════════════════════════════════
    🔍 v2.9.37 — BIG MODE: velké touch-friendly UI pro POS terminál
    Zvětšuje fonty, karty, tlačítka — vhodné pro POS dotykovou obrazovku
+   🐛 v2.9.307 — WRAP do @media (min-width: 1441px) — předtím to bylo
+   UNCONDITIONAL a na MacBooku 13 (≈1280px × 720px) bylo všechno tak velké,
+   že fixed-height sekce v cart panelu (head + cust + summary + payment + type
+   + total + actions) sečetly ~600px → flex:1 .pos-cart-list zkolaboval na
+   0 výšky → user neviděl řádky košíku (POS Kasa screen "Košík je prázdný"
+   neviditelný, ani přidané položky). Compact MacBook 13 block na řádce 749
+   nikdy nefungoval, protože BIG MODE !important's ho přebíjely.
    ═════════════════════════════════════════════════════════════════ */
+@media (min-width: 1441px) {
 
 /* Bazální velikost — všechno o ~30% větší */
 html, body {
@@ -1222,6 +1235,8 @@ html, body {
 
 /* Toast */
 .pos-toast { font-size: 16px !important; padding: 16px 26px !important; border-radius: 14px !important; }
+
+} /* ← konec @media (min-width: 1441px) BIG MODE blok */
 
 /* Tablet / mobile zachovat ale taky o trochu větší než default */
 @media (max-width: 900px) {
