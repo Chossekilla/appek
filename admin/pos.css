@@ -716,9 +716,11 @@ button { font-family: inherit; cursor: pointer; }
   color: #fff;
   border: none;
   border-radius: 10px;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 900;
   letter-spacing: 0.5px;
+  padding: 14px 20px;
+  min-height: 56px;
   box-shadow: 0 4px 12px rgba(30,132,73,0.35);
   transition: all 0.15s ease;
 }
@@ -728,6 +730,52 @@ button { font-family: inherit; cursor: pointer; }
 }
 .pos-finish:active { transform: translateY(0); }
 .pos-finish:disabled { opacity: 0.6; cursor: wait; transform: none; }
+
+/* 🆕 v2.9.299 — MacBook 13" responsivity (1280-1440px viewport) — kompaktnější finish + actions */
+@media (min-width: 1024px) and (max-width: 1440px) {
+  .pos-actions { padding: 8px 12px 12px !important; gap: 5px !important; }
+  .pos-icon {
+    width: 42px !important; height: 46px !important;
+    font-size: 18px !important; border-radius: 8px !important;
+  }
+  .pos-finish {
+    font-size: 19px !important;
+    min-height: 50px !important;
+    padding: 10px 16px !important;
+    border-radius: 10px !important;
+    letter-spacing: 0.4px !important;
+  }
+  .pos-total-bar { padding: 10px 14px !important; }
+  .pos-total-bar strong { font-size: 26px !important; }
+  /* Header užší */
+  .pos-header { padding: 8px 14px !important; }
+  .pos-brand-name { font-size: 14px !important; }
+  .pos-user-name { font-size: 12px !important; }
+  .pos-user-avatar { width: 28px !important; height: 28px !important; font-size: 13px !important; }
+  /* Cart kompaktnější */
+  .pos-cart-list { padding: 6px 10px !important; }
+  .pos-payment-bar, .pos-type-bar { padding: 6px 10px !important; gap: 4px !important; }
+  .pos-pay-btn, .pos-type-btn { min-height: 38px !important; font-size: 12px !important; padding: 6px 8px !important; }
+  /* Grid produktů víc na řádek (kompaktnější karty) */
+  .pos-grid { gap: 6px !important; padding: 8px !important; }
+}
+
+/* 🆕 v2.9.299 — User avatar klikací (přepínání prodavačů) */
+.pos-user {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.pos-user:hover {
+  background: var(--pos-surface-2);
+}
+.pos-user::after {
+  content: '▾';
+  font-size: 10px;
+  margin-left: 4px;
+  opacity: 0.5;
+}
 
 /* ═════════════════════════════════════════════════════════════════
    FOOTER

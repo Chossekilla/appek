@@ -954,8 +954,68 @@
     }
   }
 
+  // 🆕 v2.9.299 — Přepínač prodavačů — klik na user avatar v POS header
+  // Zachová košík, logout + lze re-loginout s jiným PIN (rychlý switch)
+  async function switchUser() {
+    if (State.cart.length > 0) {
+      if (!confirm('V košíku jsou položky. Při přepnutí prodavače bude košík ZACHOVÁN.\n\nPokračovat?')) return;
+    }
+    // Logout (smaže POS session) → reload na pos.php → keypad screen
+    try {
+      await fetch('../api/pos_auth.php?action=logout', {
+        method: 'POST', credentials: 'include',
+      });
+    } catch (e) { /* soft-fail, pokračujeme stejně */ }
+    // Zachovat košík v localStorage (loadne se po PIN re-loginu)
+    if (State.cart.length > 0) {
+      try {
+        localStorage.setItem('appek_pos_cart_resume', JSON.stringify({
+          cart: State.cart, odberatel: State.odberatel,
+          pos_typ: State.pos_typ, pos_payment: State.pos_payment,
+          pos_tip: State.pos_tip, sleva_pct: State.sleva_pct,
+          poznamka: State.poznamka, saved_at: Date.now(),
+        }));
+      } catch (e) {}
+    }
+    // Reload → pos.php zjistí že nejsme přihlášeni → PIN keypad screen
+    window.location.reload();
+  }
+
+  // 🆕 v2.9.299 — Auto-resume košíku po switch user (pokud existuje)
+  function resumeCartIfAny() {
+    try {
+      const raw = localStorage.getItem('appek_pos_cart_resume');
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      // Resume jen pokud < 5 minut staré (jinak je to zbytek)
+      if (Date.now() - d.saved_at > 5 * 60 * 1000) {
+        localStorage.removeItem('appek_pos_cart_resume');
+        return;
+      }
+      if (Array.isArray(d.cart) && d.cart.length > 0) {
+        State.cart = d.cart;
+        State.odberatel = d.odberatel;
+        State.pos_typ = d.pos_typ || 'sebou';
+        State.pos_payment = d.pos_payment || 'hotove';
+        State.pos_tip = d.pos_tip || 0;
+        State.sleva_pct = d.sleva_pct || 0;
+        State.poznamka = d.poznamka || '';
+        toast('✓ Pokračujeme s košíkem od předchozího prodavače (' + d.cart.length + ' pol.)', 'success');
+      }
+      localStorage.removeItem('appek_pos_cart_resume');
+    } catch (e) {}
+  }
+  // Zavolat po loadCatalog (po inicializaci stavu)
+  const origLoadCatalog = loadCatalog;
+  loadCatalog = async function() {
+    const r = await origLoadCatalog.apply(this, arguments);
+    resumeCartIfAny();
+    return r;
+  };
+
   // ─── Public POS object ───────────────────────────────────────
   window.POS = {
+    switchUser:    switchUser,   // 🆕 v2.9.299
     search:        setSearch,
     newOrder:      newOrder,
     pickCustomer:  pickCustomer,
