@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "2.9.273";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "2.9.274";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18440,3 +18440,31 @@ html.density-extreme body:not(.sidebar-pinned) .sidebar-nav .nav-icon {
   transform: translateY(-1px);
 }
 .provoz-tile:active { transform: translateY(0); }
+
+/* 🆕 v2.9.273 — Sklady karta klikací (celá karta = otevřít detail skladu) */
+.sklad-card {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.sklad-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(186,117,23,0.12), 0 0 0 1px rgba(186,117,23,0.06);
+  transform: translateY(-2px);
+}
+.sklad-card:hover .sklad-card-arrow {
+  transform: translateX(4px);
+  color: var(--primary);
+}
+.sklad-card:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(186,117,23,0.08);
+}
+.sklad-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.sklad-card.is-inactive:hover {
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
+}
+.sklad-card.is-inactive .sklad-card-arrow { display: none; }

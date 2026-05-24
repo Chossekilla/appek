@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.273';
+const APPEK_ADMIN_JS_VERSION = '2.9.274';
 
 (async function detectStaleCode() {
   try {
@@ -5591,32 +5591,39 @@ async function renderSkladyInline() {
       ` : `
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
           ${sklady.map(s => `
-            <div class="card-block ${s.aktivni ? '' : 'is-inactive'}" style="${s.aktivni ? '' : 'opacity:0.55;border-style:dashed'};padding:16px;display:flex;flex-direction:column;gap:8px">
+            <div class="card-block sklad-card ${s.aktivni ? '' : 'is-inactive'}"
+                 onclick="otevritSklad(${s.id}, '${esc(s.nazev)}', '${esc(s.kod)}')"
+                 role="button" tabindex="0"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();otevritSklad(${s.id}, '${esc(s.nazev)}', '${esc(s.kod)}')}"
+                 title="Klikni pro detail skladu — položky, příjem, výdej, inventura"
+                 style="${s.aktivni ? '' : 'opacity:0.55;border-style:dashed'};padding:16px;display:flex;flex-direction:column;gap:8px;cursor:pointer">
               <div style="display:flex;align-items:center;gap:10px">
                 <span style="font-size:30px;line-height:1">${typIcon[s.typ] || '🏭'}</span>
                 <div style="flex:1;min-width:0">
                   <div style="font-weight:700;font-size:15px;color:var(--text-1)">${esc(s.nazev)}</div>
                   <div style="font-size:11px;color:var(--text-3);font-family:monospace">${esc(s.kod)} · ${esc(typLabel[s.typ] || s.typ)}</div>
                 </div>
+                <span class="sklad-card-arrow" style="font-size:18px;color:var(--text-3);transition:transform 0.15s ease, color 0.15s ease">→</span>
               </div>
               ${(s.teplota_min !== null || s.teplota_max !== null) ? `
                 <div style="font-size:12px;color:var(--text-2)">🌡️ ${s.teplota_min !== null ? s.teplota_min : '?'}°C — ${s.teplota_max !== null ? s.teplota_max : '?'}°C</div>
               ` : ''}
               ${s.adresa ? `<div style="font-size:12px;color:var(--text-2)">📍 ${esc(s.adresa)}</div>` : ''}
               ${s.poznamka ? `<div style="font-size:11.5px;color:var(--text-3);font-style:italic">${esc(s.poznamka)}</div>` : ''}
-              <div style="display:flex;gap:6px;margin-top:auto;padding-top:8px;flex-wrap:wrap">
-                <button class="btn-primary" onclick="otevritSklad(${s.id}, '${esc(s.nazev)}', '${esc(s.kod)}')" style="font-size:12px;padding:6px 12px">📋 Detail</button>
-                <button class="btn-secondary" onclick="editSklad(${s.id})" style="font-size:12px;padding:6px 12px" title="Upravit metadata skladu">✏️</button>
-                <button class="btn-secondary" onclick="exportSklad(${s.id}, 'pdf')" style="font-size:12px;padding:6px 12px" title="Rychlý export — HTML print-ready">📄</button>
-                <button class="btn-secondary" onclick="exportSklad(${s.id}, 'csv')" style="font-size:12px;padding:6px 12px" title="Rychlý export — CSV (Excel / účetní)">📊</button>
-                <button class="btn-secondary" onclick="smazatSklad(${s.id}, '${esc(s.nazev)}')" style="font-size:12px;padding:6px 12px;background:#fde7e9;color:#a8232f;border-color:#fde7e9" title="Smazat / deaktivovat sklad">🗑️</button>
+              <!-- 🆕 v2.9.273 — action toolbar (event.stopPropagation = nezavírá hlavní onclick) -->
+              <div onclick="event.stopPropagation()" style="display:flex;gap:6px;margin-top:auto;padding-top:8px;flex-wrap:wrap;border-top:1px solid var(--border-2);padding-top:10px">
+                <button class="btn-secondary" onclick="editSklad(${s.id})" style="font-size:12px;padding:6px 12px" title="Upravit metadata skladu">✏️ Upravit</button>
+                <button class="btn-secondary" onclick="exportSklad(${s.id}, 'pdf')" style="font-size:12px;padding:6px 10px" title="Rychlý export — HTML print-ready">📄</button>
+                <button class="btn-secondary" onclick="exportSklad(${s.id}, 'csv')" style="font-size:12px;padding:6px 10px" title="Rychlý export — CSV (Excel / účetní)">📊</button>
+                <span style="flex:1"></span>
+                <button class="btn-secondary" onclick="smazatSklad(${s.id}, '${esc(s.nazev)}')" style="font-size:12px;padding:6px 10px;background:#fde7e9;color:#a8232f;border-color:#fde7e9" title="Smazat / deaktivovat sklad">🗑️</button>
               </div>
             </div>
           `).join('')}
         </div>
       `}
       <p style="font-size:11px;color:var(--text-3);margin-top:14px">
-        ℹ️ Klikni <strong>📋 Detail</strong> pro správu položek ve skladu — přiřazení surovin/výrobků, příjem, výdej, inventura, korekce a přesun mezi sklady.
+        ℹ️ Klikni na kartu skladu pro detail — položky, příjem, výdej, inventura, korekce. Akce v patičce (✏️ 📄 📊 🗑️) se otevírají samostatně.
       </p>
     `;
   } catch (e) {
