@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.293';
+const APPEK_ADMIN_JS_VERSION = '2.9.294';
 
 (async function detectStaleCode() {
   try {
@@ -3736,15 +3736,10 @@ async function renderDashboard(filters = {}) {
           Tvá databáze je prázdná. Klikni níže a vytvoří se <strong>John Doe s.r.o.</strong> + 4 varianty odběratelů, 10 výrobků, 1 objednávka, dodací list a faktura. Vše jedním klikem. Smažeš později v Nastavení → Údržba.
         </div>
       </div>
-      <div style="display:flex;gap:6px;align-items:stretch;flex-shrink:0">
-        <button class="btn-primary btn-green" onclick="openDemoSeed()" style="font-weight:700;padding:10px 20px;font-size:14px;border:none;border-radius:10px;cursor:pointer;white-space:nowrap">
-          🎬 Naplnit demo daty
-        </button>
-        <!-- 🆕 v2.9.277 — Reset (smazat všechno + naplnit znova) -->
-        <button class="btn-secondary" onclick="resetDemoSeed()" title="⚠️ Smazat VŠE + naplnit znova (vyžaduje 2× confirm + typed input)" style="padding:10px 14px;font-size:14px;border-radius:10px;cursor:pointer">
-          🗑️
-        </button>
-      </div>
+      <!-- 🆕 v2.9.294 — Banner jen pro prázdnou DB. Reset přesunut do Nastavení → Údržba. -->
+      <button class="btn-primary btn-green" onclick="openDemoSeed()" style="font-weight:700;padding:10px 20px;font-size:14px;border:none;border-radius:10px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+        🎬 Naplnit demo daty
+      </button>
     </div>
   ` : '';
 
@@ -12689,6 +12684,27 @@ async function renderNastaveni() {
   `;
 
   const blokUdrzba = `
+    <!-- 🆕 v2.9.294 — Demo data management (přesunuto sem z dashboard banneru) -->
+    <div class="card-block" style="margin-bottom:14px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8">
+      <h3 style="margin-bottom:6px;color:#854F0B">🎬 Demo data</h3>
+      <p class="page-sub" style="margin-bottom:14px">
+        Naplnit aplikaci ukázkovými daty (10 výrobků, 35+ surovin, recepty, kalkulace, objednávky, POS users, stoly…) nebo začít čistě.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-primary btn-green" onclick="openDemoSeed()" style="font-weight:700;padding:10px 20px;font-size:14px">
+          🎬 Naplnit demo daty
+        </button>
+        <button class="btn-secondary" onclick="resetDemoSeed()"
+                style="padding:10px 16px;font-size:14px;background:#FEE2E2;color:#991B1B;border-color:#FECACA"
+                title="⚠️ Smazat VŠE + naplnit znova (vyžaduje 2× confirm + typed input)">
+          🗑️ Reset demo data
+        </button>
+      </div>
+      <p style="font-size:11px;color:#854F0B;margin:10px 0 0;opacity:0.8">
+        ℹ️ Reset smaže VŠECHNA data včetně ručních úprav. Použij jen pokud chceš začít s čistou databází.
+      </p>
+    </div>
+
     <!-- 🌍 JAZYK APLIKACE -->
     <div class="card-block">
       <h3 style="margin-bottom:6px;">🌍 ${esc(t('settings_language'))}</h3>
