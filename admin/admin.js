@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.277';
+const APPEK_ADMIN_JS_VERSION = '2.9.278';
 
 (async function detectStaleCode() {
   try {
@@ -4035,6 +4035,45 @@ async function loadProvozWidget() {
   const totalMist = parseInt(cap.celkem_mist) || 0;
   const obsazenoMist = parseInt(cap.obsazeno_mist) || 0;
   const obsazenoPct = totalMist > 0 ? Math.round(obsazenoMist / totalMist * 100) : 0;
+
+  // 🆕 v2.9.277 — Setup hint: pokud uživatel nemá nastavené stoly/kuchyně/kurýrky → ukáže onboarding banner místo widgetu
+  const setupChybi = [];
+  if (totalMist === 0 && (!tables || !tables.error)) setupChybi.push({ icon: '🪑', label: 'Stoly', action: 'window.openFloorplanWindow?.()', hint: 'Vytvořit floor plan (stoly + zóny)' });
+  if ((!kitchen?.stanice || kitchen.stanice.length === 0) && (!kitchen || !kitchen.error)) setupChybi.push({ icon: '👨‍🍳', label: 'Kuchyně stanice', action: "navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='pkg_restaurace';renderNastaveni()},100)", hint: 'Pec, gril, studená kuchyně, bar…' });
+  if ((cStats.kuryru_aktivnich || 0) === 0 && (!couriers || !couriers.error)) setupChybi.push({ icon: '🛵', label: 'Kurýrky', action: "navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='pkg_restaurace';renderNastaveni()},100)", hint: 'Vlastní řidiči nebo Wolt/Bolt' });
+
+  if (setupChybi.length === setupChybi.length && setupChybi.length >= 2) {
+    // Zobraz onboarding hint místo widgetu (pokud chybí 2+ věci → ještě se nezačalo)
+    host.innerHTML = `
+      <div class="card-block" style="padding:18px 22px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8">
+        <div style="display:flex;align-items:start;gap:14px;flex-wrap:wrap">
+          <div style="font-size:36px;line-height:1">🍕</div>
+          <div style="flex:1;min-width:240px">
+            <h3 style="margin:0 0 6px;font-size:16px;color:#854F0B">Restaurace balíček — nastavení</h3>
+            <p style="margin:0 0 12px;font-size:13px;color:#854F0B;line-height:1.5">
+              Pro plné fungování dashboard Provoz widgetu nastav:
+            </p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-bottom:10px">
+              ${setupChybi.map(s => `
+                <button class="btn-secondary" onclick="${s.action}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;text-align:left;font-size:13px">
+                  <span style="font-size:22px">${s.icon}</span>
+                  <div style="flex:1">
+                    <strong>${s.label}</strong>
+                    <div style="font-size:11px;color:var(--text-3);font-weight:400">${s.hint}</div>
+                  </div>
+                  <span style="color:var(--text-3)">→</span>
+                </button>
+              `).join('')}
+            </div>
+            <p style="margin:0;font-size:11px;color:#854F0B;opacity:0.7">
+              ℹ️ Až nastavíš všechno, widget se přepne na živý přehled (stoly · kuchyně · rozvoz · POS dnes).
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
 
   // Kitchen load (%)
   const kitchenLoad = parseInt(kStats.global_load) || 0;
@@ -21518,6 +21557,11 @@ async function renderUsers() {
     const roleBadgeClass = (r) =>
       r === 'admin' ? 'role-badge super' : 'role-badge';
 
+    // 🆕 v2.9.277 — POS onboarding tooltip pokud Restaurace balíček aktivní + žádný POS user
+    const hasRestaurace = window._activePackages?.includes('restaurace');
+    const posUsersCount = users.filter(u => Number(u.ma_pin) === 1 || u.role === 'pos' || Number(u.pos_only) === 1).length;
+    const showPosOnboarding = hasRestaurace && posUsersCount === 0;
+
     c.innerHTML = `
       <div class="page-head">
         <div>
@@ -21529,6 +21573,33 @@ async function renderUsers() {
           <button class="btn-primary btn-green btn-big-action" onclick="otevritUzivatele(null)" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nový uživatel</button>
         </div>
       </div>
+
+      ${showPosOnboarding ? `
+        <div class="card-block" style="padding:16px 20px;margin-bottom:14px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8">
+          <div style="display:flex;align-items:start;gap:14px;flex-wrap:wrap">
+            <div style="font-size:36px;line-height:1;flex-shrink:0">🧾</div>
+            <div style="flex:1;min-width:220px">
+              <h3 style="margin:0 0 6px;font-size:15px;color:#854F0B">POS kasa — onboarding tip</h3>
+              <p style="margin:0 0 10px;font-size:13px;color:#854F0B;line-height:1.5">
+                Aktivovali jste <strong>🍕 Restaurace</strong> balíček. Pro plný POS workflow potřebujete uživatele s <strong>PIN</strong> (4-6 cifer) pro přihlášení do kasy bez hesla.
+              </p>
+              <details style="margin-bottom:10px">
+                <summary style="cursor:pointer;font-size:12px;font-weight:600;color:#854F0B;padding:4px 0">📖 Jak to funguje?</summary>
+                <ul style="margin:6px 0 0 18px;font-size:12px;color:#854F0B;line-height:1.6">
+                  <li><strong>Role POS kasa</strong> — uživatel vidí jen POS terminál (žádný admin)</li>
+                  <li><strong>PIN login</strong> — místo emailu+hesla zadá 4-6 cifer na touch keypadu</li>
+                  <li><strong>„Pouze POS" checkbox</strong> — uživatel se NEDOSTANE do /admin/, jen do /pos/</li>
+                  <li><strong>Admin s PIN</strong> — admin se může přihlásit do POS přes PIN i přes heslo do admin</li>
+                  <li><strong>Rate-limit</strong> — 5 selhaných pokusů / 15 min / IP</li>
+                </ul>
+              </details>
+              <button class="btn-primary btn-green" onclick="otevritUzivatele(null)" style="font-size:13px;padding:8px 16px">
+                + Vytvořit POS uživatele s PIN
+              </button>
+            </div>
+          </div>
+        </div>
+      ` : ''}
 
       <!-- Desktop: tabulka -->
       <div class="card-block desktop-only-block" style="padding:0">

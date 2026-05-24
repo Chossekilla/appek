@@ -1037,8 +1037,20 @@ if ($method === 'POST' && $action === 'quick_order') {
                     'r'   => json_encode($response, JSON_UNESCAPED_UNICODE),
                     'r2'  => json_encode($response, JSON_UNESCAPED_UNICODE),
                 ]);
-                // Cleanup starých záznamů (>30 dnů) — async friendly, prevention overgrowth
-                $pdo->exec("DELETE FROM pos_idempotency WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+                // 🆕 v2.9.277 — Rate-limited cleanup (max 1× za hodinu)
+                // Předtím se DELETE spouštělo při každém POS requestu (perf hit při peak).
+                // Teď držíme last_run timestamp v nastaveni a skipneme pokud <60min.
+                try {
+                    $lastRun = (int) $pdo->query("SELECT hodnota FROM nastaveni WHERE klic = 'pos_idemp_cleanup_at'")->fetchColumn();
+                    $now = time();
+                    if (!$lastRun || ($now - $lastRun) >= 3600) {
+                        $pdo->exec("DELETE FROM pos_idempotency WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+                        $pdo->prepare("
+                            INSERT INTO nastaveni (klic, hodnota) VALUES ('pos_idemp_cleanup_at', :v)
+                            ON DUPLICATE KEY UPDATE hodnota = :v2
+                        ")->execute(['v' => $now, 'v2' => $now]);
+                    }
+                } catch (Throwable $e) { /* soft-fail */ }
             } catch (Throwable $e) { /* soft-fail */ }
         }
 
