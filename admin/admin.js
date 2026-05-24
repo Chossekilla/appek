@@ -31273,24 +31273,28 @@ async function exVyrobyLoad(od, dto) {
       return;
     }
 
-    // Statistiky (stejné pro oba módy)
+    // 🆕 v2.9.266 — Statistika cards refresh (kompaktní, s sub + ikonami; primary tint na Tržbě)
     const statsHtml = `
-      <div class="stat-grid" style="margin-bottom:16px">
+      <div class="stat-grid" style="margin-bottom:14px">
         <div class="stat-card">
-          <div class="stat-label">Unikátních výrobků</div>
+          <div class="stat-label">📦 Unikátních výrobků</div>
           <div class="stat-value">${s.unikatnich_vyrobku}</div>
+          <div class="stat-sub">druhů</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Celkem kusů</div>
-          <div class="stat-value">${Math.round(s.celkem_kusu)}</div>
+          <div class="stat-label">🥖 Celkem kusů</div>
+          <div class="stat-value">${parseFloat(s.celkem_kusu).toLocaleString('cs-CZ')}</div>
+          <div class="stat-sub">vyrobeno</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Objednávek</div>
+          <div class="stat-label">🛒 Objednávek</div>
           <div class="stat-value">${s.unikatnich_objednavek}</div>
+          <div class="stat-sub">v období</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">Tržba s DPH</div>
-          <div class="stat-value">${fmt(s.celkem_s_dph)}</div>
+        <div class="stat-card" style="background:linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);border-color:var(--primary-border)">
+          <div class="stat-label">💰 Tržba s DPH</div>
+          <div class="stat-value" style="color:var(--primary-dark);font-weight:700">${fmt(s.celkem_s_dph)}</div>
+          <div class="stat-sub">celkem</div>
         </div>
       </div>
     `;
