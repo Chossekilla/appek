@@ -2336,10 +2336,9 @@ async function showApp() {
   api('admin_role_prava.php').then((r) => {
     if (r?.prava) state.rolePrava = r.prava;
     aplikovatPravaNaMenu();
-    // 🆕 v2.9.189 — default landing je 'vyroba' (hub), ne 'dashboard'.
-    // Výroba je centrum aplikace pro pekaře/výrobce — vše ostatní z ní vyplývá.
-    if (!muzeNavigovat(state.current || 'vyroba')) {
-      navigate('vyroba');
+    // 🆕 v2.9.241 — default landing 'dashboard' (předtím 'vyroba').
+    if (!muzeNavigovat(state.current || 'dashboard')) {
+      navigate('dashboard');
     }
   }).catch(() => {
     aplikovatPravaNaMenu();
@@ -2364,8 +2363,9 @@ async function showApp() {
       }, 500);
     }
   } else {
-    // 🆕 v2.9.189 — default landing 'vyroba' (hub) místo 'dashboard'.
-    navigate('vyroba');
+    // 🆕 v2.9.241 — default landing 'dashboard' (přehled tržeb + nedávných dokladů).
+    // Předtím 'vyroba' (v2.9.189), ale user upřednostnil dashboard jako landing.
+    navigate('dashboard');
   }
   // 🎯 Onboarding check — pouze pro super admina, pouze pokud fresh install
   if (isSuperAdmin()) {
