@@ -3546,12 +3546,17 @@ async function renderDashboard(filters = {}) {
     </div>
   ` : '';
 
+  // 🆕 v2.9.233 — Dashboard refresh: emoji title, segmented period tabs, hero stat
+  // Greeting podle denní doby (víc lidský)
+  const hour = new Date().getHours();
+  const greeting = hour < 6 ? 'Dobrou noc' : hour < 10 ? 'Dobré ráno' : hour < 17 ? 'Dobrý den' : hour < 22 ? 'Dobrý večer' : 'Dobrou noc';
+
   c.innerHTML = `
     ${emptyBanner}
     <div class="page-head">
       <div>
-        <h1 class="page-title">Přehled</h1>
-        <p class="page-sub">Vítejte zpět, ${esc(state.admin.jmeno)}</p>
+        <h1 class="page-title">📊 Přehled</h1>
+        <p class="page-sub">${greeting}, <strong>${esc(state.admin.jmeno)}</strong> · ${new Date().toLocaleDateString('cs-CZ', {weekday:'long', day:'numeric', month:'long'})}</p>
       </div>
     </div>
 
@@ -3587,17 +3592,20 @@ async function renderDashboard(filters = {}) {
       </button>
     </div>
 
-    <!-- TABY OBDOBÍ -->
-    <div class="period-tabs">
+    <!-- TABY OBDOBÍ — v2.9.233 segmented control (icon + label) -->
+    <div class="seg-tabs" role="tablist" style="margin-bottom:14px">
       ${[
-        { k: 'dnes',    l: '📅 Dnes' },
-        { k: 'tyden',   l: '📆 Tento týden' },
-        { k: 'mesic',   l: '🗓️ Tento měsíc' },
-        { k: 'rok',     l: '📊 Tento rok' },
-        { k: 'vlastni', l: '⚙️ Vlastní' },
+        { k: 'dnes',    icon: '📅', l: 'Dnes' },
+        { k: 'tyden',   icon: '📆', l: 'Tento týden' },
+        { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc' },
+        { k: 'rok',     icon: '📊', l: 'Tento rok' },
+        { k: 'vlastni', icon: '⚙️', l: 'Vlastní' },
       ].map(t => `
-        <button class="period-tab ${obdobi === t.k ? 'active' : ''}"
-                onclick="dashSetObdobi('${t.k}')">${t.l}</button>
+        <button type="button" role="tab" class="seg-tab ${obdobi === t.k ? 'active' : ''}"
+                onclick="dashSetObdobi('${t.k}')" aria-selected="${obdobi === t.k}">
+          <span class="seg-tab-icon">${t.icon}</span>
+          <span class="seg-tab-text">${t.l}</span>
+        </button>
       `).join('')}
     </div>
 
@@ -3617,38 +3625,43 @@ async function renderDashboard(filters = {}) {
 
     <p class="period-range">📅 Období: <strong>${obdobiRange}</strong></p>
 
-    <!-- HLAVNÍ STAT BOXY ZA OBDOBÍ -->
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-label">Objednávek ${obdobiLabel}</div>
-        <div class="stat-value">${d.obdobi_stats.objednavek}</div>
-        <div class="stat-sub">${d.obdobi_stats.novych || 0} nových · ${d.obdobi_stats.dorucenych || 0} doručených</div>
-        ${(d.casovy_graf && d.casovy_graf.length >= 2) ? sparklineSVG(d.casovy_graf.map(r => +r.objednavek), {h: 32, color: '#0a84ff'}) : ''}
+    <!-- HLAVNÍ STAT BOXY ZA OBDOBÍ — v2.9.233 hero layout (Tržby = primary KPI) -->
+    <div class="dash-stat-hero">
+      <!-- HERO: Tržby — největší, gradient, primary KPI -->
+      <div class="dash-hero-card">
+        <div class="dash-hero-label">💰 Tržby ${obdobiLabel}</div>
+        <div class="dash-hero-value">${fmt(d.obdobi_stats.trzby)}</div>
+        ${d.dny_v_obdobi > 1 ? `<div class="dash-hero-sub">⌀ <strong>${fmt(d.obdobi_stats.prumerne_denne)}</strong> denně</div>` : ''}
+        ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="dash-hero-spark">${sparklineSVG(d.casovy_graf.map(r => +r.trzby), {h: 38, color: '#ffffff'})}</div>` : ''}
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Tržby ${obdobiLabel}</div>
-        <div class="stat-value">${fmt(d.obdobi_stats.trzby)}</div>
-        ${d.dny_v_obdobi > 1 ? `<div class="stat-sub">⌀ ${fmt(d.obdobi_stats.prumerne_denne)} / den</div>` : ''}
-        ${(d.casovy_graf && d.casovy_graf.length >= 2) ? sparklineSVG(d.casovy_graf.map(r => +r.trzby), {h: 32, color: '#30d158'}) : ''}
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Dnes - objednávek</div>
-        <div class="stat-value">${d.dnes.objednavek}</div>
-        <div class="stat-sub">${fmt(d.dnes.trzby)}</div>
-      </div>
-      ${d.po_splatnosti.pocet > 0 ? `
-        <div class="stat-card stat-warn">
-          <div class="stat-label">⚠️ Po splatnosti</div>
-          <div class="stat-value">${fmt(d.po_splatnosti.castka)}</div>
-          <div class="stat-sub">${d.po_splatnosti.pocet} ${d.po_splatnosti.pocet === 1 ? 'faktura' : (d.po_splatnosti.pocet < 5 ? 'faktury' : 'faktur')}</div>
-        </div>
-      ` : `
+
+      <!-- SECONDARY: 3 menší karty -->
+      <div class="dash-stat-secondary">
         <div class="stat-card">
-          <div class="stat-label">Po splatnosti</div>
-          <div class="stat-value" style="color:var(--success-text)">✓ 0</div>
-          <div class="stat-sub">vše uhrazeno</div>
+          <div class="stat-label">🛒 Objednávek</div>
+          <div class="stat-value">${d.obdobi_stats.objednavek}</div>
+          <div class="stat-sub">${d.obdobi_stats.novych || 0} nových · ${d.obdobi_stats.dorucenych || 0} doručených</div>
+          ${(d.casovy_graf && d.casovy_graf.length >= 2) ? sparklineSVG(d.casovy_graf.map(r => +r.objednavek), {h: 28, color: '#0a84ff'}) : ''}
         </div>
-      `}
+        <div class="stat-card">
+          <div class="stat-label">📅 Dnes objednávek</div>
+          <div class="stat-value">${d.dnes.objednavek}</div>
+          <div class="stat-sub">${fmt(d.dnes.trzby)}</div>
+        </div>
+        ${d.po_splatnosti.pocet > 0 ? `
+          <div class="stat-card stat-warn" style="cursor:pointer" onclick="navigate('faktury');setTimeout(()=>{state._faktury_stav='neuhrazene';renderFaktury()},100)">
+            <div class="stat-label">⚠️ Po splatnosti</div>
+            <div class="stat-value">${fmt(d.po_splatnosti.castka)}</div>
+            <div class="stat-sub">${d.po_splatnosti.pocet} ${d.po_splatnosti.pocet === 1 ? 'faktura' : (d.po_splatnosti.pocet < 5 ? 'faktury' : 'faktur')} · klikni →</div>
+          </div>
+        ` : `
+          <div class="stat-card">
+            <div class="stat-label">✓ Po splatnosti</div>
+            <div class="stat-value" style="color:var(--success-text)">0</div>
+            <div class="stat-sub">vše uhrazeno</div>
+          </div>
+        `}
+      </div>
     </div>
 
     <!-- 1) Nedávné doklady — objednávky / DL / faktury vedle sebe -->
