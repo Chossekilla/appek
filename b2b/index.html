@@ -113,7 +113,7 @@
         document.cookie = 'PHPSESSID=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
         try { localStorage.removeItem('appek_b2b'); } catch (e) {}
         alert('⏱️ Demo session vypršela (15 min). Stránka se obnoví.');
-        window.location.href = '/b2b/';
+        window.location.reload();
       } else if (idleMs >= ttlMs - 60000) {
         const bn = document.getElementById('demo-banner');
         if (bn && !bn.dataset.warned) {
