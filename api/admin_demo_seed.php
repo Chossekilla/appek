@@ -634,6 +634,84 @@ if ($action === 'apply') {
             }
         } catch (Throwable $e) {}
 
+        // 🆕 v2.9.275 — Alias map pro fuzzy match (starší demo data nemají detail v názvech)
+        // Klíč = názvy v demo_recepty(), hodnota = pole alternativ které mohou být v DB
+        $surovinaAliases = [
+            'Mouka pšeničná hladká T530'       => ['Mouka pšeničná hladká', 'Mouka hladká', 'Mouka pšeničná', 'Mouka'],
+            'Mouka pšeničná chlebová T1050'    => ['Mouka pšeničná chlebová', 'Mouka chlebová', 'Mouka pšeničná hrubá'],
+            'Mouka žitná chlebová T960'        => ['Mouka žitná chlebová', 'Mouka žitná'],
+            'Sůl jedlá'                         => ['Sůl'],
+            'Droždí čerstvé pekařské'           => ['Droždí čerstvé', 'Droždí'],
+            'Kvásek žitný startér'              => ['Kvásek žitný', 'Kvásek'],
+            'Máslo selské 82%'                  => ['Máslo', 'Máslo selské'],
+            'Vejce slepičí M (1 ks ≈ 60 g)'    => ['Vejce slepičí', 'Vejce'],
+            'Mléko polotučné 1,5%'              => ['Mléko polotučné', 'Mléko'],
+            'Cukr krystal'                      => ['Cukr', 'Cukr krystal'],
+            'Sezamová semínka'                  => ['Sezam', 'Sezamová semínka'],
+            'Káva zrnková 100% Arabica'         => ['Káva zrnková', 'Káva'],
+            'Tvaroh měkký'                      => ['Tvaroh'],
+            'Sýr eidam'                         => ['Sýr', 'Eidam'],
+            'Šunka dušená'                      => ['Šunka'],
+            'Salát ledový'                      => ['Salát'],
+            'Rajčata cherry'                    => ['Rajčata'],
+            'Vlašské ořechy'                    => ['Ořechy vlašské', 'Vlašské ořechy'],
+            'Skořice mletá'                     => ['Skořice'],
+            'Mák modrý'                         => ['Mák'],
+        ];
+
+        // Helper: najdi surovina_id s fuzzy fallback (exact → alias → LIKE)
+        $najdiSurId = function(string $name) use (&$surovinaIdByName, $surovinaAliases, $pdo): int {
+            // 1. Exact match v hashmapě
+            if (isset($surovinaIdByName[$name])) return $surovinaIdByName[$name];
+            // 2. Aliasy — zkusit alternativy
+            $alts = $surovinaAliases[$name] ?? [];
+            foreach ($alts as $alt) {
+                if (isset($surovinaIdByName[$alt])) {
+                    $surovinaIdByName[$name] = $surovinaIdByName[$alt]; // cache
+                    return $surovinaIdByName[$alt];
+                }
+            }
+            // 3. DB exact lookup
+            $st = $pdo->prepare("SELECT id FROM suroviny WHERE nazev = :n LIMIT 1");
+            $st->execute(['n' => $name]);
+            $id = (int) $st->fetchColumn();
+            if ($id) { $surovinaIdByName[$name] = $id; return $id; }
+            // 4. DB alias lookup
+            foreach ($alts as $alt) {
+                $st->execute(['n' => $alt]);
+                $id = (int) $st->fetchColumn();
+                if ($id) { $surovinaIdByName[$name] = $id; return $id; }
+            }
+            // 5. DB LIKE — částečný match (poslední pokus)
+            $stLike = $pdo->prepare("SELECT id FROM suroviny WHERE nazev LIKE :n LIMIT 1");
+            // Vezmi první 2 slova z názvu pro LIKE (např. "Mouka pšeničná")
+            $words = preg_split('/\s+/', $name);
+            $needle = implode(' ', array_slice($words, 0, 2));
+            $stLike->execute(['n' => $needle . '%']);
+            $id = (int) $stLike->fetchColumn();
+            if ($id) { $surovinaIdByName[$name] = $id; }
+            return $id;
+        };
+
+        // Helper: najdi výrobek_id (cislo PRVNÍ, fallback název)
+        $najdiVyrobekId = function(string $cislo, ?string $altNazev) use ($pdo): int {
+            $st = $pdo->prepare("SELECT id FROM vyrobky WHERE cislo = :c LIMIT 1");
+            $st->execute(['c' => $cislo]);
+            $id = (int) $st->fetchColumn();
+            if ($id) return $id;
+            if ($altNazev) {
+                $st2 = $pdo->prepare("SELECT id FROM vyrobky WHERE nazev = :n LIMIT 1");
+                $st2->execute(['n' => $altNazev]);
+                $id = (int) $st2->fetchColumn();
+                if ($id) return $id;
+            }
+            return 0;
+        };
+
+        // Build cislo→nazev mapu z demo_products pro fallback lookup
+        $prodNazevByCislo = [];
+        foreach (demo_products([]) as $p) $prodNazevByCislo[$p['cislo']] = $p['nazev'];
+
         // 🆕 v2.9.271 — 6. RECEPTY (vyrobek_suroviny) — pro každý výrobek z demo_products
         try {
             $pdo->exec("
@@ -651,24 +729,30 @@ if ($action === 'apply') {
             ");
 
             $recepty = demo_recepty();
+            $stats['recepty_skip_nenalezen_vyrobek'] = 0;
+            $stats['recepty_skip_nenalezena_surovina'] = []; // pole názvů které selhaly
             foreach ($recepty as $cislo => $polozky) {
                 try {
-                    $vyrStmt = $pdo->prepare("SELECT id FROM vyrobky WHERE cislo = :c LIMIT 1");
-                    $vyrStmt->execute(['c' => $cislo]);
-                    $vyrId = (int) $vyrStmt->fetchColumn();
-                    if (!$vyrId) continue;
+                    // 🆕 v2.9.275 — lookup podle čísla NEBO názvu (fallback)
+                    $altNazev = $prodNazevByCislo[$cislo] ?? null;
+                    $vyrId = $najdiVyrobekId($cislo, $altNazev);
+                    if (!$vyrId) {
+                        $stats['recepty_skip_nenalezen_vyrobek']++;
+                        continue;
+                    }
                     // Pokud výrobek už recept má, přeskoč (nepřepisuj user-data)
                     $recCheck = $pdo->prepare("SELECT COUNT(*) FROM vyrobek_suroviny WHERE vyrobek_id = :v");
                     $recCheck->execute(['v' => $vyrId]);
                     if ((int) $recCheck->fetchColumn() > 0) continue;
 
+                    $polozekVlozeno = 0;
                     foreach ($polozky as $i => $p) {
-                        $surId = $surovinaIdByName[$p['surovina']] ?? null;
+                        // 🆕 v2.9.275 — fuzzy lookup s aliasy
+                        $surId = $najdiSurId($p['surovina']);
                         if (!$surId) {
-                            // Fallback — try DB lookup
-                            $surId = (int) $pdo->query("SELECT id FROM suroviny WHERE nazev = " . $pdo->quote($p['surovina']) . " LIMIT 1")->fetchColumn();
+                            $stats['recepty_skip_nenalezena_surovina'][] = $p['surovina'];
+                            continue;
                         }
-                        if (!$surId) continue;
                         $pdo->prepare("
                             INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, mnozstvi, jednotka, poradi, poznamka)
                             VALUES (:v, :s, :m, :j, :p, :pz)
@@ -680,12 +764,15 @@ if ($action === 'apply') {
                             'p'  => $i,
                             'pz' => $p['poznamka'] ?? null,
                         ]);
+                        $polozekVlozeno++;
                     }
-                    $stats['recepty']++;
+                    if ($polozekVlozeno > 0) $stats['recepty']++;
                 } catch (Throwable $e) {
                     $stats['errors'][] = "Recept {$cislo}: " . $e->getMessage();
                 }
             }
+            // Dedupe seznam nenalezených surovin (uniq)
+            $stats['recepty_skip_nenalezena_surovina'] = array_values(array_unique($stats['recepty_skip_nenalezena_surovina']));
         } catch (Throwable $e) {
             $stats['errors'][] = 'Recepty: ' . $e->getMessage();
         }
@@ -735,11 +822,14 @@ if ($action === 'apply') {
             $hotVyrobky = ['RK01', 'CH01', 'CH02', 'CR01', 'BS01']; // top 5 pro wow demo
             foreach ($hotVyrobky as $cisloV) {
                 try {
-                    $vyrStmt = $pdo->prepare("SELECT id, nazev, cena_bez_dph FROM vyrobky WHERE cislo = :c LIMIT 1");
-                    $vyrStmt->execute(['c' => $cisloV]);
-                    $vyr = $vyrStmt->fetch();
+                    // 🆕 v2.9.275 — lookup výrobku podle čísla NEBO názvu
+                    $altNazev = $prodNazevByCislo[$cisloV] ?? null;
+                    $vyrId = $najdiVyrobekId($cisloV, $altNazev);
+                    if (!$vyrId) continue;
+                    $vyrInfoStmt = $pdo->prepare("SELECT nazev, cena_bez_dph FROM vyrobky WHERE id = :id LIMIT 1");
+                    $vyrInfoStmt->execute(['id' => $vyrId]);
+                    $vyr = $vyrInfoStmt->fetch();
                     if (!$vyr) continue;
-                    $vyrId = (int) $vyr['id'];
 
                     // Check duplikát kalkulace (pokud již existuje pro tento výrobek, skip)
                     $existsCheck = $pdo->prepare("SELECT COUNT(*) FROM kalkulace_historie WHERE vyrobek_id = :v");
@@ -754,10 +844,8 @@ if ($action === 'apply') {
                     $surovinySum = 0.0;
                     $recepturaData = [];
                     foreach ($rec as $r) {
-                        $surId = $surovinaIdByName[$r['surovina']] ?? 0;
-                        if (!$surId) {
-                            $surId = (int) $pdo->query("SELECT id FROM suroviny WHERE nazev = " . $pdo->quote($r['surovina']) . " LIMIT 1")->fetchColumn();
-                        }
+                        // 🆕 v2.9.275 — fuzzy lookup s aliasy
+                        $surId = $najdiSurId($r['surovina']);
                         if (!$surId) continue;
                         $surData = $pdo->prepare("SELECT nazev, jednotka, cena_baleni, obsah_baleni FROM suroviny WHERE id = :id");
                         $surData->execute(['id' => $surId]);
