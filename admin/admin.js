@@ -24157,22 +24157,35 @@ async function renderSklad() {
       </div>
     </div>
 
+    <!-- 🆕 v2.9.265 — Stat cards konzistence s Dashboard (clickable warn, primary tint hodnota) -->
     <div class="stat-grid" style="margin-bottom:14px">
-      <div class="stat-card" style="${podMin.length > 0 ? 'border:2px solid #DC2626' : ''}">
-        <div class="stat-label">${podMin.length > 0 ? '⚠️ Pod minimální hladinou' : '✅ Pod minimem'}</div>
-        <div class="stat-value" style="${podMin.length > 0 ? 'color:#DC2626' : 'color:#22863a'}">${podMin.length}</div>
+      ${podMin.length > 0 ? `
+        <div class="stat-card stat-warn" onclick="state._suroviny_pod_minimem=true;navigate('suroviny')" title="Klikni → Suroviny filtrované pod minimem">
+          <div class="stat-label">⚠️ Pod minimální hladinou</div>
+          <div class="stat-value">${podMin.length}</div>
+          <div class="stat-sub">klikni → suroviny</div>
+        </div>
+      ` : `
+        <div class="stat-card">
+          <div class="stat-label">✓ Pod minimem</div>
+          <div class="stat-value" style="color:var(--success-text)">0</div>
+          <div class="stat-sub">vše OK</div>
+        </div>
+      `}
+      <div class="stat-card">
+        <div class="stat-label">✓ V pořádku</div>
+        <div class="stat-value" style="color:var(--success-text)">${nadMin.length}</div>
+        <div class="stat-sub">nad minimem</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">V pořádku</div>
-        <div class="stat-value" style="color:#22863a">${nadMin.length}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Bez nastaveného minima</div>
+        <div class="stat-label">⚪ Bez minima</div>
         <div class="stat-value" style="color:var(--text-3)">${bezNasr.length}</div>
+        <div class="stat-sub">nenastaveno</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Hodnota skladu (Kč)</div>
-        <div class="stat-value">${fmt(celkemHodnota).replace('Kč', '').trim()}</div>
+      <div class="stat-card" style="background:linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);border-color:var(--primary-border)">
+        <div class="stat-label">💰 Hodnota skladu</div>
+        <div class="stat-value" style="color:var(--primary-dark);font-weight:700">${fmt(celkemHodnota)}</div>
+        <div class="stat-sub">celkem na skladě</div>
       </div>
     </div>
 
