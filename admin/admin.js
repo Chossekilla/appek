@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.283';
+const APPEK_ADMIN_JS_VERSION = '2.9.284';
 
 (async function detectStaleCode() {
   try {
@@ -1401,10 +1401,10 @@ window.openDemoSeed = async function() {
   const cur = stats.current || {};
   const will = stats.will_add || {};
   const proceed = await confirmDialog({
-    title: '🎬 Naplnit ukázkovými daty',
+    title: '🎬 Naplnit FULL DEMO daty',
     icon: '🎬',
-    msg: `Aplikace přidá:\n• ${will.kategorie || 0} kategorií\n• ${will.vyrobky || 0} výrobků\n• ${will.odberatele || 0} odběratelů (John Doe + 4 varianty)\n• ${will.suroviny || 0} surovin\n• ${will.objednavky || 0} obj + ${will.dodaci_listy || 0} DL + ${will.faktury || 0} faktura (pro John Doe)\n\n🆕 v2.9.271 WOW demo:\n• ${will.recepty || 0} receptů (klasické pekařské receptury)\n• ${will.naskladneno_polozek || 0} naskladnění (8 balení mouky, 15 droždí, 40 másel…)\n• ${will.fixni_naklady_polozek || 0} fixní nákladů (energie, mzdy, nájem)\n• ${will.kalkulace_ulozeno || 0} uložených kalkulací s marží\n\n👤 John Doe login do B2B:\n   email: odberatel@demo.cz\n   heslo: demo1234\n\nExistující záznamy se zachovají (skipuje duplicity).`,
-    okText: 'Naplnit',
+    msg: `FULL DEMO — kompletní funkční ukázka:\n\n📦 KATALOG:\n• ${will.kategorie || 0} kategorií · ${will.vyrobky || 0} výrobků · ${will.suroviny || 0} surovin\n• ${will.recepty || 0} receptů (klasické pekařské receptury)\n• ${will.naskladneno_polozek || 0} surovin naskladněno (8 balení mouky, 40 másel…)\n• ${will.kalkulace_ulozeno || 0} uložených kalkulací s marží\n• ${will.fixni_naklady_polozek || 0} fixních nákladů (energie, mzdy, nájem)\n\n👥 B2B:\n• ${will.odberatele || 0} odběratelů (John Doe + 4 varianty)\n• ${will.mista_dodani || 0} poboček pro John Doe\n• ${will.cenove_skupiny || 0} cenové skupiny (Restaurace 5%, Hotely 8%, Kavárny 3%)\n• ${will.objednavky || 0} obj + ${will.dodaci_listy || 0} DL + ${will.faktury || 0} faktura (John Doe)\n• ${will.historie_obj || 0} obj historie napříč 14 dny (pro grafy)\n\n🍕 RESTAURACE balíček:\n• ${will.pos_users || 0} POS uživatelů s PIN (Jarmila/1234, Evžen/5678, Prodavač1/0000, Karel/9999)\n• ${will.stoly || 0} stolů (sál + terasa)\n• ${will.kuchyne_stanice || 0} kuchyně stanice (Pec, Studená, Gril, Bar)\n• ${will.kuryrky || 0} kurýrky (vlastní + Wolt + Bolt)\n\n👤 B2B LOGIN: odberatel@demo.cz / demo1234\n\nExistující záznamy se zachovají (skipuje duplicity).`,
+    okText: 'Naplnit FULL DEMO',
     cancelText: 'Zrušit',
   });
   if (!proceed) return;

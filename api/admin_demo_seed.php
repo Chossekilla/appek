@@ -213,6 +213,45 @@ function demo_recepty(): array {
     ];
 }
 
+// 🆕 v2.9.284 — POS PIN uživatelé (zaměstnanci kasy)
+// Pro plný demo workflow POS — užívatelé s PIN přihlášením
+function demo_pos_users(): array {
+    return [
+        ['email' => 'jarmila@demo.cz',   'jmeno' => 'Jarmila Nováková',  'role' => 'prodavac', 'pin' => '1234', 'pos_only' => 1, 'heslo' => 'demo1234'],
+        ['email' => 'evzen@demo.cz',     'jmeno' => 'Evžen Procházka',   'role' => 'prodavac', 'pin' => '5678', 'pos_only' => 1, 'heslo' => 'demo1234'],
+        ['email' => 'prodavac1@demo.cz', 'jmeno' => 'Prodavač 1',         'role' => 'pos',      'pin' => '0000', 'pos_only' => 1, 'heslo' => 'demo1234'],
+        ['email' => 'vedouci@demo.cz',   'jmeno' => 'Karel Vedoucí',     'role' => 'admin',    'pin' => '9999', 'pos_only' => 0, 'heslo' => 'demo1234'],
+    ];
+}
+
+// 🆕 v2.9.284 — Kurýrky pro Restaurace rozvoz
+function demo_couriers(): array {
+    return [
+        ['jmeno' => 'Pavel Řidič',    'telefon' => '+420 601 111 222', 'vozidlo' => 'Scooter Honda', 'spz' => '1AB 1234', 'externi' => 0, 'externi_sluzba' => 'vlastni', 'barva' => '#10B981', 'ikona' => '🛵'],
+        ['jmeno' => 'Michal Kurýr',   'telefon' => '+420 602 333 444', 'vozidlo' => 'E-kolo',         'spz' => null,        'externi' => 0, 'externi_sluzba' => 'vlastni', 'barva' => '#3B82F6', 'ikona' => '🚴'],
+        ['jmeno' => 'Wolt (externí)', 'telefon' => null,                'vozidlo' => null,             'spz' => null,        'externi' => 1, 'externi_sluzba' => 'wolt',    'barva' => '#00C2E8', 'ikona' => '🌊', 'provize_pct' => 30],
+        ['jmeno' => 'Bolt Food',      'telefon' => null,                'vozidlo' => null,             'spz' => null,        'externi' => 1, 'externi_sluzba' => 'bolt',    'barva' => '#34D186', 'ikona' => '⚡', 'provize_pct' => 28],
+    ];
+}
+
+// 🆕 v2.9.284 — Cenové skupiny pro B2B slevy
+function demo_cenove_skupiny(): array {
+    return [
+        ['nazev' => 'Restaurace',  'popis' => 'Restaurace, bistra (objednávky 2× týdně)', 'globalni_sleva_pct' => 5,  'minimum_obj_kc' => 500,  'splatnost_dni' => 14],
+        ['nazev' => 'Hotely',      'popis' => 'Hotely a ubytovací zařízení (denní dodávky)', 'globalni_sleva_pct' => 8, 'minimum_obj_kc' => 1500, 'splatnost_dni' => 30],
+        ['nazev' => 'Kavárny',     'popis' => 'Kavárny a cukrárny',                       'globalni_sleva_pct' => 3,  'minimum_obj_kc' => 300,  'splatnost_dni' => 14],
+    ];
+}
+
+// 🆕 v2.9.284 — Místa dodání pro John Doe (multi-branch)
+function demo_mista_dodani(): array {
+    return [
+        ['nazev' => 'Centrála — Praha',  'ulice' => 'Václavské náměstí 1', 'mesto' => 'Praha',       'psc' => '11000', 'kontaktni_osoba' => 'John Doe',         'telefon' => '+420 777 111 111', 'cas_dodani' => '07:00-09:00', 'vychozi' => 1],
+        ['nazev' => 'Pobočka — Brno',    'ulice' => 'Náměstí Svobody 5',   'mesto' => 'Brno',         'psc' => '60200', 'kontaktni_osoba' => 'Jane Doe',        'telefon' => '+420 777 222 333', 'cas_dodani' => '06:30-08:30', 'vychozi' => 0],
+        ['nazev' => 'Pobočka — Plzeň',   'ulice' => 'Hlavní 10',           'mesto' => 'Plzeň',        'psc' => '30100', 'kontaktni_osoba' => 'Jim Doe',         'telefon' => '+420 777 444 555', 'cas_dodani' => '07:30-09:30', 'vychozi' => 0],
+    ];
+}
+
 // 🆕 v2.9.271 — Fixní náklady (alikvotně per 1 ks výrobku)
 // Spočítáno průměrně pro malou pekárnu s denní produkcí ~500 ks pečiva.
 function demo_fixni_naklady(): array {
@@ -255,7 +294,15 @@ if ($action === 'preview') {
             'naskladneno_polozek'  => count(array_filter(demo_suroviny(), fn($s) => ($s['naskladnit_baleni'] ?? 0) > 0)),
             'fixni_naklady_polozek' => count(demo_fixni_naklady()),
             'kalkulace_ulozeno'    => 5,
-            '_wow_demo' => '30+ surovin naskladněno (kartonů/balení) · recepty pro každý výrobek · uložené kalkulace s marží · fixní náklady (energie/mzdy/nájem)',
+            // 🆕 v2.9.284 — full demo (Restaurace balíček, POS workflow)
+            'pos_users'        => count(demo_pos_users()),
+            'cenove_skupiny'   => count(demo_cenove_skupiny()),
+            'mista_dodani'     => count(demo_mista_dodani()),
+            'kuryrky'          => count(demo_couriers()),
+            'stoly'            => 14,
+            'kuchyne_stanice'  => 4,
+            'historie_obj'     => 12,
+            '_full_demo' => 'FULL DEMO: 35+ surovin · 10 receptů · 5 kalkulací · 12 obj historie · 4 POS users s PIN · 14 stolů + 2 zóny · 4 kuchyně stanice · 4 kurýrky · 3 cenové skupiny · 3 pobočky John Doe',
         ],
     ]);
 }
@@ -1186,6 +1233,264 @@ if ($action === 'apply') {
         } catch (Throwable $e) {
             $stats['errors'][] = 'Kalkulace history: ' . $e->getMessage();
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 v2.9.284 — FULL DEMO: POS users, kurýrky, cenové skupiny,
+        // místa dodání, restaurace stoly, kuchyně stanice
+        // ═══════════════════════════════════════════════════════════════
+
+        // 9. POS PIN USERS (4 zaměstnanci)
+        $stats['pos_users'] = 0;
+        try {
+            // Ujisti se že schema podporuje PIN (idempotent migrace)
+            $cols = $pdo->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admin_users'")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('pin_hash', $cols, true)) {
+                try { $pdo->exec("ALTER TABLE admin_users ADD COLUMN pin_hash VARCHAR(255) NULL"); } catch (Throwable $e) {}
+            }
+            if (!in_array('pos_only', $cols, true)) {
+                try { $pdo->exec("ALTER TABLE admin_users ADD COLUMN pos_only TINYINT(1) NOT NULL DEFAULT 0"); } catch (Throwable $e) {}
+            }
+            foreach (demo_pos_users() as $u) {
+                try {
+                    $check = $pdo->prepare("SELECT id FROM admin_users WHERE email = :e");
+                    $check->execute(['e' => $u['email']]);
+                    if ($check->fetchColumn()) continue; // skip existing
+
+                    $pdo->prepare("
+                        INSERT INTO admin_users (email, jmeno, heslo_hash, role, pin_hash, pos_only, aktivni)
+                        VALUES (:em, :j, :h, :r, :pin, :po, 1)
+                    ")->execute([
+                        'em'  => $u['email'],
+                        'j'   => $u['jmeno'],
+                        'h'   => password_hash($u['heslo'], PASSWORD_DEFAULT),
+                        'r'   => $u['role'],
+                        'pin' => password_hash($u['pin'], PASSWORD_BCRYPT, ['cost' => 8]),
+                        'po'  => (int) $u['pos_only'],
+                    ]);
+                    $stats['pos_users']++;
+                } catch (Throwable $e) { $stats['errors'][] = "POS user {$u['email']}: " . $e->getMessage(); }
+            }
+        } catch (Throwable $e) { $stats['errors'][] = 'POS users: ' . $e->getMessage(); }
+
+        // 10. CENOVÉ SKUPINY (Restaurace 5%, Hotely 8%, Kavárny 3%)
+        $stats['cenove_skupiny'] = 0;
+        $skupinaIdByName = [];
+        try {
+            foreach (demo_cenove_skupiny() as $sk) {
+                try {
+                    $check = $pdo->prepare("SELECT id FROM cenove_skupiny WHERE nazev = :n");
+                    $check->execute(['n' => $sk['nazev']]);
+                    $existId = (int) $check->fetchColumn();
+                    if ($existId) { $skupinaIdByName[$sk['nazev']] = $existId; continue; }
+
+                    $pdo->prepare("
+                        INSERT INTO cenove_skupiny (nazev, popis, globalni_sleva_pct, minimum_obj_kc, splatnost_dni, aktivni)
+                        VALUES (:n, :p, :sl, :mn, :spl, 1)
+                    ")->execute([
+                        'n' => $sk['nazev'], 'p' => $sk['popis'],
+                        'sl' => $sk['globalni_sleva_pct'], 'mn' => $sk['minimum_obj_kc'], 'spl' => $sk['splatnost_dni'],
+                    ]);
+                    $skupinaIdByName[$sk['nazev']] = (int) $pdo->lastInsertId();
+                    $stats['cenove_skupiny']++;
+                } catch (Throwable $e) { $stats['errors'][] = "Skupina {$sk['nazev']}: " . $e->getMessage(); }
+            }
+            // Přiřaď John Doe do skupiny Restaurace
+            if ($johnDoeId && isset($skupinaIdByName['Restaurace'])) {
+                $cols = $pdo->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'odberatele'")->fetchAll(PDO::FETCH_COLUMN);
+                if (in_array('cenova_skupina_id', $cols, true)) {
+                    try { $pdo->prepare("UPDATE odberatele SET cenova_skupina_id = :s WHERE id = :id AND cenova_skupina_id IS NULL")
+                          ->execute(['s' => $skupinaIdByName['Restaurace'], 'id' => $johnDoeId]); } catch (Throwable $e) {}
+                }
+            }
+        } catch (Throwable $e) { $stats['errors'][] = 'Cenové skupiny: ' . $e->getMessage(); }
+
+        // 11. MÍSTA DODÁNÍ pro John Doe (3 pobočky)
+        $stats['mista_dodani'] = 0;
+        try {
+            if ($johnDoeId) {
+                $cnt = (int) $pdo->prepare("SELECT COUNT(*) FROM mista_dodani WHERE odberatel_id = :id");
+                $cntStmt = $pdo->prepare("SELECT COUNT(*) FROM mista_dodani WHERE odberatel_id = :id");
+                $cntStmt->execute(['id' => $johnDoeId]);
+                if ((int) $cntStmt->fetchColumn() === 0) {
+                    foreach (demo_mista_dodani() as $m) {
+                        try {
+                            $pdo->prepare("
+                                INSERT INTO mista_dodani (odberatel_id, nazev, ulice, mesto, psc, kontaktni_osoba, telefon, cas_dodani, vychozi, aktivni)
+                                VALUES (:oid, :n, :u, :me, :p, :ko, :t, :cd, :v, 1)
+                            ")->execute([
+                                'oid' => $johnDoeId,
+                                'n' => $m['nazev'], 'u' => $m['ulice'], 'me' => $m['mesto'], 'p' => $m['psc'],
+                                'ko' => $m['kontaktni_osoba'], 't' => $m['telefon'], 'cd' => $m['cas_dodani'],
+                                'v' => (int) $m['vychozi'],
+                            ]);
+                            $stats['mista_dodani']++;
+                        } catch (Throwable $e) { /* skip duplicate */ }
+                    }
+                }
+            }
+        } catch (Throwable $e) { $stats['errors'][] = 'Místa dodání: ' . $e->getMessage(); }
+
+        // 12. KURÝRKY (Restaurace balíček) — 4 (2 vlastní + Wolt + Bolt)
+        $stats['kuryrky'] = 0;
+        try {
+            // Zajisti tabulku couriers (idempotent migrace — replicate z admin_couriers.php)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS couriers (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    jmeno VARCHAR(150) NOT NULL,
+                    telefon VARCHAR(50) NULL, email VARCHAR(150) NULL,
+                    vozidlo VARCHAR(100) NULL, spz VARCHAR(20) NULL,
+                    zona_obslazi VARCHAR(200) NULL,
+                    provize_pct DECIMAL(5,2) NOT NULL DEFAULT 0,
+                    externi TINYINT(1) NOT NULL DEFAULT 0,
+                    externi_sluzba ENUM('wolt','bolt','dame_jidlo','foodora','vlastni','jiny') NOT NULL DEFAULT 'vlastni',
+                    aktivni TINYINT(1) NOT NULL DEFAULT 1,
+                    barva VARCHAR(20) DEFAULT '#10B981', ikona VARCHAR(10) DEFAULT '🛵',
+                    poznamka TEXT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_aktivni (aktivni)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            foreach (demo_couriers() as $k) {
+                try {
+                    $check = $pdo->prepare("SELECT id FROM couriers WHERE jmeno = :j");
+                    $check->execute(['j' => $k['jmeno']]);
+                    if ($check->fetchColumn()) continue;
+
+                    $pdo->prepare("
+                        INSERT INTO couriers (jmeno, telefon, vozidlo, spz, externi, externi_sluzba, barva, ikona, provize_pct, aktivni)
+                        VALUES (:j, :t, :v, :s, :ex, :es, :b, :ik, :p, 1)
+                    ")->execute([
+                        'j' => $k['jmeno'], 't' => $k['telefon'] ?? null, 'v' => $k['vozidlo'] ?? null, 's' => $k['spz'] ?? null,
+                        'ex' => (int) $k['externi'], 'es' => $k['externi_sluzba'],
+                        'b' => $k['barva'], 'ik' => $k['ikona'],
+                        'p' => (float) ($k['provize_pct'] ?? 0),
+                    ]);
+                    $stats['kuryrky']++;
+                } catch (Throwable $e) { $stats['errors'][] = "Kurýr {$k['jmeno']}: " . $e->getMessage(); }
+            }
+        } catch (Throwable $e) { $stats['errors'][] = 'Kurýrky: ' . $e->getMessage(); }
+
+        // 13. RESTAURACE STOLY (apply_template 'pizzerie' — 14 stolů + 2 zóny)
+        // Idempotentní: skipne se pokud už nějaké stoly existují
+        $stats['stoly'] = 0;
+        $stats['kuchyne_stanice'] = 0;
+        try {
+            // Ujisti se že restaurant_tables tabulka existuje
+            $tableExists = (bool) $pdo->query("SHOW TABLES LIKE 'restaurant_tables'")->fetchColumn();
+            if (!$tableExists) {
+                $pdo->exec("
+                    CREATE TABLE restaurant_tables (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        nazev VARCHAR(60) NOT NULL,
+                        mist INT NOT NULL DEFAULT 2,
+                        sekce VARCHAR(40) DEFAULT NULL,
+                        x INT DEFAULT 0, y INT DEFAULT 0,
+                        width INT NOT NULL DEFAULT 80, height INT NOT NULL DEFAULT 80,
+                        tvar ENUM('round','square','rect') DEFAULT 'square',
+                        zone_id INT NULL,
+                        stav ENUM('free','reserved','occupied','cleaning','attention','disabled') NOT NULL DEFAULT 'free',
+                        stav_od DATETIME NULL,
+                        hostu_aktual INT DEFAULT 0,
+                        rotace INT NOT NULL DEFAULT 0,
+                        barva VARCHAR(12) DEFAULT NULL,
+                        obsluhuje VARCHAR(80) DEFAULT NULL,
+                        aktivni TINYINT(1) NOT NULL DEFAULT 1,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                ");
+            }
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS restaurant_zones (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    nazev VARCHAR(60) NOT NULL,
+                    ikona VARCHAR(8) DEFAULT '🍽️',
+                    canvas_w INT DEFAULT 800, canvas_h INT DEFAULT 500,
+                    bg_barva VARCHAR(12) DEFAULT '#FFFAF1',
+                    sort_order INT DEFAULT 0,
+                    aktivni TINYINT(1) DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+
+            $existingTables = (int) $pdo->query("SELECT COUNT(*) FROM restaurant_tables")->fetchColumn();
+            if ($existingTables === 0) {
+                // Insert zóny: Sál + Terasa
+                $pdo->prepare("INSERT INTO restaurant_zones (nazev, ikona, canvas_w, canvas_h, sort_order) VALUES (:n, :i, :w, :h, :s)")
+                    ->execute(['n' => 'Sál', 'i' => '🍽️', 'w' => 800, 'h' => 500, 's' => 0]);
+                $salId = (int) $pdo->lastInsertId();
+                $pdo->prepare("INSERT INTO restaurant_zones (nazev, ikona, canvas_w, canvas_h, sort_order) VALUES (:n, :i, :w, :h, :s)")
+                    ->execute(['n' => 'Terasa', 'i' => '☀️', 'w' => 600, 'h' => 400, 's' => 1]);
+                $terasaId = (int) $pdo->lastInsertId();
+
+                // 8 stolů v sále + 4 na terase + bar + rodinný
+                $demoTables = [
+                    // Sál
+                    ['S1', 'round',  2, 60,  60,  70, 70, $salId],
+                    ['S2', 'round',  2, 200, 60,  70, 70, $salId],
+                    ['S3', 'round',  2, 340, 60,  70, 70, $salId],
+                    ['S4', 'round',  2, 480, 60,  70, 70, $salId],
+                    ['S5', 'square', 4, 60,  200, 90, 90, $salId],
+                    ['S6', 'square', 4, 220, 200, 90, 90, $salId],
+                    ['S7', 'square', 4, 380, 200, 90, 90, $salId],
+                    ['S8', 'square', 4, 540, 200, 90, 90, $salId],
+                    ['🍕 Rodinný', 'rect', 8, 60, 360, 380, 80, $salId],
+                    ['🍺 Bar', 'rect', 4, 480, 360, 240, 50, $salId],
+                    // Terasa
+                    ['T1', 'round', 2, 60,  60,  70, 70, $terasaId],
+                    ['T2', 'round', 2, 200, 60,  70, 70, $terasaId],
+                    ['T3', 'round', 2, 340, 60,  70, 70, $terasaId],
+                    ['T4', 'square', 4, 60, 200, 90, 90, $terasaId],
+                ];
+                $tStmt = $pdo->prepare("
+                    INSERT INTO restaurant_tables (nazev, mist, x, y, width, height, tvar, zone_id, stav, aktivni)
+                    VALUES (:n, :m, :x, :y, :w, :h, :t, :z, 'free', 1)
+                ");
+                foreach ($demoTables as $t) {
+                    $tStmt->execute([
+                        'n' => $t[0], 't' => $t[1], 'm' => $t[2],
+                        'x' => $t[3], 'y' => $t[4], 'w' => $t[5], 'h' => $t[6],
+                        'z' => $t[7],
+                    ]);
+                    $stats['stoly']++;
+                }
+            }
+
+            // KUCHYNĚ STANICE (4 — pec, studená, gril, bar)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS kitchen_stations (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    nazev VARCHAR(100) NOT NULL, ikona VARCHAR(10) NOT NULL DEFAULT '🔥',
+                    max_paralelni INT NOT NULL DEFAULT 4,
+                    aktivni TINYINT(1) NOT NULL DEFAULT 1, poradi INT NOT NULL DEFAULT 0,
+                    barva VARCHAR(20) DEFAULT '#F59E0B'
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            $existingStations = (int) $pdo->query("SELECT COUNT(*) FROM kitchen_stations")->fetchColumn();
+            if ($existingStations === 0) {
+                $stations = [
+                    ['Pec / pizza',     '🔥', 4, 1, '#EF4444'],
+                    ['Studená kuchyně', '🥗', 3, 2, '#10B981'],
+                    ['Gril',            '🍖', 2, 3, '#F97316'],
+                    ['Bar / nápoje',    '🍹', 6, 4, '#3B82F6'],
+                ];
+                $kStmt = $pdo->prepare("INSERT INTO kitchen_stations (nazev, ikona, max_paralelni, poradi, barva) VALUES (:n, :i, :m, :p, :b)");
+                foreach ($stations as $st) {
+                    $kStmt->execute(['n' => $st[0], 'i' => $st[1], 'm' => $st[2], 'p' => $st[3], 'b' => $st[4]]);
+                    $stats['kuchyne_stanice']++;
+                }
+            }
+        } catch (Throwable $e) { $stats['errors'][] = 'Restaurace stoly/kuchyně: ' . $e->getMessage(); }
+
+        // 14. FLAGGED VÝROBKY — oblíbený, novinka, akce (pro pěkný katalog)
+        try {
+            $cols = $pdo->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vyrobky'")->fetchAll(PDO::FETCH_COLUMN);
+            if (in_array('oblibeny', $cols, true)) {
+                $pdo->exec("UPDATE vyrobky SET oblibeny = 1 WHERE cislo IN ('RK01', 'CH01', 'CR01') AND oblibeny = 0");
+            }
+            if (in_array('je_novinka', $cols, true)) {
+                $pdo->exec("UPDATE vyrobky SET je_novinka = 1 WHERE cislo IN ('SP02', 'BS01') AND je_novinka = 0");
+            }
+        } catch (Throwable $e) { /* optional */ }
 
         $pdo->commit();
         json_response($stats);

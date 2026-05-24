@@ -1,6 +1,6 @@
 {
- "version": "2.9.283",
- "built_at": "2026-05-24T18:56:34Z",
+ "version": "2.9.284",
+ "built_at": "2026-05-24T19:03:56Z",
  "file_count": 227,
  "files": {
   ".htaccess": {
@@ -20,12 +20,12 @@
    "size": 4583
   },
   "admin/admin.css": {
-   "sha256": "6bab5a4722a71c801fb181ec688e3b65a0463c80b7db1e5cd197639e47785dac",
+   "sha256": "a5dbb2d3a09931e9cbda40311d45eeedcd3eef1e452c9bb23bcda33df0d3cf74",
    "size": 559524
   },
   "admin/admin.js": {
-   "sha256": "85a7c8b31029584d12e4245190559dd2844a52ff6a105de31f7f353d57abd49d",
-   "size": 1872857
+   "sha256": "51b7c7a7c4f2cf0f45e206132c2f676e91dfda1898c90cec5ec5ff4aef1af898",
+   "size": 1873386
   },
   "admin/clear-cache.html": {
    "sha256": "3f3d549fdcad9b1094ddca2e0c96e96570c73039450cff2ce18a4b31ff0cff03",
@@ -112,7 +112,7 @@
    "size": 573
   },
   "admin/index.html": {
-   "sha256": "aea88c330ae598ddc2fa2b2516a2bcdf920537e1f448ef42310edefbdfbf6c22",
+   "sha256": "d4487bdd3459c6f86e914e725e28216bf1dacf2fc8bcaa9040b99ec25e4ed1ca",
    "size": 30645
   },
   "admin/manifest.json": {
@@ -136,7 +136,7 @@
    "size": 12259
   },
   "admin/sw.js": {
-   "sha256": "be9cd3d9c5d43a61a07901aea968530963d021fae24760906402b80645774f51",
+   "sha256": "e32ca80c7ba1c7c9b743ed2b8a1679f72bbfe4376065c563d38b2e2bbf04d954",
    "size": 5393
   },
   "admin/updater.html": {
@@ -300,8 +300,8 @@
    "size": 9454
   },
   "api/admin_demo_seed.php": {
-   "sha256": "0cbd58aeed95aad80d730d1b467c8626ddb307f4c57437f0729851c02fbd02eb",
-   "size": 76628
+   "sha256": "3eca29f806fe4f261b8377838c3e0bf7bdd739c5cfade84cf95e940567b0215f",
+   "size": 95794
   },
   "api/admin_diagnostika.php": {
    "sha256": "ddd17f807d777a702196e062ac0e14bfa7b42d7c75035366d31e0f3344971a36",
@@ -584,7 +584,7 @@
    "size": 9975
   },
   "api/config.php": {
-   "sha256": "39df530d43fd3493cb757f4bfd4d08420d5d257303dffe239f626ecc48e0ca48",
+   "sha256": "91f2568a3f383051b32f215444cf45e88cac158883b318818e3f47981c1574b3",
    "size": 44670
   },
   "api/cron_recurring.php": {
@@ -840,7 +840,7 @@
    "size": 105295
   },
   "b2b/index.html": {
-   "sha256": "e3e7b3d2bb4f8bb9636c3d44feb527259591845bc548958705f5f11d33d315c1",
+   "sha256": "16afae8f860de4944ef8c18fc74262abd03d31cc96f04a87523d87a9e3561c36",
    "size": 11976
   },
   "b2b/manifest.json": {
