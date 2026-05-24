@@ -691,15 +691,25 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* Actions */
+/* 🆕 v2.9.301 — FINISH dominantní (full width, 2 řádky: ikony nahoře, finish dole) */
 .pos-actions {
   display: grid;
-  grid-template-columns: auto auto auto 1fr;
-  gap: 6px;
-  padding: 10px 14px 14px;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "icon1 icon2 icon3 icon4"
+    "finish finish finish finish";
+  gap: 8px;
+  padding: 12px 14px 14px;
   background: #fff;
   border-top: 1px solid var(--pos-border);
   flex-shrink: 0;
 }
+.pos-actions .pos-icon:nth-child(1) { grid-area: icon1; }
+.pos-actions .pos-icon:nth-child(2) { grid-area: icon2; }
+.pos-actions .pos-icon:nth-child(3) { grid-area: icon3; }
+.pos-actions .pos-icon:nth-child(4) { grid-area: icon4; }
+.pos-actions .pos-finish { grid-area: finish; }
 .pos-icon {
   width: 46px;
   height: 50px;
@@ -715,14 +725,17 @@ button { font-family: inherit; cursor: pointer; }
   background: linear-gradient(180deg, #27AE60 0%, #1E8449 100%);
   color: #fff;
   border: none;
-  border-radius: 10px;
-  font-size: 18px;
+  border-radius: 12px;
+  /* 🆕 v2.9.301 — OBROVSKÝ button (user request) */
+  font-size: 26px;
   font-weight: 900;
-  letter-spacing: 0.5px;
-  padding: 14px 20px;
-  min-height: 56px;
-  box-shadow: 0 4px 12px rgba(30,132,73,0.35);
+  letter-spacing: 1px;
+  padding: 22px 24px;
+  min-height: 78px;
+  text-transform: uppercase;
+  box-shadow: 0 6px 20px rgba(30,132,73,0.40);
   transition: all 0.15s ease;
+  width: 100%;
 }
 .pos-finish:hover {
   transform: translateY(-1px);
@@ -732,18 +745,25 @@ button { font-family: inherit; cursor: pointer; }
 .pos-finish:disabled { opacity: 0.6; cursor: wait; transform: none; }
 
 /* 🆕 v2.9.299 — MacBook 13" responsivity (1280-1440px viewport) — kompaktnější finish + actions */
+/* 🆕 v2.9.301 — FINISH naopak OBROVSKÝ (user request) i v menších rozlišeních */
 @media (min-width: 1024px) and (max-width: 1440px) {
-  .pos-actions { padding: 8px 12px 12px !important; gap: 5px !important; }
+  .pos-actions {
+    padding: 10px 14px 14px !important;
+    gap: 6px !important;
+    grid-template-columns: 1fr 1fr 1fr 1fr !important;
+    grid-template-rows: auto auto !important;
+  }
   .pos-icon {
-    width: 42px !important; height: 46px !important;
+    width: auto !important; height: 46px !important;
     font-size: 18px !important; border-radius: 8px !important;
   }
   .pos-finish {
-    font-size: 19px !important;
-    min-height: 50px !important;
-    padding: 10px 16px !important;
-    border-radius: 10px !important;
-    letter-spacing: 0.4px !important;
+    font-size: 24px !important;
+    min-height: 72px !important;
+    padding: 18px 20px !important;
+    border-radius: 12px !important;
+    letter-spacing: 0.8px !important;
+    width: 100% !important;
   }
   .pos-total-bar { padding: 10px 14px !important; }
   .pos-total-bar strong { font-size: 26px !important; }
@@ -1160,21 +1180,30 @@ html, body {
   font-weight: 900 !important;
 }
 
-/* Action row */
-.pos-actions { padding: 14px 18px 18px !important; gap: 10px !important; }
+/* Action row — desktop XL (≥1441px) */
+.pos-actions {
+  padding: 14px 18px 18px !important;
+  gap: 10px !important;
+  grid-template-columns: 1fr 1fr 1fr 1fr !important;
+  grid-template-rows: auto auto !important;
+}
 .pos-icon {
-  width: 58px !important;
-  height: 64px !important;
+  width: auto !important;
+  height: 58px !important;
   font-size: 24px !important;
   border-radius: 12px !important;
   border-width: 2px !important;
 }
 .pos-finish {
-  font-size: 22px !important;
+  /* 🆕 v2.9.301 — OBROVSKÝ na velkém displayi */
+  font-size: 32px !important;
   font-weight: 900 !important;
+  min-height: 88px !important;
+  padding: 24px 28px !important;
   border-radius: 14px !important;
-  letter-spacing: 0.8px !important;
-  box-shadow: 0 6px 16px rgba(30,132,73,0.40) !important;
+  letter-spacing: 1.2px !important;
+  box-shadow: 0 8px 24px rgba(30,132,73,0.45) !important;
+  width: 100% !important;
 }
 
 /* Footer */
