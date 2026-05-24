@@ -3485,6 +3485,64 @@ function recentMistoLine(row) {
   return `<div style="font-size:11px;color:var(--text-3);margin-top:2px">📍 ${esc(row.misto_nazev)}${detail ? ' — ' + esc(detail) : ''}</div>`;
 }
 
+// 🆕 v2.9.242 — Dashboard alerts widget (akce vyžadující pozornost)
+// Skryje se pokud žádné alerty — žádný šum kdy je vše OK
+function renderDashAlerts(alerts) {
+  const items = [];
+  if ((alerts.obj_bez_dl || 0) > 0) {
+    items.push({
+      icon: '📋',
+      label: 'objednávek doručených bez dodacího listu',
+      count: alerts.obj_bez_dl,
+      tooltip: 'Doručené objednávky starší 3 dny bez DL — vystavit DL',
+      onclick: `navigate('objednavky');setTimeout(()=>{state._obj_filtr='bez_dl';renderObjednavky({stav:'dorucena'})},100)`,
+      severity: 'warn',
+    });
+  }
+  if ((alerts.dl_bez_fa || 0) > 0) {
+    items.push({
+      icon: '💰',
+      label: 'dodacích listů nefakturovaných >7 dní',
+      count: alerts.dl_bez_fa,
+      tooltip: 'Vystavit faktury — DL starší 7 dní bez FA',
+      onclick: `navigate('dodaci_listy');setTimeout(()=>applyDlFilters({fakturovano:'0'}),100)`,
+      severity: 'warn',
+    });
+  }
+  if ((alerts.sklad_pod_min || 0) > 0) {
+    items.push({
+      icon: '⚠️',
+      label: 'surovin pod minimální zásobou',
+      count: alerts.sklad_pod_min,
+      tooltip: 'Suroviny pod minimem — objednat nebo přesunout',
+      onclick: `navigate('sklad')`,
+      severity: 'danger',
+    });
+  }
+  if (items.length === 0) return ''; // nothing to alert about, hide widget
+
+  return `
+    <div class="dash-alerts">
+      <div class="dash-alerts-head">
+        <span class="dash-alerts-ico">🔔</span>
+        <strong>Akce vyžadující pozornost</strong>
+        <span class="dash-alerts-count">${items.length}</span>
+      </div>
+      <div class="dash-alerts-list">
+        ${items.map(it => `
+          <button class="dash-alert ${it.severity === 'danger' ? 'is-danger' : 'is-warn'}"
+                  onclick="${it.onclick}" title="${esc(it.tooltip)}">
+            <span class="dash-alert-ico">${it.icon}</span>
+            <span class="dash-alert-count">${it.count}</span>
+            <span class="dash-alert-label">${esc(it.label)}</span>
+            <span class="dash-alert-arrow">→</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 async function renderDashboard(filters = {}) {
   // 🆕 v2.9.234 — filter persistence přes localStorage (přežije reload + jiný navigate)
   let savedObdobi = null, savedOd = null, savedDo = null;
@@ -3603,6 +3661,9 @@ async function renderDashboard(filters = {}) {
         </span>
       </button>
     </div>
+
+    <!-- 🆕 v2.9.242 — Alerts widget (akce vyžadující pozornost) -->
+    ${renderDashAlerts(d.alerts || {})}
 
     <!-- TABY OBDOBÍ — v2.9.233 segmented control (icon + label) -->
     <div class="seg-tabs" role="tablist" style="margin-bottom:14px">
@@ -12334,7 +12395,7 @@ async function loadPaymentMethodsPanel() {
     methods.forEach(m => { if (groups[m.cat]) groups[m.cat].items.push(m); });
 
     const renderGroup = (g) => g.items.length === 0 ? '' : `
-      <div class="card-block" style="margin-bottom:14px;padding:14px 16px">
+      <div class="card-block" style="margin:0;padding:14px 16px">
         <h3 style="margin:0 0 4px;font-size:14px">${esc(g.title)}</h3>
         <p style="font-size:12px;color:var(--text-3);margin:0 0 12px">${esc(g.hint)}</p>
         <div style="display:flex;flex-direction:column;gap:6px">
@@ -12349,10 +12410,13 @@ async function loadPaymentMethodsPanel() {
       </div>`;
 
     panel.innerHTML = `
-      ${renderGroup(groups.physical)}
-      ${renderGroup(groups.online)}
-      ${renderGroup(groups.deferred)}
-      ${renderGroup(groups.other)}
+      <!-- 🆕 v2.9.242 — 2-sloupcový grid na PC (4 sekce vedle sebe ve 2x2) -->
+      <div class="platby-grid">
+        ${renderGroup(groups.physical)}
+        ${renderGroup(groups.online)}
+        ${renderGroup(groups.deferred)}
+        ${renderGroup(groups.other)}
+      </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
         <button class="btn-primary btn-green btn-big-action" onclick="savePaymentMethods()" style="font-size:15px;padding:12px 24px">💾 Uložit změny</button>
       </div>

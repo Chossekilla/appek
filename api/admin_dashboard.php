@@ -192,6 +192,45 @@ $nedavne_fa = $pdo->query("
     LIMIT 5
 ")->fetchAll();
 
+// 🆕 v2.9.242 — Alerts widget pro Dashboard (rychlé COUNTs, indexed columns)
+$alerts = [
+    'obj_bez_dl' => 0,    // objednávky doručené ale bez DL (>3 dny)
+    'dl_bez_fa'  => 0,    // DL nefakturované >7 dní
+    'sklad_pod_min' => 0, // suroviny pod minimální zásobou (legacy stock_*)
+];
+try {
+    // Objednávky doručené, starší 3 dny, bez DL
+    $a = $pdo->query("
+        SELECT COUNT(*) FROM objednavky o
+        WHERE o.stav = 'dorucena'
+          AND o.datum_dodani < CURDATE() - INTERVAL 3 DAY
+          AND NOT EXISTS (SELECT 1 FROM dodaci_listy dl WHERE dl.objednavka_id = o.id)
+    ")->fetchColumn();
+    $alerts['obj_bez_dl'] = (int) $a;
+} catch (Throwable $e) { /* table missing — skip */ }
+
+try {
+    // DL nefakturované, starší 7 dní
+    $b = $pdo->query("
+        SELECT COUNT(*) FROM dodaci_listy dl
+        WHERE COALESCE(dl.fakturovano, 0) = 0
+          AND dl.datum_vystaveni < CURDATE() - INTERVAL 7 DAY
+    ")->fetchColumn();
+    $alerts['dl_bez_fa'] = (int) $b;
+} catch (Throwable $e) { /* skip */ }
+
+try {
+    // Suroviny pod minimální zásobou (legacy `suroviny.stock_aktualni` + `stock_minimalni`)
+    $c = $pdo->query("
+        SELECT COUNT(*) FROM suroviny
+        WHERE aktivni = 1
+          AND stock_minimalni IS NOT NULL
+          AND stock_minimalni > 0
+          AND COALESCE(stock_aktualni, 0) <= stock_minimalni
+    ")->fetchColumn();
+    $alerts['sklad_pod_min'] = (int) $c;
+} catch (Throwable $e) { /* skip */ }
+
 json_response([
     'obdobi'        => $obdobi,
     'datum_od'      => $od,
@@ -201,6 +240,7 @@ json_response([
     'obdobi_stats'  => $obdobi_stats,
     'dnes'          => $dnes,
     'po_splatnosti' => $po_splatnosti,
+    'alerts'        => $alerts,
 
     'casovy_graf'   => $casovy_graf,
     'top_odberatele'=> $top_odberatele,
