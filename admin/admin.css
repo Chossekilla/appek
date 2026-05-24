@@ -10617,11 +10617,26 @@ html.density-spacious .stat-card { padding: 22px 26px; }
 html.density-spacious .stat-value { font-size: 30px; }
 html.density-spacious .stat-label { font-size: 14px; }
 html.density-spacious .modal-tab { padding: 16px 24px; font-size: 16px; }
-html.density-spacious .period-tab { padding: 14px 22px; font-size: 15px; min-height: 52px; }
+/* 🆕 v2.9.255 — Spacious density: filter tabs větší padding + text */
+html.density-spacious .period-tab,
+html.density-spacious .seg-tab,
+html.density-spacious .vyroba-subtab,
+html.density-spacious .nastaveni-tab {
+  padding: 14px 16px !important;
+}
+html.density-spacious .period-tab-text,
+html.density-spacious .seg-tab-text,
+html.density-spacious .vyroba-subtab-text {
+  font-size: clamp(13px, 1.7vw, 15px) !important;
+}
+html.density-spacious .period-tab-icon,
+html.density-spacious .seg-tab-icon,
+html.density-spacious .vyroba-subtab-icon {
+  font-size: clamp(22px, 2.6vw, 26px) !important;
+}
 html.density-spacious .nastaveni-row { gap: 18px; margin-bottom: 18px; }
 html.density-spacious .form-grid { gap: 18px; }
 html.density-spacious .form-grid-tight { gap: 14px; }
-html.density-spacious .nastaveni-tab { padding: 14px 22px; font-size: 15px; }
 html.density-spacious .filters { padding: 16px; gap: 12px; }
 html.density-spacious .faktura-card,
 html.density-spacious .dl-card,
@@ -10803,11 +10818,27 @@ html.density-extreme .stat-card { padding: 28px 32px; }
 html.density-extreme .stat-value { font-size: 38px; }
 html.density-extreme .stat-label { font-size: 16px; }
 html.density-extreme .modal-tab { padding: 20px 28px; font-size: 18px; }
-html.density-extreme .period-tab { padding: 18px 28px; font-size: 17px; min-height: 60px; font-weight: 700; }
+/* 🆕 v2.9.255 — Extreme density: filter tabs XXL pro slabozraké / kiosek */
+html.density-extreme .period-tab,
+html.density-extreme .seg-tab,
+html.density-extreme .vyroba-subtab,
+html.density-extreme .nastaveni-tab {
+  padding: 18px 18px !important;
+  font-weight: 700 !important;
+}
+html.density-extreme .period-tab-text,
+html.density-extreme .seg-tab-text,
+html.density-extreme .vyroba-subtab-text {
+  font-size: clamp(15px, 2vw, 17px) !important;
+}
+html.density-extreme .period-tab-icon,
+html.density-extreme .seg-tab-icon,
+html.density-extreme .vyroba-subtab-icon {
+  font-size: clamp(26px, 3.2vw, 32px) !important;
+}
 html.density-extreme .nastaveni-row { gap: 24px; margin-bottom: 24px; }
 html.density-extreme .form-grid { gap: 24px; }
 html.density-extreme .form-grid-tight { gap: 18px; }
-html.density-extreme .nastaveni-tab { padding: 18px 26px; font-size: 17px; }
 html.density-extreme .filters { padding: 20px; gap: 14px; }
 html.density-extreme .faktura-card,
 html.density-extreme .dl-card,
