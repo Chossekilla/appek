@@ -523,25 +523,83 @@ if ($action === 'apply') {
         // 5. Suroviny + naskladnění
         // 🆕 v2.9.271 — bohatší demo: 30+ surovin s reálnými velkoobchodními cenami,
         // automatické naskladnění (sklad_pohyby_v2 nebo legacy suroviny.stock_aktualni)
+        // 🆕 v2.9.273 — MERGE MODE: pokud surovina už existuje ale chybí naskladnění/stock_min,
+        //              doplnit (nepřepisovat existující ceny/název). To umožní upgrade ze starší demo.
         $surovinaIdByName = []; // pro mapování názvů na ID (pro recepty)
+        $stats['suroviny_doplneno_stock'] = 0;
+
+        // Detekuj sloupce jednou (cached pro celou smyčku)
+        $surCols = $pdo->query("SHOW COLUMNS FROM suroviny")->fetchAll(PDO::FETCH_COLUMN);
+        $hasStockAkt = in_array('stock_aktualni', $surCols, true);
+        $hasStockMin = in_array('stock_minimalni', $surCols, true);
+
+        // Helper: zápis sklad_pohyby pro audit (legacy tabulka)
+        $logPrijem = function(int $surId, float $mnozstvi, float $cenaJed, string $note) use ($pdo, &$stats) {
+            try {
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS sklad_pohyby (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        surovina_id INT NOT NULL,
+                        typ VARCHAR(20) NOT NULL,
+                        mnozstvi DECIMAL(12,3) NOT NULL,
+                        cena_za_jed DECIMAL(10,4) NULL,
+                        poznamka VARCHAR(300) NULL,
+                        kdo VARCHAR(120) NULL,
+                        kdy DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_sur (surovina_id),
+                        INDEX idx_kdy (kdy)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                ");
+                $pdo->prepare("
+                    INSERT INTO sklad_pohyby (surovina_id, typ, mnozstvi, cena_za_jed, poznamka, kdo, kdy)
+                    VALUES (:sid, 'prijem', :mn, :cj, :pz, 'Demo seed', NOW())
+                ")->execute([
+                    'sid' => $surId, 'mn' => $mnozstvi, 'cj' => $cenaJed, 'pz' => $note,
+                ]);
+                $stats['naskladneno_polozek']++;
+            } catch (Throwable $e) { /* sklad_pohyby legacy not critical */ }
+        };
+
         foreach (demo_suroviny() as $s) {
             try {
-                $cnt = $pdo->prepare("SELECT id FROM suroviny WHERE nazev = :n");
-                $cnt->execute(['n' => $s['nazev']]);
-                $existId = (int) $cnt->fetchColumn();
-                if ($existId) {
-                    $surovinaIdByName[$s['nazev']] = $existId;
-                    continue;
-                }
-                // Spočítej naskladnění + stock_min
                 $naskladnit = ((float) ($s['naskladnit_baleni'] ?? 0)) * ((float) ($s['obsah_baleni'] ?? 0));
                 $stockMin   = (float) ($s['stock_min'] ?? 0);
+                $cenaJed    = ((float) $s['cena_baleni']) / max(1, (float) $s['obsah_baleni']);
 
-                // Detekuj které sloupce suroviny má (různé hostingy)
-                $surCols = $pdo->query("SHOW COLUMNS FROM suroviny")->fetchAll(PDO::FETCH_COLUMN);
-                $hasStockAkt = in_array('stock_aktualni', $surCols, true);
-                $hasStockMin = in_array('stock_minimalni', $surCols, true);
+                // Existuje surovina? Pokud ano, MERGE chybějící data
+                $stmt = $pdo->prepare("SELECT id" . ($hasStockAkt ? ", stock_aktualni" : "") . ($hasStockMin ? ", stock_minimalni" : "") . " FROM suroviny WHERE nazev = :n");
+                $stmt->execute(['n' => $s['nazev']]);
+                $existing = $stmt->fetch();
 
+                if ($existing) {
+                    $existId = (int) $existing['id'];
+                    $surovinaIdByName[$s['nazev']] = $existId;
+
+                    // Merge: pokud chybí naskladnění → naskladnit; pokud chybí stock_min → doplnit
+                    $sets = []; $params = ['id' => $existId];
+                    $doplnitStock = $hasStockAkt && (!isset($existing['stock_aktualni']) || (float) $existing['stock_aktualni'] === 0.0);
+                    $doplnitMin   = $hasStockMin && (empty($existing['stock_minimalni']) || (float) $existing['stock_minimalni'] === 0.0);
+
+                    if ($doplnitStock && $naskladnit > 0) {
+                        $sets[] = "stock_aktualni = :sa";
+                        $params['sa'] = $naskladnit;
+                    }
+                    if ($doplnitMin && $stockMin > 0) {
+                        $sets[] = "stock_minimalni = :sm";
+                        $params['sm'] = $stockMin;
+                    }
+                    if ($sets) {
+                        $pdo->prepare("UPDATE suroviny SET " . implode(', ', $sets) . " WHERE id = :id")->execute($params);
+                        $stats['suroviny_doplneno_stock']++;
+                        if ($doplnitStock && $naskladnit > 0) {
+                            $logPrijem($existId, $naskladnit, $cenaJed,
+                                '🎬 Demo doplnění zásob — ' . (int) $s['naskladnit_baleni'] . ' balení (' . $naskladnit . ' ' . $s['jednotka'] . ')');
+                        }
+                    }
+                    continue;
+                }
+
+                // INSERT — nová surovina
                 $fields  = ['nazev', 'jednotka', 'cena_baleni', 'obsah_baleni', 'alergen', 'aktivni'];
                 $values  = [
                     'nazev' => $s['nazev'], 'jednotka' => $s['jednotka'],
@@ -558,39 +616,23 @@ if ($action === 'apply') {
                 $surovinaIdByName[$s['nazev']] = $newSurId;
                 $stats['suroviny']++;
 
-                // Naskladnění → zapsat pohyb (legacy sklad_pohyby + nový v2)
                 if ($naskladnit > 0) {
-                    // Legacy: sklad_pohyby (jen surovina_id)
-                    try {
-                        $pdo->exec("
-                            CREATE TABLE IF NOT EXISTS sklad_pohyby (
-                                id INT AUTO_INCREMENT PRIMARY KEY,
-                                surovina_id INT NOT NULL,
-                                typ VARCHAR(20) NOT NULL,
-                                mnozstvi DECIMAL(12,3) NOT NULL,
-                                cena_za_jed DECIMAL(10,4) NULL,
-                                poznamka VARCHAR(300) NULL,
-                                kdo VARCHAR(120) NULL,
-                                kdy DATETIME DEFAULT CURRENT_TIMESTAMP,
-                                INDEX idx_sur (surovina_id),
-                                INDEX idx_kdy (kdy)
-                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                        ");
-                        $cenaJed = ((float) $s['cena_baleni']) / ((float) $s['obsah_baleni']);
-                        $pdo->prepare("
-                            INSERT INTO sklad_pohyby (surovina_id, typ, mnozstvi, cena_za_jed, poznamka, kdo, kdy)
-                            VALUES (:sid, 'prijem', :mn, :cj, :pz, 'Demo seed', NOW())
-                        ")->execute([
-                            'sid' => $newSurId,
-                            'mn'  => $naskladnit,
-                            'cj'  => $cenaJed,
-                            'pz'  => '🎬 Demo naskladnění — ' . (int) $s['naskladnit_baleni'] . ' balení (' . $naskladnit . ' ' . $s['jednotka'] . ')',
-                        ]);
-                        $stats['naskladneno_polozek']++;
-                    } catch (Throwable $e) { /* sklad_pohyby legacy not critical */ }
+                    $logPrijem($newSurId, $naskladnit, $cenaJed,
+                        '🎬 Demo naskladnění — ' . (int) $s['naskladnit_baleni'] . ' balení (' . $naskladnit . ' ' . $s['jednotka'] . ')');
                 }
             } catch (Throwable $e) { $stats['errors'][] = "Surovina {$s['nazev']}: " . $e->getMessage(); }
         }
+
+        // 🆕 v2.9.273 — Backfill surovinaIdByName pro existující suroviny (recepty potřebují ID)
+        // Pokud surovina existovala před seedem a nebyla v aktuálním foreach, načti ID z DB
+        try {
+            $allSur = $pdo->query("SELECT id, nazev FROM suroviny WHERE aktivni = 1")->fetchAll();
+            foreach ($allSur as $row) {
+                if (!isset($surovinaIdByName[$row['nazev']])) {
+                    $surovinaIdByName[$row['nazev']] = (int) $row['id'];
+                }
+            }
+        } catch (Throwable $e) {}
 
         // 🆕 v2.9.271 — 6. RECEPTY (vyrobek_suroviny) — pro každý výrobek z demo_products
         try {
