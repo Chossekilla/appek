@@ -5192,7 +5192,7 @@ async function renderSkladyInline() {
         </div>
       `}
       <p style="font-size:11px;color:var(--text-3);margin-top:14px">
-        ℹ️ Klikni <strong>📋 Detail</strong> pro správu položek ve skladu. Pohyby (příjem/výdej/přesun) přijdou v dalším update.
+        ℹ️ Klikni <strong>📋 Detail</strong> pro správu položek ve skladu — přiřazení surovin/výrobků, příjem, výdej, inventura, korekce a přesun mezi sklady.
       </p>
     `;
   } catch (e) {
