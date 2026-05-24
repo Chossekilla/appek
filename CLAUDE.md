@@ -211,10 +211,11 @@ Nasazování na web je automatizované přes GitHub — ŽÁDNÉ ruční nahráv
 - ❌ NIKDY `flex-wrap: wrap !important` (na filter tabs)
 
 **Mobile (<700px) — KANONICKÉ pravidlo:**
-- `.period-tabs / .seg-tabs / .vyroba-subtabs` → **1 ŘÁDEK nowrap shrink**
-  (clamp() fonts, flex: 1 1 0, min-width: 0)
-- `.nastaveni-tabs` → **3-SLOUPCOVÝ GRID** (`repeat(3, 1fr)` — Nastavení má
-  9 tabů, 3×3 = ideální)
+- **Skupina A — `.period-tabs`** → **1 ŘÁDEK nowrap shrink** (5-6 tabů typicky:
+  Dnes/Týden/Měsíc/Rok/Vlastní/Vše — clamp() fonts, flex: 1 1 0, min-width: 0)
+- **Skupina B — `.seg-tabs / .vyroba-subtabs / .nastaveni-tabs`** → **3-SLOUPCOVÝ GRID**
+  (Výroba 7 sub-tabů, Nastavení 9 tabů — `repeat(3, 1fr)`, lichý počet 7 → poslední
+  button `grid-column: span 3` = full row)
 
 **Centrální tokens v `:root`** (`--filter-tab-*`) — DRY. Změna v 1 místě = projeví se všude.
 
