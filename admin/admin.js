@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.289';
+const APPEK_ADMIN_JS_VERSION = '2.9.290';
 
 (async function detectStaleCode() {
   try {
@@ -10787,6 +10787,10 @@ window.editVyrobek = async function(id = null) {
         <h3 style="margin:0;font-size:15px;color:#854F0B">🌾 Složení / suroviny</h3>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn-secondary" type="button" onclick="vySlozeniAddRow()" style="font-size:13px">+ Přidat surovinu</button>
+          <!-- 🆕 v2.9.290 — Naplnit demo recept (jen pokud výrobek má cislo + recept v demo_recepty) -->
+          ${id && v.cislo && ['RK01','VK01','BS01','CH01','CH02','CR01','SP01','SP02','SE01','NA01'].includes(v.cislo) ? `
+            <button class="btn-secondary" type="button" onclick="vyNaplnitDemoRecept(${id}, '${esc(v.cislo)}')" style="font-size:13px;background:#FEF3C7;border-color:#F0D9B8;color:#854F0B" title="Doplnit recept pro tento demo výrobek ze surovin v DB">🎬 Demo recept</button>
+          ` : ''}
           <button class="btn-secondary" type="button" onclick="vyOdvoditAlergeny()" style="font-size:13px" title="Sečte alergeny ze surovin a vyplní pole Alergeny výše">🧪 Odvodit alergeny</button>
           <button class="btn-secondary" type="button" onclick="vyKalkulace()" style="font-size:13px" title="Přepočítat náklady">💰 Spočítat náklady</button>
         </div>
@@ -26734,6 +26738,28 @@ async function loadSurovinyCache() {
   return state._suroviny_cache;
 }
 
+// 🆕 v2.9.290 — Tlačítko v editVyrobek pro doplnění demo receptu (RK01, CH01, …)
+window.vyNaplnitDemoRecept = async function(vyrobekId, cislo) {
+  if (!confirm(`Doplnit demo recept pro výrobek ${cislo}?\n\n⚠️ Pokud výrobek už nějaký recept má, bude PŘEPSÁN.`)) return;
+  try {
+    const r = await api('admin_demo_seed.php?action=seed_one_recipe', {
+      method: 'POST',
+      body: JSON.stringify({ cislo }),
+    });
+    let msg = `✓ Recept doplněn pro „${r.vyrobek}"\n\nVloženo: ${r.vlozeno} / ${r.celkem_v_demo} surovin.`;
+    if (r.nenalezeno && r.nenalezeno.length > 0) {
+      msg += `\n\n⚠ Nenalezeno v DB (přeskočeno): ${r.nenalezeno.slice(0, 5).join(', ')}`;
+      msg += `\n\n💡 Tip: spusť 🎬 Naplnit demo daty pro doplnění chybějících surovin.`;
+    }
+    alert(msg);
+    // Reload editVyrobek modal s čerstvými daty
+    closeModal();
+    setTimeout(() => editVyrobek(vyrobekId), 200);
+  } catch (e) {
+    alert('Chyba: ' + e.message);
+  }
+};
+
 window.vySlozeniAddRow = function(surovina_id = '', mnozstvi = '', jednotka = 'g', poznamka = '') {
   const c = document.getElementById('vy-sloz-rows');
   if (!c) return;
@@ -35167,7 +35193,15 @@ window.vkLoadFromVyrobek = async function() {
     vkRender();
 
     if (vkState.receptura.length === 0) {
-      alert('Výrobek nemá ve složení žádné suroviny. Přidej je v editoru výrobku.');
+      // 🆕 v2.9.290 — nabídnout otevření editoru výrobku místo jen alertu
+      if (confirm('Výrobek nemá ve složení žádné suroviny.\n\nOtevřít editor výrobku a doplnit recept?')) {
+        const vid = vkState.vyrobek_id;
+        if (vid && typeof editVyrobek === 'function') {
+          // Navigate na Výrobky stránku + otevřít modal editoru
+          navigate('vyrobky');
+          setTimeout(() => editVyrobek(vid), 300);
+        }
+      }
     } else {
       const toast = document.createElement('div');
       toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:14px 22px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:13px;font-weight:500;z-index:1000;max-width:340px;line-height:1.5';

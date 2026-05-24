@@ -1522,4 +1522,112 @@ if ($action === 'clear') {
     }
 }
 
-json_error('Neznámá akce (preview|apply|clear)', 404);
+// 🆕 v2.9.290 — Seed recept pro JEDEN výrobek (na vyžádání z editVyrobek modal)
+// POST ?action=seed_one_recipe { cislo: 'RK01' } → vytvoří/přepíše recept
+if ($action === 'seed_one_recipe') {
+    $d = json_input();
+    $cislo = trim((string) ($d['cislo'] ?? ''));
+    if (!$cislo) json_error('Chybí cislo výrobku', 400);
+
+    $recepty = demo_recepty();
+    if (!isset($recepty[$cislo])) {
+        json_error("Pro výrobek {$cislo} není demo recept dostupný", 404);
+    }
+
+    // Najdi výrobek v DB (cislo nebo název)
+    $vyrStmt = $pdo->prepare("SELECT id, nazev FROM vyrobky WHERE cislo = :c LIMIT 1");
+    $vyrStmt->execute(['c' => $cislo]);
+    $vyr = $vyrStmt->fetch();
+    if (!$vyr) json_error("Výrobek s číslem {$cislo} nenalezen v DB", 404);
+    $vyrId = (int) $vyr['id'];
+
+    // Alias mapping pro fuzzy lookup surovin (sdílený s apply)
+    $aliases = [
+        'Mouka pšeničná hladká T530'       => ['Mouka pšeničná hladká', 'Mouka hladká', 'Mouka pšeničná', 'Mouka'],
+        'Mouka pšeničná chlebová T1050'    => ['Mouka pšeničná chlebová', 'Mouka chlebová'],
+        'Mouka žitná chlebová T960'        => ['Mouka žitná chlebová', 'Mouka žitná'],
+        'Sůl jedlá'                         => ['Sůl'],
+        'Droždí čerstvé pekařské'           => ['Droždí čerstvé', 'Droždí'],
+        'Kvásek žitný startér'              => ['Kvásek žitný', 'Kvásek'],
+        'Máslo selské 82%'                  => ['Máslo', 'Máslo selské'],
+        'Vejce slepičí M (1 ks ≈ 60 g)'    => ['Vejce slepičí', 'Vejce'],
+        'Mléko polotučné 1,5%'              => ['Mléko polotučné', 'Mléko'],
+        'Cukr krystal'                      => ['Cukr', 'Cukr krystal'],
+        'Sezamová semínka'                  => ['Sezam', 'Sezamová semínka'],
+        'Káva zrnková 100% Arabica'         => ['Káva zrnková', 'Káva'],
+        'Tvaroh měkký'                      => ['Tvaroh'],
+        'Sýr eidam'                         => ['Sýr', 'Eidam'],
+        'Šunka dušená'                      => ['Šunka'],
+        'Salát ledový'                      => ['Salát'],
+        'Rajčata cherry'                    => ['Rajčata'],
+        'Vlašské ořechy'                    => ['Ořechy vlašské', 'Vlašské ořechy'],
+        'Skořice mletá'                     => ['Skořice'],
+        'Mák modrý'                         => ['Mák'],
+    ];
+
+    $najdiSur = function(string $name) use ($pdo, $aliases): int {
+        $st = $pdo->prepare("SELECT id FROM suroviny WHERE nazev = :n LIMIT 1");
+        $st->execute(['n' => $name]);
+        $id = (int) $st->fetchColumn();
+        if ($id) return $id;
+        foreach ($aliases[$name] ?? [] as $alt) {
+            $st->execute(['n' => $alt]);
+            $id = (int) $st->fetchColumn();
+            if ($id) return $id;
+        }
+        // LIKE první 2 slova
+        $stLike = $pdo->prepare("SELECT id FROM suroviny WHERE nazev LIKE :n LIMIT 1");
+        $words = preg_split('/\s+/', $name);
+        $stLike->execute(['n' => implode(' ', array_slice($words, 0, 2)) . '%']);
+        return (int) $stLike->fetchColumn();
+    };
+
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS vyrobek_suroviny (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            vyrobek_id INT NOT NULL, surovina_id INT NOT NULL,
+            mnozstvi DECIMAL(10,3) NOT NULL DEFAULT 0,
+            jednotka VARCHAR(20) DEFAULT 'g', poradi INT DEFAULT 0,
+            poznamka VARCHAR(200) DEFAULT NULL,
+            UNIQUE KEY ux_vyr_sur (vyrobek_id, surovina_id),
+            INDEX idx_vs_surovina (surovina_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $pdo->beginTransaction();
+        // Smaž existing recept (replace mode)
+        $pdo->prepare("DELETE FROM vyrobek_suroviny WHERE vyrobek_id = :v")->execute(['v' => $vyrId]);
+
+        $vlozeno = 0;
+        $nenalezeno = [];
+        $ins = $pdo->prepare("
+            INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, mnozstvi, jednotka, poradi, poznamka)
+            VALUES (:v, :s, :m, :j, :p, :pz)
+        ");
+        foreach ($recepty[$cislo] as $i => $p) {
+            $surId = $najdiSur($p['surovina']);
+            if (!$surId) { $nenalezeno[] = $p['surovina']; continue; }
+            $ins->execute([
+                'v' => $vyrId, 's' => $surId,
+                'm' => (float) $p['mnozstvi'],
+                'j' => $p['jednotka'],
+                'p' => $i,
+                'pz' => $p['poznamka'] ?? null,
+            ]);
+            $vlozeno++;
+        }
+        $pdo->commit();
+        json_response([
+            'ok' => true,
+            'vyrobek' => $vyr['nazev'],
+            'cislo' => $cislo,
+            'vlozeno' => $vlozeno,
+            'celkem_v_demo' => count($recepty[$cislo]),
+            'nenalezeno' => $nenalezeno,
+        ]);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error('Seed receptu selhal: ' . $e->getMessage(), 500);
+    }
+}
+
+json_error('Neznámá akce (preview|apply|clear|seed_one_recipe)', 404);
