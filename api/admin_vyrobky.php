@@ -330,13 +330,36 @@ if ($method === 'GET') {
     // 🚀 PERFORMANCE: 4 N+1 subqueries nahrazeny dvěma agregovanými LEFT JOINs.
     // Při 500 výrobcích to ušetří ~2000 dotazů → 4 dotazy, viditelně rychlejší.
     // API kontrakt zachován — stejná pole (pocet_dl, pocet_fa, posledni_dl, posledni_fa).
+    // 🆕 v2.9.271 — přidáno ma_recept (počet surovin v receptuře) + ma_kalkulaci
+    //               (count uložených kalkulací) pro frontend badge "🧮 Má recept"
+    // Detekce tabulek — vyrobek_suroviny / kalkulace_historie mohou chybět ve staré DB
+    $hasVS = false; $hasKH = false;
+    try {
+        $hasVS = !!$pdo->query("SHOW TABLES LIKE 'vyrobek_suroviny'")->fetchColumn();
+        $hasKH = !!$pdo->query("SHOW TABLES LIKE 'kalkulace_historie'")->fetchColumn();
+    } catch (Throwable $e) {}
+    $vsJoin = $hasVS ? "LEFT JOIN (
+            SELECT vyrobek_id, COUNT(*) AS pocet_surovin_receptu
+            FROM vyrobek_suroviny GROUP BY vyrobek_id
+        ) vs ON vs.vyrobek_id = v.id" : "";
+    $vsSelect = $hasVS ? "COALESCE(vs.pocet_surovin_receptu, 0) AS pocet_surovin_receptu" : "0 AS pocet_surovin_receptu";
+    $khJoin = $hasKH ? "LEFT JOIN (
+            SELECT vyrobek_id, COUNT(*) AS pocet_kalkulaci, MAX(vytvoreno) AS posledni_kalkulace
+            FROM kalkulace_historie WHERE vyrobek_id IS NOT NULL GROUP BY vyrobek_id
+        ) kh ON kh.vyrobek_id = v.id" : "";
+    $khSelect = $hasKH
+        ? "COALESCE(kh.pocet_kalkulaci, 0) AS pocet_kalkulaci, kh.posledni_kalkulace"
+        : "0 AS pocet_kalkulaci, NULL AS posledni_kalkulace";
+
     $vyrobky = $pdo->query("
         SELECT v.*, k.nazev AS kategorie_nazev, k.ikona AS kategorie_ikona,
                j.kod AS jednotka_kod, s.sazba AS dph,
                COALESCE(sdl.pocet_dl, 0)  AS pocet_dl,
                COALESCE(sfa.pocet_fa, 0)  AS pocet_fa,
                sdl.posledni_dl,
-               sfa.posledni_fa
+               sfa.posledni_fa,
+               {$vsSelect},
+               {$khSelect}
         FROM vyrobky v
         LEFT JOIN kategorie_vyrobku k ON v.kategorie_id = k.id
         LEFT JOIN jednotky j ON v.jednotka_id = j.id
@@ -357,6 +380,8 @@ if ($method === 'GET') {
             JOIN faktury f ON f.id = fp.faktura_id
             GROUP BY fp.vyrobek_id
         ) sfa ON sfa.vyrobek_id = v.id
+        {$vsJoin}
+        {$khJoin}
         ORDER BY v.aktivni DESC, k.poradi, v.poradi, v.nazev
     ")->fetchAll();
 

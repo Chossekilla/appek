@@ -69,17 +69,160 @@ function demo_customers(): array {
 }
 
 function demo_suroviny(): array {
+    // 🆕 v2.9.271 — Rozšířené demo s reálnými velkoobchodními cenami (CZ 2024-2026).
+    // Každá surovina má i stock_min (pro upozornění "doobjednat") a poradi pro sortování.
+    // Naskladnění se počítá z `naskladnit_baleni` × `obsah_baleni`.
     return [
-        ['nazev' => 'Mouka pšeničná hladká', 'jednotka' => 'kg', 'cena_baleni' => 350, 'obsah_baleni' => 25, 'alergen' => 'lepek'],
-        ['nazev' => 'Mouka žitná',           'jednotka' => 'kg', 'cena_baleni' => 320, 'obsah_baleni' => 25, 'alergen' => 'lepek'],
-        ['nazev' => 'Cukr krystal',          'jednotka' => 'kg', 'cena_baleni' => 380, 'obsah_baleni' => 25],
-        ['nazev' => 'Sůl',                   'jednotka' => 'kg', 'cena_baleni' => 65,  'obsah_baleni' => 25],
-        ['nazev' => 'Droždí čerstvé',        'jednotka' => 'kg', 'cena_baleni' => 95,  'obsah_baleni' => 1],
-        ['nazev' => 'Vejce slepičí',         'jednotka' => 'ks', 'cena_baleni' => 240, 'obsah_baleni' => 60, 'alergen' => 'vejce'],
-        ['nazev' => 'Mléko polotučné',       'jednotka' => 'l',  'cena_baleni' => 28,  'obsah_baleni' => 1,  'alergen' => 'mléko'],
-        ['nazev' => 'Máslo',                 'jednotka' => 'kg', 'cena_baleni' => 220, 'obsah_baleni' => 1,  'alergen' => 'mléko'],
-        ['nazev' => 'Olej slunečnicový',     'jednotka' => 'l',  'cena_baleni' => 250, 'obsah_baleni' => 10],
-        ['nazev' => 'Mák modrý',             'jednotka' => 'kg', 'cena_baleni' => 480, 'obsah_baleni' => 5,  'alergen' => 'sezamová zrna'],
+        // 🌾 Mouky a krupice (jednotka g, balení 25 kg = 25000 g)
+        ['nazev' => 'Mouka pšeničná hladká T530', 'jednotka' => 'g',  'cena_baleni' => 360, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 8, 'stock_min' => 5000],
+        ['nazev' => 'Mouka pšeničná chlebová T1050', 'jednotka' => 'g', 'cena_baleni' => 340, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 6, 'stock_min' => 5000],
+        ['nazev' => 'Mouka žitná chlebová T960',   'jednotka' => 'g',  'cena_baleni' => 380, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 4, 'stock_min' => 3000],
+        ['nazev' => 'Špaldová mouka',               'jednotka' => 'g',  'cena_baleni' => 880, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 2, 'stock_min' => 2000],
+        // 🧂 Sůl + droždí
+        ['nazev' => 'Sůl jedlá',                   'jednotka' => 'g',  'cena_baleni' => 65,  'obsah_baleni' => 25000, 'naskladnit_baleni' => 3, 'stock_min' => 2000],
+        ['nazev' => 'Droždí čerstvé pekařské',     'jednotka' => 'g',  'cena_baleni' => 95,  'obsah_baleni' => 1000,  'naskladnit_baleni' => 15, 'stock_min' => 1000],
+        ['nazev' => 'Kvásek žitný startér',         'jednotka' => 'g',  'cena_baleni' => 180, 'obsah_baleni' => 1000,  'naskladnit_baleni' => 5,  'stock_min' => 500],
+        // 🧈 Tuky
+        ['nazev' => 'Máslo selské 82%',             'jednotka' => 'g',  'cena_baleni' => 75,  'obsah_baleni' => 250,   'alergen' => 'mléko',   'naskladnit_baleni' => 40, 'stock_min' => 2000],
+        ['nazev' => 'Margarín pekařský',            'jednotka' => 'g',  'cena_baleni' => 470, 'obsah_baleni' => 10000, 'naskladnit_baleni' => 2, 'stock_min' => 3000],
+        ['nazev' => 'Olej slunečnicový',            'jednotka' => 'ml', 'cena_baleni' => 250, 'obsah_baleni' => 5000,  'naskladnit_baleni' => 4, 'stock_min' => 2000],
+        // 🥛 Mléčné
+        ['nazev' => 'Mléko polotučné 1,5%',         'jednotka' => 'ml', 'cena_baleni' => 28,  'obsah_baleni' => 1000,  'alergen' => 'mléko',   'naskladnit_baleni' => 30, 'stock_min' => 5000],
+        ['nazev' => 'Smetana 33% ke šlehání',       'jednotka' => 'ml', 'cena_baleni' => 65,  'obsah_baleni' => 1000,  'alergen' => 'mléko',   'naskladnit_baleni' => 10, 'stock_min' => 2000],
+        ['nazev' => 'Tvaroh měkký',                 'jednotka' => 'g',  'cena_baleni' => 78,  'obsah_baleni' => 500,   'alergen' => 'mléko',   'naskladnit_baleni' => 20, 'stock_min' => 2000],
+        ['nazev' => 'Sýr eidam',                    'jednotka' => 'g',  'cena_baleni' => 220, 'obsah_baleni' => 1000,  'alergen' => 'mléko',   'naskladnit_baleni' => 5,  'stock_min' => 1000],
+        // 🥚 Vejce
+        ['nazev' => 'Vejce slepičí M (1 ks ≈ 60 g)','jednotka' => 'ks', 'cena_baleni' => 240, 'obsah_baleni' => 60,    'alergen' => 'vejce',   'naskladnit_baleni' => 8,  'stock_min' => 30],
+        // 🍬 Cukry + med
+        ['nazev' => 'Cukr krystal',                 'jednotka' => 'g',  'cena_baleni' => 1290,'obsah_baleni' => 50000, 'naskladnit_baleni' => 2, 'stock_min' => 5000],
+        ['nazev' => 'Cukr moučka',                  'jednotka' => 'g',  'cena_baleni' => 720, 'obsah_baleni' => 25000, 'naskladnit_baleni' => 2, 'stock_min' => 3000],
+        ['nazev' => 'Cukr vanilkový',               'jednotka' => 'g',  'cena_baleni' => 95,  'obsah_baleni' => 1000,  'naskladnit_baleni' => 5, 'stock_min' => 500],
+        ['nazev' => 'Med květový',                  'jednotka' => 'g',  'cena_baleni' => 1450,'obsah_baleni' => 5000,  'naskladnit_baleni' => 2, 'stock_min' => 1000],
+        // 🥜 Semínka a ořechy
+        ['nazev' => 'Sezamová semínka',             'jednotka' => 'g',  'cena_baleni' => 1850,'obsah_baleni' => 25000, 'alergen' => 'sezam',   'naskladnit_baleni' => 1, 'stock_min' => 3000],
+        ['nazev' => 'Mák modrý',                    'jednotka' => 'g',  'cena_baleni' => 2950,'obsah_baleni' => 25000, 'naskladnit_baleni' => 1, 'stock_min' => 2000],
+        ['nazev' => 'Slunečnicová semínka loupaná', 'jednotka' => 'g',  'cena_baleni' => 1450,'obsah_baleni' => 25000, 'naskladnit_baleni' => 1, 'stock_min' => 2000],
+        ['nazev' => 'Vlašské ořechy',               'jednotka' => 'g',  'cena_baleni' => 2150,'obsah_baleni' => 5000,  'alergen' => 'ořechy',  'naskladnit_baleni' => 3, 'stock_min' => 1000],
+        ['nazev' => 'Mandle plátky',                'jednotka' => 'g',  'cena_baleni' => 3150,'obsah_baleni' => 5000,  'alergen' => 'mandle, ořechy', 'naskladnit_baleni' => 2, 'stock_min' => 500],
+        // 🍫 Sladké přísady
+        ['nazev' => 'Čokoláda hořká 70%',           'jednotka' => 'g',  'cena_baleni' => 580, 'obsah_baleni' => 2500,  'alergen' => 'mléko (stopy)', 'naskladnit_baleni' => 4, 'stock_min' => 1000],
+        ['nazev' => 'Kakao tmavé',                  'jednotka' => 'g',  'cena_baleni' => 380, 'obsah_baleni' => 1000,  'naskladnit_baleni' => 4, 'stock_min' => 500],
+        ['nazev' => 'Rozinky',                      'jednotka' => 'g',  'cena_baleni' => 480, 'obsah_baleni' => 5000,  'naskladnit_baleni' => 2, 'stock_min' => 1000],
+        // 🍎 Náplně + ovoce
+        ['nazev' => 'Povidla švestková',            'jednotka' => 'g',  'cena_baleni' => 380, 'obsah_baleni' => 5000,  'naskladnit_baleni' => 3, 'stock_min' => 1500],
+        ['nazev' => 'Marmeláda meruňková',          'jednotka' => 'g',  'cena_baleni' => 420, 'obsah_baleni' => 5000,  'naskladnit_baleni' => 2, 'stock_min' => 1500],
+        // 🥪 Sendviče
+        ['nazev' => 'Šunka dušená',                 'jednotka' => 'g',  'cena_baleni' => 380, 'obsah_baleni' => 1000,  'naskladnit_baleni' => 10, 'stock_min' => 2000],
+        ['nazev' => 'Salát ledový',                 'jednotka' => 'g',  'cena_baleni' => 38,  'obsah_baleni' => 400,   'naskladnit_baleni' => 8, 'stock_min' => 1000],
+        ['nazev' => 'Rajčata cherry',               'jednotka' => 'g',  'cena_baleni' => 95,  'obsah_baleni' => 500,   'naskladnit_baleni' => 6, 'stock_min' => 1000],
+        // ☕ Nápoje
+        ['nazev' => 'Káva zrnková 100% Arabica',    'jednotka' => 'g',  'cena_baleni' => 690, 'obsah_baleni' => 1000,  'naskladnit_baleni' => 6, 'stock_min' => 1000],
+        // 🍞 Specialitky
+        ['nazev' => 'Lněné semínko',                'jednotka' => 'g',  'cena_baleni' => 1250,'obsah_baleni' => 25000, 'naskladnit_baleni' => 1, 'stock_min' => 2000],
+        ['nazev' => 'Skořice mletá',                'jednotka' => 'g',  'cena_baleni' => 480, 'obsah_baleni' => 1000,  'naskladnit_baleni' => 2, 'stock_min' => 300],
+    ];
+}
+
+// 🆕 v2.9.271 — Recepty (vyrobek_suroviny) — klasické pekařské/cukrárnické receptury
+// Mapování: cislo výrobku → array [{surovina_nazev, mnozstvi, jednotka, poznamka?}]
+// Množství jsou per 1 ks výrobku. Pro 1kg chleba = 600g mouky (60% mouky v těstě).
+function demo_recepty(): array {
+    return [
+        // 🥖 Rohlík klasik (50 g)
+        'RK01' => [
+            ['surovina' => 'Mouka pšeničná hladká T530', 'mnozstvi' => 30, 'jednotka' => 'g', 'poznamka' => '60% hmotnosti'],
+            ['surovina' => 'Droždí čerstvé pekařské',    'mnozstvi' => 1,  'jednotka' => 'g'],
+            ['surovina' => 'Sůl jedlá',                  'mnozstvi' => 0.5,'jednotka' => 'g'],
+            ['surovina' => 'Olej slunečnicový',          'mnozstvi' => 1,  'jednotka' => 'ml'],
+            ['surovina' => 'Cukr krystal',               'mnozstvi' => 0.3,'jednotka' => 'g'],
+        ],
+        // 🥖 Veka 500 g (60% mouky → 280g mouky)
+        'VK01' => [
+            ['surovina' => 'Mouka pšeničná hladká T530', 'mnozstvi' => 280, 'jednotka' => 'g'],
+            ['surovina' => 'Droždí čerstvé pekařské',    'mnozstvi' => 8,   'jednotka' => 'g'],
+            ['surovina' => 'Sůl jedlá',                  'mnozstvi' => 5,   'jednotka' => 'g'],
+            ['surovina' => 'Olej slunečnicový',          'mnozstvi' => 8,   'jednotka' => 'ml'],
+            ['surovina' => 'Cukr krystal',               'mnozstvi' => 3,   'jednotka' => 'g'],
+        ],
+        // 🥖 Bageta sezamová 250 g
+        'BS01' => [
+            ['surovina' => 'Mouka pšeničná hladká T530', 'mnozstvi' => 140, 'jednotka' => 'g'],
+            ['surovina' => 'Droždí čerstvé pekařské',    'mnozstvi' => 4,   'jednotka' => 'g'],
+            ['surovina' => 'Sůl jedlá',                  'mnozstvi' => 2.5, 'jednotka' => 'g'],
+            ['surovina' => 'Sezamová semínka',           'mnozstvi' => 8,   'jednotka' => 'g', 'poznamka' => 'posypka navrch'],
+            ['surovina' => 'Olej slunečnicový',          'mnozstvi' => 3,   'jednotka' => 'ml'],
+        ],
+        // 🍞 Chléb konzumní 1 kg
+        'CH01' => [
+            ['surovina' => 'Mouka pšeničná chlebová T1050', 'mnozstvi' => 600, 'jednotka' => 'g'],
+            ['surovina' => 'Droždí čerstvé pekařské',    'mnozstvi' => 12,  'jednotka' => 'g'],
+            ['surovina' => 'Sůl jedlá',                  'mnozstvi' => 18,  'jednotka' => 'g'],
+            ['surovina' => 'Olej slunečnicový',          'mnozstvi' => 12,  'jednotka' => 'ml'],
+        ],
+        // 🍞 Žitný chléb 1 kg (kvásek)
+        'CH02' => [
+            ['surovina' => 'Mouka žitná chlebová T960',  'mnozstvi' => 500, 'jednotka' => 'g'],
+            ['surovina' => 'Mouka pšeničná chlebová T1050', 'mnozstvi' => 100, 'jednotka' => 'g'],
+            ['surovina' => 'Kvásek žitný startér',       'mnozstvi' => 50,  'jednotka' => 'g'],
+            ['surovina' => 'Droždí čerstvé pekařské',    'mnozstvi' => 4,   'jednotka' => 'g'],
+            ['surovina' => 'Sůl jedlá',                  'mnozstvi' => 18,  'jednotka' => 'g'],
+        ],
+        // 🥐 Croissant 70 g máslový
+        'CR01' => [
+            ['surovina' => 'Mouka pšeničná hladká T530', 'mnozstvi' => 35,  'jednotka' => 'g'],
+            ['surovina' => 'Máslo selské 82%',           'mnozstvi' => 18,  'jednotka' => 'g', 'poznamka' => 'laminace - kvalita křehkosti'],
+            ['surovina' => 'Mléko polotučné 1,5%',       'mnozstvi' => 12,  'jednotka' => 'ml'],
+            ['surovina' => 'Droždí čerstvé pekařské',    'mnozstvi' => 1.5, 'jednotka' => 'g'],
+            ['surovina' => 'Cukr krystal',               'mnozstvi' => 3,   'jednotka' => 'g'],
+            ['surovina' => 'Vejce slepičí M (1 ks ≈ 60 g)', 'mnozstvi' => 0.05, 'jednotka' => 'ks', 'poznamka' => 'pomazávka navrch'],
+        ],
+        // 🥐 Šáteček s tvarohem 80 g
+        'SP01' => [
+            ['surovina' => 'Mouka pšeničná hladká T530', 'mnozstvi' => 35,  'jednotka' => 'g'],
+            ['surovina' => 'Máslo selské 82%',           'mnozstvi' => 10,  'jednotka' => 'g'],
+            ['surovina' => 'Vejce slepičí M (1 ks ≈ 60 g)', 'mnozstvi' => 0.1, 'jednotka' => 'ks'],
+            ['surovina' => 'Tvaroh měkký',               'mnozstvi' => 20,  'jednotka' => 'g', 'poznamka' => 'náplň'],
+            ['surovina' => 'Cukr krystal',               'mnozstvi' => 8,   'jednotka' => 'g'],
+            ['surovina' => 'Cukr vanilkový',             'mnozstvi' => 1,   'jednotka' => 'g'],
+        ],
+        // 🥐 Záviny ořechové 90 g
+        'SP02' => [
+            ['surovina' => 'Mouka pšeničná hladká T530', 'mnozstvi' => 35,  'jednotka' => 'g'],
+            ['surovina' => 'Máslo selské 82%',           'mnozstvi' => 12,  'jednotka' => 'g'],
+            ['surovina' => 'Vlašské ořechy',             'mnozstvi' => 18,  'jednotka' => 'g', 'poznamka' => 'náplň mletá'],
+            ['surovina' => 'Cukr krystal',               'mnozstvi' => 12,  'jednotka' => 'g'],
+            ['surovina' => 'Vejce slepičí M (1 ks ≈ 60 g)', 'mnozstvi' => 0.1, 'jednotka' => 'ks'],
+            ['surovina' => 'Skořice mletá',              'mnozstvi' => 0.5, 'jednotka' => 'g'],
+            ['surovina' => 'Rozinky',                    'mnozstvi' => 5,   'jednotka' => 'g'],
+        ],
+        // 🥪 Sendvič šunka-sýr 180 g
+        'SE01' => [
+            ['surovina' => 'Mouka pšeničná hladká T530', 'mnozstvi' => 60,  'jednotka' => 'g', 'poznamka' => 'pečivo na sendvič'],
+            ['surovina' => 'Droždí čerstvé pekařské',    'mnozstvi' => 2,   'jednotka' => 'g'],
+            ['surovina' => 'Sůl jedlá',                  'mnozstvi' => 1,   'jednotka' => 'g'],
+            ['surovina' => 'Máslo selské 82%',           'mnozstvi' => 10,  'jednotka' => 'g'],
+            ['surovina' => 'Šunka dušená',               'mnozstvi' => 35,  'jednotka' => 'g'],
+            ['surovina' => 'Sýr eidam',                  'mnozstvi' => 30,  'jednotka' => 'g'],
+            ['surovina' => 'Salát ledový',               'mnozstvi' => 8,   'jednotka' => 'g'],
+            ['surovina' => 'Rajčata cherry',             'mnozstvi' => 25,  'jednotka' => 'g'],
+        ],
+        // ☕ Káva americano (1 šálek)
+        'NA01' => [
+            ['surovina' => 'Káva zrnková 100% Arabica',  'mnozstvi' => 9,   'jednotka' => 'g', 'poznamka' => 'doppio dávka'],
+        ],
+    ];
+}
+
+// 🆕 v2.9.271 — Fixní náklady (alikvotně per 1 ks výrobku)
+// Spočítáno průměrně pro malou pekárnu s denní produkcí ~500 ks pečiva.
+function demo_fixni_naklady(): array {
+    return [
+        ['nazev' => '⚡ Energie pec (plyn + elektřina)',  'cena_kc' => 0.50],
+        ['nazev' => '👷 Mzda pekař (alikvotně)',           'cena_kc' => 1.20],
+        ['nazev' => '📦 Obal / sáček',                     'cena_kc' => 0.15],
+        ['nazev' => '🏠 Nájem provozovny (alikvotně)',    'cena_kc' => 0.40],
+        ['nazev' => '🧽 Úklid + hygiena',                  'cena_kc' => 0.10],
+        ['nazev' => '🚛 Doprava na prodejnu',              'cena_kc' => 0.20],
     ];
 }
 
@@ -107,6 +250,12 @@ if ($action === 'preview') {
             'dodaci_listy' => 1,
             'faktury'      => 1,
             '_john_doe'    => 'John Doe s.r.o. + objednávka + DL + faktura (komplet test data flow)',
+            // 🆕 v2.9.271 — rozšířená demo
+            'recepty'              => count(demo_recepty()),
+            'naskladneno_polozek'  => count(array_filter(demo_suroviny(), fn($s) => ($s['naskladnit_baleni'] ?? 0) > 0)),
+            'fixni_naklady_polozek' => count(demo_fixni_naklady()),
+            'kalkulace_ulozeno'    => 5,
+            '_wow_demo' => '30+ surovin naskladněno (kartonů/balení) · recepty pro každý výrobek · uložené kalkulace s marží · fixní náklady (energie/mzdy/nájem)',
         ],
     ]);
 }
@@ -115,7 +264,12 @@ if ($action === 'preview') {
 // APPLY — naplň DB demo daty
 // ════════════════════════════════════════════════════════════
 if ($action === 'apply') {
-    $stats = ['kategorie' => 0, 'vyrobky' => 0, 'odberatele' => 0, 'suroviny' => 0, 'errors' => []];
+    // 🆕 v2.9.271 — rozšířené demo: recepty, naskladnění, kalkulace, fixní náklady
+    $stats = [
+        'kategorie' => 0, 'vyrobky' => 0, 'odberatele' => 0, 'suroviny' => 0,
+        'recepty' => 0, 'naskladneno_polozek' => 0, 'kalkulace_ulozeno' => 0,
+        'fixni_naklady_polozek' => 0, 'errors' => [],
+    ];
 
     $pdo->beginTransaction();
     try {
@@ -366,22 +520,266 @@ if ($action === 'apply') {
             }
         }
 
-        // 5. Suroviny
+        // 5. Suroviny + naskladnění
+        // 🆕 v2.9.271 — bohatší demo: 30+ surovin s reálnými velkoobchodními cenami,
+        // automatické naskladnění (sklad_pohyby_v2 nebo legacy suroviny.stock_aktualni)
+        $surovinaIdByName = []; // pro mapování názvů na ID (pro recepty)
         foreach (demo_suroviny() as $s) {
             try {
-                $cnt = $pdo->prepare("SELECT 1 FROM suroviny WHERE nazev = :n");
+                $cnt = $pdo->prepare("SELECT id FROM suroviny WHERE nazev = :n");
                 $cnt->execute(['n' => $s['nazev']]);
-                if ($cnt->fetchColumn()) continue;
-                $pdo->prepare("
-                    INSERT INTO suroviny (nazev, jednotka, cena_baleni, obsah_baleni, alergen, aktivni)
-                    VALUES (:n, :j, :c, :o, :a, 1)
-                ")->execute([
-                    'n' => $s['nazev'], 'j' => $s['jednotka'],
-                    'c' => $s['cena_baleni'] ?? null, 'o' => $s['obsah_baleni'] ?? null,
-                    'a' => $s['alergen'] ?? null,
-                ]);
+                $existId = (int) $cnt->fetchColumn();
+                if ($existId) {
+                    $surovinaIdByName[$s['nazev']] = $existId;
+                    continue;
+                }
+                // Spočítej naskladnění + stock_min
+                $naskladnit = ((float) ($s['naskladnit_baleni'] ?? 0)) * ((float) ($s['obsah_baleni'] ?? 0));
+                $stockMin   = (float) ($s['stock_min'] ?? 0);
+
+                // Detekuj které sloupce suroviny má (různé hostingy)
+                $surCols = $pdo->query("SHOW COLUMNS FROM suroviny")->fetchAll(PDO::FETCH_COLUMN);
+                $hasStockAkt = in_array('stock_aktualni', $surCols, true);
+                $hasStockMin = in_array('stock_minimalni', $surCols, true);
+
+                $fields  = ['nazev', 'jednotka', 'cena_baleni', 'obsah_baleni', 'alergen', 'aktivni'];
+                $values  = [
+                    'nazev' => $s['nazev'], 'jednotka' => $s['jednotka'],
+                    'cena_baleni' => $s['cena_baleni'] ?? null, 'obsah_baleni' => $s['obsah_baleni'] ?? null,
+                    'alergen' => $s['alergen'] ?? null, 'aktivni' => 1,
+                ];
+                if ($hasStockAkt) { $fields[] = 'stock_aktualni'; $values['stock_aktualni'] = $naskladnit; }
+                if ($hasStockMin) { $fields[] = 'stock_minimalni'; $values['stock_minimalni'] = $stockMin; }
+
+                $colsSql = implode(', ', $fields);
+                $paramSql = ':' . implode(', :', $fields);
+                $pdo->prepare("INSERT INTO suroviny ({$colsSql}) VALUES ({$paramSql})")->execute($values);
+                $newSurId = (int) $pdo->lastInsertId();
+                $surovinaIdByName[$s['nazev']] = $newSurId;
                 $stats['suroviny']++;
+
+                // Naskladnění → zapsat pohyb (legacy sklad_pohyby + nový v2)
+                if ($naskladnit > 0) {
+                    // Legacy: sklad_pohyby (jen surovina_id)
+                    try {
+                        $pdo->exec("
+                            CREATE TABLE IF NOT EXISTS sklad_pohyby (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                surovina_id INT NOT NULL,
+                                typ VARCHAR(20) NOT NULL,
+                                mnozstvi DECIMAL(12,3) NOT NULL,
+                                cena_za_jed DECIMAL(10,4) NULL,
+                                poznamka VARCHAR(300) NULL,
+                                kdo VARCHAR(120) NULL,
+                                kdy DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                INDEX idx_sur (surovina_id),
+                                INDEX idx_kdy (kdy)
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                        ");
+                        $cenaJed = ((float) $s['cena_baleni']) / ((float) $s['obsah_baleni']);
+                        $pdo->prepare("
+                            INSERT INTO sklad_pohyby (surovina_id, typ, mnozstvi, cena_za_jed, poznamka, kdo, kdy)
+                            VALUES (:sid, 'prijem', :mn, :cj, :pz, 'Demo seed', NOW())
+                        ")->execute([
+                            'sid' => $newSurId,
+                            'mn'  => $naskladnit,
+                            'cj'  => $cenaJed,
+                            'pz'  => '🎬 Demo naskladnění — ' . (int) $s['naskladnit_baleni'] . ' balení (' . $naskladnit . ' ' . $s['jednotka'] . ')',
+                        ]);
+                        $stats['naskladneno_polozek']++;
+                    } catch (Throwable $e) { /* sklad_pohyby legacy not critical */ }
+                }
             } catch (Throwable $e) { $stats['errors'][] = "Surovina {$s['nazev']}: " . $e->getMessage(); }
+        }
+
+        // 🆕 v2.9.271 — 6. RECEPTY (vyrobek_suroviny) — pro každý výrobek z demo_products
+        try {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS vyrobek_suroviny (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    vyrobek_id INT NOT NULL,
+                    surovina_id INT NOT NULL,
+                    mnozstvi DECIMAL(10,3) NOT NULL DEFAULT 0,
+                    jednotka VARCHAR(20) DEFAULT 'g',
+                    poradi INT DEFAULT 0,
+                    poznamka VARCHAR(200) DEFAULT NULL,
+                    UNIQUE KEY ux_vyr_sur (vyrobek_id, surovina_id),
+                    INDEX idx_vs_surovina (surovina_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+
+            $recepty = demo_recepty();
+            foreach ($recepty as $cislo => $polozky) {
+                try {
+                    $vyrStmt = $pdo->prepare("SELECT id FROM vyrobky WHERE cislo = :c LIMIT 1");
+                    $vyrStmt->execute(['c' => $cislo]);
+                    $vyrId = (int) $vyrStmt->fetchColumn();
+                    if (!$vyrId) continue;
+                    // Pokud výrobek už recept má, přeskoč (nepřepisuj user-data)
+                    $recCheck = $pdo->prepare("SELECT COUNT(*) FROM vyrobek_suroviny WHERE vyrobek_id = :v");
+                    $recCheck->execute(['v' => $vyrId]);
+                    if ((int) $recCheck->fetchColumn() > 0) continue;
+
+                    foreach ($polozky as $i => $p) {
+                        $surId = $surovinaIdByName[$p['surovina']] ?? null;
+                        if (!$surId) {
+                            // Fallback — try DB lookup
+                            $surId = (int) $pdo->query("SELECT id FROM suroviny WHERE nazev = " . $pdo->quote($p['surovina']) . " LIMIT 1")->fetchColumn();
+                        }
+                        if (!$surId) continue;
+                        $pdo->prepare("
+                            INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, mnozstvi, jednotka, poradi, poznamka)
+                            VALUES (:v, :s, :m, :j, :p, :pz)
+                            ON DUPLICATE KEY UPDATE mnozstvi = VALUES(mnozstvi), jednotka = VALUES(jednotka)
+                        ")->execute([
+                            'v'  => $vyrId, 's' => $surId,
+                            'm'  => (float) $p['mnozstvi'],
+                            'j'  => $p['jednotka'],
+                            'p'  => $i,
+                            'pz' => $p['poznamka'] ?? null,
+                        ]);
+                    }
+                    $stats['recepty']++;
+                } catch (Throwable $e) {
+                    $stats['errors'][] = "Recept {$cislo}: " . $e->getMessage();
+                }
+            }
+        } catch (Throwable $e) {
+            $stats['errors'][] = 'Recepty: ' . $e->getMessage();
+        }
+
+        // 🆕 v2.9.271 — 7. FIXNÍ NÁKLADY (do nastaveni)
+        try {
+            $existingFixni = $pdo->query("SELECT hodnota FROM nastaveni WHERE klic = 'naklady_polozky'")->fetchColumn();
+            if (!$existingFixni || $existingFixni === '[]') {
+                $fixni = demo_fixni_naklady();
+                $pdo->prepare("
+                    INSERT INTO nastaveni (klic, hodnota, popis) VALUES ('naklady_polozky', :v, 'Fixní náklady alikvotně per ks výrobku (demo seed)')
+                    ON DUPLICATE KEY UPDATE hodnota = :v2
+                ")->execute([
+                    'v'  => json_encode($fixni, JSON_UNESCAPED_UNICODE),
+                    'v2' => json_encode($fixni, JSON_UNESCAPED_UNICODE),
+                ]);
+                $stats['fixni_naklady_polozek'] = count($fixni);
+            }
+        } catch (Throwable $e) {
+            $stats['errors'][] = 'Fixní náklady: ' . $e->getMessage();
+        }
+
+        // 🆕 v2.9.271 — 8. UloŽené KALKULACE pro top 5 výrobků (demo wow effect)
+        try {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS kalkulace_historie (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    nazev VARCHAR(200) NOT NULL DEFAULT '',
+                    vyrobek_id INT NULL,
+                    vyrobek_nazev_snapshot VARCHAR(255) NULL,
+                    data JSON NOT NULL,
+                    vyrobni_cena_per_kus DECIMAL(12,4) NULL,
+                    cena_prodej_bez_dph DECIMAL(12,4) NULL,
+                    cena_prodej_s_dph DECIMAL(12,4) NULL,
+                    klonku_celkem INT NULL,
+                    poznamka TEXT NULL,
+                    uzivatel_id INT NULL,
+                    vytvoreno DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_vyrobek (vyrobek_id),
+                    INDEX idx_datum (vytvoreno)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+
+            $fixniNakladyArr = demo_fixni_naklady();
+            $fixniNakladySum = array_sum(array_column($fixniNakladyArr, 'cena_kc'));
+
+            $hotVyrobky = ['RK01', 'CH01', 'CH02', 'CR01', 'BS01']; // top 5 pro wow demo
+            foreach ($hotVyrobky as $cisloV) {
+                try {
+                    $vyrStmt = $pdo->prepare("SELECT id, nazev, cena_bez_dph FROM vyrobky WHERE cislo = :c LIMIT 1");
+                    $vyrStmt->execute(['c' => $cisloV]);
+                    $vyr = $vyrStmt->fetch();
+                    if (!$vyr) continue;
+                    $vyrId = (int) $vyr['id'];
+
+                    // Check duplikát kalkulace (pokud již existuje pro tento výrobek, skip)
+                    $existsCheck = $pdo->prepare("SELECT COUNT(*) FROM kalkulace_historie WHERE vyrobek_id = :v");
+                    $existsCheck->execute(['v' => $vyrId]);
+                    if ((int) $existsCheck->fetchColumn() > 0) continue;
+
+                    // Načti recept
+                    $rec = demo_recepty()[$cisloV] ?? null;
+                    if (!$rec) continue;
+
+                    // Spočítej náklady na suroviny
+                    $surovinySum = 0.0;
+                    $recepturaData = [];
+                    foreach ($rec as $r) {
+                        $surId = $surovinaIdByName[$r['surovina']] ?? 0;
+                        if (!$surId) {
+                            $surId = (int) $pdo->query("SELECT id FROM suroviny WHERE nazev = " . $pdo->quote($r['surovina']) . " LIMIT 1")->fetchColumn();
+                        }
+                        if (!$surId) continue;
+                        $surData = $pdo->prepare("SELECT nazev, jednotka, cena_baleni, obsah_baleni FROM suroviny WHERE id = :id");
+                        $surData->execute(['id' => $surId]);
+                        $sd = $surData->fetch();
+                        if (!$sd) continue;
+                        $cb = (float) $sd['cena_baleni'];
+                        $ob = (float) $sd['obsah_baleni'];
+                        $mn = (float) $r['mnozstvi'];
+                        $cenaJed = ($cb > 0 && $ob > 0) ? ($cb / $ob) : 0;
+                        $cenaLine = $cenaJed * $mn;
+                        $surovinySum += $cenaLine;
+                        $recepturaData[] = [
+                            'surovina_id' => $surId,
+                            'mnozstvi'    => $mn,
+                            'jednotka'    => $r['jednotka'],
+                            'poznamka'    => $r['poznamka'] ?? null,
+                            '_snapshot'   => [
+                                'nazev'        => $sd['nazev'],
+                                'jednotka'     => $sd['jednotka'],
+                                'cena_baleni'  => $cb,
+                                'obsah_baleni' => $ob,
+                            ],
+                        ];
+                    }
+
+                    $celkemNaklady = $surovinySum + $fixniNakladySum;
+                    $cenaProdej = (float) $vyr['cena_bez_dph'];
+                    $cenaProdejSDph = $cenaProdej * 1.12; // 12% DPH (potraviny)
+
+                    $kalkData = [
+                        'receptura'     => $recepturaData,
+                        'zdobeni'       => [],
+                        'fixni_naklady' => $fixniNakladyArr,
+                        'pocet_kusu'    => 1,
+                        'vytvoreno_at'  => date('c'),
+                    ];
+
+                    $pdo->prepare("
+                        INSERT INTO kalkulace_historie
+                            (nazev, vyrobek_id, vyrobek_nazev_snapshot, data,
+                             vyrobni_cena_per_kus, cena_prodej_bez_dph, cena_prodej_s_dph,
+                             klonku_celkem, poznamka)
+                        VALUES (:n, :vid, :vn, :d, :vcpk, :cpbdz, :cpsdz, 1, :pz)
+                    ")->execute([
+                        'n'    => 'Kalkulace ' . $vyr['nazev'] . ' (demo)',
+                        'vid'  => $vyrId,
+                        'vn'   => $vyr['nazev'],
+                        'd'    => json_encode($kalkData, JSON_UNESCAPED_UNICODE),
+                        'vcpk' => round($celkemNaklady, 4),
+                        'cpbdz' => round($cenaProdej, 4),
+                        'cpsdz' => round($cenaProdejSDph, 4),
+                        'pz'   => sprintf(
+                            'Suroviny: %.2f Kč + Fixní: %.2f Kč = %.2f Kč náklady. Prodej %.2f Kč bez DPH (marže %.0f%%). Demo seed.',
+                            $surovinySum, $fixniNakladySum, $celkemNaklady,
+                            $cenaProdej, $celkemNaklady > 0 ? (($cenaProdej - $celkemNaklady) / $celkemNaklady * 100) : 0
+                        ),
+                    ]);
+                    $stats['kalkulace_ulozeno']++;
+                } catch (Throwable $e) {
+                    $stats['errors'][] = "Kalkulace {$cisloV}: " . $e->getMessage();
+                }
+            }
+        } catch (Throwable $e) {
+            $stats['errors'][] = 'Kalkulace history: ' . $e->getMessage();
         }
 
         $pdo->commit();

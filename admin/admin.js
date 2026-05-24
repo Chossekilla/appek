@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.270';
+const APPEK_ADMIN_JS_VERSION = '2.9.271';
 
 (async function detectStaleCode() {
   try {
@@ -1399,7 +1399,7 @@ window.openDemoSeed = async function() {
   const proceed = await confirmDialog({
     title: '🎬 Naplnit ukázkovými daty',
     icon: '🎬',
-    msg: `Aplikace přidá:\n• ${will.kategorie || 0} kategorií\n• ${will.vyrobky || 0} výrobků\n• ${will.odberatele || 0} odběratelů (John Doe + 4 varianty)\n• ${will.suroviny || 0} surovin\n• ${will.objednavky || 0} objednávka pro John Doe\n• ${will.dodaci_listy || 0} dodací list (z objednávky)\n• ${will.faktury || 0} faktura (z DL)\n\n👤 John Doe login do B2B:\n   email: odberatel@demo.cz\n   heslo: demo1234\n\nExistující záznamy se zachovají (skipuje duplicity).`,
+    msg: `Aplikace přidá:\n• ${will.kategorie || 0} kategorií\n• ${will.vyrobky || 0} výrobků\n• ${will.odberatele || 0} odběratelů (John Doe + 4 varianty)\n• ${will.suroviny || 0} surovin\n• ${will.objednavky || 0} obj + ${will.dodaci_listy || 0} DL + ${will.faktury || 0} faktura (pro John Doe)\n\n🆕 v2.9.271 WOW demo:\n• ${will.recepty || 0} receptů (klasické pekařské receptury)\n• ${will.naskladneno_polozek || 0} naskladnění (8 balení mouky, 15 droždí, 40 másel…)\n• ${will.fixni_naklady_polozek || 0} fixní nákladů (energie, mzdy, nájem)\n• ${will.kalkulace_ulozeno || 0} uložených kalkulací s marží\n\n👤 John Doe login do B2B:\n   email: odberatel@demo.cz\n   heslo: demo1234\n\nExistující záznamy se zachovají (skipuje duplicity).`,
     okText: 'Naplnit',
     cancelText: 'Zrušit',
   });
@@ -1407,8 +1407,8 @@ window.openDemoSeed = async function() {
 
   try {
     const r = await api('admin_demo_seed.php?action=apply', { method: 'POST' });
-    const summary = `Vytvořeno: ${r.kategorie || 0} kategorií, ${r.vyrobky || 0} výrobků, ${r.odberatele || 0} odběratelů, ${r.objednavky || 0} obj, ${r.dodaci_listy || 0} DL, ${r.faktury || 0} faktur`;
-    toastSuccess(summary, 'Demo data připravena 🎉 (John Doe s.r.o.)');
+    const summary = `+${r.vyrobky || 0} výrobků, +${r.recepty || 0} receptů, +${r.naskladneno_polozek || 0} naskladnění, +${r.kalkulace_ulozeno || 0} kalkulací`;
+    toastSuccess(summary, 'Demo data připravena 🎉');
     setTimeout(() => location.reload(), 1200);
   } catch (e) {
     alert('Chyba: ' + e.message);
@@ -9360,7 +9360,9 @@ window.smazatPolozkuFaktury = async function(polozka_id, faktura_id) {
 function vyrobekDocBadges(v) {
   const dl = (v.pocet_dl || 0) | 0;
   const fa = (v.pocet_fa || 0) | 0;
-  if (!dl && !fa) return '';
+  const _recept = (v.pocet_surovin_receptu || 0) | 0;
+  const _kalk   = (v.pocet_kalkulaci || 0) | 0;
+  if (!dl && !fa && !_recept && !_kalk) return '';
 
   // "fresh" = použito v posledních 30 dnech → zvýrazní se barvou
   const dnyOd = (s) => {
@@ -9378,7 +9380,17 @@ function vyrobekDocBadges(v) {
     return `${kind}: ${pocet}×${d}`;
   };
 
+  // 🆕 v2.9.271 — recept + kalkulace badges
+  const recept = (v.pocet_surovin_receptu || 0) | 0;
+  const kalk   = (v.pocet_kalkulaci || 0) | 0;
+
   let html = '<span class="vyr-badges" style="display:inline-flex;gap:4px;margin-left:8px;vertical-align:middle">';
+  if (recept) {
+    html += `<span class="vyr-badge" title="Receptura: ${recept} surovin · klikni na výrobek pro detail" style="background:#fef3c7;color:#854F0B;font-size:11px;padding:2px 6px;border-radius:10px;font-weight:600">🧬 ${recept}</span>`;
+  }
+  if (kalk) {
+    html += `<span class="vyr-badge" title="Uložené kalkulace: ${kalk}× · poslední ${v.posledni_kalkulace ? fmtDate(v.posledni_kalkulace) : '—'}" style="background:#ddd6fe;color:#5b21b6;font-size:11px;padding:2px 6px;border-radius:10px;font-weight:600">🧮 ${kalk}</span>`;
+  }
   if (dl) {
     const bg = freshDl ? '#dcfce7' : '#f1f5f9';
     const fg = freshDl ? '#15803d' : '#475569';
