@@ -29065,6 +29065,50 @@ function stRenderGrid(fmt, startPos) {
   `;
 }
 
+// 🥗 v2.9.302 — Helper: vrátí parsovaný nutri objekt z výrobku
+// Podporuje: v.nutricni_hodnoty (JSON string nebo objekt) — klíče energie_kj, energie_kcal, tuky, tuky_nasycene, sacharidy, cukry, bilkoviny, sul
+function vyrobekNutri(v) {
+  if (!v) return {};
+  const raw = v.nutricni_hodnoty;
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw || {};
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) || {}; } catch (e) { return {}; }
+  }
+  return {};
+}
+// Vrátí formátovaný text pro daný nutri-typ. Pokud chybí hodnota, vrátí null (volající rozhodne o placeholderu).
+function nutriPrvekText(typ, v, withLabel = true) {
+  const n = vyrobekNutri(v);
+  const fmt = (val, dec = 1) => {
+    const x = parseFloat(val);
+    if (isNaN(x)) return null;
+    return dec === 0 ? Math.round(x).toString() : x.toFixed(dec).replace(/\.?0+$/, '');
+  };
+  switch (typ) {
+    case 'nutri_kj':   { const x = fmt(n.energie_kj, 0);   return x ? `${x} kJ` : null; }
+    case 'nutri_kcal': { const x = fmt(n.energie_kcal, 0); return x ? `${x} kcal` : null; }
+    case 'nutri_tuky': { const x = fmt(n.tuky, 1);         return x ? (withLabel ? `Tuky ${x} g` : `${x} g`) : null; }
+    case 'nutri_sach': { const x = fmt(n.sacharidy, 1);    return x ? (withLabel ? `Sach ${x} g` : `${x} g`) : null; }
+    case 'nutri_bilk': { const x = fmt(n.bilkoviny, 1);    return x ? (withLabel ? `Bilk ${x} g` : `${x} g`) : null; }
+    case 'nutri_sul':  { const x = fmt(n.sul, 2);          return x ? (withLabel ? `Sůl ${x} g` : `${x} g`) : null; }
+    case 'nutri': {
+      // Plná tabulka — jen vyplněné položky, oddělené ·
+      const parts = [];
+      const kj = fmt(n.energie_kj, 0); const kcal = fmt(n.energie_kcal, 0);
+      if (kj && kcal)   parts.push(`Energie ${kj}kJ/${kcal}kcal`);
+      else if (kj)      parts.push(`Energie ${kj}kJ`);
+      else if (kcal)    parts.push(`Energie ${kcal}kcal`);
+      const tuky = fmt(n.tuky, 1);       if (tuky) parts.push(`Tuky ${tuky}g`);
+      const sach = fmt(n.sacharidy, 1);  if (sach) parts.push(`Sach ${sach}g`);
+      const bilk = fmt(n.bilkoviny, 1);  if (bilk) parts.push(`Bilk ${bilk}g`);
+      const sul  = fmt(n.sul, 2);        if (sul)  parts.push(`Sůl ${sul}g`);
+      return parts.length ? parts.join(' · ') : null;
+    }
+  }
+  return null;
+}
+
 // Mini-render jednoho prvku šablony (inline-style, pozicováno přes percenta).
 // Obsah generuje z item dat (název, cena, hmotnost, …) podle prvek.typ.
 function stPrvekMini(p, item, cenaNum, hmotnost, cenaPerKg) {
@@ -29097,6 +29141,21 @@ function stPrvekMini(p, item, cenaNum, hmotnost, cenaPerKg) {
       txt = item.alergeny ? '⚠ ' + item.alergeny.slice(0, 14) : '⚠ Alergeny'; break;
     case 'slozeni':
       txt = item.slozeni ? item.slozeni.slice(0, 18) + '…' : 'Složení…'; break;
+    // 🥗 v2.9.302 — Nutriční hodnoty (na 100 g výrobku)
+    case 'nutri':
+      txt = (nutriPrvekText('nutri', item) || 'Nutri…').slice(0, 38); break;
+    case 'nutri_kj':
+      txt = nutriPrvekText('nutri_kj', item) || '— kJ'; break;
+    case 'nutri_kcal':
+      txt = nutriPrvekText('nutri_kcal', item) || '— kcal'; break;
+    case 'nutri_tuky':
+      txt = nutriPrvekText('nutri_tuky', item) || 'Tuky — g'; break;
+    case 'nutri_sach':
+      txt = nutriPrvekText('nutri_sach', item) || 'Sach — g'; break;
+    case 'nutri_bilk':
+      txt = nutriPrvekText('nutri_bilk', item) || 'Bilk — g'; break;
+    case 'nutri_sul':
+      txt = nutriPrvekText('nutri_sul', item) || 'Sůl — g'; break;
     case 'ean':
       txt = '||||||| ' + (item.ean || '8590000');
       break;
@@ -30310,6 +30369,14 @@ const PALETA_PRVKY = [
   { typ: 'dph',     l: '🧾 DPH %',          d: 'DPH 12%',              defaultW: 24, defaultH: 7,  fontSize: 8,  fontWeight: 700, color: '#0C447C', bg: '#EFF6FF', padding: 1 },
   { typ: 'slozeni', l: '🌾 Složení',        d: 'Složení: ...',         defaultW: 92, defaultH: 12, fontSize: 7, color: '#555' },
   { typ: 'alergeny',l: '⚠️ Alergeny',       d: 'Alergeny: lepek',      defaultW: 70, defaultH: 8,  fontSize: 7, color: '#92400e', fontWeight: 600 },
+  // 🆕 v2.9.302 — Nutriční hodnoty (na 100 g výrobku) — pro tisk štítků dle EU 1169/2011
+  { typ: 'nutri',     l: '🍎 Nutri tabulka', d: 'Energie 1490kJ/350kcal · Tuky 1.2g · Sach 73g · Bilk 10g · Sůl 0.01g', defaultW: 92, defaultH: 18, fontSize: 6, color: '#333' },
+  { typ: 'nutri_kj',  l: '⚡ Energie kJ',    d: '1490 kJ',              defaultW: 28, defaultH: 7,  fontSize: 8, color: '#854F0B', fontWeight: 600 },
+  { typ: 'nutri_kcal',l: '🔥 Energie kcal',  d: '350 kcal',             defaultW: 30, defaultH: 7,  fontSize: 8, color: '#854F0B', fontWeight: 600 },
+  { typ: 'nutri_tuky',l: '🧈 Tuky',          d: 'Tuky 1.2 g',           defaultW: 30, defaultH: 7,  fontSize: 8 },
+  { typ: 'nutri_sach',l: '🌾 Sacharidy',     d: 'Sach 73 g',            defaultW: 30, defaultH: 7,  fontSize: 8 },
+  { typ: 'nutri_bilk',l: '💪 Bílkoviny',     d: 'Bilk 10 g',            defaultW: 30, defaultH: 7,  fontSize: 8 },
+  { typ: 'nutri_sul', l: '🧂 Sůl',           d: 'Sůl 0.01 g',           defaultW: 28, defaultH: 7,  fontSize: 8 },
   { typ: 'kod',     l: '#️⃣ Kód',            d: 'kód 12',               defaultW: 28, defaultH: 6,  fontSize: 6, color: '#999' },
   { typ: 'ean',     l: '📊 EAN',            d: '▌▌▌',                  defaultW: 38, defaultH: 14 },
   { typ: 'qr',      l: '🔲 QR',             d: '▣',                    defaultW: 18, defaultH: 18 },
@@ -30502,6 +30569,14 @@ function ed_renderPrvek(p, zoom) {
     inner = txt(sl);
   }
   else if (p.typ === 'alergeny') inner = txt(p.text || (v?.alergeny ? `Alergeny: ${v.alergeny}` : 'Alergeny: lepek'));
+  // 🥗 v2.9.302 — Nutriční hodnoty na štítku (na 100 g výrobku)
+  else if (p.typ === 'nutri')      inner = txt(p.text || nutriPrvekText('nutri', v)      || 'Energie 1490kJ/350kcal · Tuky 1.2g · Sach 73g · Bilk 10g · Sůl 0.01g');
+  else if (p.typ === 'nutri_kj')   inner = txt(p.text || nutriPrvekText('nutri_kj', v)   || '1490 kJ');
+  else if (p.typ === 'nutri_kcal') inner = txt(p.text || nutriPrvekText('nutri_kcal', v) || '350 kcal');
+  else if (p.typ === 'nutri_tuky') inner = txt(p.text || nutriPrvekText('nutri_tuky', v) || 'Tuky 1.2 g');
+  else if (p.typ === 'nutri_sach') inner = txt(p.text || nutriPrvekText('nutri_sach', v) || 'Sach 73 g');
+  else if (p.typ === 'nutri_bilk') inner = txt(p.text || nutriPrvekText('nutri_bilk', v) || 'Bilk 10 g');
+  else if (p.typ === 'nutri_sul')  inner = txt(p.text || nutriPrvekText('nutri_sul', v)  || 'Sůl 0.01 g');
   else if (p.typ === 'kod') inner = txt(p.text || (v?.cislo ? `kód ${v.cislo}` : 'kód 12'));
   else if (p.typ === 'badge') inner = txt(p.text || 'NOVINKA');
   else if (p.typ === 'ean') {
@@ -30664,7 +30739,7 @@ window.ed_pridat = function(typ) {
   // Text necháváme PRÁZDNÝ pro datové typy — pak renderer použije buď
   // skutečná data z previewVyrobek, nebo placeholder. Vyplníme jen u
   // typů, kde dává smysl výchozí text (text, badge, jed).
-  const datoveTypy = ['nazev','cena','mena','jed','cenakg','hmotnost','dph','slozeni','alergeny','kod','ean','qr'];
+  const datoveTypy = ['nazev','cena','mena','jed','cenakg','hmotnost','dph','slozeni','alergeny','kod','ean','qr','nutri','nutri_kj','nutri_kcal','nutri_tuky','nutri_sach','nutri_bilk','nutri_sul'];
   const text = datoveTypy.includes(typ) ? '' : (def.d || '');
   const prvek = {
     id,
@@ -30928,6 +31003,14 @@ function ed_textProPrvek(p) {
     case 'dph': return `DPH ${parseFloat(v.sazba_dph || 12)}%`;
     case 'slozeni': return (typeof v.slozeni === 'string' ? v.slozeni : (v.slozeni_text || '')).slice(0, 200);
     case 'alergeny': return v.alergeny ? `Alergeny: ${v.alergeny}` : '';
+    // 🥗 v2.9.302 — Nutri (na 100 g)
+    case 'nutri':      return nutriPrvekText('nutri', v)      || '';
+    case 'nutri_kj':   return nutriPrvekText('nutri_kj', v)   || '';
+    case 'nutri_kcal': return nutriPrvekText('nutri_kcal', v) || '';
+    case 'nutri_tuky': return nutriPrvekText('nutri_tuky', v) || '';
+    case 'nutri_sach': return nutriPrvekText('nutri_sach', v) || '';
+    case 'nutri_bilk': return nutriPrvekText('nutri_bilk', v) || '';
+    case 'nutri_sul':  return nutriPrvekText('nutri_sul', v)  || '';
     case 'kod': return v.cislo ? `kód ${v.cislo}` : '';
     case 'badge': return 'NOVINKA';
     case 'ean': return v.ean || '';
@@ -30956,6 +31039,9 @@ window.ed_autoTransform = function() {
     nazev: 1.85, cena: 2.20, mena: 1.55, jed: 1.30, cenakg: 1.30,
     hmotnost: 1.55, dph: 1.30, slozeni: 1.10, alergeny: 1.10,
     kod: 1.10, badge: 1.55, text: 1.55,
+    // 🥗 v2.9.302 — Nutri (krátké texty → větší font; full tabulka → menší)
+    nutri: 1.05, nutri_kj: 1.45, nutri_kcal: 1.45,
+    nutri_tuky: 1.35, nutri_sach: 1.35, nutri_bilk: 1.35, nutri_sul: 1.35,
   };
   const datoveTypy = Object.keys(ratioPerTyp);
 
@@ -30975,8 +31061,8 @@ window.ed_autoTransform = function() {
 
       // Max font dle výšky
       let fontByH = h_mm * ratio;
-      // Pro víceřádkové elementy (slozeni, alergeny) zmenši
-      if (p.typ === 'slozeni' || p.typ === 'alergeny') fontByH = Math.min(fontByH, 10);
+      // Pro víceřádkové elementy (slozeni, alergeny, nutri tabulka) zmenši
+      if (p.typ === 'slozeni' || p.typ === 'alergeny' || p.typ === 'nutri') fontByH = Math.min(fontByH, 10);
 
       // Max font dle šířky (měříme reálný text)
       const text = ed_textProPrvek(p);
@@ -31098,7 +31184,7 @@ window.ed_nastavitPreviewVyrobek = async function(id) {
       stEditor.prvky = ed_generujZakladniLayout();
     } else {
       // Vyčisti zástupné texty u datových typů — aby se použila reálná data z výrobku
-      const datoveTypy = ['nazev','cena','mena','jed','cenakg','hmotnost','dph','slozeni','alergeny','kod','ean','qr'];
+      const datoveTypy = ['nazev','cena','mena','jed','cenakg','hmotnost','dph','slozeni','alergeny','kod','ean','qr','nutri','nutri_kj','nutri_kcal','nutri_tuky','nutri_sach','nutri_bilk','nutri_sul'];
       stEditor.prvky.forEach(p => {
         if (datoveTypy.includes(p.typ)) {
           const def = PALETA_PRVKY.find(x => x.typ === p.typ);
@@ -31960,6 +32046,31 @@ function buildStitkyHtml(fmt, stitky, jenNahled) {
     .sab-prvek b { font-weight: 700; }
     .sab-prvek svg { max-width: 100%; max-height: 100%; }
     .sab-prvek > div { width: 100%; height: 100%; }
+    /* 🥗 v2.9.302 — Nutriční hodnoty (na 100 g) — kompaktní EU-style tabulka pro tisk */
+    .sab-prvek.sab-typ-nutri { align-items: flex-start; padding: ${mm(0.4)}; line-height: 1.18; }
+    .sab-nutri-tbl {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      font-size: inherit;
+      border: 0.3pt solid #555;
+      padding: ${mm(0.5)} ${mm(0.8)};
+      box-sizing: border-box;
+      gap: ${mm(0.15)};
+    }
+    .sab-nutri-head {
+      font-weight: 700;
+      border-bottom: 0.3pt solid #555;
+      padding-bottom: ${mm(0.3)};
+      margin-bottom: ${mm(0.3)};
+      font-size: 1em;
+      text-align: left;
+    }
+    .sab-nutri-cell {
+      display: flex; justify-content: space-between; gap: ${mm(1)};
+      font-size: 0.92em; line-height: 1.2;
+    }
+    .sab-nutri-l { color: #333; }
+    .sab-nutri-v { font-weight: 600; white-space: nowrap; }
 
     /* BADGE — modern minimal ribbon */
     .st-cen-badge {
@@ -32146,6 +32257,40 @@ function stitekHtmlSablona(v, sablona) {
         else if (v.alergeny) inner = `<b>Alergeny:</b> ${esc(v.alergeny)}`;
         raw = true;
         break;
+      // 🥗 v2.9.302 — Nutriční hodnoty (na 100 g výrobku) — pro tisk
+      case 'nutri': {
+        if (p.text) { inner = esc(p.text); break; }
+        const n = vyrobekNutri(v);
+        const has = (k) => n[k] !== undefined && n[k] !== null && !isNaN(parseFloat(n[k]));
+        if (!Object.keys(n).length || !Object.values(n).some(x => x !== null && x !== '' && !isNaN(parseFloat(x)))) break;
+        const cell = (lbl, val, jed, dec = 1) => has(val)
+          ? `<div class="sab-nutri-cell"><span class="sab-nutri-l">${lbl}</span><span class="sab-nutri-v">${parseFloat(n[val]).toFixed(dec).replace(/\.?0+$/, '')}${jed ? ' ' + jed : ''}</span></div>`
+          : '';
+        // Mini EU-style tabulka (kompaktní, jeden řádek headeru + hodnoty pod sebou)
+        let table = '<div class="sab-nutri-tbl"><div class="sab-nutri-head">Nutriční hodnoty / 100 g</div>';
+        if (has('energie_kj') || has('energie_kcal')) {
+          const kj = has('energie_kj') ? Math.round(n.energie_kj) + ' kJ' : '';
+          const kcal = has('energie_kcal') ? Math.round(n.energie_kcal) + ' kcal' : '';
+          const sep = (kj && kcal) ? ' / ' : '';
+          table += `<div class="sab-nutri-cell"><span class="sab-nutri-l">Energie</span><span class="sab-nutri-v">${kj}${sep}${kcal}</span></div>`;
+        }
+        table += cell('Tuky', 'tuky', 'g', 1);
+        table += cell('— z toho nasycené', 'tuky_nasycene', 'g', 1);
+        table += cell('Sacharidy', 'sacharidy', 'g', 1);
+        table += cell('— z toho cukry', 'cukry', 'g', 1);
+        table += cell('Bílkoviny', 'bilkoviny', 'g', 1);
+        table += cell('Sůl', 'sul', 'g', 2);
+        table += '</div>';
+        inner = table;
+        raw = true;
+        break;
+      }
+      case 'nutri_kj':   inner = esc(p.text || nutriPrvekText('nutri_kj', v)   || ''); break;
+      case 'nutri_kcal': inner = esc(p.text || nutriPrvekText('nutri_kcal', v) || ''); break;
+      case 'nutri_tuky': inner = esc(p.text || nutriPrvekText('nutri_tuky', v) || ''); break;
+      case 'nutri_sach': inner = esc(p.text || nutriPrvekText('nutri_sach', v) || ''); break;
+      case 'nutri_bilk': inner = esc(p.text || nutriPrvekText('nutri_bilk', v) || ''); break;
+      case 'nutri_sul':  inner = esc(p.text || nutriPrvekText('nutri_sul', v)  || ''); break;
       case 'kod':      inner = esc(p.text || (v.cislo ? `kód ${v.cislo}` : '')); break;
       case 'badge':    inner = esc(p.text || 'NOVINKA'); extraClass = 'sab-badge'; break;
       case 'text':     inner = esc(p.text || ''); break;
