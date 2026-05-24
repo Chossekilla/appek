@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.284';
+const APPEK_ADMIN_JS_VERSION = '2.9.285';
 
 (async function detectStaleCode() {
   try {
@@ -3762,22 +3762,25 @@ async function renderDashboard(filters = {}) {
     ${renderDashAlerts(d.alerts || {})}
 
     <!-- TABY OBDOBÍ — v2.9.233 segmented control (icon + label) -->
-    <!-- 🆕 v2.9.282 — Mobile zkrácené labely (.short pro mobile, .full pro desktop) -->
+    <!-- 🆕 v2.9.285 — JS-based mobile detection (CSS dual-span fix v2.9.282 neúčinkoval) -->
     <div class="seg-tabs period-tabs-obdobi" role="tablist" style="margin-bottom:14px">
-      ${[
-        { k: 'dnes',    icon: '📅', l: 'Dnes',         short: 'Dnes' },
-        { k: 'tyden',   icon: '📆', l: 'Tento týden',  short: 'Týden' },
-        { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc', short: 'Měsíc' },
-        { k: 'rok',     icon: '📊', l: 'Tento rok',    short: 'Rok' },
-        { k: 'vlastni', icon: '⚙️', l: 'Vlastní',      short: 'Vlastní' },
-      ].map(t => `
-        <button type="button" role="tab" class="seg-tab ${obdobi === t.k ? 'active' : ''}"
-                onclick="dashSetObdobi('${t.k}')" aria-selected="${obdobi === t.k}">
-          <span class="seg-tab-icon">${t.icon}</span>
-          <span class="seg-tab-text seg-text-full">${t.l}</span>
-          <span class="seg-tab-text seg-text-short">${t.short}</span>
-        </button>
-      `).join('')}
+      ${(() => {
+        const isMob = typeof window !== 'undefined' && window.innerWidth <= 700;
+        const tabs = [
+          { k: 'dnes',    icon: '📅', l: 'Dnes',         short: 'Dnes' },
+          { k: 'tyden',   icon: '📆', l: 'Tento týden',  short: 'Týden' },
+          { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc', short: 'Měsíc' },
+          { k: 'rok',     icon: '📊', l: 'Tento rok',    short: 'Rok' },
+          { k: 'vlastni', icon: '⚙️', l: 'Vlastní',      short: 'Vlastní' },
+        ];
+        return tabs.map(t => `
+          <button type="button" role="tab" class="seg-tab ${obdobi === t.k ? 'active' : ''}"
+                  onclick="dashSetObdobi('${t.k}')" aria-selected="${obdobi === t.k}">
+            <span class="seg-tab-icon">${t.icon}</span>
+            <span class="seg-tab-text">${isMob ? t.short : t.l}</span>
+          </button>
+        `).join('');
+      })()}
     </div>
 
     ${obdobi === 'vlastni' ? `
@@ -4244,6 +4247,26 @@ async function loadProvozWidget() {
 window.dashSetObdobi = function(obdobi) {
   renderDashboard({ obdobi });
 };
+
+// 🆕 v2.9.285 — Resize listener pro re-render period tabs (mobile/desktop přepnutí labelů)
+// Debounced 250ms aby resize spam nepřetížil. Jen pokud je aktuální page = dashboard.
+(function() {
+  let resizeTimer;
+  let lastIsMobile = typeof window !== 'undefined' && window.innerWidth <= 700;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const isMobile = window.innerWidth <= 700;
+      if (isMobile !== lastIsMobile) {
+        lastIsMobile = isMobile;
+        // Re-render jen pokud je dashboard aktivní
+        if (state.current === 'dashboard' && typeof renderDashboard === 'function') {
+          renderDashboard({});
+        }
+      }
+    }, 250);
+  });
+})();
 
 window.dashApplyVlastni = function() {
   const od = document.getElementById('dash-od').value;

@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "2.9.284";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "2.9.285";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18434,12 +18434,14 @@ html.density-extreme body:not(.sidebar-pinned) .sidebar-nav .nav-icon {
   border-color: var(--primary);
 }
 
-/* 🆕 v2.9.282 — Dashboard period tabs: full label desktop / short mobile */
-.period-tabs-obdobi .seg-text-short { display: none; }
-.period-tabs-obdobi .seg-text-full { display: inline; }
+/* 🆕 v2.9.282/285 — Dashboard period tabs: full label desktop / short mobile
+   FORCE !important + vyšší specificita protože ostatní .seg-tab pravidla
+   mohou kolidovat (v2.9.282 fix neúčinkoval kvůli media query order). */
+div.seg-tabs.period-tabs-obdobi span.seg-text-short { display: none !important; }
+div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important; }
 @media (max-width: 700px) {
-  .period-tabs-obdobi .seg-text-full { display: none; }
-  .period-tabs-obdobi .seg-text-short { display: inline; }
+  div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: none !important; }
+  div.seg-tabs.period-tabs-obdobi span.seg-text-short { display: inline !important; }
 }
 
 /* Mobile — 2 col then 1 col */
