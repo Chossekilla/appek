@@ -1557,7 +1557,7 @@ window.skeletonLine = function(width = '60%', height = '14px') {
     return [
       { kind: 'action', id: 'new_obj',     icon: '➕', title: 'Nová objednávka',  sub: 'Vytvořit novou objednávku', do: () => { closeCmdk(); navigate('objednavky'); setTimeout(() => window.otevritNovouObjednavku?.(), 200); } },
       { kind: 'action', id: 'pos_register',icon: '🧾', title: 'POS Kasa (nové okno)', sub: 'Standalone touch-grid POS pro restaurace', do: () => { closeCmdk(); window.openPOSWindow?.(); } },
-      { kind: 'action', id: 'floorplan',   icon: '🗺️', title: 'Floor Plan Editor (nové okno)', sub: 'Drag&drop mapa stolů s šablonami', do: () => { closeCmdk(); window.open('/admin/floorplan.php','appek_fp','width='+screen.availWidth+',height='+screen.availHeight+',toolbar=no,menubar=no'); } },
+      { kind: 'action', id: 'floorplan',   icon: '🗺️', title: 'Floor Plan Editor (nové okno)', sub: 'Drag&drop mapa stolů s šablonami', do: () => { closeCmdk(); window.open('floorplan.php','appek_fp','width='+screen.availWidth+',height='+screen.availHeight+',toolbar=no,menubar=no'); } },
       { kind: 'action', id: 'new_vyr',     icon: '➕', title: 'Nový výrobek',     sub: '',                          do: () => { closeCmdk(); navigate('vyrobky'); setTimeout(() => window.editVyrobek?.(), 200); } },
       { kind: 'action', id: 'new_odb',     icon: '➕', title: 'Nový odběratel',   sub: '',                          do: () => { closeCmdk(); navigate('odberatele'); setTimeout(() => window.editOdberatel?.(), 200); } },
       { kind: 'action', id: 'imp_cenik',   icon: '📊', title: 'Import ceníku (Excel/CSV)', sub: 'Hromadný import výrobků nebo surovin', do: () => { closeCmdk(); window.openImportCenik?.('vyrobky'); } },
@@ -14150,7 +14150,7 @@ async function renderRestaurantTables() {
       <div></div>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="date" class="form-input" id="rt-date" value="${today}" onchange="state._rtDate=this.value;renderRestaurantTables()" style="width:auto">
-        <button class="btn-secondary" onclick="window.open('/admin/floorplan.php','appek_fp','width='+screen.availWidth+',height='+screen.availHeight+',toolbar=no,menubar=no')" title="Otevřít plnotučný Floor Plan editor v novém okně">🗺️ Editor mapy</button>
+        <button class="btn-secondary" onclick="window.open('floorplan.php','appek_fp','width='+screen.availWidth+',height='+screen.availHeight+',toolbar=no,menubar=no')" title="Otevřít plnotučný Floor Plan editor v novém okně">🗺️ Editor mapy</button>
         <button class="btn-secondary" onclick="addRestaurantTable()">+ Nový stůl</button>
       </div>
     </div>
@@ -15847,7 +15847,7 @@ async function renderPOSLauncher() {
         <button class="btn-primary" style="font-size:16px;padding:14px 28px;font-weight:800" onclick="openPOSWindow()">
           🚀 Otevřít POS v novém okně
         </button>
-        <button class="btn-secondary" style="font-size:14px;padding:14px 22px" onclick="window.open('/admin/pos.php','_self')">
+        <button class="btn-secondary" style="font-size:14px;padding:14px 22px" onclick="window.open('pos.php','_self')">
           ↗️ Otevřít v této záložce
         </button>
       </div>
@@ -15884,9 +15884,11 @@ async function renderPOSLauncher() {
 
 window.openPOSWindow = function () {
   // Otevři ve velkém okně bez toolbaru — kiosk-friendly
+  // 🆕 v2.9.268 — relative path (pos.php) místo /admin/pos.php — funguje
+  // v root install (demo.appek.cz/admin/pos.php) i v subfolder (localhost/appek/admin/pos.php).
   const w = screen.availWidth  || 1280;
   const h = screen.availHeight || 800;
-  const win = window.open('/admin/pos.php', 'appek_pos',
+  const win = window.open('pos.php', 'appek_pos',
     `width=${w},height=${h},left=0,top=0,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=yes`);
   if (!win) {
     alert('Prohlížeč zablokoval popup. Povolte popup okna pro tuto stránku, nebo klikni "Otevřít v této záložce".');
@@ -18030,7 +18032,7 @@ async function renderSeasonalCatalog() {
 
     <!-- 🚀 Rychlé akce — pre-fab šablony a email katalog -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:18px">
-      <a href="/admin/feature-seasonal-templates.html"
+      <a href="feature-seasonal-templates.html"
          style="display:flex;gap:14px;padding:18px 20px;background:linear-gradient(135deg,#fff8e8,#fff);border:2px solid #BA7517;border-radius:14px;text-decoration:none;color:inherit;transition:all 0.2s">
         <div style="font-size:38px;line-height:1">🍂</div>
         <div>
@@ -18041,7 +18043,7 @@ async function renderSeasonalCatalog() {
           <div style="margin-top:8px;display:inline-block;background:#BA7517;color:#fff;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700">⚡ One-click vložit</div>
         </div>
       </a>
-      <a href="/admin/feature-seasonal-catalog.html"
+      <a href="feature-seasonal-catalog.html"
          style="display:flex;gap:14px;padding:18px 20px;background:linear-gradient(135deg,#fff0f4,#fff);border:2px solid #E91E63;border-radius:14px;text-decoration:none;color:inherit;transition:all 0.2s">
         <div style="font-size:38px;line-height:1">📧</div>
         <div>

@@ -130,7 +130,7 @@
         document.cookie = 'PHPSESSID=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
         try { localStorage.removeItem('appek_admin'); } catch (e) {}
         alert('⏱️ Demo session vypršela (15 min). Stránka se obnoví.');
-        window.location.href = '/admin/';
+        window.location.reload();
       } else if (idleMs >= ttlMs - 60000) {
         // 1 min warning
         const banner = document.getElementById('demo-banner');
@@ -240,7 +240,7 @@
           <span class="btn-notif-badge" id="notif-badge" style="display:none">0</span>
         </button>
         <!-- 🔄 Update available — auto-detect, klik = otevři updater.html -->
-        <a id="update-pill" href="/admin/updater.html" style="display:none;align-items:center;gap:6px;padding:7px 14px;background:linear-gradient(135deg,#208438,#1f9244);color:#fff;border-radius:999px;text-decoration:none;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(34,197,94,0.3);animation:pulseUpd 2s ease-in-out infinite" title="Klikni pro aktualizaci">
+        <a id="update-pill" href="updater.html" style="display:none;align-items:center;gap:6px;padding:7px 14px;background:linear-gradient(135deg,#208438,#1f9244);color:#fff;border-radius:999px;text-decoration:none;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(34,197,94,0.3);animation:pulseUpd 2s ease-in-out infinite" title="Klikni pro aktualizaci">
           <span style="font-size:16px">🔄</span>
           <span id="update-pill-text">Nová verze</span>
         </a>
