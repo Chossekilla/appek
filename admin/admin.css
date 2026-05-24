@@ -3006,7 +3006,17 @@ html.theme-apple .nastaveni-tabs {
   }
   .page-head > * { width: 100%; max-width: 100%; }
   .page-head h1, .page-head .page-title { font-size: 20px; }
-  .page-head .btn-primary {
+  /* 🆕 v2.9.259 — Mobile page-head sekundární kontejner = 3-col grid
+     (Tisk/Export/Import + Rozvozy atd. — 3 v řadě, primary 'Nový X' pod tím) */
+  .page-head > div:nth-child(2) {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    width: 100%;
+  }
+  .page-head .btn-primary,
+  .page-head .btn-primary.btn-green {
+    grid-column: 1 / -1 !important;
     width: 100%;
     text-align: center;
     box-sizing: border-box;
@@ -3014,15 +3024,22 @@ html.theme-apple .nastaveni-tabs {
     font-size: 15px;
     padding: 14px 16px;
     display: block;
-    flex-basis: 100%;        /* vlastní řádek */
-    margin-top: 10px;        /* mezera od sekundárních tlačítek (Tisk, Export, Import) */
+    margin-top: 4px;
   }
-  /* Sekundární tlačítka v page-head (Tisk/Export/Import) — full width, vlastní řádek */
-  .page-head .btn-secondary {
-    flex: 1 1 calc(50% - 4px);    /* 2 sloupce vedle sebe */
+  .page-head .btn-secondary,
+  .page-head .btn-icon-action {
+    flex: none;
+    width: auto;
     min-width: 0;
-    font-size: 14px;
-    padding: 10px 12px;
+    font-size: 13px;
+    padding: 10px 8px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .page-head .btn-icon-action .btn-icon-action-lbl {
+    font-size: 11px;
   }
 
   /* Stat grid (Dashboard, Faktury, Objednávky souhrn) */
@@ -12986,7 +13003,17 @@ aside.sidebar::after { display: none !important; content: '' !important; }
   }
   .page-head > * { width: 100%; max-width: 100%; }
   .page-head h1, .page-head .page-title { font-size: 20px; }
-  .page-head .btn-primary {
+  /* 🆕 v2.9.259 — Mobile page-head sekundární kontejner = 3-col grid
+     (Tisk/Export/Import + Rozvozy atd. — 3 v řadě, primary 'Nový X' pod tím) */
+  .page-head > div:nth-child(2) {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    width: 100%;
+  }
+  .page-head .btn-primary,
+  .page-head .btn-primary.btn-green {
+    grid-column: 1 / -1 !important;
     width: 100%;
     text-align: center;
     box-sizing: border-box;
@@ -12994,15 +13021,22 @@ aside.sidebar::after { display: none !important; content: '' !important; }
     font-size: 15px;
     padding: 14px 16px;
     display: block;
-    flex-basis: 100%;        /* vlastní řádek */
-    margin-top: 10px;        /* mezera od sekundárních tlačítek (Tisk, Export, Import) */
+    margin-top: 4px;
   }
-  /* Sekundární tlačítka v page-head (Tisk/Export/Import) — full width, vlastní řádek */
-  .page-head .btn-secondary {
-    flex: 1 1 calc(50% - 4px);    /* 2 sloupce vedle sebe */
+  .page-head .btn-secondary,
+  .page-head .btn-icon-action {
+    flex: none;
+    width: auto;
     min-width: 0;
-    font-size: 14px;
-    padding: 10px 12px;
+    font-size: 13px;
+    padding: 10px 8px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .page-head .btn-icon-action .btn-icon-action-lbl {
+    font-size: 11px;
   }
 
   /* Stat grid (Dashboard, Faktury, Objednávky souhrn) */
