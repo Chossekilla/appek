@@ -1313,9 +1313,23 @@ if ($action === 'apply') {
             }
             foreach (demo_pos_users() as $u) {
                 try {
-                    $check = $pdo->prepare("SELECT id FROM admin_users WHERE email = :e");
+                    $check = $pdo->prepare("SELECT id, role, pos_only FROM admin_users WHERE email = :e");
                     $check->execute(['e' => $u['email']]);
-                    if ($check->fetchColumn()) continue; // skip existing
+                    $existing = $check->fetch(PDO::FETCH_ASSOC);
+                    if ($existing) {
+                        // 🆕 v2.9.306 — UPDATE: zarovnej role + pos_only k aktuální seed definici.
+                        // Předtím se existující user SKIPPOVAL → Prodavač 1 zůstal s role='pos'
+                        // z předchozí seed verze (v2.9.297), což způsobilo zmrzačený sidebar
+                        // (jen 1 nav-item viditelný + my v2.9.304 flex fix to udělal natural-size →
+                        // "zmizely položky"). Migrace teď opraví existující záznamy.
+                        if ($existing['role'] !== $u['role'] || (int)$existing['pos_only'] !== (int)$u['pos_only']) {
+                            try {
+                                $pdo->prepare("UPDATE admin_users SET role = :r, pos_only = :po WHERE email = :e")
+                                    ->execute(['r' => $u['role'], 'po' => (int) $u['pos_only'], 'e' => $u['email']]);
+                            } catch (Throwable $e) { $stats['errors'][] = "POS user migrace {$u['email']}: " . $e->getMessage(); }
+                        }
+                        continue; // už existuje (po migraci) — neinsertuj znovu
+                    }
 
                     $pdo->prepare("
                         INSERT INTO admin_users (email, jmeno, heslo_hash, role, pin_hash, pos_only, aktivni)
@@ -1712,4 +1726,24 @@ if ($action === 'seed_one_recipe') {
     }
 }
 
-json_error('Neznámá akce (preview|apply|clear|seed_one_recipe)', 404);
+// 🆕 v2.9.306 — POST ?action=fix_demo_users — narrow migrace pro existující demo users
+// (zarovná role + pos_only k seed definici bez zbytku full apply seedu).
+// Důvod: user logged in jako Prodavač 1 s broken role='pos' chce funkční menu HNED
+// bez kompletního re-seed (který by mazal/přidával ostatní data).
+if ($action === 'fix_demo_users') {
+    try {
+        $updated = 0;
+        foreach (demo_pos_users() as $u) {
+            try {
+                $st = $pdo->prepare("UPDATE admin_users SET role = :r, pos_only = :po WHERE email = :e");
+                $st->execute(['r' => $u['role'], 'po' => (int) $u['pos_only'], 'e' => $u['email']]);
+                if ($st->rowCount() > 0) $updated++;
+            } catch (Throwable $e) { /* ignore per-user error */ }
+        }
+        json_response(['ok' => true, 'updated' => $updated, 'msg' => "Aktualizováno $updated demo uživatelů (role, pos_only)"]);
+    } catch (Throwable $e) {
+        json_error('fix_demo_users: ' . $e->getMessage(), 500);
+    }
+}
+
+json_error('Neznámá akce (preview|apply|clear|seed_one_recipe|fix_demo_users)', 404);
