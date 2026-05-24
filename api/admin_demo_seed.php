@@ -1514,12 +1514,31 @@ if ($action === 'clear') {
     }
     try {
         $pdo->exec("SET FOREIGN_KEY_CHECKS=0");
-        foreach (['objednavky_polozky', 'objednavky', 'dodaci_list_polozky', 'dodaci_listy',
-                  'faktura_polozky', 'faktury', 'vyrobni_list_polozky', 'vyrobni_listy',
-                  'mista_dodani', 'cenove_skupiny_slevy', 'vyrobek_suroviny',
-                  'vyrobky', 'odberatele', 'suroviny', 'sklad_pohyby', 'kategorie_vyrobku'] as $t) {
+        // 🆕 v2.9.297 — rozšířený clear: Restaurace balíček + demo POS users
+        foreach ([
+            'objednavky_polozky', 'objednavky', 'dodaci_list_polozky', 'dodaci_listy',
+            'faktura_polozky', 'faktury', 'vyrobni_list_polozky', 'vyrobni_listy',
+            'mista_dodani', 'cenove_skupiny_slevy', 'vyrobek_suroviny',
+            'vyrobky', 'odberatele', 'suroviny', 'sklad_pohyby', 'kategorie_vyrobku',
+            // 🆕 Restaurace balíček
+            'cenove_skupiny',
+            'couriers', 'courier_deliveries', 'courier_integrations',
+            'restaurant_tables', 'restaurant_zones',
+            'restaurant_pos_polozky', 'restaurant_pos_ucty', 'restaurant_pos_platby',
+            'restaurant_qr_sessions', 'restaurant_qr_orders',
+            'kitchen_queue', 'kitchen_stations', 'kitchen_settings',
+            // 🆕 Multi-warehouse + calc + idempotency
+            'sklady', 'sklad_polozky', 'sklad_pohyby_v2',
+            'kalkulace_historie',
+            'pos_idempotency',
+            'floorplan_templates',
+        ] as $t) {
             try { $pdo->exec("DELETE FROM `$t`"); } catch (Throwable $e) { /* ignore */ }
         }
+        // Demo POS users (jen @demo.cz, neumaže reálné admin)
+        try { $pdo->exec("DELETE FROM admin_users WHERE email LIKE '%@demo.cz' AND email != 'demo@appek.cz'"); } catch (Throwable $e) {}
+        // Demo-related nastaveni klíče
+        try { $pdo->exec("DELETE FROM nastaveni WHERE klic IN ('naklady_polozky', 'suroviny_kategorie', 'default_daily_capacity', 'pos_idemp_cleanup_at')"); } catch (Throwable $e) {}
         $pdo->exec("SET FOREIGN_KEY_CHECKS=1");
         json_response(['ok' => true, 'cleared' => true]);
     } catch (Throwable $e) {
