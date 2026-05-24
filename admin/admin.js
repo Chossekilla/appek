@@ -1292,6 +1292,14 @@ function renderPirateNagBanner(payload) {
 window._lastFreshGen = 0;
 function startNotifPolling() {
   if (window._notifPollTimer) return;
+  // 🆕 v2.9.305 — pro POS-only roli skryj bell úplně (POS user nemůže reagovat na
+  // notifikace typu "nová objednávka" → klick by ho stejně přesměroval na dashboard).
+  const role = state.admin?.role || 'admin';
+  if (role === 'pos') {
+    const btn = document.getElementById('btn-notifications');
+    if (btn) btn.style.display = 'none';
+    return;
+  }
   // První volání = ?fresh=1 → server detekuje update + emit notifikaci
   refreshNotifBadge(true);
   window._lastFreshGen = Date.now();
@@ -3489,13 +3497,23 @@ function adminOnly(html) {
   return isSuperAdmin() ? html : '';
 }
 
-async function navigate(page) {
+// 🆕 v2.9.305 — navigate(page, args?) — args se propaguje do render fn (filtry, IDs, atd.)
+// Důvod: dashboard alerts a notifikace potřebují předem-vyplnit filtr (např. nefakturováno).
+// Předtím dělaly `navigate('dodaci_listy'); setTimeout(()=>applyDlFilters({fakturovano:'0'}),100)`
+// což nefungovalo (applyDlFilters četl jen z DOM, ignoroval arg).
+async function navigate(page, args) {
   // Zkontroluj, jestli má aktuální role právo na tuto stránku
   if (!muzeNavigovat(page)) {
-    // Tichý fallback na dashboard (nebo první povolenou stránku)
+    // 🆕 v2.9.305 — místo TICHÉHO fallbacku ukaž toast, ať user ví proč nic nereaguje
+    // (předtím: klick na dashboard alert "DL nefakturováno" pro POS usera → 0 reakce)
     const role = state.admin?.role || 'admin';
     const allowed = state.rolePrava[role] || DEFAULT_ROLE_PRAVA[role] || ['dashboard'];
+    const requestedPage = page;
     page = allowed[0] || 'dashboard';
+    args = undefined; // filtry pro target page nedávají smysl po fallbacku
+    if (requestedPage !== page && typeof toast === 'function') {
+      try { toast(`🔒 Sekce „${requestedPage}" vyžaduje vyšší oprávnění než „${role}"`, 'warn'); } catch (e) {}
+    }
   }
   state.current = page;
   document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.page === page));
@@ -3503,17 +3521,17 @@ async function navigate(page) {
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
   // 🎁 Re-render package badges v topbaru — aby se zvýraznil aktivní balíček
   document.querySelectorAll('.pkg-big-btn, .pkg-badge-square').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
-  
+
   try {
-    if (page === 'dashboard') await renderDashboard();
-    else if (page === 'objednavky') await renderObjednavky();
+    if (page === 'dashboard') await renderDashboard(args);
+    else if (page === 'objednavky') await renderObjednavky(args);
     else if (page === 'vyroba') await renderVyrobaHub();
     else if (page === 'vyrobni_list') await renderVyrobniList();
-    else if (page === 'dodaci_listy') await renderDodaciListy();
+    else if (page === 'dodaci_listy') await renderDodaciListy(args);
     else if (page === 'rozvozy') await renderRozvozy();
     else if (page === 'recurring') await renderRecurring();
     else if (page === 'sales_report') await renderSalesReport();
-    else if (page === 'faktury') await renderFaktury();
+    else if (page === 'faktury') await renderFaktury(args);
     else if (page === 'vyrobky') await renderVyrobky();
     else if (page === 'katalog') await renderKatalog();
     else if (page === 'stitky') await renderStitky();
@@ -3613,7 +3631,17 @@ function recentMistoLine(row) {
 
 // 🆕 v2.9.242 — Dashboard alerts widget (akce vyžadující pozornost)
 // Skryje se pokud žádné alerty — žádný šum kdy je vše OK
+// 🆕 v2.9.305 — Skryje se i pro role bez práva na cílové stránky (POS user nemůže
+// otevřít DL/objednávky/sklad → ukazovat alert nemá smysl, jen frustruje)
 function renderDashAlerts(alerts) {
+  const role = state.admin?.role || 'admin';
+  const allowed = role === 'admin'
+    ? null // admin vidí vždy
+    : (state.rolePrava[role] || DEFAULT_ROLE_PRAVA[role] || []);
+  // Pokud role nemá přístup ani na jednu cílovou stránku alertů — skryj celý widget
+  if (allowed && !['objednavky', 'dodaci_listy', 'suroviny', 'sklad'].some(p => allowed.includes(p))) {
+    return '';
+  }
   const items = [];
   if ((alerts.obj_bez_dl || 0) > 0) {
     items.push({
@@ -3621,7 +3649,8 @@ function renderDashAlerts(alerts) {
       label: 'objednávek doručených bez dodacího listu',
       count: alerts.obj_bez_dl,
       tooltip: 'Doručené objednávky starší 3 dny bez DL — vystavit DL',
-      onclick: `navigate('objednavky');setTimeout(()=>{state._obj_filtr='bez_dl';renderObjednavky({stav:'dorucena'})},100)`,
+      // 🆕 v2.9.305 — navigate(page, args) místo setTimeout hacku
+      onclick: `state._obj_filtr='bez_dl';navigate('objednavky',{stav:'dorucena'})`,
       severity: 'warn',
     });
   }
@@ -3631,7 +3660,8 @@ function renderDashAlerts(alerts) {
       label: 'dodacích listů nefakturovaných >7 dní',
       count: alerts.dl_bez_fa,
       tooltip: 'Vystavit faktury — DL starší 7 dní bez FA',
-      onclick: `navigate('dodaci_listy');setTimeout(()=>applyDlFilters({fakturovano:'0'}),100)`,
+      // 🆕 v2.9.305 — propaguj filtr přímo přes navigate (applyDlFilters arg byl ignorován)
+      onclick: `navigate('dodaci_listy',{fakturovano:'0'})`,
       severity: 'warn',
     });
   }
@@ -3641,7 +3671,8 @@ function renderDashAlerts(alerts) {
       label: 'surovin pod minimální zásobou',
       count: alerts.sklad_pod_min,
       tooltip: 'Suroviny pod minimem — objednat nebo přesunout',
-      onclick: `navigate('sklad')`,
+      // 🆕 v2.9.305 — suroviny stránka má detekci state._suroviny_pod_minimem
+      onclick: `state._suroviny_pod_minimem=true;navigate('suroviny')`,
       severity: 'danger',
     });
   }
