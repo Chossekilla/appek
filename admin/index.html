@@ -283,6 +283,8 @@
 
   <!-- 📱 Bottom navigation pro mobile (skryté na desktopu, zobrazené pod 768px) -->
   <nav class="bottom-nav" id="bottom-nav" aria-label="Mobilní navigace">
+    <!-- 🆕 v2.9.228 — Daily workflow: Přehled → Objednávky → Výroba → Dodací listy → Nastavení.
+         Výrobky dostupné z Výroba hub. Odběratelé / Faktury / Nástroje přes Přehled tile. -->
     <div class="bottom-nav-grid">
       <button class="bottom-nav-item" data-page="dashboard" onclick="navigate('dashboard')" aria-label="Přehled">
         <span class="bn-icon">📊</span>
@@ -292,13 +294,13 @@
         <span class="bn-icon">📋</span>
         <span>Objednávky</span>
       </button>
-      <button class="bottom-nav-item" data-page="vyrobky" onclick="navigate('vyrobky')" aria-label="Výrobky">
-        <span class="bn-icon">📦</span>
-        <span>Výrobky</span>
+      <button class="bottom-nav-item" data-page="vyroba" onclick="navigate('vyroba')" aria-label="Výroba">
+        <span class="bn-icon">🥖</span>
+        <span>Výroba</span>
       </button>
-      <button class="bottom-nav-item" data-page="odberatele" onclick="navigate('odberatele')" aria-label="Odběratelé">
-        <span class="bn-icon">👥</span>
-        <span>Odběratelé</span>
+      <button class="bottom-nav-item" data-page="dodaci_listy" onclick="navigate('dodaci_listy')" aria-label="Dodací listy">
+        <span class="bn-icon">📃</span>
+        <span>Dodací listy</span>
       </button>
       <button class="bottom-nav-item" data-page="nastaveni" onclick="navigate('nastaveni')" aria-label="Nastavení">
         <span class="bn-icon">⚙️</span>

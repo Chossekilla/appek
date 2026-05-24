@@ -5038,14 +5038,15 @@ window.ulozitNovouObjednavku = async function() {
 // =============================================================
 // 🆕 v2.9.188/189 — Výroba má vodorovné sub-taby. Default = Výrobní list.
 // Od výroby vše začíná — Suroviny, Sklad, HACCP, Kalkulace, Přehled, Spárování.
+// 🆕 v2.9.228 — emoji rozlišení (🏭 Sklady vs 🧮 Kalkulace), kratší labely pro mobile
 const VYROBA_SUBTABS = [
   { key: 'list',       label: '🥖 Výrobní list',  render: () => renderVyrobniListInline() },
   { key: 'suroviny',   label: '🌾 Suroviny',       nav: 'suroviny' },
   { key: 'sklady',     label: '🏭 Sklady',         render: () => renderSkladyInline() },  // 🆕 v2.9.215
   { key: 'sklad',      label: '📦 Stav skladu',    nav: 'sklad' },
-  { key: 'haccp',      label: '🧪 HACCP',          nav: 'haccp' },
-  { key: 'kalkulace',  label: '🏭 Kalkulace',      nav: 'vyrobni_kalkulace' },
-  { key: 'prehled',    label: '📊 Přehled výroby', nav: 'export_vyroby' },
+  { key: 'haccp',      label: '🛡️ HACCP',          nav: 'haccp' },        // 🆕 emoji = bezpečnost potravin
+  { key: 'kalkulace',  label: '🧮 Kalkulace',      nav: 'vyrobni_kalkulace' }, // 🆕 emoji = kalkulace
+  { key: 'prehled',    label: '📊 Přehled',        nav: 'export_vyroby' },     // 🆕 zkráceno (bez 'výroby')
 ];
 
 async function renderVyrobaHub() {
