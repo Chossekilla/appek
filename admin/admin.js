@@ -5060,6 +5060,16 @@ async function renderVyrobaHub() {
     state._vyrobaSubTab = 'list';
   }
 
+  // 🆕 v2.9.227 — sub-taby jako stylované segmented control (icon nahoře, label dole)
+  // Desktop: rovnoměrně distribuované přes celou šířku (flex: 1 each)
+  // Mobile: horizontal scroll s snap, zachované icon+label rozložení.
+  const splitLabel = (lbl) => {
+    // Předpokládám formát "🧪 HACCP" — rozdělím na emoji + zbytek
+    const m = lbl.match(/^(\p{Emoji}+|\p{Extended_Pictographic}+|[^\s]+)\s+(.+)$/u);
+    if (m) return { icon: m[1], text: m[2] };
+    return { icon: '', text: lbl };
+  };
+
   c.innerHTML = `
     <div class="page-head">
       <div>
@@ -5068,14 +5078,18 @@ async function renderVyrobaHub() {
       </div>
     </div>
 
-    <!-- 🗂️ SUB-TABY (vodorovné, na šířku jako Nastavení) -->
-    <div class="nastaveni-tabs" role="tablist">
-      ${VYROBA_SUBTABS.map(t => `
-        <button type="button" role="tab" class="nastaveni-tab ${aktSubTab === t.key ? 'active' : ''}"
+    <!-- 🗂️ SUB-TABY — segmented control s icon + label -->
+    <div class="vyroba-subtabs" role="tablist">
+      ${VYROBA_SUBTABS.map(t => {
+        const { icon, text } = splitLabel(t.label);
+        return `
+        <button type="button" role="tab" class="vyroba-subtab ${aktSubTab === t.key ? 'active' : ''}"
                 onclick="vyrobaSetSubTab('${t.key}')" aria-selected="${aktSubTab === t.key}">
-          <span>${t.label}</span>
+          <span class="vyroba-subtab-icon">${icon}</span>
+          <span class="vyroba-subtab-text">${text}</span>
         </button>
-      `).join('')}
+      `;
+      }).join('')}
     </div>
 
     <div class="nastaveni-page nastaveni-tab-content">
