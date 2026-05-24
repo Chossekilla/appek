@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.281';
+const APPEK_ADMIN_JS_VERSION = '2.9.282';
 
 (async function detectStaleCode() {
   try {
@@ -3741,18 +3741,20 @@ async function renderDashboard(filters = {}) {
     ${renderDashAlerts(d.alerts || {})}
 
     <!-- TABY OBDOBÍ — v2.9.233 segmented control (icon + label) -->
-    <div class="seg-tabs" role="tablist" style="margin-bottom:14px">
+    <!-- 🆕 v2.9.282 — Mobile zkrácené labely (.short pro mobile, .full pro desktop) -->
+    <div class="seg-tabs period-tabs-obdobi" role="tablist" style="margin-bottom:14px">
       ${[
-        { k: 'dnes',    icon: '📅', l: 'Dnes' },
-        { k: 'tyden',   icon: '📆', l: 'Tento týden' },
-        { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc' },
-        { k: 'rok',     icon: '📊', l: 'Tento rok' },
-        { k: 'vlastni', icon: '⚙️', l: 'Vlastní' },
+        { k: 'dnes',    icon: '📅', l: 'Dnes',         short: 'Dnes' },
+        { k: 'tyden',   icon: '📆', l: 'Tento týden',  short: 'Týden' },
+        { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc', short: 'Měsíc' },
+        { k: 'rok',     icon: '📊', l: 'Tento rok',    short: 'Rok' },
+        { k: 'vlastni', icon: '⚙️', l: 'Vlastní',      short: 'Vlastní' },
       ].map(t => `
         <button type="button" role="tab" class="seg-tab ${obdobi === t.k ? 'active' : ''}"
                 onclick="dashSetObdobi('${t.k}')" aria-selected="${obdobi === t.k}">
           <span class="seg-tab-icon">${t.icon}</span>
-          <span class="seg-tab-text">${t.l}</span>
+          <span class="seg-tab-text seg-text-full">${t.l}</span>
+          <span class="seg-tab-text seg-text-short">${t.short}</span>
         </button>
       `).join('')}
     </div>

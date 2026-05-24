@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "2.9.281";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "2.9.282";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18424,6 +18424,14 @@ html.density-extreme body:not(.sidebar-pinned) .sidebar-nav .nav-icon {
 .emoji-pick.is-active {
   background: var(--primary-light);
   border-color: var(--primary);
+}
+
+/* 🆕 v2.9.282 — Dashboard period tabs: full label desktop / short mobile */
+.period-tabs-obdobi .seg-text-short { display: none; }
+.period-tabs-obdobi .seg-text-full { display: inline; }
+@media (max-width: 700px) {
+  .period-tabs-obdobi .seg-text-full { display: none; }
+  .period-tabs-obdobi .seg-text-short { display: inline; }
 }
 
 /* Mobile — 2 col then 1 col */
