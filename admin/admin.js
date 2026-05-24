@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.295';
+const APPEK_ADMIN_JS_VERSION = '2.9.296';
 
 (async function detectStaleCode() {
   try {
@@ -3696,7 +3696,26 @@ async function renderDashboard(filters = {}) {
     url += `&datum_od=${datum_od}&datum_do=${datum_do}`;
   }
 
-  const d = await api(url);
+  let d;
+  try {
+    d = await api(url);
+  } catch (e) { d = {}; }
+  // 🆕 v2.9.296 — defenzivní fallback pro broken/empty dashboard response
+  if (!d || typeof d !== 'object') d = {};
+  if (!d.obdobi_stats || typeof d.obdobi_stats !== 'object') {
+    d.obdobi_stats = { trzby: 0, objednavek: 0, novych: 0, dorucenych: 0, prumerne_denne: 0 };
+  }
+  if (!Array.isArray(d.casovy_graf)) d.casovy_graf = [];
+  if (!Array.isArray(d.top_odberatele)) d.top_odberatele = [];
+  if (!Array.isArray(d.top_vyrobky)) d.top_vyrobky = [];
+  if (!Array.isArray(d.vyroba_zitra)) d.vyroba_zitra = [];
+  if (!Array.isArray(d.nedavne)) d.nedavne = [];
+  if (!Array.isArray(d.nedavne_dl)) d.nedavne_dl = [];
+  if (!Array.isArray(d.nedavne_fa)) d.nedavne_fa = [];
+  if (!d.alerts || typeof d.alerts !== 'object') d.alerts = {};
+  if (!d.obdobi) d.obdobi = obdobi;
+  if (!d.dny_v_obdobi) d.dny_v_obdobi = 1;
+
   const c = document.getElementById('content');
 
   const obdobiLabel = {
