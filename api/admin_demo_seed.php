@@ -70,31 +70,47 @@ function demo_customers(): array {
 
 function demo_suroviny(): array {
     // 🆕 v2.9.271 — Rozšířené demo s reálnými velkoobchodními cenami (CZ 2024-2026).
-    // Každá surovina má i stock_min (pro upozornění "doobjednat") a poradi pro sortování.
-    // Naskladnění se počítá z `naskladnit_baleni` × `obsah_baleni`.
+    // 🆕 v2.9.298 — nutri = reálné USDA / EU food database hodnoty NA 100 g/ml
+    //   energie_kj, energie_kcal, tuky, tuky_nasycene, sacharidy, cukry, bilkoviny, sul
     return [
-        // 🌾 Mouky a krupice (jednotka g, balení 25 kg = 25000 g)
-        ['nazev' => 'Mouka pšeničná hladká T530', 'jednotka' => 'g',  'cena_baleni' => 360, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 8, 'stock_min' => 5000],
-        ['nazev' => 'Mouka pšeničná chlebová T1050', 'jednotka' => 'g', 'cena_baleni' => 340, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 6, 'stock_min' => 5000],
-        ['nazev' => 'Mouka žitná chlebová T960',   'jednotka' => 'g',  'cena_baleni' => 380, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 4, 'stock_min' => 3000],
-        ['nazev' => 'Špaldová mouka',               'jednotka' => 'g',  'cena_baleni' => 880, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 2, 'stock_min' => 2000],
+        // 🌾 Mouky a krupice
+        ['nazev' => 'Mouka pšeničná hladká T530', 'jednotka' => 'g', 'cena_baleni' => 360, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 8, 'stock_min' => 5000,
+         'nutri' => ['kj' => 1490, 'kcal' => 350, 'tuky' => 1.2, 'tuky_n' => 0.2, 'sach' => 73, 'cukry' => 1.0, 'bilk' => 10, 'sul' => 0.01]],
+        ['nazev' => 'Mouka pšeničná chlebová T1050', 'jednotka' => 'g', 'cena_baleni' => 340, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 6, 'stock_min' => 5000,
+         'nutri' => ['kj' => 1450, 'kcal' => 342, 'tuky' => 1.4, 'tuky_n' => 0.2, 'sach' => 70, 'cukry' => 1.5, 'bilk' => 11, 'sul' => 0.02]],
+        ['nazev' => 'Mouka žitná chlebová T960', 'jednotka' => 'g', 'cena_baleni' => 380, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 4, 'stock_min' => 3000,
+         'nutri' => ['kj' => 1400, 'kcal' => 330, 'tuky' => 1.5, 'tuky_n' => 0.2, 'sach' => 68, 'cukry' => 1.0, 'bilk' => 9, 'sul' => 0.02]],
+        ['nazev' => 'Špaldová mouka', 'jednotka' => 'g', 'cena_baleni' => 880, 'obsah_baleni' => 25000, 'alergen' => 'lepek', 'naskladnit_baleni' => 2, 'stock_min' => 2000,
+         'nutri' => ['kj' => 1470, 'kcal' => 347, 'tuky' => 2.4, 'tuky_n' => 0.4, 'sach' => 70, 'cukry' => 2.5, 'bilk' => 14, 'sul' => 0.02]],
         // 🧂 Sůl + droždí
-        ['nazev' => 'Sůl jedlá',                   'jednotka' => 'g',  'cena_baleni' => 65,  'obsah_baleni' => 25000, 'naskladnit_baleni' => 3, 'stock_min' => 2000],
-        ['nazev' => 'Droždí čerstvé pekařské',     'jednotka' => 'g',  'cena_baleni' => 95,  'obsah_baleni' => 1000,  'naskladnit_baleni' => 15, 'stock_min' => 1000],
-        ['nazev' => 'Kvásek žitný startér',         'jednotka' => 'g',  'cena_baleni' => 180, 'obsah_baleni' => 1000,  'naskladnit_baleni' => 5,  'stock_min' => 500],
+        ['nazev' => 'Sůl jedlá', 'jednotka' => 'g', 'cena_baleni' => 65, 'obsah_baleni' => 25000, 'naskladnit_baleni' => 3, 'stock_min' => 2000,
+         'nutri' => ['kj' => 0, 'kcal' => 0, 'tuky' => 0, 'tuky_n' => 0, 'sach' => 0, 'cukry' => 0, 'bilk' => 0, 'sul' => 99.9]],
+        ['nazev' => 'Droždí čerstvé pekařské', 'jednotka' => 'g', 'cena_baleni' => 95, 'obsah_baleni' => 1000, 'naskladnit_baleni' => 15, 'stock_min' => 1000,
+         'nutri' => ['kj' => 460, 'kcal' => 110, 'tuky' => 2, 'tuky_n' => 0.3, 'sach' => 12, 'cukry' => 0.5, 'bilk' => 14, 'sul' => 0.03]],
+        ['nazev' => 'Kvásek žitný startér', 'jednotka' => 'g', 'cena_baleni' => 180, 'obsah_baleni' => 1000, 'naskladnit_baleni' => 5, 'stock_min' => 500,
+         'nutri' => ['kj' => 870, 'kcal' => 205, 'tuky' => 1.0, 'tuky_n' => 0.2, 'sach' => 42, 'cukry' => 1.0, 'bilk' => 6, 'sul' => 0.02]],
         // 🧈 Tuky
-        ['nazev' => 'Máslo selské 82%',             'jednotka' => 'g',  'cena_baleni' => 75,  'obsah_baleni' => 250,   'alergen' => 'mléko',   'naskladnit_baleni' => 40, 'stock_min' => 2000],
-        ['nazev' => 'Margarín pekařský',            'jednotka' => 'g',  'cena_baleni' => 470, 'obsah_baleni' => 10000, 'naskladnit_baleni' => 2, 'stock_min' => 3000],
-        ['nazev' => 'Olej slunečnicový',            'jednotka' => 'ml', 'cena_baleni' => 250, 'obsah_baleni' => 5000,  'naskladnit_baleni' => 4, 'stock_min' => 2000],
+        ['nazev' => 'Máslo selské 82%', 'jednotka' => 'g', 'cena_baleni' => 75, 'obsah_baleni' => 250, 'alergen' => 'mléko', 'naskladnit_baleni' => 40, 'stock_min' => 2000,
+         'nutri' => ['kj' => 3060, 'kcal' => 744, 'tuky' => 82, 'tuky_n' => 56, 'sach' => 0.5, 'cukry' => 0.5, 'bilk' => 0.8, 'sul' => 0.02]],
+        ['nazev' => 'Margarín pekařský', 'jednotka' => 'g', 'cena_baleni' => 470, 'obsah_baleni' => 10000, 'naskladnit_baleni' => 2, 'stock_min' => 3000,
+         'nutri' => ['kj' => 2980, 'kcal' => 720, 'tuky' => 80, 'tuky_n' => 25, 'sach' => 0.5, 'cukry' => 0.3, 'bilk' => 0.2, 'sul' => 1.0]],
+        ['nazev' => 'Olej slunečnicový', 'jednotka' => 'ml', 'cena_baleni' => 250, 'obsah_baleni' => 5000, 'naskladnit_baleni' => 4, 'stock_min' => 2000,
+         'nutri' => ['kj' => 3700, 'kcal' => 900, 'tuky' => 100, 'tuky_n' => 11, 'sach' => 0, 'cukry' => 0, 'bilk' => 0, 'sul' => 0]],
         // 🥛 Mléčné
-        ['nazev' => 'Mléko polotučné 1,5%',         'jednotka' => 'ml', 'cena_baleni' => 28,  'obsah_baleni' => 1000,  'alergen' => 'mléko',   'naskladnit_baleni' => 30, 'stock_min' => 5000],
-        ['nazev' => 'Smetana 33% ke šlehání',       'jednotka' => 'ml', 'cena_baleni' => 65,  'obsah_baleni' => 1000,  'alergen' => 'mléko',   'naskladnit_baleni' => 10, 'stock_min' => 2000],
-        ['nazev' => 'Tvaroh měkký',                 'jednotka' => 'g',  'cena_baleni' => 78,  'obsah_baleni' => 500,   'alergen' => 'mléko',   'naskladnit_baleni' => 20, 'stock_min' => 2000],
-        ['nazev' => 'Sýr eidam',                    'jednotka' => 'g',  'cena_baleni' => 220, 'obsah_baleni' => 1000,  'alergen' => 'mléko',   'naskladnit_baleni' => 5,  'stock_min' => 1000],
-        // 🥚 Vejce
-        ['nazev' => 'Vejce slepičí M (1 ks ≈ 60 g)','jednotka' => 'ks', 'cena_baleni' => 240, 'obsah_baleni' => 60,    'alergen' => 'vejce',   'naskladnit_baleni' => 8,  'stock_min' => 30],
+        ['nazev' => 'Mléko polotučné 1,5%', 'jednotka' => 'ml', 'cena_baleni' => 28, 'obsah_baleni' => 1000, 'alergen' => 'mléko', 'naskladnit_baleni' => 30, 'stock_min' => 5000,
+         'nutri' => ['kj' => 200, 'kcal' => 48, 'tuky' => 1.5, 'tuky_n' => 1.0, 'sach' => 4.8, 'cukry' => 4.8, 'bilk' => 3.4, 'sul' => 0.1]],
+        ['nazev' => 'Smetana 33% ke šlehání', 'jednotka' => 'ml', 'cena_baleni' => 65, 'obsah_baleni' => 1000, 'alergen' => 'mléko', 'naskladnit_baleni' => 10, 'stock_min' => 2000,
+         'nutri' => ['kj' => 1350, 'kcal' => 326, 'tuky' => 33, 'tuky_n' => 22, 'sach' => 3.0, 'cukry' => 3.0, 'bilk' => 2.2, 'sul' => 0.07]],
+        ['nazev' => 'Tvaroh měkký', 'jednotka' => 'g', 'cena_baleni' => 78, 'obsah_baleni' => 500, 'alergen' => 'mléko', 'naskladnit_baleni' => 20, 'stock_min' => 2000,
+         'nutri' => ['kj' => 400, 'kcal' => 95, 'tuky' => 0.5, 'tuky_n' => 0.3, 'sach' => 3.5, 'cukry' => 3.5, 'bilk' => 18, 'sul' => 0.05]],
+        ['nazev' => 'Sýr eidam', 'jednotka' => 'g', 'cena_baleni' => 220, 'obsah_baleni' => 1000, 'alergen' => 'mléko', 'naskladnit_baleni' => 5, 'stock_min' => 1000,
+         'nutri' => ['kj' => 1490, 'kcal' => 358, 'tuky' => 28, 'tuky_n' => 18, 'sach' => 1.0, 'cukry' => 1.0, 'bilk' => 25, 'sul' => 1.7]],
+        // 🥚 Vejce (per ks ≈ 60 g)
+        ['nazev' => 'Vejce slepičí M (1 ks ≈ 60 g)', 'jednotka' => 'ks', 'cena_baleni' => 240, 'obsah_baleni' => 60, 'alergen' => 'vejce', 'naskladnit_baleni' => 8, 'stock_min' => 30,
+         'nutri' => ['kj' => 615, 'kcal' => 147, 'tuky' => 10, 'tuky_n' => 3.1, 'sach' => 1.0, 'cukry' => 0.4, 'bilk' => 13, 'sul' => 0.4]],
         // 🍬 Cukry + med
-        ['nazev' => 'Cukr krystal',                 'jednotka' => 'g',  'cena_baleni' => 1290,'obsah_baleni' => 50000, 'naskladnit_baleni' => 2, 'stock_min' => 5000],
+        ['nazev' => 'Cukr krystal', 'jednotka' => 'g', 'cena_baleni' => 1290, 'obsah_baleni' => 50000, 'naskladnit_baleni' => 2, 'stock_min' => 5000,
+         'nutri' => ['kj' => 1700, 'kcal' => 400, 'tuky' => 0, 'tuky_n' => 0, 'sach' => 100, 'cukry' => 100, 'bilk' => 0, 'sul' => 0]],
         ['nazev' => 'Cukr moučka',                  'jednotka' => 'g',  'cena_baleni' => 720, 'obsah_baleni' => 25000, 'naskladnit_baleni' => 2, 'stock_min' => 3000],
         ['nazev' => 'Cukr vanilkový',               'jednotka' => 'g',  'cena_baleni' => 95,  'obsah_baleni' => 1000,  'naskladnit_baleni' => 5, 'stock_min' => 500],
         ['nazev' => 'Med květový',                  'jednotka' => 'g',  'cena_baleni' => 1450,'obsah_baleni' => 5000,  'naskladnit_baleni' => 2, 'stock_min' => 1000],
@@ -933,6 +949,22 @@ if ($action === 'apply') {
                 ];
                 if ($hasStockAkt) { $fields[] = 'stock_aktualni'; $values['stock_aktualni'] = $naskladnit; }
                 if ($hasStockMin) { $fields[] = 'stock_minimalni'; $values['stock_minimalni'] = $stockMin; }
+
+                // 🆕 v2.9.298 — nutriční hodnoty (na 100 g/ml) — jen pokud surovina má `nutri`
+                if (!empty($s['nutri']) && is_array($s['nutri'])) {
+                    $nutriMap = [
+                        'kj' => 'nutri_energie_kj', 'kcal' => 'nutri_energie_kcal',
+                        'tuky' => 'nutri_tuky', 'tuky_n' => 'nutri_tuky_nasycene',
+                        'sach' => 'nutri_sacharidy', 'cukry' => 'nutri_cukry',
+                        'bilk' => 'nutri_bilkoviny', 'sul' => 'nutri_sul',
+                    ];
+                    foreach ($nutriMap as $shortKey => $col) {
+                        if (in_array($col, $surCols, true) && isset($s['nutri'][$shortKey])) {
+                            $fields[] = $col;
+                            $values[$col] = (float) $s['nutri'][$shortKey];
+                        }
+                    }
+                }
 
                 $colsSql = implode(', ', $fields);
                 $paramSql = ':' . implode(', :', $fields);

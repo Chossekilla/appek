@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.297';
+const APPEK_ADMIN_JS_VERSION = '2.9.298';
 
 (async function detectStaleCode() {
   try {
@@ -34896,31 +34896,50 @@ function vkRender() {
       <!-- PRAVÝ SLOUPEC: výroba + výsledek -->
       <div style="display:flex;flex-direction:column;gap:14px">
 
-        <!-- VÝROBA -->
+        <!-- VÝROBA — 🆕 v2.9.298 lépe vysvětlující výpočet -->
         <div class="card-block" style="background:#FFFAF1;border:1px solid #E8C988">
           <h3 style="margin:0 0 10px;font-size:15px;color:#854F0B">⚙️ Výroba</h3>
-          <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px dashed #E8C988">
-            <span>Hmotnost těsta:</span>
-            <strong>${totalKg.toFixed(2).replace('.', ',')} kg</strong>
+
+          <!-- INPUT 1: hmotnost těsta (ze surovin) -->
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 10px;background:#FFF8E5;border-radius:6px;margin-bottom:8px">
+            <span><strong>1. Hmotnost těsta</strong> <span style="color:var(--text-3);font-size:11px">(součet surovin)</span></span>
+            <strong style="color:#854F0B">${totalKg.toFixed(3).replace(/\.?0+$/, '').replace('.', ',')} kg</strong>
           </div>
-          <div style="display:flex;align-items:center;gap:6px;padding:8px 0">
-            <label class="form-label" style="margin:0;flex:1">Navážka presu (kg)</label>
+
+          <!-- INPUT 2: pres setup -->
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 0">
+            <label class="form-label" style="margin:0;flex:1">2. Navážka 1 presu (kg)</label>
             <input class="form-input" type="number" step="0.01" min="0" value="${vkState.pres_kg}" oninput="vkState.pres_kg = parseFloat(this.value)||0;vkRenderDebounced()" onblur="vkRenderNow()" style="width:90px;text-align:right">
           </div>
-          <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px dashed #E8C988">
-            <label class="form-label" style="margin:0;flex:1">Klonků z 1 presu</label>
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px dashed #E8C988;margin-bottom:8px">
+            <label class="form-label" style="margin:0;flex:1">3. Klonků z 1 presu</label>
             <input class="form-input" type="number" min="1" value="${vkState.klonku_z_presu}" oninput="vkState.klonku_z_presu = parseInt(this.value)||0;vkRenderDebounced()" onblur="vkRenderNow()" style="width:90px;text-align:right">
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0">
-            <span>Presů celkem:</span>
-            <strong>${presCount.toFixed(1).replace('.', ',')}</strong>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:14px;padding:8px 0;border-top:2px solid #E8C988;color:#854F0B">
-            <span><strong>Klonků (kusů) celkem:</strong></span>
-            <strong style="font-size:18px">${klonkuCelkem}</strong>
-          </div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:4px">
-            Klonek ≈ ${klonkuPresu > 0 ? (presKg * 1000 / klonkuPresu).toFixed(0) : 0} g
+
+          <!-- VÝPOČET — krok za krokem -->
+          ${presKg > 0 && klonkuPresu > 0 ? `
+            <div style="background:white;border:1px solid #E8C988;border-radius:6px;padding:10px 12px;font-size:12px;line-height:1.6;color:#854F0B">
+              <div style="margin-bottom:4px"><strong>Výpočet:</strong></div>
+              <div>📊 1 klonek = <strong>${(presKg * 1000 / klonkuPresu).toFixed(0)} g</strong> <span style="color:var(--text-3)">(${presKg} kg ÷ ${klonkuPresu} klonků)</span></div>
+              <div>📊 Presů z těsta = <strong>${presCount.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')}</strong> <span style="color:var(--text-3)">(${totalKg.toFixed(2).replace('.', ',')} kg ÷ ${presKg} kg)</span></div>
+              ${presCount < 1 && presCount > 0 ? `
+                <div style="color:#92400e;margin-top:4px;font-size:11px;font-weight:600">
+                  ⚠ Méně než 1 pres → reálně připravíš jen ${klonkuCelkem} klonků z této várky.
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+
+          <!-- VÝSLEDEK -->
+          <div style="background:#fff;border:2px solid #BA7517;border-radius:8px;padding:12px 14px;margin-top:10px;text-align:center">
+            <div style="font-size:11px;color:#854F0B;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Vyrobíš z této várky</div>
+            <div style="font-size:32px;font-weight:800;color:#854F0B;line-height:1">${klonkuCelkem}</div>
+            <div style="font-size:13px;color:#854F0B;margin-top:2px">klonků (kusů)</div>
+            ${klonkuCelkem > 0 ? `
+              <div style="font-size:11px;color:var(--text-3);margin-top:8px;padding-top:8px;border-top:1px dashed #E8C988">
+                ✓ ${klonkuCelkem} × ${klonkuPresu > 0 ? (presKg * 1000 / klonkuPresu).toFixed(0) : 0} g = ${(klonkuCelkem * (presKg * 1000 / klonkuPresu) / 1000).toFixed(2).replace('.', ',')} kg <span style="color:var(--text-3)">(zaokrouhleno dolů)</span>
+              </div>
+            ` : ''}
           </div>
         </div>
 
