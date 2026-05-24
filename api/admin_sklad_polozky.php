@@ -23,6 +23,133 @@ ensure_sklady_schema($pdo);
 ensure_sklad_polozky_schema($pdo);
 
 $method = $_SERVER['REQUEST_METHOD'];
+$action = $_GET['action'] ?? '';
+
+// ─── 🆕 v2.9.272 — GET ?action=compare → porovnání skladů (pivot položka × sklad) ──
+if ($method === 'GET' && $action === 'compare') {
+    $itemTyp = trim((string) ($_GET['item_typ'] ?? ''));
+    $jenAktivni = !empty($_GET['jen_aktivni']);
+    $jenSNeNulovymStavem = !empty($_GET['jen_se_stavem']);
+
+    try {
+        // 1. Načti všechny aktivní sklady (pořadí: aktivní DESC, poradi)
+        $sklady = $pdo->query("
+            SELECT id, kod, nazev, typ, aktivni
+            FROM sklady
+            " . ($jenAktivni ? "WHERE aktivni = 1" : "") . "
+            ORDER BY aktivni DESC, poradi, id
+        ")->fetchAll();
+
+        if (empty($sklady)) {
+            json_response(['sklady' => [], 'polozky' => [], 'sums' => ['per_sklad' => [], 'celkem_polozek' => 0]]);
+        }
+
+        $skladIds = array_column($sklady, 'id');
+
+        // 2. Načti všechny položky napříč sklady (s names + jednotka)
+        $whereTyp = $itemTyp && in_array($itemTyp, ['surovina', 'vyrobek'], true)
+            ? " AND sp.item_typ = " . $pdo->quote($itemTyp) : "";
+        $whereStav = $jenSNeNulovymStavem ? " AND sp.stav > 0" : "";
+
+        $rows = $pdo->query("
+            SELECT sp.sklad_id, sp.item_typ, sp.item_id, sp.stav, sp.min_stav, sp.cil_stav,
+                   CASE sp.item_typ
+                       WHEN 'surovina' THEN (SELECT nazev FROM suroviny WHERE id = sp.item_id LIMIT 1)
+                       WHEN 'vyrobek'  THEN (SELECT nazev FROM vyrobky  WHERE id = sp.item_id LIMIT 1)
+                   END AS nazev,
+                   CASE sp.item_typ
+                       WHEN 'surovina' THEN (SELECT jednotka FROM suroviny WHERE id = sp.item_id LIMIT 1)
+                       WHEN 'vyrobek'  THEN 'ks'
+                   END AS jednotka,
+                   CASE sp.item_typ
+                       WHEN 'surovina' THEN (SELECT cena_baleni FROM suroviny WHERE id = sp.item_id LIMIT 1)
+                       ELSE NULL END AS cena_baleni,
+                   CASE sp.item_typ
+                       WHEN 'surovina' THEN (SELECT obsah_baleni FROM suroviny WHERE id = sp.item_id LIMIT 1)
+                       ELSE NULL END AS obsah_baleni,
+                   CASE sp.item_typ
+                       WHEN 'vyrobek'  THEN (SELECT cislo FROM vyrobky WHERE id = sp.item_id LIMIT 1)
+                       ELSE NULL END AS cislo
+            FROM sklad_polozky sp
+            WHERE 1=1 {$whereTyp} {$whereStav}
+              AND sp.sklad_id IN (" . implode(',', array_map('intval', $skladIds)) . ")
+        ")->fetchAll();
+
+        // 3. Pivot: pro každou unique (item_typ, item_id) udělej řádek s stav per sklad
+        $itemMap = []; // key = item_typ:item_id → row
+        foreach ($rows as $r) {
+            $key = $r['item_typ'] . ':' . $r['item_id'];
+            if (!isset($itemMap[$key])) {
+                $itemMap[$key] = [
+                    'item_typ'     => $r['item_typ'],
+                    'item_id'      => (int) $r['item_id'],
+                    'nazev'        => $r['nazev'] ?? '(neznámý)',
+                    'jednotka'     => $r['jednotka'] ?? '',
+                    'cislo'        => $r['cislo'] ?? null,
+                    'cena_baleni'  => $r['cena_baleni'] !== null ? (float) $r['cena_baleni'] : null,
+                    'obsah_baleni' => $r['obsah_baleni'] !== null ? (float) $r['obsah_baleni'] : null,
+                    'stavy'        => array_fill_keys($skladIds, 0.0), // sklad_id → stav
+                    'celkem'       => 0.0,
+                    'min_stav_max' => null, // max min_stav napříč sklady (pro warning)
+                ];
+            }
+            $stav = (float) $r['stav'];
+            $itemMap[$key]['stavy'][(int) $r['sklad_id']] = $stav;
+            $itemMap[$key]['celkem'] += $stav;
+            if ($r['min_stav'] !== null) {
+                $m = (float) $r['min_stav'];
+                if ($itemMap[$key]['min_stav_max'] === null || $m > $itemMap[$key]['min_stav_max']) {
+                    $itemMap[$key]['min_stav_max'] = $m;
+                }
+            }
+        }
+
+        // 4. Per-sklad součty + hodnoty (suma stavů × cena_za_jed)
+        $perSklad = array_fill_keys($skladIds, ['pocet_polozek' => 0, 'celkem_stav' => 0.0, 'hodnota_kc' => 0.0]);
+        foreach ($itemMap as $item) {
+            $cenaJed = ($item['cena_baleni'] && $item['obsah_baleni'] && $item['obsah_baleni'] > 0)
+                ? $item['cena_baleni'] / $item['obsah_baleni'] : 0;
+            foreach ($item['stavy'] as $sid => $stav) {
+                if ($stav > 0) {
+                    $perSklad[$sid]['pocet_polozek']++;
+                    $perSklad[$sid]['celkem_stav'] += $stav;
+                    $perSklad[$sid]['hodnota_kc'] += $stav * $cenaJed;
+                }
+            }
+        }
+
+        // 5. Setřiď položky abecedně podle názvu
+        $items = array_values($itemMap);
+        usort($items, fn($a, $b) => strcmp($a['nazev'], $b['nazev']));
+
+        // 6. Hodnota položky celkem (across all skladu)
+        foreach ($items as &$it) {
+            $cenaJed = ($it['cena_baleni'] && $it['obsah_baleni'] && $it['obsah_baleni'] > 0)
+                ? $it['cena_baleni'] / $it['obsah_baleni'] : 0;
+            $it['hodnota_kc'] = round($it['celkem'] * $cenaJed, 2);
+            $it['pod_minimem'] = $it['min_stav_max'] !== null && $it['celkem'] <= $it['min_stav_max'];
+        }
+        unset($it);
+
+        json_response([
+            'sklady'   => $sklady,
+            'polozky'  => $items,
+            'sums'     => [
+                'per_sklad'      => $perSklad,
+                'celkem_polozek' => count($items),
+                'hodnota_celkem' => round(array_sum(array_column($perSklad, 'hodnota_kc')), 2),
+            ],
+            'meta' => [
+                'item_typ_filter'      => $itemTyp ?: 'vse',
+                'jen_aktivni'          => $jenAktivni,
+                'jen_se_stavem'        => $jenSNeNulovymStavem,
+            ],
+        ]);
+    } catch (Throwable $e) {
+        error_log('admin_sklad_polozky compare: ' . $e->getMessage());
+        json_error('Chyba porovnání: ' . $e->getMessage(), 500);
+    }
+}
 
 // ─── GET — list per sklad / per item ────────────────────────────
 if ($method === 'GET') {

@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.271';
+const APPEK_ADMIN_JS_VERSION = '2.9.272';
 
 (async function detectStaleCode() {
   try {
@@ -5573,7 +5573,10 @@ async function renderSkladyInline() {
           <p style="font-size:13px;color:var(--text-3);margin:2px 0 0">${sklady.length} ${sklady.length === 1 ? 'sklad' : (sklady.length >= 2 && sklady.length <= 4 ? 'sklady' : 'skladů')} · ${sklady.filter(s => s.aktivni).length} aktivních</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <!-- 🆕 v2.9.272 — Quick přesun mezi sklady -->
+          ${sklady.filter(s => s.aktivni).length >= 2 ? `<button class="btn-secondary" onclick="otevritPresunPolozky()" style="padding:10px 16px;font-size:14px" title="Přesunout položku mezi sklady (atomická transakce)">🔄 Přesun</button>` : ''}
           <!-- 🆕 v2.9.239 — Správa exportů & inventur (panel s 2 taby per-sklad) -->
+          <button class="btn-secondary" onclick="otevritSpravuExportu();setTimeout(()=>{state._spravaTab='porovnani';spravaRender()},100)" style="padding:10px 16px;font-size:14px" title="Pivot tabulka stavů napříč všemi sklady">📊 Porovnání</button>
           <button class="btn-secondary" onclick="otevritSpravuExportu()" style="padding:10px 16px;font-size:14px" title="Hromadné exporty + provedení inventury pro všechny sklady">📤 Export & inventura</button>
           <button class="btn-primary btn-green" onclick="editSklad()" style="padding:10px 18px;font-size:14px;font-weight:700">+ Nový sklad</button>
         </div>
@@ -5786,6 +5789,12 @@ async function spravaRender() {
           <span class="seg-tab-icon">📝</span>
           <span class="seg-tab-text">Inventura</span>
         </button>
+        <!-- 🆕 v2.9.272 — Porovnání skladů (pivot tabulka + součty) -->
+        <button type="button" role="tab" class="seg-tab ${aktTab === 'porovnani' ? 'active' : ''}"
+                onclick="state._spravaTab='porovnani';spravaRender()" aria-selected="${aktTab === 'porovnani'}">
+          <span class="seg-tab-icon">📊</span>
+          <span class="seg-tab-text">Porovnání</span>
+        </button>
       </div>
 
       <div id="sprava-tab-body"></div>
@@ -5825,7 +5834,7 @@ async function spravaRender() {
           `).join('')}
         </div>
       `;
-    } else {
+    } else if (aktTab === 'inventura') {
       // ─── INVENTURA TAB ────────────────────────────────────
       const skladId = state._spravaSkladId || sklady[0].id;
       state._spravaSkladId = skladId;
@@ -5849,11 +5858,349 @@ async function spravaRender() {
 
         <div id="sprava-inventura-form"></div>
       `;
+    } else {
+      // ─── 🆕 v2.9.272 — POROVNÁNÍ SKLADŮ (pivot položka × sklad) ──────────────
+      tabBody.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer;padding:6px 10px;background:var(--surface-2);border-radius:8px">
+              <input type="checkbox" id="porovTypFilter" style="width:16px;height:16px;cursor:pointer" onchange="spravaPorovnaniRender()">
+              <span>Jen výrobky (skrýt suroviny)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer;padding:6px 10px;background:var(--surface-2);border-radius:8px">
+              <input type="checkbox" id="porovStavFilter" checked style="width:16px;height:16px;cursor:pointer" onchange="spravaPorovnaniRender()">
+              <span>Jen s nenulovým stavem</span>
+            </label>
+          </div>
+          <button class="btn-primary btn-green" onclick="otevritPresunPolozky()" style="padding:10px 18px;font-size:13px;font-weight:700">🔄 Přesun mezi sklady</button>
+        </div>
+        <div id="sprava-porovnani-data"><div class="empty-state" style="padding:40px">⏳ Načítám…</div></div>
+      `;
+      // Po vyrenderování formuláře načti data
+      spravaPorovnaniRender();
     }
   } catch (e) {
     body.innerHTML = `<div style="background:#fde7e9;color:#a8232f;padding:14px;border-radius:8px">❌ Chyba: ${esc(e.message)}</div>`;
   }
 }
+
+// 🆕 v2.9.272 — Porovnání skladů: pivot tabulka položka × sklad + součty
+window.spravaPorovnaniRender = async function() {
+  const host = document.getElementById('sprava-porovnani-data');
+  if (!host) return;
+  const jenVyrobky = document.getElementById('porovTypFilter')?.checked;
+  const jenSStavem = document.getElementById('porovStavFilter')?.checked;
+  const typParam = jenVyrobky ? '&item_typ=vyrobek' : '';
+  const stavParam = jenSStavem ? '&jen_se_stavem=1' : '';
+  host.innerHTML = '<div class="empty-state" style="padding:40px">⏳ Načítám…</div>';
+
+  try {
+    const r = await api('admin_sklad_polozky.php?action=compare&jen_aktivni=1' + typParam + stavParam);
+    const sklady = r.sklady || [];
+    const polozky = r.polozky || [];
+    const perSklad = r.sums?.per_sklad || {};
+    const hodnotaCelkem = r.sums?.hodnota_celkem || 0;
+
+    if (sklady.length === 0) {
+      host.innerHTML = '<div class="empty-state" style="padding:40px">Žádné aktivní sklady</div>';
+      return;
+    }
+    if (polozky.length === 0) {
+      host.innerHTML = `
+        <div class="empty-state" style="padding:40px">
+          ${jenSStavem ? 'Žádné položky s nenulovým stavem.' : 'Žádné položky ve skladech.'}
+          ${jenSStavem ? '<br><button class="btn-secondary" onclick="document.getElementById(\'porovStavFilter\').checked=false;spravaPorovnaniRender()" style="margin-top:10px;font-size:12px;padding:6px 12px">Zobrazit i prázdné</button>' : ''}
+        </div>`;
+      return;
+    }
+
+    const typIcon = { suchy: '📦', lednice: '❄️', mrazak: '🧊', jiny: '🏭' };
+    const fmtStav = (n) => {
+      const v = parseFloat(n) || 0;
+      if (v === 0) return '<span style="color:var(--text-3)">—</span>';
+      const s = v >= 100 ? v.toFixed(0) : v.toFixed(2).replace(/\.?0+$/, '');
+      return `<strong>${s}</strong>`;
+    };
+
+    host.innerHTML = `
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">
+        <table class="table" style="margin:0;font-size:13px;min-width:${300 + sklady.length * 120}px">
+          <thead>
+            <tr style="background:var(--surface-2)">
+              <th style="position:sticky;left:0;background:var(--surface-2);z-index:2;min-width:240px">Položka</th>
+              <th style="text-align:center;width:60px">Typ</th>
+              ${sklady.map(s => `
+                <th class="num" style="min-width:110px" title="${esc(s.nazev)}">
+                  <div style="font-size:11px;font-weight:700">${typIcon[s.typ] || '🏭'} ${esc(s.kod)}</div>
+                  <div style="font-size:10px;color:var(--text-3);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${esc(s.nazev)}</div>
+                </th>
+              `).join('')}
+              <th class="num" style="background:#FFF8F0;min-width:110px;border-left:2px solid #F0D9B8">
+                <div style="font-size:11px;font-weight:700;color:#854F0B">Σ CELKEM</div>
+                <div style="font-size:10px;color:#854F0B;font-weight:400">napříč sklady</div>
+              </th>
+              <th class="num" style="min-width:90px">Hodnota</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${polozky.map(p => `
+              <tr ${p.pod_minimem ? 'style="background:#FEF3C7"' : ''}>
+                <td style="position:sticky;left:0;background:${p.pod_minimem ? '#FEF3C7' : '#fff'};z-index:1">
+                  <strong>${esc(p.nazev)}</strong>
+                  ${p.cislo ? `<div style="font-size:11px;color:var(--text-3);font-family:monospace">${esc(p.cislo)}</div>` : ''}
+                  ${p.pod_minimem ? '<div style="font-size:10px;color:#991B1B;font-weight:600">⚠ pod minimem</div>' : ''}
+                </td>
+                <td style="text-align:center;color:var(--text-3);font-size:11px">
+                  ${p.item_typ === 'surovina' ? '🌾' : '📦'}
+                </td>
+                ${sklady.map(s => {
+                  const stav = (p.stavy && p.stavy[s.id]) || 0;
+                  return `<td class="num" style="font-variant-numeric:tabular-nums">${fmtStav(stav)} ${stav > 0 ? `<span style="color:var(--text-3);font-size:11px">${esc(p.jednotka || '')}</span>` : ''}</td>`;
+                }).join('')}
+                <td class="num" style="background:#FFFBEB;font-variant-numeric:tabular-nums;border-left:2px solid #F0D9B8">
+                  <strong style="color:#854F0B;font-size:14px">${p.celkem > 0 ? p.celkem.toFixed(p.celkem >= 100 ? 0 : 2).replace(/\.?0+$/, '') : '—'}</strong>
+                  ${p.celkem > 0 ? `<span style="color:#854F0B;font-size:11px"> ${esc(p.jednotka || '')}</span>` : ''}
+                </td>
+                <td class="num" style="font-variant-numeric:tabular-nums;font-size:12px">
+                  ${p.hodnota_kc > 0 ? `<strong>${Math.round(p.hodnota_kc).toLocaleString('cs-CZ')}</strong> <span style="color:var(--text-3);font-size:11px">Kč</span>` : '<span style="color:var(--text-3)">—</span>'}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="background:#F1F5F9;border-top:2px solid var(--border)">
+              <td style="position:sticky;left:0;background:#F1F5F9"><strong>Σ Položek</strong></td>
+              <td style="text-align:center;color:var(--text-3)">—</td>
+              ${sklady.map(s => {
+                const ps = perSklad[s.id] || { pocet_polozek: 0, hodnota_kc: 0 };
+                return `
+                  <td class="num" style="font-size:12px;color:var(--text-2)">
+                    <strong>${ps.pocet_polozek}×</strong>
+                    <div style="font-size:10px;color:var(--text-3);font-weight:400">${Math.round(ps.hodnota_kc).toLocaleString('cs-CZ')} Kč</div>
+                  </td>
+                `;
+              }).join('')}
+              <td class="num" style="background:#FFF8F0;border-left:2px solid #F0D9B8">
+                <strong style="color:#854F0B">${polozky.length}</strong>
+                <div style="font-size:10px;color:#854F0B;font-weight:400">unikátních</div>
+              </td>
+              <td class="num" style="font-size:13px">
+                <strong style="color:#854F0B">${Math.round(hodnotaCelkem).toLocaleString('cs-CZ')} Kč</strong>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <p style="font-size:11.5px;color:var(--text-3);margin:12px 0 0;line-height:1.5">
+        💡 Pivot zobrazuje stav každé položky ve všech aktivních skladech. Σ CELKEM = součet napříč sklady. Hodnota = stav × cena_baleni / obsah_baleni (jen pro suroviny s nastavenými cenami). Klikni <strong>🔄 Přesun mezi sklady</strong> pro přesun položek.
+      </p>
+    `;
+  } catch (e) {
+    host.innerHTML = `<div style="background:#fde7e9;color:#a8232f;padding:14px;border-radius:8px">❌ ${esc(e.message)}</div>`;
+  }
+};
+
+// 🆕 v2.9.272 — Modal pro přesun položky mezi sklady (využívá existing API admin_sklad_pohyby.php?action=presun)
+window.otevritPresunPolozky = async function(predvybranaPolozka) {
+  // Načti aktivní sklady + položky (s aktuálním stavem) pro výběr
+  try {
+    const [sklRes, comparison] = await Promise.all([
+      api('admin_sklady.php'),
+      api('admin_sklad_polozky.php?action=compare&jen_aktivni=1&jen_se_stavem=1'),
+    ]);
+    const sklady = (sklRes.sklady || []).filter(s => s.aktivni);
+    const polozky = comparison.polozky || [];
+
+    if (sklady.length < 2) {
+      return alert('Pro přesun jsou potřeba alespoň 2 aktivní sklady.\n\nVytvoř další sklad ve Výroba → Sklady.');
+    }
+    if (polozky.length === 0) {
+      return alert('Žádné položky s nenulovým stavem k přesunu.');
+    }
+
+    const typIcon = { suchy: '📦', lednice: '❄️', mrazak: '🧊', jiny: '🏭' };
+    const predvybrana = predvybranaPolozka || null;
+
+    openModal('🔄 Přesun položky mezi sklady', `
+      <form id="presun-form" onsubmit="event.preventDefault();ulozitPresun()" style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label class="form-label">Položka *</label>
+          <select class="form-select" id="presun-polozka" required onchange="presunZmenaPolozky()">
+            <option value="">— vyber položku —</option>
+            ${polozky.map(p => {
+              const key = p.item_typ + ':' + p.item_id;
+              const selected = predvybrana && (predvybrana === key) ? 'selected' : '';
+              return `<option value="${key}" data-jed="${esc(p.jednotka || '')}" ${selected}>
+                ${p.item_typ === 'surovina' ? '🌾' : '📦'} ${esc(p.nazev)} ${p.cislo ? '(' + esc(p.cislo) + ')' : ''} · celkem ${p.celkem.toFixed(2).replace(/\.?0+$/, '')} ${esc(p.jednotka || '')}
+              </option>`;
+            }).join('')}
+          </select>
+        </div>
+
+        <div id="presun-stavy-info" style="display:none;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;padding:10px 12px;font-size:12px;color:#0C4A6E">
+          ⏳
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label class="form-label">🔻 Ze skladu (zdroj) *</label>
+            <select class="form-select" id="presun-z" required onchange="presunPocitejMax()">
+              <option value="">— zdroj —</option>
+              ${sklady.map(s => `<option value="${s.id}">${typIcon[s.typ] || '🏭'} ${esc(s.kod)} · ${esc(s.nazev)}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">🔺 Do skladu (cíl) *</label>
+            <select class="form-select" id="presun-do" required>
+              <option value="">— cíl —</option>
+              ${sklady.map(s => `<option value="${s.id}">${typIcon[s.typ] || '🏭'} ${esc(s.kod)} · ${esc(s.nazev)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label">Množství *</label>
+          <div style="display:flex;gap:6px;align-items:stretch">
+            <input class="form-input" id="presun-mn" type="number" step="0.001" min="0.001" required placeholder="0" style="flex:1;font-size:16px;font-weight:600">
+            <span id="presun-jed" style="display:flex;align-items:center;padding:0 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-weight:700;color:var(--text-2);min-width:50px">—</span>
+            <button type="button" class="btn-secondary" onclick="presunVse()" style="font-size:11px;padding:6px 10px;white-space:nowrap" title="Přesunout VŠE ze zdrojového skladu">↦ Vše</button>
+          </div>
+          <div id="presun-max-info" style="font-size:11px;color:var(--text-3);margin-top:4px"></div>
+        </div>
+
+        <div>
+          <label class="form-label">Poznámka <span style="color:var(--text-3);font-weight:400;font-size:11px">(volitelné — důvod přesunu)</span></label>
+          <textarea class="form-input" id="presun-pozn" rows="2" placeholder="např: rotace zásob, doplnění do lednice…"></textarea>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+          <button type="button" class="btn-secondary" onclick="closeModal()">Zrušit</button>
+          <button type="submit" class="btn-primary btn-green" style="font-weight:700">🔄 Provést přesun</button>
+        </div>
+      </form>
+    `);
+
+    // Cache pro presun helpers
+    state._presunPolozky = polozky;
+    state._presunSklady = sklady;
+    if (predvybrana) {
+      setTimeout(() => presunZmenaPolozky(), 50);
+    }
+  } catch (e) {
+    alert('Chyba načtení dat pro přesun: ' + e.message);
+  }
+};
+
+// Reload stav info když user změní položku
+window.presunZmenaPolozky = function() {
+  const sel = document.getElementById('presun-polozka');
+  const key = sel?.value;
+  if (!key) {
+    document.getElementById('presun-stavy-info').style.display = 'none';
+    document.getElementById('presun-jed').textContent = '—';
+    return;
+  }
+  const [typ, idStr] = key.split(':');
+  const id = parseInt(idStr, 10);
+  const p = (state._presunPolozky || []).find(x => x.item_typ === typ && x.item_id === id);
+  if (!p) return;
+
+  // Update jednotka v UI
+  const jed = p.jednotka || '';
+  document.getElementById('presun-jed').textContent = jed || '—';
+
+  // Stavy per sklad — zobraz info box
+  const sklady = state._presunSklady || [];
+  const stavyArr = sklady.filter(s => (p.stavy && p.stavy[s.id]) > 0).map(s => {
+    const stav = p.stavy[s.id];
+    return `<strong>${esc(s.kod)}</strong>: ${stav.toFixed(2).replace(/\.?0+$/, '')} ${esc(jed)}`;
+  });
+  const info = document.getElementById('presun-stavy-info');
+  info.innerHTML = stavyArr.length > 0
+    ? `📍 Stavy: ${stavyArr.join(' · ')}`
+    : '⚠ Položka má všude nulový stav';
+  info.style.display = 'block';
+
+  presunPocitejMax();
+};
+
+// Recompute max množství na základě zdroje
+window.presunPocitejMax = function() {
+  const sel = document.getElementById('presun-polozka');
+  const key = sel?.value;
+  const zId = parseInt(document.getElementById('presun-z')?.value || '0', 10);
+  if (!key || !zId) {
+    document.getElementById('presun-max-info').textContent = '';
+    document.getElementById('presun-mn').max = '';
+    return;
+  }
+  const [typ, idStr] = key.split(':');
+  const id = parseInt(idStr, 10);
+  const p = (state._presunPolozky || []).find(x => x.item_typ === typ && x.item_id === id);
+  if (!p) return;
+  const stav = (p.stavy && p.stavy[zId]) || 0;
+  const info = document.getElementById('presun-max-info');
+  document.getElementById('presun-mn').max = stav > 0 ? stav : '';
+  if (stav === 0) {
+    info.innerHTML = '<span style="color:#991B1B">⚠ Ve zdrojovém skladu není žádný stav</span>';
+  } else {
+    info.innerHTML = `📦 Maximum: <strong>${stav.toFixed(2).replace(/\.?0+$/, '')}</strong> ${esc(p.jednotka || '')}`;
+  }
+};
+
+window.presunVse = function() {
+  const sel = document.getElementById('presun-polozka');
+  const key = sel?.value;
+  const zId = parseInt(document.getElementById('presun-z')?.value || '0', 10);
+  if (!key || !zId) return alert('Vyber nejdřív položku a zdrojový sklad');
+  const [typ, idStr] = key.split(':');
+  const id = parseInt(idStr, 10);
+  const p = (state._presunPolozky || []).find(x => x.item_typ === typ && x.item_id === id);
+  if (!p) return;
+  const stav = (p.stavy && p.stavy[zId]) || 0;
+  if (stav <= 0) return alert('Ve zdrojovém skladu není co přesunout');
+  document.getElementById('presun-mn').value = stav;
+};
+
+window.ulozitPresun = async function() {
+  const sel = document.getElementById('presun-polozka');
+  const key = sel?.value;
+  const zId = parseInt(document.getElementById('presun-z')?.value || '0', 10);
+  const doId = parseInt(document.getElementById('presun-do')?.value || '0', 10);
+  const mn = parseFloat(document.getElementById('presun-mn')?.value || '0');
+  const pozn = document.getElementById('presun-pozn')?.value?.trim() || '';
+
+  if (!key) return alert('Vyber položku');
+  if (!zId || !doId) return alert('Vyber oba sklady');
+  if (zId === doId) return alert('Zdrojový a cílový sklad musí být různé');
+  if (!mn || mn <= 0) return alert('Zadej množství > 0');
+
+  const [typ, idStr] = key.split(':');
+  const id = parseInt(idStr, 10);
+
+  try {
+    const r = await api('admin_sklad_pohyby.php?action=presun', {
+      method: 'POST',
+      body: JSON.stringify({
+        sklad_id_z: zId,
+        sklad_id_do: doId,
+        item_typ: typ,
+        item_id: id,
+        mnozstvi: mn,
+        poznamka: pozn || null,
+      }),
+    });
+    closeModal();
+    alert(`✓ Přesunuto ${mn} jednotek.\n\nZdroj: ${r.stav_z}\nCíl: ${r.stav_do}`);
+    // Refresh porovnání pokud je modal otevřený
+    if (state._spravaTab === 'porovnani' && typeof spravaPorovnaniRender === 'function') {
+      setTimeout(() => spravaPorovnaniRender(), 200);
+    }
+  } catch (e) {
+    alert('Chyba přesunu: ' + e.message);
+  }
+};
 
 window.spravaExport = function(skladId, format) {
   const sPohyby = document.getElementById('sprava-pohyby')?.checked ? '&pohyby=1' : '';
