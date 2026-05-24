@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.275';
+const APPEK_ADMIN_JS_VERSION = '2.9.276';
 
 (async function detectStaleCode() {
   try {
@@ -3893,7 +3893,16 @@ async function renderDashboard(filters = {}) {
             <canvas id="dashboard-revenue-chart"></canvas>
           </div>
         </div>
-      ` : ''}
+      ` : `
+        <div class="card-block dashboard-compact" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 20px;min-height:240px">
+          <div style="font-size:42px;margin-bottom:10px;opacity:0.4">📈</div>
+          <h3 style="margin:0 0 8px;font-size:15px">Graf tržeb ${obdobiLabel}</h3>
+          <p style="font-size:12px;color:var(--text-3);margin:0 0 14px;max-width:280px;line-height:1.5">
+            Zatím málo dat (${d.casovy_graf.length === 0 ? 'žádné' : '1'} den objednávek). Graf se vyrenderuje po 2+ dnech aktivity.
+          </p>
+          ${isSuperAdmin() ? `<button class="btn-secondary" onclick="openDemoSeed()" style="font-size:12px;padding:8px 14px">🎬 Naplnit demo daty</button>` : ''}
+        </div>
+      `}
 
       <div class="card-block dashboard-compact">
         <h3>👥 Top odběratelé ${obdobiLabel}</h3>

@@ -520,6 +520,169 @@ if ($action === 'apply') {
             }
         }
 
+        // 🆕 v2.9.276 — HISTORIE OBJEDNÁVEK pro grafy/sparkliny/top odběratele
+        // Vytvoří 10-12 objednávek napříč posledních 14 dní, různí odběratelé, variabilní výrobky.
+        // Idempotentní: pokud už je >=5 objednávek za posledních 14 dní, přeskočí.
+        $stats['historie_objednavky'] = 0;
+        $stats['historie_dl'] = 0;
+        $stats['historie_faktury'] = 0;
+        try {
+            $cnt14 = (int) $pdo->query("
+                SELECT COUNT(*) FROM objednavky
+                WHERE datum_objednani >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+            ")->fetchColumn();
+
+            if ($cnt14 < 5) {
+                // Načti aktivní výrobky + odběratele
+                $vyrobkyPool = $pdo->query("
+                    SELECT v.id, v.nazev, v.cislo, v.cena_bez_dph, v.jednotka_id, v.sazba_dph_id,
+                           j.kod AS jednotka_kod, s.sazba AS dph_sazba
+                    FROM vyrobky v
+                    LEFT JOIN jednotky j ON j.id = v.jednotka_id
+                    LEFT JOIN sazby_dph s ON s.id = v.sazba_dph_id
+                    WHERE v.aktivni = 1
+                    ORDER BY v.id LIMIT 10
+                ")->fetchAll();
+
+                $odbStmt = $pdo->query("
+                    SELECT id, nazev FROM odberatele
+                    WHERE COALESCE(aktivni, 1) = 1
+                      AND nazev != 'POS Walk-in'
+                    ORDER BY id LIMIT 8
+                ");
+                $odberatelePool = $odbStmt->fetchAll();
+
+                if (!empty($vyrobkyPool) && !empty($odberatelePool)) {
+                    $rok = (int) date('Y');
+                    // Distribuce: poslední 14 dnů, peak Po-Pá (přeskočit některé víkendy)
+                    // Vytvoříme ~10 objednávek s mezerami pro reálnou křivku
+                    $offsets = [13, 12, 10, 9, 8, 7, 5, 4, 3, 2, 1, 0]; // 12 dnů s daty
+                    shuffle($vyrobkyPool); // pomocné — různé výrobky v každé objednávce
+
+                    foreach ($offsets as $dayOffset) {
+                        try {
+                            $datum = date('Y-m-d', strtotime("-{$dayOffset} days"));
+                            $datumDodani = date('Y-m-d', strtotime("-{$dayOffset} days +1 day"));
+
+                            // Pro každý den 1 objednávka, ale občas 2 (peak)
+                            $orderCount = ($dayOffset % 3 === 0) ? 2 : 1;
+
+                            for ($oi = 0; $oi < $orderCount; $oi++) {
+                                $odb = $odberatelePool[($dayOffset + $oi) % count($odberatelePool)];
+
+                                // Pseudo-random výběr 3-5 výrobků
+                                $startIdx = ($dayOffset * 2 + $oi) % count($vyrobkyPool);
+                                $itemCount = 3 + ($dayOffset % 3); // 3-5 položek
+                                $polozkyData = [];
+                                $bezDph = 0.0; $dphSum = 0.0;
+                                for ($i = 0; $i < $itemCount && $i < count($vyrobkyPool); $i++) {
+                                    $v = $vyrobkyPool[($startIdx + $i) % count($vyrobkyPool)];
+                                    $mn = [2, 3, 4, 5, 6, 8, 10, 12][($dayOffset + $i) % 8];
+                                    $cena = (float) $v['cena_bez_dph'];
+                                    $dph = (float) ($v['dph_sazba'] ?? 12);
+                                    $polozkyData[] = [
+                                        'vyrobek_id' => $v['id'], 'nazev' => $v['nazev'],
+                                        'mnozstvi' => $mn, 'jednotka' => $v['jednotka_kod'] ?? 'ks',
+                                        'cena_bez_dph' => $cena, 'sazba_dph' => $dph,
+                                    ];
+                                    $bezDph += $cena * $mn;
+                                    $dphSum += $cena * $mn * ($dph / 100);
+                                }
+                                $celkem = round($bezDph + $dphSum, 2);
+
+                                // Stav: starší jsou „dorucena"/„zaplacena", novější „nova"/„potvrzena"
+                                $stav = $dayOffset > 7 ? 'dorucena' : ($dayOffset > 2 ? 'potvrzena' : 'nova');
+
+                                $cisloObjH = dalsi_cislo($pdo, 'OBJ', $rok);
+                                $pdo->prepare("
+                                    INSERT INTO objednavky (cislo, typ, odberatel_id, datum_objednani, datum_dodani, stav, castka_bez_dph, castka_dph, castka_celkem, poznamka)
+                                    VALUES (:c, 'standard', :oid, :do, :dd, :st, :bdz, :dph, :ce, :pz)
+                                ")->execute([
+                                    'c' => $cisloObjH, 'oid' => $odb['id'],
+                                    'do' => $datum, 'dd' => $datumDodani, 'st' => $stav,
+                                    'bdz' => round($bezDph, 2), 'dph' => round($dphSum, 2), 'ce' => $celkem,
+                                    'pz' => '🎬 Demo historie — automaticky vygenerováno pro grafy.',
+                                ]);
+                                $objHId = (int) $pdo->lastInsertId();
+
+                                foreach ($polozkyData as $p) {
+                                    $pdo->prepare("
+                                        INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, mnozstvi, jednotka, cena_bez_dph, sazba_dph)
+                                        VALUES (:oid, :vid, :vn, :mn, :j, :cb, :sd)
+                                    ")->execute([
+                                        'oid' => $objHId, 'vid' => $p['vyrobek_id'], 'vn' => $p['nazev'],
+                                        'mn' => $p['mnozstvi'], 'j' => $p['jednotka'],
+                                        'cb' => $p['cena_bez_dph'], 'sd' => $p['sazba_dph'],
+                                    ]);
+                                }
+                                $stats['historie_objednavky']++;
+
+                                // Starší 4+ dny → vytvoř DL + fakturu (kompletní cyklus)
+                                if ($dayOffset >= 4) {
+                                    try {
+                                        $cisloDlH = dalsi_cislo($pdo, 'DL', $rok);
+                                        $pdo->prepare("
+                                            INSERT INTO dodaci_listy (cislo, objednavka_id, odberatel_id, datum_vystaveni, datum_dodani, castka_celkem, poznamka)
+                                            VALUES (:c, :oid, :odb, :dv, :dd, :ce, :pz)
+                                        ")->execute([
+                                            'c' => $cisloDlH, 'oid' => $objHId, 'odb' => $odb['id'],
+                                            'dv' => $datumDodani, 'dd' => $datumDodani, 'ce' => $celkem,
+                                            'pz' => 'Demo historie DL (z OBJ ' . $cisloObjH . ').',
+                                        ]);
+                                        $dlHId = (int) $pdo->lastInsertId();
+                                        foreach ($polozkyData as $p) {
+                                            $pdo->prepare("
+                                                INSERT INTO dodaci_list_polozky (dodaci_list_id, vyrobek_id, vyrobek_nazev, mnozstvi, jednotka, cena_bez_dph, sazba_dph)
+                                                VALUES (:dl, :vid, :vn, :mn, :j, :cb, :sd)
+                                            ")->execute([
+                                                'dl' => $dlHId, 'vid' => $p['vyrobek_id'], 'vn' => $p['nazev'],
+                                                'mn' => $p['mnozstvi'], 'j' => $p['jednotka'],
+                                                'cb' => $p['cena_bez_dph'], 'sd' => $p['sazba_dph'],
+                                            ]);
+                                        }
+                                        $stats['historie_dl']++;
+
+                                        // 2/3 dostanou fakturu
+                                        if ($dayOffset >= 5 && ($dayOffset % 2 === 0)) {
+                                            $cisloFaH = dalsi_cislo($pdo, 'FA', $rok);
+                                            $varSymH = preg_replace('/\D/', '', $cisloFaH);
+                                            $datumSplatH = date('Y-m-d', strtotime($datumDodani . ' +14 days'));
+                                            $pdo->prepare("
+                                                INSERT INTO faktury (cislo, odberatel_id, datum_vystaveni, datum_splatnosti, datum_dph, castka_bez_dph, castka_dph, castka_celkem, variabilni_symbol, poznamka)
+                                                VALUES (:c, :odb, :dv, :ds, :ddph, :bdz, :dph, :ce, :vs, :pz)
+                                            ")->execute([
+                                                'c' => $cisloFaH, 'odb' => $odb['id'],
+                                                'dv' => $datumDodani, 'ds' => $datumSplatH, 'ddph' => $datumDodani,
+                                                'bdz' => round($bezDph, 2), 'dph' => round($dphSum, 2), 'ce' => $celkem,
+                                                'vs' => $varSymH,
+                                                'pz' => 'Demo historie faktura.',
+                                            ]);
+                                            $faHId = (int) $pdo->lastInsertId();
+                                            foreach ($polozkyData as $idx => $p) {
+                                                $pdo->prepare("
+                                                    INSERT INTO faktura_polozky (faktura_id, vyrobek_id, vyrobek_nazev, mnozstvi, jednotka, cena_bez_dph, sazba_dph, poradi)
+                                                    VALUES (:fa, :vid, :vn, :mn, :j, :cb, :sd, :po)
+                                                ")->execute([
+                                                    'fa' => $faHId, 'vid' => $p['vyrobek_id'], 'vn' => $p['nazev'],
+                                                    'mn' => $p['mnozstvi'], 'j' => $p['jednotka'],
+                                                    'cb' => $p['cena_bez_dph'], 'sd' => $p['sazba_dph'], 'po' => $idx + 1,
+                                                ]);
+                                            }
+                                            $stats['historie_faktury']++;
+                                        }
+                                    } catch (Throwable $e) { /* DL/FA optional */ }
+                                }
+                            }
+                        } catch (Throwable $e) {
+                            $stats['errors'][] = "Historie den -{$dayOffset}: " . $e->getMessage();
+                        }
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            $stats['errors'][] = 'Historie objednávek: ' . $e->getMessage();
+        }
+
         // 5. Suroviny + naskladnění
         // 🆕 v2.9.271 — bohatší demo: 30+ surovin s reálnými velkoobchodními cenami,
         // automatické naskladnění (sklad_pohyby_v2 nebo legacy suroviny.stock_aktualni)
