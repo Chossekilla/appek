@@ -24013,6 +24013,155 @@ const I18N_PHRASES = [
   ['Žádný prvek vybraný', 'No element selected', 'Ningún elemento seleccionado'],
   ['Žádný výrobek neodpovídá hledání.', 'No product matches the search.', 'Ningún producto coincide con la búsqueda.'],
   ['Žádný čitelný error log nenalezen.', 'No readable error log found.', 'No se ha encontrado ningún registro de errores legible.'],
+
+  // ═══════════════════════════════════════════════════════════════
+  // 🆕 v2.9.281 — Překlady pro nové features (v270-280)
+  // POS PIN keypad, Suroviny kategorie, Porovnání skladů, Přesun,
+  // Provoz widget, Kalkulace shortcut, Demo reset, POS drafty
+  // ═══════════════════════════════════════════════════════════════
+
+  // ─── POS PIN login keypad ───
+  ['APPEK POS', 'APPEK POS', 'APPEK POS'],
+  ['Přihlášení', 'Login', 'Iniciar sesión'],
+  ['Vyberte sebe a zadejte PIN', 'Select your name and enter PIN', 'Selecciona tu nombre e introduce el PIN'],
+  ['Načítám uživatele…', 'Loading users…', 'Cargando usuarios…'],
+  ['Žádný uživatel nemá nastavený PIN.', 'No user has a PIN set.', 'Ningún usuario tiene un PIN configurado.'],
+  ['Nastavit PIN v adminu →', 'Set PIN in admin →', 'Configurar PIN en admin →'],
+  ['Admin přihlášení (heslem)', 'Admin login (with password)', 'Inicio de sesión admin (contraseña)'],
+  ['Nesprávný PIN', 'Incorrect PIN', 'PIN incorrecto'],
+  ['Přihlášení selhalo', 'Login failed', 'Inicio de sesión fallido'],
+  ['Vyberte uživatele a zadejte PIN', 'Select user and enter PIN', 'Selecciona usuario e introduce PIN'],
+  ['PIN musí mít 4-6 cifer', 'PIN must be 4-6 digits', 'El PIN debe tener 4-6 dígitos'],
+  ['Příliš mnoho pokusů. Zkuste to za 15 minut.', 'Too many attempts. Try again in 15 minutes.', 'Demasiados intentos. Inténtalo en 15 minutos.'],
+  ['Účet je deaktivován', 'Account is deactivated', 'La cuenta está desactivada'],
+  ['POS Kasa není v tvém balíčku', 'POS is not in your package', 'TPV no está en tu paquete'],
+
+  // ─── POS PIN user form (admin) ───
+  ['🧾 PIN pro POS kasu', '🧾 PIN for POS terminal', '🧾 PIN para TPV'],
+  ['Pro přihlášení do adminu', 'For admin login', 'Para inicio de sesión admin'],
+  ['Bez PIN se nepřihlásí do POS', 'Without PIN cannot log into POS', 'Sin PIN no puede entrar al TPV'],
+  ['🔒 Pouze POS terminál', '🔒 POS terminal only', '🔒 Solo TPV'],
+  ['Uživatel se nepřihlásí do administrace, jen do POS kasy přes PIN. Vyžaduje nastavený PIN.', 'User cannot log into administration, only into POS via PIN. Requires PIN set.', 'El usuario no puede entrar a la administración, solo al TPV vía PIN. Requiere PIN configurado.'],
+  ['POS only', 'POS only', 'Solo TPV'],
+  ['Pouze POS', 'Only POS', 'Solo TPV'],
+
+  // ─── POS users onboarding ───
+  ['POS kasa — onboarding tip', 'POS — onboarding tip', 'TPV — guía de inicio'],
+  ['+ Vytvořit POS uživatele s PIN', '+ Create POS user with PIN', '+ Crear usuario TPV con PIN'],
+  ['Jak to funguje?', 'How does it work?', '¿Cómo funciona?'],
+
+  // ─── Suroviny kategorie editor ───
+  ['📂 Kategorie', '📂 Categories', '📂 Categorías'],
+  ['Kategorie surovin', 'Ingredient categories', 'Categorías de ingredientes'],
+  ['Spravovat kategorie surovin', 'Manage ingredient categories', 'Administrar categorías de ingredientes'],
+  ['+ Přidat kategorii', '+ Add category', '+ Añadir categoría'],
+  ['🔄 Obnovit výchozí', '🔄 Restore defaults', '🔄 Restaurar predeterminados'],
+  ['Klíčová slova (oddělené čárkou)', 'Keywords (comma-separated)', 'Palabras clave (separadas por coma)'],
+  ['Vyberte emoji', 'Select emoji', 'Selecciona emoji'],
+  ['Vlastní emoji nebo text', 'Custom emoji or text', 'Emoji personalizado o texto'],
+  ['Použít', 'Use', 'Usar'],
+  ['Smazat kategorii', 'Delete category', 'Eliminar categoría'],
+  ['Kategorie uloženy', 'Categories saved', 'Categorías guardadas'],
+  ['💾 Uložit kategorie', '💾 Save categories', '💾 Guardar categorías'],
+
+  // ─── Sklady / Stav skladu summary ───
+  ['Stav skladu — souhrn', 'Stock — summary', 'Stock — resumen'],
+  ['Položek v evidenci', 'Items in records', 'Artículos registrados'],
+  ['bez zásob', 'no stock', 'sin stock'],
+  ['vše naskladněno', 'all in stock', 'todo en stock'],
+  ['vše OK', 'all OK', 'todo OK'],
+  ['Pod minimem', 'Below minimum', 'Por debajo del mínimo'],
+  ['Nad minimem', 'Above minimum', 'Por encima del mínimo'],
+  ['Hodnota skladu (orient.)', 'Stock value (approx.)', 'Valor del stock (aprox.)'],
+  ['na základě cen balení', 'based on packaging prices', 'según precios de paquetes'],
+  ['Otevřít plný přehled stavu skladu', 'Open full stock overview', 'Abrir vista completa del stock'],
+  ['doobjednat', 'reorder', 'reordenar'],
+  ['Sklady (multi-warehouse)', 'Warehouses (multi-warehouse)', 'Almacenes (multi-warehouse)'],
+  ['Klikni pro detail skladu — položky, příjem, výdej, inventura', 'Click for warehouse detail — items, receipt, dispatch, inventory', 'Clic para detalle del almacén — artículos, recibo, expedición, inventario'],
+
+  // ─── Porovnání skladů (pivot) ───
+  ['📊 Porovnání', '📊 Comparison', '📊 Comparación'],
+  ['Porovnání skladů', 'Warehouse comparison', 'Comparación de almacenes'],
+  ['Σ CELKEM', 'Σ TOTAL', 'Σ TOTAL'],
+  ['napříč sklady', 'across warehouses', 'a través de almacenes'],
+  ['Jen výrobky (skrýt suroviny)', 'Only products (hide ingredients)', 'Solo productos (ocultar ingredientes)'],
+  ['Jen s nenulovým stavem', 'Only with non-zero stock', 'Solo con stock no cero'],
+  ['unikátních', 'unique', 'únicos'],
+  ['Položka', 'Item', 'Artículo'],
+  ['scroll horizontálně pro další sklady', 'scroll horizontally for more warehouses', 'desplaza horizontalmente para más almacenes'],
+  ['pod minimem', 'below minimum', 'por debajo del mínimo'],
+
+  // ─── Přesun mezi sklady ───
+  ['🔄 Přesun', '🔄 Transfer', '🔄 Transferencia'],
+  ['🔄 Přesun mezi sklady', '🔄 Transfer between warehouses', '🔄 Transferir entre almacenes'],
+  ['Přesun položky mezi sklady', 'Transfer item between warehouses', 'Transferir artículo entre almacenes'],
+  ['🔻 Ze skladu (zdroj)', '🔻 From warehouse (source)', '🔻 Desde almacén (origen)'],
+  ['🔺 Do skladu (cíl)', '🔺 To warehouse (target)', '🔺 Al almacén (destino)'],
+  ['Maximum', 'Maximum', 'Máximo'],
+  ['↦ Vše', '↦ All', '↦ Todo'],
+  ['Provést přesun', 'Execute transfer', 'Ejecutar transferencia'],
+  ['🔄 Provést přesun', '🔄 Execute transfer', '🔄 Ejecutar transferencia'],
+  ['Pro přesun jsou potřeba alespoň 2 aktivní sklady.', 'Transfer requires at least 2 active warehouses.', 'La transferencia requiere al menos 2 almacenes activos.'],
+  ['Žádné položky s nenulovým stavem k přesunu.', 'No items with non-zero stock to transfer.', 'No hay artículos con stock para transferir.'],
+  ['Zdrojový a cílový sklad jsou stejné', 'Source and target warehouse are the same', 'Los almacenes origen y destino son iguales'],
+  ['Nedostatek na zdrojovém skladu', 'Insufficient stock in source warehouse', 'Stock insuficiente en almacén origen'],
+
+  // ─── Provoz widget (Restaurace) ───
+  ['Provoz · živý přehled', 'Operations · live overview', 'Operaciones · vista en vivo'],
+  ['Stoly · Kuchyně · Rozvoz · POS dnes', 'Tables · Kitchen · Delivery · POS today', 'Mesas · Cocina · Entrega · TPV hoy'],
+  ['obsazenost', 'occupancy', 'ocupación'],
+  ['vytížení', 'load', 'carga'],
+  ['aktivních', 'active', 'activos'],
+  ['POS dnes', 'POS today', 'TPV hoy'],
+  ['PLNÁ', 'FULL', 'LLENA'],
+  ['Kuchyně i stoly jsou plné', 'Kitchen and tables are full', 'Cocina y mesas están llenas'],
+  ['Kuchyně je plná', 'Kitchen is full', 'Cocina está llena'],
+  ['Stoly jsou skoro plné', 'Tables are nearly full', 'Mesas casi llenas'],
+  ['Restaurace balíček — nastavení', 'Restaurant package — setup', 'Paquete Restaurante — configuración'],
+  ['Vytvořit floor plan (stoly + zóny)', 'Create floor plan (tables + zones)', 'Crear plano (mesas + zonas)'],
+  ['Pec, gril, studená kuchyně, bar…', 'Oven, grill, cold kitchen, bar…', 'Horno, parrilla, cocina fría, bar…'],
+  ['Vlastní řidiči nebo Wolt/Bolt', 'Own drivers or Wolt/Bolt', 'Conductores propios o Wolt/Bolt'],
+  ['Kuchyně stanice', 'Kitchen stations', 'Estaciones de cocina'],
+  ['Kurýrky', 'Couriers', 'Mensajería'],
+
+  // ─── Kalkulace + Composite ingredient ───
+  ['🧮 Kalkulace', '🧮 Calculation', '🧮 Cálculo'],
+  ['🧬 Kompozitní', '🧬 Composite', '🧬 Compuesto'],
+  ['Cena z balení (kompozitní)', 'Price from package (composite)', 'Precio del paquete (compuesto)'],
+  ['🌾 Složení / suroviny', '🌾 Composition / ingredients', '🌾 Composición / ingredientes'],
+  ['Otevři výrobní kalkulaci s pre-loaded recepturou tohoto výrobku', 'Open production calculation with pre-loaded recipe', 'Abrir cálculo de producción con receta precargada'],
+
+  // ─── Demo / Reset ───
+  ['🎬 Naplnit demo daty', '🎬 Fill with demo data', '🎬 Rellenar con datos demo'],
+  ['🎬 Naplnit ukázkovými daty', '🎬 Fill with sample data', '🎬 Rellenar con datos de muestra'],
+  ['🗑️ Reset demo data', '🗑️ Reset demo data', '🗑️ Restablecer datos demo'],
+  ['Demo data připravena', 'Demo data ready', 'Datos demo listos'],
+  ['Reset běží', 'Reset running', 'Reinicio en curso'],
+  ['Demo resetováno + naplněno', 'Demo reset + filled', 'Demo reiniciado + rellenado'],
+  ['Zatím málo dat', 'Not enough data yet', 'Aún no hay suficientes datos'],
+  ['Graf se vyrenderuje po 2+ dnech aktivity.', 'Chart will render after 2+ days of activity.', 'El gráfico se mostrará tras 2+ días de actividad.'],
+
+  // ─── POS drafty (localStorage) ───
+  ['Uložit aktuální košík do rozpracovaných', 'Save current cart to drafts', 'Guardar carrito actual en borradores'],
+  ['Otevřít seznam rozpracovaných košíků', 'Open list of saved drafts', 'Abrir lista de borradores'],
+  ['💾 Rozpracované košíky', '💾 Saved drafts', '💾 Borradores guardados'],
+  ['Žádné rozpracované košíky', 'No saved drafts', 'No hay borradores guardados'],
+  ['Načíst', 'Load', 'Cargar'],
+  ['Uloženo do rozpracovaných', 'Saved to drafts', 'Guardado en borradores'],
+  ['Košík je prázdný — není co uložit', 'Cart is empty — nothing to save', 'Carrito vacío — nada que guardar'],
+  ['Draft nenalezen', 'Draft not found', 'Borrador no encontrado'],
+  ['Aktuální košík bude přepsán. Pokračovat?', 'Current cart will be overwritten. Continue?', 'El carrito actual será sobrescrito. ¿Continuar?'],
+
+  // ─── Inventura porovnání obecné ───
+  ['Pivot zobrazuje stav každé položky ve všech aktivních skladech.', 'Pivot shows status of each item across all active warehouses.', 'La tabla muestra el estado de cada artículo en todos los almacenes activos.'],
+  ['Hodnota', 'Value', 'Valor'],
+
+  // ─── Sklady karty actions ───
+  ['Upravit metadata skladu', 'Edit warehouse metadata', 'Editar metadatos del almacén'],
+  ['Rychlý export — HTML print-ready', 'Quick export — HTML print-ready', 'Exportación rápida — HTML listo para imprimir'],
+  ['Rychlý export — CSV (Excel / účetní)', 'Quick export — CSV (Excel / accounting)', 'Exportación rápida — CSV (Excel / contabilidad)'],
+  ['Smazat / deaktivovat sklad', 'Delete / deactivate warehouse', 'Eliminar / desactivar almacén'],
+  ['Nelze smazat — sklad obsahuje položek s nenulovým stavem', 'Cannot delete — warehouse contains items with non-zero stock', 'No se puede eliminar — el almacén contiene artículos con stock'],
 ];
 
 // Build lookup index pro O(1) access
