@@ -2264,11 +2264,10 @@ const DEFAULT_ROLE_PRAVA = {
 // Stránka -> ikona + label (pro UI editor rolí). 'rozvozy' tu zůstává — admin
 // si může v Údržbě roli rozšířit a tím přidat zpět do menu, pokud potřebuje.
 const ALL_NAV_PAGES = [
-  // 🆕 v2.9.225 — reorder: rozvozy pod objednávky (logická order→route souvislost),
-  // katalog+stitky sloučené do 'nastroje' hub (lepší mobile UX, méně sidebar items)
+  // 🆕 v2.9.226 — rozvozy NENÍ v menu (user: 'pryč z menu'),
+  // dostupné přes Dashboard tile + Dodací listy. katalog+stitky v 'nastroje' hub.
   { key: 'dashboard',    icon: '📊', label: 'Přehled' },
   { key: 'objednavky',   icon: '📋', label: 'Objednávky' },
-  { key: 'rozvozy',      icon: '🛣️', label: 'Rozvozové trasy' },
   { key: 'vyroba',       icon: '🥖', label: 'Výroba' },
   { key: 'dodaci_listy', icon: '📃', label: 'Dodací listy' },
   { key: 'faktury',      icon: '💰', label: 'Faktury' },
@@ -2276,7 +2275,8 @@ const ALL_NAV_PAGES = [
   { key: 'nastroje',     icon: '🛠️', label: 'Nástroje' },
   { key: 'odberatele',   icon: '👥', label: 'Odběratelé' },
   { key: 'nastaveni',    icon: '⚙️', label: 'Nastavení' },
-  // Skryté ale stále routovatelné stránky (z hubu) — pro permission matrix a back nav
+  // Skryté ale stále routovatelné stránky (z hubu / dashboard tile) — back nav + práva
+  { key: 'rozvozy',      icon: '🛣️', label: 'Rozvozové trasy', hidden: true },
   { key: 'katalog',      icon: '📑', label: 'PDF nabídka',      hidden: true },
   { key: 'stitky',       icon: '🏷️', label: 'Štítky a cenovky', hidden: true },
 ];
