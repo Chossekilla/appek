@@ -234,9 +234,12 @@ a:hover { text-decoration: underline; }
 .sidebar-logo .logo-icon { width: 42px; height: 42px; border-radius: 50%; background: var(--primary-light); color: var(--primary-dark); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; }
 .sidebar-logo strong { font-size: 16px; }
 
-.sidebar-nav { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; }
-/* Každý nav-item se rovnoměrně rozdělí přes dostupnou výšku, žádný scroll */
-.sidebar-nav .nav-item { flex: 1 1 0; min-height: 38px; }
+.sidebar-nav { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* 🐛 fix v2.9.304 — `flex: 1 1 0` způsoboval, že když role schová většinu nav-items
+   (role='pos' vidí jen 'dashboard'), zbývající jediný item se roztáhl přes celou výšku
+   sidebaru a vznikl obrovský oranžový blok. Místo toho: natural sizing + scroll když je
+   nav-items moc. Hybridní `flex: 0 1 auto` = nikdy neroste, ale může se zmenšit. */
+.sidebar-nav .nav-item { flex: 0 1 auto; min-height: 38px; }
 
 /* 📌 Pin utility — pod menu, fixuje topbar nahoře při scrollu */
 .sidebar-utils {

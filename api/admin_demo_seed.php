@@ -235,7 +235,8 @@ function demo_pos_users(): array {
     return [
         ['email' => 'jarmila@demo.cz',   'jmeno' => 'Jarmila Nováková',  'role' => 'prodavac', 'pin' => '1234', 'pos_only' => 1, 'heslo' => 'demo1234'],
         ['email' => 'evzen@demo.cz',     'jmeno' => 'Evžen Procházka',   'role' => 'prodavac', 'pin' => '5678', 'pos_only' => 1, 'heslo' => 'demo1234'],
-        ['email' => 'prodavac1@demo.cz', 'jmeno' => 'Prodavač 1',         'role' => 'pos',      'pin' => '0000', 'pos_only' => 1, 'heslo' => 'demo1234'],
+        // 🆕 v2.9.304 — role 'prodavac' (ne 'pos'), aby Prodavač 1 viděl normální admin menu při testování demo
+        ['email' => 'prodavac1@demo.cz', 'jmeno' => 'Prodavač 1',         'role' => 'prodavac', 'pin' => '0000', 'pos_only' => 0, 'heslo' => 'demo1234'],
         ['email' => 'vedouci@demo.cz',   'jmeno' => 'Karel Vedoucí',     'role' => 'admin',    'pin' => '9999', 'pos_only' => 0, 'heslo' => 'demo1234'],
     ];
 }
