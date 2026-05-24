@@ -1745,25 +1745,26 @@ body.role-restricted .admin-only { display: none !important; }
   height: 24px;
 }
 
-/* 🆕 v2.9.240 — Dashboard stat-grid: 75/25 + 50/50 layout (user request)
+/* 🆕 v2.9.243 — Dashboard stat-grid: 75/25 + 50/50 layout NA VŠECH velikostech
+   (user explicit request: NEROZHAZOVAT do stack, vždy zachovat strukturu)
    DOM pořadí: [Tržby] [Dnes] [Obj] [Splat]
-   PC desktop: Row 1 = Tržby(span 3) + Dnes(span 1) → 75% + 25%
-               Row 2 = Obj(span 2) + Splat(span 2) → 50% + 50%
-   Tablet (<1024px): 2 cols, Tržby full, ostatní 1/2
-   Mobile (<600px): 1 col, vše full width, Tržby první */
+   Row 1: Tržby(span 3) + Dnes(span 1) → 75% + 25%
+   Row 2: Obj(span 2) + Splat(span 2) → 50% + 50%
+   Mobile = stejný layout, jen menší fonty/padding (clamp scaling) */
 .stat-grid-dash {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, 1fr) !important;
   grid-auto-flow: row;
+  gap: 12px;
 }
 .stat-card-trzby {
-  grid-column: span 3;   /* 75% — primary KPI */
+  grid-column: span 3 !important;   /* 75% — primary KPI */
   background: linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);
   border-color: var(--primary-border);
 }
-.stat-card-dnes  { grid-column: span 1; }  /* 25% */
-.stat-card-obj   { grid-column: span 2; }  /* 50% */
-.stat-card-splat { grid-column: span 2; }  /* 50% */
-/* Backwards-compat: .stat-card-wide alias na .stat-card-trzby styling */
+.stat-card-dnes  { grid-column: span 1 !important; }  /* 25% */
+.stat-card-obj   { grid-column: span 2 !important; }  /* 50% */
+.stat-card-splat { grid-column: span 2 !important; }  /* 50% */
+/* Backwards-compat */
 .stat-card-wide {
   background: linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);
   border-color: var(--primary-border);
@@ -1774,24 +1775,46 @@ body.role-restricted .admin-only { display: none !important; }
   letter-spacing: -0.02em;
   color: var(--primary-dark);
 }
+/* Tablet — zachovat layout, jen menší fonts */
 @media (max-width: 1024px) {
-  /* Tablet: 2 cols, Tržby full width, ostatní každý 1/2 */
-  .stat-grid-dash { grid-template-columns: 1fr 1fr; }
-  .stat-card-trzby { grid-column: span 2; }
-  .stat-card-dnes  { grid-column: span 1; }
-  .stat-card-obj   { grid-column: span 1; }
-  .stat-card-splat { grid-column: span 1; }
-  .stat-card-wide  { grid-column: span 2; }
+  .stat-grid-dash { gap: 8px; }
+  .stat-value-lg { font-size: clamp(20px, 3.5vw, 28px) !important; }
 }
+/* Mobile — STÁLE 75/25 + 50/50, kompaktní fonty/padding */
 @media (max-width: 600px) {
-  /* Mobile: 1 col, vše full width */
-  .stat-grid-dash { grid-template-columns: 1fr; }
-  .stat-card-trzby,
-  .stat-card-dnes,
-  .stat-card-obj,
-  .stat-card-splat,
-  .stat-card-wide { grid-column: span 1; }
-  .stat-value-lg { font-size: 26px !important; }
+  .stat-grid-dash { gap: 6px !important; }
+  .stat-grid-dash .stat-card {
+    padding: 10px 8px !important;
+    overflow: hidden;
+  }
+  .stat-grid-dash .stat-label {
+    font-size: 10px !important;
+    line-height: 1.2;
+    white-space: normal;
+  }
+  .stat-grid-dash .stat-value {
+    font-size: clamp(13px, 4vw, 18px) !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .stat-grid-dash .stat-value-lg {
+    font-size: clamp(15px, 5vw, 22px) !important;
+  }
+  .stat-grid-dash .stat-sub {
+    font-size: 10px !important;
+    line-height: 1.2;
+  }
+  .stat-grid-dash .stat-spark { display: none; }
+}
+/* Extra-narrow (<400px) — menší fonts pro 4-col layout */
+@media (max-width: 400px) {
+  .stat-grid-dash .stat-label {
+    font-size: 9px !important;
+  }
+  .stat-grid-dash .stat-value-lg {
+    font-size: clamp(12px, 4.5vw, 16px) !important;
+  }
 }
 
 .stat-label { font-size: 12px; color: var(--text-3); margin-bottom: 4px; }
@@ -3016,16 +3039,16 @@ html.dark .seg-tab.active, html.theme-dark .seg-tab.active { color: #fff; }
     width: 100%;
     max-width: 100%;
   }
-  /* 🆕 v2.9.240 — Dashboard .stat-grid-dash: Tržby & Obj full width na mobile (768px) */
-  .stat-grid-dash .stat-card-trzby,
-  .stat-grid-dash .stat-card-obj,
-  .stat-grid-dash .stat-card-wide {
-    grid-column: span 2 !important;
+  /* 🆕 v2.9.243 — Dashboard .stat-grid-dash zachovat 75/25 + 50/50 i v mobile 768px
+     (NE stack do 1 col jako ostatní .stat-grid). User explicit request. */
+  .stat-grid-dash {
+    grid-template-columns: repeat(4, 1fr) !important;
   }
-  .stat-grid-dash .stat-card-dnes,
-  .stat-grid-dash .stat-card-splat {
-    grid-column: span 1 !important;
-  }
+  .stat-grid-dash .stat-card-trzby { grid-column: span 3 !important; }
+  .stat-grid-dash .stat-card-dnes  { grid-column: span 1 !important; }
+  .stat-grid-dash .stat-card-obj   { grid-column: span 2 !important; }
+  .stat-grid-dash .stat-card-splat { grid-column: span 2 !important; }
+  .stat-grid-dash .stat-card-wide  { grid-column: span 3 !important; }
   .stat-card {
     padding: 12px;
     min-width: 0;
@@ -13010,16 +13033,16 @@ aside.sidebar::after { display: none !important; content: '' !important; }
     width: 100%;
     max-width: 100%;
   }
-  /* 🆕 v2.9.240 — Dashboard .stat-grid-dash: Tržby & Obj full width na mobile (768px) */
-  .stat-grid-dash .stat-card-trzby,
-  .stat-grid-dash .stat-card-obj,
-  .stat-grid-dash .stat-card-wide {
-    grid-column: span 2 !important;
+  /* 🆕 v2.9.243 — Dashboard .stat-grid-dash zachovat 75/25 + 50/50 i v mobile 768px
+     (NE stack do 1 col jako ostatní .stat-grid). User explicit request. */
+  .stat-grid-dash {
+    grid-template-columns: repeat(4, 1fr) !important;
   }
-  .stat-grid-dash .stat-card-dnes,
-  .stat-grid-dash .stat-card-splat {
-    grid-column: span 1 !important;
-  }
+  .stat-grid-dash .stat-card-trzby { grid-column: span 3 !important; }
+  .stat-grid-dash .stat-card-dnes  { grid-column: span 1 !important; }
+  .stat-grid-dash .stat-card-obj   { grid-column: span 2 !important; }
+  .stat-grid-dash .stat-card-splat { grid-column: span 2 !important; }
+  .stat-grid-dash .stat-card-wide  { grid-column: span 3 !important; }
   .stat-card {
     padding: 12px;
     min-width: 0;

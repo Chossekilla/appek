@@ -12208,10 +12208,34 @@ async function renderNastaveni() {
 
   // 🆕 v2.5 — INTEGRACE pro customer (Stripe, GoPay, Zásilkovna, DPD)
   const blokIntegrace = `
-    <div class="card-block" style="padding:16px;margin-bottom:14px">
-      <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">🔌 Integrace pro tvé B2B zákazníky</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 8px">Konfiguruje, jak <strong>tví zákazníci platí faktury</strong> a jak <strong>posíláš zboží</strong>. Každá služba potřebuje vlastní účet, který si registruješ u poskytovatele.</p>
-      <p style="font-size:12px;color:var(--text-3);margin:0;font-style:italic">💡 Nemáš účet? Zaregistruj se zdarma: <a href="https://stripe.com" target="_blank">Stripe</a> · <a href="https://gopay.com/cs/zaregistrovat-se/" target="_blank">GoPay</a> · <a href="https://www.zasilkovna.cz/podnikatele/registrace-noveho-zakaznika" target="_blank">Zásilkovna</a> · <a href="https://www.dpd.com/cz/cs/byt-zakaznikem/" target="_blank">DPD CZ</a></p>
+    <!-- 🆕 v2.9.243 — sales-pitch header (proč to chtít, value proposition) -->
+    <div class="card-block int-hero" style="padding:20px 22px;margin-bottom:14px;background:linear-gradient(135deg, #FFF8E7 0%, #FEF3C7 100%);border:1.5px solid #FBBF24">
+      <div style="display:flex;gap:14px;align-items:start;flex-wrap:wrap">
+        <div style="font-size:42px;line-height:1">🔌</div>
+        <div style="flex:1;min-width:240px">
+          <h2 style="margin:0 0 6px;font-size:19px;letter-spacing:-0.01em;color:#854F0B">Propojení = méně práce, víc objednávek</h2>
+          <p style="font-size:13.5px;color:#854F0B;margin:0 0 10px;line-height:1.55">
+            Tvoji <strong>B2B zákazníci nemusí nic přepisovat</strong> — platí 1 klikem (Stripe/GoPay/PayPal),
+            faktury jdou rovnou do jejich účetnictví (POHODA/Money S3), zásilky se posílají automaticky
+            (Zásilkovna/DPD). <strong>Méně tření = víc opakovaných nákupů.</strong>
+          </p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11.5px">
+            <span style="background:rgba(255,255,255,0.7);padding:4px 10px;border-radius:999px;color:#854F0B;font-weight:600">⚡ 1-click platba</span>
+            <span style="background:rgba(255,255,255,0.7);padding:4px 10px;border-radius:999px;color:#854F0B;font-weight:600">📤 Auto-export do účetnictví</span>
+            <span style="background:rgba(255,255,255,0.7);padding:4px 10px;border-radius:999px;color:#854F0B;font-weight:600">📦 Auto-štítky</span>
+            <span style="background:rgba(255,255,255,0.7);padding:4px 10px;border-radius:999px;color:#854F0B;font-weight:600">📧 Auto-notifikace</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-block" style="padding:14px 16px;margin-bottom:14px">
+      <p style="font-size:12.5px;color:var(--text-2);margin:0 0 6px;line-height:1.5">
+        💡 <strong>Začni zdarma</strong> — registrace v každé službě je bez poplatku, platíš až za úspěšné transakce. Většina běží do <strong>5 minut</strong>.
+      </p>
+      <p style="font-size:12px;color:var(--text-3);margin:0">
+        Registrovat se: <a href="https://stripe.com" target="_blank">Stripe</a> · <a href="https://gopay.com/cs/zaregistrovat-se/" target="_blank">GoPay</a> · <a href="https://www.paypal.com/cz/business" target="_blank">PayPal Business</a> · <a href="https://www.zasilkovna.cz/podnikatele/registrace-noveho-zakaznika" target="_blank">Zásilkovna</a> · <a href="https://www.dpd.com/cz/cs/byt-zakaznikem/" target="_blank">DPD CZ</a>
+      </p>
     </div>
 
     <!-- 3-sloupcový grid — kartám se přizpůsobí počet sloupců (1/2/3 podle šířky) -->
@@ -12219,61 +12243,66 @@ async function renderNastaveni() {
 
       <!-- 💳 STRIPE — platby kartou pro zákazníky -->
       <div class="card-block int-card" style="padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:8px">
           <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
             <span style="background:#635bff;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">💳 Stripe</span>
           </h3>
           <div id="ns-int-stripe-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
         </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Mezinárodní karty + Apple Pay + Google Pay. 1.4% + 6 Kč za transakci.</p>
+        <div style="font-size:11.5px;color:#15803d;font-weight:600;margin-bottom:6px">✓ Mezinárodní · Apple Pay · Google Pay · 1-click</div>
+        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Když má zákazník Apple Pay / Google Pay v telefonu, <strong>zaplatí FA otiskem za 3 vteřiny</strong>. 1.4% + 6 Kč.</p>
         <div id="ns-int-stripe" style="display:flex;flex-direction:column;gap:8px">⏳</div>
       </div>
 
       <!-- 💳 GOPAY — CZ karty + bank převod -->
       <div class="card-block int-card" style="padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:8px">
           <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
             <span style="background:#dc2626;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">💳 GoPay</span>
           </h3>
           <div id="ns-int-gopay-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
         </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">CZ karty + okamžitý bank převod. Od 0.85% za transakci.</p>
+        <div style="font-size:11.5px;color:#15803d;font-weight:600;margin-bottom:6px">✓ ČR/SK · okamžitý převod · nejlevnější</div>
+        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Pro české zákazníky <strong>nejlevnější varianta</strong> — od 0.85%. Karta i bank tlačítko (Komerční, ČSOB, Air, …).</p>
         <div id="ns-int-gopay" style="display:flex;flex-direction:column;gap:8px">⏳</div>
       </div>
 
       <!-- 💼 PAYPAL — mezinárodní, EUR/USD/CZK -->
       <div class="card-block int-card" style="padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:8px">
           <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
             <span style="background:#0070ba;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">💼 PayPal</span>
           </h3>
           <div id="ns-int-paypal-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
         </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Mezinárodní platby. Zákazník platí PayPal účtem nebo kartou přes PayPal Checkout.</p>
+        <div style="font-size:11.5px;color:#15803d;font-weight:600;margin-bottom:6px">✓ EUR/USD · zákazníci v zahraničí</div>
+        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Pokud máš <strong>zákazníky v Německu, Rakousku, Polsku</strong> — PayPal už mají a věří mu. Kupují bez váhání.</p>
         <div id="ns-int-paypal" style="display:flex;flex-direction:column;gap:8px">⏳</div>
       </div>
 
       <!-- 📦 ZÁSILKOVNA -->
       <div class="card-block int-card" style="padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:8px">
           <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
             <span style="background:#bf2026;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">📦 Zásilkovna</span>
           </h3>
           <div id="ns-int-zas-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
         </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Výdejní místa po celé ČR/EU. Štítky, sledování, dobírka.</p>
+        <div style="font-size:11.5px;color:#15803d;font-weight:600;margin-bottom:6px">✓ 12 000+ výdejen · auto-štítky · sledování</div>
+        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Zákazník si <strong>vybere výdejní místo blízko domu</strong>. APPEK vytvoří zásilku + vytiskne štítek, ty jen polepíš krabičku.</p>
         <div id="ns-int-zas" style="display:flex;flex-direction:column;gap:8px">⏳</div>
       </div>
 
       <!-- 📦 DPD CZ -->
       <div class="card-block int-card" style="padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:8px">
           <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
             <span style="background:#dc0032;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">📦 DPD CZ</span>
           </h3>
           <div id="ns-int-dpd-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
         </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Kurýrní doručení do ruky / na adresu. Pro objemnější zásilky.</p>
+        <div style="font-size:11.5px;color:#15803d;font-weight:600;margin-bottom:6px">✓ Velké balíky · doručení do ruky · OAuth API</div>
+        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Pro <strong>objemné/těžké zásilky</strong> (chleba, sušenky v kartonech). Auto-štítky + push tracking, zákazník dostane SMS s ETA.</p>
         <div id="ns-int-dpd" style="display:flex;flex-direction:column;gap:8px">⏳</div>
       </div>
 
