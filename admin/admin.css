@@ -10564,11 +10564,31 @@ html.density-compact .stat-card { padding: 12px 14px; }
 html.density-compact .stat-value { font-size: 20px; }
 html.density-compact .stat-label { font-size: 11px; }
 html.density-compact .modal-tab { padding: 9px 14px; font-size: 13px; }
-html.density-compact .period-tab { padding: 8px 14px; font-size: 13px; min-height: auto; }
+/* 🆕 v2.9.254 — Compact density: filter tabs kompaktnější + text-overflow clip
+   (user: 'při nejmenší hustotě UI text vešel pod ikonu celej' — žádný ellipsis) */
+html.density-compact .period-tab,
+html.density-compact .seg-tab,
+html.density-compact .vyroba-subtab,
+html.density-compact .nastaveni-tab {
+  padding: 6px 4px !important;
+  gap: 2px !important;
+}
+html.density-compact .period-tab-text,
+html.density-compact .seg-tab-text,
+html.density-compact .vyroba-subtab-text {
+  font-size: clamp(10px, 1vw, 11px) !important;
+  letter-spacing: -0.03em !important;
+  text-overflow: clip !important;   /* žádný ellipsis — celý text */
+  overflow: visible !important;
+}
+html.density-compact .period-tab-icon,
+html.density-compact .seg-tab-icon,
+html.density-compact .vyroba-subtab-icon {
+  font-size: clamp(16px, 1.6vw, 18px) !important;
+}
 html.density-compact .nastaveni-row { gap: 10px; margin-bottom: 10px; }
 html.density-compact .form-grid { gap: 10px; }
 html.density-compact .form-grid-tight { gap: 8px; }
-html.density-compact .nastaveni-tab { padding: 8px 14px; font-size: 12px; }
 html.density-compact .filters { padding: 8px; gap: 6px; }
 
 /* POHODLNÉ — výchozí (žádné změny, jen pojmenování pro UI) */
