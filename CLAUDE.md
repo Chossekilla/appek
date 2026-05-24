@@ -202,22 +202,29 @@ Nasazování na web je automatizované přes GitHub — ŽÁDNÉ ruční nahráv
 
 ## ⛔ NIKDY NEDĚLAT — Permanent Rules (user explicit)
 
-### Filter tabs DESIGN (3× už říkal!)
+### Filter tabs DESIGN (CANONICAL — měněno mnohokrát, NIKDY ovály)
 **NIKDY pill border-radius (999px / oválné).** Filter tabs musí být:
 - ✅ Rounded square (border-radius z `var(--filter-tab-radius)` = 10px)
 - ✅ Sjednocené napříč všemi themes (default/dark/apple/win98)
-- ✅ Mobile: 1 řádek nowrap, NIKDY wrap, plynulý shrink přes clamp() fonts
 - ✅ Aplikuje se na: `.period-tab`, `.seg-tab`, `.vyroba-subtab`, `.nastaveni-tab`
 - ❌ NIKDY `border-radius: 999px` na filter tabs
 - ❌ NIKDY `flex-wrap: wrap !important` (na filter tabs)
-- ❌ NIKDY 2-sloupcový grid na mobile (user nelíbí)
+
+**Mobile (<700px) — KANONICKÉ pravidlo:**
+- `.period-tabs / .seg-tabs / .vyroba-subtabs` → **1 ŘÁDEK nowrap shrink**
+  (clamp() fonts, flex: 1 1 0, min-width: 0)
+- `.nastaveni-tabs` → **3-SLOUPCOVÝ GRID** (`repeat(3, 1fr)` — Nastavení má
+  9 tabů, 3×3 = ideální)
 
 **Centrální tokens v `:root`** (`--filter-tab-*`) — DRY. Změna v 1 místě = projeví se všude.
 
-Když user řekne "ovály", "oválné", "pill", "už po třetí" — okamžitě hledat
-`border-radius: 999px` v admin.css v context period-tab/seg-tab a smazat
-(nahradit za `var(--filter-tab-radius)`). Pak `grep -B 5 "999px" admin.css`
-pro každý možný override + smazat.
+**Debug postup** když user řekne "ovály" / "stará verze" / "už po třetí":
+```
+grep -B 5 "border-radius: 999px" admin/admin.css | grep -E "period-tab|seg-tab|nastaveni-tab"
+grep -B 5 "flex-wrap: wrap !important" admin/admin.css | grep -E "period-tab|seg-tab"
+```
+Najít všechny duplicitní mobile overrides a SMAZAT (CANONICAL pravidlo
+je v admin.css řádek ~5128, blok "MOBILE filter tabs — CANONICAL").
 
 ### Layout konzistence
 - Dashboard stat-grid: 75/25 (Tržby+Dnes) + 50/50 (Obj+Splatnost) zachovat
