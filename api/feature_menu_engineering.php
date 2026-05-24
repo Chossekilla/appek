@@ -79,18 +79,53 @@ try {
     }
 
     // Compute medians (popularity vs profitability)
-    // Note: bez znalosti food cost odhadujeme marži z ceny.
-    // Pro reálnou analýzu by se použila vyrobni_cena z kalkulací (TODO).
     $sortedSold = array_map(fn($r) => (float)$r['sold_qty'], $rows);
     sort($sortedSold);
     $medianSold = $sortedSold[count($sortedSold) >> 1];
 
-    // Pro každý vyrobek odhadnem marži = 60% z ceny (typická restaurační marže).
-    // Pokud existuje vyrobni_cena, použij ji.
+    // 🆕 v2.9.279 — Použít vyrobni_cena_per_kus z poslední kalkulace_historie pro každý výrobek
+    // Fallback: pokud nemá kalkulaci, default 60% marže (typická restaurace)
+    $kalkCache = [];
+    try {
+        // Načti POSLEDNÍ kalkulaci per výrobek (vytvoreno DESC)
+        $vyrobekIds = array_filter(array_map(fn($r) => (int)$r['id'], $rows));
+        if (!empty($vyrobekIds)) {
+            $place = implode(',', $vyrobekIds);
+            $kalkRows = $pdo->query("
+                SELECT vyrobek_id, vyrobni_cena_per_kus, vytvoreno
+                FROM kalkulace_historie
+                WHERE vyrobek_id IN ($place)
+                  AND vyrobni_cena_per_kus IS NOT NULL
+                ORDER BY vyrobek_id, vytvoreno DESC
+            ")->fetchAll();
+            // Vezmi POSLEDNÍ kalkulaci per vyrobek_id (první výskyt v sorted DESC)
+            foreach ($kalkRows as $k) {
+                $vid = (int) $k['vyrobek_id'];
+                if (!isset($kalkCache[$vid])) {
+                    $kalkCache[$vid] = (float) $k['vyrobni_cena_per_kus'];
+                }
+            }
+        }
+    } catch (Throwable $e) { /* kalkulace_historie možná neexistuje */ }
+
     foreach ($rows as &$r) {
-        $r['margin_pct'] = 60.0;  // default
-        $r['margin_kc']  = (float)$r['cena_bez_dph'] * 0.60;
-        $r['profit']     = (float)$r['sold_qty'] * $r['margin_kc'];
+        $cena = (float) $r['cena_bez_dph'];
+        $vyrobiCena = $kalkCache[(int) $r['id']] ?? null;
+
+        if ($vyrobiCena !== null && $vyrobiCena > 0 && $cena > $vyrobiCena) {
+            // Použij skutečnou kalkulaci
+            $r['margin_kc']  = $cena - $vyrobiCena;
+            $r['margin_pct'] = ($r['margin_kc'] / $cena) * 100;
+            $r['cost_source'] = 'kalkulace';
+            $r['vyrobni_cena'] = $vyrobiCena;
+        } else {
+            // Default 60% marže
+            $r['margin_pct'] = 60.0;
+            $r['margin_kc']  = $cena * 0.60;
+            $r['cost_source'] = 'odhad';
+            $r['vyrobni_cena'] = $cena * 0.40;
+        }
+        $r['profit'] = (float) $r['sold_qty'] * $r['margin_kc'];
     }
     unset($r);
 

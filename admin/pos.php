@@ -434,7 +434,8 @@ $csrfToken  = csrf_token();
 
     <div class="pos-actions">
       <button class="pos-icon" onclick="POS.printReceipt()" title="Tisk účtenky">🖨️</button>
-      <button class="pos-icon" onclick="POS.saveDraft()"    title="Uložit rozpracované">💾</button>
+      <button class="pos-icon" onclick="POS.saveDraft()"    title="Uložit aktuální košík do rozpracovaných">💾</button>
+      <button class="pos-icon" onclick="POS.showDrafts()"   title="🆕 v2.9.279 — Otevřít seznam rozpracovaných košíků">📂</button>
       <button class="pos-icon" onclick="POS.addNote()"      title="Poznámka">💬</button>
       <button class="pos-finish" onclick="POS.finish()">✓ FINISH</button>
     </div>

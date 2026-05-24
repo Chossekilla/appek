@@ -135,18 +135,56 @@ if ($method === 'PUT') {
 }
 
 // ─── DELETE ─────────────────────────────────────────────────────
+// 🆕 v2.9.279 — Safety check: pokud sklad má položky/pohyby, jen soft delete
 if ($method === 'DELETE') {
     if (!$id) json_error('Chybí ID');
-    // TODO PR2/3: zkontrolovat zda nejsou položky / pohyby — pro teď jen soft delete
     try {
-        // Pokud má aktivní pohyby (až existuje sklad_pohyby table) → soft delete
-        // Pro PR1: hard delete (žádné FK constraints zatím nejsou)
+        // 1. Zkontroluj sklad_polozky (existující item assignments)
+        $polCnt = 0;
+        try {
+            $st = $pdo->prepare("SELECT COUNT(*) FROM sklad_polozky WHERE sklad_id = :id");
+            $st->execute(['id' => $id]);
+            $polCnt = (int) $st->fetchColumn();
+        } catch (Throwable $e) { /* tabulka možná chybí */ }
+
+        // 2. Zkontroluj sklad_pohyby_v2 (audit trail)
+        $pohCnt = 0;
+        try {
+            $st = $pdo->prepare("SELECT COUNT(*) FROM sklad_pohyby_v2 WHERE sklad_id = :id OR sklad_id_cil = :id2");
+            $st->execute(['id' => $id, 'id2' => $id]);
+            $pohCnt = (int) $st->fetchColumn();
+        } catch (Throwable $e) { /* tabulka možná chybí */ }
+
+        // 3. Pokud má položky se stavem > 0 → BLOCK (nemůžeš smazat plný sklad)
+        $polNenulove = 0;
+        if ($polCnt > 0) {
+            try {
+                $st = $pdo->prepare("SELECT COUNT(*) FROM sklad_polozky WHERE sklad_id = :id AND stav > 0");
+                $st->execute(['id' => $id]);
+                $polNenulove = (int) $st->fetchColumn();
+            } catch (Throwable $e) {}
+            if ($polNenulove > 0) {
+                json_error("Nelze smazat — sklad obsahuje {$polNenulove} položek s nenulovým stavem. Nejdřív vyskladni (přesun do jiného skladu nebo vydej).", 409);
+            }
+        }
+
+        // 4. Pokud má audit trail (pohyby) → soft delete (zachovat pro historii)
+        if ($pohCnt > 0 || $polCnt > 0) {
+            $pdo->prepare("UPDATE sklady SET aktivni = 0 WHERE id = :id")->execute(['id' => $id]);
+            json_response([
+                'ok' => true, 'soft_deleted' => true,
+                'duvod' => $pohCnt > 0 ? "Sklad měl audit trail ({$pohCnt} pohybů). Deaktivován místo smazání (zachová historii)." :
+                                          "Sklad měl přiřazené položky ({$polCnt}). Deaktivován místo smazání.",
+            ]);
+        }
+
+        // 5. Žádné položky ani pohyby → hard delete
         $pdo->prepare("DELETE FROM sklady WHERE id = :id")->execute(['id' => $id]);
-        json_response(['ok' => true]);
+        json_response(['ok' => true, 'soft_deleted' => false]);
     } catch (PDOException $e) {
-        // FK violation v budoucnu → soft delete
+        // FK violation fallback → soft delete
         $pdo->prepare("UPDATE sklady SET aktivni = 0 WHERE id = :id")->execute(['id' => $id]);
-        json_response(['ok' => true, 'soft_deleted' => true]);
+        json_response(['ok' => true, 'soft_deleted' => true, 'duvod' => 'FK constraint, deaktivován']);
     }
 }
 

@@ -546,9 +546,83 @@
     if (State.cart.length > 0 && !confirm('Aktuální košík obsahuje položky. Začít nový?')) return;
     resetCart();
   }
+  // 🆕 v2.9.279 — Drafty v localStorage (per-user PIN, dokud nebude backend persist)
+  const DRAFT_KEY = 'appek_pos_drafts';
+  function _loadDrafts() {
+    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  function _saveDrafts(arr) {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(arr.slice(-20))); /* max 20 */ }
+    catch (e) { /* localStorage full or disabled */ }
+  }
   function saveDraft() {
-    toast('💾 Uloženo do rozpracovaných', 'success');
-    // TODO: backend endpoint pro draft persist
+    if (State.cart.length === 0) return toast('Košík je prázdný — není co uložit', 'error');
+    const drafts = _loadDrafts();
+    const draft = {
+      id: 'd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      created_at: new Date().toISOString(),
+      cart: JSON.parse(JSON.stringify(State.cart)),
+      odberatel: State.odberatel ? { id: State.odberatel.id, nazev: State.odberatel.nazev } : null,
+      pos_typ: State.pos_typ,
+      pos_payment: State.pos_payment,
+      pos_tip: State.pos_tip,
+      sleva_pct: State.sleva_pct,
+      poznamka: State.poznamka,
+      total: State.cart.reduce((s, it) => s + (it.cena_bez_dph * it.mnozstvi * (1 + (it.sazba_dph || 21) / 100)), 0),
+      itemCount: State.cart.length,
+    };
+    drafts.push(draft);
+    _saveDrafts(drafts);
+    toast(`💾 Uloženo (${drafts.length} rozpracovaných v paměti)`, 'success');
+    // Vyčistit aktuální košík pro nový start
+    resetCart();
+  }
+  function loadDraft(draftId) {
+    const drafts = _loadDrafts();
+    const d = drafts.find(x => x.id === draftId);
+    if (!d) return toast('Draft nenalezen', 'error');
+    if (State.cart.length > 0 && !confirm('Aktuální košík bude přepsán. Pokračovat?')) return;
+    State.cart = d.cart || [];
+    State.odberatel = d.odberatel;
+    State.pos_typ = d.pos_typ || 'sebou';
+    State.pos_payment = d.pos_payment || 'hotove';
+    State.pos_tip = d.pos_tip || 0;
+    State.sleva_pct = d.sleva_pct || 0;
+    State.poznamka = d.poznamka || '';
+    renderCart();
+    setPay(State.pos_payment);
+    setTyp(State.pos_typ);
+    _pickCust(State.odberatel);
+    // Remove from drafts (loaded = consumed)
+    _saveDrafts(drafts.filter(x => x.id !== draftId));
+    toast(`✓ Načteno: ${d.itemCount} položek · ${Math.round(d.total)} Kč`, 'success');
+  }
+  function showDrafts() {
+    const drafts = _loadDrafts().reverse(); // newest first
+    if (drafts.length === 0) return toast('Žádné rozpracované košíky', 'info');
+    const html = `
+      <div style="max-height:60vh;overflow-y:auto">
+        ${drafts.map(d => {
+          const dt = new Date(d.created_at);
+          const time = dt.toLocaleString('cs-CZ', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+          return `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:6px">
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:14px">${d.itemCount} položek · ${Math.round(d.total)} Kč</div>
+                <div style="font-size:11px;color:#666">${time} · ${d.pos_typ}${d.odberatel ? ' · ' + d.odberatel.nazev : ''}</div>
+              </div>
+              <button class="btn-primary" onclick="POS.loadDraft('${d.id}');POS.closeModal()" style="font-size:12px;padding:6px 12px">Načíst</button>
+              <button class="btn-secondary" onclick="POS._delDraft('${d.id}');POS.showDrafts()" style="font-size:12px;padding:6px 10px" title="Smazat">🗑️</button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+    modal(`💾 Rozpracované košíky (${drafts.length})`, html);
+  }
+  function _delDraft(id) {
+    _saveDrafts(_loadDrafts().filter(x => x.id !== id));
   }
   function printReceipt() {
     if (State.cart.length === 0) return toast('Košík je prázdný', 'error');
@@ -891,6 +965,10 @@
     menuToggle:    menuToggle,
     printReceipt:  printReceipt,
     saveDraft:     saveDraft,
+    showDrafts:    showDrafts,    // 🆕 v2.9.279
+    loadDraft:     loadDraft,     // 🆕 v2.9.279
+    _delDraft:     _delDraft,     // 🆕 v2.9.279
+    closeModal:    closeModal,    // 🆕 v2.9.279 — public for showDrafts
     addNote:       addNote,
     finish:        finish,
     resetCart:     resetCart,

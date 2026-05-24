@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '2.9.278';
+const APPEK_ADMIN_JS_VERSION = '2.9.279';
 
 (async function detectStaleCode() {
   try {
@@ -4097,10 +4097,21 @@ async function loadProvozWidget() {
           <span style="font-size:32px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))">🍕</span>
           <div>
             <h3 style="margin:0;font-size:17px;font-weight:700">Provoz · živý přehled</h3>
-            <p style="margin:2px 0 0;font-size:12px;opacity:0.6">Stoly · Kuchyně · Rozvoz · POS dnes</p>
+            <p style="margin:2px 0 0;font-size:12px;opacity:0.6">Stoly · Kuchyně · Rozvoz · POS dnes · <span id="provoz-updated" style="font-variant-numeric:tabular-nums">${new Date().toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span></p>
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <!-- 🆕 v2.9.279 — Manual refresh button + interval (dropdown) -->
+          <button class="btn-secondary" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.12);color:#fff;font-size:12px;padding:6px 10px"
+                  onclick="loadProvozWidget()" title="Manuálně obnovit data (auto-refresh běží na pozadí)">🔄</button>
+          <select onchange="window._provozIntervalSec=parseInt(this.value);loadProvozWidget()"
+                  style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:12px;padding:5px 8px;border-radius:6px;cursor:pointer"
+                  title="Frekvence automatického obnovení">
+            <option value="30" ${(window._provozIntervalSec||60)===30?'selected':''} style="background:#1a1d24">30s</option>
+            <option value="60" ${(window._provozIntervalSec||60)===60?'selected':''} style="background:#1a1d24">60s</option>
+            <option value="120" ${(window._provozIntervalSec||60)===120?'selected':''} style="background:#1a1d24">2min</option>
+            <option value="300" ${(window._provozIntervalSec||60)===300?'selected':''} style="background:#1a1d24">5min</option>
+          </select>
           <button class="btn-secondary" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.12);color:#fff;font-size:12px;padding:6px 12px"
                   onclick="window.openFloorplanWindow?.()" title="Floor Plan editor">🪑 Stoly</button>
           <button class="btn-secondary" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.12);color:#fff;font-size:12px;padding:6px 12px"
@@ -4183,10 +4194,12 @@ async function loadProvozWidget() {
     </div>
   `;
 
-  // 🆕 v2.9.277 — Auto-refresh: cleanup pokud widget zmizí, jinak refresh každých 60s
+  // 🆕 v2.9.277 — Auto-refresh: cleanup pokud widget zmizí
+  // 🆕 v2.9.279 — Configurable interval (default 60s, user-changeable v dropdownu)
   if (window._provozRefreshTimer) {
     clearInterval(window._provozRefreshTimer);
   }
+  const intervalSec = window._provozIntervalSec || 60;
   window._provozRefreshTimer = setInterval(() => {
     const el = document.getElementById('dash-provoz-widget');
     if (!el) {
@@ -4198,7 +4211,7 @@ async function loadProvozWidget() {
     if (document.visibilityState === 'visible') {
       loadProvozWidget();
     }
-  }, 60000);
+  }, intervalSec * 1000);
 }
 
 window.dashSetObdobi = function(obdobi) {
@@ -10958,6 +10971,10 @@ window.vyKalkulace = async function() {
       sJed: s?.jednotka || 'g',
       celkem: r1.cena,
       problem: r1.problem || null,
+      // 🆕 v2.9.279 — Composite ingredient flag (např. Diasauer = mouka+sůl+kyselina)
+      // Cena je z balení kompozitní suroviny (přesná), ale uživatel ví že je to směs
+      kompozitni: !!(s?.slozeni && String(s.slozeni).trim().length > 5),
+      slozeniText: s?.slozeni || null,
     });
   });
 
@@ -11003,7 +11020,12 @@ window.vyKalkulace = async function() {
         <tbody>
           ${polozky.map(p => `
             <tr ${p.problem ? 'style="background:#FEF3C7"' : ''}>
-              <td>${esc(p.nazev)}${p.problem ? `<div style="font-size:11px;color:#92400e">⚠ ${esc(p.problem)}</div>` : ''}</td>
+              <td>
+                ${esc(p.nazev)}
+                ${p.kompozitni ? `<span title="🧬 Kompozitní surovina — má vlastní složení: ${esc((p.slozeniText || '').slice(0, 100))}" style="margin-left:6px;color:#7c3aed;font-size:12px;cursor:help;font-weight:500">🧬</span>` : ''}
+                ${p.problem ? `<div style="font-size:11px;color:#92400e">⚠ ${esc(p.problem)}</div>` : ''}
+                ${p.kompozitni ? `<div style="font-size:10px;color:#7c3aed;margin-top:2px;font-style:italic">Cena z balení (kompozitní)</div>` : ''}
+              </td>
               <td class="num">${p.mn} ${esc(p.jed)}</td>
               <td class="num">${p.cenaJed > 0 ? `${fmtKcDetail(p.cenaJed)} / ${esc(p.sJed)}` : '—'}</td>
               <td class="num"><strong>${fmtKc(p.celkem)}</strong></td>
