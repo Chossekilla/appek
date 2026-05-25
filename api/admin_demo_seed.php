@@ -1958,10 +1958,11 @@ if ($action === 'seed_restaurant_pack') {
             INSERT INTO vyrobky (cislo, nazev, popis, alergeny, kategorie_id, jednotka_id, sazba_dph_id, cena_bez_dph, aktivni, poradi)
             VALUES (:c, :n, :p, :a, :k, :j, :d, :ce, 1, :po)
         ");
+        // 🐛 v3.0.23 fix: bez ON DUPLICATE (PDO HY093 — same placeholder 2x)
+        //    DELETE už proběhne před INSERT, takže INSERT bez duplikátu OK
         $insRec = $pdo->prepare("
             INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, mnozstvi, jednotka, poradi)
             VALUES (:v, :s, :m, :j, :p)
-            ON DUPLICATE KEY UPDATE mnozstvi=:m, jednotka=:j
         ");
 
         $created = 0; $updated = 0; $recipes = 0;
@@ -2028,6 +2029,234 @@ if ($action === 'seed_restaurant_pack') {
             }
         }
 
+        // 🆕 v3.0.23 — PLNÝ KOLOBĚH: rezervace + otevřené účty + dnešní historie
+        // ─────────────────────────────────────────────────────────────────────────────
+        $rezervaceCount = 0; $openUctyCount = 0; $historyCount = 0;
+
+        // Najdi nějaké stoly (nebo skip pokud chybí)
+        $stolyList = [];
+        try {
+            $stolyList = $pdo->query("SELECT id, nazev, mist, zone_id FROM restaurant_tables WHERE aktivni = 1 ORDER BY id LIMIT 20")->fetchAll();
+        } catch (Throwable $e) { /* ignore */ }
+
+        // Mapování CISLO výrobku → id (pro insert do polozek)
+        $vyrIdsByCislo = [];
+        $vyrCenaByCislo = [];
+        $vyrKatByCislo = [];
+        $vyrSazbaByCislo = [];
+        try {
+            $rs = $pdo->query("
+                SELECT v.id, v.cislo, v.cena_bez_dph, v.kategorie_id, COALESCE(s.sazba, 21) AS sazba
+                FROM vyrobky v
+                LEFT JOIN sazby_dph s ON s.id = v.sazba_dph_id
+                WHERE v.cislo LIKE 'R-%'
+            ")->fetchAll();
+            foreach ($rs as $r) {
+                $vyrIdsByCislo[$r['cislo']] = (int)$r['id'];
+                $vyrCenaByCislo[$r['cislo']] = (float)$r['cena_bez_dph'] * (1 + (float)$r['sazba']/100);
+                $vyrKatByCislo[$r['cislo']] = (int)($r['kategorie_id'] ?? 0);
+                $vyrSazbaByCislo[$r['cislo']] = (float)$r['sazba'];
+            }
+        } catch (Throwable $e) {}
+
+        // ─── A) REZERVACE NA DNES (4 ks: 2 minulé/prošlé, 2 v budoucnu) ──────────────
+        try {
+            $today = date('Y-m-d');
+            // Schema check — table_reservations existuje?
+            $hasRez = (bool) $pdo->query("SHOW TABLES LIKE 'table_reservations'")->fetchColumn();
+            if ($hasRez && count($stolyList) >= 4) {
+                // Smaž demo rezervace (nazev začíná 'DEMO-')
+                $pdo->prepare("DELETE FROM table_reservations WHERE jmeno LIKE 'DEMO-%' AND datum = :d")
+                    ->execute(['d' => $today]);
+                $rezervaceSeed = [
+                    [$stolyList[0]['id'], '12:00', '13:30', 'DEMO-Novák', '603 111 222', 4, 'Narozeniny dítěte'],
+                    [$stolyList[1]['id'], '13:00', '14:30', 'DEMO-Svoboda', '777 333 444', 2, ''],
+                    [$stolyList[2]['id'], '18:30', '20:30', 'DEMO-Procházka', '604 555 666', 6, 'Bezlepkové menu'],
+                    [$stolyList[3]['id'], '19:00', '21:00', 'DEMO-Dvořák', null, 4, 'Stůl u okna'],
+                ];
+                $insR = $pdo->prepare("
+                    INSERT INTO table_reservations (stul_id, datum, cas_od, cas_do, jmeno, telefon, pocet_osob, poznamka, stav)
+                    VALUES (:s, :d, :od, :do, :j, :t, :p, :pz, 'confirmed')
+                ");
+                foreach ($rezervaceSeed as $r) {
+                    try {
+                        $insR->execute(['s' => $r[0], 'd' => $today, 'od' => $r[1], 'do' => $r[2],
+                            'j' => $r[3], 't' => $r[4], 'p' => $r[5], 'pz' => $r[6]]);
+                        $rezervaceCount++;
+                    } catch (Throwable $e) {}
+                }
+            }
+        } catch (Throwable $e) { /* tabulka možná chybí */ }
+
+        // ─── B) OTEVŘENÉ POS ÚČTY (3 stoly s reálnými položkami) ─────────────────────
+        $openUctyErrs = []; $historyErrs = [];
+        try {
+            // Schema check
+            $hasUcty = (bool) $pdo->query("SHOW TABLES LIKE 'restaurant_pos_ucty'")->fetchColumn();
+            if ($hasUcty && count($stolyList) >= 3 && !empty($vyrIdsByCislo)) {
+                $admin = ['id' => $_SESSION['admin_id'] ?? 1, 'jmeno' => $_SESSION['admin_jmeno'] ?? 'TEST'];
+                // Smaž demo open účty (otevrel_jmeno LIKE 'DEMO-%')
+                $pdo->prepare("DELETE p FROM restaurant_pos_polozky p
+                    JOIN restaurant_pos_ucty u ON u.id = p.ucet_id
+                    WHERE u.otevrel_jmeno LIKE 'DEMO-%' AND u.stav = 'open'")->execute();
+                $pdo->prepare("DELETE FROM restaurant_pos_ucty WHERE otevrel_jmeno LIKE 'DEMO-%' AND stav = 'open'")->execute();
+
+                // 3 scénáře otevřených účtů
+                $openUctyScenare = [
+                    // [stůl_idx, otevreno_min_ago, prodavac, položky]
+                    [4, 25, 'DEMO-Karel', [ // Stůl S5: kafe + dezert
+                        ['R-KAV-02', 2, 'objednano'], // 2× Cappuccino
+                        ['R-DEZ-01', 1, 'hotovo'],    // 1× Tiramisu hotovo
+                    ]],
+                    [5, 12, 'DEMO-Viola', [ // Stůl S6: pizza + drink
+                        ['R-PIZ-01', 1, 'vari_se'],   // Margherita vaří se
+                        ['R-NEA-01', 2, 'objednano'], // 2× Limonáda
+                    ]],
+                    [6, 5, 'DEMO-Karel', [ // Stůl S7: jen objednal
+                        ['R-PIZ-04', 1, 'objednano'], // Diavola
+                        ['R-KAV-01', 1, 'objednano'], // Espresso
+                    ]],
+                ];
+
+                $insU = $pdo->prepare("
+                    INSERT INTO restaurant_pos_ucty (stul_id, otevrel_id, otevrel_jmeno, pocet_hostu, stav, otevreno_v)
+                    VALUES (:s, :uid, :uname, :p, 'open', :ot)
+                ");
+                $insP = $pdo->prepare("
+                    INSERT INTO restaurant_pos_polozky
+                        (ucet_id, vyrobek_id, nazev, jednotkova_cena, mnozstvi, kategorie, stav, objednal_kdo, zdroj, cas_objednavky)
+                    VALUES (:u, :v, :n, :c, :m, :k, :st, :ob, 'staff', :ca)
+                ");
+                foreach ($openUctyScenare as $sc) {
+                    try {
+                        $stulId = (int) ($stolyList[$sc[0]]['id'] ?? 0);
+                        if (!$stulId) continue;
+                        $otevrenoV = date('Y-m-d H:i:s', time() - $sc[1] * 60);
+                        $insU->execute([
+                            's' => $stulId, 'uid' => $admin['id'], 'uname' => $sc[2], 'p' => 2,
+                            'ot' => $otevrenoV,
+                        ]);
+                        $ucetId = (int) $pdo->lastInsertId();
+                        // Označit stůl occupied
+                        $pdo->prepare("UPDATE restaurant_tables SET stav='occupied', stav_od = :ot, obsluhuje = :obs WHERE id = :id")
+                            ->execute(['ot' => $otevrenoV, 'obs' => $sc[2], 'id' => $stulId]);
+                        // Položky
+                        foreach ($sc[3] as $idx => $p) {
+                            $cislo = $p[0]; $mn = $p[1]; $stav = $p[2];
+                            if (!isset($vyrIdsByCislo[$cislo])) continue;
+                            $casPolozky = date('Y-m-d H:i:s', strtotime($otevrenoV) + $idx * 30);
+                            $insP->execute([
+                                'u' => $ucetId, 'v' => $vyrIdsByCislo[$cislo],
+                                'n' => array_search($cislo, [
+                                    'R-PIZ-01'=>'Pizza Margherita', 'R-PIZ-02'=>'Pizza Quattro Formaggi',
+                                    'R-PIZ-03'=>'Pizza Prosciutto', 'R-PIZ-04'=>'Pizza Diavola',
+                                    'R-PAS-01'=>'Lasagne Bolognese',
+                                    'R-KAV-01'=>'Espresso', 'R-KAV-02'=>'Cappuccino', 'R-KAV-03'=>'Latte Macchiato',
+                                    'R-NEA-01'=>'Domácí limonáda citron',
+                                    'R-SAL-01'=>'Salát Caesar s kuřecím',
+                                    'R-DEZ-01'=>'Tiramisu',
+                                ]) ?: 'Položka',
+                                'c' => $vyrCenaByCislo[$cislo],
+                                'm' => $mn,
+                                'k' => (string)($vyrKatByCislo[$cislo] ?? null),
+                                'st' => $stav,
+                                'ob' => $sc[2],
+                                'ca' => $casPolozky,
+                            ]);
+                        }
+                        // Update castka_celkem v ucet
+                        $sumSt = $pdo->prepare("SELECT COALESCE(SUM(jednotkova_cena * mnozstvi), 0) FROM restaurant_pos_polozky WHERE ucet_id = :u AND stav != 'storno'");
+                        $sumSt->execute(['u' => $ucetId]);
+                        $sum = (float) ($sumSt->fetchColumn() ?: 0);
+                        $pdo->prepare("UPDATE restaurant_pos_ucty SET suma_kc = :c WHERE id = :id")
+                            ->execute(['c' => $sum, 'id' => $ucetId]);
+                        $openUctyCount++;
+                    } catch (Throwable $e) { $openUctyErrs[] = $e->getMessage(); }
+                }
+            }
+        } catch (Throwable $e) { $openUctyErrs[] = 'outer: ' . $e->getMessage(); }
+
+        // ─── C) DNEŠNÍ HISTORIE POS (5 paid účtenek za posledních pár hodin) ─────────
+        try {
+            $admin = ['id' => $_SESSION['admin_id'] ?? 1, 'jmeno' => $_SESSION['admin_jmeno'] ?? 'TEST'];
+            $walkin = (int) $pdo->query("SELECT id FROM odberatele WHERE nazev = 'POS Walk-in' LIMIT 1")->fetchColumn();
+            if (!$walkin) {
+                // Vytvoř walk-in odběratele
+                try {
+                    $pdo->prepare("INSERT INTO odberatele (nazev) VALUES ('POS Walk-in')")->execute();
+                    $walkin = (int) $pdo->lastInsertId();
+                } catch (Throwable $e) { $walkin = null; }
+            }
+
+            // Smaž demo POS historie (cislo začíná 'DEMO-POS-')
+            $pdo->prepare("DELETE op FROM objednavky_polozky op
+                JOIN objednavky o ON o.id = op.objednavka_id
+                WHERE o.cislo LIKE 'DEMO-POS-%'")->execute();
+            $pdo->prepare("DELETE FROM objednavky WHERE cislo LIKE 'DEMO-POS-%'")->execute();
+
+            if ($walkin && !empty($vyrIdsByCislo)) {
+                $historieScenare = [
+                    // [min_ago, payment, typ, položky[[cislo, mn], ...]]
+                    [120, 'hotove', 'sebou',   [['R-KAV-02', 1], ['R-PIZ-01', 1]]],            // před 2h, Cappuccino + Margherita
+                    [95,  'karta',  'sebou',   [['R-KAV-01', 2], ['R-DEZ-01', 1]]],            // 2× Espresso + Tiramisu
+                    [70,  'hotove', 'sebou',   [['R-NEA-01', 1]]],                              // limonáda
+                    [50,  'karta',  'na_miste',[['R-PIZ-02', 1], ['R-NEA-01', 2]]],            // Quattro Formaggi + 2× limonáda
+                    [30,  'karta',  'sebou',   [['R-SAL-01', 1], ['R-KAV-03', 1]]],            // Caesar + Latte
+                    [15,  'hotove', 'sebou',   [['R-KAV-02', 1]]],                              // jen Cappuccino
+                ];
+                $insO = $pdo->prepare("
+                    INSERT INTO objednavky (cislo, typ, odberatel_id, datum_objednani, datum_dodani,
+                        castka_bez_dph, castka_dph, castka_celkem, stav, puvod,
+                        pos_typ, pos_payment, pos_tip, pos_uzivatel)
+                    VALUES (:c, 'pos', :ob, :d, CURDATE(), :bd, :dp, :ce, 'zaplaceno', 'pos',
+                        :pt, :pp, 0, :uziv)
+                ");
+                $insOP = $pdo->prepare("
+                    INSERT INTO objednavky_polozky
+                        (objednavka_id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph)
+                    VALUES (:o, :vid, :n, 'ks', :m, :c, :s)
+                ");
+                foreach ($historieScenare as $i => $sc) {
+                    try {
+                        $datumObj = date('Y-m-d H:i:s', time() - $sc[0] * 60);
+                        $bezDph = 0; $dphSum = 0; $celkem = 0;
+                        $polozkyPro = [];
+                        foreach ($sc[3] as $p) {
+                            $cislo = $p[0]; $mn = $p[1];
+                            if (!isset($vyrIdsByCislo[$cislo])) continue;
+                            $sazba = $vyrSazbaByCislo[$cislo] ?? 12;
+                            $cenaBez = $vyrCenaByCislo[$cislo] / (1 + $sazba/100);
+                            $bezDph += $cenaBez * $mn;
+                            $dphSum += ($cenaBez * $sazba / 100) * $mn;
+                            $celkem += $vyrCenaByCislo[$cislo] * $mn;
+                            $nazev = array_search($cislo, [
+                                'R-PIZ-01'=>'Pizza Margherita', 'R-PIZ-02'=>'Pizza Quattro Formaggi',
+                                'R-PIZ-03'=>'Pizza Prosciutto', 'R-PIZ-04'=>'Pizza Diavola',
+                                'R-PAS-01'=>'Lasagne Bolognese',
+                                'R-KAV-01'=>'Espresso', 'R-KAV-02'=>'Cappuccino', 'R-KAV-03'=>'Latte Macchiato',
+                                'R-NEA-01'=>'Domácí limonáda citron',
+                                'R-SAL-01'=>'Salát Caesar s kuřecím',
+                                'R-DEZ-01'=>'Tiramisu',
+                            ]) ?: 'Položka';
+                            $polozkyPro[] = [$vyrIdsByCislo[$cislo], $nazev, $mn, $cenaBez, $sazba];
+                        }
+                        if (empty($polozkyPro)) continue;
+                        $cisloObj = 'DEMO-POS-' . date('Ymd') . '-' . str_pad($i+1, 3, '0', STR_PAD_LEFT);
+                        $insO->execute([
+                            'c' => $cisloObj, 'ob' => $walkin, 'd' => $datumObj,
+                            'bd' => $bezDph, 'dp' => $dphSum, 'ce' => $celkem,
+                            'pt' => $sc[2], 'pp' => $sc[1], 'uziv' => 'DEMO-Karel',
+                        ]);
+                        $oid = (int) $pdo->lastInsertId();
+                        foreach ($polozkyPro as $p) {
+                            $insOP->execute(['o' => $oid, 'vid' => $p[0], 'n' => $p[1], 'm' => $p[2], 'c' => $p[3], 's' => $p[4]]);
+                        }
+                        $historyCount++;
+                    } catch (Throwable $e) { $historyErrs[] = $e->getMessage(); }
+                }
+            }
+        } catch (Throwable $e) { $historyErrs[] = 'outer: ' . $e->getMessage(); }
+
         json_response([
             'ok' => true,
             'kategorie' => count($catIds),
@@ -2035,7 +2264,20 @@ if ($action === 'seed_restaurant_pack') {
             'vyrobky_created' => $created,
             'vyrobky_updated' => $updated,
             'recepty' => $recipes,
-            'msg' => "🍕 Restaurant pack seedován: {$created} nových výrobků + " . count($surMap) . " surovin s nutri + {$recipes} řádků receptů.",
+            'rezervace' => $rezervaceCount,
+            'open_ucty' => $openUctyCount,
+            'pos_historie' => $historyCount,
+            'warnings' => array_merge(
+                array_map(fn($e) => 'open_ucet: ' . $e, $openUctyErrs),
+                array_map(fn($e) => 'historie: ' . $e, $historyErrs)
+            ),
+            'msg' => "🍕 PLNÝ KOLOBĚH naseedován:\n" .
+                "• {$created} nových výrobků (+{$updated} aktualizováno) v " . count($catIds) . " kategoriích\n" .
+                "• " . count($surMap) . " surovin s nutričními hodnotami\n" .
+                "• {$recipes} řádků receptů (auto-výpočet nutri per výrobek)\n" .
+                "• {$rezervaceCount} dnešních rezervací (DEMO-Novák, Svoboda, Procházka, Dvořák)\n" .
+                "• {$openUctyCount} otevřených POS účtů (stoly obsazeny + položky na KDS)\n" .
+                "• {$historyCount} dnešních paid účtenek (POS historie za posledních 2h)",
         ]);
     } catch (Throwable $e) {
         json_error_safe('Seed restaurant pack selhal', $e, 500);
