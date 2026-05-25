@@ -6,6 +6,57 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.12] — 2026-05-25
+
+### ✨ Velký redesign POS Stoly modal
+
+**Plně přepsaný table modal — touch-first, responsive, kompaktní**
+
+- **Šířka 1400px max** (předtím 920px) — víc místa pro produkty + cart
+- **Výška 92vh** — využívá celou obrazovku
+- **Mobil = full screen** (no padding, no border-radius) → wraps whole viewport
+- **Dotykové buttony** — min-height 50px, větší padding, výrazný hover/active feedback
+- **Animace** — modal fade-in 180ms + slide-up 220ms
+
+**Hlavička modal:**
+- Status badge: 🟡 Rozpracovaný / ✅ Zaplaceno / ✕ Storno (auto podle stav účtu)
+- Meta info: „otevřen 87 min · Karel"
+- ESC klávesa zavře modal
+- Rotace ✕ tlačítka na 90° při hover
+
+**Cart sekce:**
+- Header counter „📋 Položky účtu (3)"
+- Položky jako karty s color-codingem (žlutá = vaří se, zelená = hotovo)
+- Status badge vedle jména („✓ hotovo" / „🔥 vaří se")
+- Cena 16px tučně zelená
+- × tlačítko pro odebrání (animace scale)
+- **Summary box** dole: Bez DPH / DPH / **CELKEM (22px)** — vše viditelné
+
+**Menu sekce:**
+- Search box 16px font, výrazný focus state s box-shadow
+- **Kategorie chips** — gradient pro aktivní, hover border
+- **Produkty 160px** s big price (24px tučně oranžová) — touch friendly
+- Hover lift -2px + shadow
+
+**Footer akce:**
+- 🍳 Tisk bonu · 📤 Tisk účtu · 📲 QR platba (secondary)
+- 🔓 Znovu otevřít (jen pokud paid/cancelled, danger style)
+- **💾 Uložit a zavřít** (modrý gradient — viditelně odlišený)
+- **💰 Zaplatit** (zelený gradient, větší font)
+
+**Responsivní breakpointy:**
+- **Desktop (>1100px)** — full 2-col 0.9fr + 1.4fr, 160px produktové karty
+- **Tablet (800-1100px)** — užší cart, 140px karty
+- **Mobil (<800px)** — full screen, **tabs nahoře** „📋 Účet" | „➕ Přidat" (přepínání cart/menu views), 2 produkty per řádek
+- **Phone (<400px)** — kompaktní buttony 12px font
+
+**Status logika:**
+- Tlačítka Uložit/Zaplatit zobrazené jen pro `stav=open`
+- Tlačítko Znovu otevřít jen pro `paid` nebo `cancelled` (TODO: implementace v adminu)
+- Auto-refresh statusu v hlavičce po každém přidání/odebrání položky
+
+---
+
 ## [3.0.11] — 2026-05-25
 
 ### ✨ Vylepšení
