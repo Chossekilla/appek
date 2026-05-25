@@ -16857,10 +16857,19 @@ async function renderPOSLauncher() {
     </div>
   `;
 
-  // Asynchronně načti dnešní data
+  // 🚀 v2.9.315 — paralelně launcher_summary + presets (předtím sériově s 2× round-trip
+  // latency). Ušetří ~150-300 ms (PHP+MySQL roundtrip). Promise.all je safe — oba endpointy
+  // jsou nezávislé, posPresetsLoad() interně zapíše do state._posPresets + #pos-presets-list.
   let d;
-  try { d = await api('admin_pos.php?action=launcher_summary'); }
-  catch (e) { d = { ok: false, error: e.message }; }
+  try {
+    const [summary] = await Promise.all([
+      api('admin_pos.php?action=launcher_summary'),
+      posPresetsLoad(), // už re-renderuje #pos-presets-list samostatně
+    ]);
+    d = summary;
+  } catch (e) {
+    d = { ok: false, error: e.message };
+  }
 
   const panel = document.getElementById('pos-launcher-sales');
   if (!panel) return; // user mezitím odešel ze stránky
@@ -16981,8 +16990,8 @@ async function renderPOSLauncher() {
     `}
   `;
 
-  // Asynchronně načti rychlé volby (presets) pro editor
-  posPresetsLoad();
+  // 🐛 v2.9.315 — orphan posPresetsLoad() volání odstraněno (teď běží paralelně
+  // v Promise.all výše na začátku funkce, viz fetch block).
 }
 
 // 🆕 v2.9.310 — POS rychlé volby (editor v POS Kasa hub) ──────────────

@@ -1723,7 +1723,7 @@ if ($action === 'seed_one_recipe') {
         ]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Seed receptu selhal: ' . $e->getMessage(), 500);
+        json_error_safe('Seed receptu selhal', $e, 500);
     }
 }
 
@@ -1759,7 +1759,7 @@ if ($action === 'fix_demo_users') {
         }
         json_response(['ok' => true, 'updated' => $updated, 'msg' => "Aktualizováno $updated demo uživatelů (role, pos_only)"]);
     } catch (Throwable $e) {
-        json_error('fix_demo_users: ' . $e->getMessage(), 500);
+        json_error_safe('Migrace demo uživatelů selhala', $e, 500);
     }
 }
 

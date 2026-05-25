@@ -394,7 +394,7 @@ if ($method === 'POST' && $action === 'pay') {
         json_response(['ok' => true, 'doklad' => $cislo, 'sum_paid' => $sumPaid]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Platba selhala: ' . $e->getMessage(), 500);
+        json_error_safe('Platba selhala', $e, 500);
     }
 }
 
@@ -455,7 +455,7 @@ if ($method === 'POST' && $action === 'split') {
         json_response(['ok' => true, 'new_ucet_ids' => $newIds]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Split selhal: ' . $e->getMessage(), 500);
+        json_error_safe('Split selhal', $e, 500);
     }
 }
 
@@ -493,7 +493,7 @@ if ($method === 'POST' && $action === 'merge') {
         json_response(['ok' => true, 'merged_count' => count($sources), 'target_total' => recalc_ucet_total($pdo, $target)]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Merge selhal: ' . $e->getMessage(), 500);
+        json_error_safe('Merge selhal', $e, 500);
     }
 }
 
@@ -521,7 +521,7 @@ if ($method === 'POST' && $action === 'move') {
         json_response(['ok' => true]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Move selhal: ' . $e->getMessage(), 500);
+        json_error_safe('Move selhal', $e, 500);
     }
 }
 
@@ -645,7 +645,7 @@ if ($method === 'POST' && $action === 'qr_approve') {
         json_response(['ok' => true, 'ucet_id' => $ucetId]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Approve selhal: ' . $e->getMessage(), 500);
+        json_error_safe('Approve selhal', $e, 500);
     }
 }
 
@@ -794,7 +794,7 @@ if ($method === 'GET' && $action === 'catalog') {
             'pocet'     => count($vyrobky),
         ]);
     } catch (Throwable $e) {
-        json_error('Chyba načtení katalogu: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba načtení katalogu', $e, 500);
     }
 }
 
@@ -840,7 +840,7 @@ if ($method === 'GET' && $action === 'customers') {
         $st->execute($params);
         json_response(['ok' => true, 'odberatele' => $st->fetchAll(PDO::FETCH_ASSOC)]);
     } catch (Throwable $e) {
-        json_error('Chyba načtení zákazníků: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba načtení zákazníků', $e, 500);
     }
 }
 
@@ -1107,7 +1107,7 @@ if ($method === 'POST' && $action === 'quick_order') {
         json_response($response);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Chyba vytvoření POS objednávky: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba vytvoření POS objednávky', $e, 500);
     }
 }
 
@@ -1160,7 +1160,7 @@ if ($method === 'GET' && $action === 'quick_history') {
             'souhrn'     => $souhrn,
         ]);
     } catch (Throwable $e) {
-        json_error('Chyba načtení historie: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba načtení historie', $e, 500);
     }
 }
 
@@ -1201,7 +1201,7 @@ if ($method === 'GET' && $action === 'quick_order_detail') {
 
         json_response($obj);
     } catch (Throwable $e) {
-        json_error('Chyba detailu účtenky: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba detailu účtenky', $e, 500);
     }
 }
 
@@ -1265,7 +1265,7 @@ if ($method === 'GET' && $action === 'launcher_summary') {
             'top_items' => $top_items,
         ]);
     } catch (Throwable $e) {
-        json_error('Chyba launcher_summary: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba načtení dnešních prodejů', $e, 500);
     }
 }
 

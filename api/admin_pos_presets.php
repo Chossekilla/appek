@@ -84,7 +84,7 @@ if ($method === 'POST' && $action === 'save') {
         ")->execute(['v' => $json, 'v2' => $json]);
         json_response(['ok' => true, 'saved' => count($clean), 'presets' => $clean]);
     } catch (Throwable $e) {
-        json_error('Uložení selhalo: ' . $e->getMessage(), 500);
+        json_error_safe('Uložení selhalo', $e, 500);
     }
 }
 
@@ -93,7 +93,7 @@ if ($method === 'POST' && $action === 'reset') {
         $pdo->prepare("DELETE FROM nastaveni WHERE klic = 'pos_custom_presets'")->execute();
         json_response(['ok' => true, 'reset' => true, 'presets' => default_presets()]);
     } catch (Throwable $e) {
-        json_error('Reset selhal: ' . $e->getMessage(), 500);
+        json_error_safe('Reset selhal', $e, 500);
     }
 }
 

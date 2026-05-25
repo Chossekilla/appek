@@ -1020,7 +1020,9 @@
       if (!raw) return;
       const d = JSON.parse(raw);
       // Resume jen pokud < 5 minut staré (jinak je to zbytek)
-      if (Date.now() - d.saved_at > 5 * 60 * 1000) {
+      // 🐛 v2.9.315 — !d.saved_at guard: undefined saved_at → Date.now() - undefined = NaN
+      // → check failnul OPEN → stale entry zůstal navždy v localStorage.
+      if (!d || !d.saved_at || Date.now() - d.saved_at > 5 * 60 * 1000) {
         localStorage.removeItem('appek_pos_cart_resume');
         return;
       }
@@ -1367,14 +1369,15 @@
   };
 
   // ─── Re-tisk účtenky ─────────────────────────────────────────
+  // 🐛 v2.9.315 — fix cross-day silent fail. Předtím re-fetch quick_history pro
+  // State._historyDate a linear scan podle objId → pokud user otevřel detail
+  // účtenky z jiného dne (přes deep link nebo modal z historie), find() vrátilo
+  // undefined → "Účtenka nenalezena". Teď přímý quick_order_detail (přidaný v v2.9.308).
   window.posReprintReceipt = function(objId) {
-    // Načti polozky z DB a tiskni
-    api('admin_pos.php?action=quick_history&date=' + (State._historyDate || new Date().toISOString().slice(0, 10)))
-      .then(d => {
-        const ord = (d.objednavky || []).find(x => x.id === objId);
-        if (!ord) return toast('Účtenka nenalezena', 'error');
-        // Vyrobit prosté reprintové okno (browser print)
-        const time = (ord.datum_objednani || '').slice(0, 16).replace('T', ' ');
+    api('admin_pos.php?action=quick_order_detail&id=' + objId)
+      .then(ord => {
+        if (!ord || !ord.cislo) return toast('Účtenka nenalezena', 'error');
+        const time = esc((ord.datum_objednani || '').slice(0, 16).replace('T', ' '));
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(ord.cislo)}</title>
           <style>body{font-family:Courier,monospace;font-size:12px;width:280px;margin:10px auto}
           h1{font-size:14px;text-align:center;margin:0 0 4px}

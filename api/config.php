@@ -299,6 +299,30 @@ function json_error(string $msg, int $code = 400): void {
     json_response(['error' => $msg], $code);
 }
 
+/**
+ * 🆕 v2.9.315 — Safe error wrapper.
+ *
+ * Vždy zaloguje plný exception trace do error_log (server-side visibility).
+ * Klientovi vrátí: v dev/demo režimu plnou hlášku, v produkci jen generickou
+ * + request_id pro debugging (admin si ho najde v error logu).
+ *
+ * Předtím se `json_error('Chyba X: ' . $e->getMessage(), 500)` v produkci
+ * exponovalo SQL syntax / table names / FK constraint detaily klientovi
+ * (information disclosure — pomohlo by útočníkovi při fingerprintingu schématu).
+ */
+function json_error_safe(string $publicMsg, ?\Throwable $e = null, int $code = 500): void {
+    $reqId = bin2hex(random_bytes(4));
+    if ($e) {
+        error_log(sprintf('[APPEK][%s] %s: %s @ %s:%d', $reqId, $publicMsg, $e->getMessage(), $e->getFile(), $e->getLine()));
+    }
+    $isDev = (defined('APP_DEBUG') && APP_DEBUG === true)
+          || (defined('APPEK_DEMO') && APPEK_DEMO === true)
+          || (php_sapi_name() === 'cli-server'); // dev server
+    $out = ['error' => $publicMsg, 'request_id' => $reqId];
+    if ($isDev && $e) $out['debug'] = $e->getMessage();
+    json_response($out, $code);
+}
+
 function json_input(): array {
     $body = file_get_contents('php://input');
     $data = json_decode($body, true);
