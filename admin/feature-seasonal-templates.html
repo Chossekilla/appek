@@ -107,7 +107,7 @@ const toast = (msg, isErr = false) => {
 
 async function load() {
   try {
-    const r = await fetch('/api/feature_seasonal_templates.php');
+    const r = await fetch('../api/feature_seasonal_templates.php');
     if (r.status === 402) {
       const j = await r.json();
       $('#content').innerHTML = `
@@ -180,7 +180,7 @@ async function apply(id, action, name) {
   const msg = (action === 'insert' ? t('confirm_ins') : t('confirm_de')) + ` "${name}"?`;
   if (!confirm(msg)) return;
   try {
-    const r = await fetch('/api/feature_seasonal_templates.php', {
+    const r = await fetch('../api/feature_seasonal_templates.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id: id, action }),

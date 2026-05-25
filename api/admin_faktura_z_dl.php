@@ -12,7 +12,10 @@
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_schema_lib.php';
 cors_headers();
+// 🆕 v3.0.11 — auto-migrace faktury snapshot sloupců
+ensure_faktury_schema(db());
 require_admin();
 
 $pdo = db();

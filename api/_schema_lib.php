@@ -189,6 +189,40 @@ function ensure_dodaci_listy_schema(PDO $pdo): void {
 }
 
 /**
+ * 🆕 v3.0.11 — faktury snapshot sloupce (paralelní s dodaci_listy).
+ * Diagnostika hlásí chybějící sloupce odb_*_snapshot.
+ * Tyto sloupce existují v admin_faktura_z_dl.php INSERTu — bez nich faktura selže.
+ */
+function ensure_faktury_schema(PDO $pdo): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $cols = $pdo->query("
+            SELECT COLUMN_NAME FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'faktury'
+        ")->fetchAll(PDO::FETCH_COLUMN);
+        if (!$cols) return;
+        $cols_lower = array_map('strtolower', $cols);
+        foreach ([
+            'odb_nazev_snapshot' => 'VARCHAR(255)',
+            'odb_ico_snapshot'   => 'VARCHAR(20)',
+            'odb_dic_snapshot'   => 'VARCHAR(20)',
+            'odb_ulice_snapshot' => 'VARCHAR(255)',
+            'odb_mesto_snapshot' => 'VARCHAR(120)',
+            'odb_psc_snapshot'   => 'VARCHAR(15)',
+            'rucni'              => "TINYINT(1) NOT NULL DEFAULT 0",
+        ] as $col => $type) {
+            if (!in_array(strtolower($col), $cols_lower, true)) {
+                $pdo->exec("ALTER TABLE faktury ADD COLUMN $col $type NULL");
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('ensure_faktury_schema: ' . $e->getMessage());
+    }
+}
+
+/**
  * 🆕 v2.9.217 — sklad_pohyby tabulka (PR3 z multi-warehouse spec).
  * Audit trail všech pohybů: příjem, výdej, inventura, korekce, přesun.
  * Per pohyb: stav_pred + stav_po + cena_za_jed + poznámka + kdo + kdy.

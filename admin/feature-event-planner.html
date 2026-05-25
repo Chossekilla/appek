@@ -143,7 +143,7 @@ let selectedType = null;
 
 async function loadTemplates() {
   try {
-    const r = await fetch('/api/feature_event_planner.php');
+    const r = await fetch('../api/feature_event_planner.php');
     if (r.status === 402) {
       const j = await r.json();
       $('#content').innerHTML = `
@@ -230,7 +230,7 @@ async function calculate() {
   $('#result').innerHTML = `<div class="result-empty"><div class="em">⏳</div><p>${t('computing')}</p></div>`;
 
   try {
-    const r = await fetch('/api/feature_event_planner.php', {
+    const r = await fetch('../api/feature_event_planner.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event_type: selectedType, guests, hours }),

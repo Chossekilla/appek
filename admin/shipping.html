@@ -238,7 +238,7 @@ async function createPacketa() {
 
   showResult('z_result', '⏳ Vytváření zásilky…', false);
   try {
-    const r = await fetch('/api/zasilkovna_create_packet.php', {
+    const r = await fetch('../api/zasilkovna_create_packet.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -280,7 +280,7 @@ async function createDpd() {
 
   showResult('d_result', '⏳ Vytváření zásilky…', false);
   try {
-    const r = await fetch('/api/dpd_create_shipment.php', {
+    const r = await fetch('../api/dpd_create_shipment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

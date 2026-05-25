@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.2';
+const APPEK_ADMIN_JS_VERSION = '3.0.11';
 
 (async function detectStaleCode() {
   try {
@@ -7110,7 +7110,7 @@ window.pohybSkladu = async function(skladId, polozkaId, typ, nazev, itemTyp, ite
         <textarea class="form-input" id="poh-pozn" rows="2" ${typ === 'korekce' ? 'required' : ''} placeholder="${typ === 'inventura' ? 'např. Měsíční inventura' : (typ === 'presun' ? 'např. Přesun do mraziku po výrobě' : '')}"></textarea>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:12px;margin-top:6px">
-        <button type="button" class="btn-secondary" onclick="otevritSklad(${skladId}, '${esc(state._currentSkladNazev || '')}', '')">← Zpět</button>
+        <button type="button" class="btn-back" onclick="otevritSklad(${skladId}, '${esc(state._currentSkladNazev || '')}', '')">← Zpět</button>
         <button type="submit" class="btn-primary btn-green" style="font-weight:700">${typ === 'prijem' ? '+ Naskladnit' : (typ === 'vydej' ? '− Vyskladnit' : (typ === 'inventura' ? '📝 Uložit inventuru' : '↔ Přesunout'))}</button>
       </div>
     </form>
@@ -12390,7 +12390,7 @@ window.editPobocka = async function(odberatel_id, pobocka_id = null, returnTo = 
       </div>
     </div>
     <div class="form-actions">
-      <button class="btn-secondary" onclick="${navratFn ? navratFn + '()' : `editOdberatel(${odberatel_id})`}">${navratFn ? '← Zpět' : '← Zpět na odběratele'}</button>
+      <button class="btn-back" onclick="${navratFn ? navratFn + '()' : `editOdberatel(${odberatel_id})`}">${navratFn ? '← Zpět' : '← Zpět na odběratele'}</button>
       <div style="flex:1"></div>
       <button class="btn-primary" onclick="ulozitPobocku(${odberatel_id}, ${pobocka_id || 'null'}, ${returnTo ? `'${returnTo}'` : 'null'})">Uložit pobočku</button>
     </div>
@@ -12457,6 +12457,7 @@ async function renderNastaveni() {
     { key: 'firma',      label: '🏢 Firma & doklady',  popis: 'Firemní údaje, kontakt, číselné řady, DPH' },
     { key: 'notifikace', label: '📧 Notifikace',        popis: 'E-maily a uzávěrka úprav objednávek' },
     { key: 'platby',     label: '💳 Platby',            popis: 'Zapnout/vypnout platební metody pro POS, B2B a checkout.' },
+    { key: 'tiskarny',   label: '🖨️ Tiskárny',          popis: 'ESC/POS termo tiskárny (kasa, kuchyně, bar, sklad, výdej). Auto-split bonů.' },
     { key: 'integrace',  label: '🔌 Integrace',         popis: 'Stripe + GoPay (platby), Zásilkovna + DPD (doprava) pro tvoje B2B zákazníky.', adminOnly: true },
     { key: 'ucetni',     label: '📊 Účetní',            popis: 'POHODA mServer, FlexiBee REST — live sync.', adminOnly: true },
     { key: 'pristupy',   label: '👥 Přístupy & ceny',   popis: 'Uživatelé a slevové skupiny', adminOnly: true },
@@ -13309,6 +13310,121 @@ async function renderNastaveni() {
           <p><strong>5. Po instalaci smažte <code>install.php</code></strong>.</p>
           <p>Detailní návod ve souboru <strong>README.md</strong> v rootu aplikace.</p>`
       },
+
+      // 🆕 v3.0.7 — Restaurace / POS / KDS / Výdej průvodci
+      { q: '🧾 POS Kasa — jak začít prodávat?', a: `
+          <p><strong>1. Otevři POS</strong> — Restaurace → 🧾 POS Kasa (nebo přímo <code>/admin/pos.php</code> na druhém monitoru).</p>
+          <p><strong>2. Přihlaš se PINem</strong> — každý prodavač má 4-místný PIN. Spravuj přístupy v Nastavení → 👥 Přístupy.</p>
+          <p><strong>3. Vyber typ objednávky</strong> nahoře (Hotově / Karta / Sebou / Vyzvednutí / Rozvoz / Na místě).</p>
+          <p><strong>4. Klikni na produkt</strong> vlevo → přidá se do košíku vpravo. Plus/minus mění množství.</p>
+          <p><strong>5. Volná položka</strong> — pro netradiční prodej (např. dárek, korkovné) klikni "+ Volná položka", vyplň název a cenu.</p>
+          <p><strong>6. Klik FINISH</strong> → uloží účtenku + auto-rozešle bony na kuchyň/bar (pokud máš nastavené tiskárny).</p>
+          <p><strong>7. Reprint / detail</strong> — klikni na účtenku v historii → modal s položkami + tlačítka Reprint, QR platba, Upravit.</p>
+          <p><strong>Tip:</strong> Velikost FINISH tlačítka je tak velká protože hodně lidí klikne během provozu. Big mode v 1441px+ widthu pro tablety.</p>`
+      },
+      { q: '👨‍🍳 KDS (Kuchyňský displej) + 📤 Výdej — jak to chodí v kuchyni?', a: `
+          <p><strong>Restaurační workflow má 2 displeje:</strong></p>
+          <p><strong>1. KDS</strong> (oranžová sunrise) <code>/admin/kds.php</code> — pro kuchaře.</p>
+          <ul style="line-height:1.8">
+            <li>Karta na účet, klik na položku posune stav: <strong>objednáno → vaří se → hotovo</strong></li>
+            <li>"✓ Vše hotovo" = označí celou objednávku</li>
+            <li>Klik widgetu "Vaří se" = filtruj jen vařící</li>
+            <li>Auto-refresh 10s + zvuk na novou objednávku</li>
+            <li>Stará > 10 min = oranžová, > 15 min = červená pulzující</li>
+          </ul>
+          <p><strong>2. Výdej</strong> (zelený fresh) <code>/admin/vydej.php</code> — pro číšníka u pass-through okna.</p>
+          <ul style="line-height:1.8">
+            <li>Vidí jen účty s alespoň jednou hotovou položkou</li>
+            <li>Klik na hotovou položku = servírováno (zmizí z výdeje)</li>
+            <li>"📤 Vše odneseno" + "🖨️ Tisk bonu" tlačítka per účet</li>
+            <li>Zvuk na novou hotovou položku</li>
+          </ul>
+          <p><strong>Otevři v novém okně</strong> z Restaurace → Provoz → klikni KDS / Výdej karta.</p>`
+      },
+      { q: '📲 QR objednávky — jak si host objedná z mobilu?', a: `
+          <p><strong>1. Vygeneruj QR pro stůl</strong> — Restaurace → 🪑 Stoly → klik na stůl → 📲 QR.</p>
+          <p>Modal ukáže QR + URL ve formátu <code>https://restaurace.cz/qr/?t=&lt;token&gt;</code>.</p>
+          <p><strong>2. Vytiskni QR + nalep na stůl</strong> (plastová karta / stojánek).</p>
+          <p><strong>3. Host naskenuje mobil-foťákem</strong> → otevře menu → kategorie → tap +/− → "Odeslat".</p>
+          <p><strong>4. Objednávka jde do queue</strong> (NE rovnou na kuchyň!) — Restaurace → 📲 QR objednávky.</p>
+          <p><strong>5. Číšník schválí</strong> → "✅ Schválit vše" → přidá do účtu stolu → KDS vidí.</p>
+          <p><strong>Anti-spam:</strong> Schvalování je povinné (host nemůže přímo poslat do kuchyně). Pokud chceš auto-approve pro kavárny, zatím manuálně přes 📲 QR objednávky.</p>
+          <p><strong>Reset token:</strong> Pokud někdo QR ukradne nebo opisuje → 📲 QR → "🔄 Nový token" zneplatní starý.</p>`
+      },
+      { q: '💳 QR k platbě (pay-at-table) — jak to funguje?', a: `
+          <p><strong>Nové v 3.0.7!</strong> Host po jídle naskenuje QR a zaplatí kartou přes Stripe/GoPay nebo informuje že platí hotovostí.</p>
+          <p><strong>1. V detailu účtenky</strong> (POS → klik na účtenku v historii) → klikni "📲 QR platba".</p>
+          <p>Modal ukáže QR + URL <code>https://restaurace.cz/pay/?t=&lt;token&gt;</code>.</p>
+          <p><strong>2. Vytiskni / přiloš QR k účtence</strong> u stolu.</p>
+          <p><strong>3. Host naskenuje</strong> → vidí účtenku + 3 možnosti:</p>
+          <ul style="line-height:1.8">
+            <li><strong>💳 Stripe</strong> (pokud máš zapnutý) — kartou online, Apple/Google Pay</li>
+            <li><strong>🔴 GoPay</strong> (pokud máš zapnutý) — kartou nebo bankovním převodem</li>
+            <li><strong>💵 Hotovostí číšníkovi</strong> — informuje číšníka že platí cash</li>
+          </ul>
+          <p><strong>4. Po platbě</strong> — webhook označí účet jako zaplacený. Číšník vidí ✅ v adminu.</p>
+          <p><strong>Stripe/GoPay setup:</strong> Nastavení → 🔌 Integrace → Stripe/GoPay → zadej API klíče. Bez nich funguje jen "💵 Hotovostí".</p>`
+      },
+      { q: '🖨️ Tiskárny ESC/POS — setup pro kuchyň/bar/výdej', a: `
+          <p><strong>Nové v 3.0.5!</strong> Síťové termo tiskárny pro auto-rozesílání bonů.</p>
+          <p><strong>Hardware:</strong> Doporučená <strong>Epson TM-T20III</strong> (cca 3500-5000 Kč) Ethernet verze. Připoj do routeru, přidej IP.</p>
+          <p><strong>1. Test bez tiskárny</strong> — Nastavení → 🖨️ Tiskárny → zapni <strong>🧪 Dummy mode</strong> (žlutý). Tisk = soubor v /tmp/, vidíš preview.</p>
+          <p><strong>2. Přidej tiskárnu</strong> — ➕ Přidat → Název, Typ (kasa/kuchyně/bar/sklad/výdej), IP, Port 9100, šířka 58/80mm.</p>
+          <p><strong>3. Test</strong> — klik 🧪 Test → vytiskne testovací bon s diakritikou.</p>
+          <p><strong>4. Mapuj kategorie</strong> — sekce "🗺️ Mapování kategorií" → vyber pro každou kategorii tiskárnu. Příklad:</p>
+          <ul style="line-height:1.8">
+            <li>Nápoje studené → Bar</li>
+            <li>Káva, čaj → Kasa (barista)</li>
+            <li>Hlavní jídla, předkrmy → Kuchyně</li>
+          </ul>
+          <p><strong>5. POS settings:</strong> "Tisk účtenky po platbě" (Vždy/Zeptat se/Nikdy) + "Auto-split bonů" (Auto/Manual/Off).</p>
+          <p><strong>Reálný tisk:</strong> Vypni dummy mode (zezelená "✓ Reálný tisk"). Backend posílá ESC/POS přes TCP socket :9100.</p>`
+      },
+      { q: '📺 Multi-screen setup — Provoz + KDS + Výdej + POS', a: `
+          <p><strong>Pro profesionální restauraci 3-4 monitory:</strong></p>
+          <ul style="line-height:1.8">
+            <li><strong>👨‍🍳 KDS</strong> u kuchaře — co vařit</li>
+            <li><strong>📤 Výdej</strong> u pass-through okna — číšník vidí co odnést</li>
+            <li><strong>📺 Provoz</strong> v kanceláři / sales floor — celkový přehled (Stoly/Kuchyně/Rozvoz/POS dnes)</li>
+            <li><strong>🧾 POS Kasa</strong> na tabletu u pultu / dotykový terminál</li>
+          </ul>
+          <p>Otevři každý v samostatném okně z <strong>Restaurace → Provoz</strong> → klik karty.</p>
+          <p><strong>Velikost Provoz čísel</strong> (3.0.6+) — A−/A+ tlačítka v hlavičce. Pro velký TV monitor: <code>/admin/provoz.php?size=tv</code> = 220px čísla.</p>
+          <p><strong>Wake-lock</strong> — všechny kiosk stránky drží obrazovku nahoře 24/7 (modern browser API).</p>
+          <p><strong>Hardware:</strong> stačí 1 server (NAS/mini PC) + 1 router + 4× tablet / monitor + tiskárny. Vše real-time přes sdílenou DB.</p>`
+      },
+      { q: '🔄 Update systému — jak na nové verze', a: `
+          <p><strong>Self-update:</strong> Nastavení → 🛠️ Údržba → "🔄 Zkontrolovat update" → pokud je dostupný, klik "Aktualizovat".</p>
+          <p>Backend:</p>
+          <ol style="line-height:1.8">
+            <li>Stáhne ZIP z <code>https://appek.cz/download.php?key=&lt;tvuj_licencni_klic&gt;</code></li>
+            <li>Ověří SHA256 checksum</li>
+            <li>Zálohuje aktuální verzi do <code>vendor/backups/</code></li>
+            <li>Rozbalí nový ZIP přes existující soubory</li>
+            <li>Spustí auto-migration (CREATE TABLE IF NOT EXISTS, ALTER TABLE)</li>
+            <li>Při chybě → auto-rollback ze zálohy</li>
+          </ol>
+          <p><strong>Manuální update</strong> (pokud self-update nefunguje):</p>
+          <ol style="line-height:1.8">
+            <li>Stáhni <code>appek-vX.Y.Z.zip</code> z licenčního emailu</li>
+            <li>FTP upload + přepiš všechny soubory</li>
+            <li>Otevři admin → migrace se spustí automaticky</li>
+          </ol>
+          <p><strong>Záloha vždycky:</strong> Před manuálním updatem → Údržba → "💾 Vytvořit zálohu DB" → uloží SQL dump.</p>`
+      },
+      { q: '💾 Zálohy DB — jak často a kam?', a: `
+          <p><strong>Manuální záloha:</strong> Nastavení → 🛠️ Údržba → "💾 Vytvořit zálohu" → stáhne SQL dump.</p>
+          <p><strong>Doporučení:</strong></p>
+          <ul style="line-height:1.8">
+            <li>Denní záloha pro restauraci (transakce)</li>
+            <li>Týdenní pro pekárnu (méně dat)</li>
+            <li>Před každým update systému</li>
+            <li>Před importem velkého množství dat</li>
+          </ul>
+          <p><strong>Auto-záloha cronem:</strong> Pokud hosting umí cron → <code>0 3 * * * curl https://tvoje-domena.cz/api/cron_backup.php?token=...</code> (denně ve 3:00 ráno).</p>
+          <p><strong>Off-site záloha:</strong> Stažený SQL nahraj na Google Drive / Dropbox / iCloud — neztratíš při havárii hostingu.</p>
+          <p><strong>Restore:</strong> Údržba → "📥 Obnovit ze zálohy" → vyber SQL soubor → potvrď. <strong>POZOR:</strong> přepíše aktuální data!</p>`
+      },
     ].map((item, i) => `
       <details class="card-block" style="padding:14px 18px">
         <summary style="cursor:pointer;font-weight:700;font-size:15px;color:var(--text-1);user-select:none">
@@ -13517,10 +13633,23 @@ async function renderNastaveni() {
     <div id="ns-platby-panel">⏳ Načítám…</div>
   `;
 
+  // 🆕 v3.0.5 — Tiskárny tab (CRUD + mapping + settings)
+  const blokTiskarny = `
+    <div class="card-block" style="padding:16px;margin-bottom:14px">
+      <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">🖨️ Tiskárny (ESC/POS)</h2>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px;line-height:1.55">
+        Síťové termo tiskárny pro kasa, kuchyň, bar, sklad a výdej. Bonu se automaticky rozesílají podle <strong>kategorie výrobku</strong> na příslušnou tiskárnu.
+        <br>Standard: <strong>Epson TM-T20III</strong> nebo podobná na IP, port <code>9100</code>. Bez fyzické tiskárny zapni <strong>dummy mode</strong> (tisk do souboru pro test).
+      </p>
+    </div>
+    <div id="ns-tiskarny-panel">⏳ Načítám…</div>
+  `;
+
   const blokyTabu = {
     firma:      blokFirmaDoklady,
     notifikace: blokNotifikace,
     platby:     blokPlatby,
+    tiskarny:   blokTiskarny,
     integrace:  blokIntegrace,
     ucetni:     blokUcetni,
     pristupy:   blokPristupy,
@@ -13600,7 +13729,313 @@ async function renderNastaveni() {
   if (aktTab === 'platby') {
     loadPaymentMethodsPanel();
   }
+  if (aktTab === 'tiskarny') {
+    loadTiskarnyPanel();
+  }
 }
+
+// =============================================================
+// 🖨️ TISKÁRNY (v3.0.5) — ESC/POS termo + auto-split + settings
+// =============================================================
+async function loadTiskarnyPanel() {
+  const panel = document.getElementById('ns-tiskarny-panel');
+  if (!panel) return;
+  panel.innerHTML = '⏳ Načítám…';
+  try {
+    const [list, settings] = await Promise.all([
+      api('admin_printers.php?action=list'),
+      api('admin_printers.php?action=settings'),
+    ]);
+    const printers = list.printers || [];
+    const kategorie = list.kategorie || [];
+    const TYP_LABEL = {
+      kasa: '🧾 Kasa (účtenka)',
+      kuchyne: '👨‍🍳 Kuchyně (bon)',
+      bar: '🍹 Bar (drinky)',
+      sklad: '📦 Sklad (balení)',
+      vydej: '📤 Výdej (pickup)',
+      generic: '🖨️ Obecná',
+    };
+    const dummyOn = String(settings.printer_dummy_mode) === '1';
+
+    panel.innerHTML = `
+      <!-- POS settings -->
+      <div class="card-block" style="padding:18px;margin-bottom:14px">
+        <h3 style="margin:0 0 12px;font-size:16px">⚙️ POS chování při tisku</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
+          <label style="display:block">
+            <div style="font-size:12px;font-weight:700;margin-bottom:4px;color:var(--text-3)">Tisk účtenky po platbě</div>
+            <select id="ts-print-receipt" class="input" style="width:100%">
+              <option value="ask"    ${settings.pos_print_receipt_mode === 'ask' ? 'selected' : ''}>Zeptat se (Ano/Ne dialog)</option>
+              <option value="always" ${settings.pos_print_receipt_mode === 'always' ? 'selected' : ''}>Vždy tisknout (tichý tisk)</option>
+              <option value="never"  ${settings.pos_print_receipt_mode === 'never' ? 'selected' : ''}>Nikdy tisknout</option>
+            </select>
+          </label>
+          <label style="display:block">
+            <div style="font-size:12px;font-weight:700;margin-bottom:4px;color:var(--text-3)">Auto-split bonů na kuchyň/bar</div>
+            <select id="ts-print-kitchen" class="input" style="width:100%">
+              <option value="auto"   ${settings.pos_print_kitchen_mode === 'auto' ? 'selected' : ''}>Auto (rozeslat po finish)</option>
+              <option value="manual" ${settings.pos_print_kitchen_mode === 'manual' ? 'selected' : ''}>Manuální (jen na klik)</option>
+              <option value="off"    ${settings.pos_print_kitchen_mode === 'off' ? 'selected' : ''}>Vypnout bonu</option>
+            </select>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;background:${dummyOn ? '#FEF3C7' : '#F0FDF4'};padding:10px 14px;border-radius:10px;border:1px solid ${dummyOn ? '#FCD34D' : '#86EFAC'};cursor:pointer">
+            <input type="checkbox" id="ts-dummy" ${dummyOn ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:${dummyOn ? '#92400E' : '#15803D'}">${dummyOn ? '🧪 Dummy mode (test)' : '✓ Reálný tisk přes IP'}</div>
+              <div style="font-size:11px;color:var(--text-3);margin-top:2px">${dummyOn ? 'Tisk → /tmp/appek_printer_dummy/' : 'Tisk → TCP socket na :9100'}</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Seznam tiskáren -->
+      <div class="card-block" style="padding:18px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="margin:0;font-size:16px">📋 Tiskárny (${printers.length})</h3>
+          <button class="btn-primary" onclick="tiskarnaEdit(null)">➕ Přidat tiskárnu</button>
+        </div>
+        ${printers.length === 0 ? `
+          <div style="padding:30px 20px;text-align:center;background:#FAFAFA;border-radius:10px;color:var(--text-3)">
+            <div style="font-size:48px;margin-bottom:8px">🖨️</div>
+            <div style="font-size:15px;font-weight:700;margin-bottom:4px">Žádné tiskárny</div>
+            <div style="font-size:13px">Klikni "Přidat" — můžeš začít s dummy tiskárnou pro test.</div>
+          </div>
+        ` : `
+          <div style="display:grid;gap:10px">
+            ${printers.map(p => `
+              <div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center;padding:12px 16px;background:#FAFAFA;border:1px solid var(--border);border-radius:10px;${!p.aktivni ? 'opacity:0.5' : ''}">
+                <div style="font-size:28px">${(TYP_LABEL[p.typ] || '🖨️').split(' ')[0]}</div>
+                <div>
+                  <div style="font-weight:700;font-size:14px">${esc(p.nazev)}</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">${esc(TYP_LABEL[p.typ] || p.typ)} · <code>${esc(p.ip)}:${p.port}</code> · ${p.sirka_papiru}mm · ${p.pocet_tisku}× tištěno</div>
+                  ${p.posledni_chyba ? `<div style="font-size:11px;color:#DC2626;margin-top:4px;background:#FEE2E2;padding:4px 8px;border-radius:4px">⚠️ ${esc(p.posledni_chyba)}</div>` : ''}
+                </div>
+                <button class="btn-secondary" onclick="tiskarnaTest(${p.id})" title="Testovací tisk">🧪 Test</button>
+                <div style="display:flex;gap:6px">
+                  <button class="btn-secondary" onclick="tiskarnaEdit(${p.id})">✏️</button>
+                  <button class="btn-secondary" onclick="tiskarnaDelete(${p.id}, '${esc(p.nazev).replace(/'/g, '&#39;')}')">🗑️</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+
+      <!-- Mapování kategorií -->
+      ${kategorie.length > 0 ? `
+        <div class="card-block" style="padding:18px;margin-bottom:14px">
+          <h3 style="margin:0 0 6px;font-size:16px">🗺️ Mapování kategorií → tiskárna</h3>
+          <p style="font-size:12px;color:var(--text-3);margin:0 0 14px">
+            Když host objedná položku z kategorie, bon se vytiskne na přiřazenou tiskárnu. Kategorie bez tiskárny = nikam neposílá.
+          </p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">
+            ${kategorie.map(k => `
+              <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#FAFAFA;border:1px solid var(--border);border-radius:10px">
+                <span style="font-size:20px">${esc(k.ikona || '🥖')}</span>
+                <span style="flex:1;font-weight:600;font-size:13px">${esc(k.nazev)}</span>
+                <select class="input" onchange="tiskarnaMap(${k.id}, this.value)" style="flex:0 0 140px;font-size:12px">
+                  <option value="">— bez tisku —</option>
+                  ${printers.map(p => `<option value="${p.id}" ${String(k.printer_id) === String(p.id) ? 'selected' : ''}>${esc(p.nazev)}</option>`).join('')}
+                </select>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      ` : `
+        <div class="card-block" style="padding:16px;margin-bottom:14px;background:#FFFBEB;border-color:#FCD34D">
+          <p style="margin:0;font-size:13px;color:#92400E">💡 Žádné kategorie výrobků k mapování. Vytvoř je v <strong>Výrobky → Kategorie</strong>.</p>
+        </div>
+      `}
+
+      ${dummyOn ? `
+        <!-- Dummy mode: poslední testovací soubory -->
+        <div class="card-block" style="padding:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <h3 style="margin:0;font-size:16px">🧪 Dummy tisky (poslední soubory)</h3>
+            <button class="btn-secondary" onclick="loadTiskarnyPanel()">🔄 Refresh</button>
+          </div>
+          <div id="ts-dummy-files" style="font-size:12px;color:var(--text-3)">⏳ Načítám…</div>
+        </div>
+      ` : ''}
+    `;
+
+    // On-change handlers pro POS settings
+    document.getElementById('ts-print-receipt').onchange = e => savePosPrintSetting('pos_print_receipt_mode', e.target.value);
+    document.getElementById('ts-print-kitchen').onchange = e => savePosPrintSetting('pos_print_kitchen_mode', e.target.value);
+    document.getElementById('ts-dummy').onchange = e => {
+      savePosPrintSetting('printer_dummy_mode', e.target.checked ? '1' : '0').then(() => loadTiskarnyPanel());
+    };
+
+    if (dummyOn) loadDummyFiles();
+  } catch (e) {
+    panel.innerHTML = `<div style="padding:30px;color:#DC2626;text-align:center">❌ Chyba: ${esc(e.message)}</div>`;
+  }
+}
+
+async function savePosPrintSetting(key, value) {
+  try {
+    await api('admin_printers.php?action=settings', {
+      method: 'POST', body: JSON.stringify({ [key]: value })
+    });
+    toast('✓ Uloženo', 'success');
+  } catch (e) {
+    toast('Chyba: ' + e.message, 'error');
+  }
+}
+
+async function loadDummyFiles() {
+  const c = document.getElementById('ts-dummy-files');
+  if (!c) return;
+  try {
+    const r = await api('admin_printers.php?action=dummy_files');
+    const files = r.files || [];
+    if (!files.length) {
+      c.innerHTML = '<div style="padding:20px;text-align:center;opacity:0.6">Žádné dummy tisky. Zkus tlačítko "🧪 Test" u tiskárny.</div>';
+      return;
+    }
+    c.innerHTML = `
+      <div style="font-size:11px;margin-bottom:8px;opacity:0.7">📁 ${esc(r.dir)}</div>
+      <div style="display:grid;gap:6px;max-height:300px;overflow-y:auto">
+        ${files.map(f => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#fff;border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:11px">
+            <span>${esc(f.name)} <span style="opacity:0.5">(${f.size}B · ${esc(f.mtime)})</span></span>
+            <button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="window.open('../api/admin_printers.php?action=dummy_file&name=${encodeURIComponent(f.name)}', '_blank')">👁️ Preview</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) {
+    c.innerHTML = `<div style="color:#DC2626">Chyba: ${esc(e.message)}</div>`;
+  }
+}
+
+window.tiskarnaTest = async function(id) {
+  toast('⏳ Testovací tisk…', 'info');
+  try {
+    const r = await api('admin_printers.php?action=test', {
+      method: 'POST', body: JSON.stringify({ id })
+    });
+    if (r.ok) {
+      if (r.dummy) toast(`✓ Dummy tisk → ${r.file.split('/').pop()}`, 'success');
+      else        toast(`✓ Vytištěno (${r.bytes}B)`, 'success');
+      loadTiskarnyPanel();
+    } else {
+      toast('❌ ' + (r.error || 'Neznámá chyba'), 'error');
+    }
+  } catch (e) { toast('Chyba: ' + e.message, 'error'); }
+};
+
+window.tiskarnaDelete = async function(id, nazev) {
+  if (!confirm(`Smazat tiskárnu "${nazev}"?\n\nKategorie přiřazené této tiskárně se nastaví na "bez tisku".`)) return;
+  try {
+    await api('admin_printers.php?action=delete', { method: 'POST', body: JSON.stringify({ id }) });
+    toast('✓ Smazáno', 'success');
+    loadTiskarnyPanel();
+  } catch (e) { toast('Chyba: ' + e.message, 'error'); }
+};
+
+window.tiskarnaMap = async function(kategorieId, printerId) {
+  try {
+    await api('admin_printers.php?action=map', {
+      method: 'POST', body: JSON.stringify({ kategorie_id: kategorieId, printer_id: printerId ? parseInt(printerId) : null })
+    });
+    toast('✓ Mapování uloženo', 'success');
+  } catch (e) { toast('Chyba: ' + e.message, 'error'); }
+};
+
+window.tiskarnaEdit = async function(id) {
+  let p = { id: null, nazev: '', typ: 'kasa', ip: '192.168.1.100', port: 9100, sirka_papiru: 80, encoding: 'cp852', aktivni: 1, poznamka: '' };
+  if (id) {
+    try {
+      const r = await api('admin_printers.php?action=list');
+      const found = (r.printers || []).find(x => x.id === id);
+      if (found) p = found;
+    } catch (e) { return toast('Chyba: ' + e.message, 'error'); }
+  }
+  openModal(id ? '✏️ Upravit tiskárnu' : '➕ Nová tiskárna', `
+    <form id="tiskarna-form" style="display:grid;gap:12px;padding:8px 4px">
+      <label>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px">Název *</div>
+        <input class="input" name="nazev" value="${esc(p.nazev)}" required placeholder="Kasa u baru" style="width:100%">
+      </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label>
+          <div style="font-size:12px;font-weight:700;margin-bottom:4px">Typ *</div>
+          <select class="input" name="typ" style="width:100%">
+            <option value="kasa"    ${p.typ === 'kasa' ? 'selected' : ''}>🧾 Kasa (účtenka)</option>
+            <option value="kuchyne" ${p.typ === 'kuchyne' ? 'selected' : ''}>👨‍🍳 Kuchyně (bon)</option>
+            <option value="bar"     ${p.typ === 'bar' ? 'selected' : ''}>🍹 Bar (drinky)</option>
+            <option value="sklad"   ${p.typ === 'sklad' ? 'selected' : ''}>📦 Sklad (balení)</option>
+            <option value="vydej"   ${p.typ === 'vydej' ? 'selected' : ''}>📤 Výdej (pickup)</option>
+            <option value="generic" ${p.typ === 'generic' ? 'selected' : ''}>🖨️ Obecná</option>
+          </select>
+        </label>
+        <label>
+          <div style="font-size:12px;font-weight:700;margin-bottom:4px">Šířka papíru</div>
+          <select class="input" name="sirka_papiru" style="width:100%">
+            <option value="80" ${p.sirka_papiru == 80 ? 'selected' : ''}>80 mm (standard)</option>
+            <option value="58" ${p.sirka_papiru == 58 ? 'selected' : ''}>58 mm (mini)</option>
+          </select>
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+        <label>
+          <div style="font-size:12px;font-weight:700;margin-bottom:4px">IP adresa nebo hostname *</div>
+          <input class="input" name="ip" value="${esc(p.ip)}" required placeholder="192.168.1.100" style="width:100%;font-family:monospace">
+        </label>
+        <label>
+          <div style="font-size:12px;font-weight:700;margin-bottom:4px">Port</div>
+          <input class="input" name="port" type="number" value="${p.port || 9100}" min="1" max="65535" style="width:100%;font-family:monospace">
+        </label>
+      </div>
+      <label>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px">Encoding (diakritika)</div>
+        <select class="input" name="encoding" style="width:100%">
+          <option value="cp852"  ${p.encoding === 'cp852' ? 'selected' : ''}>cp852 (středoevropský, doporučeno)</option>
+          <option value="cp1250" ${p.encoding === 'cp1250' ? 'selected' : ''}>cp1250 (Windows CE)</option>
+          <option value="utf-8"  ${p.encoding === 'utf-8' ? 'selected' : ''}>UTF-8 (jen pokud tiskárna podporuje)</option>
+          <option value="ascii"  ${p.encoding === 'ascii' ? 'selected' : ''}>ASCII (bez diakritiky)</option>
+        </select>
+      </label>
+      <label>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px">Poznámka</div>
+        <input class="input" name="poznamka" value="${esc(p.poznamka || '')}" placeholder="Epson TM-T20III, sériové č. ..." style="width:100%">
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:10px;background:#F0FDF4;border-radius:8px">
+        <input type="checkbox" name="aktivni" ${p.aktivni ? 'checked' : ''} style="width:18px;height:18px">
+        <span style="font-weight:600">Tiskárna aktivní (přijímá tisky)</span>
+      </label>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button type="button" class="btn-secondary" onclick="closeModal()">Zrušit</button>
+        <button type="submit" class="btn-primary">💾 Uložit</button>
+      </div>
+    </form>
+  `);
+  document.getElementById('tiskarna-form').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    const data = {
+      id: p.id,
+      nazev: f.nazev.value,
+      typ: f.typ.value,
+      ip: f.ip.value,
+      port: parseInt(f.port.value) || 9100,
+      sirka_papiru: parseInt(f.sirka_papiru.value),
+      encoding: f.encoding.value,
+      aktivni: f.aktivni.checked ? 1 : 0,
+      poznamka: f.poznamka.value,
+    };
+    try {
+      await api('admin_printers.php?action=save', { method: 'POST', body: JSON.stringify(data) });
+      toast('✓ Uloženo', 'success');
+      closeModal();
+      loadTiskarnyPanel();
+    } catch (e) {
+      toast('Chyba: ' + e.message, 'error');
+    }
+  };
+};
 
 // =============================================================
 // 💳 PAYMENT METHODS (v2.9.205) — centrální on/off
@@ -15276,11 +15711,18 @@ async function renderRestaurantProvoz() {
 
     <!-- Bonus features karty pod widgetem -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:18px">
-      <a href="javascript:window.openKDSWindow?.()" class="card-block" style="background:#1a1d24;color:#fff;text-decoration:none;padding:18px;border:none;display:block;border-radius:10px;cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+      <a href="javascript:window.openKDSWindow?.()" class="card-block" style="background:linear-gradient(135deg,#FBBF24,#FB923C);color:#1F2937;text-decoration:none;padding:18px;border:none;display:block;border-radius:10px;cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
         <div style="font-size:32px;margin-bottom:8px">👨‍🍳</div>
         <div style="font-weight:700;font-size:15px;margin-bottom:4px">Kuchyňský displej (KDS)</div>
-        <div style="font-size:12px;opacity:0.7;line-height:1.5">Otevři na obrazovce v kuchyni. Karty objednávek se mění grid stavem: <strong>nová → vaří se → hotová → vydaná</strong>. Klik = next state.</div>
-        <div style="margin-top:10px;font-size:11px;color:#10B981;font-weight:700">→ OTEVŘÍT KDS V NOVÉM OKNĚ</div>
+        <div style="font-size:12px;opacity:0.85;line-height:1.5">Pro <strong>kuchaře</strong>. Karty objednávek se stavem: <strong>objednáno → vaří se → hotovo</strong>. Klik na položku = next state.</div>
+        <div style="margin-top:10px;font-size:11px;color:#1F2937;font-weight:800">→ OTEVŘÍT KDS V NOVÉM OKNĚ</div>
+      </a>
+
+      <a href="javascript:window.openVydejWindow?.()" class="card-block" style="background:linear-gradient(135deg,#34D399,#059669);color:#052e1c;text-decoration:none;padding:18px;border:none;display:block;border-radius:10px;cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div style="font-size:32px;margin-bottom:8px">📤</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:4px">Výdej / Pass-through</div>
+        <div style="font-size:12px;opacity:0.85;line-height:1.5">Pro <strong>číšníka u výdejního okna</strong>. Ukáže jen hotové položky k odnesení. Klik = servírováno + tisk pickup bonu.</div>
+        <div style="margin-top:10px;font-size:11px;color:#052e1c;font-weight:800">→ OTEVŘÍT VÝDEJ V NOVÉM OKNĚ</div>
       </a>
 
       <a href="javascript:window.openFloorplanWindow?.()" class="card-block" style="padding:18px;border:1px solid var(--border);display:block;text-decoration:none;color:var(--text);cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
@@ -15300,9 +15742,14 @@ async function renderRestaurantProvoz() {
 
     <!-- Tip pro multi-screen setup -->
     <div style="margin-top:18px;padding:14px 18px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8;border-radius:10px;font-size:13px;color:#854F0B;line-height:1.55">
-      💡 <strong>Tip pro multi-screen setup:</strong> Otevři <strong>Provoz</strong> na druhém monitoru (sales floor / kancelář),
-      <strong>KDS</strong> na obrazovce v kuchyni a <strong>POS</strong> na tabletu u pultu. Vše se aktualizuje real-time přes
-      sdílenou DB. Pro nejvyšší frame-rate dej refresh na 30 s ve widgetu.
+      💡 <strong>Tip pro profesionální restauraci se 3+ monitory:</strong>
+      <ul style="margin:6px 0 0 18px;padding:0">
+        <li>👨‍🍳 <strong>KDS</strong> u kuchaře — vidí co vařit (objednáno → vaří se → hotovo)</li>
+        <li>📤 <strong>Výdej</strong> u pass-through okna — číšník vidí jen hotové, klik = odneseno</li>
+        <li>📺 <strong>Provoz</strong> v kanceláři nebo na floor — celkový přehled (stoly, kuchyně, rozvoz, POS dnes)</li>
+        <li>🧾 <strong>POS</strong> na tabletu u pultu / dotykový terminál</li>
+      </ul>
+      Vše real-time přes sdílenou DB. Stačí 1 server + 1 router.
     </div>
   `;
 
@@ -15324,6 +15771,17 @@ window.openProvozMonitor = function() {
 // 🆕 v3.0.1 — KDS (Kitchen Display Screen) v novém okně
 window.openKDSWindow = function() {
   const w = window.open('kds.php', 'appek_kds',
+    `width=${screen.availWidth},height=${screen.availHeight},left=0,top=0,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=yes`);
+  if (!w) {
+    alert('Prohlížeč zablokoval popup. Povolte popup okna pro tuto stránku.');
+    return;
+  }
+  w.focus();
+};
+
+// 🆕 v3.0.4 — Výdej (Pass-through display) v novém okně
+window.openVydejWindow = function() {
+  const w = window.open('vydej.php', 'appek_vydej',
     `width=${screen.availWidth},height=${screen.availHeight},left=0,top=0,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=yes`);
   if (!w) {
     alert('Prohlížeč zablokoval popup. Povolte popup okna pro tuto stránku.');
@@ -20989,7 +21447,7 @@ async function renderDiagnostika() {
         <p class="page-sub">Stav serveru, databáze a aplikace</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="navigate('nastaveni')">← Nastavení</button>
+        <button class="btn-back" onclick="navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='udrzba';renderNastaveni();},100)" title="Zpět na Údržba tab"><span class="btn-back-arrow">←</span> <span class="btn-back-lbl">Údržba</span></button>
         <button class="btn-secondary" onclick="diagCopy()" title="Zkopírovat všechna data do schránky (pro support)">📋 Kopírovat info</button>
         <button class="btn-secondary" onclick="diagLint()" title="Projeď všechny PHP soubory v api/ — najdi parse errors">🔬 Lint API</button>
         <button class="btn-secondary" onclick="diagPingMail()" title="Pošle testovací e-mail na firma_email">✉️ Test e-mailu</button>
@@ -21789,7 +22247,7 @@ window.emailTplShowDesigns = async function(klic) {
       <p style="font-size:13px;color:var(--text-2);margin-bottom:14px">Vyber design — bude vyrenderován s placeholders, můžeš pak ručně upravit. Aktuální obsah těla bude přepsán.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">${html}</div>
       <div class="form-actions">
-        <button class="btn-secondary" onclick="closeModal();setTimeout(() => emailTemplateEdit('${esc(klic)}', { predmet: state._emailTplSavedPredmet }), 50)">← Zpět</button>
+        <button class="btn-back" onclick="closeModal();setTimeout(() => emailTemplateEdit('${esc(klic)}', { predmet: state._emailTplSavedPredmet }), 50)">← Zpět</button>
       </div>
     `, 'wide');
   } catch (e) { alert('Chyba: ' + e.message); }
@@ -21978,7 +22436,7 @@ window.emailTemplatePreviewLive = async function(klic) {
       ${bodyHtml}
     </div>
     <div class="form-actions">
-      <button class="btn-secondary" onclick="emailTplBackToEditor()">← Zpět do editoru</button>
+      <button class="btn-back" onclick="emailTplBackToEditor()">← Zpět do editoru</button>
       <div style="flex:1"></div>
       <button class="btn-primary btn-green" onclick="emailTplSaveFromPreview()" style="font-weight:700;padding:12px 24px">💾 Uložit šablonu</button>
     </div>
@@ -22414,7 +22872,7 @@ async function renderUsers() {
           <p class="page-sub">Správa admin přístupů a prodavačů</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button class="btn-secondary" onclick="navigate('nastaveni')">← Nastavení</button>
+          <button class="btn-back" onclick="navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='udrzba';renderNastaveni();},100)" title="Zpět na Údržba tab"><span class="btn-back-arrow">←</span> <span class="btn-back-lbl">Údržba</span></button>
           <button class="btn-primary btn-green btn-big-action" onclick="otevritUzivatele(null)" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nový uživatel</button>
         </div>
       </div>
@@ -22854,7 +23312,7 @@ async function renderCenoveSkupiny() {
           <p class="page-sub">Definujte slevy pro skupiny zákazníků (procenta nebo pevné ceny)</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button class="btn-secondary" onclick="navigate('nastaveni')">← Nastavení</button>
+          <button class="btn-back" onclick="navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='udrzba';renderNastaveni();},100)" title="Zpět na Údržba tab"><span class="btn-back-arrow">←</span> <span class="btn-back-lbl">Údržba</span></button>
           <button class="btn-primary btn-green btn-big-action" onclick="otevritSkupinu(null)" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nová skupina</button>
         </div>
       </div>
@@ -23083,7 +23541,7 @@ window.sk_otevritPridatOdb = async function(sk_id) {
       </table>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
-      <button class="btn-secondary" onclick="closeModal();sk_returnTo(${sk_id})">← Zpět</button>
+      <button class="btn-back" onclick="closeModal();sk_returnTo(${sk_id})">← Zpět</button>
       <button class="btn-primary btn-green" onclick="sk_pridatOdbSubmit(${sk_id})">✓ Přidat vybrané</button>
     </div>
   `);
@@ -27721,7 +28179,7 @@ function renderCenikStep2() {
     </div>
 
     <div class="form-actions" style="margin-top:14px">
-      <button class="btn-secondary" onclick="renderCenikStep1()">← Zpět</button>
+      <button class="btn-back" onclick="renderCenikStep1()">← Zpět</button>
       <div style="flex:1"></div>
       <button class="btn-primary btn-green" onclick="cenikRunMatch()">🔍 Spočítat shody &amp; pokračovat</button>
     </div>
@@ -27840,7 +28298,7 @@ function renderCenikStep3() {
     </div>
 
     <div class="form-actions" style="margin-top:14px">
-      <button class="btn-secondary" onclick="renderCenikStep2()">← Zpět</button>
+      <button class="btn-back" onclick="renderCenikStep2()">← Zpět</button>
       <div style="flex:1"></div>
       <button class="btn-primary btn-green" onclick="cenikApply()">✓ Spustit import</button>
     </div>
@@ -31064,7 +31522,7 @@ function vykreslitEditor() {
         <p class="page-sub">Vlastní rozvržení cenovek pomocí drag &amp; drop</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="stSetRezim('cenovky')">← Zpět na tisk</button>
+        <button class="btn-back" onclick="stSetRezim('cenovky')">← Zpět na tisk</button>
         <button class="btn-secondary" onclick="ed_novaSablona()">+ Nová</button>
         <button class="btn-primary btn-green" onclick="ed_ulozit()">💾 Uložit</button>
       </div>
@@ -34635,7 +35093,7 @@ function haccpRenderGrafEditor() {
   return `
     <div class="card-block" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:12px 16px;margin-bottom:14px">
       <div>
-        <button class="btn-secondary" onclick="haccpState.graf_editor=null;haccpRender()" style="font-size:12px">← Zpět</button>
+        <button class="btn-back" onclick="haccpState.graf_editor=null;haccpRender()" style="font-size:12px">← Zpět</button>
         <strong style="margin-left:10px">${isNew ? 'Nová šablona HACCP grafu' : 'Upravit: ' + esc(d.nazev || '—')}</strong>
       </div>
       <div style="display:flex;gap:6px">
@@ -35215,7 +35673,7 @@ function haccpRenderEditor() {
   openModal(`📋 HACCP karta: ${esc(v.nazev)}`, `
     ${ed.return_to === 'vyrobek' ? `
       <div style="display:flex;justify-content:flex-start;margin-bottom:10px">
-        <button class="btn-secondary" onclick="haccpZpetNaVyrobek(${v.id})" title="Zavře HACCP a vrátí se do editoru výrobku" style="font-size:13px">← Zpět na výrobek</button>
+        <button class="btn-back" onclick="haccpZpetNaVyrobek(${v.id})" title="Zavře HACCP a vrátí se do editoru výrobku" style="font-size:13px">← Zpět na výrobek</button>
       </div>
     ` : ''}
 
@@ -35231,7 +35689,7 @@ function haccpRenderEditor() {
     </div>
 
     <div class="form-actions">
-      ${ed.return_to === 'vyrobek' ? `<button class="btn-secondary" onclick="haccpZpetNaVyrobek(${v.id})" title="Zavře HACCP a vrátí se do editoru výrobku">← Zpět na výrobek</button>` : ''}
+      ${ed.return_to === 'vyrobek' ? `<button class="btn-back" onclick="haccpZpetNaVyrobek(${v.id})" title="Zavře HACCP a vrátí se do editoru výrobku">← Zpět na výrobek</button>` : ''}
       <a href="../api/vyrobek_haccp.php?id=${v.id}" target="_blank" class="btn-secondary" style="text-decoration:none">📄 PDF</a>
       <button class="btn-secondary" onclick="window.open('../api/vyrobek_haccp.php?id=${v.id}&autoprint=1', '_blank')" title="Otevře tiskový dialog rovnou">🖨️ Tisk</button>
       <div style="flex:1"></div>

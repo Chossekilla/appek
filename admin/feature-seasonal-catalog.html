@@ -117,7 +117,7 @@ const state = {
 
 async function load() {
   try {
-    const r = await fetch('/api/feature_seasonal_catalog.php');
+    const r = await fetch('../api/feature_seasonal_catalog.php');
     if (r.status === 402) {
       const j = await r.json();
       $('#content').innerHTML = `
@@ -251,7 +251,7 @@ async function doPreview() {
   $('#preview-pane').style.display = 'block';
   $('#preview-result').innerHTML = '<div class="alert">⏳ Generuji preview…</div>';
   try {
-    const r = await fetch('/api/feature_seasonal_catalog.php?action=preview', {
+    const r = await fetch('../api/feature_seasonal_catalog.php?action=preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -290,7 +290,7 @@ async function doSend() {
   $('#preview-pane').style.display = 'block';
   $('#preview-result').innerHTML = '<div class="alert">📧 Odesílám e-maily…</div>';
   try {
-    const r = await fetch('/api/feature_seasonal_catalog.php?action=send', {
+    const r = await fetch('../api/feature_seasonal_catalog.php?action=send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

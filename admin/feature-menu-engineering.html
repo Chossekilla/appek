@@ -127,7 +127,7 @@ const fmt = (n) => {
 
 async function load() {
   try {
-    const r = await fetch('/api/feature_menu_engineering.php');
+    const r = await fetch('../api/feature_menu_engineering.php');
     if (r.status === 402) {
       const j = await r.json();
       $('#content').innerHTML = `

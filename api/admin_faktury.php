@@ -1,11 +1,15 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_schema_lib.php';
 cors_headers();
 require_admin();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $pdo = db();
+
+// 🆕 v3.0.11 — auto-migrace faktury snapshot sloupců (idempotent)
+ensure_faktury_schema($pdo);
 
 if ($method === 'GET') {
     if (isset($_GET['id'])) {

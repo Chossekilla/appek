@@ -148,7 +148,7 @@ let filterCat = '';
 
 async function load() {
   try {
-    const r = await fetch('/api/feature_allergen_matrix.php');
+    const r = await fetch('../api/feature_allergen_matrix.php');
     if (r.status === 402) {
       const j = await r.json();
       $('#content').innerHTML = `
@@ -270,7 +270,7 @@ async function toggle(vyrobekId, alergen) {
   if (el) el.classList.toggle('on');
 
   try {
-    const r = await fetch('/api/feature_allergen_matrix.php', {
+    const r = await fetch('../api/feature_allergen_matrix.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ vyrobek_id: vyrobekId, alergeny: p.alergeny_arr }),
@@ -314,7 +314,7 @@ async function bulkTemplate() {
     let newAlergeny = [...new Set([...p.alergeny_arr, ...tpl.allergens])];
     if (tpl.remove) newAlergeny = [];
     try {
-      const r = await fetch('/api/feature_allergen_matrix.php', {
+      const r = await fetch('../api/feature_allergen_matrix.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vyrobek_id: p.id, alergeny: newAlergeny }),

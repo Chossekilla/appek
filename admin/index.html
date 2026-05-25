@@ -60,7 +60,7 @@
   }
 })();
 </script>
-<link rel="stylesheet" href="admin.css?v=3.0.2">
+<link rel="stylesheet" href="admin.css?v=3.0.11">
 </head>
 <body>
 
@@ -94,7 +94,7 @@
 // 🧪 Demo auto-login detection + 15min idle logout
 (async function() {
   try {
-    const r = await fetch('/api/demo_status.php', { cache: 'no-cache' });
+    const r = await fetch('../api/demo_status.php', { cache: 'no-cache' });
     if (!r.ok) return;
     const j = await r.json();
     if (!j.demo) return;
@@ -321,7 +321,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js" defer></script>
-<script src="i18n.js?v=3.0.2"></script>
+<script src="i18n.js?v=3.0.11"></script>
 <!-- 🚀 v2.9.314 — Lazy i18n: CS users (~80% bázi) předtím tahali 4 MB JS zbytečně.
      i18n_auto.js (2.3 MB, EN+ES) a i18n_extra.js (1.7 MB, SK+DE) se teď loadují
      jen pro non-CS jazyky. Switching at runtime: window.loadI18nForLang() v i18n.js. -->
@@ -333,14 +333,14 @@
   // EN/ES needs i18n_auto.js. SK/DE need both.
   // document.write je deprecated ale funguje synchronně před admin.js — což je co potřebujeme.
   if (lang === 'en' || lang === 'es' || lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_auto.js?v=3.0.2"><\/script>');
+    document.write('<script src="i18n_auto.js?v=3.0.11"><\/script>');
   }
   if (lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_extra.js?v=3.0.2"><\/script>');
+    document.write('<script src="i18n_extra.js?v=3.0.11"><\/script>');
   }
 })();
 </script>
-<script src="admin.js?v=3.0.2"></script>
+<script src="admin.js?v=3.0.11"></script>
 <script>
 // 🔄 AUTO-CHECK pro update — admin loadne → ptáme se vendora.
 //    v2.9.52 — Client-side semver kontrola: pill se ukáže JEN když je
@@ -359,7 +359,7 @@
     return 0;
   }
   try {
-    const vRes = await fetch('/api/version.php', { cache: 'no-cache' });
+    const vRes = await fetch('../api/version.php', { cache: 'no-cache' });
     if (!vRes.ok) return;
     const v = await vRes.json();
     if (!v.version || !v.license_key) return;
@@ -600,7 +600,7 @@
   } catch (e) {}
 
   // 3) Verze backendu — z api/version.php (config.php)
-  fetch('/api/version.php', { cache: 'no-cache' })
+  fetch('../api/version.php', { cache: 'no-cache' })
     .then(function(r){ return r.json(); })
     .then(function(d){ render(d && d.version ? d.version : null); })
     .catch(function(){ render(null); });

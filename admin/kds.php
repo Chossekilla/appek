@@ -47,23 +47,144 @@ html, body {
 }
 .kds-app { display: flex; flex-direction: column; height: 100vh; }
 
-/* ─── HEADER ─── */
+/* ─── HEADER — SUNRISE GRADIENT + WIDGET CARDS ─── */
 .kds-head {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 22px;
-  background: rgba(0,0,0,0.5);
-  border-bottom: 2px solid rgba(255,255,255,0.08);
+  display: flex; justify-content: space-between; align-items: stretch;
+  padding: 14px 20px;
+  gap: 14px;
+  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 55%, #FB923C 100%);
+  border-bottom: 3px solid rgba(0,0,0,0.12);
+  color: #1F2937;
   flex-shrink: 0;
+  min-height: 150px;
+  box-shadow: 0 4px 14px rgba(251,146,60,0.25);
 }
-.kds-brand { display: flex; align-items: center; gap: 12px; }
-.kds-brand-ic { font-size: 32px; }
-.kds-brand h1 { font-size: 18px; font-weight: 800; }
-.kds-brand small { font-size: 11px; opacity: 0.6; }
-.kds-stats { display: flex; gap: 18px; align-items: center; }
-.kds-stat { text-align: center; }
-.kds-stat-num { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.kds-stat-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }
-.kds-clock { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kds-brand {
+  display: flex; align-items: center; gap: 14px;
+  flex-shrink: 0; max-width: 280px;
+}
+.kds-brand-ic {
+  font-size: 56px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18));
+  animation: brand-bob 4s ease-in-out infinite;
+}
+@keyframes brand-bob { 50% { transform: translateY(-3px); } }
+.kds-brand h1 {
+  font-size: 20px; font-weight: 900;
+  color: #1F2937; letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.kds-brand small { font-size: 11px; color: rgba(31,41,55,0.7); display: block; margin-top: 3px; }
+
+/* WIDGET STAT CARDS */
+.kds-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  flex: 1;
+  align-items: stretch;
+}
+.kds-stat {
+  position: relative;
+  background: rgba(255,255,255,0.95);
+  border: 2px solid rgba(255,255,255,0.7);
+  border-radius: 16px;
+  padding: 10px 12px 12px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+  overflow: hidden;
+  user-select: none;
+}
+.kds-stat::before {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+  height: 4px;
+  background: var(--accent, #94A3B8);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.25s ease;
+}
+.kds-stat:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  background: #fff;
+}
+.kds-stat:hover::before { transform: scaleX(1); }
+.kds-stat:active { transform: translateY(-1px); }
+.kds-stat.is-active {
+  background: #1F2937;
+  color: #fff;
+  border-color: #1F2937;
+}
+.kds-stat.is-active .kds-stat-lbl,
+.kds-stat.is-active .kds-stat-num { color: inherit; }
+.kds-stat.is-active::before { transform: scaleX(1); }
+.kds-stat-ic {
+  font-size: 20px;
+  position: absolute;
+  top: 8px; left: 12px;
+  opacity: 0.55;
+}
+.kds-stat-num {
+  font-size: 68px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+  color: #1F2937;
+  margin-top: 6px;
+  transition: color 0.18s ease;
+}
+.kds-stat--cook { --accent: #EA580C; }
+.kds-stat--cook .kds-stat-num { color: #EA580C; }
+.kds-stat--ready { --accent: #15803D; }
+.kds-stat--ready .kds-stat-num { color: #15803D; }
+.kds-stat--orders { --accent: #2563EB; }
+.kds-stat--orders .kds-stat-num { color: #2563EB; }
+.kds-stat--items { --accent: #7C3AED; }
+.kds-stat--items .kds-stat-num { color: #7C3AED; }
+.kds-stat-lbl {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(31,41,55,0.7);
+  margin-top: 4px;
+}
+.kds-stat-pulse {
+  position: absolute; top: 10px; right: 12px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #10B981; opacity: 0; transition: opacity 0.25s ease;
+}
+.kds-stat-pulse.is-on {
+  opacity: 1;
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.6); }
+  50%     { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+}
+
+.kds-clock-wrap {
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
+  flex-shrink: 0;
+  padding-left: 6px;
+  min-width: 110px;
+}
+.kds-clock {
+  font-size: 48px; font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: #1F2937;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-shadow: 0 2px 0 rgba(255,255,255,0.4);
+}
+.kds-date {
+  font-size: 11px; opacity: 0.75;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-top: 6px; font-weight: 700;
+}
 
 /* ─── ORDERS GRID ─── */
 .kds-grid {
@@ -175,12 +296,26 @@ html, body {
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block; margin-right: 6px; }
 .status-dot.is-offline { background: #DC2626; }
 
+/* Tablet/menší TV */
+@media (max-width: 1200px) {
+  .kds-head { flex-wrap: wrap; min-height: auto; }
+  .kds-stats { order: 3; flex-basis: 100%; grid-template-columns: repeat(4, 1fr); }
+  .kds-stat-num { font-size: 54px; }
+  .kds-clock { font-size: 36px; }
+}
 @media (max-width: 600px) {
   .kds-grid { grid-template-columns: 1fr; padding: 8px; }
-  .kds-stats { display: none; }
-  .kds-brand-ic { font-size: 24px; }
-  .kds-brand h1 { font-size: 14px; }
-  .kds-clock { font-size: 18px; }
+  .kds-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .kds-stat { padding: 8px 6px 10px; border-radius: 12px; }
+  .kds-stat-num { font-size: 42px; }
+  .kds-stat-ic { font-size: 14px; top: 6px; left: 8px; }
+  .kds-stat-lbl { font-size: 9px; letter-spacing: 0.06em; }
+  .kds-brand-ic { font-size: 38px; }
+  .kds-brand h1 { font-size: 15px; }
+  .kds-brand small { display: none; }
+  .kds-clock { font-size: 26px; }
+  .kds-date { display: none; }
+  .kds-head { min-height: auto; padding: 10px 12px; }
 }
 </style>
 </head>
@@ -191,17 +326,38 @@ html, body {
     <div class="kds-brand">
       <span class="kds-brand-ic">👨‍🍳</span>
       <div>
-        <h1>APPEK · Kuchyňský displej (KDS)</h1>
-        <small>Klik na položku posune stav: objednáno → vaří se → hotovo</small>
+        <h1>APPEK · Kuchyňský displej</h1>
+        <small>Klik na položku: objednáno → vaří se → hotovo</small>
       </div>
     </div>
     <div class="kds-stats">
-      <div class="kds-stat"><div class="kds-stat-num" id="stat-orders">0</div><div class="kds-stat-lbl">Účtů</div></div>
-      <div class="kds-stat"><div class="kds-stat-num" id="stat-items">0</div><div class="kds-stat-lbl">Položek</div></div>
-      <div class="kds-stat"><div class="kds-stat-num" style="color:#F59E0B" id="stat-cooking">0</div><div class="kds-stat-lbl">Vaří se</div></div>
-      <div class="kds-stat"><div class="kds-stat-num" style="color:#10B981" id="stat-ready">0</div><div class="kds-stat-lbl">Hotových</div></div>
+      <div class="kds-stat kds-stat--orders" data-filter="all" title="Všechny účty">
+        <span class="kds-stat-ic">🪑</span>
+        <span class="kds-stat-pulse" id="pulse-orders"></span>
+        <div class="kds-stat-num" id="stat-orders">0</div>
+        <div class="kds-stat-lbl">Účtů</div>
+      </div>
+      <div class="kds-stat kds-stat--items" data-filter="all" title="Celkem položek">
+        <span class="kds-stat-ic">🍽️</span>
+        <div class="kds-stat-num" id="stat-items">0</div>
+        <div class="kds-stat-lbl">Položek</div>
+      </div>
+      <div class="kds-stat kds-stat--cook" data-filter="vari_se" title="Klik = jen účty s vařícími se položkami">
+        <span class="kds-stat-ic">🔥</span>
+        <span class="kds-stat-pulse" id="pulse-cooking"></span>
+        <div class="kds-stat-num" id="stat-cooking">0</div>
+        <div class="kds-stat-lbl">Vaří se</div>
+      </div>
+      <div class="kds-stat kds-stat--ready" data-filter="hotovo" title="Klik = jen účty s hotovými položkami">
+        <span class="kds-stat-ic">✓</span>
+        <div class="kds-stat-num" id="stat-ready">0</div>
+        <div class="kds-stat-lbl">Hotových</div>
+      </div>
     </div>
-    <div class="kds-clock" id="kds-clock">00:00</div>
+    <div class="kds-clock-wrap">
+      <div class="kds-clock" id="kds-clock">00:00</div>
+      <div class="kds-date" id="kds-date">—</div>
+    </div>
   </header>
 
   <main class="kds-grid" id="kds-grid">
@@ -217,7 +373,7 @@ html, body {
       <span id="status-text">Připojeno</span>
       · Auto-refresh 10 s · Poslední data: <span id="last-update">—</span>
     </div>
-    <div>APPEK KDS · v<?= htmlspecialchars($appVersion) ?> · <a href="../admin/">← Admin</a></div>
+    <div>APPEK KDS · v<?= htmlspecialchars($appVersion) ?> · <a href="vydej.php">📤 Výdej</a> · <a href="../admin/">← Admin</a></div>
   </footer>
 </div>
 
@@ -225,16 +381,49 @@ html, body {
 const REFRESH_SEC = 10;
 const API = '../api';
 let prevOrderCount = 0;
+let prevStats = { orders: 0, items: 0, cooking: 0, ready: 0 };
+let activeFilter = 'all'; // 'all' | 'vari_se' | 'hotovo'
+let lastOrdersData = [];
+const DAY_NAMES = ['Ne','Po','Út','St','Čt','Pá','So'];
+const MONTH_NAMES = ['led','úno','bře','dub','kvě','čvn','čvc','srp','zář','říj','lis','pro'];
 
-// Hodiny
+// Hodiny + datum
 function updateClock() {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
   document.getElementById('kds-clock').textContent = hh + ':' + mm;
+  const dEl = document.getElementById('kds-date');
+  if (dEl) dEl.textContent = `${DAY_NAMES[now.getDay()]} ${now.getDate()}. ${MONTH_NAMES[now.getMonth()]}`;
 }
 setInterval(updateClock, 30000);
 updateClock();
+
+// Count-up animace pro widget čísla
+function animateNum(el, from, to) {
+  if (from === to) { el.textContent = to; return; }
+  const dur = 450; const start = performance.now();
+  function step(t) {
+    const p = Math.min(1, (t - start) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(from + (to - from) * eased);
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// Klik na widget = toggle filter
+document.addEventListener('click', e => {
+  const w = e.target.closest('.kds-stat[data-filter]');
+  if (!w) return;
+  const f = w.dataset.filter;
+  // Toggle: pokud už aktivní → vypnout (vrátit na 'all')
+  activeFilter = (activeFilter === f && f !== 'all') ? 'all' : f;
+  document.querySelectorAll('.kds-stat').forEach(s => {
+    s.classList.toggle('is-active', activeFilter !== 'all' && s.dataset.filter === activeFilter);
+  });
+  renderOrders(lastOrdersData);
+});
 
 // Zvuk na novou objednávku
 function chimeNewOrder() {
@@ -295,7 +484,59 @@ function minutesSince(iso) {
   return Math.floor((Date.now() - dt.getTime()) / 60000);
 }
 
-// Hlavní render
+// Render objednávkové grid (volá se i při změně filtru)
+function renderOrders(orders) {
+  const grid = document.getElementById('kds-grid');
+
+  // Filtruj podle aktivního widgetu
+  let shown = orders;
+  if (activeFilter === 'vari_se' || activeFilter === 'hotovo') {
+    shown = orders.filter(o => o.polozky.some(p => p.stav === activeFilter));
+  }
+
+  if (shown.length === 0) {
+    const noFilterMsg = activeFilter === 'vari_se'
+      ? { ic: '🔥', t: 'Žádné položky se nevaří', s: 'Klik na widget Vaří se znovu pro zrušení filtru.' }
+      : activeFilter === 'hotovo'
+      ? { ic: '✓', t: 'Žádné hotové položky', s: 'Klik na widget Hotových znovu pro zrušení filtru.' }
+      : { ic: '✅', t: 'Žádné aktivní objednávky', s: 'Až někdo objedná, karty se objeví zde.' };
+    grid.innerHTML = `
+      <div class="kds-empty">
+        <div class="kds-empty-ic">${noFilterMsg.ic}</div>
+        <div class="kds-empty-title">${noFilterMsg.t}</div>
+        <div class="kds-empty-sub">${noFilterMsg.s}</div>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = shown.map(o => {
+    const min = minutesSince(o.first_objednavka);
+    const stateClass = min >= 15 ? 'is-critical' : (min >= 10 ? 'is-warning' : '');
+    return `
+      <div class="kds-order ${stateClass}" data-ucet-id="${o.ucet_id}">
+        <div class="kds-order-head">
+          <div class="kds-order-table">🪑 ${esc(o.stul_nazev || '?')}</div>
+          <div class="kds-order-time">${min} min</div>
+        </div>
+        <div class="kds-items">
+          ${o.polozky.map(p => `
+            <div class="kds-item" data-item-id="${p.id}" data-state="${esc(p.stav)}" onclick="setItemState(${p.id}, '${esc(p.stav)}')">
+              <span class="kds-item-mn">${parseInt(p.mnozstvi)}×</span>
+              <span class="kds-item-name">${esc(p.vyrobek_nazev || '?')}${p.poznamka ? `<div style="font-size:11px;opacity:0.7;margin-top:2px">💬 ${esc(p.poznamka)}</div>` : ''}</span>
+              <span class="kds-item-state">${p.stav === 'objednano' ? '⏳' : p.stav === 'vari_se' ? '🔥' : '✓'}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="kds-order-foot">
+          <button class="kds-btn is-primary" onclick="markOrderReady(${o.ucet_id})">✓ Vše hotovo</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Hlavní fetch + stats
 async function loadData() {
   try {
     const r = await fetch(`${API}/admin_pos.php?action=kds`, { credentials: 'include' });
@@ -304,12 +545,13 @@ async function loadData() {
     setStatus(true);
 
     const orders = d.orders || [];
+    lastOrdersData = orders;
 
     // Beep na novou objednávku
     if (orders.length > prevOrderCount && prevOrderCount > 0) chimeNewOrder();
     prevOrderCount = orders.length;
 
-    // Stats
+    // Stats — počty
     let totalItems = 0, cooking = 0, ready = 0;
     orders.forEach(o => {
       totalItems += o.polozky.length;
@@ -318,48 +560,20 @@ async function loadData() {
         else if (p.stav === 'hotovo') ready++;
       });
     });
-    document.getElementById('stat-orders').textContent = orders.length;
-    document.getElementById('stat-items').textContent = totalItems;
-    document.getElementById('stat-cooking').textContent = cooking;
-    document.getElementById('stat-ready').textContent = ready;
 
-    const grid = document.getElementById('kds-grid');
-    if (orders.length === 0) {
-      grid.innerHTML = `
-        <div class="kds-empty">
-          <div class="kds-empty-ic">✅</div>
-          <div class="kds-empty-title">Žádné aktivní objednávky</div>
-          <div class="kds-empty-sub">Až někdo objedná, karty se objeví zde.</div>
-        </div>
-      `;
-      return;
-    }
+    // Count-up animace
+    animateNum(document.getElementById('stat-orders'),  prevStats.orders,  orders.length);
+    animateNum(document.getElementById('stat-items'),   prevStats.items,   totalItems);
+    animateNum(document.getElementById('stat-cooking'), prevStats.cooking, cooking);
+    animateNum(document.getElementById('stat-ready'),   prevStats.ready,   ready);
 
-    grid.innerHTML = orders.map(o => {
-      const min = minutesSince(o.first_objednavka);
-      const stateClass = min >= 15 ? 'is-critical' : (min >= 10 ? 'is-warning' : '');
-      return `
-        <div class="kds-order ${stateClass}" data-ucet-id="${o.ucet_id}">
-          <div class="kds-order-head">
-            <div class="kds-order-table">🪑 ${esc(o.stul_nazev || '?')}</div>
-            <div class="kds-order-time">${min} min</div>
-          </div>
-          <div class="kds-items">
-            ${o.polozky.map(p => `
-              <div class="kds-item" data-item-id="${p.id}" data-state="${esc(p.stav)}" onclick="setItemState(${p.id}, '${esc(p.stav)}')">
-                <span class="kds-item-mn">${parseInt(p.mnozstvi)}×</span>
-                <span class="kds-item-name">${esc(p.vyrobek_nazev || '?')}${p.poznamka ? `<div style="font-size:11px;opacity:0.7;margin-top:2px">💬 ${esc(p.poznamka)}</div>` : ''}</span>
-                <span class="kds-item-state">${p.stav === 'objednano' ? '⏳' : p.stav === 'vari_se' ? '🔥' : '✓'}</span>
-              </div>
-            `).join('')}
-          </div>
-          <div class="kds-order-foot">
-            <button class="kds-btn is-primary" onclick="markOrderReady(${o.ucet_id})">✓ Vše hotovo</button>
-          </div>
-        </div>
-      `;
-    }).join('');
+    // Pulsing dot na widgetech kde se něco děje
+    document.getElementById('pulse-orders').classList.toggle('is-on', orders.length > 0);
+    document.getElementById('pulse-cooking').classList.toggle('is-on', cooking > 0);
 
+    prevStats = { orders: orders.length, items: totalItems, cooking, ready };
+
+    renderOrders(orders);
     document.getElementById('last-update').textContent = new Date().toLocaleTimeString('cs-CZ');
   } catch (e) {
     setStatus(false);
