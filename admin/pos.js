@@ -1225,108 +1225,95 @@
   window.posSetTab = setActiveTab;
 
   // ─── 🆕 v3.0.8/10 — Floor view tab (stoly) ─────────────────────
+  // 🔄 v3.0.15 — Plný floor map view (reuse admin layout: x/y pozice, canvas per zóna)
   async function renderTablesTab(panel) {
-    panel.innerHTML = `<div class="pos-loading" style="padding:40px;text-align:center">⏳ Načítám stoly…</div>`;
+    panel.innerHTML = `<div class="pos-loading" style="padding:40px;text-align:center">⏳ Načítám mapu restaurace…</div>`;
     try {
       const [tablesResp, uctyResp] = await Promise.all([
         api('admin_tables.php'),
         api('admin_pos.php?action=open_ucty'),
       ]);
       const tables = (tablesResp.stoly || tablesResp.tables || tablesResp.items || []);
-      const ucty   = (uctyResp.ucty   || []);
+      const zones  = (tablesResp.zones && tablesResp.zones.length)
+                     ? tablesResp.zones
+                     : [{ id: null, nazev: 'Hlavní sál', ikona: '🍽️', canvas_w: 800, canvas_h: 500, bg_barva: '#FFFAF1' }];
+      const ucty   = (uctyResp.ucty || []);
 
-      // Index účet podle stul_id
+      // Index account podle stul_id
       const uByStul = {};
       ucty.forEach(u => { uByStul[u.stul_id] = u; });
 
-      // Skupiny per sekce/zóna
-      const groups = {};
-      tables.forEach(t => {
-        const key = (t.sekce || t.zone_id || '_other').toString();
-        groups[key] = groups[key] || { key, label: key === '_other' ? '⬜ Ostatní' : key, items: [] };
-        groups[key].items.push(t);
-      });
+      // Aktivní zóna (default = první)
+      if (!State._floorZoneId || !zones.find(z => String(z.id) === String(State._floorZoneId))) {
+        State._floorZoneId = zones[0].id;
+      }
+      const activeZone = zones.find(z => String(z.id) === String(State._floorZoneId)) || zones[0];
+      const stolyInZone = tables.filter(t => String(t.zone_id || '') === String(activeZone.id || ''));
 
-      const allZones = Object.values(groups);
-      const totalStolu = tables.length;
-      const obsazeno = ucty.length;
-      const volno = totalStolu - obsazeno;
-      const activeZone = State._floorZone || '_all';
+      // Per-zone stats v aktivní zóně
+      const obsazenoInZone = stolyInZone.filter(t => uByStul[t.id]).length;
+      const volnoInZone    = stolyInZone.length - obsazenoInZone;
+      const totalAll       = tables.length;
 
       panel.innerHTML = `
-        <div class="pos-tables-wrap" style="padding:24px 28px;height:100%;overflow-y:auto">
+        <div class="pos-floor-wrap">
           <!-- Stats banner -->
-          <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap">
-            <div style="flex:1;min-width:140px;background:#F0FDF4;border:1px solid #86EFAC;border-radius:12px;padding:14px 18px">
-              <div style="font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.06em">Volné</div>
-              <div style="font-size:32px;font-weight:900;color:#15803D;line-height:1;margin-top:4px">${volno}</div>
+          <div class="pos-floor-stats">
+            <div class="pos-floor-stat free">
+              <div class="pos-floor-stat-lbl">🟢 Volné (zóna)</div>
+              <div class="pos-floor-stat-num">${volnoInZone}</div>
             </div>
-            <div style="flex:1;min-width:140px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:12px;padding:14px 18px">
-              <div style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:0.06em">Obsazené</div>
-              <div style="font-size:32px;font-weight:900;color:#B45309;line-height:1;margin-top:4px">${obsazeno}</div>
+            <div class="pos-floor-stat busy">
+              <div class="pos-floor-stat-lbl">🟡 Obsazené (zóna)</div>
+              <div class="pos-floor-stat-num">${obsazenoInZone}</div>
             </div>
-            <div style="flex:1;min-width:140px;background:#EFF6FF;border:1px solid #93C5FD;border-radius:12px;padding:14px 18px">
-              <div style="font-size:11px;font-weight:700;color:#1E40AF;text-transform:uppercase;letter-spacing:0.06em">Celkem</div>
-              <div style="font-size:32px;font-weight:900;color:#1D4ED8;line-height:1;margin-top:4px">${totalStolu}</div>
+            <div class="pos-floor-stat total">
+              <div class="pos-floor-stat-lbl">📊 Celkem (vše)</div>
+              <div class="pos-floor-stat-num">${totalAll}</div>
             </div>
-            <button class="btn-secondary" onclick="renderTablesTab(document.getElementById('pos-tab-content'))" style="padding:10px 16px">🔄 Refresh</button>
           </div>
 
-          ${allZones.length === 0 ? `
-            <div style="padding:60px 20px;text-align:center;color:#9CA3AF">
-              <div style="font-size:48px;margin-bottom:14px">🪑</div>
-              <div style="font-size:16px;font-weight:700;margin-bottom:4px">Žádné stoly</div>
-              <div style="font-size:13px">Vytvoř je v admin → Restaurace → Stoly → Floor plan editor.</div>
+          ${tables.length === 0 ? `
+            <div class="pos-floor-empty">
+              <div class="ic">🪑</div>
+              <div class="t">Žádné stoly</div>
+              <div class="s">Sestav si mapu v <strong>Admin → Restaurace → Stoly → Floor plan</strong> (drag & drop editor). Pak se ti tady objeví a budeš v ní účtovat klikem.</div>
             </div>
           ` : `
-            <!-- Zone tabs -->
-            <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:18px;border-bottom:1px solid #E5E7EB">
-              <button onclick="State._floorZone='_all';renderTablesTab(document.getElementById('pos-tab-content'))" style="padding:10px 18px;background:${activeZone === '_all' ? 'linear-gradient(135deg,#FBBF24,#FB923C)' : '#F3F4F6'};color:${activeZone === '_all' ? '#fff' : '#374151'};border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;flex-shrink:0">
-                🪑 Vše (${totalStolu})
-              </button>
-              ${allZones.map(z => `
-                <button onclick="State._floorZone='${esc(z.key)}';renderTablesTab(document.getElementById('pos-tab-content'))" style="padding:10px 18px;background:${activeZone === z.key ? 'linear-gradient(135deg,#FBBF24,#FB923C)' : '#F3F4F6'};color:${activeZone === z.key ? '#fff' : '#374151'};border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap;flex-shrink:0">
-                  ${esc(z.label || z.key)} (${z.items.length})
-                </button>
-              `).join('')}
+            <!-- Zone tabs (každá zóna = vlastní mapa) -->
+            <div class="pos-floor-tabs">
+              ${zones.map(z => {
+                const cnt = tables.filter(t => String(t.zone_id || '') === String(z.id || '')).length;
+                const isAct = String(z.id) === String(activeZone.id);
+                return `
+                  <button class="pos-floor-tab ${isAct ? 'is-active' : ''}" onclick="posSwitchFloorZone(${z.id === null ? 'null' : JSON.stringify(z.id)})">
+                    <span>${esc(z.ikona || '🍽️')}</span>
+                    <span>${esc(z.nazev)}</span>
+                    <span class="badge">${cnt}</span>
+                  </button>
+                `;
+              }).join('')}
+              <button class="btn-secondary" onclick="renderTablesTab(document.getElementById('pos-tab-content'))" style="margin-left:auto;padding:8px 14px">🔄</button>
             </div>
-          ` + allZones.filter(z => activeZone === '_all' || z.key === activeZone).map(z => `
-            <div class="pos-zone" style="margin-bottom:24px">
-              ${activeZone === '_all' ? `<h3 style="font-size:14px;font-weight:800;color:#374151;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">${esc(z.label || z.key)} <span style="opacity:0.5;font-weight:500">(${z.items.length})</span></h3>` : ''}
-              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">
-                ${z.items.map(t => {
-                  const ucet = uByStul[t.id];
-                  const sum  = ucet ? parseFloat(ucet.castka_celkem || 0) : 0;
-                  const pcs  = ucet ? parseInt(ucet.pocet_polozek || 0) : 0;
-                  const since = ucet ? minutesSince(ucet.otevreno_v) : 0;
-                  const isOcc = !!ucet;
-                  const bg = isOcc ? 'linear-gradient(135deg,#FEF3C7,#FDE68A)' : 'linear-gradient(135deg,#F0FDF4,#DCFCE7)';
-                  const border = isOcc ? '#F59E0B' : '#86EFAC';
-                  return `
-                    <button onclick="posOpenTable(${t.id}, '${esc(t.nazev).replace(/'/g, '&#39;')}')" style="background:${bg};border:2px solid ${border};border-radius:14px;padding:14px;text-align:left;cursor:pointer;font-family:inherit;transition:transform 0.15s ease;display:flex;flex-direction:column;gap:6px">
-                      <div style="display:flex;justify-content:space-between;align-items:start">
-                        <div>
-                          <div style="font-size:18px;font-weight:800;color:#1F2937">🪑 ${esc(t.nazev)}</div>
-                          <div style="font-size:11px;color:#6B7280;margin-top:2px">${t.mist || t.kapacita || '?'} míst</div>
-                        </div>
-                        ${isOcc ? `<span style="background:#F59E0B;color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px">OBSAZENO</span>` : `<span style="background:#10B981;color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px">VOLNÝ</span>`}
-                      </div>
-                      ${isOcc ? `
-                        <div style="margin-top:6px;padding-top:8px;border-top:1px dashed rgba(0,0,0,0.1)">
-                          <div style="font-size:22px;font-weight:900;color:#B45309;line-height:1">${fmt(sum)} Kč</div>
-                          <div style="font-size:11px;color:#92400E;margin-top:2px">${pcs} pol. · ${since} min</div>
-                        </div>
-                      ` : ''}
-                    </button>
-                  `;
-                }).join('')}
+
+            <!-- Canvas — interaktivní mapa aktivní zóny -->
+            <div class="pos-floor-canvas-wrap">
+              <div class="pos-floor-canvas" style="width:${activeZone.canvas_w || 800}px;height:${activeZone.canvas_h || 500}px;background:${esc(activeZone.bg_barva || '#FFFAF1')}">
+                ${stolyInZone.length === 0 ? `
+                  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#9CA3AF;text-align:center;padding:20px">
+                    <div style="font-size:48px;margin-bottom:10px">🪑</div>
+                    <div style="font-weight:700">Tahle zóna nemá žádné stoly</div>
+                    <div style="font-size:12px;margin-top:6px">Přidej je v Admin → Floor plan editor</div>
+                  </div>
+                ` : stolyInZone.map(t => renderPosTableTile(t, uByStul[t.id])).join('')}
               </div>
             </div>
-          `).join('')}
 
-          <div style="margin-top:14px;text-align:center;font-size:12px;color:#9CA3AF">
-            💡 Klik na stůl = otevři účet · Pro editaci layoutu (přidat bar / salonek / přesunout stoly) jdi do <strong>Admin → Restaurace → Stoly → Floor plan</strong>
-          </div>
+            <div style="margin-top:14px;text-align:center;font-size:12px;color:#9CA3AF;line-height:1.6">
+              💡 <strong>Klik na stůl</strong> = otevři účet / přidej položky · Pro úpravu layoutu (přidat bar, salonek, přesunout stoly) jdi do
+              <strong>Admin → Restaurace → Stoly → Floor plan</strong>
+            </div>
+          `}
         </div>
       `;
     } catch (e) {
@@ -1334,6 +1321,42 @@
     }
   }
   window.renderTablesTab = renderTablesTab;
+
+  // Render jednoho stolu v mapě (absolute pozice + state-based barva)
+  function renderPosTableTile(t, ucet) {
+    const w = parseInt(t.width)  || 80;
+    const h = parseInt(t.height) || 80;
+    const x = parseInt(t.x) || 0;
+    const y = parseInt(t.y) || 0;
+    const shape = t.tvar === 'round' ? '50%' : (t.tvar === 'rect' ? '14px' : '12px');
+
+    // Stav: pokud má otevřený POS účet → occupied (i kdyby t.stav řekl něco jiného)
+    const stav = ucet ? 'occupied' : (t.stav || 'free');
+    const sum = ucet ? parseFloat(ucet.castka_celkem || 0) : 0;
+    const pcs = ucet ? parseInt(ucet.pocet_polozek || 0) : 0;
+    const min = ucet ? minutesSince(ucet.otevreno_v) : 0;
+
+    const nazev = (t.nazev || '?').replace(/'/g, '&#39;');
+    const fontSize = w >= 120 ? '15px' : '13px';
+
+    return `
+      <div class="pos-floor-tile state-${stav}"
+           style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;border-radius:${shape}"
+           onclick="posOpenTable(${t.id}, '${esc(nazev)}')"
+           title="${esc(t.nazev)} — ${t.mist || '?'} míst${ucet ? ` · ${fmt(sum)} Kč · ${min} min` : ''}">
+        <div class="pos-floor-tile-name" style="font-size:${fontSize}">${esc(t.nazev)}</div>
+        ${t.mist > 0 ? `<div class="pos-floor-tile-mist">👥 ${t.mist}</div>` : ''}
+        ${ucet ? `<div class="pos-floor-tile-info">${fmt(sum)} Kč</div>` : ''}
+        ${ucet ? `<div style="font-size:9px;font-weight:600;opacity:0.7">${pcs} pol · ${min}m</div>` : ''}
+      </div>
+    `;
+  }
+
+  // Přepnutí zóny
+  window.posSwitchFloorZone = function(zoneId) {
+    State._floorZoneId = zoneId;
+    renderTablesTab(document.getElementById('pos-tab-content'));
+  };
 
   function minutesSince(iso) {
     if (!iso) return 0;
