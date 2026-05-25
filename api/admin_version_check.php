@@ -149,6 +149,11 @@ if ($useCached) {
         $verOut['download_url']     = $data['latest']['download_url'] ?? null;
         $verOut['changelog']        = $data['latest']['changelog'] ?? '';
         $verOut['released_at']      = $data['latest']['published_at'] ?? null;
+        // 🐛 v3.0.2 — zapomenutý unpack checksum z vendor response.
+        // Předtím: admin UI runSelfUpdate dostalo prázdný checksum → updates_apply.php
+        // odmítlo s "checksum_required" → customer nemohl klik self-update.
+        $verOut['checksum_sha256']  = $data['latest']['checksum'] ?? $data['latest']['checksum_sha256'] ?? null;
+        $verOut['file_size']        = $data['latest']['size_bytes'] ?? $data['latest']['file_size'] ?? null;
         $verOut['checked_at']       = $now;
         $verOut['cached']           = false;
 
