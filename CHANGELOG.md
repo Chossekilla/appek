@@ -6,9 +6,9 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
-## [3.0.0] — 2026-06-XX — 🎉 OFFICIAL LAUNCH
+## [3.0.0] — 2026-05-25 — 🎉 OFFICIAL LAUNCH
 
-První veřejná verze APPEK B2B. Kulminace 380+ commitů a 2 měsíců intenzivního vývoje.
+První veřejná verze APPEK B2B. Kulminace 400+ commitů a 2 měsíců intenzivního vývoje.
 
 ### ✨ Nové funkce
 
