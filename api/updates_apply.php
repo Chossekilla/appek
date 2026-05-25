@@ -436,8 +436,68 @@ try {
 } catch (Throwable $e) {
     deleteRecursive($tmpDir);
     $result['error'] = $e->getMessage();
+
+    // 🆕 v2.9.325 — Auto-rollback z backupu pokud apply selhal half-way.
+    // Předtím customer musel ručně přes FTP rollback ze api/zalohy/update-backup-*.
+    // Teď: pokud existuje backupDir z této session, recopy zpět nad live (best-effort).
+    if (!empty($backupDir) && is_dir($backupDir)) {
+        $result['steps'][] = "🚨 Apply selhal — spouštím auto-rollback z $backupDir";
+        $rollbackOk = restore_from_backup($backupDir, $root);
+        if ($rollbackOk['ok']) {
+            $result['steps'][] = "✅ Rollback hotov · {$rollbackOk['restored']} souborů obnoveno z backupu";
+            $result['rolled_back'] = true;
+        } else {
+            $result['steps'][] = "❌ Rollback SELHAL: " . $rollbackOk['error'] . " — backup zachován v $backupDir, manuální obnova přes FTP";
+            $result['rolled_back'] = false;
+        }
+    }
+
+    // Log do app_errors pro Diagnostiku
+    try {
+        if (function_exists('json_error_safe')) {
+            // ne použít přímo (eats response), ale aspoň zaloguj
+            require_once __DIR__ . '/config.php';
+            if (function_exists('app_log_error')) {
+                app_log_error('upd_' . bin2hex(random_bytes(3)), 'Update apply failed', $e, 500, 'error');
+            }
+        }
+    } catch (\Throwable $ig) {}
+
     http_response_code(500);
     echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+}
+
+/**
+ * 🆕 v2.9.325 — Restore files from backup dir back to live root.
+ * Recursive copy: $backupDir/* → $root/* (overwrite).
+ * Returns ['ok' => bool, 'restored' => N, 'error' => string|null].
+ */
+function restore_from_backup(string $backupDir, string $root): array {
+    if (!is_dir($backupDir)) return ['ok' => false, 'restored' => 0, 'error' => 'backup dir neexistuje'];
+    $restored = 0;
+    try {
+        $iter = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($backupDir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($iter as $item) {
+            if ($item->isDir()) continue;
+            $rel = str_replace($backupDir . '/', '', $item->getPathname());
+            $dst = $root . '/' . $rel;
+            @mkdir(dirname($dst), 0755, true);
+            if (@copy($item->getPathname(), $dst)) {
+                $restored++;
+                // Invalidate opcache pro PHP po obnově
+                if (function_exists('opcache_invalidate') && substr($rel, -4) === '.php') {
+                    @opcache_invalidate($dst, true);
+                }
+            }
+        }
+        if (function_exists('opcache_reset')) @opcache_reset();
+        return ['ok' => true, 'restored' => $restored, 'error' => null];
+    } catch (\Throwable $e) {
+        return ['ok' => false, 'restored' => $restored, 'error' => $e->getMessage()];
+    }
 }
 
 function deleteRecursive(string $dir): void {

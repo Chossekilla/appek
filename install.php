@@ -454,7 +454,10 @@ if ($hasLicense && $step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                        )
                      . "\n\nPo opravě klikni na tlačítko Zpět a zkus to znovu.";
             } else {
-                @chmod($cfgPath, 0644); // Default — můžeš utáhnout na 0600 po instalaci
+                // 🆕 v2.9.325 — auto 0600 (jen owner read/write). Předtím 0644 → vendor mohl
+                // teoreticky číst credentials. Pro license-sale model je customer self-hosted,
+                // 0600 je správný default.
+                @chmod($cfgPath, 0600);
                 // Schema migrace
                 try {
                     $schema = file_get_contents(__DIR__ . '/api/_schema.sql');
@@ -595,6 +598,30 @@ if ($step === 5 && !empty($_SESSION['install_admin_ok'])) {
     $finalMode = $_SESSION['install_mode'] ?? $defaultMode;
     $syncSecret = $_SESSION['install_sync_secret'] ?? null;
     session_destroy();
+}
+
+// 🆕 v2.9.325 — STEP 99: self-delete install.php (po vědomém kliku usera)
+// Předtím install.php zůstal na serveru navždy + .installed flag jen blokoval re-init.
+// Customer ho ručně nikdy nesmaže → security risk (kdokoli může číst install.php logiku).
+if ($step === 99 && file_exists(__DIR__ . '/api/.installed')) {
+    $self = __FILE__;
+    $deleted = @unlink($self);
+    header('Content-Type: text/html; charset=UTF-8');
+    if ($deleted) {
+        echo '<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><title>Smazáno</title></head><body style="font-family:system-ui;max-width:500px;margin:60px auto;padding:20px;text-align:center">
+            <h1 style="color:#15803D">✅ install.php byl smazán</h1>
+            <p>Bezpečnostní krok dokončen — instalační skript už nelze spustit.</p>
+            <p><a href="admin/" style="display:inline-block;padding:10px 24px;background:#BA7517;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">🖥️ Otevřít Admin panel</a></p>
+        </body></html>';
+    } else {
+        echo '<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><title>Smazání selhalo</title></head><body style="font-family:system-ui;max-width:500px;margin:60px auto;padding:20px;text-align:center">
+            <h1 style="color:#92400e">⚠️ Nemohli jsme smazat install.php</h1>
+            <p>FTP nedovolil PHP smazat soubor. Smaž ho prosím ručně přes <strong>FTP klient</strong> (FileZilla, Cyberduck):</p>
+            <p><code style="background:#f4f5ff;padding:6px 10px;border-radius:4px">' . htmlspecialchars($self) . '</code></p>
+            <p><a href="admin/">→ Pokračovat do Admin panelu</a></p>
+        </body></html>';
+    }
+    exit;
 }
 
 $mode = $_SESSION['install_mode'] ?? $defaultMode;
@@ -1022,12 +1049,22 @@ small { color: #888; font-size: 12px; }
         <strong style="color:#854F0B"><?= t('done_security') ?> · ⚠️ NEPŘESKAKUJ</strong>
         <ol style="margin:8px 0 0;padding-left:20px;font-size:12.5px;line-height:1.7;color:#1d1d1f">
           <li><?= t('done_sec_1') ?>
-            <br><small style="color:#854F0B">→ Smaž přes Hostinger File Manager nebo FTP. Pokud nebude smazaný, kdokoliv může re-instalovat aplikaci.</small></li>
+            <br><small style="color:#854F0B">→ Klikni "🗑️ Smazat install.php nyní" níže (1 klik), nebo ručně přes FTP. Pokud nebude smazaný, kdokoliv může re-instalovat aplikaci.</small></li>
           <li><?= t('done_sec_2') ?>
-            <br><small style="color:#854F0B">→ FileManager → klik pravým na <code>api/config.local.php</code> → Permissions → 600 (jen owner read/write).</small></li>
+            <br><small style="color:#854F0B">→ Auto-nastaveno na 0600 v této verzi (v2.9.325+). Pro starší verze: FileManager → klik pravým na <code>api/config.local.php</code> → Permissions → 600.</small></li>
           <li><?= t('done_sec_3') ?>
             <br><small style="color:#854F0B">→ Hostinger panel → SSL/HTTPS → Install Free SSL (Let's Encrypt, klik).</small></li>
         </ol>
+
+        <!-- 🆕 v2.9.325 — Self-delete button (1 klik smazání install.php) -->
+        <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #c66800">
+          <form method="get" action="install.php" onsubmit="return confirm('Opravdu smazat install.php?\n\nTo je BEZPEČNÉ — nepotřebuješ ho už spouštět. Re-install vyžaduje FTP smazání api/.installed.\n\nPokud souhlasíš, klikni OK.')">
+            <input type="hidden" name="step" value="99">
+            <button type="submit" style="background:#dc2626;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
+              🗑️ Smazat install.php nyní (doporučeno)
+            </button>
+          </form>
+        </div>
       </div>
 
       <?php if (!empty($syncSecret)): ?>
