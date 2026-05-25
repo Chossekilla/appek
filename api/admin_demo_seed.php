@@ -1796,4 +1796,244 @@ if ($action === 'fix_demo_users') {
     }
 }
 
-json_error('Neznámá akce (preview|apply|clear|seed_one_recipe|fix_demo_users)', 404);
+// 🆕 v3.0.20 — Restaurant demo seed (pizzy + káva + recepty + nutri)
+// Vloží 5 kategorií, 18 surovin s nutričními hodnotami, 10 výrobků s recepty.
+// Idempotent: existující najde podle názvu, jinak vytvoří.
+if ($action === 'seed_restaurant_pack') {
+    try {
+        // Default jednotky + DPH (musí existovat z installu)
+        $jedKs = (int) $pdo->query("SELECT id FROM jednotky WHERE kod IN ('ks','porce','kus','porcie') LIMIT 1")->fetchColumn();
+        if (!$jedKs) {
+            $pdo->exec("INSERT INTO jednotky (kod, nazev, poradi) VALUES ('ks','kusů',1)");
+            $jedKs = (int) $pdo->lastInsertId();
+        }
+        $dph21 = (int) $pdo->query("SELECT id FROM sazby_dph WHERE sazba = 21 LIMIT 1")->fetchColumn()
+              ?: (int) $pdo->query("SELECT id FROM sazby_dph ORDER BY id LIMIT 1")->fetchColumn();
+        $dph12 = (int) $pdo->query("SELECT id FROM sazby_dph WHERE sazba IN (10,12,15) LIMIT 1")->fetchColumn() ?: $dph21;
+
+        // Kategorie — find or create
+        $cats = [
+            'Pizzy'    => ['ikona' => '🍕', 'poradi' => 10],
+            'Káva'     => ['ikona' => '☕', 'poradi' => 20],
+            'Nealko'   => ['ikona' => '🥤', 'poradi' => 30],
+            'Saláty'   => ['ikona' => '🥗', 'poradi' => 40],
+            'Dezerty'  => ['ikona' => '🍰', 'poradi' => 50],
+            'Těstoviny'=> ['ikona' => '🍝', 'poradi' => 45],
+        ];
+        $catIds = [];
+        foreach ($cats as $nazev => $meta) {
+            $id = (int) $pdo->prepare("SELECT id FROM kategorie_vyrobku WHERE nazev = :n LIMIT 1")
+                ->execute([':n' => $nazev]) ? (int) $pdo->query("SELECT id FROM kategorie_vyrobku WHERE nazev = " . $pdo->quote($nazev) . " LIMIT 1")->fetchColumn() : 0;
+            if (!$id) {
+                $pdo->prepare("INSERT INTO kategorie_vyrobku (nazev, ikona, poradi, aktivni) VALUES (:n, :i, :p, 1)")
+                    ->execute(['n' => $nazev, 'i' => $meta['ikona'], 'p' => $meta['poradi']]);
+                $id = (int) $pdo->lastInsertId();
+            }
+            $catIds[$nazev] = $id;
+        }
+
+        // Suroviny s nutričními hodnotami (per 100g) — 18 ingredientů
+        $suroviny = [
+            ['Mouka pšeničná hladká', 'g',  'lepek',     'Pšenice mletá',        1450, 348, 1.2, 0.2, 71, 0.5, 11, 0.005],
+            ['Rajčatová omáčka',      'g',  null,         'Rajčata, sůl, bazalka', 142,  34, 0.4, 0.1,  6, 5.5, 1.5, 0.4],
+            ['Mozzarella',            'g',  'mléko',      'Mléko, sůl',           1100, 264, 21,  13, 1.5, 1.5, 18,  0.7],
+            ['Mascarpone',            'g',  'mléko',      'Mléko, smetana, sůl',  1700, 412, 42,  28, 4.5, 4.5,  5,  0.05],
+            ['Gorgonzola',            'g',  'mléko',      'Mléko, plíseň ušlechtilá', 1450, 350, 28, 18, 1, 0.5, 21, 1.5],
+            ['Eidam 30%',             'g',  'mléko',      'Mléko, sůl, syřidlo',  1300, 313, 22,  14, 0.5, 0.5, 26, 1.7],
+            ['Parmezán',              'g',  'mléko',      'Mléko, sůl',           1660, 402, 28,  19, 0,   0,   38, 1.6],
+            ['Šunka dušená',          'g',  null,         'Vepřové, sůl, koření',  450, 108, 4,   1.5, 1, 0.5, 18,  2],
+            ['Pršut Parma',           'g',  null,         'Vepřové, sůl',          1000, 240, 12,  4,   1, 0,   33, 5.5],
+            ['Salám pikantní',        'g',  null,         'Vepřové, sůl, paprika', 1700, 410, 35,  13, 1,  0.5, 22, 4.5],
+            ['Olivový olej',          'ml', null,         'Olivy lisované za studena', 3700, 900, 100, 14, 0, 0,   0, 0],
+            ['Bazalka čerstvá',       'g',  null,         'Bazalka',               94,  22, 0.6, 0.04, 2.7, 0.3, 3, 0.01],
+            ['Espresso (zrno)',       'g',  null,         '100% Arabica',          1300, 200,  0,   0,   0,   0,  12, 0.001],
+            ['Mléko polotučné',       'ml', 'mléko',      'Mléko 1.5% tuku',       195,  46, 1.5, 1,   4.7, 4.7, 3.3, 0.1],
+            ['Salát ledový',          'g',  null,         'Salát',                  60,  14, 0.2, 0,   2.9, 1.8, 0.9, 0.03],
+            ['Kuřecí prsa',           'g',  null,         'Kuřecí maso',           440, 106, 1.2, 0.3, 0,   0,   23, 0.07],
+            ['Citron',                'g',  null,         'Citrony',               130,  29, 0.3, 0.04, 9, 2.5, 1.1, 0.002],
+            ['Cukr krystal',          'g',  null,         'Cukr',                  1700, 400,  0,   0, 100, 100,  0, 0],
+        ];
+        $surMap = [];
+        $insSur = $pdo->prepare("
+            INSERT INTO suroviny
+                (nazev, jednotka, alergen, slozeni, nutri_energie_kj, nutri_energie_kcal,
+                 nutri_tuky, nutri_tuky_nasycene, nutri_sacharidy, nutri_cukry, nutri_bilkoviny, nutri_sul)
+            VALUES (:n, :j, :a, :s, :kj, :kcal, :t, :tn, :sa, :cu, :b, :sl)
+        ");
+        foreach ($suroviny as $s) {
+            $exist = (int) $pdo->prepare("SELECT id FROM suroviny WHERE nazev = ?")
+                ->execute([$s[0]]) ? (int) $pdo->query("SELECT id FROM suroviny WHERE nazev = " . $pdo->quote($s[0]) . " LIMIT 1")->fetchColumn() : 0;
+            if (!$exist) {
+                $insSur->execute([
+                    'n' => $s[0], 'j' => $s[1], 'a' => $s[2], 's' => $s[3],
+                    'kj' => $s[4], 'kcal' => $s[5], 't' => $s[6], 'tn' => $s[7],
+                    'sa' => $s[8], 'cu' => $s[9], 'b' => $s[10], 'sl' => $s[11],
+                ]);
+                $exist = (int) $pdo->lastInsertId();
+            } else {
+                // Update nutri pokud existuje (zachovat název+jednotku)
+                $pdo->prepare("UPDATE suroviny SET
+                    nutri_energie_kj=:kj, nutri_energie_kcal=:kcal,
+                    nutri_tuky=:t, nutri_tuky_nasycene=:tn,
+                    nutri_sacharidy=:sa, nutri_cukry=:cu,
+                    nutri_bilkoviny=:b, nutri_sul=:sl,
+                    slozeni=COALESCE(NULLIF(slozeni,''), :sloz),
+                    alergen=COALESCE(NULLIF(alergen,''), :al)
+                    WHERE id=:id
+                ")->execute([
+                    'kj' => $s[4], 'kcal' => $s[5], 't' => $s[6], 'tn' => $s[7],
+                    'sa' => $s[8], 'cu' => $s[9], 'b' => $s[10], 'sl' => $s[11],
+                    'sloz' => $s[3], 'al' => $s[2], 'id' => $exist,
+                ]);
+            }
+            $surMap[$s[0]] = $exist;
+        }
+
+        // Výrobky + recepty
+        // Format: [cislo, nazev, kategorie, cena_bez_dph, dph_id, popis, alergeny, recept[[surovina, mnozstvi, jednotka], ...]]
+        $vyrobky = [
+            ['R-PIZ-01', 'Pizza Margherita', 'Pizzy', 199, $dph12,
+                'Klasická italská pizza s rajčaty, mozzarellou a čerstvou bazalkou.',
+                'lepek, mléko',
+                [['Mouka pšeničná hladká', 250, 'g'], ['Rajčatová omáčka', 100, 'g'], ['Mozzarella', 120, 'g'], ['Bazalka čerstvá', 5, 'g'], ['Olivový olej', 10, 'ml']]],
+            ['R-PIZ-02', 'Pizza Quattro Formaggi', 'Pizzy', 259, $dph12,
+                'Pizza se čtyřmi druhy sýra: mozzarella, gorgonzola, eidam, parmezán.',
+                'lepek, mléko',
+                [['Mouka pšeničná hladká', 250, 'g'], ['Rajčatová omáčka', 80, 'g'], ['Mozzarella', 80, 'g'], ['Gorgonzola', 40, 'g'], ['Eidam 30%', 40, 'g'], ['Parmezán', 20, 'g']]],
+            ['R-PIZ-03', 'Pizza Prosciutto', 'Pizzy', 269, $dph12,
+                'Pizza s rajčaty, mozzarellou a pravým parmskou šunkou.',
+                'lepek, mléko',
+                [['Mouka pšeničná hladká', 250, 'g'], ['Rajčatová omáčka', 100, 'g'], ['Mozzarella', 120, 'g'], ['Pršut Parma', 50, 'g'], ['Bazalka čerstvá', 3, 'g'], ['Olivový olej', 10, 'ml']]],
+            ['R-PIZ-04', 'Pizza Diavola', 'Pizzy', 249, $dph12,
+                'Ostrá pizza s pikantním salámem.',
+                'lepek, mléko',
+                [['Mouka pšeničná hladká', 250, 'g'], ['Rajčatová omáčka', 100, 'g'], ['Mozzarella', 120, 'g'], ['Salám pikantní', 60, 'g'], ['Olivový olej', 10, 'ml']]],
+            ['R-PAS-01', 'Lasagne Bolognese', 'Těstoviny', 219, $dph12,
+                'Tradiční italské lasagne s hovězím ragú, bešamelem a sýrem.',
+                'lepek, mléko, vejce',
+                [['Mouka pšeničná hladká', 80, 'g'], ['Rajčatová omáčka', 150, 'g'], ['Mozzarella', 50, 'g'], ['Parmezán', 30, 'g']]],
+            ['R-KAV-01', 'Espresso', 'Káva', 49, $dph12,
+                '100% Arabica, 25 ml.',
+                null,
+                [['Espresso (zrno)', 8, 'g']]],
+            ['R-KAV-02', 'Cappuccino', 'Káva', 65, $dph12,
+                'Espresso s teplým mlékem a mléčnou pěnou.',
+                'mléko',
+                [['Espresso (zrno)', 8, 'g'], ['Mléko polotučné', 150, 'ml']]],
+            ['R-KAV-03', 'Latte Macchiato', 'Káva', 75, $dph12,
+                'Vrstvený nápoj: mléko + espresso + mléčná pěna.',
+                'mléko',
+                [['Espresso (zrno)', 8, 'g'], ['Mléko polotučné', 200, 'ml']]],
+            ['R-NEA-01', 'Domácí limonáda citron', 'Nealko', 69, $dph12,
+                'Čerstvě vymačkaný citron, voda, cukr, máta.',
+                null,
+                [['Citron', 80, 'g'], ['Cukr krystal', 25, 'g']]],
+            ['R-SAL-01', 'Salát Caesar s kuřecím', 'Saláty', 199, $dph12,
+                'Ledový salát, grilované kuřecí prsa, parmezán, dresink Caesar.',
+                'mléko, vejce, ryby',
+                [['Salát ledový', 150, 'g'], ['Kuřecí prsa', 120, 'g'], ['Parmezán', 20, 'g'], ['Olivový olej', 10, 'ml']]],
+            ['R-DEZ-01', 'Tiramisu', 'Dezerty', 119, $dph12,
+                'Klasický italský dezert: mascarpone, espresso, kakao.',
+                'mléko, lepek, vejce',
+                [['Mascarpone', 100, 'g'], ['Espresso (zrno)', 6, 'g'], ['Cukr krystal', 30, 'g']]],
+        ];
+
+        // Auto-create vyrobek_suroviny tabulka
+        $pdo->exec("CREATE TABLE IF NOT EXISTS vyrobek_suroviny (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            vyrobek_id INT NOT NULL, surovina_id INT NOT NULL,
+            mnozstvi DECIMAL(10,3) NOT NULL DEFAULT 0,
+            jednotka VARCHAR(20) DEFAULT 'g', poradi INT DEFAULT 0,
+            poznamka VARCHAR(200) DEFAULT NULL,
+            UNIQUE KEY ux_vyr_sur (vyrobek_id, surovina_id),
+            INDEX idx_vs_surovina (surovina_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $insVyr = $pdo->prepare("
+            INSERT INTO vyrobky (cislo, nazev, popis, alergeny, kategorie_id, jednotka_id, sazba_dph_id, cena_bez_dph, aktivni, poradi)
+            VALUES (:c, :n, :p, :a, :k, :j, :d, :ce, 1, :po)
+        ");
+        $insRec = $pdo->prepare("
+            INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, mnozstvi, jednotka, poradi)
+            VALUES (:v, :s, :m, :j, :p)
+            ON DUPLICATE KEY UPDATE mnozstvi=:m, jednotka=:j
+        ");
+
+        $created = 0; $updated = 0; $recipes = 0;
+        foreach ($vyrobky as $i => $v) {
+            $existId = (int) $pdo->prepare("SELECT id FROM vyrobky WHERE cislo = ? OR nazev = ?")
+                ->execute([$v[0], $v[1]]) ? (int) $pdo->query("SELECT id FROM vyrobky WHERE cislo = " . $pdo->quote($v[0]) . " OR nazev = " . $pdo->quote($v[1]) . " LIMIT 1")->fetchColumn() : 0;
+            if (!$existId) {
+                $insVyr->execute([
+                    'c' => $v[0], 'n' => $v[1], 'p' => $v[5], 'a' => $v[6],
+                    'k' => $catIds[$v[2]] ?? null,
+                    'j' => $jedKs, 'd' => $v[4],
+                    'ce' => $v[3] / 1.12, // convert s DPH → bez DPH (12%)
+                    'po' => $i + 1,
+                ]);
+                $existId = (int) $pdo->lastInsertId();
+                $created++;
+            } else {
+                $pdo->prepare("UPDATE vyrobky SET
+                    popis=COALESCE(NULLIF(popis,''), :p),
+                    alergeny=COALESCE(NULLIF(alergeny,''), :a),
+                    kategorie_id=:k, cena_bez_dph=:ce
+                    WHERE id=:id
+                ")->execute([
+                    'p' => $v[5], 'a' => $v[6], 'k' => $catIds[$v[2]] ?? null,
+                    'ce' => $v[3] / 1.12, 'id' => $existId,
+                ]);
+                $updated++;
+            }
+            // Receptura
+            $pdo->prepare("DELETE FROM vyrobek_suroviny WHERE vyrobek_id = ?")->execute([$existId]);
+            foreach ($v[7] as $j => $r) {
+                $sid = $surMap[$r[0]] ?? null;
+                if (!$sid) continue;
+                $insRec->execute(['v' => $existId, 's' => $sid, 'm' => $r[1], 'j' => $r[2], 'p' => $j + 1]);
+                $recipes++;
+            }
+            // Auto-výpočet nutri = součet (mnozstvi/100 * surovina_nutri)
+            $nutri = $pdo->prepare("
+                SELECT
+                    SUM(vs.mnozstvi / 100 * s.nutri_energie_kj)   AS kj,
+                    SUM(vs.mnozstvi / 100 * s.nutri_energie_kcal) AS kcal,
+                    SUM(vs.mnozstvi / 100 * s.nutri_tuky)         AS t,
+                    SUM(vs.mnozstvi / 100 * s.nutri_tuky_nasycene) AS tn,
+                    SUM(vs.mnozstvi / 100 * s.nutri_sacharidy)    AS sa,
+                    SUM(vs.mnozstvi / 100 * s.nutri_cukry)        AS cu,
+                    SUM(vs.mnozstvi / 100 * s.nutri_bilkoviny)    AS b,
+                    SUM(vs.mnozstvi / 100 * s.nutri_sul)          AS sl
+                FROM vyrobek_suroviny vs
+                JOIN suroviny s ON s.id = vs.surovina_id
+                WHERE vs.vyrobek_id = :id
+            ");
+            $nutri->execute(['id' => $existId]);
+            $n = $nutri->fetch();
+            if ($n && $n['kcal']) {
+                $nutriJson = json_encode([
+                    'kj' => round($n['kj'], 1), 'kcal' => round($n['kcal'], 1),
+                    'tuky' => round($n['t'], 2), 'tuky_nasycene' => round($n['tn'], 2),
+                    'sacharidy' => round($n['sa'], 2), 'cukry' => round($n['cu'], 2),
+                    'bilkoviny' => round($n['b'], 2), 'sul' => round($n['sl'], 3),
+                ], JSON_UNESCAPED_UNICODE);
+                $pdo->prepare("UPDATE vyrobky SET nutricni_hodnoty = :n WHERE id = :id")
+                    ->execute(['n' => $nutriJson, 'id' => $existId]);
+            }
+        }
+
+        json_response([
+            'ok' => true,
+            'kategorie' => count($catIds),
+            'suroviny' => count($surMap),
+            'vyrobky_created' => $created,
+            'vyrobky_updated' => $updated,
+            'recepty' => $recipes,
+            'msg' => "🍕 Restaurant pack seedován: {$created} nových výrobků + " . count($surMap) . " surovin s nutri + {$recipes} řádků receptů.",
+        ]);
+    } catch (Throwable $e) {
+        json_error_safe('Seed restaurant pack selhal', $e, 500);
+    }
+}
+
+json_error('Neznámá akce (preview|apply|clear|seed_one_recipe|seed_restaurant_pack|fix_demo_users)', 404);
