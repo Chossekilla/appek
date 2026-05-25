@@ -2124,21 +2124,24 @@ html, body {
 }
 .pos-tm-close:hover { background: #fff; transform: rotate(90deg); }
 
-/* Body — 2-col na desktop, stack na mobile */
+/* Body — 2-col na desktop, stack na mobile
+   🔄 v3.0.15: menu LEFT, cart RIGHT (přirozenější pro POS workflow) */
 .pos-tm-body {
   flex: 1; min-height: 0; overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) 1.4fr;
+  grid-template-columns: 1.4fr minmax(340px, 0.9fr);
   gap: 0;
 }
 
-/* Vlevo — košík/účet */
+/* Cart na pravé straně (order:2 = za menu) */
 .pos-tm-cart {
-  border-right: 1px solid #E5E7EB;
+  border-left: 1px solid #E5E7EB;
   background: #FAFAFA;
   display: flex; flex-direction: column;
   min-height: 0; overflow: hidden;
+  order: 2;
 }
+.pos-tm-menu { order: 1; }
 .pos-tm-cart-head {
   padding: 14px 18px;
   font-size: 12px; font-weight: 800;
@@ -2416,4 +2419,172 @@ html, body {
 @media (max-width: 400px) {
   .pos-tm-btn { padding: 10px 8px; font-size: 12px; }
   .pos-tm-foot { padding: 8px; }
+}
+
+/* =========================================================================
+ * 🆕 v3.0.15 — POS FLOOR MAP (mapová zobrazení stolů s pozicemi)
+ * Reuse layout z admin floor planu — x/y absolute pozice, canvas per zóna.
+ * ========================================================================= */
+.pos-floor-wrap {
+  padding: 20px 24px;
+  height: 100%;
+  overflow-y: auto;
+}
+.pos-floor-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.pos-floor-stat {
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+.pos-floor-stat-lbl {
+  font-size: 11px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.pos-floor-stat-num {
+  font-size: 32px; font-weight: 900;
+  line-height: 1; margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.pos-floor-stat.free   { background: #F0FDF4; border: 1px solid #86EFAC; }
+.pos-floor-stat.free   .pos-floor-stat-lbl, .pos-floor-stat.free .pos-floor-stat-num { color: #15803D; }
+.pos-floor-stat.busy   { background: #FEF3C7; border: 1px solid #FCD34D; }
+.pos-floor-stat.busy   .pos-floor-stat-lbl, .pos-floor-stat.busy .pos-floor-stat-num { color: #B45309; }
+.pos-floor-stat.total  { background: #EFF6FF; border: 1px solid #93C5FD; }
+.pos-floor-stat.total  .pos-floor-stat-lbl, .pos-floor-stat.total .pos-floor-stat-num { color: #1D4ED8; }
+
+/* Zone tabs (jako v floorplan) */
+.pos-floor-tabs {
+  display: flex; gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #E5E7EB;
+}
+.pos-floor-tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+  border: 1.5px solid #E5E7EB;
+  background: #fff;
+  color: #374151;
+  transition: all 0.15s ease;
+}
+.pos-floor-tab:hover { border-color: #FB923C; }
+.pos-floor-tab.is-active {
+  background: linear-gradient(135deg, #FBBF24, #FB923C);
+  color: #fff; border-color: transparent;
+  box-shadow: 0 3px 8px rgba(251,146,60,0.3);
+}
+.pos-floor-tab .badge {
+  font-size: 11px;
+  background: rgba(0,0,0,0.08);
+  padding: 2px 8px; border-radius: 999px;
+  font-weight: 700;
+}
+.pos-floor-tab.is-active .badge {
+  background: rgba(255,255,255,0.3);
+}
+
+/* Canvas — kontejner pro mapu zóny */
+.pos-floor-canvas-wrap {
+  background: #FAFAF8;
+  border: 2px solid #E5E7EB;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+  overflow: auto;
+  position: relative;
+}
+.pos-floor-canvas {
+  position: relative;
+  background: #FFFAF1;
+  background-image: radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px);
+  background-size: 20px 20px;
+  border-radius: 10px;
+  margin: 0 auto;
+}
+
+/* Stůl tile (absolute positioned) */
+.pos-floor-tile {
+  position: absolute;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 6px;
+  border: 2.5px solid;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  user-select: none;
+  overflow: hidden;
+}
+.pos-floor-tile:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+  z-index: 5;
+}
+.pos-floor-tile:active { transform: scale(0.98); }
+.pos-floor-tile.state-free {
+  background: #DCFCE7; border-color: #16A34A; color: #166534;
+}
+.pos-floor-tile.state-occupied {
+  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+  border-color: #F59E0B; color: #92400E;
+  animation: pos-floor-pulse 2.5s ease-in-out infinite;
+}
+.pos-floor-tile.state-reserved {
+  background: #FEF3C7; border-color: #F59E0B; color: #92400E;
+}
+.pos-floor-tile.state-cleaning {
+  background: #F3F4F6; border-color: #9CA3AF; color: #374151;
+}
+.pos-floor-tile.state-disabled {
+  background: #1F2937; border-color: #111827; color: #F3F4F6;
+  cursor: not-allowed; opacity: 0.7;
+}
+@keyframes pos-floor-pulse {
+  0%, 100% { box-shadow: 0 2px 6px rgba(0,0,0,0.08), 0 0 0 0 rgba(245,158,11,0.5); }
+  50%      { box-shadow: 0 2px 6px rgba(0,0,0,0.08), 0 0 0 6px rgba(245,158,11,0); }
+}
+.pos-floor-tile-name {
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1.1;
+  word-break: break-word;
+}
+.pos-floor-tile-mist {
+  font-size: 10px; font-weight: 700;
+  opacity: 0.8;
+}
+.pos-floor-tile-info {
+  margin-top: 2px;
+  font-size: 11px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Empty state */
+.pos-floor-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #9CA3AF;
+}
+.pos-floor-empty .ic { font-size: 64px; margin-bottom: 14px; }
+.pos-floor-empty .t  { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #6B7280; }
+.pos-floor-empty .s  { font-size: 13px; max-width: 420px; margin: 0 auto; line-height: 1.5; }
+
+/* Responsive */
+@media (max-width: 800px) {
+  .pos-floor-wrap { padding: 12px; }
+  .pos-floor-stats { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .pos-floor-stat { padding: 10px 12px; }
+  .pos-floor-stat-num { font-size: 24px; }
+  .pos-floor-tabs { gap: 4px; }
+  .pos-floor-tab { padding: 8px 12px; font-size: 12px; }
+  .pos-floor-canvas-wrap { padding: 8px; }
 }
