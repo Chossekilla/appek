@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.16';
+const APPEK_ADMIN_JS_VERSION = '3.0.17';
 
 (async function detectStaleCode() {
   try {
@@ -16228,6 +16228,20 @@ function renderFloorPlan(data, today) {
           ${dirtyCount > 0 ? `<button class="btn-primary btn-green" onclick="rtSaveLayout()" style="font-size:13px;padding:7px 14px">💾 Uložit (${dirtyCount} změn)</button>` : ''}
         ` : ''}
       </div>
+      ${editMode ? `
+        <!-- 🆕 v3.0.17 — Quick-add toolbar (klik = přidá stůl do volného místa) -->
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text-3)">
+          <span style="font-weight:700;color:var(--text-2);margin-right:2px">+ Rychle:</span>
+          <button onclick="rtQuickAddTable('square2')" title="Čtverec pro 2 osoby"  style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">⬜ 2</button>
+          <button onclick="rtQuickAddTable('square4')" title="Čtverec pro 4 osoby"  style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">⬜ 4</button>
+          <button onclick="rtQuickAddTable('round2')"  title="Kruh pro 2"            style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">⭕ 2</button>
+          <button onclick="rtQuickAddTable('round4')"  title="Kruh pro 4"            style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">⭕ 4</button>
+          <button onclick="rtQuickAddTable('rect6')"   title="Obdélník pro 6"        style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">▭ 6</button>
+          <button onclick="rtQuickAddTable('rect8')"   title="Obdélník pro 8"        style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">▭ 8</button>
+          <button onclick="rtQuickAddTable('bar')"     title="Barpult (4 míst)"      style="padding:6px 10px;border:1.5px solid #FBBF24;background:#FFFBEB;color:#92400E;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">🍺 Bar</button>
+          <button onclick="rtQuickAddTable('lounge')"  title="Salonek (8 míst)"      style="padding:6px 10px;border:1.5px solid #C4B5FD;background:#F5F3FF;color:#5B21B6;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">🛋️ Salonek</button>
+        </div>
+      ` : ''}
       <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--text-3);flex-wrap:wrap">
         <span title="V aktivní zóně"><strong style="color:#16A34A">${stateStats.free}</strong> volných</span>
         <span><strong style="color:#F59E0B">${stateStats.reserved}</strong> rezerv.</span>
@@ -16444,19 +16458,109 @@ window.rtTableClick = function(event, id) {
   }
 };
 
+// 🆕 v3.0.17 — Smart naming: pokračuje v sekvenci v dané zóně
+// Detekuje prefix (S / T / Stůl / B...) a najde max číslo, dá +1
+function rtNextTableName(zoneId, fallbackPrefix = 'S') {
+  const tables = (state._rtData?.stoly || []).filter(t => String(t.zone_id || '') === String(zoneId || ''));
+  if (tables.length === 0) return fallbackPrefix + '1';
+
+  // Najdi všechny prefixy + čísla
+  const re = /^([A-Za-zÁ-ž]+?)\s*(\d+)$/;
+  const groups = {};
+  let maxAll = 0;
+  let mostUsedPrefix = null;
+  let mostUsedCount = 0;
+  for (const t of tables) {
+    const m = (t.nazev || '').match(re);
+    if (!m) continue;
+    const prefix = m[1].trim();
+    const num = parseInt(m[2]);
+    groups[prefix] = groups[prefix] || { count: 0, max: 0 };
+    groups[prefix].count++;
+    if (num > groups[prefix].max) groups[prefix].max = num;
+    if (groups[prefix].count > mostUsedCount) {
+      mostUsedCount = groups[prefix].count;
+      mostUsedPrefix = prefix;
+    }
+    if (num > maxAll) maxAll = num;
+  }
+  if (mostUsedPrefix) {
+    return mostUsedPrefix + (groups[mostUsedPrefix].max + 1);
+  }
+  // Žádná matchnutá konvence → fallback
+  return fallbackPrefix + (tables.length + 1);
+}
+
+// 🆕 v3.0.17 — Najdi volné místo na canvasu (žádný overlap)
+function rtFindFreeSpot(zoneId, w = 80, h = 80, prefX = null, prefY = null) {
+  const zone = (state._rtData?.zones || []).find(z => String(z.id) === String(zoneId)) || { canvas_w: 800, canvas_h: 500 };
+  const others = (state._rtData?.stoly || []).filter(t => String(t.zone_id || '') === String(zoneId || ''));
+  const overlaps = (x, y) => others.some(o => {
+    const ox = parseInt(o.x) || 0, oy = parseInt(o.y) || 0;
+    const ow = parseInt(o.width) || 80, oh = parseInt(o.height) || 80;
+    return !(x + w + 10 < ox || x > ox + ow + 10 || y + h + 10 < oy || y > oy + oh + 10);
+  });
+  // Try preferred pos first
+  if (prefX !== null && prefY !== null) {
+    const px = Math.max(0, Math.min(zone.canvas_w - w, prefX));
+    const py = Math.max(0, Math.min(zone.canvas_h - h, prefY));
+    if (!overlaps(px, py)) return { x: px, y: py };
+  }
+  // Grid scan
+  for (let y = 20; y < zone.canvas_h - h; y += 20) {
+    for (let x = 20; x < zone.canvas_w - w; x += 20) {
+      if (!overlaps(x, y)) return { x, y };
+    }
+  }
+  // Fallback: random offset to avoid stacking
+  return { x: 20 + Math.floor(Math.random() * 60), y: 20 + Math.floor(Math.random() * 60) };
+}
+
 window.rtAddTableAtClick = async function(event) {
   if (!rtState.editMode) return;
   const canvas = document.getElementById('rt-canvas');
   const rect = canvas.getBoundingClientRect();
-  const x = Math.round((event.clientX - rect.left - 40) / 20) * 20;
-  const y = Math.round((event.clientY - rect.top - 40) / 20) * 20;
+  const rawX = Math.round((event.clientX - rect.left - 40) / 20) * 20;
+  const rawY = Math.round((event.clientY - rect.top - 40) / 20) * 20;
   const zoneId = rtState.activeZoneId;
+  const { x, y } = rtFindFreeSpot(zoneId, 80, 80, rawX, rawY);
   try {
     const r = await api('admin_tables.php', {
       method: 'POST',
       body: JSON.stringify({
-        nazev: 'Stůl ' + ((state._rtData?.stoly || []).length + 1),
+        nazev: rtNextTableName(zoneId, 'S'),
         mist: 4, tvar: 'square', width: 80, height: 80,
+        x, y, zone_id: zoneId,
+      }),
+    });
+    if (r && r.ok) renderRestaurantTables();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v3.0.17 — Quick-add preset stolu (z toolbaru)
+window.rtQuickAddTable = async function(preset) {
+  if (!rtState.editMode) return;
+  const presets = {
+    square2: { mist: 2, tvar: 'square', width: 60, height: 60, prefix: 'S' },
+    square4: { mist: 4, tvar: 'square', width: 80, height: 80, prefix: 'S' },
+    square6: { mist: 6, tvar: 'rect',   width: 140, height: 80, prefix: 'S' },
+    round2:  { mist: 2, tvar: 'round',  width: 70, height: 70, prefix: 'S' },
+    round4:  { mist: 4, tvar: 'round',  width: 90, height: 90, prefix: 'S' },
+    rect6:   { mist: 6, tvar: 'rect',   width: 160, height: 70, prefix: 'S' },
+    rect8:   { mist: 8, tvar: 'rect',   width: 200, height: 80, prefix: 'S' },
+    bar:     { mist: 4, tvar: 'rect',   width: 200, height: 60, prefix: 'B' },
+    lounge:  { mist: 8, tvar: 'rect',   width: 220, height: 100, prefix: 'L' },
+  };
+  const p = presets[preset];
+  if (!p) return;
+  const zoneId = rtState.activeZoneId;
+  const { x, y } = rtFindFreeSpot(zoneId, p.width, p.height);
+  try {
+    const r = await api('admin_tables.php', {
+      method: 'POST',
+      body: JSON.stringify({
+        nazev: rtNextTableName(zoneId, p.prefix),
+        mist: p.mist, tvar: p.tvar, width: p.width, height: p.height,
         x, y, zone_id: zoneId,
       }),
     });
