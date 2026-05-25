@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.18';
+const APPEK_ADMIN_JS_VERSION = '3.0.19';
 
 (async function detectStaleCode() {
   try {
@@ -15877,7 +15877,14 @@ async function renderRestaurantTables() {
   }
 
   if (tab === 'timeline') {
-    document.getElementById('rt-body').innerHTML = statsBar + renderRestaurantTimeline(stoly, today);
+    // 🆕 v3.0.19 — Fetchni open POS účty (live obsazenost) + spoj se stoly
+    document.getElementById('rt-body').innerHTML = statsBar + '<div style="padding:30px;text-align:center;color:var(--text-3)">⏳ Načítám otevřené účty…</div>';
+    api('admin_pos.php?action=open_ucty').then(r => {
+      const openUcty = (r && r.ucty) || [];
+      document.getElementById('rt-body').innerHTML = statsBar + renderRestaurantTimeline(stoly, today, openUcty);
+    }).catch(() => {
+      document.getElementById('rt-body').innerHTML = statsBar + renderRestaurantTimeline(stoly, today, []);
+    });
     return;
   }
 
@@ -17378,8 +17385,13 @@ window.rtDeleteZone = async function(id) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
-function renderRestaurantTimeline(stoly, datum) {
-  // Range: 10:00 – 24:00 (14 hodin, každá 60px)
+function renderRestaurantTimeline(stoly, datum, openUcty) {
+  openUcty = openUcty || [];
+  // 🆕 v3.0.19 — Live obsazenost: index POS účet podle stul_id
+  const uByStul = {};
+  openUcty.forEach(u => { uByStul[u.stul_id] = u; });
+
+  // Range: 10:00 – 24:00 (14 hodin, každá 70px)
   const startH = 10, endH = 24, hourPx = 70;
   const totalMinutes = (endH - startH) * 60;
   const totalPx = (endH - startH) * hourPx;
@@ -17387,7 +17399,19 @@ function renderRestaurantTimeline(stoly, datum) {
     <div style="width:${hourPx}px;flex-shrink:0;text-align:center;font-size:11px;font-weight:600;color:var(--text-3);padding:6px 0;border-left:1px solid var(--border)">${String(startH + i).padStart(2, '0')}:00</div>
   `).join('');
 
-  const tableLabelW = 110;
+  // 🆕 v3.0.19 — Aktuální čas marker pozice
+  const now = new Date();
+  const nowDateStr = now.toISOString().slice(0, 10);
+  const isToday = nowDateStr === datum;
+  let nowLeftPx = null;
+  if (isToday) {
+    const nowMin = (now.getHours() * 60 + now.getMinutes()) - startH * 60;
+    if (nowMin >= 0 && nowMin <= totalMinutes) {
+      nowLeftPx = (nowMin / 60) * hourPx;
+    }
+  }
+
+  const tableLabelW = 130;
   const colorForGuest = (name) => {
     const palette = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
     let h = 0;
@@ -17396,6 +17420,8 @@ function renderRestaurantTimeline(stoly, datum) {
   };
 
   const rows = stoly.map(t => {
+    const ucet = uByStul[t.id];
+    // Rezervace blocks
     const blocks = (t.rezervace_dnes || []).filter(r => r.datum === datum || !r.datum).map(r => {
       const [oh, om] = (r.cas_od || '00:00').split(':').map(Number);
       const [dh, dm] = (r.cas_do || '00:00').split(':').map(Number);
@@ -17407,7 +17433,7 @@ function renderRestaurantTimeline(stoly, datum) {
       const c = colorForGuest(r.jmeno || '');
       return `
         <div title="${esc(r.jmeno)} · ${r.cas_od.slice(0,5)}–${r.cas_do.slice(0,5)} · ${r.pocet_osob}p${r.poznamka ? '\n' + esc(r.poznamka) : ''}"
-             style="position:absolute;top:6px;height:34px;left:${leftPx}px;width:${widthPx}px;background:${c};color:white;border-radius:7px;padding:4px 8px;font-size:11px;font-weight:600;overflow:hidden;display:flex;align-items:center;gap:4px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.2)"
+             style="position:absolute;top:6px;height:30px;left:${leftPx}px;width:${widthPx}px;background:${c};color:white;border-radius:7px;padding:3px 8px;font-size:11px;font-weight:600;overflow:hidden;display:flex;align-items:center;gap:4px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.2);z-index:2"
              onclick="rezervaceClick(${r.id || 0})">
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.jmeno)}</span>
           <span style="font-size:10px;opacity:0.85;flex-shrink:0">${r.pocet_osob}p</span>
@@ -17415,30 +17441,71 @@ function renderRestaurantTimeline(stoly, datum) {
       `;
     }).join('');
 
+    // 🆕 v3.0.19 — Live POS účet jako blok (od otevreno_v do TEĎ)
+    let liveBlock = '';
+    if (ucet && isToday) {
+      const dt = new Date(String(ucet.otevreno_v).replace(' ', 'T'));
+      const fromMin = Math.max(0, (dt.getHours() * 60 + dt.getMinutes()) - startH * 60);
+      const toMin = Math.min(totalMinutes, (now.getHours() * 60 + now.getMinutes()) - startH * 60);
+      if (toMin > fromMin) {
+        const leftPx = (fromMin / 60) * hourPx;
+        const widthPx = Math.max(20, ((toMin - fromMin) / 60) * hourPx);
+        const sum = parseFloat(ucet.castka_celkem || 0);
+        const pcs = parseInt(ucet.pocet_polozek || 0);
+        const min = Math.max(0, Math.floor((Date.now() - dt.getTime()) / 60000));
+        liveBlock = `
+          <div title="🟡 LIVE · ${esc(ucet.otevrel_jmeno || '?')} · od ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} · ${pcs} pol · ${sum.toFixed(0)} Kč"
+               style="position:absolute;bottom:4px;height:10px;left:${leftPx}px;width:${widthPx}px;background:repeating-linear-gradient(45deg,#F59E0B,#F59E0B 6px,#FBBF24 6px,#FBBF24 12px);border-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,0.15);z-index:1">
+          </div>
+          <div style="position:absolute;bottom:18px;left:${leftPx + 4}px;font-size:10px;font-weight:700;color:#92400E;text-shadow:0 1px 0 rgba(255,255,255,0.7);pointer-events:none;z-index:1">
+            🟡 ${min}m · ${sum.toFixed(0)}Kč
+          </div>
+        `;
+      }
+    }
+
+    // Label highlight pokud obsazený
+    const labelBg = ucet ? 'linear-gradient(135deg,#FEF3C7,#FDE68A)' : 'var(--surface-2)';
+    const labelExtra = ucet
+      ? `<span style="font-size:9px;font-weight:700;color:#B45309">🟡 LIVE · ${parseInt(ucet.pocet_polozek || 0)}p</span>`
+      : '';
+
     return `
-      <div style="display:flex;align-items:center;border-bottom:1px solid var(--border);min-height:48px">
-        <div style="width:${tableLabelW}px;flex-shrink:0;padding:8px 10px;background:var(--surface-2);font-weight:600;font-size:13px;display:flex;flex-direction:column;gap:2px">
+      <div style="display:flex;align-items:center;border-bottom:1px solid var(--border);min-height:50px">
+        <div style="width:${tableLabelW}px;flex-shrink:0;padding:8px 10px;background:${labelBg};font-weight:600;font-size:13px;display:flex;flex-direction:column;gap:2px">
           <span>${esc(t.nazev)}</span>
           <span style="font-size:10px;font-weight:400;color:var(--text-3)">${t.mist}p · ${esc(t.sekce || '—')}</span>
+          ${labelExtra}
         </div>
-        <div style="position:relative;width:${totalPx}px;flex-shrink:0;background:repeating-linear-gradient(to right, transparent 0, transparent ${hourPx - 1}px, var(--border) ${hourPx - 1}px, var(--border) ${hourPx}px);min-height:46px"
+        <div style="position:relative;width:${totalPx}px;flex-shrink:0;background:repeating-linear-gradient(to right, transparent 0, transparent ${hourPx - 1}px, var(--border) ${hourPx - 1}px, var(--border) ${hourPx}px);min-height:48px"
              onclick="timelineCellClick(${t.id}, '${esc(t.nazev)}', event, ${startH})">
           ${blocks}
+          ${liveBlock}
         </div>
       </div>
     `;
   }).join('');
 
+  // Now-line overlay (vertikální čára přes všechny řádky)
+  const nowLine = nowLeftPx !== null ? `
+    <div style="position:absolute;left:${tableLabelW + nowLeftPx}px;top:32px;bottom:0;width:2px;background:#DC2626;z-index:10;pointer-events:none;box-shadow:0 0 4px rgba(220,38,38,0.5)">
+      <div style="position:absolute;top:-4px;left:-5px;width:12px;height:12px;background:#DC2626;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(220,38,38,0.6)"></div>
+      <div style="position:absolute;top:-22px;left:-26px;background:#DC2626;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px;white-space:nowrap;font-variant-numeric:tabular-nums">${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}</div>
+    </div>
+  ` : '';
+
   return `
-    <div class="card-block" style="padding:0;overflow:auto;max-width:100%">
-      <div style="display:flex;align-items:center;border-bottom:2px solid var(--border);background:var(--surface)">
+    <div class="card-block" style="padding:0;overflow:auto;max-width:100%;position:relative">
+      <div style="display:flex;align-items:center;border-bottom:2px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:5">
         <div style="width:${tableLabelW}px;flex-shrink:0;padding:8px 10px;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase">Stůl</div>
         <div style="display:flex;flex-shrink:0">${colsHeader}</div>
       </div>
       ${rows}
+      ${nowLine}
     </div>
-    <div style="margin-top:10px;font-size:12px;color:var(--text-3);text-align:center">
-      💡 Klikni do prázdného slotu pro novou rezervaci · Klikni do bloku pro detail
+    <div style="margin-top:10px;font-size:12px;color:var(--text-3);text-align:center;line-height:1.6">
+      💡 Klikni do prázdného slotu pro novou rezervaci · Klikni do bloku pro detail rezervace<br>
+      🟡 <strong>Žlutý pruh dole</strong> = otevřený POS účet (live obsazenost) · 🔴 <strong>Červená čára</strong> = aktuální čas
     </div>
   `;
 }
