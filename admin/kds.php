@@ -495,17 +495,44 @@ function renderOrders(orders) {
   }
 
   if (shown.length === 0) {
+    const isFiltered = activeFilter === 'vari_se' || activeFilter === 'hotovo';
     const noFilterMsg = activeFilter === 'vari_se'
       ? { ic: '🔥', t: 'Žádné položky se nevaří', s: 'Klik na widget Vaří se znovu pro zrušení filtru.' }
       : activeFilter === 'hotovo'
       ? { ic: '✓', t: 'Žádné hotové položky', s: 'Klik na widget Hotových znovu pro zrušení filtru.' }
-      : { ic: '✅', t: 'Žádné aktivní objednávky', s: 'Až někdo objedná, karty se objeví zde.' };
+      : { ic: '☕', t: 'Žádné aktivní objednávky', s: 'Kafe je na řadě. ☕ Až někdo objedná, karty se objeví zde.' };
     grid.innerHTML = `
       <div class="kds-empty">
         <div class="kds-empty-ic">${noFilterMsg.ic}</div>
         <div class="kds-empty-title">${noFilterMsg.t}</div>
         <div class="kds-empty-sub">${noFilterMsg.s}</div>
       </div>
+      ${!isFiltered ? `
+        <!-- 🆕 v3.0.18 — Info karta "Jak se objednávky dostanou sem" -->
+        <div style="grid-column:1/-1;max-width:760px;margin:0 auto;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:24px;color:#fff">
+          <div style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;opacity:0.6;margin-bottom:16px;text-align:center">📖 Jak se objednávky dostanou sem?</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+            <div style="background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.25);border-radius:10px;padding:14px">
+              <div style="font-size:22px;margin-bottom:6px">1️⃣ 🧾</div>
+              <div style="font-weight:800;margin-bottom:4px">POS Stoly</div>
+              <div style="font-size:12px;opacity:0.75;line-height:1.5">Číšník v POS otevře stůl, přidá položku — automaticky se zobrazí na KDS.</div>
+            </div>
+            <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:14px">
+              <div style="font-size:22px;margin-bottom:6px">2️⃣ 📲</div>
+              <div style="font-weight:800;margin-bottom:4px">QR objednávky</div>
+              <div style="font-size:12px;opacity:0.75;line-height:1.5">Host naskenuje QR u stolu → objedná → číšník schválí v adminu → KDS to vidí.</div>
+            </div>
+            <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:14px">
+              <div style="font-size:22px;margin-bottom:6px">3️⃣ 🔥</div>
+              <div style="font-weight:800;margin-bottom:4px">Workflow</div>
+              <div style="font-size:12px;opacity:0.75;line-height:1.5">Klik na položku: <strong>objednáno → vaří se → hotovo</strong>. Pak číšník vidí "K výdeji".</div>
+            </div>
+          </div>
+          <div style="margin-top:16px;text-align:center;font-size:12px;opacity:0.5">
+            💡 Pro nastavení tiskáren bonů jdi do <strong>Admin → Nastavení → 🖨️ Tiskárny</strong>
+          </div>
+        </div>
+      ` : ''}
     `;
     return;
   }

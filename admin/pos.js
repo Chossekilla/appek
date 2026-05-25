@@ -1293,7 +1293,8 @@
                   </button>
                 `;
               }).join('')}
-              <button class="btn-secondary" onclick="renderTablesTab(document.getElementById('pos-tab-content'))" style="margin-left:auto;padding:8px 14px">🔄</button>
+              <button class="btn-secondary" onclick="renderTablesTab(document.getElementById('pos-tab-content'))" style="margin-left:auto;padding:8px 14px" title="Obnovit data">🔄</button>
+              <button class="btn-secondary" onclick="posOpenFloorEditor()" style="padding:8px 14px;background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-color:#93C5FD;color:#1E40AF;font-weight:700" title="Otevřít Floor plan editor v adminu (drag&drop layout)">✏️ Floor plan</button>
             </div>
 
             <!-- Canvas — interaktivní mapa aktivní zóny -->
@@ -1356,6 +1357,24 @@
   window.posSwitchFloorZone = function(zoneId) {
     State._floorZoneId = zoneId;
     renderTablesTab(document.getElementById('pos-tab-content'));
+  };
+
+  // 🆕 v3.0.18 — Otevři Floor plan editor v adminu (nové okno)
+  window.posOpenFloorEditor = function() {
+    const w = window.open(
+      '../admin/#/restaurace?tab=tables&subtab=map&edit=1',
+      'appek_floor_editor',
+      `width=${Math.min(1400, screen.availWidth)},height=${Math.min(900, screen.availHeight)},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+    );
+    if (!w) return toast('Povol popup okna pro editaci layoutu', 'error');
+    toast('✏️ Floor plan editor otevřen v novém okně', 'info');
+    // Auto-refresh tabu po 60s (jakmile user uloží layout v adminu)
+    setTimeout(() => {
+      const panel = document.getElementById('pos-tab-content');
+      if (panel && document.querySelector('.pos-floor-wrap')) {
+        renderTablesTab(panel);
+      }
+    }, 60000);
   };
 
   function minutesSince(iso) {
