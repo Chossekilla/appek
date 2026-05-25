@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.19';
+const APPEK_ADMIN_JS_VERSION = '3.0.20';
 
 (async function detectStaleCode() {
   try {
@@ -15684,6 +15684,22 @@ window.cateringRecalc = async function() {
 // =============================================================
 // 🍕 RESTAURACE / PIZZERIE — outer page s 4 hlavními tabs
 // =============================================================
+// 🆕 v3.0.20 — Seed restaurant demo pack (pizzy, káva, saláty, dezerty + suroviny + recepty + nutri)
+window.seedRestaurantPack = async function() {
+  if (!confirm('🍕 Naseed restaurant demo data?\n\nVloží:\n• 6 kategorií (Pizzy, Káva, Nealko, Saláty, Dezerty, Těstoviny)\n• 18 surovin s nutričními hodnotami\n• 11 výrobků (Margherita, Quattro Formaggi, Espresso, Cappuccino, Caesar, Tiramisu...)\n• Receptury → auto-výpočet nutri\n\nExistující se zachová (idempotent).')) return;
+  try {
+    const r = await api('admin_demo_seed.php?action=seed_restaurant_pack', { method: 'POST' });
+    if (r && r.ok) {
+      alert(`✅ Hotovo!\n\n• ${r.kategorie} kategorií\n• ${r.suroviny} surovin (s nutri)\n• ${r.vyrobky_created} nových výrobků (+${r.vyrobky_updated} aktualizováno)\n• ${r.recepty} řádků receptů\n\nMrkni do Výrobky → uvidíš novinky.`);
+      if (typeof toast === 'function') toast(r.msg, 'success');
+    } else {
+      alert('❌ ' + (r?.error || 'Neznámá chyba'));
+    }
+  } catch (e) {
+    alert('❌ Chyba: ' + e.message);
+  }
+};
+
 async function renderRestaurantPage() {
   const tab = state._restTab || 'tables';
   const c = document.getElementById('content');
@@ -15694,7 +15710,8 @@ async function renderRestaurantPage() {
         <p class="page-sub">Stolová správa · Kapacita kuchyně · Doba přípravy · Rozvoz a kurýrky</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
+        <button class="btn-back" onclick="navigate('dashboard')" title="Zpět na Přehled"><span class="btn-back-arrow">←</span> <span class="btn-back-lbl">Přehled</span></button>
+        <button class="btn-secondary" onclick="seedRestaurantPack()" title="Naseed demo data: 10 výrobků (pizzy, káva, saláty, dezerty) + 18 surovin s nutričními hodnotami + receptury" style="background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-color:#F59E0B;color:#92400E;font-weight:700">🍕 Naseed demo data</button>
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
