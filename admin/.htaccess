@@ -1,0 +1,26 @@
+# 🔒 v2.6.0 SECURITY: admin/ ochrana
+Options -Indexes
+
+# Zakázat directory traversal pokus
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule "(^|/)\." - [F]
+</IfModule>
+
+# Skrýt dotfiles (.htaccess, .installed, atd)
+<FilesMatch "^\.">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# .bak / .old / .backup soubory nesmí být dostupné
+<FilesMatch "\.(bak|old|backup|orig|swp)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>

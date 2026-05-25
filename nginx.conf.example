@@ -1,0 +1,161 @@
+# ══════════════════════════════════════════════════════════════
+# 🔧 Appek B2B — Nginx konfigurace (alternativa k .htaccess)
+# ──────────────────────────────────────────────────────────────
+# Pro VPS / Docker hosting, kde nemáš Apache .htaccess.
+# Zkopíruj do /etc/nginx/sites-available/appek.conf, uprav cesty
+# a domain, pak symlink: ln -s ... /etc/nginx/sites-enabled/
+#
+# Po nasazení: nginx -t && systemctl reload nginx
+# ══════════════════════════════════════════════════════════════
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name vase-domena.cz www.vase-domena.cz;
+
+    # Force HTTPS — odkomentuj až budeš mít SSL (např. Let's Encrypt)
+    # return 301 https://$server_name$request_uri;
+
+    root /var/www/appek;
+    index index.html index.php;
+
+    # ────────────────────────────────────────────────────────
+    # Bezpečnostní headers
+    # ────────────────────────────────────────────────────────
+    add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # CSP — povolit inline pro PWA + ARES/RPO connect
+    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; font-src 'self' data:; connect-src 'self' https://ares.gov.cz https://rpo.statistics.sk; frame-ancestors 'self'" always;
+
+    # HSTS — pouze pokud HTTPS (zakomentuj jinak)
+    # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # Skrýt server info
+    server_tokens off;
+    fastcgi_hide_header X-Powered-By;
+
+    # ────────────────────────────────────────────────────────
+    # Limit velikosti requestu (anti-DDoS)
+    # ────────────────────────────────────────────────────────
+    client_max_body_size 12M;
+
+    # ────────────────────────────────────────────────────────
+    # Blokace citlivých souborů
+    # ────────────────────────────────────────────────────────
+    location ~ /\.(env|git|gitignore|htaccess|user\.ini|installed) {
+        deny all;
+        return 404;
+    }
+    location ~ \.(env|local|log|sql|sql\.gz|bak|swp|tar|tar\.gz|zip|md|sh|ini|conf|key|pem|crt)$ {
+        deny all;
+        return 404;
+    }
+    location = /api/config.local.php { deny all; return 404; }
+    location ~ ^/api/_ { deny all; return 404; }
+    location ^~ /api/zalohy/ { deny all; return 404; }
+    location = /build-zip.sh { deny all; return 404; }
+
+    # ────────────────────────────────────────────────────────
+    # Blokace zlovolných User-Agents
+    # ────────────────────────────────────────────────────────
+    if ($http_user_agent ~* (GPTBot|ChatGPT-User|OAI-SearchBot|anthropic-ai|Claude-Web|ClaudeBot|CCBot|PerplexityBot|Google-Extended|Bytespider|ImagesiftBot|FacebookBot|Meta-ExternalAgent|applebot-extended|AhrefsBot|MJ12bot|SemrushBot|DotBot|DataForSeoBot|BLEXBot|PetalBot|MauiBot|ZoominfoBot|sqlmap|nikto|nessus|masscan|WPScan|acunetix|nmap)) {
+        return 403;
+    }
+    if ($http_user_agent = "") {
+        return 403;
+    }
+
+    # ────────────────────────────────────────────────────────
+    # PHP zpracování (PHP-FPM)
+    # ────────────────────────────────────────────────────────
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;  # uprav verzi PHP
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+
+        # Timeout pro DB exporty / zálohy
+        fastcgi_read_timeout 60s;
+        fastcgi_send_timeout 60s;
+    }
+
+    # ────────────────────────────────────────────────────────
+    # Statika — agresivní cache
+    # ────────────────────────────────────────────────────────
+    location ~* \.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|eot)$ {
+        expires 1M;
+        access_log off;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+    }
+
+    # CSS/JS — krátký cache (máme cache-bust v URL)
+    location ~* \.(css|js)$ {
+        expires -1;
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+
+    # ────────────────────────────────────────────────────────
+    # Komprese gzip
+    # ────────────────────────────────────────────────────────
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/javascript
+        application/json
+        application/xml
+        application/x-javascript
+        application/xhtml+xml
+        image/svg+xml
+        font/ttf
+        font/eot
+        font/opentype;
+
+    # ────────────────────────────────────────────────────────
+    # Zákaz výpisu adresářů
+    # ────────────────────────────────────────────────────────
+    autoindex off;
+
+    # ────────────────────────────────────────────────────────
+    # Pretty URLs / fallback
+    # ────────────────────────────────────────────────────────
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Logování
+    access_log /var/log/nginx/appek-access.log;
+    error_log /var/log/nginx/appek-error.log;
+}
+
+# ════════════════════════════════════════════════════════════
+# HTTPS varianta — odkomentuj a uprav cesty k certifikátům
+# ════════════════════════════════════════════════════════════
+# server {
+#     listen 443 ssl http2;
+#     listen [::]:443 ssl http2;
+#     server_name vase-domena.cz www.vase-domena.cz;
+#
+#     ssl_certificate     /etc/letsencrypt/live/vase-domena.cz/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/vase-domena.cz/privkey.pem;
+#     ssl_protocols TLSv1.2 TLSv1.3;
+#     ssl_ciphers HIGH:!aNULL:!MD5;
+#     ssl_prefer_server_ciphers on;
+#     ssl_session_cache shared:SSL:10m;
+#     ssl_session_timeout 1d;
+#     ssl_session_tickets off;
+#
+#     # … (zkopíruj zbytek konfigurace z HTTP server bloku výše)
+# }

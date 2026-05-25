@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#BA7517">
+<meta name="robots" content="noindex, nofollow">
+<title>🧪 APPEK Demo — Live sandbox</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+<style>
+* , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { overflow-x: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  background: linear-gradient(135deg, #1d1d1f 0%, #2c2c2e 100%);
+  color: #fff; min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  line-height: 1.5;
+}
+
+/* ── Animated background gradient ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(186,117,23,0.18) 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(0,122,255,0.10) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.demo-wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+/* ── Top language switcher ── */
+.demo-topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 26px;
+  padding: 0 6px;
+}
+.demo-topbar .brand {
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none;
+  color: #fff;
+  font-weight: 700;
+}
+.demo-topbar .brand-ico {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, #BA7517 0%, #854F0B 100%);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 800;
+  box-shadow: 0 4px 12px rgba(186,117,23,0.4);
+}
+.demo-topbar .brand b {
+  background: linear-gradient(135deg, #BA7517 0%, #F59E0B 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 800;
+}
+.demo-topbar .lang-switch {
+  display: flex; gap: 4px;
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(20px);
+  border-radius: 8px;
+  padding: 3px;
+}
+.demo-topbar .lang-switch button {
+  background: transparent; border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,0.65);
+  font-family: inherit; cursor: pointer;
+}
+.demo-topbar .lang-switch button.active {
+  background: rgba(186,117,23,0.35);
+  color: #fff;
+}
+
+/* ── Demo card ── */
+.demo-card {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 44px 40px;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+.demo-card h1 {
+  font-size: 40px; font-weight: 800; letter-spacing: -1.5px;
+  background: linear-gradient(135deg, #BA7517 0%, #F59E0B 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 14px;
+  line-height: 1.1;
+}
+.demo-card .lead {
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 580px;
+  margin: 0 auto 26px;
+}
+.demo-card .badge {
+  display: inline-block;
+  background: rgba(186, 117, 23, 0.2); color: #FBBF24;
+  padding: 7px 16px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+  margin-bottom: 22px; text-transform: uppercase;
+}
+
+/* ── Credentials box ── */
+.demo-info {
+  background: rgba(186, 117, 23, 0.12);
+  border: 1px solid rgba(186, 117, 23, 0.3);
+  border-left: 4px solid #BA7517;
+  border-radius: 12px;
+  padding: 18px 22px;
+  text-align: left;
+  margin: 26px auto;
+  max-width: 480px;
+  font-size: 14px; line-height: 1.7;
+}
+.demo-info .row { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+.demo-info .row .lbl { color: rgba(255,255,255,0.7); min-width: 60px; }
+.demo-info code {
+  background: rgba(0, 0, 0, 0.4); padding: 4px 10px;
+  border-radius: 6px; font-family: 'SF Mono', Menlo, monospace;
+  font-size: 13px; color: #FBBF24; user-select: all;
+  font-weight: 600;
+}
+.demo-info .copy-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  padding: 3px 10px; border-radius: 6px;
+  font-size: 11px; cursor: pointer;
+  font-family: inherit; font-weight: 600;
+  transition: all 0.15s;
+}
+.demo-info .copy-btn:hover { background: rgba(255,255,255,0.16); }
+.demo-info .copy-btn.copied { background: #208438; color: #fff; }
+.demo-info .warn {
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: rgba(255,255,255,0.6);
+  padding-top: 12px;
+  border-top: 1px dashed rgba(255,255,255,0.15);
+}
+
+/* ── Features grid ── */
+.demo-features {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; margin: 30px 0;
+}
+.demo-feat {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 14px; padding: 18px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s;
+}
+.demo-feat:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(186,117,23,0.3);
+  transform: translateY(-2px);
+}
+.demo-feat-icon { font-size: 30px; margin-bottom: 8px; }
+.demo-feat-title { font-size: 13px; font-weight: 600; opacity: 0.85; margin-bottom: 4px; }
+.demo-feat-desc { font-size: 11px; opacity: 0.55; line-height: 1.4; }
+
+/* ── CTA ── */
+.demo-cta {
+  display: flex; gap: 12px; justify-content: center; margin-top: 32px;
+  flex-wrap: wrap;
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 28px; border-radius: 999px; border: none;
+  font-family: inherit; font-size: 15px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  transition: all 0.15s ease;
+}
+.btn-primary {
+  background: linear-gradient(180deg, #BA7517 0%, #854F0B 100%);
+  color: #fff; box-shadow: 0 4px 14px rgba(186, 117, 23, 0.4);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(186, 117, 23, 0.5); }
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08); color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.btn-secondary:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* ── Mobile install hint ── */
+.mobile-hint {
+  margin-top: 24px;
+  background: rgba(0,122,255,0.10);
+  border: 1px dashed rgba(0,122,255,0.3);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.85);
+  display: flex; align-items: center; gap: 12px;
+  text-align: left;
+}
+.mobile-hint .mh-ico { font-size: 26px; }
+.mobile-hint b { color: #fff; }
+
+/* ── Footer info ── */
+.demo-warn {
+  font-size: 12.5px; color: rgba(255, 255, 255, 0.5);
+  margin-top: 26px;
+  display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+}
+.demo-warn span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ── Responsive ── */
+@media (max-width: 720px) {
+  .demo-card { padding: 32px 22px; }
+  .demo-card h1 { font-size: 30px; }
+  .demo-card .lead { font-size: 15px; }
+  .demo-features { grid-template-columns: repeat(2, 1fr); }
+  .demo-info { padding: 14px 16px; }
+  .demo-info .row { flex-wrap: nowrap; gap: 8px; }
+  .demo-info .row .lbl { min-width: 52px; flex-shrink: 0; }
+  .demo-info code { min-width: 0; }
+  .demo-info .copy-btn { flex-shrink: 0; }
+  .btn { padding: 12px 22px; font-size: 14px; }
+}
+@media (max-width: 420px) {
+  .demo-features { grid-template-columns: 1fr 1fr; }
+  .demo-topbar .brand b { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo-wrap">
+
+  <div class="demo-topbar">
+    <a href="https://appek.cz" class="brand">
+      <div class="brand-ico">📦</div>
+      <span><b>APPEK</b> demo</span>
+    </a>
+    <div class="lang-switch">
+      <button onclick="setLang('cs')" id="lang-cs" class="active">CS</button>
+      <button onclick="setLang('en')" id="lang-en">EN</button>
+      <button onclick="setLang('es')" id="lang-es">ES</button>
+    </div>
+  </div>
+
+  <div class="demo-card">
+    <span class="badge" data-i18n="badge">🧪 Live demo · read-only sandbox</span>
+    <h1 data-i18n="title">Vyzkoušejte APPEK</h1>
+    <p class="lead" data-i18n="lead">
+      Plně funkční ukázka s reálnými daty. Projděte si objednávky, faktury, výrobu, HACCP, cenovky i rozvozy — vše se každou hodinu obnoví do výchozího stavu.
+    </p>
+
+    <div class="demo-info">
+      <strong style="color:#FBBF24" data-i18n="creds_label">🔑 Přihlašovací údaje</strong>
+      <div class="row">
+        <span class="lbl" data-i18n="creds_email">E-mail:</span>
+        <code id="cred-email">demo@appek.cz</code>
+        <button class="copy-btn" onclick="copyText('cred-email', this)" data-i18n="copy">Kopírovat</button>
+      </div>
+      <div class="row">
+        <span class="lbl" data-i18n="creds_pass">Heslo:</span>
+        <code id="cred-pass">demo1234</code>
+        <button class="copy-btn" onclick="copyText('cred-pass', this)" data-i18n="copy">Kopírovat</button>
+      </div>
+      <div class="warn" data-i18n="warn">
+        ⚠️ Vše co tu vytvoříš se za max. 1 hodinu smaže. Bezpečné prostředí na experiment.
+      </div>
+    </div>
+
+    <div class="demo-features">
+      <div class="demo-feat"><div class="demo-feat-icon">📋</div><div class="demo-feat-title" data-i18n="f1_t">Objednávky</div><div class="demo-feat-desc" data-i18n="f1_d">Přijímání, sledování stavu</div></div>
+      <div class="demo-feat"><div class="demo-feat-icon">💰</div><div class="demo-feat-title" data-i18n="f2_t">Faktury</div><div class="demo-feat-desc" data-i18n="f2_d">Tvorba, PDF, e-mail</div></div>
+      <div class="demo-feat"><div class="demo-feat-icon">🥖</div><div class="demo-feat-title" data-i18n="f3_t">Výroba</div><div class="demo-feat-desc" data-i18n="f3_d">Výrobní plán z objednávek</div></div>
+      <div class="demo-feat"><div class="demo-feat-icon">📋</div><div class="demo-feat-title" data-i18n="f4_t">HACCP</div><div class="demo-feat-desc" data-i18n="f4_d">Teplotní logy, audit</div></div>
+      <div class="demo-feat"><div class="demo-feat-icon">🏷️</div><div class="demo-feat-title" data-i18n="f5_t">Cenovky</div><div class="demo-feat-desc" data-i18n="f5_d">Tisk štítků, QR/EAN</div></div>
+      <div class="demo-feat"><div class="demo-feat-icon">🛣️</div><div class="demo-feat-title" data-i18n="f6_t">Rozvozy</div><div class="demo-feat-desc" data-i18n="f6_d">Trasy, řidiči, ETA</div></div>
+    </div>
+
+    <div class="demo-cta">
+      <a href="/admin/" class="btn btn-primary" data-i18n="cta_enter">→ Vstoupit do demo</a>
+      <a href="https://appek.cz/checkout.html" class="btn btn-secondary" data-i18n="cta_buy">🛒 Chci vlastní instalaci</a>
+    </div>
+
+    <div class="mobile-hint">
+      <span class="mh-ico">📱</span>
+      <div>
+        <b data-i18n="hint_title">Vyzkoušejte na mobilu</b><br>
+        <span data-i18n="hint_text">APPEK funguje jako PWA — v Safari klikni Sdílet → „Přidat na plochu", v Chrome je install nabídka v menu.</span>
+      </div>
+    </div>
+
+    <p class="demo-warn">
+      <span data-i18n="warn_secure">🔒 Bezpečné</span>
+      <span>·</span>
+      <span data-i18n="warn_reset">🔄 Auto-reset každou hodinu</span>
+      <span>·</span>
+      <span>🌍 CS / EN / ES</span>
+      <span>·</span>
+      <span>📱 PWA · Offline · Push</span>
+    </p>
+  </div>
+
+</div>
+
+<script>
+// ─── i18n ───
+const I18N = {
+  cs: {
+    badge: '🧪 Live demo · read-only sandbox',
+    title: 'Vyzkoušejte APPEK',
+    lead: 'Plně funkční ukázka s reálnými daty. Projděte si objednávky, faktury, výrobu, HACCP, cenovky i rozvozy — vše se každou hodinu obnoví do výchozího stavu.',
+    creds_label: '🔑 Přihlašovací údaje',
+    creds_email: 'E-mail:',
+    creds_pass:  'Heslo:',
+    copy: 'Kopírovat',
+    copied: '✓ Zkopírováno',
+    warn: '⚠️ Vše co tu vytvoříš se za max. 1 hodinu smaže. Bezpečné prostředí na experiment.',
+    f1_t: 'Objednávky', f1_d: 'Přijímání, sledování stavu',
+    f2_t: 'Faktury',    f2_d: 'Tvorba, PDF, e-mail',
+    f3_t: 'Výroba',     f3_d: 'Výrobní plán z objednávek',
+    f4_t: 'HACCP',      f4_d: 'Teplotní logy, audit',
+    f5_t: 'Cenovky',    f5_d: 'Tisk štítků, QR/EAN',
+    f6_t: 'Rozvozy',    f6_d: 'Trasy, řidiči, ETA',
+    cta_enter: '→ Vstoupit do demo',
+    cta_buy:   '🛒 Chci vlastní instalaci',
+    hint_title: 'Vyzkoušejte na mobilu',
+    hint_text:  'APPEK funguje jako PWA — v Safari klikni Sdílet → „Přidat na plochu", v Chrome je install nabídka v menu.',
+    warn_secure: '🔒 Bezpečné',
+    warn_reset:  '🔄 Auto-reset každou hodinu',
+  },
+  en: {
+    badge: '🧪 Live demo · read-only sandbox',
+    title: 'Try APPEK',
+    lead: 'Fully functional showcase with real data. Browse orders, invoices, production, HACCP, price tags & delivery routes — everything resets every hour.',
+    creds_label: '🔑 Login credentials',
+    creds_email: 'Email:',
+    creds_pass:  'Password:',
+    copy: 'Copy',
+    copied: '✓ Copied',
+    warn: '⚠️ Everything you create here will be wiped within 1 hour. Safe environment to experiment.',
+    f1_t: 'Orders',     f1_d: 'Receive, track status',
+    f2_t: 'Invoices',   f2_d: 'Create, PDF, e-mail',
+    f3_t: 'Production', f3_d: 'Production plan from orders',
+    f4_t: 'HACCP',      f4_d: 'Temperature logs, audit',
+    f5_t: 'Price tags', f5_d: 'Print labels, QR/EAN',
+    f6_t: 'Delivery',   f6_d: 'Routes, drivers, ETA',
+    cta_enter: '→ Enter demo',
+    cta_buy:   '🛒 Get my own install',
+    hint_title: 'Try it on mobile',
+    hint_text:  'APPEK is a PWA — in Safari tap Share → "Add to Home Screen", on Chrome the install prompt appears in menu.',
+    warn_secure: '🔒 Secure',
+    warn_reset:  '🔄 Auto-reset every hour',
+  },
+  es: {
+    badge: '🧪 Demo en vivo · sandbox de solo lectura',
+    title: 'Pruebe APPEK',
+    lead: 'Demostración completa con datos reales. Explora pedidos, facturas, producción, APPCC, etiquetas y rutas — todo se reinicia cada hora.',
+    creds_label: '🔑 Credenciales de acceso',
+    creds_email: 'Correo:',
+    creds_pass:  'Contraseña:',
+    copy: 'Copiar',
+    copied: '✓ Copiado',
+    warn: '⚠️ Todo lo que crees aquí se borrará en 1 hora. Entorno seguro para experimentar.',
+    f1_t: 'Pedidos',    f1_d: 'Recibir, seguir estado',
+    f2_t: 'Facturas',   f2_d: 'Crear, PDF, e-mail',
+    f3_t: 'Producción', f3_d: 'Plan desde pedidos',
+    f4_t: 'APPCC',      f4_d: 'Registros temperatura, auditoría',
+    f5_t: 'Etiquetas',  f5_d: 'Imprimir, QR/EAN',
+    f6_t: 'Reparto',    f6_d: 'Rutas, conductores, ETA',
+    cta_enter: '→ Entrar al demo',
+    cta_buy:   '🛒 Quiero mi instalación',
+    hint_title: 'Pruébalo en móvil',
+    hint_text:  'APPEK es una PWA — en Safari toca Compartir → "Añadir a inicio", en Chrome el aviso aparece en el menú.',
+    warn_secure: '🔒 Seguro',
+    warn_reset:  '🔄 Auto-reset cada hora',
+  },
+};
+
+let lang = (localStorage.getItem('appek_lang') || (navigator.language || 'cs').substring(0,2)).toLowerCase();
+if (!['cs','en','es'].includes(lang)) lang = 'cs';
+
+function setLang(l) {
+  lang = l;
+  localStorage.setItem('appek_lang', l);
+  document.documentElement.lang = l;
+  document.querySelectorAll('.lang-switch button').forEach(b => b.classList.remove('active'));
+  document.getElementById('lang-' + l).classList.add('active');
+  applyI18n();
+}
+
+function applyI18n() {
+  const t = I18N[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (t[k] !== undefined) el.textContent = t[k];
+  });
+}
+
+function copyText(id, btn) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = I18N[lang].copied;
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// Init
+setLang(lang);
+
+// ─── 📊 Demo tracking ───
+(function() {
+  const apiBases = [
+    'https://appek.cz/api/demo_track.php',
+    '/api/demo_track.php',
+    '../api/demo_track.php',
+  ];
+  function sendTracking(akce) {
+    const payload = JSON.stringify({ akce, jazyk: lang });
+    let attempted = 0;
+    function tryNext() {
+      if (attempted >= apiBases.length) return;
+      const url = apiBases[attempted++];
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true,
+      }).catch(() => tryNext());
+    }
+    tryNext();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => sendTracking('enter'));
+  } else {
+    sendTracking('enter');
+  }
+  document.querySelectorAll('a.btn-primary').forEach(btn => {
+    if (btn.href && btn.href.includes('/admin/')) {
+      btn.addEventListener('click', () => sendTracking('login'));
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

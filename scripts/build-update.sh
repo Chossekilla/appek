@@ -1,0 +1,181 @@
+#!/bin/bash
+# 📦 BUILD UPDATE BUNDLE
+# Vytvoří update ZIP pro distribuci přes vendor.appek.cz/updates.php
+#
+# Použití:
+#   ./scripts/build-update.sh 2.1.0                  # full bundle (všechny soubory)
+#   ./scripts/build-update.sh 2.1.0 --since 2.0.10   # diff bundle proti commit/tag
+#
+# Výstup:
+#   appek-update-X.Y.Z.zip se strukturou:
+#     manifest.json   (verze, files: {path: sha256}, …)
+#     files/          (zrcadlí customer instalaci)
+#     changelog.md    (z CHANGELOG.md sekce X.Y.Z, pokud existuje)
+
+set -e
+
+VERSION="$1"
+MODE="full"
+SINCE=""
+
+if [[ -z "$VERSION" ]]; then
+  echo "❌ Chybí verze. Použití: ./build-update.sh X.Y.Z [--since OLD_VERSION]"
+  exit 1
+fi
+
+if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9]+)?$ ]]; then
+  echo "❌ Verze musí být ve formátu X.Y.Z (např. 2.1.0)"
+  exit 1
+fi
+
+if [[ "$2" == "--since" && -n "$3" ]]; then
+  MODE="diff"
+  SINCE="$3"
+fi
+
+OUTPUT="appek-update-${VERSION}.zip"
+TMPDIR="/tmp/appek-update-${VERSION}-$$"
+mkdir -p "$TMPDIR/files"
+
+echo "🏗️  Building update bundle: $OUTPUT (mode=$MODE)"
+[[ -n "$SINCE" ]] && echo "   diff od verze: $SINCE"
+
+# Soubory k zahrnutí (customer-relevant — vyloučí vendor/, sales/, build script)
+INCLUDE_PATHS=(
+  "api"
+  "admin"
+  "b2b"
+  "pos"
+  "floorplan"
+  "demo"
+  "install.php"
+  "index.php"
+  "instalace.html"
+  ".htaccess"
+  "robots.txt"
+  "CHANGELOG.md"
+)
+
+EXCLUDES=(
+  ".git" ".github" ".claude" ".vscode" ".idea"
+  "node_modules" "uploads"
+  "api/config.local.php" "api/.installed" "api/zalohy"
+  "vendor" "sales"   # NEZAHRNOUJ — vendor jen lokálně, sales je na appek.cz, ne na customer
+  "scripts"
+  "*.zip" "*.log" "*.bak"
+)
+
+# Vytvoř files/ s relevantními soubory
+if [[ "$MODE" == "full" ]]; then
+  for p in "${INCLUDE_PATHS[@]}"; do
+    if [[ -e "$p" ]]; then
+      mkdir -p "$TMPDIR/files/$(dirname "$p")"
+      cp -R "$p" "$TMPDIR/files/$(dirname "$p")/" 2>/dev/null || true
+    fi
+  done
+elif [[ "$MODE" == "diff" ]]; then
+  # Diff podle git
+  if ! git rev-parse "$SINCE" >/dev/null 2>&1; then
+    # Try tag form 'v2.0.10'
+    if git rev-parse "v$SINCE" >/dev/null 2>&1; then
+      SINCE="v$SINCE"
+    else
+      echo "❌ Git ref '$SINCE' neexistuje. Vytvoř tag: git tag v$SINCE"
+      exit 1
+    fi
+  fi
+  CHANGED=$(git diff --name-only "$SINCE" HEAD)
+  if [[ -z "$CHANGED" ]]; then
+    echo "❌ Žádné změny mezi $SINCE a HEAD."
+    exit 1
+  fi
+  while IFS= read -r f; do
+    SKIP=0
+    for ex in "${EXCLUDES[@]}"; do
+      [[ "$f" == "$ex"* ]] && { SKIP=1; break; }
+    done
+    [[ $SKIP -eq 1 ]] && continue
+    [[ ! -e "$f" ]] && continue
+    mkdir -p "$TMPDIR/files/$(dirname "$f")"
+    cp "$f" "$TMPDIR/files/$f"
+  done <<< "$CHANGED"
+fi
+
+# Odstraň exludované soubory rekurzivně
+cd "$TMPDIR/files"
+for ex in "${EXCLUDES[@]}"; do
+  find . -name "$(basename "$ex")" -path "*${ex}*" -exec rm -rf {} + 2>/dev/null || true
+done
+cd - >/dev/null
+
+# Vygeneruj manifest.json s SHA-256 každého souboru (Python = validní JSON, žádná trailing comma)
+echo "🔍 Generuji manifest.json (SHA-256 každého souboru)…"
+RELEASED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+python3 - "$TMPDIR" "$VERSION" "$MODE" "$RELEASED_AT" <<'PYEOF'
+import sys, os, json, hashlib
+tmpdir, version, mode, released_at = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+files_dir = os.path.join(tmpdir, 'files')
+files = {}
+for root, _, fns in os.walk(files_dir):
+    for fn in fns:
+        abs_p = os.path.join(root, fn)
+        rel = os.path.relpath(abs_p, files_dir).replace(os.sep, '/')
+        with open(abs_p, 'rb') as fh:
+            h = hashlib.sha256(fh.read()).hexdigest()
+        files[rel] = h
+manifest = {
+    'version': version,
+    'released_at': released_at,
+    'channel': 'stable',
+    'mode': mode,
+    'min_version': None,
+    'packages_required': ['core'],
+    'files': dict(sorted(files.items())),
+}
+with open(os.path.join(tmpdir, 'manifest.json'), 'w', encoding='utf-8') as fh:
+    json.dump(manifest, fh, indent=2, ensure_ascii=False)
+print(f"  ✓ manifest.json — {len(files)} souborů")
+PYEOF
+
+# Changelog — vytáhni sekci pro tuto verzi z CHANGELOG.md
+if [[ -f "CHANGELOG.md" ]]; then
+  CHANGELOG=$(awk -v v="$VERSION" '
+    /^## \[?'"$VERSION"'\]?/ { found=1; print; next }
+    found && /^## / { exit }
+    found { print }
+  ' CHANGELOG.md)
+  if [[ -n "$CHANGELOG" ]]; then
+    echo "$CHANGELOG" > "$TMPDIR/changelog.md"
+    echo "📝 Changelog pro $VERSION nalezen v CHANGELOG.md"
+  else
+    echo "## $VERSION" > "$TMPDIR/changelog.md"
+    echo "" >> "$TMPDIR/changelog.md"
+    echo "_(Changelog nebyl nalezen v CHANGELOG.md. Doplň ručně sekci '## [$VERSION]'.)_" >> "$TMPDIR/changelog.md"
+  fi
+else
+  echo "## $VERSION" > "$TMPDIR/changelog.md"
+fi
+
+# Zabal vše
+rm -f "$OUTPUT"
+(cd "$TMPDIR" && zip -qr "$OUTPUT" .) && mv "$TMPDIR/$OUTPUT" .
+
+# Cleanup
+rm -rf "$TMPDIR"
+
+# Stats
+SIZE=$(ls -lh "$OUTPUT" | awk '{print $5}')
+FILES=$(unzip -l "$OUTPUT" | tail -1 | awk '{print $2}')
+SHA=$(shasum -a 256 "$OUTPUT" | cut -d' ' -f1)
+
+echo ""
+echo "✅ Hotovo!"
+echo "   Bundle:    $OUTPUT"
+echo "   Velikost:  $SIZE"
+echo "   Souborů:   $FILES"
+echo "   SHA-256:   $SHA"
+echo ""
+echo "Další kroky:"
+echo "  1. Nahraj na vendor.appek.cz/updates.php"
+echo "  2. Zkontroluj že velikost + SHA sedí (vendor je spočítá znova)"
+echo "  3. Klikni Publikovat → zákazníci to uvidí"

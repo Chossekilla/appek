@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BA7517"/>
+      <stop offset="100%" stop-color="#854F0B"/>
+    </linearGradient>
+  </defs>
+  <!-- Safe area for maskable: inner 80% must contain entire logo (centered) -->
+  <rect width="512" height="512" fill="url(#g)"/>
+  <text x="256" y="320" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif" font-size="240" font-weight="800" fill="#fff">A</text>
+</svg>

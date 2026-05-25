@@ -1,0 +1,297 @@
+# ══════════════════════════════════════════════════════════════
+# 🔒 Appek B2B — Apache .htaccess
+# ──────────────────────────────────────────────────────────────
+# Cílem je MAXIMÁLNÍ KOMPATIBILITA — funguje na běžných hostinzích
+# (Wedos, Hostinger, Forpsi, Active24, Endora, Webglobe, Endora,
+#  XAMPP/MAMP lokálně) i tam, kde jsou některé moduly vypnuté.
+#
+# Vše je zabaleno do <IfModule> testů — pokud modul chybí, sekce
+# se přeskočí bez chyby (žádný 500 Internal Server Error).
+#
+# Pro Nginx hostingy (např. Cloudflare Pages, Vercel): viz
+# nginx.conf.example v rootu pro alternativní konfiguraci.
+# ══════════════════════════════════════════════════════════════
+
+# ────────────────────────────────────────────────────────────
+# 1️⃣ ZÁKAZ VÝPISU ADRESÁŘŮ (vždy funguje, žádný modul)
+# ────────────────────────────────────────────────────────────
+Options -Indexes
+# MultiViews vypnout — funguje téměř všude, ale na restricted hostinzích to může vrátit 500
+<IfModule mod_negotiation.c>
+  Options -MultiViews
+</IfModule>
+
+# ────────────────────────────────────────────────────────────
+# 1.5️⃣ DIRECTORY INDEX — priorita souborů pro root URL
+# ────────────────────────────────────────────────────────────
+# Pokud uživatel otevře "/", Apache zkusí postupně:
+# 1. index.html (statická sales page — pokud existuje)
+# 2. index.php  (smart router — pokud aplikace běží)
+# 3. install.php (instalátor — pokud ještě nepřehrané)
+DirectoryIndex index.html index.php install.php
+
+# ────────────────────────────────────────────────────────────
+# 2️⃣ KÓDOVÁNÍ + výchozí jazyk
+# ────────────────────────────────────────────────────────────
+<IfModule mod_mime.c>
+  AddDefaultCharset UTF-8
+  AddCharset UTF-8 .html .css .js .json .xml .txt
+</IfModule>
+
+# ────────────────────────────────────────────────────────────
+# 3️⃣ REWRITE — blokace citlivých souborů (vyžaduje mod_rewrite)
+# ────────────────────────────────────────────────────────────
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Force HTTPS — odkomentuj až budeš mít SSL certifikát
+  # RewriteCond %{HTTPS} !=on
+  # RewriteCond %{HTTP_HOST} !^localhost
+  # RewriteCond %{HTTP_HOST} !^127\.0\.0\.1
+  # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Blokovat přímý přístup k konfiguracím a interním souborům
+  RewriteRule ^api/config\.local\.php$ - [F,L]
+  RewriteRule ^api/\.installed$ - [F,L]
+  RewriteRule ^api/_(.+)\.php$ - [F,L]
+  RewriteRule ^api/zalohy/.*$ - [F,L]
+  RewriteRule ^build-zip\.sh$ - [F,L]
+  RewriteRule ^\.env$ - [F,L]
+  RewriteRule ^\.git/ - [F,L]
+</IfModule>
+
+# ────────────────────────────────────────────────────────────
+# 4️⃣ HTTP HEADERS — bezpečnost (vyžaduje mod_headers)
+# ────────────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+  # Zákaz indexace robotem (HTTP level — přebije i meta tagy)
+  Header always set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+
+  # Anti-clickjacking
+  Header always set X-Frame-Options "SAMEORIGIN"
+
+  # MIME-type sniffing protection
+  Header always set X-Content-Type-Options "nosniff"
+
+  # Referrer policy — odesílaný referrer
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # Permissions Policy — vypnout geolokaci, mikrofon, kameru (B2B nepotřebuje)
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+
+  # XSS protection (legacy ale stále uznávaný staršími prohlížeči)
+  Header always set X-XSS-Protection "1; mode=block"
+
+  # HSTS — pouze pokud máš HTTPS (jinak zakomentováno)
+  # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+  # CSP — povol inline pro PWA a externí ARES/RPO + Heureka feeds
+  # POZN.: Pokud chceš stahovat externí fonty (Google Fonts), přidej je do font-src
+  Header always set Content-Security-Policy "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; font-src 'self' data:; connect-src 'self' https://ares.gov.cz https://rpo.statistics.sk; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+
+  # Odstranění hlavičky, která prozrazuje PHP verzi (security through obscurity)
+  Header unset X-Powered-By
+  Header always unset X-Powered-By
+</IfModule>
+
+# ────────────────────────────────────────────────────────────
+# 5️⃣ BLOKACE CITLIVÝCH SOUBORŮ — funguje s i bez Authz Core
+# ────────────────────────────────────────────────────────────
+<FilesMatch "(^\.htaccess|^\.htpasswd|^\.env|\.(env|local|log|sql|sql\.gz|bak|swp|tar|tar\.gz|tgz|zip|md|git|gitignore|sh|ini|conf|psd|ai|fla|swf|key|pem|crt)$)">
+  # Apache 2.4+ (mod_authz_core)
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  # Apache 2.2 a starší (mod_access_compat)
+  <IfModule !mod_authz_core.c>
+    Order Allow,Deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# Speciálně chránit citlivé PHP soubory
+<FilesMatch "^(config\.local\.php|\.installed|_admin_auth\.php|_email_html_designs\.php|_push_lib\.php|_schema\.sql|_zaloha_helper\.php)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order Allow,Deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# ────────────────────────────────────────────────────────────
+# 6️⃣ BLOKACE ZLOVOLNÝCH USER-AGENTS (vyžaduje mod_setenvif)
+# ────────────────────────────────────────────────────────────
+<IfModule mod_setenvif.c>
+  # AI scrapery
+  SetEnvIfNoCase User-Agent "GPTBot" bad_bot
+  SetEnvIfNoCase User-Agent "ChatGPT-User" bad_bot
+  SetEnvIfNoCase User-Agent "OAI-SearchBot" bad_bot
+  SetEnvIfNoCase User-Agent "anthropic-ai" bad_bot
+  SetEnvIfNoCase User-Agent "Claude-Web" bad_bot
+  SetEnvIfNoCase User-Agent "ClaudeBot" bad_bot
+  SetEnvIfNoCase User-Agent "CCBot" bad_bot
+  SetEnvIfNoCase User-Agent "PerplexityBot" bad_bot
+  SetEnvIfNoCase User-Agent "Google-Extended" bad_bot
+  SetEnvIfNoCase User-Agent "Bytespider" bad_bot
+  SetEnvIfNoCase User-Agent "ImagesiftBot" bad_bot
+  SetEnvIfNoCase User-Agent "FacebookBot" bad_bot
+  SetEnvIfNoCase User-Agent "Meta-ExternalAgent" bad_bot
+  SetEnvIfNoCase User-Agent "applebot-extended" bad_bot
+
+  # SEO scrapery (nepotřebujeme pro B2B)
+  SetEnvIfNoCase User-Agent "AhrefsBot" bad_bot
+  SetEnvIfNoCase User-Agent "MJ12bot" bad_bot
+  SetEnvIfNoCase User-Agent "SemrushBot" bad_bot
+  SetEnvIfNoCase User-Agent "DotBot" bad_bot
+  SetEnvIfNoCase User-Agent "DataForSeoBot" bad_bot
+  SetEnvIfNoCase User-Agent "BLEXBot" bad_bot
+  SetEnvIfNoCase User-Agent "PetalBot" bad_bot
+  SetEnvIfNoCase User-Agent "MauiBot" bad_bot
+  SetEnvIfNoCase User-Agent "ZoominfoBot" bad_bot
+  SetEnvIfNoCase User-Agent "BLEXBot" bad_bot
+  SetEnvIfNoCase User-Agent "SeznamBot" bad_bot
+  # Pozn: Seznam.cz je CZ vyhledávač — pokud bys ho chtěl povolit (PRO veřejné stránky), odkomentuj
+
+  # Pen-testing nástroje (jednoznačně malicious)
+  SetEnvIfNoCase User-Agent "sqlmap" bad_bot
+  SetEnvIfNoCase User-Agent "nikto" bad_bot
+  SetEnvIfNoCase User-Agent "nessus" bad_bot
+  SetEnvIfNoCase User-Agent "masscan" bad_bot
+  SetEnvIfNoCase User-Agent "WPScan" bad_bot
+  SetEnvIfNoCase User-Agent "acunetix" bad_bot
+  SetEnvIfNoCase User-Agent "nmap" bad_bot
+
+  # Generic command-line tools (pokud nepotřebuješ povolit pro own monitoring)
+  # POZN.: Pokud chceš povolit curl pro vlastní cron monitoring, zakomentuj řádek níže
+  # SetEnvIfNoCase User-Agent "curl/" bad_bot
+  # SetEnvIfNoCase User-Agent "wget" bad_bot
+
+  # Prázdný User-Agent = obvykle bot
+  SetEnvIfNoCase User-Agent "^$" bad_bot
+
+  # Aplikuj blokaci
+  <IfModule mod_authz_core.c>
+    <RequireAll>
+      Require all granted
+      Require not env bad_bot
+    </RequireAll>
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order Allow,Deny
+    Allow from all
+    Deny from env=bad_bot
+  </IfModule>
+</IfModule>
+
+# ────────────────────────────────────────────────────────────
+# 7️⃣ KOMPRESE GZIP — výrazně zrychlí načítání (jen pokud máš mod_deflate)
+# ────────────────────────────────────────────────────────────
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript text/plain text/xml
+  AddOutputFilterByType DEFLATE application/javascript application/json application/xml
+  AddOutputFilterByType DEFLATE application/x-javascript application/x-font-ttf
+  AddOutputFilterByType DEFLATE image/svg+xml font/opentype font/ttf font/eot
+</IfModule>
+
+# Alternativa — mod_gzip pro starší servery
+<IfModule mod_gzip.c>
+  mod_gzip_on Yes
+  mod_gzip_dechunk Yes
+  mod_gzip_item_include file \.(html?|txt|css|js|php|pl)$
+  mod_gzip_item_include handler ^cgi-script$
+  mod_gzip_item_include mime ^text/.*
+  mod_gzip_item_include mime ^application/x-javascript.*
+  mod_gzip_item_include mime ^application/json.*
+  mod_gzip_item_exclude mime ^image/.*
+</IfModule>
+
+# ────────────────────────────────────────────────────────────
+# 8️⃣ CACHE STATIKY — rychlejší second-load (jen pokud mod_expires)
+# ────────────────────────────────────────────────────────────
+<IfModule mod_expires.c>
+  ExpiresActive On
+
+  # Obrázky — dlouhý cache
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/jpg "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/gif "access plus 1 month"
+  ExpiresByType image/webp "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType image/x-icon "access plus 1 year"
+
+  # Fonty — dlouhý cache
+  ExpiresByType font/woff "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType application/font-woff "access plus 1 year"
+  ExpiresByType application/font-woff2 "access plus 1 year"
+
+  # CSS/JS — žádný cache (máme cache-bust v URL ?v=12.59)
+  ExpiresByType text/css "access plus 0 seconds"
+  ExpiresByType application/javascript "access plus 0 seconds"
+  ExpiresByType text/javascript "access plus 0 seconds"
+
+  # HTML — krátký cache
+  ExpiresByType text/html "access plus 0 seconds"
+
+  # Default
+  ExpiresDefault "access plus 1 hour"
+</IfModule>
+
+# ────────────────────────────────────────────────────────────
+# 9️⃣ ALTERNATIVA — Cache-Control přes mod_headers (fallback)
+# ────────────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+  <FilesMatch "\.(jpg|jpeg|png|gif|svg|ico|webp|woff|woff2|ttf|eot)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  <FilesMatch "\.(css|js)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  <FilesMatch "\.(html|htm|php)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# ────────────────────────────────────────────────────────────
+# 🔟 PHP NASTAVENÍ — funguje POUZE pokud běží mod_php (Apache module)
+# ──────────────────────────────────────────────────────────────
+# ⚠️ POZOR: Pokud používáš PHP-FPM (většina moderních hostingů ←
+# Wedos, Hostinger, Forpsi — typicky PHP-FPM), php_value direktivy
+# způsobí 500 Internal Server Error! Proto je celé zabaleno do <IfModule>.
+#
+# Pro PHP-FPM nastavení uprav v php.ini nebo .user.ini v rootu projektu.
+# ────────────────────────────────────────────────────────────
+<IfModule mod_php.c>
+  php_value upload_max_filesize 10M
+  php_value post_max_size 12M
+  php_value max_execution_time 60
+  php_value memory_limit 128M
+  php_flag display_errors Off
+  php_flag log_errors On
+</IfModule>
+<IfModule mod_php7.c>
+  php_value upload_max_filesize 10M
+  php_value post_max_size 12M
+  php_value max_execution_time 60
+  php_value memory_limit 128M
+  php_flag display_errors Off
+  php_flag log_errors On
+</IfModule>
+<IfModule mod_php8.c>
+  php_value upload_max_filesize 10M
+  php_value post_max_size 12M
+  php_value max_execution_time 60
+  php_value memory_limit 128M
+  php_flag display_errors Off
+  php_flag log_errors On
+</IfModule>
+
+# ────────────────────────────────────────────────────────────
+# 1️⃣1️⃣ ERROR STRÁNKY — minimalistické (volitelné)
+# ────────────────────────────────────────────────────────────
+ErrorDocument 403 "403 — Přístup zamítnut"
+ErrorDocument 404 "404 — Stránka neexistuje"
+ErrorDocument 500 "500 — Vnitřní chyba serveru. Zkontroluj api/diagnostika"

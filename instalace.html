@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Appek B2B — Instalační návod</title>
+<style>
+  /* ─────────── DESIGN SYSTEM ─────────── */
+  :root {
+    --primary: #BA7517;
+    --primary-light: #FFC966;
+    --primary-dark: #854F0B;
+    --text: #1D1D1F;
+    --text-2: #515154;
+    --text-3: #86868B;
+    --bg: #FFFFFF;
+    --surface: #F5F5F7;
+    --surface-2: #FAFAFB;
+    --border: #D2D2D7;
+    --success: #248A3D;
+    --success-bg: #DCFCE7;
+    --warn: #B25000;
+    --warn-bg: #FEF3C7;
+    --danger: #C7372F;
+    --danger-bg: #FEE2E2;
+    --info: #0071E3;
+    --info-bg: #DBEAFE;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: #ECECEC;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+    letter-spacing: -0.005em;
+  }
+
+  /* ─────────── TOOLBAR (jen na obrazovce) ─────────── */
+  .toolbar {
+    position: sticky;
+    top: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .toolbar h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
+  .toolbar .actions { display: flex; gap: 10px; }
+  .btn-toolbar {
+    background: linear-gradient(180deg, var(--primary-light) 0%, var(--primary) 100%);
+    color: white;
+    border: 1px solid var(--primary-dark);
+    border-radius: 980px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 2px 6px rgba(186, 117, 23, 0.30);
+    transition: all 0.15s ease;
+  }
+  .btn-toolbar:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(186, 117, 23, 0.40); }
+
+  /* ─────────── PAGE LAYOUT ─────────── */
+  .page {
+    background: white;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 20px auto;
+    padding: 18mm 16mm;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    page-break-after: always;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .page:last-child { page-break-after: auto; }
+  .page-content { flex: 1; }
+  .page-footer {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-3);
+  }
+
+  /* ─────────── TITULNÍ STRANA ─────────── */
+  .cover {
+    background: linear-gradient(135deg, #FAEEDA 0%, #FFFFFF 60%, #FAEEDA 100%);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  .cover-logo {
+    width: 140px;
+    height: 140px;
+    background: linear-gradient(135deg, var(--primary-light), var(--primary));
+    border-radius: 32px;
+    color: white;
+    font-size: 80px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 40px rgba(186, 117, 23, 0.35),
+                inset 0 2px 0 rgba(255,255,255,0.30);
+    margin-bottom: 30px;
+  }
+  .cover h1 {
+    font-size: 56px;
+    font-weight: 800;
+    margin: 0 0 8px;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #5C3608, #BA7517 50%, #FFA500);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .cover h2 {
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--text-2);
+    margin: 0 0 60px;
+    letter-spacing: -0.01em;
+  }
+  .cover .badge {
+    display: inline-block;
+    background: white;
+    border: 1px solid var(--border);
+    padding: 10px 24px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+    margin: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .cover-version {
+    margin-top: 40px;
+    font-size: 12px;
+    color: var(--text-3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ─────────── HEADINGS ─────────── */
+  h1 { font-size: 36px; font-weight: 700; letter-spacing: -0.025em; margin: 0 0 6px; line-height: 1.15; }
+  h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 30px 0 8px; line-height: 1.2; }
+  h3 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; margin: 20px 0 6px; line-height: 1.3; }
+  h4 { font-size: 15px; font-weight: 600; margin: 16px 0 4px; }
+  .lead {
+    font-size: 16px;
+    color: var(--text-2);
+    margin: 0 0 24px;
+    line-height: 1.55;
+  }
+
+  /* ─────────── COMMON ELEMENTS ─────────── */
+  p { margin: 0 0 12px; }
+  strong { font-weight: 700; color: var(--text); }
+  code {
+    background: rgba(60, 60, 67, 0.10);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-family: "SF Mono", "Menlo", Monaco, Consolas, monospace;
+    font-size: 0.92em;
+    color: var(--text);
+  }
+  pre {
+    background: #1D1D1F;
+    color: #F5F5F7;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-family: "SF Mono", "Menlo", Monaco, Consolas, monospace;
+    font-size: 11px;
+    overflow-x: auto;
+    margin: 12px 0;
+    line-height: 1.5;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  a { color: var(--info); text-decoration: none; font-weight: 500; }
+  a:hover { text-decoration: underline; }
+
+  ul, ol { padding-left: 22px; margin: 10px 0 16px; }
+  ul li, ol li { margin: 6px 0; line-height: 1.5; }
+
+  /* ─────────── KROK CARDY ─────────── */
+  .step {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin: 14px 0;
+    display: flex;
+    gap: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .step-num {
+    background: linear-gradient(135deg, var(--primary-light), var(--primary));
+    color: white;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(186, 117, 23, 0.30);
+  }
+  .step-body { flex: 1; }
+  .step-body h3 { margin: 0 0 6px; }
+  .step-body p { margin: 0 0 8px; color: var(--text-2); }
+  .step-body p:last-child { margin: 0; }
+
+  /* ─────────── BOXY (Info, Tip, Warning, Danger) ─────────── */
+  .box {
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    border-left: 4px solid;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .box-ico { font-size: 22px; line-height: 1; flex-shrink: 0; }
+  .box-body { flex: 1; }
+  .box-body strong { display: block; margin-bottom: 4px; font-size: 14px; }
+  .box-body p { margin: 0; font-size: 13px; color: var(--text-2); line-height: 1.55; }
+  .box.tip { background: rgba(0, 122, 255, 0.08); border-left-color: var(--info); }
+  .box.tip strong { color: var(--info); }
+  .box.success { background: rgba(48, 209, 88, 0.10); border-left-color: var(--success); }
+  .box.success strong { color: var(--success); }
+  .box.warn { background: rgba(255, 159, 10, 0.10); border-left-color: var(--warn); }
+  .box.warn strong { color: var(--warn); }
+  .box.danger { background: rgba(255, 69, 58, 0.10); border-left-color: var(--danger); }
+  .box.danger strong { color: var(--danger); }
+
+  /* ─────────── TABULKY ─────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--text-3);
+  }
+  tr:last-child td { border-bottom: none; }
+
+  /* ─────────── KEYBOARD CAP ─────────── */
+  .kbd {
+    background: white;
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 11px;
+    color: var(--text);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  /* ─────────── CARDS (paths) ─────────── */
+  .paths {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin: 18px 0;
+  }
+  .path-card {
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    text-align: center;
+  }
+  .path-card.recommended {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.15);
+  }
+  .path-card .ico { font-size: 36px; margin-bottom: 8px; }
+  .path-card h4 { font-size: 16px; margin: 0 0 4px; }
+  .path-card .desc { font-size: 12px; color: var(--text-3); }
+  .path-card .badge-rec {
+    display: inline-block;
+    background: var(--primary);
+    color: white;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+
+  /* ─────────── ASCII ART / SCHÉMA ─────────── */
+  .ascii {
+    background: #1D1D1F;
+    color: #6dd58a;
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 10px;
+    line-height: 1.6;
+    white-space: pre;
+    overflow-x: auto;
+    margin: 12px 0;
+    text-align: center;
+  }
+
+  /* ─────────── KEY-VALUE LIST ─────────── */
+  .kvlist {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin: 14px 0;
+  }
+  .kvlist dt {
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 8px;
+    font-size: 13px;
+  }
+  .kvlist dt:first-child { margin-top: 0; }
+  .kvlist dd {
+    margin: 4px 0 0 0;
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.5;
+  }
+
+  /* ─────────── OBSAH (TOC) ─────────── */
+  .toc {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 22px 26px;
+    margin: 20px 0;
+  }
+  .toc h2 { margin: 0 0 14px; }
+  .toc ol { margin: 0; padding-left: 24px; counter-reset: section; }
+  .toc > ol > li {
+    margin: 8px 0;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .toc > ol > li a { color: var(--text); }
+  .toc .page-num { float: right; color: var(--text-3); font-weight: 400; font-size: 12px; }
+
+  /* ─────────── PRINT STYLES ─────────── */
+  @media print {
+    body { background: white; }
+    .toolbar { display: none !important; }
+    .page {
+      margin: 0;
+      box-shadow: none;
+      width: 100%;
+      min-height: auto;
+      padding: 15mm 15mm 10mm;
+      page-break-after: always;
+    }
+    .page:last-child { page-break-after: auto; }
+    @page { size: A4; margin: 0; }
+    pre { font-size: 9.5px; }
+    .ascii { font-size: 8.5px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR (jen na obrazovce) -->
+<div class="toolbar">
+  <h1>🍞 Appek B2B — Instalační návod</h1>
+  <div class="actions">
+    <a href="/" class="btn-toolbar" style="text-decoration:none;background:linear-gradient(180deg,#fff 0%,#F5F5F7 100%);color:var(--text);border:1px solid var(--border)">← Zpět na APPEK</a>
+    <button class="btn-toolbar" onclick="window.print()">📄 Uložit jako PDF</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- TITULNÍ STRANA                                  -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page cover">
+  <div class="cover-logo">A</div>
+  <h1>Appek B2B</h1>
+  <h2>Gastro objednávkový systém</h2>
+
+  <p style="margin: 0 0 30px; max-width: 380px; color: var(--text-2); line-height: 1.5; font-size: 15px;">
+    Kompletní krabicovka pro malé a střední gastro provozy — administrace,&nbsp;B2B&nbsp;portál,&nbsp;faktury,&nbsp;HACCP, cenovky, plánovač výroby, sklad surovin a&nbsp;push&nbsp;notifikace.
+  </p>
+
+  <div>
+    <span class="badge">📋 Objednávky</span>
+    <span class="badge">📄 Dodací listy</span>
+    <span class="badge">💰 Faktury (ISDOC)</span>
+    <span class="badge">🥖 Výroba</span>
+    <span class="badge">📦 Sklad</span>
+    <span class="badge">🛣️ Rozvozové trasy</span>
+    <span class="badge">🏷️ Cenovky</span>
+    <span class="badge">📋 HACCP</span>
+  </div>
+
+  <div class="cover-version">
+    Verze 1.0 · Květen 2026 · Instalační návod
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 2: OBSAH                                 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>📑 Obsah</h1>
+    <p class="lead">Co tě tento návod naučí, podle jednotlivých sekcí.</p>
+
+    <div class="toc">
+      <ol>
+        <li><strong>Co je Appek B2B?</strong> <span class="page-num">str. 3</span></li>
+        <li><strong>Co potřebuješ před instalací</strong> <span class="page-num">str. 4</span></li>
+        <li><strong>Vyber svoji cestu</strong> (3 možnosti) <span class="page-num">str. 5</span></li>
+        <li><strong>Cesta A: Web hosting</strong> (Hostinger, Wedos, Forpsi…) <span class="page-num">str. 6–10</span></li>
+        <li><strong>Cesta B: Lokální XAMPP / MAMP</strong> (testování) <span class="page-num">str. 11–12</span></li>
+        <li><strong>Cesta C: VPS server</strong> (pro pokročilé) <span class="page-num">str. 13</span></li>
+        <li><strong>První přihlášení + Onboarding</strong> <span class="page-num">str. 14</span></li>
+        <li><strong>Zálohy databáze</strong> <span class="page-num">str. 15</span></li>
+        <li><strong>Časté problémy a řešení</strong> <span class="page-num">str. 16–17</span></li>
+        <li><strong>Bezpečnostní checklist</strong> <span class="page-num">str. 18</span></li>
+        <li><strong>Aktualizace systému</strong> <span class="page-num">str. 19</span></li>
+        <li><strong>Quick reference card</strong> (taháček) <span class="page-num">str. 20</span></li>
+      </ol>
+    </div>
+
+    <div class="box tip">
+      <span class="box-ico">💡</span>
+      <div class="box-body">
+        <strong>Tip pro netrpělivé</strong>
+        <p>Pokud jsi technicky zdatný, skoč rovnou na <strong>str. 20 — Quick reference card</strong>. Tam je celá instalace v 7 řádcích.</p>
+      </div>
+    </div>
+
+    <div class="box success">
+      <span class="box-ico">⏱️</span>
+      <div class="box-body">
+        <strong>Kolik to zabere času?</strong>
+        <p><strong>10–20 minut</strong> celkem (5 min stahování ZIP + 5 min vytvoření DB + 5 min wizardu + 5 min onboarding). Nic složitého — všechno se ti otevírá v prohlížeči.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod</span>
+    <span>Strana 2</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 3: CO JE APPEK                           -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>1. Co je Appek B2B?</h1>
+    <p class="lead">Hotový balíček softwaru pro gastro provozy — všechno potřebné v jedné aplikaci.</p>
+
+    <h2>📦 Co dostaneš</h2>
+    <p>Appek B2B je <strong>kompletní krabicovka</strong> — žádný měsíční poplatek, žádný cloud, jednou koupíš a máš na celý život. Zahrnuje dvě části:</p>
+
+    <h3>👤 Administrace pro provoz</h3>
+    <ul>
+      <li>📋 <strong>Objednávky</strong> — nové, stav (potvrzená, ve výrobě, expedována), filtry</li>
+      <li>🥖 <strong>Výrobní list</strong> — kolik kusů čeho péct dnes/zítra</li>
+      <li>📄 <strong>Dodací listy</strong> + ✏️ <strong>Faktury</strong> (s ISDOC exportem pro POHODA/Money S3)</li>
+      <li>🛣️ <strong>Rozvozové trasy</strong> — seskupené podle města pro řidiče</li>
+      <li>🥖 <strong>Výrobky</strong> + kategorie + cenové skupiny</li>
+      <li>📑 <strong>PDF nabídka</strong> — měsíční katalog pro odběratele</li>
+      <li>🏷️ <strong>Cenovky & štítky</strong> (15 designů, formáty Avery/Printky/SEVT…)</li>
+      <li>📋 <strong>HACCP dokumenty</strong> — plán, sanitační řád, postupy, audity</li>
+      <li>👥 <strong>Odběratelé</strong> — kontakty + B2B přístupy</li>
+      <li>🌾 <strong>Suroviny + sklad</strong> — alerty pod minimem, kalkulace</li>
+      <li>🔁 <strong>Opakující se objednávky</strong> (např. „Hotel Beránek každé pondělí 30× chleba")</li>
+      <li>📈 <strong>Sales report PDF</strong> — top výrobky, odběratelé, kategorie</li>
+      <li>🔌 <strong>API pro účetní systémy</strong> (Money S3, POHODA, Fakturoid)</li>
+    </ul>
+
+    <h3>🛒 B2B portál pro odběratele</h3>
+    <ul>
+      <li>Vlastní login + košík + historie objednávek</li>
+      <li>PWA — funguje jako aplikace v mobilu</li>
+      <li>Push notifikace (zdarma, žádné SMS) při změně stavu objednávky</li>
+      <li>Šablony objednávek pro rychlé znovu-objednání</li>
+    </ul>
+
+    <div class="box tip">
+      <span class="box-ico">🎯</span>
+      <div class="box-body">
+        <strong>Pro koho je to vhodné?</strong>
+        <p>Malé a střední gastro provozy (pekárny, cukrárny, lahůdkárny, catering, výroba), které prodávají B2B (restauracím, hotelům, jídelnám, školám). Funguje na běžném webhostingu — nepotřebuje speciální server.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod</span>
+    <span>Strana 3</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 4: CO POTŘEBUJEŠ                         -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>2. Co potřebuješ před instalací</h1>
+    <p class="lead">Příprava na 5 minut. Než začneš, ujisti se, že máš tyto věci.</p>
+
+    <h2>📦 Soubory aplikace</h2>
+    <div class="kvlist">
+      <dt>✅ ZIP balíček <code>appek-v1.0.zip</code></dt>
+      <dd>Obdržel jsi e-mailem nebo na flash disku od dodavatele. Velikost ~3 MB. Obsahuje všechny PHP soubory, CSS, JS a databázové schema.</dd>
+    </div>
+
+    <h2>🌐 Hosting nebo lokální server</h2>
+    <table>
+      <thead>
+        <tr><th>Volba</th><th>Pro koho</th><th>Měsíčně</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Český webhosting</strong><br><small>(Wedos, Hostinger, Forpsi, Active24…)</small></td>
+          <td>Provoz s B2B portálem (přístupný z internetu)</td>
+          <td>~50–150 Kč</td>
+        </tr>
+        <tr>
+          <td><strong>Lokální PC</strong><br><small>(XAMPP / MAMP / Laragon)</small></td>
+          <td>Testování nebo offline-only provoz</td>
+          <td>0 Kč</td>
+        </tr>
+        <tr>
+          <td><strong>VPS server</strong><br><small>(DigitalOcean, Hetzner, Forpsi VPS)</small></td>
+          <td>Pokročilí, vlastní doména, plná kontrola</td>
+          <td>~200–500 Kč</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>📋 Server requirements (technické minimum)</h2>
+    <div class="kvlist">
+      <dt>PHP 8.0 nebo novější</dt>
+      <dd>Většina hostingů má dnes PHP 8.2+. Zkontroluj v admin panelu hostingu.</dd>
+      <dt>MySQL 5.7+ nebo MariaDB 10.3+</dt>
+      <dd>Standard u všech hostingů. Verze nemusí být nejnovější.</dd>
+      <dt>PHP extensions: <code>pdo_mysql</code>, <code>openssl</code>, <code>gd</code>, <code>gmp</code>, <code>curl</code>, <code>mbstring</code>, <code>json</code></dt>
+      <dd>Standardně předinstalované na 99 % hostingů. Pokud ne, kontaktuj podporu hostingu — instalují to zdarma.</dd>
+      <dt>HTTPS certifikát (volitelné, doporučené)</dt>
+      <dd>Hostingy ho dávají zdarma přes Let's Encrypt. Bez HTTPS nepojedou push notifikace.</dd>
+    </div>
+
+    <h2>🔐 Co si připrav</h2>
+    <ul>
+      <li><strong>FTP přístup</strong> k hostingu (uživatel, heslo, adresa) — najdeš v e-mailu od hostingového provideru po koupi</li>
+      <li><strong>Email pro admin účet</strong> — např. <code>admin@vasefirma.cz</code></li>
+      <li><strong>Heslo</strong> (min 8 znaků) — později ho budeš používat pro přihlášení</li>
+    </ul>
+
+    <div class="box warn">
+      <span class="box-ico">⚠️</span>
+      <div class="box-body">
+        <strong>Domain — vlastní nebo subdoména?</strong>
+        <p>Můžeš použít vlastní (<code>vasefirma.cz</code>) nebo subdoménu od hostingu (<code>vasefirma.hostinger.com</code>). Doporučujeme vlastní — vypadá to profesionálněji a stojí ~150 Kč/rok.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod</span>
+    <span>Strana 4</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 5: VYBER CESTU                           -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>3. Vyber svoji cestu</h1>
+    <p class="lead">Existují tři způsoby instalace. Vyber, který nejlíp odpovídá tvojí situaci.</p>
+
+    <div class="paths">
+      <div class="path-card recommended">
+        <div class="ico">🌐</div>
+        <span class="badge-rec">Doporučeno</span>
+        <h4>Cesta A: Web hosting</h4>
+        <div class="desc">Hostinger, Wedos, Forpsi… B2B portal dostupný odkudkoliv. <strong>Strany 6–10</strong></div>
+      </div>
+      <div class="path-card">
+        <div class="ico">🏠</div>
+        <h4>Cesta B: Lokální</h4>
+        <div class="desc">XAMPP/MAMP na pekárenském PC. Pro testování nebo offline-only. <strong>Strany 11–12</strong></div>
+      </div>
+      <div class="path-card">
+        <div class="ico">⚙️</div>
+        <h4>Cesta C: VPS</h4>
+        <div class="desc">Vlastní server (Linux). Pro pokročilé. <strong>Strana 13</strong></div>
+      </div>
+    </div>
+
+    <h2>🤔 Jak se rozhodnout?</h2>
+
+    <table>
+      <thead>
+        <tr><th>Situace</th><th>Vyber cestu</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Nemám hosting, ale chci ať můžou odběratelé objednávat online</td>
+          <td><strong>Cesta A</strong></td>
+        </tr>
+        <tr>
+          <td>Chci si systém jen vyzkoušet, nemám hosting</td>
+          <td><strong>Cesta B</strong></td>
+        </tr>
+        <tr>
+          <td>Mám malý provoz ve vesnici, slabý internet, B2B portál nepotřebuju</td>
+          <td><strong>Cesta B</strong> (lokální)</td>
+        </tr>
+        <tr>
+          <td>Mám už VPS, dokážu si nakonfigurovat Apache/Nginx</td>
+          <td><strong>Cesta C</strong></td>
+        </tr>
+        <tr>
+          <td>Nejsem si jistý</td>
+          <td><strong>Cesta A</strong> (jistota a podpora hostingového provideru)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="box tip">
+      <span class="box-ico">💡</span>
+      <div class="box-body">
+        <strong>Náklady na cestu A</strong>
+        <p>Český webhosting stojí kolem <strong>50–150 Kč/měsíc</strong>. Doména <strong>~150 Kč/rok</strong>. SSL certifikát zdarma (Let's Encrypt). Celkem ~1 000–2 000 Kč/rok.</p>
+      </div>
+    </div>
+
+    <div class="box success">
+      <span class="box-ico">✅</span>
+      <div class="box-body">
+        <strong>Můžeš začít s cestou B a pak migrovat na A</strong>
+        <p>Pokud chceš nejdřív vyzkoušet zdarma na lokálním PC, není problém. Později jednoduše stáhneš zálohu DB a nahráš na webhosting. Žádná data se neztratí.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod</span>
+    <span>Strana 5</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 6: CESTA A — STEP 1: STÁHNOUT ZIP        -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>4. Cesta A: Web hosting</h1>
+    <p class="lead">Pro Hostinger, Wedos, Forpsi, Active24, Endora, Webglobe a jakýkoliv český hosting s PHP+MySQL.</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Stáhni ZIP balíček</h3>
+        <p>Obdržel jsi <code>appek-v1.0.zip</code> e-mailem nebo na flash disku. Pokud máš jen e-mail s odkazem, klikni na něj a soubor se stáhne (3 MB). Zkontroluj že je v <strong>Stažené soubory</strong> složce.</p>
+        <p><strong>Velikost:</strong> ~3 MB · <strong>Obsah:</strong> ~150 PHP souborů + admin web aplikace + B2B portál</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Vytvoř databázi v hostingovém panelu</h3>
+        <p>Otevři kontrolní panel hostingu (cPanel / klientská zóna):</p>
+        <ul>
+          <li><strong>Hostinger:</strong> hPanel → Databáze → MySQL Databáze → „Vytvořit novou"</li>
+          <li><strong>Wedos:</strong> Klientská zóna → MySQL → „Přidat databázi"</li>
+          <li><strong>Forpsi:</strong> Webhosting → Databáze MySQL → „Nová databáze"</li>
+          <li><strong>Active24:</strong> Administrace → Databáze → „Vytvořit"</li>
+        </ul>
+        <p>Při vytváření si <strong>poznamenej tyto údaje</strong> (budou potřeba):</p>
+      </div>
+    </div>
+
+    <div class="kvlist" style="margin-left: 60px;">
+      <dt>📛 Název databáze</dt>
+      <dd>např. <code>u123456_appek</code> (Hostinger automaticky přidá prefix)</dd>
+      <dt>👤 Uživatel databáze</dt>
+      <dd>např. <code>u123456_admin</code> (často stejný jako název)</dd>
+      <dt>🔐 Heslo databáze</dt>
+      <dd>Auto-generované hostingem nebo si zvol vlastní silné heslo</dd>
+      <dt>🌐 Host (server)</dt>
+      <dd>Většinou <code>localhost</code>. Některé hostingy mají vlastní server (např. <code>mysql.wedos.net</code>) — najdeš v dokumentaci hostingu</dd>
+    </div>
+
+    <div class="box tip">
+      <span class="box-ico">💾</span>
+      <div class="box-body">
+        <strong>Zapiš si přístupové údaje na papír</strong>
+        <p>Tyto údaje budeš potřebovat v kroku 5. Zapiš si je na papír nebo do textového souboru. Hostingy je obvykle ukazují jen jednou.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod · Cesta A</span>
+    <span>Strana 6</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 7: CESTA A — STEP 3-4: FTP + ROZBALIT    -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>4. Cesta A — pokračování</h1>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Nahraj soubory na hosting</h3>
+        <p>Máš dvě možnosti, jak nahrát soubory:</p>
+        <h4>🚀 Možnost A: FileZilla / WinSCP (FTP)</h4>
+        <ol>
+          <li>Stáhni si zdarma <a href="https://filezilla-project.org">FileZilla</a></li>
+          <li>Spusť a vyplň přihlašovací údaje FTP (najdeš v e-mailu od hostingu):
+            <ul>
+              <li>Host: <code>ftp.tvojefirma.cz</code></li>
+              <li>Uživatel: tvůj FTP účet</li>
+              <li>Heslo: tvoje FTP heslo</li>
+              <li>Port: <code>21</code> (nebo <code>22</code> pro SFTP)</li>
+            </ul>
+          </li>
+          <li>Po připojení přejdi do složky <code>public_html/</code> nebo <code>www/</code></li>
+          <li>Rozbal ZIP lokálně na svém PC (klik pravým → Rozbalit) a celý obsah nahraj do <code>public_html/</code></li>
+        </ol>
+        <h4>🚀 Možnost B: Web File Manager (přes hosting panel)</h4>
+        <ol>
+          <li>V hosting panelu otevři <strong>Správce souborů</strong></li>
+          <li>Klikni „Nahrát" a vyber <code>appek-v1.0.zip</code></li>
+          <li>Po nahrání klikni pravým tlačítkem na soubor → „Extrahovat zde"</li>
+          <li>ZIP soubor po rozbalení smaž</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Ověř, že soubory jsou na správném místě</h3>
+        <p>Otevři v prohlížeči adresu tvého webu (např. <code>https://tvojefirma.cz/</code>). Měl bys vidět buď:</p>
+        <ul>
+          <li>✅ <strong>Login obrazovku</strong> Appek B2B (krásná, se zlatým logo „A") — pokud ano, soubory jsou OK, jen ještě nemáš databázi</li>
+          <li>⚠️ <strong>Chybu</strong> nebo seznam souborů — zkontroluj že soubory jsou v <code>public_html/</code> (ne <code>public_html/appek/</code>)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="box warn">
+      <span class="box-ico">📁</span>
+      <div class="box-body">
+        <strong>Pozor na strukturu složek</strong>
+        <p>Soubory musí být přímo v <code>public_html/</code>, ne v podsložce. Pokud máš <code>public_html/appek/index.html</code>, přesuneš obsah o úroveň výš. Nebo jdi na adresu <code>tvojefirma.cz/appek/</code>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod · Cesta A</span>
+    <span>Strana 7</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 8: CESTA A — STEP 5: INSTALLER           -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>4. Cesta A — pokračování</h1>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h3>Spusť instalační wizard</h3>
+        <p>V prohlížeči otevři adresu:</p>
+        <pre><code>https://tvojefirma.cz/install.php</code></pre>
+        <p>Uvidíš krásný wizard s 4 kroky:</p>
+      </div>
+    </div>
+
+    <div class="ascii">┌─────────────────────────────────────────────┐
+│  🍞 Appek B2B — Instalační průvodce         │
+│                                             │
+│  ✓ 0. Kontrola  ▶ 1. Databáze  2. Admin  3. Hotovo │
+│                                             │
+│  📋 Kontrola serveru                        │
+│  ✅ PHP 8.2.x                               │
+│  ✅ PDO MySQL                               │
+│  ✅ OpenSSL                                 │
+│  ✅ GD (obrázky)                            │
+│  ✅ Všechny ostatní extension               │
+│                                             │
+│  [ ➜ Pokračovat na DB ]                     │
+└─────────────────────────────────────────────┘</div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <h3>Zadej přístupové údaje k databázi</h3>
+        <p>V kroku 1 wizardu vyplň údaje, které sis zapsal v kroku 2 tohoto návodu:</p>
+        <table>
+          <tr><td><strong>Host:</strong></td><td><code>localhost</code> (nebo dle hostingu)</td></tr>
+          <tr><td><strong>Port:</strong></td><td><code>3306</code> (necháš výchozí)</td></tr>
+          <tr><td><strong>Název databáze:</strong></td><td>např. <code>u123456_appek</code></td></tr>
+          <tr><td><strong>Uživatel:</strong></td><td>např. <code>u123456_admin</code></td></tr>
+          <tr><td><strong>Heslo:</strong></td><td>tvoje DB heslo</td></tr>
+        </table>
+        <p>Klikni <strong>🔌 Otestovat &amp; uložit</strong>. Pokud je vše OK, uvidíš:</p>
+        <div class="box success" style="margin: 8px 0;">
+          <span class="box-ico">✅</span>
+          <div class="box-body">
+            <strong>Databáze připojena</strong>
+            <p>Schema bylo automaticky naimportováno (~30 tabulek + seed dat).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box danger">
+      <span class="box-ico">❌</span>
+      <div class="box-body">
+        <strong>Pokud test selže</strong>
+        <p>Nejčastější chyby: špatné heslo, špatný host (zkus oba — <code>localhost</code> i <code>tvojefirma.cz</code>), nebo databáze neexistuje. Vrať se do hosting panelu a zkontroluj údaje.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod · Cesta A</span>
+    <span>Strana 8</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 9: CESTA A — STEP 7-8: ADMIN + DONE      -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>4. Cesta A — pokračování</h1>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <h3>Vytvoř admin účet</h3>
+        <p>V kroku 2 wizardu vyplň údaje pro hlavní admin účet:</p>
+        <table>
+          <tr><td><strong>Jméno:</strong></td><td>např. <code>Jan Novák</code></td></tr>
+          <tr><td><strong>E-mail (login):</strong></td><td>např. <code>jan@tvojefirma.cz</code></td></tr>
+          <tr><td><strong>Heslo:</strong></td><td>min. 8 znaků, doporučujeme dlouhé</td></tr>
+        </table>
+        <p>Tento účet bude mít <strong>maximální oprávnění</strong> (super admin) — může vše, včetně mazání faktur. Další uživatele a role budeš moci přidat později.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <h3>Smaž <code>install.php</code> (bezpečnost!)</h3>
+        <p>Po dokončení instalace <strong>smaž</strong> nebo přejmenuj soubor <code>install.php</code> v <code>public_html/</code>. Tento soubor by neměl být veřejně dostupný — kdokoli by mohl reset databáze.</p>
+        <ul>
+          <li>Přes FTP (FileZilla): klik pravým → Smazat</li>
+          <li>Přes File Manager hostingu: zaškrtni soubor → Smazat</li>
+          <li>Přes SSH: <code>rm public_html/install.php</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="box success">
+      <span class="box-ico">🎉</span>
+      <div class="box-body">
+        <strong>Hotovo!</strong>
+        <p>Systém je nainstalovaný a připravený k použití. Přejdi na <strong>str. 14 — První přihlášení a onboarding</strong>.</p>
+      </div>
+    </div>
+
+    <h2>🎯 Co máš teď</h2>
+    <div class="kvlist">
+      <dt>🔐 Admin (provoz)</dt>
+      <dd><code>https://tvojefirma.cz/admin/</code> — tady spravuješ vše</dd>
+      <dt>🛒 B2B portál (odběratelé)</dt>
+      <dd><code>https://tvojefirma.cz/</code> — sem se přihlašují tvoji klienti</dd>
+      <dt>🔧 API pro účetní</dt>
+      <dd><code>https://tvojefirma.cz/api/v1/</code> — REST API pro Money S3 / POHODA</dd>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod · Cesta A</span>
+    <span>Strana 9</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 10: CESTA A — SHRNUTÍ                    -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>4. Cesta A — Shrnutí</h1>
+    <p class="lead">Celá cesta A v 8 krocích na jedné stránce. Vytiskni si tu, kdybys to zapomněl.</p>
+
+    <table>
+      <thead>
+        <tr><th style="width:50px">Krok</th><th>Akce</th><th style="width:80px">Čas</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1</strong></td>
+          <td>Stáhni <code>appek-v1.0.zip</code> (3 MB)</td>
+          <td>1 min</td>
+        </tr>
+        <tr>
+          <td><strong>2</strong></td>
+          <td>Vytvoř MySQL databázi v hosting panelu</td>
+          <td>2 min</td>
+        </tr>
+        <tr>
+          <td><strong>3</strong></td>
+          <td>Rozbal ZIP a nahraj přes FTP do <code>public_html/</code></td>
+          <td>3 min</td>
+        </tr>
+        <tr>
+          <td><strong>4</strong></td>
+          <td>Otevři v prohlížeči adresu webu — uvidíš login obrazovku</td>
+          <td>30 s</td>
+        </tr>
+        <tr>
+          <td><strong>5</strong></td>
+          <td>Otevři <code>/install.php</code> — kontrola serveru</td>
+          <td>30 s</td>
+        </tr>
+        <tr>
+          <td><strong>6</strong></td>
+          <td>Krok 1 wizardu — zadej DB credentials</td>
+          <td>2 min</td>
+        </tr>
+        <tr>
+          <td><strong>7</strong></td>
+          <td>Krok 2 wizardu — vytvoř admin účet</td>
+          <td>1 min</td>
+        </tr>
+        <tr>
+          <td><strong>8</strong></td>
+          <td>Smaž <code>install.php</code> (bezpečnost)</td>
+          <td>30 s</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="box success">
+      <span class="box-ico">⏱️</span>
+      <div class="box-body">
+        <strong>Celkem ~10 minut</strong>
+        <p>Po těchto 8 krocích máš funkční gastro systém. Pak následuje onboarding wizard (5 minut) a první výrobky/odběratelé.</p>
+      </div>
+    </div>
+
+    <h2>📋 Checklist po instalaci</h2>
+    <ul style="line-height: 2;">
+      <li>☐ <code>install.php</code> smazán</li>
+      <li>☐ HTTPS funguje (zelený zámek v adresním řádku)</li>
+      <li>☐ Můžu se přihlásit do <code>/admin/</code></li>
+      <li>☐ B2B portál se načte na <code>/</code></li>
+      <li>☐ Onboarding wizard projet (str. 14)</li>
+      <li>☐ Denní zálohu DB zapnutou (str. 15)</li>
+    </ul>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod · Cesta A</span>
+    <span>Strana 10</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 11: CESTA B — LOKÁLNÍ                    -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>5. Cesta B: Lokální XAMPP / MAMP</h1>
+    <p class="lead">Bezplatný způsob, jak rozjet systém na tvém PC. Ideální pro testování, školení nebo offline-only provoz.</p>
+
+    <h2>💻 Co je XAMPP / MAMP?</h2>
+    <p>Bezplatný balíček, který nainstaluje na tvůj počítač <strong>Apache web server + PHP + MySQL</strong>. Zachová se jako mini-hosting přímo na tvém PC. Funguje na Windows, macOS i Linuxu.</p>
+
+    <div class="paths">
+      <div class="path-card">
+        <div class="ico">🪟</div>
+        <h4>Windows: XAMPP</h4>
+        <div class="desc"><a href="https://www.apachefriends.org">apachefriends.org</a><br>~150 MB</div>
+      </div>
+      <div class="path-card">
+        <div class="ico">🍎</div>
+        <h4>macOS: MAMP</h4>
+        <div class="desc"><a href="https://www.mamp.info">mamp.info</a><br>~500 MB</div>
+      </div>
+      <div class="path-card">
+        <div class="ico">🐧</div>
+        <h4>Linux: Apache + PHP</h4>
+        <div class="desc"><code>apt install apache2 php mysql</code></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Nainstaluj XAMPP nebo MAMP</h3>
+        <p>Stáhni z oficiální stránky (odkazy výše) a nainstaluj jako jakýkoliv jiný program. Použij výchozí nastavení.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Spusť server</h3>
+        <p>Otevři XAMPP / MAMP Control Panel a klikni <strong>Start</strong> u <code>Apache</code> i <code>MySQL</code>. Měli by zezelenat.</p>
+        <p>Otevři v prohlížeči <code>http://localhost</code> — měl bys vidět XAMPP/MAMP uvítací stránku.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Rozbal ZIP do htdocs</h3>
+        <p>Najdi složku <code>htdocs/</code> (XAMPP) nebo <code>MAMP/htdocs/</code> (MAMP). Tam rozbal ZIP balíček.</p>
+        <ul>
+          <li>Windows XAMPP: <code>C:\xampp\htdocs\</code></li>
+          <li>macOS MAMP: <code>/Applications/MAMP/htdocs/</code></li>
+        </ul>
+        <p>Vytvoř podsložku <code>appek/</code> a rozbal tam soubory.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Vytvoř databázi v phpMyAdmin</h3>
+        <p>Otevři <code>http://localhost/phpmyadmin</code>. Klikni <strong>Nová</strong> a vytvoř databázi:</p>
+        <ul>
+          <li>Název: <code>appek</code></li>
+          <li>Collation: <code>utf8mb4_unicode_ci</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod · Cesta B</span>
+    <span>Strana 11</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 12: CESTA B — POKRAČOVÁNÍ                -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>5. Cesta B — pokračování</h1>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h3>Spusť instalátor</h3>
+        <p>Otevři v prohlížeči:</p>
+        <pre><code>http://localhost/appek/install.php</code></pre>
+        <p>Vyplň DB údaje:</p>
+        <table>
+          <tr><td><strong>Host:</strong></td><td><code>localhost</code></td></tr>
+          <tr><td><strong>Port:</strong></td><td><code>3306</code></td></tr>
+          <tr><td><strong>Název DB:</strong></td><td><code>appek</code></td></tr>
+          <tr><td><strong>Uživatel:</strong></td><td><code>root</code></td></tr>
+          <tr><td><strong>Heslo:</strong></td><td>(prázdné — XAMPP nemá heslo)</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <h3>Vytvoř admin a hotovo</h3>
+        <p>Stejně jako v cestě A: vyplň jméno + e-mail + heslo. Pak smaž <code>install.php</code>.</p>
+        <p>Přihlas se: <code>http://localhost/appek/admin/</code></p>
+      </div>
+    </div>
+
+    <h2>🌐 Použití B2B portálu z mobilu / jiného PC</h2>
+    <p>Pokud chceš, aby B2B portál (odběratelé) byl dostupný i z mobilu nebo jiných PC v síti:</p>
+    <ol>
+      <li>Zjisti IP adresu tvého PC (Windows: <code>ipconfig</code>, Mac: <code>ifconfig</code>)</li>
+      <li>Z mobilu na stejné Wi-Fi otevři <code>http://192.168.1.X/appek/</code></li>
+      <li>(Volitelné) Otevři port 80 ve firewallu PC</li>
+    </ol>
+
+    <div class="box warn">
+      <span class="box-ico">⚠️</span>
+      <div class="box-body">
+        <strong>Lokální = bez veřejné dostupnosti</strong>
+        <p>B2B portál bude dostupný jen z tvojí lokální sítě. Odběratelé nebudou moci objednávat z domova přes internet. Pokud to chceš, použij cestu A.</p>
+      </div>
+    </div>
+
+    <div class="box tip">
+      <span class="box-ico">🔄</span>
+      <div class="box-body">
+        <strong>Auto-start XAMPP při startu PC</strong>
+        <p>Aby se XAMPP spouštěl automaticky při zapnutí PC: XAMPP Control Panel → Config → Service and Port Settings → ✓ Apache + MySQL → Save.</p>
+      </div>
+    </div>
+
+    <div class="box success">
+      <span class="box-ico">💾</span>
+      <div class="box-body">
+        <strong>Migrace lokálně → cloud později</strong>
+        <p>Až budeš chtít přejít na webhosting (cesta A): V adminu klikni <strong>Zálohy databáze → Stáhnout</strong>, pak na novém hostingu po instalaci nahraj zálohu přes phpMyAdmin. Všechna data se přesunou.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod · Cesta B</span>
+    <span>Strana 12</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 13: CESTA C — VPS                        -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>6. Cesta C: VPS server</h1>
+    <p class="lead">Pro pokročilé. Vlastní Linux server (DigitalOcean, Hetzner, Forpsi VPS…). Plná kontrola, vlastní doména, větší výkon.</p>
+
+    <h2>🚀 Předpoklady</h2>
+    <ul>
+      <li>VPS s Ubuntu 22.04+ nebo Debian 12+</li>
+      <li>SSH přístup (root nebo sudo user)</li>
+      <li>Vlastní doména s A záznamem na VPS IP</li>
+    </ul>
+
+    <h2>📦 Instalace LAMP stack</h2>
+    <pre><code># Update + instalace Apache, PHP, MySQL
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y apache2 mysql-server \
+  php php-mysql php-curl php-gd php-gmp \
+  php-mbstring php-xml php-zip libapache2-mod-php
+
+# Zabezpečení MySQL (interaktivní)
+sudo mysql_secure_installation
+
+# HTTPS přes Let's Encrypt
+sudo apt install -y certbot python3-certbot-apache
+sudo certbot --apache -d tvojefirma.cz</code></pre>
+
+    <h2>📂 Nahrání souborů</h2>
+    <pre><code># Z lokálního PC:
+scp appek-v1.0.zip root@vps-ip:/var/www/
+
+# Na VPS:
+cd /var/www/
+unzip appek-v1.0.zip -d html/
+chown -R www-data:www-data /var/www/html/
+chmod -R 755 /var/www/html/</code></pre>
+
+    <h2>🗄️ Databáze</h2>
+    <pre><code>sudo mysql -u root -p
+CREATE DATABASE appek CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'appek'@'localhost' IDENTIFIED BY 'silne_heslo_zde';
+GRANT ALL PRIVILEGES ON appek.* TO 'appek'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;</code></pre>
+
+    <h2>🔧 Apache config</h2>
+    <pre><code># Aktivuj rewrite + headers moduly
+sudo a2enmod rewrite headers expires deflate
+sudo systemctl restart apache2
+
+# .htaccess je už součástí balíčku
+# Nginx config je v souboru nginx.conf.example</code></pre>
+
+    <h2>🌐 Spuštění instalátoru</h2>
+    <p>Otevři v prohlížeči <code>https://tvojefirma.cz/install.php</code> a postupuj stejně jako v cestě A (kroky 5-8).</p>
+
+    <h2>⚡ Cron pro opakující se objednávky</h2>
+    <pre><code>sudo crontab -e
+# Přidej řádek:
+0 4 * * * php /var/www/html/api/cron_recurring.php</code></pre>
+
+    <div class="box tip">
+      <span class="box-ico">📖</span>
+      <div class="box-body">
+        <strong>Nginx místo Apache?</strong>
+        <p>V balíčku je <code>nginx.conf.example</code> s kompletní konfigurací včetně PHP-FPM, security headers a HTTPS. Zkopíruj do <code>/etc/nginx/sites-available/</code>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod · Cesta C</span>
+    <span>Strana 13</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 14: PRVNÍ PŘIHLÁŠENÍ + ONBOARDING       -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>7. První přihlášení + Onboarding</h1>
+    <p class="lead">Po instalaci tě uvítá onboarding wizard. Provede tě 6 kroky a připraví aplikaci na reálné používání.</p>
+
+    <h2>🚪 První přihlášení</h2>
+    <ol>
+      <li>Otevři <code>/admin/</code> v prohlížeči</li>
+      <li>Vyplň e-mail a heslo (z kroku 7 instalace)</li>
+      <li>Klikni <strong>Přihlásit</strong></li>
+    </ol>
+
+    <h2>🎯 Onboarding wizard — 6 kroků</h2>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>🏢 Údaje firmy</h3>
+        <p>Zadej IČO a klikni <strong>🔍 Načíst</strong> — systém automaticky stáhne data z <strong>ARES</strong> (CZ) nebo <strong>RPO</strong> (SK): název, adresa, DIČ. Můžeš ručně upravit.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>🖼️ Logo</h3>
+        <p>Nahraj logo firmy (PNG/JPG, doporučeno 400×400). Systém automaticky vygeneruje i favicon (32×32 ikona v záložce prohlížeče).</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>🏷️ Kategorie výrobků</h3>
+        <p>Vyber které kategorie budeš mít (Chleby, Pečivo, Koláče, Zákusky…). Můžeš si nechat naplnit i <strong>15 vzorových výrobků</strong> abys měl rychlý start.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>👥 Prvni odběratelé</h3>
+        <p>Můžeš naimportovat ze starého systému (CSV/JSON), z vizitek (vCard), nebo začít prázdně a přidávat ručně.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h3>📋 HACCP dokumenty</h3>
+        <p>Systém automaticky vygeneruje sadu HACCP dokumentů personalizovaných daty tvé firmy (z kroku 1). Plán HACCP, Sanitační řád, Postupy CCP, Záznamy o auditech.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <h3>✅ Hotovo</h3>
+        <p>Onboarding dokončen. Můžeš začít vytvářet objednávky, faktury, cenovky atd.</p>
+      </div>
+    </div>
+
+    <div class="box tip">
+      <span class="box-ico">💡</span>
+      <div class="box-body">
+        <strong>Onboarding přeskočit?</strong>
+        <p>Ano, klikni Přeskočit v jakémkoliv kroku. Všechno najdeš později v Nastavení. Onboarding můžeš spustit znovu konzolí: <code>restartOnboarding()</code>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod</span>
+    <span>Strana 14</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 15: ZÁLOHY                               -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>8. Zálohy databáze</h1>
+    <p class="lead">Nejdůležitější věc po instalaci. Bez záloh = riziko ztráty dat. Settings → Údržba → Zálohy.</p>
+
+    <h2>💾 Co se zálohuje</h2>
+    <ul>
+      <li>Celá MySQL databáze (~30 tabulek): objednávky, faktury, odběratelé, výrobky, HACCP, nastavení</li>
+      <li><strong>Volitelně</strong>: složka <code>uploads/</code> (loga, obrázky výrobků, podpisy odběratelů)</li>
+    </ul>
+
+    <h2>📦 Tři způsoby zálohování</h2>
+
+    <h3>1️⃣ Ruční záloha (1× za týden)</h3>
+    <p>V adminu: <strong>Nastavení → Údržba → Zálohy databáze → 💾 Zálohu DB</strong>. Soubor se vytvoří na serveru, stáhneš si ho do PC.</p>
+
+    <h3>2️⃣ Automatická záloha přes cron (denně v noci)</h3>
+    <p>Pokud hosting podporuje cron, nastav úlohu:</p>
+    <pre><code>0 3 * * * php /cesta/k/appek/api/cron_zaloha.php</code></pre>
+    <p>Pojede automaticky každý den ve 3:00. Záloha se uloží do <code>api/zalohy/</code>.</p>
+
+    <h3>3️⃣ Manuálně přes phpMyAdmin</h3>
+    <p>Otevři phpMyAdmin → vyber databázi → <strong>Export → SQL</strong>. Stáhne se ti <code>.sql</code> soubor.</p>
+
+    <div class="box danger">
+      <span class="box-ico">⚠️</span>
+      <div class="box-body">
+        <strong>Doporučujeme 3-2-1 pravidlo</strong>
+        <p>3 kopie dat · 2 různá média · 1 mimo budovu provozu. Příklad: záloha na serveru + záloha v PC + záloha v cloudu (Google Drive / Dropbox).</p>
+      </div>
+    </div>
+
+    <h2>🔄 Obnova ze zálohy</h2>
+    <p>Pokud potřebuješ obnovit databázi (např. po hackeru nebo chybě):</p>
+    <ol>
+      <li><strong>V adminu</strong>: Zálohy → najdi zálohu → <strong>↺ Obnovit</strong>. Dvojí potvrzení (bezpečnost).</li>
+      <li><strong>Přes phpMyAdmin</strong>: vymaž databázi → Import → vyber SQL soubor → Importovat.</li>
+      <li><strong>Přes SSH</strong>: <code>mysql -u root -p appek &lt; zaloha.sql</code></li>
+    </ol>
+
+    <div class="box success">
+      <span class="box-ico">✅</span>
+      <div class="box-body">
+        <strong>Před každou velkou změnou si udělej zálohu</strong>
+        <p>Než budeš měnit DPH sazby, mazat odběratele nebo upravovat schema — vždy nejdřív klikni <strong>💾 Zálohu DB</strong>. Trvá to 5 vteřin a může ti zachránit hodiny práce.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod</span>
+    <span>Strana 15</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 16: TROUBLESHOOTING                      -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>9. Časté problémy a řešení</h1>
+    <p class="lead">Najdi svůj problém v tabulce a vyřeš za 30 vteřin.</p>
+
+    <h2>🚨 Při instalaci</h2>
+    <table>
+      <thead>
+        <tr><th>Problém</th><th>Řešení</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Po otevření adresy vidím seznam souborů</strong></td>
+          <td>Server nemá zapnutý <code>mod_rewrite</code> nebo <code>DirectoryIndex</code>. Kontaktuj hosting, požádej o zapnutí. Nebo otevři přímo <code>/index.html</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Install.php vypisuje „Internal Server Error 500"</strong></td>
+          <td>Některá PHP extension chybí. Otevři Diagnostiku po instalaci. Většinou chybí <code>gd</code> nebo <code>gmp</code> — hosting to zapne na požádání.</td>
+        </tr>
+        <tr>
+          <td><strong>DB test selhává: „Access denied"</strong></td>
+          <td>Špatné heslo nebo uživatel. Vrať se do hosting panelu a zkontroluj přístupy. Pozor — u Hostingeru jsou DB hesla auto-generovaná a obsahují speciální znaky.</td>
+        </tr>
+        <tr>
+          <td><strong>DB test selhává: „Unknown database"</strong></td>
+          <td>Databáze ještě nebyla vytvořena. Vrať se do hosting panelu → MySQL → Vytvořit. Pozor na prefix (Hostinger: <code>u123456_</code>).</td>
+        </tr>
+        <tr>
+          <td><strong>DB test selhává: „Connection refused" / „Can't connect"</strong></td>
+          <td>Špatný host. Standardně <code>localhost</code>, ale některé hostingy mají vlastní (Wedos: <code>mysql.wedos.net</code>). Najdi v dokumentaci hostingu.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>🐛 Po instalaci</h2>
+    <table>
+      <thead>
+        <tr><th>Problém</th><th>Řešení</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Emaily se neodesílají</strong></td>
+          <td>Hosting blokuje PHP <code>mail()</code>. V Nastavení → Notifikace zapni SMTP nebo požádej hosting o aktivaci mail funkce. Otestuj v Diagnostice.</td>
+        </tr>
+        <tr>
+          <td><strong>Logo se nenahraje</strong></td>
+          <td>Složka <code>uploads/</code> nemá zápisová oprávnění. Přes FTP nastav permissions 755 nebo 775 pro celou složku <code>uploads/</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Push notifikace nefungují</strong></td>
+          <td>Vyžadují HTTPS. Pokud máš HTTP, push není dostupný. Nainstaluj SSL certifikát (zdarma přes Let's Encrypt v hostingu).</td>
+        </tr>
+        <tr>
+          <td><strong>Aplikace je pomalá</strong></td>
+          <td>Otevři Nastavení → Údržba → Diagnostika. Tam se ukáže, jestli chybí MySQL indexy nebo je DB příliš velká. Klikni <strong>🔬 Lint API</strong>.</td>
+        </tr>
+        <tr>
+          <td><strong>Faktura PDF se nevygeneruje</strong></td>
+          <td>Faktury jsou HTML+CSS, ne PDF library. V prohlížeči klikni Tisk → Uložit jako PDF. Funguje ve všech prohlížečích.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod</span>
+    <span>Strana 16</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 17: TROUBLESHOOTING POKRAČOVÁNÍ          -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>9. Časté problémy — pokračování</h1>
+
+    <h2>🌐 B2B portál</h2>
+    <table>
+      <thead>
+        <tr><th>Problém</th><th>Řešení</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Odběratel se nemůže přihlásit</strong></td>
+          <td>Přihlásí se na admin, pak Odběratelé → najdi účet → ✏️ Upravit → záložka „Přístup" → změň heslo. Email vždy malými písmeny.</td>
+        </tr>
+        <tr>
+          <td><strong>Odběratel nevidí žádné výrobky</strong></td>
+          <td>Buď nemá přiřazenou cenovou skupinu, nebo výrobky nejsou aktivní. Zkontroluj v Odběratelé → cenová skupina + Výrobky → aktivní.</td>
+        </tr>
+        <tr>
+          <td><strong>B2B se neotevírá v mobilu jako aplikace</strong></td>
+          <td>Pouze HTTPS web může být PWA. Pokud máš HTTP, B2B funguje jako normální web. Po přechodu na HTTPS klikni v Chrome menu → Přidat na plochu.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>🔧 Server</h2>
+    <table>
+      <thead>
+        <tr><th>Problém</th><th>Řešení</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Hláška „PHP 8.0+ vyžadováno"</strong></td>
+          <td>V hosting panelu změň PHP verzi na 8.0 nebo vyšší. U Hostingeru: hPanel → Pokročilé → PHP verze.</td>
+        </tr>
+        <tr>
+          <td><strong>Chybí PHP extension <code>gmp</code></strong></td>
+          <td>Push notifikace nepojedou bez GMP. U většiny hostingů: kontaktuj podporu, zapnou ti GMP zdarma. Ostatní funkce fungují bez GMP.</td>
+        </tr>
+        <tr>
+          <td><strong>Cron nefunguje</strong></td>
+          <td>Hosting nemá cron. Použij <strong>web-based cron</strong>: v Nastavení vygeneruj cron_token a volej URL <code>/api/cron_recurring.php?token=...</code> z externího cron služby (cron-job.org, EasyCron, IFTTT).</td>
+        </tr>
+        <tr>
+          <td><strong>Aplikace občas spadne s „500 Internal Server Error"</strong></td>
+          <td>Většinou nedostatek PHP paměti. Vytvoř <code>.user.ini</code> v rootu s obsahem <code>memory_limit = 256M</code>. Pokud to nepomůže, hosting nepomůže — přejdi na výkonnější tarif.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>📞 Když nic nezabírá</h2>
+    <p>Otevři <strong>Nastavení → Údržba → 🩺 Diagnostika → Otevřít detail</strong>. Tam je kompletní přehled systému (PHP verze, extensions, DB stav, schema integrita). Pošli screenshot dodavateli, případně hostingovému administrátorovi.</p>
+
+    <div class="box tip">
+      <span class="box-ico">📋</span>
+      <div class="box-body">
+        <strong>Co poslat při žádosti o pomoc?</strong>
+        <p>1. URL adresa aplikace · 2. Screenshot Diagnostiky · 3. Stručný popis problému · 4. Co jsi zkoušel udělat · 5. Verze aplikace (vidíš ve footeru adminu).</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod</span>
+    <span>Strana 17</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 18: BEZPEČNOSTNÍ CHECKLIST               -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>10. Bezpečnostní checklist</h1>
+    <p class="lead">Po instalaci projeď tento checklist. Trvá 15 minut, ale ušetří ti ti spoustu starostí.</p>
+
+    <h2>🔒 Nezbytné (proveď do 24 hodin)</h2>
+    <ul style="line-height: 2;">
+      <li>☐ <strong>Smazat <code>install.php</code></strong> — útočník by mohl resetovat databázi</li>
+      <li>☐ <strong>Silné admin heslo</strong> (12+ znaků, čísla, písmena, speciální)</li>
+      <li>☐ <strong>HTTPS aktivovaný</strong> — bezplatný Let's Encrypt v hostingu</li>
+      <li>☐ <strong>Denní zálohy zapnuté</strong> (str. 15)</li>
+      <li>☐ <strong>Vyplnit ARES údaje</strong> firmy — abys neměl podezřele prázdné PDF faktury</li>
+    </ul>
+
+    <h2>🛡️ Doporučené (do 1 týdne)</h2>
+    <ul style="line-height: 2;">
+      <li>☐ <strong>Dvojité potvrzení mazání</strong> zapnuto (Nastavení → Údržba → Bezpečnost)</li>
+      <li>☐ <strong>Cron nastaven</strong> pro opakující se objednávky</li>
+      <li>☐ <strong>Vytvořit roli „prodavač"</strong> s omezeným přístupem (žádné mazání)</li>
+      <li>☐ <strong>API tokens pro účetní</strong> — vygenerovat jeden token na účetního, nikoliv sdílet admin heslo</li>
+      <li>☐ <strong>Smazat ne-potřebné soubory</strong>: build-zip.sh, *.example, README.md (volitelné, ale čistší)</li>
+    </ul>
+
+    <h2>🔐 Pokročilé (volitelné)</h2>
+    <ul style="line-height: 2;">
+      <li>☐ <strong>IP whitelist pro admin</strong> v <code>.htaccess</code>:
+        <pre style="margin: 4px 0; padding: 8px; font-size: 10px;"><code>&lt;Files "admin/index.html"&gt;
+  Require ip 192.168.1.0/24
+&lt;/Files&gt;</code></pre>
+      </li>
+      <li>☐ <strong>Změnit URL adres adminu</strong> — místo <code>/admin/</code> např. <code>/spravce/</code></li>
+      <li>☐ <strong>Fail2ban</strong> na VPS — auto-bany IP po 5 špatných pokusech přihlášení</li>
+      <li>☐ <strong>Off-site backup</strong> — záloha do externího cloudu (Google Drive, Dropbox)</li>
+    </ul>
+
+    <h2>🚨 Co dělat při hacku</h2>
+    <ol style="line-height: 1.8;">
+      <li>Okamžitě změnit admin heslo</li>
+      <li>Změnit DB heslo v hosting panelu + v <code>api/config.local.php</code></li>
+      <li>Stáhnout zálohu DB ze před útokem (z <code>api/zalohy/</code>)</li>
+      <li>Stáhnout celou aplikaci přes FTP a zkontrolovat změny souborů (porovnat s originálním ZIP)</li>
+      <li>Smazat všechny soubory na hostingu a nahrát originální ZIP znovu</li>
+      <li>Obnovit databázi ze čisté zálohy</li>
+      <li>Změnit hesla VŠEM uživatelům (admin + odběratele)</li>
+    </ol>
+
+    <div class="box danger">
+      <span class="box-ico">⚠️</span>
+      <div class="box-body">
+        <strong>Veřejně dostupný systém = cíl útočníků</strong>
+        <p>Internet je nebezpečný. Boti hledají pekárenské systémy a zkouší přihlásit. <code>.htaccess</code> v balíčku má vestavěnou ochranu, ale to nestačí — pravidelně aktualizuj a měň hesla.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod</span>
+    <span>Strana 18</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 19: AKTUALIZACE                          -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>11. Aktualizace systému</h1>
+    <p class="lead">Když dodavatel vydá novou verzi (např. v1.1, v1.2…), takhle ji nainstaluješ bez ztráty dat.</p>
+
+    <h2>🚀 Aktualizace v 4 krocích</h2>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Vytvoř zálohu</h3>
+        <p>V adminu: <strong>Nastavení → Údržba → Zálohy → 📦 DB + uploads</strong>. Stáhni si zálohu do PC.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Stáhni novou verzi</h3>
+        <p>Dodavatel ti pošle <code>appek-v1.1.zip</code> e-mailem nebo na flash disku.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Nahraj přes FTP</h3>
+        <p>Rozbal ZIP a všechny soubory nahraj přes FTP do <code>public_html/</code>. Volba <strong>Přepsat existující</strong>. <strong>NESMĚŠ smazat tyto soubory</strong>:</p>
+        <ul>
+          <li><code>api/config.local.php</code> — tvoje DB credentials</li>
+          <li><code>api/.installed</code> — flag že je nainstalováno</li>
+          <li><code>uploads/</code> — všechny obrázky a loga</li>
+          <li><code>api/zalohy/</code> — staré zálohy</li>
+        </ul>
+        <p>FTP klient se zeptá „Soubor existuje, přepsat?" → vyber <strong>Přepsat vždy</strong>, ale ručně zaškrtni „Vynechat" pro výše uvedené soubory.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Otevři admin</h3>
+        <p>Po nahrání otevři <code>/admin/</code>. Aplikace automaticky:</p>
+        <ul>
+          <li>Detekuje novou verzi</li>
+          <li>Spustí auto-migraci databáze (přidá nové sloupce/tabulky)</li>
+          <li>Vyčistí cache prohlížeče (force-refresh)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>🆘 Co když se update pokazí</h2>
+    <ol>
+      <li>Nahraj zpět starou verzi (z předchozího ZIP)</li>
+      <li>Obnov databázi ze zálohy (krok 1 update)</li>
+      <li>Kontaktuj dodavatele s popisem chyby + screenshot Diagnostiky</li>
+    </ol>
+
+    <div class="box success">
+      <span class="box-ico">✅</span>
+      <div class="box-body">
+        <strong>Auto-migrace = bezpečná</strong>
+        <p>Appek nepoužívá DELETE migrace. Nové verze pouze přidávají sloupce/tabulky, nikdy nemažou existující data. Update je tedy <strong>vždy reversibilní</strong>.</p>
+      </div>
+    </div>
+
+    <div class="box tip">
+      <span class="box-ico">⏰</span>
+      <div class="box-body">
+        <strong>Kdy updatovat?</strong>
+        <p>Doporučujeme jednou za 3 měsíce, ne každý měsíc. Update v <strong>době mimo špičku</strong> (po obědě, nedělním večeru). Trvá 5–10 minut.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>Appek B2B · Instalační návod</span>
+    <span>Strana 19</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STRANA 20: QUICK REFERENCE CARD                 -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-content">
+    <h1>12. Quick reference card</h1>
+    <p class="lead">Vytrhni tuto stránku a měj ji na nástěnce. Vše nejdůležitější na 1 listu A4.</p>
+
+    <h2>📁 Důležité složky a soubory</h2>
+    <table>
+      <tr><td><code>/admin/</code></td><td>Admin webová aplikace</td></tr>
+      <tr><td><code>/api/</code></td><td>Backend PHP API</td></tr>
+      <tr><td><code>/uploads/</code></td><td>Loga, obrázky výrobků, podpisy</td></tr>
+      <tr><td><code>/api/config.local.php</code></td><td>DB credentials (NIKDY nesdílej!)</td></tr>
+      <tr><td><code>/api/zalohy/</code></td><td>Zálohy databáze</td></tr>
+      <tr><td><code>/install.php</code></td><td>Instalátor (PO instalaci smaž!)</td></tr>
+      <tr><td><code>/.htaccess</code></td><td>Apache security config</td></tr>
+    </table>
+
+    <h2>🌐 URL adresy</h2>
+    <table>
+      <tr><td><strong>Admin login:</strong></td><td><code>/admin/</code></td></tr>
+      <tr><td><strong>B2B portál:</strong></td><td><code>/</code></td></tr>
+      <tr><td><strong>API v1:</strong></td><td><code>/api/v1/</code></td></tr>
+      <tr><td><strong>Instalátor:</strong></td><td><code>/install.php</code></td></tr>
+    </table>
+
+    <h2>⌨️ Klávesové zkratky v adminu</h2>
+    <table>
+      <tr><td><span class="kbd">F11</span></td><td>Celá obrazovka</td></tr>
+      <tr><td><span class="kbd">Ctrl</span>+<span class="kbd">P</span></td><td>Tisk aktuální stránky</td></tr>
+      <tr><td><span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">R</span></td><td>Vyčistit cache + refresh</td></tr>
+    </table>
+
+    <h2>📞 Často potřebné akce</h2>
+    <div class="kvlist">
+      <dt>📊 Diagnostika</dt>
+      <dd>Nastavení → Údržba → Diagnostika → Otevřít detail</dd>
+      <dt>💾 Záloha databáze</dt>
+      <dd>Nastavení → Údržba → Zálohy → 💾 Zálohu DB</dd>
+      <dt>🎨 Změnit vzhled</dt>
+      <dd>Nastavení → Údržba → Vzhled (4 témata × 4 hustoty UI)</dd>
+      <dt>🔁 Restart onboarding</dt>
+      <dd>F12 → Console → napsat <code>restartOnboarding()</code></dd>
+      <dt>🔑 Reset admin hesla</dt>
+      <dd>Z DB: <code>UPDATE admin_users SET heslo_hash = '...' WHERE email = '...';</code></dd>
+    </div>
+
+    <h2>🆘 Když nic nefunguje</h2>
+    <ol>
+      <li>Otevři <strong>Nastavení → Údržba → Diagnostika</strong></li>
+      <li>Screenshot toho, co je červeně</li>
+      <li>Pošli dodavateli</li>
+    </ol>
+
+    <div class="box success" style="margin-top: 30px;">
+      <span class="box-ico">🎯</span>
+      <div class="box-body">
+        <strong>Pamatuj si jedno pravidlo</strong>
+        <p><strong>Před každou velkou změnou udělej zálohu.</strong> Trvá to 5 vteřin. Může ti zachránit hodiny práce.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>🍞 Appek B2B · v1.0 · 2026 · Instalační návod · Konec dokumentu</span>
+    <span>Strana 20</span>
+  </div>
+</div>
+
+<script>
+  // Při zatížení dokumentu nastav focus na print button
+  document.addEventListener('keydown', function(e) {
+    // Ctrl+P / Cmd+P → otevři systémový print dialog
+    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+      // necháme default browser action (otevře tiskárnu)
+    }
+  });
+</script>
+
+</body>
+</html>

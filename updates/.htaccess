@@ -1,0 +1,24 @@
+# 🎯 updates/ — public update manifest endpoint
+# Rewrite manifest.json → manifest.php so existing customers (on ANY old version)
+# get fresh data from vendor_updates DB instead of stale static file.
+
+RewriteEngine On
+
+# manifest.json → manifest.php (transparent — URL stays as .json)
+RewriteRule ^manifest\.json$ manifest.php [L]
+
+# Optionally allow direct .php access too
+# (no rewrite needed for explicit .php requests)
+
+# Prevent directory listing
+Options -Indexes
+
+# Set proper Content-Type for .json
+<FilesMatch "\.json$">
+    Header set Content-Type "application/json; charset=UTF-8"
+</FilesMatch>
+
+# Cache headers for the manifest (5 min)
+<FilesMatch "manifest\.(json|php)$">
+    Header set Cache-Control "public, max-age=300"
+</FilesMatch>

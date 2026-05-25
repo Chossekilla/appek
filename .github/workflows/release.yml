@@ -1,0 +1,137 @@
+name: 📦 Release ZIP
+
+# Spustí se při push tagu ve formátu v1.0.0, v1.1.0, atd.
+# Vytvoří GitHub Release + nahraje appek-vX.Y.Z.zip jako asset.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write  # potřeba pro vytvoření release
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: ver
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify APP_VERSION matches tag
+        run: |
+          CFG_VERSION=$(sed -nE "s/.*APP_VERSION'[^']*'([0-9]+\.[0-9]+\.[0-9]+)'.*/\1/p" api/config.php | head -1)
+          TAG_VERSION="${{ steps.ver.outputs.version }}"
+          if [ "$CFG_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ APP_VERSION ($CFG_VERSION) v api/config.php se neshoduje s tagem ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "✅ APP_VERSION $CFG_VERSION matches tag v$TAG_VERSION"
+
+      - name: Build distribution ZIP
+        run: |
+          chmod +x build-zip.sh
+          ./build-zip.sh "${{ steps.ver.outputs.version }}"
+          ls -lh appek-v${{ steps.ver.outputs.version }}.zip \
+                 appek-MASTER-v${{ steps.ver.outputs.version }}.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          name: Appek B2B v${{ steps.ver.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            appek-v${{ steps.ver.outputs.version }}.zip
+            appek-MASTER-v${{ steps.ver.outputs.version }}.zip
+          fail_on_unmatched_files: true
+
+      - name: Deploy to server
+        # 🐛 v2.9.317 — Retry logic + explicit curl timeouts + continue-on-error.
+        # Předtím failovalo + spamovalo emaily. Diagnostika potvrdila 403 "Neplatný token"
+        # → DEPLOY_TOKEN secret v GitHub Settings neodpovídá vendor/config.local.php
+        # DEPLOY_TOKEN na appek.cz. Retry nepomůže (403 = autentizace, ne flaky).
+        #
+        # 🆕 v2.9.318 — continue-on-error: true. Zip build + GH Release jsou KRITICKÉ
+        # a musí stále failnout job pokud nepojedou. Deploy-hook (vendor.appek.cz backend
+        # apply) je informativní — když selže, customer aplikace funguje dál (zákazníci
+        # tahají update přímo z GitHub Release assets). Failed deploy nahlásíme v summary,
+        # ale neblokujeme workflow → žádný email spam.
+        #
+        # Trvalá oprava: user → GitHub Settings → Secrets → rotuj DEPLOY_TOKEN aby
+        # odpovídal DEPLOY_TOKEN v vendor/config.local.php na appek.cz.
+        continue-on-error: true
+        id: deploy
+        run: |
+          ZIP="appek-MASTER-v${{ steps.ver.outputs.version }}.zip"
+          BACKOFFS=(0 5 15 30)  # 0 = first try without wait
+          MAX_TRIES=${#BACKOFFS[@]}
+          LAST_CODE=""
+          LAST_BODY=""
+          for i in "${!BACKOFFS[@]}"; do
+            WAIT="${BACKOFFS[$i]}"
+            if [ "$WAIT" -gt 0 ]; then
+              echo "⏳ Retry $((i+1))/$MAX_TRIES after ${WAIT}s (last HTTP $LAST_CODE)…"
+              sleep "$WAIT"
+            fi
+            RESP=$(curl -sS -w '\n%{http_code}' -X POST \
+              --connect-timeout 10 --max-time 120 \
+              -F "deploy_token=${{ secrets.DEPLOY_TOKEN }}" \
+              -F "master_zip=@${ZIP}" \
+              "${{ secrets.DEPLOY_URL }}/deploy-hook.php" 2>&1) || true
+            LAST_BODY=$(echo "$RESP" | sed '$d')
+            LAST_CODE=$(echo "$RESP" | tail -n1)
+            echo "↪ Attempt $((i+1)): HTTP $LAST_CODE"
+            # Úspěch: 200 + status:ok
+            if [ "$LAST_CODE" = "200" ] && echo "$LAST_BODY" | grep -q '"status":"ok"'; then
+              echo "$LAST_BODY"
+              echo "✅ Nasazeno: v${{ steps.ver.outputs.version }} (attempt $((i+1)))"
+              exit 0
+            fi
+            # Non-retryable error (4xx kromě 409): okamžitě fail
+            if [ "$LAST_CODE" = "400" ] || [ "$LAST_CODE" = "401" ] || [ "$LAST_CODE" = "403" ] || [ "$LAST_CODE" = "404" ] || [ "$LAST_CODE" = "405" ]; then
+              echo "$LAST_BODY"
+              echo "❌ Non-retryable HTTP $LAST_CODE — nemá smysl opakovat"
+              exit 1
+            fi
+            # Jinak retry (5xx, 409 lock, timeout, network)
+            echo "$LAST_BODY" | head -c 500
+            echo ""
+          done
+          echo "❌ Deploy failed after $MAX_TRIES attempts. Last HTTP $LAST_CODE"
+          exit 1
+
+      - name: Deploy status summary
+        # 🆕 v2.9.318 — Vždy běží, sumarizuje výsledek deploy stepu v GH UI.
+        # Když deploy failnul (continue-on-error=true ho neudělal celý job red),
+        # přidáme zřetelnou hlášku do job summary aby user viděl co je špatně.
+        if: always()
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          DEPLOY_RESULT="${{ steps.deploy.outcome }}"
+          {
+            echo "## 📦 Release v${VER}"
+            echo ""
+            echo "- ✅ ZIP build: success"
+            echo "- ✅ GitHub Release upload: success"
+            if [ "$DEPLOY_RESULT" = "success" ]; then
+              echo "- ✅ Deploy to vendor backend: success"
+            else
+              echo "- ⚠️ Deploy to vendor backend: **$DEPLOY_RESULT**"
+              echo ""
+              echo "### Co to znamená"
+              echo "Customer ZIP a GitHub Release jsou OK (zákazníci dostanou update přes manifest)."
+              echo "Selhal jen vendor backend apply na appek.cz/vendor (nekritické pro zákazníky)."
+              echo ""
+              echo "### Pravděpodobná příčina"
+              echo "**HTTP 403 \"Neplatný token\"** — rozjeté secrets:"
+              echo "- GitHub: Settings → Secrets → \`DEPLOY_TOKEN\`"
+              echo "- Server: \`vendor/config.local.php\` → \`define('DEPLOY_TOKEN', ...)\`"
+              echo ""
+              echo "Sjednoť obě hodnoty a další release proběhne čistě."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

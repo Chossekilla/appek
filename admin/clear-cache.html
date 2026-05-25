@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="robots" content="noindex, nofollow">
+<title>🧹 APPEK Cache Reset</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    background: linear-gradient(135deg, #FAEEDA 0%, #FFF8E5 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #1d1d1f;
+  }
+  .card {
+    max-width: 560px;
+    width: 100%;
+    background: #fff;
+    border-radius: 18px;
+    padding: 36px 40px;
+    box-shadow: 0 20px 60px rgba(186, 117, 23, 0.15), 0 8px 16px rgba(0,0,0,0.06);
+  }
+  .icon {
+    font-size: 56px;
+    text-align: center;
+    margin-bottom: 8px;
+    line-height: 1;
+  }
+  h1 {
+    font-size: 24px;
+    text-align: center;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+  .sub {
+    text-align: center;
+    color: #6e6e73;
+    font-size: 14px;
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    background: #f7f8fa;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    transition: all 0.3s;
+  }
+  .step.running {
+    background: linear-gradient(135deg, #FFF8E5, #FEF3C7);
+    border: 1px solid #FBBF24;
+  }
+  .step.done {
+    background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    color: #155724;
+    border: 1px solid #86EFAC;
+  }
+  .step.error {
+    background: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FCA5A5;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    background: #BA7517;
+    color: #fff;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step.done .step-num { background: #15803d; }
+  .step.error .step-num { background: #dc2626; }
+  .step-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .step-title {
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .step-status {
+    font-size: 12px;
+    color: #6e6e73;
+    font-family: 'SF Mono', Menlo, monospace;
+  }
+  .step.done .step-status { color: #155724; }
+  .step.error .step-status { color: #991B1B; }
+  .actions {
+    margin-top: 28px;
+    text-align: center;
+  }
+  .btn {
+    display: inline-block;
+    padding: 14px 32px;
+    background: linear-gradient(180deg, #BA7517, #854F0B);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    text-decoration: none;
+    transition: all 0.15s;
+    box-shadow: 0 4px 12px rgba(186,117,23,0.3);
+  }
+  .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(186,117,23,0.4);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+  .info {
+    margin-top: 20px;
+    padding: 14px 16px;
+    background: rgba(0,122,255,0.06);
+    border-left: 3px solid #0058b8;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #1d1d1f;
+    line-height: 1.55;
+  }
+  .info strong { color: #0058b8; }
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(186,117,23,0.3);
+    border-top-color: #BA7517;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 6px;
+    vertical-align: -1px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🧹</div>
+  <h1>APPEK Cache Reset</h1>
+  <p class="sub">Vyčistí Service Worker + browser cache aby se načetla nejnovější verze aplikace.</p>
+
+  <div id="steps">
+    <div class="step running" id="step-1">
+      <span class="step-num">1</span>
+      <div class="step-body">
+        <div class="step-title">Odregistrovat Service Workers</div>
+        <div class="step-status"><span class="spinner"></span>Pracuji…</div>
+      </div>
+    </div>
+    <div class="step" id="step-2">
+      <span class="step-num">2</span>
+      <div class="step-body">
+        <div class="step-title">Smazat všechny cache</div>
+        <div class="step-status">Čeká…</div>
+      </div>
+    </div>
+    <div class="step" id="step-3">
+      <span class="step-num">3</span>
+      <div class="step-body">
+        <div class="step-title">Vyčistit localStorage flagů</div>
+        <div class="step-status">Čeká…</div>
+      </div>
+    </div>
+    <div class="step" id="step-4">
+      <span class="step-num">4</span>
+      <div class="step-body">
+        <div class="step-title">Reload do adminu s cache bustem</div>
+        <div class="step-status">Čeká…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="open-btn" disabled>⏳ Pracuji…</button>
+  </div>
+
+  <div class="info">
+    💡 <strong>Co se děje:</strong> Tvůj prohlížeč pravděpodobně cachuje starou verzi JavaScriptu a CSS, takže nevidíš nejnovější změny aplikace. Tahle stránka cache vyčistí a načte fresh kód. Tvá data, faktury, nastavení — vše zůstává, jen se obnoví UI.
+  </div>
+</div>
+
+<script>
+(async function() {
+  const setStep = (n, status, msg) => {
+    const el = document.getElementById('step-' + n);
+    if (!el) return;
+    el.classList.remove('running');
+    if (status === 'running') el.classList.add('running');
+    if (status === 'done') el.classList.add('done');
+    if (status === 'error') el.classList.add('error');
+    el.querySelector('.step-status').innerHTML = msg;
+  };
+
+  // === STEP 1: Unregister all Service Workers ===
+  setStep(1, 'running', '<span class="spinner"></span>Hledám SW…');
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) {
+        await r.unregister();
+      }
+      setStep(1, 'done', `✓ Odregistrováno ${regs.length} SW`);
+    } else {
+      setStep(1, 'done', '✓ Service Worker není podporován (skip)');
+    }
+  } catch (e) {
+    setStep(1, 'error', '✗ Chyba: ' + e.message);
+  }
+
+  // === STEP 2: Delete all caches ===
+  setStep(2, 'running', '<span class="spinner"></span>Mažu cache…');
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+      setStep(2, 'done', `✓ Smazáno ${keys.length} cache buckets`);
+    } else {
+      setStep(2, 'done', '✓ Cache API není podporováno (skip)');
+    }
+  } catch (e) {
+    setStep(2, 'error', '✗ Chyba: ' + e.message);
+  }
+
+  // === STEP 3: Clear localStorage update flags ===
+  setStep(3, 'running', '<span class="spinner"></span>Čistím flagy…');
+  try {
+    const flagsToRemove = [
+      'appek_post_update_ack',
+      'sidebarCollapsed',
+      'sidebarPinned',
+    ];
+    let removed = 0;
+    for (const f of flagsToRemove) {
+      if (localStorage.getItem(f) !== null) {
+        localStorage.removeItem(f);
+        removed++;
+      }
+    }
+    setStep(3, 'done', `✓ Smazáno ${removed} flagů (data zůstávají v DB!)`);
+  } catch (e) {
+    setStep(3, 'error', '✗ Chyba: ' + e.message);
+  }
+
+  // === STEP 4: Reload s cache buster ===
+  setStep(4, 'running', '<span class="spinner"></span>Připravuji reload…');
+
+  // Krátká pauza pro UX (uživatel vidí steps)
+  await new Promise(r => setTimeout(r, 800));
+
+  setStep(4, 'done', '✓ Přesměrovávám…');
+
+  // Aktivuj tlačítko (pokud user chce kliknout sám místo auto-reloadu)
+  const btn = document.getElementById('open-btn');
+  btn.disabled = false;
+  btn.textContent = '🚀 Otevřít admin (čerstvý)';
+
+  const targetUrl = '/admin/?_freshcache=' + Date.now();
+  btn.onclick = () => location.href = targetUrl;
+
+  // Auto-reload po 1.5s
+  setTimeout(() => {
+    location.href = targetUrl;
+  }, 1500);
+})();
+</script>
+</body>
+</html>

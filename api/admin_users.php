@@ -1,0 +1,210 @@
+<?php
+/**
+ * Správa admin uživatelů (super admin / prodavač / POS).
+ * Pouze super admin (role = 'admin') má přístup.
+ *
+ * 🆕 v2.9.270 — PIN + pos_only:
+ *   - pin_hash: 4-6 cifer hashovaných bcryptem (cost=8 pro POS rychlost)
+ *   - pos_only: pokud 1 → uživatel se NESMÍ přihlásit do /admin/ (jen POS)
+ */
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_admin_auth.php';
+cors_headers();
+require_super_admin();
+
+$method = $_SERVER['REQUEST_METHOD'];
+$pdo = db();
+
+// 🆕 v2.9.270 — idempotentní migrace pro PIN + pos_only
+(function() use ($pdo) {
+    try {
+        $cols = $pdo->query("
+            SELECT COLUMN_NAME FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admin_users'
+        ")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('pin_hash', $cols, true)) {
+            try { $pdo->exec("ALTER TABLE admin_users ADD COLUMN pin_hash VARCHAR(255) NULL"); } catch (Throwable $e) {}
+        }
+        if (!in_array('pos_only', $cols, true)) {
+            try { $pdo->exec("ALTER TABLE admin_users ADD COLUMN pos_only TINYINT(1) NOT NULL DEFAULT 0"); } catch (Throwable $e) {}
+            try { $pdo->exec("CREATE INDEX idx_pos_only ON admin_users (pos_only)"); } catch (Throwable $e) {}
+        }
+        if (!in_array('posledni_pos_login', $cols, true)) {
+            try { $pdo->exec("ALTER TABLE admin_users ADD COLUMN posledni_pos_login DATETIME NULL"); } catch (Throwable $e) {}
+        }
+        // Index pro rychlé hot-query (POS keypad list)
+        try { $pdo->exec("CREATE INDEX idx_aktivni_role ON admin_users (aktivni, role)"); } catch (Throwable $e) {}
+    } catch (Throwable $e) { /* migration soft-fail */ }
+})();
+
+// PIN validace — 4-6 cifer
+function validate_pin(string $pin): bool {
+    return (bool) preg_match('/^\d{4,6}$/', $pin);
+}
+
+if ($method === 'GET') {
+    $stmt = $pdo->query("
+        SELECT id, email, jmeno, role, aktivni,
+               (pin_hash IS NOT NULL) AS ma_pin,
+               COALESCE(pos_only, 0) AS pos_only,
+               posledni_login AS posledni_prihlaseni,
+               posledni_pos_login,
+               vytvoreno AS created_at
+        FROM admin_users
+        ORDER BY role, jmeno
+    ");
+    json_response($stmt->fetchAll());
+}
+
+if ($method === 'POST') {
+    $d = json_input();
+
+    $email = trim($d['email'] ?? '');
+    $jmeno = trim($d['jmeno'] ?? '');
+    $heslo = $d['heslo'] ?? '';
+    $role  = $d['role'] ?? 'prodavac';
+    $pin   = trim((string) ($d['pin'] ?? ''));
+    $posOnly = !empty($d['pos_only']) ? 1 : 0;
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) json_error('Neplatný email');
+    if (strlen($heslo) < 6) json_error('Heslo musí mít alespoň 6 znaků');
+    if (!in_array($role, ['admin','prodavac','vyroba','expedice','pos'], true)) {
+        json_error('Neplatná role (admin/prodavac/vyroba/expedice/pos)');
+    }
+    if ($pin !== '' && !validate_pin($pin)) json_error('PIN musí mít 4-6 cifer');
+    // pos_only vyžaduje PIN (jinak by se uživatel nemohl nikde přihlásit)
+    if ($posOnly && $pin === '') json_error('Uživatel „pouze POS" musí mít PIN');
+    if ($jmeno === '') $jmeno = $email;
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO admin_users (email, heslo_hash, jmeno, role, aktivni, pin_hash, pos_only)
+            VALUES (:em, :h, :j, :r, 1, :pin, :po)
+        ");
+        $stmt->execute([
+            'em'  => $email,
+            'h'   => password_hash($heslo, PASSWORD_DEFAULT),
+            'j'   => $jmeno,
+            'r'   => $role,
+            'pin' => $pin !== '' ? password_hash($pin, PASSWORD_BCRYPT, ['cost' => 8]) : null,
+            'po'  => $posOnly,
+        ]);
+        json_response(['id' => $pdo->lastInsertId()], 201);
+    } catch (PDOException $e) {
+        if ($e->getCode() === '23000') {
+            json_error('Email už existuje', 409);
+        }
+        error_log('admin_users POST: ' . $e->getMessage());
+        json_error('Nepodařilo se vytvořit uživatele', 500);
+    }
+}
+
+if ($method === 'PUT') {
+    $d = json_input();
+    // 🐛 fix v2.9.180 — přijmout ID z query stringu i z body (REST i RPC styl).
+    $id = (int) ($d['id'] ?? $_GET['id'] ?? 0);
+    if (!$id) json_error('Chybí ID');
+
+    // Super admin nesmí degradovat sám sebe (zabránit zamknutí systému)
+    if ($id === (int) $_SESSION['admin_id'] && isset($d['role']) && $d['role'] !== 'admin') {
+        json_error('Nemůžete změnit svou vlastní roli z admin', 400);
+    }
+    // A nesmí ani sebe deaktivovat
+    if ($id === (int) $_SESSION['admin_id'] && isset($d['aktivni']) && !$d['aktivni']) {
+        json_error('Nemůžete deaktivovat sám sebe', 400);
+    }
+
+    $sets = []; $params = ['id' => $id];
+    if (isset($d['jmeno'])) { $sets[] = "jmeno = :j"; $params['j'] = trim($d['jmeno']); }
+    if (isset($d['email'])) {
+        if (!filter_var($d['email'], FILTER_VALIDATE_EMAIL)) json_error('Neplatný email');
+        $sets[] = "email = :e"; $params['e'] = $d['email'];
+    }
+    if (isset($d['role'])) {
+        if (!in_array($d['role'], ['admin','prodavac','vyroba','expedice','pos'], true)) {
+            json_error('Neplatná role (admin/prodavac/vyroba/expedice/pos)');
+        }
+        $sets[] = "role = :r"; $params['r'] = $d['role'];
+    }
+    if (isset($d['aktivni'])) {
+        $sets[] = "aktivni = :a"; $params['a'] = (int) $d['aktivni'];
+    }
+    if (!empty($d['heslo'])) {
+        if (strlen($d['heslo']) < 6) json_error('Heslo musí mít alespoň 6 znaků');
+        $sets[] = "heslo_hash = :h";
+        $params['h'] = password_hash($d['heslo'], PASSWORD_DEFAULT);
+    }
+    // 🆕 v2.9.270 — PIN edit (prázdný string = neměnit, "null" = smazat)
+    if (array_key_exists('pin', $d)) {
+        $pinRaw = trim((string) $d['pin']);
+        if ($pinRaw === 'null' || $pinRaw === '__clear__') {
+            $sets[] = "pin_hash = NULL"; // smaž PIN
+        } elseif ($pinRaw !== '') {
+            if (!validate_pin($pinRaw)) json_error('PIN musí mít 4-6 cifer');
+            $sets[] = "pin_hash = :pin";
+            $params['pin'] = password_hash($pinRaw, PASSWORD_BCRYPT, ['cost' => 8]);
+        }
+        // prázdný string → nedělat nic
+    }
+    if (isset($d['pos_only'])) {
+        $newPosOnly = !empty($d['pos_only']) ? 1 : 0;
+        // Validace: pokud nastavujeme pos_only=1 → uživatel musí mít PIN (existující nebo právě nastavovaný)
+        if ($newPosOnly) {
+            $hasPin = false;
+            if (array_key_exists('pin', $d) && trim((string) $d['pin']) !== '' && trim((string) $d['pin']) !== 'null') {
+                $hasPin = true;
+            } else {
+                $check = $pdo->prepare("SELECT pin_hash FROM admin_users WHERE id = :id");
+                $check->execute(['id' => $id]);
+                $hasPin = (bool) $check->fetchColumn();
+            }
+            if (!$hasPin) json_error('„Pouze POS" vyžaduje nastavený PIN');
+            // Nesmí být sám-sobě super admin → pos_only (zamknul by se ze systému)
+            if ($id === (int) $_SESSION['admin_id']) {
+                json_error('Nemůžete sám sobě nastavit „pouze POS"', 400);
+            }
+        }
+        $sets[] = "pos_only = :po";
+        $params['po'] = $newPosOnly;
+    }
+
+    if (empty($sets)) json_error('Žádné změny');
+
+    try {
+        $pdo->prepare("UPDATE admin_users SET " . implode(', ', $sets) . " WHERE id = :id")
+            ->execute($params);
+        json_response(['ok' => true]);
+    } catch (PDOException $e) {
+        if ($e->getCode() === '23000') {
+            json_error('Email už existuje u jiného uživatele', 409);
+        }
+        throw $e;
+    }
+}
+
+if ($method === 'DELETE') {
+    $id = (int) ($_GET['id'] ?? 0);
+    if (!$id) json_error('Chybí ID');
+
+    // Super admin nesmí smazat sám sebe
+    if ($id === (int) $_SESSION['admin_id']) {
+        json_error('Nemůžete smazat sám sebe', 400);
+    }
+
+    // Pokud je poslední aktivní super admin, nedovolit smazat
+    $stmt = $pdo->prepare("SELECT role FROM admin_users WHERE id = :id");
+    $stmt->execute(['id' => $id]);
+    $cilova_role = $stmt->fetchColumn();
+    if ($cilova_role === 'admin') {
+        $cnt = $pdo->query("SELECT COUNT(*) FROM admin_users WHERE role = 'admin' AND aktivni = 1")
+                    ->fetchColumn();
+        if ((int) $cnt <= 1) {
+            json_error('Nelze smazat jediného super admina v systému', 400);
+        }
+    }
+
+    $pdo->prepare("DELETE FROM admin_users WHERE id = :id")->execute(['id' => $id]);
+    json_response(['ok' => true]);
+}
+
+json_error('Neplatná metoda', 405);

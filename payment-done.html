@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Platba — APPEK</title>
+<style>
+* , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: linear-gradient(135deg, #f5f5f7 0%, #e8e8eb 100%);
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.card {
+  background: #fff; border-radius: 20px; padding: 50px 40px;
+  max-width: 520px; width: 100%; text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+}
+.icon { font-size: 64px; margin-bottom: 20px; }
+h1 { font-size: 26px; margin-bottom: 12px; }
+.success h1 { color: #208438; }
+.error h1 { color: #b30019; }
+.pending h1 { color: #c66800; }
+p { color: #6e6e73; line-height: 1.6; margin-bottom: 24px; }
+.order-no {
+  display: inline-block; background: #1d1d1f; color: #fff;
+  padding: 10px 18px; border-radius: 10px;
+  font-family: 'SF Mono', Menlo, monospace; font-size: 14px;
+  margin: 14px 0;
+}
+.btn {
+  display: inline-block; padding: 14px 28px;
+  background: linear-gradient(180deg, #BA7517, #854F0B);
+  color: #fff; text-decoration: none; border-radius: 999px;
+  font-weight: 600; margin: 0 6px;
+}
+.btn.secondary { background: #f5f5f7; color: #1d1d1f; border: 1px solid #d2d2d7; }
+.checking {
+  background: #fafafa; border-radius: 10px; padding: 16px 20px;
+  font-size: 13px; color: #6e6e73; margin: 20px 0;
+}
+</style>
+</head>
+<body>
+<div class="card" id="root">
+  <div class="icon">⏳</div>
+  <h1>Ověřujeme platbu…</h1>
+  <p>Vyčkejte prosím chvíli, kontaktujeme platební bránu…</p>
+</div>
+
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const orderNo = urlParams.get('order');
+const sessionId = urlParams.get('session_id'); // Stripe vrací cs_live_/cs_test_
+const root = document.getElementById('root');
+
+// ─── i18n ─── (v2.9.202 — generic platební bránu, ne GoPay)
+const PAY_I18N = {
+  cs: { s_title: 'Platba přijata!', s_body: 'Děkujeme. Váš licenční klíč byl právě vygenerován a poslán na váš e-mail.',
+    s_back: '→ Zpět na APPEK', s_email: '📧 Klíč najdete v e-mailu během chvíle. Pokud nepřijde, zkontrolujte spam.',
+    e_title: 'Platba neproběhla', e_body: 'Platba byla zrušena nebo selhala.', e_retry: '🔄 Zkusit znovu', e_home: '← Domů',
+    p_title: 'Platba se zpracovává', p_body: 'Banka ještě potvrzuje platbu. Můžete tuto stránku zavřít — licenci pošleme na e-mail jakmile se platba potvrdí (obvykle do 5 minut).',
+    check_title: 'Ověřujeme platbu…', check_body: 'Vyčkejte prosím chvíli, kontaktujeme platební bránu…',
+    err_missing: 'Chybí číslo objednávky.' },
+  en: { s_title: 'Payment received!', s_body: 'Thank you. Your license key has been generated and sent to your e-mail.',
+    s_back: '→ Back to APPEK', s_email: '📧 Key will arrive by e-mail shortly. If it does not, check spam.',
+    e_title: 'Payment failed', e_body: 'Payment was cancelled or failed.', e_retry: '🔄 Try again', e_home: '← Home',
+    p_title: 'Payment processing', p_body: 'Bank is still confirming payment. You can close this page — we will send the license by e-mail once payment confirms (usually within 5 min).',
+    check_title: 'Verifying payment…', check_body: 'Please wait a moment, contacting payment gateway…',
+    err_missing: 'Missing order number.' },
+  es: { s_title: '¡Pago recibido!', s_body: 'Gracias. Su clave de licencia se ha generado y enviado a su correo.',
+    s_back: '→ Volver a APPEK', s_email: '📧 La clave llegará pronto por correo. Si no llega, revise spam.',
+    e_title: 'Pago fallido', e_body: 'El pago fue cancelado o falló.', e_retry: '🔄 Intentar de nuevo', e_home: '← Inicio',
+    p_title: 'Pago en proceso', p_body: 'El banco aún está confirmando el pago. Puede cerrar esta página — enviaremos la licencia por correo cuando el pago se confirme (normalmente en 5 min).',
+    check_title: 'Verificando pago…', check_body: 'Espere un momento, contactando pasarela de pago…',
+    err_missing: 'Falta número de pedido.' },
+};
+let lang = (localStorage.getItem('appek_lang') || 'cs').toLowerCase();
+if (!['cs','en','es'].includes(lang)) lang = 'cs';
+const t = PAY_I18N[lang] || PAY_I18N.cs;
+
+// Initial checking state with i18n
+root.innerHTML = `<div class="icon">⏳</div><h1>${t.check_title}</h1><p>${t.check_body}</p>`;
+
+function renderSuccess() {
+  // 🆕 v2.9.200 — bohatší success: order info + "Co dál" kroky
+  const nextSteps = lang === 'en' ? {
+    title: '📥 What\'s next?',
+    steps: [
+      '<strong>Check your e-mail</strong> — your license key + download link arrived (check spam if not)',
+      'Click <strong>Download APPEK</strong> in the e-mail — link contains your key',
+      'Extract ZIP to your hosting <code>public_html/</code>',
+      'Open <code>https://your-site.com/install.php</code> + paste license key',
+      'Installation wizard finishes in ~5 min',
+    ],
+    contact: '<strong>Problems?</strong> Write to <a href="mailto:support@appek.cz" style="color:#BA7517">support@appek.cz</a>',
+  } : lang === 'es' ? {
+    title: '📥 ¿Qué sigue?',
+    steps: [
+      '<strong>Revisa tu correo</strong> — tu clave + enlace de descarga llegaron (revisa spam si no)',
+      'Haz clic en <strong>Descargar APPEK</strong> en el correo',
+      'Extrae ZIP en tu hosting <code>public_html/</code>',
+      'Abre <code>https://tu-sitio.com/install.php</code> + pega la clave',
+      'Asistente termina en ~5 min',
+    ],
+    contact: '<strong>¿Problemas?</strong> Escribe a <a href="mailto:support@appek.cz" style="color:#BA7517">support@appek.cz</a>',
+  } : {
+    title: '📥 Co dál?',
+    steps: [
+      '<strong>Zkontroluj e-mail</strong> — tvůj licenční klíč + odkaz na stažení dorazil (mrkni i do spamu)',
+      'Klikni na <strong>Stáhnout APPEK</strong> v e-mailu — odkaz obsahuje tvůj klíč',
+      'Rozbal ZIP na svém hostingu do <code>public_html/</code>',
+      'Otevři <code>https://váš-web.cz/install.php</code> + vlož licenční klíč',
+      'Instalátor projde za ~5 minut',
+    ],
+    contact: '<strong>Problémy?</strong> Napiš na <a href="mailto:support@appek.cz" style="color:#BA7517">support@appek.cz</a>',
+  };
+
+  root.innerHTML = `
+    <div class="success">
+      <div class="icon">✅</div>
+      <h1>${t.s_title}</h1>
+      <p>${t.s_body}</p>
+      ${orderNo ? `<div class="order-no">${orderNo}</div>` : ''}
+
+      <div style="background:#f5f5f7;border-radius:10px;padding:16px 20px;margin:24px 0;text-align:left">
+        <div style="font-size:14px;font-weight:700;margin-bottom:10px">${nextSteps.title}</div>
+        <ol style="color:#3a3a3c;line-height:1.7;padding-left:20px;margin:0;font-size:13px">
+          ${nextSteps.steps.map(s => `<li>${s}</li>`).join('')}
+        </ol>
+      </div>
+
+      <p style="font-size:12px;color:#86868b;margin:16px 0 8px">${nextSteps.contact}</p>
+
+      <div style="margin-top:16px">
+        <a href="/" class="btn">${t.s_back}</a>
+      </div>
+      <div class="checking">${t.s_email}</div>
+    </div>`;
+}
+function renderError(msg) {
+  root.innerHTML = `
+    <div class="error">
+      <div class="icon">❌</div>
+      <h1>${t.e_title}</h1>
+      <p>${msg || t.e_body}</p>
+      ${orderNo ? `<div class="order-no">${orderNo}</div>` : ''}
+      <div style="margin-top:24px">
+        <a href="/checkout.html" class="btn">${t.e_retry}</a>
+        <a href="/" class="btn secondary">${t.e_home}</a>
+      </div>
+    </div>`;
+}
+function renderPending() {
+  root.innerHTML = `
+    <div class="pending">
+      <div class="icon">⏳</div>
+      <h1>${t.p_title}</h1>
+      <p>${t.p_body}</p>
+      ${orderNo ? `<div class="order-no">${orderNo}</div>` : ''}
+      <div style="margin-top:24px"><a href="/" class="btn">${t.s_back}</a></div>
+    </div>`;
+}
+
+// 🆕 v2.9.202 — pro Stripe session_id voláme verify endpoint který se
+// rovnou zeptá Stripe API (nezávisle na webhooks). Pokud paid → endpoint
+// sám vygeneruje licenci + pošle e-mail (idempotentně).
+(async function() {
+  if (!orderNo && !sessionId) { renderError(t.err_missing); return; }
+
+  // 1) PRIMÁRNÍ: Stripe session verify (pokud máme session_id)
+  if (sessionId) {
+    try {
+      const r = await fetch('/api/stripe_session_verify.php?session_id=' + encodeURIComponent(sessionId) + (orderNo ? '&order=' + encodeURIComponent(orderNo) : ''));
+      if (r.ok) {
+        const j = await r.json();
+        if (j.ok && j.status === 'paid') { renderSuccess(); return; }
+        if (j.status === 'failed') { renderError(t.e_body); return; }
+        // status === 'pending' → spadne do polling loop níže
+      }
+    } catch (e) { /* fallback na polling */ }
+  }
+
+  // 2) FALLBACK: polling shop_status (pro invoice/bank flow nebo když verify selhal)
+  if (!orderNo) { renderError(t.err_missing); return; }
+  for (let i = 0; i < 5; i++) {
+    try {
+      const r = await fetch('/api/shop_status.php?order=' + encodeURIComponent(orderNo));
+      if (r.ok) {
+        const j = await r.json();
+        if (j.payment_status === 'paid') { renderSuccess(); return; }
+        if (j.payment_status === 'cancelled' || j.payment_status === 'failed') {
+          renderError(t.e_body); return;
+        }
+      }
+    } catch (e) {}
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  // Stále pending — pravděpodobně callback ještě nedošel
+  renderPending();
+})();
+</script>
+</body>
+</html>
