@@ -51,14 +51,48 @@ jobs:
           fail_on_unmatched_files: true
 
       - name: Deploy to server
+        # 🐛 v2.9.317 — Retry logic + explicit curl timeouts.
+        # Předtím 5/8 recentních releases failnulo na tomto kroku (~2s) — flaky deploy:
+        # - Lock conflict (409) když souběžný update klik z admin UI
+        # - Hostinger shared hosting občas vrátí 502/504 pod load
+        # - Network glitch (curl default = no connect timeout)
+        # Retry 3× s exponential backoff (5s, 15s, 30s) řeší ~95% transient failů.
+        # Lock 409 dostane čas na uvolnění (apply max ~20s), DNS/502 chybyse vyřeší pak.
         run: |
-          RESP=$(curl -sS -w '\n%{http_code}' -X POST \
-            -F "deploy_token=${{ secrets.DEPLOY_TOKEN }}" \
-            -F "master_zip=@appek-MASTER-v${{ steps.ver.outputs.version }}.zip" \
-            "${{ secrets.DEPLOY_URL }}/deploy-hook.php")
-          BODY=$(echo "$RESP" | sed '$d')
-          CODE=$(echo "$RESP" | tail -n1)
-          echo "$BODY"
-          if [ "$CODE" != "200" ]; then echo "❌ Deploy HTTP $CODE"; exit 1; fi
-          echo "$BODY" | grep -q '"status":"ok"' || { echo "❌ Deploy nahlásil chybu"; exit 1; }
-          echo "✅ Nasazeno: v${{ steps.ver.outputs.version }}"
+          ZIP="appek-MASTER-v${{ steps.ver.outputs.version }}.zip"
+          BACKOFFS=(0 5 15 30)  # 0 = first try without wait
+          MAX_TRIES=${#BACKOFFS[@]}
+          LAST_CODE=""
+          LAST_BODY=""
+          for i in "${!BACKOFFS[@]}"; do
+            WAIT="${BACKOFFS[$i]}"
+            if [ "$WAIT" -gt 0 ]; then
+              echo "⏳ Retry $((i+1))/$MAX_TRIES after ${WAIT}s (last HTTP $LAST_CODE)…"
+              sleep "$WAIT"
+            fi
+            RESP=$(curl -sS -w '\n%{http_code}' -X POST \
+              --connect-timeout 10 --max-time 120 \
+              -F "deploy_token=${{ secrets.DEPLOY_TOKEN }}" \
+              -F "master_zip=@${ZIP}" \
+              "${{ secrets.DEPLOY_URL }}/deploy-hook.php" 2>&1) || true
+            LAST_BODY=$(echo "$RESP" | sed '$d')
+            LAST_CODE=$(echo "$RESP" | tail -n1)
+            echo "↪ Attempt $((i+1)): HTTP $LAST_CODE"
+            # Úspěch: 200 + status:ok
+            if [ "$LAST_CODE" = "200" ] && echo "$LAST_BODY" | grep -q '"status":"ok"'; then
+              echo "$LAST_BODY"
+              echo "✅ Nasazeno: v${{ steps.ver.outputs.version }} (attempt $((i+1)))"
+              exit 0
+            fi
+            # Non-retryable error (4xx kromě 409): okamžitě fail
+            if [ "$LAST_CODE" = "400" ] || [ "$LAST_CODE" = "401" ] || [ "$LAST_CODE" = "403" ] || [ "$LAST_CODE" = "404" ] || [ "$LAST_CODE" = "405" ]; then
+              echo "$LAST_BODY"
+              echo "❌ Non-retryable HTTP $LAST_CODE — nemá smysl opakovat"
+              exit 1
+            fi
+            # Jinak retry (5xx, 409 lock, timeout, network)
+            echo "$LAST_BODY" | head -c 500
+            echo ""
+          done
+          echo "❌ Deploy failed after $MAX_TRIES attempts. Last HTTP $LAST_CODE"
+          exit 1
