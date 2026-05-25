@@ -1104,11 +1104,43 @@ if ($method === 'POST' && $action === 'quick_order') {
             } catch (Throwable $e) { /* soft-fail */ }
         }
 
+        // 🆕 v3.0.5 — Auto-dispatch bonů na kuchyň/bar/sklad podle kategorie
+        //   pos_print_kitchen_mode: 'auto' (default) | 'manual' | 'off'
+        //   Soft-fail (tisk se nesmí dotknout user-facing flow)
+        try {
+            require_once __DIR__ . '/_printer_lib.php';
+            $kitchen_mode = (string) setting_get($pdo, 'pos_print_kitchen_mode', 'auto');
+            if ($kitchen_mode === 'auto') {
+                $context = [
+                    'cislo'         => $cislo,
+                    'pos_uzivatel'  => $admin_login,
+                    'poznamka'      => $poznamka,
+                ];
+                $dispatch = printer_dispatch_order($pdo, $objId, $context);
+                $response['printer_dispatch'] = $dispatch;
+            }
+            // Vrátíme klientovi co dělat s účtenkou
+            $response['print_receipt_mode'] = (string) setting_get($pdo, 'pos_print_receipt_mode', 'ask');
+        } catch (Throwable $e) {
+            // Soft-fail — tisk nesmí blokovat POS
+            $response['printer_dispatch_error'] = $e->getMessage();
+        }
+
         json_response($response);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         json_error_safe('Chyba vytvoření POS objednávky', $e, 500);
     }
+}
+
+// 🆕 v3.0.5 POST ?action=print_receipt { objednavka_id } — vytištění účtenky na kasa
+if ($method === 'POST' && $action === 'print_receipt') {
+    require_once __DIR__ . '/_printer_lib.php';
+    $d = json_decode(file_get_contents('php://input'), true) ?? [];
+    $id = (int)($d['objednavka_id'] ?? $d['id'] ?? 0);
+    if (!$id) json_error('Chybí objednavka_id', 400);
+    $res = printer_print_receipt($pdo, $id);
+    json_response($res);
 }
 
 // 📜 GET ?action=quick_history — POS quick objednávky pro daný den (s detaily)

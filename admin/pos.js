@@ -1015,6 +1015,34 @@
         }),
       });
       toast(`✓ Účet ${r.cislo} · ${fmt(r.celkem)} Kč · připraveno pro dalšího hosta`, 'success');
+
+      // 🆕 v3.0.5 — Tisk účtenky podle nastavení (always / ask / never)
+      const mode = r.print_receipt_mode || 'ask';
+      if (mode === 'always') {
+        // Tichý tisk bez dialogu
+        sendPrintReceipt(r.id);
+      } else if (mode === 'ask') {
+        // Zobraz dialog (modální confirm)
+        if (typeof askPrintReceipt === 'function') {
+          askPrintReceipt(r.id, r.cislo, r.celkem);
+        } else {
+          if (confirm(`Účet ${r.cislo} · ${fmt(r.celkem)} Kč\n\n🖨️ Vytisknout účtenku?`)) {
+            sendPrintReceipt(r.id);
+          }
+        }
+      }
+      // 'never' → skip
+
+      // Info o auto-dispatch bonů (nenápadně, jen log)
+      if (r.printer_dispatch && r.printer_dispatch.length) {
+        const oks = r.printer_dispatch.filter(d => d.ok).length;
+        if (oks) console.log(`[POS] Bonů vytištěno: ${oks}/${r.printer_dispatch.length}`);
+        const fails = r.printer_dispatch.filter(d => !d.ok);
+        if (fails.length) {
+          fails.forEach(f => console.warn(`[POS] Tisk selhal (${f.nazev}):`, f.error));
+        }
+      }
+
       // 🆕 v2.9.43 — Po úspěšném FINISH okamžitě vyprázdnit bez confirmu
       // Připraveno pro dalšího zákazníka (kasový mode)
       resetCart();
@@ -1024,6 +1052,53 @@
       if (btn) { btn.disabled = false; btn.textContent = '✓ FINISH'; }
     }
   }
+
+  // 🆕 v3.0.5 — Posli print_receipt na backend (kasa tiskárna ESC/POS)
+  async function sendPrintReceipt(objId) {
+    try {
+      const r = await api('admin_pos.php?action=print_receipt', {
+        method: 'POST', body: JSON.stringify({ objednavka_id: objId })
+      });
+      if (r && r.ok) {
+        if (r.dummy) toast('🖨️ Účtenka odeslána (dummy mode → /tmp/)', 'success');
+        else         toast('🖨️ Účtenka odeslána na kasa tiskárnu', 'success');
+      } else {
+        toast('Tisk selhal: ' + (r?.error || 'neznámá chyba'), 'error');
+      }
+    } catch (e) {
+      toast('Tisk selhal: ' + e.message, 'error');
+    }
+  }
+  window.sendPrintReceipt = sendPrintReceipt;
+
+  // 🆕 v3.0.5 — Modal dialog "Vytisknout účtenku? Ano / Ne"
+  function askPrintReceipt(objId, cislo, celkem) {
+    // Existuje už modal element?
+    let m = document.getElementById('pos-print-ask-modal');
+    if (m) m.remove();
+    m = document.createElement('div');
+    m.id = 'pos-print-ask-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.2s ease';
+    m.innerHTML = `
+      <div style="background:#fff;color:#1F2937;border-radius:18px;padding:28px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);font-family:inherit">
+        <div style="font-size:48px;margin-bottom:10px">🖨️</div>
+        <h2 style="font-size:22px;font-weight:800;margin-bottom:6px">Vytisknout účtenku?</h2>
+        <div style="color:#6B7280;font-size:13px;margin-bottom:6px">Účet <strong>${esc(cislo)}</strong></div>
+        <div style="font-size:32px;font-weight:900;color:#15803D;margin-bottom:20px">${fmt(celkem)} Kč</div>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button id="pos-print-no"  style="flex:1;padding:14px;font-size:16px;font-weight:700;border:2px solid #E5E7EB;background:#fff;color:#374151;border-radius:10px;cursor:pointer">Ne, díky</button>
+          <button id="pos-print-yes" style="flex:1;padding:14px;font-size:16px;font-weight:800;border:none;background:linear-gradient(135deg,#10B981,#059669);color:#fff;border-radius:10px;cursor:pointer">🖨️ Tisk</button>
+        </div>
+        <div style="margin-top:14px;font-size:11px;color:#9CA3AF">Nastavení můžeš změnit v <strong>Admin → Nastavení → Tiskárny</strong></div>
+      </div>
+    `;
+    document.body.appendChild(m);
+    document.getElementById('pos-print-yes').onclick = () => { m.remove(); sendPrintReceipt(objId); };
+    document.getElementById('pos-print-no').onclick  = () => { m.remove(); };
+    // Auto-close za 12s pokud user nereaguje (pro kasový provoz)
+    setTimeout(() => { if (document.body.contains(m)) m.remove(); }, 12000);
+  }
+  window.askPrintReceipt = askPrintReceipt;
 
   // 🆕 v2.9.299 — Přepínač prodavačů — klik na user avatar v POS header
   // Zachová košík, logout + lze re-loginout s jiným PIN (rychlý switch)
@@ -1144,9 +1219,382 @@
       }
       if (tab === 'orders')  renderHistory(panel);
       if (tab === 'reports') renderReports(panel);
+      if (tab === 'tables')  renderTablesTab(panel);  // 🆕 v3.0.8
     }
   }
   window.posSetTab = setActiveTab;
+
+  // ─── 🆕 v3.0.8/10 — Floor view tab (stoly) ─────────────────────
+  async function renderTablesTab(panel) {
+    panel.innerHTML = `<div class="pos-loading" style="padding:40px;text-align:center">⏳ Načítám stoly…</div>`;
+    try {
+      const [tablesResp, uctyResp] = await Promise.all([
+        api('admin_tables.php'),
+        api('admin_pos.php?action=open_ucty'),
+      ]);
+      const tables = (tablesResp.stoly || tablesResp.tables || tablesResp.items || []);
+      const ucty   = (uctyResp.ucty   || []);
+
+      // Index účet podle stul_id
+      const uByStul = {};
+      ucty.forEach(u => { uByStul[u.stul_id] = u; });
+
+      // Skupiny per sekce/zóna
+      const groups = {};
+      tables.forEach(t => {
+        const key = (t.sekce || t.zone_id || '_other').toString();
+        groups[key] = groups[key] || { key, label: key === '_other' ? '⬜ Ostatní' : key, items: [] };
+        groups[key].items.push(t);
+      });
+
+      const allZones = Object.values(groups);
+      const totalStolu = tables.length;
+      const obsazeno = ucty.length;
+      const volno = totalStolu - obsazeno;
+      const activeZone = State._floorZone || '_all';
+
+      panel.innerHTML = `
+        <div class="pos-tables-wrap" style="padding:24px 28px;height:100%;overflow-y:auto">
+          <!-- Stats banner -->
+          <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+            <div style="flex:1;min-width:140px;background:#F0FDF4;border:1px solid #86EFAC;border-radius:12px;padding:14px 18px">
+              <div style="font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.06em">Volné</div>
+              <div style="font-size:32px;font-weight:900;color:#15803D;line-height:1;margin-top:4px">${volno}</div>
+            </div>
+            <div style="flex:1;min-width:140px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:12px;padding:14px 18px">
+              <div style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:0.06em">Obsazené</div>
+              <div style="font-size:32px;font-weight:900;color:#B45309;line-height:1;margin-top:4px">${obsazeno}</div>
+            </div>
+            <div style="flex:1;min-width:140px;background:#EFF6FF;border:1px solid #93C5FD;border-radius:12px;padding:14px 18px">
+              <div style="font-size:11px;font-weight:700;color:#1E40AF;text-transform:uppercase;letter-spacing:0.06em">Celkem</div>
+              <div style="font-size:32px;font-weight:900;color:#1D4ED8;line-height:1;margin-top:4px">${totalStolu}</div>
+            </div>
+            <button class="btn-secondary" onclick="renderTablesTab(document.getElementById('pos-tab-content'))" style="padding:10px 16px">🔄 Refresh</button>
+          </div>
+
+          ${allZones.length === 0 ? `
+            <div style="padding:60px 20px;text-align:center;color:#9CA3AF">
+              <div style="font-size:48px;margin-bottom:14px">🪑</div>
+              <div style="font-size:16px;font-weight:700;margin-bottom:4px">Žádné stoly</div>
+              <div style="font-size:13px">Vytvoř je v admin → Restaurace → Stoly → Floor plan editor.</div>
+            </div>
+          ` : `
+            <!-- Zone tabs -->
+            <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:18px;border-bottom:1px solid #E5E7EB">
+              <button onclick="State._floorZone='_all';renderTablesTab(document.getElementById('pos-tab-content'))" style="padding:10px 18px;background:${activeZone === '_all' ? 'linear-gradient(135deg,#FBBF24,#FB923C)' : '#F3F4F6'};color:${activeZone === '_all' ? '#fff' : '#374151'};border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                🪑 Vše (${totalStolu})
+              </button>
+              ${allZones.map(z => `
+                <button onclick="State._floorZone='${esc(z.key)}';renderTablesTab(document.getElementById('pos-tab-content'))" style="padding:10px 18px;background:${activeZone === z.key ? 'linear-gradient(135deg,#FBBF24,#FB923C)' : '#F3F4F6'};color:${activeZone === z.key ? '#fff' : '#374151'};border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                  ${esc(z.label || z.key)} (${z.items.length})
+                </button>
+              `).join('')}
+            </div>
+          ` + allZones.filter(z => activeZone === '_all' || z.key === activeZone).map(z => `
+            <div class="pos-zone" style="margin-bottom:24px">
+              ${activeZone === '_all' ? `<h3 style="font-size:14px;font-weight:800;color:#374151;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">${esc(z.label || z.key)} <span style="opacity:0.5;font-weight:500">(${z.items.length})</span></h3>` : ''}
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">
+                ${z.items.map(t => {
+                  const ucet = uByStul[t.id];
+                  const sum  = ucet ? parseFloat(ucet.castka_celkem || 0) : 0;
+                  const pcs  = ucet ? parseInt(ucet.pocet_polozek || 0) : 0;
+                  const since = ucet ? minutesSince(ucet.otevreno_v) : 0;
+                  const isOcc = !!ucet;
+                  const bg = isOcc ? 'linear-gradient(135deg,#FEF3C7,#FDE68A)' : 'linear-gradient(135deg,#F0FDF4,#DCFCE7)';
+                  const border = isOcc ? '#F59E0B' : '#86EFAC';
+                  return `
+                    <button onclick="posOpenTable(${t.id}, '${esc(t.nazev).replace(/'/g, '&#39;')}')" style="background:${bg};border:2px solid ${border};border-radius:14px;padding:14px;text-align:left;cursor:pointer;font-family:inherit;transition:transform 0.15s ease;display:flex;flex-direction:column;gap:6px">
+                      <div style="display:flex;justify-content:space-between;align-items:start">
+                        <div>
+                          <div style="font-size:18px;font-weight:800;color:#1F2937">🪑 ${esc(t.nazev)}</div>
+                          <div style="font-size:11px;color:#6B7280;margin-top:2px">${t.mist || t.kapacita || '?'} míst</div>
+                        </div>
+                        ${isOcc ? `<span style="background:#F59E0B;color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px">OBSAZENO</span>` : `<span style="background:#10B981;color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px">VOLNÝ</span>`}
+                      </div>
+                      ${isOcc ? `
+                        <div style="margin-top:6px;padding-top:8px;border-top:1px dashed rgba(0,0,0,0.1)">
+                          <div style="font-size:22px;font-weight:900;color:#B45309;line-height:1">${fmt(sum)} Kč</div>
+                          <div style="font-size:11px;color:#92400E;margin-top:2px">${pcs} pol. · ${since} min</div>
+                        </div>
+                      ` : ''}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `).join('')}
+
+          <div style="margin-top:14px;text-align:center;font-size:12px;color:#9CA3AF">
+            💡 Klik na stůl = otevři účet · Pro editaci layoutu (přidat bar / salonek / přesunout stoly) jdi do <strong>Admin → Restaurace → Stoly → Floor plan</strong>
+          </div>
+        </div>
+      `;
+    } catch (e) {
+      panel.innerHTML = `<div style="padding:40px;text-align:center;color:#DC2626">❌ Chyba: ${esc(e.message)}</div>`;
+    }
+  }
+  window.renderTablesTab = renderTablesTab;
+
+  function minutesSince(iso) {
+    if (!iso) return 0;
+    const dt = new Date(String(iso).replace(' ', 'T'));
+    return Math.max(0, Math.floor((Date.now() - dt.getTime()) / 60000));
+  }
+
+  // ─── 🆕 v3.0.8 — POS Table modal (otevři účet stolu) ──────────
+  window.posOpenTable = async function(stulId, stulNazev) {
+    try {
+      // GET ?action=ucet&stul_id=X → vrátí existující nebo otevře nový + nastaví stůl jako occupied
+      const ucet = await api('admin_pos.php?action=ucet&stul_id=' + stulId);
+      if (!ucet || !ucet.id) throw new Error('Nelze získat účet');
+      posShowTableUcetModal(ucet.id, stulNazev);
+    } catch (e) {
+      toast('Nelze otevřít účet: ' + e.message, 'error');
+    }
+  };
+
+  async function posShowTableUcetModal(ucetId, stulNazev) {
+    // Modal s účtem + položkami + add menu
+    let m = document.getElementById('pos-table-modal');
+    if (m) m.remove();
+    m = document.createElement('div');
+    m.id = 'pos-table-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
+    m.innerHTML = `
+      <div style="background:#fff;color:#1F2937;border-radius:18px;width:100%;max-width:920px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);font-family:inherit">
+        <div style="padding:16px 22px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#FBBF24,#FB923C);color:#1F2937">
+          <h2 style="font-size:20px;font-weight:800">🪑 ${esc(stulNazev)} · Účet #${ucetId}</h2>
+          <button onclick="document.getElementById('pos-table-modal').remove()" style="width:34px;height:34px;border:none;background:rgba(255,255,255,0.7);border-radius:50%;cursor:pointer;font-size:18px">✕</button>
+        </div>
+        <div id="pos-table-modal-body" style="flex:1;overflow:hidden;display:grid;grid-template-columns:1fr 1.2fr;gap:0;min-height:0">
+          <!-- Vlevo: aktuální košík -->
+          <div id="pos-table-cart" style="padding:16px;overflow-y:auto;border-right:1px solid #E5E7EB;background:#FAFAFA">
+            <div style="text-align:center;padding:30px;color:#9CA3AF">⏳ Načítám…</div>
+          </div>
+          <!-- Vpravo: katalog -->
+          <div id="pos-table-menu" style="padding:16px;overflow-y:auto;display:flex;flex-direction:column;min-height:0">
+            <input type="text" id="pos-table-search" placeholder="🔍 Hledat položku…" style="width:100%;padding:12px 16px;border:1px solid #E5E7EB;border-radius:10px;font-size:15px;margin-bottom:10px;flex-shrink:0">
+            <div id="pos-table-cats" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;flex-shrink:0"></div>
+            <div id="pos-table-grid" style="overflow-y:auto;flex:1;min-height:0"></div>
+          </div>
+        </div>
+        <div style="padding:14px 22px;border-top:1px solid #E5E7EB;display:flex;gap:8px;flex-wrap:wrap;background:#F9FAFB">
+          <button class="btn-secondary" id="pos-tbl-bon" style="padding:10px 16px">🍳 Tisk bonu</button>
+          <button class="btn-secondary" id="pos-tbl-qr" style="padding:10px 16px">📲 QR platba</button>
+          <a class="btn-secondary" href="../admin/#/restaurace?tab=open_ucty" target="_blank" style="padding:10px 16px;text-decoration:none">⚙️ Více v adminu</a>
+          <div style="flex:1"></div>
+          <button class="btn-primary" id="pos-tbl-pay" style="padding:12px 22px;font-size:15px;font-weight:800">💰 Zaplatit</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(m);
+
+    // Loaduj data
+    await refreshTableModal(ucetId);
+
+    // Search binding
+    document.getElementById('pos-table-search').addEventListener('input', e => {
+      filterTableMenu(e.target.value);
+    });
+    document.getElementById('pos-tbl-bon').onclick  = () => {
+      // Otevři tisk v popup okně (browser print dialog) — kuchyňský bon
+      const w = window.open(`../api/admin_pos_print.php?ucet_id=${ucetId}&typ=kuchyne&autoprint=1`,
+        'appek_bon_print', 'width=380,height=640,toolbar=no');
+      if (!w) return toast('Povolte popup okna pro tisk', 'error');
+      toast('🍳 Bon odeslán na tisk', 'success');
+    };
+    document.getElementById('pos-tbl-qr').onclick   = () => {
+      toast('💡 Pro QR platbu: 1) Zaplatit účet 2) V detailu účtenky klik "📲 QR platba"', 'info');
+    };
+    document.getElementById('pos-tbl-pay').onclick  = () => {
+      // Otevři tisk účtu pro hosta (typ=ucet) — později nahradíme platebním modal
+      const w = window.open(`../api/admin_pos_print.php?ucet_id=${ucetId}&typ=ucet&autoprint=1`,
+        'appek_ucet_print', 'width=380,height=640,toolbar=no');
+      if (!w) return toast('Povolte popup okna pro tisk', 'error');
+      if (confirm('Vytištěn účet pro hosta.\n\nUzavřít účet jako ZAPLACENO (hotovostí)?')) {
+        posTableCloseUcet(ucetId, 'hotove');
+      }
+    };
+  }
+
+  async function refreshTableModal(ucetId) {
+    try {
+      const [detailResp, catalogResp] = await Promise.all([
+        api('admin_pos.php?action=ucet_detail&id=' + ucetId).catch(() => null),
+        api('admin_pos.php?action=catalog'),
+      ]);
+      window.__posTableMenu = catalogResp.vyrobky || [];
+      window.__posTableKategorie = catalogResp.kategorie || [];
+      window.__posTableUcetId = ucetId;
+      window.__posTableActiveCat = window.__posTableActiveCat || 0; // 0 = vše
+
+      renderTableCart(detailResp);
+      renderTableCategories();
+      renderTableMenu(window.__posTableMenu);
+    } catch (e) {
+      document.getElementById('pos-table-cart').innerHTML = `<div style="color:#DC2626;padding:20px">❌ ${esc(e.message)}</div>`;
+    }
+  }
+
+  function renderTableCategories() {
+    const c = document.getElementById('pos-table-cats');
+    if (!c) return;
+    const cats = window.__posTableKategorie || [];
+    const active = window.__posTableActiveCat || 0;
+    c.innerHTML = `
+      <button onclick="posTableSetCat(0)" style="padding:8px 14px;background:${active === 0 ? 'linear-gradient(135deg,#FBBF24,#FB923C)' : '#F3F4F6'};color:${active === 0 ? '#fff' : '#374151'};border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0">⭐ Vše</button>
+      ${cats.map(k => `
+        <button onclick="posTableSetCat(${k.id})" style="padding:8px 14px;background:${active === k.id ? 'linear-gradient(135deg,#FBBF24,#FB923C)' : '#F3F4F6'};color:${active === k.id ? '#fff' : '#374151'};border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+          ${esc(k.ikona || '📦')} ${esc(k.nazev)}
+        </button>
+      `).join('')}
+    `;
+  }
+  window.posTableSetCat = function(catId) {
+    window.__posTableActiveCat = catId;
+    renderTableCategories();
+    const items = (window.__posTableMenu || []).filter(v => !catId || v.kategorie_id === catId);
+    renderTableMenu(items);
+    // Clear search
+    const s = document.getElementById('pos-table-search');
+    if (s) s.value = '';
+  };
+
+  function renderTableCart(detail) {
+    const c = document.getElementById('pos-table-cart');
+    if (!c) return;
+    const polozky = ((detail && detail.polozky) || []).filter(p => p.stav !== 'storno');
+    // restaurant_pos_polozky používá jednotkova_cena (už s DPH)
+    const sum = polozky.reduce((s, p) => s + (parseFloat(p.jednotkova_cena) || 0) * (parseFloat(p.mnozstvi) || 0), 0);
+    if (polozky.length === 0) {
+      c.innerHTML = `
+        <div style="text-align:center;padding:40px 20px;color:#9CA3AF">
+          <div style="font-size:48px;margin-bottom:12px">🛒</div>
+          <div style="font-weight:700;margin-bottom:4px">Účet je prázdný</div>
+          <div style="font-size:13px">Klik na položku z menu vpravo</div>
+        </div>`;
+      return;
+    }
+    c.innerHTML = `
+      <h3 style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em">Položky účtu (${polozky.length})</h3>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${polozky.map(p => {
+          const mn = parseFloat(p.mnozstvi) || 0;
+          const jc = parseFloat(p.jednotkova_cena) || 0;
+          const cena = mn * jc;
+          const stavBadge = p.stav === 'hotovo' ? '<span style="font-size:10px;color:#15803D;font-weight:700;margin-left:4px">✓</span>'
+                          : p.stav === 'vari_se' ? '<span style="font-size:10px;color:#EA580C;font-weight:700;margin-left:4px">🔥</span>'
+                          : '';
+          return `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;gap:8px">
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:14px">${esc(p.nazev || '?')}${stavBadge}</div>
+                <div style="font-size:11px;color:#6B7280">${mn}× ${fmt(jc)} Kč</div>
+              </div>
+              <div style="font-weight:700;color:#15803D;font-variant-numeric:tabular-nums;white-space:nowrap">${fmt(cena)} Kč</div>
+              <button onclick="posTableRemoveItem(${p.id})" title="Odebrat" style="width:28px;height:28px;border:none;background:#FEE2E2;color:#991B1B;border-radius:6px;cursor:pointer;font-size:12px">✕</button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:2px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em">Celkem</span>
+        <span style="font-size:32px;font-weight:900;color:#1F2937">${fmt(sum)} Kč</span>
+      </div>
+    `;
+  }
+
+  window.posTableCloseUcet = async function(ucetId, payment) {
+    try {
+      const r = await api('admin_pos.php?action=pay', {
+        method: 'POST',
+        body: JSON.stringify({ ucet_id: ucetId, payment: payment || 'hotove' }),
+      });
+      toast(`✓ Účet uzavřen · ${r.cislo || ''} · ${fmt(r.celkem || 0)} Kč`, 'success');
+      const m = document.getElementById('pos-table-modal');
+      if (m) m.remove();
+      // Refresh floor tab
+      const panel = document.getElementById('pos-tab-content');
+      if (panel) renderTablesTab(panel);
+    } catch (e) {
+      toast('Chyba zavírání účtu: ' + e.message, 'error');
+    }
+  };
+
+  window.posTableRemoveItem = async function(itemId) {
+    if (!confirm('Odebrat položku z účtu?')) return;
+    try {
+      await api('admin_pos.php?action=item_state', {
+        method: 'POST', body: JSON.stringify({ id: itemId, stav: 'storno' })
+      });
+      toast('✕ Odebráno', 'success');
+      refreshTableModal(window.__posTableUcetId);
+    } catch (e) {
+      toast('Chyba: ' + e.message, 'error');
+    }
+  };
+
+  function renderTableMenu(items) {
+    const g = document.getElementById('pos-table-grid');
+    if (!g) return;
+    if (!items || items.length === 0) {
+      g.innerHTML = `<div style="text-align:center;padding:30px;color:#9CA3AF">Žádné položky v menu</div>`;
+      return;
+    }
+    g.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
+        ${items.slice(0, 80).map(v => {
+          const ceneBez = parseFloat(v.cena_bez_dph || 0);
+          const sazba = parseFloat(v.sazba_dph || 21);
+          const cenaS = ceneBez * (1 + sazba / 100);
+          return `
+            <button onclick="posTableAddItem(${v.id})" style="background:#fff;border:2px solid #E5E7EB;border-radius:12px;padding:14px 12px;cursor:pointer;text-align:center;font-family:inherit;transition:all 0.15s ease;min-height:110px;display:flex;flex-direction:column;justify-content:space-between;align-items:center">
+              <div style="font-weight:700;font-size:14px;line-height:1.25;color:#1F2937">${esc(v.nazev || '?')}</div>
+              <div style="font-size:22px;font-weight:900;color:#FB923C;margin-top:6px;letter-spacing:-0.02em">${fmt(cenaS)} Kč</div>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  function filterTableMenu(q) {
+    q = (q || '').toLowerCase().trim();
+    const cat = window.__posTableActiveCat || 0;
+    let items = window.__posTableMenu || [];
+    if (cat) items = items.filter(v => v.kategorie_id === cat);
+    if (q)   items = items.filter(v => (v.nazev || '').toLowerCase().includes(q));
+    renderTableMenu(items);
+  }
+
+  window.posTableAddItem = async function(vyrobekId) {
+    const ucetId = window.__posTableUcetId;
+    if (!ucetId) return;
+    const item = (window.__posTableMenu || []).find(v => v.id === vyrobekId);
+    if (!item) return;
+    try {
+      // POST ?action=item — správný název endpointu
+      // jednotková_cena = s DPH (POS pracuje s "konečnou" cenou)
+      const ceneBez = parseFloat(item.cena_bez_dph || 0);
+      const sazba   = parseFloat(item.sazba_dph || 21);
+      const cenaS   = ceneBez * (1 + sazba / 100);
+      await api('admin_pos.php?action=item', {
+        method: 'POST',
+        body: JSON.stringify({
+          ucet_id: ucetId,
+          vyrobek_id: vyrobekId,
+          nazev: item.nazev,
+          mnozstvi: 1,
+          jednotkova_cena: cenaS,
+          kategorie: item.kategorie_id ? String(item.kategorie_id) : null,
+        }),
+      });
+      toast(`+ ${item.nazev}`, 'success');
+      refreshTableModal(ucetId);
+    } catch (e) {
+      toast('Chyba: ' + e.message, 'error');
+    }
+  };
 
   // ─── History / Účtenky ───────────────────────────────────────
   async function renderHistory(panel) {
@@ -1402,9 +1850,58 @@
     const foot = `
       <button class="btn-secondary" onclick="POS._closeModal()">Zavřít</button>
       <button class="btn-secondary" onclick="posReprintReceipt(${objId})">🖨️ Reprint</button>
+      <button class="btn-secondary" onclick="posShowPayQR(${objId}, '${esc(d.cislo || '')}', ${parseFloat(d.castka_celkem) || 0})">📲 QR platba</button>
       <button class="btn-primary" onclick="POS._closeModal();posOpenOrderInAdmin(${objId})">✏️ Upravit v adminu</button>
     `;
     modal('📜 Účtenka ' + (d.cislo || ''), body, foot);
+  };
+
+  // ─── 🆕 v3.0.7 — QR k platbě (pay-at-table) ───────────────────
+  window.posShowPayQR = async function(objId, cislo, castka) {
+    // 1) Generuj pay_token + URL
+    let payUrl = null;
+    try {
+      const r = await api('pay_qr.php?action=create_token', {
+        method: 'POST', body: JSON.stringify({ objednavka_id: objId })
+      });
+      if (!r.ok) throw new Error(r.error || 'Nepodařilo se vytvořit token');
+      payUrl = r.pay_url;
+    } catch (e) {
+      return toast('Chyba: ' + e.message, 'error');
+    }
+
+    // 2) QR via api.qrserver.com (stejný pattern jako pro stoly)
+    const qrImg = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=' + encodeURIComponent(payUrl);
+
+    // 3) Modal
+    const html = `
+      <div style="text-align:center;padding:14px">
+        <img src="${qrImg}" alt="QR platba" style="max-width:260px;border:6px solid #fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15)">
+        <h3 style="margin-top:12px;font-size:20px;font-weight:800">${fmt(castka)} Kč</h3>
+        <p style="font-size:13px;color:#6B7280;margin-top:4px">Účtenka <strong>${esc(cislo)}</strong></p>
+        <p style="font-size:12px;color:#6B7280;margin-top:8px;line-height:1.5">
+          Host naskenuje QR → zaplatí kartou (Stripe/GoPay) nebo informuje o hotovostní platbě.<br>
+          <span style="color:#15803D;font-weight:600">Stav platby uvidíš v účtence (✅ Zaplaceno)</span>
+        </p>
+        <div style="background:#F9FAFB;border-radius:8px;padding:10px;margin-top:12px;font-family:monospace;font-size:10px;word-break:break-all;color:#6B7280">${esc(payUrl)}</div>
+        <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="window.print()" style="flex:1">🖨️ Tisk QR</button>
+          <a class="btn-primary" href="${esc(payUrl)}" target="_blank" style="flex:1;text-decoration:none;text-align:center">👁️ Preview</a>
+        </div>
+      </div>
+    `;
+    // Reuse pos modal helper
+    const m = document.createElement('div');
+    m.id = 'pos-qr-pay-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9998';
+    m.innerHTML = `
+      <div style="background:#fff;color:#1F2937;border-radius:18px;padding:24px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);font-family:inherit;position:relative">
+        <button onclick="document.getElementById('pos-qr-pay-modal').remove()" style="position:absolute;top:12px;right:12px;width:30px;height:30px;border:none;background:#F3F4F6;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
+        <h2 style="font-size:18px;font-weight:800;margin-bottom:6px">📲 QR k platbě</h2>
+        ${html}
+      </div>
+    `;
+    document.body.appendChild(m);
   };
 
   // ─── Re-tisk účtenky ─────────────────────────────────────────

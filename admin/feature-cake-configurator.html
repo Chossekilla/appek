@@ -125,7 +125,7 @@ const state = {
 
 async function load() {
   try {
-    const r = await fetch('/api/feature_cake_configurator.php');
+    const r = await fetch('../api/feature_cake_configurator.php');
     if (r.status === 402) {
       const j = await r.json();
       $('#content').innerHTML = `
@@ -249,7 +249,7 @@ function toggleMulti(key, val) {
 
 async function calculate() {
   try {
-    const r = await fetch('/api/feature_cake_configurator.php', {
+    const r = await fetch('../api/feature_cake_configurator.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state),

@@ -317,7 +317,7 @@ $csrfToken  = csrf_token();
     adminName:  <?= json_encode($adminJmeno) ?>,
     adminRole:  <?= json_encode($adminRole) ?>,
     csrfToken:  <?= json_encode($csrfToken) ?>,
-    apiBase:    '/api/',
+    apiBase:    '../api/',  // 🐛 v3.0.9 fix: relativní (předtím absolutní '/api/' = 404 na subdirectory hostingu)
     locale:     'cs-CZ',
     currency:   'Kč',
   };
@@ -349,6 +349,7 @@ $csrfToken  = csrf_token();
   </div>
   <div class="pos-header-center">
     <span class="pos-tab-h active" data-tab="products">📦 Produkty</span>
+    <span class="pos-tab-h" data-tab="tables">🪑 Stoly</span>
     <span class="pos-tab-h" data-tab="orders">📜 Účtenky</span>
     <span class="pos-tab-h" data-tab="reports">📊 Statistiky</span>
   </div>

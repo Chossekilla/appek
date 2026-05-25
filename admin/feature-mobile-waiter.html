@@ -198,7 +198,7 @@ appekScanner.listenUsbInput(code => {
 async function load() {
   try {
     // Načti výrobky (z admin_vyrobky.php nebo /api/vyrobky.php — jednodušší: použij /api/produkty.php pokud existuje, jinak admin_vyrobky)
-    const r = await fetch('/api/admin_vyrobky.php', { credentials: 'include' });
+    const r = await fetch('../api/admin_vyrobky.php', { credentials: 'include' });
     if (r.status === 402) {
       $('#content').innerHTML = `<div class="upsell"><div class="em">🔒</div><h2>${t('upsell')}</h2><p>Aktivuj balíček Restaurace v adminu nebo dokup licenci.</p></div>`;
       return;

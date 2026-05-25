@@ -43,7 +43,20 @@ html, body {
   height: 100vh;
   overflow: hidden;
 }
-.provoz-app { display: flex; flex-direction: column; height: 100vh; }
+/* 🆕 v3.0.6 — Škálovatelná velikost čísel (URL ?size= nebo A−/A+ buttons) */
+.provoz-app {
+  display: flex; flex-direction: column; height: 100vh;
+  --num-size: 96px;      /* default ZVĚTŠENO (z 56 → 96) */
+  --label-size: 14px;
+  --meta-size: 14px;
+  --unit-size: 22px;
+}
+.provoz-app[data-size="xs"] { --num-size: 56px;  --label-size: 11px; --meta-size: 12px; --unit-size: 14px; }
+.provoz-app[data-size="s"]  { --num-size: 72px;  --label-size: 12px; --meta-size: 13px; --unit-size: 18px; }
+.provoz-app[data-size="m"]  { --num-size: 96px;  --label-size: 14px; --meta-size: 14px; --unit-size: 22px; }
+.provoz-app[data-size="l"]  { --num-size: 130px; --label-size: 16px; --meta-size: 15px; --unit-size: 28px; }
+.provoz-app[data-size="xl"] { --num-size: 170px; --label-size: 18px; --meta-size: 16px; --unit-size: 36px; }
+.provoz-app[data-size="tv"] { --num-size: 220px; --label-size: 22px; --meta-size: 18px; --unit-size: 48px; }
 
 /* ─── HEADER ─── */
 .provoz-head {
@@ -61,6 +74,26 @@ html, body {
   letter-spacing: 0.02em; color: #fff;
 }
 .provoz-clock small { font-size: 12px; opacity: 0.6; font-weight: 400; display: block; text-align: right; margin-top: 2px; }
+
+/* 🆕 Size controls A− / A+ */
+.provoz-size-ctrl {
+  display: flex; gap: 6px; align-items: center;
+  background: rgba(0,0,0,0.3); padding: 4px 6px; border-radius: 10px;
+  margin-right: 14px;
+}
+.provoz-size-ctrl button {
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+  color: #fff; font-family: inherit; font-weight: 700; font-size: 14px;
+  border-radius: 8px; cursor: pointer; transition: all 0.15s ease;
+}
+.provoz-size-ctrl button:hover { background: rgba(255,255,255,0.18); }
+.provoz-size-ctrl button:active { transform: scale(0.95); }
+.provoz-size-ctrl .size-label {
+  font-size: 10px; opacity: 0.6; text-transform: uppercase;
+  letter-spacing: 0.06em; min-width: 18px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ─── TILES GRID ─── */
 .provoz-grid {
@@ -84,8 +117,9 @@ html, body {
   margin-bottom: 12px;
 }
 .tile-label {
-  font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
-  opacity: 0.7; font-weight: 600;
+  font-size: var(--label-size, 12px);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  opacity: 0.7; font-weight: 700;
 }
 .tile-badge {
   font-size: 10px; padding: 3px 8px; border-radius: 6px;
@@ -93,14 +127,17 @@ html, body {
 }
 .tile-badge.is-danger { background: #DC2626; }
 .tile-big {
-  font-size: 56px; font-weight: 800; line-height: 1;
-  letter-spacing: -0.02em;
+  font-size: var(--num-size, 96px);
+  font-weight: 900; line-height: 1;
+  letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
+  transition: font-size 0.25s ease;
 }
-.tile-big-unit { font-size: 16px; opacity: 0.6; font-weight: 500; margin-left: 6px; }
+.tile-big-unit { font-size: var(--unit-size, 22px); opacity: 0.55; font-weight: 600; margin-left: 8px; }
 .tile-meta {
-  margin-top: 8px;
-  font-size: 13px; opacity: 0.7;
+  margin-top: 10px;
+  font-size: var(--meta-size, 14px); opacity: 0.7;
+  font-weight: 500;
 }
 .tile-bar {
   margin-top: 12px; height: 6px;
@@ -156,7 +193,7 @@ html, body {
 </head>
 <body>
 
-<div class="provoz-app">
+<div class="provoz-app" id="provoz-app" data-size="m">
   <header class="provoz-head">
     <div class="provoz-brand">
       <span class="provoz-brand-ic">📺</span>
@@ -165,9 +202,16 @@ html, body {
         <small>Stoly · Kuchyně · Rozvoz · POS dnes — auto-refresh každých 30 s</small>
       </div>
     </div>
-    <div class="provoz-clock" id="provoz-clock">
-      00:00:00
-      <small id="provoz-date">—</small>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="provoz-size-ctrl" title="Velikost čísel (klávesy − / +)">
+        <button id="size-down" type="button" aria-label="Zmenšit">A−</button>
+        <span class="size-label" id="size-label">M</span>
+        <button id="size-up" type="button" aria-label="Zvětšit">A+</button>
+      </div>
+      <div class="provoz-clock" id="provoz-clock">
+        00:00:00
+        <small id="provoz-date">—</small>
+      </div>
     </div>
   </header>
 
@@ -201,6 +245,8 @@ html, body {
     </div>
     <div>
       APPEK Provoz · v<?= htmlspecialchars($appVersion) ?> ·
+      <a href="kds.php" title="Kuchyňský displej">👨‍🍳 KDS</a> ·
+      <a href="vydej.php" title="Výdej / Pass-through">📤 Výdej</a> ·
       <a href="../admin/" title="Zpět do admin panelu">← Admin</a>
     </div>
   </footer>
@@ -209,6 +255,46 @@ html, body {
 <script>
 const REFRESH_SEC = 30; // 30s pro kiosk (kratší než admin widget)
 const API = '../api';
+
+// 🆕 v3.0.6 — Škálovatelná velikost čísel
+// Priorita: URL ?size=tv → localStorage → default 'm'
+// Klávesy: + / - / 0 (reset na m)
+const SIZES = ['xs', 's', 'm', 'l', 'xl', 'tv'];
+const SIZE_LABEL = { xs: 'XS', s: 'S', m: 'M', l: 'L', xl: 'XL', tv: 'TV' };
+
+function applySize(s) {
+  if (!SIZES.includes(s)) s = 'm';
+  document.getElementById('provoz-app').dataset.size = s;
+  document.getElementById('size-label').textContent = SIZE_LABEL[s];
+  try { localStorage.setItem('appek_provoz_size', s); } catch (e) {}
+}
+
+function bumpSize(delta) {
+  const cur = document.getElementById('provoz-app').dataset.size || 'm';
+  const i = SIZES.indexOf(cur);
+  const next = Math.max(0, Math.min(SIZES.length - 1, i + delta));
+  applySize(SIZES[next]);
+}
+
+// Init size: URL > localStorage > 'm'
+(function initSize() {
+  const url = new URL(location.href);
+  const urlSize = url.searchParams.get('size');
+  let saved = null;
+  try { saved = localStorage.getItem('appek_provoz_size'); } catch (e) {}
+  applySize(urlSize || saved || 'm');
+})();
+
+document.getElementById('size-up').addEventListener('click', () => bumpSize(+1));
+document.getElementById('size-down').addEventListener('click', () => bumpSize(-1));
+
+// Klávesy + / -
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === '+' || e.key === '=') { bumpSize(+1); e.preventDefault(); }
+  else if (e.key === '-' || e.key === '_') { bumpSize(-1); e.preventDefault(); }
+  else if (e.key === '0') { applySize('m'); e.preventDefault(); }
+});
 
 // Hodiny
 function updateClock() {
