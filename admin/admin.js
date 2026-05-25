@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.21';
+const APPEK_ADMIN_JS_VERSION = '3.0.22';
 
 (async function detectStaleCode() {
   try {
@@ -15833,6 +15833,23 @@ window.openVydejWindow = function() {
     `width=${screen.availWidth},height=${screen.availHeight},left=0,top=0,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=yes`);
   if (!w) {
     alert('Prohlížeč zablokoval popup. Povolte popup okna pro tuto stránku.');
+    return;
+  }
+  w.focus();
+};
+
+// 🆕 v3.0.22 — Floor plan editor v novém okně (BUG fix — předtím neexistoval, banner byl mrtvý)
+window.openFloorplanWindow = function() {
+  const w = window.open('floorplan.php', 'appek_floorplan',
+    `width=${Math.min(1400, screen.availWidth)},height=${Math.min(900, screen.availHeight)},toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=yes`);
+  if (!w) {
+    // Fallback: naviguj do admin Restaurace → Stoly → Floor plan tab
+    navigate('pkg_restaurace');
+    setTimeout(() => {
+      state._restTab = 'tables';
+      state._rtTab = 'map';
+      renderRestaurantPage();
+    }, 100);
     return;
   }
   w.focus();
