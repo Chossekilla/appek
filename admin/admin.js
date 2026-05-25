@@ -3186,24 +3186,101 @@ function _onboardPackagesStep() {
 }
 
 function _onboardDemoDataStep() {
-  // 🆕 v2.9.292 — Auto-naplnit demo data BEZ user kliknutí
-  // Žádný výběr, žádný confirm — prostě se naplní. User je informován o průběhu.
-  // Po naplnění tlačítko "Pokračovat" → onboardNext()
-  setTimeout(() => {
-    if (!state._onboard.data.demo_seed_done && !state._onboard.data.demo_seed_running) {
-      state._onboard.data.demo_seed_running = true;
-      _onboardAutoSeed();
-    }
-  }, 100);
-
+  // 🆕 v2.9.326 — Toggle: user vybere DEMO vs PRÁZDNÁ DB (předtím auto-naplnilo bez ptaní)
+  // Tři stavy:
+  //   choice === null  → ukáže 2-card volbu
+  //   choice === 'yes' → spustí seed (auto-trigger po výběru)
+  //   choice === 'no'  → ukáže potvrzení prázdné DB + Pokračovat
+  const choice = state._onboard.data.demo_seed_choice;
   const done = state._onboard.data.demo_seed_done;
   const stats = state._onboard.data.demo_seed_stats || {};
   const err = state._onboard.data.demo_seed_error;
 
+  // Auto-trigger seed jen pokud user explicitně vybral 'yes' a ještě neběží
+  if (choice === 'yes' && !done && !err && !state._onboard.data.demo_seed_running) {
+    state._onboard.data.demo_seed_running = true;
+    setTimeout(() => _onboardAutoSeed(), 100);
+  }
+
+  // STAV 1: výběr (žádná akce zatím)
+  if (!choice) {
+    return `
+      <h3 style="margin:0 0 8px">🎬 Demo data — chceš je naplnit?</h3>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">
+        Můžeš začít buď s <strong>kompletní ukázkou</strong> (rychle si vyzkoušíš všechny funkce), nebo s <strong>prázdnou aplikací</strong> (rovnou zadáváš svoje data).
+      </p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+        <button type="button" onclick="state._onboard.data.demo_seed_choice='yes'; renderOnboardingStep()"
+                style="background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:2px solid #F0D9B8;border-radius:12px;padding:20px;text-align:left;cursor:pointer;font-family:inherit;transition:all 0.15s"
+                onmouseover="this.style.borderColor='#BA7517';this.style.boxShadow='0 6px 18px rgba(186,117,23,0.18)'"
+                onmouseout="this.style.borderColor='#F0D9B8';this.style.boxShadow='none'">
+          <div style="font-size:36px;line-height:1;margin-bottom:8px">🎬</div>
+          <div style="font-weight:800;font-size:16px;color:#854F0B;margin-bottom:6px">Naplnit demo daty</div>
+          <div style="font-size:12px;color:#854F0B;line-height:1.5;opacity:0.92">
+            10 výrobků, 35+ surovin, recepty, kalkulace, 5 odběratelů, objednávky, POS users, stoly… Vše hned funkční.
+          </div>
+          <div style="margin-top:10px;display:inline-block;padding:4px 10px;background:#fff;color:#854F0B;border-radius:6px;font-size:11px;font-weight:700">⭐ Doporučeno</div>
+        </button>
+
+        <button type="button" onclick="state._onboard.data.demo_seed_choice='no'; renderOnboardingStep()"
+                style="background:#F7F8FA;border:2px solid #E1E5EB;border-radius:12px;padding:20px;text-align:left;cursor:pointer;font-family:inherit;transition:all 0.15s"
+                onmouseover="this.style.borderColor='#5C6370';this.style.boxShadow='0 6px 18px rgba(0,0,0,0.08)'"
+                onmouseout="this.style.borderColor='#E1E5EB';this.style.boxShadow='none'">
+          <div style="font-size:36px;line-height:1;margin-bottom:8px">📭</div>
+          <div style="font-weight:800;font-size:16px;color:#1d1d1f;margin-bottom:6px">Začít čistě</div>
+          <div style="font-size:12px;color:#5C6370;line-height:1.5">
+            Prázdná aplikace — žádné výrobky, žádní odběratelé. Hodí se když přecházíš z jiného systému a chceš importovat svoje data.
+          </div>
+          <div style="margin-top:10px;display:inline-block;padding:4px 10px;background:#fff;color:#5C6370;border-radius:6px;font-size:11px;font-weight:700">🆕 Čistá DB</div>
+        </button>
+      </div>
+
+      <div style="padding:12px;background:var(--info-bg);color:var(--info-text);border-radius:8px;font-size:12.5px">
+        💡 Volbu můžeš změnit i později — demo data lze kdykoli naplnit/smazat v <strong>Nastavení → Údržba</strong> (úplně dole).
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-secondary" onclick="onboardBack()">← Zpět</button>
+        <div style="flex:1"></div>
+      </div>
+    `;
+  }
+
+  // STAV 2: user vybral 'no' → potvrzení prázdné DB
+  if (choice === 'no') {
+    return `
+      <h3 style="margin:0 0 8px">📭 Začínáš s prázdnou aplikací</h3>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">
+        Demo data nebudou naplněna. Můžeš začít zadávat svoje výrobky, suroviny a odběratele.
+      </p>
+
+      <div style="padding:18px;background:#F7F8FA;border:1px solid #E1E5EB;border-radius:12px;margin-bottom:16px;text-align:center">
+        <div style="font-size:42px;margin-bottom:10px">✅</div>
+        <div style="font-weight:700;font-size:15px;color:#1d1d1f">Připraveno k prvnímu použití</div>
+        <div style="font-size:12px;color:#5C6370;margin-top:8px;line-height:1.6">
+          Začni v <strong>Výrobky</strong> (přidání produktu), <strong>Suroviny</strong> (sklad)<br>
+          nebo <strong>Odběratelé</strong> (zákazníci).
+        </div>
+      </div>
+
+      <div style="padding:12px;background:var(--info-bg);color:var(--info-text);border-radius:8px;font-size:12.5px">
+        💡 Změnil ses? <button onclick="state._onboard.data.demo_seed_choice=null; renderOnboardingStep()" style="background:none;border:none;color:var(--primary);text-decoration:underline;cursor:pointer;font:inherit;padding:0">← Zpět na výběr</button>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-secondary" onclick="state._onboard.data.demo_seed_choice=null; renderOnboardingStep()">← Změnit volbu</button>
+        <div style="flex:1"></div>
+        <button class="btn-primary btn-green" onclick="onboardNext()" style="font-weight:700;padding:12px 24px">➜ Pokračovat</button>
+      </div>
+    `;
+  }
+
+  // STAV 3: user vybral 'yes' → loading / done / error
   return `
     <h3 style="margin:0 0 8px">🎬 Připravujeme demo data</h3>
     <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">
-      Naplníme aplikaci kompletní funkční ukázkou — výrobky, recepty, odběratele, objednávky, suroviny naskladněné, kalkulace s marží, POS uživatele, stoly… Vše hned funkční pro demonstraci.
+      Naplňujeme aplikaci kompletní funkční ukázkou — výrobky, recepty, odběratele, objednávky, suroviny naskladněné, kalkulace s marží, POS uživatele, stoly…
     </p>
 
     <div style="padding:18px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8;border-radius:12px;margin-bottom:16px;text-align:center">
@@ -3229,11 +3306,11 @@ function _onboardDemoDataStep() {
     </div>
 
     <div style="padding:12px;background:var(--info-bg);color:var(--info-text);border-radius:8px;font-size:12.5px">
-      💡 Demo data můžeš kdykoliv resetovat v <strong>Dashboard → 🗑️ Reset demo data</strong>. Nebo smaž jednotlivě.
+      💡 Demo data můžeš kdykoliv resetovat v <strong>Nastavení → Údržba → Demo data</strong> (úplně dole).
     </div>
 
     <div class="form-actions">
-      <button class="btn-secondary" onclick="onboardBack()">← Zpět</button>
+      <button class="btn-secondary" onclick="state._onboard.data.demo_seed_choice=null; state._onboard.data.demo_seed_running=false; renderOnboardingStep()">← Změnit volbu</button>
       <div style="flex:1"></div>
       <button class="btn-primary btn-green" ${!done && !err ? 'disabled style="opacity:0.5;cursor:not-allowed;padding:12px 24px;font-weight:700"' : 'onclick="onboardNext()" style="font-weight:700;padding:12px 24px"'}>
         ${done ? '➜ Pokračovat' : (err ? '➜ Pokračovat bez demo' : '⏳ Čekejte…')}
