@@ -51,13 +51,21 @@ jobs:
           fail_on_unmatched_files: true
 
       - name: Deploy to server
-        # 🐛 v2.9.317 — Retry logic + explicit curl timeouts.
-        # Předtím 5/8 recentních releases failnulo na tomto kroku (~2s) — flaky deploy:
-        # - Lock conflict (409) když souběžný update klik z admin UI
-        # - Hostinger shared hosting občas vrátí 502/504 pod load
-        # - Network glitch (curl default = no connect timeout)
-        # Retry 3× s exponential backoff (5s, 15s, 30s) řeší ~95% transient failů.
-        # Lock 409 dostane čas na uvolnění (apply max ~20s), DNS/502 chybyse vyřeší pak.
+        # 🐛 v2.9.317 — Retry logic + explicit curl timeouts + continue-on-error.
+        # Předtím failovalo + spamovalo emaily. Diagnostika potvrdila 403 "Neplatný token"
+        # → DEPLOY_TOKEN secret v GitHub Settings neodpovídá vendor/config.local.php
+        # DEPLOY_TOKEN na appek.cz. Retry nepomůže (403 = autentizace, ne flaky).
+        #
+        # 🆕 v2.9.318 — continue-on-error: true. Zip build + GH Release jsou KRITICKÉ
+        # a musí stále failnout job pokud nepojedou. Deploy-hook (vendor.appek.cz backend
+        # apply) je informativní — když selže, customer aplikace funguje dál (zákazníci
+        # tahají update přímo z GitHub Release assets). Failed deploy nahlásíme v summary,
+        # ale neblokujeme workflow → žádný email spam.
+        #
+        # Trvalá oprava: user → GitHub Settings → Secrets → rotuj DEPLOY_TOKEN aby
+        # odpovídal DEPLOY_TOKEN v vendor/config.local.php na appek.cz.
+        continue-on-error: true
+        id: deploy
         run: |
           ZIP="appek-MASTER-v${{ steps.ver.outputs.version }}.zip"
           BACKOFFS=(0 5 15 30)  # 0 = first try without wait
@@ -96,3 +104,34 @@ jobs:
           done
           echo "❌ Deploy failed after $MAX_TRIES attempts. Last HTTP $LAST_CODE"
           exit 1
+
+      - name: Deploy status summary
+        # 🆕 v2.9.318 — Vždy běží, sumarizuje výsledek deploy stepu v GH UI.
+        # Když deploy failnul (continue-on-error=true ho neudělal celý job red),
+        # přidáme zřetelnou hlášku do job summary aby user viděl co je špatně.
+        if: always()
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          DEPLOY_RESULT="${{ steps.deploy.outcome }}"
+          {
+            echo "## 📦 Release v${VER}"
+            echo ""
+            echo "- ✅ ZIP build: success"
+            echo "- ✅ GitHub Release upload: success"
+            if [ "$DEPLOY_RESULT" = "success" ]; then
+              echo "- ✅ Deploy to vendor backend: success"
+            else
+              echo "- ⚠️ Deploy to vendor backend: **$DEPLOY_RESULT**"
+              echo ""
+              echo "### Co to znamená"
+              echo "Customer ZIP a GitHub Release jsou OK (zákazníci dostanou update přes manifest)."
+              echo "Selhal jen vendor backend apply na appek.cz/vendor (nekritické pro zákazníky)."
+              echo ""
+              echo "### Pravděpodobná příčina"
+              echo "**HTTP 403 \"Neplatný token\"** — rozjeté secrets:"
+              echo "- GitHub: Settings → Secrets → \`DEPLOY_TOKEN\`"
+              echo "- Server: \`vendor/config.local.php\` → \`define('DEPLOY_TOKEN', ...)\`"
+              echo ""
+              echo "Sjednoť obě hodnoty a další release proběhne čistě."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
