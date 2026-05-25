@@ -141,5 +141,5 @@ try {
 
     json_error('Method not allowed', 405);
 } catch (Throwable $e) {
-    json_error('Server error: ' . $e->getMessage(), 500);
+    json_error_safe('Server error', , 500);
 }

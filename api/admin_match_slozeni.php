@@ -326,7 +326,7 @@ if ($action === 'apply') {
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Chyba: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba', , 500);
     }
 
     $stat['vytvorene_suroviny'] = $vytvorene_suroviny;

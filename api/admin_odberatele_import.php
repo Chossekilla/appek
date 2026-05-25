@@ -225,7 +225,7 @@ try {
     $pdo->commit();
 } catch (Throwable $e) {
     $pdo->rollBack();
-    json_error('Import selhal: ' . $e->getMessage(), 500);
+    json_error_safe('Import selhal', , 500);
 }
 
 json_response([

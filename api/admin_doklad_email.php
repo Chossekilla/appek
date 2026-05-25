@@ -83,7 +83,7 @@ try {
     $email_token = create_email_token($pdo, $typ, $id, 30);
     $pdf_url = $baseUrl . '/api/' . $renderer . '?token=' . $email_token;
 } catch (Throwable $e) {
-    json_error('Chyba při načítání dokladu: ' . $e->getMessage(), 500);
+    json_error_safe('Chyba při načítání dokladu', , 500);
 }
 
 if ($predmet === '') $predmet = $default_predmet;

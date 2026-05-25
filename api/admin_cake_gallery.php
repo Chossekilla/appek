@@ -56,7 +56,7 @@ if ($method === 'POST') {
             't' => trim($d['tag']   ?? '') ?: null,
         ]);
         json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId()]);
-    } catch (Throwable $e) { json_error('DB: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($method === 'DELETE') {

@@ -59,7 +59,7 @@ if ($action === 'upload' && $method === 'POST') {
     try {
         $parsed = read_spreadsheet($_FILES['file']['tmp_name'], $ext);
     } catch (Throwable $e) {
-        json_error('Parser chyba: ' . $e->getMessage(), 400);
+        json_error_safe('Parser chyba', , 400);
     }
 
     $headers = $parsed['headers'];
@@ -238,7 +238,7 @@ if ($action === 'apply' && $method === 'POST') {
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();
-        json_error('Transakce selhala: ' . $e->getMessage(), 500);
+        json_error_safe('Transakce selhala', , 500);
     }
 
     // Cleanup session file

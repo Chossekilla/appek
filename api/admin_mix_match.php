@@ -167,7 +167,7 @@ if ($action === 'template' && $method === 'POST') {
             $id = (int) $pdo->lastInsertId();
         }
         json_response(['ok'=>true,'id'=>$id]);
-    } catch (Throwable $e) { json_error('DB: '.$e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($action === 'template' && $method === 'DELETE' && $id) {
@@ -205,7 +205,7 @@ if ($action === 'category' && $method === 'POST') {
             $cid = (int) $pdo->lastInsertId();
         }
         json_response(['ok'=>true,'id'=>$cid]);
-    } catch (Throwable $e) { json_error('DB: '.$e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($action === 'category' && $method === 'DELETE' && $id) {
@@ -240,7 +240,7 @@ if ($action === 'ingredient' && $method === 'POST') {
             $iid = (int) $pdo->lastInsertId();
         }
         json_response(['ok'=>true,'id'=>$iid]);
-    } catch (Throwable $e) { json_error('DB: '.$e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($action === 'ingredient' && $method === 'DELETE' && $id) {

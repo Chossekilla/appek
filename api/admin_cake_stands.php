@@ -83,7 +83,7 @@ if ($action === 'stand' && $method === 'POST') {
             $id = (int) $pdo->lastInsertId();
         }
         json_response(['ok'=>true, 'id'=>$id]);
-    } catch (Throwable $e) { json_error('DB: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 // ────── DELETE STOJAN ──────
@@ -137,7 +137,7 @@ if ($action === 'loan' && $method === 'POST') {
         json_response(['ok'=>true, 'loan_id'=>(int)$pdo->lastInsertId()]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('DB: ' . $e->getMessage(), 500);
+        json_error_safe('DB', , 500);
     }
 }
 
@@ -158,7 +158,7 @@ if ($action === 'return' && $method === 'POST') {
         json_response(['ok'=>true]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('DB: ' . $e->getMessage(), 500);
+        json_error_safe('DB', , 500);
     }
 }
 
@@ -177,7 +177,7 @@ if ($action === 'lost' && $method === 'POST') {
         json_response(['ok'=>true]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('DB: ' . $e->getMessage(), 500);
+        json_error_safe('DB', , 500);
     }
 }
 

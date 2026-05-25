@@ -4,6 +4,45 @@
    ═════════════════════════════════════════════════════════════════ */
 'use strict';
 
+// 🆕 v2.9.321 — POS error capture (předtím chyběl, admin/admin.js měl).
+// JS chyby z POS browseru se POSTují do admin_klient_chyby.php → admin v Diagnostice vidí.
+(function setupPOSErrorCapture() {
+  let lastReportTs = 0;
+  function reportError(payload) {
+    const now = Date.now();
+    if (now - lastReportTs < 1000) return; // rate-limit client-side
+    lastReportTs = now;
+    try {
+      fetch('../api/admin_klient_chyby.php', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          app: 'pos',
+          ...payload,
+          url: location.href,
+          user_info: 'pos (cashier)',
+        }),
+      }).catch(() => {});
+    } catch (e) {}
+  }
+  window.addEventListener('error', (e) => {
+    reportError({
+      msg: e.message || 'Unknown POS error',
+      source: e.filename || '',
+      line: e.lineno || 0,
+      col: e.colno || 0,
+      stack: e.error?.stack || '',
+    });
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    reportError({
+      msg: '[POS Promise] ' + (e.reason?.message || String(e.reason)),
+      stack: e.reason?.stack || '',
+    });
+  });
+})();
+
 (function () {
   const CFG = window.POS_CONFIG || {};
 

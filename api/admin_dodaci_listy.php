@@ -437,12 +437,12 @@ try {
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
             error_log('admin_dodaci_listy DELETE: ' . $e->getMessage());
-            json_error('Nepodařilo se smazat dodací list: ' . $e->getMessage(), 500);
+            json_error_safe('Nepodařilo se smazat dodací list', , 500);
         }
     }
 
     json_error('Method not allowed', 405);
 
 } catch (Throwable $e) {
-    json_error('Server error: ' . $e->getMessage() . ' [' . basename($e->getFile()) . ':' . $e->getLine() . ']', 500);
+    json_error_safe('Server error', , 500);
 }

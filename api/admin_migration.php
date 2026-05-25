@@ -58,7 +58,7 @@ if ($method === 'POST' && $action === 'preview') {
     try {
         $records = migration_import($key, $type, $raw);
     } catch (Throwable $e) {
-        json_error('Chyba při parsování: ' . $e->getMessage(), 422);
+        json_error_safe('Chyba při parsování', , 422);
     }
 
     json_response([
@@ -82,7 +82,7 @@ if ($method === 'POST' && $action === 'import') {
     try {
         $records = migration_import($key, $type, $raw);
     } catch (Throwable $e) {
-        json_error('Parsing: ' . $e->getMessage(), 422);
+        json_error_safe('Parsing', , 422);
     }
 
     $pdo = db();

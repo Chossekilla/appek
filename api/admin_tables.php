@@ -320,7 +320,7 @@ if ($method === 'POST' && $action === 'apply_template') {
         json_response(['ok' => true, 'template' => $tplKey, 'stoly' => count($tpl['tables']), 'zones' => count($tpl['zones'])]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Apply template selhalo: ' . $e->getMessage(), 500);
+        json_error_safe('Apply template selhalo', , 500);
     }
 }
 
@@ -388,7 +388,7 @@ if ($method === 'POST' && $action === 'save_layout') {
         json_response(['ok' => true, 'updated' => $upd]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Save layout selhalo: ' . $e->getMessage(), 500);
+        json_error_safe('Save layout selhalo', , 500);
     }
 }
 
@@ -470,7 +470,7 @@ if ($method === 'POST' && $action === 'reserve') {
             'pz'  => $d['poznamka'] ?? null,
         ]);
         json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId()]);
-    } catch (Throwable $e) { json_error('DB: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($method === 'DELETE' && $action === 'reservation') {
@@ -501,7 +501,7 @@ if ($method === 'POST' && !$action) {
             'z' => $d['zone_id'] !== null ? (int) $d['zone_id'] : null,
         ]);
         json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId()]);
-    } catch (Throwable $e) { json_error('DB: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($method === 'PUT' && $id) {
@@ -611,7 +611,7 @@ if ($method === 'POST' && $action === 'save_user_template') {
             json_response(['ok'=>true,'id'=>(int)$pdo->lastInsertId(),'message'=>'Šablona uložena']);
         }
     } catch (Throwable $e) {
-        json_error('Chyba uložení: '.$e->getMessage(), 500);
+        json_error_safe('Chyba uložení', , 500);
     }
 }
 
@@ -673,7 +673,7 @@ if ($method === 'POST' && $action === 'apply_user_template') {
         json_response(['ok'=>true,'stoly'=>count($snap['tables']),'zones'=>count($snap['zones'])]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Apply selhalo: '.$e->getMessage(), 500);
+        json_error_safe('Apply selhalo', , 500);
     }
 }
 
@@ -781,7 +781,7 @@ if ($method === 'POST' && $action === 'apply_editor_state') {
         ]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Apply selhalo: '.$e->getMessage(), 500);
+        json_error_safe('Apply selhalo', , 500);
     }
 }
 
@@ -801,7 +801,7 @@ if ($method === 'GET' && $action === 'capacity') {
         ")->fetch(PDO::FETCH_ASSOC) ?: [];
         json_response(['ok' => true, 'capacity' => $row]);
     } catch (Throwable $e) {
-        json_error('Chyba vytíženosti: '.$e->getMessage(), 500);
+        json_error_safe('Chyba vytíženosti', , 500);
     }
 }
 

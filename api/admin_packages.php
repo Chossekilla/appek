@@ -176,7 +176,7 @@ if ($method === 'POST') {
         ")->execute(['v' => $payload, 'v2' => $payload]);
         json_response(['ok' => true, 'enabled' => $enabled]);
     } catch (Throwable $e) {
-        json_error('Chyba uložení: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba uložení', , 500);
     }
 }
 

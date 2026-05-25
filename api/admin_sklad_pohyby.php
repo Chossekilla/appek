@@ -144,7 +144,7 @@ if ($method === 'POST') {
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
             error_log('admin_sklad_pohyby presun: ' . $e->getMessage());
-            json_error('Chyba při přesunu: ' . $e->getMessage(), 500);
+            json_error_safe('Chyba při přesunu', , 500);
         }
     }
 
@@ -203,7 +203,7 @@ if ($method === 'POST') {
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         error_log('admin_sklad_pohyby ' . $action . ': ' . $e->getMessage());
-        json_error('Chyba: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba', , 500);
     }
 }
 

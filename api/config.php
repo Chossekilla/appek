@@ -315,12 +315,130 @@ function json_error_safe(string $publicMsg, ?\Throwable $e = null, int $code = 5
     if ($e) {
         error_log(sprintf('[APPEK][%s] %s: %s @ %s:%d', $reqId, $publicMsg, $e->getMessage(), $e->getFile(), $e->getLine()));
     }
+    // 🆕 v2.9.321 — persistuj i do app_errors DB tabulky (= admin v Diagnostice najde podle reqId)
+    try { app_log_error($reqId, $publicMsg, $e, $code); } catch (\Throwable $ignore) { /* never fail caller */ }
     $isDev = (defined('APP_DEBUG') && APP_DEBUG === true)
           || (defined('APPEK_DEMO') && APPEK_DEMO === true)
           || (php_sapi_name() === 'cli-server'); // dev server
     $out = ['error' => $publicMsg, 'request_id' => $reqId];
     if ($isDev && $e) $out['debug'] = $e->getMessage();
     json_response($out, $code);
+}
+
+/**
+ * 🆕 v2.9.321 — Centrální app-level error log.
+ *
+ * Persistuje každou chybu do `app_errors` (request_id, severity, source, message,
+ * exception, user, http_status, created_at) — admin pak v Diagnostice najde
+ * konkrétní chybu podle request_id z UI errors místo grepování v raw PHP logu.
+ *
+ * Auto-create schéma (idempotentní), auto-prune >30 dnů (sample 1/100 requests).
+ * Defenzivní: každá chyba uvnitř téhle funkce je SWALLOWED — nesmí rozbít caller.
+ */
+function app_log_error(string $reqId, string $publicMsg, ?\Throwable $e = null, int $httpCode = 500, string $severity = 'error'): void {
+    try {
+        $pdo = db();
+        // Idempotent schema (cached static flag — jen 1× per process)
+        static $schemaReady = false;
+        if (!$schemaReady) {
+            try {
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS app_errors (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        request_id VARCHAR(16) NOT NULL,
+                        severity VARCHAR(10) NOT NULL DEFAULT 'error',
+                        http_status SMALLINT NOT NULL DEFAULT 500,
+                        source VARCHAR(120) NULL,
+                        message VARCHAR(255) NOT NULL,
+                        exception_class VARCHAR(120) NULL,
+                        exception_msg TEXT NULL,
+                        exception_file VARCHAR(255) NULL,
+                        exception_line INT NULL,
+                        exception_trace TEXT NULL,
+                        user_email VARCHAR(120) NULL,
+                        user_role VARCHAR(20) NULL,
+                        ip VARCHAR(45) NULL,
+                        user_agent VARCHAR(255) NULL,
+                        url VARCHAR(500) NULL,
+                        method VARCHAR(10) NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_req (request_id),
+                        INDEX idx_sev_created (severity, created_at),
+                        INDEX idx_created (created_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                ");
+                $schemaReady = true;
+            } catch (\Throwable $ig) { /* if no DB, swallow */ return; }
+        }
+
+        // Resolve user context (best effort)
+        $userEmail = null;
+        $userRole = null;
+        try {
+            if (session_status() === PHP_SESSION_ACTIVE || isset($_SESSION)) {
+                $admin = $_SESSION['admin_user'] ?? null;
+                if (is_array($admin)) {
+                    $userEmail = $admin['email'] ?? $admin['login'] ?? null;
+                    $userRole  = $admin['role'] ?? null;
+                }
+            }
+        } catch (\Throwable $ig) {}
+
+        $source = $_SERVER['SCRIPT_NAME'] ?? null;
+        if ($source) $source = substr(basename($source), 0, 120);
+        $url = $_SERVER['REQUEST_URI'] ?? null;
+        $method = $_SERVER['REQUEST_METHOD'] ?? null;
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+        $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
+
+        $excClass = $excMsg = $excFile = $excTrace = null;
+        $excLine = null;
+        if ($e) {
+            $excClass = get_class($e);
+            $excMsg   = $e->getMessage();
+            $excFile  = $e->getFile();
+            $excLine  = $e->getLine();
+            // Trace cap at 4 KB (defense vs huge stacks pumping disk)
+            $excTrace = substr($e->getTraceAsString(), 0, 4096);
+        }
+
+        $pdo->prepare("
+            INSERT INTO app_errors
+                (request_id, severity, http_status, source, message,
+                 exception_class, exception_msg, exception_file, exception_line, exception_trace,
+                 user_email, user_role, ip, user_agent, url, method)
+            VALUES
+                (:rid, :sev, :http, :src, :msg,
+                 :ec, :em, :ef, :el, :et,
+                 :ue, :ur, :ip, :ua, :url, :mtd)
+        ")->execute([
+            'rid' => substr($reqId, 0, 16),
+            'sev' => substr($severity, 0, 10),
+            'http' => $httpCode,
+            'src' => $source,
+            'msg' => substr($publicMsg, 0, 255),
+            'ec'  => $excClass ? substr($excClass, 0, 120) : null,
+            'em'  => $excMsg,
+            'ef'  => $excFile ? substr($excFile, 0, 255) : null,
+            'el'  => $excLine,
+            'et'  => $excTrace,
+            'ue'  => $userEmail ? substr($userEmail, 0, 120) : null,
+            'ur'  => $userRole ? substr($userRole, 0, 20) : null,
+            'ip'  => $ip ? substr($ip, 0, 45) : null,
+            'ua'  => $ua ? substr($ua, 0, 255) : null,
+            'url' => $url ? substr($url, 0, 500) : null,
+            'mtd' => $method ? substr($method, 0, 10) : null,
+        ]);
+
+        // Auto-prune: 1% sample — smaž >30 dnů staré, max 1000 řádků/run
+        if (mt_rand(1, 100) === 1) {
+            try { $pdo->exec("DELETE FROM app_errors WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY) LIMIT 1000"); }
+            catch (\Throwable $ig) {}
+        }
+    } catch (\Throwable $e2) {
+        // Last resort: don't ever throw from logger
+        error_log('[app_log_error] swallowed: ' . $e2->getMessage());
+    }
 }
 
 function json_input(): array {

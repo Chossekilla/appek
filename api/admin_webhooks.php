@@ -78,7 +78,7 @@ if ($method === 'POST') {
             VALUES (:n, :u, :e, :s, :a)
         ")->execute(['n' => $nazev, 'u' => $url, 'e' => $events, 's' => $secret ?: null, 'a' => $aktivni]);
         json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId()]);
-    } catch (Throwable $e) { json_error('Chyba: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('Chyba', , 500); }
 }
 
 if ($method === 'PUT' && $id > 0) {
@@ -96,7 +96,7 @@ if ($method === 'PUT' && $id > 0) {
     try {
         $pdo->prepare("UPDATE webhooks SET " . implode(', ', $sets) . " WHERE id = :id")->execute($params);
         json_response(['ok' => true]);
-    } catch (Throwable $e) { json_error('Chyba: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('Chyba', , 500); }
 }
 
 if ($method === 'DELETE' && $id > 0) {
@@ -105,7 +105,7 @@ if ($method === 'DELETE' && $id > 0) {
         $pdo->prepare("DELETE FROM webhooks WHERE id = :id")->execute(['id' => $id]);
         $pdo->prepare("DELETE FROM webhook_log WHERE webhook_id = :id")->execute(['id' => $id]);
         json_response(['ok' => true]);
-    } catch (Throwable $e) { json_error('Chyba: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('Chyba', , 500); }
 }
 
 json_error('Neznámá akce', 404);

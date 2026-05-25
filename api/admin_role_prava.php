@@ -100,7 +100,7 @@ if ($method === 'POST') {
         json_response(['ok' => true, 'prava' => $clean]);
     } catch (Throwable $e) {
         error_log('admin_role_prava save: ' . $e->getMessage());
-        json_error('Uložení selhalo: ' . $e->getMessage(), 500);
+        json_error_safe('Uložení selhalo', , 500);
     }
 }
 

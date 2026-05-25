@@ -93,7 +93,7 @@ if ($action === 'sum_order' && $method === 'POST') {
             'odhad_min' => $totalParalelni > 0 ? $totalParalelni : $totalSekvencne,
             'stanice_load' => $stations,
         ]);
-    } catch (Throwable $e) { json_error('DB: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($action === 'bulk' && $method === 'POST') {
@@ -116,7 +116,7 @@ if ($action === 'bulk' && $method === 'POST') {
         json_response(['ok'=>true, 'count'=>count($updates)]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('DB: ' . $e->getMessage(), 500);
+        json_error_safe('DB', , 500);
     }
 }
 
@@ -132,7 +132,7 @@ if ($method === 'POST') {
                 'id' => $id,
             ]);
         json_response(['ok'=>true]);
-    } catch (Throwable $e) { json_error('DB: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 // GET — seznam výrobků s prep dobou + stanice (pro UI)
@@ -170,5 +170,5 @@ try {
         ],
     ]);
 } catch (Throwable $e) {
-    json_error('DB chyba (admin_prep_times): ' . $e->getMessage(), 500);
+    json_error_safe('DB chyba (admin_prep_times)', , 500);
 }

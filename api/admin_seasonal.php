@@ -108,7 +108,7 @@ if ($action === 'assign' && $method === 'POST') {
     try {
         $pdo->prepare("UPDATE vyrobky SET sezona = :s WHERE id = :id")->execute(['s' => $sezona ?: null, 'id' => $id]);
         json_response(['ok' => true]);
-    } catch (Throwable $e) { json_error('DB: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($action === 'active') {
@@ -145,7 +145,7 @@ if ($action === 'save_season' && $method === 'POST') {
                 ->execute(['k' => $key, 'l' => $label, 's' => $start, 'e' => $end, 'c' => $color]);
         }
         json_response(['ok' => true]);
-    } catch (Throwable $e) { json_error('DB: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($action === 'delete_season' && $method === 'DELETE') {
@@ -161,7 +161,7 @@ if ($action === 'delete_season' && $method === 'DELETE') {
             $pdo->prepare("DELETE FROM seasons_custom WHERE id = :id")->execute(['id' => $id]);
         }
         json_response(['ok' => true]);
-    } catch (Throwable $e) { json_error('DB: ' . $e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 // Default: full list with stats + currently active

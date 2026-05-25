@@ -389,7 +389,7 @@ if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_kor
         json_response(['ok' => true, 'stock_pred' => $stockPred, 'stock_po' => $stockPo]);
     } catch (Throwable $e) {
         $pdo->rollBack();
-        json_error('Chyba pohybu skladu: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba pohybu skladu', , 500);
     }
 }
 
@@ -548,7 +548,7 @@ if ($method === 'POST') {
         json_response(['id' => $pdo->lastInsertId(), 'slozeni_alergeny' => $slozeni_alergeny], 201);
     } catch (PDOException $e) {
         if ($e->getCode() === '23000') json_error('Surovina s tímto názvem už existuje');
-        json_error('Chyba uložení: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba uložení', , 500);
     }
 }
 
@@ -607,7 +607,7 @@ if ($method === 'PUT') {
         json_response(['ok' => true, 'slozeni_alergeny' => $slozeni_alergeny]);
     } catch (PDOException $e) {
         if ($e->getCode() === '23000') json_error('Surovina s tímto názvem už existuje');
-        json_error('Chyba úpravy: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba úpravy', , 500);
     }
 }
 

@@ -153,7 +153,7 @@ if ($action === 'sleva' && $method === 'POST') {
         json_response(['id' => $pdo->lastInsertId()], 201);
     } catch (PDOException $e) {
         error_log('cenove_skupiny add sleva: ' . $e->getMessage());
-        json_error('Nepodařilo se uložit slevu: ' . $e->getMessage(), 500);
+        json_error_safe('Nepodařilo se uložit slevu', , 500);
     }
 }
 

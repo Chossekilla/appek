@@ -2038,7 +2038,17 @@ async function api(path, opts = {}) {
   } finally {
     if (typeof topProgressDone === 'function') topProgressDone();
   }
-  if (!res.ok) throw new Error(data.error || 'Chyba serveru');
+  // 🆕 v2.9.321 — Přilep request_id k error message, aby user mohl říct "rozbité, reqId=abc12345"
+  // a admin to našel v Diagnostice → 🐛 Chyby aplikace přes search.
+  if (!res.ok) {
+    const err = new Error(data.error || 'Chyba serveru');
+    if (data.request_id) {
+      err.message += ' (reqId: ' + data.request_id + ')';
+      err.requestId = data.request_id;
+    }
+    if (data.debug) err.debug = data.debug;
+    throw err;
+  }
 
   // Ulož do cache po úspěšném GET
   if (method === 'GET') {
@@ -12919,6 +12929,29 @@ async function renderNastaveni() {
 
     </div>
 
+    <!-- 🆕 v2.9.321 — APP-LEVEL ERRORS (z app_errors DB tabulky) -->
+    <div class="card-block" id="ns-errors-block" style="margin-top:14px">
+      <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        🐛 Chyby aplikace
+        <span id="ns-errors-overall" style="font-size:11px;font-weight:normal;color:var(--text-3)"></span>
+      </h3>
+      <p style="font-size:12px;color:var(--text-3);margin-bottom:14px">
+        Server-side chyby z PHP backendu (json_error_safe) — persistované v <code>app_errors</code> DB.
+        Když ti user řekne <em>"rozbité, reqId: abc123"</em>, najdi ho zde (search).
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+        <input id="ns-errors-search" placeholder="Hledat (request_id, zpráva, source)…" oninput="debounce('errsearch', errorsLoad, 350)" style="flex:1;min-width:220px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit">
+        <select id="ns-errors-since" onchange="errorsLoad()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" title="Časové okno">
+          <option value="1">Posledních 1 h</option>
+          <option value="24" selected>24 h</option>
+          <option value="168">7 dní</option>
+          <option value="720">30 dní</option>
+        </select>
+        <button class="btn-secondary" onclick="errorsLoad()" style="font-size:13px;padding:7px 14px">🔄 Načíst</button>
+      </div>
+      <div id="ns-errors-list" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
+    </div>
+
     <!-- 🔑 LICENCE & AKTUALIZACE -->
     <div class="card-block" id="ns-license-block" style="margin-top:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
@@ -13442,6 +13475,7 @@ async function renderNastaveni() {
     licenseLoadStatus();
     loadActivityLog();
     loadWebhooks();
+    if (typeof errorsLoad === 'function') errorsLoad(); // 🆕 v2.9.321 — app_errors viewer
   }
   if (aktTab === 'balicky') {
     loadBalicky();
@@ -19741,6 +19775,107 @@ window.diagOtevrit = async function() {
   await renderDiagnostika();
   // Skroluj nahoru
   window.scrollTo(0, 0);
+};
+
+// ═══════════════════════════════════════════════════════════
+// 🆕 v2.9.321 — APP ERRORS VIEWER (app_errors DB tabulka)
+// ═══════════════════════════════════════════════════════════
+window.errorsLoad = async function() {
+  const list = document.getElementById('ns-errors-list');
+  const overall = document.getElementById('ns-errors-overall');
+  if (!list) return;
+  list.innerHTML = '⏳ Načítám…';
+
+  const q = (document.getElementById('ns-errors-search')?.value || '').trim();
+  const sinceH = (document.getElementById('ns-errors-since')?.value || '24');
+  const params = new URLSearchParams({ action: 'list', limit: '30', since_h: sinceH });
+  if (q) params.set('q', q);
+
+  let stats, rows;
+  try {
+    [stats, rows] = await Promise.all([
+      api('admin_error_log.php?action=stats').catch(() => null),
+      api('admin_error_log.php?' + params.toString()),
+    ]);
+  } catch (e) {
+    list.innerHTML = `<div style="color:var(--danger-text);padding:8px;background:var(--danger-bg);border-radius:6px;font-size:12px">Chyba: ${esc(e.message)}</div>`;
+    return;
+  }
+
+  if (overall && stats?.summary) {
+    const s = stats.summary;
+    const n1 = parseInt(s.last_1h || 0), n24 = parseInt(s.last_24h || 0), n7 = parseInt(s.last_7d || 0);
+    overall.textContent = `1h: ${n1} · 24h: ${n24} · 7d: ${n7}`;
+    overall.style.color = n1 > 5 ? '#991B1B' : n24 > 20 ? '#92400e' : '#166534';
+  }
+
+  const items = rows?.rows || [];
+  if (items.length === 0) {
+    list.innerHTML = `<div style="padding:14px;text-align:center;color:var(--text-3);background:#F0FDF4;border:1px dashed #BBF7D0;border-radius:8px;font-size:13px">✓ Žádné chyby v tomto okně (${esc(sinceH)} h). Pokud testuješ konkrétní reqId, vyhledej ho výše.</div>`;
+    return;
+  }
+
+  list.innerHTML = `
+    <div style="font-size:11px;color:var(--text-3);margin-bottom:6px">Posledních ${items.length} z ${rows.total || items.length} chyb${rows.total > items.length ? ' (zobraz více v API)' : ''}</div>
+    <div style="display:flex;flex-direction:column;gap:4px;max-height:480px;overflow:auto">
+      ${items.map(r => {
+        const sevColor = r.severity === 'error' ? '#991B1B' : r.severity === 'warn' ? '#92400e' : '#1E40AF';
+        const sevBg = r.severity === 'error' ? '#FEE2E2' : r.severity === 'warn' ? '#FEF3C7' : '#DBEAFE';
+        const time = (r.created_at || '').replace('T', ' ').slice(0, 16);
+        return `
+          <div onclick="errorsDetail('${esc(r.request_id)}')" style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:8px 10px;background:#FAFAFA;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;align-items:center" title="Klikni pro detail" onmouseover="this.style.background='#F0F0F0'" onmouseout="this.style.background='#FAFAFA'">
+            <span style="background:${sevBg};color:${sevColor};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase">${esc(r.severity)}</span>
+            <div style="min-width:0">
+              <div style="font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.message)}</div>
+              <div style="color:var(--text-3);font-size:11px;margin-top:2px">
+                <code style="background:var(--surface-2);padding:1px 4px;border-radius:3px;font-size:10px">${esc(r.request_id)}</code>
+                ${r.source ? `· ${esc(r.source)}` : ''}
+                ${r.user_email ? `· ${esc(r.user_email)}` : ''}
+                · HTTP ${parseInt(r.http_status || 500)}
+              </div>
+            </div>
+            <span style="color:var(--text-3);font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums">${esc(time)}</span>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+};
+
+window.errorsDetail = async function(reqId) {
+  if (!reqId) return;
+  let d;
+  try { d = await api('admin_error_log.php?action=detail&request_id=' + encodeURIComponent(reqId)); }
+  catch (e) { alert('Chyba načtení detailu: ' + e.message); return; }
+  const r = d?.rows?.[0];
+  if (!r) { alert('Detail nenalezen'); return; }
+
+  openModal('🐛 Detail chyby ' + reqId, /* body: */ `
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:13px;margin-bottom:14px">
+      <strong>Kdy:</strong>           <span>${esc((r.created_at || '').replace('T', ' '))}</span>
+      <strong>Severity:</strong>      <span style="text-transform:uppercase;font-weight:700;color:${r.severity === 'error' ? '#991B1B' : '#92400e'}">${esc(r.severity)}</span>
+      <strong>HTTP:</strong>          <span>${parseInt(r.http_status || 500)}</span>
+      <strong>Zpráva (public):</strong> <span>${esc(r.message)}</span>
+      ${r.source ? `<strong>Source:</strong> <span><code>${esc(r.source)}</code></span>` : ''}
+      ${r.url    ? `<strong>URL:</strong>    <span style="word-break:break-all"><code>${esc(r.url)}</code></span>` : ''}
+      ${r.method ? `<strong>Metoda:</strong> <span>${esc(r.method)}</span>` : ''}
+      ${r.user_email ? `<strong>User:</strong> <span>${esc(r.user_email)} (${esc(r.user_role || '?')})</span>` : ''}
+      ${r.ip ? `<strong>IP:</strong> <span><code>${esc(r.ip)}</code></span>` : ''}
+    </div>
+    ${r.exception_class ? `
+      <div style="background:#FEF3C7;border-left:3px solid #F59E0B;padding:10px 12px;border-radius:6px;margin-bottom:14px;font-size:13px">
+        <div style="font-weight:700;color:#854F0B;margin-bottom:4px">⚠️ Exception</div>
+        <div><strong>${esc(r.exception_class)}:</strong> ${esc(r.exception_msg || '')}</div>
+        ${r.exception_file ? `<div style="font-size:11px;color:#854F0B;margin-top:4px"><code>${esc(r.exception_file)}:${parseInt(r.exception_line || 0)}</code></div>` : ''}
+      </div>
+    ` : ''}
+    ${r.exception_trace ? `
+      <details>
+        <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text-2);user-select:none">📜 Stack trace</summary>
+        <pre style="background:#1d1d1f;color:#9097a3;padding:12px;border-radius:6px;font-size:11px;line-height:1.5;overflow-x:auto;margin-top:8px;max-height:400px">${esc(r.exception_trace)}</pre>
+      </details>
+    ` : ''}
+  `, 'lg');
 };
 
 // ═══════════════════════════════════════════════════════════

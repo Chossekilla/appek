@@ -353,7 +353,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
         ]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Chyba odpisu: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba odpisu', , 500);
     }
 }
 

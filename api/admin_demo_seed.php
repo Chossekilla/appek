@@ -1574,7 +1574,7 @@ if ($action === 'apply') {
         json_response($stats);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error('Seed selhal: ' . $e->getMessage(), 500);
+        json_error_safe('Seed selhal', , 500);
     }
 }
 
@@ -1615,7 +1615,7 @@ if ($action === 'clear') {
         $pdo->exec("SET FOREIGN_KEY_CHECKS=1");
         json_response(['ok' => true, 'cleared' => true]);
     } catch (Throwable $e) {
-        json_error('Clear selhal: ' . $e->getMessage(), 500);
+        json_error_safe('Clear selhal', , 500);
     }
 }
 

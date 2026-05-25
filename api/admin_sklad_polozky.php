@@ -147,7 +147,7 @@ if ($method === 'GET' && $action === 'compare') {
         ]);
     } catch (Throwable $e) {
         error_log('admin_sklad_polozky compare: ' . $e->getMessage());
-        json_error('Chyba porovnání: ' . $e->getMessage(), 500);
+        json_error_safe('Chyba porovnání', , 500);
     }
 }
 

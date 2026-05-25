@@ -90,7 +90,7 @@ if ($action === 'check' && $method === 'POST' && $id) {
                 ->execute(['t'=>(float)$d['hodnota'],'id'=>$id]);
         }
         json_response(['ok'=>true]);
-    } catch (Throwable $e) { json_error('DB: '.$e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($method === 'GET' && $id) {
@@ -159,7 +159,7 @@ if ($method === 'POST') {
             'st'=>$d['stav'] ?? 'sklad', 'p'=>$d['poznamka'] ?? null,
         ]);
         json_response(['ok'=>true, 'id'=>(int)$pdo->lastInsertId(), 'sarze_kod'=>$kod]);
-    } catch (Throwable $e) { json_error('DB: '.$e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($method === 'PUT' && $id) {
@@ -174,7 +174,7 @@ if ($method === 'PUT' && $id) {
     try {
         $pdo->prepare("UPDATE production_batches SET " . implode(', ', $sets) . " WHERE id=:id")->execute($params);
         json_response(['ok'=>true]);
-    } catch (Throwable $e) { json_error('DB: '.$e->getMessage(), 500); }
+    } catch (Throwable $e) { json_error_safe('DB', , 500); }
 }
 
 if ($method === 'DELETE' && $id) {
