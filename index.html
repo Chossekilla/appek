@@ -1998,7 +1998,7 @@ img[loading="lazy"].loaded {
         </div>
 
         <div class="mobile-install-tip">
-          <strong>💡 Tip:</strong> Na iOS otevři v Safari → Sdílet → „Přidat na plochu". Na Androidu Chrome ti to nabídne automaticky.
+          <strong data-i18n="install_tip_label">💡 Tip:</strong> <span data-i18n="install_tip_d">Na iOS otevři v Safari → Sdílet → „Přidat na plochu". Na Androidu Chrome ti to nabídne automaticky.</span>
         </div>
       </div>
 
@@ -4586,6 +4586,15 @@ const SALES_I18N = {
   mobile_lead:     { cs: 'APPEK funguje jako <strong>PWA</strong> — nainstaluje se na mobil/tablet jako nativní aplikace. Push notifikace o objednávkách, offline mód, touch-friendly UI. Žádný App Store ani Google Play.', sk: 'APPEK funguje ako <strong>PWA</strong> — nainštaluje sa na mobil/tablet ako natívna aplikácia. Push notifikácie o objednávkach, offline režim, touch-friendly UI. Žiadny App Store ani Google Play.', en: 'APPEK works as a <strong>PWA</strong> — installs on mobile/tablet like a native app. Push notifications for orders, offline mode, touch-friendly UI. No App Store or Google Play required.', de: 'APPEK funktioniert als <strong>PWA</strong> — installiert sich auf Handy/Tablet wie eine native App. Push-Benachrichtigungen für Bestellungen, Offline-Modus, touch-freundliches UI. Kein App Store oder Google Play erforderlich.', es: 'APPEK funciona como <strong>PWA</strong> — se instala en móvil/tablet como app nativa. Notificaciones push de pedidos, modo offline, UI táctil. Sin App Store ni Google Play.' },
   mobile_f1_t:     { cs: 'Instaluj jako appku', sk: 'Inštalujte ako appku', en: 'Install as app', de: 'Als App installieren', es: 'Instalar como app' },
   mobile_f1_d:     { cs: 'Klik na „Přidat na plochu" — vznikne ikona jako u nativní appky. iOS i Android.', sk: 'Klik na „Pridať na plochu" — vznikne ikona ako pri natívnej appke. iOS aj Android.', en: 'Click "Add to Home Screen" — icon appears like native app. iOS & Android.', de: 'Klick auf „Zum Startbildschirm hinzufügen" — Symbol erscheint wie eine native App. iOS und Android.', es: 'Clic en "Añadir a la pantalla" — aparece como app nativa. iOS y Android.' },
+  // 🆕 v2.9.319 — landing PWA install tip (předtím hardcoded CZ bez data-i18n)
+  install_tip_label: { cs: '💡 Tip:', sk: '💡 Tip:', en: '💡 Tip:', de: '💡 Tipp:', es: '💡 Consejo:' },
+  install_tip_d: {
+    cs: 'Na iOS otevři v Safari → Sdílet → „Přidat na plochu". Na Androidu Chrome ti to nabídne automaticky.',
+    sk: 'Na iOS otvor v Safari → Zdieľať → „Pridať na plochu". Na Androide Chrome ti to ponúkne automaticky.',
+    en: 'On iOS open in Safari → Share → "Add to Home Screen". On Android Chrome will offer it automatically.',
+    de: 'Auf iOS in Safari öffnen → Teilen → „Zum Startbildschirm hinzufügen". Auf Android bietet Chrome es automatisch an.',
+    es: 'En iOS abre en Safari → Compartir → "Añadir a la pantalla". En Android Chrome lo ofrece automáticamente.',
+  },
   mobile_f2_t:     { cs: 'Push notifikace', sk: 'Push notifikácie', en: 'Push notifications', de: 'Push-Benachrichtigungen', es: 'Notificaciones push' },
   mobile_f2_d:     { cs: 'Nová objednávka = zvonění. Funguje i s vypnutým prohlížečem.', sk: 'Nová objednávka = zvonenie. Funguje aj s vypnutým prehliadačom.', en: 'New order = ring. Works even with browser closed.', de: 'Neue Bestellung = Klingeln. Funktioniert auch bei geschlossenem Browser.', es: 'Nuevo pedido = sonido. Funciona incluso con navegador cerrado.' },
   mobile_f3_t:     { cs: 'Offline mód', sk: 'Offline režim', en: 'Offline mode', de: 'Offline-Modus', es: 'Modo offline' },
