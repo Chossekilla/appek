@@ -31,6 +31,16 @@ $t0 = microtime(true);
 $checks = [];
 $overall = true;
 
+// 🐛 v2.9.323 — size_human MUSÍ být definovaná PŘED checks (PHP nehostuje funkce
+// declared uvnitř `if (!function_exists)`. Předtím se volalo z arrow fn → undefined.
+if (!function_exists('size_human')) {
+    function size_human(int $bytes): string {
+        if ($bytes >= 1048576) return round($bytes / 1048576, 1) . ' MB';
+        if ($bytes >= 1024) return round($bytes / 1024, 1) . ' KB';
+        return $bytes . ' B';
+    }
+}
+
 /** Pomocný helper — wrap check, měří duration, zachytí throwable */
 function hc_check(string $name, callable $fn): array {
     $t = microtime(true);
@@ -157,14 +167,7 @@ $checks[] = hc_check('php_runtime', function () {
     ];
 });
 
-// Helper pokud size_human neexistuje
-if (!function_exists('size_human')) {
-    function size_human(int $bytes): string {
-        if ($bytes >= 1048576) return round($bytes / 1048576, 1) . ' MB';
-        if ($bytes >= 1024) return round($bytes / 1024, 1) . ' KB';
-        return $bytes . ' B';
-    }
-}
+// (size_human helper definován NAHOŘE — viz fix v2.9.323)
 
 // ─────────────────────────────────────────────────────────────────
 // Vyhodnocení + response
