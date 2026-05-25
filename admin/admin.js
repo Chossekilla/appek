@@ -12738,27 +12738,6 @@ async function renderNastaveni() {
   `;
 
   const blokUdrzba = `
-    <!-- 🆕 v2.9.294 — Demo data management (přesunuto sem z dashboard banneru) -->
-    <div class="card-block" style="margin-bottom:14px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8">
-      <h3 style="margin-bottom:6px;color:#854F0B">🎬 Demo data</h3>
-      <p class="page-sub" style="margin-bottom:14px">
-        Naplnit aplikaci ukázkovými daty (10 výrobků, 35+ surovin, recepty, kalkulace, objednávky, POS users, stoly…) nebo začít čistě.
-      </p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn-primary btn-green" onclick="openDemoSeed()" style="font-weight:700;padding:10px 20px;font-size:14px">
-          🎬 Naplnit demo daty
-        </button>
-        <button class="btn-secondary" onclick="resetDemoSeed()"
-                style="padding:10px 16px;font-size:14px;background:#FEE2E2;color:#991B1B;border-color:#FECACA"
-                title="⚠️ Smazat VŠE + naplnit znova (vyžaduje 2× confirm + typed input)">
-          🗑️ Reset demo data
-        </button>
-      </div>
-      <p style="font-size:11px;color:#854F0B;margin:10px 0 0;opacity:0.8">
-        ℹ️ Reset smaže VŠECHNA data včetně ručních úprav. Použij jen pokud chceš začít s čistou databází.
-      </p>
-    </div>
-
     <!-- 🌍 JAZYK APLIKACE -->
     <div class="card-block">
       <h3 style="margin-bottom:6px;">🌍 ${esc(t('settings_language'))}</h3>
@@ -13014,6 +12993,36 @@ async function renderNastaveni() {
       </p>
       <div id="ns-sync-status" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
     </div>
+
+    <!-- 🆕 v2.9.320 — Demo data PŘESUNUTO na konec sekce + skryto v <details>
+         (předtím bylo nahoře jako velký prominentní card → user mohl omylem
+         kliknout RESET a smazat všechna ostrá data). Teď je to schované,
+         vyžaduje vědomé rozbalení. Stále plně funkční, jen méně risk. -->
+    <details class="card-block" style="margin-top:24px;background:#FAFAFA;border:1px dashed var(--border)">
+      <summary style="cursor:pointer;padding:6px 0;font-size:13px;font-weight:600;color:var(--text-2);user-select:none;list-style:none;display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px">🧪</span>
+        <span>Demo data — naplnit / resetovat (pokročilé)</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-3);font-weight:400">▾ rozbalit</span>
+      </summary>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:14px;line-height:1.5">
+          Naplnit aplikaci ukázkovými daty (10 výrobků, 35+ surovin, recepty, kalkulace, objednávky, POS users, stoly…) nebo začít čistě.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="openDemoSeed()" style="padding:9px 16px;font-size:13px">
+            🎬 Naplnit demo daty
+          </button>
+          <button class="btn-secondary" onclick="resetDemoSeed()"
+                  style="padding:9px 16px;font-size:13px;background:#FEE2E2;color:#991B1B;border-color:#FECACA"
+                  title="⚠️ Smazat VŠE + naplnit znova (vyžaduje 2× confirm + typed input)">
+            🗑️ Reset (smaže VŠE)
+          </button>
+        </div>
+        <div style="margin-top:12px;padding:10px 12px;background:#FEF3C7;border-left:3px solid #F59E0B;border-radius:6px;font-size:12px;color:#854F0B;line-height:1.5">
+          ⚠️ <strong>Pozor:</strong> Reset smaže VŠECHNA data včetně ručních úprav (objednávky, faktury, výrobky, zákazníci…). Použij jen pokud chceš začít s čistou databází na testovacím prostředí.
+        </div>
+      </div>
+    </details>
   `;
 
   // ❓ FAQ blok — dvousloupcový grid (na mobilu jeden sloupec)
