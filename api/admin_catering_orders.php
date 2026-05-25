@@ -97,7 +97,7 @@ if ($method === 'POST') {
             'p'  => $d['poznamka'] ?? null,
         ]);
         json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId()]);
-    } catch (Throwable $e) { json_error_safe('DB', , 500); }
+    } catch (Throwable $e) { json_error_safe('DB', $e, 500); }
 }
 
 if ($method === 'PUT' && $id) {
@@ -114,7 +114,7 @@ if ($method === 'PUT' && $id) {
     try {
         $pdo->prepare("UPDATE catering_orders SET " . implode(', ', $sets) . " WHERE id = :id")->execute($params);
         json_response(['ok' => true]);
-    } catch (Throwable $e) { json_error_safe('DB', , 500); }
+    } catch (Throwable $e) { json_error_safe('DB', $e, 500); }
 }
 
 if ($method === 'DELETE' && $id) {

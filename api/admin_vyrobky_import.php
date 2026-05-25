@@ -300,7 +300,7 @@ try {
     $pdo->commit();
 } catch (Throwable $e) {
     $pdo->rollBack();
-    json_error_safe('Import selhal', , 500);
+    json_error_safe('Import selhal', $e, 500);
 }
 
 json_response([

@@ -192,7 +192,7 @@ if ($action === 'dl') {
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error_safe('Chyba při vytváření DL', , 500);
+        json_error_safe('Chyba při vytváření DL', $e, 500);
     }
 
     json_response([
@@ -326,7 +326,7 @@ if ($action === 'fa') {
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error_safe('Chyba při vytváření faktur', , 500);
+        json_error_safe('Chyba při vytváření faktur', $e, 500);
     }
 
     json_response([

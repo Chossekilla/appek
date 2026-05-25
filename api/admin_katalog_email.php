@@ -333,5 +333,5 @@ json_response([
     // Master catch — vrátí konkrétní chybu místo prázdného 500
     error_log('admin_katalog_email FATAL: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
     while (ob_get_level() > 0) { @ob_end_clean(); }
-    json_error_safe('Server error', , 500);
+    json_error_safe('Server error', $e, 500);
 }

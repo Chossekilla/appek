@@ -81,5 +81,5 @@ try {
     $stmt->execute(['v' => $value, 'id' => $id]);
     json_response(['ok' => true, 'value' => $value]);
 } catch (Throwable $e) {
-    json_error_safe('DB chyba', , 500);
+    json_error_safe('DB chyba', $e, 500);
 }

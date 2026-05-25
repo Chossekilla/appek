@@ -39,18 +39,37 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum)) {
 
 echo "🔁 Recurring cron — datum dodání: $datum\n";
 
-$result = recurring_generate($pdo, $datum);
+// 🆕 v2.9.324 — wrap v cron_run() → persistuje do cron_log DB + notif při 3× failu v řadě
+$run = cron_run('recurring_orders', function() use ($pdo, $datum) {
+    $result = recurring_generate($pdo, $datum);
+    return [
+        'ok' => $result['chyby'] === 0,
+        'datum' => $datum,
+        'vytvoreno' => $result['vytvoreno'],
+        'preskoceno' => $result['preskoceno'],
+        'chyby' => $result['chyby'],
+        'detaily' => $result['detaily'] ?? [],
+    ];
+});
 
-echo "Vytvořeno:  {$result['vytvoreno']}\n";
-echo "Přeskočeno: {$result['preskoceno']}\n";
-echo "Chyby:      {$result['chyby']}\n\n";
+$result = $run['result'] ? (json_decode($run['result'], true) ?: []) : [];
+echo "Vytvořeno:  " . ($result['vytvoreno'] ?? '?') . "\n";
+echo "Přeskočeno: " . ($result['preskoceno'] ?? '?') . "\n";
+echo "Chyby:      " . ($result['chyby'] ?? '?') . "\n\n";
 
-foreach ($result['detaily'] as $d) {
+foreach (($result['detaily'] ?? []) as $d) {
     echo "  $d\n";
+}
+
+echo "⏱️  Duration: {$run['duration_ms']}ms · cron_log persisted\n";
+
+if ($run['error']) {
+    echo "❌ ERROR: {$run['error']}\n";
+    exit(1);
 }
 
 // Pokud z webu (browser), vrátí JSON
 if (!$jsem_cli && !empty($_GET['format']) && $_GET['format'] === 'json') {
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    echo json_encode($run, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 }

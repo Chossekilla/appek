@@ -264,7 +264,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'renumber') {
         ]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error_safe('Chyba', , 500);
+        json_error_safe('Chyba', $e, 500);
     }
 }
 
@@ -288,7 +288,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'update_poradi') {
         json_response(['ok' => true, 'updated' => count($d['poradi'])]);
     } catch (Throwable $e) {
         $pdo->rollBack();
-        json_error_safe('Chyba ukládání', , 500);
+        json_error_safe('Chyba ukládání', $e, 500);
     }
 }
 

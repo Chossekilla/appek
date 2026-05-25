@@ -191,7 +191,7 @@ if ($method === 'PUT') {
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
             error_log('admin_faktury PUT polozky: ' . $e->getMessage());
-            json_error_safe('Nepodařilo se uložit změny', , 500);
+            json_error_safe('Nepodařilo se uložit změny', $e, 500);
         }
     }
 

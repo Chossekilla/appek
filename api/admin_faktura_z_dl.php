@@ -138,5 +138,5 @@ try {
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     error_log('admin_faktura_z_dl: ' . $e->getMessage());
-    json_error_safe('Vystavení faktury selhalo', , 500);
+    json_error_safe('Vystavení faktury selhalo', $e, 500);
 }

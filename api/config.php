@@ -300,6 +300,100 @@ function json_error(string $msg, int $code = 400): void {
 }
 
 /**
+ * 🆕 v2.9.324 — Cron job logging helper.
+ *
+ * Wrap kolem cron callable: měří duration, zachytí throwable, persistuje do `cron_log` DB.
+ * Detekuje opakovaný fail (≥3× v řadě) → emit notif do admin bell.
+ *
+ * Použití v cron skriptu:
+ *   $r = cron_run('recurring_orders', function() use ($pdo) {
+ *       $created = generate_recurring($pdo);
+ *       return ['ok' => true, 'orders_created' => $created];
+ *   });
+ *   echo json_encode($r);
+ */
+function cron_run(string $job, callable $fn): array {
+    $t0 = microtime(true);
+    $pdo = db();
+
+    // Idempotent schema
+    static $schemaReady = false;
+    if (!$schemaReady) {
+        try {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS cron_log (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    job VARCHAR(80) NOT NULL,
+                    ok TINYINT(1) NOT NULL DEFAULT 0,
+                    duration_ms INT NOT NULL DEFAULT 0,
+                    result_json TEXT NULL,
+                    error_msg TEXT NULL,
+                    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_job_started (job, started_at),
+                    INDEX idx_started (started_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            $schemaReady = true;
+        } catch (\Throwable $ig) { /* fall through */ }
+    }
+
+    $resultJson = null;
+    $errorMsg = null;
+    $ok = false;
+    try {
+        $result = $fn();
+        $ok = is_array($result) ? ($result['ok'] ?? true) : (bool) $result;
+        $resultJson = is_array($result) ? json_encode($result, JSON_UNESCAPED_UNICODE) : null;
+    } catch (\Throwable $e) {
+        $errorMsg = $e->getMessage();
+        try { app_log_error('cron_' . bin2hex(random_bytes(3)), 'Cron: ' . $job, $e, 500, 'error'); }
+        catch (\Throwable $ig) {}
+    }
+    $duration = (int) round((microtime(true) - $t0) * 1000);
+
+    // Persist log
+    try {
+        $pdo->prepare("
+            INSERT INTO cron_log (job, ok, duration_ms, result_json, error_msg)
+            VALUES (:j, :o, :d, :r, :e)
+        ")->execute([
+            'j' => substr($job, 0, 80),
+            'o' => $ok ? 1 : 0,
+            'd' => $duration,
+            'r' => $resultJson ? substr($resultJson, 0, 8000) : null,
+            'e' => $errorMsg ? substr($errorMsg, 0, 2000) : null,
+        ]);
+        // Auto-prune > 90 dní (1% sample)
+        if (mt_rand(1, 100) === 1) {
+            try { $pdo->exec("DELETE FROM cron_log WHERE started_at < DATE_SUB(NOW(), INTERVAL 90 DAY) LIMIT 1000"); }
+            catch (\Throwable $ig) {}
+        }
+    } catch (\Throwable $ig) {}
+
+    // Detect repeat fail (≥3× v řadě)
+    if (!$ok) {
+        try {
+            $recent = $pdo->prepare("
+                SELECT ok FROM cron_log WHERE job = :j ORDER BY started_at DESC LIMIT 3
+            ");
+            $recent->execute(['j' => $job]);
+            $last3 = $recent->fetchAll(PDO::FETCH_COLUMN);
+            if (count($last3) === 3 && array_sum(array_map('intval', $last3)) === 0) {
+                if (function_exists('notif_emit')) {
+                    notif_emit($pdo, 'cron_failing',
+                        "🔁 Cron \"$job\" selhal 3× v řadě",
+                        'Otevři Diagnostiku → Cron log pro detail.',
+                        '#/nastaveni', 'error',
+                        'cron_fail_' . $job . '_' . date('Ymd'));
+                }
+            }
+        } catch (\Throwable $ig) {}
+    }
+
+    return ['ok' => $ok, 'duration_ms' => $duration, 'result' => $resultJson, 'error' => $errorMsg];
+}
+
+/**
  * 🆕 v2.9.315 — Safe error wrapper.
  *
  * Vždy zaloguje plný exception trace do error_log (server-side visibility).

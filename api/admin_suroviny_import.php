@@ -99,5 +99,5 @@ try {
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     error_log('admin_suroviny_import: ' . $e->getMessage());
-    json_error_safe('Import selhal', , 500);
+    json_error_safe('Import selhal', $e, 500);
 }

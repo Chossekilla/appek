@@ -8247,7 +8247,7 @@ async function renderDodaciListy(filters = {}) {
     <div class="page-head">
       <div>
         <h1 class="page-title">📃 Dodací listy</h1>
-        <p class="page-sub">${data.pocet} dodacích listů</p>
+        <p class="page-sub">${parseInt(data.pocet || 0)} dodacích listů</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn-icon-action btn-rozvozy-action" onclick="navigate('rozvozy')" title="Rozvozové trasy — DL seskupené podle města/PSČ s pořadovými čísly zastávek pro řidiče" aria-label="Rozvozové trasy">
@@ -8263,15 +8263,15 @@ async function renderDodaciListy(filters = {}) {
     <div class="stat-grid">
       <div class="stat-card">
         <div class="stat-label">Celkem DL</div>
-        <div class="stat-value">${data.pocet}</div>
+        <div class="stat-value">${parseInt(data.pocet || 0)}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Celková částka</div>
-        <div class="stat-value">${fmt(data.castka_celkem)}</div>
+        <div class="stat-value">${fmt(parseFloat(data.castka_celkem) || 0)}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Nefakturováno</div>
-        <div class="stat-value" style="color:var(--danger-text)">${fmt(data.castka_nefakturovana)}</div>
+        <div class="stat-value" style="color:var(--danger-text)">${fmt(parseFloat(data.castka_nefakturovana) || 0)}</div>
       </div>
     </div>
 

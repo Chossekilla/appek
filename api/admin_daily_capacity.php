@@ -176,7 +176,7 @@ if ($method === 'POST') {
         ]);
         json_response(['ok' => true]);
     } catch (Throwable $e) {
-        json_error_safe('DB', , 500);
+        json_error_safe('DB', $e, 500);
     }
 }
 

@@ -41,7 +41,7 @@ if ($action === 'cron') {
         json_response(['ok' => true, 'zaloha' => $result]);
     } catch (Throwable $e) {
         error_log('zaloha CRON: ' . $e->getMessage());
-        json_error_safe('CRON selhal', , 500);
+        json_error_safe('CRON selhal', $e, 500);
     }
 }
 
@@ -115,7 +115,7 @@ if ($action === 'create' && $method === 'POST') {
         zaloha_rotace($pdo);
         json_response($result);
     } catch (Throwable $e) {
-        json_error_safe('Vytvoření zálohy selhalo', , 500);
+        json_error_safe('Vytvoření zálohy selhalo', $e, 500);
     }
 }
 
@@ -146,7 +146,7 @@ if ($action === 'restore' && $method === 'POST') {
         $r = zaloha_obnov($pdo, $id);
         json_response($r);
     } catch (Throwable $e) {
-        json_error_safe('Obnova selhala', , 500);
+        json_error_safe('Obnova selhala', $e, 500);
     }
 }
 

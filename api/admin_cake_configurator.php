@@ -218,7 +218,7 @@ if ($action === 'create_order' && $method === 'POST') {
         ]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        json_error_safe('Chyba vytvoření', , 500);
+        json_error_safe('Chyba vytvoření', $e, 500);
     }
 }
 
