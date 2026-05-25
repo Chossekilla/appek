@@ -1,263 +1,155 @@
-# APPEK B2B
+# APPEK B2B 3.0 — Pekárenský & restaurační management
 
-**Komerční objednávkový a výrobní systém pro gastro provozy.**
+[![Verze](https://img.shields.io/badge/verze-3.0.0-BA7517.svg)](https://appek.cz)
+[![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4.svg)](https://www.php.net)
+[![MySQL](https://img.shields.io/badge/MySQL-5.7%2B-4479A1.svg)](https://www.mysql.com)
+[![Jazyky](https://img.shields.io/badge/jazyky-5-success.svg)](#-jazyky)
+[![Licence](https://img.shields.io/badge/licence-Komer%C4%8Dn%C3%AD-FFC107.svg)](LICENSE.md)
+[![Demo](https://img.shields.io/badge/demo-live-22c55e.svg)](https://demo.appek.cz)
 
-| | |
-|---|---|
-| **Verze** | 2.0.4 |
-| **Vydáno** | 2026-05-17 |
-| **Licence** | Komerční (EULA — viz [LICENSE.md](LICENSE.md)) |
-| **Web** | [appek.cz](https://appek.cz) |
-| **Podpora** | support@appek.cz |
+**Vše pro váš provoz v jednom systému.** Objednávky, výroba, sklady, fakturace, B2B portál, POS kasa, HACCP — jeden krabicový systém pro pekárny, cukrárny, lahůdkárny, restaurace a catering. Bez měsíčních poplatků, vaše data zůstanou na vašem serveru.
 
----
-
-## Obsah
-
-1. [Přehled](#přehled)
-2. [Hlavní funkce](#hlavní-funkce)
-3. [Pro koho je APPEK určen](#pro-koho-je-appek-určen)
-4. [Architektura systému](#architektura-systému)
-5. [Režimy provozu](#režimy-provozu)
-6. [Systémové požadavky](#systémové-požadavky)
-7. [Instalace](#instalace)
-8. [Tarify a licence](#tarify-a-licence)
-9. [Dokumentace](#dokumentace)
-10. [Podpora a kontakt](#podpora-a-kontakt)
+🌐 **Demo:** [demo.appek.cz](https://demo.appek.cz) · 🏠 **Web:** [appek.cz](https://appek.cz) · 📩 [info@appek.cz](mailto:info@appek.cz) · 📞 +420 733 700 808
 
 ---
 
-## Přehled
+## ✨ Co APPEK umí
 
-APPEK B2B je modulární systém pro malé a střední gastro výrobce — pekárny, cukrárny, lahůdkárny a catering. Pokrývá kompletní operativu od přijetí objednávky po fakturaci, včetně dokumentace HACCP.
+- 📋 **Objednávky → Výroba → Fakturace** — celý workflow v jedné aplikaci, propojený od přijetí poptávky po ISDOC export do účetnictví
+- 🛍️ **B2B portál pro odběratele** — vlastní login, online katalog, individuální ceny, košík, historie a opakované objednávky
+- 🧾 **POS kasa, KDS a stolová mapa** — prodej na pokladně, kuchyňský displej, plán stolů a rezervace
+- 🥖 **Výrobní plán & sklady surovin** — auto-sumarizace surovin z objednávek a receptur, šarže, alerty pod minimum, HACCP-ready dokumentace
+- 🚛 **Rozvozové trasy a dodací listy** — denní rozvozový plán podle PSČ, automatické faktury, opakované objednávky (cron)
+- 🏷️ **Cenovky, štítky a kalkulace** — 15 designů, A4 archy (Avery, SEVT), kalkulace ceny za kus ze surovin a režií, EU 1169/2011 nutriční tabulky
+- 📱 **PWA pro mobil i tablet** — instaluje se jako nativní appka, push notifikace, offline mód, dark mode
 
-Distribuce je krabicová: jednorázová platba, plný zdrojový kód, hosting podle volby zákazníka.
-
-### Klíčové vlastnosti
-
-- **Bez měsíčních poplatků** — jednorázová licence, plné vlastnictví
-- **Vlastní hosting** — data zůstávají u zákazníka
-- **Vanilla stack** — PHP 8 + JavaScript bez frameworků a build kroků
-- **Multi-jazyk** — čeština, angličtina, španělština (43 000+ překladových klíčů)
-- **PWA** — instalovatelná aplikace s offline režimem a push notifikacemi
+> 🎬 [Vyzkoušejte si vše naživo na demo.appek.cz](https://demo.appek.cz) — žádná registrace, plně funkční prostředí s ukázkovými daty.
 
 ---
 
-## Hlavní funkce
+## 📦 Balíčky
 
-### Obchodní moduly
+**Core** je vždy v ceně. Specializované balíčky aktivuješ kdykoliv — bez reinstalace.
 
-| Modul | Popis |
-|-------|-------|
-| **Objednávky** | Přijetí, úprava, výrobní list, dodací list, fakturace |
-| **Faktury** | Plná DPH evidence, ISDOC export (Pohoda, Money S3, FlexiBee) |
-| **B2B portál** | Vlastní login pro odběratele, online katalog, košík, historie |
-| **Sklad surovin** | Alerty při poklesu pod minimum, audit pohybů, šarže |
-| **Výrobní plán** | Auto-sumarizace surovin z objednávek a receptur |
-| **Rozvozové trasy** | Seskupení podle města, optimalizace pořadí zastávek |
-| **Opakované objednávky** | Šablony s cron spouštěním |
-| **Cenovky a štítky** | 15 hotových designů, A4 archy (Avery, SEVT) |
-| **HACCP** | Dokumentace, kritické body, teplotní záznamy, audity |
-| **Kalkulace** | Suroviny → fixní náklady → cena za kus |
+| Balíček | Cena | Pro koho |
+|---|---|---|
+| ⭐ **Core** *(Starter)* | **12 990 Kč** | Základ — objednávky, faktury, výroba, HACCP, cenovky, B2B portál, POS |
+| 🎂 **Cukrárna** | +2 990 Kč | Torty a dorty, konfigurátor zakázek, alergeny, předobjednávky na termín |
+| 🥪 **Lahůdky** | +2 490 Kč | Studená kuchyně, bedny, gramáže, krabičkování, denní menu |
+| 🍽️ **Restaurace** | +3 490 Kč | Menu engineering, rezervace, kuchyně & sklad, stolová mapa |
+| 🎉 **Catering** | +2 990 Kč | Eventy & banketing, kalkulace, sety, logistika rozvozů, kalkulátor na hosta |
+| 🍂 **Sezónní akce** | +1 990 Kč | Pop-up moduly: trhy, vánoce, velikonoce, festivaly |
 
-### Komunikace
-
-- **E-mailové šablony** (8 designů, vizuální editor)
-- **Web Push notifikace** (zdarma, bez Twilio)
-- **REST API v1** (token authentication, pro účetní systémy)
-
-### Customizace
-
-- **4 vzhledové motivy** — Apple, Moderní, Win98 retro, Dark mode
-- **Onboarding wizard** s ARES integrací (CZ) a seedem demo dat
-- **Hybrid sync** — lokální PC ↔ cloud (HMAC SHA-256)
+**Jednorázová platba. Plný zdrojový kód. 1 rok updaty zdarma.** 🛒 [Objednat na appek.cz](https://appek.cz/#pricing)
 
 ---
 
-## Pro koho je APPEK určen
+## 🚀 Rychlé nastavení (3 kroky)
 
-| Cílová skupina | Typické použití |
-|---------------|-----------------|
-| **Pekárny** | Denní výroba, B2B závozy, šarže, HACCP |
-| **Cukrárny** | Konfigurátor dortů, předobjednávky, alergeny |
-| **Lahůdkárny** | Catering, denní menu, individuální ceny pro firmy |
-| **Restaurace** | Sklad, výroba, dodávky, fakturace |
-| **Gastro velkoobchod** | B2B portál, cenové úrovně, opakované objednávky |
+```
+1️⃣  KUP LICENCI         2️⃣  NAHRAJ ZIP          3️⃣  SPUSŤ INSTALL.PHP
+    appek.cz/#pricing  →   FTP / File Manager  →   wizard za 5 minut
+```
+
+1. **Kup licenci** na [appek.cz](https://appek.cz/#pricing) přes Stripe — dostaneš ZIP balíček a licenční klíč e-mailem
+2. **Nahraj ZIP** na svůj hosting (Wedos, Forpsi, Hostinger, Active24, Hetzner — funguje všude, kde běží PHP 8) a rozbal jej
+3. **Otevři `https://tvoje-domena.cz/install.php`** — wizard tě provede: licenční klíč → MySQL credentials → ARES auto-fill firmy → admin účet → hotovo
+
+🎁 **Bonus zdarma:** pomoc s migrací z Excelu / Google Sheets, individuální design cenovek, vlastní e-mail šablony.
+
+Detailní průvodce: [instalace.html](https://appek.cz/instalace.html)
 
 ---
 
-## Architektura systému
+## 🛠️ Technologie
 
-APPEK se skládá z několika subdomén/složek, které mohou být na společném nebo oddělených hostech:
+Zero-dependency stack — žádný `node_modules`, žádný build step, žádný framework lock-in.
 
-| Subdoména | Účel | Audience |
-|-----------|------|----------|
-| `appek.cz` | Marketingová prezentace | Návštěvníci |
-| `admin.*` | Admin panel (SPA) | Zákazníci + interní |
-| `b2b.*` | B2B portál pro odběratele | Koncoví odběratelé |
-| `demo.*` | Demonstrační prostředí | Leads |
-| `vendor.*` | Master Control Panel | Provozovatel platformy |
-
-### Technologický stack
-
-- **Backend:** PHP 8.0+ (vanilla, bez frameworku) + PDO MySQL
-- **Frontend:** Vanilla JavaScript ES2020, CSS s proměnnými
+- **Backend:** PHP 8.1+ (vanilla, bez frameworku) + PDO MySQL
+- **Frontend:** Vanilla JavaScript ES2020 + CSS s proměnnými
 - **Databáze:** MySQL 5.7+ / MariaDB 10.3+ (utf8mb4)
-- **Server:** Apache nebo Nginx (mod_rewrite, mod_headers)
-- **Bezpečnost:** Argon2id, HMAC SHA-256, 2FA TOTP, CSRF tokens
+- **PWA:** Service Worker, Web Push API, offline-first
+- **Bezpečnost:** Argon2id, HMAC SHA-256, 2FA TOTP, CSRF tokens, license-key gating
+- **Platby:** Stripe Checkout + webhooks, GoPay, PayPal
+- **Self-update:** klik z admin panelu — vendor cloud doručí update ZIP, aplikace si jej rozbalí sama + SHA256 verify + auto-rollback při selhání
+
+Plný zdrojový kód v balíčku. Můžeš si ho upravit, nebo nechat upravit — žádný framework, žádný kompilátor, jen čisté PHP a JS.
 
 ---
 
-## Režimy provozu
-
-Při instalaci si zákazník vybírá jeden ze tří režimů. Volbu lze později změnit v **Nastavení → Synchronizace**.
-
-### Cloud only (doporučeno)
-
-Aplikace běží na webhostingu. B2B portál je dostupný odkudkoliv. Standardní volba pro většinu provozů.
-
-**Kdy zvolit:** Spolehlivé internetové připojení, externí webhosting.
-
-### Hybrid (lokální + cloud)
-
-Hlavní aplikace běží na pekárenském PC, cloud zrcadlí stav. Synchronizace přes HMAC SHA-256.
-
-**Kdy zvolit:** Slabé internetové připojení, nutnost offline provozu s mobilním přístupem pro odběratele.
-
-### Local only (offline)
-
-Vše běží na lokálním PC s XAMPP/MAMP. B2B portál není dostupný z internetu.
-
-**Kdy zvolit:** Pouze interní použití, žádní externí B2B odběratelé.
-
----
-
-## Systémové požadavky
-
-### Server
+## 📋 Požadavky
 
 | Komponenta | Minimum | Doporučeno |
 |-----------|---------|------------|
-| **PHP** | 8.0 | 8.2+ |
+| **PHP** | 8.1 | 8.2+ |
 | **MySQL / MariaDB** | 5.7 / 10.3 | 8.0 / 10.6+ |
-| **Apache / Nginx** | jakákoliv verze | LiteSpeed (Hostinger) |
+| **Web server** | Apache, Nginx, LiteSpeed | LiteSpeed (Hostinger) |
 | **HTTPS** | doporučeno | povinné pro PWA |
-| **Diskové místo** | 500 MB | 5 GB+ |
+| **Disk** | 500 MB | 5 GB+ |
 
-**Vyžadovaná PHP rozšíření:**
+**PHP rozšíření:** `pdo_mysql`, `openssl`, `gd`, `gmp`, `curl`, `mbstring`, `json`, `fileinfo`, `zip`
+*(standardně dostupná na všech českých webhostincích i v XAMPP / MAMP / Laragon)*
 
-```
-pdo_mysql, openssl, gd, gmp, curl, mbstring, json, fileinfo, zip
-```
-
-Tato rozšíření jsou standardně dostupná na všech českých webhostincích (Hostinger, Wedos, Forpsi, Active24) i v lokálních prostředích (XAMPP, MAMP, Laragon).
-
-### Klient
-
-| Prohlížeč | Minimum | Doporučeno |
-|-----------|---------|------------|
-| **Chrome / Edge** | 90 | aktuální |
-| **Firefox** | 88 | aktuální |
-| **Safari** | 14 | aktuální |
-| **iOS Safari** | 14 | 16+ |
-| **Android Chrome** | 90 | aktuální |
-
-> **Warning:** Internet Explorer není podporován. Edge Legacy (pre-Chromium) zobrazí kompatibilitní banner.
+**Klient:** Chrome 90+, Edge 90+, Firefox 88+, Safari 14+, iOS Safari 14+, Android Chrome 90+
 
 ---
 
-## Instalace
+## 🌍 Jazyky
 
-### Rychlý start (5 minut)
+APPEK mluví **5 jazyky** — rozhraní pro tebe i mezinárodní odběratele, přepnutí jedním klikem:
 
-1. **Stáhněte instalační balíček** (`appek-customer-2.0.4.zip`)
-2. **Nahrajte na hosting** přes FTP nebo File Manager
-3. **Vytvořte MySQL databázi** v ovládacím panelu hostingu
-4. **Otevřete** `https://vase-domena.cz/install.php`
-5. **Postupujte podle wizardu** — DB credentials, admin účet, dokončeno
+🇨🇿 Čeština · 🇸🇰 Slovenčina · 🇬🇧 English · 🇩🇪 Deutsch · 🇪🇸 Español
 
-Detailní průvodce: [INSTALL.md](INSTALL.md)
-
-### Lokální vývoj
-
-Pro testování na vlastním počítači:
-
-**macOS / Linux:**
-
-```bash
-# MAMP nebo XAMPP nainstalovat
-cd ~/Sites/
-unzip appek-customer-2.0.4.zip
-# Otevřít http://localhost:8888/install.php
-```
-
-**Windows:**
-
-```powershell
-# XAMPP nainstalovat
-Expand-Archive appek-customer-2.0.4.zip -DestinationPath C:\xampp\htdocs\appek\
-# Otevřít http://localhost/appek/install.php
-```
+Překlady jsou **lazy-loaded** (jen aktivní jazyk se stáhne v runtime), 18 000+ překladových klíčů pokrývá kompletní admin, B2B portál, POS i e-mailové šablony.
 
 ---
 
-## Tarify a licence
+## 🔒 Bezpečnost a monitoring
 
-| Tarif | Cena | Domén | Uživatelé | Moduly |
-|-------|------|-------|-----------|--------|
-| **Starter** | 12 990 Kč | 1 | 2 admin | Základní |
-| **Profi** | 24 990 Kč | 1 | 5 admin | Plný balíček |
-| **Premium** | 49 990 Kč | vlastní | neomezeně | Vše + white-label |
-
-**Všechny tarify zahrnují:**
-
-- Jednorázovou platbu (žádné měsíční poplatky)
-- Plný zdrojový kód
-- 1 rok bezplatných aktualizací
-- E-mailovou podporu
-- Časově neomezenou licenci
-
-**Premium tarif dále zahrnuje:**
-
-- White-label varianta (vlastní branding)
-- Prioritní telefonickou podporu (SLA 4h)
-- Implementaci a školení
-- 3 roky bezplatných aktualizací
-
-Detailní podmínky: [LICENSE.md](LICENSE.md)
+- **`app_errors` DB tabulka** — každá chyba se zaloguje s `request_id` a admin ji najde v Diagnostice
+- **Healthcheck endpoint** `/api/healthcheck.php` — 7 checks (DB, schema, write, disk, file, error rate, PHP) — externí monitor (UptimeRobot, BetterStack) friendly
+- **Proaktivní monitoring** — admin panel ukáže červený banner sekundy po incidentu, ne až user nahlásí
+- **Bell notifikace** při error spike nebo selhání healthchecku
+- **Auto-rollback** při selhání self-update
+- 41 endpoints používá `json_error_safe()` — žádný leak SQL detailů klientovi
+- POS + admin frontend error capture do centrální DB
 
 ---
 
-## Dokumentace
+## 📞 Podpora
 
-### Pro zákazníka
+- 📧 **E-mail:** [info@appek.cz](mailto:info@appek.cz)
+- 📞 **Telefon:** +420 733 700 808
+- 🌍 **Region:** ČR, SK, EU, mezinárodně
+- ⏱️ **Reakční doba:** do 24 hodin v pracovní dny
+- 🔒 **GDPR:** [Zásady ochrany osobních údajů](https://appek.cz/zasady-ochrany-soukromi.html) · [Obchodní podmínky](https://appek.cz/obchodni-podminky.html)
 
-- [INSTALL.md](INSTALL.md) — Instalační průvodce krok za krokem
-- [deploy/docs/HOSTING_SETUP.md](deploy/docs/HOSTING_SETUP.md) — Nasazení na produkční hosting
-- [deploy/docs/SECURITY.md](deploy/docs/SECURITY.md) — Bezpečnostní doporučení
-
-### Pro vývojáře
-
-- [SYNC_ARCHITECTURE.md](SYNC_ARCHITECTURE.md) — Architektura hybrid synchronizace
-- [vendor/README.md](vendor/README.md) — Master Control Panel
-- [CHANGELOG.md](CHANGELOG.md) — Historie verzí
-
-### Pro provozovatele platformy
-
-- [vendor/README.md](vendor/README.md) — Generování licenčních klíčů
+Sleduj nás: [Facebook @appek.cz](https://www.facebook.com/profile.php?id=61590201243782)
 
 ---
 
-## Podpora a kontakt
+## 📄 Licence
 
-- **E-mail:** support@appek.cz
-- **Web:** [appek.cz](https://appek.cz)
-- **Demo:** [demo.appek.cz](https://demo.appek.cz)
-- **Reakční doba:**
-  - Starter: 5 pracovních dnů
-  - Profi: 24 hodin
-  - Premium: 4 hodiny (SLA)
+**Komerční licence** — kup na [appek.cz](https://appek.cz/#pricing), nainstaluj na vlastní server, používej navždy. Plný zdrojový kód, žádné měsíční poplatky, časově neomezená licence vázaná na doménu.
+
+**Můžeš:** používat na vlastním hostingu, upravovat zdrojový kód, lokalizovat pro svůj provoz, migrovat mezi hostingy.
+**Nemůžeš:** dál prodávat, redistribuovat nebo nabízet jako SaaS třetím stranám.
+
+Plné znění: [LICENSE.md](LICENSE.md) · [Obchodní podmínky](https://appek.cz/obchodni-podminky.html)
 
 ---
 
-**Copyright © 2024–2026 APPEK B2B.** Všechna práva vyhrazena.
+## 🗺️ Roadmap
+
+3.0.0 je **první oficiální launch verze**. Co se chystá:
+
+- **3.1** — nativní mobile app (iOS / Android), cloud sync pro multi-pobočky, import kontaktů z mobilu
+- **3.2** — one-click sync s účetnictvím (Pohoda, FlexiBee, Money S3)
+- **3.3** — AI chatbot pro customer support, predikce poptávky
+- **4.0** — marketplace pluginů, white-label varianta
+
+Viz [CHANGELOG.md](CHANGELOG.md) pro kompletní historii verzí · [ROADMAP.md](ROADMAP.md) pro detailní plán.
+
+---
+
+**Copyright © 2024–2026 APPEK B2B.** Všechna práva vyhrazena. Vyrobeno v České republice 🇨🇿
