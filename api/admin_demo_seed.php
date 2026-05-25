@@ -956,6 +956,39 @@ if ($action === 'apply') {
                         $sets[] = "stock_minimalni = :sm";
                         $params['sm'] = $stockMin;
                     }
+
+                    // 🐛 v2.9.328 — Merge NUTRI hodnot do existujících surovin.
+                    // Předtím: merge branch updatoval JEN stock + min, ne nutri → suroviny ze starých
+                    // seedů (před v2.9.298) zůstaly bez nutri. Demo recept "Žádné suroviny v receptuře
+                    // s vyplněnými nutričními hodnotami" — user verified bug.
+                    // Teď: pokud column existuje + seed má hodnotu + DB sloupec je NULL/0 → doplň.
+                    if (!empty($s['nutri']) && is_array($s['nutri'])) {
+                        $nutriMap = [
+                            'kj' => 'nutri_energie_kj', 'kcal' => 'nutri_energie_kcal',
+                            'tuky' => 'nutri_tuky', 'tuky_n' => 'nutri_tuky_nasycene',
+                            'sach' => 'nutri_sacharidy', 'cukry' => 'nutri_cukry',
+                            'bilk' => 'nutri_bilkoviny', 'sul' => 'nutri_sul',
+                        ];
+                        // Načti existující nutri hodnoty (jednorázově) — víme jen co je NULL
+                        try {
+                            $nutriCheck = $pdo->prepare("SELECT " . implode(',', array_intersect($nutriMap, $surCols)) . " FROM suroviny WHERE id = :id");
+                            $nutriCheck->execute(['id' => $existId]);
+                            $currentNutri = $nutriCheck->fetch() ?: [];
+                        } catch (Throwable $e) { $currentNutri = []; }
+
+                        $i = 0;
+                        foreach ($nutriMap as $shortKey => $col) {
+                            if (!in_array($col, $surCols, true)) continue;       // sloupec neexistuje
+                            if (!isset($s['nutri'][$shortKey])) continue;        // seed nemá data
+                            $current = $currentNutri[$col] ?? null;
+                            // doplň jen pokud chybí (NULL nebo 0 — proti starým seedům s 0 defaultem)
+                            if ($current !== null && (float) $current > 0) continue;
+                            $placeholder = 'n' . $i++;
+                            $sets[] = "$col = :$placeholder";
+                            $params[$placeholder] = (float) $s['nutri'][$shortKey];
+                        }
+                    }
+
                     if ($sets) {
                         $pdo->prepare("UPDATE suroviny SET " . implode(', ', $sets) . " WHERE id = :id")->execute($params);
                         $stats['suroviny_doplneno_stock']++;
