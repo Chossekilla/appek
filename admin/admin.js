@@ -4151,8 +4151,9 @@ async function renderDashboard(filters = {}) {
       </button>
     </div>
 
-    <!-- 🆕 v2.9.270 — PROVOZ widget (Restaurace balíček) — provázání tables + kitchen + couriers + POS -->
-    <div id="dash-provoz-widget" style="display:none"></div>
+    <!-- 🗑️ v3.0.1 — PROVOZ widget PŘESUNUT do Restaurace → tab "Provoz" + standalone /provoz.php pro druhý monitor.
+         Dashboard se uvolnil pro tržby/přehledy; Provoz teď žije v Restaurace sekci kde má smysl. -->
+    <!-- (no widget div here anymore) -->
 
     <!-- 3) Přehledy ${obdobiLabel} — graf + top odběratelé/výrobky vedle sebe -->
     <div class="dashboard-row dashboard-row-3col">
@@ -4216,14 +4217,11 @@ async function renderDashboard(filters = {}) {
     setTimeout(() => renderDashboardRevenueChart(d.casovy_graf), 50);
   }
 
-  // 🆕 v2.9.270 — Provoz widget (Restaurace balíček: tables + kitchen + couriers + POS)
-  // 🆕 v2.9.277 — Cleanup existing timer před novým render (zabraňuje duplikátům)
+  // 🗑️ v3.0.1 — Provoz widget přesunut do Restaurace tab "Provoz".
+  // Cleanup timer pro případ že byl spuštěn na jiné stránce.
   if (window._provozRefreshTimer) {
     clearInterval(window._provozRefreshTimer);
     window._provozRefreshTimer = null;
-  }
-  if (window._activePackages?.includes('restaurace')) {
-    setTimeout(() => loadProvozWidget(), 100);
   }
 }
 
@@ -15234,6 +15232,7 @@ async function renderRestaurantPage() {
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
+      <button class="nastaveni-tab ${tab === 'provoz' || !tab ? 'active' : ''}" onclick="state._restTab='provoz';renderRestaurantPage()">📺 Provoz</button>
       <button class="nastaveni-tab ${tab === 'pos' ? 'active' : ''}" onclick="state._restTab='pos';renderRestaurantPage()">🧾 POS Kasa</button>
       <button class="nastaveni-tab ${tab === 'tables' ? 'active' : ''}" onclick="state._restTab='tables';renderRestaurantPage()">🪑 Stoly</button>
       <button class="nastaveni-tab ${tab === 'kitchen' ? 'active' : ''}" onclick="state._restTab='kitchen';renderRestaurantPage()">👨‍🍳 Kapacita kuchyně</button>
@@ -15243,12 +15242,95 @@ async function renderRestaurantPage() {
     <div id="rest-tab-body"></div>
   `;
 
+  if (tab === 'provoz' || !tab) return renderRestaurantProvoz();
   if (tab === 'pos')      return renderPOSLauncher();
   if (tab === 'kitchen')  return renderKitchenCapacity();
   if (tab === 'prep')     return renderPrepTimes();
   if (tab === 'couriers') return renderCouriers();
   return renderRestaurantTables();
 }
+
+// 🆕 v3.0.1 — Provoz tab v Restaurace sekci (přesunuto z Dashboardu)
+// Zobrazí stejný widget jako dashboard, ale s navíc "Otevřít na druhý monitor"
+// tlačítkem co otevře /provoz.php standalone kiosk page.
+async function renderRestaurantProvoz() {
+  const body = document.getElementById('rest-tab-body');
+  if (!body) return;
+
+  body.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div>
+        <h3 style="margin:0 0 4px;font-size:18px">📺 Živý přehled provozu</h3>
+        <p style="margin:0;font-size:12px;color:var(--text-3)">Stoly · Kuchyně · Rozvoz · POS dnes — auto-refresh každých 60 s.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="window.openProvozMonitor?.()" title="Otevřít na samostatném monitoru (např. v kanceláři / kuchyni / na shop floor)" style="display:flex;align-items:center;gap:6px">
+          🖥️ Otevřít na druhý monitor
+        </button>
+        <button class="btn-secondary" onclick="loadProvozWidget()" title="Manuálně obnovit data">🔄</button>
+      </div>
+    </div>
+
+    <!-- Widget container (stejný ID jako dashboard, aby loadProvozWidget fungoval) -->
+    <div id="dash-provoz-widget" style="display:none"></div>
+
+    <!-- Bonus features karty pod widgetem -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:18px">
+      <a href="javascript:window.openKDSWindow?.()" class="card-block" style="background:#1a1d24;color:#fff;text-decoration:none;padding:18px;border:none;display:block;border-radius:10px;cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div style="font-size:32px;margin-bottom:8px">👨‍🍳</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:4px">Kuchyňský displej (KDS)</div>
+        <div style="font-size:12px;opacity:0.7;line-height:1.5">Otevři na obrazovce v kuchyni. Karty objednávek se mění grid stavem: <strong>nová → vaří se → hotová → vydaná</strong>. Klik = next state.</div>
+        <div style="margin-top:10px;font-size:11px;color:#10B981;font-weight:700">→ OTEVŘÍT KDS V NOVÉM OKNĚ</div>
+      </a>
+
+      <a href="javascript:window.openFloorplanWindow?.()" class="card-block" style="padding:18px;border:1px solid var(--border);display:block;text-decoration:none;color:var(--text);cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div style="font-size:32px;margin-bottom:8px">🗺️</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:4px">Floor plan editor</div>
+        <div style="font-size:12px;color:var(--text-3);line-height:1.5">Vytvoř/uprav mapu restaurace — stoly, zóny (terasa, salonek). Drag & drop, kapacita per stůl, status real-time.</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--primary);font-weight:700">→ OTEVŘÍT EDITOR</div>
+      </a>
+
+      <a href="javascript:window.openPOSWindow?.()" class="card-block" style="padding:18px;border:1px solid var(--border);display:block;text-decoration:none;color:var(--text);cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div style="font-size:32px;margin-bottom:8px">🧾</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:4px">POS Kasa</div>
+        <div style="font-size:12px;color:var(--text-3);line-height:1.5">Spustí standalone pokladnu na fullscreen. Vhodné pro tablet u pultu, dotykový terminál nebo iPad.</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--primary);font-weight:700">→ OTEVŘÍT POS</div>
+      </a>
+    </div>
+
+    <!-- Tip pro multi-screen setup -->
+    <div style="margin-top:18px;padding:14px 18px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8;border-radius:10px;font-size:13px;color:#854F0B;line-height:1.55">
+      💡 <strong>Tip pro multi-screen setup:</strong> Otevři <strong>Provoz</strong> na druhém monitoru (sales floor / kancelář),
+      <strong>KDS</strong> na obrazovce v kuchyni a <strong>POS</strong> na tabletu u pultu. Vše se aktualizuje real-time přes
+      sdílenou DB. Pro nejvyšší frame-rate dej refresh na 30 s ve widgetu.
+    </div>
+  `;
+
+  // Trigger load — využije existující loadProvozWidget logiku
+  setTimeout(() => loadProvozWidget(), 50);
+}
+
+// 🆕 v3.0.1 — Open Provoz na samostatném okně (kiosk mode, žádný admin chrome)
+window.openProvozMonitor = function() {
+  const w = window.open('provoz.php', 'appek_provoz',
+    `width=${screen.availWidth},height=${screen.availHeight},left=0,top=0,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=yes`);
+  if (!w) {
+    alert('Prohlížeč zablokoval popup. Povolte popup okna pro tuto stránku.');
+    return;
+  }
+  w.focus();
+};
+
+// 🆕 v3.0.1 — KDS (Kitchen Display Screen) v novém okně
+window.openKDSWindow = function() {
+  const w = window.open('kds.php', 'appek_kds',
+    `width=${screen.availWidth},height=${screen.availHeight},left=0,top=0,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=yes`);
+  if (!w) {
+    alert('Prohlížeč zablokoval popup. Povolte popup okna pro tuto stránku.');
+    return;
+  }
+  w.focus();
+};
 
 async function renderRestaurantTables() {
   const c = document.getElementById('rest-tab-body') || document.getElementById('content');
