@@ -25,8 +25,44 @@ window.appekCurrentLang = (function() {
   catch (e) { return 'cs'; }
 })();
 
-window.setAppekLang = function(code) {
+// 🆕 v2.9.314 — Lazy i18n loader. Když user přepne na non-CS jazyk za běhu,
+// dynamicky doloadujeme i18n_auto.js / i18n_extra.js (předtím se vždy loadovaly všechny
+// = 4 MB pro CS users zbytečně). Helper vrací Promise — setAppekLang čeká před apply.
+window._appekI18nLoaded = { auto: typeof I18N_LOOKUP !== 'undefined', extra: typeof I18N_EXTRA !== 'undefined' };
+function loadScript(src) {
+  return new Promise(function(resolve, reject) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+window.loadI18nForLang = async function(code) {
+  // CS = no extra files needed (default labely v HTML jsou CS)
+  if (code === 'cs') return;
+  var verMatch = (document.querySelector('script[src*="i18n.js?v="]') || {}).src || '';
+  var ver = (verMatch.match(/v=([0-9.]+)/) || [])[1] || '0.0.0';
+  // EN/ES needs auto (CS→EN/ES tuples)
+  if ((code === 'en' || code === 'es' || code === 'sk' || code === 'de') && !window._appekI18nLoaded.auto) {
+    try {
+      await loadScript('i18n_auto.js?v=' + ver);
+      window._appekI18nLoaded.auto = true;
+    } catch (e) { console.warn('[i18n] auto load failed', e); }
+  }
+  // SK/DE needs extra (overlay přes I18N_LOOKUP)
+  if ((code === 'sk' || code === 'de') && !window._appekI18nLoaded.extra) {
+    try {
+      await loadScript('i18n_extra.js?v=' + ver);
+      window._appekI18nLoaded.extra = true;
+    } catch (e) { console.warn('[i18n] extra load failed', e); }
+  }
+};
+
+window.setAppekLang = async function(code) {
   if (!window.appekLangs.find(l => l.code === code)) code = 'cs';
+  // 🆕 v2.9.314 — pre-load i18n bundles BEFORE applying (jinak by translatePage() failnul lookup)
+  try { await window.loadI18nForLang(code); } catch (e) {}
   window.appekCurrentLang = code;
   try { localStorage.setItem(I18N_LANG_KEY, code); } catch (e) {}
   document.documentElement.lang = code;
