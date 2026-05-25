@@ -3856,6 +3856,40 @@ async function renderDashboard(filters = {}) {
     <!-- 🆕 v2.9.242 — Alerts widget (akce vyžadující pozornost) -->
     ${renderDashAlerts(d.alerts || {})}
 
+    <!-- 🆕 v2.9.322 — Health monitor banner (proaktivní detekce errors spike + failed checks) -->
+    <div id="dash-health-banner" style="display:none"></div>
+    <script>
+      // Async — neblokuje render dashboardu. Pokud >5 errors / 15min nebo healthcheck fail → zobraz red banner.
+      (async function() {
+        try {
+          const r = await api('admin_health_monitor.php');
+          if (!r) return;
+          const banner = document.getElementById('dash-health-banner');
+          if (!banner) return;
+          const errs = parseInt(r.new_errors_15min || 0);
+          const hcOk = r.healthcheck && r.healthcheck.ok;
+          if (errs > 5 || !hcOk) {
+            const failedNames = ((r.healthcheck && r.healthcheck.checks) || []).filter(c => !c.ok).map(c => c.name).join(', ');
+            banner.style.display = 'block';
+            banner.innerHTML = \`
+              <div style="background:linear-gradient(135deg,#FEE2E2,#FECACA);border:2px solid #DC2626;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;cursor:pointer" onclick="navigate('nastaveni');setTimeout(()=>{const el=document.getElementById('ns-errors-block');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},300)" title="Klikni pro Diagnostiku → Chyby aplikace">
+                <div style="font-size:32px;line-height:1">🚨</div>
+                <div style="flex:1;min-width:200px">
+                  <div style="font-weight:800;font-size:16px;color:#7F1D1D">Detekovány problémy v aplikaci</div>
+                  <div style="font-size:13px;color:#991B1B;margin-top:4px;line-height:1.4">
+                    \${errs > 5 ? '⚠️ ' + errs + ' chyb v posledních 15 min. ' : ''}
+                    \${!hcOk && failedNames ? '🩺 Healthcheck selhal: ' + esc(failedNames) + '. ' : ''}
+                    Klikni pro detail v Diagnostice.
+                  </div>
+                </div>
+                <span style="color:#7F1D1D;font-size:20px;font-weight:700">→</span>
+              </div>
+            \`;
+          }
+        } catch (e) { /* monitor unavailable — silent */ }
+      })();
+    </script>
+
     <!-- TABY OBDOBÍ — v2.9.287 — period-tabs (Skupina A → 1 řádek nowrap), JS short labels mobile -->
     <div class="period-tabs" role="tablist" style="margin-bottom:14px">
       ${periodTabsRender([
@@ -12919,12 +12953,14 @@ async function renderNastaveni() {
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
           <button class="btn-primary btn-green" onclick="diagOtevrit()">🩺 Otevřít detail</button>
+          <button class="btn-secondary" onclick="healthRunNow()" title="🆕 v2.9.322 — synthetic healthcheck (DB, schema, disk, write, error rate)">🫀 Test zdraví</button>
           <button class="btn-secondary" onclick="diagLint()" title="Projeď všechny PHP soubory v api/">🔬 Lint API</button>
           <button class="btn-secondary" onclick="diagPingMail()" title="Test mailu">✉️ Test mail</button>
           <button class="btn-secondary" onclick="diagRychly()" title="Načíst znovu">🔄</button>
         </div>
 
         <div id="ns-diag-summary" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
+        <div id="ns-health-result" style="margin-top:10px;font-size:12px"></div>
       </div>
 
     </div>
@@ -19775,6 +19811,48 @@ window.diagOtevrit = async function() {
   await renderDiagnostika();
   // Skroluj nahoru
   window.scrollTo(0, 0);
+};
+
+// 🆕 v2.9.322 — Test zdraví aplikace (synthetic monitor on-demand)
+// Spustí healthcheck + monitor → výsledky inline pod Diagnostika kartu.
+// Zobrazí monitor_token pro CRON setup.
+window.healthRunNow = async function() {
+  const out = document.getElementById('ns-health-result');
+  if (!out) return;
+  out.innerHTML = '<span style="color:var(--text-3)">⏳ Spouštím healthcheck + monitor…</span>';
+  try {
+    const r = await api('admin_health_monitor.php');
+    const ok = r.ok && r.healthcheck && r.healthcheck.ok;
+    const checks = (r.healthcheck && r.healthcheck.checks) || [];
+    const errs = parseInt(r.new_errors_15min || 0);
+    const dur = parseInt(r.duration_ms || 0);
+
+    const badge = (c) => c.ok
+      ? `<span style="background:#DCFCE7;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600" title="${esc(c.detail || '')} (${c.duration_ms||0}ms)">✓ ${esc(c.name)}</span>`
+      : `<span style="background:#FEE2E2;color:#991B1B;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600" title="${esc(c.detail || '')}">✗ ${esc(c.name)}</span>`;
+
+    out.innerHTML = `
+      <div style="background:${ok ? '#F0FDF4' : '#FEF3C7'};border:1px solid ${ok ? '#BBF7D0' : '#F59E0B'};border-radius:8px;padding:10px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+          <strong style="font-size:13px;color:${ok ? '#166534' : '#854F0B'}">${ok ? '✅ Zdraví OK' : '⚠️ Detekován problém'}</strong>
+          <span style="font-size:11px;color:var(--text-3)">trvalo ${dur}ms · errors/15min: ${errs}${r.alerts_emitted ? ' · 🔔 ' + r.alerts_emitted + ' notifikací odesláno' : ''}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">${checks.map(badge).join('')}</div>
+        ${r.monitor_token ? `
+          <details style="margin-top:10px;font-size:11px;color:var(--text-3)">
+            <summary style="cursor:pointer;user-select:none">🔑 CRON setup token</summary>
+            <div style="margin-top:6px;padding:6px 8px;background:#FAFAFA;border-radius:4px;font-family:monospace;font-size:11px;word-break:break-all">${esc(r.monitor_token)}</div>
+            <div style="margin-top:6px">
+              Přidej do Hostinger cron tab (každých 5 min):<br>
+              <code style="background:#FAFAFA;padding:4px 6px;border-radius:3px;display:inline-block;margin-top:4px;font-size:10px">*/5 * * * * curl -sS "https://${esc(location.host)}/api/admin_health_monitor.php?token=${esc(r.monitor_token)}" > /dev/null</code>
+            </div>
+          </details>
+        ` : ''}
+      </div>
+    `;
+  } catch (e) {
+    out.innerHTML = `<div style="background:#FEE2E2;color:#991B1B;padding:8px 10px;border-radius:6px;font-size:12px">Chyba: ${esc(e.message)}</div>`;
+  }
 };
 
 // ═══════════════════════════════════════════════════════════
