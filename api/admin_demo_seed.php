@@ -1820,10 +1820,16 @@ if ($action === 'seed_restaurant_pack') {
             'Dezerty'  => ['ikona' => '🍰', 'poradi' => 50],
             'Těstoviny'=> ['ikona' => '🍝', 'poradi' => 45],
         ];
+        // Helper: find by name OR return 0
+        $findByName = function(string $table, string $name) use ($pdo): int {
+            $st = $pdo->prepare("SELECT id FROM $table WHERE nazev = :n LIMIT 1");
+            $st->execute(['n' => $name]);
+            return (int) ($st->fetchColumn() ?: 0);
+        };
+
         $catIds = [];
         foreach ($cats as $nazev => $meta) {
-            $id = (int) $pdo->prepare("SELECT id FROM kategorie_vyrobku WHERE nazev = :n LIMIT 1")
-                ->execute([':n' => $nazev]) ? (int) $pdo->query("SELECT id FROM kategorie_vyrobku WHERE nazev = " . $pdo->quote($nazev) . " LIMIT 1")->fetchColumn() : 0;
+            $id = $findByName('kategorie_vyrobku', $nazev);
             if (!$id) {
                 $pdo->prepare("INSERT INTO kategorie_vyrobku (nazev, ikona, poradi, aktivni) VALUES (:n, :i, :p, 1)")
                     ->execute(['n' => $nazev, 'i' => $meta['ikona'], 'p' => $meta['poradi']]);
@@ -1861,8 +1867,7 @@ if ($action === 'seed_restaurant_pack') {
             VALUES (:n, :j, :a, :s, :kj, :kcal, :t, :tn, :sa, :cu, :b, :sl)
         ");
         foreach ($suroviny as $s) {
-            $exist = (int) $pdo->prepare("SELECT id FROM suroviny WHERE nazev = ?")
-                ->execute([$s[0]]) ? (int) $pdo->query("SELECT id FROM suroviny WHERE nazev = " . $pdo->quote($s[0]) . " LIMIT 1")->fetchColumn() : 0;
+            $exist = $findByName('suroviny', $s[0]);
             if (!$exist) {
                 $insSur->execute([
                     'n' => $s[0], 'j' => $s[1], 'a' => $s[2], 's' => $s[3],
@@ -1961,8 +1966,9 @@ if ($action === 'seed_restaurant_pack') {
 
         $created = 0; $updated = 0; $recipes = 0;
         foreach ($vyrobky as $i => $v) {
-            $existId = (int) $pdo->prepare("SELECT id FROM vyrobky WHERE cislo = ? OR nazev = ?")
-                ->execute([$v[0], $v[1]]) ? (int) $pdo->query("SELECT id FROM vyrobky WHERE cislo = " . $pdo->quote($v[0]) . " OR nazev = " . $pdo->quote($v[1]) . " LIMIT 1")->fetchColumn() : 0;
+            $st = $pdo->prepare("SELECT id FROM vyrobky WHERE cislo = :c OR nazev = :n LIMIT 1");
+            $st->execute(['c' => $v[0], 'n' => $v[1]]);
+            $existId = (int) ($st->fetchColumn() ?: 0);
             if (!$existId) {
                 $insVyr->execute([
                     'c' => $v[0], 'n' => $v[1], 'p' => $v[5], 'a' => $v[6],

@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.20";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.21";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18542,4 +18542,21 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
 @keyframes porov-pulse {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 1; }
+}
+
+/* 🎨 v3.0.21 — Floor plan tile animace */
+.rt-table-tile:hover:not(.is-edit) {
+  transform: scale(1.04) translateY(-2px);
+  z-index: 10;
+}
+.rt-table-tile.is-pulsing {
+  animation: rt-tile-pulse 3s ease-in-out infinite;
+}
+@keyframes rt-tile-pulse {
+  0%, 100% { box-shadow: 0 3px 10px rgba(234,88,12,0.25), inset 0 -2px 0 rgba(0,0,0,0.05); }
+  50%      { box-shadow: 0 3px 10px rgba(234,88,12,0.35), 0 0 0 6px rgba(234,88,12,0.05), inset 0 -2px 0 rgba(0,0,0,0.05); }
+}
+@keyframes rt-status-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 0 rgba(234,88,12,0.7); }
+  50%      { box-shadow: 0 0 0 2px #fff, 0 0 0 6px rgba(234,88,12,0); }
 }
