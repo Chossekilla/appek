@@ -16929,8 +16929,16 @@ async function renderPOSLauncher() {
             const clickable = it.vyrobek_id && it.vyrobek_id > 0;
             const baseBg = idx === 0 ? '#FFF8E5' : '#F7F8FA';
             const hoverBg = idx === 0 ? '#FFEEC2' : '#EFF1F4';
+            // 🐛 v2.9.313 — fix: předtím byly DUPLIKÁTNÍ style="..." atributy. HTML5 spec
+            // používá jen první → celý layout (display:flex, gap, padding) se ztratil pro
+            // clickable rows. Teď merge do jednoho atributu.
+            const baseStyle = `display:flex;justify-content:space-between;gap:8px;padding:6px 10px;background:${baseBg};border-radius:6px;font-size:12px;align-items:center`;
+            const clickStyle = clickable ? ';cursor:pointer;transition:background 0.12s ease' : '';
+            const clickAttrs = clickable
+              ? `onclick="editVyrobek(${it.vyrobek_id})" title="Klikni pro detail výrobku" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='${baseBg}'"`
+              : '';
             return `
-              <div ${clickable ? `onclick="editVyrobek(${it.vyrobek_id})" title="Klikni pro detail výrobku" style="cursor:pointer;"` : ''} style="display:flex;justify-content:space-between;gap:8px;padding:6px 10px;background:${baseBg};border-radius:6px;font-size:12px;align-items:center;${clickable ? 'cursor:pointer;transition:background 0.12s ease' : ''}" ${clickable ? `onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='${baseBg}'"` : ''}>
+              <div ${clickAttrs} style="${baseStyle}${clickStyle}">
                 <span style="display:flex;align-items:center;gap:6px;min-width:0">
                   <span style="font-size:11px;color:var(--text-3);min-width:18px">#${idx + 1}</span>
                   <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.vyrobek_nazev || '—')}">${esc((it.vyrobek_nazev || '—').slice(0, 32))}</span>

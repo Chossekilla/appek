@@ -1731,12 +1731,28 @@ if ($action === 'seed_one_recipe') {
 // (zarovná role + pos_only k seed definici bez zbytku full apply seedu).
 // Důvod: user logged in jako Prodavač 1 s broken role='pos' chce funkční menu HNED
 // bez kompletního re-seed (který by mazal/přidával ostatní data).
+// 🐛 v2.9.313 — security hardening: před akcí ověř že je to opravdu demo install.
+// Jinak by útočník mohl povýšit produkčního usera prodavac1@demo.cz na 'admin' (privilege escalation).
 if ($action === 'fix_demo_users') {
     try {
+        // GUARD: musí existovat demo super-admin demo@appek.cz (vytvořený seed funkcí)
+        // — to potvrdí že tato instance byla bootstrapována jako demo, ne náhodný overlap emailů.
+        $isDemo = false;
+        try {
+            $isDemo = (bool) $pdo->query("SELECT 1 FROM admin_users WHERE email = 'demo@appek.cz' LIMIT 1")->fetchColumn();
+        } catch (Throwable $e) { /* fail-safe = false */ }
+        if (!$isDemo) {
+            json_error('fix_demo_users: tato instance není demo (chybí demo@appek.cz)', 403);
+        }
+
         $updated = 0;
         foreach (demo_pos_users() as $u) {
             try {
-                $st = $pdo->prepare("UPDATE admin_users SET role = :r, pos_only = :po WHERE email = :e");
+                // Extra guard: UPDATE jen pokud target user vznikl s demo heslem (=má demo password_hash).
+                // Předtím se updatoval ANY user matching email → na produkci mohl povýšit někoho.
+                // Místo heslo-checku použijeme striktní email filtr: musí končit '@demo.cz'.
+                if (!preg_match('/@demo\.cz$/', $u['email'])) continue;
+                $st = $pdo->prepare("UPDATE admin_users SET role = :r, pos_only = :po WHERE email = :e AND email LIKE '%@demo.cz'");
                 $st->execute(['r' => $u['role'], 'po' => (int) $u['pos_only'], 'e' => $u['email']]);
                 if ($st->rowCount() > 0) $updated++;
             } catch (Throwable $e) { /* ignore per-user error */ }

@@ -853,6 +853,10 @@
 
   async function openCustomItem() {
     const presets = await loadPresets();
+    // 🐛 v2.9.313 — XSS fix: dříve `onclick='POS._customPreset(${JSON.stringify(p.nazev)}, ...)'`
+    // → JSON.stringify("O'Brien") = "\"O'Brien\"" → apostroph v single-quoted HTML attribute
+    // ukončí atribut a zbytek se parsuje jako HTML. Admin uložil payload do presetu, každý
+    // cashier ho spustil. Fix: data-* atributy (HTML-escaped přes esc()) + dataset access.
     const presetsHtml = presets.length === 0 ? '' : `
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
         ${presets.map((p, idx) => {
@@ -861,7 +865,7 @@
           const border = isNeg ? '#FCA5A5' : '#FAC775';
           const color = isNeg ? '#991b1b' : '';
           const cenaStr = isNeg ? '−' + Math.abs(parseFloat(p.cena)).toFixed(0) : parseFloat(p.cena).toFixed(0);
-          return `<button type="button" onclick='POS._customPreset(${JSON.stringify(p.nazev)}, ${parseFloat(p.cena)}, ${parseFloat(p.dph)})' style="padding:8px 14px;background:${bg};border:1.5px solid ${border};border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;${color ? 'color:' + color : ''}">${esc(p.ikona || '🛒')} ${esc(p.nazev)} ${cenaStr} Kč</button>`;
+          return `<button type="button" data-preset-nazev="${esc(p.nazev)}" data-preset-cena="${parseFloat(p.cena) || 0}" data-preset-dph="${parseFloat(p.dph) || 0}" onclick="POS._customPreset(this.dataset.presetNazev, parseFloat(this.dataset.presetCena), parseFloat(this.dataset.presetDph))" style="padding:8px 14px;background:${bg};border:1.5px solid ${border};border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;${color ? 'color:' + color : ''}">${esc(p.ikona || '🛒')} ${esc(p.nazev)} ${cenaStr} Kč</button>`;
         }).join('')}
       </div>
       <div style="font-size:11px;color:#9097a3;margin-top:2px">

@@ -865,6 +865,19 @@ if ($method === 'POST' && $action === 'quick_order') {
     if (!in_array($pos_payment, $allowed_payments, true)) json_error('Neplatná platební metoda', 400);
     if (empty($polozky) || !is_array($polozky))           json_error('Prázdný košík', 400);
 
+    // 🐛 v2.9.313 — Input bounds (DoS / overflow guard). Předtím se přijal libovolný tip
+    // (1e18 by přetekl DECIMAL(10,2)) nebo 100k položek (DoS přes 100k INSERTů v transakci).
+    if (count($polozky) > 200)                            json_error('Max 200 položek na účtenku', 400);
+    if ($pos_tip < 0 || $pos_tip > 100000)                json_error('Spropitné mimo rozsah (0–100000)', 400);
+    if ($sleva_pct < 0 || $sleva_pct > 100)               json_error('Sleva mimo rozsah (0–100%)', 400);
+    // Per-položka validace (záporné množství by kombinací se slevou udělalo větší slevu než 100%)
+    foreach ($polozky as $i => $p) {
+        $mn = (float)($p['mnozstvi'] ?? 0);
+        $cena = (float)($p['cena_bez_dph'] ?? 0);
+        if ($mn <= 0 || $mn > 9999)                       json_error('Položka #' . ($i + 1) . ': množství mimo rozsah (0–9999)', 400);
+        if (abs($cena) > 1000000)                         json_error('Položka #' . ($i + 1) . ': cena mimo rozsah', 400);
+    }
+
     // 🆕 Idempotence — pokud klient pošle stejný key 2×, vrátíme předchozí výsledek
     if ($idempKey !== '' && strlen($idempKey) <= 80) {
         try {
@@ -1150,6 +1163,8 @@ if ($method === 'GET' && $action === 'quick_history') {
 // 🆕 v2.9.308 — GET ?action=quick_order_detail&id=X — detail jedné POS účtenky (modal)
 // Vrací objednavku + polozky. LEFT JOIN odberatele aby fungovalo i pro POS quick orders
 // bez zákazníka (puvod='pos', odberatel_id může být null nebo dummy).
+// 🐛 v2.9.313 — security fix: přidáno AND o.puvod = 'pos' do WHERE — bez toho mohl POS-only
+// user fetchnout libovolnou B2B objednávku iterací přes ?id=1,2,3 (privilege scope expansion).
 if ($method === 'GET' && $action === 'quick_order_detail') {
     $id = (int) ($_GET['id'] ?? 0);
     if (!$id) json_error('Chybí ID', 400);
@@ -1160,7 +1175,7 @@ if ($method === 'GET' && $action === 'quick_order_detail') {
                    o.odberatel_id, COALESCE(od.nazev, '—') AS odberatel_nazev
             FROM objednavky o
             LEFT JOIN odberatele od ON od.id = o.odberatel_id
-            WHERE o.id = :id
+            WHERE o.id = :id AND o.puvod = 'pos'
         ");
         $st->execute(['id' => $id]);
         $obj = $st->fetch(PDO::FETCH_ASSOC);
