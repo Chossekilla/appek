@@ -24229,6 +24229,35 @@ const I18N_PHRASES = [
   ['Vyplňte název položky', 'Fill in item name', 'Rellena el nombre del artículo'],
   ['Vyplňte cenu', 'Fill in price', 'Rellena el precio'],
   ['Neplatné množství', 'Invalid quantity', 'Cantidad no válida'],
+
+  // ─── v2.9.313 — POS quick_order validation errors ───
+  ['Max 200 položek na účtenku', 'Max 200 items per receipt', 'Máximo 200 artículos por recibo'],
+  ['Spropitné mimo rozsah (0–100000)', 'Tip out of range (0–100000)', 'Propina fuera de rango (0–100000)'],
+  ['Sleva mimo rozsah (0–100%)', 'Discount out of range (0–100%)', 'Descuento fuera de rango (0–100%)'],
+  ['Prázdný košík', 'Empty cart', 'Carrito vacío'],
+  ['Neplatný typ objednávky', 'Invalid order type', 'Tipo de pedido no válido'],
+  ['Neplatná platební metoda', 'Invalid payment method', 'Método de pago no válido'],
+
+  // ─── v2.9.315 — json_error_safe public messages ───
+  ['Chyba načtení katalogu', 'Catalog loading error', 'Error al cargar el catálogo'],
+  ['Chyba načtení zákazníků', 'Customer loading error', 'Error al cargar clientes'],
+  ['Chyba vytvoření POS objednávky', 'POS order creation error', 'Error al crear pedido POS'],
+  ['Chyba načtení historie', 'History loading error', 'Error al cargar historial'],
+  ['Chyba detailu účtenky', 'Receipt detail error', 'Error de detalle del recibo'],
+  ['Chyba načtení dnešních prodejů', 'Today\'s sales loading error', 'Error al cargar las ventas de hoy'],
+  ['Platba selhala', 'Payment failed', 'Pago fallido'],
+  ['Split selhal', 'Split failed', 'División fallida'],
+  ['Merge selhal', 'Merge failed', 'Fusión fallida'],
+  ['Move selhal', 'Move failed', 'Movimiento fallido'],
+  ['Approve selhal', 'Approve failed', 'Aprobación fallida'],
+  ['Uložení selhalo', 'Save failed', 'Guardado fallido'],
+  ['Reset selhal', 'Reset failed', 'Restablecimiento fallido'],
+  ['Migrace demo uživatelů selhala', 'Demo users migration failed', 'Migración de usuarios demo fallida'],
+  ['Seed receptu selhal', 'Recipe seed failed', 'Carga de receta fallida'],
+  ['Účtenka nenalezena', 'Receipt not found', 'Recibo no encontrado'],
+  ['Povolte popup okna', 'Allow popup windows', 'Permite las ventanas emergentes'],
+  ['Chybí ID', 'Missing ID', 'Falta el ID'],
+  ['Nenalezeno', 'Not found', 'No encontrado'],
 ];
 
 // Build lookup index pro O(1) access

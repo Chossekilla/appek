@@ -16505,6 +16505,35 @@ SK_EXTRA = {
     'Vyplňte název položky': 'Vyplňte názov položky',
     'Vyplňte cenu': 'Vyplňte cenu',
     'Neplatné množství': 'Neplatné množstvo',
+
+    # --- v2.9.313 — POS quick_order validation errors ---
+    'Max 200 položek na účtenku': 'Max 200 položiek na účtenku',
+    'Spropitné mimo rozsah (0–100000)': 'Prepitné mimo rozsah (0–100000)',
+    'Sleva mimo rozsah (0–100%)': 'Zľava mimo rozsah (0–100%)',
+    'Prázdný košík': 'Prázdny košík',
+    'Neplatný typ objednávky': 'Neplatný typ objednávky',
+    'Neplatná platební metoda': 'Neplatná platobná metóda',
+
+    # --- v2.9.315 — json_error_safe public messages ---
+    'Chyba načtení katalogu': 'Chyba načítania katalógu',
+    'Chyba načtení zákazníků': 'Chyba načítania zákazníkov',
+    'Chyba vytvoření POS objednávky': 'Chyba vytvorenia POS objednávky',
+    'Chyba načtení historie': 'Chyba načítania histórie',
+    'Chyba detailu účtenky': 'Chyba detailu účtenky',
+    'Chyba načtení dnešních prodejů': 'Chyba načítania dnešných predajov',
+    'Platba selhala': 'Platba zlyhala',
+    'Split selhal': 'Split zlyhal',
+    'Merge selhal': 'Zlúčenie zlyhalo',
+    'Move selhal': 'Presun zlyhal',
+    'Approve selhal': 'Schválenie zlyhalo',
+    'Uložení selhalo': 'Uloženie zlyhalo',
+    'Reset selhal': 'Reset zlyhal',
+    'Migrace demo uživatelů selhala': 'Migrácia demo užívateľov zlyhala',
+    'Seed receptu selhal': 'Seed receptu zlyhal',
+    'Účtenka nenalezena': 'Účtenka nenájdená',
+    'Povolte popup okna': 'Povoľte popup okná',
+    'Chybí ID': 'Chýba ID',
+    'Nenalezeno': 'Nenájdené',
 }
 
 DE_EXTRA = {
@@ -32869,6 +32898,36 @@ DE_EXTRA = {
     'Vyplňte název položky': 'Artikelname ausfüllen',
     'Vyplňte cenu': 'Preis ausfüllen',
     'Neplatné množství': 'Ungültige Menge',
+
+    # --- v2.9.313 — POS quick_order validation errors ---
+    'Max 200 položek na účtenku': 'Max. 200 Artikel pro Beleg',
+    'Spropitné mimo rozsah (0–100000)': 'Trinkgeld außer Bereich (0–100000)',
+    'Sleva mimo rozsah (0–100%)': 'Rabatt außer Bereich (0–100%)',
+    'Prázdný košík': 'Leerer Warenkorb',
+    'Neplatný typ objednávky': 'Ungültiger Bestelltyp',
+    'Neplatná platební metoda': 'Ungültige Zahlungsmethode',
+
+    # --- v2.9.315 — json_error_safe public messages ---
+    'Chyba načtení katalogu': 'Fehler beim Laden des Katalogs',
+    'Chyba načtení zákazníků': 'Fehler beim Laden der Kunden',
+    'Chyba vytvoření POS objednávky': 'Fehler beim Erstellen der POS-Bestellung',
+    'Chyba načtení historie': 'Fehler beim Laden der Historie',
+    'Chyba detailu účtenky': 'Fehler bei Beleg-Details',
+    'Chyba načtení dnešních prodejů': 'Fehler beim Laden der heutigen Verkäufe',
+    'Platba selhala': 'Zahlung fehlgeschlagen',
+    'Split selhal': 'Split fehlgeschlagen',
+    'Merge selhal': 'Zusammenführen fehlgeschlagen',
+    'Move selhal': 'Verschieben fehlgeschlagen',
+    'Approve selhal': 'Genehmigung fehlgeschlagen',
+    'Uložení selhalo': 'Speichern fehlgeschlagen',
+    'Reset selhal': 'Zurücksetzen fehlgeschlagen',
+    'Migrace demo uživatelů selhala': 'Migration der Demo-Benutzer fehlgeschlagen',
+    'Seed receptu selhal': 'Rezept-Seed fehlgeschlagen',
+    'Účtenka nenalezena': 'Beleg nicht gefunden',
+    'Povolte popup okna': 'Popup-Fenster zulassen',
+    'Chybí ID': 'ID fehlt',
+    'Nenalezeno': 'Nicht gefunden',
+
     'Dodržení podmínek skladování, FIFO, kontrola teploty a vlhkosti': 'Einhaltung der Lagerbedingungen, FIFO, Temperatur- und Feuchtigkeitskontrolle',
     'Hygiena pracoviště a pracovníků, dezinfekce nářadí': 'Hygiene des Arbeitsplatzes und der Mitarbeiter, Desinfektion der Werkzeuge',
     'Kontrola teploty pece a doby pečení dle receptury': 'Kontrolle der Ofentemperatur und Backzeit gemäß Rezept',
