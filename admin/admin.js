@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.20';
+const APPEK_ADMIN_JS_VERSION = '3.0.21';
 
 (async function detectStaleCode() {
   try {
@@ -16321,28 +16321,49 @@ function renderFloorPlan(data, today) {
 }
 
 function renderTableTile(t, editMode) {
-  const state = RT_STATES[t.stav || 'free'] || RT_STATES.free;
+  // 🎨 v3.0.21 — Vylepšený design: gradienty, větší fonty, status dot, lepší kontrast
   const shape = RT_SHAPES[t.tvar || 'square'] || RT_SHAPES.square;
   const w = parseInt(t.width)  || 80;
   const h = parseInt(t.height) || 80;
   const x = parseInt(t.x) || 0;
   const y = parseInt(t.y) || 0;
-  const obsazen = t.obsazenost_dnes > 0;
-  const customBg = t.barva || state.bg;
-  // Timer for "kolik sedí"
+
+  // Gradienty + výrazné barvy per stav
+  const SG = {
+    free:      { bg: 'linear-gradient(135deg,#D1FAE5,#A7F3D0)', border: '#10B981', text: '#065F46', glow: 'rgba(16,185,129,0.20)', dot: '#10B981' },
+    occupied:  { bg: 'linear-gradient(135deg,#FED7AA,#FDBA74)', border: '#EA580C', text: '#7C2D12', glow: 'rgba(234,88,12,0.28)',   dot: '#EA580C' },
+    reserved:  { bg: 'linear-gradient(135deg,#FEF3C7,#FDE68A)', border: '#F59E0B', text: '#78350F', glow: 'rgba(245,158,11,0.22)',  dot: '#F59E0B' },
+    cleaning:  { bg: 'linear-gradient(135deg,#F3F4F6,#E5E7EB)', border: '#6B7280', text: '#1F2937', glow: 'rgba(107,114,128,0.15)', dot: '#6B7280' },
+    attention: { bg: 'linear-gradient(135deg,#EDE9FE,#DDD6FE)', border: '#7C3AED', text: '#4C1D95', glow: 'rgba(124,58,237,0.20)',  dot: '#7C3AED' },
+    disabled:  { bg: 'linear-gradient(135deg,#1F2937,#111827)', border: '#000',    text: '#E5E7EB', glow: 'rgba(0,0,0,0.30)',       dot: '#9CA3AF' },
+  };
+  const sg = SG[t.stav || 'free'] || SG.free;
+  const bg = t.barva || sg.bg;
+
+  // Timer for "kolik sedí" (větší font, čitelnější)
   let timerLabel = '';
   if (t.stav === 'occupied' && t.stav_od) {
     const minutes = Math.max(0, Math.floor((Date.now() - new Date(t.stav_od.replace(' ','T')).getTime()) / 60000));
-    timerLabel = `<div style="font-size:10px;font-weight:700;opacity:0.85">⏱ ${minutes < 60 ? minutes + 'm' : Math.floor(minutes/60) + 'h ' + (minutes%60) + 'm'}</div>`;
+    const timeStr = minutes < 60 ? minutes + 'm' : Math.floor(minutes/60) + 'h' + String(minutes%60).padStart(2,'0') + 'm';
+    timerLabel = `<div style="font-size:${w >= 100 ? '12px' : '10px'};font-weight:800;color:${sg.text};font-variant-numeric:tabular-nums;background:rgba(255,255,255,0.5);padding:1px 6px;border-radius:99px">⏱ ${timeStr}</div>`;
   }
-  // Next rezervace dnes (do 2 hodin)
+  // Next rezervace dnes
   let nextRes = '';
   const upcoming = (t.rezervace_dnes || [])[0];
   if (upcoming && t.stav !== 'occupied') {
-    nextRes = `<div style="font-size:10px;opacity:0.75;font-weight:600">🕐 ${upcoming.cas_od.slice(0,5)} · ${upcoming.pocet_osob}p</div>`;
+    nextRes = `<div style="font-size:10px;opacity:0.85;font-weight:700;color:${sg.text}">🕐 ${upcoming.cas_od.slice(0,5)} · ${upcoming.pocet_osob}p</div>`;
   }
+
+  // Status dot v rohu (viditelný i z dálky)
+  const statusDot = (t.stav === 'occupied' || t.stav === 'reserved' || t.stav === 'attention') ? `
+    <div style="position:absolute;top:6px;right:6px;width:11px;height:11px;border-radius:50%;background:${sg.dot};box-shadow:0 0 0 2px #fff,0 0 8px ${sg.glow};${t.stav === 'occupied' ? 'animation:rt-status-dot-pulse 1.6s ease-in-out infinite' : ''}"></div>
+  ` : '';
+
+  // Dynamický font (čitelnější z dálky)
+  const nameFont = w >= 140 ? '18px' : (w >= 100 ? '16px' : (w >= 70 ? '14px' : '12px'));
+
   return `
-    <div class="rt-table-tile"
+    <div class="rt-table-tile ${t.stav === 'occupied' ? 'is-pulsing' : ''}"
          data-id="${t.id}"
          data-x="${x}"
          data-y="${y}"
@@ -16351,22 +16372,23 @@ function renderTableTile(t, editMode) {
          data-tvar="${esc(t.tvar || 'square')}"
          data-stav="${esc(t.stav || 'free')}"
          style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;
-                background:${customBg};
-                border:2.5px solid ${state.border};
+                background:${bg};
+                border:2.5px solid ${sg.border};
                 border-radius:${shape.borderRadius};
-                box-shadow:0 2px 6px rgba(0,0,0,0.08);
+                box-shadow:0 3px 10px ${sg.glow}, inset 0 -2px 0 rgba(0,0,0,0.05);
                 display:flex;flex-direction:column;align-items:center;justify-content:center;
-                gap:2px;padding:6px;
+                gap:3px;padding:6px;
                 cursor:${editMode ? 'grab' : 'pointer'};
-                transition:transform 0.1s, box-shadow 0.15s;
-                ${rtState.selectedTableId === t.id ? 'box-shadow:0 0 0 3px #BA7517, 0 4px 12px rgba(186,117,23,0.3)' : ''}
+                transition:transform 0.12s ease, box-shadow 0.2s ease;
+                ${rtState.selectedTableId === t.id ? 'box-shadow:0 0 0 3px #BA7517, 0 6px 16px rgba(186,117,23,0.35)' : ''}
                 ${rtState.dirtyTables.has(t.id) ? 'outline:2px dashed #F59E0B;outline-offset:2px' : ''}"
          onclick="rtTableClick(event, ${t.id})">
-      <div style="font-weight:800;font-size:${w >= 120 ? '15px' : '13px'};color:${state.text};line-height:1.1;text-align:center;word-break:break-word">${esc(t.nazev)}</div>
-      ${t.mist > 0 ? `<div style="font-size:11px;color:${state.text};opacity:0.85;font-weight:600">👥 ${t.mist}</div>` : ''}
+      ${statusDot}
+      <div style="font-weight:900;font-size:${nameFont};color:${sg.text};line-height:1.1;text-align:center;word-break:break-word;letter-spacing:-0.02em;text-shadow:0 1px 0 rgba(255,255,255,0.4)">${esc(t.nazev)}</div>
+      ${t.mist > 0 ? `<div style="font-size:${w >= 100 ? '12px' : '10px'};color:${sg.text};opacity:0.8;font-weight:700">👥 ${t.mist}</div>` : ''}
       ${timerLabel}
       ${nextRes}
-      ${editMode ? `<div style="position:absolute;top:-8px;right:-8px;background:#fff;border:1.5px solid var(--border);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer" onclick="event.stopPropagation();rtDeleteTable(${t.id})" title="Smazat stůl">✕</div>` : ''}
+      ${editMode ? `<div style="position:absolute;top:-9px;right:-9px;background:#fff;border:2px solid #DC2626;color:#DC2626;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.15)" onclick="event.stopPropagation();rtDeleteTable(${t.id})" title="Smazat stůl">✕</div>` : ''}
     </div>
   `;
 }
