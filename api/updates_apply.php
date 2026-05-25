@@ -40,7 +40,11 @@ require_once __DIR__ . '/_license.php';
 
 // 🔒 v2.6.0 CSRF/auth: musí být admin přihlášený s validní session.
 //    Neumožní anonymní spuštění update flow přes RCE.
-session_start();
+// 🐛 v2.9.327 — session_secure_start() místo bare session_start(). Předtím
+// bare session_start() použil default session name (PHPSESSID), ale admin_login.php
+// použil session_name('APPEKSID') přes session_secure_start() → 2 separátní sessions
+// → $_SESSION['admin_user'] prázdný → 403 "admin_session_required" i pro logged-in admina.
+session_secure_start();
 $adminUser = aktualni_uzivatel_z_session();
 if (!$adminUser || ($adminUser['role'] ?? '') !== 'admin') {
     http_response_code(403);

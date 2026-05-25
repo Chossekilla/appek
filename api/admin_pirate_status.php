@@ -11,7 +11,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_authz.php';
 
-session_start();
+session_secure_start(); // 🐛 v2.9.327 — bylo bare session_start (špatný session_name)
 header('Content-Type: application/json; charset=UTF-8');
 
 $ctx = aktualni_uzivatel_z_session();
