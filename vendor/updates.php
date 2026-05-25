@@ -133,6 +133,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 vendor_audit($pdo, $user, 'update_delete', null, $row['version']);
                 $flash_ok = "Verze {$row['version']} smazána.";
             }
+        } elseif ($action === 'bulk_delete') {
+            // 🆕 v3.0.13 — hromadné mazání vybraných verzí
+            $ids = $_POST['ids'] ?? [];
+            if (!is_array($ids) || empty($ids)) {
+                $flash_err = 'Nebyly vybrány žádné verze.';
+            } else {
+                $ids = array_map('intval', $ids);
+                $ids = array_filter($ids, fn($i) => $i > 0);
+                if (empty($ids)) {
+                    $flash_err = 'Neplatný výběr.';
+                } else {
+                    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                    $rowsStmt = $pdo->prepare("SELECT id, version, file_path FROM vendor_updates WHERE id IN ($placeholders)");
+                    $rowsStmt->execute($ids);
+                    $rows = $rowsStmt->fetchAll();
+                    $smazano = 0; $versions = [];
+                    foreach ($rows as $r) {
+                        @unlink($storage . '/' . $r['file_path']);
+                        $versions[] = $r['version'];
+                        $smazano++;
+                    }
+                    $del = $pdo->prepare("DELETE FROM vendor_updates WHERE id IN ($placeholders)");
+                    $del->execute($ids);
+                    vendor_audit($pdo, $user, 'update_bulk_delete', null, implode(',', $versions));
+                    $flash_ok = "Hromadně smazáno: {$smazano} " . ($smazano === 1 ? 'verze' : ($smazano < 5 ? 'verze' : 'verzí')) . " (" . implode(', ', $versions) . ").";
+                }
+            }
         }
         header('Location: updates.php');
         exit;
@@ -311,8 +338,22 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
       <small>Postav lokálně bundle pomocí <code>scripts/build-update.sh</code> a nahraj výše.</small>
     </div>
   <?php else: ?>
+    <!-- 🆕 v3.0.13 — Bulk delete form (mimo tabulku, vstupy přes form="bulk-form") -->
+    <form method="POST" id="bulk-form" onsubmit="return confirmBulkDelete(event)" style="display:contents">
+      <input type="hidden" name="action" value="bulk_delete">
+    </form>
+
+    <!-- Sticky bulk action bar — zobrazí se po vybraní -->
+    <div id="bulk-bar" style="position:sticky;top:0;z-index:10;background:linear-gradient(135deg,#1E40AF,#1E3A8A);color:#fff;padding:12px 18px;border-radius:10px;margin-bottom:14px;display:none;align-items:center;gap:14px;box-shadow:0 4px 12px rgba(30,64,175,0.3)">
+      <span style="font-weight:700;font-size:14px"><span id="bulk-count">0</span> vybráno</span>
+      <div style="flex:1"></div>
+      <button type="button" onclick="bulkClearSelection()" style="padding:7px 14px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer">✕ Zrušit výběr</button>
+      <button type="submit" form="bulk-form" style="padding:7px 16px;background:#DC2626;border:none;color:#fff;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer">🗑️ Smazat vybrané</button>
+    </div>
+
     <table class="upd-table">
       <colgroup>
+        <col style="width:36px">
         <col class="col-verze">
         <col class="col-channel">
         <col class="col-stav">
@@ -324,6 +365,7 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
       </colgroup>
       <thead>
         <tr>
+          <th style="text-align:center"><input type="checkbox" id="bulk-toggle-all" onclick="bulkToggleAll(this)" style="width:18px;height:18px;cursor:pointer" title="Vybrat vše"></th>
           <th>Verze</th>
           <th>Channel</th>
           <th>Stav</th>
@@ -337,6 +379,9 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
       <tbody>
         <?php foreach ($updates as $u): ?>
           <tr>
+            <td style="text-align:center">
+              <input type="checkbox" name="ids[]" value="<?= (int) $u['id'] ?>" class="bulk-cb" form="bulk-form" onclick="bulkUpdateCount()" style="width:18px;height:18px;cursor:pointer">
+            </td>
             <td><strong><?= htmlspecialchars($u['version']) ?></strong>
               <?php if ($u['min_version']): ?><br><small style="color:#86868b">min ≥ <?= htmlspecialchars($u['min_version']) ?></small><?php endif; ?>
             </td>
@@ -375,7 +420,7 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
           </tr>
           <?php if ($u['changelog_md']): ?>
             <tr class="changelog-row">
-              <td colspan="8">
+              <td colspan="9">
                 <details>
                   <summary>📝 Changelog — v<?= htmlspecialchars($u['version']) ?></summary>
                   <pre><?= htmlspecialchars($u['changelog_md']) ?></pre>
@@ -429,6 +474,54 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
   </div>
 
 </main>
+
+<!-- 🆕 v3.0.13 — Bulk delete JS -->
+<script>
+function bulkUpdateCount() {
+  const checked = document.querySelectorAll('.bulk-cb:checked').length;
+  const bar = document.getElementById('bulk-bar');
+  const cnt = document.getElementById('bulk-count');
+  if (cnt) cnt.textContent = checked;
+  if (bar) bar.style.display = checked > 0 ? 'flex' : 'none';
+  // Update toggle-all checkbox state
+  const all = document.querySelectorAll('.bulk-cb').length;
+  const toggle = document.getElementById('bulk-toggle-all');
+  if (toggle) {
+    toggle.checked = checked === all && all > 0;
+    toggle.indeterminate = checked > 0 && checked < all;
+  }
+}
+function bulkToggleAll(src) {
+  document.querySelectorAll('.bulk-cb').forEach(cb => { cb.checked = src.checked; });
+  bulkUpdateCount();
+}
+function bulkClearSelection() {
+  document.querySelectorAll('.bulk-cb').forEach(cb => { cb.checked = false; });
+  const t = document.getElementById('bulk-toggle-all');
+  if (t) { t.checked = false; t.indeterminate = false; }
+  bulkUpdateCount();
+}
+function confirmBulkDelete(ev) {
+  const checked = Array.from(document.querySelectorAll('.bulk-cb:checked'));
+  if (checked.length === 0) {
+    alert('Nebyly vybrány žádné verze.');
+    ev.preventDefault();
+    return false;
+  }
+  // Get version labels from row context for confirmation
+  const versions = checked.map(cb => {
+    const tr = cb.closest('tr');
+    const strong = tr ? tr.querySelector('td strong') : null;
+    return strong ? strong.textContent.trim() : 'v?';
+  });
+  const list = versions.slice(0, 10).join(', ') + (versions.length > 10 ? ` (+${versions.length - 10} dalších)` : '');
+  if (!confirm(`Opravdu smazat ${checked.length} ${checked.length === 1 ? 'verzi' : 'verzí'}?\n\n${list}\n\nTato akce je nevratná!`)) {
+    ev.preventDefault();
+    return false;
+  }
+  return true;
+}
+</script>
 
 <?php vendor_render_footer(); ?>
 </body>

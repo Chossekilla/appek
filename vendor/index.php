@@ -124,10 +124,49 @@ function fmtKc(float $v): string {
 <title>🏢 APPEK Master — Vendor Panel</title>
 <link rel="stylesheet" href="style.css?v=1.5">
 <style>
+  /* 🆕 v3.0.13 — Frog amazonian background (jen pro mě, vendor master) :)
+     SVG kreslené žáby — modrá poison-dart frog, červená strawberry frog
+     a zelená leaf frog s tropickými listy. */
+  body {
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: -1;
+    background-color: #FFF8E5;
+    background-image:
+      /* Modrá poison-dart žába */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' width='120' height='120'><g transform='translate(60,60)'><ellipse cx='0' cy='10' rx='38' ry='28' fill='%231E40AF'/><ellipse cx='0' cy='-5' rx='28' ry='22' fill='%232563EB'/><circle cx='-14' cy='-22' r='12' fill='%231E40AF'/><circle cx='14' cy='-22' r='12' fill='%231E40AF'/><circle cx='-14' cy='-22' r='8' fill='%23F9FAFB'/><circle cx='14' cy='-22' r='8' fill='%23F9FAFB'/><circle cx='-14' cy='-22' r='4' fill='%23000'/><circle cx='14' cy='-22' r='4' fill='%23000'/><circle cx='-13' cy='-23' r='1.5' fill='%23fff'/><circle cx='15' cy='-23' r='1.5' fill='%23fff'/><circle cx='-8' cy='-2' r='3' fill='%23FBBF24'/><circle cx='8' cy='2' r='3' fill='%23FBBF24'/><circle cx='-18' cy='8' r='3' fill='%23FBBF24'/><circle cx='18' cy='10' r='3' fill='%23FBBF24'/><ellipse cx='0' cy='12' rx='15' ry='3' fill='%231E3A8A' opacity='0.4'/><path d='M-20,25 Q-30,30 -28,38 L-22,38 L-20,32 Z' fill='%231E40AF'/><path d='M20,25 Q30,30 28,38 L22,38 L20,32 Z' fill='%231E40AF'/></g></svg>"),
+      /* Červená strawberry žába */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' width='100' height='100'><g transform='translate(60,60)'><ellipse cx='0' cy='8' rx='35' ry='25' fill='%23DC2626'/><ellipse cx='0' cy='-6' rx='25' ry='20' fill='%23EF4444'/><circle cx='-12' cy='-20' r='11' fill='%23DC2626'/><circle cx='12' cy='-20' r='11' fill='%23DC2626'/><circle cx='-12' cy='-20' r='7' fill='%23F9FAFB'/><circle cx='12' cy='-20' r='7' fill='%23F9FAFB'/><circle cx='-12' cy='-20' r='3.5' fill='%23000'/><circle cx='12' cy='-20' r='3.5' fill='%23000'/><circle cx='-11' cy='-21' r='1.2' fill='%23fff'/><circle cx='13' cy='-21' r='1.2' fill='%23fff'/><ellipse cx='-15' cy='6' rx='4' ry='5' fill='%23000' opacity='0.7'/><ellipse cx='15' cy='8' rx='4' ry='5' fill='%23000' opacity='0.7'/><ellipse cx='0' cy='12' rx='6' ry='3' fill='%23000' opacity='0.5'/><path d='M-18,22 Q-26,28 -24,34 L-19,34 L-17,28 Z' fill='%23000'/><path d='M18,22 Q26,28 24,34 L19,34 L17,28 Z' fill='%23000'/></g></svg>"),
+      /* Zelená leaf žába */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' width='110' height='110'><g transform='translate(60,60)'><ellipse cx='0' cy='10' rx='40' ry='26' fill='%2310B981'/><ellipse cx='0' cy='-5' rx='30' ry='22' fill='%2334D399'/><circle cx='-16' cy='-22' r='13' fill='%2310B981'/><circle cx='16' cy='-22' r='13' fill='%2310B981'/><circle cx='-16' cy='-22' r='9' fill='%23FBBF24'/><circle cx='16' cy='-22' r='9' fill='%23FBBF24'/><ellipse cx='-16' cy='-22' rx='2' ry='8' fill='%23000'/><ellipse cx='16' cy='-22' rx='2' ry='8' fill='%23000'/><circle cx='-14' cy='-23' r='1' fill='%23fff'/><circle cx='18' cy='-23' r='1' fill='%23fff'/><ellipse cx='0' cy='14' rx='14' ry='2.5' fill='%23047857' opacity='0.5'/><path d='M-22,24 Q-32,30 -30,38 L-24,38 L-22,32 Z' fill='%2310B981'/><path d='M22,24 Q32,30 30,38 L24,38 L22,32 Z' fill='%2310B981'/><circle cx='-10' cy='5' r='2.5' fill='%23047857'/><circle cx='12' cy='8' r='2.5' fill='%23047857'/></g></svg>"),
+      /* Tropický list */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' width='180' height='180'><g transform='translate(100,100) rotate(20)'><path d='M0,-70 Q40,-50 50,0 Q40,50 0,70 Q-40,50 -50,0 Q-40,-50 0,-70 Z' fill='%23059669' opacity='0.18'/><path d='M0,-70 L0,70' stroke='%23047857' stroke-width='2' opacity='0.3'/><path d='M0,-50 Q15,-35 25,-20' stroke='%23047857' stroke-width='1' fill='none' opacity='0.25'/><path d='M0,-50 Q-15,-35 -25,-20' stroke='%23047857' stroke-width='1' fill='none' opacity='0.25'/><path d='M0,-25 Q20,-15 35,5' stroke='%23047857' stroke-width='1' fill='none' opacity='0.25'/><path d='M0,-25 Q-20,-15 -35,5' stroke='%23047857' stroke-width='1' fill='none' opacity='0.25'/><path d='M0,5 Q20,15 30,40' stroke='%23047857' stroke-width='1' fill='none' opacity='0.25'/><path d='M0,5 Q-20,15 -30,40' stroke='%23047857' stroke-width='1' fill='none' opacity='0.25'/></g></svg>");
+    background-repeat: repeat;
+    background-position:
+      30px 80px,         /* modrá */
+      280px 250px,       /* červená */
+      550px 130px,       /* zelená */
+      150px 450px;       /* list */
+    background-size:
+      120px 120px,
+      100px 100px,
+      110px 110px,
+      180px 180px;
+    opacity: 0.92;
+    animation: frog-drift 60s ease-in-out infinite alternate;
+  }
+  @keyframes frog-drift {
+    0%   { background-position: 30px 80px, 280px 250px, 550px 130px, 150px 450px; }
+    50%  { background-position: 40px 100px, 290px 260px, 560px 120px, 160px 460px; }
+    100% { background-position: 30px 80px, 280px 250px, 550px 130px, 150px 450px; }
+  }
+
   /* ─── Login screen ─── */
   .login-wrap {
     min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, #1d1d1f 0%, #2d2d30 100%);
+    background: linear-gradient(135deg, rgba(29,29,31,0.85) 0%, rgba(45,45,48,0.85) 100%);
     padding: 20px;
   }
   .login-card {
