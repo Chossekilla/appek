@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.49";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.50";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12906,53 +12906,10 @@ html.theme-dark #appek-quick-sheet .qs-cancel {
   border-radius: inherit;
 }
 
-/* 🆕 v3.0.48 — MOBILE: jednoduše schovat/zobrazit sidebar. Žádný cycle, žádný expanded. */
-
-.nav-item.nav-item-mob-hide { display: none; }
-
-/* Floating ≡ icon — viditelná jen když je sidebar schovaný */
-#mobile-rail-restore {
-  display: none;
-  position: fixed;
-  top: calc(env(safe-area-inset-top, 0) + 12px);
-  left: calc(env(safe-area-inset-left, 0) + 12px);
-  z-index: 92;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #BA7517, #854F0B);
-  color: #fff;
-  border: none;
-  box-shadow: 0 4px 14px rgba(186, 117, 23, 0.35), 0 1px 4px rgba(0, 0, 0, 0.15);
-  font-size: 22px;
-  font-weight: 900;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 0.12s ease;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-#mobile-rail-restore:active { transform: scale(0.92); }
-
-@media (max-width: 768px) {
-  /* Hide button jako nav-item, primary-tinted odlišení */
-  .nav-item.nav-item-mob-hide {
-    display: flex;
-    margin-top: 8px;
-    background: linear-gradient(135deg, rgba(186, 117, 23, 0.1), rgba(133, 79, 11, 0.06));
-    border: 1px solid rgba(186, 117, 23, 0.18);
-    color: var(--primary-dark, #854F0B);
-    font-weight: 700;
-  }
-  .nav-item.nav-item-mob-hide .nav-icon { font-size: 18px; font-weight: 900; }
-
-  /* Sidebar schovaný → content full width + floating ≡ pro návrat */
-  body.mobile-rail-hidden .sidebar { display: none !important; }
-  body.mobile-rail-hidden .admin-app { grid-template-columns: 1fr !important; }
-  body.mobile-rail-hidden #mobile-rail-restore { display: flex; }
-  body.mobile-rail-hidden .topbar { padding-left: 68px !important; }
-}
+/* 🐛 v3.0.50 REVERT — smazána celá mobile-rail-hidden / nav-item-mob-hide /
+   #mobile-rail-restore logika (v3.0.46/47/48). Uživatel reportoval že
+   floating ≡ button se zobrazoval i přes login screen + chaos s rail.
+   Necháváme jen existující sidebar-pin (📌) jako jediný mobile toggle. */
 
 /* 🆕 v3.0.42 — REST BANNER TABS (velké color-coded banner buttony v Restaurace)
    User: "to horní menu udělej buttony velké bannery až" */

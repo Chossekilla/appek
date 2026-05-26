@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.49';
+const APPEK_ADMIN_JS_VERSION = '3.0.50';
 
 (async function detectStaleCode() {
   try {
@@ -2131,28 +2131,10 @@ applyAppDensity();
 // =============================================================
 // 📌 PIN sidebar — fixuje boční menu (uloženo do localStorage)
 // =============================================================
-// 🆕 v3.0.48 — Mobile sidebar simple hide/show (ONE button + floating ≡)
-//   Default: sidebar visible + bottom nav
-//   Hidden:  sidebar skrytý, jen bottom nav + floating ≡ top-left
-window.hideMobileSidebar = function() {
-  document.body.classList.add('mobile-rail-hidden');
-  try { localStorage.setItem('appek_mobile_rail_hidden', '1'); } catch (e) {}
-  try { window.haptic && window.haptic('medium'); } catch (e) {}
-};
-window.showMobileSidebar = function() {
-  document.body.classList.remove('mobile-rail-hidden');
-  try { localStorage.setItem('appek_mobile_rail_hidden', '0'); } catch (e) {}
-  try { window.haptic && window.haptic('medium'); } catch (e) {}
-};
-
-// Restore from localStorage on boot
-(function appekRestoreMobileSidebar() {
-  try {
-    if (localStorage.getItem('appek_mobile_rail_hidden') === '1') {
-      document.body.classList.add('mobile-rail-hidden');
-    }
-  } catch (e) {}
-})();
+// 🐛 v3.0.50 — REVERT: smazána veškerá mobile-rail-hidden logika
+// (hideMobileSidebar/showMobileSidebar/restore — user reportoval že je nefunkční +
+//  floating ≡ button se zobrazoval i přes login screen). Necháváme jen existující
+//  sidebar-pin (📌) jako jediný mobile toggle.
 
 window.toggleSidebarPin = function() {
   const isOn = document.body.classList.toggle('sidebar-pinned');
