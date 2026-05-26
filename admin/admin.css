@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.52";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.53";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12957,6 +12957,48 @@ body:has(#app[style*="display: none"]) .sidebar *,
 body:has(#app[style*="display:none"]) .sidebar,
 body:has(#app[style*="display:none"]) .sidebar * {
   display: none !important;
+}
+
+/* 🆕 v3.0.53 — Sticky pin button na mobilu (user: "špendlík neni vidět")
+   Pin v sidebar-utils byl na bottom natural flow, zakrytý bottom-navem.
+   Fix: fixed pozice vlevo-dole nad bottom-nav, kruhový jako FAB. */
+@media (max-width: 768px) {
+  .sidebar-pin {
+    position: fixed !important;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0)) !important;
+    left: 12px !important;
+    width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    background: linear-gradient(135deg, #BA7517, #854F0B) !important;
+    color: #fff !important;
+    border: none !important;
+    box-shadow: 0 4px 14px rgba(186,117,23,0.4), 0 1px 4px rgba(0,0,0,0.15) !important;
+    z-index: 89 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sidebar-pin .sidebar-pin-label-on,
+  .sidebar-pin .sidebar-pin-label-off { display: none !important; }
+  .sidebar-pin .sidebar-pin-icon {
+    font-size: 22px !important;
+    margin: 0 !important;
+  }
+  /* Když je sidebar pinned → změň gradient na success barvu (vizuální indikace) */
+  body.sidebar-pinned .sidebar-pin {
+    background: linear-gradient(135deg, #10B981, #047857) !important;
+  }
+  /* Skrýt pin na login screen */
+  body.is-login .sidebar-pin,
+  body:has(#app[style*="display:none"]) .sidebar-pin {
+    display: none !important;
+  }
+  /* sidebar-collapse button — schovat na mobilu (jen pro desktop) */
+  .sidebar-collapse { display: none !important; }
 }
 
 /* 🆕 v3.0.42 — REST BANNER TABS (velké color-coded banner buttony v Restaurace)
