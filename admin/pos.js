@@ -1909,10 +1909,31 @@
   window.posShowReceiptDetail = async function(objId) {
     modal('📜 Účtenka', '<div style="text-align:center;padding:40px;color:#9097a3">⏳ Načítám detail…</div>', '');
     let d;
-    try { d = await api('admin_pos.php?action=quick_order_detail&id=' + objId); }
-    catch (e) {
-      modal('⚠️ Chyba', `<div style="padding:20px;color:#dc2626">Detail účtenky se nepodařilo načíst: ${esc(e.message)}</div>`,
-        `<button class="btn-secondary" onclick="POS._closeModal()">Zavřít</button>`);
+    try {
+      // 🆕 v3.0.27 — Timeout 8s (předtím nekonečno → modal stuck na "Načítám detail…")
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const r = await fetch(CFG.apiBase + 'admin_pos.php?action=quick_order_detail&id=' + objId, {
+        credentials: 'same-origin',
+        signal: ctrl.signal,
+        headers: { 'Accept': 'application/json' },
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const txt = await r.text();
+        throw new Error(`HTTP ${r.status}: ${txt.slice(0, 200)}`);
+      }
+      d = await r.json();
+    } catch (e) {
+      const detail = e.name === 'AbortError' ? 'Timeout 8s — backend neodpověděl' : (e.message || 'Neznámá chyba');
+      modal('⚠️ Detail se nenačetl',
+        `<div style="padding:20px">
+          <p style="color:#dc2626;margin-bottom:14px">Detail účtenky #${objId} se nepodařilo načíst:</p>
+          <div style="background:#FEE2E2;padding:12px;border-radius:8px;font-family:monospace;font-size:12px;color:#991B1B">${esc(detail)}</div>
+          <p style="font-size:12px;color:#6B7280;margin-top:14px">💡 Zkus: hard refresh (Cmd+Shift+R), nebo zkontroluj že jsi přihlášený a backend běží.</p>
+        </div>`,
+        `<button class="btn-secondary" onclick="POS._closeModal()">Zavřít</button>
+         <button class="btn-primary" onclick="posShowReceiptDetail(${objId})">🔄 Zkusit znovu</button>`);
       return;
     }
     const time = (d.datum_objednani || '').replace('T', ' ').slice(0, 16);

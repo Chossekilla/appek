@@ -308,10 +308,11 @@ if ($method === 'GET') {
     $datum_od = $_GET['datum_od'] ?? '';
     $datum_do = $_GET['datum_do'] ?? '';
     $hledat   = trim($_GET['q'] ?? '');
+    $puvod    = $_GET['puvod'] ?? ''; // 🆕 v3.0.27 — filter podle zdroje (pos/b2b/interni/qr/recurring)
 
     $sql = "
         SELECT o.id, o.cislo, o.typ, o.stav, o.datum_objednani, o.datum_dodani,
-               o.castka_celkem, o.poznamka,
+               o.castka_celkem, o.poznamka, o.puvod,
                od.nazev AS odberatel_nazev,
                md.nazev AS misto_nazev,
                COUNT(DISTINCT p.id) AS pocet_polozek,
@@ -336,6 +337,13 @@ if ($method === 'GET') {
         $hl = str_replace(['\\','%','_'], ['\\\\','\\%','\\_'], $hledat);
         $sql .= " AND (o.cislo LIKE :q OR od.nazev LIKE :q)";
         $params['q'] = '%' . $hl . '%';
+    }
+    if ($puvod !== '') {
+        $allowedPuvod = ['pos', 'b2b', 'interni', 'qr', 'recurring'];
+        if (in_array($puvod, $allowedPuvod, true)) {
+            $sql .= " AND o.puvod = :puvod";
+            $params['puvod'] = $puvod;
+        }
     }
     $sql .= " GROUP BY o.id ORDER BY o.datum_dodani DESC, o.datum_objednani DESC LIMIT 200";
 
