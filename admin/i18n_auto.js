@@ -24434,6 +24434,12 @@ const I18N_PHRASES = [
   ['Chyba zavírání účtu',               'Error closing account',                'Error al cerrar la cuenta'],
   ['Účet uzavřen',                      'Account closed',                       'Cuenta cerrada'],
   ['Bez fyzické tiskárny zapni dummy mode', 'Without physical printer enable dummy mode', 'Sin impresora física, activa modo prueba'],
+  // v3.0.58 dopreklady B19 (Wolt/Bolt/Dame/Foodora + mobile UI) (auto-audit, +5)
+  ['DL', 'DN', 'NE'],
+  ['dodaci_listy', 'delivery_notes', 'notas_entrega'],
+  ['Events *', 'Events *', 'Eventos *'],
+  ['IČO/DIČ', 'VAT ID / Tax ID', 'NIF / CIF'],
+  ['Webhook secret (whsec_…)', 'Webhook secret (whsec_…)', 'Secreto del webhook (whsec_…)'],
 ];
 
 // Build lookup index pro O(1) access

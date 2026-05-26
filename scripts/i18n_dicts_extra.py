@@ -40034,3 +40034,19 @@ DE_EXTRA.update({
     'Účet uzavřen': 'Konto geschlossen',
     'otevřen': 'geöffnet',
 })
+
+# v3.0.58 dopreklady B19 (Wolt/Bolt/Dame/Foodora + mobile UI) (auto-audit, +5)
+SK_EXTRA.update({
+    'DL': 'DL',
+    'dodaci_listy': 'dodacie_listy',
+    'Events *': 'Udalosti *',
+    'IČO/DIČ': 'IČO/DIČ',
+    'Webhook secret (whsec_…)': 'Webhook secret (whsec_…)',
+})
+DE_EXTRA.update({
+    'DL': 'LS',
+    'dodaci_listy': 'lieferscheine',
+    'Events *': 'Ereignisse *',
+    'IČO/DIČ': 'USt-IdNr. / Steuer-Nr.',
+    'Webhook secret (whsec_…)': 'Webhook-Geheimnis (whsec_…)',
+})

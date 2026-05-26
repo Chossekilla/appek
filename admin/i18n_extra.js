@@ -6,7 +6,7 @@
 // =============================================================
 
 const I18N_EXTRA = {
-  // 🇸🇰 Slovenčina — 18156 frází
+  // 🇸🇰 Slovenčina — 18161 frází
   sk: {
     '$': '$',
     '% selhání': '% zlyhaní',
@@ -2077,6 +2077,7 @@ const I18N_EXTRA = {
     'DIČ': 'DIČ',
     'DIČ dodavatele': 'DIČ dodávateľa',
     'DIČ plátce DPH': 'DIČ platiteľa DPH',
+    'DL': 'DL',
     'DL podle města a PSČ · plán pro řidiče': 'Dodacie listy podľa mesta a PSČ · plán pre vodičov',
     'DL vystaven': 'DL vystavený',
     'DL vytvořen': 'DL vytvorený',
@@ -3166,6 +3167,7 @@ const I18N_EXTRA = {
     'Event planner': 'Event planner',
     'Event tracking': 'Event tracking',
     'Events': 'Events',
+    'Events *': 'Udalosti *',
     'Evidence vratných stojanů': 'Evidencia vratných stojanov',
     'Evropa': 'Európa',
     'Excel': 'Excel',
@@ -4395,6 +4397,7 @@ const I18N_EXTRA = {
     'IČO': 'IČO',
     'IČO dodavatele': 'IČO dodávateľa',
     'IČO firmy (v Pohoda)': 'IČO firmy (v Pohoda)',
+    'IČO/DIČ': 'IČO/DIČ',
     'JCB': 'JCB',
     'JPEG / JPG': 'JPEG / JPG',
     'JPEG obrázek': 'JPEG obrázok',
@@ -15270,6 +15273,7 @@ const I18N_EXTRA = {
     'Webhook URL': 'Webhook URL',
     'Webhook log': 'Webhook log',
     'Webhook notifikace': 'Webhook notifikácia',
+    'Webhook secret (whsec_…)': 'Webhook secret (whsec_…)',
     'Webhook smazán': 'Webhook vymazaný',
     'Webhook tajný klíč': 'Webhook tajný kľúč',
     'Webhook trigger': 'Webhook trigger',
@@ -16412,6 +16416,7 @@ const I18N_EXTRA = {
     'dní pro tuto skupinu': 'dní pre túto skupinu',
     'dní zapůjčeno': 'dní zapožičaných',
     'dní)': 'dní)',
+    'dodaci_listy': 'dodacie_listy',
     'dodacích listů': 'dodacích listov',
     'dodatky': 'dodatky',
     'dokončena!': 'dokončená!',
@@ -18166,7 +18171,7 @@ const I18N_EXTRA = {
     '🪑 Stoly': '🪑 Stoly',
   },
 
-  // 🇩🇪 Deutsch — 18156 frází
+  // 🇩🇪 Deutsch — 18161 frází
   de: {
     '$': '$',
     '% selhání': '% Fehler',
@@ -20237,6 +20242,7 @@ const I18N_EXTRA = {
     'DIČ': 'USt-IdNr.',
     'DIČ dodavatele': 'USt-IdNr. des Lieferanten',
     'DIČ plátce DPH': 'USt-IdNr. des Steuerzahlers',
+    'DL': 'LS',
     'DL podle města a PSČ · plán pro řidiče': 'Lieferscheine nach Stadt und PLZ · Plan für Fahrer',
     'DL vystaven': 'LS ausgestellt',
     'DL vytvořen': 'LS erstellt',
@@ -21326,6 +21332,7 @@ const I18N_EXTRA = {
     'Event planner': 'Veranstaltungsplaner',
     'Event tracking': 'Event-Tracking',
     'Events': 'Veranstaltungen',
+    'Events *': 'Ereignisse *',
     'Evidence vratných stojanů': 'Erfassung von Pfandständern',
     'Evropa': 'Europa',
     'Excel': 'Excel',
@@ -22555,6 +22562,7 @@ const I18N_EXTRA = {
     'IČO': 'Firmen-ID',
     'IČO dodavatele': 'Firmen-Nr. des Lieferanten',
     'IČO firmy (v Pohoda)': 'Firmen-IČO (in Pohoda)',
+    'IČO/DIČ': 'USt-IdNr. / Steuer-Nr.',
     'JCB': 'JCB',
     'JPEG / JPG': 'JPEG / JPG',
     'JPEG obrázek': 'JPEG-Bild',
@@ -33430,6 +33438,7 @@ const I18N_EXTRA = {
     'Webhook URL': 'Webhook-URL',
     'Webhook log': 'Webhook-Log',
     'Webhook notifikace': 'Webhook-Benachrichtigung',
+    'Webhook secret (whsec_…)': 'Webhook-Geheimnis (whsec_…)',
     'Webhook smazán': 'Webhook gelöscht',
     'Webhook tajný klíč': 'Geheimer Webhook-Schlüssel',
     'Webhook trigger': 'Webhook-Trigger',
@@ -34572,6 +34581,7 @@ const I18N_EXTRA = {
     'dní pro tuto skupinu': 'Tage für diese Gruppe',
     'dní zapůjčeno': 'Tage ausgeliehen',
     'dní)': 'Tage)',
+    'dodaci_listy': 'lieferscheine',
     'dodacích listů': 'Lieferscheine',
     'dodatky': 'Nachträge',
     'dokončena!': 'abgeschlossen!',
