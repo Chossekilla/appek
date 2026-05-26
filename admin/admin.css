@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.53";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.54";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -13416,11 +13416,23 @@ html.theme-dark .rt-zone-tab:not(.is-active) {
     flex: 0 0 auto;
     padding: 0;
   }
+  /* 🆕 v3.0.54 — Search button na mobilu = malé kruhové ikon-only tlačítko
+     (předtím to byl 189px široký "prázdný" pill který user nepoznal) */
   .topbar-search .btn-cmdk-trigger {
-    width: auto;
-    padding: 7px 10px;
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid transparent;
+  }
+  .topbar-search .btn-cmdk-trigger:hover,
+  .topbar-search .btn-cmdk-trigger:active {
+    background: rgba(186, 117, 23, 0.1);
   }
   .btn-cmdk-label, .btn-cmdk-kbd { display: none; }
+  .btn-cmdk-icon { font-size: 17px !important; }
 }
 html.theme-dark .btn-cmdk-trigger { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); color: #f5f5f7; }
 html.theme-dark .btn-cmdk-kbd { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
@@ -14974,11 +14986,23 @@ aside.sidebar::after { display: none !important; content: '' !important; }
     flex: 0 0 auto;
     padding: 0;
   }
+  /* 🆕 v3.0.54 — Search button na mobilu = malé kruhové ikon-only tlačítko
+     (předtím to byl 189px široký "prázdný" pill který user nepoznal) */
   .topbar-search .btn-cmdk-trigger {
-    width: auto;
-    padding: 7px 10px;
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid transparent;
+  }
+  .topbar-search .btn-cmdk-trigger:hover,
+  .topbar-search .btn-cmdk-trigger:active {
+    background: rgba(186, 117, 23, 0.1);
   }
   .btn-cmdk-label, .btn-cmdk-kbd { display: none; }
+  .btn-cmdk-icon { font-size: 17px !important; }
 }
 
 .notif-actions {
