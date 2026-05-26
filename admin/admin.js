@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.35';
+const APPEK_ADMIN_JS_VERSION = '3.0.36';
 
 (async function detectStaleCode() {
   try {
@@ -16358,7 +16358,67 @@ function renderFloorPlan(data, today) {
   const editMode = !!rtState.editMode;
   const dirtyCount = rtState.dirtyTables.size;
 
-  return `
+  // 🆕 v3.0.36 — Detekce "starý/výchozí layout" (A1-A6, B1-B4, C1-C4 pattern)
+  // Pokud user má staré default tabulky, nabídneme upgrade na pěknou šablonu
+  const oldPattern = stoly.length > 0 && stoly.filter(s => /^[A-C][0-9]+$/.test(s.nazev || '')).length / stoly.length > 0.6;
+  const suggestNewTemplate = oldPattern && !state._rtTemplateBannerDismissed;
+  const templateBanner = suggestNewTemplate ? `
+    <div class="card-block" style="padding:16px 20px;margin-bottom:14px;background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:2px solid #3B82F6;border-radius:14px">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:14px;flex-wrap:wrap;margin-bottom:12px">
+        <div style="flex:1;min-width:240px">
+          <h3 style="margin:0 0 4px;font-size:16px;color:#1E40AF;display:flex;align-items:center;gap:8px">
+            ✨ Tvůj layout vypadá jako výchozí
+          </h3>
+          <p style="margin:0;font-size:13px;color:#1E3A8A;line-height:1.55">
+            Vyzkoušej některou z <strong>4 vyladěných šablon</strong> — asymetrické rozvržení, lepší vibe.
+          </p>
+        </div>
+        <button onclick="state._rtTemplateBannerDismissed=true;renderRestaurantTables()"
+                style="padding:6px 12px;background:rgba(255,255,255,0.6);border:1px solid #93C5FD;color:#1E40AF;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">
+          ✕ Zatím ne
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">
+        <button onclick="rtApplyTemplate('pizzerie_modena','🍕 Pizzeria Modena')"
+                style="padding:12px;background:#fff;border:2px solid #FB923C;color:#9A3412;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#FFF7ED';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">🍕</div>
+          <div>Pizzeria Modena</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">Bar + terasa</div>
+        </button>
+        <button onclick="rtApplyTemplate('bistro_verde','🍽️ Bistro Verde')"
+                style="padding:12px;background:#fff;border:2px solid #10B981;color:#065F46;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#F0FDF4';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">🍽️</div>
+          <div>Bistro Verde</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">3 zóny · lounge</div>
+        </button>
+        <button onclick="rtApplyTemplate('wine_bar_apollo','🍷 Wine bar Apollo')"
+                style="padding:12px;background:#fff;border:2px solid #7C3AED;color:#5B21B6;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#F5F3FF';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">🍷</div>
+          <div>Wine bar Apollo</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">U-shaped bar</div>
+        </button>
+        <button onclick="rtApplyTemplate('cafe_aurelio','☕ Cafe Aurelio')"
+                style="padding:12px;background:#fff;border:2px solid #F59E0B;color:#78350F;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#FFFBEB';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">☕</div>
+          <div>Cafe Aurelio</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">Komunitní stůl</div>
+        </button>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:#1E3A8A;text-align:center;opacity:0.8">
+        ⚠️ Aplikace šablony <strong>smaže stávající stoly a zóny</strong> (zachová otevřené účty pokud existují).
+      </div>
+    </div>
+  ` : '';
+
+  return templateBanner + `
     <!-- Toolbar -->
     <div class="card-block" style="padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
