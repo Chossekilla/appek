@@ -60,7 +60,7 @@
   }
 })();
 </script>
-<link rel="stylesheet" href="admin.css?v=3.0.47">
+<link rel="stylesheet" href="admin.css?v=3.0.48">
 </head>
 <body>
 
@@ -186,12 +186,11 @@
       <button class="nav-item" data-page="nastaveni">
         <span class="nav-icon">⚙️</span> <span data-i18n="nav_settings">Nastavení</span>
       </button>
-      <!-- 📱 v3.0.47 — Mobile only cycle button: pod Nastavení jako nav-item.
-           Klik cyklem: default(rail+bottom) → hidden(bottom only) → expanded(full sidebar) → default -->
-      <button class="nav-item nav-item-mob-cycle" onclick="cycleMobileNav()"
-              title="Sbalit / rozbalit menu (mobil)" aria-label="Přepnout menu">
-        <span class="nav-icon">≡</span>
-        <span class="nav-mob-cycle-label">Sbalit menu</span>
+      <!-- 📱 v3.0.48 — Mobile only: schovat sidebar (jen bottom nav zůstane) -->
+      <button class="nav-item nav-item-mob-hide" onclick="hideMobileSidebar()"
+              title="Schovat boční menu" aria-label="Schovat menu">
+        <span class="nav-icon">◀</span>
+        <span>Schovat menu</span>
       </button>
 
     </nav>
@@ -289,12 +288,11 @@
     </footer>
   </div>
 
-  <!-- 📱 v3.0.47 — Floating "≡" toggle, visible jen když je sidebar schovaný (state B).
-       Klik → expand to full sidebar (state C, no bottom). -->
+  <!-- 📱 v3.0.48 — Floating "≡" pro návrat sidebaru (viditelné když je sidebar schovaný) -->
   <button id="mobile-rail-restore"
-          onclick="cycleMobileNav()"
-          title="Rozbalit boční menu (skryje spodní)"
-          aria-label="Rozbalit menu">≡</button>
+          onclick="showMobileSidebar()"
+          title="Zobrazit boční menu"
+          aria-label="Zobrazit menu">≡</button>
 
   <!-- 📱 Bottom navigation pro mobile (skryté na desktopu, zobrazené pod 768px) -->
   <nav class="bottom-nav" id="bottom-nav" aria-label="Mobilní navigace">
@@ -336,7 +334,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js" defer></script>
-<script src="i18n.js?v=3.0.47"></script>
+<script src="i18n.js?v=3.0.48"></script>
 <!-- 🚀 v2.9.314 — Lazy i18n: CS users (~80% bázi) předtím tahali 4 MB JS zbytečně.
      i18n_auto.js (2.3 MB, EN+ES) a i18n_extra.js (1.7 MB, SK+DE) se teď loadují
      jen pro non-CS jazyky. Switching at runtime: window.loadI18nForLang() v i18n.js. -->
@@ -348,14 +346,14 @@
   // EN/ES needs i18n_auto.js. SK/DE need both.
   // document.write je deprecated ale funguje synchronně před admin.js — což je co potřebujeme.
   if (lang === 'en' || lang === 'es' || lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_auto.js?v=3.0.47"><\/script>');
+    document.write('<script src="i18n_auto.js?v=3.0.48"><\/script>');
   }
   if (lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_extra.js?v=3.0.47"><\/script>');
+    document.write('<script src="i18n_extra.js?v=3.0.48"><\/script>');
   }
 })();
 </script>
-<script src="admin.js?v=3.0.47"></script>
+<script src="admin.js?v=3.0.48"></script>
 <script>
 // 🔄 AUTO-CHECK pro update — admin loadne → ptáme se vendora.
 //    v2.9.52 — Client-side semver kontrola: pill se ukáže JEN když je
