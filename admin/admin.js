@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.50';
+const APPEK_ADMIN_JS_VERSION = '3.0.51';
 
 (async function detectStaleCode() {
   try {
@@ -2968,9 +2968,21 @@ window.updateAppFAB = function(page) {
   appekFabLongPressBind(fab);
 };
 
+// 🐛 v3.0.51 — initial: pokud je #app skryté, jsme na login → ošetřit floating elementy
+(function appekInitLoginState() {
+  try {
+    const app = document.getElementById('app');
+    if (app && getComputedStyle(app).display === 'none') {
+      document.body.classList.add('is-login');
+    }
+  } catch (e) {}
+})();
+
 async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'grid';
+  // 🐛 v3.0.51 — class na body pro CSS gating floating elementů (fallback k :has())
+  document.body.classList.remove('is-login');
   document.getElementById('admin-name').textContent = state.admin.jmeno;
   aktualizovatTopbarDatum();
 
@@ -4429,6 +4441,9 @@ async function renderDashboard(filters = {}) {
   if (!d.alerts || typeof d.alerts !== 'object') d.alerts = {};
   if (!d.obdobi) d.obdobi = obdobi;
   if (!d.dny_v_obdobi) d.dny_v_obdobi = 1;
+  // 🐛 v3.0.51 — chybělo guarding pro d.dnes a d.po_splatnosti → JS crash
+  if (!d.dnes || typeof d.dnes !== 'object') d.dnes = { trzby: 0, objednavek: 0 };
+  if (!d.po_splatnosti || typeof d.po_splatnosti !== 'object') d.po_splatnosti = { pocet: 0, castka: 0 };
 
   const c = document.getElementById('content');
 

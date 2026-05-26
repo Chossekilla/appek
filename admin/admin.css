@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.50";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.51";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12910,6 +12910,40 @@ html.theme-dark #appek-quick-sheet .qs-cancel {
    #mobile-rail-restore logika (v3.0.46/47/48). Uživatel reportoval že
    floating ≡ button se zobrazoval i přes login screen + chaos s rail.
    Necháváme jen existující sidebar-pin (📌) jako jediný mobile toggle. */
+
+/* 🐛 v3.0.51 — fix: APPEK B2B text v topbaru na mobilu (sidebar display:contents
+   způsobí že sidebar-logo strong flow do parent gridu → zobrazí se jak topbar).
+   Schovat brand text na mobile, nechat jen logo-icon. */
+@media (max-width: 768px) {
+  .sidebar-logo strong { display: none !important; }
+}
+
+/* 🐛 v3.0.51 — fix: Floating elementy (FAB, PTR, PWA banner, bottom-nav, offline)
+   se zobrazují i přes login screen protože jsou v body (mimo #app div).
+   Pravidlo: pokud #app je display:none (= login showing), schovat floating.
+   Plus class-based fallback `body.is-login` pro browsery bez :has(). */
+body:has(#app[style*="display: none"]) #app-fab,
+body:has(#app[style*="display:none"]) #app-fab,
+body:has(#app[style*="display: none"]) .ptr-indicator,
+body:has(#app[style*="display:none"]) .ptr-indicator,
+body:has(#app[style*="display: none"]) #pwa-install-banner,
+body:has(#app[style*="display:none"]) #pwa-install-banner,
+body:has(#app[style*="display: none"]) #appek-quick-sheet,
+body:has(#app[style*="display:none"]) #appek-quick-sheet,
+body:has(#app[style*="display: none"]) .bottom-nav,
+body:has(#app[style*="display:none"]) .bottom-nav,
+body:has(#app[style*="display: none"]) #appek-offline-banner,
+body:has(#app[style*="display:none"]) #appek-offline-banner {
+  display: none !important;
+}
+body.is-login #app-fab,
+body.is-login .ptr-indicator,
+body.is-login #pwa-install-banner,
+body.is-login #appek-quick-sheet,
+body.is-login .bottom-nav,
+body.is-login #appek-offline-banner {
+  display: none !important;
+}
 
 /* 🆕 v3.0.42 — REST BANNER TABS (velké color-coded banner buttony v Restaurace)
    User: "to horní menu udělej buttony velké bannery až" */
