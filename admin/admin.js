@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.24';
+const APPEK_ADMIN_JS_VERSION = '3.0.25';
 
 (async function detectStaleCode() {
   try {
@@ -15747,10 +15747,50 @@ async function renderRestaurantProvoz() {
   const body = document.getElementById('rest-tab-body');
   if (!body) return;
 
+  // 🆕 v3.0.25 — HERO akční karty nahoře (klíčové akce na 1 klik)
   body.innerHTML = `
+    <!-- HERO akční karty -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:24px">
+      <button onclick="window.openPOSWindow?.()" style="background:linear-gradient(135deg,#FBBF24,#FB923C);color:#1F2937;border:none;border-radius:14px;padding:22px;cursor:pointer;text-align:left;font-family:inherit;transition:all 0.18s ease;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 14px rgba(251,146,60,0.25)" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 22px rgba(251,146,60,0.35)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(251,146,60,0.25)'">
+        <div style="font-size:38px;line-height:1">🧾</div>
+        <div>
+          <div style="font-size:18px;font-weight:900;letter-spacing:-0.02em">Otevřít POS Kasu</div>
+          <div style="font-size:12px;opacity:0.8;margin-top:2px">Stůl / pokladnu / sebou — fullscreen</div>
+        </div>
+        <div style="font-size:11px;font-weight:800;color:#1F2937;margin-top:auto">→ OTEVŘÍT V NOVÉM OKNĚ</div>
+      </button>
+
+      <button onclick="window.openKDSWindow?.()" style="background:linear-gradient(135deg,#34D399,#10B981);color:#052e1c;border:none;border-radius:14px;padding:22px;cursor:pointer;text-align:left;font-family:inherit;transition:all 0.18s ease;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 14px rgba(16,185,129,0.25)" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 22px rgba(16,185,129,0.35)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(16,185,129,0.25)'">
+        <div style="font-size:38px;line-height:1">👨‍🍳</div>
+        <div>
+          <div style="font-size:18px;font-weight:900;letter-spacing:-0.02em">Kuchyňský displej</div>
+          <div style="font-size:12px;opacity:0.8;margin-top:2px">KDS pro kuchaře — vařit → hotovo</div>
+        </div>
+        <div style="font-size:11px;font-weight:800;color:#052e1c;margin-top:auto">→ OTEVŘÍT KDS</div>
+      </button>
+
+      <button onclick="window.openVydejWindow?.()" style="background:linear-gradient(135deg,#60A5FA,#3B82F6);color:#fff;border:none;border-radius:14px;padding:22px;cursor:pointer;text-align:left;font-family:inherit;transition:all 0.18s ease;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 14px rgba(59,130,246,0.25)" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 22px rgba(59,130,246,0.35)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(59,130,246,0.25)'">
+        <div style="font-size:38px;line-height:1">📤</div>
+        <div>
+          <div style="font-size:18px;font-weight:900;letter-spacing:-0.02em">Výdej (Pass)</div>
+          <div style="font-size:12px;opacity:0.9;margin-top:2px">Pro číšníky — hotová jídla k odnesení</div>
+        </div>
+        <div style="font-size:11px;font-weight:800;color:#fff;margin-top:auto">→ OTEVŘÍT VÝDEJ</div>
+      </button>
+
+      <button onclick="window.openProvozMonitor?.()" style="background:linear-gradient(135deg,#1F2937,#111827);color:#fff;border:none;border-radius:14px;padding:22px;cursor:pointer;text-align:left;font-family:inherit;transition:all 0.18s ease;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 14px rgba(0,0,0,0.3)" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 22px rgba(0,0,0,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(0,0,0,0.3)'">
+        <div style="font-size:38px;line-height:1">📺</div>
+        <div>
+          <div style="font-size:18px;font-weight:900;letter-spacing:-0.02em">Provoz monitor</div>
+          <div style="font-size:12px;opacity:0.8;margin-top:2px">Live přehled pro druhý monitor / TV</div>
+        </div>
+        <div style="font-size:11px;font-weight:800;color:#FB923C;margin-top:auto">→ KIOSK FULLSCREEN</div>
+      </button>
+    </div>
+
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
       <div>
-        <h3 style="margin:0 0 4px;font-size:18px">📺 Živý přehled provozu</h3>
+        <h3 style="margin:0 0 4px;font-size:18px">📊 Živý přehled provozu</h3>
         <p style="margin:0;font-size:12px;color:var(--text-3)">Stoly · Kuchyně · Rozvoz · POS dnes — auto-refresh každých 60 s.</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -15764,36 +15804,7 @@ async function renderRestaurantProvoz() {
     <!-- Widget container (stejný ID jako dashboard, aby loadProvozWidget fungoval) -->
     <div id="dash-provoz-widget" style="display:none"></div>
 
-    <!-- Bonus features karty pod widgetem -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:18px">
-      <a href="javascript:window.openKDSWindow?.()" class="card-block" style="background:linear-gradient(135deg,#FBBF24,#FB923C);color:#1F2937;text-decoration:none;padding:18px;border:none;display:block;border-radius:10px;cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-        <div style="font-size:32px;margin-bottom:8px">👨‍🍳</div>
-        <div style="font-weight:700;font-size:15px;margin-bottom:4px">Kuchyňský displej (KDS)</div>
-        <div style="font-size:12px;opacity:0.85;line-height:1.5">Pro <strong>kuchaře</strong>. Karty objednávek se stavem: <strong>objednáno → vaří se → hotovo</strong>. Klik na položku = next state.</div>
-        <div style="margin-top:10px;font-size:11px;color:#1F2937;font-weight:800">→ OTEVŘÍT KDS V NOVÉM OKNĚ</div>
-      </a>
-
-      <a href="javascript:window.openVydejWindow?.()" class="card-block" style="background:linear-gradient(135deg,#34D399,#059669);color:#052e1c;text-decoration:none;padding:18px;border:none;display:block;border-radius:10px;cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-        <div style="font-size:32px;margin-bottom:8px">📤</div>
-        <div style="font-weight:700;font-size:15px;margin-bottom:4px">Výdej / Pass-through</div>
-        <div style="font-size:12px;opacity:0.85;line-height:1.5">Pro <strong>číšníka u výdejního okna</strong>. Ukáže jen hotové položky k odnesení. Klik = servírováno + tisk pickup bonu.</div>
-        <div style="margin-top:10px;font-size:11px;color:#052e1c;font-weight:800">→ OTEVŘÍT VÝDEJ V NOVÉM OKNĚ</div>
-      </a>
-
-      <a href="javascript:window.openFloorplanWindow?.()" class="card-block" style="padding:18px;border:1px solid var(--border);display:block;text-decoration:none;color:var(--text);cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-        <div style="font-size:32px;margin-bottom:8px">🗺️</div>
-        <div style="font-weight:700;font-size:15px;margin-bottom:4px">Floor plan editor</div>
-        <div style="font-size:12px;color:var(--text-3);line-height:1.5">Vytvoř/uprav mapu restaurace — stoly, zóny (terasa, salonek). Drag & drop, kapacita per stůl, status real-time.</div>
-        <div style="margin-top:10px;font-size:11px;color:var(--primary);font-weight:700">→ OTEVŘÍT EDITOR</div>
-      </a>
-
-      <a href="javascript:window.openPOSWindow?.()" class="card-block" style="padding:18px;border:1px solid var(--border);display:block;text-decoration:none;color:var(--text);cursor:pointer;transition:transform 0.15s ease" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-        <div style="font-size:32px;margin-bottom:8px">🧾</div>
-        <div style="font-weight:700;font-size:15px;margin-bottom:4px">POS Kasa</div>
-        <div style="font-size:12px;color:var(--text-3);line-height:1.5">Spustí standalone pokladnu na fullscreen. Vhodné pro tablet u pultu, dotykový terminál nebo iPad.</div>
-        <div style="margin-top:10px;font-size:11px;color:var(--primary);font-weight:700">→ OTEVŘÍT POS</div>
-      </a>
-    </div>
+    <!-- 🎨 v3.0.25 — duplicitní karty odstraněny (jsou v HERO panelu nahoře) -->
 
     <!-- Tip pro multi-screen setup -->
     <div style="margin-top:18px;padding:14px 18px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8;border-radius:10px;font-size:13px;color:#854F0B;line-height:1.55">
