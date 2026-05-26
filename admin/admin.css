@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.31";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.32";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18724,4 +18724,173 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
 
   /* Tabs — menší padding (více se vejde do řady) */
   .nastaveni-tab { padding: 8px 12px !important; font-size: 12px !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   🎈 v3.0.32 — FLUID RESPONSIVE SYSTEM (balónek, který obepíná obrazovku)
+   Místo fixních breakpoints → clamp() pro plynulé škálování.
+   Aplikace se sama nafoukne nebo splaskne podle viewportu.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Fluid size system — clamp(min, fluid via vw, max) */
+  --fl-sidebar:    clamp(60px, 22vw, 280px);
+  --fl-content-px: clamp(10px, 2.4vw, 32px);     /* main padding horizontal */
+  --fl-content-py: clamp(12px, 2.2vw, 28px);     /* main padding vertical */
+  --fl-card-px:    clamp(12px, 2vw, 24px);       /* card padding */
+  --fl-card-py:    clamp(12px, 1.8vw, 22px);
+  --fl-gap-sm:     clamp(6px, 0.8vw, 12px);      /* small gap */
+  --fl-gap-md:     clamp(10px, 1.4vw, 18px);     /* medium gap */
+  --fl-gap-lg:     clamp(14px, 2vw, 26px);       /* large gap */
+  --fl-h1:         clamp(18px, 2.4vw, 28px);     /* page title */
+  --fl-h2:         clamp(16px, 1.8vw, 22px);     /* section title */
+  --fl-h3:         clamp(14px, 1.5vw, 18px);     /* sub-section */
+  --fl-body:       clamp(13px, 1.1vw, 15px);     /* body text */
+  --fl-small:      clamp(11px, 0.95vw, 13px);    /* small text */
+  --fl-stat-num:   clamp(20px, 2.6vw, 32px);     /* stat card value */
+  --fl-btn-pad:    clamp(8px, 1.1vw, 14px);      /* button padding vertical */
+  --fl-btn-px:     clamp(12px, 1.6vw, 22px);     /* button padding horizontal */
+  --fl-radius:     clamp(8px, 0.9vw, 14px);      /* border-radius */
+}
+
+/* === Body & global resets pro fluid layout === */
+html, body { overflow-x: hidden; }
+body { font-size: var(--fl-body); }
+
+/* === Admin app grid fluid === */
+.admin-app:not(.sidebar-pinned):not(.sidebar-collapsed) {
+  grid-template-columns: var(--fl-sidebar) 1fr;
+}
+
+/* === Sidebar fluid === */
+.sidebar { padding: clamp(12px, 1.8vw, 20px) clamp(6px, 1.1vw, 14px); }
+.sidebar-logo { padding: 0 clamp(6px, 1vw, 12px) clamp(12px, 1.6vw, 20px); gap: clamp(6px, 0.9vw, 12px); }
+.sidebar-logo .logo-icon {
+  width: clamp(32px, 3.4vw, 42px);
+  height: clamp(32px, 3.4vw, 42px);
+  font-size: clamp(14px, 1.5vw, 18px);
+}
+.sidebar-logo strong { font-size: clamp(12px, 1.2vw, 16px); }
+.nav-item {
+  padding: clamp(7px, 0.95vw, 11px) clamp(8px, 1.1vw, 14px);
+  font-size: clamp(12px, 1.1vw, 14px);
+  gap: clamp(6px, 0.9vw, 12px);
+}
+.nav-icon { font-size: clamp(14px, 1.4vw, 18px); }
+
+/* === Main content fluid === */
+.main-content {
+  padding: var(--fl-content-py) var(--fl-content-px);
+  max-width: min(100vw, 1600px); /* fluid cap, ne tvrdé 1400 */
+}
+main#content { padding: var(--fl-content-py) var(--fl-content-px); }
+
+/* === Page head fluid === */
+.page-head {
+  margin-bottom: var(--fl-gap-md);
+  gap: var(--fl-gap-sm);
+  flex-wrap: wrap;
+}
+.page-title { font-size: var(--fl-h1); letter-spacing: -0.01em; }
+.page-sub { font-size: var(--fl-small); }
+
+/* === Card-block fluid === */
+.card-block {
+  padding: var(--fl-card-py) var(--fl-card-px);
+  border-radius: var(--fl-radius);
+  margin-bottom: var(--fl-gap-md);
+}
+
+/* === Stat grid — fluid auto-fit === */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: var(--fl-gap-sm);
+  margin-bottom: var(--fl-gap-md);
+}
+.stat-card {
+  padding: clamp(10px, 1.4vw, 18px) clamp(12px, 1.6vw, 20px);
+  border-radius: var(--fl-radius);
+}
+.stat-label { font-size: var(--fl-small); }
+.stat-value { font-size: var(--fl-stat-num); font-weight: 800; }
+
+/* === Buttons fluid === */
+.btn-primary, .btn-secondary {
+  padding: var(--fl-btn-pad) var(--fl-btn-px);
+  font-size: var(--fl-small);
+  border-radius: var(--fl-radius);
+  white-space: nowrap;
+}
+.btn-back { padding: var(--fl-btn-pad) var(--fl-btn-px); font-size: var(--fl-small); }
+
+/* === Tables fluid === */
+.table { font-size: var(--fl-small); }
+.table th, .table td {
+  padding: clamp(7px, 0.9vw, 11px) clamp(6px, 0.9vw, 12px);
+}
+
+/* === Filters fluid === */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fl-gap-sm);
+}
+.filter-input, .filter-select {
+  flex: 1 1 min(100%, 200px);
+  padding: var(--fl-btn-pad) clamp(10px, 1.3vw, 16px);
+  font-size: var(--fl-small);
+  border-radius: var(--fl-radius);
+}
+
+/* === Universal grid auto-fit pattern (přepíše inline minmax) === */
+[data-fluid-grid] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--gmin, 220px)), 1fr));
+  gap: var(--fl-gap-md);
+}
+
+/* === Modals fluid === */
+.modal-content {
+  padding: var(--fl-card-py) var(--fl-card-px);
+  max-width: min(92vw, 720px);
+  margin: clamp(20px, 4vh, 60px) auto;
+  border-radius: var(--fl-radius);
+}
+
+/* === Nastaveni tabs fluid === */
+.nastaveni-tab {
+  padding: clamp(7px, 0.95vw, 10px) clamp(10px, 1.3vw, 16px);
+  font-size: var(--fl-small);
+  border-radius: var(--fl-radius);
+}
+.nastaveni-tabs {
+  gap: clamp(4px, 0.6vw, 8px);
+  margin-bottom: var(--fl-gap-md);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* === Sidebar pinned mobile — fluid rail === */
+@media (max-width: 700px) {
+  body.sidebar-pinned .sidebar { width: clamp(44px, 14vw, 56px) !important; }
+  body.sidebar-pinned main#content,
+  body.sidebar-pinned .main-content {
+    margin-left: clamp(44px, 14vw, 56px) !important;
+    max-width: calc(100vw - clamp(44px, 14vw, 56px)) !important;
+    padding: var(--fl-content-py) var(--fl-content-px) !important;
+  }
+}
+
+/* === Container queries fallback (postupné nasazení per komponentu) === */
+@supports (container-type: inline-size) {
+  .main-content { container-type: inline-size; container-name: main; }
+}
+
+/* === Cleanup: některé tvrdé !important pravidla z předchozích vrstev === */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  /* v3.0.30 MacBook 13 override je teď zbytečný — fluid clamp řeší */
+  .admin-app:not(.sidebar-collapsed) {
+    grid-template-columns: var(--fl-sidebar) 1fr !important;
+  }
 }

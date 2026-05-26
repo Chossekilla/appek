@@ -4528,3 +4528,40 @@ input, select, textarea {
   .b2b-pay-name { font-size: 13px; }
   .b2b-pay-desc { font-size: 11px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   🎈 v3.0.32 — B2B PORTAL FLUID
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --fl-px:    clamp(10px, 2.2vw, 28px);
+  --fl-py:    clamp(10px, 1.8vw, 22px);
+  --fl-gap:   clamp(8px, 1.2vw, 18px);
+  --fl-body:  clamp(13px, 1.1vw, 15px);
+  --fl-h1:    clamp(20px, 2.4vw, 28px);
+  --fl-h2:    clamp(16px, 1.8vw, 22px);
+  --fl-small: clamp(11px, 0.95vw, 13px);
+  --fl-radius:clamp(8px, 0.9vw, 14px);
+}
+
+body { font-size: var(--fl-body); }
+main, .layout { padding: var(--fl-py) var(--fl-px) !important; gap: var(--fl-gap); }
+.page-head h1, h1.page-title { font-size: var(--fl-h1); }
+.page-head p, .page-sub { font-size: var(--fl-small); }
+.card { padding: var(--fl-py) var(--fl-px); border-radius: var(--fl-radius); }
+.btn, button.btn, .btn-primary, .btn-secondary {
+  padding: clamp(8px, 1.1vw, 14px) clamp(12px, 1.6vw, 22px);
+  font-size: var(--fl-small);
+  border-radius: var(--fl-radius);
+}
+
+/* Grid product cards — fluid auto-fit */
+.grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)) !important;
+  gap: var(--fl-gap);
+}
+
+.stat-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: var(--fl-gap);
+}
