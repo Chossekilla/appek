@@ -6,6 +6,27 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.51] — 2026-05-26
+
+### 🐛 Mobile: hide sidebar over login + APPEK text + dashboard crash
+_User: "menu nemůže být natvrdo přes login. APPEK najednou ukazuje název firmy. pin na mobilu zmizel. otevři admin mobile a proklikej"_
+
+**Audit přes Claude_Preview MCP (375×812)** — 3 viditelné bugy:
+
+**Bug 1**: `app-fab`, `ptr-indicator`, `pwa-install-banner`, `bottom-nav`, `offline-banner` jsou v body MIMO `#app` div → zobrazují se i přes login screen
+**Fix**: CSS `body:has(#app[style*="display:none"]) #app-fab, ... { display: none }` + class fallback `body.is-login` (`appekInitLoginState()` na init detekuje že app je hidden → přidá class; `showApp()` ji odstraní)
+
+**Bug 2**: "APPEK B2B" brand text se zobrazuje v topbaru na mobilu — sidebar má `display: contents` na mobilu, takže `.sidebar-logo strong` flow do parent gridu
+**Fix**: `@media (max-width: 768px) { .sidebar-logo strong { display: none !important } }`
+
+**Bug 3**: Dashboard crash `Cannot read properties of undefined (reading 'objednavek')` — `renderDashboard()` neguardoval `d.dnes` a `d.po_splatnosti`
+**Fix**: Přidány defenzivní fallbacky v `renderDashboard()` po stávajících guards
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.50→3.0.51, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.50] — 2026-05-26
 
 ### 🐛 REVERT — smazána broken mobile-rail logika
