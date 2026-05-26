@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.34";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.35";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18734,23 +18734,31 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
 
 :root {
   /* Fluid size system — clamp(min, fluid via vw, max) */
-  --fl-sidebar:    clamp(60px, 22vw, 280px);
-  --fl-content-px: clamp(10px, 2.4vw, 32px);     /* main padding horizontal */
-  --fl-content-py: clamp(12px, 2.2vw, 28px);     /* main padding vertical */
-  --fl-card-px:    clamp(12px, 2vw, 24px);       /* card padding */
-  --fl-card-py:    clamp(12px, 1.8vw, 22px);
-  --fl-gap-sm:     clamp(6px, 0.8vw, 12px);      /* small gap */
-  --fl-gap-md:     clamp(10px, 1.4vw, 18px);     /* medium gap */
-  --fl-gap-lg:     clamp(14px, 2vw, 26px);       /* large gap */
-  --fl-h1:         clamp(18px, 2.4vw, 28px);     /* page title */
-  --fl-h2:         clamp(16px, 1.8vw, 22px);     /* section title */
-  --fl-h3:         clamp(14px, 1.5vw, 18px);     /* sub-section */
-  --fl-body:       clamp(13px, 1.1vw, 15px);     /* body text */
-  --fl-small:      clamp(11px, 0.95vw, 13px);    /* small text */
-  --fl-stat-num:   clamp(20px, 2.6vw, 32px);     /* stat card value */
-  --fl-btn-pad:    clamp(8px, 1.1vw, 14px);      /* button padding vertical */
-  --fl-btn-px:     clamp(12px, 1.6vw, 22px);     /* button padding horizontal */
-  --fl-radius:     clamp(8px, 0.9vw, 14px);      /* border-radius */
+  /* 🆕 v3.0.35 — Lift fluid mins (uživatelská zpětná vazba: "menu se zmenšilo")
+     Zachovává fluid škálování, ale "default" velikost je větší — ne pod žádnou hodnotou */
+  --fl-sidebar:    clamp(220px, 18vw, 300px);    /* min 220 (čitelné), max 300 */
+  --fl-content-px: clamp(14px, 2.4vw, 36px);     /* main padding horizontal */
+  --fl-content-py: clamp(14px, 2.2vw, 30px);     /* main padding vertical */
+  --fl-card-px:    clamp(14px, 2vw, 26px);       /* card padding */
+  --fl-card-py:    clamp(14px, 1.8vw, 24px);
+  --fl-gap-sm:     clamp(8px, 0.9vw, 14px);
+  --fl-gap-md:     clamp(12px, 1.4vw, 20px);
+  --fl-gap-lg:     clamp(16px, 2vw, 28px);
+  --fl-h1:         clamp(20px, 2.4vw, 30px);     /* page title — větší */
+  --fl-h2:         clamp(17px, 1.8vw, 22px);
+  --fl-h3:         clamp(15px, 1.5vw, 18px);
+  --fl-body:       clamp(14px, 1.1vw, 16px);     /* body — čitelnější */
+  --fl-small:      clamp(12px, 0.95vw, 14px);    /* small */
+  --fl-stat-num:   clamp(22px, 2.6vw, 34px);
+  --fl-btn-pad:    clamp(10px, 1.1vw, 14px);
+  --fl-btn-px:     clamp(14px, 1.6vw, 22px);
+  --fl-radius:     clamp(10px, 0.9vw, 14px);
+  /* Sidebar-specific tokens */
+  --fl-nav-fz:     clamp(13px, 1.15vw, 15px);    /* nav-item font */
+  --fl-nav-pad:    clamp(9px, 1vw, 12px);        /* nav-item padding */
+  --fl-nav-icon:   clamp(16px, 1.4vw, 19px);     /* nav icon font */
+  --fl-logo-text:  clamp(14px, 1.25vw, 17px);    /* sidebar logo strong */
+  --fl-logo-icon:  clamp(38px, 3.4vw, 46px);     /* sidebar logo icon */
 }
 
 /* === Body & global resets pro fluid layout === */
@@ -18762,21 +18770,22 @@ body { font-size: var(--fl-body); }
   grid-template-columns: var(--fl-sidebar) 1fr;
 }
 
-/* === Sidebar fluid === */
-.sidebar { padding: clamp(12px, 1.8vw, 20px) clamp(6px, 1.1vw, 14px); }
-.sidebar-logo { padding: 0 clamp(6px, 1vw, 12px) clamp(12px, 1.6vw, 20px); gap: clamp(6px, 0.9vw, 12px); }
+/* === Sidebar fluid (v3.0.35 — větší defaults) === */
+.sidebar { padding: clamp(14px, 1.8vw, 22px) clamp(8px, 1.1vw, 14px); }
+.sidebar-logo { padding: 0 clamp(8px, 1vw, 14px) clamp(14px, 1.6vw, 22px); gap: clamp(8px, 0.9vw, 12px); }
 .sidebar-logo .logo-icon {
-  width: clamp(32px, 3.4vw, 42px);
-  height: clamp(32px, 3.4vw, 42px);
-  font-size: clamp(14px, 1.5vw, 18px);
+  width: var(--fl-logo-icon);
+  height: var(--fl-logo-icon);
+  font-size: clamp(15px, 1.5vw, 19px);
 }
-.sidebar-logo strong { font-size: clamp(12px, 1.2vw, 16px); }
+.sidebar-logo strong { font-size: var(--fl-logo-text); }
 .nav-item {
-  padding: clamp(7px, 0.95vw, 11px) clamp(8px, 1.1vw, 14px);
-  font-size: clamp(12px, 1.1vw, 14px);
-  gap: clamp(6px, 0.9vw, 12px);
+  padding: var(--fl-nav-pad) clamp(10px, 1.1vw, 14px);
+  font-size: var(--fl-nav-fz);
+  gap: clamp(8px, 0.9vw, 12px);
+  font-weight: 600;
 }
-.nav-icon { font-size: clamp(14px, 1.4vw, 18px); }
+.nav-icon { font-size: var(--fl-nav-icon); }
 
 /* === Main content fluid === */
 .main-content {
