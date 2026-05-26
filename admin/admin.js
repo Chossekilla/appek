@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.45';
+const APPEK_ADMIN_JS_VERSION = '3.0.46';
 
 (async function detectStaleCode() {
   try {
@@ -2131,6 +2131,39 @@ applyAppDensity();
 // =============================================================
 // 📌 PIN sidebar — fixuje boční menu (uloženo do localStorage)
 // =============================================================
+// 🆕 v3.0.46 — Mobile nav 3-state toggle:
+//   A) Default: rail + bottom nav (both visible)
+//   B) mobile-rail-hidden: jen bottom (full width content)
+//   C) mobile-bottom-hidden: jen rail (full height content)
+window.toggleMobileRail = function() {
+  const isHidden = document.body.classList.toggle('mobile-rail-hidden');
+  // Pokud schováme rail, automaticky zruš mobile-bottom-hidden (jinak nic nezobrazí)
+  if (isHidden) document.body.classList.remove('mobile-bottom-hidden');
+  try { localStorage.setItem('appek_mobile_rail_hidden', isHidden ? '1' : '0'); } catch (e) {}
+  try { localStorage.setItem('appek_mobile_bottom_hidden', '0'); } catch (e) {}
+  try { window.haptic && window.haptic('medium'); } catch (e) {}
+};
+
+window.toggleMobileBottom = function() {
+  const isHidden = document.body.classList.toggle('mobile-bottom-hidden');
+  // Pokud schováme bottom, automaticky zruš mobile-rail-hidden
+  if (isHidden) document.body.classList.remove('mobile-rail-hidden');
+  try { localStorage.setItem('appek_mobile_bottom_hidden', isHidden ? '1' : '0'); } catch (e) {}
+  try { localStorage.setItem('appek_mobile_rail_hidden', '0'); } catch (e) {}
+  try { window.haptic && window.haptic('medium'); } catch (e) {}
+};
+
+// Restore state from localStorage on boot
+(function appekRestoreMobileNavState() {
+  try {
+    if (localStorage.getItem('appek_mobile_rail_hidden') === '1') {
+      document.body.classList.add('mobile-rail-hidden');
+    } else if (localStorage.getItem('appek_mobile_bottom_hidden') === '1') {
+      document.body.classList.add('mobile-bottom-hidden');
+    }
+  } catch (e) {}
+})();
+
 window.toggleSidebarPin = function() {
   const isOn = document.body.classList.toggle('sidebar-pinned');
   localStorage.setItem('sidebarPinned', isOn ? '1' : '0');

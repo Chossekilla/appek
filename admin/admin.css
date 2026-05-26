@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.45";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.46";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12896,6 +12896,103 @@ html.theme-dark #appek-quick-sheet .qs-cancel {
 .swipe-underlay .swipe-action-right,
 .swipe-underlay .swipe-action-left {
   border-radius: inherit;
+}
+
+/* 🆕 v3.0.46 — MOBILE NAV 3-STATE TOGGLE
+   User: "pod Nastavení sbalit menu / pod A full výška" */
+
+/* "⤢ Plná výška" button — pod logem v sidebaru (mobile only) */
+.sidebar-mob-fullheight {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  margin: 4px 0 12px;
+  background: rgba(186, 117, 23, 0.08);
+  border: 1.5px dashed rgba(186, 117, 23, 0.35);
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary-dark, #854F0B);
+  transition: background 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.sidebar-mob-fullheight:active { transform: scale(0.97); background: rgba(186, 117, 23, 0.15); }
+.sidebar-mob-fullheight .smfh-icon { font-size: 18px; }
+
+/* "📵 Sbalit rail" button — v sidebar-utils (mobile only) */
+.sidebar-mob-collapse {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 8px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1.5px dashed rgba(220, 38, 38, 0.35);
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #991B1B;
+  transition: background 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.sidebar-mob-collapse:active { transform: scale(0.97); background: rgba(220, 38, 38, 0.15); }
+.sidebar-mob-collapse .smc-icon { font-size: 18px; }
+
+/* Floating restore button "≡" — visible jen když mobile-rail-hidden */
+#mobile-rail-restore {
+  display: none;
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0) + 12px);
+  left: calc(env(safe-area-inset-left, 0) + 12px);
+  z-index: 92;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #BA7517, #854F0B);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 14px rgba(186, 117, 23, 0.35), 0 1px 4px rgba(0, 0, 0, 0.15);
+  font-size: 22px;
+  font-weight: 900;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease;
+  align-items: center;
+  justify-content: center;
+}
+#mobile-rail-restore:active { transform: scale(0.92); }
+
+/* ━━━━━━ Mobile (≤768px): show toggle buttons + apply state classes ━━━━━━ */
+@media (max-width: 768px) {
+  .sidebar-mob-fullheight,
+  .sidebar-mob-collapse { display: flex; }
+
+  /* State B — rail skrytý, full width content */
+  body.mobile-rail-hidden .sidebar { display: none !important; }
+  body.mobile-rail-hidden .admin-app { grid-template-columns: 1fr !important; }
+  body.mobile-rail-hidden #mobile-rail-restore { display: flex; }
+  body.mobile-rail-hidden .topbar { padding-left: 68px !important; }
+
+  /* State C — bottom skrytý, full height content */
+  body.mobile-bottom-hidden .bottom-nav { display: none !important; }
+  body.mobile-bottom-hidden #content,
+  body.mobile-bottom-hidden .content { padding-bottom: env(safe-area-inset-bottom, 0) !important; }
+  body.mobile-bottom-hidden .app-fab { bottom: calc(16px + env(safe-area-inset-bottom, 0)) !important; }
+  /* Active state v "Plná výška" tlačítku */
+  body.mobile-bottom-hidden .sidebar-mob-fullheight {
+    background: linear-gradient(135deg, #BA7517, #854F0B) !important;
+    color: #fff !important;
+    border-style: solid !important;
+    border-color: transparent !important;
+  }
+  body.mobile-bottom-hidden .sidebar-mob-fullheight .smfh-label::before { content: '↩ '; }
 }
 
 /* 🆕 v3.0.42 — REST BANNER TABS (velké color-coded banner buttony v Restaurace)

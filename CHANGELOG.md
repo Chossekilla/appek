@@ -6,6 +6,39 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.46] — 2026-05-26
+
+### 📱 Mobile nav 3-state toggle (sbalit rail / full výška)
+_User: "pod Nastavení ikonu — sbalit menu (jen bottom zůstane, full screen). Pod A — expand (zmizí bottom, full výška)"_
+
+**3 stavy na mobilu (≤768px):**
+- **A (default)** — rail + bottom nav obojí viditelné
+- **B (mobile-rail-hidden)** — jen bottom nav, content full **width**
+- **C (mobile-bottom-hidden)** — jen rail, content full **height**
+
+**Buttony:**
+1. **`⤢ Plná výška`** v sidebaru pod logem A → State C (skryje bottom)
+2. **`📵 Sbalit rail`** v sidebar-utils pod Nastavení → State B (skryje rail)
+3. **`≡` floating hamburger** top-left když je State B → návrat do A (rail show)
+
+**Logika:**
+- Klik na "Plná výška" zruší State B (mutually exclusive)
+- Klik na "Sbalit rail" zruší State C
+- Stav persisted v localStorage (`appek_mobile_rail_hidden`, `appek_mobile_bottom_hidden`)
+- Haptic `medium` při toggle
+
+**Layout úpravy per stav:**
+- State B: `.admin-app { grid-template-columns: 1fr }` (sidebar pryč), `.topbar { padding-left: 68px }` (uvolnit místo pro hamburger)
+- State C: `.bottom-nav { display: none }`, `.content { padding-bottom: 0 }`, `.app-fab { bottom: 16px }` (níž protože nav nepřekáží)
+- Active state "Plná výška" tlačítko dostává plný gradient bg + bílý text + ↩ ikona pro návrat
+
+**Buttony na desktop** skryté (jen mobile UX).
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.45→3.0.46, admin.js, sw.js, index.html (nový button + restore), HTML asset URLs
+
+---
+
 ## [3.0.45] — 2026-05-26
 
 ### 🐛 Sidebar fix — od shora dolu přes celou obrazovku

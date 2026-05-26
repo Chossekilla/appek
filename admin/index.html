@@ -60,7 +60,7 @@
   }
 })();
 </script>
-<link rel="stylesheet" href="admin.css?v=3.0.45">
+<link rel="stylesheet" href="admin.css?v=3.0.46">
 </head>
 <body>
 
@@ -154,6 +154,13 @@
       <div class="logo-icon">A</div>
       <strong>APPEK B2B</strong>
     </div>
+    <!-- 📱 v3.0.46 — Mobile nav toggles -->
+    <button class="sidebar-mob-fullheight" onclick="toggleMobileBottom()"
+            title="Skrýt spodní menu — plná výška obrazovky"
+            aria-label="Plná výška">
+      <span class="smfh-icon">⤢</span>
+      <span class="smfh-label">Plná výška</span>
+    </button>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-page="dashboard">
         <span class="nav-icon">📊</span> <span data-i18n="nav_dashboard">Přehled</span>
@@ -199,6 +206,13 @@
         <span class="sidebar-pin-icon">📌</span>
         <span class="sidebar-pin-label-on">Připnuto</span>
         <span class="sidebar-pin-label-off">Připnout menu</span>
+      </button>
+      <!-- 📱 v3.0.46 — Mobile only: sbalit rail → zůstane jen bottom nav (full width) -->
+      <button class="sidebar-mob-collapse" onclick="toggleMobileRail()"
+              title="Sbalit menu — zůstane jen spodní nav (plná šířka)"
+              aria-label="Sbalit menu">
+        <span class="smc-icon">📵</span>
+        <span class="smc-label">Sbalit rail</span>
       </button>
     </div>
   </aside>
@@ -282,6 +296,12 @@
     </footer>
   </div>
 
+  <!-- 📱 v3.0.46 — Floating "≡" hamburger restoring rail (visible jen když mobile-rail-hidden) -->
+  <button id="mobile-rail-restore"
+          onclick="toggleMobileRail()"
+          title="Zobrazit boční menu"
+          aria-label="Zobrazit menu">≡</button>
+
   <!-- 📱 Bottom navigation pro mobile (skryté na desktopu, zobrazené pod 768px) -->
   <nav class="bottom-nav" id="bottom-nav" aria-label="Mobilní navigace">
     <!-- 🆕 v2.9.228 — Daily workflow: Přehled → Objednávky → Výroba → Dodací listy → Nastavení.
@@ -322,7 +342,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js" defer></script>
-<script src="i18n.js?v=3.0.45"></script>
+<script src="i18n.js?v=3.0.46"></script>
 <!-- 🚀 v2.9.314 — Lazy i18n: CS users (~80% bázi) předtím tahali 4 MB JS zbytečně.
      i18n_auto.js (2.3 MB, EN+ES) a i18n_extra.js (1.7 MB, SK+DE) se teď loadují
      jen pro non-CS jazyky. Switching at runtime: window.loadI18nForLang() v i18n.js. -->
@@ -334,14 +354,14 @@
   // EN/ES needs i18n_auto.js. SK/DE need both.
   // document.write je deprecated ale funguje synchronně před admin.js — což je co potřebujeme.
   if (lang === 'en' || lang === 'es' || lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_auto.js?v=3.0.45"><\/script>');
+    document.write('<script src="i18n_auto.js?v=3.0.46"><\/script>');
   }
   if (lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_extra.js?v=3.0.45"><\/script>');
+    document.write('<script src="i18n_extra.js?v=3.0.46"><\/script>');
   }
 })();
 </script>
-<script src="admin.js?v=3.0.45"></script>
+<script src="admin.js?v=3.0.46"></script>
 <script>
 // 🔄 AUTO-CHECK pro update — admin loadne → ptáme se vendora.
 //    v2.9.52 — Client-side semver kontrola: pill se ukáže JEN když je
