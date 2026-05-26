@@ -60,8 +60,8 @@ if ($typ === 'kuchyne' && !empty($polozky)) {
     $pdo->prepare("UPDATE restaurant_pos_polozky SET kuchyne_tisk = 1 WHERE id IN ($place)")->execute($ids);
 }
 
-// Firma data
-$firma = $pdo->query("SELECT nastaveni_klic, hodnota FROM nastaveni WHERE nastaveni_klic LIKE 'firma_%'")->fetchAll(PDO::FETCH_KEY_PAIR);
+// 🐛 v3.0.31 fix: nastaveni má sloupec `klic`, ne `nastaveni_klic`
+$firma = $pdo->query("SELECT klic, hodnota FROM nastaveni WHERE klic LIKE 'firma_%'")->fetchAll(PDO::FETCH_KEY_PAIR);
 $firmaNazev = $firma['firma_nazev'] ?? 'Restaurace';
 
 // Group items by kurz (pro kuchyni)

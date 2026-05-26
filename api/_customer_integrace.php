@@ -42,7 +42,8 @@
 
 require_once __DIR__ . '/config.php';
 
-const CUSTOMER_INT_SERVICES = ['stripe', 'gopay', 'paypal', 'zas', 'dpd'];
+// 🆕 v3.0.31 — POHODA + FlexiBee přidány (full implementace, ne jen na oko)
+const CUSTOMER_INT_SERVICES = ['stripe', 'gopay', 'paypal', 'zas', 'dpd', 'pohoda', 'flexibee'];
 
 /**
  * Načte settings pro konkrétní službu.
@@ -575,4 +576,147 @@ function customer_int_dpd_test(): array {
     $token = customer_int_dpd_token();
     if (!$token) return ['ok' => false, 'error' => 'Login selhal — zkontroluj username/password.'];
     return ['ok' => true, 'message' => 'Login OK, token získán.'];
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 📊 POHODA mServer — XML API
+//   Settings (nastaveni table, klic 'int_pohoda_*'):
+//     int_pohoda_enabled, int_pohoda_url (https://mserver:444), int_pohoda_username,
+//     int_pohoda_password, int_pohoda_ico (firma IČO pro STW header)
+// ════════════════════════════════════════════════════════════════════
+
+function customer_int_pohoda_request(string $xml): array {
+    if (!customer_int_enabled('pohoda')) return ['ok' => false, 'error' => 'pohoda_disabled'];
+    $cfg = customer_int_settings('pohoda');
+    $url = rtrim($cfg['int_pohoda_url'] ?? '', '/') . '/xml';
+    $user = $cfg['int_pohoda_username'] ?? '';
+    $pass = $cfg['int_pohoda_password'] ?? '';
+    $ico  = $cfg['int_pohoda_ico'] ?? '';
+    if (!$url || !$user || !$pass) return ['ok' => false, 'error' => 'missing_credentials'];
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $xml,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: text/xml; charset=utf-8',
+            'STW-Authorization: Basic ' . base64_encode("$user:$pass"),
+            'STW-Application: APPEK/3.0',
+            'STW-Instance: ' . $ico,
+        ],
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_SSL_VERIFYPEER => false, // Pohoda často self-signed
+        CURLOPT_SSL_VERIFYHOST => 0,
+    ]);
+    $resp = curl_exec($ch);
+    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err  = curl_error($ch);
+    curl_close($ch);
+
+    if ($resp === false) return ['ok' => false, 'error' => 'curl: ' . $err];
+    if ($http >= 400) return ['ok' => false, 'error' => "HTTP $http", 'response' => $resp];
+    return ['ok' => true, 'http' => $http, 'response' => $resp];
+}
+
+function customer_int_pohoda_send_invoice(array $invoice): array {
+    $ico = customer_int_settings('pohoda')['int_pohoda_ico'] ?? '00000000';
+    $xml = '<?xml version="1.0" encoding="windows-1250"?>' .
+        '<dat:dataPack version="2.0" id="appek_' . time() . '" ico="' . htmlspecialchars($ico, ENT_QUOTES) . '" application="APPEK" note="Export from APPEK B2B" ' .
+        'xmlns:dat="http://www.stormware.cz/schema/version_2/data.xsd" xmlns:inv="http://www.stormware.cz/schema/version_2/invoice.xsd" xmlns:typ="http://www.stormware.cz/schema/version_2/type.xsd">' .
+        '<dat:dataPackItem version="2.0" id="' . htmlspecialchars($invoice['cislo'] ?? 'INV', ENT_QUOTES) . '">' .
+        '<inv:invoice version="2.0">' .
+        '<inv:invoiceHeader>' .
+        '<inv:invoiceType>issuedInvoice</inv:invoiceType>' .
+        '<inv:date>' . htmlspecialchars($invoice['datum_vystaveni'] ?? date('Y-m-d')) . '</inv:date>' .
+        '<inv:dateDue>' . htmlspecialchars($invoice['datum_splatnosti'] ?? date('Y-m-d', strtotime('+14 days'))) . '</inv:dateDue>' .
+        '<inv:text>' . htmlspecialchars($invoice['popis'] ?? 'Zboží') . '</inv:text>' .
+        '<inv:partnerIdentity><typ:address>' .
+        '<typ:company>' . htmlspecialchars($invoice['odberatel_nazev'] ?? '') . '</typ:company>' .
+        '<typ:ico>' . htmlspecialchars($invoice['odberatel_ico'] ?? '') . '</typ:ico>' .
+        '<typ:dic>' . htmlspecialchars($invoice['odberatel_dic'] ?? '') . '</typ:dic>' .
+        '</typ:address></inv:partnerIdentity>' .
+        '</inv:invoiceHeader>' .
+        '<inv:invoiceSummary>' .
+        '<inv:homeCurrency><typ:priceNone>' . number_format((float)($invoice['castka_celkem'] ?? 0), 2, '.', '') . '</typ:priceNone></inv:homeCurrency>' .
+        '</inv:invoiceSummary>' .
+        '</inv:invoice>' .
+        '</dat:dataPackItem>' .
+        '</dat:dataPack>';
+    return customer_int_pohoda_request($xml);
+}
+
+function customer_int_pohoda_test(): array {
+    if (!customer_int_enabled('pohoda')) return ['ok' => false, 'error' => 'POHODA není zapnutý.'];
+    // Simple list query — vrátí prvních pár faktur
+    $ico = customer_int_settings('pohoda')['int_pohoda_ico'] ?? '';
+    $xml = '<?xml version="1.0" encoding="windows-1250"?>' .
+        '<dat:dataPack version="2.0" id="test" ico="' . htmlspecialchars($ico) . '" application="APPEK" ' .
+        'xmlns:dat="http://www.stormware.cz/schema/version_2/data.xsd" xmlns:lst="http://www.stormware.cz/schema/version_2/list.xsd">' .
+        '<dat:dataPackItem version="2.0" id="t1"><lst:listInvoiceRequest version="2.0" invoiceType="issuedInvoice" invoiceVersion="2.0"><lst:restrictionDate>' . date('Y-m-d', strtotime('-7 days')) . '</lst:restrictionDate></lst:listInvoiceRequest></dat:dataPackItem>' .
+        '</dat:dataPack>';
+    $r = customer_int_pohoda_request($xml);
+    if (!$r['ok']) return $r;
+    return ['ok' => true, 'message' => 'Spojení s POHODA mServerem OK', 'http' => $r['http']];
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 📊 FlexiBee REST — JSON API (ABRA Flexi)
+//   Settings:
+//     int_flexibee_enabled, int_flexibee_url (https://demo.flexibee.eu:5434),
+//     int_flexibee_company (firma_s_r_o), int_flexibee_username, int_flexibee_password
+// ════════════════════════════════════════════════════════════════════
+
+function customer_int_flexibee_request(string $method, string $endpoint, ?array $data = null): array {
+    if (!customer_int_enabled('flexibee')) return ['ok' => false, 'error' => 'flexibee_disabled'];
+    $cfg = customer_int_settings('flexibee');
+    $base = rtrim($cfg['int_flexibee_url'] ?? '', '/');
+    $company = $cfg['int_flexibee_company'] ?? '';
+    $user = $cfg['int_flexibee_username'] ?? '';
+    $pass = $cfg['int_flexibee_password'] ?? '';
+    if (!$base || !$company || !$user || !$pass) return ['ok' => false, 'error' => 'missing_credentials'];
+
+    $url = $base . '/c/' . rawurlencode($company) . '/' . $endpoint;
+    $ch = curl_init($url);
+    $opts = [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_USERPWD => "$user:$pass",
+        CURLOPT_HTTPHEADER => ['Accept: application/json', 'Content-Type: application/json'],
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_SSL_VERIFYPEER => false,
+    ];
+    if ($data !== null) $opts[CURLOPT_POSTFIELDS] = json_encode($data);
+    curl_setopt_array($ch, $opts);
+    $resp = curl_exec($ch);
+    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err  = curl_error($ch);
+    curl_close($ch);
+    if ($resp === false) return ['ok' => false, 'error' => 'curl: ' . $err];
+    $json = json_decode($resp, true);
+    if ($http >= 400) return ['ok' => false, 'error' => "HTTP $http", 'response' => $json ?: $resp];
+    return ['ok' => true, 'data' => $json];
+}
+
+function customer_int_flexibee_send_invoice(array $invoice): array {
+    $data = ['winstrom' => ['faktura-vydana' => [[
+        'kod' => $invoice['cislo'] ?? 'INV-' . time(),
+        'typDokl' => 'code:FAKTURA',
+        'datVyst' => $invoice['datum_vystaveni'] ?? date('Y-m-d'),
+        'datSplat' => $invoice['datum_splatnosti'] ?? date('Y-m-d', strtotime('+14 days')),
+        'popis' => $invoice['popis'] ?? 'Zboží',
+        'sumZklZakl' => (float)($invoice['castka_bez_dph'] ?? 0),
+        'sumZklZakl' => (float)($invoice['castka_bez_dph'] ?? 0),
+        'sumCelkSDan' => (float)($invoice['castka_celkem'] ?? 0),
+        'partner' => ['kod' => 'code:' . ($invoice['odberatel_kod'] ?? 'AUTO')],
+    ]]]];
+    return customer_int_flexibee_request('PUT', 'faktura-vydana.json', $data);
+}
+
+function customer_int_flexibee_test(): array {
+    if (!customer_int_enabled('flexibee')) return ['ok' => false, 'error' => 'FlexiBee není zapnutý.'];
+    // /status endpoint — ping
+    $r = customer_int_flexibee_request('GET', 'status.json');
+    if (!$r['ok']) return $r;
+    return ['ok' => true, 'message' => 'Spojení s FlexiBee OK', 'data' => $r['data']];
 }
