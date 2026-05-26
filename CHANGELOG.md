@@ -6,6 +6,32 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.55] — 2026-05-26
+
+### 🐛 4 mobile UX fixes (z testování)
+_User: "pin je tam i při zavřeném menu / Akce dej dashed + dismiss / DL víc zvýraznit funkční / sidebar do půlky, má být full s flex"_
+
+**Fix 1 — Sidebar flex full-height (desktop)**: Sidebar-nav items teď `flex-shrink: 1` aby se vždy vešly. Plus media queries pro krátké viewporty (≤700px, ≤600px) → menší padding/gap/font.
+
+**Fix 2 — Akce vyžadující pozornost: dashed border + dismiss**
+- `2px dashed #FBBF24` border (předtím solid)
+- ✕ Dismiss button v hlavičce (skryje na 1h via localStorage `appek_alerts_dismissed_until`)
+- Slide-out animace
+
+**Fix 3 — DL/FA badge prominence**
+- Funkční (clickable `<a>`) badge: 2px border + gradient bg + box-shadow + hover lift
+- Unavailable: opacity 0.45 + grayscale + cursor not-allowed
+- Předtím vypadaly skoro stejně — teď okamžitě vidíš co je akce vs disabled
+
+**Fix 4 — Pin button state-aware**
+- Skrytý když `body.sidebar-collapsed` (user nechce pin když je menu zavřené)
+- Zůstává viditelný v default mobile stavu
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.54→3.0.55, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.54] — 2026-05-26
 
 ### 🐛 Mystery "button pod A" identifikováno + opraveno

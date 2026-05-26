@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.54";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.55";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -246,7 +246,25 @@ a:hover { text-decoration: underline; }
 .sidebar-logo .logo-icon { width: 42px; height: 42px; border-radius: 50%; background: var(--primary-light); color: var(--primary-dark); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; }
 .sidebar-logo strong { font-size: 16px; }
 
-.sidebar-nav { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.sidebar-nav { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 4px; }
+/* 🆕 v3.0.55 — Sidebar full-height flex: nav-items shrinkují aby se vždy vešly,
+   nikdy nepřesahují do bottom části kde je sidebar-utils + pin. */
+.sidebar-nav .nav-item {
+  flex-shrink: 1;        /* mohou se zmenšit pokud potřeba */
+  min-height: 36px;      /* minimální tap target */
+}
+/* Při krátkém viewportu (≤700px) ještě menší nav items */
+@media (max-height: 700px) {
+  .sidebar-nav { gap: 4px; }
+  .sidebar-nav .nav-item { min-height: 32px; padding: 6px 10px; font-size: 13px; }
+  .sidebar-nav .nav-item .nav-icon { font-size: 15px; }
+}
+@media (max-height: 600px) {
+  .sidebar-nav { gap: 3px; }
+  .sidebar-nav .nav-item { min-height: 28px; padding: 4px 10px; font-size: 12.5px; }
+  .sidebar-logo { padding: 0 8px 10px; margin-bottom: 8px; }
+  .sidebar-logo .logo-icon { width: 32px; height: 32px; font-size: 14px; }
+}
 /* 🐛 fix v2.9.304 — `flex: 1 1 0` způsoboval, že když role schová většinu nav-items
    (role='pos' vidí jen 'dashboard'), zbývající jediný item se roztáhl přes celou výšku
    sidebaru a vznikl obrovský oranžový blok. Místo toho: natural sizing + scroll když je
@@ -1834,11 +1852,13 @@ body.role-restricted .admin-only { display: none !important; }
 /* 🆕 v2.9.242 — Dashboard Alerts widget (akce vyžadující pozornost) */
 .dash-alerts {
   background: linear-gradient(135deg, #FFF8E5 0%, #FEF3C7 100%);
-  border: 1.5px solid #FBBF24;
+  /* 🆕 v3.0.55 — dashed border (user: "dej tu linku přerušovanou") */
+  border: 2px dashed #FBBF24;
   border-radius: 12px;
   padding: 14px 16px;
   margin-bottom: 18px;
   box-shadow: 0 2px 6px rgba(251, 191, 36, 0.12);
+  position: relative;
 }
 .dash-alerts-head {
   display: flex;
@@ -1848,6 +1868,26 @@ body.role-restricted .admin-only { display: none !important; }
   color: #854F0B;
   margin-bottom: 10px;
 }
+/* 🆕 v3.0.55 — Dismiss button (1h skrytí) */
+.dash-alerts-dismiss {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(133, 79, 11, 0.1);
+  border: none;
+  color: #854F0B;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.dash-alerts-dismiss:hover { background: rgba(133, 79, 11, 0.2); }
+.dash-alerts-dismiss:active { transform: scale(0.92); }
 .dash-alerts-ico { font-size: 18px; line-height: 1; }
 .dash-alerts-count {
   background: #BA7517;
@@ -3696,6 +3736,31 @@ html.theme-apple .nastaveni-tabs {
 .doc-badge.fa { background: var(--success-bg); color: var(--success-text); border-color: rgba(39, 80, 10, 0.18); }
 .doc-badge.obj { background: #E0EBFF; color: #1E3A8A; border-color: rgba(30, 58, 138, 0.20); }
 .doc-badge.rucni { background: #FBE9D9; color: #854F0B; border-color: rgba(133, 79, 11, 0.18); }
+
+/* 🆕 v3.0.55 — Funkční (clickable <a>) badge má víc důrazu, unavailable je tlumený.
+   Předtím vypadaly skoro stejně → user nevěděl které funguje. */
+a.doc-badge {
+  border-width: 2px !important;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: transform 0.12s ease, box-shadow 0.15s ease, filter 0.12s ease;
+}
+a.doc-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+  filter: saturate(1.1);
+}
+a.doc-badge:active { transform: translateY(0); }
+a.doc-badge.dl { background: linear-gradient(135deg, #FBE9D9, #FAEEDA); border-color: #BA7517 !important; color: #6B3D0A; }
+a.doc-badge.fa { background: linear-gradient(135deg, #D1FAE5, #BBF7D0); border-color: #10B981 !important; color: #064E3B; }
+a.doc-badge.obj { background: linear-gradient(135deg, #DBEAFE, #BFDBFE); border-color: #3B82F6 !important; color: #1E3A8A; }
+.doc-badge.unavailable {
+  opacity: 0.45 !important;
+  filter: grayscale(40%);
+  font-weight: 500 !important;
+  cursor: not-allowed;
+}
 .doc-badge.reorder {
   background: #EFF6FF;
   color: #1E3A8A;
@@ -12995,6 +13060,10 @@ body:has(#app[style*="display:none"]) .sidebar * {
   /* Skrýt pin na login screen */
   body.is-login .sidebar-pin,
   body:has(#app[style*="display:none"]) .sidebar-pin {
+    display: none !important;
+  }
+  /* 🆕 v3.0.55 — Skrýt pin když je sidebar collapsed (user nechce pin viditelný když je menu zavřené) */
+  body.sidebar-collapsed .sidebar-pin {
     display: none !important;
   }
   /* sidebar-collapse button — schovat na mobilu (jen pro desktop) */

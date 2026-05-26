@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.54';
+const APPEK_ADMIN_JS_VERSION = '3.0.55';
 
 (async function detectStaleCode() {
   try {
@@ -4425,6 +4425,11 @@ function renderDashAlerts(alerts) {
     });
   }
   if (items.length === 0) return ''; // nothing to alert about, hide widget
+  // 🆕 v3.0.55 — Dismiss persisted v localStorage (1 hodinu, pak se zase ukáže)
+  try {
+    const dismissedUntil = parseInt(localStorage.getItem('appek_alerts_dismissed_until') || '0', 10);
+    if (dismissedUntil > Date.now()) return '';
+  } catch (e) {}
 
   return `
     <div class="dash-alerts">
@@ -4432,6 +4437,8 @@ function renderDashAlerts(alerts) {
         <span class="dash-alerts-ico">🔔</span>
         <strong>Akce vyžadující pozornost</strong>
         <span class="dash-alerts-count">${items.length}</span>
+        <!-- 🆕 v3.0.55 — Dismiss button: schová widget na 1h -->
+        <button class="dash-alerts-dismiss" onclick="dismissDashAlerts()" title="Skrýt na 1 hodinu" aria-label="Skrýt upozornění">✕</button>
       </div>
       <div class="dash-alerts-list">
         ${items.map(it => `
@@ -4447,6 +4454,21 @@ function renderDashAlerts(alerts) {
     </div>
   `;
 }
+
+// 🆕 v3.0.55 — Dismiss dashboard alerts widget na 1 hodinu
+window.dismissDashAlerts = function() {
+  try {
+    localStorage.setItem('appek_alerts_dismissed_until', String(Date.now() + 60*60*1000));
+  } catch (e) {}
+  const w = document.querySelector('.dash-alerts');
+  if (w) {
+    w.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+    w.style.opacity = '0';
+    w.style.transform = 'translateX(20px)';
+    setTimeout(() => w.remove(), 240);
+  }
+  try { window.haptic && window.haptic('light'); } catch (e) {}
+};
 
 async function renderDashboard(filters = {}) {
   // 🆕 v2.9.234 — filter persistence přes localStorage (přežije reload + jiný navigate)
