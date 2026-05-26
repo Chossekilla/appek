@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.28';
+const APPEK_ADMIN_JS_VERSION = '3.0.29';
 
 (async function detectStaleCode() {
   try {
@@ -3627,6 +3627,7 @@ async function navigate(page, args) {
     else if (page === 'katalog') await renderKatalog();
     else if (page === 'stitky') await renderStitky();
     else if (page === 'nastroje') await renderNastroje();
+    else if (page === 'tiskarny') await renderTiskarny(); // 🆕 v3.0.29
     else if (page === 'haccp') await renderHaccp();
     else if (page === 'odberatele') await renderOdberatele();
     else if (page === 'users') await renderUsers();
@@ -12497,13 +12498,13 @@ async function renderNastaveni() {
   // 🗂️ Záložky pro Nastavení
   // 🆕 v2.9.181 — tab '🥖 Výroba' přesunut do top-level Výroba hubu.
   // 🆕 v2.9.205 — nový tab 💳 Platby (centrální on/off platebních metod).
+  // 🆕 v3.0.29 — Tiskárny přesunuty do Nástroje (navigate('tiskarny'))
+  // 🆕 v3.0.29 — Účetní (POHODA/FlexiBee) sloučeno pod Integrace blok
   const TABS = [
     { key: 'firma',      label: '🏢 Firma & doklady',  popis: 'Firemní údaje, kontakt, číselné řady, DPH' },
     { key: 'notifikace', label: '📧 Notifikace',        popis: 'E-maily a uzávěrka úprav objednávek' },
     { key: 'platby',     label: '💳 Platby',            popis: 'Zapnout/vypnout platební metody pro POS, B2B a checkout.' },
-    { key: 'tiskarny',   label: '🖨️ Tiskárny',          popis: 'ESC/POS termo tiskárny (kasa, kuchyně, bar, sklad, výdej). Auto-split bonů.' },
-    { key: 'integrace',  label: '🔌 Integrace',         popis: 'Stripe + GoPay (platby), Zásilkovna + DPD (doprava) pro tvoje B2B zákazníky.', adminOnly: true },
-    { key: 'ucetni',     label: '📊 Účetní',            popis: 'POHODA mServer, FlexiBee REST — live sync.', adminOnly: true },
+    { key: 'integrace',  label: '🔌 Integrace',         popis: 'Stripe + GoPay (platby), POHODA + FlexiBee (účetní), Zásilkovna + DPD (doprava).', adminOnly: true },
     { key: 'pristupy',   label: '👥 Přístupy & ceny',   popis: 'Uživatelé a slevové skupiny', adminOnly: true },
     { key: 'balicky',    label: '🎁 Balíčky',           popis: 'Aktivace doplňkových modulů (Cukrárna, Lahůdky, …)', adminOnly: true },
     { key: 'udrzba',     label: '🛠️ Údržba',            popis: 'Bezpečnost, zálohy DB, diagnostika' },
@@ -12514,6 +12515,13 @@ async function renderNastaveni() {
   // prázdná Nastavení stránka (aktivniBlok = undefined → text "undefined").
   const validTabKeys = TABS.map(t => t.key);
   let aktTab = state._nastaveniTab || 'firma';
+  // 🆕 v3.0.29 — Migrace starých stavů: tiskarny → standalone, ucetni → integrace
+  if (aktTab === 'tiskarny') {
+    state._nastaveniTab = 'integrace';
+    setTimeout(() => navigate('tiskarny'), 0);
+    return;
+  }
+  if (aktTab === 'ucetni') aktTab = 'integrace';
   if (!validTabKeys.includes(aktTab)) aktTab = 'firma';
 
   // === BLOKY OBSAHU JEDNOTLIVÝCH TABŮ ===
@@ -13720,17 +13728,27 @@ async function renderNastaveni() {
     <div id="ns-tiskarny-panel">⏳ Načítám…</div>
   `;
 
+  // 🆕 v3.0.29 — Integrace + Účetní sloučeno do jednoho bloku (Integrace = vše externí)
+  const blokIntegraceCombined = blokIntegrace + `
+    <!-- 🆕 v3.0.29 — Účetní sekce (POHODA / FlexiBee / ISDOC) sloučena pod Integrace -->
+    <div style="margin-top:18px;padding:14px 0;border-top:2px solid var(--border)">
+      <h2 style="margin:0 0 4px;font-size:18px;letter-spacing:-0.01em">📊 Účetní integrace</h2>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">POHODA mServer · FlexiBee REST · ISDOC export — live sync s tvým účetním softwarem.</p>
+    </div>
+  ` + blokUcetni;
+
   const blokyTabu = {
     firma:      blokFirmaDoklady,
     notifikace: blokNotifikace,
     platby:     blokPlatby,
-    tiskarny:   blokTiskarny,
-    integrace:  blokIntegrace,
-    ucetni:     blokUcetni,
+    integrace:  blokIntegraceCombined,
     pristupy:   blokPristupy,
     balicky:    blokBalicky,
     udrzba:     blokUdrzba,
     napoveda:   blokNapoveda,
+    // Backward-compat: kdyby starý state byl 'tiskarny' nebo 'ucetni', mapuj
+    tiskarny:   blokIntegraceCombined,  // bude přesměrováno níže
+    ucetni:     blokIntegraceCombined,
   };
   // Pokud se uloží státní hodnota, kterou nemáme, fallback
   const aktivniBlok = blokyTabu[aktTab] || blokyTabu.firma;
@@ -13804,8 +13822,17 @@ async function renderNastaveni() {
   if (aktTab === 'platby') {
     loadPaymentMethodsPanel();
   }
+  // 🆕 v3.0.29 — Tiskárny přesunuté → naviguj na standalone page
   if (aktTab === 'tiskarny') {
-    loadTiskarnyPanel();
+    state._nastaveniTab = 'integrace';
+    navigate('tiskarny');
+    return;
+  }
+  // 🆕 v3.0.29 — Účetní sloučeno pod Integrace, přepnout
+  if (aktTab === 'ucetni') {
+    state._nastaveniTab = 'integrace';
+    renderNastaveni();
+    return;
   }
 }
 
@@ -25792,6 +25819,14 @@ async function renderNastroje() {
         <div class="nastroje-card-desc">Tisk regálových cenovek, štítků na zboží a etiket — různé velikosti a šablony.</div>
         <div class="nastroje-card-cta">Otevřít →</div>
       </button>
+
+      <!-- 🆕 v3.0.29 — Tiskárny přesunuté z Nastavení -->
+      <button class="nastroje-card" onclick="navigate('tiskarny')" aria-label="Otevřít správu tiskáren">
+        <div class="nastroje-card-icon">🖨️</div>
+        <div class="nastroje-card-title">Tiskárny (ESC/POS)</div>
+        <div class="nastroje-card-desc">Síťové termo tiskárny pro kasu, kuchyň, bar, sklad a výdej. Auto-split bonů podle kategorie.</div>
+        <div class="nastroje-card-cta">Otevřít →</div>
+      </button>
     </div>
 
     <style>
@@ -25833,6 +25868,30 @@ async function renderNastroje() {
       }
     </style>
   `;
+}
+
+// 🆕 v3.0.29 — Tiskárny standalone page (přesunuté z Nastavení → Nástroje)
+async function renderTiskarny() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">🖨️ Tiskárny (ESC/POS)</h1>
+        <p class="page-sub">Síťové termo tiskárny pro kasa, kuchyň, bar, sklad a výdej · Auto-split bonů</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-back" onclick="navigate('nastroje')" title="Zpět na Nástroje"><span class="btn-back-arrow">←</span> <span class="btn-back-lbl">Nástroje</span></button>
+      </div>
+    </div>
+    <div class="card-block" style="padding:16px;margin-bottom:14px">
+      <p style="font-size:13px;color:var(--text-3);margin:0;line-height:1.55">
+        Síťové termo tiskárny pro kasu, kuchyň, bar, sklad a výdej. Bonu se automaticky rozesílají podle <strong>kategorie výrobku</strong> na příslušnou tiskárnu.
+        <br>Standard: <strong>Epson TM-T20III</strong> nebo podobná na IP, port <code>9100</code>. Bez fyzické tiskárny zapni <strong>dummy mode</strong> (tisk do souboru pro test).
+      </p>
+    </div>
+    <div id="ns-tiskarny-panel">⏳ Načítám…</div>
+  `;
+  if (typeof loadTiskarnyPanel === 'function') loadTiskarnyPanel();
 }
 
 // =============================================================
