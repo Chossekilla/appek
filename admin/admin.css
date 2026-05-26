@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.43";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.44";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12703,13 +12703,15 @@ html.density-extreme .card-block.desktop-only-block {
   to   { transform: translate(-50%, 0) rotate(360deg); }
 }
 
-/* 🆕 v3.0.41 — OFFLINE BANNER (top fixed, universal — desktop i mobile) */
+/* 🆕 v3.0.41, 🐛 v3.0.44 fix — OFFLINE BANNER
+   z-index 9999 blokoval modal close button (modal=1000). Sníženo na 800 aby
+   otevřený modal byl NAD banner. Banner zůstává nad bottom-nav (90) a FAB (91). */
 #appek-offline-banner {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 9999;
+  z-index: 800;
   background: linear-gradient(135deg, #FEF3C7, #FDE68A);
   border-bottom: 1.5px solid #F59E0B;
   color: #78350F;
@@ -13527,9 +13529,8 @@ html.theme-dark .btn-notif-badge { border-color: #1d1d1f; }
   outline-offset: 2px;
 }
 
-/* 🆕 v3.0.39 — Bottom-nav: hidden by default, MA SHOW na mobile (overridnuté v media query výše) */
-/* (Předtím bylo display:none !important — bránilo aktivaci v3.0.39 mobilní navigace) */
-.bottom-nav { display: none; }
+/* 🆕 v3.0.39 — Bottom-nav rule moved to ~line 12495 (one canonical definition).
+   🐛 v3.0.44 cleanup — odstraněno duplicitní pravidlo (bylo identical s line 12495) */
 
 /* MOBILE flex order fix */
 @media (max-width: 700px) {

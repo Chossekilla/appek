@@ -28,6 +28,7 @@ if (!is_array($payload)) {
     exit;
 }
 
+// 🔐 v3.0.44 fix — Vyžaduj signature pokud máme secret (anti-spoof)
 $integration = da_get_integration('foodora');
 if ($integration && !empty($integration['api_key'])) {
     $signature = $_SERVER['HTTP_X_DH_SIGNATURE'] ?? '';
@@ -37,10 +38,10 @@ if ($integration && !empty($integration['api_key'])) {
         if (!empty($cfg['webhook_secret'])) $secret = $cfg['webhook_secret'];
     } catch (Throwable $e) {}
 
-    if (!empty($signature) && !Foodora_Client::verifySignature($rawBody, $signature, $secret)) {
+    if (empty($signature) || !Foodora_Client::verifySignature($rawBody, $signature, $secret)) {
         http_response_code(401);
-        echo json_encode(['error' => 'Invalid signature']);
-        da_log_webhook('foodora', 'rejected_signature', $payload);
+        echo json_encode(['error' => 'Missing or invalid X-DH-Signature']);
+        da_log_webhook('foodora', empty($signature) ? 'rejected_no_signature' : 'rejected_bad_signature', $payload);
         exit;
     }
 }

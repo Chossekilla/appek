@@ -296,6 +296,18 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'update_poradi') {
 // GET - seznam, detail
 // =============================================================
 if ($method === 'GET') {
+    // 🆕 v3.0.44 — EAN lookup endpoint (barcode scanner → najdi výrobek)
+    //   GET ?ean=XXX → vrátí { vyrobky: [...matches] } (lightweight, jen základní pole)
+    if (isset($_GET['ean'])) {
+        $ean = trim((string) $_GET['ean']);
+        if ($ean === '') json_response(['vyrobky' => []]);
+        try {
+            $st = $pdo->prepare("SELECT id, cislo, ean, nazev, cena, jednotka, kategorie_id, obrazek_url
+                                 FROM vyrobky WHERE ean = :e LIMIT 20");
+            $st->execute(['e' => $ean]);
+            json_response(['vyrobky' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+        } catch (Throwable $e) { json_response(['vyrobky' => []]); }
+    }
     if (isset($_GET['id'])) {
         $vid = (int) $_GET['id'];
         $stmt = $pdo->prepare("SELECT * FROM vyrobky WHERE id = :id");

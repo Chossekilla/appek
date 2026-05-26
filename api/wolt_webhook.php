@@ -33,22 +33,22 @@ if (!is_array($payload)) {
     exit;
 }
 
-// 1) Verify signature (pokud je integrace povolená a má klíč)
+// 🔐 v3.0.44 fix — Webhook signature MUSÍ být přítomný + valid pokud máme secret.
+// (Dříve bypass pokud header chyběl → security hole. Útočník mohl pomocí spoof
+//  payloadu vytvořit fake objednávky.)
 $integration = da_get_integration('wolt');
 if ($integration && !empty($integration['api_key'])) {
     $signature = $_SERVER['HTTP_X_WOLT_SIGNATURE'] ?? '';
-    // Wolt používá secret z portalu — uložený v sloupci `nastaveni` JSON jako webhook_secret,
-    // fallback na api_key (pokud merchant nenastavil separátní secret).
     $secret = $integration['api_key'];
     try {
         $cfg = json_decode($integration['nastaveni'] ?? '{}', true);
         if (!empty($cfg['webhook_secret'])) $secret = $cfg['webhook_secret'];
     } catch (Throwable $e) {}
 
-    if (!empty($signature) && !Wolt_Client::verifySignature($rawBody, $signature, $secret)) {
+    if (empty($signature) || !Wolt_Client::verifySignature($rawBody, $signature, $secret)) {
         http_response_code(401);
-        echo json_encode(['error' => 'Invalid signature']);
-        da_log_webhook('wolt', 'rejected_signature', $payload);
+        echo json_encode(['error' => 'Missing or invalid X-Wolt-Signature']);
+        da_log_webhook('wolt', empty($signature) ? 'rejected_no_signature' : 'rejected_bad_signature', $payload);
         exit;
     }
 }

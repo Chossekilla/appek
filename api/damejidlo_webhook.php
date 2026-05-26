@@ -32,6 +32,7 @@ if (!is_array($payload)) {
     exit;
 }
 
+// 🔐 v3.0.44 fix — Vyžaduj signature pokud máme secret (anti-spoof)
 $integration = da_get_integration('dame_jidlo');
 if ($integration && !empty($integration['api_key'])) {
     $signature = $_SERVER['HTTP_X_DAMEJIDLO_SIGNATURE'] ?? '';
@@ -41,10 +42,10 @@ if ($integration && !empty($integration['api_key'])) {
         if (!empty($cfg['webhook_secret'])) $secret = $cfg['webhook_secret'];
     } catch (Throwable $e) {}
 
-    if (!empty($signature) && !DameJidlo_Client::verifySignature($rawBody, $signature, $secret)) {
+    if (empty($signature) || !DameJidlo_Client::verifySignature($rawBody, $signature, $secret)) {
         http_response_code(401);
-        echo json_encode(['error' => 'Invalid signature']);
-        da_log_webhook('dame_jidlo', 'rejected_signature', $payload);
+        echo json_encode(['error' => 'Missing or invalid X-DameJidlo-Signature']);
+        da_log_webhook('dame_jidlo', empty($signature) ? 'rejected_no_signature' : 'rejected_bad_signature', $payload);
         exit;
     }
 }
