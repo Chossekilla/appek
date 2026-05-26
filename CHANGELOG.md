@@ -6,6 +6,39 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.43] — 2026-05-26
+
+### 🎨 Sub-tabs jako mini-bannery (sjednoceno se v3.0.42)
+_User: "ty pod tím taky předělej, ted to vypadá nedodělně"_
+
+**4 sub-tabs ve Stoly view** — z malých text-pillů na color-coded mini-bannery:
+| Tab | Emoji | Gradient | Sub-text |
+|---|---|---|---|
+| **Layout** | 🗺️ | modrý | Floor plan editor |
+| **Rezervace** | 📅 | fialový | Timeline · seznam |
+| **Otevřené účty** | 🧾 | zelený | Aktivní POS účty |
+| **QR queue** | 📲 | oranžový | Pending objednávky |
+
+**Zone tabs** (Zahrada / Pergola / atd.) — z plain pillů na **color-coded pill-bannery**:
+- Auto-cycle barev z 5-color palette (green/blue/purple/orange/pink) podle pořadí zóny
+- Glass count badge (rgba alpha) pro counts
+- Active stav: plný gradient bg + bílý text + shadow + lift
+- Hover lift -2px + saturate(+8%)
+- Surface highlight overlay přes `::before`
+
+**Add Zone button** redesign (dashed border, hover na primary)
+
+**Mobile responsive:**
+- Sub-tabs: 2 sloupce grid (≤700px)
+- Zone tabs: kompaktnější padding, smaller text/icon
+
+**Dark mode podpora** pro všechny nové komponenty
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.42→3.0.43, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.42] — 2026-05-26
 
 ### 🎨 Velké barevné bannery místo malých tabů (Restaurace)

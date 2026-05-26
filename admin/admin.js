@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.42';
+const APPEK_ADMIN_JS_VERSION = '3.0.43';
 
 (async function detectStaleCode() {
   try {
@@ -16526,20 +16526,32 @@ async function renderRestaurantTables() {
         <button class="btn-secondary" onclick="addRestaurantTable()">+ Nový stůl</button>
       </div>
     </div>
-    <!-- 🎨 v3.0.24 — Sjednoceno: 4 tabs místo 6 (Layout / Rezervace / QR / Účty). KDS otevřeš z Provoz hubu. -->
-    <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'map' ? 'active' : ''}" onclick="state._rtTab='map';renderRestaurantTables()" title="Floor plan editor + mapa">
-        🗺️ Layout
-      </button>
-      <button class="nastaveni-tab ${(tab === 'timeline' || tab === 'list') ? 'active' : ''}" onclick="state._rtTab='timeline';renderRestaurantTables()" title="Timeline + seznam rezervací">
-        📅 Rezervace
-      </button>
-      <button class="nastaveni-tab ${tab === 'open_ucty' ? 'active' : ''}" onclick="state._rtTab='open_ucty';renderRestaurantTables()" title="Otevřené POS účty">
-        🧾 Otevřené účty
-      </button>
-      <button class="nastaveni-tab ${tab === 'qr_pending' ? 'active' : ''}" onclick="state._rtTab='qr_pending';renderRestaurantTables()" title="QR objednávky čekající na schválení">
-        📲 QR queue
-      </button>
+    <!-- 🆕 v3.0.43 — Sub-tabs jako mini-bannery (sjednoceno s main banner tabs v3.0.42) -->
+    <div class="rest-subtabs" role="tablist" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
+      ${[
+        { k:'map',       icon:'🗺️', label:'Layout',         sub:'Floor plan editor',  grad:'135deg,#3B82F6,#1E3A8A', light:'#DBEAFE', dark:'#1E3A8A', match:(t)=>t==='map' },
+        { k:'timeline',  icon:'📅', label:'Rezervace',      sub:'Timeline · seznam',  grad:'135deg,#A78BFA,#5B21B6', light:'#EDE9FE', dark:'#4C1D95', match:(t)=>t==='timeline'||t==='list' },
+        { k:'open_ucty', icon:'🧾', label:'Otevřené účty', sub:'Aktivní POS účty',   grad:'135deg,#10B981,#065F46', light:'#D1FAE5', dark:'#064E3B', match:(t)=>t==='open_ucty' },
+        { k:'qr_pending',icon:'📲', label:'QR queue',       sub:'Pending objednávky', grad:'135deg,#F97316,#9A3412', light:'#FFEDD5', dark:'#7C2D12', match:(t)=>t==='qr_pending' },
+      ].map(b => {
+        const active = b.match(tab);
+        return `
+        <button class="rest-subtab ${active ? 'is-active' : ''}"
+                role="tab"
+                aria-selected="${active}"
+                onclick="state._rtTab='${b.k}';renderRestaurantTables()"
+                style="${active
+                  ? `background:linear-gradient(${b.grad});color:#fff;border:2px solid transparent;box-shadow:0 6px 18px ${b.light}90,0 2px 6px rgba(0,0,0,0.14)`
+                  : `background:${b.light};color:${b.dark};border:2px solid ${b.light}`
+                }">
+          <div class="rsb-icon" style="font-size:22px;line-height:1;${active ? 'filter:drop-shadow(0 1px 3px rgba(0,0,0,0.2))' : ''}">${b.icon}</div>
+          <div class="rsb-text">
+            <div class="rsb-label" style="font-size:13.5px;font-weight:800;letter-spacing:-0.01em">${b.label}</div>
+            <div class="rsb-sub" style="font-size:10.5px;font-weight:600;opacity:${active ? '0.92' : '0.72'};margin-top:1px">${b.sub}</div>
+          </div>
+        </button>
+        `;
+      }).join('')}
     </div>
     <div id="rt-body">${skeletonCards(4)}</div>
   `;
@@ -17087,18 +17099,38 @@ function renderFloorPlan(data, today) {
       </div>
     </div>
 
-    <!-- Zone tabs -->
-    <div class="card-block" style="padding:8px 10px;margin-bottom:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;overflow-x:auto">
-      ${zones.map(z => `
-        <button class="rt-zone-tab ${z.id == activeZone.id ? 'is-active' : ''}" onclick="rtSwitchZone(${z.id === null ? 'null' : z.id})"
-                style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid ${z.id == activeZone.id ? '#BA7517' : 'var(--border)'};background:${z.id == activeZone.id ? 'linear-gradient(135deg,#FFF8E7,#FEF3C7)' : 'transparent'};color:${z.id == activeZone.id ? '#854F0B' : 'var(--text-1)'};white-space:nowrap">
-          <span style="font-size:15px">${esc(z.ikona || '🍽️')}</span>
-          <span>${esc(z.nazev)}</span>
-          <span style="font-size:11px;color:var(--text-3);background:rgba(0,0,0,0.05);padding:1px 6px;border-radius:99px">${stoly.filter(s => s.zone_id == z.id).length}</span>
+    <!-- 🆕 v3.0.43 — Zone tabs jako mini-bannery (sjednoceno se sub-tabs designem) -->
+    <div class="rt-zone-tabs" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;overflow-x:auto">
+      ${zones.map((z, idx) => {
+        const isActive = z.id == activeZone.id;
+        const count = stoly.filter(s => s.zone_id == z.id).length;
+        // Per-index color palette (cycle through accent colors)
+        const PALETTE = [
+          { grad:'135deg,#10B981,#065F46', light:'#D1FAE5', dark:'#064E3B' }, // green
+          { grad:'135deg,#3B82F6,#1E40AF', light:'#DBEAFE', dark:'#1E3A8A' }, // blue
+          { grad:'135deg,#A78BFA,#5B21B6', light:'#EDE9FE', dark:'#4C1D95' }, // purple
+          { grad:'135deg,#F97316,#9A3412', light:'#FFEDD5', dark:'#7C2D12' }, // orange
+          { grad:'135deg,#EC4899,#9D174D', light:'#FCE7F3', dark:'#9D174D' }, // pink
+        ];
+        const c = PALETTE[idx % PALETTE.length];
+        return `
+        <button class="rt-zone-tab ${isActive ? 'is-active' : ''}"
+                onclick="rtSwitchZone(${z.id === null ? 'null' : z.id})"
+                style="${isActive
+                  ? `background:linear-gradient(${c.grad});color:#fff;border:2px solid transparent;box-shadow:0 4px 14px ${c.light}90,0 1px 4px rgba(0,0,0,0.12)`
+                  : `background:${c.light};color:${c.dark};border:2px solid ${c.light}`
+                }">
+          <span class="ztb-icon" style="font-size:18px;line-height:1;${isActive ? 'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.2))' : ''}">${esc(z.ikona || '🍽️')}</span>
+          <span class="ztb-name" style="font-weight:800;font-size:14px;letter-spacing:-0.01em">${esc(z.nazev)}</span>
+          <span class="ztb-count" style="font-size:11px;font-weight:700;background:${isActive ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.06)'};padding:2px 8px;border-radius:99px;line-height:1">${count}</span>
         </button>
-      `).join('')}
+        `;
+      }).join('')}
       ${editMode ? `
-        <button onclick="rtAddZone()" style="padding:7px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px dashed var(--border);background:transparent;color:var(--text-3)" title="Přidat novou zónu">＋ Zóna</button>
+        <button onclick="rtAddZone()" class="rt-zone-add" title="Přidat novou zónu">
+          <span style="font-size:18px;line-height:1">＋</span>
+          <span>Zóna</span>
+        </button>
       ` : ''}
     </div>
 

@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.42";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.43";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12996,6 +12996,157 @@ html.theme-dark .rest-banner:not(.is-active) {
 html.dark .rest-banner .rb-icon,
 html.theme-dark .rest-banner .rb-icon {
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* 🆕 v3.0.43 — REST SUB-TABS (mini bannery pod hlavními tabs)
+   User: "ty pod tím taky předělej, ted to vypadá nedodělně" */
+.rest-subtab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: transform 0.16s cubic-bezier(.2,.8,.2,1), box-shadow 0.2s ease, filter 0.16s ease;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 60px;
+  position: relative;
+  overflow: hidden;
+}
+.rest-subtab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.36) 0%, transparent 50%);
+  mix-blend-mode: overlay;
+  opacity: 0.55;
+}
+.rest-subtab:hover {
+  transform: translateY(-2px) scale(1.015);
+  filter: saturate(1.1);
+}
+.rest-subtab:active {
+  transform: translateY(0) scale(1);
+  transition-duration: 0.06s;
+}
+.rest-subtab.is-active {
+  transform: translateY(-1px);
+}
+.rest-subtab.is-active:hover {
+  transform: translateY(-3px) scale(1.015);
+}
+.rest-subtab .rsb-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.rest-subtab.is-active .rsb-icon {
+  background: rgba(255, 255, 255, 0.22);
+}
+.rest-subtab .rsb-text { flex: 1; min-width: 0; }
+.rest-subtab .rsb-label,
+.rest-subtab .rsb-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 700px) {
+  .rest-subtabs {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  .rest-subtab { padding: 10px 12px; gap: 8px; min-height: 56px; }
+  .rest-subtab .rsb-icon { width: 32px; height: 32px; }
+  .rest-subtab .rsb-icon > * { font-size: 18px !important; }
+  .rest-subtab .rsb-label { font-size: 12.5px !important; }
+  .rest-subtab .rsb-sub { font-size: 10px !important; }
+}
+html.dark .rest-subtab:not(.is-active),
+html.theme-dark .rest-subtab:not(.is-active) {
+  background: rgba(255, 255, 255, 0.045) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f5f5f7 !important;
+}
+html.dark .rest-subtab .rsb-icon,
+html.theme-dark .rest-subtab .rsb-icon { background: rgba(255, 255, 255, 0.1); }
+
+/* 🆕 v3.0.43 — REST ZONE TABS (Zahrada/Pergola atd. — pill-shape bannery) */
+.rt-zone-tabs {
+  padding: 0;
+  background: transparent;
+}
+.rt-zone-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.14s ease, box-shadow 0.2s ease, filter 0.16s ease;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+.rt-zone-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.32) 0%, transparent 60%);
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+}
+.rt-zone-tab:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.08);
+}
+.rt-zone-tab:active { transform: translateY(0); }
+.rt-zone-tab.is-active { transform: translateY(-1px); }
+
+.rt-zone-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  border: 2px dashed var(--border, #e5e5ea);
+  background: transparent;
+  color: var(--text-3, #6e6e73);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.rt-zone-add:hover {
+  border-color: var(--primary, #BA7517);
+  color: var(--primary-dark, #854F0B);
+}
+
+@media (max-width: 700px) {
+  .rt-zone-tab { padding: 8px 14px; }
+  .rt-zone-tab .ztb-name { font-size: 13px !important; }
+  .rt-zone-tab .ztb-icon { font-size: 16px !important; }
+}
+html.dark .rt-zone-tab:not(.is-active),
+html.theme-dark .rt-zone-tab:not(.is-active) {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f5f5f7 !important;
 }
 
 .package-subheader {
