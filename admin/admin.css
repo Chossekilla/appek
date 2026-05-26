@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.27";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.28";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18569,3 +18569,111 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
 @media (hover: none) {
   .rt-tile-del { opacity: 1 !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   📱 v3.0.28 — MOBILE SAFETY NET (sidebar-pinned + small viewports)
+   Cíl: žádné karty nepřesáhnou viewport. Globálně + per-component fixy.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Globální safety — nikdy nikdy horizontální scroll na <body> */
+@media (max-width: 700px) {
+  html, body { max-width: 100vw; overflow-x: hidden; }
+
+  /* Main content musí umět shrinknout pod své child elementy */
+  main#content, .main-content, .main-wrap { min-width: 0; max-width: 100%; }
+
+  /* Page head — buttony nesmí přetékat */
+  .page-head { flex-wrap: wrap !important; gap: 8px !important; }
+  .page-head > div { min-width: 0 !important; max-width: 100% !important; }
+  .page-head .btn-primary, .page-head .btn-secondary, .page-head .btn-back {
+    font-size: 13px !important;
+    padding: 8px 12px !important;
+    flex-shrink: 0;
+  }
+
+  /* Filters bar — wrap aggressively */
+  .filters { flex-wrap: wrap !important; gap: 6px !important; }
+  .filters .filter-input, .filters .filter-select {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Stat grid — single column na úzkém viewportu */
+  .stat-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+
+  /* Card-block — žádný overflow přes okraje */
+  .card-block { max-width: 100% !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Tables — wrapper s horizontal scroll (ne overflow z body) */
+  .table { font-size: 12px; }
+  .table th, .table td { padding: 8px 6px !important; }
+
+  /* Grid layouts s minmax(260px,1fr) → shrink to 1 column */
+  [style*="minmax(260px"], [style*="minmax(280px"] {
+    grid-template-columns: 1fr !important;
+  }
+  [style*="minmax(220px"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Hero cards v Restaurace → 2-col grid na mobilu */
+  [style*="minmax(220px,1fr)"] { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+}
+
+/* Sidebar-pinned rail = ještě užší viewport pro content */
+@media (max-width: 700px) {
+  body.sidebar-pinned main#content,
+  body.sidebar-pinned .main-content {
+    /* Rail 56px + safety padding */
+    max-width: calc(100vw - 56px) !important;
+    box-sizing: border-box !important;
+    padding: 12px 10px !important;
+    overflow-x: hidden !important;
+  }
+  /* Modal nesmí přesáhnout viewport */
+  body.sidebar-pinned .modal-content, .modal-content {
+    max-width: calc(100vw - 24px) !important;
+    margin: 0 auto !important;
+  }
+  /* Hero karty (Restaurace) — single column na phone, scrollable horizontally na narrow */
+  body.sidebar-pinned [style*="minmax(220px,1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Ultra-narrow phones (iPhone SE, malé Androidy) */
+@media (max-width: 380px) {
+  .page-title { font-size: 18px !important; }
+  .page-sub { font-size: 12px !important; }
+  .btn-primary, .btn-secondary { font-size: 12px !important; padding: 7px 10px !important; }
+  .stat-card { padding: 12px !important; }
+  .stat-value { font-size: 22px !important; }
+  /* Sidebar rail menší aby zbylo víc pro content */
+  body.sidebar-pinned .sidebar { width: 48px !important; }
+  body.sidebar-pinned main#content, body.sidebar-pinned .main-content {
+    max-width: calc(100vw - 48px) !important;
+    padding: 10px 8px !important;
+  }
+}
+
+/* Touch-friendly minimums (44px target) */
+@media (hover: none) and (pointer: coarse) {
+  button:not(.pos-tab-h), .btn-primary, .btn-secondary, .btn-back,
+  .nav-item, input[type="checkbox"], input[type="radio"] {
+    min-height: 40px;
+  }
+  /* Pro tabulkové akce zachovat smaller */
+  td button, th button { min-height: 32px !important; }
+}
+
+/* Horizontal scroll wrapper pro long content (tabs, chips) */
+.h-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  display: flex;
+  gap: 6px;
+}
+.h-scroll::-webkit-scrollbar { height: 4px; }
+.h-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 2px; }
