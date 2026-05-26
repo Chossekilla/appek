@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.39";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.40";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18802,8 +18802,65 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
   animation: rt-tile-pulse 3s ease-in-out infinite;
 }
 @keyframes rt-tile-pulse {
-  0%, 100% { box-shadow: 0 3px 10px rgba(234,88,12,0.25), inset 0 -2px 0 rgba(0,0,0,0.05); }
-  50%      { box-shadow: 0 3px 10px rgba(234,88,12,0.35), 0 0 0 6px rgba(234,88,12,0.05), inset 0 -2px 0 rgba(0,0,0,0.05); }
+  0%, 100% { box-shadow: 0 6px 18px rgba(234,88,12,0.32), 0 1px 0 rgba(255,255,255,0.7) inset, 0 -4px 8px rgba(0,0,0,0.06) inset; }
+  50%      { box-shadow: 0 6px 18px rgba(234,88,12,0.45), 0 0 0 8px rgba(234,88,12,0.06), 0 1px 0 rgba(255,255,255,0.7) inset, 0 -4px 8px rgba(0,0,0,0.06) inset; }
+}
+
+/* 🆕 v3.0.40 — Modern 2026 tile polish: subtle surface texture + premium hover */
+.rt-tile-modern {
+  position: relative;
+  overflow: hidden;
+}
+/* Subtle "table surface" overlay — top highlight + bottom shadow simulating real tabletop */
+.rt-tile-modern::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.45) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 90%, rgba(0,0,0,0.08) 0%, transparent 50%);
+  mix-blend-mode: overlay;
+  opacity: 0.7;
+}
+/* Subtle inner ring (suggests rim/edge of table) */
+.rt-tile-modern::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+}
+.rt-tile-round::before {
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255,255,255,0.5) 0%, transparent 45%),
+    radial-gradient(circle at 65% 75%, rgba(0,0,0,0.1) 0%, transparent 45%);
+}
+.rt-tile-modern:hover:not(.is-edit) {
+  transform: translateY(-3px) scale(1.03);
+  filter: saturate(1.08);
+  z-index: 10;
+}
+.rt-tile-modern:active {
+  transform: translateY(-1px) scale(1.01);
+  transition: transform 0.06s ease;
+}
+/* Decorative tiles (stromky/parkety/fontany) — bez interakce, jen vizuální */
+.rt-decor {
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+}
+.rt-decor::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.25) 0%, transparent 60%);
 }
 @keyframes rt-status-dot-pulse {
   0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 0 rgba(234,88,12,0.7); }
