@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.26';
+const APPEK_ADMIN_JS_VERSION = '3.0.27';
 
 (async function detectStaleCode() {
   try {
@@ -4584,6 +4584,33 @@ async function renderObjednavky(filters = {}) {
 
     ${dashStylePeriodHtml('obj', filters.datum_od, filters.datum_do)}
 
+    <!-- 🆕 v3.0.27 — Puvod chips (POS / B2B / Walk-in / Interní / QR) -->
+    ${(() => {
+      const counts = list.reduce((a, o) => { const p = o.puvod || 'interni'; a[p] = (a[p] || 0) + 1; return a; }, {});
+      const totalAll = list.length;
+      const activeP = filters.puvod || '';
+      const chip = (val, label, icon, color) => `
+        <button onclick="applyObjFilters({puvod:'${val}'})" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid ${activeP === val ? color : '#E5E7EB'};background:${activeP === val ? color : '#fff'};color:${activeP === val ? '#fff' : '#374151'};transition:all 0.15s ease">
+          <span>${icon}</span><span>${label}</span>
+          ${counts[val] ? `<span style="background:${activeP === val ? 'rgba(255,255,255,0.25)' : '#F3F4F6'};font-size:11px;padding:1px 7px;border-radius:99px;font-weight:800">${counts[val]}</span>` : ''}
+        </button>
+      `;
+      return `
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.06em;margin-right:4px">Zdroj:</span>
+          <button onclick="applyObjFilters({puvod:''})" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid ${!activeP ? '#1F2937' : '#E5E7EB'};background:${!activeP ? '#1F2937' : '#fff'};color:${!activeP ? '#fff' : '#374151'}">
+            <span>📋</span><span>Vše</span>
+            <span style="background:${!activeP ? 'rgba(255,255,255,0.25)' : '#F3F4F6'};font-size:11px;padding:1px 7px;border-radius:99px;font-weight:800">${totalAll}</span>
+          </button>
+          ${chip('pos', 'POS', '🧾', '#FB923C')}
+          ${chip('b2b', 'B2B portal', '🏢', '#3B82F6')}
+          ${chip('interni', 'Interní', '✏️', '#10B981')}
+          ${chip('qr', 'QR objednávky', '📲', '#7C3AED')}
+          ${chip('recurring', 'Opakující', '🔁', '#EC4899')}
+        </div>
+      `;
+    })()}
+
     <div class="filters">
       <input class="filter-input" type="search" id="of-q" placeholder="Hledat (číslo, odběratel)..." value="${filters.q || ''}">
       <select class="filter-select" id="of-stav">
@@ -4639,7 +4666,13 @@ async function renderObjednavky(filters = {}) {
                 <td class="col-check" onclick="event.stopPropagation();">
                   <input type="checkbox" ${isSel(o.id) ? 'checked' : ''} onchange="objToggleSelect(${o.id}, this.checked)" data-obj-check="${o.id}">
                 </td>
-                <td><strong>${esc(o.cislo)}</strong>${upravenoDot(o.pocet_zmen > 0)}</td>
+                <td><strong>${esc(o.cislo)}</strong>${upravenoDot(o.pocet_zmen > 0)}${(() => {
+                  // 🆕 v3.0.27 — Puvod badge (barva podle zdroje)
+                  const p = o.puvod || 'interni';
+                  const badge = ({ pos: ['🧾','#FFEDD5','#C2410C'], b2b: ['🏢','#DBEAFE','#1E40AF'], interni: ['✏️','#D1FAE5','#065F46'], qr: ['📲','#EDE9FE','#5B21B6'], recurring: ['🔁','#FCE7F3','#9D174D'] })[p];
+                  if (!badge) return '';
+                  return ` <span style="display:inline-block;background:${badge[1]};color:${badge[2]};font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;margin-left:4px;vertical-align:middle">${badge[0]}</span>`;
+                })()}</td>
                 <td>
                   <div>${esc(o.odberatel_nazev)}</div>
                   ${o.misto_nazev ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px">📍 ${esc(o.misto_nazev)}</div>` : ''}
@@ -4919,13 +4952,24 @@ window.objBulkAction = async function(typ) {
   }
 };
 
-window.applyObjFilters = function() {
-  renderObjednavky({
-    q: document.getElementById('of-q').value,
-    stav: document.getElementById('of-stav').value,
-    datum_od: document.getElementById('of-od').value,
-    datum_do: document.getElementById('of-do').value,
-  });
+window.applyObjFilters = function(extra = {}) {
+  // 🆕 v3.0.27 — extra parametr (např. {puvod:'pos'}) z chips, zbytek z formu
+  const filters = {
+    q: document.getElementById('of-q')?.value || '',
+    stav: document.getElementById('of-stav')?.value || '',
+    datum_od: document.getElementById('of-od')?.value || '',
+    datum_do: document.getElementById('of-do')?.value || '',
+    puvod: state._objCurrentPuvod || '',
+  };
+  // Override puvod from extra (chips click)
+  if ('puvod' in extra) {
+    filters.puvod = extra.puvod;
+    state._objCurrentPuvod = extra.puvod;
+  }
+  Object.assign(filters, extra);
+  // Remove empty values
+  Object.keys(filters).forEach(k => !filters[k] && delete filters[k]);
+  renderObjednavky(filters);
 };
 
 window.openObjednavkaDetail = async function(id) {
