@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.47';
+const APPEK_ADMIN_JS_VERSION = '3.0.48';
 
 (async function detectStaleCode() {
   try {
@@ -2131,61 +2131,26 @@ applyAppDensity();
 // =============================================================
 // 📌 PIN sidebar — fixuje boční menu (uloženo do localStorage)
 // =============================================================
-// 🆕 v3.0.47 — Mobile nav cycle (ONE button under Nastavení + floating ≡ když hidden):
-//   State A (default):  rail + bottom nav (current default mobile)
-//   State B (hidden):   rail skrytý, jen bottom + floating ≡ icon top-left, full WIDTH
-//   State C (expanded): rail FULL (s labely), bottom skrytý, full HEIGHT
-//   Cycle: A → B → C → A → ...
-
-window.cycleMobileNav = function() {
-  const body = document.body;
-  let next;
-  if (body.classList.contains('mobile-rail-hidden')) {
-    // B → C
-    body.classList.remove('mobile-rail-hidden');
-    body.classList.add('mobile-bottom-hidden');
-    body.classList.add('mobile-sidebar-expanded'); // ukáže labely v sidebaru
-    next = 'expanded';
-  } else if (body.classList.contains('mobile-bottom-hidden')) {
-    // C → A
-    body.classList.remove('mobile-bottom-hidden');
-    body.classList.remove('mobile-sidebar-expanded');
-    next = 'default';
-  } else {
-    // A → B
-    body.classList.add('mobile-rail-hidden');
-    next = 'rail-hidden';
-  }
-  try { localStorage.setItem('appek_mobile_nav_state', next); } catch (e) {}
+// 🆕 v3.0.48 — Mobile sidebar simple hide/show (ONE button + floating ≡)
+//   Default: sidebar visible + bottom nav
+//   Hidden:  sidebar skrytý, jen bottom nav + floating ≡ top-left
+window.hideMobileSidebar = function() {
+  document.body.classList.add('mobile-rail-hidden');
+  try { localStorage.setItem('appek_mobile_rail_hidden', '1'); } catch (e) {}
   try { window.haptic && window.haptic('medium'); } catch (e) {}
-  // Update label v cycle buttonu
-  const lbl = document.querySelector('.nav-mob-cycle-label');
-  if (lbl) {
-    lbl.textContent = next === 'expanded' ? 'Sbalit do railu'
-                     : next === 'rail-hidden' ? 'Zobrazit menu'
-                     : 'Sbalit menu';
-  }
+};
+window.showMobileSidebar = function() {
+  document.body.classList.remove('mobile-rail-hidden');
+  try { localStorage.setItem('appek_mobile_rail_hidden', '0'); } catch (e) {}
+  try { window.haptic && window.haptic('medium'); } catch (e) {}
 };
 
-// Restore state from localStorage on boot
-(function appekRestoreMobileNavState() {
+// Restore from localStorage on boot
+(function appekRestoreMobileSidebar() {
   try {
-    const s = localStorage.getItem('appek_mobile_nav_state') || 'default';
-    if (s === 'rail-hidden') {
+    if (localStorage.getItem('appek_mobile_rail_hidden') === '1') {
       document.body.classList.add('mobile-rail-hidden');
-    } else if (s === 'expanded') {
-      document.body.classList.add('mobile-bottom-hidden');
-      document.body.classList.add('mobile-sidebar-expanded');
     }
-    // Apply correct label after DOM ready
-    document.addEventListener('DOMContentLoaded', () => {
-      const lbl = document.querySelector('.nav-mob-cycle-label');
-      if (lbl) {
-        lbl.textContent = s === 'expanded' ? 'Sbalit do railu'
-                         : s === 'rail-hidden' ? 'Zobrazit menu'
-                         : 'Sbalit menu';
-      }
-    });
   } catch (e) {}
 })();
 

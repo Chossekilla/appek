@@ -6,6 +6,31 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.48] — 2026-05-26
+
+### 📱 Mobile nav simplify — jen schovat / zobrazit sidebar
+_User: "nech tam jen tlačítko schovat postraní menu, nic víc, zbytek smaž"_
+
+**Smazáno** (z v3.0.46/v3.0.47):
+- Celá 3-state cycle logika (`cycleMobileNav`)
+- Expanded mode (`mobile-sidebar-expanded` class — sidebar 240px s labely)
+- `mobile-bottom-hidden` state (skrývání bottom navu)
+- CSS pro expanded layout + active state v cycle buttonu
+
+**Nechan ONLY:**
+- ◀ "Schovat menu" button v sidebaru pod Nastavením (vypadá jako nav-item)
+- `hideMobileSidebar()` — schová sidebar
+- Floating ≡ top-left když je sidebar schovaný
+- `showMobileSidebar()` — vrátí sidebar
+- localStorage persist (`appek_mobile_rail_hidden`)
+
+**Default chování:** sidebar + bottom nav obojí. Klik na ◀ schová sidebar (content full šířka). Klik na floating ≡ vrátí sidebar.
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.47→3.0.48, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.47] — 2026-05-26
 
 ### 📱 Mobile nav fix — ONE cycle button (přepsání v3.0.46)
