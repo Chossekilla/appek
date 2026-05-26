@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.41';
+const APPEK_ADMIN_JS_VERSION = '3.0.42';
 
 (async function detectStaleCode() {
   try {
@@ -16339,13 +16339,34 @@ async function renderRestaurantPage() {
         </details>
       </div>
     </div>
-    <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'provoz' || !tab ? 'active' : ''}" onclick="state._restTab='provoz';renderRestaurantPage()">📺 Provoz</button>
-      <button class="nastaveni-tab ${tab === 'pos' ? 'active' : ''}" onclick="state._restTab='pos';renderRestaurantPage()">🧾 POS Kasa</button>
-      <button class="nastaveni-tab ${tab === 'tables' ? 'active' : ''}" onclick="state._restTab='tables';renderRestaurantPage()">🪑 Stoly</button>
-      <button class="nastaveni-tab ${tab === 'kitchen' ? 'active' : ''}" onclick="state._restTab='kitchen';renderRestaurantPage()">👨‍🍳 Kapacita kuchyně</button>
-      <button class="nastaveni-tab ${tab === 'prep' ? 'active' : ''}" onclick="state._restTab='prep';renderRestaurantPage()">⏱️ Doba přípravy</button>
-      <button class="nastaveni-tab ${tab === 'couriers' ? 'active' : ''}" onclick="state._restTab='couriers';renderRestaurantPage()">🛵 Rozvoz / Kurýry</button>
+    <!-- 🆕 v3.0.42 — Velké barevné bannery místo malých tabů -->
+    <div class="rest-banner-tabs" role="tablist" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px">
+      ${[
+        { k:'provoz',   icon:'📺', label:'Provoz',          sub:'Live monitor + KDS',     grad:'135deg,#3B82F6,#1E40AF', light:'#DBEAFE', dark:'#1E3A8A' },
+        { k:'pos',      icon:'🧾', label:'POS Kasa',        sub:'Restaurační pokladna',   grad:'135deg,#10B981,#065F46', light:'#D1FAE5', dark:'#064E3B' },
+        { k:'tables',   icon:'🪑', label:'Stoly',           sub:'Layout · rezervace',     grad:'135deg,#BA7517,#854F0B', light:'#FEF3C7', dark:'#78350F' },
+        { k:'kitchen',  icon:'👨‍🍳', label:'Kapacita kuchyně', sub:'Stanice · max paral.', grad:'135deg,#EF4444,#991B1B', light:'#FEE2E2', dark:'#7F1D1D' },
+        { k:'prep',     icon:'⏱️', label:'Doba přípravy',   sub:'Min. per výrobek',       grad:'135deg,#A78BFA,#5B21B6', light:'#EDE9FE', dark:'#4C1D95' },
+        { k:'couriers', icon:'🛵', label:'Rozvoz / Kurýři', sub:'Wolt · Bolt · vlastní',  grad:'135deg,#F97316,#9A3412', light:'#FFEDD5', dark:'#7C2D12' },
+      ].map(b => {
+        const active = tab === b.k || (b.k === 'provoz' && !tab);
+        return `
+        <button class="rest-banner ${active ? 'is-active' : ''}"
+                role="tab"
+                aria-selected="${active}"
+                onclick="state._restTab='${b.k}';renderRestaurantPage()"
+                style="${active
+                  ? `background:linear-gradient(${b.grad});color:#fff;border:2px solid transparent;box-shadow:0 10px 28px ${b.light}80,0 4px 10px rgba(0,0,0,0.18)`
+                  : `background:${b.light};color:${b.dark};border:2px solid ${b.light}`
+                }">
+          <div class="rb-icon" style="font-size:30px;line-height:1;${active ? 'filter:drop-shadow(0 2px 4px rgba(0,0,0,0.22))' : ''}">${b.icon}</div>
+          <div class="rb-text">
+            <div class="rb-label" style="font-size:15px;font-weight:800;letter-spacing:-0.01em">${b.label}</div>
+            <div class="rb-sub" style="font-size:11.5px;font-weight:600;opacity:${active ? '0.92' : '0.75'};margin-top:1px">${b.sub}</div>
+          </div>
+        </button>
+        `;
+      }).join('')}
     </div>
     <div id="rest-tab-body"></div>
   `;
