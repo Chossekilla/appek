@@ -2588,3 +2588,61 @@ html, body {
   .pos-floor-tab { padding: 8px 12px; font-size: 12px; }
   .pos-floor-canvas-wrap { padding: 8px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   🎈 v3.0.32 — POS FLUID (clamp scaling)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.pos-app {
+  --fl-px:        clamp(8px, 1.6vw, 22px);
+  --fl-py:        clamp(8px, 1.4vw, 18px);
+  --fl-gap:       clamp(6px, 0.9vw, 14px);
+  --fl-body:      clamp(13px, 1.1vw, 15px);
+  --fl-small:     clamp(11px, 0.95vw, 13px);
+  --fl-h:         clamp(16px, 1.6vw, 22px);
+  --fl-btn-h:     clamp(38px, 4.5vw, 56px);
+  --fl-radius:    clamp(8px, 0.9vw, 12px);
+  font-size: var(--fl-body);
+}
+
+/* Header */
+.pos-app .pos-header {
+  padding: var(--fl-py) var(--fl-px);
+  gap: var(--fl-gap);
+}
+.pos-app .pos-brand-name { font-size: clamp(13px, 1.3vw, 17px); }
+.pos-app .pos-tab-h {
+  padding: clamp(6px, 0.9vw, 10px) clamp(10px, 1.4vw, 18px);
+  font-size: var(--fl-small);
+}
+
+/* Cart fluid */
+.pos-app .pos-cart-list { padding: var(--fl-py) var(--fl-px); gap: var(--fl-gap); }
+.pos-app .pos-cart-item { padding: clamp(6px, 0.9vw, 10px) clamp(8px, 1.1vw, 14px); border-radius: var(--fl-radius); }
+
+/* Products grid fluid */
+.pos-app .pos-grid {
+  padding: var(--fl-py) var(--fl-px);
+  gap: var(--fl-gap);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(110px, 12vw, 160px)), 1fr));
+}
+.pos-app .pos-tile {
+  padding: clamp(8px, 1.1vw, 14px);
+  border-radius: var(--fl-radius);
+  min-height: clamp(80px, 9vw, 120px);
+}
+
+/* Finish button — vždy obří, ale fluid */
+.pos-app .pos-finish {
+  font-size: clamp(16px, 1.7vw, 22px);
+  padding: clamp(14px, 1.8vw, 22px);
+  min-height: clamp(56px, 6vw, 78px);
+  border-radius: var(--fl-radius);
+}
+
+/* Modal */
+.pos-app .pos-modal {
+  width: min(94vw, 720px);
+  border-radius: var(--fl-radius);
+}
+.pos-app .pos-modal-body { padding: var(--fl-py) var(--fl-px); }
