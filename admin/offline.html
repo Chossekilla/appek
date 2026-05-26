@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#BA7517">
+  <title>📡 Offline — APPEK</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(180deg, #FEF8EE 0%, #FBEEDC 100%);
+      color: #1d1d1f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .off-card {
+      max-width: 460px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(186, 117, 23, 0.2);
+      border-radius: 24px;
+      padding: 32px 28px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(186, 117, 23, 0.15);
+    }
+    .off-icon {
+      font-size: 72px;
+      line-height: 1;
+      margin-bottom: 16px;
+      filter: drop-shadow(0 4px 12px rgba(186, 117, 23, 0.3));
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-6px); }
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+      color: #BA7517;
+    }
+    p {
+      font-size: 15px;
+      line-height: 1.55;
+      color: #4a4a4f;
+      margin-bottom: 24px;
+    }
+    .off-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #FEF3C7;
+      color: #78350F;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .off-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #DC2626;
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.2); }
+    }
+    .off-btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #BA7517, #854F0B);
+      color: #fff;
+      border: none;
+      padding: 14px 32px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(186, 117, 23, 0.3);
+      transition: transform 0.12s ease, box-shadow 0.18s ease;
+      font-family: inherit;
+      text-decoration: none;
+    }
+    .off-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(186, 117, 23, 0.4); }
+    .off-btn:active { transform: translateY(0); }
+    .off-hints {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      text-align: left;
+      font-size: 12.5px;
+      color: #6e6e73;
+      line-height: 1.6;
+    }
+    .off-hints strong { color: #1d1d1f; }
+    .off-hints ul { padding-left: 18px; margin-top: 4px; }
+    .off-hints li { margin-bottom: 3px; }
+    @media (prefers-color-scheme: dark) {
+      body { background: linear-gradient(180deg, #1c1c1e 0%, #2c2c2e 100%); color: #fff; }
+      .off-card { background: rgba(28, 28, 30, 0.85); border-color: rgba(255, 255, 255, 0.1); }
+      h1 { color: #FBBF24; }
+      p { color: #c7c7cc; }
+      .off-status { background: rgba(245, 158, 11, 0.18); color: #FBBF24; }
+      .off-hints { border-top-color: rgba(255, 255, 255, 0.1); color: #98989d; }
+      .off-hints strong { color: #fff; }
+    }
+  </style>
+</head>
+<body>
+  <div class="off-card">
+    <div class="off-icon">📡</div>
+    <div class="off-status">
+      <span class="off-dot"></span>
+      Bez internetu
+    </div>
+    <h1>Jsi offline</h1>
+    <p>APPEK potřebuje připojení pro načtení dat ze serveru. Jakmile budeš znovu online, automaticky pokračujeme tam kde jsi přestal.</p>
+    <button class="off-btn" onclick="location.reload()">🔄 Zkusit znovu</button>
+    <div class="off-hints">
+      <strong>💡 Mezitím můžeš:</strong>
+      <ul>
+        <li>Zkontrolovat WiFi nebo mobilní data</li>
+        <li>Vyzkoušet jinou síť (hotspot ze druhého zařízení)</li>
+        <li>Počkat — APPEK se sám obnoví jakmile bude internet zpět</li>
+      </ul>
+    </div>
+  </div>
+  <script>
+    // Auto-reload jakmile jsme online
+    window.addEventListener('online', () => {
+      setTimeout(() => location.reload(), 600);
+    });
+  </script>
+</body>
+</html>

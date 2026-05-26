@@ -6,6 +6,60 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.41] — 2026-05-26
+
+### 📱 Mobile UX upgrade — 6 nových interakcí
+_User: "Pull-to-refresh, Swipe-to-action, Quick actions sheet, Offline indicator, Camera barcode, Vibration feedback — přidej"_
+
+**1. 🔄 Pull-to-refresh** (`appekInitPullToRefresh()`)
+- Touch handlers na `#content`, jen pokud `scrollTop=0`
+- Threshold 80px → trigger refresh aktuální stránky
+- Visual: rotating 🔄 indicator s opacity feedback per progress
+- Haptic `tick` na threshold + `medium` při triggeru
+
+**2. 👆 Swipe-to-action** (`window.appekAddSwipeActions(el, opts)`)
+- Touch handlers s axis lock (horizontal vs vertical)
+- Underlay layer s left/right action labels
+- Threshold 80px → execute akci (smazat / vytvořit DL / atd.)
+- Smooth cubic-bezier transition zpět
+- Haptic `tick` na threshold + `medium` na execute
+
+**3. 📋 Long-press FAB → Quick actions sheet** (`appekShowQuickSheet()`)
+- 480ms hold detection na FAB
+- Per-stránka 3-5 quick actions (dashboard má 4, vyrobky má 4 vč. scan)
+- Bottom sheet s backdrop blur, slide-up animace
+- iOS-style drag handle nahoře
+- Skryté na desktop (jen mobilní UX)
+
+**4. 📡 Offline indicator** (`appekUpdateOnlineStatus()`)
+- Listener na `online`/`offline` events
+- Top banner: animated pulse dot + "📡 Offline" hláška
+- Auto-fade out když je znovu online
+- iOS safe-area podpora
+- Haptic `warning` na offline, `success` na recovery
+- Fancy **`admin/offline.html`** fallback page (precached v SW):
+  - Floating 📡 ikona s animací
+  - Auto-reload jakmile online
+  - Dark mode podpora
+  - Glass-card design
+
+**5. 📷 Camera barcode scan FAB** (Vyrobky stránka)
+- Long-press FAB → "📷 Skenovat čárkód" v sub-actions
+- Použije existující `appekScanner` (Web BarcodeDetector API)
+- Formáty: ean_13, ean_8, upc_a/e, code_128, code_39
+- Logika: nalezeno 1 → otevři detail · nalezeno víc → filter · 0 → nabídka nového výrobku
+
+**6. 📳 Haptic feedback** (`window.haptic(type)`)
+- Patterns: `light`(10ms), `medium`(20), `heavy`(40), `success`(40-30-40), `warning`(60-40-60), `error`(80-50-80-50-80), `tick`(3-10-3)
+- Respekt `prefers-reduced-motion: reduce`
+- iOS Safari fallback (nemá vibrate API → silent skip)
+- Hooked všude: FAB taps, swipe thresholds, online/offline transitions
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.40→3.0.41, admin.js, sw.js (+ offline.html precache), HTML asset URLs
+
+---
+
 ## [3.0.40] — 2026-05-26
 
 ### 🎨 Moderní 2026 floor plan tiles (žádné "80ové ovaly")
