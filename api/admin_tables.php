@@ -284,43 +284,65 @@ function default_templates(): array {
             ],
         ],
         // ─── 🌳 LETNÍ ZAHRADA ─────────────────────────────────
-        // 🆕 v3.0.37 — Outdoor garden setup s pergolou
+        // 🆕 v3.0.37, 🎨 v3.0.40 — Symetrické rozmístění, vyplněný střed,
+        //   strom vizuálně dominantní, žádné mrtvé prostory
         'letni_zahrada' => [
             'key' => 'letni_zahrada',
             'nazev' => '🌳 Letní zahrada',
-            'popis' => 'Venkovní zahrada · outdoor bar + pergola · slunečníky',
-            'canvas_w' => 1100, 'canvas_h' => 700,
+            'popis' => 'Venkovní zahrada · outdoor bar + pergola · symetrické rozmístění s dominantním stromem',
+            'canvas_w' => 1200, 'canvas_h' => 720,
             'zones' => [
-                ['nazev' => 'Zahrada',  'ikona' => '🌳', 'canvas_w' => 1100, 'canvas_h' => 700, 'bg_barva' => '#ECFDF5', 'sort_order' => 0],
+                ['nazev' => 'Zahrada',  'ikona' => '🌳', 'canvas_w' => 1200, 'canvas_h' => 720, 'bg_barva' => '#ECFDF5', 'sort_order' => 0],
                 ['nazev' => 'Pergola',  'ikona' => '🍃', 'canvas_w' => 800,  'canvas_h' => 460, 'bg_barva' => '#D1FAE5', 'sort_order' => 1],
             ],
             'tables' => [
-                // ZAHRADA — Outdoor bar nahoře
-                ['nazev' => '🍹 Outdoor bar', 'tvar' => 'rect', 'mist' => 6, 'x' => 80,  'y' => 60,  'width' => 940, 'height' => 80, 'zone_idx' => 0],
-                // 2 řady slunečníkových stolků (kruhy)
-                ['nazev' => 'Z1', 'tvar' => 'round', 'mist' => 4, 'x' => 80,  'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                ['nazev' => 'Z2', 'tvar' => 'round', 'mist' => 4, 'x' => 240, 'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                ['nazev' => 'Z3', 'tvar' => 'round', 'mist' => 4, 'x' => 400, 'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                ['nazev' => 'Z4', 'tvar' => 'round', 'mist' => 4, 'x' => 560, 'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                ['nazev' => 'Z5', 'tvar' => 'round', 'mist' => 4, 'x' => 720, 'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                ['nazev' => 'Z6', 'tvar' => 'round', 'mist' => 6, 'x' => 880, 'y' => 200, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
-                // Středová zelená oblast (strom)
-                ['nazev' => '🌲', 'tvar' => 'round', 'mist' => 0, 'x' => 480, 'y' => 360, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
-                // Spodní řada větší rodinné stoly
-                ['nazev' => 'Z7', 'tvar' => 'square', 'mist' => 6, 'x' => 80,  'y' => 380, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
-                ['nazev' => 'Z8', 'tvar' => 'square', 'mist' => 6, 'x' => 240, 'y' => 380, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
-                ['nazev' => 'Z9', 'tvar' => 'square', 'mist' => 6, 'x' => 680, 'y' => 380, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
-                ['nazev' => 'Z10','tvar' => 'square', 'mist' => 6, 'x' => 840, 'y' => 380, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
-                // Komunitní stůl úplně dole
-                ['nazev' => '🌳 Piknik', 'tvar' => 'rect', 'mist' => 16, 'x' => 80, 'y' => 550, 'width' => 940, 'height' => 100, 'zone_idx' => 0],
-                // PERGOLA — Lounge sezení
-                ['nazev' => '🍃 Pergola A', 'tvar' => 'rect',  'mist' => 8, 'x' => 80,  'y' => 80,  'width' => 320, 'height' => 100, 'zone_idx' => 1],
-                ['nazev' => '🍃 Pergola B', 'tvar' => 'rect',  'mist' => 8, 'x' => 420, 'y' => 80,  'width' => 320, 'height' => 100, 'zone_idx' => 1],
-                ['nazev' => 'P1', 'tvar' => 'round', 'mist' => 4, 'x' => 80,  'y' => 240, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
-                ['nazev' => 'P2', 'tvar' => 'round', 'mist' => 4, 'x' => 230, 'y' => 240, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
-                ['nazev' => 'P3', 'tvar' => 'round', 'mist' => 4, 'x' => 380, 'y' => 240, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
-                ['nazev' => 'P4', 'tvar' => 'round', 'mist' => 4, 'x' => 530, 'y' => 240, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
-                ['nazev' => 'P5', 'tvar' => 'round', 'mist' => 4, 'x' => 680, 'y' => 240, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
+                // ─── ZAHRADA ─────────────────────────────────────
+                // 1) Outdoor bar — top full width
+                ['nazev' => '🍹 Outdoor bar', 'tvar' => 'rect', 'mist' => 8, 'x' => 60, 'y' => 50, 'width' => 1080, 'height' => 75, 'zone_idx' => 0],
+
+                // 2) Levá zóna — 4 slunečníkové stolky (2x2)
+                ['nazev' => 'Z1', 'tvar' => 'round', 'mist' => 4, 'x' => 80,  'y' => 160, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => 'Z2', 'tvar' => 'round', 'mist' => 4, 'x' => 210, 'y' => 160, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => 'Z3', 'tvar' => 'round', 'mist' => 4, 'x' => 80,  'y' => 290, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => 'Z4', 'tvar' => 'round', 'mist' => 4, 'x' => 210, 'y' => 290, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
+
+                // 3) Středová vizuální dominanta — VELKÝ STROM (0 míst, dekorace)
+                ['nazev' => '🌳', 'tvar' => 'round', 'mist' => 0, 'x' => 360, 'y' => 160, 'width' => 220, 'height' => 230, 'zone_idx' => 0],
+
+                // 4) Květinová dekorace v rozích kolem stromu
+                ['nazev' => '🌹', 'tvar' => 'round', 'mist' => 0, 'x' => 340, 'y' => 110, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
+                ['nazev' => '🌷', 'tvar' => 'round', 'mist' => 0, 'x' => 560, 'y' => 110, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
+
+                // 5) Pravá zóna — 4 rodinné čtverce + 2 menší kruhy nahoře pravý
+                ['nazev' => 'Z5', 'tvar' => 'round', 'mist' => 4, 'x' => 640, 'y' => 160, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => 'Z6', 'tvar' => 'round', 'mist' => 4, 'x' => 770, 'y' => 160, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => 'Z7', 'tvar' => 'round', 'mist' => 4, 'x' => 900, 'y' => 160, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => 'Z8', 'tvar' => 'round', 'mist' => 4, 'x' => 1030,'y' => 160, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => 'Z9',  'tvar' => 'square', 'mist' => 6, 'x' => 640, 'y' => 290, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'Z10', 'tvar' => 'square', 'mist' => 6, 'x' => 780, 'y' => 290, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'Z11', 'tvar' => 'square', 'mist' => 6, 'x' => 920, 'y' => 290, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'Z12', 'tvar' => 'square', 'mist' => 6, 'x' => 1060,'y' => 290, 'width' => 80,  'height' => 110, 'zone_idx' => 0],
+
+                // 6) Spodní řada — 2 rodinné stoly + dva piknikové komunitní vedle sebe
+                ['nazev' => '🍽️ Rodinný 1', 'tvar' => 'rect', 'mist' => 8,  'x' => 60,  'y' => 430, 'width' => 280, 'height' => 95, 'zone_idx' => 0],
+                ['nazev' => '🍽️ Rodinný 2', 'tvar' => 'rect', 'mist' => 8,  'x' => 360, 'y' => 430, 'width' => 280, 'height' => 95, 'zone_idx' => 0],
+                ['nazev' => '🍽️ Rodinný 3', 'tvar' => 'rect', 'mist' => 8,  'x' => 660, 'y' => 430, 'width' => 280, 'height' => 95, 'zone_idx' => 0],
+                ['nazev' => '🍽️ Rodinný 4', 'tvar' => 'rect', 'mist' => 6,  'x' => 960, 'y' => 430, 'width' => 180, 'height' => 95, 'zone_idx' => 0],
+
+                // 7) Piknik komunitní stůl — celá šíře dole
+                ['nazev' => '🌳 Piknik komunitní', 'tvar' => 'rect', 'mist' => 18, 'x' => 60, 'y' => 555, 'width' => 1080, 'height' => 105, 'zone_idx' => 0],
+
+                // ─── PERGOLA ─────────────────────────────────────
+                ['nazev' => '🍃 Pergola Lounge A', 'tvar' => 'rect',  'mist' => 8, 'x' => 60,  'y' => 60,  'width' => 320, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => '🍃 Pergola Lounge B', 'tvar' => 'rect',  'mist' => 8, 'x' => 400, 'y' => 60,  'width' => 320, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => 'P1', 'tvar' => 'round',  'mist' => 4, 'x' => 80,  'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
+                ['nazev' => 'P2', 'tvar' => 'round',  'mist' => 4, 'x' => 230, 'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
+                ['nazev' => 'P3', 'tvar' => 'round',  'mist' => 4, 'x' => 380, 'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
+                ['nazev' => 'P4', 'tvar' => 'round',  'mist' => 4, 'x' => 530, 'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
+                ['nazev' => 'P5', 'tvar' => 'square', 'mist' => 6, 'x' => 100, 'y' => 340, 'width' => 130, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => 'P6', 'tvar' => 'square', 'mist' => 6, 'x' => 260, 'y' => 340, 'width' => 130, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => 'P7', 'tvar' => 'square', 'mist' => 6, 'x' => 420, 'y' => 340, 'width' => 130, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => 'P8', 'tvar' => 'square', 'mist' => 6, 'x' => 580, 'y' => 340, 'width' => 130, 'height' => 100, 'zone_idx' => 1],
             ],
         ],
         // ─── 🍺 PIVNICE PLZEŇ ─────────────────────────────────

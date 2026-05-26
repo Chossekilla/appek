@@ -6,6 +6,53 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.40] — 2026-05-26
+
+### 🎨 Moderní 2026 floor plan tiles (žádné "80ové ovaly")
+_User: "hezčí ty stoly, ne takový jak z 80let oválky, máme rok 2026 přeci, tak moderní look"_
+
+**Premium tile design v `renderTableTile()`:**
+- **Soft 3-stop gradients** místo flat 2-color (140° angle pro moderní look)
+- **Inset shadow** (carved-into-floor feel) + outer glow per kategorie
+- **Surface highlight overlay** přes `::before` pseudo-element — radial-gradient simulující reálný tabletop reflex (mix-blend overlay)
+- **Subtle inner ring** přes `::after` — naznačuje rim/edge stolu
+- **Premium typography** — letter-spacing -0.02em, font-weight 800, text-shadow pro depth
+- **Glass-pill seat count** badge — `backdrop-filter: blur(2px)` + 40% alpha bg
+- **Smooth cubic-bezier** transitions (.2,.8,.2,1) pro hover lift
+- **Saturate boost** na hover (+8%) pro "popnutí" karty
+
+**Kategorizace per typ stolu** (detekce z názvu):
+- 🍺 **Bar** (Bar/Tap/Pult) → oranžový gradient
+- 🛋️ **Lounge** (VIP/Salon/Tatami/Pergola) → fialový
+- 🌳 **Garden** (zahrada/strom/piknik) → zelený
+- 🔥 **Grill** (Grill/Pec/Teppanyaki) → červený
+- 🎵 **Stage** (Parket/DJ/Pódium/Fire pit) → modrý
+- 🍽️ **Family** (Rodinný/Komunitní/Společný) → amber-žlutý
+- Standard → cream s hnědým akcentem
+
+**Dekorativní prvky (mist=0):**
+- Detekce `isDecor` → samostatný render bez interakce
+- Velký emoji (55% size), drop-shadow, pointer-events:none
+- Žádný chrome (border, label) — čistá vizuální dekorace
+
+### 🌳 Letní zahrada v2 — vyplněný layout
+- **Canvas 1100×700 → 1200×720** (více prostoru)
+- **Středová DOMINANTA: 🌳 strom 220×230px** místo malé tečky
+- Květinová dekorace (🌹 🌷) kolem stromu jako accent
+- **Symetrické rozmístění:**
+  - Levá zóna: 4 slunečníky (2×2)
+  - Střed: velký strom + květiny (vizuální focus)
+  - Pravá zóna: 4 round + 4 square stolky (3×2 grid)
+  - Spodek: 4 rodinné stoly v řadě + 1 piknik komunitní přes celou šíři
+- **Žádné mrtvé prostory** — celá plocha využitá
+- **Více míst:** 8 (bar) + 16 (slunečníky) + 24 (round pravá) + 24 (square pravá) + 30 (rodinné) + 18 (piknik) = 120 v zahradě + 60 v pergole = **180 míst**
+- Pergola rozšířena: 8 přidaných square stolků (P5-P8)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.39→3.0.40, admin.js, sw.js, HTML versioned URLs
+
+---
+
 ## [3.0.39] — 2026-05-26
 
 ### 📱 POCKET-READY — APPEK jako profi mobilní app

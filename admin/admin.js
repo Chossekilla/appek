@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.39';
+const APPEK_ADMIN_JS_VERSION = '3.0.40';
 
 (async function detectStaleCode() {
   try {
@@ -16748,23 +16748,48 @@ function renderFloorPlan(data, today) {
 }
 
 function renderTableTile(t, editMode) {
-  // 🎨 v3.0.21 — Vylepšený design: gradienty, větší fonty, status dot, lepší kontrast
+  // 🆕 v3.0.40 — Modern 2026 floor plan tile: category-aware colors,
+  // soft gradients, inset shadow (carved-in feel), premium typography,
+  // optional decorative tile (mist=0 = dekorativní prvek bez židliček).
   const shape = RT_SHAPES[t.tvar || 'square'] || RT_SHAPES.square;
   const w = parseInt(t.width)  || 80;
   const h = parseInt(t.height) || 80;
   const x = parseInt(t.x) || 0;
   const y = parseInt(t.y) || 0;
+  const tvar = t.tvar || 'square';
+  const isRound = tvar === 'round';
+  const mist = parseInt(t.mist) || 0;
+  const isDecor = mist === 0;
 
-  // Gradienty + výrazné barvy per stav
-  const SG = {
-    free:      { bg: 'linear-gradient(135deg,#D1FAE5,#A7F3D0)', border: '#10B981', text: '#065F46', glow: 'rgba(16,185,129,0.20)', dot: '#10B981' },
-    occupied:  { bg: 'linear-gradient(135deg,#FED7AA,#FDBA74)', border: '#EA580C', text: '#7C2D12', glow: 'rgba(234,88,12,0.28)',   dot: '#EA580C' },
-    reserved:  { bg: 'linear-gradient(135deg,#FEF3C7,#FDE68A)', border: '#F59E0B', text: '#78350F', glow: 'rgba(245,158,11,0.22)',  dot: '#F59E0B' },
-    cleaning:  { bg: 'linear-gradient(135deg,#F3F4F6,#E5E7EB)', border: '#6B7280', text: '#1F2937', glow: 'rgba(107,114,128,0.15)', dot: '#6B7280' },
-    attention: { bg: 'linear-gradient(135deg,#EDE9FE,#DDD6FE)', border: '#7C3AED', text: '#4C1D95', glow: 'rgba(124,58,237,0.20)',  dot: '#7C3AED' },
-    disabled:  { bg: 'linear-gradient(135deg,#1F2937,#111827)', border: '#000',    text: '#E5E7EB', glow: 'rgba(0,0,0,0.30)',       dot: '#9CA3AF' },
+  // 🎨 v3.0.40 — Kategorizace podle názvu (pro stav=free zvolíme barvu per typ)
+  const nazev = t.nazev || '';
+  let category = 'standard';
+  if (/🍺|🍻|🍷|🍸|🍹|🍾|🥂|Bar|bar|Tap|Pult/.test(nazev))           category = 'bar';
+  else if (/🛋️|🥃|VIP|Lounge|Salon|Tatami|Pergola/.test(nazev))    category = 'lounge';
+  else if (/🌳|🌲|🍃|Pikni|Zahrad|🌹|🌷/.test(nazev))               category = 'garden';
+  else if (/🔥|🥩|Grill|Pec|Teppanyaki/.test(nazev))                category = 'grill';
+  else if (/💃|🎵|🎤|🎧|Parket|DJ|Pódium|Fire pit|💍/.test(nazev)) category = 'stage';
+  else if (/🍕 Rodi|Komunit|Společn|Dlouhý|🍻|Tapas/.test(nazev))   category = 'family';
+
+  // Per-stav OVERRIDE (occupied > category default). free → category default
+  const STAV_COLORS = {
+    occupied:  { bg: 'linear-gradient(140deg,#FED7AA 0%,#FDBA74 60%,#FB923C 100%)', border: '#EA580C', text: '#7C2D12', glow: 'rgba(234,88,12,0.32)', dot: '#EA580C' },
+    reserved:  { bg: 'linear-gradient(140deg,#FEF3C7 0%,#FDE68A 60%,#FCD34D 100%)', border: '#F59E0B', text: '#78350F', glow: 'rgba(245,158,11,0.28)', dot: '#F59E0B' },
+    cleaning:  { bg: 'linear-gradient(140deg,#F3F4F6 0%,#E5E7EB 100%)',              border: '#9CA3AF', text: '#374151', glow: 'rgba(107,114,128,0.16)', dot: '#6B7280' },
+    attention: { bg: 'linear-gradient(140deg,#EDE9FE 0%,#C4B5FD 100%)',              border: '#7C3AED', text: '#4C1D95', glow: 'rgba(124,58,237,0.24)', dot: '#7C3AED' },
+    disabled:  { bg: 'linear-gradient(140deg,#1F2937 0%,#111827 100%)',              border: '#000',    text: '#E5E7EB', glow: 'rgba(0,0,0,0.35)',       dot: '#9CA3AF' },
   };
-  const sg = SG[t.stav || 'free'] || SG.free;
+  // 🆕 v3.0.40 — Category palette pro free stav (premium 2026 look)
+  const CAT_COLORS = {
+    standard: { bg: 'linear-gradient(140deg,#FFFFFF 0%,#F8F4ED 50%,#EFE7D7 100%)', border: '#C9BFAA', text: '#3F2D1A', glow: 'rgba(186,117,23,0.12)', dot: '#BA7517' },
+    bar:      { bg: 'linear-gradient(140deg,#FFF7ED 0%,#FED7AA 100%)',              border: '#FB923C', text: '#9A3412', glow: 'rgba(251,146,60,0.22)', dot: '#FB923C' },
+    lounge:   { bg: 'linear-gradient(140deg,#F5F3FF 0%,#DDD6FE 100%)',              border: '#A78BFA', text: '#5B21B6', glow: 'rgba(167,139,250,0.22)', dot: '#A78BFA' },
+    garden:   { bg: 'linear-gradient(140deg,#ECFDF5 0%,#A7F3D0 100%)',              border: '#34D399', text: '#065F46', glow: 'rgba(52,211,153,0.22)', dot: '#10B981' },
+    grill:    { bg: 'linear-gradient(140deg,#FEE2E2 0%,#FCA5A5 100%)',              border: '#EF4444', text: '#7F1D1D', glow: 'rgba(239,68,68,0.24)',   dot: '#EF4444' },
+    stage:    { bg: 'linear-gradient(140deg,#DBEAFE 0%,#93C5FD 100%)',              border: '#3B82F6', text: '#1E3A8A', glow: 'rgba(59,130,246,0.22)',  dot: '#3B82F6' },
+    family:   { bg: 'linear-gradient(140deg,#FFFBEB 0%,#FCD34D 100%)',              border: '#D97706', text: '#78350F', glow: 'rgba(217,119,6,0.22)',   dot: '#D97706' },
+  };
+  const sg = STAV_COLORS[t.stav] || CAT_COLORS[category] || CAT_COLORS.standard;
   const bg = t.barva || sg.bg;
 
   // Timer for "kolik sedí" — 🎨 v3.0.26 smart truncation pro malé tiles (žádný overflow)
@@ -16797,30 +16822,58 @@ function renderTableTile(t, editMode) {
   // Dynamický font (čitelnější z dálky)
   const nameFont = w >= 140 ? '18px' : (w >= 100 ? '16px' : (w >= 70 ? '14px' : '12px'));
 
+  // 🆕 v3.0.40 — Dekorativní prvek (strom, parket, fontána apod.) = 0 míst → minimální chrome
+  if (isDecor && !editMode) {
+    return `
+      <div class="rt-table-tile rt-decor"
+           data-id="${t.id}"
+           data-x="${x}" data-y="${y}" data-w="${w}" data-h="${h}"
+           data-tvar="${esc(tvar)}"
+           data-stav="decor"
+           style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;
+                  background:linear-gradient(140deg,#A7F3D0 0%,#6EE7B7 50%,#34D399 100%);
+                  border:none;
+                  border-radius:${shape.borderRadius};
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:${Math.min(w, h) * 0.55}px;
+                  line-height:1;
+                  cursor:default;
+                  pointer-events:none;
+                  opacity:0.92;
+                  filter:drop-shadow(0 2px 6px rgba(16,185,129,0.25));">
+        <span style="text-shadow:0 2px 4px rgba(0,0,0,0.1)">${esc(t.nazev)}</span>
+      </div>
+    `;
+  }
+
+  // 🆕 v3.0.40 — Modern 2026 main render: inset highlight + lower-edge shadow,
+  // category-aware soft glow, premium typography
   return `
-    <div class="rt-table-tile ${t.stav === 'occupied' ? 'is-pulsing' : ''}"
+    <div class="rt-table-tile rt-tile-modern ${t.stav === 'occupied' ? 'is-pulsing' : ''} ${isRound ? 'rt-tile-round' : 'rt-tile-rect'} rt-cat-${category}"
          data-id="${t.id}"
          data-x="${x}"
          data-y="${y}"
          data-w="${w}"
          data-h="${h}"
-         data-tvar="${esc(t.tvar || 'square')}"
+         data-tvar="${esc(tvar)}"
          data-stav="${esc(t.stav || 'free')}"
          style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;
                 background:${bg};
-                border:2.5px solid ${sg.border};
+                border:1.5px solid ${sg.border}40;
                 border-radius:${shape.borderRadius};
-                box-shadow:0 3px 10px ${sg.glow}, inset 0 -2px 0 rgba(0,0,0,0.05);
+                box-shadow: 0 6px 18px ${sg.glow},
+                            0 1px 0 rgba(255,255,255,0.7) inset,
+                            0 -4px 8px rgba(0,0,0,0.06) inset;
                 display:flex;flex-direction:column;align-items:center;justify-content:center;
-                gap:3px;padding:6px;
+                gap:3px;padding:8px;
                 cursor:${editMode ? 'grab' : 'pointer'};
-                transition:transform 0.12s ease, box-shadow 0.2s ease;
-                ${rtState.selectedTableId === t.id ? 'box-shadow:0 0 0 3px #BA7517, 0 6px 16px rgba(186,117,23,0.35)' : ''}
-                ${rtState.dirtyTables.has(t.id) ? 'outline:2px dashed #F59E0B;outline-offset:2px' : ''}"
+                transition:transform 0.16s cubic-bezier(.2,.8,.2,1), box-shadow 0.22s ease;
+                ${rtState.selectedTableId === t.id ? 'box-shadow:0 0 0 3px #BA7517, 0 8px 22px rgba(186,117,23,0.40), 0 1px 0 rgba(255,255,255,0.7) inset' : ''}
+                ${rtState.dirtyTables.has(t.id) ? 'outline:2px dashed #F59E0B;outline-offset:3px' : ''}"
          onclick="rtTableClick(event, ${t.id})">
       ${statusDot}
-      <div style="font-weight:900;font-size:${nameFont};color:${sg.text};line-height:1.1;text-align:center;word-break:break-word;letter-spacing:-0.02em;text-shadow:0 1px 0 rgba(255,255,255,0.4)">${esc(t.nazev)}</div>
-      ${t.mist > 0 ? `<div style="font-size:${w >= 100 ? '12px' : '10px'};color:${sg.text};opacity:0.8;font-weight:700">👥 ${t.mist}</div>` : ''}
+      <div style="font-weight:800;font-size:${nameFont};color:${sg.text};line-height:1.05;text-align:center;word-break:break-word;letter-spacing:-0.02em;text-shadow:0 1px 0 rgba(255,255,255,0.55);max-width:100%">${esc(t.nazev)}</div>
+      ${mist > 0 ? `<div style="font-size:${w >= 100 ? '11.5px' : (w >= 70 ? '10px' : '9px')};color:${sg.text};opacity:0.82;font-weight:700;display:flex;align-items:center;gap:3px;background:rgba(255,255,255,0.4);padding:1px 7px;border-radius:99px;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)">👥 ${mist}</div>` : ''}
       ${timerLabel}
       ${nextRes}
       ${editMode ? `<div class="rt-tile-del" style="position:absolute;top:-9px;right:-9px;background:#fff;border:2px solid #DC2626;color:#DC2626;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.15);opacity:0;transition:opacity 0.15s ease" onclick="event.stopPropagation();rtDeleteTable(${t.id})" title="Smazat stůl">✕</div>` : ''}
