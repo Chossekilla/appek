@@ -6,6 +6,33 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.47] — 2026-05-26
+
+### 📱 Mobile nav fix — ONE cycle button (přepsání v3.0.46)
+_User correction: "jedna ikona pod nastavením (jakoby další z menu), 3 stavy cyklem"_
+
+**Předtím** (v3.0.46): 2 dashed/colored buttony pod logem A + pod Nastavení — rušilo design sidebaru
+**Teď** (v3.0.47): JEDNA ikona pod Nastavení stylovaná jako další nav-item + floating ≡ když je sidebar skrytý
+
+**Cycle:** A → B → C → A → ...
+- **A (default)**: rail + bottom nav (label "Sbalit menu")
+- **B (rail-hidden)**: jen bottom + floating ≡ top-left, full WIDTH content (klik na floating ≡ = B → C)
+- **C (expanded)**: sidebar FULL s labely + skrytý bottom, full HEIGHT content (label "Sbalit do railu" + active gradient bg)
+
+**Implementace:**
+- HTML: `.nav-item.nav-item-mob-cycle` jako poslední button v `.sidebar-nav` (vypadá jako nav-item, primary-tinted bg)
+- HTML: `#mobile-rail-restore` floating ≡ (44×44, gradient bg, jen při state B)
+- JS: `cycleMobileNav()` — state machine s 3 stavy, label se mění podle stavu
+- CSS: nový `mobile-sidebar-expanded` class — sidebar 240px wide, labely nav-items viditelné
+- localStorage: `appek_mobile_nav_state` (default/rail-hidden/expanded) — persist přes reload
+
+**Odstraněno**: `.sidebar-mob-fullheight`, `.sidebar-mob-collapse` (oba dashed buttony z v3.0.46 — rušilo design)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.46→3.0.47, admin.js, sw.js, index.html (HTML cleanup), HTML asset URLs
+
+---
+
 ## [3.0.46] — 2026-05-26
 
 ### 📱 Mobile nav 3-state toggle (sbalit rail / full výška)

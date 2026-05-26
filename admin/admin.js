@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.46';
+const APPEK_ADMIN_JS_VERSION = '3.0.47';
 
 (async function detectStaleCode() {
   try {
@@ -2131,36 +2131,61 @@ applyAppDensity();
 // =============================================================
 // 📌 PIN sidebar — fixuje boční menu (uloženo do localStorage)
 // =============================================================
-// 🆕 v3.0.46 — Mobile nav 3-state toggle:
-//   A) Default: rail + bottom nav (both visible)
-//   B) mobile-rail-hidden: jen bottom (full width content)
-//   C) mobile-bottom-hidden: jen rail (full height content)
-window.toggleMobileRail = function() {
-  const isHidden = document.body.classList.toggle('mobile-rail-hidden');
-  // Pokud schováme rail, automaticky zruš mobile-bottom-hidden (jinak nic nezobrazí)
-  if (isHidden) document.body.classList.remove('mobile-bottom-hidden');
-  try { localStorage.setItem('appek_mobile_rail_hidden', isHidden ? '1' : '0'); } catch (e) {}
-  try { localStorage.setItem('appek_mobile_bottom_hidden', '0'); } catch (e) {}
-  try { window.haptic && window.haptic('medium'); } catch (e) {}
-};
+// 🆕 v3.0.47 — Mobile nav cycle (ONE button under Nastavení + floating ≡ když hidden):
+//   State A (default):  rail + bottom nav (current default mobile)
+//   State B (hidden):   rail skrytý, jen bottom + floating ≡ icon top-left, full WIDTH
+//   State C (expanded): rail FULL (s labely), bottom skrytý, full HEIGHT
+//   Cycle: A → B → C → A → ...
 
-window.toggleMobileBottom = function() {
-  const isHidden = document.body.classList.toggle('mobile-bottom-hidden');
-  // Pokud schováme bottom, automaticky zruš mobile-rail-hidden
-  if (isHidden) document.body.classList.remove('mobile-rail-hidden');
-  try { localStorage.setItem('appek_mobile_bottom_hidden', isHidden ? '1' : '0'); } catch (e) {}
-  try { localStorage.setItem('appek_mobile_rail_hidden', '0'); } catch (e) {}
+window.cycleMobileNav = function() {
+  const body = document.body;
+  let next;
+  if (body.classList.contains('mobile-rail-hidden')) {
+    // B → C
+    body.classList.remove('mobile-rail-hidden');
+    body.classList.add('mobile-bottom-hidden');
+    body.classList.add('mobile-sidebar-expanded'); // ukáže labely v sidebaru
+    next = 'expanded';
+  } else if (body.classList.contains('mobile-bottom-hidden')) {
+    // C → A
+    body.classList.remove('mobile-bottom-hidden');
+    body.classList.remove('mobile-sidebar-expanded');
+    next = 'default';
+  } else {
+    // A → B
+    body.classList.add('mobile-rail-hidden');
+    next = 'rail-hidden';
+  }
+  try { localStorage.setItem('appek_mobile_nav_state', next); } catch (e) {}
   try { window.haptic && window.haptic('medium'); } catch (e) {}
+  // Update label v cycle buttonu
+  const lbl = document.querySelector('.nav-mob-cycle-label');
+  if (lbl) {
+    lbl.textContent = next === 'expanded' ? 'Sbalit do railu'
+                     : next === 'rail-hidden' ? 'Zobrazit menu'
+                     : 'Sbalit menu';
+  }
 };
 
 // Restore state from localStorage on boot
 (function appekRestoreMobileNavState() {
   try {
-    if (localStorage.getItem('appek_mobile_rail_hidden') === '1') {
+    const s = localStorage.getItem('appek_mobile_nav_state') || 'default';
+    if (s === 'rail-hidden') {
       document.body.classList.add('mobile-rail-hidden');
-    } else if (localStorage.getItem('appek_mobile_bottom_hidden') === '1') {
+    } else if (s === 'expanded') {
       document.body.classList.add('mobile-bottom-hidden');
+      document.body.classList.add('mobile-sidebar-expanded');
     }
+    // Apply correct label after DOM ready
+    document.addEventListener('DOMContentLoaded', () => {
+      const lbl = document.querySelector('.nav-mob-cycle-label');
+      if (lbl) {
+        lbl.textContent = s === 'expanded' ? 'Sbalit do railu'
+                         : s === 'rail-hidden' ? 'Zobrazit menu'
+                         : 'Sbalit menu';
+      }
+    });
   } catch (e) {}
 })();
 
