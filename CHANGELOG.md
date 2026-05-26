@@ -6,6 +6,46 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.39] — 2026-05-26
+
+### 📱 POCKET-READY — APPEK jako profi mobilní app
+_User feedback: "musí to být super vychytávka do kapsy"_
+
+**📲 Bottom navigation enabled na mobilu (≤768px):**
+- 5 tlačítek (Přehled / Objednávky / Výroba / Dodací listy / Nastavení)
+- Frosted-glass backdrop (`backdrop-filter: blur(20px)` + 96% alpha)
+- iOS safe-area podpora (`env(safe-area-inset-bottom)` pro home indicator pruh)
+- Aktivní item zvýrazněn primary color + drop-shadow
+- **Notification badge** — počet nových objednávek se aktualizuje každých 60s s animací pulse
+- Auto-padding `<body>` aby fixed nav nepřekrýval content
+
+**➕ Context-aware FAB (Floating Action Button):**
+- Per-stránka primary akce (Dashboard → 🛒 Nová obj · Výroba → 🥖 Vyrobit · DL → ➕ Nový DL · atd.)
+- Sledování přes `state.current` v `navigate()`
+- Pill-shape s emoji + label (vyšší affordance než kruh)
+- iOS safe-area margin
+
+**📍 Tap-to-navigate:**
+- Adresy v recent rows na dashboardu nyní clickable → `openInMaps()`
+- Univerzální deeplink: `maps://` (iOS) → `geo:` (Android) → fallback `google.com/maps` (web)
+- Vizuální indikace 🗺️ emoji + primary barva
+
+**📲 PWA install banner:**
+- Po 30s na mobilu se zobrazí "📲 Nainstaluj APPEK na plochu"
+- Dismiss persisted do localStorage (žádné nátlakové repeaty)
+- Trigger `beforeinstallprompt` event (Android + Chrome)
+- Skryté pokud už nainstalováno (`display-mode: standalone`)
+
+**🎨 Visual polish:**
+- Pulsing badge animace 1.4s ease-in-out
+- Slide-up animace banneru 0.35s ease-out
+- Pull-to-refresh indikátor (CSS připravený, JS handler v další verzi)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.38→3.0.39, admin.js, sw.js, HTML versioned URLs
+
+---
+
 ## [3.0.38] — 2026-05-26
 
 ### 🍔 Plnohodnotná LIVE integrace pro Wolt / Bolt Food / Dáme jídlo / Foodora

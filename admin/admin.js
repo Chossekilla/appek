@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.38';
+const APPEK_ADMIN_JS_VERSION = '3.0.39';
 
 (async function detectStaleCode() {
   try {
@@ -2414,6 +2414,144 @@ function aplikovatPravaNaMenu() {
   });
 }
 
+// =============================================================
+// 📱 v3.0.39 — POCKET-READY MOBILE LAYER
+//   Bottom nav badge, FAB (Floating Action Button), PWA install
+//   prompt, tap-to-navigate helpers, address linkifier.
+// =============================================================
+
+const APPEK_FAB_CONFIG = {
+  // Per-page FAB akce — { ikona, label, onclick }
+  dashboard:    { icon: '🛒', label: 'Nová objednávka', action: () => navigate('objednavky') }, // navigate first, then otevritNovou
+  objednavky:   { icon: '➕', label: 'Nová',           action: () => { if (typeof otevritNovouObjednavku === 'function') otevritNovouObjednavku(); } },
+  dodaci_listy: { icon: '➕', label: 'Nový DL',        action: () => { if (typeof otevritRucniDl === 'function') otevritRucniDl(); } },
+  faktury:      { icon: '➕', label: 'Nová FA',        action: () => { if (typeof otevritRucniFakturu === 'function') otevritRucniFakturu(); } },
+  vyrobky:      { icon: '➕', label: 'Nový výrobek',   action: () => { if (typeof openVyrobekModal === 'function') openVyrobekModal(0); } },
+  odberatele:   { icon: '➕', label: 'Nový odběratel', action: () => { if (typeof editOdberatel === 'function') editOdberatel(0); } },
+  vyroba:       { icon: '🥖', label: 'Vyrobit',         action: () => navigate('vyrobni_list') },
+  restaurace:   { icon: '🍕', label: 'POS',             action: () => { location.href = 'pos.php'; } },
+};
+
+window.updateAppFAB = function(page) {
+  let fab = document.getElementById('app-fab');
+  const cfg = APPEK_FAB_CONFIG[page];
+  if (!cfg) {
+    if (fab) fab.classList.add('is-hidden');
+    return;
+  }
+  if (!fab) {
+    fab = document.createElement('button');
+    fab.id = 'app-fab';
+    fab.className = 'app-fab has-label';
+    fab.setAttribute('aria-label', 'Rychlá akce');
+    document.body.appendChild(fab);
+  }
+  fab.innerHTML = `<span class="fab-icon" aria-hidden="true">${cfg.icon}</span><span class="fab-label">${cfg.label}</span>`;
+  fab.onclick = (ev) => { ev.preventDefault(); cfg.action(); };
+  fab.classList.remove('is-hidden');
+};
+
+// Bottom-nav notification badge (např. počet nových objednávek)
+window.updateBottomNavBadges = async function() {
+  if (window.matchMedia('(min-width: 769px)').matches) return; // jen mobile
+  try {
+    // Lehký endpoint — vrátí počty per stav (existing)
+    const d = await api('admin_dashboard.php?obdobi=dnes');
+    const newCount = (d?.alerts?.nove_objednavky_pocet) || (d?.dnes?.objednavek_novych) || 0;
+    document.querySelectorAll('.bottom-nav-item[data-page="objednavky"] .bn-badge').forEach(b => b.remove());
+    if (newCount > 0) {
+      const target = document.querySelector('.bottom-nav-item[data-page="objednavky"]');
+      if (target) {
+        const badge = document.createElement('span');
+        badge.className = 'bn-badge';
+        badge.textContent = newCount > 99 ? '99+' : String(newCount);
+        target.appendChild(badge);
+      }
+    }
+  } catch (e) { /* silent */ }
+};
+
+// PWA install prompt — proaktivní banner po 30s
+let _pwaDeferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _pwaDeferredPrompt = e;
+  // Zobraz banner po 30s pokud nelze rozhodnuto
+  setTimeout(() => {
+    try {
+      const dismissed = localStorage.getItem('appek_pwa_install_dismissed');
+      const installed = window.matchMedia('(display-mode: standalone)').matches;
+      if (dismissed || installed) return;
+      window.showPwaInstallBanner && window.showPwaInstallBanner();
+    } catch (e) {}
+  }, 30000);
+});
+
+window.showPwaInstallBanner = function() {
+  if (!_pwaDeferredPrompt) return;
+  if (document.getElementById('pwa-install-banner')) return;
+  const div = document.createElement('div');
+  div.id = 'pwa-install-banner';
+  div.className = 'pwa-install-banner show';
+  div.innerHTML = `
+    <div class="pwa-install-banner-icon">📲</div>
+    <div class="pwa-install-banner-text">
+      <strong>Nainstaluj APPEK na plochu</strong>
+      <span>Rychlejší přístup · funguje offline · plně mobilní zážitek</span>
+    </div>
+    <div class="pwa-install-banner-actions">
+      <button class="pwa-install-no" onclick="dismissPwaInstall()">Ne</button>
+      <button class="pwa-install-yes" onclick="triggerPwaInstall()">Nainstalovat</button>
+    </div>
+  `;
+  document.body.appendChild(div);
+};
+
+window.dismissPwaInstall = function() {
+  try { localStorage.setItem('appek_pwa_install_dismissed', '1'); } catch (e) {}
+  const el = document.getElementById('pwa-install-banner');
+  if (el) el.remove();
+};
+
+window.triggerPwaInstall = async function() {
+  if (!_pwaDeferredPrompt) return;
+  _pwaDeferredPrompt.prompt();
+  try {
+    const { outcome } = await _pwaDeferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      try { localStorage.setItem('appek_pwa_install_dismissed', '1'); } catch (e) {}
+    }
+  } catch (e) {}
+  _pwaDeferredPrompt = null;
+  const el = document.getElementById('pwa-install-banner');
+  if (el) el.remove();
+};
+
+// iOS detection (Safari nemá beforeinstallprompt — musí ručně přes Share menu)
+window.isPwaInstalled = function() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+};
+
+// 📍 Tap-to-navigate — univerzální maps deeplink (iOS Maps, Android Google Maps, fallback web)
+window.openInMaps = function(address, city = '', psc = '') {
+  if (!address) return;
+  const full = encodeURIComponent([address, psc, city].filter(Boolean).join(', '));
+  // iOS Safari: maps:// otevře Apple Maps, Android: geo: otevře default app
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  if (isIOS)        location.href = `maps://?q=${full}`;
+  else if (isAndroid) location.href = `geo:0,0?q=${full}`;
+  else                window.open(`https://www.google.com/maps/search/?api=1&query=${full}`, '_blank');
+};
+
+// 📞 Tap-to-call helper — fix formátu telefonu pro tel: link
+window.makeCallLink = function(phone) {
+  if (!phone) return '';
+  return 'tel:' + String(phone).replace(/[^+0-9]/g, '');
+};
+
 async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'grid';
@@ -2457,6 +2595,16 @@ async function showApp() {
       navigate('dashboard');
     });
   }
+
+  // 🆕 v3.0.39 — Pocket-ready init: bottom nav padding + badge polling + FAB sync
+  document.body.classList.add('has-bottom-nav');
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    // Initial badge update + poll každých 60s (synchronized s notif polling)
+    try { window.updateBottomNavBadges && window.updateBottomNavBadges(); } catch (e) {}
+    setInterval(() => { try { window.updateBottomNavBadges && window.updateBottomNavBadges(); } catch (e) {} }, 60000);
+  }
+  // První render FAB pro aktuální stránku (state.current se nastaví při prvním navigate)
+  setTimeout(() => { try { window.updateAppFAB && window.updateAppFAB(state.current || 'dashboard'); } catch (e) {} }, 100);
 
   // Načti aktuální práva v menu pro role
   api('admin_role_prava.php').then((r) => {
@@ -3626,6 +3774,8 @@ async function navigate(page, args) {
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
   // 🎁 Re-render package badges v topbaru — aby se zvýraznil aktivní balíček
   document.querySelectorAll('.pkg-big-btn, .pkg-badge-square').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
+  // 🆕 v3.0.39 — Update Floating Action Button per page (mobile)
+  try { window.updateAppFAB && window.updateAppFAB(page); } catch (e) {}
 
   try {
     if (page === 'dashboard') await renderDashboard(args);
@@ -3732,7 +3882,12 @@ function recentIcon(url, emoji, label, kind) {
 function recentMistoLine(row) {
   if (!row || !row.misto_nazev) return '';
   const detail = [row.misto_ulice, row.misto_mesto].filter(Boolean).join(', ');
-  return `<div style="font-size:11px;color:var(--text-3);margin-top:2px">📍 ${esc(row.misto_nazev)}${detail ? ' — ' + esc(detail) : ''}</div>`;
+  // 🆕 v3.0.39 — Adresa je clickable → otevře Maps (iOS/Android/web)
+  const mapsArg = detail ? `event.stopPropagation();openInMaps('${esc(row.misto_ulice || '')}','${esc(row.misto_mesto || '')}')` : '';
+  return `<div style="font-size:11px;color:var(--text-3);margin-top:2px">
+    📍 ${esc(row.misto_nazev)}${detail ? ' — ' : ''}
+    ${detail ? `<a href="#" onclick="${mapsArg}" style="color:var(--primary);text-decoration:none;font-weight:500" title="Otevřít v Mapách">${esc(detail)} 🗺️</a>` : ''}
+  </div>`;
 }
 
 // 🆕 v2.9.242 — Dashboard alerts widget (akce vyžadující pozornost)

@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.38";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.39";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12491,8 +12491,213 @@ html.density-extreme .card-block.desktop-only-block {
   outline-offset: 2px;
 }
 
-/* Bottom-nav — hidden by default, shown on mobile bottom */
+/* Bottom-nav — hidden by default (desktop), shown on mobile bottom */
 .bottom-nav { display: none; }
+
+/* 🆕 v3.0.39 — Pocket-ready: ENABLE bottom nav on mobile (real-world mobile UX) */
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: block !important; /* override v2.8.5 hide */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 90;
+    background: rgba(255, 255, 255, 0.96);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.06);
+    /* iOS safe area (home indicator pruh dole) */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+  }
+  html.dark .bottom-nav {
+    background: rgba(28, 28, 30, 0.92);
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+  /* Hlavní obsah dostane spodní padding aby fixed nav nepřekrýval content */
+  body.has-bottom-nav .content,
+  body.has-bottom-nav #content {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+  }
+  /* Notification badge na nav item (např. pending objednávek) */
+  .bottom-nav-item {
+    position: relative;
+    min-height: 56px; /* touch target ≥44px */
+  }
+  .bottom-nav-item .bn-badge {
+    position: absolute;
+    top: 4px;
+    right: calc(50% - 22px);
+    background: #DC2626;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95);
+    animation: bn-badge-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes bn-badge-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+  }
+  /* Při focus se neonová ringa */
+  .bottom-nav-item:active {
+    background: rgba(186, 117, 23, 0.08);
+  }
+}
+
+/* 🆕 v3.0.39 — Context-aware FAB (Floating Action Button) — primary akce per stránka */
+.app-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 88px; /* nad bottom-nav (72px nav + 16px margin) */
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #BA7517, #854F0B);
+  color: #fff;
+  border: none;
+  box-shadow: 0 6px 20px rgba(186, 117, 23, 0.4), 0 2px 6px rgba(0, 0, 0, 0.18);
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 91;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  /* iOS safe-area + Android nav */
+  margin-bottom: env(safe-area-inset-bottom, 0);
+  -webkit-tap-highlight-color: transparent;
+}
+.app-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(186, 117, 23, 0.5), 0 3px 8px rgba(0, 0, 0, 0.22);
+}
+.app-fab:active {
+  transform: scale(0.96);
+}
+.app-fab.has-label {
+  width: auto;
+  padding: 0 22px 0 16px;
+  border-radius: 28px;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.app-fab .fab-label {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.app-fab.is-hidden {
+  display: none;
+}
+/* Skrýt FAB na desktop (jen mobilní vychytávka) */
+@media (min-width: 769px) {
+  .app-fab { display: none !important; }
+}
+
+/* 🆕 v3.0.39 — PWA install banner */
+.pwa-install-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0));
+  z-index: 95;
+  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+  border: 1.5px solid #F59E0B;
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 10px 32px rgba(245, 158, 11, 0.25), 0 4px 10px rgba(0, 0, 0, 0.08);
+  display: none;
+  align-items: center;
+  gap: 12px;
+  animation: pwa-banner-slideup 0.35s ease-out;
+}
+.pwa-install-banner.show { display: flex; }
+@keyframes pwa-banner-slideup {
+  from { transform: translateY(120%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.pwa-install-banner-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+.pwa-install-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+.pwa-install-banner-text strong {
+  display: block;
+  font-size: 13.5px;
+  color: #78350F;
+  margin-bottom: 2px;
+}
+.pwa-install-banner-text span {
+  font-size: 11.5px;
+  color: #92400E;
+  line-height: 1.4;
+}
+.pwa-install-banner-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.pwa-install-banner-actions button {
+  border: none;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pwa-install-banner-actions .pwa-install-yes {
+  background: #92400E;
+  color: #fff;
+}
+.pwa-install-banner-actions .pwa-install-no {
+  background: rgba(255, 255, 255, 0.6);
+  color: #78350F;
+}
+@media (min-width: 769px) {
+  .pwa-install-banner { display: none !important; }
+}
+
+/* 🆕 v3.0.39 — Pull-to-refresh indikátor */
+.ptr-indicator {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0) + 8px);
+  left: 50%;
+  transform: translate(-50%, -100px);
+  z-index: 99;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  transition: transform 0.18s ease;
+}
+.ptr-indicator.visible {
+  transform: translate(-50%, 0);
+}
+.ptr-indicator.refreshing {
+  animation: ptr-spin 0.9s linear infinite;
+}
+@keyframes ptr-spin {
+  to { transform: translate(-50%, 0) rotate(360deg); }
+}
 .package-subheader {
   display: none;
   align-items: center;
@@ -12871,8 +13076,9 @@ html.theme-dark .btn-notif-badge { border-color: #1d1d1f; }
   outline-offset: 2px;
 }
 
-/* Bottom-nav — schované defaultně (vrátíme jen pokud sidebar není dostupný) */
-.bottom-nav { display: none !important; }
+/* 🆕 v3.0.39 — Bottom-nav: hidden by default, MA SHOW na mobile (overridnuté v media query výše) */
+/* (Předtím bylo display:none !important — bránilo aktivaci v3.0.39 mobilní navigace) */
+.bottom-nav { display: none; }
 
 /* MOBILE flex order fix */
 @media (max-width: 700px) {
@@ -14709,7 +14915,7 @@ aside.sidebar::after { display: none !important; content: '' !important; }
 }
 
 @media (max-width: 768px) {
-  .bottom-nav { display: none !important; }
+  /* 🆕 v3.0.39 — bottom-nav povolen (display:block !important; nastaveno výše v Pocket-ready bloku) */
   /* 🆕 v2.9.72 — ODSTRANĚN konkurenční „úzký 60px rail" design sidebaru.
      Kolidoval s cílovým chováním mobilu (výchozí = buttony nahoře přes
      flex-order, připnuto = kostičky na boku) a hlavně SKRÝVAL špendlík
