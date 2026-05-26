@@ -149,6 +149,29 @@ try {
         $hasKat = true;
     } catch (Throwable $e) {}
 
+    // 🆕 v3.0.37 — Doba přípravy jen pro RESTAURAČNÍ kategorie (jídla, nápoje, dezerty)
+    // User: "smaž produkty a nech jen jídla a nápoje" — nemá smysl mít dobu přípravy pro veku
+    // Whitelist restaurace kategorií + heuristika (názvy obsahující restaurační keywords)
+    $restCats = ['Pizzy', 'Káva', 'Nealko', 'Saláty', 'Dezerty', 'Těstoviny', 'Hlavní jídla', 'Předkrmy', 'Polévky', 'Drinky', 'Alkohol', 'Víno', 'Pivo', 'Burgery'];
+    $catIds = [];
+    if ($hasKat) {
+        try {
+            $placeholders = implode(',', array_fill(0, count($restCats), '?'));
+            $st = $pdo->prepare("SELECT id FROM kategorie_vyrobku WHERE nazev IN ($placeholders) OR nazev LIKE '%nápoj%' OR nazev LIKE '%jídl%' OR nazev LIKE '%pizza%' OR nazev LIKE '%káva%' OR nazev LIKE '%drink%'");
+            $st->execute($restCats);
+            $catIds = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
+        } catch (Throwable $e) {}
+    }
+
+    $whereFilter = '';
+    if (!empty($catIds)) {
+        $placeholders = implode(',', array_fill(0, count($catIds), '?'));
+        $whereFilter = "WHERE v.kategorie_id IN ($placeholders)";
+    } else {
+        // Fallback: vyrobky s cislo R-* (restaurant seed naming)
+        $whereFilter = "WHERE v.cislo LIKE 'R-%'";
+    }
+
     $sql = "
         SELECT v.id, v.cislo, v.nazev, v.kategorie_id, v.priprava_min, v.kitchen_station_id,
                " . ($hasKat ? "k.nazev AS kategorie_nazev," : "NULL AS kategorie_nazev,") . "
@@ -156,9 +179,12 @@ try {
         FROM vyrobky v
         " . ($hasKat ? "LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id" : "") . "
         LEFT JOIN kitchen_stations s ON s.id = v.kitchen_station_id
+        $whereFilter
         ORDER BY " . ($hasKat ? "k.nazev," : "") . " v.nazev
     ";
-    $vyrobky = $pdo->query($sql)->fetchAll();
+    $st = $pdo->prepare($sql);
+    $st->execute(!empty($catIds) ? $catIds : []);
+    $vyrobky = $st->fetchAll();
 
     json_response([
         'vyrobky' => $vyrobky,

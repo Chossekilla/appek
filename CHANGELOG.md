@@ -6,6 +6,35 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.37] — 2026-05-26
+
+### ⏱️ Doba přípravy — jen jídla & nápoje (žádný chleba)
+- **Backend filter** `api/admin_prep_times.php` — výpis výrobků jen z restauračních kategorií (Pizzy, Káva, Nealko, Saláty, Dezerty, Těstoviny, Hlavní jídla, Předkrmy, Polévky, Drinky, Alkohol, Víno, Pivo, Burgery + LIKE patterny `%nápoj%`, `%jídl%`, `%pizza%`, `%káva%`, `%drink%`)
+- Fallback pokud kategorie chybí → filtr na `cislo LIKE 'R-%'` (restaurační seed prefix)
+- **Důvod:** uživatel reportoval _"doba přípravy veka je divná"_ — nemá smysl mít prep time pro pekařské produkty
+
+### 🏗️ 6 nových restaurant space templates (celkem 10!)
+1. 🌳 **Letní zahrada** — Outdoor sezení + pergola, slunečníky, piknik stůl pro 16 (2 zóny)
+2. 🍺 **Pivnice Plzeň** — Tap bar (10 míst) + 4 dlouhé komunitní stoly po 12 + 6 menších (zone single)
+3. 🎉 **Banketní sál** — Hlavní stůl novomanželů, 6 dlouhých stolů po 10, parket, DJ booth, Champagne bar zóna (2 zóny)
+4. 🥩 **Steakhouse Grand** — Premium booths podél stěn, open grill bar, chef tasting, whisky stůl, 3 VIP salonky (2 zóny, tmavé pozadí)
+5. 🍔 **Burger Bistro** — Counter + pickup okno + bar pult + booth tables podél stěny + středové stoly
+6. 🏙️ **Rooftop Praha** — Cocktail bar (vertikální), 3 sunset sofas, high cocktail tables, fire pit, DJ booth (tmavé pozadí)
+7. 🍣 **Sushi & Asia** — U-shaped sushi bar (3 segmenty), 8 barových stoliček, teppanyaki grill tables, Tatami room s VIP suite (2 zóny, tmavé pozadí)
+
+### 🎨 UI polish
+- **Banner šablon** v Restaurace → Stoly: 8 quick-pick tlačítek (místo původních 4) + tlačítko "📋 Všechny šablony s náhledem →" otevírající full picker
+- **Template picker** modal:
+  - Header: počet šablon v titulku (`📋 Šablony layoutu (10)`)
+  - SVG mini-preview s barvami **per typ stolu**: bar (oranžová), lounge/VIP (fialová), grill/oheň (červená), parket/DJ (modrá), zahrada/tatami (zelená), default (žlutá)
+  - **Podpora tmavého pozadí** (rooftop/steakhouse/sushi) — automaticky invertujeme barvy stolů (tmavší fill, světlejší stroke) pro dobrou čitelnost
+
+### 📦 Build & sync
+- Bumped: `config.php` 3.0.36→3.0.37, `admin.js` BUILD_VERSION, `sw.js` CACHE_VERSION
+- Updated `index.html` versioned asset URLs (admin + b2b)
+
+---
+
 ## [3.0.12] — 2026-05-25
 
 ### ✨ Velký redesign POS Stoly modal
