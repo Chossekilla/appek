@@ -6,6 +6,12 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8753", "--directory", "/Users/chossekilaimac/projects/appek.cz"],
       "port": 8753
+    },
+    {
+      "name": "appek-admin-xampp",
+      "runtimeExecutable": "/Applications/XAMPP/xamppfiles/bin/php",
+      "runtimeArgs": ["-S", "127.0.0.1:8754", "-t", "/Applications/XAMPP/xamppfiles/htdocs/appek"],
+      "port": 8754
     }
   ]
 }

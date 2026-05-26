@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.48";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.49";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -50,14 +50,19 @@
   --filter-hover-bg:         rgba(186, 117, 23, 0.06);
 }
 
-/* 🐛 v3.0.45 fix — chybělo `margin:0` → browser default 8px tlačil sidebar od top/left.
-   Teď sidebar (a celá app) opravdu od shora dolu, přes celou obrazovku. */
+/* 🐛 v3.0.45/v3.0.49 fix — body fit-to-screen, žádný horizontální posun prstem.
+   v3.0.45: margin:0 + height:100%
+   v3.0.49: touch-action + overscroll-behavior !important (defenzivní proti pozdějším override)
+            overflow:hidden samo o sobě iOS Safari nestopne pan gesto. */
 html, body {
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  max-width: 100%;
-  height: 100%;       /* aby 100vh / 100dvh skutečně odpovídalo viewport */
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+  width: 100vw !important;
+  height: 100%;
+  touch-action: pan-y !important;          /* jen vertikální scroll */
+  overscroll-behavior-x: none !important;  /* žádný horizontal bounce */
 }
 body {
   /* 🎨 Emoji fonty na konci řetězce — zajistí že 🖨️ ✉️ 📋 atd. se vykreslí jako barevné emoji
@@ -1424,13 +1429,16 @@ html.dark .dashboard-recent-row > .recent-card .recent-table tbody tr:hover {
   min-width: 0;       /* Same safeguard pro recent-card jako standalone class */
 }
 
-/* 🆕 v3.0.38 — Sidebar logo (písmeno + brand) clickable → dashboard */
+/* 🆕 v3.0.38 — Sidebar logo (písmeno + brand) clickable → dashboard
+   🐛 v3.0.49 fix — odstraněno horizontal margin (způsobovalo 4px overflow na mobilu) */
 .sidebar-logo {
   cursor: pointer;
   transition: background 0.12s, transform 0.08s;
   border-radius: 10px;
-  margin: -4px 4px 16px 4px;
+  margin: -4px 0 16px;
   padding: 6px 8px 18px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .sidebar-logo:hover {
   background: var(--primary-light, rgba(186, 117, 23, 0.08));
@@ -19575,7 +19583,8 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
 }
 
 /* === Body & global resets pro fluid layout === */
-html, body { overflow-x: hidden; }
+/* 🐛 v3.0.49 — odstraněno redundantní overflow-x (už je nahoře s !important).
+   Necháváme jen font-size override pro fluid body text. */
 body { font-size: var(--fl-body); }
 
 /* === Admin app grid fluid === */
