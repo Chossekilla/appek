@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.36';
+const APPEK_ADMIN_JS_VERSION = '3.0.37';
 
 (async function detectStaleCode() {
   try {
@@ -16370,7 +16370,7 @@ function renderFloorPlan(data, today) {
             ✨ Tvůj layout vypadá jako výchozí
           </h3>
           <p style="margin:0;font-size:13px;color:#1E3A8A;line-height:1.55">
-            Vyzkoušej některou z <strong>4 vyladěných šablon</strong> — asymetrické rozvržení, lepší vibe.
+            Vyzkoušej některou z <strong>10 vyladěných šablon</strong> — pizzerie, pivnice, banketní sál, steakhouse, rooftop, sushi bar…
           </p>
         </div>
         <button onclick="state._rtTemplateBannerDismissed=true;renderRestaurantTables()"
@@ -16411,9 +16411,70 @@ function renderFloorPlan(data, today) {
           <div>Cafe Aurelio</div>
           <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">Komunitní stůl</div>
         </button>
+        <button onclick="rtApplyTemplate('letni_zahrada','🌳 Letní zahrada')"
+                style="padding:12px;background:#fff;border:2px solid #34D399;color:#065F46;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#ECFDF5';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">🌳</div>
+          <div>Letní zahrada</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">Outdoor + pergola</div>
+        </button>
+        <button onclick="rtApplyTemplate('pivnice_plzen','🍺 Pivnice Plzeň')"
+                style="padding:12px;background:#fff;border:2px solid #FBBF24;color:#78350F;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#FFFBEB';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">🍺</div>
+          <div>Pivnice Plzeň</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">Dlouhé stoly · tap</div>
+        </button>
+        <button onclick="rtApplyTemplate('banketni_sal','🎉 Banketní sál')"
+                style="padding:12px;background:#fff;border:2px solid #A78BFA;color:#5B21B6;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#F5F3FF';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">🎉</div>
+          <div>Banketní sál</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">Svatby · oslavy</div>
+        </button>
+        <button onclick="rtApplyTemplate('steakhouse_grand','🥩 Steakhouse Grand')"
+                style="padding:12px;background:#fff;border:2px solid #DC2626;color:#991B1B;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#FEF2F2';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">🥩</div>
+          <div>Steakhouse Grand</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">Booths · VIP · grill</div>
+        </button>
+        <button onclick="rtApplyTemplate('burger_bistro','🍔 Burger Bistro')"
+                style="padding:12px;background:#fff;border:2px solid #F97316;color:#9A3412;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#FFF7ED';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">🍔</div>
+          <div>Burger Bistro</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">Fast-casual · pickup</div>
+        </button>
+        <button onclick="rtApplyTemplate('rooftop_praha','🏙️ Rooftop Praha')"
+                style="padding:12px;background:#fff;border:2px solid #6366F1;color:#3730A3;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#EEF2FF';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">🏙️</div>
+          <div>Rooftop Praha</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">Cocktail · sunset</div>
+        </button>
+        <button onclick="rtApplyTemplate('sushi_asia','🍣 Sushi & Asia')"
+                style="padding:12px;background:#fff;border:2px solid #EC4899;color:#9D174D;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;text-align:left;transition:all 0.15s ease"
+                onmouseover="this.style.background='#FDF2F8';this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.background='#fff';this.style.transform=''">
+          <div style="font-size:22px;line-height:1;margin-bottom:4px">🍣</div>
+          <div>Sushi & Asia</div>
+          <div style="font-size:11px;font-weight:500;opacity:0.7;margin-top:2px">Sushi bar · tatami</div>
+        </button>
       </div>
-      <div style="margin-top:10px;font-size:11px;color:#1E3A8A;text-align:center;opacity:0.8">
-        ⚠️ Aplikace šablony <strong>smaže stávající stoly a zóny</strong> (zachová otevřené účty pokud existují).
+      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:11px;color:#1E3A8A;opacity:0.8">
+          ⚠️ Aplikace šablony <strong>smaže stávající stoly a zóny</strong> (zachová otevřené účty pokud existují).
+        </span>
+        <button onclick="rtOpenTemplatePicker()" style="padding:6px 14px;background:#1E40AF;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">
+          📋 Všechny šablony s náhledem →
+        </button>
       </div>
     </div>
   ` : '';
@@ -17559,15 +17620,24 @@ window.rtOpenTemplatePicker = async function() {
   catch (e) { alert('Chyba: ' + e.message); return; }
   const templates = tpls.templates || [];
 
-  // 🎨 v3.0.33 — Bigger karty s mini SVG preview layoutu
+  // 🎨 v3.0.33/37 — Bigger karty s mini SVG preview layoutu (s barvou per typ)
   const miniPreview = (t) => {
     const cw = t.canvas_w || 800, ch = t.canvas_h || 500;
-    const scale = 180 / cw; // preview šířka 180px
-    return `<svg viewBox="0 0 ${cw} ${ch}" style="width:100%;height:auto;background:${esc(t.zones[0]?.bg_barva || '#FFFAF1')};border-radius:6px;display:block;margin-bottom:8px;max-height:140px">
+    const bgColor = t.zones[0]?.bg_barva || '#FFFAF1';
+    // 🆕 v3.0.37 — Detekce tmavého pozadí (rooftop, steakhouse, sushi) → invertujeme barvy stolů
+    const isDark = /^#[0-3]/.test(bgColor);
+    return `<svg viewBox="0 0 ${cw} ${ch}" style="width:100%;height:auto;background:${esc(bgColor)};border-radius:6px;display:block;margin-bottom:8px;max-height:160px">
       ${(t.tables || []).filter(x => (x.zone_idx ?? 0) === 0).map(tile => {
         const r = tile.tvar === 'round' ? Math.min(tile.width, tile.height)/2 : 4;
-        const fill = tile.nazev?.startsWith('🍺') || tile.nazev?.startsWith('🍷') ? '#FED7AA' : '#D1FAE5';
-        const stroke = tile.nazev?.startsWith('🍺') || tile.nazev?.startsWith('🍷') ? '#EA580C' : '#10B981';
+        // Barvy podle typu: bar = oranžová, lounge/VIP = fialová, grill/oheň = červená, ostatní = zelená
+        const n = tile.nazev || '';
+        let fill, stroke;
+        if (/🍺|🍷|🍸|🍹|🍻|🍾|Bar|bar/.test(n))      { fill = isDark ? '#7C2D12' : '#FED7AA'; stroke = '#EA580C'; }
+        else if (/🛋️|🥂|🥃|VIP|Lounge|Salon/.test(n)) { fill = isDark ? '#5B21B6' : '#E9D5FF'; stroke = '#7C3AED'; }
+        else if (/🔥|🥩|🍕 Rod/.test(n))                { fill = isDark ? '#7F1D1D' : '#FECACA'; stroke = '#DC2626'; }
+        else if (/💃|🎵|🎤|🎧|Parket|DJ|Pódium/.test(n)){ fill = isDark ? '#1E3A8A' : '#DBEAFE'; stroke = '#3B82F6'; }
+        else if (/🎋|Tatami|🌳|Pergola|🍃|Piknik/.test(n)){fill = isDark ? '#14532D' : '#D1FAE5'; stroke = '#10B981'; }
+        else                                              { fill = isDark ? '#374151' : '#FEF3C7'; stroke = isDark ? '#9CA3AF' : '#F59E0B'; }
         return tile.tvar === 'round'
           ? `<circle cx="${tile.x + tile.width/2}" cy="${tile.y + tile.height/2}" r="${Math.min(tile.width, tile.height)/2 - 2}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`
           : `<rect x="${tile.x}" y="${tile.y}" width="${tile.width}" height="${tile.height}" rx="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
@@ -17575,9 +17645,9 @@ window.rtOpenTemplatePicker = async function() {
     </svg>`;
   };
 
-  openModal('📋 Šablony layoutu', `
+  openModal(`📋 Šablony layoutu (${templates.length})`, `
     <p style="color:#374151;font-size:14px;margin-bottom:18px;background:#FEE2E2;border-left:3px solid #DC2626;padding:10px 14px;border-radius:6px">
-      <strong style="color:#991B1B">⚠️ Pozor:</strong> nahrazení šablonou <strong>smaže všechny stávající stoly a zóny</strong>! Vyber kompletní layout pro typický gastro provoz.
+      <strong style="color:#991B1B">⚠️ Pozor:</strong> nahrazení šablonou <strong>smaže všechny stávající stoly a zóny</strong>! Vyber kompletní layout pro typický gastro provoz — náhled vidíš nahoře každé karty.
     </p>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%, 260px),1fr));gap:14px">
       ${templates.map(t => `
