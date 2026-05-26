@@ -6,6 +6,35 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.57] — 2026-05-26
+
+### 🐛 Pin button hapruje — root cause + fix
+_User: "ten špendlík tam hapruje pořád"_
+
+**Audit přes Claude_Preview MCP + CSSOM walker** nalezeno:
+- Pin element JE v DOM s mým v3.0.55 styling (position fixed, w/h 48, border-radius 50%, color white)
+- **ALE background gradient nebyl aplikován** — pin byl neviditelný/transparentní
+
+**Root cause**: Historická rule na řádku 13811 přepisovala můj gradient:
+```css
+@media (max-width: 700px) {
+  .sidebar-pin, body.sidebar-pinned .sidebar-pin, body.sidebar-collapsed .sidebar-pin {
+    background: transparent !important;  /* ← bug */
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
+```
+
+Tato rule pocházela z v2.9.x kdy pin měl být "jen ikona". Po v3.0.55 (sticky circle button) měla být odstraněna, ale zůstala → konflikt s `!important` na obou stranách → vyhrávalo source order (později definované).
+
+**Fix**: Rule odstraněna (komentář ponechán pro historii).
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.56→3.0.57, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.56] — 2026-05-26
 
 ### 📱 Extreme mobile: 1-letter period tabs (D/T/M/R/V)

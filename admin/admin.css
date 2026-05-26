@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.56";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.57";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -13807,16 +13807,10 @@ body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
   filter: none !important;
   opacity: 1 !important;
 }
-/* Mobil — pin bez rámečku a pozadí (jen ikona) — platí bez ohledu na body class */
-@media (max-width: 700px) {
-  .sidebar-pin,
-  body.sidebar-pinned .sidebar-pin,
-  body.sidebar-collapsed .sidebar-pin {
-    background: transparent !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
-  }
-}
+/* 🐛 v3.0.57 — Tato historická rule (mobil = transparent pin)
+   přepisovala v3.0.55 sticky pin styling (gradient circle button).
+   User: "ten špendlík hapruje pořád" → root cause: tahle rule.
+   Komentář ponechán pro historii. */
 
 /* Schovat hardcoded version label */
 aside.sidebar::after { display: none !important; content: '' !important; }
