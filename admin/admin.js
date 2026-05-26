@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.55';
+const APPEK_ADMIN_JS_VERSION = '3.0.56';
 
 (async function detectStaleCode() {
   try {
@@ -5124,12 +5124,24 @@ window.dashSetObdobi = function(obdobi) {
 };
 
 // 🆕 v2.9.287 — Helper pro sjednocený period-tabs render (Dashboard + Faktury/Obj/DL + Vyroba prehled)
-// Detekuje mobile + použije short label místo full ("Týden" místo "Tento týden")
-// CLASS .period-tab = Skupina A = 1 řádek nowrap shrink (žádné wrapování na mobile)
+// 🆕 v3.0.56 — 3 size variants:
+//   ≤400px (extreme): 1. písmeno (D / T / M / R / V) — automatically derived from t.x or first letter
+//   ≤700px (mobile):  short label (t.short)
+//   desktop:          full label (t.l)
+// CLASS .period-tab = Skupina A = 1 řádek nowrap shrink
 window.periodTabsRender = function(tabs, currentKey, onclickFn) {
-  const isMob = typeof window !== 'undefined' && window.innerWidth <= 700;
+  const w = (typeof window !== 'undefined') ? window.innerWidth : 1024;
+  const isExtreme = w <= 400;
+  const isMob = w <= 700;
   return tabs.map(t => {
-    const label = isMob && t.short ? t.short : t.l;
+    let label;
+    if (isExtreme) {
+      label = t.x || (t.short || t.l || '').charAt(0).toUpperCase();
+    } else if (isMob && t.short) {
+      label = t.short;
+    } else {
+      label = t.l;
+    }
     const cls = currentKey === t.k ? 'period-tab active' : 'period-tab';
     return `<button type="button" class="${cls}" onclick="${onclickFn}('${t.k}')" aria-selected="${currentKey === t.k}"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${label}</span></button>`;
   }).join('');
@@ -5149,12 +5161,16 @@ window.periodTabsRender = function(tabs, currentKey, onclickFn) {
     'dodaci_listy': () => typeof renderDodaciListy === 'function' && renderDodaciListy(),
     'export_vyroby': () => typeof renderExportVyroby === 'function' && renderExportVyroby(),
   };
+  // 🆕 v3.0.56 — Tracking ≤400 (extreme) state taky
+  let lastIsExtreme = typeof window !== 'undefined' && window.innerWidth <= 400;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       const isMobile = window.innerWidth <= 700;
-      if (isMobile !== lastIsMobile) {
+      const isExtreme = window.innerWidth <= 400;
+      if (isMobile !== lastIsMobile || isExtreme !== lastIsExtreme) {
         lastIsMobile = isMobile;
+        lastIsExtreme = isExtreme;
         const fn = RENDER_BY_PAGE[state.current];
         if (fn) {
           try { fn(); } catch (e) { /* page render race — skip */ }
