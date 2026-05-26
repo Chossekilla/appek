@@ -137,225 +137,159 @@ $date   = $_GET['date'] ?? date('Y-m-d');
 // 🗺️ ŠABLONY (Pizzerie / Restaurace / Cafe / Bar / Banquet)
 // =============================================================
 function default_templates(): array {
+    // 🆕 v3.0.31 — KOMPLETNĚ PŘEPRACOVANÉ PĚKNÉ TEMPLATES
+    // Smazány staré gridové (pizzerie/restaurace/cafe/bar/banquet)
+    // Nové: vyladěné spacingy, asymetrie, profi rozložení
     return [
-        'pizzerie' => [
-            'key' => 'pizzerie',
-            'nazev' => '🍕 Pizzerie',
-            'popis' => 'Casual provoz — 8 stolů + rodinný stůl + bar',
-            'canvas_w' => 800, 'canvas_h' => 500,
+        // ─── 🍕 PIZZERIA MODENA ─────────────────────────────────
+        'pizzerie_modena' => [
+            'key' => 'pizzerie_modena',
+            'nazev' => '🍕 Pizzeria Modena',
+            'popis' => 'Italské bistro · bar pult + 12 stolů ve 3 sekcích · venkovní terasa',
+            'canvas_w' => 1000, 'canvas_h' => 680,
             'zones' => [
-                ['nazev' => 'Sál', 'ikona' => '🍕', 'canvas_w' => 800, 'canvas_h' => 500, 'sort_order' => 0],
-                ['nazev' => 'Terasa', 'ikona' => '☀️', 'canvas_w' => 600, 'canvas_h' => 400, 'sort_order' => 1],
+                ['nazev' => 'Vnitřek',  'ikona' => '🏠', 'canvas_w' => 1000, 'canvas_h' => 680, 'bg_barva' => '#FFF8F0', 'sort_order' => 0],
+                ['nazev' => 'Terasa',   'ikona' => '🌳', 'canvas_w' => 800,  'canvas_h' => 500, 'bg_barva' => '#F0FDF4', 'sort_order' => 1],
             ],
             'tables' => [
-                // Zone 0 = sál
-                ['nazev' => 'S1', 'tvar' => 'round',  'mist' => 2, 'x' => 60,  'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'S2', 'tvar' => 'round',  'mist' => 2, 'x' => 200, 'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'S3', 'tvar' => 'round',  'mist' => 2, 'x' => 340, 'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'S4', 'tvar' => 'round',  'mist' => 2, 'x' => 480, 'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'S5', 'tvar' => 'square', 'mist' => 4, 'x' => 60,  'y' => 200, 'width' => 90, 'height' => 90, 'zone_idx' => 0],
-                ['nazev' => 'S6', 'tvar' => 'square', 'mist' => 4, 'x' => 220, 'y' => 200, 'width' => 90, 'height' => 90, 'zone_idx' => 0],
-                ['nazev' => 'S7', 'tvar' => 'square', 'mist' => 4, 'x' => 380, 'y' => 200, 'width' => 90, 'height' => 90, 'zone_idx' => 0],
-                ['nazev' => 'S8', 'tvar' => 'square', 'mist' => 4, 'x' => 540, 'y' => 200, 'width' => 90, 'height' => 90, 'zone_idx' => 0],
-                ['nazev' => '🍕 Rodinný', 'tvar' => 'rect', 'mist' => 8, 'x' => 60, 'y' => 360, 'width' => 380, 'height' => 80, 'zone_idx' => 0],
-                ['nazev' => '🍺 Bar',     'tvar' => 'rect', 'mist' => 4, 'x' => 480, 'y' => 360, 'width' => 240, 'height' => 50, 'zone_idx' => 0],
-                // Zone 1 = terasa
-                ['nazev' => 'T1', 'tvar' => 'round', 'mist' => 2, 'x' => 60,  'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 1],
-                ['nazev' => 'T2', 'tvar' => 'round', 'mist' => 2, 'x' => 200, 'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 1],
-                ['nazev' => 'T3', 'tvar' => 'round', 'mist' => 2, 'x' => 340, 'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 1],
-                ['nazev' => 'T4', 'tvar' => 'round', 'mist' => 2, 'x' => 480, 'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 1],
-                ['nazev' => 'T5', 'tvar' => 'square','mist' => 4, 'x' => 60,  'y' => 200, 'width' => 90, 'height' => 90, 'zone_idx' => 1],
-                ['nazev' => 'T6', 'tvar' => 'square','mist' => 4, 'x' => 220, 'y' => 200, 'width' => 90, 'height' => 90, 'zone_idx' => 1],
+                // VNITŘEK — Bar pult nahoře (přes celou šířku, vyšší)
+                ['nazev' => '🍺 Bar pult',  'tvar' => 'rect',  'mist' => 8, 'x' => 80,  'y' => 60,  'width' => 840, 'height' => 80,  'zone_idx' => 0],
+                // Sekce A: 4 stolky pro 2 v řadě (kruhy)
+                ['nazev' => 'A1', 'tvar' => 'round', 'mist' => 2, 'x' => 80,  'y' => 200, 'width' => 90, 'height' => 90, 'zone_idx' => 0],
+                ['nazev' => 'A2', 'tvar' => 'round', 'mist' => 2, 'x' => 220, 'y' => 200, 'width' => 90, 'height' => 90, 'zone_idx' => 0],
+                ['nazev' => 'A3', 'tvar' => 'round', 'mist' => 2, 'x' => 360, 'y' => 200, 'width' => 90, 'height' => 90, 'zone_idx' => 0],
+                ['nazev' => 'A4', 'tvar' => 'round', 'mist' => 2, 'x' => 500, 'y' => 200, 'width' => 90, 'height' => 90, 'zone_idx' => 0],
+                // Sekce B: 4 čtverce pro 4
+                ['nazev' => 'B1', 'tvar' => 'square', 'mist' => 4, 'x' => 660, 'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'B2', 'tvar' => 'square', 'mist' => 4, 'x' => 810, 'y' => 200, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'B3', 'tvar' => 'square', 'mist' => 4, 'x' => 660, 'y' => 350, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'B4', 'tvar' => 'square', 'mist' => 4, 'x' => 810, 'y' => 350, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                // Sekce C: Rodinný + VIP boxy
+                ['nazev' => '🍕 Rodinný',  'tvar' => 'rect',   'mist' => 8, 'x' => 80,  'y' => 380, 'width' => 280, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => '🥂 VIP box',  'tvar' => 'square', 'mist' => 6, 'x' => 420, 'y' => 380, 'width' => 200, 'height' => 100, 'zone_idx' => 0],
+                // Dolní řada — 6 stolků pro 2 (krátké)
+                ['nazev' => 'C1', 'tvar' => 'round', 'mist' => 2, 'x' => 80,  'y' => 540, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'C2', 'tvar' => 'round', 'mist' => 2, 'x' => 200, 'y' => 540, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'C3', 'tvar' => 'round', 'mist' => 2, 'x' => 320, 'y' => 540, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'C4', 'tvar' => 'round', 'mist' => 2, 'x' => 440, 'y' => 540, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'C5', 'tvar' => 'round', 'mist' => 2, 'x' => 560, 'y' => 540, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'C6', 'tvar' => 'round', 'mist' => 2, 'x' => 680, 'y' => 540, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                // TERASA — 8 stolků pod stromem
+                ['nazev' => '🌳',     'tvar' => 'round',  'mist' => 0, 'x' => 340, 'y' => 200, 'width' => 120, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => 'T1', 'tvar' => 'round', 'mist' => 2, 'x' => 80,  'y' => 80,  'width' => 80, 'height' => 80, 'zone_idx' => 1],
+                ['nazev' => 'T2', 'tvar' => 'round', 'mist' => 2, 'x' => 220, 'y' => 80,  'width' => 80, 'height' => 80, 'zone_idx' => 1],
+                ['nazev' => 'T3', 'tvar' => 'round', 'mist' => 4, 'x' => 500, 'y' => 80,  'width' => 100, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => 'T4', 'tvar' => 'round', 'mist' => 4, 'x' => 660, 'y' => 80,  'width' => 100, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => 'T5', 'tvar' => 'square','mist' => 4, 'x' => 80,  'y' => 340, 'width' => 100, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => 'T6', 'tvar' => 'square','mist' => 4, 'x' => 240, 'y' => 340, 'width' => 100, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => 'T7', 'tvar' => 'square','mist' => 6, 'x' => 500, 'y' => 340, 'width' => 130, 'height' => 110, 'zone_idx' => 1],
+                ['nazev' => 'T8', 'tvar' => 'square','mist' => 4, 'x' => 670, 'y' => 340, 'width' => 100, 'height' => 100, 'zone_idx' => 1],
             ],
         ],
-        'restaurace' => [
-            'key' => 'restaurace',
-            'nazev' => '🍽️ Restaurace',
-            'popis' => 'Klasický provoz — 12 stolů, 2 zóny, salonek',
-            'canvas_w' => 900, 'canvas_h' => 560,
+        // ─── 🍽️ BISTRO VERDE ─────────────────────────────────
+        'bistro_verde' => [
+            'key' => 'bistro_verde',
+            'nazev' => '🍽️ Bistro Verde',
+            'popis' => 'Moderní bistro · 3 zóny · lounge sezení + 2 VIP salonky',
+            'canvas_w' => 1100, 'canvas_h' => 720,
             'zones' => [
-                ['nazev' => 'Hlavní sál', 'ikona' => '🍽️', 'canvas_w' => 900, 'canvas_h' => 560, 'sort_order' => 0],
-                ['nazev' => 'Salonek',    'ikona' => '🥂', 'canvas_w' => 500, 'canvas_h' => 350, 'sort_order' => 1],
+                ['nazev' => 'Hlavní sál', 'ikona' => '🍽️', 'canvas_w' => 1100, 'canvas_h' => 720, 'bg_barva' => '#FFFAF1', 'sort_order' => 0],
+                ['nazev' => 'Salonek A',  'ikona' => '🥂', 'canvas_w' => 560,  'canvas_h' => 420, 'bg_barva' => '#FEF3C7', 'sort_order' => 1],
+                ['nazev' => 'Salonek B',  'ikona' => '🍷', 'canvas_w' => 560,  'canvas_h' => 420, 'bg_barva' => '#FCE7F3', 'sort_order' => 2],
             ],
             'tables' => [
-                // Hlavní sál — 3 řady po 4 stolech
-                ['nazev' => 'A1', 'tvar' => 'square', 'mist' => 4, 'x' => 80,  'y' => 60,  'width' => 90, 'height' => 90, 'zone_idx' => 0],
-                ['nazev' => 'A2', 'tvar' => 'square', 'mist' => 4, 'x' => 250, 'y' => 60,  'width' => 90, 'height' => 90, 'zone_idx' => 0],
-                ['nazev' => 'A3', 'tvar' => 'square', 'mist' => 4, 'x' => 420, 'y' => 60,  'width' => 90, 'height' => 90, 'zone_idx' => 0],
-                ['nazev' => 'A4', 'tvar' => 'square', 'mist' => 4, 'x' => 590, 'y' => 60,  'width' => 90, 'height' => 90, 'zone_idx' => 0],
-                ['nazev' => 'B1', 'tvar' => 'round',  'mist' => 2, 'x' => 90,  'y' => 220, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'B2', 'tvar' => 'round',  'mist' => 2, 'x' => 260, 'y' => 220, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'B3', 'tvar' => 'round',  'mist' => 2, 'x' => 430, 'y' => 220, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'B4', 'tvar' => 'round',  'mist' => 2, 'x' => 600, 'y' => 220, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'C1', 'tvar' => 'square', 'mist' => 6, 'x' => 80,  'y' => 350, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                ['nazev' => 'C2', 'tvar' => 'square', 'mist' => 6, 'x' => 250, 'y' => 350, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                ['nazev' => 'C3', 'tvar' => 'square', 'mist' => 6, 'x' => 420, 'y' => 350, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                ['nazev' => 'C4', 'tvar' => 'square', 'mist' => 6, 'x' => 590, 'y' => 350, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                // Salonek — 1 dlouhý stůl pro 10
-                ['nazev' => '🥂 VIP', 'tvar' => 'rect', 'mist' => 10, 'x' => 60, 'y' => 130, 'width' => 380, 'height' => 80, 'zone_idx' => 1],
-            ],
-        ],
-        'cafe' => [
-            'key' => 'cafe',
-            'nazev' => '☕ Cafe',
-            'popis' => 'Útulná kavárna — 8 stolků pro 2 + bar',
-            'canvas_w' => 700, 'canvas_h' => 480,
-            'zones' => [
-                ['nazev' => 'Kavárna', 'ikona' => '☕', 'canvas_w' => 700, 'canvas_h' => 480, 'sort_order' => 0],
-            ],
-            'tables' => [
-                ['nazev' => 'K1', 'tvar' => 'round', 'mist' => 2, 'x' => 60,  'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'K2', 'tvar' => 'round', 'mist' => 2, 'x' => 200, 'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'K3', 'tvar' => 'round', 'mist' => 2, 'x' => 340, 'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'K4', 'tvar' => 'round', 'mist' => 2, 'x' => 480, 'y' => 60,  'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'K5', 'tvar' => 'round', 'mist' => 2, 'x' => 60,  'y' => 200, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'K6', 'tvar' => 'round', 'mist' => 2, 'x' => 200, 'y' => 200, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'K7', 'tvar' => 'round', 'mist' => 2, 'x' => 340, 'y' => 200, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'K8', 'tvar' => 'round', 'mist' => 2, 'x' => 480, 'y' => 200, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => '☕ Bar', 'tvar' => 'rect', 'mist' => 4, 'x' => 60, 'y' => 360, 'width' => 540, 'height' => 60, 'zone_idx' => 0],
-            ],
-        ],
-        'bar' => [
-            'key' => 'bar',
-            'nazev' => '🍺 Bar / Pub',
-            'popis' => 'Bar s baroštolci, lounge stolky',
-            'canvas_w' => 800, 'canvas_h' => 500,
-            'zones' => [
-                ['nazev' => 'Bar', 'ikona' => '🍺', 'canvas_w' => 800, 'canvas_h' => 500, 'sort_order' => 0],
-            ],
-            'tables' => [
-                ['nazev' => '🍺 Bar pult', 'tvar' => 'rect', 'mist' => 1, 'x' => 60, 'y' => 60, 'width' => 680, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'B1', 'tvar' => 'round', 'mist' => 1, 'x' => 100, 'y' => 130, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'B2', 'tvar' => 'round', 'mist' => 1, 'x' => 200, 'y' => 130, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'B3', 'tvar' => 'round', 'mist' => 1, 'x' => 300, 'y' => 130, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'B4', 'tvar' => 'round', 'mist' => 1, 'x' => 400, 'y' => 130, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'B5', 'tvar' => 'round', 'mist' => 1, 'x' => 500, 'y' => 130, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'B6', 'tvar' => 'round', 'mist' => 1, 'x' => 600, 'y' => 130, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'L1', 'tvar' => 'square', 'mist' => 4, 'x' => 80,  'y' => 250, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => 'L2', 'tvar' => 'square', 'mist' => 4, 'x' => 240, 'y' => 250, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => 'L3', 'tvar' => 'square', 'mist' => 4, 'x' => 400, 'y' => 250, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => 'L4', 'tvar' => 'square', 'mist' => 4, 'x' => 560, 'y' => 250, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-            ],
-        ],
-        'banquet' => [
-            'key' => 'banquet',
-            'nazev' => '🥂 Banquet / Eventy',
-            'popis' => 'Velký společný stůl + servírovací',
-            'canvas_w' => 800, 'canvas_h' => 480,
-            'zones' => [
-                ['nazev' => 'Sál', 'ikona' => '🥂', 'canvas_w' => 800, 'canvas_h' => 480, 'sort_order' => 0],
-            ],
-            'tables' => [
-                ['nazev' => '🥂 Hlavní stůl', 'tvar' => 'rect', 'mist' => 20, 'x' => 60, 'y' => 80,  'width' => 680, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => 'Servírovací',     'tvar' => 'rect', 'mist' => 0,  'x' => 60, 'y' => 240, 'width' => 320, 'height' => 60,  'zone_idx' => 0],
-                ['nazev' => 'Bufet',           'tvar' => 'rect', 'mist' => 0,  'x' => 420, 'y' => 240, 'width' => 320, 'height' => 60, 'zone_idx' => 0],
-            ],
-        ],
-        // 🆕 v3.0.26 — 3 PĚKNÉ design šablony (asymetrické, profi rozložení)
-        'pizzeria_u_stromu' => [
-            'key' => 'pizzeria_u_stromu',
-            'nazev' => '🍕 Pizzeria U Stromu',
-            'popis' => 'Asymetrická pizzerie — kruhy + bar + zahrada s 4 menšími stoly',
-            'canvas_w' => 900, 'canvas_h' => 600,
-            'zones' => [
-                ['nazev' => 'Vnitřek',  'ikona' => '🍕', 'canvas_w' => 900, 'canvas_h' => 600, 'sort_order' => 0],
-                ['nazev' => 'Zahrada',  'ikona' => '🌳', 'canvas_w' => 700, 'canvas_h' => 450, 'sort_order' => 1],
-            ],
-            'tables' => [
-                // VNITŘEK — bar nahoře přes celou šířku
-                ['nazev' => '🍺 Bar',     'tvar' => 'rect',  'mist' => 6, 'x' => 80,  'y' => 60,  'width' => 740, 'height' => 60,  'zone_idx' => 0],
-                // 2 řady kruhových stolů pro 2-4
-                ['nazev' => 'S1', 'tvar' => 'round',  'mist' => 2, 'x' => 100, 'y' => 180, 'width' => 80,  'height' => 80, 'zone_idx' => 0],
-                ['nazev' => 'S2', 'tvar' => 'round',  'mist' => 2, 'x' => 240, 'y' => 180, 'width' => 80,  'height' => 80, 'zone_idx' => 0],
-                ['nazev' => 'S3', 'tvar' => 'round',  'mist' => 4, 'x' => 400, 'y' => 180, 'width' => 100, 'height' => 100,'zone_idx' => 0],
-                ['nazev' => 'S4', 'tvar' => 'round',  'mist' => 2, 'x' => 560, 'y' => 180, 'width' => 80,  'height' => 80, 'zone_idx' => 0],
-                ['nazev' => 'S5', 'tvar' => 'round',  'mist' => 2, 'x' => 700, 'y' => 180, 'width' => 80,  'height' => 80, 'zone_idx' => 0],
-                // Velký rodinný uprostřed
-                ['nazev' => '🍕 Rodinný', 'tvar' => 'rect', 'mist' => 10, 'x' => 120, 'y' => 320, 'width' => 460, 'height' => 110, 'zone_idx' => 0],
-                // Salonek vpravo
-                ['nazev' => '🥂 VIP',     'tvar' => 'square', 'mist' => 6, 'x' => 640, 'y' => 320, 'width' => 180, 'height' => 110, 'zone_idx' => 0],
-                // Dolní řada — 4 stolky čtyřky
-                ['nazev' => 'P1', 'tvar' => 'square', 'mist' => 4, 'x' => 100, 'y' => 470, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => 'P2', 'tvar' => 'square', 'mist' => 4, 'x' => 260, 'y' => 470, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => 'P3', 'tvar' => 'square', 'mist' => 4, 'x' => 420, 'y' => 470, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => 'P4', 'tvar' => 'square', 'mist' => 4, 'x' => 580, 'y' => 470, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                // ZAHRADA — 4 stolky pro 2 do kruhu kolem stromu (středu)
-                ['nazev' => '🌳 Strom', 'tvar' => 'round', 'mist' => 0, 'x' => 280, 'y' => 170, 'width' => 140, 'height' => 110, 'zone_idx' => 1],
-                ['nazev' => 'Z1', 'tvar' => 'round', 'mist' => 2, 'x' => 100, 'y' => 80,  'width' => 80, 'height' => 80, 'zone_idx' => 1],
-                ['nazev' => 'Z2', 'tvar' => 'round', 'mist' => 2, 'x' => 520, 'y' => 80,  'width' => 80, 'height' => 80, 'zone_idx' => 1],
-                ['nazev' => 'Z3', 'tvar' => 'round', 'mist' => 2, 'x' => 100, 'y' => 280, 'width' => 80, 'height' => 80, 'zone_idx' => 1],
-                ['nazev' => 'Z4', 'tvar' => 'round', 'mist' => 2, 'x' => 520, 'y' => 280, 'width' => 80, 'height' => 80, 'zone_idx' => 1],
-            ],
-        ],
-        'bistro_plaza' => [
-            'key' => 'bistro_plaza',
-            'nazev' => '🍽️ Bistro Plaza',
-            'popis' => 'Moderní bistro — 2 salonky, lounge a velký společný stůl',
-            'canvas_w' => 1000, 'canvas_h' => 650,
-            'zones' => [
-                ['nazev' => 'Hlavní sál', 'ikona' => '🍽️', 'canvas_w' => 1000, 'canvas_h' => 650, 'sort_order' => 0],
-                ['nazev' => 'Salonek A',  'ikona' => '🥂', 'canvas_w' => 500,  'canvas_h' => 400, 'sort_order' => 1],
-                ['nazev' => 'Salonek B',  'ikona' => '🍷', 'canvas_w' => 500,  'canvas_h' => 400, 'sort_order' => 2],
-            ],
-            'tables' => [
-                // HLAVNÍ SÁL — vlevo lounge sekce
-                ['nazev' => '🛋️ Lounge A', 'tvar' => 'rect', 'mist' => 4, 'x' => 60,  'y' => 60,  'width' => 220, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => '🛋️ Lounge B', 'tvar' => 'rect', 'mist' => 4, 'x' => 60,  'y' => 200, 'width' => 220, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => '🛋️ Lounge C', 'tvar' => 'rect', 'mist' => 4, 'x' => 60,  'y' => 340, 'width' => 220, 'height' => 100, 'zone_idx' => 0],
+                // HLAVNÍ SÁL — Vlevo lounge sekce (3 sedačky)
+                ['nazev' => '🛋️ Lounge A', 'tvar' => 'rect', 'mist' => 4, 'x' => 80,  'y' => 80,  'width' => 240, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => '🛋️ Lounge B', 'tvar' => 'rect', 'mist' => 4, 'x' => 80,  'y' => 220, 'width' => 240, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => '🛋️ Lounge C', 'tvar' => 'rect', 'mist' => 4, 'x' => 80,  'y' => 360, 'width' => 240, 'height' => 100, 'zone_idx' => 0],
                 // Středová zóna — kruhy v diamondu
-                ['nazev' => 'M1', 'tvar' => 'round',  'mist' => 4, 'x' => 360, 'y' => 100, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => 'M2', 'tvar' => 'round',  'mist' => 4, 'x' => 540, 'y' => 100, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => 'M3', 'tvar' => 'round',  'mist' => 6, 'x' => 720, 'y' => 100, 'width' => 120, 'height' => 120, 'zone_idx' => 0],
-                ['nazev' => 'M4', 'tvar' => 'round',  'mist' => 4, 'x' => 360, 'y' => 260, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                ['nazev' => 'M5', 'tvar' => 'round',  'mist' => 4, 'x' => 540, 'y' => 260, 'width' => 100, 'height' => 100, 'zone_idx' => 0],
-                // Velký společný stůl dole
-                ['nazev' => '🍽️ Společný', 'tvar' => 'rect', 'mist' => 14, 'x' => 320, 'y' => 460, 'width' => 620, 'height' => 90, 'zone_idx' => 0],
-                ['nazev' => '🍺 Bar pult',  'tvar' => 'rect', 'mist' => 8, 'x' => 60,  'y' => 480, 'width' => 220, 'height' => 60, 'zone_idx' => 0],
+                ['nazev' => 'M1', 'tvar' => 'round',  'mist' => 4, 'x' => 400, 'y' => 100, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'M2', 'tvar' => 'round',  'mist' => 4, 'x' => 580, 'y' => 100, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'M3', 'tvar' => 'round',  'mist' => 6, 'x' => 760, 'y' => 100, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
+                ['nazev' => 'M4', 'tvar' => 'round',  'mist' => 4, 'x' => 400, 'y' => 280, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'M5', 'tvar' => 'round',  'mist' => 4, 'x' => 580, 'y' => 280, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'M6', 'tvar' => 'round',  'mist' => 6, 'x' => 760, 'y' => 280, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
+                // Společný stůl
+                ['nazev' => '🍽️ Společný',  'tvar' => 'rect', 'mist' => 14, 'x' => 360, 'y' => 500, 'width' => 700, 'height' => 100, 'zone_idx' => 0],
+                ['nazev' => '🍺 Bar pult',   'tvar' => 'rect', 'mist' => 8,  'x' => 80,  'y' => 500, 'width' => 240, 'height' => 70,  'zone_idx' => 0],
                 // SALONEK A
-                ['nazev' => '🥂 VIP-A1', 'tvar' => 'rect',  'mist' => 8, 'x' => 60, 'y' => 80,  'width' => 380, 'height' => 90, 'zone_idx' => 1],
-                ['nazev' => 'A2', 'tvar' => 'round', 'mist' => 4, 'x' => 100, 'y' => 220, 'width' => 100, 'height' => 100, 'zone_idx' => 1],
-                ['nazev' => 'A3', 'tvar' => 'round', 'mist' => 4, 'x' => 300, 'y' => 220, 'width' => 100, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => '🥂 VIP-A1', 'tvar' => 'rect',  'mist' => 8, 'x' => 80, 'y' => 80,  'width' => 400, 'height' => 100, 'zone_idx' => 1],
+                ['nazev' => 'A2',  'tvar' => 'round', 'mist' => 4, 'x' => 120, 'y' => 240, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
+                ['nazev' => 'A3',  'tvar' => 'round', 'mist' => 4, 'x' => 330, 'y' => 240, 'width' => 110, 'height' => 110, 'zone_idx' => 1],
                 // SALONEK B
-                ['nazev' => '🍷 VIP-B1', 'tvar' => 'rect',  'mist' => 10, 'x' => 60, 'y' => 80,  'width' => 380, 'height' => 90, 'zone_idx' => 2],
-                ['nazev' => '🍷 B2',     'tvar' => 'square','mist' => 6, 'x' => 80,  'y' => 220, 'width' => 120, 'height' => 120, 'zone_idx' => 2],
-                ['nazev' => '🍷 B3',     'tvar' => 'square','mist' => 6, 'x' => 280, 'y' => 220, 'width' => 120, 'height' => 120, 'zone_idx' => 2],
+                ['nazev' => '🍷 VIP-B1', 'tvar' => 'rect',   'mist' => 10, 'x' => 80, 'y' => 80,  'width' => 400, 'height' => 100, 'zone_idx' => 2],
+                ['nazev' => '🍷 B2',     'tvar' => 'square', 'mist' => 6,  'x' => 100, 'y' => 240, 'width' => 130, 'height' => 130, 'zone_idx' => 2],
+                ['nazev' => '🍷 B3',     'tvar' => 'square', 'mist' => 6,  'x' => 320, 'y' => 240, 'width' => 130, 'height' => 130, 'zone_idx' => 2],
             ],
         ],
-        'vinoteka_maraton' => [
-            'key' => 'vinoteka_maraton',
-            'nazev' => '🍷 Vinotéka Maraton',
-            'popis' => 'Vinotéka s barpultem U-tvaru — moderní rozložení',
-            'canvas_w' => 900, 'canvas_h' => 550,
+        // ─── 🍷 WINE BAR APOLLO ─────────────────────────────────
+        'wine_bar_apollo' => [
+            'key' => 'wine_bar_apollo',
+            'nazev' => '🍷 Wine bar Apollo',
+            'popis' => 'Vinotéka · U-shaped bar + lounge stolky · intimní atmosféra',
+            'canvas_w' => 1000, 'canvas_h' => 620,
             'zones' => [
-                ['nazev' => 'Vinotéka', 'ikona' => '🍷', 'canvas_w' => 900, 'canvas_h' => 550, 'sort_order' => 0],
+                ['nazev' => 'Wine bar', 'ikona' => '🍷', 'canvas_w' => 1000, 'canvas_h' => 620, 'bg_barva' => '#1F1B16', 'sort_order' => 0],
             ],
             'tables' => [
-                // BARPULT U-shape (3 strany)
-                ['nazev' => '🍷 Bar levý',  'tvar' => 'rect', 'mist' => 4, 'x' => 60,  'y' => 80,  'width' => 80,  'height' => 300, 'zone_idx' => 0],
-                ['nazev' => '🍷 Bar vrch',  'tvar' => 'rect', 'mist' => 6, 'x' => 160, 'y' => 80,  'width' => 580, 'height' => 80,  'zone_idx' => 0],
-                ['nazev' => '🍷 Bar pravý', 'tvar' => 'rect', 'mist' => 4, 'x' => 760, 'y' => 80,  'width' => 80,  'height' => 300, 'zone_idx' => 0],
-                // Stoličky kolem barpultu (5 + 5)
-                ['nazev' => 'B1', 'tvar' => 'round', 'mist' => 1, 'x' => 180, 'y' => 200, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'B2', 'tvar' => 'round', 'mist' => 1, 'x' => 290, 'y' => 200, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'B3', 'tvar' => 'round', 'mist' => 1, 'x' => 400, 'y' => 200, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'B4', 'tvar' => 'round', 'mist' => 1, 'x' => 510, 'y' => 200, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                ['nazev' => 'B5', 'tvar' => 'round', 'mist' => 1, 'x' => 620, 'y' => 200, 'width' => 50, 'height' => 50, 'zone_idx' => 0],
-                // Lounge stolky uprostřed (sezení)
-                ['nazev' => 'V1', 'tvar' => 'square', 'mist' => 4, 'x' => 200, 'y' => 320, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                ['nazev' => 'V2', 'tvar' => 'square', 'mist' => 4, 'x' => 360, 'y' => 320, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                ['nazev' => 'V3', 'tvar' => 'square', 'mist' => 4, 'x' => 520, 'y' => 320, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
-                // Dolní řada — 2 menší stolky
-                ['nazev' => 'V4', 'tvar' => 'round', 'mist' => 2, 'x' => 220, 'y' => 460, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'V5', 'tvar' => 'round', 'mist' => 2, 'x' => 410, 'y' => 460, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
-                ['nazev' => 'V6', 'tvar' => 'round', 'mist' => 2, 'x' => 600, 'y' => 460, 'width' => 70, 'height' => 70, 'zone_idx' => 0],
+                // U-shaped bar pult
+                ['nazev' => '🍷 Bar L',  'tvar' => 'rect', 'mist' => 4, 'x' => 80,  'y' => 80,  'width' => 90,  'height' => 320, 'zone_idx' => 0],
+                ['nazev' => '🍷 Bar T',  'tvar' => 'rect', 'mist' => 8, 'x' => 180, 'y' => 80,  'width' => 640, 'height' => 90,  'zone_idx' => 0],
+                ['nazev' => '🍷 Bar R',  'tvar' => 'rect', 'mist' => 4, 'x' => 830, 'y' => 80,  'width' => 90,  'height' => 320, 'zone_idx' => 0],
+                // Barové stoličky kolem T-baru (6 ks)
+                ['nazev' => 'b1', 'tvar' => 'round', 'mist' => 1, 'x' => 220, 'y' => 200, 'width' => 60, 'height' => 60, 'zone_idx' => 0],
+                ['nazev' => 'b2', 'tvar' => 'round', 'mist' => 1, 'x' => 320, 'y' => 200, 'width' => 60, 'height' => 60, 'zone_idx' => 0],
+                ['nazev' => 'b3', 'tvar' => 'round', 'mist' => 1, 'x' => 420, 'y' => 200, 'width' => 60, 'height' => 60, 'zone_idx' => 0],
+                ['nazev' => 'b4', 'tvar' => 'round', 'mist' => 1, 'x' => 520, 'y' => 200, 'width' => 60, 'height' => 60, 'zone_idx' => 0],
+                ['nazev' => 'b5', 'tvar' => 'round', 'mist' => 1, 'x' => 620, 'y' => 200, 'width' => 60, 'height' => 60, 'zone_idx' => 0],
+                ['nazev' => 'b6', 'tvar' => 'round', 'mist' => 1, 'x' => 720, 'y' => 200, 'width' => 60, 'height' => 60, 'zone_idx' => 0],
+                // Lounge stolky uprostřed (4 ks)
+                ['nazev' => 'V1', 'tvar' => 'square', 'mist' => 4, 'x' => 220, 'y' => 320, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
+                ['nazev' => 'V2', 'tvar' => 'square', 'mist' => 4, 'x' => 400, 'y' => 320, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
+                ['nazev' => 'V3', 'tvar' => 'square', 'mist' => 4, 'x' => 580, 'y' => 320, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
+                ['nazev' => 'V4', 'tvar' => 'square', 'mist' => 4, 'x' => 760, 'y' => 460, 'width' => 130, 'height' => 130, 'zone_idx' => 0],
+                // Dolní řada — kruhy pro 2
+                ['nazev' => 'D1', 'tvar' => 'round', 'mist' => 2, 'x' => 240, 'y' => 490, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'D2', 'tvar' => 'round', 'mist' => 2, 'x' => 420, 'y' => 490, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'D3', 'tvar' => 'round', 'mist' => 2, 'x' => 600, 'y' => 490, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
             ],
         ],
+        // ─── ☕ CAFE AURELIO ─────────────────────────────────
+        'cafe_aurelio' => [
+            'key' => 'cafe_aurelio',
+            'nazev' => '☕ Cafe Aurelio',
+            'popis' => 'Útulná kavárna · 8 stolků pro 2 + 4 pro 4 · pultové sezení',
+            'canvas_w' => 900, 'canvas_h' => 580,
+            'zones' => [
+                ['nazev' => 'Kavárna', 'ikona' => '☕', 'canvas_w' => 900, 'canvas_h' => 580, 'bg_barva' => '#FFF8F0', 'sort_order' => 0],
+            ],
+            'tables' => [
+                // Pultové sezení nahoře (3 sedátka)
+                ['nazev' => '☕ Pult',    'tvar' => 'rect',   'mist' => 5, 'x' => 80,  'y' => 60,  'width' => 740, 'height' => 70, 'zone_idx' => 0],
+                // 2 řady kulatých stolků pro 2
+                ['nazev' => 'K1', 'tvar' => 'round', 'mist' => 2, 'x' => 80,  'y' => 180, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'K2', 'tvar' => 'round', 'mist' => 2, 'x' => 220, 'y' => 180, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'K3', 'tvar' => 'round', 'mist' => 2, 'x' => 360, 'y' => 180, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'K4', 'tvar' => 'round', 'mist' => 2, 'x' => 500, 'y' => 180, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'K5', 'tvar' => 'round', 'mist' => 2, 'x' => 640, 'y' => 180, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'K6', 'tvar' => 'round', 'mist' => 2, 'x' => 760, 'y' => 180, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'K7', 'tvar' => 'round', 'mist' => 2, 'x' => 80,  'y' => 300, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                ['nazev' => 'K8', 'tvar' => 'round', 'mist' => 2, 'x' => 220, 'y' => 300, 'width' => 80, 'height' => 80, 'zone_idx' => 0],
+                // Větší stolky pro 4 ve spodní polovině
+                ['nazev' => 'L1', 'tvar' => 'square', 'mist' => 4, 'x' => 380, 'y' => 290, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'L2', 'tvar' => 'square', 'mist' => 4, 'x' => 540, 'y' => 290, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                ['nazev' => 'L3', 'tvar' => 'square', 'mist' => 4, 'x' => 700, 'y' => 290, 'width' => 110, 'height' => 110, 'zone_idx' => 0],
+                // Dlouhý společný stůl dole
+                ['nazev' => '☕ Komunitní', 'tvar' => 'rect', 'mist' => 10, 'x' => 80, 'y' => 440, 'width' => 740, 'height' => 90, 'zone_idx' => 0],
+            ],
+        ],
+        // ─── ⬜ PRÁZDNÉ ─────────────────────────────────
         'empty' => [
             'key' => 'empty',
             'nazev' => '⬜ Prázdné',
             'popis' => 'Začni od nuly — žádné stoly, jen výchozí zóna',
-            'canvas_w' => 800, 'canvas_h' => 500,
-            'zones' => [['nazev' => 'Hlavní sál', 'ikona' => '🍽️', 'canvas_w' => 800, 'canvas_h' => 500, 'sort_order' => 0]],
+            'canvas_w' => 900, 'canvas_h' => 600,
+            'zones' => [['nazev' => 'Hlavní sál', 'ikona' => '🍽️', 'canvas_w' => 900, 'canvas_h' => 600, 'sort_order' => 0]],
             'tables' => [],
         ],
     ];
