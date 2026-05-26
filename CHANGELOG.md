@@ -6,6 +6,31 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.56] — 2026-05-26
+
+### 📱 Extreme mobile: 1-letter period tabs (D/T/M/R/V)
+_User: "na extrem ui na mobilu dej v kalendářích jenom první písmena D T M R V, všude ve všech theme"_
+
+**`periodTabsRender` upraveno na 3 size tiers:**
+- **≤400px (extreme)**: `t.x` nebo auto-derived 1. písmeno z `t.short`/`t.l` → D/T/M/R/V
+- **≤700px (mobile)**: short label (`Dnes/Týden/Měsíc/Rok/Vlastní`)
+- **desktop**: full label (`Dnes/Tento týden/...`)
+
+Auto-derivation = funguje pro VŠECHNY callery bez nutnosti updatu (Dashboard, Faktury, Objednávky, Dodací listy, Výroba).
+
+**Resize listener**: tracking i `lastIsExtreme` (≤400) — re-render při transition mezi tiers.
+
+**CSS pro extreme mode** (≤400):
+- `period-tabs gap: 3px, padding: 3px`
+- `period-tab padding: 5px 2px, flex-direction: column`
+- `period-tab-icon: 14px, period-tab-text: 13px weight 800`
+- **Theme-agnostic** (žádné theme-specific overrides) → funguje v light/dark/win98/apple/all themes
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.55→3.0.56, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.55] — 2026-05-26
 
 ### 🐛 4 mobile UX fixes (z testování)
