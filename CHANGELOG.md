@@ -6,6 +6,32 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.53] — 2026-05-26
+
+### 🐛 Sticky pin button na mobilu
+_User: "špendlík neni vidět jak jsem psal"_
+
+**Root cause**: Pin button v `.sidebar-utils` byl na pozici top=758 (h=44) → zakrytý bottom-navem (start ~755).
+
+**Fix**: Pin button na mobilu se chová jako mini-FAB:
+- `position: fixed` vlevo-dole, **nad bottom-nav** (`bottom: calc(72px + safe-area-inset-bottom)`)
+- Kruh 48×48, primary gradient
+- Aktivní stav (sidebar-pinned) → success zelený gradient (vizuální indikace)
+- z-index 89 (nad content, pod offline banner)
+- Skrytý na login (přes `body.is-login` / `:has()`)
+- iOS safe-area podpora
+- Labely (Připnuto / Připnout menu) skryté (jen ikona 📌)
+
+**Bonus**: `.sidebar-collapse` button skrytý na mobilu (jen pro desktop UX)
+
+### 📦 Polling task
+- Změněno: 10 min → **15 min** interval (`*/15 * * * *`)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.52→3.0.53, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.52] — 2026-05-26
 
 ### 🐛 Fix sidebar over login (display:contents bypass) + FAB swipe-to-dismiss
