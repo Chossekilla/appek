@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.44";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.45";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -50,9 +50,14 @@
   --filter-hover-bg:         rgba(186, 117, 23, 0.06);
 }
 
+/* 🐛 v3.0.45 fix — chybělo `margin:0` → browser default 8px tlačil sidebar od top/left.
+   Teď sidebar (a celá app) opravdu od shora dolu, přes celou obrazovku. */
 html, body {
+  margin: 0;
+  padding: 0;
   overflow-x: hidden;
   max-width: 100%;
+  height: 100%;       /* aby 100vh / 100dvh skutečně odpovídalo viewport */
 }
 body {
   /* 🎨 Emoji fonty na konci řetězce — zajistí že 🖨️ ✉️ 📋 atd. se vykreslí jako barevné emoji
@@ -224,10 +229,12 @@ a:hover { text-decoration: underline; }
 }
 
 /* HLAVNÍ LAYOUT */
-.admin-app { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+/* 🐛 v3.0.45 fix — min-height + height na 100dvh (dynamic viewport — správné na mobilech
+   kde browser UI bar zabírá místo). Předtím jen 100vh = pod mobilem chyběl spodní pruh. */
+.admin-app { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; min-height: 100dvh; }
 
-/* SIDEBAR */
-.sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 12px; position: sticky; top: 0; height: 100vh; height: 100dvh; overflow: hidden; }
+/* SIDEBAR — vždy od shora dolu přes celou viewportu */
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 12px; position: sticky; top: 0; height: 100vh; height: 100dvh; overflow: hidden; align-self: start; }
 /* Nav vyplní zbylou výšku — items se nezvětší, jen se neměly přetékat (no scroll) */
 .sidebar > .sidebar-nav { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 0 12px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }

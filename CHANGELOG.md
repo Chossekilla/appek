@@ -6,6 +6,33 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.45] — 2026-05-26
+
+### 🐛 Sidebar fix — od shora dolu přes celou obrazovku
+_User: "to postraní menu nei pořád přes celou obrazovku, od shora dolu"_
+
+**Bug**: `html, body` CSS reset chyběl `margin: 0` → výchozí browser margin **8px** posunoval celou aplikaci od top/left okraje. Sidebar tak začínal na Y=8px, ne Y=0, a celá app měla 16px viditelnou mezeru kolem.
+
+**Fix**:
+```css
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  max-width: 100%;
+  height: 100%;       /* aby 100vh / 100dvh správně */
+}
+```
+
+**Bonus**: `.admin-app` má teď `min-height: 100dvh` (dynamic viewport — důležité na mobilech kde browser UI bar pohlcuje místo). Předtím jen `100vh` = na iOS Safari spodní UI překrýval bottom-nav.
+
+**Bonus 2**: `.sidebar { align-self: start }` — zajistí že sidebar (sticky) je správně ukotvený v grid řádku, nestrečuje se nečekaně.
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.44→3.0.45, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.44] — 2026-05-26
 
 ### 🐛 Bug audit po v3.0.38-43 (security + UX + cleanup)
