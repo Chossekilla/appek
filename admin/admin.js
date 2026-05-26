@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.37';
+const APPEK_ADMIN_JS_VERSION = '3.0.38';
 
 (async function detectStaleCode() {
   try {
@@ -2443,6 +2443,20 @@ async function showApp() {
   document.querySelectorAll('.nav-item').forEach((b) => {
     b.addEventListener('click', () => navigate(b.dataset.page));
   });
+
+  // 🆕 v3.0.38 — Sidebar logo (písmeno "A" + brand text) click → dashboard
+  //   User feedback: "při kliku na písmeno a logo → klik na přehled"
+  const sidebarLogo = document.querySelector('.sidebar-logo');
+  if (sidebarLogo && !sidebarLogo.dataset.clickBound) {
+    sidebarLogo.dataset.clickBound = '1';
+    sidebarLogo.setAttribute('title', '🏠 Domů — Přehled');
+    sidebarLogo.addEventListener('click', (ev) => {
+      // Skip pokud user kliknul na sub-element, který má vlastní handler (datum pill apod.)
+      const tgt = ev.target.closest('[data-no-logo-click]');
+      if (tgt) return;
+      navigate('dashboard');
+    });
+  }
 
   // Načti aktuální práva v menu pro role
   api('admin_role_prava.php').then((r) => {
@@ -18796,8 +18810,8 @@ async function renderCouriers() {
           `;
         }).join('')}
       </div>
-      <div style="font-size:11.5px;color:var(--text-3);margin-top:10px">
-        💡 Klikni na službu pro nastavení API klíče. Plnohodnotná integrace (live tracking objednávek) je <strong>plánovaná</strong> — nyní lze evidovat manuálně.
+      <div style="font-size:11.5px;color:var(--text-3);margin-top:10px;line-height:1.6">
+        💡 Klikni na službu pro nastavení API klíče + webhook URL. <strong style="color:#065F46">✅ Live integrace</strong> (v3.0.38+): auto-příjem objednávek, status sync, menu push, HMAC signature ověření. <em>Vyžaduje partner credentials od dané služby.</em>
       </div>
     </div>
   `;
@@ -18917,37 +18931,232 @@ window.courierDelivStatus = async function(id, stav) {
 
 window.courierIntegrationEdit = async function(sluzba) {
   let cur = {};
+  let webhookUrl = '';
   try {
     const data = await api('admin_couriers.php');
     cur = (data.integrations || []).find(x => x.sluzba === sluzba) || {};
   } catch (e) {}
-  const nazvy = { wolt:'Wolt', bolt:'Bolt Food', dame_jidlo:'Dáme jídlo', foodora:'Foodora' };
-  openModal(`🔌 Integrace: ${nazvy[sluzba] || sluzba}`, `
+  try {
+    const wh = await api('admin_couriers.php?action=webhook_urls');
+    webhookUrl = (wh.urls || {})[sluzba] || '';
+  } catch (e) {}
+
+  // 🆕 v3.0.38 — Per-service portal info (kde vzít klíče, kde nastavit webhook)
+  const sluzbyInfo = {
+    wolt: {
+      name: 'Wolt',
+      color: '#00C2E8',
+      portal: 'https://merchant.wolt.com',
+      docsUrl: 'https://developer.wolt.com/docs/api/order-api',
+      keyLabel: 'API Key (Bearer token)',
+      storeLabel: 'Venue ID',
+      help: 'Z Merchant portalu: Settings → Integrations → Generate API Key. Venue ID najdeš v Venue Settings.',
+      webhookHeader: 'X-Wolt-Signature',
+    },
+    bolt: {
+      name: 'Bolt Food',
+      color: '#34D186',
+      portal: 'https://partners.bolt.eu/food',
+      docsUrl: 'https://partners.bolt.eu/food',
+      keyLabel: 'X-Auth-Token',
+      storeLabel: 'Provider ID',
+      help: 'Bolt partner manager ti pošle credentials po podpisu smlouvy. Provider ID = tvoje restaurace v jejich systému.',
+      webhookHeader: 'X-Bolt-Signature',
+    },
+    dame_jidlo: {
+      name: 'Dáme jídlo',
+      color: '#F26430',
+      portal: 'https://restaurace.damejidlo.cz',
+      docsUrl: 'https://restaurace.damejidlo.cz',
+      keyLabel: 'Bearer token',
+      storeLabel: 'Restaurant ID',
+      help: 'Restaurátorský portál → Nastavení → API přístup → Generovat token.',
+      webhookHeader: 'X-DameJidlo-Signature',
+    },
+    foodora: {
+      name: 'Foodora',
+      color: '#D70F64',
+      portal: 'https://vendor.delivery-hero.com',
+      docsUrl: 'https://docs.deliveryhero.com',
+      keyLabel: 'Bearer token',
+      storeLabel: 'Vendor Code',
+      help: 'Delivery Hero portal → API & Webhooks → vygeneruj credentials. Vendor Code dostaneš od account managera.',
+      webhookHeader: 'X-DH-Signature',
+    },
+  };
+  const info = sluzbyInfo[sluzba] || { name: sluzba, color:'#888', portal:'', docsUrl:'', keyLabel:'API klíč', storeLabel:'Store ID', help:'' };
+  const isEnabled = parseInt(cur.povolena) === 1;
+
+  openModal(`🔌 Integrace: ${info.name}`, `
+    <!-- Live status badge -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:${isEnabled ? '#DCFCE7' : '#F3F4F6'};border:1.5px solid ${isEnabled ? '#10B981' : '#9CA3AF'};border-radius:10px">
+      <span style="font-size:24px">${isEnabled ? '🟢' : '⚪'}</span>
+      <div style="flex:1">
+        <strong style="color:${isEnabled ? '#065F46' : '#374151'}">${isEnabled ? 'Live integrace povolená' : 'Integrace vypnutá'}</strong>
+        <div style="font-size:11.5px;color:${isEnabled ? '#047857' : '#6B7280'};margin-top:2px">
+          ${isEnabled ? 'Webhook bude přijímat objednávky · status sync zapnutý' : 'Klíče uložené, ale neaktivní'}
+        </div>
+      </div>
+      <button id="ci-test-btn" class="btn-secondary" onclick="courierTestIntegration('${sluzba}')" style="padding:8px 14px;font-weight:700;background:${info.color};color:#fff;border:none;border-radius:8px;cursor:pointer">
+        🔌 Test
+      </button>
+    </div>
+
+    <!-- Help banner (kde vzít klíče) -->
+    <div style="background:#EFF6FF;border-left:3px solid #3B82F6;padding:10px 14px;border-radius:8px;font-size:12.5px;color:#1E3A8A;margin-bottom:14px;line-height:1.55">
+      💡 ${esc(info.help)}<br>
+      <a href="${esc(info.portal)}" target="_blank" rel="noopener" style="color:#1D4ED8;font-weight:600">📂 Portal služby →</a>
+      &nbsp;·&nbsp;
+      <a href="${esc(info.docsUrl)}" target="_blank" rel="noopener" style="color:#1D4ED8;font-weight:600">📖 API docs →</a>
+    </div>
+
+    <!-- Credentials -->
     <div class="form-grid form-grid-tight">
       <div class="full">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
-          <input type="checkbox" id="ci-on" ${parseInt(cur.povolena) ? 'checked' : ''}>
-          <span>✓ Povolená integrace</span>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;padding:10px;background:var(--surface-2);border-radius:8px">
+          <input type="checkbox" id="ci-on" ${isEnabled ? 'checked' : ''} style="transform:scale(1.3)">
+          <span><strong>✓ Povolit integraci</strong> <small style="color:var(--text-3)">— webhook + status sync</small></span>
         </label>
       </div>
       <div><label class="form-label">🧾 Provize služby (%)</label>
         <input type="number" class="form-input" id="ci-prov" value="${cur.provize_pct || 0}" step="0.5">
       </div>
-      <div><label class="form-label">Store ID</label>
-        <input class="form-input" id="ci-store" value="${esc(cur.store_id || '')}" placeholder="z portálu služby">
+      <div><label class="form-label">${esc(info.storeLabel)}</label>
+        <input class="form-input" id="ci-store" value="${esc(cur.store_id || '')}" placeholder="z portálu">
       </div>
-      <div class="full"><label class="form-label">🔑 API klíč</label>
-        <input class="form-input" id="ci-key" value="${esc(cur.api_key || '')}" placeholder="Bearer / API token od služby">
+      <div class="full"><label class="form-label">🔑 ${esc(info.keyLabel)}</label>
+        <input class="form-input" id="ci-key" type="password" value="${esc(cur.api_key || '')}" placeholder="${sluzba === 'wolt' ? 'wlt_xxxxxxxxxxxxxxxxxxxxxxxx' : 'pošle ti partner manager'}" autocomplete="new-password">
+        <small style="display:block;font-size:11px;color:var(--text-3);margin-top:4px">Klíč je v DB šifrovaný heslem databáze. <strong>Slouží taky jako webhook secret</strong> (pro HMAC ověření).</small>
       </div>
     </div>
-    <div style="background:#FEF3C7;padding:10px 12px;border-radius:8px;font-size:11.5px;color:#92400E;margin:10px 0">
-      ⚠️ Plnohodnotná live integrace (auto-příjem objednávek, status sync) je <strong>plánovaná</strong>. Nyní lze ukládat klíče pro budoucí použití a evidovat objednávky manuálně.
+
+    <!-- Webhook URL (kterou user vloží do portalu) -->
+    ${webhookUrl ? `
+      <div style="margin-top:16px;padding:14px;background:linear-gradient(135deg,#F0F9FF,#DBEAFE);border:1.5px solid #3B82F6;border-radius:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <strong style="color:#1E40AF;font-size:13px">🔗 Webhook URL pro ${info.name} portal:</strong>
+        </div>
+        <div style="display:flex;gap:6px">
+          <input type="text" readonly value="${esc(webhookUrl)}" id="ci-webhook-url"
+            style="flex:1;padding:8px 10px;font-family:monospace;font-size:12px;background:#fff;border:1px solid #93C5FD;border-radius:6px;color:#1E40AF"
+            onclick="this.select()">
+          <button class="btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('ci-webhook-url').value);toastSuccess('📋 Zkopírováno')" style="padding:8px 14px;font-size:12px">📋 Kopírovat</button>
+        </div>
+        <div style="font-size:11px;color:#1E3A8A;margin-top:6px;line-height:1.5">
+          Vlož do <strong>${esc(info.name)} portal → Webhooks/Notifications</strong> jako endpoint pro nové objednávky.
+          Signature header: <code style="background:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${esc(info.webhookHeader)}</code>.
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- Pokročilé akce -->
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-secondary" onclick="courierSyncMenu('${sluzba}')" style="font-size:12px;padding:8px 14px;background:#FEF3C7;border-color:#F59E0B;color:#92400E">
+        📤 Sync menu (push náš katalog)
+      </button>
+      <button class="btn-secondary" onclick="courierWebhookLog('${sluzba}')" style="font-size:12px;padding:8px 14px">
+        📋 Webhook log
+      </button>
     </div>
+
+    <!-- Status pole pro výsledky test/sync -->
+    <div id="ci-result" style="margin-top:12px;display:none;padding:10px;border-radius:8px;font-size:13px"></div>
+
+    <!-- v3.0.38 — Updated text: live integrace funguje, ne plánovaná -->
+    <div style="background:#DCFCE7;padding:10px 12px;border-radius:8px;font-size:11.5px;color:#065F46;margin:14px 0 0;line-height:1.6">
+      ✅ <strong>Live integrace aktivní</strong> (v3.0.38+): auto-příjem objednávek, status sync, menu push, HMAC signature ověření.
+      Potřebuješ partner credentials od ${esc(info.name)} (typicky se vydávají po podpisu smlouvy).
+    </div>
+
     <div class="form-actions">
       <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
       <button class="btn-primary btn-green" onclick="courierIntegrationSave('${sluzba}')">💾 Uložit</button>
     </div>
   `);
+};
+
+// 🆕 v3.0.38 — Test integration
+window.courierTestIntegration = async function(sluzba) {
+  const btn = document.getElementById('ci-test-btn');
+  const result = document.getElementById('ci-result');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Testuji…'; }
+  try {
+    // Nejdřív uložit (uživatel zadal credentials co ještě nejsou v DB)
+    await api('admin_couriers.php?action=integration', { method:'POST', body: JSON.stringify({
+      sluzba,
+      povolena: document.getElementById('ci-on')?.checked ? 1 : 0,
+      provize_pct: parseFloat(document.getElementById('ci-prov')?.value) || 0,
+      store_id: document.getElementById('ci-store')?.value.trim() || null,
+      api_key: document.getElementById('ci-key')?.value.trim() || null,
+    })});
+    const r = await api('admin_couriers.php?action=test_integration', { method:'POST', body: JSON.stringify({ sluzba })});
+    if (result) {
+      result.style.display = 'block';
+      result.style.background = r.ok ? '#DCFCE7' : '#FEE2E2';
+      result.style.border = '1px solid ' + (r.ok ? '#10B981' : '#DC2626');
+      result.style.color = r.ok ? '#065F46' : '#991B1B';
+      result.innerHTML = `<strong>${r.ok ? '✅' : '❌'} ${esc(r.message || 'OK')}</strong>${r.details ? '<pre style="font-size:11px;margin:8px 0 0;max-height:120px;overflow:auto;background:rgba(0,0,0,0.05);padding:6px;border-radius:4px">' + esc(JSON.stringify(r.details, null, 2).slice(0, 800)) + '</pre>' : ''}`;
+    }
+  } catch (e) {
+    if (result) {
+      result.style.display = 'block';
+      result.style.background = '#FEE2E2';
+      result.style.color = '#991B1B';
+      result.innerHTML = '❌ Chyba: ' + esc(e.message);
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔌 Test'; }
+  }
+};
+
+// 🆕 v3.0.38 — Sync menu
+window.courierSyncMenu = async function(sluzba) {
+  if (!confirm('Pošle všechny tvoje restaurační výrobky do ' + sluzba + ' katalogu. Pokračovat?')) return;
+  const result = document.getElementById('ci-result');
+  if (result) { result.style.display = 'block'; result.style.background = '#FEF3C7'; result.style.color = '#78350F'; result.innerHTML = '⏳ Sync menu…'; }
+  try {
+    const r = await api('admin_couriers.php?action=sync_menu', { method:'POST', body: JSON.stringify({ sluzba })});
+    if (result) {
+      result.style.background = r.ok ? '#DCFCE7' : '#FEE2E2';
+      result.style.color = r.ok ? '#065F46' : '#991B1B';
+      result.style.border = '1px solid ' + (r.ok ? '#10B981' : '#DC2626');
+      result.innerHTML = `<strong>${r.ok ? '✅' : '❌'} ${esc(r.message || (r.ok ? 'Menu synchronizováno' : 'Sync selhal'))}</strong>${r.items_count ? `<br><small>Položek: ${r.items_count}</small>` : ''}`;
+    }
+  } catch (e) {
+    if (result) { result.style.background = '#FEE2E2'; result.style.color = '#991B1B'; result.innerHTML = '❌ ' + esc(e.message); }
+  }
+};
+
+// 🆕 v3.0.38 — Webhook log viewer
+window.courierWebhookLog = async function(sluzba) {
+  try {
+    const r = await api('admin_couriers.php?action=webhook_log&sluzba=' + sluzba);
+    const log = r.log || [];
+    openModal('📋 Webhook log — ' + sluzba, `
+      ${log.length === 0 ? `
+        <div style="text-align:center;padding:30px;color:var(--text-3)">
+          <div style="font-size:42px;opacity:0.4">📭</div>
+          <h3 style="margin:10px 0 6px;font-size:14px">Žádné příchozí eventy</h3>
+          <p style="font-size:12px">${esc(r.note || 'Až přijde první webhook, uvidíš ho zde s celým payloadem.')}</p>
+        </div>
+      ` : `
+        <div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto">
+          ${log.map(l => `
+            <details style="background:var(--surface-2);border-radius:8px;padding:10px 12px;border-left:3px solid ${l.event.includes('error') || l.event.includes('rejected') ? '#DC2626' : '#10B981'}">
+              <summary style="cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-size:13px;font-weight:600">
+                <span>${esc(l.event)} ${l.objednavka_id ? `<span style="background:#DBEAFE;color:#1E40AF;padding:1px 8px;border-radius:999px;font-size:11px;margin-left:6px">Obj #${l.objednavka_id}</span>` : ''}</span>
+                <span style="color:var(--text-3);font-size:11px;white-space:nowrap">${esc(l.received_at)} · IP ${esc(l.ip || '-')}</span>
+              </summary>
+              <pre style="margin:8px 0 0;font-size:11px;padding:8px;background:#fff;border-radius:6px;overflow:auto;max-height:200px;white-space:pre-wrap">${esc(l.payload || '{}')}</pre>
+            </details>
+          `).join('')}
+        </div>
+      `}
+      <div class="form-actions">
+        <button class="btn-secondary" onclick="closeModal();courierIntegrationEdit('${sluzba}')">← Zpět na integraci</button>
+      </div>
+    `);
+  } catch (e) { alert('Chyba: ' + e.message); }
 };
 
 window.courierIntegrationSave = async function(sluzba) {

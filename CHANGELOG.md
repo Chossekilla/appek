@@ -6,6 +6,55 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.38] — 2026-05-26
+
+### 🍔 Plnohodnotná LIVE integrace pro Wolt / Bolt Food / Dáme jídlo / Foodora
+Po zpětné vazbě uživatele _"musí to být, tak to dodělej"_ — kompletně přepracované od stubu na full backend.
+
+**Nová library: `api/_delivery_aggregators.php`** (~700 řádků):
+- HTTP klient přes curl (žádné Composer dependencies)
+- Třídy `Wolt_Client`, `BoltFood_Client`, `DameJidlo_Client`, `Foodora_Client` — společný interface
+- Per-service: `test()` · `pushStatus()` · `syncMenu()` · `acknowledgeOrder()` · `parseInboundOrder()` · `verifySignature()`
+- HMAC-SHA256 signature verification pro každý webhook
+- Mapping stavů: naše 6 stavů ↔ jejich 5-7 stavů per service
+- Auto-acknowledge Wolt (musí být do 5 min)
+
+**4 nové webhook endpointy** (public, signature-verified):
+- `api/wolt_webhook.php` (`X-Wolt-Signature`)
+- `api/bolt_food_webhook.php` (`X-Bolt-Signature`)
+- `api/damejidlo_webhook.php` (`X-DameJidlo-Signature`)
+- `api/foodora_webhook.php` (`X-DH-Signature`)
+- Event handlery: order.created → vytvoří objednávku · order.cancelled → stav zrušena · order.delivered → stav doručena
+- `delivery_webhook_log` tabulka pro debug + audit (poslední 30 eventů per service)
+
+**Nové akce v `admin_couriers.php`:**
+- `?action=test_integration` — ping API, ověří credentials (Wolt: `GET /venues/{id}/status`, Bolt: `GET /v1/providers/{id}`, Dáme jídlo: `GET /v1/restaurants/{id}`, Foodora: `GET /v1/vendors/{id}`)
+- `?action=sync_menu` — push naše restaurační výrobky do jejich katalogu (kategorie + položky + ceny + obrázky)
+- `?action=push_status` — manuální push stavu pro konkrétní objednávku
+- `?action=webhook_urls` — vrátí URL které user vloží do partner portalu
+- `?action=webhook_log&sluzba=X` — poslední příchozí eventy
+- **Auto-push stavu** při změně v `delivery_status` — pokud má objednávka externí mapování, automaticky pošle do služby
+
+**Nová tabulka `delivery_external_orders`** — mapování náš id ↔ jejich external_id + raw payload + last status push.
+
+**UI v `admin/admin.js` — kompletně přepracovaný integration modal:**
+- Live status badge (🟢 aktivní / ⚪ vypnutá) + Test tlačítko v hlavičce
+- Help banner s odkazem na partner portal + API docs per service
+- Per-service portal info (Wolt → merchant.wolt.com, Bolt → partners.bolt.eu/food, atd.)
+- **Webhook URL display** s "Kopírovat" tlačítkem — user jen vloží do partner portalu
+- Pokročilé akce: Sync menu · Webhook log viewer
+- Test výsledky inline (zelený OK / červený error s detaily)
+- Updated text: ❌ "Plánovaná integrace, manuální evidence" → ✅ "Live integrace aktivní"
+
+### 📱 Mobile UX fixes (user feedback)
+- **DL přetékaly na mobilním přehledu** → CSS safety net: `min-width: 0` + `overflow: hidden` + `overflow-wrap: anywhere` na `.recent-card` a buňkách
+- **Sidebar logo (písmeno "A" + brand text)** → nyní klikatelné, navigates na dashboard. Hover state + tooltip "🏠 Domů — Přehled"
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.37→3.0.38, admin.js, sw.js, index.html versioned assets
+
+---
+
 ## [3.0.37] — 2026-05-26
 
 ### ⏱️ Doba přípravy — jen jídla & nápoje (žádný chleba)

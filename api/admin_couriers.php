@@ -16,6 +16,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_packages_lib.php';
+require_once __DIR__ . '/_delivery_aggregators.php'; // 🆕 v3.0.38 — Wolt/Bolt/Dáme jídlo/Foodora live integrace
 
 cors_headers();
 require_admin();
@@ -170,6 +171,29 @@ if ($action === 'delivery_status' && $method === 'POST') {
     if ($st === 'doruceno')   $setExtra = ', cas_doruceno = NOW()';
     $pdo->prepare("UPDATE courier_deliveries SET stav=:s $setExtra WHERE id=:id")
         ->execute(['s'=>$st,'id'=>$id]);
+
+    // 🆕 v3.0.38 — Auto-push do externí služby pokud delivery má objednavka_id mapovaný na externí
+    try {
+        da_ensure_mapping_table();
+        $extRow = $pdo->prepare("SELECT deo.sluzba, deo.external_id
+            FROM courier_deliveries cd
+            JOIN delivery_external_orders deo ON deo.objednavka_id = cd.objednavka_id
+            WHERE cd.id = :id LIMIT 1");
+        $extRow->execute(['id' => $id]);
+        $ext = $extRow->fetch();
+        if ($ext) {
+            // Mapping courier stav → our objednavka stav
+            $mapStavu = [
+                'vyzvednuto' => 'expedovana',
+                'na_ceste'   => 'na_ceste',
+                'doruceno'   => 'dorucena',
+                'zruseno'    => 'zrusena',
+            ];
+            $ourStav = $mapStavu[$st] ?? null;
+            if ($ourStav) da_push_status($ext['sluzba'], $ext['external_id'], $ourStav);
+        }
+    } catch (Throwable $e) { /* tichá chyba — sync ne-fatal */ }
+
     json_response(['ok'=>true]);
 }
 
@@ -195,6 +219,88 @@ if ($action === 'integration' && $method === 'POST') {
         'pp'=>$provize,  'pp2'=>$provize,
     ]);
     json_response(['ok'=>true]);
+}
+
+// 🆕 v3.0.38 — TEST INTEGRACE (ping API, ověří credentials)
+if ($action === 'test_integration' && $method === 'POST') {
+    $d = json_input();
+    $sl = $d['sluzba'] ?? '';
+    if (!in_array($sl, ['wolt','bolt','dame_jidlo','foodora'], true)) {
+        json_error('Neplatná služba', 400);
+    }
+    try {
+        $r = da_test($sl);
+        json_response($r);
+    } catch (Throwable $e) {
+        json_error_safe('Test selhal', $e, 500);
+    }
+}
+
+// 🆕 v3.0.38 — SYNC MENU (push náš katalog do služby)
+if ($action === 'sync_menu' && $method === 'POST') {
+    $d = json_input();
+    $sl = $d['sluzba'] ?? '';
+    if (!in_array($sl, ['wolt','bolt','dame_jidlo','foodora'], true)) {
+        json_error('Neplatná služba', 400);
+    }
+    try {
+        $r = da_sync_menu($sl);
+        json_response($r);
+    } catch (Throwable $e) {
+        json_error_safe('Sync selhal', $e, 500);
+    }
+}
+
+// 🆕 v3.0.38 — PUSH STATUS (vlastní stav → externí služba)
+//   Pokud má objednávka externí mapování, pošli stav do služby.
+if ($action === 'push_status' && $method === 'POST') {
+    $d = json_input();
+    $objId = (int) ($d['objednavka_id'] ?? 0);
+    $stav  = $d['stav'] ?? '';
+    if (!$objId || !$stav) json_error('Chybí objednavka_id nebo stav', 400);
+    try {
+        da_ensure_mapping_table();
+        $st = $pdo->prepare("SELECT sluzba, external_id FROM delivery_external_orders WHERE objednavka_id = :o");
+        $st->execute(['o' => $objId]);
+        $rows = $st->fetchAll();
+        if (empty($rows)) {
+            json_response(['ok' => true, 'skipped' => true, 'message' => 'Objednávka není z externí služby']);
+        }
+        $results = [];
+        foreach ($rows as $row) {
+            $results[$row['sluzba']] = da_push_status($row['sluzba'], $row['external_id'], $stav);
+        }
+        json_response(['ok' => true, 'pushed' => $results]);
+    } catch (Throwable $e) {
+        json_error_safe('Push status selhal', $e, 500);
+    }
+}
+
+// 🆕 v3.0.38 — WEBHOOK URLS (vrátí URL které user vloží do partner portalu)
+if ($action === 'webhook_urls' && $method === 'GET') {
+    json_response([
+        'urls' => [
+            'wolt'       => da_webhook_url('wolt'),
+            'bolt'       => da_webhook_url('bolt'),
+            'dame_jidlo' => da_webhook_url('dame_jidlo'),
+            'foodora'    => da_webhook_url('foodora'),
+        ],
+    ]);
+}
+
+// 🆕 v3.0.38 — WEBHOOK LOG (poslední příchozí eventy pro debug)
+if ($action === 'webhook_log' && $method === 'GET') {
+    try {
+        $sl = $_GET['sluzba'] ?? '';
+        $where = '';
+        $params = [];
+        if ($sl) { $where = 'WHERE sluzba = :s'; $params['s'] = $sl; }
+        $st = $pdo->prepare("SELECT * FROM delivery_webhook_log $where ORDER BY received_at DESC LIMIT 30");
+        $st->execute($params);
+        json_response(['log' => $st->fetchAll()]);
+    } catch (Throwable $e) {
+        json_response(['log' => [], 'note' => 'Žádný webhook log zatím (tabulka se vytvoří při prvním přijatém eventu)']);
+    }
 }
 
 // ────── DEFAULT GET: dashboard ──────
