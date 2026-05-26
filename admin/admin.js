@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.23';
+const APPEK_ADMIN_JS_VERSION = '3.0.24';
 
 (async function detectStaleCode() {
   try {
@@ -15711,7 +15711,14 @@ async function renderRestaurantPage() {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn-back" onclick="navigate('dashboard')" title="Zpět na Přehled"><span class="btn-back-arrow">←</span> <span class="btn-back-lbl">Přehled</span></button>
-        <button class="btn-secondary" onclick="seedRestaurantPack()" title="Naseed demo data: 10 výrobků (pizzy, káva, saláty, dezerty) + 18 surovin s nutričními hodnotami + receptury" style="background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-color:#F59E0B;color:#92400E;font-weight:700">🍕 Naseed demo data</button>
+        <details style="position:relative">
+          <summary style="cursor:pointer;list-style:none;padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;user-select:none">⚙️ Více ▾</summary>
+          <div style="position:absolute;top:100%;right:0;margin-top:6px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);padding:6px;min-width:240px;z-index:20">
+            <button onclick="seedRestaurantPack()" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:none;border:none;border-radius:6px;cursor:pointer;text-align:left;font-size:13px;font-weight:600" onmouseover="this.style.background='#FEF3C7'" onmouseout="this.style.background='none'">
+              <span style="font-size:18px">🍕</span><span>Naseed demo data</span>
+            </button>
+          </div>
+        </details>
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
@@ -15869,13 +15876,20 @@ async function renderRestaurantTables() {
         <button class="btn-secondary" onclick="addRestaurantTable()">+ Nový stůl</button>
       </div>
     </div>
+    <!-- 🎨 v3.0.24 — Sjednoceno: 4 tabs místo 6 (Layout / Rezervace / QR / Účty). KDS otevřeš z Provoz hubu. -->
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'map' ? 'active' : ''}" onclick="state._rtTab='map';renderRestaurantTables()">🗺️ Floor plan</button>
-      <button class="nastaveni-tab ${tab === 'kds' ? 'active' : ''}" onclick="state._rtTab='kds';renderRestaurantTables()">👨‍🍳 KDS (kuchyně)</button>
-      <button class="nastaveni-tab ${tab === 'open_ucty' ? 'active' : ''}" onclick="state._rtTab='open_ucty';renderRestaurantTables()">🧾 Otevřené účty</button>
-      <button class="nastaveni-tab ${tab === 'qr_pending' ? 'active' : ''}" onclick="state._rtTab='qr_pending';renderRestaurantTables()">📲 QR objednávky</button>
-      <button class="nastaveni-tab ${tab === 'timeline' ? 'active' : ''}" onclick="state._rtTab='timeline';renderRestaurantTables()">⏱️ Timeline rezervací</button>
-      <button class="nastaveni-tab ${tab === 'list' ? 'active' : ''}" onclick="state._rtTab='list';renderRestaurantTables()">📋 Seznam rezervací</button>
+      <button class="nastaveni-tab ${tab === 'map' ? 'active' : ''}" onclick="state._rtTab='map';renderRestaurantTables()" title="Floor plan editor + mapa">
+        🗺️ Layout
+      </button>
+      <button class="nastaveni-tab ${(tab === 'timeline' || tab === 'list') ? 'active' : ''}" onclick="state._rtTab='timeline';renderRestaurantTables()" title="Timeline + seznam rezervací">
+        📅 Rezervace
+      </button>
+      <button class="nastaveni-tab ${tab === 'open_ucty' ? 'active' : ''}" onclick="state._rtTab='open_ucty';renderRestaurantTables()" title="Otevřené POS účty">
+        🧾 Otevřené účty
+      </button>
+      <button class="nastaveni-tab ${tab === 'qr_pending' ? 'active' : ''}" onclick="state._rtTab='qr_pending';renderRestaurantTables()" title="QR objednávky čekající na schválení">
+        📲 QR queue
+      </button>
     </div>
     <div id="rt-body">${skeletonCards(4)}</div>
   `;
@@ -15910,20 +15924,26 @@ async function renderRestaurantTables() {
     return;
   }
 
-  if (tab === 'timeline') {
-    // 🆕 v3.0.19 — Fetchni open POS účty (live obsazenost) + spoj se stoly
-    document.getElementById('rt-body').innerHTML = statsBar + '<div style="padding:30px;text-align:center;color:var(--text-3)">⏳ Načítám otevřené účty…</div>';
+  // 🎨 v3.0.24 — Rezervace tab kombinuje Timeline + Seznam jako segment switch
+  if (tab === 'timeline' || tab === 'list') {
+    const subView = state._rtRezSubView || 'timeline';
+    const segSwitch = `
+      <div style="display:flex;gap:6px;margin-bottom:14px;padding:4px;background:var(--surface-2);border-radius:10px;width:fit-content">
+        <button class="${subView === 'timeline' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='timeline';state._rtTab='timeline';renderRestaurantTables()" style="padding:8px 16px;font-size:13px;border:none">⏱️ Timeline</button>
+        <button class="${subView === 'list' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='list';state._rtTab='list';renderRestaurantTables()" style="padding:8px 16px;font-size:13px;border:none">📋 Seznam</button>
+      </div>
+    `;
+    if (subView === 'list' || tab === 'list') {
+      document.getElementById('rt-body').innerHTML = statsBar + segSwitch + renderRestaurantList(stoly, today);
+      return;
+    }
+    document.getElementById('rt-body').innerHTML = statsBar + segSwitch + '<div style="padding:30px;text-align:center;color:var(--text-3)">⏳ Načítám otevřené účty…</div>';
     api('admin_pos.php?action=open_ucty').then(r => {
       const openUcty = (r && r.ucty) || [];
-      document.getElementById('rt-body').innerHTML = statsBar + renderRestaurantTimeline(stoly, today, openUcty);
+      document.getElementById('rt-body').innerHTML = statsBar + segSwitch + renderRestaurantTimeline(stoly, today, openUcty);
     }).catch(() => {
-      document.getElementById('rt-body').innerHTML = statsBar + renderRestaurantTimeline(stoly, today, []);
+      document.getElementById('rt-body').innerHTML = statsBar + segSwitch + renderRestaurantTimeline(stoly, today, []);
     });
-    return;
-  }
-
-  if (tab === 'list') {
-    document.getElementById('rt-body').innerHTML = statsBar + renderRestaurantList(stoly, today);
     return;
   }
 
@@ -16270,25 +16290,29 @@ function renderFloorPlan(data, today) {
         ` : ''}
       </div>
       ${editMode ? `
-        <!-- 🆕 v3.0.17 — Quick-add toolbar (klik = přidá stůl do volného místa) -->
-        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text-3)">
-          <span style="font-weight:700;color:var(--text-2);margin-right:2px">+ Rychle:</span>
-          <button onclick="rtQuickAddTable('square2')" title="Čtverec pro 2 osoby"  style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">⬜ 2</button>
-          <button onclick="rtQuickAddTable('square4')" title="Čtverec pro 4 osoby"  style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">⬜ 4</button>
-          <button onclick="rtQuickAddTable('round2')"  title="Kruh pro 2"            style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">⭕ 2</button>
-          <button onclick="rtQuickAddTable('round4')"  title="Kruh pro 4"            style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">⭕ 4</button>
-          <button onclick="rtQuickAddTable('rect6')"   title="Obdélník pro 6"        style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">▭ 6</button>
-          <button onclick="rtQuickAddTable('rect8')"   title="Obdélník pro 8"        style="padding:6px 10px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">▭ 8</button>
-          <button onclick="rtQuickAddTable('bar')"     title="Barpult (4 míst)"      style="padding:6px 10px;border:1.5px solid #FBBF24;background:#FFFBEB;color:#92400E;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">🍺 Bar</button>
-          <button onclick="rtQuickAddTable('lounge')"  title="Salonek (8 míst)"      style="padding:6px 10px;border:1.5px solid #C4B5FD;background:#F5F3FF;color:#5B21B6;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px">🛋️ Salonek</button>
-        </div>
+        <!-- 🎨 v3.0.24 — Quick-add v collapsible details (default zavřené, jen na "+ Přidat stůl") -->
+        <details style="position:relative">
+          <summary style="cursor:pointer;padding:8px 14px;background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1.5px solid #F59E0B;border-radius:8px;font-size:13px;font-weight:700;color:#92400E;list-style:none;user-select:none">+ Přidat stůl ▾</summary>
+          <div style="position:absolute;top:100%;left:0;margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;background:#fff;padding:10px;border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.12);z-index:5;min-width:280px">
+            <button onclick="rtQuickAddTable('square2')" title="Čtverec pro 2"  style="padding:8px 12px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px">⬜ 2</button>
+            <button onclick="rtQuickAddTable('square4')" title="Čtverec pro 4"  style="padding:8px 12px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px">⬜ 4</button>
+            <button onclick="rtQuickAddTable('round2')"  title="Kruh pro 2"     style="padding:8px 12px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px">⭕ 2</button>
+            <button onclick="rtQuickAddTable('round4')"  title="Kruh pro 4"     style="padding:8px 12px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px">⭕ 4</button>
+            <button onclick="rtQuickAddTable('rect6')"   title="Obdélník pro 6" style="padding:8px 12px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px">▭ 6</button>
+            <button onclick="rtQuickAddTable('rect8')"   title="Obdélník pro 8" style="padding:8px 12px;border:1.5px solid #E5E7EB;background:#fff;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px">▭ 8</button>
+            <button onclick="rtQuickAddTable('bar')"     title="Barpult (4)"    style="padding:8px 12px;border:1.5px solid #FBBF24;background:#FFFBEB;color:#92400E;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px">🍺 Bar</button>
+            <button onclick="rtQuickAddTable('lounge')"  title="Salonek (8)"    style="padding:8px 12px;border:1.5px solid #C4B5FD;background:#F5F3FF;color:#5B21B6;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px">🛋️ Salonek</button>
+            <div style="flex-basis:100%;font-size:10px;color:var(--text-3);margin-top:4px;text-align:center">💡 nebo <strong>dvojklik</strong> do prázdna v mapě</div>
+          </div>
+        </details>
       ` : ''}
-      <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--text-3);flex-wrap:wrap">
-        <span title="V aktivní zóně"><strong style="color:#16A34A">${stateStats.free}</strong> volných</span>
-        <span><strong style="color:#F59E0B">${stateStats.reserved}</strong> rezerv.</span>
-        <span><strong style="color:#DC2626">${stateStats.occupied}</strong> obsazeno</span>
-        ${stateStats.cleaning ? `<span><strong style="color:#9CA3AF">${stateStats.cleaning}</strong> úklid</span>` : ''}
-        ${stateStats.attention ? `<span><strong style="color:#9333EA">${stateStats.attention}</strong> pozornost</span>` : ''}
+      <!-- 🎨 v3.0.24 — Stats jako kompaktní pill badges -->
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span style="background:#DCFCE7;color:#15803D;font-size:12px;font-weight:800;padding:4px 10px;border-radius:99px;border:1px solid #86EFAC">${stateStats.free} 🟢</span>
+        ${stateStats.reserved ? `<span style="background:#FEF3C7;color:#92400E;font-size:12px;font-weight:800;padding:4px 10px;border-radius:99px;border:1px solid #FCD34D">${stateStats.reserved} 🟡</span>` : ''}
+        ${stateStats.occupied ? `<span style="background:#FED7AA;color:#9A3412;font-size:12px;font-weight:800;padding:4px 10px;border-radius:99px;border:1px solid #FB923C">${stateStats.occupied} 🟠</span>` : ''}
+        ${stateStats.cleaning ? `<span style="background:#F3F4F6;color:#374151;font-size:12px;font-weight:800;padding:4px 10px;border-radius:99px;border:1px solid #D1D5DB">${stateStats.cleaning} ⚪</span>` : ''}
+        ${stateStats.attention ? `<span style="background:#F3E8FF;color:#6B21A8;font-size:12px;font-weight:800;padding:4px 10px;border-radius:99px;border:1px solid #C4B5FD">${stateStats.attention} 🟣</span>` : ''}
       </div>
     </div>
 
@@ -16405,7 +16429,7 @@ function renderTableTile(t, editMode) {
       ${t.mist > 0 ? `<div style="font-size:${w >= 100 ? '12px' : '10px'};color:${sg.text};opacity:0.8;font-weight:700">👥 ${t.mist}</div>` : ''}
       ${timerLabel}
       ${nextRes}
-      ${editMode ? `<div style="position:absolute;top:-9px;right:-9px;background:#fff;border:2px solid #DC2626;color:#DC2626;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.15)" onclick="event.stopPropagation();rtDeleteTable(${t.id})" title="Smazat stůl">✕</div>` : ''}
+      ${editMode ? `<div class="rt-tile-del" style="position:absolute;top:-9px;right:-9px;background:#fff;border:2px solid #DC2626;color:#DC2626;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.15);opacity:0;transition:opacity 0.15s ease" onclick="event.stopPropagation();rtDeleteTable(${t.id})" title="Smazat stůl">✕</div>` : ''}
     </div>
   `;
 }

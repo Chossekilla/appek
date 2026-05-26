@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.23";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.24";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18559,4 +18559,13 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
 @keyframes rt-status-dot-pulse {
   0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 0 rgba(234,88,12,0.7); }
   50%      { box-shadow: 0 0 0 2px #fff, 0 0 0 6px rgba(234,88,12,0); }
+}
+
+/* 🎨 v3.0.24 — Tile delete button jen na hover (méně vizuálního šumu) */
+.rt-table-tile:hover .rt-tile-del,
+.rt-tile-del:hover { opacity: 1 !important; }
+
+/* Touch devices: vždy zobraz (no hover) */
+@media (hover: none) {
+  .rt-tile-del { opacity: 1 !important; }
 }
