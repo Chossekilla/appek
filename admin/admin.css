@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.40";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.41";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12671,7 +12671,7 @@ html.density-extreme .card-block.desktop-only-block {
   .pwa-install-banner { display: none !important; }
 }
 
-/* 🆕 v3.0.39 — Pull-to-refresh indikátor */
+/* 🆕 v3.0.39, 🎨 v3.0.41 — Pull-to-refresh indikátor (vylepšeno s opacity + transformami JS-driven) */
 .ptr-indicator {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0) + 8px);
@@ -12681,23 +12681,214 @@ html.density-extreme .card-block.desktop-only-block {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--surface);
+  background: var(--surface, #fff);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 22px;
-  transition: transform 0.18s ease;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+  opacity: 0;
 }
 .ptr-indicator.visible {
-  transform: translate(-50%, 0);
+  opacity: 1;
 }
 .ptr-indicator.refreshing {
-  animation: ptr-spin 0.9s linear infinite;
+  animation: ptr-spin 0.9s linear infinite !important;
+  opacity: 1;
 }
 @keyframes ptr-spin {
-  to { transform: translate(-50%, 0) rotate(360deg); }
+  from { transform: translate(-50%, 0) rotate(0deg); }
+  to   { transform: translate(-50%, 0) rotate(360deg); }
 }
+
+/* 🆕 v3.0.41 — OFFLINE BANNER (top fixed, universal — desktop i mobile) */
+#appek-offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+  border-bottom: 1.5px solid #F59E0B;
+  color: #78350F;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.18);
+  animation: off-banner-slidedown 0.32s ease-out;
+  padding-top: calc(8px + env(safe-area-inset-top, 0));
+}
+#appek-offline-banner .off-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #DC2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+  animation: off-dot-pulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+#appek-offline-banner .off-msg {
+  color: #92400E;
+  font-weight: 500;
+  font-size: 12px;
+  flex: 1;
+}
+#appek-offline-banner.off-fade-out {
+  animation: off-banner-slideup 0.4s ease-in forwards;
+}
+@keyframes off-banner-slidedown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes off-banner-slideup {
+  to { transform: translateY(-100%); opacity: 0; }
+}
+@keyframes off-dot-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2); }
+  50%      { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.15); }
+}
+@media (max-width: 600px) {
+  #appek-offline-banner .off-msg { display: none; }
+}
+
+/* 🆕 v3.0.41 — QUICK ACTIONS SHEET (long-press na FAB) */
+#appek-quick-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+#appek-quick-sheet.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+#appek-quick-sheet .qs-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+#appek-quick-sheet .qs-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  padding: 16px 20px calc(24px + env(safe-area-inset-bottom, 0));
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(.2,.8,.2,1);
+  margin-bottom: 0;
+}
+#appek-quick-sheet.show .qs-sheet {
+  transform: translateY(0);
+}
+html.dark #appek-quick-sheet .qs-sheet,
+html.theme-dark #appek-quick-sheet .qs-sheet {
+  background: #1c1c1e;
+  color: #fff;
+}
+#appek-quick-sheet .qs-handle {
+  width: 44px;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 999px;
+  margin: 0 auto 14px;
+}
+html.dark #appek-quick-sheet .qs-handle,
+html.theme-dark #appek-quick-sheet .qs-handle {
+  background: rgba(255, 255, 255, 0.22);
+}
+#appek-quick-sheet .qs-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-3, #6b6b70);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+  text-align: center;
+}
+#appek-quick-sheet .qs-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+#appek-quick-sheet .qs-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 12px;
+  background: var(--surface-2, #f5f5f7);
+  border: 1px solid var(--border, #e5e5ea);
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  color: var(--text-1, #1d1d1f);
+  transition: transform 0.12s ease, background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+#appek-quick-sheet .qs-item:active {
+  transform: scale(0.96);
+  background: var(--primary-light, rgba(186, 117, 23, 0.12));
+}
+html.dark #appek-quick-sheet .qs-item,
+html.theme-dark #appek-quick-sheet .qs-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+#appek-quick-sheet .qs-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+#appek-quick-sheet .qs-label {
+  font-size: 12.5px;
+  text-align: center;
+  line-height: 1.2;
+}
+#appek-quick-sheet .qs-cancel {
+  width: 100%;
+  padding: 14px;
+  background: var(--surface-2, #f5f5f7);
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-2, #6e6e73);
+  cursor: pointer;
+  font-family: inherit;
+}
+html.dark #appek-quick-sheet .qs-cancel,
+html.theme-dark #appek-quick-sheet .qs-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+/* Skrýt sheet na desktop (jen mobile UX) */
+@media (min-width: 769px) {
+  #appek-quick-sheet { display: none !important; }
+}
+
+/* 🆕 v3.0.41 — SWIPE-TO-ACTION underlay */
+.swipe-underlay {
+  border-radius: inherit;
+}
+.swipe-underlay .swipe-action-right,
+.swipe-underlay .swipe-action-left {
+  border-radius: inherit;
+}
+
 .package-subheader {
   display: none;
   align-items: center;

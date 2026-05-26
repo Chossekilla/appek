@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.40';
+const APPEK_ADMIN_JS_VERSION = '3.0.41';
 
 (async function detectStaleCode() {
   try {
@@ -2552,6 +2552,378 @@ window.makeCallLink = function(phone) {
   return 'tel:' + String(phone).replace(/[^+0-9]/g, '');
 };
 
+// =============================================================
+// 📱 v3.0.41 — POCKET UX UPGRADE — Pull-to-refresh, Swipe-to-action,
+//   Long-press quick-sheet, Offline detection, Haptic feedback,
+//   Camera barcode FAB (extend APPEK_FAB_CONFIG)
+// =============================================================
+
+// 📳 HAPTIC FEEDBACK — wrapper kolem navigator.vibrate
+//   Patterns: 'light' (tap), 'medium' (akce), 'success' (potvrzení),
+//   'warning' (varování), 'error' (chyba), 'heavy' (důležité)
+window.haptic = function(type = 'light') {
+  if (!navigator.vibrate) return; // iOS Safari nemá; bezpečně skipne
+  // Respekt prefers-reduced-motion (user může mít vypnutý vibration)
+  try {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  } catch (e) {}
+  const patterns = {
+    light:   10,
+    medium:  20,
+    heavy:   40,
+    success: [40, 30, 40],
+    warning: [60, 40, 60],
+    error:   [80, 50, 80, 50, 80],
+    tick:    [3, 10, 3], // PTR tick
+  };
+  try { navigator.vibrate(patterns[type] || patterns.light); } catch (e) {}
+};
+
+// 📡 OFFLINE DETECTION — banner nahoře + auto-reload pokud znovu online
+let _appekOfflineBanner = null;
+function appekUpdateOnlineStatus() {
+  const isOffline = !navigator.onLine;
+  if (isOffline && !_appekOfflineBanner) {
+    _appekOfflineBanner = document.createElement('div');
+    _appekOfflineBanner.id = 'appek-offline-banner';
+    _appekOfflineBanner.innerHTML = `
+      <span class="off-dot"></span>
+      <strong>📡 Offline</strong>
+      <span class="off-msg">Bez internetu — uložené data fungují, nové se synchronizují později</span>
+    `;
+    document.body.appendChild(_appekOfflineBanner);
+    try { haptic('warning'); } catch (e) {}
+  } else if (!isOffline && _appekOfflineBanner) {
+    _appekOfflineBanner.classList.add('off-fade-out');
+    setTimeout(() => {
+      if (_appekOfflineBanner) { _appekOfflineBanner.remove(); _appekOfflineBanner = null; }
+    }, 400);
+    try { haptic('success'); } catch (e) {}
+  }
+}
+window.addEventListener('online', appekUpdateOnlineStatus);
+window.addEventListener('offline', appekUpdateOnlineStatus);
+
+// 🔄 PULL-TO-REFRESH — touch handler na #content
+//   Trigger jen pokud scrollTop=0 a vertical pull > 80px
+let _ptrStart = null, _ptrIndicator = null, _ptrRefreshing = false;
+function appekInitPullToRefresh() {
+  const target = document.getElementById('content') || document.body;
+  if (target.dataset.ptrBound) return;
+  target.dataset.ptrBound = '1';
+
+  // Indikátor — vytvoř jednou
+  if (!_ptrIndicator) {
+    _ptrIndicator = document.createElement('div');
+    _ptrIndicator.className = 'ptr-indicator';
+    _ptrIndicator.innerHTML = '🔄';
+    document.body.appendChild(_ptrIndicator);
+  }
+
+  target.addEventListener('touchstart', (e) => {
+    if (_ptrRefreshing) return;
+    // Jen pokud jsme úplně nahoře a používáme prst (ne myš)
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    if (scrollY > 5) return;
+    _ptrStart = { y: e.touches[0].clientY, t: Date.now() };
+  }, { passive: true });
+
+  target.addEventListener('touchmove', (e) => {
+    if (!_ptrStart || _ptrRefreshing) return;
+    const dy = e.touches[0].clientY - _ptrStart.y;
+    if (dy <= 0) { _ptrStart = null; _ptrIndicator.classList.remove('visible'); return; }
+    // Vizuální feedback
+    const progress = Math.min(dy / 120, 1);
+    _ptrIndicator.style.transform = `translate(-50%, ${Math.min(dy * 0.5, 60)}px) rotate(${progress * 360}deg)`;
+    _ptrIndicator.classList.add('visible');
+    _ptrIndicator.style.opacity = String(0.4 + progress * 0.6);
+    // Haptic tick na threshold
+    if (dy >= 80 && !_ptrStart.threshHit) {
+      _ptrStart.threshHit = true;
+      try { haptic('tick'); } catch (e) {}
+    }
+  }, { passive: true });
+
+  target.addEventListener('touchend', () => {
+    if (!_ptrStart || _ptrRefreshing) return;
+    const triggered = _ptrStart.threshHit;
+    _ptrStart = null;
+    if (triggered) {
+      _ptrRefreshing = true;
+      _ptrIndicator.classList.add('refreshing');
+      _ptrIndicator.style.transform = 'translate(-50%, 0)';
+      _ptrIndicator.style.opacity = '1';
+      try { haptic('medium'); } catch (e) {}
+      // Re-trigger aktuální stránky
+      const page = state.current || 'dashboard';
+      try {
+        navigate(page);
+      } catch (e) {}
+      setTimeout(() => {
+        _ptrRefreshing = false;
+        _ptrIndicator.classList.remove('refreshing', 'visible');
+        _ptrIndicator.style.transform = '';
+        _ptrIndicator.style.opacity = '';
+      }, 900);
+    } else {
+      _ptrIndicator.classList.remove('visible');
+      _ptrIndicator.style.transform = '';
+      _ptrIndicator.style.opacity = '';
+    }
+  });
+}
+
+// 👆 SWIPE-TO-ACTION — helper pro list items
+//   Použití: appekAddSwipeActions(el, { leftLabel:'🗑️', leftAction:()=>..., rightLabel:'📃', rightAction:()=>... })
+window.appekAddSwipeActions = function(el, opts = {}) {
+  if (!el || el.dataset.swipeBound) return;
+  el.dataset.swipeBound = '1';
+
+  let startX = 0, startY = 0, currentX = 0, swiping = false, lockedAxis = null;
+  const THRESHOLD = 80; // px pro execute akce
+  const MAX_PULL = 140;
+
+  // Vytvoř underlay layer pro action labels
+  const wrap = document.createElement('div');
+  wrap.className = 'swipe-underlay';
+  wrap.style.cssText = 'position:absolute;inset:0;display:flex;justify-content:space-between;align-items:center;border-radius:inherit;overflow:hidden;z-index:0;pointer-events:none';
+  if (opts.rightLabel) {
+    const r = document.createElement('div');
+    r.className = 'swipe-action-right';
+    r.style.cssText = 'flex:0 0 auto;padding:0 24px;height:100%;display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#10B981,#059669);color:#fff;font-weight:800;font-size:14px';
+    r.innerHTML = opts.rightLabel;
+    wrap.appendChild(r);
+  } else { wrap.appendChild(document.createElement('div')); }
+  if (opts.leftLabel) {
+    const l = document.createElement('div');
+    l.className = 'swipe-action-left';
+    l.style.cssText = 'flex:0 0 auto;padding:0 24px;height:100%;display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#DC2626,#B91C1C);color:#fff;font-weight:800;font-size:14px';
+    l.innerHTML = opts.leftLabel;
+    wrap.appendChild(l);
+  } else { wrap.appendChild(document.createElement('div')); }
+
+  // Wrap el v containeru s relative position
+  if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+  el.style.transition = 'transform 0.22s cubic-bezier(.2,.8,.2,1)';
+  el.parentNode.insertBefore(wrap, el);
+  wrap.style.position = 'absolute';
+  wrap.style.left = el.offsetLeft + 'px';
+  wrap.style.top = el.offsetTop + 'px';
+  wrap.style.width = el.offsetWidth + 'px';
+  wrap.style.height = el.offsetHeight + 'px';
+  el.style.position = 'relative';
+  el.style.zIndex = '1';
+
+  el.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    currentX = 0;
+    swiping = true;
+    lockedAxis = null;
+    el.style.transition = 'none';
+  }, { passive: true });
+
+  el.addEventListener('touchmove', (e) => {
+    if (!swiping) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (!lockedAxis) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        lockedAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      }
+    }
+    if (lockedAxis !== 'x') return;
+    currentX = Math.max(-MAX_PULL, Math.min(MAX_PULL, dx));
+    el.style.transform = `translateX(${currentX}px)`;
+    if (Math.abs(currentX) === THRESHOLD && !swiping.threshHit) {
+      swiping.threshHit = true; // mark
+      try { haptic('tick'); } catch (e) {}
+    }
+  }, { passive: true });
+
+  el.addEventListener('touchend', () => {
+    if (!swiping) return;
+    swiping = false;
+    el.style.transition = 'transform 0.22s cubic-bezier(.2,.8,.2,1)';
+    if (currentX <= -THRESHOLD && opts.leftAction) {
+      el.style.transform = `translateX(-${MAX_PULL}px)`;
+      try { haptic('medium'); } catch (e) {}
+      setTimeout(() => {
+        try { opts.leftAction(); } catch (err) { console.warn('[swipe] leftAction err', err); }
+        el.style.transform = '';
+      }, 220);
+    } else if (currentX >= THRESHOLD && opts.rightAction) {
+      el.style.transform = `translateX(${MAX_PULL}px)`;
+      try { haptic('medium'); } catch (e) {}
+      setTimeout(() => {
+        try { opts.rightAction(); } catch (err) { console.warn('[swipe] rightAction err', err); }
+        el.style.transform = '';
+      }, 220);
+    } else {
+      el.style.transform = '';
+    }
+  });
+};
+
+// 📋 LONG-PRESS QUICK ACTIONS SHEET — pro FAB
+//   Per-stránka 3-5 quick actions (subset APPEK_FAB_CONFIG)
+const APPEK_FAB_SHEET = {
+  dashboard: [
+    { icon: '🛒', label: 'Nová objednávka',  action: () => { navigate('objednavky'); setTimeout(() => { try { otevritNovouObjednavku(); } catch(e){} }, 250); } },
+    { icon: '📃', label: 'Nový dodací list', action: () => { try { otevritRucniDl(); } catch(e){} } },
+    { icon: '💰', label: 'Nová faktura',     action: () => { try { otevritRucniFakturu(); } catch(e){} } },
+    { icon: '👥', label: 'Nový odběratel',   action: () => { navigate('odberatele'); setTimeout(() => { try { editOdberatel(0); } catch(e){} }, 250); } },
+  ],
+  objednavky: [
+    { icon: '➕', label: 'Nová objednávka', action: () => { try { otevritNovouObjednavku(); } catch(e){} } },
+    { icon: '🔍', label: 'Filtrovat',       action: () => { document.getElementById('obj-filter-text')?.focus(); } },
+    { icon: '🔄', label: 'Obnovit',         action: () => navigate('objednavky') },
+  ],
+  vyrobky: [
+    { icon: '➕', label: 'Nový výrobek',    action: () => { try { openVyrobekModal(0); } catch(e){} } },
+    { icon: '📷', label: 'Skenovat čárkód', action: () => { window.appekScanFromVyrobky?.(); } },
+    { icon: '📥', label: 'Import výrobků',  action: () => { try { openImportVyrobky?.(); } catch(e){} } },
+    { icon: '🔄', label: 'Obnovit',         action: () => navigate('vyrobky') },
+  ],
+  dodaci_listy: [
+    { icon: '➕', label: 'Nový DL',         action: () => { try { otevritRucniDl(); } catch(e){} } },
+    { icon: '🛣️', label: 'Rozvozové trasy', action: () => navigate('rozvozy') },
+    { icon: '🔄', label: 'Obnovit',         action: () => navigate('dodaci_listy') },
+  ],
+  vyroba: [
+    { icon: '🥖', label: 'Výrobní list',    action: () => navigate('vyrobni_list') },
+    { icon: '📦', label: 'Sklad',           action: () => { try { navigate('sklad'); } catch(e) { navigate('vyroba'); } } },
+    { icon: '🥚', label: 'Suroviny',        action: () => { try { navigate('suroviny'); } catch(e) { navigate('vyroba'); } } },
+  ],
+};
+
+let _fabLongPressTimer = null;
+let _fabSheetOpen = false;
+
+function appekFabLongPressBind(fab) {
+  if (!fab || fab.dataset.lpBound) return;
+  fab.dataset.lpBound = '1';
+
+  const startPress = (ev) => {
+    if (_fabSheetOpen) return;
+    if (_fabLongPressTimer) clearTimeout(_fabLongPressTimer);
+    _fabLongPressTimer = setTimeout(() => {
+      const page = state.current || 'dashboard';
+      const sheet = APPEK_FAB_SHEET[page];
+      if (!sheet || sheet.length < 2) return;
+      try { haptic('medium'); } catch (e) {}
+      appekShowQuickSheet(page, sheet);
+      ev.preventDefault?.();
+    }, 480); // 480ms hold = long press
+  };
+
+  const cancelPress = () => {
+    if (_fabLongPressTimer) { clearTimeout(_fabLongPressTimer); _fabLongPressTimer = null; }
+  };
+
+  fab.addEventListener('touchstart', startPress, { passive: false });
+  fab.addEventListener('touchend', cancelPress);
+  fab.addEventListener('touchmove', cancelPress);
+  fab.addEventListener('mousedown', startPress);
+  fab.addEventListener('mouseup', cancelPress);
+  fab.addEventListener('mouseleave', cancelPress);
+}
+
+window.appekShowQuickSheet = function(page, actions) {
+  if (_fabSheetOpen) return;
+  _fabSheetOpen = true;
+  const overlay = document.createElement('div');
+  overlay.id = 'appek-quick-sheet';
+  overlay.innerHTML = `
+    <div class="qs-backdrop" onclick="appekCloseQuickSheet()"></div>
+    <div class="qs-sheet" role="dialog" aria-label="Rychlé akce">
+      <div class="qs-handle"></div>
+      <div class="qs-title">⚡ Rychlé akce</div>
+      <div class="qs-actions">
+        ${actions.map((a, i) => `
+          <button class="qs-item" data-idx="${i}">
+            <span class="qs-icon">${a.icon}</span>
+            <span class="qs-label">${esc(a.label)}</span>
+          </button>
+        `).join('')}
+      </div>
+      <button class="qs-cancel" onclick="appekCloseQuickSheet()">Zavřít</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.classList.add('show'), 10);
+  overlay.querySelectorAll('.qs-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx, 10);
+      const act = actions[idx];
+      try { haptic('light'); } catch (e) {}
+      appekCloseQuickSheet();
+      setTimeout(() => { try { act.action(); } catch (e) { console.warn(e); } }, 220);
+    });
+  });
+};
+
+window.appekCloseQuickSheet = function() {
+  const overlay = document.getElementById('appek-quick-sheet');
+  if (!overlay) return;
+  overlay.classList.remove('show');
+  setTimeout(() => { overlay.remove(); _fabSheetOpen = false; }, 220);
+};
+
+// 📷 BARCODE SCAN z FAB na Vyrobky — najde výrobek podle EAN nebo otevří nový s předvyplněným EAN
+window.appekScanFromVyrobky = function() {
+  if (typeof appekScanner === 'undefined' || !appekScanner.open) {
+    alert('Scanner není dostupný v tomto prohlížeči');
+    return;
+  }
+  appekScanner.open({
+    types: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
+    closeOnScan: true,
+    onScan: async (code) => {
+      try { haptic('success'); } catch (e) {}
+      // Hledáme výrobek podle EAN
+      try {
+        const r = await api('admin_vyrobky.php?search_ean=' + encodeURIComponent(code));
+        const matches = (r && r.vyrobky) || [];
+        if (matches.length === 1) {
+          openVyrobekModal(matches[0].id);
+        } else if (matches.length > 1) {
+          alert('🔍 Naskenováno ' + code + ' — nalezeno ' + matches.length + ' výrobků. Vyhledá je filtr.');
+          // Pre-fill search box
+          if (state._vyrobky_search !== undefined) state._vyrobky_search = code;
+          navigate('vyrobky');
+        } else {
+          // Nový výrobek s předvyplněným EAN
+          if (confirm('📦 EAN ' + code + ' nenalezen. Vytvořit nový výrobek?')) {
+            openVyrobekModal(0, { ean: code });
+          }
+        }
+      } catch (e) {
+        alert('Chyba: ' + e.message);
+      }
+    },
+  });
+};
+
+// 🆕 v3.0.41 — Update FAB config: přidat Vyrobky scan jako sekundární akce
+// (Primary akce zůstává '+ Nový výrobek', scan se nabízí přes long-press sheet)
+// Také hookneme haptic do FAB tapu — viz patch updateAppFAB níže
+
+const _appekOrigUpdateAppFAB = window.updateAppFAB;
+window.updateAppFAB = function(page) {
+  if (typeof _appekOrigUpdateAppFAB === 'function') _appekOrigUpdateAppFAB(page);
+  const fab = document.getElementById('app-fab');
+  if (!fab) return;
+  // Hook haptic
+  if (!fab.dataset.hapticBound) {
+    fab.dataset.hapticBound = '1';
+    fab.addEventListener('click', () => { try { haptic('light'); } catch (e) {} });
+  }
+  // Hook long-press sheet
+  appekFabLongPressBind(fab);
+};
+
 async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'grid';
@@ -2605,6 +2977,12 @@ async function showApp() {
   }
   // První render FAB pro aktuální stránku (state.current se nastaví při prvním navigate)
   setTimeout(() => { try { window.updateAppFAB && window.updateAppFAB(state.current || 'dashboard'); } catch (e) {} }, 100);
+
+  // 🆕 v3.0.41 — Mobile UX upgrade init:
+  //   1. Pull-to-refresh (jen na mobile + touch)
+  //   2. Offline detection (universal)
+  try { appekInitPullToRefresh(); } catch (e) { console.warn('[PTR init]', e); }
+  try { appekUpdateOnlineStatus(); } catch (e) {} // initial check
 
   // Načti aktuální práva v menu pro role
   api('admin_role_prava.php').then((r) => {

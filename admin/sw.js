@@ -12,14 +12,16 @@
  *   - CLAIM ihned po install → starý SW neslouží staré assety
  */
 
-const CACHE_VERSION = 'appek-v3.0.40';
+const CACHE_VERSION = 'appek-v3.0.41';
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 
 // Soubory cachované při install (basic shell)
+// 🆕 v3.0.41 — přidána offline.html jako fancy offline fallback page
 const PRECACHE_URLS = [
   './',
   './index.html',
+  './offline.html',
   './manifest.json',
 ];
 
@@ -72,7 +74,8 @@ self.addEventListener('fetch', (event) => {
           }
           return resp;
         })
-        .catch(() => caches.match(req).then((r) => r || caches.match('./index.html')))
+        // 🆕 v3.0.41 — offline.html jako fancy fallback (s reload button + status badge)
+        .catch(() => caches.match(req).then((r) => r || caches.match('./offline.html') || caches.match('./index.html')))
     );
     return;
   }
