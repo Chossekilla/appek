@@ -6,6 +6,55 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.42] — 2026-05-26
+
+### 🎨 Velké barevné bannery místo malých tabů (Restaurace)
+_User: "to horní menu udělej buttony velké bannery až"_
+
+**Před:** 6 malých text-pillů v `.nastaveni-tabs` (📺 Provoz | 🧾 POS Kasa | 🪑 Stoly | …)
+
+**Teď:** 6 velkých color-coded banner cards (`.rest-banner-tabs` grid):
+
+| Tab | Emoji | Gradient | Sub-text |
+|---|---|---|---|
+| **Provoz** | 📺 | modrý (#3B82F6→#1E40AF) | Live monitor + KDS |
+| **POS Kasa** | 🧾 | zelený (#10B981→#065F46) | Restaurační pokladna |
+| **Stoly** | 🪑 | amber (#BA7517→#854F0B) | Layout · rezervace |
+| **Kapacita kuchyně** | 👨‍🍳 | červený (#EF4444→#991B1B) | Stanice · max paral. |
+| **Doba přípravy** | ⏱️ | fialový (#A78BFA→#5B21B6) | Min. per výrobek |
+| **Rozvoz / Kurýři** | 🛵 | oranžový (#F97316→#9A3412) | Wolt · Bolt · vlastní |
+
+**Layout:**
+- Desktop: `repeat(auto-fit, minmax(170px, 1fr))` — 6 v řadě
+- Mobile (≤700px): 2 sloupce, kompaktnější padding
+
+**Banner anatomy:**
+- Velký emoji v glass-pillu (48×48px) s `backdrop-filter: blur(4px)`
+- Label (15px, weight 800, letter-spacing -0.01em)
+- Sub-text (11.5px, weight 600) s krátkým popisem
+- Surface highlight overlay přes `::before` (radial gradient, mix-blend overlay)
+
+**Aktivní stav:**
+- Plný gradient bg + bílý text
+- Shadow `0 10px 28px {color}80, 0 4px 10px rgba(0,0,0,0.18)`
+- Drop-shadow filter na emoji
+- Translate -2px (slightly elevated)
+
+**Inactive stav:**
+- Light bg (cat color light), dark text
+- 2px solid border (same light color)
+
+**Interakce:**
+- Hover: translateY(-3px) scale(1.02) + saturate(1.1)
+- Aktivní hover: -5px lift (větší pop)
+- Active: scale(1.01) — push feedback
+- Cubic-bezier (.2,.8,.2,1) smooth
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.41→3.0.42, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.41] — 2026-05-26
 
 ### 📱 Mobile UX upgrade — 6 nových interakcí
