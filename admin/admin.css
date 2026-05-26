@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.32";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.33";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18893,4 +18893,9 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   .admin-app:not(.sidebar-collapsed) {
     grid-template-columns: var(--fl-sidebar) 1fr !important;
   }
+}
+
+/* 🎨 v3.0.33 — Table action modal: skryj text labelů na úzkém viewportu */
+@media (max-width: 480px) {
+  .rt-modal-act-lbl { display: none; }
 }

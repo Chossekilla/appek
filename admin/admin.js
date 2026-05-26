@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.32';
+const APPEK_ADMIN_JS_VERSION = '3.0.33';
 
 (async function detectStaleCode() {
   try {
@@ -16797,45 +16797,79 @@ window.rtOpenTableActions = function(id) {
     return;
   }
 
+  // 🎨 v3.0.33 — Redesign: bigger touch targets, vyšší řádky, lepší rozložení
+  const tvarLabel = { round: '🔵 Kruh', square: '🟧 Čtverec', rect: '▭ Obdélník' }[t.tvar] || t.tvar;
   openModal(`🪑 ${t.nazev} — ${st.label}`, `
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
-        <div><strong>${t.mist}</strong> míst · <strong>${t.tvar}</strong></div>
-        <div style="text-align:right">Dnes <strong>${t.obsazenost_dnes}</strong> rezerv.</div>
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:14px">
+
+      <!-- Info hlavička - bigger -->
+      <div style="display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#F9FAFB,#F3F4F6);padding:12px 16px;border-radius:10px;border:1px solid #E5E7EB">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:15px;font-weight:700;color:#1F2937">👥 ${t.mist} míst</span>
+          <span style="font-size:12px;color:#6B7280">${tvarLabel}</span>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;font-weight:700">Dnes</div>
+          <div style="font-size:18px;font-weight:800;color:#1F2937">${t.obsazenost_dnes || 0} <span style="font-size:12px;font-weight:500;color:#6B7280">rezerv.</span></div>
+        </div>
       </div>
 
-      <!-- 🆕 v2.3 — Hlavní POS tlačítko -->
+      <!-- Hlavní akce — velké POS tlačítko -->
       <button class="btn-primary btn-green" onclick="closeModal();setTimeout(()=>posOpenUcet(${t.id}), 50)"
-              style="padding:14px;font-size:15px;font-weight:700;background:linear-gradient(135deg,#16a34a,#15803d);margin-top:4px">
-        🧾 Otevřít účet (POS)
+              style="padding:18px;font-size:17px;font-weight:800;background:linear-gradient(135deg,#10B981,#059669);border-radius:12px;box-shadow:0 4px 14px rgba(16,185,129,0.3);transition:all 0.15s ease;display:flex;align-items:center;justify-content:center;gap:10px"
+              onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(16,185,129,0.4)'"
+              onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(16,185,129,0.3)'">
+        <span style="font-size:22px">🧾</span> Otevřít účet (POS)
       </button>
 
-      <h4 style="margin:6px 0 4px;font-size:13px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Změnit stav</h4>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-        ${Object.entries(RT_STATES).filter(([k]) => k !== 'disabled').map(([k, s]) => `
-          <button onclick="rtSetState(${t.id}, '${k}')"
-                  style="padding:10px;border-radius:8px;border:2px solid ${t.stav === k ? s.border : 'var(--border)'};background:${t.stav === k ? s.bg : '#fff'};color:${s.text};font-weight:600;font-size:12px;cursor:pointer">
-            ${s.label}
-          </button>
-        `).join('')}
-      </div>
-
-      <h4 style="margin:10px 0 4px;font-size:13px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Rezervace</h4>
-      ${(t.rezervace_dnes || []).length > 0 ? `
-        <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">
-          ${t.rezervace_dnes.map(r => `
-            <div style="background:#FFF8E7;border:1px solid #FDE68A;padding:6px 10px;border-radius:6px;font-size:12px;display:flex;justify-content:space-between;align-items:center">
-              <div><strong>${r.cas_od.slice(0,5)}–${r.cas_do.slice(0,5)}</strong> · ${esc(r.jmeno)} (${r.pocet_osob}p)</div>
-              ${r.telefon ? `<a href="tel:${esc(r.telefon)}" style="font-size:11px;color:var(--brand);text-decoration:none">📞 ${esc(r.telefon)}</a>` : ''}
-            </div>
+      <!-- ZMĚNIT STAV - bigger buttons, jedna řada na desktop -->
+      <div>
+        <h4 style="margin:0 0 8px;font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;font-weight:800">Změnit stav stolu</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));gap:8px">
+          ${Object.entries(RT_STATES).filter(([k]) => k !== 'disabled').map(([k, s]) => `
+            <button onclick="rtSetState(${t.id}, '${k}')"
+                    style="padding:14px 10px;border-radius:10px;border:2px solid ${t.stav === k ? s.border : '#E5E7EB'};background:${t.stav === k ? s.bg : '#fff'};color:${s.text};font-weight:700;font-size:13px;cursor:pointer;transition:all 0.15s ease;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:54px;justify-content:center"
+                    onmouseover="this.style.borderColor='${s.border}';this.style.background='${s.bg}'"
+                    onmouseout="${t.stav !== k ? `this.style.borderColor='#E5E7EB';this.style.background='#fff'` : ''}">
+              <span style="font-size:16px">${s.label.split(' ')[0]}</span>
+              <span>${s.label.split(' ').slice(1).join(' ')}</span>
+            </button>
           `).join('')}
         </div>
-      ` : '<div style="color:var(--text-3);font-size:13px;font-style:italic">Dnes žádná rezervace</div>'}
+      </div>
 
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:10px;border-top:1px solid var(--border)">
-        <button class="btn-primary" onclick="closeModal();setTimeout(()=>rezervovatStul(${t.id}, '${esc(t.nazev)}'), 50)" style="flex:1">+ Rezervace</button>
-        <button class="btn-secondary" onclick="closeModal();setTimeout(()=>editRestaurantTable(${t.id}), 50)">✏️ Vlastnosti</button>
-        <button class="btn-secondary" onclick="closeModal();setTimeout(()=>posShowQR(${t.id}, '${esc(t.nazev)}'), 50)" title="QR pro self-order">📲 QR</button>
+      <!-- REZERVACE - bigger rows -->
+      <div>
+        <h4 style="margin:0 0 8px;font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;font-weight:800">📅 Rezervace dnes</h4>
+        ${(t.rezervace_dnes || []).length > 0 ? `
+          <div style="display:flex;flex-direction:column;gap:8px;max-height:240px;overflow-y:auto">
+            ${t.rezervace_dnes.map(r => `
+              <div style="background:linear-gradient(135deg,#FFFBEB,#FEF3C7);border:1.5px solid #FCD34D;padding:12px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <div style="flex:1">
+                  <div style="font-weight:800;font-size:14px;color:#78350F;font-variant-numeric:tabular-nums">${r.cas_od.slice(0,5)} – ${r.cas_do.slice(0,5)}</div>
+                  <div style="font-size:13px;color:#92400E;margin-top:2px">👤 ${esc(r.jmeno)} · ${r.pocet_osob}p ${r.poznamka ? '· ' + esc(r.poznamka) : ''}</div>
+                </div>
+                ${r.telefon ? `<a href="tel:${esc(r.telefon)}" style="font-size:12px;font-weight:700;color:#78350F;text-decoration:none;background:rgba(255,255,255,0.6);padding:6px 12px;border-radius:8px;white-space:nowrap">📞 ${esc(r.telefon)}</a>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        ` : '<div style="color:#9CA3AF;font-size:13px;font-style:italic;padding:14px;background:#F9FAFB;border-radius:10px;text-align:center">Dnes žádná rezervace</div>'}
+      </div>
+
+      <!-- AKCE - footer buttons (bigger, equally spaced) -->
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;padding-top:14px;border-top:2px solid #E5E7EB">
+        <button class="btn-primary" onclick="closeModal();setTimeout(()=>rezervovatStul(${t.id}, '${esc(t.nazev)}'), 50)"
+                style="padding:14px;font-size:14px;font-weight:700;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px">
+          <span style="font-size:18px">📅</span> Nová rezervace
+        </button>
+        <button class="btn-secondary" onclick="closeModal();setTimeout(()=>editRestaurantTable(${t.id}), 50)"
+                style="padding:14px 16px;font-size:13px;font-weight:700;border-radius:10px;min-width:54px;display:flex;align-items:center;justify-content:center;gap:6px" title="Vlastnosti stolu">
+          <span style="font-size:18px">✏️</span> <span class="rt-modal-act-lbl">Vlastnosti</span>
+        </button>
+        <button class="btn-secondary" onclick="closeModal();setTimeout(()=>posShowQR(${t.id}, '${esc(t.nazev)}'), 50)"
+                style="padding:14px 16px;font-size:13px;font-weight:700;border-radius:10px;min-width:54px;display:flex;align-items:center;justify-content:center;gap:6px" title="QR kód pro self-order">
+          <span style="font-size:18px">📲</span> <span class="rt-modal-act-lbl">QR</span>
+        </button>
       </div>
     </div>
   `);
@@ -17465,20 +17499,39 @@ window.rtOpenTemplatePicker = async function() {
   catch (e) { alert('Chyba: ' + e.message); return; }
   const templates = tpls.templates || [];
 
+  // 🎨 v3.0.33 — Bigger karty s mini SVG preview layoutu
+  const miniPreview = (t) => {
+    const cw = t.canvas_w || 800, ch = t.canvas_h || 500;
+    const scale = 180 / cw; // preview šířka 180px
+    return `<svg viewBox="0 0 ${cw} ${ch}" style="width:100%;height:auto;background:${esc(t.zones[0]?.bg_barva || '#FFFAF1')};border-radius:6px;display:block;margin-bottom:8px;max-height:140px">
+      ${(t.tables || []).filter(x => (x.zone_idx ?? 0) === 0).map(tile => {
+        const r = tile.tvar === 'round' ? Math.min(tile.width, tile.height)/2 : 4;
+        const fill = tile.nazev?.startsWith('🍺') || tile.nazev?.startsWith('🍷') ? '#FED7AA' : '#D1FAE5';
+        const stroke = tile.nazev?.startsWith('🍺') || tile.nazev?.startsWith('🍷') ? '#EA580C' : '#10B981';
+        return tile.tvar === 'round'
+          ? `<circle cx="${tile.x + tile.width/2}" cy="${tile.y + tile.height/2}" r="${Math.min(tile.width, tile.height)/2 - 2}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`
+          : `<rect x="${tile.x}" y="${tile.y}" width="${tile.width}" height="${tile.height}" rx="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+      }).join('')}
+    </svg>`;
+  };
+
   openModal('📋 Šablony layoutu', `
-    <p style="color:var(--text-3);font-size:13px;margin-bottom:14px">
-      Předpřipravené layouty pro typický gastro provoz. <strong style="color:#DC2626">Pozor:</strong> nahrazení šablonou <strong>smaže všechny stávající stoly a zóny</strong>!
+    <p style="color:#374151;font-size:14px;margin-bottom:18px;background:#FEE2E2;border-left:3px solid #DC2626;padding:10px 14px;border-radius:6px">
+      <strong style="color:#991B1B">⚠️ Pozor:</strong> nahrazení šablonou <strong>smaže všechny stávající stoly a zóny</strong>! Vyber kompletní layout pro typický gastro provoz.
     </p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%, 260px),1fr));gap:14px">
       ${templates.map(t => `
-        <div style="border:2px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:border-color 0.15s;background:#fff"
-             onmouseover="this.style.borderColor='#BA7517'" onmouseout="this.style.borderColor='var(--border)'"
+        <div style="border:2px solid #E5E7EB;border-radius:14px;padding:16px;cursor:pointer;transition:all 0.18s ease;background:#fff;display:flex;flex-direction:column"
+             onmouseover="this.style.borderColor='#BA7517';this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 18px rgba(186,117,23,0.18)'"
+             onmouseout="this.style.borderColor='#E5E7EB';this.style.transform='';this.style.boxShadow=''"
              onclick="rtApplyTemplate('${t.key}', '${esc(t.nazev)}')">
-          <div style="font-size:17px;font-weight:700;margin-bottom:4px">${esc(t.nazev)}</div>
-          <div style="font-size:12px;color:var(--text-3);line-height:1.5;margin-bottom:8px">${esc(t.popis)}</div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);padding-top:8px;border-top:1px solid var(--border)">
-            <span>🪑 ${t.tables.length} stolů</span>
-            <span>🗺️ ${t.zones.length} zón</span>
+          ${miniPreview(t)}
+          <div style="font-size:16px;font-weight:800;margin-bottom:6px;color:#1F2937">${esc(t.nazev)}</div>
+          <div style="font-size:12px;color:#6B7280;line-height:1.55;margin-bottom:12px;flex:1">${esc(t.popis)}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;padding-top:10px;border-top:1px solid #E5E7EB">
+            <span style="color:#1F2937">🪑 ${t.tables.length} stolů</span>
+            <span style="color:#6B7280">🗺️ ${t.zones.length} ${t.zones.length === 1 ? 'zóna' : 'zón'}</span>
+            <span style="color:#FB923C;font-weight:800">Aplikovat →</span>
           </div>
         </div>
       `).join('')}
