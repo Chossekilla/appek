@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.57";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.58";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -5502,20 +5502,23 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
     max-width: 100% !important;
   }
 }
-/* 🆕 v3.0.56 — Extreme mobile (≤400px): jen 1. písmena D/T/M/R/V, kompaktnější styl.
+/* 🆕 v3.0.56 — Extreme mobile (≤400px): jen 1. písmena D/T/M/R/V
+   🎨 v3.0.58 — Zvětšeno proporcionálně (user: "zvětši ale nedeformat")
    Funguje napříč všemi theme (žádné theme-specific overrides). */
 @media (max-width: 400px) {
-  .period-tabs { gap: 3px !important; padding: 3px !important; }
+  .period-tabs { gap: 5px !important; padding: 5px !important; }
   .period-tab {
-    padding: 5px 2px !important;
+    padding: 9px 6px !important;
     flex-direction: column !important;
-    gap: 1px !important;
+    gap: 3px !important;
+    min-height: 52px;
   }
-  .period-tab-icon { font-size: 14px !important; }
+  .period-tab-icon { font-size: 19px !important; line-height: 1; }
   .period-tab-text {
-    font-size: 13px !important;
+    font-size: 16px !important;
     font-weight: 800 !important;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
+    line-height: 1;
   }
   /* Skupina B — kompaktnější padding/fonts (grid layout zděděn z 1024px rule) */
   .seg-tabs,

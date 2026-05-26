@@ -6,6 +6,30 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.58] — 2026-05-26
+
+### 📱 Extreme mode: zvětšeno bez deformace + i18n B19
+_User: "spousta toho zůstává malé v extreme mode. zvětši ale nedeformat na všech theme. dopřeložit další dávky"_
+
+**Period tabs (≤400px) zvětšeno:**
+- icon `14px → 19px`
+- text `13px → 16px` (weight 800, letter-spacing 0.05em)
+- padding `5px 2px → 9px 6px`
+- gap `3px → 5px`, button gap `1px → 3px`
+- min-height `52px` (touch-friendly)
+- D/T/M/R/V teď čitelné z dálky, theme-agnostic
+
+**i18n batches (B19) — 44 stringů z 6 batchů:**
+- 5 reálných překladů (DL, dodaci_listy, Položky, IČO/DIČ, Volitelná…) → en/es
+- SK/DE překlady přes i18n_dicts_extra.py
+- 39 pass-through (technické názvy, emaily, URLs, IDs — admin/appek.cz/Client ID/Customer ID/atd.)
+- `i18n_merge.py` tolerantní k chybějícím batches (existing files only)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.57→3.0.58, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.57] — 2026-05-26
 
 ### 🐛 Pin button hapruje — root cause + fix

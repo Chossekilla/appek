@@ -11,7 +11,7 @@ import json, re, sys
 from collections import Counter
 
 ROOT = '/Users/chossekilaimac/projects/appek.cz'
-MARK = 'v2.9.121 doplnene UI fraze B18'
+MARK = 'v3.0.58 dopreklady B19 (Wolt/Bolt/Dame/Foodora + mobile UI)'
 
 def js_unescape(s):
     out, i = [], 0
@@ -45,8 +45,11 @@ for m in re.finditer(r"\[\s*'((?:[^'\\]|\\.)*)'\s*,\s*'((?:[^'\\]|\\.)*)'\s*,\s*
     auto_keys.add(m.group(1).replace("\\'", "'").replace('\\\\', '\\'))
 
 raw = []
+import os.path
 for i in range(1, 19):
-    for x in json.load(open(f'{ROOT}/scripts/i18n_batch_{i:02d}_output.json', encoding='utf-8')):
+    path = f'{ROOT}/scripts/i18n_batch_{i:02d}_output.json'
+    if not os.path.exists(path): continue  # 🆕 v3.0.58: tolerantní k chybějícím batches
+    for x in json.load(open(path, encoding='utf-8')):
         cs = js_unescape(x['cs']).strip()
         vals = tuple(js_unescape(x[k]).strip() for k in ('en', 'es', 'sk', 'de'))
         raw.append((cs, *vals))
