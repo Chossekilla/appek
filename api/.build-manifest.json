@@ -1,6 +1,6 @@
 {
- "version": "3.0.29",
- "built_at": "2026-05-26T15:07:39Z",
+ "version": "3.0.30",
+ "built_at": "2026-05-26T15:11:39Z",
  "file_count": 238,
  "files": {
   ".htaccess": {
@@ -20,11 +20,11 @@
    "size": 4583
   },
   "admin/admin.css": {
-   "sha256": "f9b2b504fbbc4a7f3229d546b0f4bac76fd094f7ec0395906ded187075041f93",
-   "size": 566258
+   "sha256": "d7465634c5bee4e9b356827d176e63e6b14f4b532a02a4a6c738d75769eedacc",
+   "size": 568654
   },
   "admin/admin.js": {
-   "sha256": "e540cd39e59647c45280253f993084ff92e2c5dc5d8d8beb4ad0d1b58ec2d096",
+   "sha256": "ba32f79e8f5c0cd525706ce616cf950429a8863b85b643a7d1baf7f29e85246f",
    "size": 1993907
   },
   "admin/clear-cache.html": {
@@ -112,7 +112,7 @@
    "size": 573
   },
   "admin/index.html": {
-   "sha256": "842c9d47eb557b557ba6fec8ded792e87f48d7da82dbd78d7129236baa8c061e",
+   "sha256": "5a8e26b7a60a683ee07a5a922fe682594afe954ff74f3e2090d57ba6b203ee44",
    "size": 31637
   },
   "admin/kds.php": {
@@ -140,11 +140,11 @@
    "size": 16705
   },
   "admin/shipping.html": {
-   "sha256": "8c2b425f8b7b2ca6f5cbc3339482a1bf5607befa1944904e386de4eede8783e5",
-   "size": 12263
+   "sha256": "363fb83aff4c44594c87187d47d6a88f67ba2f0267ba658abc7b8ec78ac16651",
+   "size": 15026
   },
   "admin/sw.js": {
-   "sha256": "50aec7984cb0372f9189ee9a1e5b5718e680857ae4fbd092303bde95418c9cd3",
+   "sha256": "c17f1baeb4956b6ed0b4892d22c5747895fb93563631a465eb5cab41c93db353",
    "size": 5392
   },
   "admin/updater.html": {
@@ -620,7 +620,7 @@
    "size": 10051
   },
   "api/config.php": {
-   "sha256": "54cf38313cdba0e7de1f934ce3aac446e1aa08397a4b309103a07f21f08c0ac6",
+   "sha256": "f2d4a490eb1698931cc4fef7491ec36ff6d23a7346b3bc16fa8177b4a88b0778",
    "size": 54849
   },
   "api/cron_recurring.php": {
@@ -884,7 +884,7 @@
    "size": 105295
   },
   "b2b/index.html": {
-   "sha256": "630dd49fee1a56cf9df72c3fa8ba8a9bc3ea6077609bcf0b862a0c5c9dc72e1b",
+   "sha256": "77976fd4777281ec5c5a840f89bdc1b34cd2024cd3b19afbd8f36f5a64346313",
    "size": 11977
   },
   "b2b/manifest.json": {

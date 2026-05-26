@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>📦 Doprava — APPEK</title>
+<!-- 🆕 v3.0.30 — Packeta widget v6 (výběr výdejního místa) -->
+<script src="https://widget.packeta.com/v6/www/js/library.js"></script>
 <style>
 * , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -77,8 +79,22 @@ input[type="text"], input[type="email"], input[type="tel"], input[type="number"]
         <input type="text" id="z_order_no" placeholder="OBJ-2026-001">
       </div>
       <div>
-        <label>Pickup point ID *</label>
-        <input type="number" id="z_pickup" placeholder="79">
+        <label>Pickup point ID * <small>(použij tlačítko níže)</small></label>
+        <input type="number" id="z_pickup" placeholder="79" readonly style="background:#FAFAFA">
+      </div>
+    </div>
+
+    <!-- 🆕 v3.0.30 — Packeta widget tlačítko + zobrazení vybraného místa -->
+    <div style="margin:-4px 0 14px;padding:14px;background:linear-gradient(135deg,#FEF2F2,#FEE2E2);border:1px dashed #FCA5A5;border-radius:10px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" class="btn btn-primary" onclick="openPacketaPicker()" style="background:linear-gradient(135deg,#DC2626,#991B1B);box-shadow:0 2px 8px rgba(220,38,38,0.25)">
+          📍 Vybrat výdejní místo na mapě
+        </button>
+        <small style="color:#7F1D1D;font-size:12px">Otevře oficiální mapu Zásilkovny</small>
+      </div>
+      <div id="z_pickup_info" style="display:none;font-size:13px;color:#7F1D1D;background:rgba(255,255,255,0.6);padding:8px 12px;border-radius:6px;line-height:1.5">
+        <span id="z_pickup_name"></span><br>
+        <small id="z_pickup_addr" style="color:#9B2C2C"></small>
       </div>
     </div>
     <div class="row">
@@ -189,6 +205,37 @@ function switchTab(t) {
   document.getElementById('panel-z').style.display = t === 'z' ? 'block' : 'none';
   document.getElementById('panel-d').style.display = t === 'd' ? 'block' : 'none';
 }
+
+// 🆕 v3.0.30 — Packeta widget — výběr výdejního místa na mapě
+async function openPacketaPicker() {
+  // Fetch API klíč ze settings (int_zas_api_password — používán pro create_packet)
+  // Pro widget se používá veřejný API klíč (frontend). Default fallback: empty (Packeta to umí).
+  let apiKey = '';
+  try {
+    const r = await fetch('../api/admin_nastaveni.php?action=get_keys&keys=int_zas_widget_api_key', { credentials: 'include' });
+    if (r.ok) { const d = await r.json(); apiKey = d.int_zas_widget_api_key || ''; }
+  } catch (e) {}
+
+  if (typeof Packeta === 'undefined' || !Packeta.Widget) {
+    alert('⚠️ Packeta widget nelze načíst.\n\nZkontroluj internet připojení — widget se stahuje z widget.packeta.com.');
+    return;
+  }
+
+  const opts = {
+    country: 'cz,sk',
+    language: 'cs',
+    valueFormat: '"Packeta",id,carrierId,carrierPickupPointId,name,city,street',
+  };
+  // Callback dostane vybraný bod (point) nebo null (zrušeno)
+  Packeta.Widget.pick(apiKey, function(point) {
+    if (!point) return; // user zavřel widget
+    document.getElementById('z_pickup').value = point.id;
+    document.getElementById('z_pickup_info').style.display = 'block';
+    document.getElementById('z_pickup_name').innerHTML = '📍 <strong>' + (point.name || 'Výdejní místo #' + point.id) + '</strong> · ID: ' + point.id;
+    document.getElementById('z_pickup_addr').textContent = [point.street, point.city, point.zip].filter(Boolean).join(', ');
+  }, opts);
+}
+window.openPacketaPicker = openPacketaPicker;
 
 // ─── i18n ─────────────────────────────────────────────────────
 const SHIP_I18N = {
