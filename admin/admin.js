@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.51';
+const APPEK_ADMIN_JS_VERSION = '3.0.52';
 
 (async function detectStaleCode() {
   try {
@@ -2450,11 +2450,64 @@ window.updateAppFAB = function(page) {
     fab.className = 'app-fab has-label';
     fab.setAttribute('aria-label', 'Rychlá akce');
     document.body.appendChild(fab);
+    // 🆕 v3.0.52 — Swipe-to-dismiss na FAB (user: "udělat swiper zavřít do strany")
+    appekFabSwipeBind(fab);
   }
   fab.innerHTML = `<span class="fab-icon" aria-hidden="true">${cfg.icon}</span><span class="fab-label">${cfg.label}</span>`;
   fab.onclick = (ev) => { ev.preventDefault(); cfg.action(); };
-  fab.classList.remove('is-hidden');
+  // Pokud user FAB schoval, respekt — neukazuj znovu při navigate
+  try {
+    const dismissedFor = localStorage.getItem('appek_fab_dismissed_page');
+    if (dismissedFor === page) { fab.classList.add('is-dismissed'); return; }
+  } catch (e) {}
+  fab.classList.remove('is-hidden', 'is-dismissed');
+  fab.style.transform = ''; fab.style.opacity = '';
 };
+
+// 🆕 v3.0.52 — Swipe FAB doprava → dismissed (na aktuální stránku, persisted)
+function appekFabSwipeBind(fab) {
+  if (fab.dataset.swipeBound) return;
+  fab.dataset.swipeBound = '1';
+  let startX = 0, startY = 0, dragging = false, currentDx = 0, axis = null;
+  fab.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    dragging = true;
+    axis = null;
+    fab.style.transition = 'none';
+  }, { passive: true });
+  fab.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (!axis) {
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    }
+    if (axis !== 'x') return;
+    currentDx = Math.max(0, dx); // jen doprava (FAB je v pravém rohu)
+    fab.style.transform = `translateX(${currentDx}px)`;
+    fab.style.opacity = String(1 - Math.min(currentDx / 180, 0.8));
+  }, { passive: true });
+  fab.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging = false;
+    fab.style.transition = 'transform 0.22s cubic-bezier(.2,.8,.2,1), opacity 0.22s ease';
+    if (currentDx >= 100) {
+      // Dismissed
+      fab.style.transform = 'translateX(220px)';
+      fab.style.opacity = '0';
+      try { window.haptic && window.haptic('medium'); } catch (e) {}
+      try { localStorage.setItem('appek_fab_dismissed_page', state.current || 'dashboard'); } catch (e) {}
+      setTimeout(() => { fab.classList.add('is-dismissed'); }, 240);
+    } else {
+      // Vrátit zpět
+      fab.style.transform = '';
+      fab.style.opacity = '';
+    }
+    currentDx = 0;
+  });
+}
 
 // Bottom-nav notification badge (např. počet nových objednávek)
 window.updateBottomNavBadges = async function() {

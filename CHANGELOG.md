@@ -6,6 +6,27 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.52] — 2026-05-26
+
+### 🐛 Fix sidebar over login (display:contents bypass) + FAB swipe-to-dismiss
+_Z polling screenshots (APPEK_FILES)_
+
+**Bug 1: Sidebar nav-items se zobrazují přes login screen**
+- Root cause: `.sidebar { display: contents }` na mobilu — `display: contents` znamená že element neexistuje pro layout a jeho děti flow do parent gridu. Bypassuje `#app[display:none]` protože `display: contents` skip parent display.
+- Fix: explicit `body.is-login .sidebar, body.is-login .sidebar * { display: none !important }` + `:has()` selector pro modern browsery
+
+**Bug 2: FAB swipe-to-dismiss** _User: "to nová objednávka udělat swiper zavřít do strany"_
+- `appekFabSwipeBind(fab)` — touch handlers s axis-lock (jen horizontal swipe doprava)
+- Visual: translateX podle prstu, opacity fade-out (0→0.8)
+- Threshold 100px → dismissed, slide-out 220px → `.is-dismissed` class (display:none)
+- Persisted per-stránka v localStorage `appek_fab_dismissed_page` (přejdeš jinam → FAB znovu)
+- Haptic medium na dismiss
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.51→3.0.52, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.51] — 2026-05-26
 
 ### 🐛 Mobile: hide sidebar over login + APPEK text + dashboard crash

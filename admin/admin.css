@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.51";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.52";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12612,7 +12612,8 @@ html.density-extreme .card-block.desktop-only-block {
   font-weight: 700;
   white-space: nowrap;
 }
-.app-fab.is-hidden {
+.app-fab.is-hidden,
+.app-fab.is-dismissed {
   display: none;
 }
 /* Skrýt FAB na desktop (jen mobilní vychytávka) */
@@ -12942,6 +12943,19 @@ body.is-login #pwa-install-banner,
 body.is-login #appek-quick-sheet,
 body.is-login .bottom-nav,
 body.is-login #appek-offline-banner {
+  display: none !important;
+}
+
+/* 🐛 v3.0.52 — KRITICKÝ fix: sidebar má `display: contents` na mobilu, což znamená
+   že jeho děti FLOWUJÍ DO BODY a obcházejí `#app[display:none]`. Takže sidebar
+   nav-items se ukazují přes login screen!
+   Fix: explicitně schovat sidebar (a všechny jeho potomky) když je login. */
+body.is-login .sidebar,
+body.is-login .sidebar *,
+body:has(#app[style*="display: none"]) .sidebar,
+body:has(#app[style*="display: none"]) .sidebar *,
+body:has(#app[style*="display:none"]) .sidebar,
+body:has(#app[style*="display:none"]) .sidebar * {
   display: none !important;
 }
 
