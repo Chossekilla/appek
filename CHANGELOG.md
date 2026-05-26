@@ -6,6 +6,30 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.50] — 2026-05-26
+
+### 🐛 REVERT — smazána broken mobile-rail logika
+_User: "celé je to nefunkční. floating ≡ je vidět i přes login screen. APPEK najednou ukazuje název firmy. smaž to, nech jen pin (📌)"_
+
+**Smazáno** (kompletní revert v3.0.46/47/48):
+- HTML: `<button id="mobile-rail-restore">≡</button>` (floating button — bug: zobrazoval se přes login screen, byl mimo `#app` div)
+- HTML: `.nav-item-mob-hide` button v sidebaru
+- JS: `hideMobileSidebar()` / `showMobileSidebar()` funkce
+- JS: localStorage restore z `appek_mobile_rail_hidden`
+- CSS: `#mobile-rail-restore` styling (44×44 gradient button)
+- CSS: `.nav-item-mob-hide` styling (primary-tinted nav-item)
+- CSS: `body.mobile-rail-hidden` state classes (sidebar hide + grid reflow)
+
+**Nechano (existující v0+ funkce):**
+- `sidebar-pin` button (📌 v sidebar-utils) — uživatel chce TENTO jako jediný toggle
+- `sidebar-collapse` button (◀) — pro desktop
+- Bottom nav mobile
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.49→3.0.50, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.49] — 2026-05-26
 
 ### 🐛 Fit-to-screen + mobile overflow audit
