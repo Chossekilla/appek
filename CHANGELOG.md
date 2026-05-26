@@ -6,6 +6,24 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.54] — 2026-05-26
+
+### 🐛 Mystery "button pod A" identifikováno + opraveno
+_User: "co to je za tlačítkem pod tím A? v levo nahoře?"_
+
+**Root cause**: Cmd+K search trigger (`.btn-cmdk-trigger`) byl na mobilu 189×38px **prázdný pill** s jen 🔍 ikonou + bez labelu. Vypadal jak mystery button.
+
+**Fix**: na mobile (≤768px) search button = **kruhové ikon-only 38×38**, čistý 🔍, jasný shape (matches notif bell/ostatní topbar ikony).
+
+### 🧹 GitHub cleanup
+- Smazáno **63 v2.9.x releases** + **128 v2.9.x tags** přes GitHub API
+- Repo Chossekilla/appek nyní obsahuje jen v3.0.x
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.53→3.0.54, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.53] — 2026-05-26
 
 ### 🐛 Sticky pin button na mobilu
