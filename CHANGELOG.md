@@ -6,6 +6,35 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.49] — 2026-05-26
+
+### 🐛 Fit-to-screen + mobile overflow audit
+_User: "nei to fit to screen, je to flow, jde hýbat s celou stránkou, chci pevné okraje + zkontroluj jestli něco na mobilu nepřetýká"_
+
+**Root cause**: `overflow-x: hidden` na html/body samo nestopne horizontální pan gesto na iOS Safari. Bylo třeba `touch-action: pan-y` (jen vertikální scroll, žádný horizontal pan).
+
+**Plus**: `.sidebar-logo` měl `margin: -4px 4px 16px 4px` — 4px horizontal margin způsobovalo 4px overflow (379px vs viewport 375px).
+
+**Fixes**:
+1. `html, body` — přidáno `touch-action: pan-y` + `overscroll-behavior-x: none` (+ `!important` defenzivně proti pozdějším override)
+2. `.sidebar-logo` — odstraněn horizontal margin (jen `margin: -4px 0 16px`), přidáno `max-width: 100%` + `box-sizing: border-box`
+3. Odstraněno duplicitní `html, body { overflow-x: hidden }` na řádku 19586 (už je v main rule s !important)
+
+**Verifikace přes Preview MCP (mobile 375×812):**
+- Dashboard: bodyScrollW = 375 ✅
+- Objednávky: 375 ✅
+- Výrobky: 375 ✅
+- Nastavení: 375 ✅
+- Restaurace: 375 ✅
+- `touch-action: pan-y` ✅
+- `overscroll-behavior-x: none` ✅
+- Žádné offenders (elements wider than viewport)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.48→3.0.49, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.48] — 2026-05-26
 
 ### 📱 Mobile nav simplify — jen schovat / zobrazit sidebar
