@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.46";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.47";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12898,54 +12898,14 @@ html.theme-dark #appek-quick-sheet .qs-cancel {
   border-radius: inherit;
 }
 
-/* 🆕 v3.0.46 — MOBILE NAV 3-STATE TOGGLE
-   User: "pod Nastavení sbalit menu / pod A full výška" */
+/* 🆕 v3.0.47 — MOBILE NAV CYCLE: jedna ikona pod Nastavení (jako nav-item)
+   + floating ≡ když je sidebar schovaný.
+   User: "jedna ikona pod nastavením (jakoby další z menu)" */
 
-/* "⤢ Plná výška" button — pod logem v sidebaru (mobile only) */
-.sidebar-mob-fullheight {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 12px;
-  margin: 4px 0 12px;
-  background: rgba(186, 117, 23, 0.08);
-  border: 1.5px dashed rgba(186, 117, 23, 0.35);
-  border-radius: 10px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--primary-dark, #854F0B);
-  transition: background 0.15s ease, transform 0.1s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.sidebar-mob-fullheight:active { transform: scale(0.97); background: rgba(186, 117, 23, 0.15); }
-.sidebar-mob-fullheight .smfh-icon { font-size: 18px; }
+/* Cycle button vypadá přesně jako nav-item, jen je viditelný pouze mobile */
+.nav-item.nav-item-mob-cycle { display: none; }
 
-/* "📵 Sbalit rail" button — v sidebar-utils (mobile only) */
-.sidebar-mob-collapse {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 12px;
-  margin-top: 8px;
-  background: rgba(220, 38, 38, 0.08);
-  border: 1.5px dashed rgba(220, 38, 38, 0.35);
-  border-radius: 10px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  color: #991B1B;
-  transition: background 0.15s ease, transform 0.1s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.sidebar-mob-collapse:active { transform: scale(0.97); background: rgba(220, 38, 38, 0.15); }
-.sidebar-mob-collapse .smc-icon { font-size: 18px; }
-
-/* Floating restore button "≡" — visible jen když mobile-rail-hidden */
+/* Floating ≡ icon — viditelná POUZE v state B (mobile-rail-hidden) */
 #mobile-rail-restore {
   display: none;
   position: fixed;
@@ -12966,33 +12926,56 @@ html.theme-dark #appek-quick-sheet .qs-cancel {
   transition: transform 0.12s ease;
   align-items: center;
   justify-content: center;
+  line-height: 1;
 }
 #mobile-rail-restore:active { transform: scale(0.92); }
 
-/* ━━━━━━ Mobile (≤768px): show toggle buttons + apply state classes ━━━━━━ */
+/* ━━━━━━ Mobile (≤768px): cycle button visible + state classes ━━━━━━ */
 @media (max-width: 768px) {
-  .sidebar-mob-fullheight,
-  .sidebar-mob-collapse { display: flex; }
+  /* Cycle button visible jako nav-item, jen primary-tinted odlišení */
+  .nav-item.nav-item-mob-cycle {
+    display: flex;
+    margin-top: 8px;
+    background: linear-gradient(135deg, rgba(186, 117, 23, 0.1), rgba(133, 79, 11, 0.06));
+    border: 1px solid rgba(186, 117, 23, 0.18);
+    color: var(--primary-dark, #854F0B);
+    font-weight: 700;
+  }
+  .nav-item.nav-item-mob-cycle:hover {
+    background: linear-gradient(135deg, rgba(186, 117, 23, 0.18), rgba(133, 79, 11, 0.12));
+  }
+  .nav-item.nav-item-mob-cycle .nav-icon { font-size: 20px; font-weight: 900; }
 
-  /* State B — rail skrytý, full width content */
+  /* State B — rail skrytý, jen bottom + floating ≡, full WIDTH content */
   body.mobile-rail-hidden .sidebar { display: none !important; }
   body.mobile-rail-hidden .admin-app { grid-template-columns: 1fr !important; }
   body.mobile-rail-hidden #mobile-rail-restore { display: flex; }
   body.mobile-rail-hidden .topbar { padding-left: 68px !important; }
 
-  /* State C — bottom skrytý, full height content */
+  /* State C — sidebar EXPANDED (s labely) + bottom skrytý, full HEIGHT */
   body.mobile-bottom-hidden .bottom-nav { display: none !important; }
   body.mobile-bottom-hidden #content,
   body.mobile-bottom-hidden .content { padding-bottom: env(safe-area-inset-bottom, 0) !important; }
   body.mobile-bottom-hidden .app-fab { bottom: calc(16px + env(safe-area-inset-bottom, 0)) !important; }
-  /* Active state v "Plná výška" tlačítku */
-  body.mobile-bottom-hidden .sidebar-mob-fullheight {
+
+  /* Expanded sidebar — širší + labely viditelné */
+  body.mobile-sidebar-expanded .admin-app {
+    grid-template-columns: 240px 1fr !important;
+  }
+  body.mobile-sidebar-expanded .sidebar {
+    width: 240px !important;
+  }
+  body.mobile-sidebar-expanded .sidebar-logo strong { display: inline !important; }
+  body.mobile-sidebar-expanded .nav-item span:not(.nav-icon) {
+    display: inline !important;
+    font-size: 14px !important;
+  }
+  /* Active state cycle buttonu v expanded mode */
+  body.mobile-bottom-hidden .nav-item.nav-item-mob-cycle {
     background: linear-gradient(135deg, #BA7517, #854F0B) !important;
     color: #fff !important;
-    border-style: solid !important;
     border-color: transparent !important;
   }
-  body.mobile-bottom-hidden .sidebar-mob-fullheight .smfh-label::before { content: '↩ '; }
 }
 
 /* 🆕 v3.0.42 — REST BANNER TABS (velké color-coded banner buttony v Restaurace)
