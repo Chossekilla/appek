@@ -1,6 +1,6 @@
 {
- "version": "3.0.58",
- "built_at": "2026-05-26T21:29:30Z",
+ "version": "3.0.59",
+ "built_at": "2026-05-26T21:44:29Z",
  "file_count": 244,
  "files": {
   ".htaccess": {
@@ -20,11 +20,11 @@
    "size": 4583
   },
   "admin/admin.css": {
-   "sha256": "5737617d5e89c85fc79ff6db90f462022a4fcc69f1959a767744ab611ed8141a",
-   "size": 605725
+   "sha256": "26e5d22a9230e4346a7fd7e35369616135d231522d9e4f376472d60355ed844f",
+   "size": 607362
   },
   "admin/admin.js": {
-   "sha256": "5b52566b644d4556f78b04707d8525b7c222bc584ca46b022578bb6d782323f0",
+   "sha256": "2d24f32442000011a16bf4f480258f4850fcbdab76fc5829acea81e553b5165e",
    "size": 2059318
   },
   "admin/clear-cache.html": {
@@ -112,7 +112,7 @@
    "size": 573
   },
   "admin/index.html": {
-   "sha256": "cffa8475c532fe8b48676e216f400b391a0f087addbe40ae706d314f46a8f492",
+   "sha256": "a077e7ca2304ec2227306d57b7c23c60616302261c999c579aac0174e9b92045",
    "size": 31636
   },
   "admin/kds.php": {
@@ -128,8 +128,8 @@
    "size": 4624
   },
   "admin/pos.css": {
-   "sha256": "739860b24e4226e67cb8042e08606b89488f88e6d2d8824c4cc51664a3b46862",
-   "size": 83181
+   "sha256": "3e0ccdf9f79ff577cd747bdbc5541aedf19245a65016f5cd92fb71a1d2c66eff",
+   "size": 90273
   },
   "admin/pos.js": {
    "sha256": "8c8d173af9c1c6aa1108f49ae3bd0106cd7c3188d813f2eb99ba7a42bc576f33",
@@ -148,7 +148,7 @@
    "size": 15026
   },
   "admin/sw.js": {
-   "sha256": "8fe117026f44a94c9dfa030a57f145eb133217d37c30c549196d950ff0d79937",
+   "sha256": "143116a88f205fc733f577ccd80eb13b40b06f71ee6ef96e6926b53902e1ff5c",
    "size": 5616
   },
   "admin/updater.html": {
@@ -632,7 +632,7 @@
    "size": 10051
   },
   "api/config.php": {
-   "sha256": "44bab5d9485788b72e829a9091b3a3b5f347687f3c134c96e5ba94088aa00aaa",
+   "sha256": "a839553a413c337f71e163a4bb43f56119ae78beb78032cc8186d6a121961023",
    "size": 54849
   },
   "api/cron_recurring.php": {
@@ -908,7 +908,7 @@
    "size": 105295
   },
   "b2b/index.html": {
-   "sha256": "1cf02d1caa7eb533b2c4160f2c6858b03d689a9a9515f0a793fe9e0049ea3cb8",
+   "sha256": "be55183a37a68e7972f03e76fce911e919534487eb363a696bb8b2c29ebddde9",
    "size": 11977
   },
   "b2b/manifest.json": {
