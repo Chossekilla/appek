@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.43';
+const APPEK_ADMIN_JS_VERSION = '3.0.44';
 
 (async function detectStaleCode() {
   try {
@@ -2426,7 +2426,7 @@ const APPEK_FAB_CONFIG = {
   objednavky:   { icon: '➕', label: 'Nová',           action: () => { if (typeof otevritNovouObjednavku === 'function') otevritNovouObjednavku(); } },
   dodaci_listy: { icon: '➕', label: 'Nový DL',        action: () => { if (typeof otevritRucniDl === 'function') otevritRucniDl(); } },
   faktury:      { icon: '➕', label: 'Nová FA',        action: () => { if (typeof otevritRucniFakturu === 'function') otevritRucniFakturu(); } },
-  vyrobky:      { icon: '➕', label: 'Nový výrobek',   action: () => { if (typeof openVyrobekModal === 'function') openVyrobekModal(0); } },
+  vyrobky:      { icon: '➕', label: 'Nový výrobek',   action: () => { if (typeof window.editVyrobek === 'function') window.editVyrobek(); } },
   odberatele:   { icon: '➕', label: 'Nový odběratel', action: () => { if (typeof editOdberatel === 'function') editOdberatel(0); } },
   vyroba:       { icon: '🥖', label: 'Vyrobit',         action: () => navigate('vyrobni_list') },
   restaurace:   { icon: '🍕', label: 'POS',             action: () => { location.href = 'pos.php'; } },
@@ -2476,7 +2476,6 @@ let _pwaDeferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   _pwaDeferredPrompt = e;
-  // Zobraz banner po 30s pokud nelze rozhodnuto
   setTimeout(() => {
     try {
       const dismissed = localStorage.getItem('appek_pwa_install_dismissed');
@@ -2486,6 +2485,36 @@ window.addEventListener('beforeinstallprompt', (e) => {
     } catch (e) {}
   }, 30000);
 });
+
+// 🆕 v3.0.44 — iOS Safari nemá beforeinstallprompt event → ukážeme instructions banner
+//   "Tap Share → Add to Home Screen". Jen pro iPhone/iPad bez standalone mode.
+(function iosInstallHint() {
+  setTimeout(() => {
+    try {
+      const ua = navigator.userAgent || '';
+      const isIOS = /iPhone|iPad|iPod/i.test(ua);
+      const isStandalone = window.navigator.standalone === true
+        || window.matchMedia('(display-mode: standalone)').matches;
+      if (!isIOS || isStandalone) return;
+      if (localStorage.getItem('appek_pwa_install_dismissed') === '1') return;
+      if (document.getElementById('pwa-install-banner')) return; // already shown
+      const div = document.createElement('div');
+      div.id = 'pwa-install-banner';
+      div.className = 'pwa-install-banner show';
+      div.innerHTML = `
+        <div class="pwa-install-banner-icon">📲</div>
+        <div class="pwa-install-banner-text">
+          <strong>Nainstaluj APPEK na plochu (iPhone)</strong>
+          <span>Klepni dole <strong>Sdílet</strong> ⎙ → <strong>Přidat na plochu</strong> — rychlejší přístup + funguje offline</span>
+        </div>
+        <div class="pwa-install-banner-actions">
+          <button class="pwa-install-no" onclick="dismissPwaInstall()">Ne teď</button>
+        </div>
+      `;
+      document.body.appendChild(div);
+    } catch (e) {}
+  }, 30000);
+})();
 
 window.showPwaInstallBanner = function() {
   if (!_pwaDeferredPrompt) return;
@@ -2679,40 +2708,43 @@ window.appekAddSwipeActions = function(el, opts = {}) {
   if (!el || el.dataset.swipeBound) return;
   el.dataset.swipeBound = '1';
 
-  let startX = 0, startY = 0, currentX = 0, swiping = false, lockedAxis = null;
+  let startX = 0, startY = 0, currentX = 0, swiping = false, lockedAxis = null, threshHit = false;
   const THRESHOLD = 80; // px pro execute akce
   const MAX_PULL = 140;
 
-  // Vytvoř underlay layer pro action labels
+  // 🆕 v3.0.44 fix — Wrap el v <div class="swipe-wrap"> (relative), underlay inset:0
+  //   Předtím underlay měl absolute pozici snapshotovanou z offsetLeft/Top → desync
+  //   při resize/reflow. Wrap approach = underlay vždy přesně pod elementem.
   const wrap = document.createElement('div');
-  wrap.className = 'swipe-underlay';
-  wrap.style.cssText = 'position:absolute;inset:0;display:flex;justify-content:space-between;align-items:center;border-radius:inherit;overflow:hidden;z-index:0;pointer-events:none';
+  wrap.className = 'swipe-wrap';
+  wrap.style.cssText = 'position:relative;border-radius:inherit;overflow:hidden';
+
+  const underlay = document.createElement('div');
+  underlay.className = 'swipe-underlay';
+  underlay.style.cssText = 'position:absolute;inset:0;display:flex;justify-content:space-between;align-items:center;border-radius:inherit;overflow:hidden;z-index:0;pointer-events:none';
   if (opts.rightLabel) {
     const r = document.createElement('div');
     r.className = 'swipe-action-right';
     r.style.cssText = 'flex:0 0 auto;padding:0 24px;height:100%;display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#10B981,#059669);color:#fff;font-weight:800;font-size:14px';
     r.innerHTML = opts.rightLabel;
-    wrap.appendChild(r);
-  } else { wrap.appendChild(document.createElement('div')); }
+    underlay.appendChild(r);
+  } else { underlay.appendChild(document.createElement('div')); }
   if (opts.leftLabel) {
     const l = document.createElement('div');
     l.className = 'swipe-action-left';
     l.style.cssText = 'flex:0 0 auto;padding:0 24px;height:100%;display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#DC2626,#B91C1C);color:#fff;font-weight:800;font-size:14px';
     l.innerHTML = opts.leftLabel;
-    wrap.appendChild(l);
-  } else { wrap.appendChild(document.createElement('div')); }
+    underlay.appendChild(l);
+  } else { underlay.appendChild(document.createElement('div')); }
 
-  // Wrap el v containeru s relative position
-  if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
-  el.style.transition = 'transform 0.22s cubic-bezier(.2,.8,.2,1)';
+  // Vlož wrap before el, přesuň el dovnitř wrapu
   el.parentNode.insertBefore(wrap, el);
-  wrap.style.position = 'absolute';
-  wrap.style.left = el.offsetLeft + 'px';
-  wrap.style.top = el.offsetTop + 'px';
-  wrap.style.width = el.offsetWidth + 'px';
-  wrap.style.height = el.offsetHeight + 'px';
+  wrap.appendChild(underlay);
+  wrap.appendChild(el);
   el.style.position = 'relative';
   el.style.zIndex = '1';
+  el.style.background = el.style.background || getComputedStyle(el).backgroundColor || '#fff'; // krýt underlay v default
+  el.style.transition = 'transform 0.22s cubic-bezier(.2,.8,.2,1)';
 
   el.addEventListener('touchstart', (e) => {
     if (e.touches.length > 1) return;
@@ -2721,6 +2753,7 @@ window.appekAddSwipeActions = function(el, opts = {}) {
     currentX = 0;
     swiping = true;
     lockedAxis = null;
+    threshHit = false; // 🆕 v3.0.44 fix — reset per-touch (předtím assigned na boolean = no-op)
     el.style.transition = 'none';
   }, { passive: true });
 
@@ -2736,8 +2769,10 @@ window.appekAddSwipeActions = function(el, opts = {}) {
     if (lockedAxis !== 'x') return;
     currentX = Math.max(-MAX_PULL, Math.min(MAX_PULL, dx));
     el.style.transform = `translateX(${currentX}px)`;
-    if (Math.abs(currentX) === THRESHOLD && !swiping.threshHit) {
-      swiping.threshHit = true; // mark
+    // 🆕 v3.0.44 fix — `>=` místo `===` (float dx rarely matches exactly)
+    //                  + standalone threshHit var (předtím swiping.threshHit no-op na boolean)
+    if (Math.abs(currentX) >= THRESHOLD && !threshHit) {
+      threshHit = true;
       try { haptic('tick'); } catch (e) {}
     }
   }, { passive: true });
@@ -2781,9 +2816,9 @@ const APPEK_FAB_SHEET = {
     { icon: '🔄', label: 'Obnovit',         action: () => navigate('objednavky') },
   ],
   vyrobky: [
-    { icon: '➕', label: 'Nový výrobek',    action: () => { try { openVyrobekModal(0); } catch(e){} } },
+    { icon: '➕', label: 'Nový výrobek',    action: () => { try { window.editVyrobek?.(); } catch(e){} } },
     { icon: '📷', label: 'Skenovat čárkód', action: () => { window.appekScanFromVyrobky?.(); } },
-    { icon: '📥', label: 'Import výrobků',  action: () => { try { openImportVyrobky?.(); } catch(e){} } },
+    { icon: '📥', label: 'Import výrobků',  action: () => { try { window.otevritImportVyrobku?.(); } catch(e){} } },
     { icon: '🔄', label: 'Obnovit',         action: () => navigate('vyrobky') },
   ],
   dodaci_listy: [
@@ -2882,21 +2917,25 @@ window.appekScanFromVyrobky = function() {
     closeOnScan: true,
     onScan: async (code) => {
       try { haptic('success'); } catch (e) {}
-      // Hledáme výrobek podle EAN
+      // 🆕 v3.0.44 — Hledáme výrobek podle EAN přes nový ?ean= endpoint
+      // (Předtím broken: ?search_ean= neexistoval, openVyrobekModal taky neexistuje)
       try {
-        const r = await api('admin_vyrobky.php?search_ean=' + encodeURIComponent(code));
+        const r = await api('admin_vyrobky.php?ean=' + encodeURIComponent(code));
         const matches = (r && r.vyrobky) || [];
         if (matches.length === 1) {
-          openVyrobekModal(matches[0].id);
+          window.editVyrobek?.(matches[0].id);
         } else if (matches.length > 1) {
-          alert('🔍 Naskenováno ' + code + ' — nalezeno ' + matches.length + ' výrobků. Vyhledá je filtr.');
-          // Pre-fill search box
+          alert('🔍 Naskenováno ' + code + ' — nalezeno ' + matches.length + ' výrobků se stejným EAN.');
           if (state._vyrobky_search !== undefined) state._vyrobky_search = code;
           navigate('vyrobky');
         } else {
-          // Nový výrobek s předvyplněným EAN
+          // Nový výrobek — otevři prázdný a EAN doplň po načtení formuláře
           if (confirm('📦 EAN ' + code + ' nenalezen. Vytvořit nový výrobek?')) {
-            openVyrobekModal(0, { ean: code });
+            window.editVyrobek?.();
+            setTimeout(() => {
+              const eanInput = document.querySelector('#vyr-ean, input[name="ean"], [data-field="ean"]');
+              if (eanInput) { eanInput.value = code; eanInput.dispatchEvent(new Event('input', { bubbles: true })); }
+            }, 350);
           }
         }
       } catch (e) {
@@ -17195,12 +17234,13 @@ function renderTableTile(t, editMode) {
   // 🎨 v3.0.40 — Kategorizace podle názvu (pro stav=free zvolíme barvu per typ)
   const nazev = t.nazev || '';
   let category = 'standard';
-  if (/🍺|🍻|🍷|🍸|🍹|🍾|🥂|Bar|bar|Tap|Pult/.test(nazev))           category = 'bar';
-  else if (/🛋️|🥃|VIP|Lounge|Salon|Tatami|Pergola/.test(nazev))    category = 'lounge';
-  else if (/🌳|🌲|🍃|Pikni|Zahrad|🌹|🌷/.test(nazev))               category = 'garden';
-  else if (/🔥|🥩|Grill|Pec|Teppanyaki/.test(nazev))                category = 'grill';
-  else if (/💃|🎵|🎤|🎧|Parket|DJ|Pódium|Fire pit|💍/.test(nazev)) category = 'stage';
-  else if (/🍕 Rodi|Komunit|Společn|Dlouhý|🍻|Tapas/.test(nazev))   category = 'family';
+  // 🐛 v3.0.44 — Pořadí důležité (first match wins). 🍻 dříve duplicitní v bar+family.
+  if (/🥩|Grill|Pec|Teppanyaki|🔥/.test(nazev))                     category = 'grill';
+  else if (/💃|🎵|🎤|🎧|Parket|DJ|Pódium|Fire pit|💍/.test(nazev))  category = 'stage';
+  else if (/🍕 Rodi|Komunit|Společn|Dlouhý|Tapas/.test(nazev))      category = 'family';
+  else if (/🛋️|🥃|VIP|Lounge|Salon|Tatami|Pergola/.test(nazev))     category = 'lounge';
+  else if (/🌳|🌲|🍃|Pikni|Zahrad|🌹|🌷/.test(nazev))                category = 'garden';
+  else if (/🍺|🍻|🍷|🍸|🍹|🍾|🥂|Bar|bar|Tap|Pult/.test(nazev))      category = 'bar';
 
   // Per-stav OVERRIDE (occupied > category default). free → category default
   const STAV_COLORS = {
@@ -17221,7 +17261,9 @@ function renderTableTile(t, editMode) {
     family:   { bg: 'linear-gradient(140deg,#FFFBEB 0%,#FCD34D 100%)',              border: '#D97706', text: '#78350F', glow: 'rgba(217,119,6,0.22)',   dot: '#D97706' },
   };
   const sg = STAV_COLORS[t.stav] || CAT_COLORS[category] || CAT_COLORS.standard;
-  const bg = t.barva || sg.bg;
+  // 🐛 v3.0.44 fix — Custom t.barva jen pro FREE stav (předtím přepsal occupied/reserved
+  // overlay → ztracený stav signál pro waiter z dálky)
+  const bg = (!t.stav || t.stav === 'free') ? (t.barva || sg.bg) : sg.bg;
 
   // Timer for "kolik sedí" — 🎨 v3.0.26 smart truncation pro malé tiles (žádný overflow)
   let timerLabel = '';

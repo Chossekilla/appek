@@ -6,6 +6,39 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.44] — 2026-05-26
+
+### 🐛 Bug audit po v3.0.38-43 (security + UX + cleanup)
+_User: "projed bugy po změnách, hezky čistý kod"_
+
+**HIGH — Security:**
+- 🔐 **Webhook signature bypass FIXED** ve všech 4 receiverech (`wolt/bolt_food/damejidlo/foodora_webhook.php`). Předtím: chybějící `X-*-Signature` header → kontrola se přeskočila → útočník mohl spoofovat objednávky. Teď: missing header = HTTP 401 + log jako `rejected_no_signature`.
+
+**HIGH — Broken:**
+- 🔧 **FAB function refs** opraveny ve 4 místech (`openVyrobekModal` → `window.editVyrobek`, `openImportVyrobky` → `window.otevritImportVyrobku`)
+- 🔧 **`appekScanFromVyrobky`** používalo neexistující `?search_ean=` endpoint → přidán `?ean=` endpoint do `admin_vyrobky.php` + opraven volání `editVyrobek()` (nebere 2. argument)
+- 🔧 **Swipe haptic tick** — `swiping.threshHit = true` na boolean byl no-op (haptic na threshold se nikdy nezavolal). Standalone `threshHit` var + `>=` místo `===` (float dx rarely exact)
+- 🔧 **Offline banner z-index** `9999` → `800` (předtím blokoval modal close button — modal je 1000)
+
+**MEDIUM — UX:**
+- 📱 **iOS PWA install hint** přidán (Safari nedispatchne `beforeinstallprompt` → bez hintu uživatel neví že lze instalovat). Po 30s na iPhone bez standalone mode se ukáže "Klepni Sdílet → Přidat na plochu"
+- 🎨 **`renderTableTile` — t.barva** nyní jen pro `stav='free'`. Předtím custom barva přepsala occupied/reserved gradient → ztracený stav signal pro waitera z dálky
+- 🎨 **Swipe underlay positioning** přepsáno z snapshot offsetLeft/Top na `<div class="swipe-wrap">` wrapper. Při resize/reflow už není desync
+
+**LOW — Cleanup:**
+- 🧹 **Duplicate `.bottom-nav { display: none }`** CSS rule odstraněn (řádek 13534 byl identický s 12495)
+- 🧹 **Category regex** v `renderTableTile` — duplicitní `🍻` v bar+family branch (family byl dead code, first match wins = bar). Přepsáno na priority order: grill > stage > family > lounge > garden > bar
+
+### ✅ Verifikace
+- PHP lint: všech 7 souborů OK
+- CSS brace balance: 3716/3716 (po stripping komentářů)
+- Žádné neexistující function references v APPEK_FAB_CONFIG/SHEET
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.43→3.0.44, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.43] — 2026-05-26
 
 ### 🎨 Sub-tabs jako mini-bannery (sjednoceno se v3.0.42)

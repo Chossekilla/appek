@@ -1,6 +1,6 @@
 {
- "version": "3.0.43",
- "built_at": "2026-05-26T18:19:31Z",
+ "version": "3.0.44",
+ "built_at": "2026-05-26T18:33:08Z",
  "file_count": 244,
  "files": {
   ".htaccess": {
@@ -20,12 +20,12 @@
    "size": 4583
   },
   "admin/admin.css": {
-   "sha256": "0fb736ded5bf20345fcad142030116ebe3a886496c4777488cfaa46916b43651",
-   "size": 596056
+   "sha256": "596c455634d1316a17135e31b648adab84e52b4930d30a17bd43950210eac512",
+   "size": 596139
   },
   "admin/admin.js": {
-   "sha256": "83b97ea2d937376447d5ae05db8ee2a5931f2c15b584688348933559f1fed3b7",
-   "size": 2051889
+   "sha256": "e1dd0f58c1d9d663aa99718a6e895598dfcca7dcb9c9c8c956c9bd7c3f39d4a8",
+   "size": 2054522
   },
   "admin/clear-cache.html": {
    "sha256": "3f3d549fdcad9b1094ddca2e0c96e96570c73039450cff2ce18a4b31ff0cff03",
@@ -112,7 +112,7 @@
    "size": 573
   },
   "admin/index.html": {
-   "sha256": "39881fbb916785757270c1b6c270248d930e4f1f9ec670b5c9c817bd424c7d7e",
+   "sha256": "0b53cc30c36ae2e6415f87807bd2b0c71cf58b9bc77e16cbc2ba38a84a55d5c1",
    "size": 31637
   },
   "admin/kds.php": {
@@ -148,7 +148,7 @@
    "size": 15026
   },
   "admin/sw.js": {
-   "sha256": "00969c7144f16089bfa8cb3be31e5b3fd0502cbd41cc4b9a68b4c5f0ae4fb648",
+   "sha256": "7ab66224a9188bee53fceb42188df355d36ceaa3561f491babd5d4749d977a60",
    "size": 5616
   },
   "admin/updater.html": {
@@ -596,8 +596,8 @@
    "size": 19409
   },
   "api/admin_vyrobky.php": {
-   "sha256": "d0774b929246e350f861c0149b74af60cf0778f172770c3a2241fe3c55097f85",
-   "size": 25723
+   "sha256": "ef0adcdc17ae4d406682bb7f2bce9780b20cf2ba6be73124c23dc53c1f158053",
+   "size": 26416
   },
   "api/admin_vyrobky_export.php": {
    "sha256": "50b04019aacd287832d8268609e85c353496d994a36012a5bc4f5c0938b0adda",
@@ -616,8 +616,8 @@
    "size": 6182
   },
   "api/bolt_food_webhook.php": {
-   "sha256": "0efee4987d6453f08de8a86f659b127fdcb3c722e36737708434ec135e0348dd",
-   "size": 3569
+   "sha256": "827e83faf114a95f1cbb8f6df452c2ffd13d1c1a53fa73fffb362c0780d45b58",
+   "size": 3711
   },
   "api/business_info.php": {
    "sha256": "7e5336b9a7f0c65e7677399af5b33505419a22d9c299b270761e9db2aa281373",
@@ -632,7 +632,7 @@
    "size": 10051
   },
   "api/config.php": {
-   "sha256": "7efa7bb0e6ae4b59aec1b1c982b63ff3eb0a11f3339950ff1311a48ee9232a34",
+   "sha256": "a08028b16513c69ad155da395d094707863eeac9f9593c390e592e28c92c45ae",
    "size": 54849
   },
   "api/cron_recurring.php": {
@@ -640,8 +640,8 @@
    "size": 2519
   },
   "api/damejidlo_webhook.php": {
-   "sha256": "2e4442c358ae359cf056a49ba1c34fbffbc2543dee51483dfbce9bfa09367899",
-   "size": 3781
+   "sha256": "1d67521e19fc50212c7f454d245835eaeef7101f318206290e2953be3dba0cf5",
+   "size": 3928
   },
   "api/demo_status.php": {
    "sha256": "777f1163ce0a5556b2d1272d7f3a946525cd8b1b8406fea01fe1dc8865ee2c4c",
@@ -712,8 +712,8 @@
    "size": 927
   },
   "api/foodora_webhook.php": {
-   "sha256": "46e866dac97cae0ca2f6faf252bd11bdbe887df8d2008ff9b92fe7a082074cb8",
-   "size": 4262
+   "sha256": "45dbca12adaf9d3bf071069ba1505a2421b7bb631278ffce72dca783b7ae720c",
+   "size": 4402
   },
   "api/gopay_callback.php": {
    "sha256": "4354a92c117a461fe3460118af22530e34d99d852d294d0a0d5cfa77fe33101b",
@@ -888,8 +888,8 @@
    "size": 275
   },
   "api/wolt_webhook.php": {
-   "sha256": "392b9e5a7a36f28f49aed92bf0130986ec6e06e1c80740eb3c4f2fb96a3e6ab7",
-   "size": 4112
+   "sha256": "97745f5113acd9886683d22ec48d4253c1a7b685109b14199c13251e19374c4d",
+   "size": 4159
   },
   "api/zasilkovna_create_packet.php": {
    "sha256": "d3ecbf422f2e22ecf46695420f236fd5cd8bb214a6b31a7fd12d7c25beffb74a",
@@ -908,7 +908,7 @@
    "size": 105295
   },
   "b2b/index.html": {
-   "sha256": "d482d35fba65a081b4ee7ac28a38480f05dc5f283b7d753a912f663fd4acf681",
+   "sha256": "5b685af1bd72f374ae40a1e216274ec1b7efefac05135601eb4e47de85f95b17",
    "size": 11977
   },
   "b2b/manifest.json": {
