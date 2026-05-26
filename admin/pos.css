@@ -2646,3 +2646,238 @@ html, body {
   border-radius: var(--fl-radius);
 }
 .pos-app .pos-modal-body { padding: var(--fl-py) var(--fl-px); }
+
+/* ═════════════════════════════════════════════════════════════════
+   📱 v3.0.59 — iPhone COMPACT POS (user: "pos udelat kompaktni na iphone")
+   Cíl: vejít kompletní POS (kategorie + grid + košík + checkout)
+   na portrét iPhone bez horizontálního scrollu a s minimálním vertikálním scrollem.
+   ═════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) and (orientation: portrait) {
+  html, body { font-size: 14px !important; }
+  :root {
+    --pos-header-h: 44px !important;
+    --pos-footer-h: 20px !important;
+    --pos-radius: 10px !important;
+  }
+
+  /* HEADER — ultra-compact */
+  .pos-header {
+    padding: 0 8px !important;
+    gap: 6px !important;
+  }
+  .pos-back-btn, .pos-fs-btn {
+    width: 34px !important; height: 34px !important;
+    font-size: 16px !important;
+    border-radius: 8px !important;
+  }
+  .pos-fs-btn { display: none !important; }
+  .pos-brand-icon { font-size: 18px !important; }
+  .pos-brand-name { font-size: 14px !important; }
+  .pos-loc { display: none !important; }
+  .pos-time { display: none !important; }
+  .pos-user-name { display: none !important; }
+  .pos-user-avatar {
+    width: 30px !important; height: 30px !important;
+    font-size: 12px !important;
+  }
+  .pos-tab-h {
+    padding: 5px 8px !important;
+    font-size: 11px !important;
+  }
+  .pos-header-center { gap: 2px !important; }
+
+  /* KATEGORIE — kompaktní horizontální scroll */
+  .pos-cats-bar {
+    padding: 6px 8px !important;
+    gap: 5px !important;
+  }
+  .pos-cat {
+    min-width: 64px !important; width: 64px !important;
+    height: 64px !important;
+    padding: 4px 2px !important;
+    gap: 2px !important;
+    border-width: 1px !important;
+    border-radius: 8px !important;
+  }
+  .pos-cat-icon { font-size: 22px !important; }
+  .pos-cat-img { width: 24px !important; height: 24px !important; }
+  .pos-cat-name {
+    font-size: 9.5px !important;
+    max-width: 60px !important;
+  }
+  .pos-cat-count {
+    font-size: 8.5px !important;
+    padding: 0 4px !important;
+  }
+
+  /* SEARCH — kompaktní */
+  .pos-search-bar {
+    padding: 6px 8px !important;
+    gap: 6px !important;
+  }
+  .pos-search-bar input {
+    padding: 8px 10px !important;
+    font-size: 14px !important;
+    border-radius: 8px !important;
+  }
+  .pos-search-ic { font-size: 16px !important; }
+  .pos-custom-btn {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+
+  /* FILTERS pills — extra-tight */
+  .pos-filters {
+    padding: 4px 8px !important;
+    gap: 3px !important;
+  }
+  .pos-filter-pill {
+    padding: 3px 9px !important;
+    font-size: 11px !important;
+  }
+
+  /* GRID produktů — 2 sloupce s menšími kartami */
+  .pos-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 7px !important;
+    padding: 7px !important;
+  }
+  .pos-card {
+    min-height: 130px !important;
+    border-radius: 10px !important;
+    border-width: 1px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+  }
+  .pos-card-img, .pos-card-noimg { height: 72px !important; }
+  .pos-card-noimg { font-size: 30px !important; }
+  .pos-card-name {
+    font-size: 12px !important;
+    padding: 5px 7px 0 !important;
+    -webkit-line-clamp: 2 !important;
+    line-height: 1.2 !important;
+  }
+  .pos-card-price {
+    font-size: 13px !important;
+    padding: 3px 7px 6px !important;
+  }
+  .pos-card-badges { top: 4px !important; left: 4px !important; gap: 2px !important; }
+  .pos-badge { font-size: 9.5px !important; padding: 0 5px !important; }
+
+  /* CART — bottom-sheet style, menší max */
+  .pos-cart { max-height: 50vh !important; }
+  .pos-cart-head {
+    padding: 6px 10px !important;
+  }
+  .pos-new-btn {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+  }
+  .pos-more-btn {
+    font-size: 20px !important;
+    padding: 2px 8px !important;
+  }
+  .pos-cust-row {
+    padding: 6px 10px !important;
+  }
+  .pos-cust-name { font-size: 12px !important; }
+  .pos-cust-sub  { font-size: 10px !important; }
+  .pos-cust-btn {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+  }
+
+  /* CART list rows — extra-tight */
+  .pos-cart-list {
+    padding: 4px 6px !important;
+    gap: 4px !important;
+  }
+  .pos-cart-item {
+    padding: 6px 8px !important;
+    gap: 5px !important;
+    grid-template-columns: 18px 1fr auto auto 22px !important;
+    font-size: 11px !important;
+    border-radius: 8px !important;
+  }
+  .pos-line-name {
+    font-size: 12px !important;
+    max-width: 110px !important;
+  }
+  .pos-line-meta { font-size: 9.5px !important; }
+  .pos-qty-btn {
+    width: 26px !important; height: 26px !important;
+    font-size: 14px !important;
+  }
+  .pos-qty-val {
+    min-width: 22px !important;
+    font-size: 12px !important;
+  }
+  .pos-line-sum {
+    font-size: 12px !important;
+    min-width: 52px !important;
+  }
+  .pos-line-x { font-size: 14px !important; padding: 2px !important; }
+
+  /* TOTAL + checkout — kompakt */
+  .pos-summary { padding: 6px 10px !important; }
+  .pos-sum-row { font-size: 12px !important; padding: 1px 0 !important; }
+  .pos-total-bar {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+  .pos-total-bar strong { font-size: 21px !important; }
+
+  /* Payment + type — 2 řady kompaktních buttons */
+  .pos-payment-bar {
+    padding: 6px 8px 3px !important;
+    gap: 4px !important;
+  }
+  .pos-pay-btn {
+    padding: 8px 2px !important;
+    font-size: 11px !important;
+    border-radius: 7px !important;
+  }
+  .pos-type-bar {
+    padding: 3px 8px 5px !important;
+    gap: 3px !important;
+  }
+  .pos-type-btn {
+    padding: 6px 1px !important;
+    font-size: 9.5px !important;
+  }
+
+  /* Action row + Finish */
+  .pos-actions {
+    padding: 6px 8px 10px !important;
+    gap: 4px !important;
+    grid-template-columns: auto auto auto 1fr !important;
+  }
+  .pos-icon {
+    width: 36px !important; height: 40px !important;
+    font-size: 16px !important;
+    border-radius: 7px !important;
+  }
+  .pos-finish {
+    font-size: 14px !important;
+    padding: 0 6px !important;
+    min-height: 40px !important;
+    border-radius: 8px !important;
+  }
+}
+
+/* iPhone SE / extra-mini (≤375px) — ještě těsnější */
+@media (max-width: 375px) and (orientation: portrait) {
+  .pos-brand-name { display: none !important; }
+  .pos-cat {
+    min-width: 56px !important; width: 56px !important;
+    height: 58px !important;
+  }
+  .pos-cat-icon { font-size: 19px !important; }
+  .pos-cat-name { font-size: 9px !important; }
+  .pos-card { min-height: 118px !important; }
+  .pos-card-img, .pos-card-noimg { height: 62px !important; }
+  .pos-card-name { font-size: 11.5px !important; }
+  .pos-card-price { font-size: 12.5px !important; }
+  .pos-line-name { max-width: 90px !important; }
+  .pos-total-bar strong { font-size: 19px !important; }
+}

@@ -6,6 +6,43 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.59] — 2026-05-26
+
+### 📱 Pin natural position + svátek viditelný + POS compact iPhone
+_User: "v adminu nevidim svatek jmeno. spendlik smaz, ma byt pod menu kdyz schovane, a kdyz se pripne, tak dole pod nastavenim ikonou pod prerusovanou carou. pos kompaktni na iphone"_
+
+**Pin button — natural sidebar position (mobile):**
+- Smazán sticky/fixed circle pin (z v3.0.55-57)
+- Pin teď flowí naturally v `.sidebar-utils` na konci sidebaru
+- `border-top: 2px dashed` jako separator mezi nav items a pin
+- Unpinned state: primary-tinted button (rgba 10%) s ikonou + label
+- Pinned state: full primary gradient (BA7517→854F0B) + bílý text
+- `sidebar-collapse` skryt na mobilu (jen pro desktop)
+
+**Svátek viditelný (admin topbar):**
+- Root cause: `@media (max-width: 1280px)` na řádku 15891 hide `.ts-svatek` přepisoval předchozí fixy nižší specifity
+- Fix: vyšší specifita přes `body:not(.sidebar-pinned) .sidebar-logo .topbar-datum-svatek`
+- font-size `10px → 12px`, color `var(--text-2) → #5C3608` (kontrast s chip pozadím)
+- font-weight `700 → 800` na svátek strong
+- `display: block` (2-řádkový stack: datum / svátek)
+
+**POS compact na iPhone (≤480px portrait):**
+- Header: `--pos-header-h: 56px → 44px`, padding `14px → 8px`, brand-name 14px
+- Kategorie: `90px tile → 64px tile`, icon `28px → 22px`, name 9.5px
+- Search: padding `10px → 6/8px`, input 8px padding
+- Grid produktů: `auto-fill 125px → repeat(2, 1fr)`, gap `10px → 7px`, card min-height `160px → 130px`
+- Cart: max-height `55vh → 50vh`, head padding `8/12px → 6/10px`
+- Cart items: padding `8/10px → 6/8px`, font 11px, qty-btn `28px → 26px`
+- Total: `font 24px → 21px`, padding 8/10px
+- Payment/Type: smaller pills (pay-btn 11px, type-btn 9.5px)
+- Actions: icon `40×44px → 36×40px`, finish 14px font
+- Extra-mini (≤375px): brand-name hidden, tile 56px, finish font 12.5px
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.58→3.0.59, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.58] — 2026-05-26
 
 ### 📱 Extreme mode: zvětšeno bez deformace + i18n B19
