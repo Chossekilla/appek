@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.37";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.38";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -1386,10 +1386,53 @@ html.dark .dashboard-recent-row > .recent-card .recent-table tbody tr:hover {
 @media (max-width: 1200px) { .dashboard-recent-row { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px)  { .dashboard-recent-row { grid-template-columns: 1fr; gap: 10px; align-items: stretch; } }
 
+/* 🆕 v3.0.38 — Mobile DL overflow safety net (user reported na mobilu DL přetýkají z přehledu) */
+.dashboard-recent-row > .recent-card {
+  min-width: 0;       /* Grid item smí shrinkovat pod content-size */
+  max-width: 100%;
+  overflow: hidden;   /* Nic nepřeteče kartu */
+}
+.dashboard-recent-row > .recent-card .recent-table tbody tr {
+  min-width: 0;       /* Stejně tak řádek-mini-karta */
+  max-width: 100%;
+}
+.dashboard-recent-row > .recent-card .recent-table tbody tr td {
+  min-width: 0;
+  overflow-wrap: anywhere; /* zalomí dlouhé cislo nebo odběratel */
+  word-break: break-word;
+}
+/* Recent actions: zabal ikony pokud potřeba (mobile small screens) */
+.dashboard-recent-row > .recent-card .recent-table tbody tr td.recent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+  justify-content: flex-end;
+}
+
 .recent-card {
   border-top: 4px solid transparent;
   position: relative;
   padding: 12px 14px;
+  min-width: 0;       /* Same safeguard pro recent-card jako standalone class */
+}
+
+/* 🆕 v3.0.38 — Sidebar logo (písmeno + brand) clickable → dashboard */
+.sidebar-logo {
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s;
+  border-radius: 10px;
+  margin: -4px 4px 16px 4px;
+  padding: 6px 8px 18px;
+}
+.sidebar-logo:hover {
+  background: var(--primary-light, rgba(186, 117, 23, 0.08));
+}
+.sidebar-logo:active {
+  transform: scale(0.98);
+}
+.sidebar-logo .logo-icon {
+  cursor: pointer; /* explicit pro `.logo-icon` který je v jiné CSS sekci */
 }
 .recent-card-head {
   display: flex;
