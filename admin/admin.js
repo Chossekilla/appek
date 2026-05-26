@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.25';
+const APPEK_ADMIN_JS_VERSION = '3.0.26';
 
 (async function detectStaleCode() {
   try {
@@ -16361,12 +16361,26 @@ function renderFloorPlan(data, today) {
       </div>
     </div>
 
+    <!-- 🆕 v3.0.26 — Velký Floor designer button dole pod canvasem -->
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap">
+      <button onclick="window.openFloorplanWindow?.()" style="display:inline-flex;align-items:center;gap:10px;padding:14px 24px;background:linear-gradient(135deg,#3B82F6,#1E40AF);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(59,130,246,0.3);transition:all 0.18s ease" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 18px rgba(59,130,246,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(59,130,246,0.3)'">
+        <span style="font-size:22px">🗺️</span>
+        <span>Otevřít plnotučný Floor Designer</span>
+        <span style="font-size:11px;opacity:0.85">v novém okně →</span>
+      </button>
+      ${editMode ? `
+        <button onclick="rtOpenTemplatePicker()" style="display:inline-flex;align-items:center;gap:8px;padding:13px 18px;background:#FFFBEB;border:1.5px solid #F59E0B;color:#92400E;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer">
+          📋 Vybrat z šablon
+        </button>
+      ` : ''}
+    </div>
+
     <!-- Bottom info -->
     <div style="margin-top:10px;text-align:center;font-size:12px;color:var(--text-3);line-height:1.6">
       ${editMode ? `
-        💡 <strong>Editor:</strong> Tahem přesouvej stoly · Dvojklikem do prázdna přidej nový · Kliknutím na stůl uprav · Změny ulož tlačítkem 💾
+        💡 <strong>Editor:</strong> Tahem přesouvej · Dvojklikem do prázdna přidej nový · Klikem uprav · Změny ulož 💾
       ` : `
-        💡 <strong>Provoz:</strong> Klikni na stůl → nastav stav, rezervuj, zobraz detail · <em>Mřížka 20×20 px</em>
+        💡 <strong>Provoz:</strong> Klikni na stůl → nastav stav, rezervuj, zobraz detail
       `}
     </div>
   `;
@@ -16392,12 +16406,20 @@ function renderTableTile(t, editMode) {
   const sg = SG[t.stav || 'free'] || SG.free;
   const bg = t.barva || sg.bg;
 
-  // Timer for "kolik sedí" (větší font, čitelnější)
+  // Timer for "kolik sedí" — 🎨 v3.0.26 smart truncation pro malé tiles (žádný overflow)
   let timerLabel = '';
   if (t.stav === 'occupied' && t.stav_od) {
     const minutes = Math.max(0, Math.floor((Date.now() - new Date(t.stav_od.replace(' ','T')).getTime()) / 60000));
-    const timeStr = minutes < 60 ? minutes + 'm' : Math.floor(minutes/60) + 'h' + String(minutes%60).padStart(2,'0') + 'm';
-    timerLabel = `<div style="font-size:${w >= 100 ? '12px' : '10px'};font-weight:800;color:${sg.text};font-variant-numeric:tabular-nums;background:rgba(255,255,255,0.5);padding:1px 6px;border-radius:99px">⏱ ${timeStr}</div>`;
+    let timeStr;
+    if (w >= 110) {
+      timeStr = minutes < 60 ? minutes + 'm' : Math.floor(minutes/60) + 'h' + String(minutes%60).padStart(2,'0');
+    } else if (w >= 75) {
+      timeStr = minutes < 60 ? minutes + 'm' : Math.floor(minutes/60) + 'h';
+    } else {
+      timeStr = minutes < 60 ? minutes + '′' : Math.floor(minutes/60) + 'h';
+    }
+    const fz = w >= 100 ? '11px' : (w >= 70 ? '9px' : '8px');
+    timerLabel = `<div style="font-size:${fz};font-weight:800;color:${sg.text};font-variant-numeric:tabular-nums;background:rgba(255,255,255,0.65);padding:1px 5px;border-radius:99px;line-height:1.2;white-space:nowrap;max-width:90%;overflow:hidden">⏱${timeStr}</div>`;
   }
   // Next rezervace dnes
   let nextRes = '';
