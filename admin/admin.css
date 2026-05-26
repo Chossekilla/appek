@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.29";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.30";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18677,3 +18677,51 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
 }
 .h-scroll::-webkit-scrollbar { height: 4px; }
 .h-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 2px; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   💻 v3.0.30 — MACBOOK 13 (1280-1440px) — kompaktnější layout
+   Cíl: data se nelámou, vše vidět bez horizontálního scrollu.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Mid-narrow (1100-1366px) — typický MacBook 13 */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  /* Sidebar užší — 240px (z 280) → +40px pro content */
+  .admin-app:not(.sidebar-collapsed) { grid-template-columns: 240px 1fr !important; }
+  .sidebar { padding: 16px 10px !important; }
+  .sidebar-logo { padding: 0 8px 16px !important; }
+  .sidebar-logo strong { font-size: 14px !important; }
+  .nav-item { font-size: 13px !important; padding: 8px 10px !important; }
+  .nav-icon { font-size: 16px !important; }
+
+  /* Main content — tightnut padding */
+  .main-content { padding: 20px 22px !important; max-width: none !important; }
+  .page-head { margin-bottom: 14px !important; }
+  .page-title { font-size: 22px !important; }
+  .page-sub { font-size: 12px !important; }
+
+  /* Cards/grids — kompaktnější gaps */
+  .stat-grid { gap: 10px !important; }
+  .stat-card { padding: 14px 16px !important; }
+  .stat-value { font-size: 24px !important; }
+
+  /* Tables — menší font + padding pro fit */
+  .table { font-size: 13px; }
+  .table th, .table td { padding: 8px 10px !important; }
+
+  /* Filters — wrap krásně do řádku */
+  .filters { gap: 8px !important; }
+  .filters .filter-input { min-width: 180px; }
+}
+
+/* MacBook 13 Air (1280×800) — ještě užší */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  /* Hero karty 2 sloupce místo 4 (place 220px minmax) */
+  [style*="minmax(220px,1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Restaurace Provoz hub cards: 2-col na 1280 */
+  .provoz-tile { padding: 10px 12px !important; }
+  .provoz-tile strong { font-size: 20px !important; }
+
+  /* Tabs — menší padding (více se vejde do řady) */
+  .nastaveni-tab { padding: 8px 12px !important; font-size: 12px !important; }
+}
