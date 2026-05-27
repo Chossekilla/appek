@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.85";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.86";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20035,16 +20035,25 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     left: 0 !important;
     top: 0 !important;
     bottom: 72px !important;        /* dojed přesně k top of bottom-nav */
-    height: calc(100dvh - 72px) !important;  /* 🆕 v3.0.82 — full height aby flex grow fungoval = pin půjde DOLŮ */
+    height: calc(100dvh - 72px) !important;  /* full height aby flex grow fungoval = pin půjde DOLŮ */
     width: 56px !important;
     padding: 6px 4px !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
-    z-index: 50 !important;
+    z-index: 100 !important;
     display: flex !important;
     flex-direction: column !important;
+    /* 🆕 v3.0.86 — SOLID background přes celý rail (user: "prosvítá text nad pinem a vedle loga") */
+    background: var(--surface, #fff) !important;
+    opacity: 1 !important;
+    isolation: isolate !important;
   }
-  body.sidebar-pinned .sidebar-logo { flex: 0 0 auto !important; }
+  body.sidebar-pinned .sidebar-logo {
+    flex: 0 0 auto !important;
+    background: var(--surface, #fff) !important;
+    position: relative !important;
+    z-index: 2 !important;
+  }
   /* Nav uprostřed — scrollable */
   body.sidebar-pinned .sidebar-nav {
     flex: 0 0 auto !important;           /* 🆕 v3.0.81 — nav natural size, neroste */
