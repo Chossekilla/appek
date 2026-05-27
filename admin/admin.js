@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.76';
+const APPEK_ADMIN_JS_VERSION = '3.0.77';
 
 (async function detectStaleCode() {
   try {
@@ -8288,6 +8288,49 @@ window.vyrobaKalendarToday = function() {
   loadVyrobaKalendar(state._vyKalRok, state._vyKalMesic);
 };
 
+// 🆕 v3.0.77 — Přepínač view: kalendář vs tabulka (persist v localStorage)
+window.vyrobaKalendarSetView = function(view) {
+  try { localStorage.setItem('appek_vy_kal_view', view); } catch (e) {}
+  loadVyrobaKalendar(state._vyKalRok, state._vyKalMesic);
+};
+
+// 🆕 v3.0.77 — Tabulkový render výroby (řádky = dny s objednávkami)
+function renderVyrobaKalendarTable(wrap, data, cells, rok, mesic, mesice) {
+  const rows = cells.filter(c => !c.empty && c.stats).map(c => `
+    <tr ${c.isToday ? 'style="background:#FEF3C7"' : ''} ${c.isSelected ? 'style="background:#DCFCE7"' : ''} onclick="renderVyrobaAutoForDate('${c.datum}')">
+      <td><strong>${c.day}.${mesic}.</strong></td>
+      <td>${esc(['Po','Út','St','Čt','Pá','So','Ne'][(new Date(c.datum).getDay() + 6) % 7])}</td>
+      <td class="num">${c.stats.celkem_kusu} ks</td>
+      <td class="num">${c.stats.pocet_obj || 0}</td>
+      <td class="num">${c.stats.pocet_pob || 0}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:30px">Žádné objednávky v tomto měsíci</td></tr>`;
+
+  wrap.innerHTML = `
+    <div class="vy-kal-card">
+      <div class="vy-kal-head">
+        <button class="vy-kal-nav" onclick="vyrobaKalendarPosun(-1)" title="Předchozí měsíc">‹</button>
+        <div class="vy-kal-title"><strong>${mesice[mesic - 1]}</strong> ${rok}</div>
+        <button class="vy-kal-nav" onclick="vyrobaKalendarPosun(1)" title="Následující měsíc">›</button>
+        <button class="btn-secondary" onclick="vyrobaKalendarToday()" style="font-size:11px;padding:4px 10px;margin-left:6px">Dnes</button>
+        <button class="btn-secondary" onclick="vyrobaKalendarSetView('cal')" style="font-size:11px;padding:4px 10px;margin-left:6px" title="Přepnout na kalendář">📅 Kalendář</button>
+      </div>
+      <table class="table" style="margin-top:10px;font-size:13px">
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Den</th>
+            <th class="num">Kusy</th>
+            <th class="num">Objednávek</th>
+            <th class="num">Poboček</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 async function loadVyrobaKalendar(rok, mesic) {
   const wrap = document.getElementById('vy-kalendar');
   if (!wrap) return;
@@ -8334,6 +8377,12 @@ async function loadVyrobaKalendar(rok, mesic) {
   // Doplň prázdné buňky na celé řádky (násobky 7)
   while (cells.length % 7 !== 0) cells.push({ empty: true });
 
+  // 🆕 v3.0.77 — View toggle: calendar vs table (persist v localStorage)
+  let viewMode = 'cal';
+  try { viewMode = localStorage.getItem('appek_vy_kal_view') || 'cal'; } catch (e) {}
+  if (viewMode === 'table') {
+    return renderVyrobaKalendarTable(wrap, data, cells, rok, mesic, mesice);
+  }
   wrap.innerHTML = `
     <div class="vy-kal-card">
       <div class="vy-kal-head">
@@ -8343,6 +8392,7 @@ async function loadVyrobaKalendar(rok, mesic) {
         </div>
         <button class="vy-kal-nav" onclick="vyrobaKalendarPosun(1)" title="Následující měsíc">›</button>
         <button class="btn-secondary" onclick="vyrobaKalendarToday()" style="font-size:11px;padding:4px 10px;margin-left:6px">Dnes</button>
+        <button class="btn-secondary" onclick="vyrobaKalendarSetView('table')" style="font-size:11px;padding:4px 10px;margin-left:6px" title="Přepnout na tabulku">📋 Tabulka</button>
       </div>
 
       <div class="vy-kal-grid">

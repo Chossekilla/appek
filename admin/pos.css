@@ -2500,6 +2500,9 @@ html, body {
   margin-bottom: 16px;
   overflow: auto;
   position: relative;
+  /* 🆕 v3.0.77 — Container query support pro auto-scale canvas (user: "mapa stolů
+     s vnitřním polem mapy neni responzivní") */
+  container-type: inline-size;
 }
 .pos-floor-canvas {
   position: relative;
@@ -2508,6 +2511,30 @@ html, body {
   background-size: 20px 20px;
   border-radius: 10px;
   margin: 0 auto;
+  /* 🆕 v3.0.77 — Auto-fit: pokud canvas větší než container, zmenši přes transform */
+  transform-origin: top left;
+  transition: transform 0.18s ease;
+}
+/* Auto-scale 0.5-1.0 dle container width vs canvas (přibližně) */
+@container (max-width: 800px) {
+  .pos-floor-canvas { transform: scale(0.85); }
+}
+@container (max-width: 600px) {
+  .pos-floor-canvas { transform: scale(0.7); }
+}
+@container (max-width: 450px) {
+  .pos-floor-canvas { transform: scale(0.55); }
+}
+/* Fallback pro starší prohlížeče bez container queries */
+@media (max-width: 900px) {
+  .pos-floor-canvas-wrap:not(:has(.pos-floor-canvas[style*="scale"])) .pos-floor-canvas {
+    transform: scale(0.8);
+  }
+}
+@media (max-width: 600px) {
+  .pos-floor-canvas-wrap:not(:has(.pos-floor-canvas[style*="scale"])) .pos-floor-canvas {
+    transform: scale(0.6);
+  }
 }
 
 /* Stůl tile (absolute positioned) */
