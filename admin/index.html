@@ -60,7 +60,7 @@
   }
 })();
 </script>
-<link rel="stylesheet" href="admin.css?v=3.0.91">
+<link rel="stylesheet" href="admin.css?v=3.0.92">
 </head>
 <body>
 
@@ -263,11 +263,23 @@
       </div>
     </header>
 
-    <!-- 🎁 SUBHEADER — velké balíčky pod hlavičkou (zobrazí se jen když má customer aktivované) -->
+    <!-- 🎁 SUBHEADER — velké balíčky pod hlavičkou (zobrazí se jen když má customer aktivované)
+         🆕 v3.0.92 — collapse/expand toggle s "jazykem" co zůstane viditelný (user request) -->
     <div id="package-subheader" class="package-subheader" role="navigation" aria-label="Aktivní balíčky">
       <div class="pkg-sub-label">🎁 Tvé balíčky:</div>
       <div id="topbar-package-badges" class="topbar-pkg-badges"></div>
+      <button type="button" id="pkg-subheader-toggle" class="pkg-subheader-toggle"
+              onclick="togglePackageSubheader()"
+              title="Schovat / zobrazit balíčky" aria-label="Schovat balíčky">
+        <span class="pkg-toggle-icon">▲</span>
+      </button>
     </div>
+    <!-- Collapsed handle — zobrazí se POUZE když je subheader sbalený -->
+    <button type="button" id="pkg-subheader-handle" class="pkg-subheader-handle"
+            onclick="togglePackageSubheader()"
+            title="Zobrazit balíčky" aria-label="Zobrazit balíčky">
+      🎁 Balíčky <span class="pkg-handle-arrow">▼</span>
+    </button>
 
     <main id="content" class="main-content"></main>
     <!-- 🆕 v2.9.82 — patička: verze + nástroje pro provoz/diagnostiku -->
@@ -322,7 +334,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js" defer></script>
-<script src="i18n.js?v=3.0.91"></script>
+<script src="i18n.js?v=3.0.92"></script>
 <!-- 🚀 v2.9.314 — Lazy i18n: CS users (~80% bázi) předtím tahali 4 MB JS zbytečně.
      i18n_auto.js (2.3 MB, EN+ES) a i18n_extra.js (1.7 MB, SK+DE) se teď loadují
      jen pro non-CS jazyky. Switching at runtime: window.loadI18nForLang() v i18n.js. -->
@@ -334,14 +346,14 @@
   // EN/ES needs i18n_auto.js. SK/DE need both.
   // document.write je deprecated ale funguje synchronně před admin.js — což je co potřebujeme.
   if (lang === 'en' || lang === 'es' || lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_auto.js?v=3.0.91"><\/script>');
+    document.write('<script src="i18n_auto.js?v=3.0.92"><\/script>');
   }
   if (lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_extra.js?v=3.0.91"><\/script>');
+    document.write('<script src="i18n_extra.js?v=3.0.92"><\/script>');
   }
 })();
 </script>
-<script src="admin.js?v=3.0.91"></script>
+<script src="admin.js?v=3.0.92"></script>
 <script>
 // 🔄 AUTO-CHECK pro update — admin loadne → ptáme se vendora.
 //    v2.9.52 — Client-side semver kontrola: pill se ukáže JEN když je
