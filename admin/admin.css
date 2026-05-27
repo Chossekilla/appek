@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.90";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.91";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20210,6 +20210,32 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     flex: 0 0 auto !important;
     margin-top: 0 !important;
     position: static !important;       /* override sticky pokud aplikováno */
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   🆕 v3.0.91 — DENSITY-AWARE EXCEPTION (Spacious / Extreme)
+   User: "menu je takhle i na extrem — nemění se podle hustoty UI, točíme se dokola"
+   v3.0.86 flex:1 1 0 distribute přebíjelo natural sizing co density Extreme
+   chce (padding 26px, font 22px = items ~100px tall). flex constraint je
+   stlačil na rozdělenou výšku → items vypadaly stejné napříč hustotami.
+
+   Fix: v density-spacious + density-extreme respektovat natural item size
+   (větší padding/font/min-height) a povolit scroll když nepokrývá viewport.
+   Default density (Kompaktní/Pohodlné) ZACHOVÁVÁ v3.0.86 distribuci.
+   ═════════════════════════════════════════════════════════════════ */
+@media (min-width: 701px) {
+  html.density-spacious body:not(.sidebar-pinned) .sidebar > .sidebar-nav,
+  html.density-extreme body:not(.sidebar-pinned) .sidebar > .sidebar-nav {
+    overflow-y: auto !important;       /* povol scroll v density modes */
+    justify-content: flex-start !important;
+  }
+  html.density-spacious body:not(.sidebar-pinned) .sidebar-nav > .nav-item,
+  html.density-extreme body:not(.sidebar-pinned) .sidebar-nav > .nav-item {
+    flex: 0 0 auto !important;          /* natural size, ne distribute */
+    min-height: auto !important;        /* density set vlastní velikost */
+    max-height: none !important;
+    height: auto !important;
   }
 }
 
