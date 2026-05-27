@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.62";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.63";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -13054,9 +13054,23 @@ html.theme-dark #appek-quick-sheet .qs-cancel {
 
 /* 🐛 v3.0.51 — fix: APPEK B2B text v topbaru na mobilu (sidebar display:contents
    způsobí že sidebar-logo strong flow do parent gridu → zobrazí se jak topbar).
-   Schovat brand text na mobile, nechat jen logo-icon. */
+   🆕 v3.0.63 — User: "ten název toho zákazníka při odepnutém menu je kde?"
+   → Vrátit brand text v sidebar-logo na unpinned mobile (display: contents bug
+   už neexistuje od v3.0.52). V pinned (rail) zůstává hidden (jen ikona).
+   V login mode zůstává hidden (sidebar je celý display:none od v3.0.52). */
 @media (max-width: 768px) {
-  .sidebar-logo strong { display: none !important; }
+  body.sidebar-pinned .sidebar-logo strong { display: none !important; }
+  body:not(.sidebar-pinned) .sidebar-logo strong {
+    display: inline-block !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: var(--text, #1a1d24) !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50%;
+    flex-shrink: 1;
+  }
 }
 
 /* 🐛 v3.0.51 — fix: Floating elementy (FAB, PTR, PWA banner, bottom-nav, offline)
@@ -19963,73 +19977,57 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
    3. Připnout button přes celé okraje → margin-inline + max-width
    ═════════════════════════════════════════════════════════════════ */
 
-/* === FIX #1: Pin viditelný v rail módu (sidebar-pinned mobile) ===
-   🆕 v3.0.62 — BULLETPROOF: vytrhnout pin z rail flow a dát na fixed pozici
-   přímo nad bottom-nav (z-index 60 > bottom-nav 50). Žádné dependencies
-   na sidebar overflow/padding/box-sizing.
-   User reported 4× že pin není vidět — tohle musí fungovat. */
+/* === Pin viditelný v rail módu — v3.0.63 ZAOBLENÝ OBDÉLNÍK (ne kruh) ===
+   🆕 v3.0.63 — User: "ten button připnout dobrý ale špendlík kulatej je hnusnej!
+   dej to jak to bylo jen ten špendlík si měl posunout vejš"
+   → Vrátit original design (rounded square, gold gradient) + position: fixed
+   bottom: 84px (nad bottom-nav 72px), z-index: 90. */
 @media (max-width: 700px) {
-  /* Rail sidebar zkrácený nad bottom-nav (sekundární pojistka) */
+  /* Sidebar rail — sekundární pojistka aby ostatní obsah nepřesahoval */
   body.sidebar-pinned .sidebar {
-    height: calc(100dvh - 76px) !important;  /* stop nad bottom-nav 72px + 4px gap */
-    bottom: 76px !important;
-    top: auto !important;
-    padding-bottom: 64px !important;          /* extra prostor pro pin */
+    height: calc(100dvh - 76px) !important;
+    overflow: hidden !important;
+    padding-bottom: 6px !important;
     box-sizing: border-box !important;
-    overflow: visible !important;             /* aby pin mohl být absolute mimo sidebar bounds */
   }
-  /* Pin = absolute pozicovaný v rail, vždy viditelný nad bottom-nav */
-  body.sidebar-pinned .sidebar-utils {
-    position: absolute !important;
-    bottom: 8px !important;
-    left: 0 !important;
-    right: 0 !important;
-    display: flex !important;
-    justify-content: center !important;
-    background: transparent !important;
-    border-top: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    z-index: 60 !important;
-  }
+  /* Pin button v rail = ROUNDED SQUARE (border-radius 10px) — ne kruh!
+     Position: fixed přímo (escapes sidebar overflow). */
   body.sidebar-pinned .sidebar-pin {
+    position: fixed !important;
+    bottom: 84px !important;       /* nad bottom-nav 72px + 12px gap */
+    left: 8px !important;
+    width: 40px !important;        /* trochu menší než rail 56px → padding po stranách */
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    border-radius: 10px !important;  /* ✅ ZAOBLENÝ OBDÉLNÍK, NE KRUH */
     background: linear-gradient(135deg, #BA7517, #854F0B) !important;
     color: #fff !important;
-    border: 2px solid #fff !important;
-    width: 48px !important;
-    height: 48px !important;
-    min-height: 48px !important;
-    padding: 0 !important;
-    border-radius: 50% !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 2px #854F0B !important;
+    border: 1px solid #854F0B !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     flex-direction: row !important;
-    z-index: 61 !important;
+    gap: 0 !important;
+    z-index: 90 !important;          /* nad bottom-nav z-index 50 */
   }
   body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
-    font-size: 22px !important;
+    font-size: 20px !important;
     color: #fff !important;
     transform: rotate(-15deg);
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
     display: block !important;
     margin: 0 !important;
+    opacity: 1 !important;
   }
   body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on,
   body.sidebar-pinned .sidebar-pin .sidebar-pin-label-off {
     display: none !important;
   }
-}
-
-/* === ZÁPAS POJISTKA: i kdyby výše selhalo, pin floating fixed nad bottom-nav.
-   Pin element existuje jeden, takže oba selektory triggerují to samé. */
-@media (max-width: 700px) {
-  body.sidebar-pinned .sidebar-pin {
-    position: fixed !important;
-    bottom: 84px !important;        /* nad bottom-nav 72px + 12px gap */
-    left: 4px !important;            /* centruj v rail 56px - 48px button = 8px → 4px each side */
-    z-index: 90 !important;          /* nad bottom-nav (z-index 50) + FAB (91 by mělo být víc) */
+  /* Sidebar-utils v rail mode = neviditelný (pin teď fixed mimo) */
+  body.sidebar-pinned .sidebar-utils {
+    display: none !important;
   }
 }
 

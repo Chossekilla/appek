@@ -6,6 +6,28 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.63] — 2026-05-27
+
+### 🎨 Brand text v topbaru + pin v rail = zaoblený obdélník
+_User: "ten název toho zákazníka při odepnutém menu na mobilu kde je? ten button připnout dobrý ale špendlík kulatej je hnusnej! dej to jak to bylo jen ten špendlík si měl posunout vejš."_
+
+**Fix #1 — Brand text (firma name) v sidebar-logo na mobile:**
+- v3.0.51 schoval `.sidebar-logo strong` na celém mobilu (kvůli `display: contents` bugu)
+- Tento bug už neexistuje od v3.0.52 → vrátit brand text na unpinned mobile
+- `body:not(.sidebar-pinned) .sidebar-logo strong { display: inline-block; font-size: 15px; font-weight: 700; max-width: 50%; ellipsis }`
+- V pinned (rail) zůstává hidden (jen ikona)
+
+**Fix #2 — Pin v rail = ROUNDED SQUARE (ne kruh):**
+- v3.0.62 použil circle design (border-radius: 50%) — user: "kulatej je hnusnej!"
+- Vrátit původní design: 40×40 rounded square (border-radius: 10px), gold gradient
+- Zachovat `position: fixed; bottom: 84px; left: 8px; z-index: 90` (nad bottom-nav)
+- Sidebar-utils v rail: `display: none` (pin escapes via fixed)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.62→3.0.63, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.62] — 2026-05-27
 
 ### 🔴 KRITICKÝ FIX: Špendlík v rail módu KONEČNĚ viditelný (4. pokus, bulletproof)
