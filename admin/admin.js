@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.75';
+const APPEK_ADMIN_JS_VERSION = '3.0.76';
 
 (async function detectStaleCode() {
   try {
@@ -3068,7 +3068,8 @@ async function showApp() {
   const sidebarLogo = document.querySelector('.sidebar-logo');
   if (sidebarLogo && !sidebarLogo.dataset.clickBound) {
     sidebarLogo.dataset.clickBound = '1';
-    sidebarLogo.setAttribute('title', '🏠 Domů — Přehled');
+    // 🆕 v3.0.76 — title attr odstraněn (Safari iOS dělal preview tooltip "🏠 Domů — Přehled"
+    // viditelný jako tmavý pill pod logem, user reportoval 3X). Klik na logo → dashboard stále funguje.
     sidebarLogo.addEventListener('click', (ev) => {
       // Skip pokud user kliknul na sub-element, který má vlastní handler (datum pill apod.)
       const tgt = ev.target.closest('[data-no-logo-click]');
