@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.82";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.83";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20034,8 +20034,8 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;
-    bottom: 72px !important;        /* 🆕 dojed přesně k top of bottom-nav */
-    height: auto !important;        /* dříve calc(100dvh - 76px) */
+    bottom: 72px !important;        /* dojed přesně k top of bottom-nav */
+    height: calc(100dvh - 72px) !important;  /* 🆕 v3.0.82 — full height aby flex grow fungoval = pin půjde DOLŮ */
     width: 56px !important;
     padding: 6px 4px !important;
     box-sizing: border-box !important;
@@ -20117,17 +20117,25 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    justify-content: center !important;
-    align-items: flex-end !important;     /* pin DOLE */
+    flex-direction: column !important;    /* sloupec: dashed line + pin */
+    justify-content: flex-end !important; /* pin DOLE */
+    align-items: center !important;
     flex: 1 1 auto !important;
     padding: 0 4px 8px !important;
     margin-top: 0 !important;
-    border-top: 1px dashed var(--border, #d0c8b5) !important;
-    border-bottom: 0 !important;
-    border-left: 0 !important;
-    border-right: 0 !important;
+    border: 0 !important;                 /* žádný border na utils, dáme na ::before */
     background: transparent !important;
     z-index: 5 !important;
+  }
+  /* Čárkovaná čára TĚSNĚ NAD PINEM */
+  body.sidebar-pinned .sidebar-utils::before {
+    content: '' !important;
+    display: block !important;
+    width: 36px !important;
+    height: 0 !important;
+    border-top: 1px dashed var(--border, #d0c8b5) !important;
+    margin: 0 auto 8px !important;
+    flex: 0 0 auto !important;
   }
   body.sidebar-pinned .sidebar-pin {
     position: static !important;
@@ -20294,4 +20302,46 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   body.sidebar-pinned .sidebar-nav .nav-item .nav-icon {
     font-size: 16px !important;
   }
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   🆕 v3.0.83 — ADMIN FLOOR-CANVAS AUTO-FIT (Restaurace → Stoly)
+   User: "mapa stolů s vnitřním polem mapy neni responzivní" + screenshot
+   ukazoval Rodinný + Bar cut-off vpravo (canvas 800px v 1000px viewportu).
+
+   Root cause: #rt-canvas má INLINE width:${canvas_w}px z DB. Tile children
+   jsou absolute-positioned px coords. Když viewport < canvas_w → overflow.
+
+   Fix: container queries + transform scale ladder. Edit mode bypass aby
+   drag math nedriftoval (drag používá getBoundingClientRect bez compensace
+   za transform). Mirror pattern v pos.css (jeden visual standard).
+   ═════════════════════════════════════════════════════════════════ */
+.rt-canvas {
+  transform-origin: top left;
+  transition: transform 0.18s ease;
+}
+/* Wrapper = existující inline-styled .card-block s #rt-canvas dítětem */
+.card-block:has(> #rt-canvas) {
+  container-type: inline-size;
+  overflow: hidden !important;         /* kill horizontal scrollbar → scale místo scroll */
+  display: flow-root;
+}
+/* Stepped scale ladder — pokrývá canvas_w 700-1500px na všech viewportech */
+@container (max-width: 1400px) { .rt-canvas:not(.is-edit) { transform: scale(0.92); } }
+@container (max-width: 1200px) { .rt-canvas:not(.is-edit) { transform: scale(0.80); } }
+@container (max-width: 1000px) { .rt-canvas:not(.is-edit) { transform: scale(0.68); } }
+@container (max-width: 850px)  { .rt-canvas:not(.is-edit) { transform: scale(0.58); } }
+@container (max-width: 700px)  { .rt-canvas:not(.is-edit) { transform: scale(0.48); } }
+@container (max-width: 550px)  { .rt-canvas:not(.is-edit) { transform: scale(0.38); } }
+
+/* Edit mode: BEZ scale. Drag handlers (rtTableDragMove) používají
+   getBoundingClientRect() a vrací screen px coords — pod scale by drifovaly.
+   V edit režimu user dostává zpět horizontal scroll (acceptable trade-off). */
+.card-block:has(> #rt-canvas.is-edit) {
+  overflow: auto !important;
+}
+
+/* Fallback pro starší prohlížeče bez :has() → graceful degradace na scroll */
+@supports not selector(:has(*)) {
+  .rt-canvas { transform: none !important; }
 }

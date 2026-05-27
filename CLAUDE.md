@@ -4,6 +4,79 @@
 
 ---
 
+# 🔴🔴🔴 QUALITY GATES (do odvolání, 2026-05-27) — PŘEDNOST PŘED VŠEMI OSTATNÍMI PRAVIDLY
+
+User explicitně zapnul tyto gates ("ano, do odvolání"). Platí dokud user explicitně neřekne "vypni to".
+
+## BLOCKING — bez tohoto NIKDY nereportuj "hotovo/deployed/✅"
+
+### Pro každou UI změnu MUSÍŠ:
+
+1. **Claude Preview MCP** → screenshot live URL po deploy:
+   ```
+   mcp__Claude_Preview__preview_start    (URL: https://demo.appek.cz/admin/ nebo http://localhost/appek/admin/)
+   mcp__Claude_Preview__preview_resize   (width × height matching user's screenshot viewport)
+   mcp__Claude_Preview__preview_screenshot
+   ```
+
+2. **Viewport match** — fotit v stejném viewportu co user poslal:
+   - Desktop: **1280×800** (default)
+   - Mobile: **390×844** (iPhone 14 Pro)
+   - Tablet: **768×1024** (iPad portrait)
+
+3. **Vizuálně porovnat** se screenshot co user poslal jako reference.
+
+4. **Pokud screenshot neukáže fix** → fix to **ZNOVA** než reportovat. Žádné "deployed, zkontroluj" naslepo.
+
+### Reportovat lean:
+- ✅ OK: "build vX.Y.Z pushed, screenshot níže ukazuje [konkrétní fix], čekám 'jedem dál'"
+- ❌ ZAKÁZÁNO: "hotovo" / "✅ deployed" / "měl bys vidět X" / "teď to bude OK"
+
+## CSS gates
+
+- **Plan agent** (`subagent_type: "Plan"`) když:
+  - Change > 50 řádků
+  - Shared/global selector (`.sidebar-nav`, `.btn`, `body`, etc.)
+  - Opakovaný problém (user už ≥ 2× řekl "neni to ono")
+
+- **Container queries / clamp() > fixní px** — vždy. Floor maps, canvases, modaly = `container-type: inline-size`, ne `width: 720px`.
+
+- **Overflow audit** pro canvas/grid: test při 320/390/768/1024/1280 px viewport.
+
+- **Po commitu** ≥ 50 LOC CSS → `code-modernization:architecture-critic` v background (`run_in_background: true`).
+
+## Verze checklist (každý release)
+
+```
+admin/admin.js            const APPEK_ADMIN_JS_VERSION = 'X.Y.Z'
+admin/sw.js               const CACHE_VERSION = 'appek-vX.Y.Z'
+api/config.php            define('APP_VERSION', 'X.Y.Z')
+admin/admin.css           --appek-css-version: "X.Y.Z"
+admin/index.html          admin.css?v= + admin.js?v= + i18n.js?v= + i18n_auto.js?v= + i18n_extra.js?v=
+b2b/index.html            style.css?v= + i18n.js?v= + app.js?v=
+```
+
+Grep verify před commitem: `grep -rn "X\.Y\.(Z-1)" --include="*.{html,js,css,php}" | grep -v build-manifest`
+
+## Anti-pravidla (FATAL)
+
+- 🚫 **NIKDY** nesyncovat `api/config.local.php` (rsync vždy s `--exclude='api/config.local.php'`) — jinak login crash
+- 🚫 **NIKDY** psát "hotovo / deployed / ✅" bez user "jedem dál"
+- 🚫 **NIKDY** revertovat bez explicitního "vrať to"
+- 🚫 **NIKDY** brát `HANDOFF-pin-rail.md` jako úkol — user dělá sám
+- 🚫 **NIKDY** měnit pin CSS v admin.css lines 20029-20204 — user dělá sám
+
+## Login (testing)
+
+```
+URL:    http://localhost/appek/admin/  (XAMPP)  |  https://demo.appek.cz/admin/  (live)
+Email:  demo@appek.cz   nebo   admin@admin.cz
+Heslo:  admin123
+JSON:   {"email":"demo@appek.cz","heslo":"admin123"}   ← klíč "heslo" ne "password"!
+```
+
+---
+
 ## 🎯 Co je tento projekt
 
 **Appek B2B** = gastro objednávkový systém ("krabicovka"). PHP + MySQL + vanilla JS, žádný framework.
