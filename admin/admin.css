@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.108";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.109";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20433,4 +20433,36 @@ html.density-compact body:not(.sidebar-pinned) aside.sidebar nav.sidebar-nav .na
 @supports not (container-type: inline-size) {
   .rt-canvas-wrap { overflow: auto; aspect-ratio: auto; }
   .rt-canvas { transform: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   🆕 v3.0.109 — VIEWPORT 701-1023px (úzký PC, MacBook 13 narrow, iPad land.)
+   User: "přidej viewport at nerozhodíš zbytek a nastyluj to"
+   NEZASAHUJE do mobile (≤700), full PC (≥1024), pinned/collapsed override pravidel.
+   ════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 701px) and (max-width: 1023px) {
+  /* Sidebar: menší padding + font aby se text vešel bez truncation */
+  body:not(.sidebar-collapsed):not(.sidebar-pinned) .sidebar-nav .nav-item {
+    padding: 8px 10px;
+    font-size: 12.5px;
+    gap: 8px;
+    min-height: 38px;
+  }
+  body:not(.sidebar-collapsed):not(.sidebar-pinned) .sidebar-nav .nav-item .nav-icon {
+    font-size: 15px;
+  }
+  body:not(.sidebar-collapsed):not(.sidebar-pinned) .sidebar-logo strong {
+    font-size: 13px;
+  }
+  /* Quick actions: 2x2 (4 v řadě moc úzké v 880px content) */
+  .quick-actions { grid-template-columns: 1fr 1fr; }
+  /* Card numbers: nowrap + menší font aby se vešly */
+  .dashboard-recent-row .recent-table tbody tr td:nth-child(1),
+  .dashboard-recent-row .recent-card .recent-table td:first-child {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  /* Topbar kompaktnější */
+  .topbar { gap: 8px; }
+  .topbar-search .btn-cmdk-trigger { max-width: 200px; }
 }
