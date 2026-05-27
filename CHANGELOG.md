@@ -6,6 +6,36 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.66] — 2026-05-27
+
+### 🐛 JS chyby + pin v rail rozšířen na iPad + nav od shora dolů
+_User: "kde je špendlík? a menu od shora dolu?" + screenshoty s 3 JS chybami_
+
+**Fix #1 — `Chyba: users.filter is not a function`:**
+- `renderUsers()` defensive: pokud API vrátí ne-array → zkusit `.users`/`.data` wrap, fallback `[]`
+
+**Fix #2 — `Chyba: can't access property "length", d.zalohy is undefined`:**
+- `zalohyRefresh()` defensive: `d.zalohy = Array.isArray(d.zalohy) ? d.zalohy : []`
+- Plus normalizace `d.pocet` + `d.celkova_velikost`
+
+**Fix #3 — `Chyba: can't access property "connected", db is undefined`:**
+- `diagRychly()` defensive: všechny d.system/database/schema/endpoints/collisions přes `|| {}` fallback
+- Array.isArray checks na sch.issues + sys.missing_extensions
+
+**Fix #4 — Pin v rail mode rozšířen na iPad (≤1100px):**
+- v3.0.63 mělo @media (max-width: 700px) — iPad portrait (768) + landscape mimo
+- Rozšířeno na 1100px, pokrývá iPhone, iPad portrait, iPad landscape
+
+**Fix #5 — Nav v rail od shora dolů:**
+- `body.sidebar-pinned .sidebar` = flex column
+- `.sidebar-nav` flex: 1 1 auto, min-height: 0
+- `.nav-item` flex: 1 1 0 → rozdělí výšku rovnoměrně + jen ikona (22px)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.65→3.0.66, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.65] — 2026-05-27
 
 ### ⏪ REVERT v3.0.61 nav stretching + scroll fix

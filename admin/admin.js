@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.65';
+const APPEK_ADMIN_JS_VERSION = '3.0.66';
 
 (async function detectStaleCode() {
   try {
@@ -22024,14 +22024,20 @@ window.diagRychly = async function() {
   el.innerHTML = '⏳ Načítám…';
 
   try {
-    const d = await api('admin_diagnostika.php');
+    const d = (await api('admin_diagnostika.php')) || {};
     state._diagRaw = d;
 
-    const sys = d.system, db = d.database, sch = d.schema,
-          ep = d.endpoints, col = d.collisions;
-    const epMissing = (ep || []).filter(e => !e.exists).length;
+    // 🐛 v3.0.66 — defensive: API může vrátit prázdné/chybové response. User: "db is undefined"
+    const sys = d.system || {};
+    const db = d.database || {};
+    const sch = d.schema || { issues: [] };
+    const ep = d.endpoints || [];
+    const col = d.collisions || [];
+    if (!Array.isArray(sch.issues)) sch.issues = [];
+    if (!Array.isArray(sys.missing_extensions)) sys.missing_extensions = [];
+    const epMissing = ep.filter(e => !e.exists).length;
     const items = [
-      { ok: db.connected, label: 'DB', warnLabel: 'DB selhala' },
+      { ok: !!db.connected, label: 'DB', warnLabel: 'DB selhala' },
       { ok: sys.mail_function === 'available', label: 'mail()', warnLabel: 'mail() nedostupný' },
       { ok: sch.issues.length === 0, label: `schéma`, warnLabel: `${sch.issues.length} chybí`, warn: sch.issues.length > 0 },
       { ok: epMissing === 0, label: `endpointy`, warnLabel: `${epMissing} chybí` },
@@ -22897,7 +22903,11 @@ window.zalohyRefresh = async function() {
   if (!el) return;
   el.innerHTML = '⏳ Načítám…';
   try {
-    const d = await api('admin_zalohy.php?action=list');
+    const d = await api('admin_zalohy.php?action=list') || {};
+    // 🐛 v3.0.66 — defensive: API může vrátit chybu nebo prázdný objekt
+    if (!Array.isArray(d.zalohy)) d.zalohy = [];
+    if (typeof d.pocet !== 'number') d.pocet = d.zalohy.length;
+    if (typeof d.celkova_velikost !== 'number') d.celkova_velikost = 0;
     const overall = document.getElementById('ns-zalohy-overall');
     if (overall) {
       overall.textContent = d.pocet === 0
@@ -24486,7 +24496,15 @@ async function renderUsers() {
   c.innerHTML = `<div class="page-head"><h1 class="page-title">Uživatelé</h1></div><p>Načítám…</p>`;
 
   try {
-    const users = await api('admin_users.php');
+    // 🐛 v3.0.66 — defensive: pokud API vrátí ne-array (např. {error: "..."} or unauthorized
+    // wrapper), zkusíme rozumný fallback místo crash. User: "Chyba: users.filter is not a function".
+    let users = await api('admin_users.php');
+    if (!Array.isArray(users)) {
+      // Některé endpointy obalují do {data: [...]} nebo {users: [...]}
+      if (users && Array.isArray(users.users)) users = users.users;
+      else if (users && Array.isArray(users.data)) users = users.data;
+      else users = [];
+    }
 
     const roleLabel = (r) => ({
       admin:    '👑 Super admin',
