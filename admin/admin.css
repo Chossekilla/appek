@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.74";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.75";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20087,18 +20087,54 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     opacity: 0.85 !important;
   }
 
-  /* === ŠPENDLÍK = SCHOVAT z rail, je v bottom-nav (samostatně)
-     🆕 v3.0.74 — User: "sjdnocené pořadí bočního menu od shora dolu a špendlík
-                  má být na bottom menu hned sámostatně" */
-  body.sidebar-pinned .sidebar-utils { display: none !important; }
-  body.sidebar-pinned .sidebar-pin   { display: none !important; }
+  /* === ŠPENDLÍK V RAIL — krémově béžová dlaždice pod nav ikonami
+     🆕 v3.0.75 REVERT v3.0.74 (pin v bottom-nav)
+     User: "takhle to chci" + screenshot s pinem v rail (béžová dlaždice). */
+  body.sidebar-pinned .sidebar-utils {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex: 0 0 auto !important;
+    padding: 8px 4px 6px !important;
+    margin-top: auto !important;         /* push k bottom flex column */
+    border: 0 !important;
+    background: transparent !important;
+  }
+  body.sidebar-pinned .sidebar-pin {
+    position: static !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #FAEEDA, #F4DDB8) !important;
+    color: var(--primary-dark, #854F0B) !important;
+    border: 1px solid rgba(186,117,23,0.3) !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: row !important;
+    gap: 0 !important;
+  }
+  body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
+    font-size: 22px !important;
+    color: var(--primary-dark, #854F0B) !important;
+    transform: rotate(-15deg);
+    display: block !important;
+    margin: 0 !important;
+    opacity: 1 !important;
+  }
+  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on,
+  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-off {
+    display: none !important;
+  }
 
-  /* Sjednocené pořadí nav od shora dolů — žádné border, žádné mezery */
+  /* Nav od shora dolů — žádné border, čisté */
   body.sidebar-pinned .sidebar-nav .nav-item {
     border: 0 !important;
     border-bottom: 0 !important;
   }
-  /* Logo container — čistší, bez separátorů */
   body.sidebar-pinned .sidebar-logo {
     padding: 8px 4px 8px !important;
     border-bottom: 0 !important;
@@ -20111,27 +20147,9 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   }
 }
 
-/* === Bottom-nav pin button (v3.0.74) — pin samostatně jako 6. item === */
-.bottom-nav-pin {
-  position: relative;
-}
-.bottom-nav-pin .bn-icon {
-  transition: transform 0.2s ease;
-}
-.bottom-nav-pin .bn-pin-label-on { display: none; }
-.bottom-nav-pin .bn-pin-label-off { display: inline; }
-body.sidebar-pinned .bottom-nav-pin {
-  color: var(--primary-dark, #854F0B) !important;
-}
-body.sidebar-pinned .bottom-nav-pin .bn-icon {
-  transform: rotate(-15deg);
-  filter: drop-shadow(0 1px 2px rgba(186,117,23,0.4));
-}
-body.sidebar-pinned .bottom-nav-pin .bn-pin-label-on { display: inline; }
-body.sidebar-pinned .bottom-nav-pin .bn-pin-label-off { display: none; }
-/* Update grid — bottom-nav grid musí pojmout 6 itemů */
+/* === Bottom-nav grid REVERT na 5 sloupců (v3.0.75 — pin pryč z bottom-nav) === */
 .bottom-nav-grid {
-  grid-template-columns: repeat(6, 1fr) !important;
+  grid-template-columns: repeat(5, 1fr) !important;
 }
 
 /* === REVERTED v3.0.65: nav buttons full-height stretching ===
