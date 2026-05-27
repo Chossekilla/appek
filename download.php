@@ -35,13 +35,15 @@ if (empty($key)) {
     exit;
 }
 
-// Format check
-if (!preg_match('/^APPEK-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/', $key)) {
+// 🐛 v3.0.72 fix — Regex přijímá v1 (5 segments, core only) i v2 (6 segments, s balíčky)
+// Předtím povolen jen 6-segment → customer s pure core licencí dostal 400 z e-mail linku.
+// Aligned with license_format_valid() v api/_license.php.
+if (!preg_match('/^APPEK-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}(-[A-Z2-9]{4})?-[A-Z0-9]{4}$/', $key)) {
     http_response_code(400);
     header('Content-Type: text/html; charset=UTF-8');
     echo '<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><title>Neplatný formát klíče</title></head><body style="font-family:system-ui;max-width:600px;margin:60px auto;padding:20px;text-align:center">
         <h1>❌ Neplatný formát klíče</h1>
-        <p>Klíč má formát <code>APPEK-XXXX-XXXX-XXXX-XXXX-XXXX</code> (24 znaků + prefix).</p>
+        <p>Klíč má formát <code>APPEK-XXXX-XXXX-XXXX-XXXX</code> (v1) nebo <code>APPEK-XXXX-XXXX-XXXX-XXXX-XXXX</code> (v2 s balíčky).</p>
         <p>Zkontroluj jestli jsi zkopíroval celý klíč z e-mailu, nebo kontaktuj <a href="mailto:info@appek.cz">info@appek.cz</a>.</p>
     </body></html>';
     exit;
