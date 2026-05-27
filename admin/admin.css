@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.67";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.68";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -270,6 +270,16 @@ a:hover { text-decoration: underline; }
    sidebaru a vznikl obrovský oranžový blok. Místo toho: natural sizing + scroll když je
    nav-items moc. Hybridní `flex: 0 1 auto` = nikdy neroste, ale může se zmenšit. */
 .sidebar-nav .nav-item { flex: 0 1 auto; min-height: 38px; }
+
+/* 🆕 v3.0.68 — DESKTOP sidebar full-screen flex menu (user: "full screen flex menu allways - na PC!")
+   Nav items na desktopu rozdělí celou výšku sidebar rovnoměrně (od shora dolů).
+   Safe-guard: max-height aby jednotlivá ikona při role='pos' nepřerostla. */
+@media (min-width: 701px) {
+  .sidebar-nav .nav-item {
+    flex: 1 1 0 !important;
+    max-height: 80px;          /* aby pří jednom itemu se nenafoukl absurdně */
+  }
+}
 
 /* 🆕 v3.0.60 — Sidebar overlay (open) na užším viewportu: nav items shrinkují
    ještě víc aby se VŽDY vešly všechny (user: "musí se tam vejít všechny položky").
