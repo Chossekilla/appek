@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.77";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.78";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20111,34 +20111,43 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   }
 
   /* === ŠPENDLÍK V RAIL — krémově béžová dlaždice pod nav ikonami
-     🆕 v3.0.75 REVERT v3.0.74 (pin v bottom-nav)
-     User: "takhle to chci" + screenshot s pinem v rail (béžová dlaždice). */
+     🆕 v3.0.78 ZÁRUKA — explicit visibility všude, sticky bottom positioning
+     User: "špendlík neni kde měl být — 3 hodiny děláme věci co už bzli hotové"
+     Pin v rail musí být VŽDY vidět dole nad bottom-nav. */
   body.sidebar-pinned .sidebar-utils {
     display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     justify-content: center !important;
     align-items: center !important;
-    flex: 0 0 auto !important;
+    flex: 0 0 60px !important;            /* fixed 60px slot dole — neztratí se */
     padding: 8px 4px 6px !important;
-    margin-top: auto !important;         /* push k bottom flex column */
+    margin-top: auto !important;          /* push k bottom flex column */
     border: 0 !important;
     background: transparent !important;
+    z-index: 5 !important;                /* nad případnými siblings */
   }
   body.sidebar-pinned .sidebar-pin {
     position: static !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     width: 44px !important;
     height: 44px !important;
     min-height: 44px !important;
+    max-height: 44px !important;
     padding: 0 !important;
+    margin: 0 !important;
     border-radius: 12px !important;
     background: linear-gradient(135deg, #FAEEDA, #F4DDB8) !important;
     color: var(--primary-dark, #854F0B) !important;
     border: 1px solid rgba(186,117,23,0.3) !important;
     box-shadow: 0 2px 6px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6) !important;
-    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     flex-direction: row !important;
     gap: 0 !important;
+    flex-shrink: 0 !important;
   }
   body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
     font-size: 22px !important;
