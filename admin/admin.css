@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.99";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.100";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -238,8 +238,9 @@ a:hover { text-decoration: underline; }
    kde browser UI bar zabírá místo). Předtím jen 100vh = pod mobilem chyběl spodní pruh. */
 .admin-app { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; min-height: 100dvh; }
 
-/* SIDEBAR — vždy od shora dolu přes celou viewportu */
-.sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 12px; position: sticky; top: 0; height: 100vh; height: 100dvh; overflow: hidden; align-self: start; }
+/* 🆕 v3.0.100 — ODEPNUTÉ sidebar = static (scrolluje s page).
+   PINNED přebije přes line 617+ (position: fixed). */
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 12px; position: static; min-height: 100vh; align-self: start; }
 /* Nav vyplní zbylou výšku — items se nezvětší, jen se neměly přetékat (no scroll) */
 .sidebar > .sidebar-nav { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 0 12px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
