@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.93";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.94";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20376,6 +20376,27 @@ html.density-compact body:not(.sidebar-pinned) aside.sidebar nav.sidebar-nav .na
     padding: 20px 22px !important;
     font-size: 20px !important;
     line-height: 1.25 !important;
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   🆕 v3.0.94 — PIN + SIDEBAR-UTILS HIDE NA DESKTOPU
+   User: "tam nemá být na pc totiž pin vůbec, ten je jenom na mobilu —
+   to koliduje. dej ten špendlík a funkci na pc pryč"
+
+   Pin "Připnuto" + "Skrýt menu" je mobile-only feature. Na desktopu
+   sidebar-utils s pinem zabíral prostor + kolidoval s density flex
+   distribute (v3.0.86 flex 1 1 auto na utils → nedalo se rozlišit
+   prázdné místo).
+
+   Po skrytí: sidebar = logo + nav (full-flex distribute). Žádný gap
+   dole, žádné nepoužitelné tlačítko, density velikost konečně viditelná.
+   ═════════════════════════════════════════════════════════════════ */
+@media (min-width: 701px) {
+  .sidebar-utils,
+  .sidebar-pin,
+  .sidebar-collapse {
+    display: none !important;
   }
 }
 
