@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.65";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.66";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -19980,11 +19980,9 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
    ═════════════════════════════════════════════════════════════════ */
 
 /* === Pin viditelný v rail módu — v3.0.63 ZAOBLENÝ OBDÉLNÍK (ne kruh) ===
-   🆕 v3.0.63 — User: "ten button připnout dobrý ale špendlík kulatej je hnusnej!
-   dej to jak to bylo jen ten špendlík si měl posunout vejš"
-   → Vrátit original design (rounded square, gold gradient) + position: fixed
-   bottom: 84px (nad bottom-nav 72px), z-index: 90. */
-@media (max-width: 700px) {
+   🆕 v3.0.66 — Rozšířeno až do 1100px (iPad portrait+landscape rail mode) +
+   nav od shora dolů (rail-nav flex 1 1 auto, items rozdělí výšku). */
+@media (max-width: 1100px) {
   /* Sidebar rail — sekundární pojistka aby ostatní obsah nepřesahoval */
   body.sidebar-pinned .sidebar {
     height: calc(100dvh - 76px) !important;
@@ -20030,6 +20028,45 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   /* Sidebar-utils v rail mode = neviditelný (pin teď fixed mimo) */
   body.sidebar-pinned .sidebar-utils {
     display: none !important;
+  }
+
+  /* 🆕 v3.0.66 — Nav v rail = od shora dolů (user: "menu od shora dolu")
+     Sidebar flex column, nav flex 1 1 auto, items rozdělí výšku rovnoměrně. */
+  body.sidebar-pinned .sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  body.sidebar-pinned .sidebar-logo,
+  body.sidebar-pinned .sidebar-logo * {
+    flex: 0 0 auto !important;
+  }
+  body.sidebar-pinned .sidebar-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    align-items: stretch !important;
+    padding: 4px 6px !important;
+    overflow-y: auto !important;
+  }
+  body.sidebar-pinned .sidebar-nav .nav-item {
+    flex: 1 1 0 !important;             /* rozděl výšku rovnoměrně */
+    min-height: 40px !important;
+    height: auto !important;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 4px !important;
+    border-radius: 8px !important;
+    font-size: 0 !important;             /* skryj text, jen ikona */
+  }
+  body.sidebar-pinned .sidebar-nav .nav-item .nav-icon {
+    font-size: 22px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    display: block !important;
   }
 }
 
