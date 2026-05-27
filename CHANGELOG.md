@@ -6,6 +6,30 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.62] — 2026-05-27
+
+### 🔴 KRITICKÝ FIX: Špendlík v rail módu KONEČNĚ viditelný (4. pokus, bulletproof)
+_User (frustrovaný): "neni vidět špendlík! tohle jsem psal už 4X!!!!!"_
+
+**Historie selhání:**
+- v3.0.51: opravil hide-pin na login (jiný problém)
+- v3.0.55: pin výraznější (ale stejná pozice — pod bottom-nav)
+- v3.0.57: opravil transparent override (ale stejná pozice)
+- v3.0.59: smazal sticky circle, vrátil natural flow (stále pod bottom-nav)
+- v3.0.61: padding-bottom 88px na sidebar (možná bypassed jinou rule)
+
+**Bulletproof v3.0.62 fix — `position: fixed` na pin:**
+- Pin button v rail mode: `position: fixed !important; bottom: 84px; left: 4px; z-index: 90`
+- ŽÁDNÉ dependencies na sidebar overflow/padding/height — pin escapes layout úplně
+- 48×48px round button, gold gradient (BA7517→854F0B), bílý border 2px, double shadow
+- z-index 90 garantuje že je NAD bottom-nav (z-index 50)
+- Sekundární pojistka: sidebar height `calc(100dvh - 76px)` aby se ostatní obsah neoverflowoval
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.61→3.0.62, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.61] — 2026-05-27
 
 ### 📱 3 mobile fixy z user feedbacku (pin v rail visible, nav full-height, pin gaps)
