@@ -2515,26 +2515,18 @@ html, body {
   transform-origin: top left;
   transition: transform 0.18s ease;
 }
-/* Auto-scale 0.5-1.0 dle container width vs canvas (přibližně) */
-@container (max-width: 800px) {
-  .pos-floor-canvas { transform: scale(0.85); }
-}
-@container (max-width: 600px) {
-  .pos-floor-canvas { transform: scale(0.7); }
-}
-@container (max-width: 450px) {
-  .pos-floor-canvas { transform: scale(0.55); }
-}
+/* 🆕 v3.0.83 — Stepped scale ladder (mirror admin.css .rt-canvas pro vizuální konzistenci)
+   Pokrývá canvas_w 700-1500px na všech viewport sizes. */
+@container (max-width: 1400px) { .pos-floor-canvas { transform: scale(0.92); } }
+@container (max-width: 1200px) { .pos-floor-canvas { transform: scale(0.80); } }
+@container (max-width: 1000px) { .pos-floor-canvas { transform: scale(0.68); } }
+@container (max-width: 850px)  { .pos-floor-canvas { transform: scale(0.58); } }
+@container (max-width: 700px)  { .pos-floor-canvas { transform: scale(0.48); } }
+@container (max-width: 550px)  { .pos-floor-canvas { transform: scale(0.38); } }
 /* Fallback pro starší prohlížeče bez container queries */
-@media (max-width: 900px) {
-  .pos-floor-canvas-wrap:not(:has(.pos-floor-canvas[style*="scale"])) .pos-floor-canvas {
-    transform: scale(0.8);
-  }
-}
-@media (max-width: 600px) {
-  .pos-floor-canvas-wrap:not(:has(.pos-floor-canvas[style*="scale"])) .pos-floor-canvas {
-    transform: scale(0.6);
-  }
+@supports not (container-type: inline-size) {
+  @media (max-width: 900px) { .pos-floor-canvas { transform: scale(0.8); } }
+  @media (max-width: 600px) { .pos-floor-canvas { transform: scale(0.6); } }
 }
 
 /* Stůl tile (absolute positioned) */
