@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.71";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.73";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18892,7 +18892,9 @@ html.dark .tb-app-name { color: #f5f5f7; }
     overflow: hidden !important;
     text-overflow: ellipsis !important;
   }
-  /* datum + svátek = vpravo v banneru, DVOUŘÁDEK (datum / svátek), šedý chip */
+  /* datum + svátek = vpravo v banneru, DVOUŘÁDEK (datum / svátek), šedý chip
+     🆕 v3.0.73 — User: "valdemar tam přád neni" — parent ořezával text via overflow:hidden
+                  + max-width 70%. Změna: content-sized chip + visible overflow. */
   body:not(.sidebar-pinned) .sidebar-logo .topbar-datum-svatek {
     display: flex !important;
     flex-direction: column !important;
@@ -18900,11 +18902,9 @@ html.dark .tb-app-name { color: #f5f5f7; }
     margin-left: auto !important;
     gap: 1px !important;
     padding: 5px 11px !important;
-    /* 🆕 v2.9.88 — chip dost široký na celé datum → text se vejde DOVNITŘ,
-       nic nepřečuhuje ven (žádný „zbytek pole" nad svátkem). */
     width: auto !important;
-    min-width: 146px !important;
-    max-width: 70% !important;
+    min-width: 0 !important;           /* 🆕 bylo 146px — chip se zmenší pokud je málo místa */
+    max-width: none !important;        /* 🆕 bylo 70% — nech růst jak potřeba */
     font-size: 10px !important;
     line-height: 1.35 !important;
     background: var(--surface-2) !important;
@@ -18913,7 +18913,7 @@ html.dark .tb-app-name { color: #f5f5f7; }
     color: var(--text-2) !important;
     text-align: right !important;
     white-space: nowrap !important;
-    overflow: hidden !important;
+    overflow: visible !important;      /* 🆕 bylo hidden — nech "Valdemar" vidět */
     flex-shrink: 0 !important;
   }
   /* datum = 1. řádek, svátek = 2. řádek (override skrytí .ts-svatek z @media 1280) */
