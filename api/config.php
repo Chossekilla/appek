@@ -46,7 +46,7 @@ if (DB_NAME === '' || DB_USER === '') {
 // Aplikace
 if (!defined('APP_URL'))     define('APP_URL',     'https://white-badger-130749.hostingersite.com');
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.97'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.98'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -250,6 +250,9 @@ function _ensure_prihlaseni_table(PDO $pdo): bool {
 }
 
 function login_rate_limited(string $email, string $ip, string $typ): bool {
+    // 🆕 v3.0.98 — Localhost (dev) bypass per user "u mě limit pokusů dej sekundu".
+    // Prod (real customers IP) zachovává 5 pokusů / 15 min security protection.
+    if (in_array($ip, ['::1', '127.0.0.1', '0.0.0.0', 'localhost'], true)) return false;
     try {
         $pdo = db();
         _ensure_prihlaseni_table($pdo);
