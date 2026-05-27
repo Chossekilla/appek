@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.98";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.99";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -13512,10 +13512,13 @@ html.theme-dark .rt-zone-tab:not(.is-active) {
   font-size: 9px;
   opacity: 0.7;
 }
-/* Visible POUZE když body má .pkg-subheader-collapsed */
+/* Visible POUZE když body má .pkg-subheader-collapsed.
+   🆕 v3.0.99 — Přidán #package-subheader ID selector aby vyhrál nad
+   #package-subheader.show (line 17472) co má vyšší specificity (1,1,0). */
 body.pkg-subheader-collapsed .pkg-subheader-handle {
   display: inline-flex !important;
 }
+body.pkg-subheader-collapsed #package-subheader,
 body.pkg-subheader-collapsed .package-subheader {
   display: none !important;
 }
