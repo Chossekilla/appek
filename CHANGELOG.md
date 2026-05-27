@@ -6,6 +6,27 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.67] — 2026-05-27
+
+### 📌 Špendlík v rail = NATURAL POZICE pod ikonami (žádné gold pill)
+_User: "chci to menu jak bylo ne oválky! mobil boční menu jak bylo ikony a pod nimi špendlík!"_
+
+**Kompletní přepis rail mode:**
+- Sidebar: `height: calc(100dvh - 76px)` (stop nad bottom-nav 72px + 4px gap) — pin se vejde DOVNITŘ sidebaru, žádné překrytí
+- Sidebar = `display: flex; flex-direction: column` (logo → nav → utils)
+- Nav: `flex: 1 1 auto; overflow-y: auto` (scrollable pokud nevejde)
+- Nav-items: `flex: 0 0 44px` (fixed 44×44 ikony, ne stretching)
+- Sidebar-utils: `flex: 0 0 auto; border-top` (separator nad pinem)
+- Pin: **`position: static`** (žádné fixed/absolute), 44×44, světlo-zlaté pozadí + border, ikona 20px
+
+Žádný floating gold pill (v3.0.62), žádný kulatý design (v3.0.62), žádný stretching nav (v3.0.61).
+Pin je TAM kde má být — pod ikonami v natural flow.
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.66→3.0.67, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.66] — 2026-05-27
 
 ### 🐛 JS chyby + pin v rail rozšířen na iPad + nav od shora dolů
