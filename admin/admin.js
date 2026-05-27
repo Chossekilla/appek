@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.59';
+const APPEK_ADMIN_JS_VERSION = '3.0.60';
 
 (async function detectStaleCode() {
   try {
@@ -4470,6 +4470,73 @@ window.dismissDashAlerts = function() {
   try { window.haptic && window.haptic('light'); } catch (e) {}
 };
 
+// 🆕 v3.0.60 — Swipe-to-dismiss pro .dash-alerts widget (user: "to nova
+// objednavka udelat swipe zavřít do strany"). Detekce horizontálního swipe
+// na .dash-alerts — pokud uživatel přejede prstem o >80px doprava nebo doleva,
+// widget se uzavře (volá dismissDashAlerts). Vertikální scroll zůstává nedotčen.
+(function setupDashAlertsSwipeDismiss() {
+  let startX = 0, startY = 0, currentX = 0, isTracking = false, target = null;
+  const THRESHOLD = 80;     // min px posun aby se aktivoval dismiss
+  const ANGLE_TOL = 1.5;    // |Δx| / |Δy| > 1.5 → horizontal swipe (ne scroll)
+
+  function onStart(e) {
+    const el = e.target.closest('.dash-alerts');
+    if (!el) return;
+    // Ignoruj swipe pokud začíná na dismiss button (✕) — ten má vlastní onclick
+    if (e.target.closest('.dash-alerts-dismiss')) return;
+    target = el;
+    const t = e.touches ? e.touches[0] : e;
+    startX = currentX = t.clientX;
+    startY = t.clientY;
+    isTracking = true;
+    target.style.transition = 'none';
+  }
+
+  function onMove(e) {
+    if (!isTracking || !target) return;
+    const t = e.touches ? e.touches[0] : e;
+    currentX = t.clientX;
+    const dx = currentX - startX;
+    const dy = t.clientY - startY;
+    // Pokud uživatel scrolluje vertikálně (větší dy než dx), zruš tracking
+    if (Math.abs(dy) > Math.abs(dx) * ANGLE_TOL && Math.abs(dy) > 10) {
+      target.style.transform = '';
+      target.style.opacity = '';
+      isTracking = false;
+      return;
+    }
+    target.style.transform = `translateX(${dx}px)`;
+    target.style.opacity = String(Math.max(0.3, 1 - Math.abs(dx) / 300));
+  }
+
+  function onEnd() {
+    if (!isTracking || !target) return;
+    const dx = currentX - startX;
+    target.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+    if (Math.abs(dx) > THRESHOLD) {
+      // Swipe potvrzen → dismiss
+      target.style.transform = `translateX(${dx > 0 ? 400 : -400}px)`;
+      target.style.opacity = '0';
+      try { window.haptic && window.haptic('light'); } catch (e) {}
+      try {
+        localStorage.setItem('appek_alerts_dismissed_until', String(Date.now() + 60 * 60 * 1000));
+      } catch (e) {}
+      setTimeout(() => { if (target) target.remove(); }, 240);
+    } else {
+      // Snap back
+      target.style.transform = '';
+      target.style.opacity = '';
+    }
+    isTracking = false;
+    target = null;
+  }
+
+  document.addEventListener('touchstart', onStart, { passive: true });
+  document.addEventListener('touchmove',  onMove,  { passive: true });
+  document.addEventListener('touchend',   onEnd,   { passive: true });
+  document.addEventListener('touchcancel', onEnd,  { passive: true });
+})();
+
 async function renderDashboard(filters = {}) {
   // 🆕 v2.9.234 — filter persistence přes localStorage (přežije reload + jiný navigate)
   let savedObdobi = null, savedOd = null, savedDo = null;
@@ -5131,7 +5198,9 @@ window.dashSetObdobi = function(obdobi) {
 // CLASS .period-tab = Skupina A = 1 řádek nowrap shrink
 window.periodTabsRender = function(tabs, currentKey, onclickFn) {
   const w = (typeof window !== 'undefined') ? window.innerWidth : 1024;
-  const isExtreme = w <= 400;
+  // 🆕 v3.0.60 — Expanded extreme to ≤460px (iPhone 14 Plus 428, Pro Max 430).
+  // User screenshot: "D...", "T..." ellipsis na iPhone 430px protože byl mimo extreme.
+  const isExtreme = w <= 460;
   const isMob = w <= 700;
   return tabs.map(t => {
     let label;

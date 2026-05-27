@@ -6,6 +6,34 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.60] — 2026-05-27
+
+### 📱 Mobile UX follow-up (period tabs + sidebar overflow + swipe-dismiss alerts)
+_User: "to nova objednavka udelat swipe zavřít do strany" + 7 screenshotů ze APPEK_FILES. Bugy zjištěné po v3.0.59 testu._
+
+**Period tabs D/T/M/R/V — fix ellipsis:**
+- Root cause: extreme breakpoint ≤400px (iPhone 14 Plus 428, Pro Max 430 mimo extreme mode → zobrazoval "D...", "T..." s ellipsis)
+- JS `periodTabsRender`: práh `≤400 → ≤460px`
+- CSS `@media`: `400px → 460px`, přidán `overflow: visible` + `text-overflow: clip` → "D" se ukáže celé bez ellipsis
+
+**Sidebar — všechny nav items vidět při kratším viewportu:**
+- User: "musí se tam vejít všechny položky-zmenšovat flex.a roztyhovat podle obrazovky"
+- Přidány `@media (max-height: 800px/500px)` s progresivně menšími nav-items (min-height 30/24px, font 12.5/11.5px)
+- `.sidebar > .sidebar-utils` position: sticky bottom — pin/Skrýt vždy přístupné
+
+**Swipe-to-dismiss pro „Akce vyžadující pozornost":**
+- User: "to nova objednavka udelat swipe zavřít do strany"
+- JS handler: `touchstart/move/end` listener na `.dash-alerts`
+- Horizontal swipe > 80px → dismiss + 1h hide (sdílí state s ✕ buttonem)
+- Threshold ANGLE_TOL 1.5: pokud `|dy| > |dx| * 1.5` → vertikální scroll, nezruší swipe handler
+- Vizuál: translateX follows finger + opacity fade; snap-back pokud < threshold
+- CSS: `touch-action: pan-y` + swipe hint `⇆` v pravém dolním rohu (jen mobile)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.59→3.0.60, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.59] — 2026-05-26
 
 ### 📱 Pin natural position + svátek viditelný + POS compact iPhone
@@ -27,16 +55,9 @@ _User: "v adminu nevidim svatek jmeno. spendlik smaz, ma byt pod menu kdyz schov
 - `display: block` (2-řádkový stack: datum / svátek)
 
 **POS compact na iPhone (≤480px portrait):**
-- Header: `--pos-header-h: 56px → 44px`, padding `14px → 8px`, brand-name 14px
-- Kategorie: `90px tile → 64px tile`, icon `28px → 22px`, name 9.5px
-- Search: padding `10px → 6/8px`, input 8px padding
-- Grid produktů: `auto-fill 125px → repeat(2, 1fr)`, gap `10px → 7px`, card min-height `160px → 130px`
-- Cart: max-height `55vh → 50vh`, head padding `8/12px → 6/10px`
-- Cart items: padding `8/10px → 6/8px`, font 11px, qty-btn `28px → 26px`
-- Total: `font 24px → 21px`, padding 8/10px
-- Payment/Type: smaller pills (pay-btn 11px, type-btn 9.5px)
-- Actions: icon `40×44px → 36×40px`, finish 14px font
-- Extra-mini (≤375px): brand-name hidden, tile 56px, finish font 12.5px
+- Header: `--pos-header-h: 56px → 44px`, kategorie 64px, grid 2-col
+- Cart kompakt, total 21px, action icons 36×40px
+- iPhone SE (≤375px): brand-name hidden, tile 56px
 
 ### 📦 Build & sync
 - Bumped: config.php 3.0.58→3.0.59, admin.js, sw.js, HTML asset URLs
