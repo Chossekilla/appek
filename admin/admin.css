@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.88";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.89";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -19998,6 +19998,7 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     margin: 0 auto 8px !important;
     flex: 0 0 auto !important;
   }
+  /* 🆕 v3.0.89 — User: "krémovou smaž, dej transparent" — pin bez rámečku/pozadí */
   body.sidebar-pinned .sidebar-pin {
     position: static !important;
     display: flex !important;
@@ -20011,18 +20012,19 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     min-height: 56px !important;
     padding: 6px 4px 5px !important;
     margin: 8px 0 0 !important;
-    background: #F4ECDB !important;       /* krémová tan */
-    border: 1px solid #E8DCC0 !important;
-    border-radius: 10px !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
-    color: #8B6F3C !important;
+    background: none !important;          /* 🆕 v3.0.89 — transparent (user) */
+    border-color: transparent !important; /* 🆕 v3.0.89 */
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #fff !important;               /* 🆕 v3.0.89 — bílý text */
     align-items: center !important;
     justify-content: center !important;
     gap: 3px !important;
     cursor: pointer !important;
   }
   body.sidebar-pinned .sidebar-pin:hover {
-    background: #EFE3CC !important;
+    background: rgba(255,255,255,0.08) !important;   /* jemný hover */
   }
   body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
     font-size: 20px !important;
@@ -20032,7 +20034,7 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     margin: 0 !important;
     padding: 0 !important;
     opacity: 1 !important;
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.12));
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));  /* shadow aby ikona vyniklа na transparent */
   }
   /* "Připnuto" label POD ikonou */
   body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on {
@@ -20040,7 +20042,8 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     font-size: 9.5px !important;
     line-height: 1.1 !important;
     font-weight: 600 !important;
-    color: #8B6F3C !important;
+    color: #fff !important;                /* 🆕 v3.0.89 — bílý */
+    text-shadow: 0 1px 2px rgba(0,0,0,0.35); /* readability na transparent bg */
     text-align: center !important;
     letter-spacing: 0.02em !important;
     margin: 0 !important;
