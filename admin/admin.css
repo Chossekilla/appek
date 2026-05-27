@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.95";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.96";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -13476,11 +13476,13 @@ html.theme-dark .rt-zone-tab:not(.is-active) {
 .package-subheader.is-collapsed {
   display: none !important;
 }
-/* Jazyk (handle) — viditelný POUZE když subheader collapsed */
+/* 🆕 v3.0.96 — Jazyk (handle) — DEFAULT HIDDEN, visible POUZE když collapsed
+   Fix: předtím duplicitní display: none + display: inline-flex ve same block →
+   druhý overridoval první, handle byl vždy visible. */
 .pkg-subheader-handle {
-  display: none;
+  display: none;                 /* DEFAULT skrytý */
   position: fixed;
-  top: 60px;                   /* pod hlavním topbarem (60px height) */
+  top: 60px;
   right: 24px;
   z-index: 48;
   padding: 6px 14px 8px;
@@ -13496,7 +13498,6 @@ html.theme-dark .rt-zone-tab:not(.is-active) {
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   transition: transform 0.18s ease, background 0.15s ease;
-  display: inline-flex;
   align-items: center;
   gap: 6px;
 }
@@ -13509,9 +13510,9 @@ html.theme-dark .rt-zone-tab:not(.is-active) {
   font-size: 9px;
   opacity: 0.7;
 }
-/* Default: handle skrytý. Když subheader má .is-collapsed → handle visible */
+/* Visible POUZE když body má .pkg-subheader-collapsed */
 body.pkg-subheader-collapsed .pkg-subheader-handle {
-  display: inline-flex;
+  display: inline-flex !important;
 }
 body.pkg-subheader-collapsed .package-subheader {
   display: none !important;
