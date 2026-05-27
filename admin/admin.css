@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.70";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.71";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -3143,7 +3143,7 @@ html.theme-apple .nastaveni-tabs {
   .sidebar-logo .topbar-datum-svatek {
     margin-left: auto;
     padding: 4px 10px;
-    max-width: 65%;
+    max-width: 70%;          /* 🆕 v3.0.71 — bylo 65%, rozšířeno aby se vešel "Valdemar" */
     line-height: 1.2;
     flex-direction: column;
     align-items: flex-end;
@@ -3177,6 +3177,9 @@ html.theme-apple .nastaveni-tabs {
     display: block !important;
     white-space: nowrap !important;
     line-height: 1.3 !important;
+    overflow: visible !important;          /* 🆕 v3.0.71 — žádný ellipsis na "Valdemar" */
+    text-overflow: clip !important;
+    max-width: none !important;
   }
   body:not(.sidebar-pinned) .sidebar-logo .topbar-datum-svatek .dt-svatek-name,
   body:not(.sidebar-pinned) .sidebar-logo .topbar-datum-svatek .ts-svatek strong {
@@ -14097,7 +14100,7 @@ aside.sidebar::after { display: none !important; content: '' !important; }
   .sidebar-logo .topbar-datum-svatek {
     margin-left: auto;
     padding: 4px 10px;
-    max-width: 65%;
+    max-width: 70%;          /* 🆕 v3.0.71 — bylo 65%, rozšířeno aby se vešel "Valdemar" */
     line-height: 1.2;
     flex-direction: column;
     align-items: flex-end;
@@ -14131,6 +14134,9 @@ aside.sidebar::after { display: none !important; content: '' !important; }
     display: block !important;
     white-space: nowrap !important;
     line-height: 1.3 !important;
+    overflow: visible !important;          /* 🆕 v3.0.71 — žádný ellipsis na "Valdemar" */
+    text-overflow: clip !important;
+    max-width: none !important;
   }
   body:not(.sidebar-pinned) .sidebar-logo .topbar-datum-svatek .dt-svatek-name,
   body:not(.sidebar-pinned) .sidebar-logo .topbar-datum-svatek .ts-svatek strong {
@@ -19998,13 +20004,16 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
    Sidebar height calc(100dvh - 76px) = stop nad bottom-nav (72 + 4px gap).
    Sidebar-utils s pinem = vždy viditelný protože sidebar nepřesahuje pod bottom-nav. */
 @media (max-width: 1100px) {
-  /* Rail sidebar — zkrácený nad bottom-nav, flex column */
+  /* Rail sidebar — dojed PŘESNĚ k bottom-nav (žádný gap)
+     🆕 v3.0.71 — User: "tohle dojed dolu, ale špendlík nej kde je, jen ten přechod
+                  at tam neni." Bottom: 72px = výška bottom-nav, žádný 4px gap. */
   body.sidebar-pinned .sidebar {
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;
+    bottom: 72px !important;        /* 🆕 dojed přesně k top of bottom-nav */
+    height: auto !important;        /* dříve calc(100dvh - 76px) */
     width: 56px !important;
-    height: calc(100dvh - 76px) !important;
     padding: 6px 4px !important;
     box-sizing: border-box !important;
     overflow: hidden !important;

@@ -2881,3 +2881,117 @@ html, body {
   .pos-line-name { max-width: 90px !important; }
   .pos-total-bar strong { font-size: 19px !important; }
 }
+
+/* ═════════════════════════════════════════════════════════════════
+   🆕 v3.0.71 — iPhone DEEPER COMPACT
+   User: "pos na iphone katastrofa - nepouzitelne v provozu"
+   Ještě agresivnější redukce paddings, fonts, button sizes pro reálné použití.
+   ═════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) and (orientation: portrait) {
+  /* Volná položka button — menší */
+  .pos-custom-btn {
+    padding: 7px 10px !important;
+    font-size: 12.5px !important;
+    margin: 4px 8px !important;
+    width: calc(100% - 16px) !important;
+  }
+
+  /* Filter pills — sjednotit do 1 řady */
+  .pos-filters {
+    padding: 3px 8px !important;
+    gap: 4px !important;
+  }
+  .pos-filter-pill {
+    padding: 3px 8px !important;
+    font-size: 10.5px !important;
+  }
+
+  /* Cart head — menší */
+  .pos-cart-head {
+    padding: 4px 10px !important;
+    min-height: 32px !important;
+  }
+  .pos-new-btn {
+    padding: 4px 8px !important;
+    font-size: 11.5px !important;
+  }
+  .pos-more-btn {
+    font-size: 18px !important;
+    padding: 2px 6px !important;
+  }
+
+  /* Cust row — menší */
+  .pos-cust-row {
+    padding: 4px 10px !important;
+    min-height: 30px !important;
+  }
+  .pos-cust-name { font-size: 11.5px !important; }
+  .pos-cust-btn {
+    padding: 4px 8px !important;
+    font-size: 10.5px !important;
+  }
+
+  /* Empty cart icon — menší */
+  .pos-cart-list:empty + .pos-empty,
+  .pos-cart-list:empty {
+    min-height: 50px !important;
+    padding: 4px !important;
+  }
+
+  /* Summary (Mezisoučet/DPH) — kompakt do 1 řádku */
+  .pos-summary {
+    padding: 4px 10px !important;
+  }
+  .pos-sum-row {
+    font-size: 11px !important;
+    padding: 0 !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Total bar — menší */
+  .pos-total-bar {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+  }
+  .pos-total-bar strong { font-size: 18px !important; }
+
+  /* Payment buttons — kompakt */
+  .pos-payment-bar {
+    padding: 4px 8px 2px !important;
+    gap: 3px !important;
+  }
+  .pos-pay-btn {
+    padding: 6px 4px !important;
+    font-size: 10.5px !important;
+    border-radius: 6px !important;
+    min-height: 30px !important;
+  }
+
+  /* Type row (Sebou/Vyzvednutí/Rozvoz/Na místě) */
+  .pos-type-bar {
+    padding: 2px 8px 4px !important;
+    gap: 2px !important;
+  }
+  .pos-type-btn {
+    padding: 4px 1px !important;
+    font-size: 9px !important;
+    min-height: 26px !important;
+  }
+
+  /* Actions (icons + finish) — menší */
+  .pos-actions {
+    padding: 4px 8px 8px !important;
+    gap: 3px !important;
+  }
+  .pos-icon {
+    width: 32px !important;
+    height: 36px !important;
+    font-size: 14px !important;
+  }
+  .pos-finish {
+    font-size: 13px !important;
+    padding: 0 4px !important;
+    min-height: 36px !important;
+    border-radius: 7px !important;
+  }
+}
