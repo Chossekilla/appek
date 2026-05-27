@@ -1,7 +1,22 @@
 # 🔄 HANDOFF — APPEK admin pin v rail (mobile pinned mode)
 
-**Stav:** 2026-05-27 ~16:00 · poslední commit `6d01f95` (v3.0.81 deployed)
-**Status:** ❌ USER FRUSTROVANÝ — pin pořád ne podle představy. **NEVERTOVAT bez explicitního pokynu.** User řekl "udělám si to sám".
+**Stav:** 2026-05-27 ~18:30 · poslední commit `09d70d8` (v3.0.87 deployed)
+**Status:** ✅ VYŘEŠENO — user "dobrý díky" v3.0.87.
+
+## Finální řešení (v3.0.85 → v3.0.86 → v3.0.87)
+
+User dodal nákres: pin = vertikální krémová dlaždice úplně dole v rail,
+**bottom-nav v pinned mode mizí** (pin ji nahrazuje).
+
+- v3.0.85: pin column flex, krémová tan (#F4ECDB), 📌 + "Připnuto" label, dashed line ::before
+- v3.0.86: sidebar solid bg + z-index 100 + isolation (fix prosvit)
+- v3.0.87: `body.sidebar-pinned .bottom-nav { display: none }` + sidebar bottom: 0 + height: 100dvh
+
+Klíčový invariant: **pin v rail nahrazuje bottom-nav**, nesouvisí spolu.
+
+---
+
+## Historie (pre-resolve)
 
 ---
 

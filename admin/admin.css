@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.87";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.88";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -13153,56 +13153,24 @@ body:has(#app[style*="display:none"]) .sidebar * {
   display: none !important;
 }
 
-/* 🆕 v3.0.59 — Pin button na mobilu NATURAL pozice (user: "smaž ten sticky pin,
-   ma byt pod menu když je schovane postraní, a když se připne, tak pin dole pod
-   nastaveni s prerusovanou carou")
-   Žádný fixed position. Pin zustává v sidebar-utils a flow naturally pod
-   nav-items. Sidebar-utils dostane dashed border-top jako separator. */
-@media (max-width: 768px) {
-  /* Sidebar-utils block (s pinem + collapse) — dashed border-top jako separator */
-  .sidebar-utils {
-    border-top: 2px dashed var(--border, #d0c8b5) !important;
-    margin-top: 12px !important;
-    padding-top: 12px !important;
-  }
-  /* Pin = nav-item style (matchne ostatní položky v menu, primary tinted) */
-  .sidebar-pin {
-    width: 100% !important;
-    padding: 10px 12px !important;
-    background: linear-gradient(135deg, rgba(186,117,23,0.1), rgba(133,79,11,0.06)) !important;
-    border: 1px solid rgba(186,117,23,0.2) !important;
-    border-radius: 10px !important;
-    color: var(--primary-dark, #854F0B) !important;
-    font-weight: 700 !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 10px !important;
-    min-height: 40px;
-    box-shadow: none !important;
-  }
-  .sidebar-pin .sidebar-pin-icon { font-size: 18px !important; }
-  .sidebar-pin .sidebar-pin-label-on,
-  .sidebar-pin .sidebar-pin-label-off {
-    font-size: 13px !important;
-    display: inline !important;
-  }
-  /* Aktivní (pinned) state → primary gradient + bílý text */
-  body.sidebar-pinned .sidebar-pin {
-    background: linear-gradient(135deg, #BA7517, #854F0B) !important;
-    border-color: transparent !important;
-    color: #fff !important;
-  }
-  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on { display: inline !important; }
-  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-off { display: none !important; }
-  body:not(.sidebar-pinned) .sidebar-pin .sidebar-pin-label-on { display: none !important; }
+/* 🧹 v3.0.88 cleanup — REMOVED v3.0.59 "Pin nav-item style with primary gradient"
+   block (mobile @≤768px). Conflict s canonical v3.0.85+ pin (krémová tan
+   dlaždice DOLE v rail nahrazuje bottom-nav per v3.0.87 invariant).
 
-  /* Skrýt pin na login screen */
+   ZACHOVÁNO co bylo důležité:
+   - sidebar-utils dashed border-top → už v canonical block (line ~20149)
+   - skrýt pin na login → už v line 13197+ (body.is-login rules výše)
+   - sidebar-collapse hide na mobilu → mobile hide z base rules (line 13088+)
+*/
+@media (max-width: 768px) {
+  /* sidebar-collapse button — schovat na mobilu (jen pro desktop) */
+  .sidebar-collapse { display: none !important; }
+
+  /* Skrýt pin na login screen — defenzivní redundance (taky line 13200+) */
   body.is-login .sidebar-pin,
   body:has(#app[style*="display:none"]) .sidebar-pin {
     display: none !important;
   }
-  /* sidebar-collapse button — schovat na mobilu (jen pro desktop) */
-  .sidebar-collapse { display: none !important; }
 }
 
 /* 🆕 v3.0.42 — REST BANNER TABS (velké color-coded banner buttony v Restaurace)
@@ -13914,22 +13882,10 @@ html.theme-dark .btn-notif-badge { border-color: #1d1d1f; }
   }
 }
 
-/* Pin button gold highlight (Repre style) */
-body.sidebar-pinned .sidebar-pin {
-  background: var(--primary-light, #FAEEDA) !important;
-  border-color: var(--primary, #BA7517) !important;
-  color: var(--primary-dark, #854F0B) !important;
-  font-weight: 600 !important;
-}
-body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
-  transform: rotate(-15deg) !important;
-  filter: none !important;
-  opacity: 1 !important;
-}
-/* 🐛 v3.0.57 — Tato historická rule (mobil = transparent pin)
-   přepisovala v3.0.55 sticky pin styling (gradient circle button).
-   User: "ten špendlík hapruje pořád" → root cause: tahle rule.
-   Komentář ponechán pro historii. */
+/* 🧹 v3.0.88 cleanup — REMOVED legacy "Pin button gold highlight (Repre style)"
+   block. Override pravidla z dávných verzí (FAEEDA background, primary border)
+   conflict s canonical v3.0.85+ pin design (krémová tan #F4ECDB dlaždice
+   s 📌 + "Připnuto" label DOLE v rail) — viz line ~20160. */
 
 /* Schovat hardcoded version label */
 aside.sidebar::after { display: none !important; content: '' !important; }
@@ -19080,126 +19036,11 @@ html.dark .tb-app-name { color: #f5f5f7; }
    Inputy zůstávají v DOM (skryté) — horní filtr je používá jako úložiště. */
 .filter-dates-row--off { display: none !important; }
 
-/* ═══════════════════════════════════════════════════════════════
-   📱 APPEK v2.9.94 — PŘIPNUTÝ RAIL · IKONY  (samostatný finální blok)
-   ───────────────────────────────────────────────────────────────
-   JEDINÝ zdroj pravdy pro vzhled ikon připnutého menu na mobilu.
-   Nahrazuje roztříštěná pravidla z v2.9.78 a v2.9.92.
-
-   DOM:  aside.sidebar › nav.sidebar-nav › button.nav-item › span.nav-icon
-   Model:
-     • rail = svislý flex sloupec: logo nahoře · nav (roluje) · pin dole
-     • 1 ikona = dlaždice PEVNÉ výšky 50 px (NE roztažená flexem)
-     • uvnitř box 42×42 s 2px rámečkem (průhledný → drží layout, bez posunu)
-     • aktivní = oranžový rámeček + jemné oranžové pozadí, NEPŘESAHUJE ven
-     • oddělovač = JEDNA spodní čárka přes celou šířku, žádné boční
-     • nevejdou-li se → nav se uvnitř roluje, rail zůstává fixní
-   ═══════════════════════════════════════════════════════════════ */
-@media (max-width: 700px) {
-  /* rail = svislý flex sloupec → logo / nav / pin se rozvrství */
-  body.sidebar-pinned .sidebar {
-    display: flex !important;
-    flex-direction: column !important;
-  }
-  body.sidebar-pinned .sidebar-logo,
-  body.sidebar-pinned .sidebar-utils {
-    flex: 0 0 auto !important;
-  }
-
-  /* navigační sloupec — roluje se, když se ikony nevejdou */
-  body.sidebar-pinned .sidebar-nav {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    gap: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  /* 1 ikona = dlaždice PEVNÉ výšky, přes celou šířku railu */
-  body.sidebar-pinned .sidebar-nav .nav-item {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-sizing: border-box !important;
-    flex: 0 0 50px !important;
-    width: 100% !important;
-    height: 50px !important;
-    min-height: 50px !important;
-    max-height: 50px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-bottom: 1px solid var(--border) !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    cursor: pointer !important;
-  }
-  body.sidebar-pinned .sidebar-nav .nav-item:last-child {
-    border-bottom: 0 !important;
-  }
-
-  /* text popisku v připnutém railu skrytý — zůstává jen ikona */
-  body.sidebar-pinned .sidebar-nav .nav-item > :not(.nav-icon) {
-    display: none !important;
-  }
-
-  /* ikona = box 42×42, vždy 2px rámeček (průhledný → bez posunu layoutu) */
-  body.sidebar-pinned .sidebar-nav .nav-item .nav-icon {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-sizing: border-box !important;
-    flex: 0 0 auto !important;
-    width: 42px !important;
-    height: 42px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 2px solid transparent !important;
-    border-radius: 10px !important;
-    font-size: 26px !important;
-    line-height: 1 !important;
-    /* 🆕 v2.9.114 — Apple styl: neaktivní ikona ztlumená, „pružný" přechod */
-    opacity: 0.5 !important;
-    transform: scale(1) !important;
-    transform-origin: center center !important;
-    transition: transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1),
-                opacity 0.24s ease,
-                filter 0.24s ease !important;
-  }
-
-  /* 🆕 v2.9.114 — aktivní ikona: moderní Apple efekt.
-     Plná sytost + jemné zvětšení + měkký stín, BEZ barvy/okraje pod ní.
-     Nahrazuje v2.9.112 „vyskočení" (scale 1.18 bylo příliš nápadné). */
-  body.sidebar-pinned .sidebar-nav .nav-item.active .nav-icon {
-    border-color: transparent !important;
-    background: transparent !important;
-    opacity: 1 !important;
-    transform: scale(1.1) !important;
-    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.22)) !important;
-  }
-
-  /* hover (PC rail) — neaktivní ikona se jemně prosvětlí a nadzvedne */
-  body.sidebar-pinned .sidebar-nav .nav-item:not(.active):hover .nav-icon {
-    opacity: 0.9 !important;
-    transform: scale(1.06) !important;
-  }
-
-  /* stisk (tap) — krátké tactilní „zmáčknutí" pro hmatovou odezvu */
-  body.sidebar-pinned .sidebar-nav .nav-item:not(.active):active .nav-icon {
-    transform: scale(0.86) !important;
-    transition: transform 0.1s ease !important;
-  }
-  body.sidebar-pinned .sidebar-nav .nav-item.active:active .nav-icon {
-    transform: scale(1) !important;
-    transition: transform 0.1s ease !important;
-  }
-}
+/* 🧹 v3.0.88 cleanup — REMOVED v2.9.94 "PŘIPNUTÝ RAIL · IKONY" block (50px tiles
+   s border-bottom + 42px icons + opacity 0.5).
+   Nahrazeno canonical v3.0.85+ blokem dále (line ~20023 "Rail mode v3.0.67/87
+   KOMPLETNÍ PŘEPIS") který má jiný finální design (48px transparent + gold tint
+   active + 28px ikony). v2.9.94 design už neplatí — user "dobrý díky" v3.0.87. */
 
 /* ═══════════════════════════════════════════════════════════════
    🎯 APPEK v2.9.96 — MODAL: VÝŠKA + ROLOVÁNÍ (canonical, poslední slovo)
