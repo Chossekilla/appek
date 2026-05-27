@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.69";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.70";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -10966,8 +10966,10 @@ html.density-compact .filter-input,
 html.density-compact select.form-input,
 html.density-compact textarea.form-input { padding: 7px 10px; font-size: 13px; }
 html.density-compact .form-label { font-size: 11px; margin-bottom: 4px; }
-html.density-compact .nav-item { padding: 12px 14px; font-size: 16px; }
-html.density-compact .nav-icon { font-size: 19px; }
+/* 🆕 v3.0.70 — User: "Hustota UI - pc boční menu je font při kompaktním větší
+   ne pohodlné - otoč to". Compact 16→13px (menší než comfortable 18px), icon 19→16px. */
+html.density-compact .nav-item { padding: 8px 12px; font-size: 13px; }
+html.density-compact .nav-icon { font-size: 16px; }
 html.density-compact .modal-card { padding: 18px; }
 html.density-compact .page-title { font-size: 22px; }
 html.density-compact .page-sub { font-size: 13px; }
