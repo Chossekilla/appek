@@ -1,6 +1,6 @@
 {
  "version": "3.0.86",
- "built_at": "2026-05-27T16:22:41Z",
+ "built_at": "2026-05-27T16:24:49Z",
  "file_count": 244,
  "files": {
   ".htaccess": {
@@ -20,8 +20,8 @@
    "size": 4583
   },
   "admin/admin.css": {
-   "sha256": "aafd9bbe583beb529c5cb34a27f6db1560f5e79e0cffbf1a74c40264b4ff7b5e",
-   "size": 626977
+   "sha256": "a1b634cfbf975af6c5ffcbc24040e01158d0a83b8588811a5194d5db595bac22",
+   "size": 629210
   },
   "admin/admin.js": {
    "sha256": "c8ddf201ef2f08fc3528060d51e078c21642b800d6e60d25a60d36806622cc4a",

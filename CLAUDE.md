@@ -63,8 +63,7 @@ Grep verify před commitem: `grep -rn "X\.Y\.(Z-1)" --include="*.{html,js,css,ph
 - 🚫 **NIKDY** nesyncovat `api/config.local.php` (rsync vždy s `--exclude='api/config.local.php'`) — jinak login crash
 - 🚫 **NIKDY** psát "hotovo / deployed / ✅" bez user "jedem dál"
 - 🚫 **NIKDY** revertovat bez explicitního "vrať to"
-- 🚫 **NIKDY** brát `HANDOFF-pin-rail.md` jako úkol — user dělá sám
-- 🚫 **NIKDY** měnit pin CSS v admin.css lines 20029-20204 — user dělá sám
+- ℹ️ Pin v rail mode DOKONČEN ve v3.0.85 (commit 2236b85) — `HANDOFF-pin-rail.md` je archiv historie, ne aktivní úkol
 
 ## Login (testing)
 
