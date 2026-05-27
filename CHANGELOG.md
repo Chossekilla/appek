@@ -6,6 +6,31 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.65] — 2026-05-27
+
+### ⏪ REVERT v3.0.61 nav stretching + scroll fix
+_User: "pořád jsou ty buttony hrozně vysoké na mobilu dej je jak byly. a nejde scrolovat."_
+
+**Root cause:**
+- v3.0.61 dal sidebar `min-height: calc(100dvh - 56px)` + nav `grid-auto-rows: 1fr`
+- Sidebar v unpinned mobile zabíral CELÝ viewport → user musel scrollovat 100dvh než viděl obsah
+- Buttony se roztáhly přes celou výšku → "hrozně vysoké"
+- Sticky bottom sidebar-utils navíc blokoval scroll
+
+**Fix:**
+- Sidebar: `min-height: 0; height: auto; padding-bottom: 12px` (auto sizing)
+- Nav-item: `min-height: 64px; flex: none; font-size: 14px` (back to original)
+- Nav-icon: `font-size: 20px` (back to original)
+- Grid: `grid-auto-rows: auto` (ne 1fr)
+- Sticky bottom sidebar-utils → jen desktop (`@media min-width: 701px`)
+- HTML/body: `overflow-y: auto !important; -webkit-overflow-scrolling: touch`
+- Main-content: `padding-bottom: 88px` (aby bottom-nav nezakrýval poslední řádek)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.64→3.0.65, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.64] — 2026-05-27
 
 ### 🐛 Bug fix: Dodací listy prázdný seznam, ale dashboard alert ukazuje 8

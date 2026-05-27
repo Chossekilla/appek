@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.64";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.65";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -285,12 +285,14 @@ a:hover { text-decoration: underline; }
   .sidebar-nav .nav-item .nav-icon { font-size: 12px !important; }
   .sidebar-logo { padding: 0 6px 6px !important; margin-bottom: 4px !important; }
 }
-/* Sidebar-utils sticky bottom — pin + Skrýt vždy přístupné */
-.sidebar > .sidebar-utils {
-  position: sticky;
-  bottom: 0;
-  background: var(--surface);
-  z-index: 2;
+/* Sidebar-utils sticky bottom — jen na DESKTOPU (mobile mode flow naturally) */
+@media (min-width: 701px) {
+  .sidebar > .sidebar-utils {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    z-index: 2;
+  }
 }
 
 /* 📌 Pin utility — pod menu, fixuje topbar nahoře při scrollu */
@@ -20031,31 +20033,41 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   }
 }
 
-/* === FIX #2: Unpinned nav buttons stretch full viewport height ===
-   User: "buttony nejsou pořád přes celou obrazovku od shora dolu - levé menu odepnuté"
-   Sidebar musí mít flex-grow rozdělit dostupný prostor, nav-items grid-auto-rows: 1fr. */
+/* === REVERTED v3.0.65: nav buttons full-height stretching ===
+   User: "pořád jsou ty buttony hrozně vysoké na mobilu dej je jak byly. a nejde scrolovat."
+   v3.0.61 fix dělal sidebar min-height: calc(100dvh - 56px) → sidebar zabíral celou
+   obrazovku, content až pod ním → muselo se scrollovat 100dvh než user viděl obsah.
+   REVERT na auto-height sidebar + original 64px buttony. */
 @media (max-width: 700px) {
   body:not(.sidebar-pinned) .sidebar {
-    min-height: calc(100dvh - 56px) !important;  /* viewport - topbar height */
-    display: flex !important;
-    flex-direction: column !important;
-    box-sizing: border-box !important;
-    padding-bottom: 88px !important;  /* nad bottom-nav 72px */
+    min-height: 0 !important;
+    height: auto !important;
+    padding-bottom: 12px !important;
   }
   body:not(.sidebar-pinned) .sidebar-nav {
-    flex: 1 1 auto !important;        /* zabere zbylou výšku */
-    grid-auto-rows: 1fr !important;   /* všechny řady stejně vysoké */
-    min-height: 0 !important;
-    align-content: stretch !important;
+    grid-auto-rows: auto !important;
+    flex: none !important;
+    align-content: start !important;
   }
   body:not(.sidebar-pinned) .sidebar-nav .nav-item {
-    min-height: 0 !important;         /* zruš 64px rigid — at items mohou růst */
-    height: 100% !important;
-    flex: 1 1 auto !important;
-    font-size: 15px !important;       /* trochu větší aby větší button vypadal proporčně */
+    min-height: 64px !important;
+    height: auto !important;
+    flex: none !important;
+    font-size: 14px !important;
   }
   body:not(.sidebar-pinned) .sidebar-nav .nav-item .nav-icon {
-    font-size: 26px !important;       /* větší ikona pro větší button */
+    font-size: 20px !important;
+  }
+  /* Scroll fix: garantuj vertical scroll na body/html */
+  html, body {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: auto !important;
+  }
+  /* Padding-bottom na main-content aby content nebyl zakryt bottom-nav (72px) */
+  .main-content, main#content {
+    padding-bottom: 88px !important;
   }
 }
 
