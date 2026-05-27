@@ -6,6 +6,26 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.64] — 2026-05-27
+
+### 🐛 Bug fix: Dodací listy prázdný seznam, ale dashboard alert ukazuje 8
+_User: "kde jsou data z dodacích listu"_
+
+**Root cause:**
+- `admin_dodaci_listy.php` GET list endpoint měl `JOIN odberatele od ON od.id = dl.odberatel_id` (INNER JOIN)
+- Pokud DL má `odberatel_id` ukazující na neexistujícího (smazaného) odběratele → DL **zmizí ze seznamu**
+- Dashboard alert používá `SELECT COUNT(*) FROM dodaci_listy WHERE fakturovano = 0` (bez JOIN) → správně počítá 8
+- User viděl prázdný list ale alert "8 nefakturovaných"
+
+**Fix:**
+- API: `INNER JOIN odberatele → LEFT JOIN odberatele` — orphan DL zůstanou viditelné
+- UI: tabulka + karta fallback `${esc(d.odberatel_nazev || '⚠️ smazaný odběratel')}` aby user věděl proč nemá odběratele
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.63→3.0.64, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.63] — 2026-05-27
 
 ### 🎨 Brand text v topbaru + pin v rail = zaoblený obdélník

@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.63';
+const APPEK_ADMIN_JS_VERSION = '3.0.64';
 
 (async function detectStaleCode() {
   try {
@@ -9216,7 +9216,7 @@ async function renderDodaciListy(filters = {}) {
                     ? `<a href="#" onclick="openObjednavkaDetail(${d.objednavka_id});return false" class="doc-badge obj">🛒 ${esc(d.objednavka_cislo)}</a>`
                     : `<span class="doc-badge rucni">✏️ Ruční</span>`}
                 </td>
-                <td>${esc(d.odberatel_nazev)}</td>
+                <td>${esc(d.odberatel_nazev || '⚠️ smazaný odběratel')}</td>
                 <td style="color:var(--text-3);font-size:13px">${esc(d.misto_nazev || '—')}</td>
                 <td>${fmtDate(d.datum_vystaveni)}</td>
                 <td>${fmtDate(d.datum_dodani)}</td>
@@ -9263,7 +9263,7 @@ async function renderDodaciListy(filters = {}) {
               <div class="dl-card-cislo">${esc(d.cislo)}${upravenoDot(d.obsah_upraveno)}</div>
               ${dlStavBadge(d)}
             </div>
-            <div class="dl-card-odb">${esc(d.odberatel_nazev)}</div>
+            <div class="dl-card-odb">${esc(d.odberatel_nazev || '⚠️ smazaný odběratel')}</div>
             ${d.misto_nazev ? `<div class="dl-card-misto">📍 ${esc(d.misto_nazev)}</div>` : ''}
             <div class="dl-card-zdroj" onclick="event.stopPropagation();">
               ${d.objednavka_id
