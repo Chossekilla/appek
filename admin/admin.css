@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.73";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.74";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20087,91 +20087,51 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     opacity: 0.85 !important;
   }
 
-  /* === ŠPENDLÍK — elegantní přechod (žádná tvrdá border line) === */
-  body.sidebar-pinned .sidebar-utils {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    flex: 0 0 auto !important;
-    padding: 12px 4px 8px !important;
-    margin-top: 0 !important;
-    border: 0 !important;
-    /* Plynulý gradient fade jako separator — krásnější než tvrdá čára */
-    background: linear-gradient(180deg, transparent 0%, rgba(186,117,23,0.04) 50%, rgba(186,117,23,0.08) 100%) !important;
-    position: relative !important;
-  }
-  /* Jemná dashed čára top jako accent — krátká, vystředěná */
-  body.sidebar-pinned .sidebar-utils::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 25%;
-    right: 25%;
-    height: 1px;
-    background: repeating-linear-gradient(90deg, var(--border, #d0c8b5) 0 4px, transparent 4px 8px);
-    opacity: 0.6;
-  }
-  body.sidebar-pinned .sidebar-pin {
-    position: static !important;
-    width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
-    padding: 0 !important;
-    border-radius: 12px !important;
-    background: linear-gradient(135deg, #FAEEDA, #F4DDB8) !important;
-    color: var(--primary-dark, #854F0B) !important;
-    border: 1px solid rgba(186,117,23,0.35) !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex-direction: row !important;
-    gap: 0 !important;
-    transition: transform 0.18s ease, box-shadow 0.18s ease !important;
-  }
-  body.sidebar-pinned .sidebar-pin:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 3px 8px rgba(186,117,23,0.25), inset 0 1px 0 rgba(255,255,255,0.5) !important;
-  }
-  body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
-    font-size: 22px !important;
-    color: var(--primary-dark, #854F0B) !important;
-    transform: rotate(-15deg);
-    display: block !important;
-    margin: 0 !important;
-    opacity: 1 !important;
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1)) !important;
-  }
-  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on,
-  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-off {
-    display: none !important;
-  }
+  /* === ŠPENDLÍK = SCHOVAT z rail, je v bottom-nav (samostatně)
+     🆕 v3.0.74 — User: "sjdnocené pořadí bočního menu od shora dolu a špendlík
+                  má být na bottom menu hned sámostatně" */
+  body.sidebar-pinned .sidebar-utils { display: none !important; }
+  body.sidebar-pinned .sidebar-pin   { display: none !important; }
 
-  /* Smaž border-bottom u nav-itemů (z původního v2.9.94 bloku) */
+  /* Sjednocené pořadí nav od shora dolů — žádné border, žádné mezery */
   body.sidebar-pinned .sidebar-nav .nav-item {
+    border: 0 !important;
     border-bottom: 0 !important;
   }
-  /* Logo container — také čistší, jen ikona bez line dole */
+  /* Logo container — čistší, bez separátorů */
   body.sidebar-pinned .sidebar-logo {
-    padding: 8px 4px 12px !important;
+    padding: 8px 4px 8px !important;
     border-bottom: 0 !important;
-    position: relative !important;
   }
-  body.sidebar-pinned .sidebar-logo::after {
-    content: '';
-    position: absolute;
-    bottom: 4px;
-    left: 25%;
-    right: 25%;
-    height: 1px;
-    background: repeating-linear-gradient(90deg, var(--border, #d0c8b5) 0 4px, transparent 4px 8px);
-    opacity: 0.6;
-  }
+  body.sidebar-pinned .sidebar-logo::after { display: none !important; }
   body.sidebar-pinned .sidebar-logo .logo-icon {
     width: 36px !important;
     height: 36px !important;
     font-size: 16px !important;
   }
+}
+
+/* === Bottom-nav pin button (v3.0.74) — pin samostatně jako 6. item === */
+.bottom-nav-pin {
+  position: relative;
+}
+.bottom-nav-pin .bn-icon {
+  transition: transform 0.2s ease;
+}
+.bottom-nav-pin .bn-pin-label-on { display: none; }
+.bottom-nav-pin .bn-pin-label-off { display: inline; }
+body.sidebar-pinned .bottom-nav-pin {
+  color: var(--primary-dark, #854F0B) !important;
+}
+body.sidebar-pinned .bottom-nav-pin .bn-icon {
+  transform: rotate(-15deg);
+  filter: drop-shadow(0 1px 2px rgba(186,117,23,0.4));
+}
+body.sidebar-pinned .bottom-nav-pin .bn-pin-label-on { display: inline; }
+body.sidebar-pinned .bottom-nav-pin .bn-pin-label-off { display: none; }
+/* Update grid — bottom-nav grid musí pojmout 6 itemů */
+.bottom-nav-grid {
+  grid-template-columns: repeat(6, 1fr) !important;
 }
 
 /* === REVERTED v3.0.65: nav buttons full-height stretching ===
