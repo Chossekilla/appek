@@ -6,6 +6,32 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.69] — 2026-05-27
+
+### ✨ Rail mode polish — krásnější design (žádné bílé pilly, větší ikony, elegant pin)
+_User: "tohle srovnej a udělej krásný. ten button efekt pod A logo smaž. dole je to nedojetá ten přechod u špendlíku. zvětši ikony trochu. no prostě hezký."_
+
+**Nav-items v railu:**
+- Smazány bílé pill backgroundy (transparent + žádné border-bottom)
+- Ikony 22px → **28px** (větší)
+- Opacity 0.55 default, 1.0 aktivní + scale 1.08 + gold drop-shadow
+- Aktivní item: subtle gold tint na celé dlaždici + 3px gold accent strip vlevo
+- Hover: jemné light tint (rgba 3.5%)
+
+**Sidebar-utils (pin area):**
+- Tvrdá `border-top` → **plynulý gold gradient fade** (transparent → 4% → 8%)
+- Krátká dashed čára nahoře (jen 50% šířky, vystředěná) — accent místo full-width line
+- Pin: 44×44 s gradient background (FAEEDA→F4DDB8), inset highlight, hover lift effect
+
+**Sidebar-logo:**
+- Border-bottom smazán, místo toho stejná krátká dashed čára (sjednocený design)
+- Logo-icon zmenšeno na 36px (consistent)
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.68→3.0.69, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.68] — 2026-05-27
 
 ### 🖥 Desktop sidebar = full-screen flex menu (nav od shora dolů)
