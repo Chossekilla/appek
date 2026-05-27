@@ -122,20 +122,17 @@ function fmtKc(float $v): string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>🏢 APPEK Master — Vendor Panel</title>
-<link rel="stylesheet" href="style.css?v=1.8">
+<link rel="stylesheet" href="style.css?v=1.9">
 <style>
-  /* 🆕 v3.0.74 — User: "po druhé píšu — 2 sidebary modré + prostředek bílý"
-     Předchozí F0F9FF + FAFAFA = málo kontrastní. Teď VÝRAZNĚJŠÍ rozdíl:
-     - body bg = DBEAFE (sky-200, viditelně modrá strana = 2 sidebary)
-     - dashboard = pure #FFFFFF + výraznější shadow (jasně bílý prostředek) */
+  /* 🆕 v3.0.80 — User: "boky světle šedý a hlavní blok bílý" (změna z modré → šedá) */
   body {
     position: relative;
-    background: #DBEAFE !important;        /* sky-200 — výrazně modré sides */
+    background: #E5E7EB !important;        /* gray-200 — světle šedé boky */
   }
   .dashboard {
-    background: #FFFFFF !important;        /* PURE WHITE prostředek */
+    background: #FFFFFF !important;        /* PURE WHITE hlavní blok */
     border-radius: 16px !important;
-    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.03) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
     margin-top: 16px !important;
     margin-bottom: 16px !important;
   }
