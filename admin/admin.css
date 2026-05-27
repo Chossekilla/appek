@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.80";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.81";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20047,7 +20047,7 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   body.sidebar-pinned .sidebar-logo { flex: 0 0 auto !important; }
   /* Nav uprostřed — scrollable */
   body.sidebar-pinned .sidebar-nav {
-    flex: 1 1 auto !important;
+    flex: 0 0 auto !important;           /* 🆕 v3.0.81 — nav natural size, neroste */
     min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
@@ -20110,19 +20110,18 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     opacity: 0.85 !important;
   }
 
-  /* === ŠPENDLÍK V RAIL — JEN IKONA bez rámečku, dashed separator nahoře
-     🆕 v3.0.80 — User: "není součást menu, sám bez rámečku s čárkovaným oddělovačem,
-     nesmí být schovaný pod bottom menu" */
+  /* === ŠPENDLÍK V RAIL — JEN IKONA, dashed nahoře, pin UPROSTŘED empty space
+     🆕 v3.0.81 — User: "uprostřed prázdného prostoru mezi gear a bottom-nav"
+     sidebar-utils zabere zbytek vertikálního místa + pin justified center. */
   body.sidebar-pinned .sidebar-utils {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    justify-content: center !important;
-    align-items: center !important;
-    flex: 0 0 auto !important;
-    padding: 10px 4px 8px !important;
-    margin-top: auto !important;
-    /* dashed čára nahoře — odděluje pin od nav menu */
+    justify-content: center !important;   /* horizontální centruj */
+    align-items: center !important;       /* VERTIKÁLNÍ centruj — pin uprostřed */
+    flex: 1 1 auto !important;            /* zabere zbylou vertikální výšku */
+    padding: 8px 4px !important;
+    margin-top: 0 !important;
     border-top: 1px dashed var(--border, #d0c8b5) !important;
     border-bottom: 0 !important;
     border-left: 0 !important;
