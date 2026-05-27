@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.94";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.95";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20221,26 +20221,41 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
 }
 
 /* ═════════════════════════════════════════════════════════════════
-   🆕 v3.0.82 — DESKTOP RAIL (sidebar-pinned >1100px) FULL-FLEX NAV
-   User: "mělo to menu být ful flex, tady nevidim ikony další z menu"
-   Když je sidebar připnutý (fixed, 280px wide, 100dvh), všechny nav-items
-   musí rovnoměrně rozdělit dostupnou výšku — žádný cut-off, žádný scroll.
-   Override base rules at lines 244, 249, 272, 277-282.
+   🧹 v3.0.95 ROLLBACK — VŠECHNY PC sidebar/menu/density modifikace
+   zakomentované per user: "vrat PC menu jak bylo. mobil zakomentuj nesahat.
+   na pc to oprav jak to má být".
+
+   Zakomentované bloky (původně lines 20223-20401):
+   - v3.0.82 — DESKTOP RAIL sidebar-pinned >1101px full-flex
+   - v3.0.86 — DEFENZIVNÍ NON-PINNED full-flex desktop
+   - v3.0.91 — DENSITY-AWARE EXCEPTION Spacious/Extreme
+   - v3.0.93 — NUCLEAR DENSITY OVERRIDE specificity (0,5,3)
+   - v3.0.94 — PIN + SIDEBAR-UTILS HIDE na desktopu
+
+   Důvod: každá density vypadala jinak, kombinace 5 layered fixů kolidovalo.
+   Návrat na stav PŘED v3.0.82 = původní rules (line 244, 249, 272, 277-282,
+   287-291, 11251 atd.) řídí PC sidebar samy.
+
+   MOBILE bloky (v3.0.85+ pin, v3.0.67 rail @max-width:1100px) ZACHOVÁNY —
+   nesahat dokud user neřekne.
+
+   Pokud user chce vrátit, uncomment.
    ═════════════════════════════════════════════════════════════════ */
+/*
 @media (min-width: 1101px) {
   body.sidebar-pinned .sidebar > .sidebar-nav,
   body.sidebar-pinned .sidebar-nav {
     flex: 1 1 auto !important;
     min-height: 0 !important;
-    overflow: hidden !important;          /* žádný scroll — items se vejdou */
+    overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 4px !important;
   }
   body.sidebar-pinned .sidebar-nav .nav-item {
-    flex: 1 1 0 !important;               /* rovnoměrná distribuce */
-    min-height: 32px !important;          /* může se zmenšit pod 38px floor */
-    max-height: 64px !important;          /* zmenšeno z 80px → víc itemů se vejde */
+    flex: 1 1 0 !important;
+    min-height: 32px !important;
+    max-height: 64px !important;
     height: auto !important;
     padding: 6px 12px !important;
     font-size: 13px !important;
@@ -20251,19 +20266,6 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   }
 }
 
-/* ═════════════════════════════════════════════════════════════════
-   🆕 v3.0.86 — DEFENZIVNÍ NON-PINNED SIDEBAR-NAV FULL-FLEX (DESKTOP)
-   User: "po sedmé menu od shora dolu neni" — pin commitnut v jiném vlákně
-   (v3.0.85 = 2236b85) ale NON-pinned mode menu pořád má dolní mezeru.
-
-   Root cause: existující v3.0.68 rule (line 277-282) má `max-height: 80px` cap
-   a v3.0.60 rule (line 287-291) přidává `min-height: 30px !important` při
-   max-height:800px viewportu → ti dva spolu lockují flex grow. Items nevyplní
-   celou výšku, zbytek prázdný pod Nastavení.
-
-   Fix: defenzivní override aby items DISTRIBUTED přes celou výšku VŽDY.
-   Targets body:not(.sidebar-pinned) aby NEMĚNILO pin work (v3.0.85+).
-   ═════════════════════════════════════════════════════════════════ */
 @media (min-width: 701px) {
   body:not(.sidebar-pinned) .sidebar {
     display: flex !important;
@@ -20273,7 +20275,6 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   body:not(.sidebar-pinned) .sidebar > .sidebar-logo {
     flex: 0 0 auto !important;
   }
-  /* Nav fills remaining → items distribute equally bez max-height cap */
   body:not(.sidebar-pinned) .sidebar > .sidebar-nav {
     flex: 1 1 auto !important;
     display: flex !important;
@@ -20284,54 +20285,32 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   }
   body:not(.sidebar-pinned) .sidebar-nav > .nav-item {
     flex: 1 1 0 !important;
-    min-height: 0 !important;          /* override 30/38px floors z dřívějších rules */
-    max-height: none !important;        /* override 80px cap */
+    min-height: 0 !important;
+    max-height: none !important;
     height: auto !important;
   }
-  /* Utils naturally pod nav, žádný margin-top co by vytvořil mezeru */
   body:not(.sidebar-pinned) .sidebar > .sidebar-utils {
     flex: 0 0 auto !important;
     margin-top: 0 !important;
-    position: static !important;       /* override sticky pokud aplikováno */
+    position: static !important;
   }
 }
 
-/* ═════════════════════════════════════════════════════════════════
-   🆕 v3.0.91 — DENSITY-AWARE EXCEPTION (Spacious / Extreme)
-   User: "menu je takhle i na extrem — nemění se podle hustoty UI, točíme se dokola"
-   v3.0.86 flex:1 1 0 distribute přebíjelo natural sizing co density Extreme
-   chce (padding 26px, font 22px = items ~100px tall). flex constraint je
-   stlačil na rozdělenou výšku → items vypadaly stejné napříč hustotami.
-
-   Fix: v density-spacious + density-extreme respektovat natural item size
-   (větší padding/font/min-height) a povolit scroll když nepokrývá viewport.
-   Default density (Kompaktní/Pohodlné) ZACHOVÁVÁ v3.0.86 distribuci.
-   ═════════════════════════════════════════════════════════════════ */
 @media (min-width: 701px) {
   html.density-spacious body:not(.sidebar-pinned) .sidebar > .sidebar-nav,
   html.density-extreme body:not(.sidebar-pinned) .sidebar > .sidebar-nav {
-    overflow-y: auto !important;       /* povol scroll v density modes */
+    overflow-y: auto !important;
     justify-content: flex-start !important;
   }
   html.density-spacious body:not(.sidebar-pinned) .sidebar-nav > .nav-item,
   html.density-extreme body:not(.sidebar-pinned) .sidebar-nav > .nav-item {
-    flex: 0 0 auto !important;          /* natural size, ne distribute */
-    min-height: auto !important;        /* density set vlastní velikost */
+    flex: 0 0 auto !important;
+    min-height: auto !important;
     max-height: none !important;
     height: auto !important;
   }
 }
 
-/* ═════════════════════════════════════════════════════════════════
-   🆕 v3.0.93 — NUCLEAR DENSITY OVERRIDE (per deep agent audit)
-   User: "APPEK v3.0.91 menu se nemění" — kompletní audit našel 3 conflicty:
-     1. @media (1024-1366px) line 19720: `.nav-item { font-size:13px !imp }`
-     2. @media (max-height:800px) line 287: `min-height:30px !imp` lock floor
-     3. theme-apple line 11904: `display:inline-flex` mění layout
-
-   Selector specificity (0,5,3) + !important > vše ostatní.
-   Aside.sidebar nav.sidebar-nav cesta zajišťuje BEZPODMÍNEČNĚ wins.
-   ═════════════════════════════════════════════════════════════════ */
 html.density-extreme body:not(.sidebar-pinned) aside.sidebar nav.sidebar-nav .nav-item {
   display: flex !important;
   align-items: center !important;
@@ -20368,7 +20347,6 @@ html.density-compact body:not(.sidebar-pinned) aside.sidebar nav.sidebar-nav .na
   font-size: 13px !important;
 }
 
-/* Neutralize @media (max-height:800px) min-height floor pro density modes */
 @media (max-height: 800px) {
   html.density-extreme body:not(.sidebar-pinned) .sidebar-nav .nav-item,
   html.density-spacious body:not(.sidebar-pinned) .sidebar-nav .nav-item {
@@ -20379,19 +20357,6 @@ html.density-compact body:not(.sidebar-pinned) aside.sidebar nav.sidebar-nav .na
   }
 }
 
-/* ═════════════════════════════════════════════════════════════════
-   🆕 v3.0.94 — PIN + SIDEBAR-UTILS HIDE NA DESKTOPU
-   User: "tam nemá být na pc totiž pin vůbec, ten je jenom na mobilu —
-   to koliduje. dej ten špendlík a funkci na pc pryč"
-
-   Pin "Připnuto" + "Skrýt menu" je mobile-only feature. Na desktopu
-   sidebar-utils s pinem zabíral prostor + kolidoval s density flex
-   distribute (v3.0.86 flex 1 1 auto na utils → nedalo se rozlišit
-   prázdné místo).
-
-   Po skrytí: sidebar = logo + nav (full-flex distribute). Žádný gap
-   dole, žádné nepoužitelné tlačítko, density velikost konečně viditelná.
-   ═════════════════════════════════════════════════════════════════ */
 @media (min-width: 701px) {
   .sidebar-utils,
   .sidebar-pin,
@@ -20399,6 +20364,7 @@ html.density-compact body:not(.sidebar-pinned) aside.sidebar nav.sidebar-nav .na
     display: none !important;
   }
 }
+*/
 
 /* ═════════════════════════════════════════════════════════════════
    🆕 v3.0.84 — ADMIN FLOOR-CANVAS AUTO-FIT v2 (per architecture-critic redo)
