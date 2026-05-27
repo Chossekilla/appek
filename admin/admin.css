@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.60";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.61";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -19954,4 +19954,91 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
 /* 🎨 v3.0.33 — Table action modal: skryj text labelů na úzkém viewportu */
 @media (max-width: 480px) {
   .rt-modal-act-lbl { display: none; }
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   📱 v3.0.61 — 3 mobile fixy (user feedback k v3.0.60):
+   1. Pin v rail módu zakrytý bottom-nav → padding-bottom na sidebar
+   2. Unpinned: nav buttony nestrečnou celou výšku → grid-auto-rows: 1fr + min-height na sidebar
+   3. Připnout button přes celé okraje → margin-inline + max-width
+   ═════════════════════════════════════════════════════════════════ */
+
+/* === FIX #1: Pin viditelný v rail módu (sidebar-pinned mobile) ===
+   Root cause: .bottom-nav má fixed bottom: 0, height ~72px → překryje pin
+   na konci 100dvh sidebaru. Fix: padding-bottom na sidebar v rail. */
+@media (max-width: 700px) {
+  body.sidebar-pinned .sidebar {
+    padding-bottom: 88px !important;  /* bottom-nav 72px + 16px safe area */
+    box-sizing: border-box !important;
+  }
+  /* Pin tlačítko v rail = výraznější (gold gradient + glow) aby bylo na první pohled vidět */
+  body.sidebar-pinned .sidebar-utils {
+    background: linear-gradient(180deg, transparent, rgba(186,117,23,0.06)) !important;
+    border-top: 1px dashed var(--border, #d0c8b5) !important;
+    padding: 8px 4px 4px !important;
+    margin-top: 6px !important;
+  }
+  body.sidebar-pinned .sidebar-pin {
+    background: linear-gradient(135deg, #BA7517, #854F0B) !important;
+    color: #fff !important;
+    border: 1.5px solid #854F0B !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    box-shadow: 0 2px 6px rgba(186,117,23,0.4) !important;
+  }
+  body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
+    font-size: 22px !important;
+    color: #fff !important;
+    transform: rotate(-15deg);
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));
+  }
+}
+
+/* === FIX #2: Unpinned nav buttons stretch full viewport height ===
+   User: "buttony nejsou pořád přes celou obrazovku od shora dolu - levé menu odepnuté"
+   Sidebar musí mít flex-grow rozdělit dostupný prostor, nav-items grid-auto-rows: 1fr. */
+@media (max-width: 700px) {
+  body:not(.sidebar-pinned) .sidebar {
+    min-height: calc(100dvh - 56px) !important;  /* viewport - topbar height */
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    padding-bottom: 88px !important;  /* nad bottom-nav 72px */
+  }
+  body:not(.sidebar-pinned) .sidebar-nav {
+    flex: 1 1 auto !important;        /* zabere zbylou výšku */
+    grid-auto-rows: 1fr !important;   /* všechny řady stejně vysoké */
+    min-height: 0 !important;
+    align-content: stretch !important;
+  }
+  body:not(.sidebar-pinned) .sidebar-nav .nav-item {
+    min-height: 0 !important;         /* zruš 64px rigid — at items mohou růst */
+    height: 100% !important;
+    flex: 1 1 auto !important;
+    font-size: 15px !important;       /* trochu větší aby větší button vypadal proporčně */
+  }
+  body:not(.sidebar-pinned) .sidebar-nav .nav-item .nav-icon {
+    font-size: 26px !important;       /* větší ikona pro větší button */
+  }
+}
+
+/* === FIX #3: Pin "Připnout menu" button — gaps po stranách ===
+   User: "připnout button ne úlně do okrajů ten button vycentrovat a dát gapy po stranách"
+   Margin-inline 16px + max-width tak aby tlačítko nevypadalo přitisknuté k okrajům. */
+@media (max-width: 700px) {
+  body:not(.sidebar-pinned) .sidebar-utils {
+    padding-inline: 16px !important;  /* gap od okraje sidebar contaneru */
+    padding-block: 14px 10px !important;
+    flex: 0 0 auto !important;
+  }
+  body:not(.sidebar-pinned) .sidebar-pin {
+    width: auto !important;            /* zruš 100% width */
+    max-width: 100% !important;
+    margin-inline: 0 !important;
+    border-radius: 12px !important;
+    justify-content: center !important;  /* centruj obsah */
+    gap: 8px !important;
+  }
 }

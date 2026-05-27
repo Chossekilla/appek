@@ -6,6 +6,33 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.61] — 2026-05-27
+
+### 📱 3 mobile fixy z user feedbacku (pin v rail visible, nav full-height, pin gaps)
+_User: "neni vidět špendlík! 1. ve připnutém menu na mobilu. 2. buttony nejsou pořád přes celou obrazovku od shora dolu - levé menu odepnuté. 3. připnout button ne úlně do okrajů ten button vycentrovat a dát gapy po stranách."_
+
+**Fix #1 — Pin viditelný v rail módu (sidebar-pinned mobile):**
+- Root cause: `.bottom-nav` má fixed `bottom: 0`, height ~72px → překryje pin na konci 100dvh sidebaru
+- `padding-bottom: 88px` na `body.sidebar-pinned .sidebar` (bottom-nav 72px + 16px safe area)
+- Pin tlačítko v rail teď výrazný gold gradient (BA7517→854F0B) s glow shadow + bílá ikona s rotate(-15deg)
+- Sidebar-utils: gradient pozadí + dashed border-top jako separator
+
+**Fix #2 — Nav buttons stretch full viewport height (unpinned mobile):**
+- Sidebar `min-height: calc(100dvh - 56px)` (viewport − topbar) + flex column
+- `.sidebar-nav { flex: 1 1 auto; grid-auto-rows: 1fr }` — všechny řady stejně vysoké, zaberou zbylou výšku
+- Nav-item `min-height: 0 !important; height: 100%; flex: 1 1 auto` — zruší rigid 64px
+- Větší fonty: nav-item 15px, nav-icon 26px (proporční ke zvětšenému buttonu)
+
+**Fix #3 — "Připnout menu" button: gaps po stranách (unpinned mobile):**
+- `.sidebar-utils { padding-inline: 16px }` — gap od okraje sidebar containeru
+- `.sidebar-pin { width: auto; max-width: 100%; border-radius: 12px; justify-content: center }`
+- Místo full-width edge-to-edge teď vycentrovaný button s prostorem po stranách
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.60→3.0.61, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.60] — 2026-05-27
 
 ### 📱 Mobile UX follow-up (period tabs + sidebar overflow + swipe-dismiss alerts)
