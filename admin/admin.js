@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.91';
+const APPEK_ADMIN_JS_VERSION = '3.0.92';
 
 (async function detectStaleCode() {
   try {
@@ -15640,6 +15640,20 @@ function renderPackageHeaderBadges(active) {
 function renderPackageSidebarItems(active) {
   return renderPackageHeaderBadges(active);
 }
+
+// 🆕 v3.0.92 — Toggle package subheader (user: "klik na ikonku v rohu zajede nahoru, čouhat bude jazyk")
+window.togglePackageSubheader = function() {
+  const isCollapsed = document.body.classList.toggle('pkg-subheader-collapsed');
+  try { localStorage.setItem('appek_pkg_collapsed', isCollapsed ? '1' : '0'); } catch(e) {}
+};
+// Restore stav po load — pokud user měl naposledy collapsed
+(function restorePackageSubheaderState() {
+  try {
+    if (localStorage.getItem('appek_pkg_collapsed') === '1') {
+      document.body.classList.add('pkg-subheader-collapsed');
+    }
+  } catch(e) {}
+})();
 
 // =============================================================
 // 🎁 PACKAGE PLACEHOLDER PAGES
