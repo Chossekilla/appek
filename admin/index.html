@@ -60,7 +60,7 @@
   }
 })();
 </script>
-<link rel="stylesheet" href="admin.css?v=3.0.74">
+<link rel="stylesheet" href="admin.css?v=3.0.75">
 </head>
 <body>
 
@@ -306,12 +306,7 @@
         <span class="bn-icon">⚙️</span>
         <span>Nastavení</span>
       </button>
-      <!-- 🆕 v3.0.74 — Pin button v bottom-nav SAMOSTATNĚ (user: "špendlík má být na bottom menu hned sámostatně") -->
-      <button class="bottom-nav-item bottom-nav-pin" id="bottom-nav-pin-btn" onclick="toggleSidebarPin()" aria-label="Připnout/Odepnout boční menu" title="Připnout/Odepnout boční menu">
-        <span class="bn-icon">📌</span>
-        <span class="bn-pin-label-off">Připnout</span>
-        <span class="bn-pin-label-on">Připnuto</span>
-      </button>
+      <!-- 🆕 v3.0.75 REVERT — pin VRÁCEN do rail sidebaru (user: "takhle to chci" + screenshot s pinem v rail) -->
     </div>
   </nav>
 </div>
@@ -327,7 +322,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js" defer></script>
-<script src="i18n.js?v=3.0.74"></script>
+<script src="i18n.js?v=3.0.75"></script>
 <!-- 🚀 v2.9.314 — Lazy i18n: CS users (~80% bázi) předtím tahali 4 MB JS zbytečně.
      i18n_auto.js (2.3 MB, EN+ES) a i18n_extra.js (1.7 MB, SK+DE) se teď loadují
      jen pro non-CS jazyky. Switching at runtime: window.loadI18nForLang() v i18n.js. -->
@@ -339,14 +334,14 @@
   // EN/ES needs i18n_auto.js. SK/DE need both.
   // document.write je deprecated ale funguje synchronně před admin.js — což je co potřebujeme.
   if (lang === 'en' || lang === 'es' || lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_auto.js?v=3.0.74"><\/script>');
+    document.write('<script src="i18n_auto.js?v=3.0.75"><\/script>');
   }
   if (lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_extra.js?v=3.0.74"><\/script>');
+    document.write('<script src="i18n_extra.js?v=3.0.75"><\/script>');
   }
 })();
 </script>
-<script src="admin.js?v=3.0.74"></script>
+<script src="admin.js?v=3.0.75"></script>
 <script>
 // 🔄 AUTO-CHECK pro update — admin loadne → ptáme se vendora.
 //    v2.9.52 — Client-side semver kontrola: pill se ukáže JEN když je
