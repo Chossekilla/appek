@@ -6,6 +6,21 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.68] — 2026-05-27
+
+### 🖥 Desktop sidebar = full-screen flex menu (nav od shora dolů)
+_User: "full screen flex menu allways - na PC! mobil je dobrej už"_
+
+- `@media (min-width: 701px) .sidebar-nav .nav-item { flex: 1 1 0; max-height: 80px }`
+- Nav items na desktopu rozdělí celou výšku sidebaru rovnoměrně (žádné prázdné místo dole)
+- Mobil zůstává beze změny (3-col grid, 64px buttony, fungující)
+- Safe-guard: max-height 80px aby při role='pos' (1 item) nepřerostl absurdně
+
+### 📦 Build & sync
+- Bumped: config.php 3.0.67→3.0.68, admin.js, sw.js, HTML asset URLs
+
+---
+
 ## [3.0.67] — 2026-05-27
 
 ### 📌 Špendlík v rail = NATURAL POZICE pod ikonami (žádné gold pill)
