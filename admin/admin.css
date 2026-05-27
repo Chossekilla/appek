@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.100";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.101";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -19719,8 +19719,9 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
 
 /* Mid-narrow (1100-1366px) — typický MacBook 13 */
 @media (min-width: 1024px) and (max-width: 1366px) {
-  /* Sidebar užší — 240px (z 280) → +40px pro content */
-  .admin-app:not(.sidebar-collapsed) { grid-template-columns: 240px 1fr !important; }
+  /* Sidebar užší — 240px (z 280) → +40px pro content
+     🆕 v3.0.101 — body:not() (třída je na BODY ne .admin-app, jinak rule platí pořád = collapsed grid nesedí) */
+  body:not(.sidebar-collapsed) .admin-app { grid-template-columns: 240px 1fr !important; }
   .sidebar { padding: 16px 10px !important; }
   .sidebar-logo { padding: 0 8px 16px !important; }
   .sidebar-logo strong { font-size: 14px !important; }
@@ -19933,8 +19934,9 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
 
 /* === Cleanup: některé tvrdé !important pravidla z předchozích vrstev === */
 @media (min-width: 1024px) and (max-width: 1366px) {
-  /* v3.0.30 MacBook 13 override je teď zbytečný — fluid clamp řeší */
-  .admin-app:not(.sidebar-collapsed) {
+  /* v3.0.30 MacBook 13 override je teď zbytečný — fluid clamp řeší
+     🆕 v3.0.101 — body:not() (třída je na BODY ne .admin-app) */
+  body:not(.sidebar-collapsed) .admin-app {
     grid-template-columns: var(--fl-sidebar) 1fr !important;
   }
 }
