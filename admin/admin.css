@@ -20030,12 +20030,23 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   /* Rail sidebar — dojed PŘESNĚ k bottom-nav (žádný gap)
      🆕 v3.0.71 — User: "tohle dojed dolu, ale špendlík nej kde je, jen ten přechod
                   at tam neni." Bottom: 72px = výška bottom-nav, žádný 4px gap. */
+  /* 🆕 v3.0.87 — V pinned mode bottom-nav ZMIZÍ (pin v rail nahradí bottom-nav) */
+  body.sidebar-pinned .bottom-nav,
+  body.sidebar-pinned .bottom-nav-grid,
+  body.sidebar-pinned nav.bottom-nav {
+    display: none !important;
+  }
+  body.sidebar-pinned .main-wrap,
+  body.sidebar-pinned main#content,
+  body.sidebar-pinned .main-content {
+    padding-bottom: 0 !important;
+  }
   body.sidebar-pinned .sidebar {
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;
-    bottom: 72px !important;        /* dojed přesně k top of bottom-nav */
-    height: calc(100dvh - 72px) !important;  /* full height aby flex grow fungoval = pin půjde DOLŮ */
+    bottom: 0 !important;           /* 🆕 v3.0.87 — až dolů (bottom-nav je hidden) */
+    height: 100dvh !important;      /* full viewport height */
     width: 56px !important;
     padding: 6px 4px !important;
     box-sizing: border-box !important;
@@ -20130,9 +20141,9 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     justify-content: flex-end !important; /* pin DOLE */
     align-items: center !important;
     flex: 1 1 auto !important;
-    padding: 0 4px 8px !important;
+    padding: 0 4px 0 !important;          /* 🆕 v3.0.87 — žádný padding-bottom (pin lepí na bottom-nav) */
     margin-top: 0 !important;
-    border: 0 !important;                 /* žádný border na utils, dáme na ::before */
+    border: 0 !important;
     background: transparent !important;
     z-index: 5 !important;
   }
@@ -20310,6 +20321,51 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
   }
   body.sidebar-pinned .sidebar-nav .nav-item .nav-icon {
     font-size: 16px !important;
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   🆕 v3.0.86 — DEFENZIVNÍ NON-PINNED SIDEBAR-NAV FULL-FLEX (DESKTOP)
+   User: "po sedmé menu od shora dolu neni" — pin commitnut v jiném vlákně
+   (v3.0.85 = 2236b85) ale NON-pinned mode menu pořád má dolní mezeru.
+
+   Root cause: existující v3.0.68 rule (line 277-282) má `max-height: 80px` cap
+   a v3.0.60 rule (line 287-291) přidává `min-height: 30px !important` při
+   max-height:800px viewportu → ti dva spolu lockují flex grow. Items nevyplní
+   celou výšku, zbytek prázdný pod Nastavení.
+
+   Fix: defenzivní override aby items DISTRIBUTED přes celou výšku VŽDY.
+   Targets body:not(.sidebar-pinned) aby NEMĚNILO pin work (v3.0.85+).
+   ═════════════════════════════════════════════════════════════════ */
+@media (min-width: 701px) {
+  body:not(.sidebar-pinned) .sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+  body:not(.sidebar-pinned) .sidebar > .sidebar-logo {
+    flex: 0 0 auto !important;
+  }
+  /* Nav fills remaining → items distribute equally bez max-height cap */
+  body:not(.sidebar-pinned) .sidebar > .sidebar-nav {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    justify-content: stretch !important;
+  }
+  body:not(.sidebar-pinned) .sidebar-nav > .nav-item {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;          /* override 30/38px floors z dřívějších rules */
+    max-height: none !important;        /* override 80px cap */
+    height: auto !important;
+  }
+  /* Utils naturally pod nav, žádný margin-top co by vytvořil mezeru */
+  body:not(.sidebar-pinned) .sidebar > .sidebar-utils {
+    flex: 0 0 auto !important;
+    margin-top: 0 !important;
+    position: static !important;       /* override sticky pokud aplikováno */
   }
 }
 
