@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.89';
+const APPEK_ADMIN_JS_VERSION = '3.0.90';
 
 (async function detectStaleCode() {
   try {
@@ -5474,8 +5474,19 @@ async function renderObjednavky(filters = {}) {
 
     <!-- Mobile: kompaktní karty -->
     <div class="mobile-only-block wide-table-block">
-      ${list.length === 0 ? '<div class="card-block"><div class="empty-state">Žádné objednávky</div></div>' :
-        list.map((o) => `
+      ${list.length === 0 ? '<div class="card-block"><div class="empty-state">Žádné objednávky</div></div>' : `
+        <!-- 🆕 v3.0.90 — Select all toggle pro mobile (user: "objednávky select all přidat na mobilu") -->
+        <div class="obj-mobile-selectall card-block" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:10px;background:var(--surface-2,#F7F8FA);border:1px solid var(--border,rgba(0,0,0,0.08));border-radius:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;flex:1">
+            <input type="checkbox" id="obj-check-all-mobile"
+                   onchange="objSelectAll(this.checked)"
+                   style="width:18px;height:18px;cursor:pointer;accent-color:var(--primary,#BA7517)">
+            <span>Vybrat vše (${list.length})</span>
+          </label>
+          <button class="btn-link" onclick="objClearSelection()" style="font-size:12px;padding:4px 8px">✕ Zrušit</button>
+        </div>
+      `}
+      ${list.length === 0 ? '' : list.map((o) => `
           <div class="obj-card ${isSel(o.id) ? 'is-selected' : ''}" onclick="openObjednavkaDetail(${o.id})">
             <div class="obj-card-head">
               <label class="obj-card-check" onclick="event.stopPropagation();">
@@ -5533,8 +5544,25 @@ window.objToggleSelect = function(id, checked) {
   if (tr) tr.classList.toggle('is-selected', checked);
   const card = document.querySelector(`input[data-obj-check="${id}"]`)?.closest('.obj-card');
   if (card) card.classList.toggle('is-selected', checked);
+  // 🆕 v3.0.90 — sync select-all checkbox state (mobile + desktop)
+  syncObjSelectAllChecked();
   updateObjBulkBar();
 };
+
+// 🆕 v3.0.90 — sync header "select all" checkboxes podle počtu vybraných
+function syncObjSelectAllChecked() {
+  const total = (state._objList || []).length;
+  const sel = state._objSelected?.size || 0;
+  const allChecked = total > 0 && sel === total;
+  const someChecked = sel > 0 && sel < total;
+  ['obj-check-all', 'obj-check-all-mobile'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.checked = allChecked;
+      el.indeterminate = someChecked;
+    }
+  });
+}
 
 window.objSelectAll = function(checked) {
   if (!state._objSelected) state._objSelected = new Set();
@@ -5550,6 +5578,8 @@ window.objSelectAll = function(checked) {
     const tr = el.closest('tr'); if (tr) tr.classList.toggle('is-selected', checked);
     const card = el.closest('.obj-card'); if (card) card.classList.toggle('is-selected', checked);
   });
+  // 🆕 v3.0.90 — sync select-all checkbox state (mobile + desktop)
+  syncObjSelectAllChecked();
   updateObjBulkBar();
 };
 
@@ -5560,8 +5590,11 @@ window.objClearSelection = function() {
     const tr = el.closest('tr'); if (tr) tr.classList.remove('is-selected');
     const card = el.closest('.obj-card'); if (card) card.classList.remove('is-selected');
   });
-  const allCheck = document.getElementById('obj-check-all');
-  if (allCheck) allCheck.checked = false;
+  // 🆕 v3.0.90 — clear oba checkboxy (desktop + mobile)
+  ['obj-check-all', 'obj-check-all-mobile'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.checked = false; el.indeterminate = false; }
+  });
   updateObjBulkBar();
 };
 
