@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.83";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.84";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20305,43 +20305,44 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
 }
 
 /* ═════════════════════════════════════════════════════════════════
-   🆕 v3.0.83 — ADMIN FLOOR-CANVAS AUTO-FIT (Restaurace → Stoly)
-   User: "mapa stolů s vnitřním polem mapy neni responzivní" + screenshot
-   ukazoval Rodinný + Bar cut-off vpravo (canvas 800px v 1000px viewportu).
+   🆕 v3.0.84 — ADMIN FLOOR-CANVAS AUTO-FIT v2 (per architecture-critic redo)
+   Předchozí v3.0.83 (stepped ladder) měl 3 fatal bugs:
+     1. transform: scale() nezmenší layout box → mezera pod canvasem
+     2. ladder ignoroval canvas_w (škáloval per container width, ne per zdroj)
+     3. edit-mode overflow:hidden klipoval drag tiles
 
-   Root cause: #rt-canvas má INLINE width:${canvas_w}px z DB. Tile children
-   jsou absolute-positioned px coords. Když viewport < canvas_w → overflow.
-
-   Fix: container queries + transform scale ladder. Edit mode bypass aby
-   drag math nedriftoval (drag používá getBoundingClientRect bez compensace
-   za transform). Mirror pattern v pos.css (jeden visual standard).
+   v3.0.84 design:
+     - Wrap má aspect-ratio: canvas_w/canvas_h → height = scaled.height (žádný gap)
+     - Single fluid calc scale(100cqi / canvas_w_px) → pokrývá VŠECHNY canvas_w
+     - Edit mode: zachovaný scale, JS drag handler dělí deltaX/Y scale faktorem
+       (viz admin.js rtTableDragStart/Move v3.0.84)
+     - CSS vars --canvas-w-num/--canvas-h-num/--canvas-w-px set inline z admin.js
    ═════════════════════════════════════════════════════════════════ */
+.rt-canvas-wrap {
+  container-type: inline-size;
+  width: 100%;
+  /* aspect-ratio drží height = scaled canvas height (žádná dolní mezera) */
+  aspect-ratio: var(--canvas-w-num, 800) / var(--canvas-h-num, 500);
+  overflow: hidden;
+  margin: 14px auto;
+  background: #FAFAF8;
+  border: 2px solid var(--border, #E5E7EB);
+  border-radius: 12px;
+  position: relative;
+}
+/* Edit mode = dashed orange border (signalizuje editaci) */
+.rt-canvas-wrap:has(> .rt-canvas.is-edit) {
+  border-style: dashed;
+  border-color: #F59E0B;
+}
 .rt-canvas {
   transform-origin: top left;
+  /* Single-calc fluid scale — fits canvas to wrap (works for ANY canvas_w from DB) */
+  transform: scale(calc(100cqi / var(--canvas-w-px, 800px)));
   transition: transform 0.18s ease;
 }
-/* Wrapper = existující inline-styled .card-block s #rt-canvas dítětem */
-.card-block:has(> #rt-canvas) {
-  container-type: inline-size;
-  overflow: hidden !important;         /* kill horizontal scrollbar → scale místo scroll */
-  display: flow-root;
-}
-/* Stepped scale ladder — pokrývá canvas_w 700-1500px na všech viewportech */
-@container (max-width: 1400px) { .rt-canvas:not(.is-edit) { transform: scale(0.92); } }
-@container (max-width: 1200px) { .rt-canvas:not(.is-edit) { transform: scale(0.80); } }
-@container (max-width: 1000px) { .rt-canvas:not(.is-edit) { transform: scale(0.68); } }
-@container (max-width: 850px)  { .rt-canvas:not(.is-edit) { transform: scale(0.58); } }
-@container (max-width: 700px)  { .rt-canvas:not(.is-edit) { transform: scale(0.48); } }
-@container (max-width: 550px)  { .rt-canvas:not(.is-edit) { transform: scale(0.38); } }
-
-/* Edit mode: BEZ scale. Drag handlers (rtTableDragMove) používají
-   getBoundingClientRect() a vrací screen px coords — pod scale by drifovaly.
-   V edit režimu user dostává zpět horizontal scroll (acceptable trade-off). */
-.card-block:has(> #rt-canvas.is-edit) {
-  overflow: auto !important;
-}
-
-/* Fallback pro starší prohlížeče bez :has() → graceful degradace na scroll */
-@supports not selector(:has(*)) {
-  .rt-canvas { transform: none !important; }
+/* Fallback pro browsers bez @container support (Firefox <110, Safari <16) */
+@supports not (container-type: inline-size) {
+  .rt-canvas-wrap { overflow: auto; aspect-ratio: auto; }
+  .rt-canvas { transform: none; }
 }

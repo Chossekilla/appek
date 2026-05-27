@@ -2491,18 +2491,19 @@ html, body {
   background: rgba(255,255,255,0.3);
 }
 
-/* Canvas — kontejner pro mapu zóny */
+/* Canvas — kontejner pro mapu zóny
+   🆕 v3.0.84 — Mirror admin.css .rt-canvas-wrap pattern (aspect-ratio + single-calc scale).
+   CSS vars (--canvas-w-num, --canvas-h-num, --canvas-w-px) set inline z pos.js render. */
 .pos-floor-canvas-wrap {
   background: #FAFAF8;
   border: 2px solid #E5E7EB;
   border-radius: 14px;
-  padding: 16px;
   margin-bottom: 16px;
-  overflow: auto;
+  overflow: hidden;
   position: relative;
-  /* 🆕 v3.0.77 — Container query support pro auto-scale canvas (user: "mapa stolů
-     s vnitřním polem mapy neni responzivní") */
   container-type: inline-size;
+  /* aspect-ratio drží height = scaled canvas height → žádná dolní mezera */
+  aspect-ratio: var(--canvas-w-num, 800) / var(--canvas-h-num, 500);
 }
 .pos-floor-canvas {
   position: relative;
@@ -2510,23 +2511,16 @@ html, body {
   background-image: radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px);
   background-size: 20px 20px;
   border-radius: 10px;
-  margin: 0 auto;
-  /* 🆕 v3.0.77 — Auto-fit: pokud canvas větší než container, zmenši přes transform */
+  margin: 0;
   transform-origin: top left;
+  /* Single fluid calc — fits canvas to wrap (works for ANY canvas_w from DB) */
+  transform: scale(calc(100cqi / var(--canvas-w-px, 800px)));
   transition: transform 0.18s ease;
 }
-/* 🆕 v3.0.83 — Stepped scale ladder (mirror admin.css .rt-canvas pro vizuální konzistenci)
-   Pokrývá canvas_w 700-1500px na všech viewport sizes. */
-@container (max-width: 1400px) { .pos-floor-canvas { transform: scale(0.92); } }
-@container (max-width: 1200px) { .pos-floor-canvas { transform: scale(0.80); } }
-@container (max-width: 1000px) { .pos-floor-canvas { transform: scale(0.68); } }
-@container (max-width: 850px)  { .pos-floor-canvas { transform: scale(0.58); } }
-@container (max-width: 700px)  { .pos-floor-canvas { transform: scale(0.48); } }
-@container (max-width: 550px)  { .pos-floor-canvas { transform: scale(0.38); } }
-/* Fallback pro starší prohlížeče bez container queries */
+/* Fallback bez @container (Firefox <110, Safari <16) */
 @supports not (container-type: inline-size) {
-  @media (max-width: 900px) { .pos-floor-canvas { transform: scale(0.8); } }
-  @media (max-width: 600px) { .pos-floor-canvas { transform: scale(0.6); } }
+  .pos-floor-canvas-wrap { overflow: auto; aspect-ratio: auto; }
+  .pos-floor-canvas { transform: none; margin: 0 auto; }
 }
 
 /* Stůl tile (absolute positioned) */

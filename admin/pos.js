@@ -1297,8 +1297,10 @@
               <button class="btn-secondary" onclick="posOpenFloorEditor()" style="padding:8px 14px;background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-color:#93C5FD;color:#1E40AF;font-weight:700" title="Otevřít Floor plan editor v adminu (drag&drop layout)">✏️ Floor plan</button>
             </div>
 
-            <!-- Canvas — interaktivní mapa aktivní zóny -->
-            <div class="pos-floor-canvas-wrap">
+            <!-- Canvas — interaktivní mapa aktivní zóny
+                 🆕 v3.0.84 — CSS vars na wrap pro aspect-ratio + scale calc v pos.css -->
+            <div class="pos-floor-canvas-wrap"
+                 style="--canvas-w-num:${activeZone.canvas_w || 800};--canvas-h-num:${activeZone.canvas_h || 500};--canvas-w-px:${activeZone.canvas_w || 800}px">
               <div class="pos-floor-canvas" style="width:${activeZone.canvas_w || 800}px;height:${activeZone.canvas_h || 500}px;background:${esc(activeZone.bg_barva || '#FFFAF1')}">
                 ${stolyInZone.length === 0 ? `
                   <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#9CA3AF;text-align:center;padding:20px">
