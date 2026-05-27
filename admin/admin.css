@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.101";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.102";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -5753,9 +5753,9 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
    ========================================================= */
 .quick-actions {
   display: grid;
-  /* 🆕 v3.0.98 — User: "to nová objednávka vrat na grid 2X2" — natvrdo 2 sloupce
-     (předtím repeat(auto-fit, minmax(200px, 1fr)) collapsed na 1 col v narrow). */
-  grid-template-columns: 1fr 1fr;
+  /* 🆕 v3.0.102 — PC = 4 v řadě (Nová obj / Faktura / DL / Výroba).
+     Mobile (@max-width: 700px níže) přebije na 2x2 grid. */
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-bottom: 38px;
   padding-bottom: 24px;
