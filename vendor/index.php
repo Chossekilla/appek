@@ -122,12 +122,21 @@ function fmtKc(float $v): string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>🏢 APPEK Master — Vendor Panel</title>
-<link rel="stylesheet" href="style.css?v=1.6">
+<link rel="stylesheet" href="style.css?v=1.7">
 <style>
-  /* 🆕 v3.0.68 — REVERT frog background (user: "žáby smaž :)") na světlou modrou. */
+  /* 🆕 v3.0.69 — User: "prostředek nech bílej našedlej a sidebary zesvetli na ještě světlejší"
+     Body (sidebary = pozadí kolem dashboardu) = úplně světlounká modrá.
+     Dashboard (prostředek) = bílo-šedá karta s jemným stínem, max-width 1400px. */
   body {
     position: relative;
-    background: #E0F2FE !important;   /* světlounká modrá (sky-100) */
+    background: #F0F9FF !important;       /* sky-50, ještě světlejší než sky-100 */
+  }
+  .dashboard {
+    background: #FAFAFA !important;       /* bílá-našedlá střed (gray-50) */
+    border-radius: 16px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04) !important;
+    margin-top: 14px !important;
+    margin-bottom: 14px !important;
   }
 
   /* 🆕 v3.0.68 — Compact UI density v menu / hub (user: "Hustota UI menší, kompaktní") */
