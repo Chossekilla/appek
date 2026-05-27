@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.79";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.80";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20110,9 +20110,9 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     opacity: 0.85 !important;
   }
 
-  /* === ŠPENDLÍK V RAIL — krémově béžová dlaždice S TEXTEM "Připnuto"
-     🆕 v3.0.79 — User: "udělej to jako na fotce" (Photo 2: tile s pin emoji + label)
-     Vertical: pin emoji nahoře, "PŘIPNUTO" text dole. */
+  /* === ŠPENDLÍK V RAIL — JEN IKONA bez rámečku, dashed separator nahoře
+     🆕 v3.0.80 — User: "není součást menu, sám bez rámečku s čárkovaným oddělovačem,
+     nesmí být schovaný pod bottom menu" */
   body.sidebar-pinned .sidebar-utils {
     display: flex !important;
     visibility: visible !important;
@@ -20120,9 +20120,13 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     justify-content: center !important;
     align-items: center !important;
     flex: 0 0 auto !important;
-    padding: 8px 3px 10px !important;
+    padding: 10px 4px 8px !important;
     margin-top: auto !important;
-    border: 0 !important;
+    /* dashed čára nahoře — odděluje pin od nav menu */
+    border-top: 1px dashed var(--border, #d0c8b5) !important;
+    border-bottom: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
     background: transparent !important;
     z-index: 5 !important;
   }
@@ -20131,53 +20135,41 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    flex-direction: column !important;         /* ikona NAHOŘE, label DOLE */
-    width: 50px !important;
-    min-width: 50px !important;
-    max-width: 50px !important;
+    flex-direction: row !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
     height: auto !important;
-    min-height: 58px !important;
-    padding: 7px 4px 6px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
     margin: 0 !important;
-    border-radius: 12px !important;
-    background: linear-gradient(135deg, #FAEEDA, #F4DDB8) !important;
-    color: var(--primary-dark, #854F0B) !important;
-    border: 1px solid rgba(186,117,23,0.35) !important;
-    box-shadow: 0 2px 8px rgba(186,117,23,0.2), inset 0 1px 0 rgba(255,255,255,0.7) !important;
+    /* BEZ rámečku, BEZ pozadí — jen samotná ikona */
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: inherit !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 3px !important;
-    flex-shrink: 0 !important;
-    font-weight: 700 !important;
+    gap: 0 !important;
     cursor: pointer !important;
   }
   body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
-    font-size: 20px !important;
+    font-size: 24px !important;
     line-height: 1 !important;
-    color: var(--primary-dark, #854F0B) !important;
     transform: rotate(-15deg);
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
     opacity: 1 !important;
-    filter: none !important;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
   }
-  /* 🆕 v3.0.79 — Label "Připnuto" VIDITELNÝ pod ikonou */
-  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on {
-    display: inline-block !important;
-    font-size: 8px !important;
-    font-weight: 800 !important;
-    line-height: 1.1 !important;
-    color: var(--primary-dark, #854F0B) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.4px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
+  /* Labels SKRYTÉ — pin je jen ikona */
+  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on,
   body.sidebar-pinned .sidebar-pin .sidebar-pin-label-off {
     display: none !important;
   }
-  /* Unpinned state v rail (theoreticky — sidebar-pinned wraps, takže label-off netřeba) */
+  /* Fallback */
   body:not(.sidebar-pinned) .sidebar-pin .sidebar-pin-label-on {
     display: none !important;
   }
