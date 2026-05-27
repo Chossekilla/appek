@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.83';
+const APPEK_ADMIN_JS_VERSION = '3.0.84';
 
 (async function detectStaleCode() {
   try {
@@ -17404,8 +17404,10 @@ function renderFloorPlan(data, today) {
       ` : ''}
     </div>
 
-    <!-- Canvas -->
-    <div class="card-block" style="padding:0;overflow:auto;position:relative;background:#FAFAF8">
+    <!-- Canvas — v3.0.84 auto-fit wrapper (aspect-ratio + single-calc scale).
+         CSS vars inline → admin.css .rt-canvas-wrap používá k aspect-ratio + scale calc. -->
+    <div class="rt-canvas-wrap"
+         style="--canvas-w-num:${activeZone.canvas_w};--canvas-h-num:${activeZone.canvas_h};--canvas-w-px:${activeZone.canvas_w}px">
       <div id="rt-canvas"
            class="rt-canvas ${editMode ? 'is-edit' : ''}"
            data-zone-id="${activeZone.id || ''}"
@@ -17413,9 +17415,6 @@ function renderFloorPlan(data, today) {
                   background:${activeZone.bg_barva || '#FFFAF1'};
                   background-image:radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px);
                   background-size:20px 20px;
-                  margin:14px auto;
-                  border:2px ${editMode ? 'dashed #F59E0B' : 'solid #E5E7EB'};
-                  border-radius:12px;
                   user-select:none;
                   ${editMode ? 'cursor:crosshair' : ''}"
            ${editMode ? 'ondblclick="rtAddTableAtClick(event)"' : ''}>
@@ -17603,18 +17602,22 @@ function rtTableDragStart(e) {
   e.preventDefault();
   const tile = e.currentTarget;
   const canvas = document.getElementById('rt-canvas');
-  const tileRect = tile.getBoundingClientRect();
-  const canvasRect = canvas.getBoundingClientRect();
+  const tileRect = tile.getBoundingClientRect();      // post-transform (screen px)
+  const canvasRect = canvas.getBoundingClientRect();  // post-transform (screen px)
+  // 🆕 v3.0.84 — Canvas může být CSS-scaled (transform:scale). Detect live scale
+  // a převeď drag deltas zpět do canvas-space coords (jinak by se tile placeoval špatně).
+  const scale = canvas.offsetWidth ? (canvasRect.width / canvas.offsetWidth) : 1;
   rtState.draggedTableId = parseInt(tile.dataset.id);
   rtState.dragStart = {
     offsetX: e.clientX - tileRect.left,
     offsetY: e.clientY - tileRect.top,
     canvasLeft: canvasRect.left,
     canvasTop: canvasRect.top,
-    canvasW: canvasRect.width,
-    canvasH: canvasRect.height,
-    tileW: tileRect.width,
-    tileH: tileRect.height,
+    canvasW: canvas.offsetWidth,    // UNSCALED canvas-space (px coords v DB)
+    canvasH: canvas.offsetHeight,
+    tileW: tile.offsetWidth,        // UNSCALED tile-space
+    tileH: tile.offsetHeight,
+    scale: scale || 1,
   };
   tile.style.cursor = 'grabbing';
   tile.style.zIndex = '999';
@@ -17629,12 +17632,13 @@ function rtTableDragMove(e) {
   const s = rtState.dragStart;
   const tile = document.querySelector(`.rt-table-tile[data-id="${rtState.draggedTableId}"]`);
   if (!tile) return;
-  let x = e.clientX - s.canvasLeft - s.offsetX;
-  let y = e.clientY - s.canvasTop - s.offsetY;
+  // 🆕 v3.0.84 — divide screen-px delta by scale → canvas-space coords (DB-correct)
+  let x = (e.clientX - s.canvasLeft - s.offsetX) / s.scale;
+  let y = (e.clientY - s.canvasTop - s.offsetY) / s.scale;
   // Snap to grid 20px
   x = Math.round(x / 20) * 20;
   y = Math.round(y / 20) * 20;
-  // Clamp do canvasu
+  // Clamp do canvasu (UNSCALED dims = DB coord space)
   x = Math.max(0, Math.min(x, s.canvasW - s.tileW));
   y = Math.max(0, Math.min(y, s.canvasH - s.tileH));
   tile.style.left = x + 'px';
