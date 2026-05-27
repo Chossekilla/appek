@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.61";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.62";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -19964,35 +19964,72 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
    ═════════════════════════════════════════════════════════════════ */
 
 /* === FIX #1: Pin viditelný v rail módu (sidebar-pinned mobile) ===
-   Root cause: .bottom-nav má fixed bottom: 0, height ~72px → překryje pin
-   na konci 100dvh sidebaru. Fix: padding-bottom na sidebar v rail. */
+   🆕 v3.0.62 — BULLETPROOF: vytrhnout pin z rail flow a dát na fixed pozici
+   přímo nad bottom-nav (z-index 60 > bottom-nav 50). Žádné dependencies
+   na sidebar overflow/padding/box-sizing.
+   User reported 4× že pin není vidět — tohle musí fungovat. */
 @media (max-width: 700px) {
+  /* Rail sidebar zkrácený nad bottom-nav (sekundární pojistka) */
   body.sidebar-pinned .sidebar {
-    padding-bottom: 88px !important;  /* bottom-nav 72px + 16px safe area */
+    height: calc(100dvh - 76px) !important;  /* stop nad bottom-nav 72px + 4px gap */
+    bottom: 76px !important;
+    top: auto !important;
+    padding-bottom: 64px !important;          /* extra prostor pro pin */
     box-sizing: border-box !important;
+    overflow: visible !important;             /* aby pin mohl být absolute mimo sidebar bounds */
   }
-  /* Pin tlačítko v rail = výraznější (gold gradient + glow) aby bylo na první pohled vidět */
+  /* Pin = absolute pozicovaný v rail, vždy viditelný nad bottom-nav */
   body.sidebar-pinned .sidebar-utils {
-    background: linear-gradient(180deg, transparent, rgba(186,117,23,0.06)) !important;
-    border-top: 1px dashed var(--border, #d0c8b5) !important;
-    padding: 8px 4px 4px !important;
-    margin-top: 6px !important;
+    position: absolute !important;
+    bottom: 8px !important;
+    left: 0 !important;
+    right: 0 !important;
+    display: flex !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border-top: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: 60 !important;
   }
   body.sidebar-pinned .sidebar-pin {
     background: linear-gradient(135deg, #BA7517, #854F0B) !important;
     color: #fff !important;
-    border: 1.5px solid #854F0B !important;
-    width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
+    border: 2px solid #fff !important;
+    width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
     padding: 0 !important;
-    box-shadow: 0 2px 6px rgba(186,117,23,0.4) !important;
+    border-radius: 50% !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 0 2px #854F0B !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: row !important;
+    z-index: 61 !important;
   }
   body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
     font-size: 22px !important;
     color: #fff !important;
     transform: rotate(-15deg);
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+    display: block !important;
+    margin: 0 !important;
+  }
+  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on,
+  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-off {
+    display: none !important;
+  }
+}
+
+/* === ZÁPAS POJISTKA: i kdyby výše selhalo, pin floating fixed nad bottom-nav.
+   Pin element existuje jeden, takže oba selektory triggerují to samé. */
+@media (max-width: 700px) {
+  body.sidebar-pinned .sidebar-pin {
+    position: fixed !important;
+    bottom: 84px !important;        /* nad bottom-nav 72px + 12px gap */
+    left: 4px !important;            /* centruj v rail 56px - 48px button = 8px → 4px each side */
+    z-index: 90 !important;          /* nad bottom-nav (z-index 50) + FAB (91 by mělo být víc) */
   }
 }
 
