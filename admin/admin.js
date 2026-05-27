@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.96';
+const APPEK_ADMIN_JS_VERSION = '3.0.97';
 
 (async function detectStaleCode() {
   try {
@@ -5192,26 +5192,18 @@ window.dashSetObdobi = function(obdobi) {
 };
 
 // 🆕 v2.9.287 — Helper pro sjednocený period-tabs render (Dashboard + Faktury/Obj/DL + Vyroba prehled)
-// 🆕 v3.0.56 — 3 size variants:
-//   ≤400px (extreme): 1. písmeno (D / T / M / R / V) — automatically derived from t.x or first letter
-//   ≤700px (mobile):  short label (t.short)
+// 🆕 v3.0.97 — User: "tady mělo být D T M R V jenom přeci" — mobile = vždy 1-letter
+//   ≤700px (mobile):  1. písmeno (D / T / M / R / V) — z t.x nebo first letter
 //   desktop:          full label (t.l)
+//   Předtím rozlišovalo mid-band (461-700px = "Měs") což user nechce.
 // CLASS .period-tab = Skupina A = 1 řádek nowrap shrink
 window.periodTabsRender = function(tabs, currentKey, onclickFn) {
   const w = (typeof window !== 'undefined') ? window.innerWidth : 1024;
-  // 🆕 v3.0.60 — Expanded extreme to ≤460px (iPhone 14 Plus 428, Pro Max 430).
-  // User screenshot: "D...", "T..." ellipsis na iPhone 430px protože byl mimo extreme.
-  const isExtreme = w <= 460;
   const isMob = w <= 700;
   return tabs.map(t => {
-    let label;
-    if (isExtreme) {
-      label = t.x || (t.short || t.l || '').charAt(0).toUpperCase();
-    } else if (isMob && t.short) {
-      label = t.short;
-    } else {
-      label = t.l;
-    }
+    const label = isMob
+      ? (t.x || (t.short || t.l || '').charAt(0).toUpperCase())
+      : t.l;
     const cls = currentKey === t.k ? 'period-tab active' : 'period-tab';
     return `<button type="button" class="${cls}" onclick="${onclickFn}('${t.k}')" aria-selected="${currentKey === t.k}"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${label}</span></button>`;
   }).join('');
@@ -9762,8 +9754,9 @@ function dashStylePeriodHtml(typ, datum_od, datum_do) {
     { k: 'vse',     icon: '∞',  l: 'Vše',          short: 'Vše' },
   ];
   const isMob = typeof window !== 'undefined' && window.innerWidth <= 700;
+  // 🆕 v3.0.97 — mobile = 1-letter (D/T/M/R/V) per user: "tady mělo být D T M R V jenom"
   const tabsHtml = tabs.map(t => {
-    const label = isMob && t.short ? t.short : t.l;
+    const label = isMob ? (t.x || (t.short || t.l || '').charAt(0).toUpperCase()) : t.l;
     return `<button class="period-tab ${currentPeriod === t.k ? 'active' : ''}" onclick="periodTabSet('${typ}', '${t.k}')"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${label}</span></button>`;
   }).join('');
   const customHtml = currentPeriod === 'vlastni' ? `
