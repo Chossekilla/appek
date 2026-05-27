@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.81";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.82";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20110,17 +20110,17 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     opacity: 0.85 !important;
   }
 
-  /* === ŠPENDLÍK V RAIL — JEN IKONA, dashed nahoře, pin UPROSTŘED empty space
-     🆕 v3.0.81 — User: "uprostřed prázdného prostoru mezi gear a bottom-nav"
-     sidebar-utils zabere zbytek vertikálního místa + pin justified center. */
+  /* === ŠPENDLÍK V RAIL — KRÉMOVÁ DLAŽDICE s 📌 nahoře + "Připnuto" pod
+     🆕 v3.0.82 — User nákres: vertikální tile s ikonou + textem, pozice DOLE
+     v rail (nad bottom-nav), samostatná oddělená dlaždice s dashed border nad. */
   body.sidebar-pinned .sidebar-utils {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    justify-content: center !important;   /* horizontální centruj */
-    align-items: center !important;       /* VERTIKÁLNÍ centruj — pin uprostřed */
-    flex: 1 1 auto !important;            /* zabere zbylou vertikální výšku */
-    padding: 8px 4px !important;
+    justify-content: center !important;
+    align-items: flex-end !important;     /* pin DOLE */
+    flex: 1 1 auto !important;
+    padding: 0 4px 8px !important;
     margin-top: 0 !important;
     border-top: 1px dashed var(--border, #d0c8b5) !important;
     border-bottom: 0 !important;
@@ -20134,37 +20134,50 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    flex-direction: row !important;
-    width: auto !important;
+    flex-direction: column !important;    /* IKONA NAHOŘE, TEXT POD */
+    width: 44px !important;
     min-width: 0 !important;
     max-width: none !important;
     height: auto !important;
-    min-height: 32px !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    /* BEZ rámečku, BEZ pozadí — jen samotná ikona */
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    color: inherit !important;
+    min-height: 56px !important;
+    padding: 6px 4px 5px !important;
+    margin: 8px 0 0 !important;
+    background: #F4ECDB !important;       /* krémová tan */
+    border: 1px solid #E8DCC0 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+    color: #8B6F3C !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 0 !important;
+    gap: 3px !important;
     cursor: pointer !important;
   }
+  body.sidebar-pinned .sidebar-pin:hover {
+    background: #EFE3CC !important;
+  }
   body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
-    font-size: 24px !important;
+    font-size: 20px !important;
     line-height: 1 !important;
     transform: rotate(-15deg);
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
     opacity: 1 !important;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.12));
   }
-  /* Labels SKRYTÉ — pin je jen ikona */
-  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on,
+  /* "Připnuto" label POD ikonou */
+  body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on {
+    display: block !important;
+    font-size: 9.5px !important;
+    line-height: 1.1 !important;
+    font-weight: 600 !important;
+    color: #8B6F3C !important;
+    text-align: center !important;
+    letter-spacing: 0.02em !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    white-space: nowrap !important;
+  }
   body.sidebar-pinned .sidebar-pin .sidebar-pin-label-off {
     display: none !important;
   }
@@ -20249,5 +20262,36 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     border-radius: 12px !important;
     justify-content: center !important;  /* centruj obsah */
     gap: 8px !important;
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   🆕 v3.0.82 — DESKTOP RAIL (sidebar-pinned >1100px) FULL-FLEX NAV
+   User: "mělo to menu být ful flex, tady nevidim ikony další z menu"
+   Když je sidebar připnutý (fixed, 280px wide, 100dvh), všechny nav-items
+   musí rovnoměrně rozdělit dostupnou výšku — žádný cut-off, žádný scroll.
+   Override base rules at lines 244, 249, 272, 277-282.
+   ═════════════════════════════════════════════════════════════════ */
+@media (min-width: 1101px) {
+  body.sidebar-pinned .sidebar > .sidebar-nav,
+  body.sidebar-pinned .sidebar-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;          /* žádný scroll — items se vejdou */
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+  }
+  body.sidebar-pinned .sidebar-nav .nav-item {
+    flex: 1 1 0 !important;               /* rovnoměrná distribuce */
+    min-height: 32px !important;          /* může se zmenšit pod 38px floor */
+    max-height: 64px !important;          /* zmenšeno z 80px → víc itemů se vejde */
+    height: auto !important;
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+  body.sidebar-pinned .sidebar-nav .nav-item .nav-icon {
+    font-size: 16px !important;
   }
 }
