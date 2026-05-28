@@ -46,7 +46,7 @@ if (DB_NAME === '' || DB_USER === '') {
 // Aplikace
 if (!defined('APP_URL'))     define('APP_URL',     'https://white-badger-130749.hostingersite.com');
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.112'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.113'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -251,15 +251,19 @@ function _ensure_prihlaseni_table(PDO $pdo): bool {
 
 function login_rate_limited(string $email, string $ip, string $typ): bool {
     // 🆕 v3.0.98 — Localhost (dev) bypass per user "u mě limit pokusů dej sekundu".
-    // Prod (real customers IP) zachovává 5 pokusů / 15 min security protection.
     if (in_array($ip, ['::1', '127.0.0.1', '0.0.0.0', 'localhost'], true)) return false;
+    // 🆕 v3.0.113 — DEMO mode: zkrácená okno na 15 SEKUND (user: "zkrátit pokus na 15 vteřin").
+    //   Demo customers (demo.appek.cz) testují rychle, 15min lock je frustrující.
+    //   Prod (non-demo) zachovává 5 pokusů / 15 min security.
+    $isDemo = defined('APPEK_DEMO_MODE') && APPEK_DEMO_MODE;
+    $windowExpr = $isDemo ? 'INTERVAL 15 SECOND' : 'INTERVAL 15 MINUTE';
     try {
         $pdo = db();
         _ensure_prihlaseni_table($pdo);
         $stmt = $pdo->prepare("
             SELECT COUNT(*) FROM prihlaseni_pokusy
             WHERE typ = :t AND uspesny = 0
-              AND cas > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+              AND cas > DATE_SUB(NOW(), $windowExpr)
               AND (ip = :ip OR email = :em)
         ");
         $stmt->execute(['t' => $typ, 'ip' => $ip, 'em' => $email]);
