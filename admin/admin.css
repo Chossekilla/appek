@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.109";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.110";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -10999,10 +10999,11 @@ html.density-compact .form-label { font-size: 11px; margin-bottom: 4px; }
    ne pohodlné - otoč to". Compact 16→13px (menší než comfortable 18px), icon 19→16px. */
 /* 🆕 v3.0.108 — Density JEN když sidebar NEcollapsed (collapsed musí zůstat 62x62 ikony).
    Předtím v3.0.107 density !important přebil collapsed text-hide → text v rail módu. */
-html.density-compact body:not(.sidebar-collapsed) .nav-item { padding: 6px 10px !important; font-size: 12px !important; min-height: 32px !important; gap: 8px !important; }
-html.density-compact body:not(.sidebar-collapsed) .nav-icon { font-size: 14px !important; }
-html.density-comfortable body:not(.sidebar-collapsed) .nav-item { padding: 12px 16px !important; font-size: 14.5px !important; min-height: 48px !important; gap: 12px !important; }
-html.density-comfortable body:not(.sidebar-collapsed) .nav-icon { font-size: 18px !important; }
+/* 🆕 v3.0.110 — density NEPLATÍ pro sidebar-collapsed AŇI sidebar-pinned (mobil rail = jen ikony) */
+html.density-compact body:not(.sidebar-collapsed):not(.sidebar-pinned) .nav-item { padding: 6px 10px !important; font-size: 12px !important; min-height: 32px !important; gap: 8px !important; }
+html.density-compact body:not(.sidebar-collapsed):not(.sidebar-pinned) .nav-icon { font-size: 14px !important; }
+html.density-comfortable body:not(.sidebar-collapsed):not(.sidebar-pinned) .nav-item { padding: 12px 16px !important; font-size: 14.5px !important; min-height: 48px !important; gap: 12px !important; }
+html.density-comfortable body:not(.sidebar-collapsed):not(.sidebar-pinned) .nav-icon { font-size: 18px !important; }
 html.density-compact .modal-card { padding: 18px; }
 html.density-compact .page-title { font-size: 22px; }
 html.density-compact .page-sub { font-size: 13px; }
