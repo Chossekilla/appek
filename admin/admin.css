@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.111";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.112";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -13498,11 +13498,13 @@ html.theme-dark .rt-zone-tab:not(.is-active) {
 /* 🆕 v3.0.96 — Jazyk (handle) — DEFAULT HIDDEN, visible POUZE když collapsed
    Fix: předtím duplicitní display: none + display: inline-flex ve same block →
    druhý overridoval první, handle byl vždy visible. */
-/* 🆕 v3.0.106 — Handle in-flow (NE fixed). User: "ouško je fixní, oprav".
-   align-self: flex-end v main-wrap flex-column → tab pod topbarem vpravo. */
+/* 🆕 v3.0.112 — Handle in-flow + works v FLEX i GRID parentu
+   (mobile main-wrap=display:contents → grid parent, potřeba justify-self).
+   Plus density rules dole. */
 .pkg-subheader-handle {
   display: none;                 /* DEFAULT skrytý */
-  align-self: flex-end;
+  align-self: flex-end;          /* flex column parent (main-wrap default) */
+  justify-self: end;             /* grid parent (mobile, kde main-wrap je contents) */
   margin: -1px 24px 6px auto;
   padding: 6px 14px 8px;
   background: linear-gradient(180deg, #fafafa 0%, #f5f5f7 100%);
@@ -13520,6 +13522,13 @@ html.theme-dark .rt-zone-tab:not(.is-active) {
   align-items: center;
   gap: 6px;
 }
+/* Density-aware scaling (compact menší, spacious větší, extreme největší) */
+html.density-compact .pkg-subheader-handle { padding: 4px 10px 5px; font-size: 10.5px; gap: 4px; }
+html.density-spacious .pkg-subheader-handle { padding: 8px 18px 10px; font-size: 13px; gap: 8px; }
+html.density-extreme .pkg-subheader-handle { padding: 10px 22px 12px; font-size: 14px; gap: 10px; }
+html.density-compact .pkg-subheader-toggle { height: 28px; padding: 0 10px; font-size: 11px; }
+html.density-spacious .pkg-subheader-toggle { height: 38px; padding: 0 16px; font-size: 13.5px; }
+html.density-extreme .pkg-subheader-toggle { height: 42px; padding: 0 20px; font-size: 14.5px; }
 .pkg-subheader-handle:hover {
   background: var(--surface, #fff);
   color: var(--text, #1d1d1f);
