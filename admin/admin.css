@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.122";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.123";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18972,13 +18972,19 @@ html.dark .tb-app-name { color: #f5f5f7; }
   }
   body:not(.sidebar-pinned) .main-content,
   body:not(.sidebar-pinned) main#content       { order: 6 !important; }
-  /* 🆕 v3.0.121 — Handle PŘILEPENÝ k dashed lince nad (sidebar-utils border-top).
-     order: 4 (stejný jako utils) + negative margin-top -1px (overlap dashed border)
-     + margin-bottom 0 (žádný gap pod). User: "to ouško přilep na tu linku nad". */
+  /* 🆕 v3.0.122 — Handle ABSOLUTNĚ pozicovaný relativně k sidebar-utils.
+     Grid auto-rows ignorovaly negative margin (v3.0.121) → handle byl v dalším řádku.
+     Fix: position: absolute + top: -12px = handle sedí PŘÍMO na border-top dashed lince. */
+  body:not(.sidebar-pinned).pkg-subheader-collapsed .sidebar-utils {
+    position: relative !important;
+  }
   body:not(.sidebar-pinned).pkg-subheader-collapsed .pkg-subheader-handle {
     order: 4 !important;
-    justify-self: end !important;
-    margin: -1px 16px 0 auto !important;     /* -1px = překryje dashed border-top */
+    position: absolute !important;
+    right: 16px !important;
+    top: -16px !important;
+    margin: 0 !important;
+    z-index: 5 !important;
   }
 
   /* 🆕 v2.9.82 — „APPEK Demo" = širší/vyšší BANNER: logo+firma vlevo,
