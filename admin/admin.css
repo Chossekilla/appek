@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.119";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.120";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -13112,8 +13112,11 @@ html.theme-dark #appek-quick-sheet .qs-cancel {
    už neexistuje od v3.0.52). V pinned (rail) zůstává hidden (jen ikona).
    V login mode zůstává hidden (sidebar je celý display:none od v3.0.52). */
 @media (max-width: 768px) {
-  body.sidebar-pinned .sidebar-logo strong { display: none !important; }
-  body:not(.sidebar-pinned) .sidebar-logo strong {
+  body.sidebar-pinned .sidebar-logo > strong { display: none !important; }
+  /* 🆕 v3.0.120 — selector ZÚŽEN na direct child (`.sidebar-logo > strong`),
+     předtím chytal i <strong>Maxmilián</strong> ve svátku → ellipsis "Max..."
+     User: 'svátek max-width none Vilém se vejde — proč vysvětlení' */
+  body:not(.sidebar-pinned) .sidebar-logo > strong {
     display: inline-block !important;
     font-size: 15px !important;
     font-weight: 700 !important;
