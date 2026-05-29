@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.127";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.128";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -18972,14 +18972,74 @@ html.dark .tb-app-name { color: #f5f5f7; }
   }
   body:not(.sidebar-pinned) .main-content,
   body:not(.sidebar-pinned) main#content       { order: 6 !important; }
-  /* 🆕 v3.0.127 — REVERT v3.0.122-126 (grid-row overlay nefungoval per user).
-     User: "to uteklo úplně jinam, je to rozbitý i open mode".
-     Pro v3.0.121 byl handle v vlastním row pod utils. Vrátit ke stejnému
-     chování dokud user neupřesní co přesně chce (viz Q v chatu). */
+  /* 🆕 v3.0.128 — DVA TABY na dashed lince utils.border-top
+     User: "udělej dvě ouška, jedno připnout menu a druhý balicky, jako taby
+            přilepené na té přerušované lince nad nima. jedno na pravo a
+            druhý na levou stěnu".
+
+     Plán:
+     - sidebar-utils: tenký proužek s dashed border-top + extra margin-top
+       pro místo na tabs nad. position: relative pro pin child.
+     - sidebar-pin (uvnitř utils): malý pill TAB vlevo, position: absolute,
+       top: 0 (= dashed line), left: 16, translateY(-50%) = STŘED na lince.
+     - pkg-subheader-handle (sibling utils v admin-app gridu):
+       grid-row: 4/5 overlay s utils (stejná cellka), justify-self: end
+       (vpravo), align-self: start, margin-top match utils, translateY(-50%).
+       = STŘED na stejné dashed lince. */
+  body:not(.sidebar-pinned).pkg-subheader-collapsed .sidebar-utils {
+    grid-row: 4 / 5 !important;
+    grid-column: 1 / 2 !important;
+    position: relative !important;             /* containing block pro absolute pin */
+    margin-top: 24px !important;               /* prostor pro tabs nad utils */
+    padding: 0 !important;                     /* žádné padding — tenký proužek */
+    min-height: 8px !important;                /* jen pro dashed line viditelnost */
+    background: transparent !important;
+    border-top: 1px dashed var(--border) !important;
+    flex: 0 0 auto !important;
+  }
+
+  /* PIN TAB vlevo — transform velkého buttonu na malý pill */
+  body:not(.sidebar-pinned).pkg-subheader-collapsed .sidebar-utils > .sidebar-pin {
+    position: absolute !important;
+    top: 0 !important;
+    left: 16px !important;
+    transform: translateY(-50%) !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    padding: 5px 12px 6px !important;
+    margin: 0 !important;
+    background: linear-gradient(180deg, #fafafa 0%, #f5f5f7 100%) !important;
+    border: 1px solid var(--border, #e8e8ed) !important;
+    border-radius: 12px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    color: var(--text-2, #6e6e73) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+    z-index: 5 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    cursor: pointer !important;
+    text-align: center !important;
+    line-height: 1 !important;
+  }
+
+  /* BALÍČKY TAB vpravo — grid-row overlap s utils + translateY = STŘED na lince */
   body:not(.sidebar-pinned).pkg-subheader-collapsed .pkg-subheader-handle {
-    order: 5 !important;                       /* stejný row jako subh (collapsed → subh skryt) */
+    order: 4 !important;
+    grid-row: 4 / 5 !important;
+    grid-column: 1 / 2 !important;
     justify-self: end !important;
-    margin: 0 16px 6px auto !important;        /* default mobile margin, bez negative shenanigans */
+    align-self: start !important;
+    margin: 24px 16px 0 0 !important;          /* margin-top: 24px = match utils */
+    transform: translateY(-50%) !important;
+    z-index: 5 !important;
+    position: relative !important;
   }
 
   /* 🆕 v2.9.82 — „APPEK Demo" = širší/vyšší BANNER: logo+firma vlevo,
