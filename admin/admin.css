@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.118";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.119";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -3170,6 +3170,9 @@ html.theme-apple .nastaveni-tabs {
     max-width: none;         /* 🆕 v3.0.114 — bez maxu, jméno se vždy vejde (Vilém/Valdemar/Vlastimír) */
     width: auto;
     flex-shrink: 0;
+    /* 🆕 v3.0.119 — Override base overflow:hidden + ellipsis (line 768) — JINAK truncate "Max..." */
+    overflow: visible !important;
+    text-overflow: clip !important;
     line-height: 1.2;
     flex-direction: column;
     align-items: flex-end;
@@ -14199,6 +14202,9 @@ aside.sidebar::after { display: none !important; content: '' !important; }
     max-width: none;         /* 🆕 v3.0.114 — bez maxu, jméno se vždy vejde (Vilém/Valdemar/Vlastimír) */
     width: auto;
     flex-shrink: 0;
+    /* 🆕 v3.0.119 — Override base overflow:hidden + ellipsis (line 768) — JINAK truncate "Max..." */
+    overflow: visible !important;
+    text-overflow: clip !important;
     line-height: 1.2;
     flex-direction: column;
     align-items: flex-end;
