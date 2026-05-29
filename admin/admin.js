@@ -352,7 +352,7 @@ window.printQueue = (function() {
     if (items.find(x => x.type === item.type && x.id === item.id)) return false;
     items.push({ ...item, added_at: Date.now() });
     save();
-    toastSuccess(`${item.label} přidán do tisku (${items.length})`);
+    toastSuccess(t('toast_added_to_print', { label: item.label, n: items.length }));
     return true;
   }
 
@@ -430,7 +430,7 @@ window.printQueue = (function() {
   async function printAll() {
     if (items.length === 0) return;
     closePanel();
-    toastInfo(`Otevírám ${items.length} dokumentů…`);
+    toastInfo(t('toast_opening_docs', { n: items.length }));
     for (const it of items) {
       let url = null;
       if (it.type === 'faktura')     url = '../api/faktura.php?id=' + it.id;
@@ -1101,7 +1101,7 @@ window.toggleNotifGroup = function(kind) {
 
 // 🆕 v2.0.71 — Delete all notifications of a kind at once
 window.deleteNotifGroup = async function(kind, idsCsv) {
-  if (!confirm(`Smazat všechny notifikace typu "${kind}" (${idsCsv.split(',').length}×)?`)) return;
+  if (!confirm(t('confirm_delete_notif_kind', { kind, n: idsCsv.split(',').length }))) return;
   const ids = idsCsv.split(',').filter(Boolean);
   try {
     await Promise.all(ids.map(id =>
@@ -1983,12 +1983,12 @@ window.confirmDelete2x = async function(arg) {
   const detail = typeof arg === 'object' ? (arg?.detail || '') : '';
 
   // 1. krok — běžný prompt
-  const krok1 = confirm(`Opravdu smazat ${co}?${detail ? '\n\n' + detail : ''}`);
+  const krok1 = confirm(t('confirm_delete_co', { co, detail: detail ? '\n\n' + detail : '' }));
   if (!krok1) return false;
 
   // 2. krok — definitivní potvrzení (nepřeskočitelné), JEN pokud je v nastavení zapnuté
   if (!getConfirmDelete2xEnabled()) return true;
-  const krok2 = confirm(`⚠️ POSLEDNÍ POTVRZENÍ\n\nOpravdu nevratně smazat ${co}?\n\nKlikněte OK pouze pokud si jste 100% jistí. Tato akce nelze vrátit zpět.\n\n(Druhý krok můžete vypnout v Nastavení.)`);
+  const krok2 = confirm(t('confirm_delete_final_step', { co }));
   return krok2;
 };
 
@@ -4140,11 +4140,11 @@ window.nastaveniAresLookup = async function() {
     setFld('ns-mesto', d.mesto);
     setFld('ns-psc',   d.psc);
     const zdroj = d._zdroj === 'rpo' ? '🇸🇰 Slovenský RPO' : '🇨🇿 ARES';
-    alert(`✅ Načteno z ${zdroj}.\n\nNezapomeň kliknout "Uložit nastavení".`);
+    alert(t('ares_loaded_dont_forget_save', { zdroj }));
   } catch (e) {
     const msg = String(e.message || e);
     if (/nenalezen/i.test(msg)) {
-      alert(`❌ ${msg}\n\nZkontroluj IČO. CZ má 8 číslic, SK také 8.`);
+      alert(t('ares_check_ico_8', { msg }));
     } else {
       alert('Chyba: ' + msg);
     }
@@ -4163,12 +4163,12 @@ window.onboardAresLookup = async function() {
     if (d.psc) document.getElementById('ob-psc').value = d.psc;
     // Hláška podle zdroje (ARES CZ vs. RPO SK)
     const zdroj = d._zdroj === 'rpo' ? '🇸🇰 Slovenský RPO' : '🇨🇿 ARES';
-    alert(`✅ Načteno z ${zdroj}.`);
+    alert(t('ares_loaded_simple', { zdroj }));
   } catch (e) {
     // Lepší error hláška
     const msg = String(e.message || e);
     if (/nenalezen/i.test(msg)) {
-      alert(`❌ ${msg}\n\nZkontroluj IČO. CZ IČO má 8 číslic, SK IČO většinou také 8.`);
+      alert(t('ares_check_ico_8_long', { msg }));
     } else {
       alert('Chyba: ' + msg);
     }
@@ -4218,7 +4218,7 @@ window.onboardSeedAndNext = async function() {
   }
   try {
     const r = await api('admin_onboarding.php?action=seed_demo', { method: 'POST', body: JSON.stringify({ kategorie }) });
-    alert(`✓ Vytvořeno: ${r.kategorie_pridano} kategorií + ${r.vyrobky_pridano} výrobků`);
+    alert(t('demo_created_cats_products', { cats: r.kategorie_pridano, prods: r.vyrobky_pridano }));
     onboardNext();
   } catch (e) { alert('Chyba: ' + e.message); }
 };
@@ -4253,7 +4253,7 @@ async function navigate(page, args) {
     page = allowed[0] || 'dashboard';
     args = undefined; // filtry pro target page nedávají smysl po fallbacku
     if (requestedPage !== page && typeof toast === 'function') {
-      try { toast(`🔒 Sekce „${requestedPage}" vyžaduje vyšší oprávnění než „${role}"`, 'warn'); } catch (e) {}
+      try { toast(t('toast_section_requires_role', { section: requestedPage, role }), 'warn'); } catch (e) {}
     }
   }
   state.current = page;
@@ -5716,7 +5716,7 @@ window.objBulkAction = async function(typ) {
   const ids = [...(state._objSelected || [])];
   if (ids.length === 0) return;
   const akce = typ === 'fa' ? 'vytvořit FAKTURY' : 'vytvořit DODACÍ LISTY';
-  if (!confirm(`Opravdu hromadně ${akce} pro ${ids.length} ${ids.length === 1 ? 'objednávku' : (ids.length < 5 ? 'objednávky' : 'objednávek')}?`)) return;
+  if (!confirm(t('confirm_bulk_action_orders', { akce, n: ids.length, label: ids.length === 1 ? 'objednávku' : (ids.length < 5 ? 'objednávky' : 'objednávek') }))) return;
 
   try {
     const res = await api('admin_objednavky_hromadne.php', {
@@ -6020,7 +6020,7 @@ window.ulozitMnozstvi = async function(id) {
 
     if (r.prepsana_faktura || r.prepsan_dl) {
       const co = r.prepsana_faktura ? 'Faktura i dodací list byly' : 'Dodací list byl';
-      alert(`✓ Změny uloženy. ${co} aktualizovány — vytiskněte nové.`);
+      alert(t('changes_saved_n_updated', { co }));
     }
     openObjednavkaDetail(id);
   } catch (e) { alert('Chyba: ' + e.message); }
@@ -6496,7 +6496,7 @@ window.noOpakovatZeZdroje = async function(source, id) {
 
   // Krátká info zpráva pokud něco bylo přeskočeno
   if (skipnuto > 0) {
-    setTimeout(() => alert(`📥 Načteno ${cleanPolozky.length} položek. (${skipnuto} volných řádků bez výrobku přeskočeno.)`), 100);
+    setTimeout(() => alert(t('imported_lines_skipped', { n: cleanPolozky.length, skipped: skipnuto })), 100);
   }
 };
 
@@ -6562,8 +6562,8 @@ window.ulozitNovouObjednavku = async function() {
   for (let i = 0; i < s.polozky.length; i++) {
     const p = s.polozky[i];
     if (!p.vyrobek_id) {
-      if (!p.vyrobek_nazev?.trim()) return alert(`Řádek ${i + 1}: chybí název položky`);
-      if ((p.cena_bez_dph || 0) < 0) return alert(`Řádek ${i + 1}: záporná cena`);
+      if (!p.vyrobek_nazev?.trim()) return alert(t('row_missing_name', { n: i + 1 }));
+      if ((p.cena_bez_dph || 0) < 0) return alert(t('row_negative_price', { n: i + 1 }));
     }
   }
   const polozky = s.polozky.filter(p => p.mnozstvi > 0).map(p => ({
@@ -6591,7 +6591,7 @@ window.ulozitNovouObjednavku = async function() {
       }),
     });
     closeModal();
-    alert(`Objednávka ${res.cislo} byla vytvořena.`);
+    alert(t('order_created', { cislo: res.cislo }));
     navigate('objednavky');
   } catch (e) { alert('Chyba: ' + e.message); }
 };
@@ -6951,7 +6951,7 @@ window.ulozitSklad = async function(id) {
 };
 
 window.smazatSklad = async function(id, nazev) {
-  if (!confirm(`Smazat sklad "${nazev}"? (Pokud má položky / pohyby, bude jen deaktivován.)`)) return;
+  if (!confirm(t('confirm_delete_warehouse', { nazev }))) return;
   try {
     const r = await api('admin_sklady.php?id=' + id, { method: 'DELETE' });
     renderSkladyInline();
@@ -7443,7 +7443,7 @@ window.ulozitPresun = async function() {
       }),
     });
     closeModal();
-    alert(`✓ Přesunuto ${mn} jednotek.\n\nZdroj: ${r.stav_z}\nCíl: ${r.stav_do}`);
+    alert(t('warehouse_moved', { mn, z: r.stav_z, do: r.stav_do }));
     // Refresh porovnání pokud je modal otevřený
     if (state._spravaTab === 'porovnani' && typeof spravaPorovnaniRender === 'function') {
       setTimeout(() => spravaPorovnaniRender(), 200);
@@ -7584,7 +7584,7 @@ window.spravaProvestInventuru = async function(skladId) {
     return;
   }
 
-  if (!confirm(`Provést inventuru pro ${ucinit.length} ${ucinit.length === 1 ? 'položku' : (ucinit.length < 5 ? 'položky' : 'položek')}? Vytvoří se inventurní pohyby s aktuálním datem.`)) return;
+  if (!confirm(t('confirm_inventory_action', { n: ucinit.length, label: ucinit.length === 1 ? 'položku' : (ucinit.length < 5 ? 'položky' : 'položek') }))) return;
 
   let ok = 0, fail = 0;
   for (const item of ucinit) {
@@ -7884,7 +7884,7 @@ window.editSkladPolozku = function(id, stav, min, cil, nazev) {
 };
 
 window.odebratPolozku = async function(id, nazev) {
-  if (!confirm(`Odebrat "${nazev}" ze skladu? (Pouze pokud stav = 0.)`)) return;
+  if (!confirm(t('confirm_remove_from_warehouse', { nazev }))) return;
   try {
     await api('admin_sklad_polozky.php?id=' + id, { method: 'DELETE' });
     closeModal();
@@ -8276,7 +8276,7 @@ window.vyOdepsatSuroviny = async function(datum) {
     // Invalidate cache surovin
     state._suroviny_cache = null;
     state._suroviny_full_cache = null;
-    alert(`✅ Odepsáno ${r.odepsano} surovin ze skladu.`);
+    alert(t('warehouse_writeoff', { n: r.odepsano }));
     vyLoadSpotreba(datum);   // refresh data
   } catch (e) { alert('Chyba: ' + e.message); }
 };
@@ -9185,7 +9185,7 @@ window.recurringSpustit = async function() {
   if (!confirm('Spustit generování objednávek pro ZÍTRA? (Anti-duplikát zajistí že se neuhrazené pravidla nevytvoří dvakrát.)')) return;
   try {
     const r = await api('admin_recurring.php?action=spustit_ted', { method: 'POST' });
-    alert(`✅ Hotovo.\n\nVytvořeno: ${r.vytvoreno}\nPřeskočeno: ${r.preskoceno}\nChyby: ${r.chyby}`);
+    alert(t('bulk_done_stats', { ok: r.vytvoreno, skip: r.preskoceno, err: r.chyby }));
     navigate('recurring');
   } catch (e) { alert('Chyba: ' + e.message); }
 };
@@ -9426,13 +9426,13 @@ window.dlBulkVystavitFakturu = async function() {
   const odberatelIds = [...new Set(vybrane.map(d => d.odberatel_id))];
   if (odberatelIds.length > 1) {
     const nazvy = [...new Set(vybrane.map(d => d.odberatel_nazev))];
-    return alert(`Vybrané dodací listy musí být od stejného odběratele.\n\nVybráno odběratelů: ${odberatelIds.length}\n${nazvy.join(', ')}`);
+    return alert(t('dl_same_customer_required', { n: odberatelIds.length, nazvy: nazvy.join(', ') }));
   }
 
   // Validace 2: nejsou fakturované
   const uzFakturovane = vybrane.filter(d => d.fakturovano);
   if (uzFakturovane.length > 0) {
-    return alert(`Tyto DL už jsou fakturované: ${uzFakturovane.map(d => d.cislo).join(', ')}\n\nOdškrtni je z výběru.`);
+    return alert(t('dl_already_invoiced', { seznam: uzFakturovane.map(d => d.cislo).join(', ') }));
   }
 
   const odberatel = vybrane[0]?.odberatel_nazev || 'odběratele';
@@ -9449,7 +9449,7 @@ window.dlBulkVystavitFakturu = async function() {
       method: 'POST',
       body: { dl_ids: ids },
     });
-    alert(`✓ Faktura ${res.cislo} vystavena.\n${res.pocet_dl} DL navázáno · ${fmt(res.castka_celkem)}`);
+    alert(t('invoice_issued_with_dl', { cislo: res.cislo, pocet: res.pocet_dl, castka: fmt(res.castka_celkem) }));
     dlClearSelection();
     navigate('faktury');
     setTimeout(() => openFakturaDetail(res.faktura_id), 200);
@@ -9505,7 +9505,7 @@ window.dlBulkOdeslatEmailemProvest = async function() {
       ok++;
     } catch (e) { chyby++; }
   }
-  alert(`✓ Odesláno: ${ok}${chyby > 0 ? `\n✗ Chyby: ${chyby}` : ''}`);
+  alert(t('confirm_send_finished', { ok, chyby_text: chyby > 0 ? `\n✗ Chyby: ${chyby}` : '' }));
   closeModal();
 };
 
@@ -9538,8 +9538,8 @@ window.dlBulkTiskNahore = function() {
   if (ids.length === 0) {
     if (list.length === 0) return alert('Žádné dodací listy k tisku.');
     if (list.length > 30) {
-      if (!confirm(`Nic není vybráno. Vytisknout všech ${list.length} zobrazených DL? (To je hodně!)`)) return;
-    } else if (!confirm(`Nic není vybráno. Vytisknout všech ${list.length} zobrazených DL?`)) return;
+      if (!confirm(t('confirm_print_all_dl_many', { n: list.length }))) return;
+    } else if (!confirm(t('confirm_print_all_dl', { n: list.length }))) return;
     ids = list.map(d => d.id);
   }
   // Rozdělím na DL z objednávek vs ruční
@@ -10337,8 +10337,8 @@ window.faBulkTiskNahore = function() {
     const all = (state._faList || []).map(f => f.id);
     if (all.length === 0) return alert('Žádné faktury k tisku.');
     if (all.length > 30) {
-      if (!confirm(`Nic není vybráno. Vytisknout všech ${all.length} zobrazených faktur? (To je hodně!)`)) return;
-    } else if (!confirm(`Nic není vybráno. Vytisknout všech ${all.length} zobrazených faktur?`)) return;
+      if (!confirm(t('confirm_print_all_invoices_many', { n: all.length }))) return;
+    } else if (!confirm(t('confirm_print_all_invoices', { n: all.length }))) return;
     ids = all;
   }
   window.open(`../api/faktura.php?ids=${ids.join(',')}&autoprint=1`, '_blank');
@@ -10440,14 +10440,14 @@ window.exportFakturEmail = async function() {
   const email = (document.getElementById('exp-email').value || '').trim();
   if (!email || !email.includes('@')) return alert('Vyplň email');
   if (!od || !dto) return alert('Vyplň období');
-  if (!confirm(`Poslat ZIP s ISDOC fakturami na ${email}?`)) return;
+  if (!confirm(t('confirm_send_isdoc_zip', { email }))) return;
   try {
     const r = await api('admin_export_isdoc.php?action=email', {
       method: 'POST',
       body: JSON.stringify({ od, do: dto, email }),
     });
     closeModal();
-    alert(`✓ Odesláno!\n\n• Faktur: ${r.odeslano}\n• Velikost: ${r.velikost_kb} kB\n• Příjemce: ${r.email}`);
+    alert(t('isdoc_sent', { n: r.odeslano, kb: r.velikost_kb, email: r.email }));
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
@@ -10461,7 +10461,7 @@ window.exportFakturIsdocPeriod = async function() {
     const data = await api('admin_faktury.php?' + params);
     const ids = (data.faktury || []).map(f => f.id);
     if (ids.length === 0) return alert('V období nejsou žádné faktury');
-    if (!confirm(`Stáhnout ZIP s ${ids.length} fakturami v ISDOC formátu?`)) return;
+    if (!confirm(t('confirm_download_isdoc_zip', { n: ids.length }))) return;
 
     const res = await fetch('../api/admin_export_isdoc.php?action=zip', {
       method: 'POST',
@@ -10935,7 +10935,7 @@ window.opakovatObjednavkuZFaktury = async function(id) {
     });
 
     closeModal();
-    alert(`Vytvořena objednávka ${res.cislo}.`);
+    alert(t('order_created_simple', { cislo: res.cislo }));
     navigate('objednavky');
     setTimeout(() => openObjednavkaDetail(res.id), 200);
   } catch (e) {
@@ -12086,7 +12086,7 @@ window.vyOdvoditAlergeny = function(silent) {
   if (!stary || silent) {
     aler.value = list;
   } else if (stary !== list) {
-    if (confirm(`Detekované alergeny ze surovin (vč. složení):\n${list || '(žádné)'}\n\nPřepsat aktuální „${stary}"?`)) {
+    if (confirm(t('confirm_overwrite_allergens', { list: list || '(žádné)', old: stary }))) {
       aler.value = list;
     }
   }
@@ -14862,8 +14862,8 @@ window.tiskarnaTest = async function(id) {
       method: 'POST', body: JSON.stringify({ id })
     });
     if (r.ok) {
-      if (r.dummy) toast(`✓ Dummy tisk → ${r.file.split('/').pop()}`, 'success');
-      else        toast(`✓ Vytištěno (${r.bytes}B)`, 'success');
+      if (r.dummy) toast(t('toast_dummy_print', { file: r.file.split('/').pop() }), 'success');
+      else        toast(t('toast_printed_bytes', { bytes: r.bytes }), 'success');
       loadTiskarnyPanel();
     } else {
       toast('❌ ' + (r.error || 'Neznámá chyba'), 'error');
@@ -14872,7 +14872,7 @@ window.tiskarnaTest = async function(id) {
 };
 
 window.tiskarnaDelete = async function(id, nazev) {
-  if (!confirm(`Smazat tiskárnu "${nazev}"?\n\nKategorie přiřazené této tiskárně se nastaví na "bez tisku".`)) return;
+  if (!confirm(t('confirm_delete_printer', { nazev }))) return;
   try {
     await api('admin_printers.php?action=delete', { method: 'POST', body: JSON.stringify({ id }) });
     toast('✓ Smazáno', 'success');
@@ -15514,7 +15514,7 @@ window.submitLicenseUpdate = async function() {
       body: JSON.stringify({ license_key: key }),
     });
     closeModal();
-    alert(`✅ Klíč aktualizován.\n\nOdemčené balíčky: ${(r.packages || []).join(', ')}\n\nStránka se obnoví aby se promítly změny.`);
+    alert(t('license_updated', { pkgs: (r.packages || []).join(', ') }));
     location.reload();
   } catch (e) {
     alert('Chyba: ' + e.message);
@@ -16446,7 +16446,7 @@ window.cakeSubmitOrder = async function() {
       }),
     });
     closeModal();
-    toastSuccess(`✓ Objednávka ${r.cislo} vytvořena (${fmt(r.castka)})`);
+    toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: fmt(r.castka) }));
     setTimeout(() => navigate('objednavky'), 600);
   } catch (e) { alert('Chyba: ' + e.message); }
 };
@@ -16618,7 +16618,7 @@ window.seedRestaurantPack = async function() {
   try {
     const r = await api('admin_demo_seed.php?action=seed_restaurant_pack', { method: 'POST' });
     if (r && r.ok) {
-      alert(`✅ Hotovo!\n\n• ${r.kategorie} kategorií\n• ${r.suroviny} surovin (s nutri)\n• ${r.vyrobky_created} nových výrobků (+${r.vyrobky_updated} aktualizováno)\n• ${r.recepty} řádků receptů\n\nMrkni do Výrobky → uvidíš novinky.`);
+      alert(t('demo_seed_done', { cat: r.kategorie, sur: r.suroviny, newP: r.vyrobky_created, updP: r.vyrobky_updated, recipes: r.recepty }));
       if (typeof toast === 'function') toast(r.msg, 'success');
     } else {
       alert('❌ ' + (r?.error || 'Neznámá chyba'));
@@ -17184,13 +17184,13 @@ window.qrApproveAll = async function(stulId, ids) {
         method: 'POST', body: JSON.stringify({ qr_order_id: id }),
       });
     }
-    toastSuccess(`✅ Schváleno ${ids.length} položek`);
+    toastSuccess(t('toast_approved_items', { n: ids.length }));
     renderQRPending();
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
 window.qrRejectAll = async function(ids) {
-  if (!confirm(`Odmítnout ${ids.length} položek?`)) return;
+  if (!confirm(t('confirm_reject_items', { n: ids.length }))) return;
   try {
     for (const id of ids) {
       await api('admin_pos.php?action=qr_reject', {
@@ -17871,7 +17871,7 @@ window.rtSaveLayout = async function() {
     });
     if (r && r.ok) {
       rtState.dirtyTables.clear();
-      toastSuccess(`✅ Uloženo (${r.updated} stolů)`);
+      toastSuccess(t('toast_saved_tables', { n: r.updated }));
       renderRestaurantTables();
     }
   } catch (e) { alert('Chyba při ukládání: ' + e.message); }
@@ -18212,7 +18212,7 @@ window.posAddItem = async function(vyrobekId, nazev, cena, kategorie) {
       }),
     });
     posState.currentUcet = await api('admin_pos.php?action=ucet&stul_id=' + u.stul_id);
-    toastSuccess(`+ ${nazev} (${cena.toFixed(2)} Kč)`);
+    toastSuccess(t('toast_added_item_price', { nazev, cena: cena.toFixed(2) }));
     const activeTab = document.querySelector('.pos-tab.is-active');
     if (activeTab) posTabClick(activeTab);
   } catch (e) { alert('Chyba: ' + e.message); }
@@ -18283,7 +18283,7 @@ window.posPaySingle = async function(amount, zpusob) {
       method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby: [{ castka: amount, zpusob }] }),
     });
     closeModal();
-    toastSuccess(`✅ Zaplaceno ${amount.toFixed(2)} Kč (${zpusob})`);
+    toastSuccess(t('toast_paid_amount', { amount: amount.toFixed(2), method: zpusob }));
     setTimeout(() => window.open(`../api/admin_pos_print.php?ucet_id=${u.id}&typ=ucet&autoprint=1`, '_blank', 'width=400,height=700'), 300);
     posState.currentUcet = null;
     renderRestaurantTables();
@@ -18338,7 +18338,7 @@ window.posSubmitSplitPay = async function(total) {
   });
   const sum = platby.reduce((s, p) => s + p.castka, 0);
   if (Math.abs(sum - total) > 0.01) {
-    if (!confirm(`Součet (${sum.toFixed(2)}) ≠ celkem (${total.toFixed(2)}). Pokračovat?`)) return;
+    if (!confirm(t('confirm_sum_mismatch', { sum: sum.toFixed(2), total: total.toFixed(2) }))) return;
   }
   const u = posState.currentUcet;
   try {
@@ -18399,7 +18399,7 @@ window.posSplitSubmit = async function() {
   try {
     await api('admin_pos.php?action=split', { method: 'POST', body: JSON.stringify({ ucet_id: u.id, parts }) });
     closeModal();
-    toastSuccess(`✂️ Rozděleno na ${parts.length} částí`);
+    toastSuccess(t('toast_split_parts', { n: parts.length }));
     posState.currentUcet = null;
     renderRestaurantTables();
   } catch (e) { alert('Chyba: ' + e.message); }
@@ -18441,7 +18441,7 @@ window.posMergeSubmit = async function() {
   try {
     await api('admin_pos.php?action=merge', { method: 'POST', body: JSON.stringify({ target_ucet_id: u.id, source_ucet_ids: sources }) });
     closeModal();
-    toastSuccess(`🔗 Sloučeno ${sources.length} účtů`);
+    toastSuccess(t('toast_merged_accounts', { n: sources.length }));
     posState.currentUcet = await api('admin_pos.php?action=ucet&stul_id=' + u.stul_id);
     posRenderUcetModal();
     renderRestaurantTables();
@@ -18640,7 +18640,7 @@ window.rtOpenTemplatePicker = async function() {
 };
 
 window.rtApplyTemplate = async function(key, nazev) {
-  if (!confirm(`Naimportovat šablonu "${nazev}"?\n\nVŠECHNY stávající stoly a zóny budou SMAZÁNY.`)) return;
+  if (!confirm(t('confirm_import_template_destructive', { nazev }))) return;
   try {
     const r = await api('admin_tables.php?action=apply_template', {
       method: 'POST',
@@ -18648,7 +18648,7 @@ window.rtApplyTemplate = async function(key, nazev) {
     });
     if (r && r.ok) {
       closeModal();
-      toastSuccess(`✅ Naimportováno ${r.stoly} stolů ve ${r.zones} zónách.`);
+      toastSuccess(t('toast_floorplan_imported', { stoly: r.stoly, zones: r.zones }));
       rtState.activeZoneId = null;
       rtState.dirtyTables.clear();
       renderRestaurantTables();
@@ -19296,7 +19296,7 @@ window.posPresetsSave = async function() {
     });
     state._posPresets = r.presets || state._posPresets;
     posPresetsRender();
-    toastSuccess(`✓ Uloženo ${r.saved || 0} presetů. V POS se použijí ihned (cache 5 min).`);
+    toastSuccess(t('toast_presets_saved', { n: r.saved || 0 }));
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 window.posPresetsReset = async function() {
@@ -19641,7 +19641,7 @@ window.prepTimesSaveAll = async function() {
   if (updates.length === 0) { toastInfo('Žádné změny'); return; }
   try {
     const r = await api('admin_prep_times.php?action=bulk', { method:'POST', body: JSON.stringify({ updates })});
-    toastSuccess(`Uloženo ${r.count} změn`);
+    toastSuccess(t('toast_n_changes_saved', { n: r.count }));
     state._prepEdits = {};
     renderPrepTimes();
   } catch (e) { alert('Chyba: ' + e.message); }
@@ -20548,7 +20548,7 @@ window.mixTogglePick = function(tplId, ingId, maxVyber) {
     if (picks.length >= maxVyber) {
       // Nahraď nejstarší pokud single-select
       if (maxVyber === 1) picks.length = 0;
-      else { toastWarn(`Max ${maxVyber} v této kategorii`); return; }
+      else { toastWarn(t('toast_max_in_category', { n: maxVyber })); return; }
     }
     picks.push(ingId);
   }
@@ -21140,7 +21140,7 @@ window.cateringApplySum = function() {
   const sum = (state._catEdit.polozky || []).reduce((s, p) => s + (parseFloat(p.cena_celkem) || 0), 0);
   const input = document.getElementById('cate-cena');
   if (input) input.value = sum;
-  toastInfo(`Cena nastavena na ${fmt(sum)}`);
+  toastInfo(t('toast_price_set_to', { sum: fmt(sum) }));
 };
 
 window.cateringSaveEdit = async function() {
@@ -22509,7 +22509,7 @@ window.runSelfUpdate = async function(version, downloadUrl, expectedChecksum) {
 
     logAdd(`\n💡 Refresh za 2 sekundy…`);
     if (btn) btn.textContent = '✅ Hotovo · Refresh za chvíli';
-    if (typeof toastSuccess === 'function') toastSuccess(`✅ Aktualizováno na ${res.version}!`);
+    if (typeof toastSuccess === 'function') toastSuccess(t('toast_updated_to_version', { version: res.version }));
 
     // 🆕 v2.0.79 — flag pro post-refresh banner (zobrazí Apple-style notif po reloadu)
     try { localStorage.setItem('appek_post_update_ack', 'v' + res.version); } catch (e) {}
@@ -22542,7 +22542,7 @@ window.runSelfUpdate = async function(version, downloadUrl, expectedChecksum) {
     }
 
     if (btn) { btn.disabled = false; btn.textContent = '🔄 Zkusit znovu'; }
-    if (typeof toastError === 'function') toastError(`❌ ${lastErr || 'Aktualizace selhala'}`);
+    if (typeof toastError === 'function') toastError(t('toast_update_failed', { err: lastErr || 'Aktualizace selhala' }));
   }
 };
 
@@ -22848,7 +22848,7 @@ window.syncRunNow = async function() {
     } else if (r.errors?.length) {
       alert('🟡 Sync proběhl s chybami:\n\n' + r.errors.join('\n'));
     } else {
-      alert(`✅ Sync hotový!\n\nPush: ${r.records_pushed || 0} záznamů\nPull: ${r.records_pulled || 0} záznamů\nČas: ${r.duration_ms}ms`);
+      alert(t('sync_done_stats', { pushed: r.records_pushed || 0, pulled: r.records_pulled || 0, ms: r.duration_ms }));
     }
     syncLoadStatus();
   } catch (e) {
@@ -22964,9 +22964,9 @@ window.syncTestConnection = async function() {
   try {
     const r = await api('sync/status.php?action=test_connection', { method: 'POST' });
     if (r.ok) {
-      alert(`✅ Připojení OK!\n\nCloud odpověděl HTTP ${r.status}.`);
+      alert(t('cloud_connection_ok', { status: r.status }));
     } else {
-      alert(`🟡 Cloud odpověděl, ale s chybou:\n\n${JSON.stringify(r.response, null, 2)}`);
+      alert(t('cloud_responded_with_error', { json: JSON.stringify(r.response, null, 2) }));
     }
   } catch (e) {
     alert('❌ Test selhal:\n\n' + e.message + '\n\nZkontroluj cloud endpoint URL a shared secret na obou stranách.');
@@ -23072,13 +23072,13 @@ window.zalohaVytvorit = async function(includeUploads) {
       method: 'POST',
       body: JSON.stringify({ typ: 'manual', label: label || null, include_uploads: includeUploads }),
     });
-    alert(`✓ Záloha vytvořena!\n\n` +
-      `Soubor: ${r.soubor}\n` +
-      `Velikost: ${_zalohaVel(r.velikost)}\n` +
-      `Tabulek: ${r.tabulek}\n` +
-      `Záznamů: ${r.zaznamu.toLocaleString('cs-CZ')}\n` +
-      (r.uploads ? `Souborů z /uploads: ${r.uploads}\n` : '') +
-      `\nDoporučuju si ji rovnou stáhnout (tlačítko ⬇).`);
+    alert(t('backup_created', {
+      soubor: r.soubor,
+      velikost: _zalohaVel(r.velikost),
+      tabulek: r.tabulek,
+      zaznamu: r.zaznamu.toLocaleString('cs-CZ'),
+      uploads_text: r.uploads ? t('uploads_count_line', { n: r.uploads }) : '',
+    }));
     zalohyRefresh();
   } catch (e) {
     alert('Vytvoření zálohy selhalo: ' + e.message);
@@ -23112,10 +23112,10 @@ window.zalohaObnov = async function(id, datum) {
       body: JSON.stringify({ potvrzeni: 'OBNOVIT' }),
     });
     if (r.ok) {
-      alert(`✓ Obnova proběhla úspěšně!\n\nProvedeno SQL příkazů: ${r.provedeno}\nChyb: ${r.chyb}\n\nStránka se nyní obnoví.`);
+      alert(t('restore_success', { n: r.provedeno, err: r.chyb }));
       location.reload();
     } else {
-      alert(`⚠ Obnova proběhla s chybami:\n\nÚspěšně: ${r.provedeno}\nChyb: ${r.chyb}\n\n${r.errors.slice(0, 3).join('\n')}\n\nDoporučuju zkontrolovat stav DB.`);
+      alert(t('restore_with_errors', { ok: r.provedeno, err: r.chyb, errors: r.errors.slice(0, 3).join('\n') }));
       zalohyRefresh();
     }
   } catch (e) {
@@ -23779,7 +23779,7 @@ window.pushSendTest = async function() {
         body: 'Toto je testovací notifikace. Pokud ji vidíš, vše funguje! 🎉',
       }),
     });
-    alert(`✅ Test odeslán.\n\nOdesláno: ${r.stats.sent}\nSelhalo: ${r.stats.failed}\nExpirováno: ${r.stats.expired}`);
+    alert(t('test_email_sent', { sent: r.stats.sent, failed: r.stats.failed, expired: r.stats.expired }));
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
@@ -23794,7 +23794,7 @@ window.pushSendTestAll = async function() {
         body: 'Provoz otestoval push systém. Jen ignoruj. 😊',
       }),
     });
-    alert(`✅ Hromadný test odeslán.\n\nOdesláno: ${r.stats.sent}\nSelhalo: ${r.stats.failed}\nExpirováno (smazáno): ${r.stats.expired}`);
+    alert(t('bulk_test_sent', { sent: r.stats.sent, failed: r.stats.failed, expired: r.stats.expired }));
     loadPushStats();
   } catch (e) { alert('Chyba: ' + e.message); }
 };
@@ -24317,7 +24317,7 @@ window.ulozitDph = async function(id) {
 
 window.smazatDph = async function(id, pocet) {
   if (pocet > 0) {
-    return alert(`Sazbu nelze smazat — používá ji ${pocet} výrobků.\n\nNejprve výrobky převeďte na jinou sazbu.`);
+    return alert(t('vat_rate_in_use', { n: pocet }));
   }
   if (!await confirmDelete2x('tuto sazbu DPH')) return;
 
@@ -25323,7 +25323,7 @@ window.sk_pridatOdbSubmit = async function(sk_id) {
 };
 
 window.sk_odebratOdb = async function(sk_id, odb_id, nazev) {
-  if (!confirm(`Odebrat „${nazev}" ze skupiny?\n\n(Odběratel zůstane v systému, jen přijde o slevy této skupiny.)`)) return;
+  if (!confirm(t('confirm_remove_from_group', { nazev }))) return;
   try {
     await api('admin_cenove_skupiny.php?action=odebrat_odberatele', {
       method: 'POST',
@@ -26410,9 +26410,9 @@ window.rfVystavit = async function() {
   // Validace položek
   for (let i = 0; i < s.polozky.length; i++) {
     const p = s.polozky[i];
-    if (!p.vyrobek_nazev?.trim()) return alert(`Řádek ${i + 1}: chybí název`);
-    if (p.mnozstvi <= 0) return alert(`Řádek ${i + 1}: neplatné množství`);
-    if (p.cena_bez_dph < 0) return alert(`Řádek ${i + 1}: záporná cena`);
+    if (!p.vyrobek_nazev?.trim()) return alert(t('row_missing_name_short', { n: i + 1 }));
+    if (p.mnozstvi <= 0) return alert(t('row_invalid_qty', { n: i + 1 }));
+    if (p.cena_bez_dph < 0) return alert(t('row_negative_price', { n: i + 1 }));
   }
 
   const data = {
@@ -26446,7 +26446,7 @@ window.rfVystavit = async function() {
       body: JSON.stringify(data),
     });
     closeModal();
-    alert(`Faktura ${res.cislo} byla vystavena.`);
+    alert(t('invoice_issued_simple', { cislo: res.cislo }));
     window.open(`../api/faktura.php?id=${res.id}`, '_blank');
     navigate('faktury');
   } catch (e) {
@@ -26840,9 +26840,9 @@ window.rdlVystavit = async function() {
 
   for (let i = 0; i < s.polozky.length; i++) {
     const p = s.polozky[i];
-    if (!p.vyrobek_nazev?.trim()) return alert(`Řádek ${i + 1}: chybí název`);
-    if (p.mnozstvi <= 0) return alert(`Řádek ${i + 1}: neplatné množství`);
-    if (p.cena_bez_dph < 0) return alert(`Řádek ${i + 1}: záporná cena`);
+    if (!p.vyrobek_nazev?.trim()) return alert(t('row_missing_name_short', { n: i + 1 }));
+    if (p.mnozstvi <= 0) return alert(t('row_invalid_qty', { n: i + 1 }));
+    if (p.cena_bez_dph < 0) return alert(t('row_negative_price', { n: i + 1 }));
   }
 
   const data = {
@@ -28107,7 +28107,7 @@ window.smazatKategoriiSurovin = function(idx) {
     alert('Kategorii „Ostatní" nelze smazat — slouží jako fallback pro nezařazené suroviny.');
     return;
   }
-  if (!confirm(`Smazat kategorii „${k.label}"?\n\nSuroviny v ní budou přesunuté do "Ostatní".`)) return;
+  if (!confirm(t('confirm_delete_category', { label: k.label }))) return;
   state._katsDraft.splice(idx, 1);
   renderKategoriGrid();
 };
@@ -29014,7 +29014,7 @@ window.surCsvSubmit = async function() {
       method: 'POST',
       body: { suroviny: items },
     });
-    alert(`✓ CSV import dokončen\n\nVytvořeno: ${res.vytvoreno}\nAktualizováno: ${res.aktualizovano}\nCelkem: ${res.celkem}${res.chyby?.length ? '\n\n⚠ Chyby:\n' + res.chyby.join('\n') : ''}`);
+    alert(t('csv_import_done', { created: res.vytvoreno, updated: res.aktualizovano, total: res.celkem, errors: res.chyby?.length ? '\n\n⚠ Chyby:\n' + res.chyby.join('\n') : '' }));
     state._csvImportPreview = null;
     closeModal();
     renderSuroviny();
@@ -29105,7 +29105,7 @@ window.surImportBalicek = async function() {
       method: 'POST',
       body: { suroviny: items },
     });
-    alert(`✓ Import dokončen\n\nVytvořeno: ${r.vytvoreno}\nAktualizováno: ${r.aktualizovano}\nCelkem: ${r.celkem}${r.chyby?.length ? '\n\n⚠ Chyby:\n' + r.chyby.join('\n') : ''}`);
+    alert(t('import_done', { created: r.vytvoreno, updated: r.aktualizovano, total: r.celkem, errors: r.chyby?.length ? '\n\n⚠ Chyby:\n' + r.chyby.join('\n') : '' }));
     closeModal();
     renderSuroviny();
   } catch (e) {
@@ -29137,7 +29137,7 @@ window.surImportRucni = async function() {
       method: 'POST',
       body: { suroviny: items },
     });
-    alert(`✓ Import dokončen\n\nVytvořeno: ${res.vytvoreno}\nAktualizováno: ${res.aktualizovano}\nCelkem: ${res.celkem}${res.chyby?.length ? '\n\n⚠ Chyby:\n' + res.chyby.join('\n') : ''}`);
+    alert(t('import_done', { created: res.vytvoreno, updated: res.aktualizovano, total: res.celkem, errors: res.chyby?.length ? '\n\n⚠ Chyby:\n' + res.chyby.join('\n') : '' }));
     state._importSurovinyRows = null;   // reset
     closeModal();
     renderSuroviny();
@@ -29598,7 +29598,7 @@ window.surDetekovatAlergeny = function() {
     alerEl.value = found.join(', ');
     return;
   }
-  if (confirm(`Detekováno: ${found.join(', ')}\n\nChceš tyto alergeny přepsat do pole „Alergen"? (Aktuálně: „${alerEl.value}")`)) {
+  if (confirm(t('confirm_detected_overwrite_allergens', { found: found.join(', '), current: alerEl.value }))) {
     alerEl.value = found.join(', ');
   }
 };
@@ -29674,7 +29674,7 @@ window.smazatSurovinu = async function(id) {
   if (!await confirmDelete2x({ co: 'tuto surovinu', detail: 'Pokud je v některém receptu (složení výrobku), surovina se jen deaktivuje (recepty zůstanou nedotčené).' })) return;
   try {
     const res = await api(`admin_suroviny.php?id=${id}`, { method: 'DELETE' });
-    if (res.deactivated) alert(`Surovina je v ${res.pouzita_v_vyrobcich} výrobcích — byla deaktivována místo smazání.`);
+    if (res.deactivated) alert(t('ingredient_in_use_deactivated', { n: res.pouzita_v_vyrobcich }));
     closeModal();
     state._suroviny_cache = null; state._suroviny_full_cache = null;
     navigate('suroviny');
@@ -29705,7 +29705,7 @@ async function loadSurovinyCache() {
 
 // 🆕 v2.9.290 — Tlačítko v editVyrobek pro doplnění demo receptu (RK01, CH01, …)
 window.vyNaplnitDemoRecept = async function(vyrobekId, cislo) {
-  if (!confirm(`Doplnit demo recept pro výrobek ${cislo}?\n\n⚠️ Pokud výrobek už nějaký recept má, bude PŘEPSÁN.`)) return;
+  if (!confirm(t('confirm_demo_recipe', { cislo }))) return;
   try {
     const r = await api('admin_demo_seed.php?action=seed_one_recipe', {
       method: 'POST',
@@ -29804,7 +29804,11 @@ window.vyTestoPrepocitat = function() {
   if (aktualni === 0) return alert('Aktuální receptura nemá žádnou váženou surovinu (g/kg/ml/l).\n\nDoplň alespoň jednu surovinu s množstvím.');
 
   const mult = target / aktualni;
-  if (!confirm(`Přepočítat recepturu z ${aktualni.toFixed(3).replace(/\.?0+$/, '').replace('.', ',')} kg na ${target} kg těsta?\n\nNásobek: ${mult.toFixed(3).replace(/\.?0+$/, '').replace('.', ',')}×\n\nPřenásobí všechna množství surovin (vč. ks — pokud máš v receptuře vejce, vynásobí se).`)) return;
+  {
+    const fromStr = aktualni.toFixed(3).replace(/\.?0+$/, '').replace('.', ',');
+    const multStr = mult.toFixed(3).replace(/\.?0+$/, '').replace('.', ',');
+    if (!confirm(t('confirm_recalc_recipe', { from: fromStr, to: target, mult: multStr }))) return;
+  }
 
   document.querySelectorAll('#vy-sloz-rows .sloz-row').forEach(r => {
     const mnEl = r.querySelector('.sloz-mn');
@@ -30521,14 +30525,21 @@ window.vcardImport = async function() {
   const cards = window.vcardRozdelit(text);
   if (cards.length === 0) return alert('Žádné platné vCard bloky.');
   const typ = document.getElementById('vc-typ').value || null;
-  if (!confirm(`Importovat ${cards.length} vizitek?${typ ? ' Všechny jako "' + (window.odbTypByKey(typ)?.label || typ) + '".' : ''}`)) return;
+  if (!confirm(t('confirm_import_cards', { n: cards.length, typ_text: typ ? ' Všechny jako "' + (window.odbTypByKey(typ)?.label || typ) + '".' : '' }))) return;
 
   try {
     const res = await api('admin_odberatele.php?action=import_vcard', {
       method: 'POST',
       body: JSON.stringify({ vcards: cards, typ }),
     });
-    alert(`✅ Importováno: ${res.imported || 0} odběratelů.${res.errors && res.errors.length ? '\n\nUpozornění:\n' + res.errors.slice(0, 8).join('\n') + (res.errors.length > 8 ? `\n…a další ${res.errors.length - 8}` : '') : ''}`);
+    {
+      let warnings = '';
+      if (res.errors && res.errors.length) {
+        const extra = res.errors.length > 8 ? t('more_errors_suffix', { n: res.errors.length - 8 }) : '';
+        warnings = '\n\nUpozornění:\n' + res.errors.slice(0, 8).join('\n') + extra;
+      }
+      alert(t('vcards_imported', { n: res.imported || 0, warnings }));
+    }
     closeModal();
     renderOdberatele();
   } catch (e) {
@@ -30936,7 +30947,7 @@ window.stChipRemove = function(vId) {
 
 window.stVymazatVse = function() {
   if (!stState.vybraneVyr || stState.vybraneVyr.size === 0) return;
-  if (!confirm(`Vymazat všechny vybrané výrobky (${stState.vybraneVyr.size}×)?`)) return;
+  if (!confirm(t('confirm_clear_selected_products', { n: stState.vybraneVyr.size }))) return;
   stState.vybraneVyr.clear();
   stState.poctyPerVyrobek = {};
   if (typeof renderStitky === 'function') renderStitky();
@@ -32682,7 +32693,7 @@ window.stCenovkyZVsechVyrobku = async function() {
   if (typeof navigate === 'function') navigate('stitky');
 
   const detail = errors.length ? `\n\nChyby:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n…(${errors.length - 5} dalších)` : ''}` : '';
-  alert(`📦 Hotovo.\n\n• Vytvořeno: ${ok}\n• Chyb: ${err}${detail}`);
+  alert(t('bulk_done_summary', { ok, err, detail }));
 };
 
 // ════════════════════════════════════════════════════════════
@@ -32927,7 +32938,7 @@ window.stitekNacistZProduktu = async function(stitekId) {
     try {
       await api(`admin_moje_stitky.php?id=${stId}`, { method: 'PUT', body: JSON.stringify(payload) });
       closeModal();
-      toastSuccess(`✓ Načteno z výrobku: ${v.nazev}`);
+      toastSuccess(t('toast_loaded_from_product', { nazev: v.nazev }));
       stState.mojeStitky = []; // force reload
       renderStitky();
     } catch (e) {
@@ -34385,7 +34396,7 @@ const SABLONY_PRESET = [
 ];
 
 window.ed_seedPreset = async function() {
-  if (!confirm(`Vytvořit ${SABLONY_PRESET.length} přednastavených šablon?\n\nZahrnuje:\n• Velké cenovky (A4 plakát, A6, půl A4)\n• Klasické cenovky (Avery 8/21/24/33, Printky 6/10/42/44/65, SEVT 10/14/18/52)\n• Appek fold (sklad od půlky)\n• Styly: hero, minimalist, vintage, eco, akce, kompakt — viz názvy ★`)) return;
+  if (!confirm(t('confirm_create_template_presets', { n: SABLONY_PRESET.length }))) return;
   let ok = 0, chyby = 0;
   for (const tpl of SABLONY_PRESET) {
     try {
@@ -34399,7 +34410,7 @@ window.ed_seedPreset = async function() {
       chyby++;
     }
   }
-  alert(`✓ Vytvořeno ${ok} šablon${chyby > 0 ? ` (${chyby} chyba)` : ''}.\n\nNajdeš je v dropdownu „Načíst uloženou šablonu".`);
+  alert(t('templates_created', { ok, chyby_text: chyby > 0 ? ` (${chyby} chyba)` : '' }));
   // Refresh seznam v editoru
   try {
     stEditor.ulozeneSablony = await api('admin_stitky_sablony.php');
@@ -36342,7 +36353,7 @@ window.haccpDokImportDefault = async function() {
   try {
     const r = await api('admin_haccp_dokumenty.php?action=import_default', { method: 'POST', body: '{}' });
     if (r && r.ok === false && r.existing) {
-      if (!confirm(`Už existuje ${r.existing} dokumentů. Přidat dalších (mohou být duplikáty)?`)) return;
+      if (!confirm(t('confirm_add_more_docs', { n: r.existing }))) return;
       await api('admin_haccp_dokumenty.php?action=import_default&force=1', { method: 'POST', body: '{}' });
     }
     haccpState.dokumenty = await api('admin_haccp_dokumenty.php');
@@ -36813,7 +36824,7 @@ window.haccpGrafImportDefault = async function() {
   try {
     const r = await api('admin_haccp_grafy.php?action=import_default', { method: 'POST', body: '{}' });
     if (r && r.ok === false && r.existing) {
-      if (!confirm(`Už existuje ${r.existing} šablon. Přidat dalších 5 (mohou být duplikáty)?`)) return;
+      if (!confirm(t('confirm_add_more_templates', { n: r.existing }))) return;
       await api('admin_haccp_grafy.php?action=import_default&force=1', { method: 'POST', body: '{}' });
     }
     await haccpRefreshGrafy();
@@ -38463,9 +38474,9 @@ window.vkScaleApply = function() {
   }
   // 🆕 v2.9.286 — defenzivní validace mult (must be > 0, finite, sane upper bound 10000×)
   if (!isFinite(mult) || mult <= 0 || mult > 10000) {
-    return alert(`Neplatný násobitel (${mult}). Zkontroluj cílové hodnoty.`);
+    return alert(t('invalid_multiplier', { mult }));
   }
-  if (!confirm(`Přepsat aktuální recepturu na ${label} (násobek ${mult.toFixed(3)}×)?\n\nOriginální hodnoty se ztratí. Doporučujeme nejprve uložit snímek (📂 Historie).`)) return;
+  if (!confirm(t('confirm_overwrite_recipe', { label, mult: mult.toFixed(3) }))) return;
   vkState.receptura = vkState.receptura.map(r => {
     // 🆕 v2.9.286 — clamp na non-negative (defenzivně proti NaN/záporu)
     const novaMn = Math.max(0, (parseFloat(r.mnozstvi) || 0) * mult);
