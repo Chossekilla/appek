@@ -633,7 +633,7 @@
   }
   function deleteZoneFromModal() {
     if (State.zones.length <= 1) return toast('Musí být alespoň jedna zóna', 'error');
-    if (!confirm(`Smazat zónu "${State.zones[State.activeZoneIdx].nazev}" včetně všech prvků?`)) return;
+    if (!confirm(t('fp_confirm_delete_zone', { nazev: State.zones[State.activeZoneIdx].nazev }))) return;
     State.zones.splice(State.activeZoneIdx, 1);
     State.activeZoneIdx = Math.max(0, State.activeZoneIdx - 1);
     State.selected = null;
@@ -771,7 +771,7 @@
   }
 
   async function applyTemplate(id, kind) {
-    if (!confirm(`POZOR — Načtení šablony smaže aktuální stoly z DB a nahradí je. Pokračovat?`)) return;
+    if (!confirm(t('fp_confirm_load_template_destructive'))) return;
     try {
       const action = (kind === 'user') ? 'apply_user_template' : 'apply_template';
       const body = (kind === 'user') ? { id } : { template: id };
@@ -842,7 +842,7 @@
         const stoly = r.pocet_stolu ?? 0;
         const mist  = r.celkem_mist ?? 0;
         const zon   = r.pocet_zon ?? 0;
-        toast(`✓ Aplikováno: ${zon} zón · ${stoly} stolů · ${mist} míst`, 'success');
+        toast(t('fp_toast_applied_zones', { zon, stoly, mist }), 'success');
         setDirty(false);
         loadCapacity();
       }
@@ -903,7 +903,7 @@
         try {
           const data = JSON.parse(ev.target.result);
           if (!data.zones || !Array.isArray(data.zones)) throw new Error('Neplatný formát');
-          if (!confirm(`Import přepíše aktuální floor plan. Pokračovat?`)) return;
+          if (!confirm(t('fp_confirm_import_overwrite'))) return;
           State.zones = data.zones;
           State.activeZoneIdx = 0;
           State.selected = null;

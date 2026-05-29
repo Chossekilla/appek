@@ -613,7 +613,7 @@
     };
     drafts.push(draft);
     _saveDrafts(drafts);
-    toast(`💾 Uloženo (${drafts.length} rozpracovaných v paměti)`, 'success');
+    toast(t('pos_draft_saved', { n: drafts.length }), 'success');
     // Vyčistit aktuální košík pro nový start
     resetCart();
   }
@@ -635,7 +635,7 @@
     _pickCust(State.odberatel);
     // Remove from drafts (loaded = consumed)
     _saveDrafts(drafts.filter(x => x.id !== draftId));
-    toast(`✓ Načteno: ${d.itemCount} položek · ${Math.round(d.total)} Kč`, 'success');
+    toast(t('pos_draft_loaded', { n: d.itemCount, amount: Math.round(d.total) }), 'success');
   }
   function showDrafts() {
     const drafts = _loadDrafts().reverse(); // newest first
@@ -1014,7 +1014,7 @@
           poznamka:     State.poznamka || '',
         }),
       });
-      toast(`✓ Účet ${r.cislo} · ${fmt(r.celkem)} Kč · připraveno pro dalšího hosta`, 'success');
+      toast(t('pos_bill_ready', { cislo: r.cislo, amount: fmt(r.celkem) }), 'success');
 
       // 🆕 v3.0.5 — Tisk účtenky podle nastavení (always / ask / never)
       const mode = r.print_receipt_mode || 'ask';
@@ -1026,7 +1026,7 @@
         if (typeof askPrintReceipt === 'function') {
           askPrintReceipt(r.id, r.cislo, r.celkem);
         } else {
-          if (confirm(`Účet ${r.cislo} · ${fmt(r.celkem)} Kč\n\n🖨️ Vytisknout účtenku?`)) {
+          if (confirm(t('pos_bill_print_confirm', { cislo: r.cislo, amount: fmt(r.celkem) }))) {
             sendPrintReceipt(r.id);
           }
         }
@@ -1679,7 +1679,7 @@
         method: 'POST',
         body: JSON.stringify({ ucet_id: ucetId, payment: payment || 'hotove' }),
       });
-      toast(`✓ Účet uzavřen · ${r.cislo || ''} · ${fmt(r.celkem || 0)} Kč`, 'success');
+      toast(t('pos_bill_closed', { cislo: r.cislo || '', amount: fmt(r.celkem || 0) }), 'success');
       const m = document.getElementById('pos-table-modal');
       if (m) m.remove();
       // Refresh floor tab
@@ -1754,7 +1754,7 @@
           kategorie: item.kategorie_id ? String(item.kategorie_id) : null,
         }),
       });
-      toast(`+ ${item.nazev}`, 'success');
+      toast(t('pos_item_added', { nazev: item.nazev }), 'success');
       refreshTableModal(ucetId);
     } catch (e) {
       toast('Chyba: ' + e.message, 'error');
