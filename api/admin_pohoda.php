@@ -24,8 +24,8 @@ header('Content-Type: application/json; charset=UTF-8');
 $pdo = db();
 
 // Helper: upsert do nastaveni
-if (!function_exists('nastaveni_set')) {
-    function nastaveni_set(PDO $pdo, string $klic, string $hodnota): void {
+if (!function_exists('pohoda_nastaveni_set')) {
+    function pohoda_nastaveni_set(PDO $pdo, string $klic, string $hodnota): void {
         $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES (:k, :v) ON DUPLICATE KEY UPDATE hodnota = :v2")
             ->execute(['k' => $klic, 'v' => $hodnota, 'v2' => $hodnota]);
     }
@@ -96,7 +96,7 @@ if ($method === 'POST' && $action === 'save_settings') {
         if (array_key_exists($k, $d)) {
             // Heslo: nepřepisuj pokud je placeholder (••••••••)
             if ($k === 'password' && (str_contains($d[$k], '•') || $d[$k] === '')) continue;
-            nastaveni_set($pdo, 'pohoda_' . $k, (string) $d[$k]);
+            pohoda_nastaveni_set($pdo, 'pohoda_' . $k, (string) $d[$k]);
         }
     }
     // Vymaž cache
