@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.138';
+const APPEK_ADMIN_JS_VERSION = '3.0.139';
 
 (async function detectStaleCode() {
   try {
@@ -13953,8 +13953,10 @@ async function renderNastaveni() {
       </div>
     </div>
 
+    <!-- 🆕 v3.0.139 — 2 sloupce: Bezpečnost | Hromadný tisk -->
+    <div class="nastaveni-row" style="margin-top:14px">
     <!-- 🔐 BEZPEČNOST & POTVRZOVÁNÍ -->
-    <div class="card-block" style="margin-top:14px">
+    <div class="card-block">
       <h3 style="margin-bottom:6px;">🔐 Bezpečnost & potvrzování</h3>
       <p class="page-sub" style="margin-bottom:14px;">
         Ochrana před omylem provedenými mazacími akcemi. Vypnete-li toto, smazání proběhne po jediném potvrzení.
@@ -13976,7 +13978,7 @@ async function renderNastaveni() {
     </div>
 
     <!-- 🖨️ HROMADNÝ TISK -->
-    <div class="card-block" style="margin-top:14px">
+    <div class="card-block">
       <h3 style="margin-bottom:6px;">🖨️ Hromadný tisk</h3>
       <p class="page-sub" style="margin-bottom:14px;">Plovoucí tlačítko „Tisknout vše" v rohu obrazovky — dávkový tisk více dokladů najednou.</p>
       <div class="form-grid">
@@ -13993,8 +13995,11 @@ async function renderNastaveni() {
       </div>
     </div>
 
+    </div>
+    <!-- 🆕 v3.0.139 — 2 sloupce: API | Chyby aplikace -->
+    <div class="nastaveni-row" style="margin-top:14px">
     <!-- 🔌 API TOKENY pro účetní systémy -->
-    <div class="card-block" style="margin-top:14px">
+    <div class="card-block">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px">
         <h3 style="margin:0">🔌 API pro účetní systémy <span style="font-size:11px;font-weight:400;background:var(--info-bg);color:var(--info-text);padding:2px 8px;border-radius:6px;margin-left:6px">REST v1</span></h3>
         <button class="btn-primary btn-green" onclick="apiTokenNew()" style="font-size:13px;padding:8px 14px">+ Nový token</button>
@@ -14004,6 +14009,29 @@ async function renderNastaveni() {
         <a href="../api/v1/" target="_blank" style="color:var(--primary);text-decoration:underline">📖 Dokumentace API ↗</a>
       </p>
       <div id="api-tokens-list" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
+    </div>
+    <!-- 🐛 CHYBY APLIKACE (v páru s API — v3.0.139) -->
+    <div class="card-block" id="ns-errors-block">
+      <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        🐛 Chyby aplikace
+        <span id="ns-errors-overall" style="font-size:11px;font-weight:normal;color:var(--text-3)"></span>
+      </h3>
+      <p style="font-size:12px;color:var(--text-3);margin-bottom:14px">
+        Server-side chyby z PHP backendu (json_error_safe) — persistované v <code>app_errors</code> DB.
+        Když ti user řekne <em>"rozbité, reqId: abc123"</em>, najdi ho zde (search).
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+        <input id="ns-errors-search" placeholder="Hledat (request_id, zpráva, source)…" oninput="debounce('errsearch', errorsLoad, 350)" style="flex:1;min-width:220px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit">
+        <select id="ns-errors-since" onchange="errorsLoad()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" title="Časové okno">
+          <option value="1">Posledních 1 h</option>
+          <option value="24" selected>24 h</option>
+          <option value="168">7 dní</option>
+          <option value="720">30 dní</option>
+        </select>
+        <button class="btn-secondary" onclick="errorsLoad()" style="font-size:13px;padding:7px 14px">🔄 Načíst</button>
+      </div>
+      <div id="ns-errors-list" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
+    </div>
     </div>
 
     <!-- 💾 ZÁLOHY + 🩺 DIAGNOSTIKA — vedle sebe -->
@@ -14051,28 +14079,7 @@ async function renderNastaveni() {
 
     </div>
 
-    <!-- 🆕 v2.9.321 — APP-LEVEL ERRORS (z app_errors DB tabulky) -->
-    <div class="card-block" id="ns-errors-block" style="margin-top:14px">
-      <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        🐛 Chyby aplikace
-        <span id="ns-errors-overall" style="font-size:11px;font-weight:normal;color:var(--text-3)"></span>
-      </h3>
-      <p style="font-size:12px;color:var(--text-3);margin-bottom:14px">
-        Server-side chyby z PHP backendu (json_error_safe) — persistované v <code>app_errors</code> DB.
-        Když ti user řekne <em>"rozbité, reqId: abc123"</em>, najdi ho zde (search).
-      </p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
-        <input id="ns-errors-search" placeholder="Hledat (request_id, zpráva, source)…" oninput="debounce('errsearch', errorsLoad, 350)" style="flex:1;min-width:220px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit">
-        <select id="ns-errors-since" onchange="errorsLoad()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px" title="Časové okno">
-          <option value="1">Posledních 1 h</option>
-          <option value="24" selected>24 h</option>
-          <option value="168">7 dní</option>
-          <option value="720">30 dní</option>
-        </select>
-        <button class="btn-secondary" onclick="errorsLoad()" style="font-size:13px;padding:7px 14px">🔄 Načíst</button>
-      </div>
-      <div id="ns-errors-list" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
-    </div>
+    <!-- 🐛 Chyby aplikace — PŘESUNUTO nahoru do páru s API (v3.0.139) -->
 
     <!-- 🔑 LICENCE & AKTUALIZACE -->
     <div class="card-block" id="ns-license-block" style="margin-top:14px">
@@ -14088,8 +14095,10 @@ async function renderNastaveni() {
       <div id="ns-license-info" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
     </div>
 
+    <!-- 🆕 v3.0.139 — 2 sloupce: Bezpečnostní list | Webhooks -->
+    <div class="nastaveni-row" style="margin-top:14px">
     <!-- 📋 BEZPEČNOSTNÍ LIST / CHEAT SHEET — print-ready -->
-    <div class="card-block" id="ns-cheatsheet-block" style="margin-top:14px">
+    <div class="card-block" id="ns-cheatsheet-block">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
         <h3 style="margin:0;display:flex;align-items:center;gap:8px">
           📋 Bezpečnostní list
@@ -14106,7 +14115,7 @@ async function renderNastaveni() {
     </div>
 
     <!-- 🔄 WEBHOOKS -->
-    <div class="card-block" id="ns-webhooks-block" style="margin-top:14px">
+    <div class="card-block" id="ns-webhooks-block">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
         <h3 style="margin:0;display:flex;align-items:center;gap:8px">🔄 Webhooks <span style="font-size:11px;font-weight:500;color:var(--text-3)">(out-going HTTP)</span></h3>
         <div style="display:flex;gap:6px">
@@ -14118,6 +14127,7 @@ async function renderNastaveni() {
         Out-going HTTP volání pro účetní systémy (Money S3, POHODA, Stormware), CRM, Slack/Discord, atd. Při zvoleném eventu Appek POST JSON na tvoji URL.
       </p>
       <div id="ns-webhooks-list" style="font-size:13px">⏳ Načítám…</div>
+    </div>
     </div>
 
     <!-- 📜 ACTIVITY LOG -->
@@ -14166,6 +14176,12 @@ async function renderNastaveni() {
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn-secondary" onclick="openDemoSeed()" style="padding:9px 16px;font-size:13px">
             🎬 Naplnit demo daty
+          </button>
+          <!-- 🆕 v3.0.139 — restaurační seed přesunut SEM z Restaurace (jediné bezpečné místo).
+               Idempotentní (existující se zachová), ale schované v <details> = nejde kliknout omylem. -->
+          <button class="btn-secondary" onclick="seedRestaurantPack()" style="padding:9px 16px;font-size:13px"
+                  title="Naseed restaurační/pizzerie demo (6 kategorií, 18 surovin, 11 výrobků, recepty) — idempotentní">
+            🍕 Restaurační demo
           </button>
           <button class="btn-secondary" onclick="resetDemoSeed()"
                   style="padding:9px 16px;font-size:13px;background:#FEE2E2;color:#991B1B;border-color:#FECACA"
@@ -16754,14 +16770,8 @@ async function renderRestaurantPage() {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn-back" onclick="navigate('dashboard')" title="Zpět na Přehled"><span class="btn-back-arrow">←</span> <span class="btn-back-lbl">Přehled</span></button>
-        <details style="position:relative">
-          <summary style="cursor:pointer;list-style:none;padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;user-select:none">⚙️ Více ▾</summary>
-          <div style="position:absolute;top:100%;right:0;margin-top:6px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);padding:6px;min-width:240px;z-index:20">
-            <button onclick="seedRestaurantPack()" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:none;border:none;border-radius:6px;cursor:pointer;text-align:left;font-size:13px;font-weight:600" onmouseover="this.style.background='#FEF3C7'" onmouseout="this.style.background='none'">
-              <span style="font-size:18px">🍕</span><span>Naseed demo data</span>
-            </button>
-          </div>
-        </details>
+        <!-- 🆕 v3.0.139 — "Naseed demo data" ODSTRANĚN odtud. Seed je teď JEDINÝ
+             v Nastavení → Údržba → Demo data (aby nešlo omylem přepsat data z provozu). -->
       </div>
     </div>
     <!-- 🆕 v3.0.42 — Velké barevné bannery místo malých tabů -->
