@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.128";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.129";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -2057,42 +2057,51 @@ body.role-restricted .admin-only { display: none !important; }
   z-index: 1;
 }
 
-/* 🆕 v2.9.243 — Dashboard stat-grid: 75/25 + 50/50 layout NA VŠECH velikostech
-   (user explicit request: NEROZHAZOVAT do stack, vždy zachovat strukturu)
+/* 🆕 v3.0.129 — Dashboard stat-grid: PC = 4×1 (jedna řada), mobile = 2×2.
+   User: "tohle na pc dej do jednoho řádku a na mobilu do 2".
    DOM pořadí: [Tržby] [Dnes] [Obj] [Splat]
-   Row 1: Tržby(span 3) + Dnes(span 1) → 75% + 25%
-   Row 2: Obj(span 2) + Splat(span 2) → 50% + 50%
-   Mobile = stejný layout, jen menší fonty/padding (clamp scaling) */
+   PC: 4 karet vedle sebe (každá 25%) — Tržby si nechává barvu (oranžový
+       gradient + border) jako hierarchy hint, NE přes width.
+   Mobile (max-width: 700px): 2×2 grid — [Tržby] [Dnes] / [Obj] [Splat].
+   Předtím v2.9.243: 75/25 + 50/50 (Tržby span 3, Obj+Splat span 2). */
 .stat-grid-dash {
   grid-template-columns: repeat(4, 1fr) !important;
   grid-auto-flow: row;
   gap: 12px;
 }
 .stat-card-trzby {
-  grid-column: span 3 !important;   /* 75% — primary KPI */
+  grid-column: span 1 !important;   /* 25% — barva drží primary KPI hint */
   background: linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);
   border-color: var(--primary-border);
 }
-.stat-card-dnes  { grid-column: span 1 !important; }  /* 25% */
-.stat-card-obj   { grid-column: span 2 !important; }  /* 50% */
-.stat-card-splat { grid-column: span 2 !important; }  /* 50% */
+.stat-card-dnes  { grid-column: span 1 !important; }
+.stat-card-obj   { grid-column: span 1 !important; }
+.stat-card-splat { grid-column: span 1 !important; }
 /* Backwards-compat */
 .stat-card-wide {
   background: linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);
   border-color: var(--primary-border);
 }
 .stat-value-lg {
-  font-size: 30px !important;
+  font-size: clamp(20px, 1.8vw, 26px) !important;   /* v3.0.129 — shrink z 30px (4 col layout = užší sloupec) */
   font-weight: 700 !important;
   letter-spacing: -0.02em;
   color: var(--primary-dark);
 }
-/* Tablet — zachovat layout, jen menší fonts */
+/* Tablet — zachovat 4×1 layout, jen menší fonts */
 @media (max-width: 1024px) {
   .stat-grid-dash { gap: 8px; }
-  .stat-value-lg { font-size: clamp(20px, 3.5vw, 28px) !important; }
+  .stat-value-lg { font-size: clamp(18px, 2.5vw, 24px) !important; }
 }
-/* Mobile — STÁLE 75/25 + 50/50, kompaktní fonty/padding */
+/* 🆕 v3.0.129 — Mobile 2×2 (user: "na mobilu do 2"). DOM order zachován:
+   Row 1: [Tržby] [Dnes]   Row 2: [Obj] [Splat] */
+@media (max-width: 700px) {
+  .stat-grid-dash {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+}
+/* Mobile small — kompaktní fonty/padding (zachováno z v2.9.243) */
 @media (max-width: 600px) {
   .stat-grid-dash { gap: 6px !important; }
   .stat-grid-dash .stat-card {
@@ -3387,16 +3396,17 @@ html.theme-apple .nastaveni-tabs {
     width: 100%;
     max-width: 100%;
   }
-  /* 🆕 v2.9.243 — Dashboard .stat-grid-dash zachovat 75/25 + 50/50 i v mobile 768px
-     (NE stack do 1 col jako ostatní .stat-grid). User explicit request. */
+  /* 🆕 v3.0.129 — Dashboard mobile: 2×2 grid (user: "na mobilu do 2").
+     Předtím v2.9.243: 75/25 + 50/50 (Tržby span 3). Nyní všechny span 1
+     v 2-column gridu → Row 1: [Tržby][Dnes]  Row 2: [Obj][Splat]. */
   .stat-grid-dash {
-    grid-template-columns: repeat(4, 1fr) !important;
+    grid-template-columns: repeat(2, 1fr) !important;
   }
-  .stat-grid-dash .stat-card-trzby { grid-column: span 3 !important; }
+  .stat-grid-dash .stat-card-trzby { grid-column: span 1 !important; }
   .stat-grid-dash .stat-card-dnes  { grid-column: span 1 !important; }
-  .stat-grid-dash .stat-card-obj   { grid-column: span 2 !important; }
-  .stat-grid-dash .stat-card-splat { grid-column: span 2 !important; }
-  .stat-grid-dash .stat-card-wide  { grid-column: span 3 !important; }
+  .stat-grid-dash .stat-card-obj   { grid-column: span 1 !important; }
+  .stat-grid-dash .stat-card-splat { grid-column: span 1 !important; }
+  .stat-grid-dash .stat-card-wide  { grid-column: span 1 !important; }
   .stat-card {
     padding: 12px;
     min-width: 0;
@@ -14399,16 +14409,17 @@ aside.sidebar::after { display: none !important; content: '' !important; }
     width: 100%;
     max-width: 100%;
   }
-  /* 🆕 v2.9.243 — Dashboard .stat-grid-dash zachovat 75/25 + 50/50 i v mobile 768px
-     (NE stack do 1 col jako ostatní .stat-grid). User explicit request. */
+  /* 🆕 v3.0.129 — Dashboard mobile: 2×2 grid (user: "na mobilu do 2").
+     Předtím v2.9.243: 75/25 + 50/50 (Tržby span 3). Nyní všechny span 1
+     v 2-column gridu → Row 1: [Tržby][Dnes]  Row 2: [Obj][Splat]. */
   .stat-grid-dash {
-    grid-template-columns: repeat(4, 1fr) !important;
+    grid-template-columns: repeat(2, 1fr) !important;
   }
-  .stat-grid-dash .stat-card-trzby { grid-column: span 3 !important; }
+  .stat-grid-dash .stat-card-trzby { grid-column: span 1 !important; }
   .stat-grid-dash .stat-card-dnes  { grid-column: span 1 !important; }
-  .stat-grid-dash .stat-card-obj   { grid-column: span 2 !important; }
-  .stat-grid-dash .stat-card-splat { grid-column: span 2 !important; }
-  .stat-grid-dash .stat-card-wide  { grid-column: span 3 !important; }
+  .stat-grid-dash .stat-card-obj   { grid-column: span 1 !important; }
+  .stat-grid-dash .stat-card-splat { grid-column: span 1 !important; }
+  .stat-grid-dash .stat-card-wide  { grid-column: span 1 !important; }
   .stat-card {
     padding: 12px;
     min-width: 0;
@@ -19741,8 +19752,9 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
     max-width: 100% !important;
   }
 
-  /* Stat grid — single column na úzkém viewportu */
-  .stat-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+  /* Stat grid — single column na úzkém viewportu (kromě dashboard který je 2×2) */
+  /* 🆕 v3.0.129 — :not(.stat-grid-dash) aby dashboard pravidlo (2 cols) neztratilo souboj o source order */
+  .stat-grid:not(.stat-grid-dash) { grid-template-columns: 1fr !important; gap: 10px !important; }
 
   /* Card-block — žádný overflow přes okraje */
   .card-block { max-width: 100% !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
