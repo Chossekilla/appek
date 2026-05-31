@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.134';
+const APPEK_ADMIN_JS_VERSION = '3.0.136';
 
 (async function detectStaleCode() {
   try {
@@ -16954,10 +16954,12 @@ async function renderRestaurantTables() {
     <!-- 🆕 v3.0.43 — Sub-tabs jako mini-bannery (sjednoceno s main banner tabs v3.0.42) -->
     <div class="rest-subtabs" role="tablist" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
       ${[
-        { k:'map',       icon:'🗺️', label:'Layout',         sub:'Floor plan editor',  grad:'135deg,#3B82F6,#1E3A8A', light:'#DBEAFE', dark:'#1E3A8A', match:(t)=>t==='map' },
-        { k:'timeline',  icon:'📅', label:'Rezervace',      sub:'Timeline · seznam',  grad:'135deg,#A78BFA,#5B21B6', light:'#EDE9FE', dark:'#4C1D95', match:(t)=>t==='timeline'||t==='list' },
-        { k:'open_ucty', icon:'🧾', label:'Otevřené účty', sub:'Aktivní POS účty',   grad:'135deg,#10B981,#065F46', light:'#D1FAE5', dark:'#064E3B', match:(t)=>t==='open_ucty' },
-        { k:'qr_pending',icon:'📲', label:'QR queue',       sub:'Pending objednávky', grad:'135deg,#F97316,#9A3412', light:'#FFEDD5', dark:'#7C2D12', match:(t)=>t==='qr_pending' },
+        /* 🆕 v3.0.135 — spodní taby sjednoceny na BRAND oranžovou (user: "moc cirkus").
+           Všechny stejná barva, rozliší je jen aktivní stav (plný gradient vs světlá krémová). */
+        { k:'map',       icon:'🗺️', label:'Layout',         sub:'Floor plan editor',  grad:'135deg,#BA7517,#854F0B', light:'#FAEEDA', dark:'#854F0B', match:(t)=>t==='map' },
+        { k:'timeline',  icon:'📅', label:'Rezervace',      sub:'Timeline · seznam',  grad:'135deg,#BA7517,#854F0B', light:'#FAEEDA', dark:'#854F0B', match:(t)=>t==='timeline'||t==='list' },
+        { k:'open_ucty', icon:'🧾', label:'Otevřené účty', sub:'Aktivní POS účty',   grad:'135deg,#BA7517,#854F0B', light:'#FAEEDA', dark:'#854F0B', match:(t)=>t==='open_ucty' },
+        { k:'qr_pending',icon:'📲', label:'QR queue',       sub:'Pending objednávky', grad:'135deg,#BA7517,#854F0B', light:'#FAEEDA', dark:'#854F0B', match:(t)=>t==='qr_pending' },
       ].map(b => {
         const active = b.match(tab);
         return `
@@ -17354,7 +17356,16 @@ function renderFloorPlan(data, today) {
     rtState.activeZoneId = zones[0].id;
   }
   const activeZone = zones.find(z => z.id == rtState.activeZoneId) || zones[0];
-  const stolyInZone = stoly.filter(s => (s.zone_id == activeZone.id) || (!s.zone_id && !activeZone.id));
+  // 🆕 v3.0.136 — Osiřelé stoly (zone_id null NEBO ukazuje na smazanou zónu) spadnou
+  //   do PRVNÍ zóny, aby byly vždy vidět + editovatelné. Předtím: stůl s zone_id=null
+  //   se nezobrazil v ŽÁDNÉ zóně když existovaly reálné zóny → prázdné plátno
+  //   (user: "1 stůl ale Zahrada 0 / Pergola 0 a prázdné plátno").
+  const validZoneIds = zones.map(z => z.id);
+  const isOrphanTable = (s) => !validZoneIds.some(zid => zid == s.zone_id);
+  const firstZoneId = zones[0].id;
+  const stolyInZone = stoly.filter(s =>
+    (s.zone_id == activeZone.id) || (isOrphanTable(s) && activeZone.id == firstZoneId)
+  );
 
   // Per-stav stats v aktivní zóně
   const stateStats = { free: 0, reserved: 0, occupied: 0, cleaning: 0, attention: 0, disabled: 0 };
@@ -17528,7 +17539,9 @@ function renderFloorPlan(data, today) {
     <div class="rt-zone-tabs" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;overflow-x:auto">
       ${zones.map((z, idx) => {
         const isActive = z.id == activeZone.id;
-        const count = stoly.filter(s => s.zone_id == z.id).length;
+        // 🆕 v3.0.136 — první zóna počítá i osiřelé stoly (konzistence s canvasem)
+        const count = stoly.filter(s => s.zone_id == z.id).length
+          + (z.id == firstZoneId ? stoly.filter(isOrphanTable).length : 0);
         // Per-index color palette (cycle through accent colors)
         const PALETTE = [
           { grad:'135deg,#10B981,#065F46', light:'#D1FAE5', dark:'#064E3B' }, // green
