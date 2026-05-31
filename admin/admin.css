@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.130";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.131";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -1431,6 +1431,45 @@ html.dark .dashboard-recent-row > .recent-card .recent-table tbody tr:hover {
 }
 .dashboard-recent-row > .recent-card .recent-icon-btn { width: 32px; height: 32px; }
 .dashboard-recent-row > .recent-card .recent-icon-em { font-size: 15px; }
+
+/* 🆕 v3.0.131 — Položky objednávky pod adresou (chipy + „+N" pill).
+   User: "pod adresou položky z obj — poslední 3 vypsaný a pak +N". */
+.dashboard-recent-row > .recent-card .recent-pol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 5px;
+  margin-top: 6px;
+}
+.dashboard-recent-row > .recent-card .recent-pol-item {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-2, #5F5E5A);
+  background: var(--surface-2, #F7F8FA);
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+  border-radius: 7px;
+  padding: 1px 7px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-recent-row > .recent-card .recent-pol-more {
+  font-size: 10.5px;
+  line-height: 1.5;
+  font-weight: 700;
+  color: var(--primary-dark, #854F0B);
+  background: var(--primary-light, #FAEEDA);
+  border: 1px solid var(--primary-border, #FAC775);
+  border-radius: 7px;
+  padding: 1px 7px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+html.dark .dashboard-recent-row > .recent-card .recent-pol-item {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.12);
+}
 /* 🆕 v2.9.117 — všechny ikony v řádku stejně velké; e-mail má jen o kapku
    větší emoji pro jemný důraz, ale box je sjednocený s DL/FA/opakovat */
 .dashboard-recent-row > .recent-card .recent-icon-btn.recent-icon-email .recent-icon-em { font-size: 17px; }

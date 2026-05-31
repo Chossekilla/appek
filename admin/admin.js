@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.130';
+const APPEK_ADMIN_JS_VERSION = '3.0.131';
 
 (async function detectStaleCode() {
   try {
@@ -4378,6 +4378,29 @@ function recentMistoLine(row) {
   </div>`;
 }
 
+// 🆕 v3.0.131 — Položky objednávky pod adresou v dashboard kartě „Poslední objednávky".
+//   Zobrazí první 3 položky jako chipy + „+N" pill pro zbytek (pocet_polozek z API).
+//   User: "pod adresou položky z obj. poslední 3 položky vypsaný a pak +3 nebo +7".
+function recentPolozkyLine(o) {
+  const items = Array.isArray(o.polozky) ? o.polozky : [];
+  if (!items.length) return '';
+  const total = +o.pocet_polozek || items.length;
+  // qty bez trailing nul: 2 → "2×", 2.5 → "2,5×"
+  const qtyFmt = (m) => {
+    if (m === null || m === undefined || m === '') return '';
+    const n = +m;
+    if (!isFinite(n)) return '';
+    const s = (n % 1 === 0) ? String(n) : n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',');
+    return `${s}× `;
+  };
+  const chips = items.slice(0, 3).map((p) =>
+    `<span class="recent-pol-item">${qtyFmt(p.mnozstvi)}${esc(p.nazev || '—')}</span>`
+  ).join('');
+  const rest = total - Math.min(3, items.length);
+  const morePill = rest > 0 ? `<span class="recent-pol-more">+${rest}</span>` : '';
+  return `<div class="recent-pol">${chips}${morePill}</div>`;
+}
+
 // 🆕 v2.9.242 — Dashboard alerts widget (akce vyžadující pozornost)
 // Skryje se pokud žádné alerty — žádný šum kdy je vše OK
 // 🆕 v2.9.305 — Skryje se i pro role bez práva na cílové stránky (POS user nemůže
@@ -4802,6 +4825,7 @@ async function renderDashboard(filters = {}) {
                   <td class="recent-odb">
                     <div class="recent-odb-name">${esc(o.odberatel)}</div>
                     ${recentMistoLine(o)}
+                    ${recentPolozkyLine(o)}
                   </td>
                   <td><span class="status ${o.stav}" style="font-size:10px">${statusLabel(o.stav)}</span></td>
                   <td class="num"><strong>${fmt(o.castka_celkem)}</strong></td>

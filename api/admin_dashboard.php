@@ -147,6 +147,36 @@ $nedavne = $pdo->query("
     LIMIT 5
 ")->fetchAll();
 
+// 🆕 v3.0.131 — Položky pro nedávné objednávky (první 3 zobrazené + total count)
+//   User: "pod adresou položky z obj — poslední 3 vypsaný a pak +N podle objednávky".
+//   Jeden batch dotaz pro všech 5 objednávek (IN clause), pak groupnuto v PHP.
+$nedavneIds = array_column($nedavne, 'id');
+if ($nedavneIds) {
+    $inObj = implode(',', array_map('intval', $nedavneIds));
+    $polozkyRows = $pdo->query("
+        SELECT op.objednavka_id,
+               op.mnozstvi,
+               COALESCE(NULLIF(op.vyrobek_nazev, ''), v.nazev) AS nazev
+        FROM objednavky_polozky op
+        LEFT JOIN vyrobky v ON v.id = op.vyrobek_id
+        WHERE op.objednavka_id IN ($inObj)
+        ORDER BY op.objednavka_id, op.id
+    ")->fetchAll();
+    $polozkyByObj = [];
+    foreach ($polozkyRows as $pr) {
+        $polozkyByObj[$pr['objednavka_id']][] = [
+            'nazev'    => $pr['nazev'],
+            'mnozstvi' => $pr['mnozstvi'],
+        ];
+    }
+    foreach ($nedavne as &$o) {
+        $items = $polozkyByObj[$o['id']] ?? [];
+        $o['pocet_polozek'] = count($items);
+        $o['polozky']       = array_slice($items, 0, 3);  // jen první 3 do payloadu
+    }
+    unset($o);
+}
+
 // Nedávné dodací listy (s místem dodání + prvni_faktura_id pro FA badge)
 $nedavne_dl = $pdo->query("
     SELECT dl.id, dl.cislo, dl.objednavka_id, dl.datum_vystaveni, dl.datum_dodani,
