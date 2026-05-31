@@ -2065,9 +2065,11 @@ if ($action === 'seed_restaurant_pack') {
             // Schema check — table_reservations existuje?
             $hasRez = (bool) $pdo->query("SHOW TABLES LIKE 'table_reservations'")->fetchColumn();
             if ($hasRez && count($stolyList) >= 4) {
-                // Smaž demo rezervace (nazev začíná 'DEMO-')
-                $pdo->prepare("DELETE FROM table_reservations WHERE jmeno LIKE 'DEMO-%' AND datum = :d")
-                    ->execute(['d' => $today]);
+                // 🆕 v3.0.137 — smaž VŠECHNY demo rezervace (any date), ne jen dnešní.
+                //   Sjednoceno s POS účty (ř. ~2102) i historií (ř. ~2195) co taky mažou
+                //   celý 'DEMO-' prefix bez date scope. Předtím date='today' → staré DEMO
+                //   rezervace z minulých dnů zůstávaly a hromadily se při re-seedu v jiné dny.
+                $pdo->prepare("DELETE FROM table_reservations WHERE jmeno LIKE 'DEMO-%'")->execute();
                 $rezervaceSeed = [
                     [$stolyList[0]['id'], '12:00', '13:30', 'DEMO-Novák', '603 111 222', 4, 'Narozeniny dítěte'],
                     [$stolyList[1]['id'], '13:00', '14:30', 'DEMO-Svoboda', '777 333 444', 2, ''],
