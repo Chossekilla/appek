@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.137';
+const APPEK_ADMIN_JS_VERSION = '3.0.138';
 
 (async function detectStaleCode() {
   try {
@@ -35672,7 +35672,7 @@ async function exVyrobyLoad(od, dto) {
 
     // 🆕 v2.9.266 — Statistika cards refresh (kompaktní, s sub + ikonami; primary tint na Tržbě)
     const statsHtml = `
-      <div class="stat-grid" style="margin-bottom:14px">
+      <div class="stat-grid stat-grid-2col" style="margin-bottom:14px">
         <div class="stat-card">
           <div class="stat-label">📦 Unikátních výrobků</div>
           <div class="stat-value">${s.unikatnich_vyrobku}</div>

@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.137";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.138";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -19963,7 +19963,9 @@ div.seg-tabs.period-tabs-obdobi span.seg-text-full { display: inline !important;
 
   /* Stat grid — single column na úzkém viewportu (kromě dashboard který je 2×2) */
   /* 🆕 v3.0.129 — :not(.stat-grid-dash) aby dashboard pravidlo (2 cols) neztratilo souboj o source order */
-  .stat-grid:not(.stat-grid-dash) { grid-template-columns: 1fr !important; gap: 10px !important; }
+  /* 🆕 v3.0.138 — .stat-grid-2col vyloučen z 1-sloupce → na mobilu 2×2 (user: "4 řady dej do 2") */
+  .stat-grid:not(.stat-grid-dash):not(.stat-grid-2col) { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .stat-grid.stat-grid-2col { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
 
   /* Card-block — žádný overflow přes okraje */
   .card-block { max-width: 100% !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
