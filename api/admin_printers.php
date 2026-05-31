@@ -151,6 +151,21 @@ try {
         exit;
     }
 
+    // 🆕 v3.0.133 — Tisk libovolného dokladu (obj/dl/fa) na zvolenou tiskárnu
+    if ($method === 'POST' && $action === 'print_doc') {
+        $d = json_decode(file_get_contents('php://input'), true) ?? [];
+        $docType   = (string)($d['doc_type'] ?? '');
+        $docId     = (int)($d['doc_id'] ?? 0);
+        $printerId = (int)($d['printer_id'] ?? 0);
+        $mode      = (string)($d['mode'] ?? 'receipt');
+        if (!in_array($docType, ['obj', 'dl', 'fa'], true)) json_error('Neplatný doc_type', 400);
+        if (!$docId)     json_error('Chybí doc_id', 400);
+        if (!$printerId) json_error('Chybí printer_id', 400);
+        if (!in_array($mode, ['receipt', 'bon'], true)) $mode = 'receipt';
+        $res = printer_print_doc($pdo, $docType, $docId, $printerId, $mode);
+        json_response($res);
+    }
+
     json_error('Neznámá akce: ' . $action, 400);
 
 } catch (Throwable $e) {

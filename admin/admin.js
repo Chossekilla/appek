@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.132';
+const APPEK_ADMIN_JS_VERSION = '3.0.133';
 
 (async function detectStaleCode() {
   try {
@@ -4401,6 +4401,92 @@ function recentPolozkyLine(o) {
   return `<div class="recent-pol">${chips}${morePill}</div>`;
 }
 
+// 🆕 v3.0.133 — Tisk dokladu (obj/dl/fa) na termo-tiskárnu (ESC/POS) s výběrem
+//   tiskárny + formátu (Účtenka/Bon). Popup overlay nad detail modalem.
+//   User: "ikonka tisku v detailu + volba poslání na tiskárnu z nastavení".
+window.tiskNaTermo = async function(docType, docId, cislo) {
+  let printers = [];
+  try {
+    const r = await api('admin_printers.php?action=list');
+    printers = (r.printers || []).filter(p => +p.aktivni === 1);
+  } catch (e) {
+    return toastError('Nepodařilo se načíst tiskárny: ' + e.message, 'Tiskárny');
+  }
+  if (!printers.length) {
+    return toastWarn('Nemáš žádnou aktivní tiskárnu. Přidej ji v Nastavení → Tiskárny.', 'Žádná tiskárna');
+  }
+
+  const typLabel = { kasa: 'Kasa', kuchyne: 'Kuchyně', bar: 'Bar', sklad: 'Sklad', vydej: 'Výdej', generic: 'Obecná' };
+  const rows = printers.map(p => `
+    <button type="button" class="termo-printer-row" data-pid="${p.id}" data-nazev="${esc(String(p.nazev)).replace(/"/g, '&quot;')}">
+      <span class="termo-printer-ico">🖨️</span>
+      <span class="termo-printer-meta">
+        <span class="termo-printer-name">${esc(p.nazev)}</span>
+        <span class="termo-printer-sub">${typLabel[p.typ] || esc(p.typ)} · ${esc(p.ip)}:${p.port}</span>
+      </span>
+      <span class="termo-printer-arrow">→</span>
+    </button>
+  `).join('');
+
+  const ov = document.createElement('div');
+  ov.className = 'termo-pop-overlay';
+  ov.innerHTML = `
+    <div class="termo-pop-card" role="dialog" aria-label="Tisk na tiskárnu">
+      <div class="termo-pop-head">
+        <strong>🖨️ Tisk na tiskárnu</strong>
+        <span class="termo-pop-doc">${esc(cislo || '')}</span>
+        <button type="button" class="termo-pop-close" aria-label="Zavřít">✕</button>
+      </div>
+      <div class="termo-pop-modes">
+        <button type="button" class="termo-mode active" data-mode="receipt">🧾 Účtenka<small>položky · ceny · celkem</small></button>
+        <button type="button" class="termo-mode" data-mode="bon">📋 Bon<small>jen položky · množství</small></button>
+      </div>
+      <div class="termo-pop-label">Vyber tiskárnu (${printers.length}):</div>
+      <div class="termo-pop-list">${rows}</div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+
+  let mode = 'receipt';
+  const close = () => { ov.remove(); document.removeEventListener('keydown', onEsc); };
+  const onEsc = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onEsc);
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  ov.querySelector('.termo-pop-close').onclick = close;
+  ov.querySelectorAll('.termo-mode').forEach(b => {
+    b.onclick = () => {
+      mode = b.dataset.mode;
+      ov.querySelectorAll('.termo-mode').forEach(x => x.classList.toggle('active', x === b));
+    };
+  });
+  ov.querySelectorAll('.termo-printer-row').forEach(row => {
+    row.onclick = async () => {
+      const pid = +row.dataset.pid;
+      const nazev = row.dataset.nazev;
+      ov.querySelectorAll('.termo-printer-row').forEach(r => r.disabled = true);
+      row.classList.add('is-sending');
+      try {
+        const res = await api('admin_printers.php?action=print_doc', {
+          method: 'POST',
+          body: { doc_type: docType, doc_id: docId, printer_id: pid, mode },
+        });
+        if (res && res.ok) {
+          toastSuccess(`Odesláno na „${nazev}" (${mode === 'bon' ? 'bon' : 'účtenka'})`, '🖨️ Vytištěno');
+          close();
+        } else {
+          toastError((res && res.error) || 'Tisk selhal', 'Tiskárna');
+          ov.querySelectorAll('.termo-printer-row').forEach(r => r.disabled = false);
+          row.classList.remove('is-sending');
+        }
+      } catch (e) {
+        toastError(e.message, 'Tiskárna');
+        ov.querySelectorAll('.termo-printer-row').forEach(r => r.disabled = false);
+        row.classList.remove('is-sending');
+      }
+    };
+  });
+};
+
 // 🆕 v2.9.242 — Dashboard alerts widget (akce vyžadující pozornost)
 // Skryje se pokud žádné alerty — žádný šum kdy je vše OK
 // 🆕 v2.9.305 — Skryje se i pro role bez práva na cílové stránky (POS user nemůže
@@ -5975,6 +6061,7 @@ window.openObjednavkaDetail = async function(id) {
     <div class="form-actions">
       <!-- "Zavřít" smazáno v v2.5.11 — × v rohu modal-card stačí (větší klikací plocha) -->
       <div class="form-actions-icons-row">
+        <button class="btn-icon-corner" onclick="tiskNaTermo('obj', ${o.id}, '${esc(o.cislo).replace(/'/g, '')}')" title="Tisk na termo-tiskárnu (účtenka / bon)" aria-label="Tisk na tiskárnu">🖨️</button>
         <button class="btn-icon-corner" onclick="otevritOdeslatEmailem('obj', ${o.id}, '${esc(o.cislo).replace(/'/g, '')}', '${esc(o.odberatel_email || '').replace(/'/g, '')}')" title="Odeslat objednávku PDF emailem" aria-label="Odeslat e-mailem">✉️</button>
         ${adminOnly(`<button class="btn-danger-corner" onclick="smazatObjednavku(${o.id}, '${esc(o.cislo).replace(/'/g, '')}')" title="Smazat objednávku (pokud nemá DL/FA)" aria-label="Smazat objednávku">🗑️</button>`)}
       </div>
@@ -10030,6 +10117,7 @@ window.openDodaciListDetail = async function(id) {
           <button class="btn-secondary" onclick="closeModal(); upravitDodaciList(${dl.id})">✏️ Upravit</button>
         </div>
         <div class="form-actions-icons-row">
+          <button class="btn-icon-corner" onclick="tiskNaTermo('dl', ${dl.id}, '${esc(dl.cislo).replace(/'/g, '')}')" title="Tisk na termo-tiskárnu (účtenka / bon)" aria-label="Tisk na tiskárnu">🖨️</button>
           <button class="btn-icon-corner" onclick="otevritOdeslatEmailem('dl', ${dl.id}, '${esc(dl.cislo).replace(/'/g, '')}', '${esc(dl.odberatel_email || '').replace(/'/g, '')}')" title="Odeslat dodací list PDF emailem" aria-label="Odeslat e-mailem">✉️</button>
           ${adminOnly(`<button class="btn-danger-corner" onclick="smazatDodaciList(${dl.id})" title="Smazat dodací list" aria-label="Smazat dodací list">🗑️</button>`)}
         </div>
@@ -10800,6 +10888,7 @@ window.openFakturaDetail = async function(id) {
         <button class="btn-secondary" onclick="noOpakovatZeZdroje('fa', ${f.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu objednat</button>
       </div>
       <div class="form-actions-icons-row">
+        <button class="btn-icon-corner" onclick="tiskNaTermo('fa', ${f.id}, '${esc(f.cislo).replace(/'/g, '')}')" title="Tisk na termo-tiskárnu (účtenka / bon)" aria-label="Tisk na tiskárnu">🖨️</button>
         <button class="btn-icon-corner" onclick="otevritOdeslatEmailem('fa', ${f.id}, '${esc(f.cislo).replace(/'/g, '')}', '${esc(f.odberatel_email || '').replace(/'/g, '')}')" title="Odeslat fakturu PDF emailem" aria-label="Odeslat e-mailem">✉️</button>
         ${adminOnly(`<button class="btn-danger-corner" onclick="smazatFakturu(${f.id})" title="Smazat fakturu" aria-label="Smazat fakturu">🗑️</button>`)}
       </div>
