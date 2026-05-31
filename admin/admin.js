@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.131';
+const APPEK_ADMIN_JS_VERSION = '3.0.132';
 
 (async function detectStaleCode() {
   try {
@@ -4854,6 +4854,7 @@ async function renderDashboard(filters = {}) {
                   <td class="recent-odb">
                     <div class="recent-odb-name">${esc(dl.odberatel)}</div>
                     ${recentMistoLine(dl)}
+                    ${recentPolozkyLine(dl)}
                   </td>
                   <td>${dlStavBadge(dl)}</td>
                   <td class="num"><strong>${fmt(dl.castka_celkem)}</strong></td>
@@ -4882,6 +4883,7 @@ async function renderDashboard(filters = {}) {
                   <td class="recent-odb">
                     <div class="recent-odb-name">${esc(f.odberatel)}</div>
                     ${recentMistoLine(f)}
+                    ${recentPolozkyLine(f)}
                   </td>
                   <td>${stavUhradyBadge(f.stav_uhrady)}</td>
                   <td class="num"><strong>${fmt(f.castka_celkem)}</strong></td>

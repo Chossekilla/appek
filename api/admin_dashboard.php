@@ -195,6 +195,31 @@ $nedavne_dl = $pdo->query("
     LIMIT 5
 ")->fetchAll();
 
+// 🆕 v3.0.132 — Položky pro nedávné DL (stejně jako objednávky: první 3 + total)
+$nedavneDlIds = array_column($nedavne_dl, 'id');
+if ($nedavneDlIds) {
+    $inDl = implode(',', array_map('intval', $nedavneDlIds));
+    $dlPolRows = $pdo->query("
+        SELECT dlp.dodaci_list_id AS pid,
+               dlp.mnozstvi,
+               COALESCE(NULLIF(dlp.vyrobek_nazev, ''), v.nazev) AS nazev
+        FROM dodaci_list_polozky dlp
+        LEFT JOIN vyrobky v ON v.id = dlp.vyrobek_id
+        WHERE dlp.dodaci_list_id IN ($inDl)
+        ORDER BY dlp.dodaci_list_id, dlp.id
+    ")->fetchAll();
+    $dlPolBy = [];
+    foreach ($dlPolRows as $pr) {
+        $dlPolBy[$pr['pid']][] = ['nazev' => $pr['nazev'], 'mnozstvi' => $pr['mnozstvi']];
+    }
+    foreach ($nedavne_dl as &$dl) {
+        $items = $dlPolBy[$dl['id']] ?? [];
+        $dl['pocet_polozek'] = count($items);
+        $dl['polozky']       = array_slice($items, 0, 3);
+    }
+    unset($dl);
+}
+
 // Nedávné faktury (místo dodání odvozeno z prvního DL, plus DL badge info)
 $nedavne_fa = $pdo->query("
     SELECT f.id, f.cislo, f.datum_vystaveni, f.datum_splatnosti,
@@ -221,6 +246,31 @@ $nedavne_fa = $pdo->query("
     ORDER BY f.datum_vystaveni DESC, f.id DESC
     LIMIT 5
 ")->fetchAll();
+
+// 🆕 v3.0.132 — Položky pro nedávné faktury (z faktura_polozky)
+$nedavneFaIds = array_column($nedavne_fa, 'id');
+if ($nedavneFaIds) {
+    $inFa = implode(',', array_map('intval', $nedavneFaIds));
+    $faPolRows = $pdo->query("
+        SELECT fp.faktura_id AS pid,
+               fp.mnozstvi,
+               COALESCE(NULLIF(fp.vyrobek_nazev, ''), v.nazev) AS nazev
+        FROM faktura_polozky fp
+        LEFT JOIN vyrobky v ON v.id = fp.vyrobek_id
+        WHERE fp.faktura_id IN ($inFa)
+        ORDER BY fp.faktura_id, fp.poradi, fp.id
+    ")->fetchAll();
+    $faPolBy = [];
+    foreach ($faPolRows as $pr) {
+        $faPolBy[$pr['pid']][] = ['nazev' => $pr['nazev'], 'mnozstvi' => $pr['mnozstvi']];
+    }
+    foreach ($nedavne_fa as &$f) {
+        $items = $faPolBy[$f['id']] ?? [];
+        $f['pocet_polozek'] = count($items);
+        $f['polozky']       = array_slice($items, 0, 3);
+    }
+    unset($f);
+}
 
 // 🆕 v2.9.242 — Alerts widget pro Dashboard (rychlé COUNTs, indexed columns)
 $alerts = [
