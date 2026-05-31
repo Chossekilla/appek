@@ -423,6 +423,99 @@ function printer_print_receipt(PDO $pdo, int $objednavka_id): array {
 }
 
 // ─────────────────────────────────────────────────────────────
+// PRINT DOC — vytiskni libovolný doklad (obj/dl/fa) na ZVOLENOU tiskárnu
+// 🆕 v3.0.133 — User: "ikonka tisku v detailu + volba tiskárny z nastavení".
+//   mode = 'receipt' (účtenka s cenami) nebo 'bon' (jen položky+množství).
+// ─────────────────────────────────────────────────────────────
+function printer_print_doc(PDO $pdo, string $docType, int $docId, int $printerId, string $mode = 'receipt'): array {
+    printer_ensure_schema($pdo);
+
+    $printer = printer_get($pdo, $printerId);
+    if (!$printer)               return ['ok' => false, 'error' => 'Tiskárna nenalezena'];
+    if (empty($printer['aktivni'])) return ['ok' => false, 'error' => 'Tiskárna je neaktivní'];
+
+    // Načti doklad + položky do normalizovaného tvaru ($order + $items)
+    $order = null;
+    $items = [];
+    if ($docType === 'obj') {
+        $s = $pdo->prepare("SELECT o.*, od.nazev AS odberatel_nazev FROM objednavky o LEFT JOIN odberatele od ON od.id = o.odberatel_id WHERE o.id = :id");
+        $s->execute(['id' => $docId]);
+        $order = $s->fetch();
+        if (!$order) return ['ok' => false, 'error' => 'Objednávka nenalezena'];
+        $p = $pdo->prepare("
+            SELECT op.mnozstvi, op.cena_bez_dph, op.sazba_dph, op.poznamka,
+                   COALESCE(NULLIF(op.vyrobek_nazev, ''), v.nazev) AS vyrobek_nazev
+            FROM objednavky_polozky op
+            LEFT JOIN vyrobky v ON v.id = op.vyrobek_id
+            WHERE op.objednavka_id = :id ORDER BY op.id
+        ");
+        $p->execute(['id' => $docId]);
+        $items = $p->fetchAll();
+        $order['datum_objednani'] = $order['datum_objednani'] ?? date('Y-m-d H:i');
+    } elseif ($docType === 'dl') {
+        $s = $pdo->prepare("SELECT dl.*, od.nazev AS odberatel_nazev FROM dodaci_listy dl LEFT JOIN odberatele od ON od.id = dl.odberatel_id WHERE dl.id = :id");
+        $s->execute(['id' => $docId]);
+        $order = $s->fetch();
+        if (!$order) return ['ok' => false, 'error' => 'Dodací list nenalezen'];
+        $p = $pdo->prepare("
+            SELECT dlp.mnozstvi, dlp.cena_bez_dph, dlp.sazba_dph, dlp.poznamka,
+                   COALESCE(NULLIF(dlp.vyrobek_nazev, ''), v.nazev) AS vyrobek_nazev
+            FROM dodaci_list_polozky dlp
+            LEFT JOIN vyrobky v ON v.id = dlp.vyrobek_id
+            WHERE dlp.dodaci_list_id = :id ORDER BY dlp.id
+        ");
+        $p->execute(['id' => $docId]);
+        $items = $p->fetchAll();
+        $order['datum_objednani'] = $order['datum_vystaveni'] ?? date('Y-m-d H:i');
+    } elseif ($docType === 'fa') {
+        $s = $pdo->prepare("SELECT f.*, od.nazev AS odberatel_nazev FROM faktury f LEFT JOIN odberatele od ON od.id = f.odberatel_id WHERE f.id = :id");
+        $s->execute(['id' => $docId]);
+        $order = $s->fetch();
+        if (!$order) return ['ok' => false, 'error' => 'Faktura nenalezena'];
+        $p = $pdo->prepare("
+            SELECT fp.mnozstvi, fp.cena_bez_dph, fp.sazba_dph, fp.poznamka,
+                   COALESCE(NULLIF(fp.vyrobek_nazev, ''), v.nazev) AS vyrobek_nazev
+            FROM faktura_polozky fp
+            LEFT JOIN vyrobky v ON v.id = fp.vyrobek_id
+            WHERE fp.faktura_id = :id ORDER BY fp.poradi, fp.id
+        ");
+        $p->execute(['id' => $docId]);
+        $items = $p->fetchAll();
+        $order['datum_objednani'] = $order['datum_vystaveni'] ?? date('Y-m-d H:i');
+    } else {
+        return ['ok' => false, 'error' => 'Neznámý typ dokladu: ' . $docType];
+    }
+
+    if (!$items) return ['ok' => false, 'error' => 'Doklad nemá žádné položky k tisku'];
+
+    // Dopočti cena_celkem s DPH per položka (přesnější součet na účtence)
+    foreach ($items as &$it) {
+        $mn  = (float)($it['mnozstvi'] ?? 0);
+        $bez = (float)($it['cena_bez_dph'] ?? 0);
+        $dph = (float)($it['sazba_dph'] ?? 0);
+        $it['cena_celkem'] = round($mn * $bez * (1 + $dph / 100), 2);
+    }
+    unset($it);
+    $order['polozky'] = $items;
+
+    if ($mode === 'bon') {
+        $context = [
+            'cislo'     => (string)($order['cislo'] ?? ''),
+            'odberatel' => (string)($order['odberatel_nazev'] ?? ''),
+        ];
+        $payload = printer_build_bon($items, $context, $printer);
+    } else { // receipt
+        $firma = [];
+        foreach (['firma_nazev', 'firma_ulice', 'firma_mesto', 'firma_ico', 'firma_dic'] as $k) {
+            $firma[$k] = setting_get($pdo, $k);
+        }
+        $payload = printer_build_receipt($order, $printer, $firma);
+    }
+
+    return printer_send($pdo, $printer, $payload);
+}
+
+// ─────────────────────────────────────────────────────────────
 // TEST PRINT
 // ─────────────────────────────────────────────────────────────
 function printer_test_print(PDO $pdo, int $printer_id): array {
