@@ -212,6 +212,9 @@ function ensure_faktury_schema(PDO $pdo): void {
             'odb_mesto_snapshot' => 'VARCHAR(120)',
             'odb_psc_snapshot'   => 'VARCHAR(15)',
             'rucni'              => "TINYINT(1) NOT NULL DEFAULT 0",
+            // 🆕 misto_dodani_id — ruční faktura INSERT (admin_faktury.php) ho vyžaduje;
+            //   bez něj "Column not found 'misto_dodani_id'" → ruční faktura nešla vytvořit.
+            'misto_dodani_id'    => 'INT',
         ] as $col => $type) {
             if (!in_array(strtolower($col), $cols_lower, true)) {
                 $pdo->exec("ALTER TABLE faktury ADD COLUMN $col $type NULL");
