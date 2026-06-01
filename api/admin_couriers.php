@@ -172,6 +172,18 @@ if ($action === 'delivery_status' && $method === 'POST') {
     $pdo->prepare("UPDATE courier_deliveries SET stav=:s $setExtra WHERE id=:id")
         ->execute(['s'=>$st,'id'=>$id]);
 
+    // 🆕 v3.0.145 — promítni stav i do LOKÁLNÍ objednávky (předtím jen externí/aggregator
+    //   objednávky dostaly mapping → vlastní kurýr doručil, ale objednávka zůstala 'nova').
+    try {
+        $objStav = ['vyzvednuto'=>'expedovana','na_ceste'=>'expedovana','doruceno'=>'dorucena','zruseno'=>'zrusena'][$st] ?? null;
+        if ($objStav) {
+            $pdo->prepare("UPDATE objednavky SET stav = :st
+                WHERE id = (SELECT objednavka_id FROM courier_deliveries WHERE id = :id)
+                  AND id IS NOT NULL")
+                ->execute(['st'=>$objStav, 'id'=>$id]);
+        }
+    } catch (Throwable $e) { /* ne-fatal */ }
+
     // 🆕 v3.0.38 — Auto-push do externí služby pokud delivery má objednavka_id mapovaný na externí
     try {
         da_ensure_mapping_table();

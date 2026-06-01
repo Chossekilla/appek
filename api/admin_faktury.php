@@ -231,6 +231,15 @@ if ($method === 'PUT') {
             ->execute($params);
     }
 
+    // 🆕 v3.0.145 — auto-set datum_uhrazeni při plném zaplacení (jinak zůstávalo NULL).
+    //   Plně uhrazeno → CURDATE (zachová existující), pod-uhrazeno → NULL.
+    if (isset($d['castka_uhrazeno'])) {
+        $pdo->prepare("UPDATE faktury SET datum_uhrazeni = CASE
+                WHEN castka_uhrazeno >= castka_celkem THEN COALESCE(datum_uhrazeni, CURDATE())
+                ELSE NULL END
+            WHERE id = :id")->execute(['id' => $fa_id]);
+    }
+
     json_response(['ok' => true]);
 }
 

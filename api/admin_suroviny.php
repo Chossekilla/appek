@@ -171,7 +171,7 @@ function detekuj_alergeny_z_textu(string $text): string {
         'mléko'            => '/(mléko|mlék|smetan|máslo|tvaroh|sýr|jogurt|laktóz|laktoz|kasein|syrovátk|šlehačk)/u',
         'ořechy'           => '/(mandle|lískov.*ořech|vlašsk.*ořech|kešu|pekan|para\s+ořech|pistác|makadam|brazilsk.*ořech|ořechy|ořech\b)/u',
         'celer'            => '/(celer)/u',
-        'hořčice'          => '/(hořčic)/u',
+        'hořčice'          => '/(hořčic|hořčič)/u',
         'sezam'            => '/(sezam)/u',
         'oxid siřičitý / siřičitany' => '/(siřič|sulfit|e22[01-8])/u',
         'vlčí bob (lupina)' => '/(lupin|vlčí\s+bob)/u',
