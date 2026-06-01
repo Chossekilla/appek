@@ -429,6 +429,12 @@ if ($method === 'POST' && $action === 'pay') {
             WHERE id = :id
         ")->execute(['s' => $sumPaid, 'd' => $cislo, 'id' => $ucetId]);
 
+        // 🆕 v3.0.145 — finalizuj nedovařené položky (nápoje apod.) na 'servirovano' při platbě.
+        //   Předtím zůstávaly 'objednano' navždy (KDS je sice skrývá, ale data-hygiene).
+        $pdo->prepare("UPDATE restaurant_pos_polozky SET stav = 'servirovano'
+            WHERE ucet_id = :u AND stav IN ('objednano','vari_se','hotovo')")
+            ->execute(['u' => $ucetId]);
+
         // Get stul_id pak uvolni
         $st = $pdo->prepare("SELECT stul_id FROM restaurant_pos_ucty WHERE id = :id");
         $st->execute(['id' => $ucetId]);
