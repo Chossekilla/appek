@@ -34,6 +34,23 @@ if ($method === 'GET') {
         $stmt->execute(['id' => (int) $f['id']]);
         $f['polozky'] = $stmt->fetchAll();
 
+        // 🆕 Fallback — faktura z objednávky/DL má položky v dodaci_list_polozky
+        //   (faktura_polozky je prázdná). Detail jinak ukazoval "Žádné položky"
+        //   u faktury s nenulovou částkou. Stejná kaskáda jako faktura.php PDF.
+        if (empty($f['polozky'])) {
+            $stmt = $pdo->prepare("
+                SELECT dlp.id, dlp.vyrobek_id, dlp.vyrobek_cislo, dlp.vyrobek_nazev, dlp.jednotka,
+                       dlp.mnozstvi, dlp.cena_bez_dph, dlp.sazba_dph, dlp.poznamka, dlp.id AS poradi
+                FROM faktury_dodaci_listy fdl
+                JOIN dodaci_list_polozky dlp ON dlp.dodaci_list_id = fdl.dodaci_list_id
+                WHERE fdl.faktura_id = :id
+                ORDER BY dlp.dodaci_list_id, dlp.id
+            ");
+            $stmt->execute(['id' => (int) $f['id']]);
+            $f['polozky'] = $stmt->fetchAll();
+            if (!empty($f['polozky'])) $f['polozky_zdroj'] = 'dodaci_list';
+        }
+
         // Související objednávky (přes DL)
         try {
             $stmt = $pdo->prepare("

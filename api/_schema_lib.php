@@ -217,6 +217,25 @@ function ensure_faktury_schema(PDO $pdo): void {
                 $pdo->exec("ALTER TABLE faktury ADD COLUMN $col $type NULL");
             }
         }
+
+        // 🆕 faktura_polozky — admin_faktury.php detail SELECT + ruční INSERT vyžadují
+        //   vyrobek_cislo + poznamka. Bez nich detail KAŽDÉ faktury padá 500
+        //   (Column not found 'vyrobek_cislo') a ruční faktura nejde vytvořit.
+        $pcols = $pdo->query("
+            SELECT COLUMN_NAME FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'faktura_polozky'
+        ")->fetchAll(PDO::FETCH_COLUMN);
+        if ($pcols) {
+            $pcols_lower = array_map('strtolower', $pcols);
+            foreach ([
+                'vyrobek_cislo' => 'VARCHAR(50)',
+                'poznamka'      => 'VARCHAR(255)',
+            ] as $col => $type) {
+                if (!in_array(strtolower($col), $pcols_lower, true)) {
+                    $pdo->exec("ALTER TABLE faktura_polozky ADD COLUMN $col $type NULL");
+                }
+            }
+        }
     } catch (Throwable $e) {
         error_log('ensure_faktury_schema: ' . $e->getMessage());
     }

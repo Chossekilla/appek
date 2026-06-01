@@ -452,9 +452,9 @@ if ($method === 'POST') {
             }
 
             $pdo->prepare("
-                INSERT INTO objednavky (cislo, odberatel_id, misto_dodani_id, typ, stav, datum_dodani,
+                INSERT INTO objednavky (cislo, odberatel_id, misto_dodani_id, typ, stav, datum_objednani, datum_dodani,
                                         castka_bez_dph, castka_dph, castka_celkem, poznamka, interni_pozn)
-                VALUES (:c,:o,:m,'jednorazova','potvrzena',:d,:b,:dph,:cel,:p,:ip)
+                VALUES (:c,:o,:m,'jednorazova','potvrzena',CURDATE(),:d,:b,:dph,:cel,:p,:ip)
             ")->execute([
                 'c' => $cislo, 'o' => $odb_id, 'm' => $misto_id,
                 'd' => $d['datum_dodani'],
