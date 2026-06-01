@@ -212,6 +212,62 @@ function aktualni_admin(PDO $pdo): array {
     ];
 }
 
+/**
+ * 🆕 v3.0.143 — POS prodej → odpis surovin dle receptury ze skladu.
+ * Fix díry: POS/stolní prodej dříve neodepisoval suroviny (sklad ingrediencí nepřesný).
+ *
+ * @param array $items  [{vyrobek_id, mnozstvi}, ...] — prodané položky (jen s vyrobek_id + recepturou se odepíše)
+ * @param string $label do poznámky pohybu (např. "účet #12" / "POS-2026...")
+ * @return array ['deducted'=>počet surovin, 'items'=>[surovina_id=>mnozstvi]]
+ *
+ * Pozn.: povolí záporný stav (prodej se NEBLOKUJE — jídlo je už vydané). Soft-fail.
+ * Idempotence: voláno 1× per uzavřený účet / vytvořenou quick objednávku.
+ */
+function pos_deduct_ingredients(PDO $pdo, array $items, string $label, string $kdo = 'POS'): array {
+    // Agreguj potřebu surovin: SUM(recept.mnozstvi * prodané_mnozstvi) per surovina
+    $need = [];   // surovina_id => mnozstvi
+    $recStmt = $pdo->prepare("SELECT surovina_id, mnozstvi FROM vyrobek_suroviny WHERE vyrobek_id = :v");
+    foreach ($items as $it) {
+        $vid = (int) ($it['vyrobek_id'] ?? 0);
+        $qty = (float) ($it['mnozstvi'] ?? 0);
+        if ($vid <= 0 || $qty <= 0) continue;
+        $recStmt->execute(['v' => $vid]);
+        foreach ($recStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $sid = (int) $r['surovina_id'];
+            $need[$sid] = ($need[$sid] ?? 0) + (float) $r['mnozstvi'] * $qty;
+        }
+    }
+    if (!$need) return ['deducted' => 0, 'items' => []];
+
+    $hasPohyby = false;
+    try { $hasPohyby = (bool) $pdo->query("SHOW TABLES LIKE 'sklad_pohyby'")->fetchColumn(); } catch (Throwable $e) {}
+
+    $upd = $pdo->prepare("UPDATE suroviny SET stock_aktualni = COALESCE(stock_aktualni,0) - :mn WHERE id = :id");
+    $ins = $hasPohyby ? $pdo->prepare("
+        INSERT INTO sklad_pohyby (surovina_id, typ, mnozstvi, jednotka, stock_pred, stock_po, poznamka, kdo)
+        VALUES (:sid, 'vydej', :mn, :jed, :pred, :po, :pz, :kdo)
+    ") : null;
+    $sel = $pdo->prepare("SELECT stock_aktualni, jednotka FROM suroviny WHERE id = :id");
+
+    $done = 0;
+    foreach ($need as $sid => $mn) {
+        try {
+            $sel->execute(['id' => $sid]);
+            $sur = $sel->fetch(PDO::FETCH_ASSOC);
+            if (!$sur) continue;
+            $pred = (float) ($sur['stock_aktualni'] ?? 0);
+            $upd->execute(['mn' => $mn, 'id' => $sid]);   // povolí mínus
+            if ($ins) $ins->execute([
+                'sid' => $sid, 'mn' => $mn, 'jed' => $sur['jednotka'] ?? 'g',
+                'pred' => $pred, 'po' => $pred - $mn,
+                'pz' => 'POS prodej — ' . $label, 'kdo' => $kdo,
+            ]);
+            $done++;
+        } catch (Throwable $e) { /* soft-fail per surovina — prodej nesmí spadnout */ }
+    }
+    return ['deducted' => $done, 'items' => $need];
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
@@ -391,6 +447,16 @@ if ($method === 'POST' && $action === 'pay') {
             ")->execute(['id' => $stulId]);
         }
         $pdo->commit();
+
+        // 🆕 v3.0.143 — Odpis surovin dle receptury za prodané (ne-storno) položky účtu.
+        //   Po commitu + soft-fail (vlastní transakce uvnitř) → platba nikdy nespadne kvůli skladu.
+        try {
+            $polUcet = $pdo->prepare("SELECT vyrobek_id, mnozstvi FROM restaurant_pos_polozky WHERE ucet_id = :u AND stav != 'storno' AND vyrobek_id IS NOT NULL");
+            $polUcet->execute(['u' => $ucetId]);
+            $sold = $polUcet->fetchAll(PDO::FETCH_ASSOC);
+            if ($sold) pos_deduct_ingredients($pdo, $sold, 'účet #' . $ucetId, aktualni_admin($pdo)['jmeno']);
+        } catch (Throwable $e) { /* sklad odpis ne-fatal */ }
+
         json_response(['ok' => true, 'doklad' => $cislo, 'sum_paid' => $sumPaid]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -1055,6 +1121,15 @@ if ($method === 'POST' && $action === 'quick_order') {
         }
 
         $pdo->commit();
+
+        // 🆕 v3.0.143 — Odpis surovin dle receptury za walk-in/rozvoz prodej (po commitu, soft-fail).
+        try {
+            $sold = [];
+            foreach ($polozky as $p) {
+                if (!empty($p['vyrobek_id'])) $sold[] = ['vyrobek_id' => (int) $p['vyrobek_id'], 'mnozstvi' => (float) ($p['mnozstvi'] ?? 1)];
+            }
+            if ($sold) pos_deduct_ingredients($pdo, $sold, $cislo, 'POS');
+        } catch (Throwable $e) { /* sklad odpis ne-fatal */ }
 
         // Notifikace
         try {
