@@ -409,6 +409,10 @@ if ($method === 'POST') {
             json_error('Místo dodání nepatří k vybranému odběrateli', 400);
         }
 
+        // 🆕 v3.0.144 — retry-on-deadlock: souběh více kanálů/adminů → 40001 (deadlock) /
+        //   1205 (lock wait timeout). Zátěž odhalila 1× deadlock. Opakuj celou transakci.
+        $obj_id = 0; $cislo = '';
+        for ($attempt = 1; ; $attempt++) {
         $pdo->beginTransaction();
         try {
             $cislo = dalsi_cislo($pdo, 'OBJ', (int) date('Y'));
@@ -493,16 +497,20 @@ if ($method === 'POST') {
             }
 
             $pdo->commit();
-
-            // Notifikace odběrateli o nové objednávce (založené adminem)
-            notifikace_nova_objednavka($pdo, $obj_id);
-
-            json_response(['id' => $obj_id, 'cislo' => $cislo], 201);
+            break; // úspěch — ven z retry smyčky
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
+            $dl = ($e->getCode() === '40001')
+                || (isset($e->errorInfo[1]) && in_array((int) $e->errorInfo[1], [1213, 1205], true));
+            if ($dl && $attempt < 4) { usleep(mt_rand(8000, 40000) * $attempt); continue; }
             error_log('admin_objednavky vytvorit: ' . $e->getMessage());
             json_error($e->getMessage(), 400);
         }
+        } // konec retry-on-deadlock smyčky
+
+        // Notifikace + odpověď až po úspěšném commitu (mimo retry)
+        notifikace_nova_objednavka($pdo, $obj_id);
+        json_response(['id' => $obj_id, 'cislo' => $cislo], 201);
         exit;
     }
 

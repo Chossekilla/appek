@@ -1049,8 +1049,7 @@ if ($method === 'POST' && $action === 'quick_order') {
             )
         ");
         $admin_login = $_SESSION['admin_login'] ?? ($_SESSION['admin_user']['login'] ?? null);
-        $st->execute([
-            'cislo' => $cislo,
+        $headerParams = [
             'ob'    => $odberatel_id,
             'bd'    => $bezDph,
             'd'     => $dphSum,
@@ -1061,8 +1060,28 @@ if ($method === 'POST' && $action === 'quick_order') {
             'tip'   => $pos_tip,
             'uziv'  => $admin_login,
             'poz'   => $poznamka . ($poznamka ? "\n\n" : '') . "POS-META: " . $meta_json,
-        ]);
-        $objId = (int)$pdo->lastInsertId();
+        ];
+        // 🆕 v3.0.144 — RACE FIX: cislo = MAX+1 (read-then-insert) kolidovalo při souběhu
+        //   více POS terminálů → "Duplicate entry POS-...-NNN" → HTTP 500 (zátěž odhalila ~2%).
+        //   Retry: na duplicitu inkrementuj $next a zkus další číslo (re-SELECT nelze — REPEATABLE
+        //   READ snapshot by vrátil stejné MAX). Najde volnou mezeru během pár pokusů.
+        $objId = 0;
+        for ($attempt = 0; $attempt < 8; $attempt++) {
+            try {
+                $st->execute(array_merge(['cislo' => $cislo], $headerParams));
+                $objId = (int)$pdo->lastInsertId();
+                break;
+            } catch (PDOException $e) {
+                $dup = ($e->getCode() === '23000') || (isset($e->errorInfo[1]) && (int)$e->errorInfo[1] === 1062);
+                if ($dup && $attempt < 7) {
+                    $next++;
+                    $cislo = sprintf('POS-%s-%03d', $today, $next);
+                    usleep(mt_rand(500, 4000));
+                    continue;
+                }
+                throw $e;
+            }
+        }
 
         // Položky
         $stItem = $pdo->prepare("
