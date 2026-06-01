@@ -866,9 +866,11 @@ function da_handle_inbound_order(string $sluzba, array $parsed): array {
         $hasPozn  = in_array('poznamka', $cols, true);
         $hasKont  = in_array('kontakt_jmeno', $cols, true);
 
-        $fields  = ['cislo', 'odberatel_id', 'datum_dodani', 'castka_celkem', 'stav'];
-        $vals    = [':c', ':o', ':dd', ':ck', ':st'];
-        $params  = ['c' => $cislo, 'o' => $odbId, 'dd' => $datumDodani, 'ck' => $parsed['castka'], 'st' => 'nova'];
+        // 🆕 datum_objednani — NOT NULL bez defaultu → na strict MySQL by INSERT spadl
+        //   (stejný root cause jako admin_objednavky vytvorit). Příchozí Wolt/Bolt objednávka.
+        $fields  = ['cislo', 'odberatel_id', 'datum_objednani', 'datum_dodani', 'castka_celkem', 'stav'];
+        $vals    = [':c', ':o', ':doo', ':dd', ':ck', ':st'];
+        $params  = ['c' => $cislo, 'o' => $odbId, 'doo' => date('Y-m-d'), 'dd' => $datumDodani, 'ck' => $parsed['castka'], 'st' => 'nova'];
 
         if ($hasPuvod) { $fields[] = 'puvod';        $vals[] = ':pu';   $params['pu'] = $sluzba; }
         if ($hasPozn)  {
