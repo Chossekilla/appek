@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.147';
+const APPEK_ADMIN_JS_VERSION = '3.0.148';
 
 (async function detectStaleCode() {
   try {
@@ -28474,6 +28474,7 @@ async function renderSuroviny() {
   const aktivni = state._suroviny_aktivni || 'vse';   // vse | aktivni | skryte
   const alergen = state._suroviny_alergen || 'vse';   // vse | s | bez
   const groupBy = state._suroviny_group !== false;    // default true
+  const cenaJedUnit = state._suroviny_cena_jed || 'kg'; // 🆕 v3.0.148 — zobrazení Cena za jed.: kg | g
 
   // Aplikuj filtry
   let filtered = list.map(s => ({ ...s, _kat: kategoriziujSurovinu(s) }));
@@ -28521,6 +28522,15 @@ async function renderSuroviny() {
     const cb = parseFloat(s.cena_baleni) || 0;
     const ob = parseFloat(s.obsah_baleni) || 0;
     const cenaJed = (cb > 0 && ob > 0) ? (cb / ob) : 0;
+    // 🆕 v3.0.148 — normalizuj Cena za jed. na zvolené zobrazení (kg/g) u hmotnostních surovin
+    const _jed = (s.jednotka || 'g').toLowerCase();
+    let cenaDisp = cenaJed, jedDisp = _jed;
+    if (cenaJed > 0 && (_jed === 'g' || _jed === 'kg')) {
+      const perG = _jed === 'kg' ? cenaJed / 1000 : cenaJed;
+      if (cenaJedUnit === 'kg') { cenaDisp = perG * 1000; jedDisp = 'kg'; }
+      else { cenaDisp = perG; jedDisp = 'g'; }
+    }
+    const cenaTxt = cenaDisp.toFixed(jedDisp === 'g' ? 4 : 2).replace(/\.?0+$/, '').replace('.', ',');
     return `
       <tr class="row-clickable" onclick="editSurovina(${s.id})" ${!s.aktivni ? 'style="opacity:0.5"' : ''}>
         <td>
@@ -28535,7 +28545,7 @@ async function renderSuroviny() {
           ${s.slozeni_alergeny && s.slozeni_alergeny !== s.alergen ? `<div style="margin-top:3px"><span title="Alergeny detekované ze složení" style="background:#ede9fe;color:#5b21b6;font-size:10px;padding:2px 7px;border-radius:8px;font-weight:500">🔬 ${esc(s.slozeni_alergeny.length > 40 ? s.slozeni_alergeny.slice(0, 40) + '…' : s.slozeni_alergeny)}</span></div>` : ''}
           ${!s.alergen && !s.slozeni_alergeny ? '<span style="color:var(--text-3)">—</span>' : ''}
         </td>
-        <td class="num" style="font-variant-numeric:tabular-nums">${cenaJed > 0 ? `<strong>${cenaJed.toFixed(4).replace(/\.?0+$/, '').replace('.', ',')}</strong> Kč/${esc(s.jednotka || 'g')}` : '<span style="color:var(--text-3)">—</span>'}</td>
+        <td class="num" style="font-variant-numeric:tabular-nums">${cenaJed > 0 ? `<strong>${cenaTxt}</strong> Kč/${jedDisp}` : '<span style="color:var(--text-3)">—</span>'}</td>
         <td class="num" style="font-variant-numeric:tabular-nums">${stockBadge(s)}</td>
         <td class="num">${s.pocet_vyrobku || 0}×</td>
         <td>${s.aktivni ? '<span class="status dorucena">Aktivní</span>' : '<span class="status zrusena">Skrytá</span>'}</td>
@@ -28666,6 +28676,15 @@ async function renderSuroviny() {
         </label>
       </div>
 
+      <!-- 🆕 v3.0.148 — Cena za jednotku: přepínač kg/g (zobrazení sloupce Cena za jed.) -->
+      <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:15px;font-weight:600;color:var(--text-2)">💰 Cena za jednotku:</span>
+        <div class="sur-unit-toggle" role="group" aria-label="Jednotka ceny">
+          <button type="button" class="${cenaJedUnit === 'kg' ? 'active' : ''}" onclick="if(state._suroviny_cena_jed!=='kg'){state._suroviny_cena_jed='kg';renderSuroviny()}">Kč/kg</button>
+          <button type="button" class="${cenaJedUnit === 'g' ? 'active' : ''}" onclick="if(state._suroviny_cena_jed!=='g'){state._suroviny_cena_jed='g';renderSuroviny()}">Kč/g</button>
+        </div>
+      </div>
+
       ${podMinimem > 0 ? `
         <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <label style="display:inline-flex;align-items:center;gap:8px;background:${state._suroviny_pod_minimem ? '#FEE2E2' : 'var(--surface-2)'};padding:8px 14px;border-radius:8px;cursor:pointer;border:1.5px solid ${state._suroviny_pod_minimem ? '#DC2626' : 'var(--border)'};font-weight:600;font-size:14px">
@@ -28678,13 +28697,13 @@ async function renderSuroviny() {
 
       <!-- Kategorie pillsy -->
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px">
-        <button class="period-tab ${kat === 'vse' ? 'active' : ''}" onclick="state._suroviny_kat='vse';renderSuroviny()" style="font-size:16px;padding:12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:8px">
+        <button class="period-tab ${kat === 'vse' ? 'active' : ''}" onclick="state._suroviny_kat='vse';renderSuroviny()" style="font-size:16px;padding:12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;overflow:visible">
           <span style="font-size:28px;line-height:1">📚</span>
           <span>Vše</span>
           <span style="opacity:0.7;margin-left:4px">${list.length}</span>
         </button>
         ${SUROVINA_KATEGORIE.filter(k => (pocty[k.key] || 0) > 0).map(k => `
-          <button class="period-tab ${kat === k.key ? 'active' : ''}" onclick="state._suroviny_kat='${k.key}';renderSuroviny()" style="font-size:16px;padding:12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:8px">
+          <button class="period-tab ${kat === k.key ? 'active' : ''}" onclick="state._suroviny_kat='${k.key}';renderSuroviny()" style="font-size:16px;padding:12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;overflow:visible">
             <span style="font-size:28px;line-height:1">${k.icon}</span>
             <span>${k.label}</span>
             <span style="opacity:0.7;margin-left:4px">${pocty[k.key]}</span>
