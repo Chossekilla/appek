@@ -27,7 +27,7 @@ tests/smoke.sh && ./build-zip.sh X.Y.Z
 | Preflight | DB spojení, login, autentizované GETy (200) |
 | Schema | #2 `faktura_polozky.vyrobek_cislo`, #5 `faktury.misto_dodani_id` |
 | Code-presence | #9 datum_objednani v aggregator INSERTu, #13 POS-číslo retry, #14 deadlock retry |
-| Behavioral | #7 alergen hořčice u „hořčičná", #11 odpis surovin při POS prodeji (+ sklad_pohyby), #12 položky → servirovano po platbě, #8 vlastní kurýr → objednávka dorucena, #1 B2B objednávka + datum_objednani, #2 faktura detail 200, #3 položky faktury (DL fallback), #6 datum_uhrazeni při plné úhradě |
+| Behavioral | #4 QR objednávka — cena/název serverově (host nesmí podhodnotit účet), #7 alergen hořčice u „hořčičná", #11 odpis surovin při POS prodeji (+ sklad_pohyby), #12 položky → servirovano po platbě, #8 vlastní kurýr → objednávka dorucena, #1 B2B objednávka + datum_objednani, #2 faktura detail 200, #3 položky faktury (DL fallback), #6 datum_uhrazeni při plné úhradě |
 
 ### Předpoklady
 
