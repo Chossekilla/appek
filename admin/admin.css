@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.146";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.147";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -2244,16 +2244,21 @@ body.role-restricted .admin-only { display: none !important; }
   background: linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);
   border-color: var(--primary-border);
 }
+/* 🆕 v3.0.147 — FLUID KPI: hodnota škáluje s šířkou KARTY (container query units cqi),
+   ne s viewportem. Nepřeteče úzkou kartu (flex/grid) a zase roste při roztažení okna. */
+.stat-grid-dash .stat-card { container-type: inline-size; }
 .stat-value-lg {
-  font-size: clamp(20px, 1.8vw, 26px) !important;   /* v3.0.129 — shrink z 30px (4 col layout = užší sloupec) */
+  font-size: clamp(14px, 13cqi, 30px) !important;   /* v3.0.147 — cqi = % šířky karty (dřív 1.8vw = viewport → přetékalo) */
   font-weight: 700 !important;
   letter-spacing: -0.02em;
   color: var(--primary-dark);
+  white-space: nowrap;
 }
+.stat-grid-dash .stat-value { font-size: clamp(13px, 11cqi, 24px); white-space: nowrap; }
 /* Tablet — zachovat 4×1 layout, jen menší fonts */
 @media (max-width: 1024px) {
   .stat-grid-dash { gap: 8px; }
-  .stat-value-lg { font-size: clamp(18px, 2.5vw, 24px) !important; }
+  .stat-value-lg { font-size: clamp(14px, 13cqi, 26px) !important; }
 }
 /* 🆕 v3.0.129 — Mobile 2×2 (user: "na mobilu do 2"). DOM order zachován:
    Row 1: [Tržby] [Dnes]   Row 2: [Obj] [Splat] */
@@ -2276,13 +2281,13 @@ body.role-restricted .admin-only { display: none !important; }
     white-space: normal;
   }
   .stat-grid-dash .stat-value {
-    font-size: clamp(13px, 4vw, 18px) !important;
+    font-size: clamp(12px, 11cqi, 18px) !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .stat-grid-dash .stat-value-lg {
-    font-size: clamp(15px, 5vw, 22px) !important;
+    font-size: clamp(13px, 13cqi, 22px) !important;
   }
   .stat-grid-dash .stat-sub {
     font-size: 10px !important;
@@ -2296,7 +2301,7 @@ body.role-restricted .admin-only { display: none !important; }
     font-size: 9px !important;
   }
   .stat-grid-dash .stat-value-lg {
-    font-size: clamp(12px, 4.5vw, 16px) !important;
+    font-size: clamp(11px, 13cqi, 16px) !important;
   }
 }
 
