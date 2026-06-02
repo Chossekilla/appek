@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.147";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.148";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -5353,6 +5353,29 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
 .sur-filtry {
   border: 1.5px solid var(--border-2);
 }
+
+/* 🆕 v3.0.148 — segmentovaný přepínač jednotky ceny (Kč/kg ↔ Kč/g) */
+.sur-unit-toggle {
+  display: inline-flex;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.sur-unit-toggle button {
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 9px 18px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sur-unit-toggle button + button { border-left: 1.5px solid var(--border); }
+.sur-unit-toggle button:hover:not(.active) { background: var(--surface-2); }
+.sur-unit-toggle button.active { background: var(--primary); color: #fff; }
 
 /* === Searchable VYROBEK PICKER (FA / DL / OBJ) === */
 .vp-picker-wrap { position: relative; }
