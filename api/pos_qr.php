@@ -112,7 +112,28 @@ if ($action === 'order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute(['h' => $host, 't' => $tel, 'tok' => $token]);
     }
 
+    // 🔒 v3.0.146 SECURITY (#4) — cena A název MUSÍ být serverové, ne od klienta.
+    // Tohle je VEŘEJNÝ endpoint (token v URL = jediná auth). Dřív se ukládala
+    // klientská 'cena' i 'nazev' → host mohl poslat cena:0 (podhodnotit účet)
+    // nebo podvrhnout název. Teď dohledáme autoritativní cenu/název pro každé
+    // vyrobek_id z katalogu (jen aktivní výrobky — stejné scoping jako menu).
+    $reqIds = [];
+    foreach ($d['items'] as $i) {
+        if (!empty($i['vyrobek_id'])) $reqIds[(int) $i['vyrobek_id']] = true;
+    }
+    $katalog = [];
+    if ($reqIds) {
+        $ids = array_keys($reqIds);
+        $ph  = implode(',', array_fill(0, count($ids), '?'));
+        $qs  = $pdo->prepare("SELECT id, nazev, cena_bez_dph FROM vyrobky WHERE id IN ($ph) AND aktivni = 1");
+        $qs->execute($ids);
+        foreach ($qs->fetchAll() as $r) {
+            $katalog[(int) $r['id']] = ['nazev' => $r['nazev'], 'cena' => (float) $r['cena_bez_dph']];
+        }
+    }
+
     $inserted = 0;
+    $skipped  = 0;
     $stmt = $pdo->prepare("
         INSERT INTO restaurant_qr_orders
           (stul_id, session_token, vyrobek_id, nazev, jednotkova_cena, mnozstvi, poznamka, host_jmeno, host_telefon, stav)
@@ -121,17 +142,27 @@ if ($action === 'order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     ");
     foreach ($d['items'] as $i) {
         $vId = !empty($i['vyrobek_id']) ? (int) $i['vyrobek_id'] : null;
-        $cena = (float) ($i['cena'] ?? 0);
-        $mnoz = (float) ($i['mnozstvi'] ?? 1);
-        $nazev = trim($i['nazev'] ?? '');
-        if (!$nazev) continue;
+        // jen položky s platným, aktivním výrobkem — cena/název bereme serverově
+        if ($vId === null || !isset($katalog[$vId])) { $skipped++; continue; }
+        $cena  = $katalog[$vId]['cena'];     // 🔒 server, ne $i['cena']
+        $nazev = $katalog[$vId]['nazev'];    // 🔒 server, ne $i['nazev']
+        $mnoz  = (float) ($i['mnozstvi'] ?? 1);
+        if ($mnoz <= 0) { $skipped++; continue; }
+        if ($mnoz > 99) $mnoz = 99;          // sanity cap proti griefingu
         $stmt->execute([
             's' => $stul['id'], 't' => $token,
             'v' => $vId, 'n' => $nazev, 'c' => $cena, 'm' => $mnoz,
-            'p' => $i['poznamka'] ?? null,
+            'p' => isset($i['poznamka']) ? substr(trim((string) $i['poznamka']), 0, 255) : null,
             'h' => $host ?: null, 'tel' => $tel ?: null,
         ]);
         $inserted++;
+    }
+
+    // Žádná platná položka → nic nezakládej (typicky manipulovaný/zastaralý payload)
+    if ($inserted === 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Žádná platná položka v objednávce', 'skipped' => $skipped], JSON_UNESCAPED_UNICODE);
+        exit;
     }
 
     // Mark table jako "vyžaduje pozornost" — obsluha vidí
@@ -141,7 +172,7 @@ if ($action === 'order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         WHERE id = :id
     ")->execute(['id' => $stul['id']]);
 
-    echo json_encode(['ok' => true, 'inserted' => $inserted, 'message' => 'Objednávka odeslána. Obsluha ji během chvíle potvrdí.']);
+    echo json_encode(['ok' => true, 'inserted' => $inserted, 'skipped' => $skipped, 'message' => 'Objednávka odeslána. Obsluha ji během chvíle potvrdí.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 

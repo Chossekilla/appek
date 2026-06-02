@@ -20,6 +20,7 @@
 #     #1  order create vkládá datum_objednani        (behavioral + code)
 #     #2  faktura detail neselže (vyrobek_cislo)      (schema + behavioral)
 #     #3  faktura z objednávky ukáže položky (DL fb)  (behavioral)
+#     #4  QR objednávka — cena/název serverově        (behavioral, SECURITY)
 #     #5  ruční faktura — misto_dodani_id sloupec     (schema)
 #     #6  datum_uhrazeni se nastaví při plné úhradě   (behavioral)
 #     #7  alergen hořčice u "hořčičná"                (behavioral)
@@ -270,6 +271,25 @@ if [[ -n "$ODB_ID" && -n "$VYR_ID" ]]; then
     else no "#3/#2/#6 faktura z objednávky" "fakturu se nepodařilo vytvořit: ${FA_R:0:80}"; fi
   else no "#1 objednávka vytvořena" "${ORD_R:0:100}"; fi
 else sk "#1/#2/#3/#6" "chybí odběratel/výrobek"; fi
+
+sec "#4 — QR objednávka: cena + název serverově (host nesmí podhodnotit účet)"
+QV="$(q "SELECT id FROM vyrobky WHERE aktivni=1 AND cena_bez_dph>0 ORDER BY id LIMIT 1")"
+if [[ -n "$QV" && -n "$STUL_ID" ]]; then
+  QPRICE="$(q "SELECT cena_bez_dph FROM vyrobky WHERE id=$QV")"
+  QNAME="$(q "SELECT nazev FROM vyrobky WHERE id=$QV")"
+  QTOK="$(q "SELECT qr_token FROM restaurant_tables WHERE id=$STUL_ID AND qr_token RLIKE '^[a-f0-9]{16,64}$'")"
+  if [[ -z "$QTOK" ]]; then
+    QTOK="$("$PHP_BIN" -r 'echo bin2hex(random_bytes(16));')"
+    q "UPDATE restaurant_tables SET qr_token='$QTOK' WHERE id=$STUL_ID"
+  fi
+  # útok: cena:0 + podvržený název pro platný výrobek + položka bez vyrobek_id
+  QBODY="$("$PHP_BIN" -r 'echo json_encode(["host_jmeno"=>"SMOKE #4","items"=>[["vyrobek_id"=>(int)$argv[1],"cena"=>0,"nazev"=>"HACKED ZDARMA","mnozstvi"=>1],["nazev"=>"Free-text bez ID","cena"=>0,"mnozstvi"=>1]]]);' "$QV")"
+  curl -s -A "$UA" -X POST "$BASE/pos_qr.php?action=order&token=$QTOK" -H "Content-Type: application/json" -d "$QBODY" >/dev/null
+  STORED_C="$(q "SELECT jednotkova_cena FROM restaurant_qr_orders WHERE session_token='$QTOK' AND vyrobek_id=$QV ORDER BY id DESC LIMIT 1")"
+  STORED_N="$(q "SELECT nazev FROM restaurant_qr_orders WHERE session_token='$QTOK' AND vyrobek_id=$QV ORDER BY id DESC LIMIT 1")"
+  aeq "#4 QR uložilo serverovou cenu (ne klientskou 0)" "ano" "$(q "SELECT IF(ABS($STORED_C-$QPRICE)<0.001,'ano','ne')")"
+  aeq "#4 QR uložilo serverový název (ne podvržený)" "$QNAME" "$STORED_N"
+else sk "#4 QR cena/název serverově" "chybí výrobek/stůl"; fi
 
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
