@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.148';
+const APPEK_ADMIN_JS_VERSION = '3.0.149';
 
 (async function detectStaleCode() {
   try {
@@ -28474,7 +28474,8 @@ async function renderSuroviny() {
   const aktivni = state._suroviny_aktivni || 'vse';   // vse | aktivni | skryte
   const alergen = state._suroviny_alergen || 'vse';   // vse | s | bez
   const groupBy = state._suroviny_group !== false;    // default true
-  const cenaJedUnit = state._suroviny_cena_jed || 'kg'; // 🆕 v3.0.148 — zobrazení Cena za jed.: kg | g
+  const cenaJedUnit = state._suroviny_cena_jed || 'kg'; // 🆕 v3.0.148 — Cena za jed. (hmotnost): kg | g
+  const cenaJedUnitVol = state._suroviny_cena_jed_vol || 'l'; // 🆕 v3.0.149 — Cena za jed. (objem): l | ml
 
   // Aplikuj filtry
   let filtered = list.map(s => ({ ...s, _kat: kategoriziujSurovinu(s) }));
@@ -28529,8 +28530,13 @@ async function renderSuroviny() {
       const perG = _jed === 'kg' ? cenaJed / 1000 : cenaJed;
       if (cenaJedUnit === 'kg') { cenaDisp = perG * 1000; jedDisp = 'kg'; }
       else { cenaDisp = perG; jedDisp = 'g'; }
+    } else if (cenaJed > 0 && (_jed === 'ml' || _jed === 'l')) {
+      // 🆕 v3.0.149 — objemové suroviny: ml ↔ L podle přepínače
+      const perMl = _jed === 'l' ? cenaJed / 1000 : cenaJed;
+      if (cenaJedUnitVol === 'l') { cenaDisp = perMl * 1000; jedDisp = 'l'; }
+      else { cenaDisp = perMl; jedDisp = 'ml'; }
     }
-    const cenaTxt = cenaDisp.toFixed(jedDisp === 'g' ? 4 : 2).replace(/\.?0+$/, '').replace('.', ',');
+    const cenaTxt = cenaDisp.toFixed((jedDisp === 'g' || jedDisp === 'ml') ? 4 : 2).replace(/\.?0+$/, '').replace('.', ',');
     return `
       <tr class="row-clickable" onclick="editSurovina(${s.id})" ${!s.aktivni ? 'style="opacity:0.5"' : ''}>
         <td>
@@ -28679,9 +28685,13 @@ async function renderSuroviny() {
       <!-- 🆕 v3.0.148 — Cena za jednotku: přepínač kg/g (zobrazení sloupce Cena za jed.) -->
       <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:15px;font-weight:600;color:var(--text-2)">💰 Cena za jednotku:</span>
-        <div class="sur-unit-toggle" role="group" aria-label="Jednotka ceny">
+        <div class="sur-unit-toggle" role="group" aria-label="Jednotka ceny (hmotnost)" title="Hmotnostní suroviny (g/kg)">
           <button type="button" class="${cenaJedUnit === 'kg' ? 'active' : ''}" onclick="if(state._suroviny_cena_jed!=='kg'){state._suroviny_cena_jed='kg';renderSuroviny()}">Kč/kg</button>
           <button type="button" class="${cenaJedUnit === 'g' ? 'active' : ''}" onclick="if(state._suroviny_cena_jed!=='g'){state._suroviny_cena_jed='g';renderSuroviny()}">Kč/g</button>
+        </div>
+        <div class="sur-unit-toggle" role="group" aria-label="Jednotka ceny (objem)" title="Tekuté suroviny (ml/L)">
+          <button type="button" class="${cenaJedUnitVol === 'l' ? 'active' : ''}" onclick="if(state._suroviny_cena_jed_vol!=='l'){state._suroviny_cena_jed_vol='l';renderSuroviny()}">Kč/L</button>
+          <button type="button" class="${cenaJedUnitVol === 'ml' ? 'active' : ''}" onclick="if(state._suroviny_cena_jed_vol!=='ml'){state._suroviny_cena_jed_vol='ml';renderSuroviny()}">Kč/ml</button>
         </div>
       </div>
 
@@ -29857,6 +29867,9 @@ async function loadSurovinyCache() {
   if (!state._suroviny_cache) {
     state._suroviny_cache = await api('admin_suroviny.php');
   }
+  // 🆕 v3.0.149 — robustnost: api může vrátit {} (0 surovin / chyba) → normalizuj na pole,
+  // jinak (state._suroviny_cache||[]).filter v vkRender spadne na "filter is not a function".
+  if (!Array.isArray(state._suroviny_cache)) state._suroviny_cache = [];
   return state._suroviny_cache;
 }
 
@@ -37772,6 +37785,7 @@ const vkState = {
   klonku_z_presu: 30,
   zdobeni: [],      // [{nazev, cena_per_kus}] — per kus
   fixni: [],        // [{nazev, cena_kc}] — per várku
+  sablonyFixni: [], // 🆕 v3.0.149 — uložené fixní platby z Nastavení (naklady_polozky) pro picker
   marze_pct: 50,
   sazba_dph: 12,
   vyrobky_cache: [], // pro dropdown
@@ -37827,6 +37841,12 @@ async function renderVyrobniKalkulace() {
       vkState.vyrobky_cache = (r && Array.isArray(r.vyrobky)) ? r.vyrobky : [];
     } catch (e) { vkState.vyrobky_cache = []; }
   }
+  // 🆕 v3.0.149 — načti uložené fixní platby (šablony) z Nastavení (naklady_polozky) pro picker
+  try {
+    const ns = await api('admin_nastaveni.php');
+    const arr = JSON.parse(ns.naklady_polozky || '[]');
+    vkState.sablonyFixni = Array.isArray(arr) ? arr : [];
+  } catch (e) { vkState.sablonyFixni = []; }
   vkRender();
 }
 
@@ -37917,6 +37937,7 @@ function vkRender() {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary" onclick="navigate('vyroba')">← Výroba</button>
         <button class="btn-secondary" onclick="otevritFixniNaklady()" title="Energie, práce, obal — položky přičtené ke každé kalkulaci">💰 Fixní náklady</button>
+        <button class="btn-secondary" onclick="vkPrepocitat()" title="Znovu načte aktuální ceny surovin z databáze a přepočítá kalkulaci">🔄 Přepočítat</button>
         <button class="btn-secondary" onclick="vkReset()">↺ Vyčistit</button>
         <button class="btn-secondary" onclick="vkOtevritHistorii()" title="Procházet uložené kalkulace s tehdejšími cenami">📂 Historie</button>
         <button class="btn-primary" onclick="vkUlozitDoHistorie()" title="Uloží snímek aktuální kalkulace včetně cen surovin (pro pozdější porovnání)">💾 Uložit snímek</button>
@@ -38069,7 +38090,16 @@ function vkRender() {
         <div class="card-block">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
             <h3 style="margin:0;font-size:15px">⚡ Fixní náklady <span style="color:var(--text-3);font-weight:400;font-size:12px">(na celou várku)</span></h3>
-            <button class="btn-primary" onclick="vkAddFixni()">+ Přidat</button>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              ${vkState.sablonyFixni.length > 0 ? `
+                <select class="form-input" style="font-size:13px;padding:6px 10px;max-width:220px;height:auto" onchange="vkAddFixniZeSablony(this.value); this.value=''" title="Vybrat z uložených fixních plateb (spravuješ přes 💰 Fixní náklady)">
+                  <option value="">+ z uložených ▾</option>
+                  ${vkState.sablonyFixni.map((f, i) => `<option value="${i}">${esc(f.nazev || '')} — ${(parseFloat(f.cena_kc) || 0).toFixed(2).replace('.', ',')} Kč</option>`).join('')}
+                </select>
+                <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="vkAddVsechnyFixni()" title="Přidat všechny uložené fixní platby najednou">+ všechny</button>
+              ` : ''}
+              <button class="btn-primary" onclick="vkAddFixni()" title="Přidat prázdný (volný) řádek">+ Přidat</button>
+            </div>
           </div>
           ${vkState.fixni.length === 0 ? '<div class="empty-state" style="padding:14px;background:var(--surface-2);border-radius:8px;text-align:center;color:var(--text-3);font-size:13px">Žádné fixní náklady — typicky energie, práce, ostatní.</div>' : `
             <table class="table" style="margin:0;font-size:13px">
@@ -38366,6 +38396,19 @@ window.vkAddFixni = function() {
   vkState.fixni.push({ nazev: '', cena_kc: 0 });
   vkRender();
 };
+// 🆕 v3.0.149 — přidá fixní platbu z uložené šablony (Nastavení → naklady_polozky); částku lze dál upravit
+window.vkAddFixniZeSablony = function(idxStr) {
+  const i = parseInt(idxStr, 10);
+  if (isNaN(i)) return;
+  const f = (vkState.sablonyFixni || [])[i];
+  if (!f) return;
+  vkState.fixni.push({ nazev: f.nazev || '', cena_kc: parseFloat(f.cena_kc) || 0 });
+  vkRender();
+};
+window.vkAddVsechnyFixni = function() {
+  (vkState.sablonyFixni || []).forEach(f => vkState.fixni.push({ nazev: f.nazev || '', cena_kc: parseFloat(f.cena_kc) || 0 }));
+  vkRender();
+};
 window.vkUpdateFixni = function(i, val, debounced) {
   if (!vkState.fixni[i]) return;
   vkState.fixni[i].cena_kc = val;
@@ -38511,6 +38554,19 @@ window.vkLoadFromVyrobek = async function() {
       setTimeout(() => toast.remove(), 5000);
     }
   } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v3.0.149 — ruční přepočet: vynutí ČERSTVÉ ceny surovin (invalidace cache) + překreslí.
+// Řeší "po vyplnění z produktu se cena nepřepočítá" — kalkulace držela cachované ceny surovin.
+window.vkPrepocitat = async function() {
+  state._suroviny_cache = null;
+  try { await loadSurovinyCache(); } catch (e) {}
+  vkRender();
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:12px 20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:13px;font-weight:600;z-index:1000';
+  toast.textContent = '🔄 Přepočítáno s aktuálními cenami surovin';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2800);
 };
 
 // Uložit výrobní cenu do výrobku + celou kalkulaci do JSON
