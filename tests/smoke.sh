@@ -291,6 +291,16 @@ if [[ -n "$QV" && -n "$STUL_ID" ]]; then
   aeq "#4 QR uložilo serverový název (ne podvržený)" "$QNAME" "$STORED_N"
 else sk "#4 QR cena/název serverově" "chybí výrobek/stůl"; fi
 
+sec "#A/B/C — validace vstupů POS/B2B (z adversariálního testu v3.0.153)"
+if [[ -n "$VYR_ID" ]]; then
+  aeq "#A POS záporná cena → 400 (ne záporná tržba)" "400" \
+    "$(http POST "admin_pos.php?action=quick_order" "{\"pos_typ\":\"sebou\",\"pos_payment\":\"hotove\",\"polozky\":[{\"vyrobek_id\":$VYR_ID,\"nazev\":\"x\",\"mnozstvi\":1,\"cena_bez_dph\":-100,\"sazba_dph\":12}]}")"
+  aeq "#B POS neexist. výrobek → 400 (ne 500 + leak schématu)" "400" \
+    "$(http POST "admin_pos.php?action=quick_order" '{"pos_typ":"sebou","pos_payment":"hotove","polozky":[{"vyrobek_id":98765432,"nazev":"x","mnozstvi":1,"cena_bez_dph":50,"sazba_dph":12}]}')"
+  aeq "#C B2B neexist. odběratel → 400 (ne SQL leak)" "400" \
+    "$(http POST "admin_objednavky.php" "{\"action\":\"vytvorit\",\"odberatel_id\":98765432,\"datum_dodani\":\"$(q "SELECT DATE_ADD(CURDATE(),INTERVAL 2 DAY)")\",\"polozky\":[{\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1}]}")"
+else sk "#A/B/C validace" "chybí výrobek"; fi
+
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
 # sdílená session by paralelní requesty serializovala; multi-login zase naráží na

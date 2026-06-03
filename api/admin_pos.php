@@ -947,7 +947,19 @@ if ($method === 'POST' && $action === 'quick_order') {
         $mn = (float)($p['mnozstvi'] ?? 0);
         $cena = (float)($p['cena_bez_dph'] ?? 0);
         if ($mn <= 0 || $mn > 9999)                       json_error('Položka #' . ($i + 1) . ': množství mimo rozsah (0–9999)', 400);
-        if (abs($cena) > 1000000)                         json_error('Položka #' . ($i + 1) . ': cena mimo rozsah', 400);
+        // 🆕 v3.0.153 BUG A — záporná cena dřív prošla (abs() validoval jen velikost) → záporná tržba
+        if ($cena < 0 || $cena > 1000000)                 json_error('Položka #' . ($i + 1) . ': cena mimo rozsah (0–1000000)', 400);
+    }
+    // 🆕 v3.0.153 BUG B — ověř existenci vyrobek_id PŘED insertem (jinak FK violation → 500 + leak schématu)
+    $reqVids = [];
+    foreach ($polozky as $p) { if (!empty($p['vyrobek_id'])) $reqVids[(int) $p['vyrobek_id']] = true; }
+    if ($reqVids) {
+        $ids = array_keys($reqVids);
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $stEx = $pdo->prepare("SELECT id FROM vyrobky WHERE id IN ($ph)");
+        $stEx->execute($ids);
+        $missing = array_values(array_diff($ids, array_map('intval', $stEx->fetchAll(PDO::FETCH_COLUMN))));
+        if ($missing) json_error('Neznámý výrobek (id ' . implode(', ', $missing) . ')', 400);
     }
 
     // 🆕 Idempotence — pokud klient pošle stejný key 2×, vrátíme předchozí výsledek

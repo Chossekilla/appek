@@ -403,6 +403,11 @@ if ($method === 'POST') {
         }
         $odb_id = (int) $d['odberatel_id'];
 
+        // 🆕 v3.0.153 BUG C — ověř existenci odběratele (jinak FK violation → leak raw SQLSTATE klientovi)
+        $odbEx = $pdo->prepare("SELECT 1 FROM odberatele WHERE id = :id LIMIT 1");
+        $odbEx->execute(['id' => $odb_id]);
+        if (!$odbEx->fetchColumn()) json_error('Odběratel neexistuje', 400);
+
         // Ověř, že místo (pokud zadáno) patří odběrateli
         $misto_id = !empty($d['misto_dodani_id']) ? (int) $d['misto_dodani_id'] : null;
         if (!misto_patri_odberateli($pdo, $misto_id, $odb_id)) {
