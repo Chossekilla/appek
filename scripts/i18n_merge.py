@@ -11,7 +11,7 @@ import json, re, sys
 from collections import Counter
 
 ROOT = '/Users/chossekilaimac/projects/appek.cz'
-MARK = 'v3.0.58 dopreklady B19 (Wolt/Bolt/Dame/Foodora + mobile UI)'
+MARK = 'v3.0.151 dopreklady UI backlog (sklad/POS/kalkulace/fixni/demo)'
 
 def js_unescape(s):
     out, i = [], 0
