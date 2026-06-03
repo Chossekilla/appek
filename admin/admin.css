@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.151";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.152";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -446,7 +446,7 @@ body.sidebar-collapsed .sidebar-collapse .sidebar-collapse-label-off { display: 
   body.sidebar-collapsed .nav-item {
     width: 100% !important;
     height: 62px !important;             /* 🆕 v2.9.103 — větší kostička (bylo 52) */
-    min-height: 62px !important;
+    min-height: auto;
     padding: 0 !important;
     flex-direction: column !important;
     align-items: center !important;
