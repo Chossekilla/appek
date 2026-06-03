@@ -223,11 +223,13 @@ else sk "#11 odpis skladu" "chybí fixtura výrobek/surovina"; fi
 sec "#12 — nedovařené položky → servirovano po platbě"
 if [[ -n "$STUL_ID" && -n "$VYR_ID" ]]; then
   UCET="$(jval "$(api GET "admin_pos.php?action=ucet&stul_id=$STUL_ID")" "['id']")"
-  api POST "admin_pos.php?action=item" "{\"ucet_id\":$UCET,\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1}" >/dev/null
+  api POST "admin_pos.php?action=item" "{\"ucet_id\":$UCET,\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1,\"jednotkova_cena\":100}" >/dev/null
   SUMA="$(jval "$(api GET "admin_pos.php?action=ucet&stul_id=$STUL_ID")" "['suma_kc']")"
-  api POST "admin_pos.php?action=pay" "{\"ucet_id\":$UCET,\"platby\":[{\"castka\":${SUMA:-0},\"zpusob\":\"hotovost\"}]}" >/dev/null
+  # pozn.: castka musí být > 0 (v3.0.154 guard) — proto fixní jednotková cena výše
+  api POST "admin_pos.php?action=pay" "{\"ucet_id\":$UCET,\"platby\":[{\"castka\":${SUMA:-100},\"zpusob\":\"hotovost\"}]}" >/dev/null
   STUCK="$(q "SELECT COUNT(*) FROM restaurant_pos_polozky WHERE ucet_id=$UCET AND stav IN ('objednano','vari_se','hotovo')")"
   aeq "#12 0 položek zaseknutých na objednano/vari_se" "0" "$STUCK"
+  q "DELETE FROM restaurant_pos_platby WHERE ucet_id=$UCET; DELETE FROM restaurant_pos_polozky WHERE ucet_id=$UCET; DELETE FROM restaurant_pos_ucty WHERE id=$UCET" >/dev/null
 else sk "#12 platba → servirovano" "chybí stůl/výrobek"; fi
 
 sec "#8 — vlastní kurýr doruceno → objednávka dorucena"
@@ -293,13 +295,55 @@ else sk "#4 QR cena/název serverově" "chybí výrobek/stůl"; fi
 
 sec "#A/B/C — validace vstupů POS/B2B (z adversariálního testu v3.0.153)"
 if [[ -n "$VYR_ID" ]]; then
-  aeq "#A POS záporná cena → 400 (ne záporná tržba)" "400" \
-    "$(http POST "admin_pos.php?action=quick_order" "{\"pos_typ\":\"sebou\",\"pos_payment\":\"hotove\",\"polozky\":[{\"vyrobek_id\":$VYR_ID,\"nazev\":\"x\",\"mnozstvi\":1,\"cena_bez_dph\":-100,\"sazba_dph\":12}]}")"
+  # JSON tělo přes proměnnou (inline "{…}" ve dvojitých uvozovkách se v aeg-argu brace-expanduje → rozbije se)
+  BODY="{\"pos_typ\":\"sebou\",\"pos_payment\":\"hotove\",\"polozky\":[{\"vyrobek_id\":$VYR_ID,\"nazev\":\"x\",\"mnozstvi\":1,\"cena_bez_dph\":-100,\"sazba_dph\":12}]}"
+  aeq "#A POS záporná cena → 400 (ne záporná tržba)" "400" "$(http POST "admin_pos.php?action=quick_order" "$BODY")"
   aeq "#B POS neexist. výrobek → 400 (ne 500 + leak schématu)" "400" \
     "$(http POST "admin_pos.php?action=quick_order" '{"pos_typ":"sebou","pos_payment":"hotove","polozky":[{"vyrobek_id":98765432,"nazev":"x","mnozstvi":1,"cena_bez_dph":50,"sazba_dph":12}]}')"
-  aeq "#C B2B neexist. odběratel → 400 (ne SQL leak)" "400" \
-    "$(http POST "admin_objednavky.php" "{\"action\":\"vytvorit\",\"odberatel_id\":98765432,\"datum_dodani\":\"$(q "SELECT DATE_ADD(CURDATE(),INTERVAL 2 DAY)")\",\"polozky\":[{\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1}]}")"
+  DD2="$(q "SELECT DATE_ADD(CURDATE(),INTERVAL 2 DAY)")"
+  BODY="{\"action\":\"vytvorit\",\"odberatel_id\":98765432,\"datum_dodani\":\"$DD2\",\"polozky\":[{\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1}]}"
+  aeq "#C B2B neexist. odběratel → 400 (ne SQL leak)" "400" "$(http POST "admin_objednavky.php" "$BODY")"
 else sk "#A/B/C validace" "chybí výrobek"; fi
+
+sec "#D/E/F — integrita plateb stolních účtů (z adversariálního testu v3.0.154)"
+if [[ -n "$STUL_ID" && -n "$VYR_ID" ]]; then
+  # Účty zakládám přímo SQL INSERTem (stav řízený) — plná izolace od ?action=ucet
+  # i sdíleného stavu (#4 QR / #12). Guardy (409) testuju na přednastaveném 'paid'
+  # účtu JEDNÍM voláním; úspěšnou platbu (200) až NAKONEC, ať po ní nenásleduje další
+  # mutující POST (jinak post-commit odpis surovin závodí se session lockem → flaky 400).
+
+  # POZN.: JSON tělo VŽDY přes proměnnou + "$VAR" (NE inline literál ve dvojitých
+  # uvozovkách) — bash jinak inline "{…}" brace-expanduje a tělo se rozpadne (ztratí
+  # se ucet_id → 400). Hodnota proměnné se brace-neexpanduje, takže je to bezpečné.
+
+  # #D double-pay: 'paid' účet rovnou z SQL → http pay → musí 409 (ne duplicitní tržba)
+  PU="$(q "INSERT INTO restaurant_pos_ucty (stul_id,stav,suma_kc,otevrel_jmeno) VALUES ($STUL_ID,'paid',200,'SMOKE #Dp'); SELECT LAST_INSERT_ID()")"
+  BODY="{\"ucet_id\":$PU,\"platby\":[{\"castka\":200,\"zpusob\":\"hotovost\"}]}"
+  aeq "#D double-pay zaplaceného účtu → 409 (ne duplicitní tržba)" "409" "$(http POST "admin_pos.php?action=pay" "$BODY")"
+  aeq "#D zaplacený účet nezískal platbu navíc (0)" "0" \
+    "$(q "SELECT COUNT(*) FROM restaurant_pos_platby WHERE ucet_id=$PU")"
+  # #E: položka na 'paid' účet → 409
+  BODY="{\"ucet_id\":$PU,\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1,\"jednotkova_cena\":100}"
+  aeq "#E položka na zaplacený účet → 409" "409" "$(http POST "admin_pos.php?action=item" "$BODY")"
+  # #F: nulová/záporná platba na otevřený účet → 400 (input guard, bez mutace stavu)
+  FU="$(q "INSERT INTO restaurant_pos_ucty (stul_id,otevrel_jmeno) VALUES ($STUL_ID,'SMOKE #F'); SELECT LAST_INSERT_ID()")"
+  BODY="{\"ucet_id\":$FU,\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1,\"jednotkova_cena\":100}"
+  api POST "admin_pos.php?action=item" "$BODY" >/dev/null
+  BODY="{\"ucet_id\":$FU,\"platby\":[{\"castka\":0,\"zpusob\":\"hotovost\"}]}"
+  aeq "#F platba 0 Kč → 400" "400" "$(http POST "admin_pos.php?action=pay" "$BODY")"
+  BODY="{\"ucet_id\":$FU,\"platby\":[{\"castka\":-500,\"zpusob\":\"hotovost\"}]}"
+  aeq "#F záporná platba → 400 (ne záporná tržba)" "400" "$(http POST "admin_pos.php?action=pay" "$BODY")"
+  # #D legit (NAKONEC — jediná úspěšná platba, nic mutujícího po ní): otevřený účet → 200
+  DU="$(q "INSERT INTO restaurant_pos_ucty (stul_id,otevrel_jmeno) VALUES ($STUL_ID,'SMOKE #D'); SELECT LAST_INSERT_ID()")"
+  BODY="{\"ucet_id\":$DU,\"vyrobek_id\":$VYR_ID,\"mnozstvi\":2,\"jednotkova_cena\":100}"
+  api POST "admin_pos.php?action=item" "$BODY" >/dev/null
+  DSUMA="$(q "SELECT suma_kc FROM restaurant_pos_ucty WHERE id=$DU")"
+  BODY="{\"ucet_id\":$DU,\"platby\":[{\"castka\":$DSUMA,\"zpusob\":\"hotovost\"}]}"
+  aeq "#D plná platba otevřeného účtu (suma $DSUMA) → 200" "200" "$(http POST "admin_pos.php?action=pay" "$BODY")"
+  aeq "#D po platbě: 'paid' + právě 1 platba" "paid|1" \
+    "$(q "SELECT CONCAT(stav,'|',(SELECT COUNT(*) FROM restaurant_pos_platby WHERE ucet_id=$DU)) FROM restaurant_pos_ucty WHERE id=$DU")"
+  q "DELETE FROM restaurant_pos_platby WHERE ucet_id IN ($DU,$PU,$FU); DELETE FROM restaurant_pos_polozky WHERE ucet_id IN ($DU,$PU,$FU); DELETE FROM restaurant_pos_ucty WHERE id IN ($DU,$PU,$FU)" >/dev/null
+else sk "#D/E/F platby" "chybí stůl/výrobek"; fi
 
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže

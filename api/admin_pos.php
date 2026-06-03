@@ -318,6 +318,13 @@ if ($method === 'POST' && $action === 'item') {
     $ucetId = (int) ($d['ucet_id'] ?? 0);
     if (!$ucetId) json_error('Chybí ucet_id', 400);
 
+    // 🆕 v3.0.154 BUG E — nelze přidávat položky na uzavřený (ani neexistující) účet
+    $uStav = $pdo->prepare("SELECT stav FROM restaurant_pos_ucty WHERE id = :id");
+    $uStav->execute(['id' => $ucetId]);
+    $uStavVal = $uStav->fetchColumn();
+    if ($uStavVal === false) json_error('Účet neexistuje', 404);
+    if (in_array($uStavVal, ['paid','cancelled','merged','split'], true)) json_error('Účet je uzavřený (' . $uStavVal . '), nelze přidávat položky', 409);
+
     $vyrobekId = !empty($d['vyrobek_id']) ? (int) $d['vyrobek_id'] : null;
     $nazev = trim($d['nazev'] ?? '');
     $cena  = (float) ($d['jednotkova_cena'] ?? 0);
@@ -407,8 +414,19 @@ if ($method === 'POST' && $action === 'pay') {
     $platby = $d['platby'] ?? [];
     if (!$ucetId || !is_array($platby) || empty($platby)) json_error('Chybí ucet_id nebo platby', 400);
 
+    // 🆕 v3.0.154 BUG F — žádná platba ≤ 0 (záporná/nulová částka korumpuje tržbu)
+    foreach ($platby as $p) {
+        if ((float) ($p['castka'] ?? 0) <= 0) json_error('Částka platby musí být kladná', 400);
+    }
+
     try {
         $pdo->beginTransaction();
+        // 🆕 v3.0.154 BUG D — zamkni účet + ověř, že není už uzavřený (double-pay → duplicitní tržba)
+        $lock = $pdo->prepare("SELECT stav FROM restaurant_pos_ucty WHERE id = :id FOR UPDATE");
+        $lock->execute(['id' => $ucetId]);
+        $payStav = $lock->fetchColumn();
+        if ($payStav === false) { $pdo->rollBack(); json_error('Účet neexistuje', 404); }
+        if (!in_array($payStav, ['open','awaiting_payment'], true)) { $pdo->rollBack(); json_error('Účet už je uzavřený (' . $payStav . ')', 409); }
         // Insert platby
         $sumPaid = 0;
         $cislo = 'POS-' . date('Ymd') . '-' . $ucetId;
