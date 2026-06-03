@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.149';
+const APPEK_ADMIN_JS_VERSION = '3.0.150';
 
 (async function detectStaleCode() {
   try {
@@ -24599,6 +24599,12 @@ window.otevritFixniNaklady = async function() {
     try {
       await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ naklady_polozky: JSON.stringify(out) }) });
       overlay.remove();
+      // 🆕 v3.0.150 — živé propojení s Výrobní kalkulací: po uložení rovnou obnov picker
+      // fixních plateb (jinak se nový seznam projevil až po reloadu stránky).
+      if (typeof vkState !== 'undefined') {
+        vkState.sablonyFixni = out;
+        if (document.querySelector('.vk-grid') && typeof vkRender === 'function') vkRender();
+      }
       const toast = document.createElement('div');
       toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:14px 22px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:14px;font-weight:500;z-index:9999';
       toast.textContent = '✓ Fixní náklady uloženy';
