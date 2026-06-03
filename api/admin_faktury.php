@@ -169,6 +169,21 @@ if ($method === 'PUT') {
     if (empty($d['id'])) json_error('Chybí ID');
     $fa_id = (int) $d['id'];
 
+    // 🆕 v3.0.155 — ověř existenci faktury (jinak tichý no-op UPDATE) + získej celkem pro validaci úhrady
+    $faRow = $pdo->prepare("SELECT castka_celkem FROM faktury WHERE id = :id");
+    $faRow->execute(['id' => $fa_id]);
+    $faCelkem = $faRow->fetchColumn();
+    if ($faCelkem === false) json_error('Faktura neexistuje', 404);
+
+    // 🆕 v3.0.155 — validace úhrady: číselná, ≥ 0, ne přes částku faktury.
+    //   Dřív: záporná → záporná pohledávka, ne-číselná → 500, přeplatek překlepem → tichý zápis.
+    if (isset($d['castka_uhrazeno'])) {
+        if (!is_numeric($d['castka_uhrazeno'])) json_error('Úhrada musí být číslo', 400);
+        $uhr = (float) $d['castka_uhrazeno'];
+        if ($uhr < 0) json_error('Úhrada nesmí být záporná', 400);
+        if ($uhr > (float) $faCelkem + 0.01) json_error('Úhrada (' . $uhr . ') přesahuje částku faktury (' . $faCelkem . ' Kč)', 400);
+    }
+
     // Změny položek (polozky_zmeny: [{polozka_id, mnozstvi}, ...])
     if (!empty($d['polozky_zmeny']) && is_array($d['polozky_zmeny'])) {
         $pdo->beginTransaction();

@@ -345,6 +345,25 @@ if [[ -n "$STUL_ID" && -n "$VYR_ID" ]]; then
   q "DELETE FROM restaurant_pos_platby WHERE ucet_id IN ($DU,$PU,$FU); DELETE FROM restaurant_pos_polozky WHERE ucet_id IN ($DU,$PU,$FU); DELETE FROM restaurant_pos_ucty WHERE id IN ($DU,$PU,$FU)" >/dev/null
 else sk "#D/E/F platby" "chybí stůl/výrobek"; fi
 
+sec "#G — validace úhrady faktury (z adversariálního testu v3.0.155)"
+if [[ -n "$ODB_ID" ]]; then
+  q "DELETE FROM faktury WHERE cislo='SMOKE-G'" >/dev/null
+  GFA="$(q "INSERT INTO faktury (cislo,odberatel_id,castka_bez_dph,castka_dph,castka_celkem,castka_uhrazeno,datum_vystaveni,datum_splatnosti) VALUES ('SMOKE-G',$ODB_ID,900,100,1000,0,CURDATE(),DATE_ADD(CURDATE(),INTERVAL 14 DAY)); SELECT LAST_INSERT_ID()")"
+  BODY="{\"id\":$GFA,\"castka_uhrazeno\":-500}"
+  aeq "#G faktura: záporná úhrada → 400" "400" "$(http PUT "admin_faktury.php" "$BODY")"
+  BODY="{\"id\":$GFA,\"castka_uhrazeno\":999999}"
+  aeq "#G faktura: přeplatek > částka → 400" "400" "$(http PUT "admin_faktury.php" "$BODY")"
+  BODY="{\"id\":$GFA,\"castka_uhrazeno\":\"abc\"}"
+  aeq "#G faktura: ne-číselná úhrada → 400 (ne 500)" "400" "$(http PUT "admin_faktury.php" "$BODY")"
+  BODY="{\"id\":99999999,\"castka_uhrazeno\":1}"
+  aeq "#G faktura: neexistující → 404" "404" "$(http PUT "admin_faktury.php" "$BODY")"
+  BODY="{\"id\":$GFA,\"castka_uhrazeno\":1000}"
+  aeq "#G faktura: legit plná úhrada → 200" "200" "$(http PUT "admin_faktury.php" "$BODY")"
+  aeq "#G faktura: po plné úhradě datum_uhrazeni nastaveno" "ano" \
+    "$(q "SELECT IF(datum_uhrazeni IS NOT NULL,'ano','ne') FROM faktury WHERE id=$GFA")"
+  q "DELETE FROM faktury WHERE id=$GFA" >/dev/null
+else sk "#G faktura úhrada" "chybí odběratel"; fi
+
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
 # sdílená session by paralelní requesty serializovala; multi-login zase naráží na
