@@ -1610,7 +1610,11 @@ html.dark .termo-printer-row, html.dark .termo-mode { background: rgba(255,255,2
   }
 }
 
-@media (max-width: 1200px) { .dashboard-recent-row { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 1200px) {
+  .dashboard-recent-row { grid-template-columns: 1fr 1fr; }
+  /* 🆕 v3.0.157 — poslední karta sama v řádku (lichá ve 2-kolonách) → roztáhni přes obě, ať nezbývá prázdné místo */
+  .dashboard-recent-row > .recent-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
 @media (max-width: 700px)  { .dashboard-recent-row { grid-template-columns: 1fr; gap: 10px; align-items: stretch; } }
 
 /* 🆕 v3.0.38 — Mobile DL overflow safety net (user reported na mobilu DL přetýkají z přehledu) */
@@ -9009,6 +9013,8 @@ body.has-bulk-bar .main-content {
 
   /* Dashboard recent — 2 sloupce */
   .dashboard-recent-row { grid-template-columns: 1fr 1fr !important; }
+  /* 🆕 v3.0.157 — poslední lichá karta přes obě kolony (žádné prázdné místo) */
+  .dashboard-recent-row > .recent-card:last-child:nth-child(odd) { grid-column: 1 / -1 !important; }
 
   /* Větší klikatelné prvky pro touch */
   .btn-primary, .btn-secondary { min-height: 40px; padding: 10px 16px; }

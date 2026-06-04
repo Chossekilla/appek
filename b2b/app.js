@@ -1060,7 +1060,7 @@ function renderCatalog() {
  */
 function renderCatalogGrid(vyrobky) {
   const isWide = window.innerWidth >= 600;
-  const gridCols = isWide ? 'repeat(auto-fill, minmax(220px, 1fr))' : '1fr 1fr';
+  const gridCols = isWide ? 'repeat(auto-fill, minmax(180px, 1fr))' : '1fr 1fr';
   const gridGap = isWide ? '14px' : '8px';
   const gridStyle = `display:grid;grid-template-columns:${gridCols};gap:${gridGap};`;
 
@@ -2078,19 +2078,29 @@ async function renderHistory() {
 // =============================================================
 async function renderStats() {
   const c = document.getElementById('content');
-  c.innerHTML = `<h1 class="section-title">Přehled za měsíc</h1><p class="section-sub">Načítám…</p>`;
+  // 🆕 v3.0.157 — filtr období (default tento měsíc). Demo/noví: data bývají z min. měsíce.
+  const period = state._statsPeriod || 'mesic';
+  const PERIODS = [['mesic', 'Tento měsíc'], ['minuly', 'Minulý měsíc'], ['90', '90 dní'], ['vse', 'Vše']];
+  const label = (PERIODS.find(p => p[0] === period) || PERIODS[0])[1];
+  const chips = PERIODS.map(([k, l]) => {
+    const a = k === period;
+    return `<button onclick="b2bSetStatsPeriod('${k}')" style="padding:6px 14px;border-radius:999px;border:1.5px solid ${a ? 'var(--primary)' : 'var(--border)'};background:${a ? 'var(--primary)' : 'var(--surface)'};color:${a ? '#fff' : 'var(--text-2)'};font-weight:600;font-size:13px;cursor:pointer;transition:all .15s">${l}</button>`;
+  }).join('');
+  const head = `
+    <h1 class="section-title">Přehled</h1>
+    <p class="section-sub">Statistiky · ${esc(label)}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px">${chips}</div>`;
+  c.innerHTML = head + `<p class="section-sub">Načítám…</p>`;
   try {
-    const data = await api('statistiky.php');
-    c.innerHTML = `
-      <h1 class="section-title">Přehled za měsíc</h1>
-      <p class="section-sub">Statistiky za tento měsíc</p>
+    const data = await api('statistiky.php?period=' + encodeURIComponent(period));
+    c.innerHTML = head + `
       <div class="stat-grid">
         <div class="stat"><div class="stat-label">Objednávek</div><div class="stat-value">${data.souhrn.objednavek}</div></div>
         <div class="stat"><div class="stat-label">Útrata</div><div class="stat-value">${fmt(data.souhrn.utrata)}</div></div>
         <div class="stat"><div class="stat-label">Průměr</div><div class="stat-value">${fmt(data.souhrn.prumer)}</div></div>
       </div>
       <h2 style="font-size:16px; font-weight:500; margin: 20px 0 8px;">Nejčastěji objednávané výrobky</h2>
-      ${data.top_vyrobky.length === 0 ? '<div class="empty">Žádná data</div>' : `
+      ${data.top_vyrobky.length === 0 ? '<div class="empty">Žádná data v tomto období</div>' : `
         <div class="checkout-section">
           ${data.top_vyrobky.map((t) => `
             <div class="bar-row">
@@ -2102,9 +2112,10 @@ async function renderStats() {
       `}
     `;
   } catch (e) {
-    c.innerHTML = `<h1 class="section-title">Přehled</h1><p style="color:var(--danger-text)">Chyba: ${esc(e.message)}</p>`;
+    c.innerHTML = head + `<p style="color:var(--danger-text)">Chyba: ${esc(e.message)}</p>`;
   }
 }
+window.b2bSetStatsPeriod = function(p) { state._statsPeriod = p; renderStats(); };
 
 // =============================================================
 // BOOTSTRAP

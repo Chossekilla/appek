@@ -79,7 +79,7 @@ a:hover { text-decoration: underline; }
 /* =========================================================
    HLAVNÍ LAYOUT
    ========================================================= */
-.app { max-width: 1400px; margin: 0 auto; padding: 16px; }
+.app { max-width: 1680px; margin: 0 auto; padding: 16px; }
 .header {
   background: var(--surface);
   border-radius: var(--radius-lg);
@@ -499,7 +499,8 @@ html.dark .cart-item:hover { background: var(--primary-light); color: var(--prim
   gap: 8px;
 }
 @media (min-width: 600px) {
-  .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important; gap: 14px; }
+  /* 🆕 v3.0.157 — menší min (220→180) = víc produktů na řádek na širších monitorech (+ .app cap 1680) */
+  .grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; gap: 14px; }
 }
 .card {
   background: var(--surface);
@@ -4564,4 +4565,16 @@ main, .layout { padding: var(--fl-py) var(--fl-px) !important; gap: var(--fl-gap
 .stat-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
   gap: var(--fl-gap);
+}
+
+/* =========================================================
+   🆕 v3.0.157 — KATALOG: jednotný responzivní grid napříč breakpointy.
+   Starší per-device pravidla měla fixní repeat(3/4/5,1fr) → na širších
+   monitorech zbývalo prázdné místo a bylo vidět málo produktů. Tenhle blok
+   je POSLEDNÍ + !important → vyhraje. auto-fill vyplní celou šířku (žádné
+   prázdné místo) a škáluje počet sloupců s velikostí okna. + širší .app cap.
+   ========================================================= */
+@media (min-width: 601px) {
+  .app { max-width: 1680px !important; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; }
 }
