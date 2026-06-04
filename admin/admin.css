@@ -2092,6 +2092,8 @@ body.role-restricted .admin-only { display: none !important; }
   margin-left: auto;
   width: 28px;
   height: 28px;
+  /* 🆕 v3.0.159 — flex-shrink:0 (pevných 28×28) — jinak se na úzkém mobilu zúžil do oválku */
+  flex: 0 0 28px;
   border-radius: 50%;
   background: rgba(133, 79, 11, 0.1);
   border: none;
@@ -2115,7 +2117,10 @@ body.role-restricted .admin-only { display: none !important; }
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  margin-left: auto;
+  /* 🆕 v3.0.159 — margin-left:0 (NE auto) → badge zůstane hned u titulku. (Dřív měl auto
+     i dismiss → dva auto-marginy si rozdělily volné místo → „1" lítalo doprostřed lišty.) */
+  margin-left: 0;
+  flex: 0 0 auto;
 }
 .dash-alerts-list {
   display: grid;
