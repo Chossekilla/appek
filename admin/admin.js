@@ -11781,6 +11781,9 @@ window.editVyrobek = async function(id = null) {
   ]);
   const v = id ? await api(`admin_vyrobky.php?id=${id}`) : {};
 
+  // 🆕 v3.0.156 — kuchyňské stanice pro pole „Doba přípravy + stanice" (jen balíček Restaurace; 402/chyba → bez sekce)
+  data.stanice = await api('admin_kitchen.php').then(r => r.stanice || []).catch(() => []);
+
   // Pro nový výrobek — předvyplň další volné číslo (max + 1)
   if (!id && !v.cislo) {
     try {
@@ -11911,6 +11914,25 @@ window.editVyrobek = async function(id = null) {
           </div>
         </div>
       </div>
+      ${(data.stanice && data.stanice.length) ? `
+      <!-- 🍳 KUCHYNĚ (KDS) — jen s balíčkem Restaurace (existují stanice) -->
+      <div class="full vy-section-box">
+        <div class="vy-section-title">🍳 Kuchyně (KDS)</div>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
+          <div>
+            <label class="form-label">⏱️ Doba přípravy (min)</label>
+            <input class="form-input" id="vy-prep" type="number" min="0" step="1" value="${v.priprava_min ?? 10}">
+          </div>
+          <div>
+            <label class="form-label">Kuchyňská stanice</label>
+            <select class="form-select" id="vy-station">
+              <option value="0">— Žádná —</option>
+              ${data.stanice.map((s) => `<option value="${s.id}" ${v.kitchen_station_id == s.id ? 'selected' : ''}>${esc(s.ikona)} ${esc(s.nazev)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-3);margin-top:6px">Po objednání v POS se položka objeví na kuchyňském boardu u této stanice s touto dobou přípravy.</div>
+      </div>` : ''}
       <div class="full vy-section-box vy-nutr-section">
         <div class="vy-section-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
           <span>🥗 Nutriční hodnoty <span style="color:var(--text-3);font-weight:400;font-size:11px">(na 100 g výrobku)</span></span>
@@ -12569,6 +12591,9 @@ window.ulozitVyrobek = async function(id) {
     je_doprodej: document.getElementById('vy-doprodej')?.checked ? 1 : 0,
     je_vyprodano: document.getElementById('vy-vyprodano')?.checked ? 1 : 0,
     slozeni_polozky: vyCollectSlozeni(),
+    // 🆕 v3.0.156 — doba přípravy + kuchyňská stanice (jen když je sekce vyrenderovaná = balíček Restaurace)
+    ...(document.getElementById('vy-prep') ? { priprava_min: parseInt(document.getElementById('vy-prep').value) || 0 } : {}),
+    ...(document.getElementById('vy-station') ? { kitchen_station_id: parseInt(document.getElementById('vy-station').value) || null } : {}),
   };
 
   // Validace s konkrétními hláškami (snáz se zjistí, co chybí)
@@ -19608,6 +19633,10 @@ async function renderKitchenCapacity() {
               <input type="checkbox" id="ks-ab" ${parseInt(settings.auto_block)===1 ? 'checked' : ''}>
               <span>Auto-blokovat nové objednávky když je plno</span>
             </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="ks-af" ${parseInt(settings.auto_fire ?? 1)===1 ? 'checked' : ''}>
+              <span>🍳 Automaticky posílat položky do kuchyně při přidání <span style="color:var(--text-3);font-size:11px">(vypnuto = až tlačítkem „Odeslat do kuchyně")</span></span>
+            </label>
             <button class="btn-primary btn-green" onclick="kitchenSettingsSave()">💾 Uložit nastavení</button>
           </div>
         </div>
@@ -19625,6 +19654,7 @@ window.kitchenSettingsSave = async function() {
       otevreno_od: document.getElementById('ks-od').value || null,
       otevreno_do: document.getElementById('ks-do').value || null,
       auto_block: document.getElementById('ks-ab').checked ? 1 : 0,
+      auto_fire: document.getElementById('ks-af').checked ? 1 : 0,
     })});
     toastSuccess('Nastavení uloženo');
     renderKitchenCapacity();

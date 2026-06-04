@@ -364,6 +364,36 @@ if [[ -n "$ODB_ID" ]]; then
   q "DELETE FROM faktury WHERE id=$GFA" >/dev/null
 else sk "#G faktura úhrada" "chybí odběratel"; fi
 
+sec "#H — doba přípravy výrobku + propojení POS→kuchyně (KDS) (feature v3.0.156)"
+api GET "admin_kitchen.php" >/dev/null 2>&1   # vytvoří/seed kuchyňské tabulky (vyžaduje balíček restaurace)
+KSTN="$(q "SELECT id FROM kitchen_stations WHERE aktivni=1 ORDER BY poradi LIMIT 1")"
+if [[ -n "$STUL_ID" && -n "$VYR_ID" && -n "$KSTN" ]]; then
+  BODY="{\"id\":$VYR_ID,\"priprava_min\":17,\"kitchen_station_id\":$KSTN}"
+  api PUT "admin_vyrobky.php" "$BODY" >/dev/null
+  aeq "#H výrobek persistoval priprava_min=17" "17" "$(q "SELECT priprava_min FROM vyrobky WHERE id=$VYR_ID")"
+  aeq "#H výrobek persistoval kuchyňskou stanici" "$KSTN" "$(q "SELECT kitchen_station_id FROM vyrobky WHERE id=$VYR_ID")"
+  api POST "admin_kitchen.php?action=settings" '{"auto_fire":1,"auto_block":1,"max_paralelni_objednavky":8,"max_min_priprava":25,"slot_velikost_min":15}' >/dev/null
+  HU="$(q "INSERT INTO restaurant_pos_ucty (stul_id,otevrel_jmeno) VALUES ($STUL_ID,'SMOKE #H'); SELECT LAST_INSERT_ID()")"
+  BODY="{\"ucet_id\":$HU,\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1,\"jednotkova_cena\":100}"
+  HRESP="$(api POST "admin_pos.php?action=item" "$BODY")"
+  aeq "#H auto-fire: položka odeslána do kuchyně (kitchen_fired=1)" "1" "$(jval "$HRESP" "['kitchen_fired']")"
+  HIT="$(q "SELECT id FROM restaurant_pos_polozky WHERE ucet_id=$HU ORDER BY id DESC LIMIT 1")"
+  aeq "#H queue: stanice z výrobku" "$KSTN" "$(q "SELECT station_id FROM kitchen_queue WHERE polozka_id=$HIT AND objednavka_id IS NULL")"
+  aeq "#H queue: doba přípravy 17 z výrobku" "17" "$(q "SELECT priprava_min FROM kitchen_queue WHERE polozka_id=$HIT AND objednavka_id IS NULL")"
+  api POST "admin_kitchen.php?action=settings" '{"auto_fire":0,"auto_block":1,"max_paralelni_objednavky":8,"max_min_priprava":25,"slot_velikost_min":15}' >/dev/null
+  HU2="$(q "INSERT INTO restaurant_pos_ucty (stul_id,otevrel_jmeno) VALUES ($STUL_ID,'SMOKE #H2'); SELECT LAST_INSERT_ID()")"
+  BODY="{\"ucet_id\":$HU2,\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1,\"jednotkova_cena\":100}"
+  HR2="$(api POST "admin_pos.php?action=item" "$BODY")"
+  aeq "#H ruční režim: NEfiruje při přidání (kitchen_fired=0)" "0" "$(jval "$HR2" "['kitchen_fired']")"
+  HIT2="$(q "SELECT id FROM restaurant_pos_polozky WHERE ucet_id=$HU2 ORDER BY id DESC LIMIT 1")"
+  BODY="{\"ucet_id\":$HU2}"
+  HFR="$(api POST "admin_pos.php?action=fire_kitchen" "$BODY")"
+  aeq "#H fire_kitchen vystřelí (fired=1)" "1" "$(jval "$HFR" "['fired']")"
+  aeq "#H po ručním fire JE v queue" "1" "$(q "SELECT COUNT(*) FROM kitchen_queue WHERE polozka_id=$HIT2 AND objednavka_id IS NULL")"
+  api POST "admin_kitchen.php?action=settings" '{"auto_fire":1,"auto_block":1,"max_paralelni_objednavky":8,"max_min_priprava":25,"slot_velikost_min":15}' >/dev/null
+  q "DELETE FROM kitchen_queue WHERE polozka_id IN ($HIT,$HIT2); DELETE FROM restaurant_pos_polozky WHERE ucet_id IN ($HU,$HU2); DELETE FROM restaurant_pos_ucty WHERE id IN ($HU,$HU2)" >/dev/null
+else sk "#H kuchyně/prep" "chybí stůl/výrobek/stanice (balíček restaurace?)"; fi
+
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
 # sdílená session by paralelní requesty serializovala; multi-login zase naráží na

@@ -1451,6 +1451,7 @@
 
         <footer class="pos-tm-foot">
           <button class="pos-tm-btn" id="pos-tbl-bon">🍳 Tisk bonu</button>
+          <button class="pos-tm-btn" id="pos-tbl-kitchen">📨 Do kuchyně</button>
           <button class="pos-tm-btn" id="pos-tbl-ucet">📤 Tisk účtu</button>
           <button class="pos-tm-btn" id="pos-tbl-qr">📲 QR platba</button>
           <button class="pos-tm-btn is-danger" id="pos-tbl-reopen" style="display:none">🔓 Znovu otevřít</button>
@@ -1485,6 +1486,14 @@
         'appek_bon_print', 'width=380,height=640,toolbar=no');
       if (!w) return toast('Povolte popup okna pro tisk', 'error');
       toast('🍳 Bon odeslán na tisk', 'success');
+    };
+    // 🆕 v3.0.156 — odeslat nevystřelené položky účtu na KDS board (ruční režim; idempotentní)
+    document.getElementById('pos-tbl-kitchen').onclick = async () => {
+      try {
+        const r = await api('admin_pos.php?action=fire_kitchen', { method:'POST', body: JSON.stringify({ ucet_id: ucetId }) });
+        const n = r.fired || 0;
+        toast(n > 0 ? `🍳 Odesláno ${n} pol. do kuchyně` : 'Vše už je v kuchyni 👍', n > 0 ? 'success' : 'info');
+      } catch (e) { toast('Chyba: ' + e.message, 'error'); }
     };
     document.getElementById('pos-tbl-ucet').onclick = () => {
       const w = window.open(`../api/admin_pos_print.php?ucet_id=${ucetId}&typ=ucet&autoprint=1`,

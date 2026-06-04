@@ -213,6 +213,60 @@ function aktualni_admin(PDO $pdo): array {
 }
 
 /**
+ * 🆕 v3.0.156 — POS → kuchyně (KDS). Položky se vkládají do kitchen_queue se stanicí
+ * a dobou přípravy načtenou z výrobku. Volá se SOFT-FAIL (try/catch na call-site), aby
+ * výpadek kuchyně nikdy neshodil objednávku/účet.
+ */
+function kitchen_auto_fire(PDO $pdo): bool {
+    try {
+        $v = $pdo->query("SELECT auto_fire FROM kitchen_settings WHERE id=1")->fetchColumn();
+        return $v === false ? true : (bool) $v; // default ZAP; chybí-li tabulka → catch → ne
+    } catch (Throwable $e) { return false; }
+}
+
+function pos_kitchen_insert(PDO $pdo, array $items, ?int $objId, string $pozn): int {
+    if (!$items) return 0;
+    $ins = $pdo->prepare("INSERT INTO kitchen_queue
+        (objednavka_id, polozka_id, station_id, vyrobek_nazev, mnozstvi, priprava_min, stav, cas_pridani, poznamka)
+        VALUES (:o,:p,:s,:n,:m,:pm,'queued',NOW(),:pozn)");
+    $vget = $pdo->prepare("SELECT priprava_min, kitchen_station_id FROM vyrobky WHERE id = :id");
+    $n = 0;
+    foreach ($items as $it) {
+        $pm = 10; $sid = null;
+        if (!empty($it['vyrobek_id'])) {
+            $vget->execute(['id' => (int) $it['vyrobek_id']]);
+            $v = $vget->fetch(PDO::FETCH_ASSOC);
+            if ($v) {
+                $pm  = (int) ($v['priprava_min'] ?? 10);
+                $sid = ($v['kitchen_station_id'] ?? null) !== null ? (int) $v['kitchen_station_id'] : null;
+            }
+        }
+        $ins->execute([
+            'o' => $objId, 'p' => $it['polozka_id'] ?? null, 's' => $sid,
+            'n' => $it['nazev'] ?? '?', 'm' => (float) ($it['mnozstvi'] ?? 1), 'pm' => $pm, 'pozn' => $pozn,
+        ]);
+        $n++;
+    }
+    return $n;
+}
+
+/** Vystřelí nevystřelené (ne-storno) položky stolního účtu do kuchyně. Idempotentní (dle polozka_id). Vrací počet. */
+function pos_fire_ucet_to_kitchen(PDO $pdo, int $ucetId): int {
+    $st = $pdo->prepare("SELECT t.nazev FROM restaurant_pos_ucty u LEFT JOIN restaurant_tables t ON t.id = u.stul_id WHERE u.id = :u");
+    $st->execute(['u' => $ucetId]);
+    $stul = $st->fetchColumn();
+    $pozn = $stul ? ('Stůl ' . $stul) : ('Účet #' . $ucetId);
+    $q = $pdo->prepare("
+        SELECT p.id AS polozka_id, p.vyrobek_id, p.nazev, p.mnozstvi
+        FROM restaurant_pos_polozky p
+        WHERE p.ucet_id = :u AND p.stav <> 'storno'
+          AND NOT EXISTS (SELECT 1 FROM kitchen_queue k WHERE k.polozka_id = p.id AND k.objednavka_id IS NULL)
+    ");
+    $q->execute(['u' => $ucetId]);
+    return pos_kitchen_insert($pdo, $q->fetchAll(PDO::FETCH_ASSOC), null, $pozn);
+}
+
+/**
  * 🆕 v3.0.143 — POS prodej → odpis surovin dle receptury ze skladu.
  * Fix díry: POS/stolní prodej dříve neodepisoval suroviny (sklad ingrediencí nepřesný).
  *
@@ -359,7 +413,30 @@ if ($method === 'POST' && $action === 'item') {
     ]);
     $itemId = (int) $pdo->lastInsertId();
     recalc_ucet_total($pdo, $ucetId);
-    json_response(['ok' => true, 'id' => $itemId]);
+
+    // 🆕 v3.0.156 — auto-fire do kuchyně (KDS), pokud je v nastavení zapnuto. Soft-fail.
+    $fired = 0;
+    try { if (kitchen_auto_fire($pdo)) $fired = pos_fire_ucet_to_kitchen($pdo, $ucetId); }
+    catch (Throwable $e) { /* kuchyně ne-fatal */ }
+
+    json_response(['ok' => true, 'id' => $itemId, 'kitchen_fired' => $fired]);
+}
+
+// 🆕 v3.0.156 POST ?action=fire_kitchen → ručně vystřelí nevystřelené položky účtu do kuchyně (KDS)
+//   Použití v ručním režimu (kitchen_settings.auto_fire = 0) tlačítkem v POS.
+if ($method === 'POST' && $action === 'fire_kitchen') {
+    $d = json_input();
+    $ucetId = (int) ($d['ucet_id'] ?? 0);
+    if (!$ucetId) json_error('Chybí ucet_id', 400);
+    $stEx = $pdo->prepare("SELECT 1 FROM restaurant_pos_ucty WHERE id = :id");
+    $stEx->execute(['id' => $ucetId]);
+    if (!$stEx->fetchColumn()) json_error('Účet neexistuje', 404);
+    try {
+        $n = pos_fire_ucet_to_kitchen($pdo, $ucetId);
+        json_response(['ok' => true, 'fired' => $n]);
+    } catch (Throwable $e) {
+        json_error_safe('Odeslání do kuchyně selhalo', $e, 500);
+    }
 }
 
 // 🔄 POST ?action=item_state → změna stavu položky (KDS workflow)
@@ -1185,6 +1262,24 @@ if ($method === 'POST' && $action === 'quick_order') {
             }
             if ($sold) pos_deduct_ingredients($pdo, $sold, $cislo, 'POS');
         } catch (Throwable $e) { /* sklad odpis ne-fatal */ }
+
+        // 🆕 v3.0.156 — auto-fire do kuchyně (KDS): s sebou/rozvoz = hotová objednávka → vždy poslat
+        //   (jen reálné výrobky s vyrobek_id; sleva/tip/free-text se nevystřelují). Po commitu, soft-fail.
+        try {
+            if (kitchen_auto_fire($pdo)) {
+                $kitchenItems = [];
+                foreach ($polozky as $p) {
+                    if (!empty($p['vyrobek_id'])) $kitchenItems[] = [
+                        'vyrobek_id' => (int) $p['vyrobek_id'],
+                        'nazev'      => $p['nazev'] ?? '?',
+                        'mnozstvi'   => (float) ($p['mnozstvi'] ?? 1),
+                        'polozka_id' => null,
+                    ];
+                }
+                $poznKit = ($pos_typ === 'rozvoz' ? '🛵 Rozvoz' : '🥡 S sebou') . ' · ' . $cislo;
+                pos_kitchen_insert($pdo, $kitchenItems, $objId, $poznKit);
+            }
+        } catch (Throwable $e) { /* kuchyně ne-fatal */ }
 
         // Notifikace
         try {
