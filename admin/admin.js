@@ -30032,11 +30032,16 @@ window.vyTestoPrepocitat = function() {
   // Reset target
   if (targetEl) targetEl.value = '';
 
-  const t = document.createElement('div');
-  t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:12px 18px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);font-size:13px;font-weight:600;z-index:9999';
-  t.textContent = `✓ Přepočítáno na ${target} kg těsta (×${mult.toFixed(3).replace(/\.?0+$/, '').replace('.', ',')})`;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
+  // 🐛 v3.0.158 — POZOR: NEpoužívat zde `const t` — stínilo by globální i18n t() použité
+  //   výše v confirm(t('confirm_recalc_recipe',…)) → TDZ ReferenceError → přepočet spadl.
+  const toastEl = document.createElement('div');
+  toastEl.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:12px 18px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);font-size:13px;font-weight:600;z-index:9999';
+  toastEl.textContent = `✓ Přepočítáno na ${target} kg těsta (×${mult.toFixed(3).replace(/\.?0+$/, '').replace('.', ',')})`;
+  document.body.appendChild(toastEl);
+  setTimeout(() => toastEl.remove(), 2500);
+
+  // 🆕 v3.0.158 — po přepočtu obnov kalkulaci nákladů (jinak zůstane stará/nulová)
+  if (document.querySelector('#vy-kalkulace-out table')) { try { vyKalkulace(); } catch (e) {} }
 };
 
 window.vyCollectSlozeni = function() {
