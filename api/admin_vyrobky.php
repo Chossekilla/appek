@@ -453,8 +453,9 @@ if ($method === 'POST') {
         INSERT INTO vyrobky (cislo, ean, nazev, popis, slozeni, alergeny, nutricni_hodnoty,
                              kategorie_id, jednotka_id, cena_bez_dph, sazba_dph_id,
                              hmotnost_g, obsah, obsah_jednotka, obrazek_url, min_objednavka,
-                             aktivni, oblibeny, je_akce, je_novinka, je_doprodej, je_vyprodano, poradi)
-        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:por)
+                             aktivni, oblibeny, je_akce, je_novinka, je_doprodej, je_vyprodano, poradi,
+                             priprava_min, kitchen_station_id)
+        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:por,:prip,:station)
     ");
     $stmt->execute([
         'cislo' => $d['cislo'] ?? null,
@@ -482,6 +483,9 @@ if ($method === 'POST') {
         'jdo' => isset($d['je_doprodej']) ? (int) $d['je_doprodej'] : 0,
         'jvy' => isset($d['je_vyprodano']) ? (int) $d['je_vyprodano'] : 0,
         'por' => $d['poradi'] ?? 0,
+        // 🆕 v3.0.156 — doba přípravy (min) + kuchyňská stanice (propojení do KDS)
+        'prip' => max(0, (int) ($d['priprava_min'] ?? 10)),
+        'station' => empty($d['kitchen_station_id']) ? null : (int) $d['kitchen_station_id'],
     ]);
     $new_id = (int) $pdo->lastInsertId();
 
@@ -517,6 +521,8 @@ if ($method === 'PUT') {
         'aktivni' => 'aktivni', 'oblibeny' => 'oblibeny', 'poradi' => 'poradi',
         'je_akce' => 'je_akce', 'je_novinka' => 'je_novinka',
         'je_doprodej' => 'je_doprodej', 'je_vyprodano' => 'je_vyprodano',
+        // 🆕 v3.0.156 — doba přípravy + kuchyňská stanice (KDS)
+        'priprava_min' => 'priprava_min', 'kitchen_station_id' => 'kitchen_station_id',
     ];
 
     $sets = []; $params = ['id' => (int) $d['id']];
@@ -536,6 +542,10 @@ if ($method === 'PUT') {
             } elseif ($jk === 'vyrobni_cena') {
                 $params[$dbk] = $d[$jk] === null || $d[$jk] === '' ? null : (float) $d[$jk];
             } elseif ($jk === 'haccp_graf_id') {
+                $params[$dbk] = ($d[$jk] === null || $d[$jk] === '' || (int) $d[$jk] === 0) ? null : (int) $d[$jk];
+            } elseif ($jk === 'priprava_min') {
+                $params[$dbk] = max(0, (int) $d[$jk]);
+            } elseif ($jk === 'kitchen_station_id') {
                 $params[$dbk] = ($d[$jk] === null || $d[$jk] === '' || (int) $d[$jk] === 0) ? null : (int) $d[$jk];
             } else {
                 $params[$dbk] = $d[$jk];

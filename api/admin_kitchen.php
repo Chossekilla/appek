@@ -32,10 +32,13 @@ $pdo->exec("
         otevreno_od TIME NULL,
         otevreno_do TIME NULL,
         auto_block TINYINT(1) NOT NULL DEFAULT 1,
+        auto_fire TINYINT(1) NOT NULL DEFAULT 1,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ");
 $pdo->exec("INSERT IGNORE INTO kitchen_settings (id, max_paralelni_objednavky) VALUES (1, 8)");
+// 🆕 v3.0.156 — auto_fire (posílat položky do kuchyně hned při přidání, vs ručně tlačítkem). Idempotentní pro existující instalace.
+try { $pdo->exec("ALTER TABLE kitchen_settings ADD COLUMN IF NOT EXISTS auto_fire TINYINT(1) NOT NULL DEFAULT 1"); } catch (Throwable $e) {}
 
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS kitchen_stations (
@@ -93,7 +96,8 @@ if ($action === 'settings' && $method === 'POST') {
             slot_velikost_min = :s,
             otevreno_od = :od,
             otevreno_do = :do,
-            auto_block = :ab
+            auto_block = :ab,
+            auto_fire = :af
         WHERE id = 1
     ")->execute([
         'm'  => (int) ($d['max_paralelni_objednavky'] ?? 8),
@@ -102,6 +106,7 @@ if ($action === 'settings' && $method === 'POST') {
         'od' => $d['otevreno_od'] ?? null,
         'do' => $d['otevreno_do'] ?? null,
         'ab' => !empty($d['auto_block']) ? 1 : 0,
+        'af' => isset($d['auto_fire']) ? (!empty($d['auto_fire']) ? 1 : 0) : 1,
     ]);
     json_response(['ok'=>true]);
 }
