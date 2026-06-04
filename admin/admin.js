@@ -945,7 +945,14 @@ function fmtAgo(iso) {
   return `${Math.floor(diff/86400)} d`;
 }
 
+// 🆕 v3.0.160 — globální vypnutí notifikací (per-device, localStorage). Toggle ve zvonku.
+window.notifMuted = () => { try { return localStorage.getItem('appek_notif_muted') === '1'; } catch (e) { return false; } };
 window.refreshNotifBadge = async function(triggerFresh = false) {
+  if (window.notifMuted()) {
+    const b = document.getElementById('btn-notifications');
+    if (b) b.classList.remove('has-unread');
+    return;
+  }
   try {
     const r = await api('admin_notifications.php' + (triggerFresh ? '?fresh=1' : ''));
     const badge = document.getElementById('notif-badge');
@@ -981,6 +988,7 @@ window.toggleNotifPanel = async function() {
     <div class="notif-head">
       <h3>🔔 Notifikace</h3>
       <div class="notif-actions">
+        <button id="notif-mute-btn" onclick="toggleNotifMute()" title="Zapnout/vypnout notifikace na tomto zařízení">${window.notifMuted && window.notifMuted() ? '🔔 Zapnout' : '🔕 Vypnout'}</button>
         <button onclick="markAllNotifRead()">✓ Vše přečteno</button>
       </div>
     </div>
@@ -995,9 +1003,24 @@ function closeNotifPanel() {
   if (window._notifPanelEl) window._notifPanelEl.classList.remove('show');
 }
 
+// 🆕 v3.0.160 — přepínač vypnutí/zapnutí notifikací (per-device, localStorage)
+window.toggleNotifMute = function() {
+  const willMute = !window.notifMuted();
+  try { localStorage.setItem('appek_notif_muted', willMute ? '1' : '0'); } catch (e) {}
+  const mb = document.getElementById('notif-mute-btn');
+  if (mb) mb.textContent = willMute ? '🔔 Zapnout' : '🔕 Vypnout';
+  refreshNotifBadge();
+  loadNotifList();
+  try { (window.toastInfo || window.toast || function(){})(willMute ? '🔕 Notifikace vypnuté' : '🔔 Notifikace zapnuté'); } catch (e) {}
+};
+
 async function loadNotifList(triggerFresh = false) {
   const host = document.getElementById('notif-list');
   if (!host) return;
+  if (window.notifMuted && window.notifMuted()) {
+    host.innerHTML = `<div class="notif-empty">🔕 Notifikace jsou vypnuté<br><button class="btn-secondary" style="margin-top:10px;font-size:12px;padding:6px 14px" onclick="toggleNotifMute()">🔔 Zapnout</button></div>`;
+    return;
+  }
   try {
     const r = await api('admin_notifications.php' + (triggerFresh ? '?fresh=1' : ''));
     const list = r.notifications || [];
@@ -14106,8 +14129,10 @@ async function renderNastaveni() {
 
     <!-- 🐛 Chyby aplikace — PŘESUNUTO nahoru do páru s API (v3.0.139) -->
 
+    <!-- 🆕 v3.0.160 — Licence & aktualizace + Activity log vedle sebe (2 sloupce) -->
+    <div class="nastaveni-row" style="margin-top:14px">
     <!-- 🔑 LICENCE & AKTUALIZACE -->
-    <div class="card-block" id="ns-license-block" style="margin-top:14px">
+    <div class="card-block" id="ns-license-block">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
         <h3 style="margin:0;display:flex;align-items:center;gap:8px">
           🔑 Licence &amp; aktualizace
@@ -14118,6 +14143,18 @@ async function renderNastaveni() {
         </div>
       </div>
       <div id="ns-license-info" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
+    </div>
+    <!-- 📜 ACTIVITY LOG (přesunuto sem do páru s Licencí) -->
+    <div class="card-block" id="ns-activity-block">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+        <h3 style="margin:0;display:flex;align-items:center;gap:8px">📜 Activity log</h3>
+        <button class="btn-secondary" onclick="loadActivityLog()" style="font-size:12px;padding:6px 12px">🔄 Refresh</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-3);margin:0 0 12px;line-height:1.5">
+        Posledních 5 akcí v aplikaci — login pokusy, sync operace, audit změn. Pro starší klikni na „Zobrazit více".
+      </p>
+      <div id="ns-activity-list" style="font-size:13px">⏳ Načítám…</div>
+    </div>
     </div>
 
     <!-- 🆕 v3.0.139 — 2 sloupce: Bezpečnostní list | Webhooks -->
@@ -14155,17 +14192,7 @@ async function renderNastaveni() {
     </div>
     </div>
 
-    <!-- 📜 ACTIVITY LOG -->
-    <div class="card-block" id="ns-activity-block" style="margin-top:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
-        <h3 style="margin:0;display:flex;align-items:center;gap:8px">📜 Activity log</h3>
-        <button class="btn-secondary" onclick="loadActivityLog()" style="font-size:12px;padding:6px 12px">🔄 Refresh</button>
-      </div>
-      <p style="font-size:12px;color:var(--text-3);margin:0 0 12px;line-height:1.5">
-        Posledních 5 akcí v aplikaci — login pokusy, sync operace, audit změn. Pro starší klikni na „Zobrazit více".
-      </p>
-      <div id="ns-activity-list" style="font-size:13px">⏳ Načítám…</div>
-    </div>
+    <!-- 📜 ACTIVITY LOG — přesunuto nahoru do páru s Licencí (v3.0.160) -->
 
     <!-- ☁️ SYNC S CLOUDEM — Phase 3 -->
     <div class="card-block" id="ns-sync-block" style="margin-top:14px">

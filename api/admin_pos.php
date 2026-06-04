@@ -1027,7 +1027,11 @@ if ($method === 'POST' && $action === 'quick_order') {
     $idempKey     = trim((string)($data['idempotency_key'] ?? ''));
 
     $allowed_typy     = ['sebou', 'na_miste', 'rozvoz', 'vyzvednuti'];
-    $allowed_payments = ['hotove', 'karta', 'paypal', 'gift_card', 'voucher', 'mobile'];
+    // 🆕 v3.0.160 — sjednoceno se zdrojem pravdy payment_methods.php (dřív chybělo 'qr_platba'
+    //   → POS ji nabídl, ale quick_order ji odmítl 400; 'paypal' byl naopak b2b-only).
+    //   Celý katalog metod → žádná zapnutá metoda nepadne na „Neplatná platební metoda".
+    $allowed_payments = ['hotove', 'karta', 'qr_platba', 'gift_card', 'voucher', 'mobile',
+                         'paypal', 'stripe', 'gopay', 'prevod', 'dobirka', 'faktura'];
     if (!in_array($pos_typ, $allowed_typy, true))         json_error('Neplatný typ objednávky', 400);
     if (!in_array($pos_payment, $allowed_payments, true)) json_error('Neplatná platební metoda', 400);
     if (empty($polozky) || !is_array($polozky))           json_error('Prázdný košík', 400);
