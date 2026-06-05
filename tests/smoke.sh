@@ -394,6 +394,21 @@ if [[ -n "$STUL_ID" && -n "$VYR_ID" && -n "$KSTN" ]]; then
   q "DELETE FROM kitchen_queue WHERE polozka_id IN ($HIT,$HIT2); DELETE FROM restaurant_pos_polozky WHERE ucet_id IN ($HU,$HU2); DELETE FROM restaurant_pos_ucty WHERE id IN ($HU,$HU2)" >/dev/null
 else sk "#H kuchyně/prep" "chybí stůl/výrobek/stanice (balíček restaurace?)"; fi
 
+sec "#I — sklad: inventura nesmí být záporná (z adversariálního testu v3.0.162)"
+ISKL="$(q "SELECT id FROM sklady ORDER BY id LIMIT 1")"
+if [[ -n "$SUR_ID" && -n "$ISKL" ]]; then
+  BODY="{\"sklad_id\":$ISKL,\"item_typ\":\"surovina\",\"item_id\":$SUR_ID,\"novy_stav\":-100}"
+  aeq "#I inventura záporná → 400 (ne záporný stav)" "400" "$(http POST "admin_sklad_pohyby.php?action=inventura" "$BODY")"
+  BODY="{\"sklad_id\":$ISKL,\"item_typ\":\"surovina\",\"item_id\":$SUR_ID,\"novy_stav\":7}"
+  aeq "#I inventura kladná → 200" "200" "$(http POST "admin_sklad_pohyby.php?action=inventura" "$BODY")"
+  aeq "#I sklad_polozky stav = 7 (ne záporný)" "7.000" \
+    "$(q "SELECT stav FROM sklad_polozky WHERE sklad_id=$ISKL AND item_typ='surovina' AND item_id=$SUR_ID")"
+  # navíc korekce do záporu musí dál 409 (pojistka konzistence)
+  BODY="{\"sklad_id\":$ISKL,\"item_typ\":\"surovina\",\"item_id\":$SUR_ID,\"mnozstvi\":-999,\"poznamka\":\"smoke\"}"
+  aeq "#I korekce do záporu → 409" "409" "$(http POST "admin_sklad_pohyby.php?action=korekce" "$BODY")"
+  q "DELETE FROM sklad_pohyby_v2 WHERE sklad_id=$ISKL AND item_id=$SUR_ID; DELETE FROM sklad_polozky WHERE sklad_id=$ISKL AND item_typ='surovina' AND item_id=$SUR_ID" >/dev/null
+else sk "#I sklad inventura" "chybí surovina/sklad"; fi
+
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
 # sdílená session by paralelní requesty serializovala; multi-login zase naráží na
