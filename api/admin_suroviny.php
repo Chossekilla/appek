@@ -629,6 +629,17 @@ if ($method === 'DELETE') {
         json_response(['ok' => true, 'deactivated' => true, 'pouzita_v_vyrobcich' => $pouzita]);
     }
 
+    // 🐛 fix v3.0.163 — integrita vazeb: hard-delete suroviny dříve nechával
+    // osiřelé skladové stavy + pohyby. sklad_polozky / sklad_pohyby_v2 nemají
+    // FK na suroviny (app-managed), proto je čistíme ručně. Soft-fail kvůli
+    // starším instancím, kde tyto tabulky ještě nemusí existovat.
+    try {
+        $pdo->prepare("DELETE FROM sklad_polozky WHERE item_typ = 'surovina' AND item_id = :id")->execute(['id' => $id]);
+    } catch (Exception $e) { error_log('admin_suroviny DELETE sklad_polozky: ' . $e->getMessage()); }
+    try {
+        $pdo->prepare("DELETE FROM sklad_pohyby_v2 WHERE item_typ = 'surovina' AND item_id = :id")->execute(['id' => $id]);
+    } catch (Exception $e) { error_log('admin_suroviny DELETE sklad_pohyby_v2: ' . $e->getMessage()); }
+
     $pdo->prepare("DELETE FROM suroviny WHERE id = :id")->execute(['id' => $id]);
     json_response(['ok' => true, 'deleted' => true]);
 }

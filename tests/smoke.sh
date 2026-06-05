@@ -409,6 +409,24 @@ if [[ -n "$SUR_ID" && -n "$ISKL" ]]; then
   q "DELETE FROM sklad_pohyby_v2 WHERE sklad_id=$ISKL AND item_id=$SUR_ID; DELETE FROM sklad_polozky WHERE sklad_id=$ISKL AND item_typ='surovina' AND item_id=$SUR_ID" >/dev/null
 else sk "#I sklad inventura" "chybí surovina/sklad"; fi
 
+sec "#J — mazání suroviny čistí navázaný sklad (audit integrity v3.0.163)"
+q "DELETE FROM sklad_pohyby_v2 WHERE item_typ='surovina' AND item_id IN (SELECT id FROM suroviny WHERE nazev='SMOKE DelTest'); DELETE FROM sklad_polozky WHERE item_typ='surovina' AND item_id IN (SELECT id FROM suroviny WHERE nazev='SMOKE DelTest'); DELETE FROM suroviny WHERE nazev='SMOKE DelTest'" >/dev/null
+DEL_R="$(api POST admin_suroviny.php '{"nazev":"SMOKE DelTest","jednotka":"kg"}')"
+DEL_ID="$(jval "$DEL_R" "['id']")"
+[[ -z "$DEL_ID" ]] && DEL_ID="$(q "SELECT id FROM suroviny WHERE nazev='SMOKE DelTest' ORDER BY id DESC LIMIT 1")"
+if [[ -n "$DEL_ID" && -n "$ISKL" ]]; then
+  BODY="{\"sklad_id\":$ISKL,\"item_typ\":\"surovina\",\"item_id\":$DEL_ID,\"novy_stav\":50}"
+  http POST "admin_sklad_pohyby.php?action=inventura" "$BODY" >/dev/null
+  aeq "#J sklad_polozky existuje před smazáním" "1" \
+    "$(q "SELECT COUNT(*) FROM sklad_polozky WHERE item_typ='surovina' AND item_id=$DEL_ID")"
+  acont "#J DELETE suroviny → deleted (hard, není v receptu)" "deleted" "$(api DELETE "admin_suroviny.php?id=$DEL_ID")"
+  aeq "#J surovina smazána" "0" "$(q "SELECT COUNT(*) FROM suroviny WHERE id=$DEL_ID")"
+  aeq "#J sklad_polozky vyčištěny (žádný orphan)" "0" \
+    "$(q "SELECT COUNT(*) FROM sklad_polozky WHERE item_typ='surovina' AND item_id=$DEL_ID")"
+  aeq "#J sklad_pohyby_v2 vyčištěny (žádný orphan)" "0" \
+    "$(q "SELECT COUNT(*) FROM sklad_pohyby_v2 WHERE item_typ='surovina' AND item_id=$DEL_ID")"
+else sk "#J mazání suroviny" "nepodařilo se vytvořit testovací surovinu"; fi
+
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
 # sdílená session by paralelní requesty serializovala; multi-login zase naráží na
