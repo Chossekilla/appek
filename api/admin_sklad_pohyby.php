@@ -176,6 +176,10 @@ if ($method === 'POST') {
         }
         elseif ($action === 'inventura') {
             $novyStav = (float) ($d['novy_stav'] ?? 0);
+            // 🆕 v3.0.162 — inventura nesmí nastavit ZÁPORNÝ stav (fyzicky nesmysl + překlep
+            //   -5 místo 5 to tiše uložil). Konzistentní s korekcí (ř. níž), která zápor odmítá.
+            //   Dřív: novy_stav=-100 → stav -100, HTTP 200.
+            if ($novyStav < 0) { $pdo->rollBack(); json_error('Inventura nesmí být záporná', 400); }
             $mnozstvi = $novyStav - $stavPred;
             $stavPo = $novyStav;
         }
