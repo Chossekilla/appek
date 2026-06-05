@@ -9015,6 +9015,12 @@ body.has-bulk-bar .main-content {
 
   /* Stat-grid 4 sloupce na tabletu */
   .stat-grid { grid-template-columns: repeat(4, 1fr) !important; }
+  /* 🆕 v3.0.161 — ale 4 sloupce dávají smysl JEN pro dashboard (.stat-grid-dash = 4 karty,
+     hodnota škáluje přes cqi). Obecné stat-gridy (Objednávky/Faktury = 3 karty, fixní 24px
+     hodnota) ve 4 úzkých sloupcích ořezávaly částku („34 268,6…"). Auto-fit + menší hodnota
+     → karty dost široké, nic neuteče. Dashboard i .stat-grid-2col beze změny (vyloučeny). */
+  .stat-grid:not(.stat-grid-dash):not(.stat-grid-2col) { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important; }
+  .stat-grid:not(.stat-grid-dash):not(.stat-grid-2col) .stat-value { font-size: 20px; }
 
   /* Dashboard recent — 2 sloupce */
   .dashboard-recent-row { grid-template-columns: 1fr 1fr !important; }
