@@ -42,6 +42,20 @@ perl -i -pe "s/(APPEK_ADMIN_JS_VERSION\\s*=\\s*')\\d+\\.\\d+\\.\\d+(')/\${1}${VE
 perl -i -pe "s/(--appek-css-version:\\s*\")\\d+\\.\\d+\\.\\d+(\")/\${1}${VERSION}\${2}/"       "$SROOT/admin/admin.css"
 echo "🔖 Verze sjednoceny na ${VERSION}: config.php · admin.js · admin.css"
 
+# 🆕 v3.0.166 — php -l guard: zachyť PARSE ERROR před buildem. Jinak se nasadí soubor
+# s fatální chybou → 500 na endpointu (viz admin_dodaci_listy.php v3.0.165: dvojitá
+# uvozovka v SQL komentáři uvnitř "$sql = \"...\"" → "unexpected integer"). SHA sedí,
+# takže updater to nepozná — proto lint tady, při buildu.
+PHPBIN="$(command -v php || echo /Applications/XAMPP/xamppfiles/bin/php)"
+if [[ -x "$PHPBIN" ]]; then
+  LINT_ERR=0
+  while IFS= read -r f; do
+    "$PHPBIN" -l "$f" >/dev/null 2>&1 || { echo "❌ PHP parse error: $f"; "$PHPBIN" -l "$f" 2>&1 | grep -i 'error' | head -1; LINT_ERR=1; }
+  done < <(find "$SROOT/api" "$SROOT/admin" -name '*.php' 2>/dev/null)
+  [[ "$LINT_ERR" == "1" ]] && { echo "❌ Build zastaven — oprav parse chyby výše."; exit 1; }
+  echo "✅ php -l: všechny PHP v api/ + admin/ bez parse chyb"
+fi
+
 OUTPUT="appek-update-${VERSION}.zip"
 TMPDIR="/tmp/appek-update-${VERSION}-$$"
 mkdir -p "$TMPDIR/files"
