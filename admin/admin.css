@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.153";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.165";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -11277,8 +11277,12 @@ html.density-spacious .filter-input,
 html.density-spacious select.form-input,
 html.density-spacious textarea.form-input { padding: 12px 14px; font-size: 15px; }
 html.density-spacious .form-label { font-size: 13px; margin-bottom: 8px; }
-html.density-spacious .nav-item { padding: 20px 22px; font-size: 20px; }
-html.density-spacious .nav-icon { font-size: 26px; }
+/* 🐛 fix v3.0.165 — spacious nav potřebuje stejný silný selektor + !important jako
+   compact/comfortable (ř.11225-11228). Bez toho ho na PC přebije desktop @media
+   !important pravidlo (.sidebar-nav .nav-item 12.5px) → menu se při "prostorné"
+   hustotě nezvětšilo (uživatel: "font menu se nezvětšuje na pc"). */
+html.density-spacious body:not(.sidebar-collapsed):not(.sidebar-pinned) .nav-item { padding: 15px 18px !important; font-size: 17px !important; min-height: 58px !important; gap: 14px !important; }
+html.density-spacious body:not(.sidebar-collapsed):not(.sidebar-pinned) .nav-icon { font-size: 22px !important; }
 html.density-spacious .modal-card { padding: 28px; }
 html.density-spacious .page-title { font-size: 30px; }
 html.density-spacious .page-sub { font-size: 16px; }

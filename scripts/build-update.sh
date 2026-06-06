@@ -33,6 +33,15 @@ if [[ "$2" == "--since" && -n "$3" ]]; then
   SINCE="$3"
 fi
 
+# 🆕 v3.0.165 — auto-sync verze do VŠECH markerů (config.php / admin.js / admin.css),
+# ať footer + deploy-check nehlásí "nekompletní deploy". Dřív se ručně bumpoval jen
+# config.php → admin.js/admin.css zůstávaly pozadu a footer ukazoval starou verzi.
+SROOT="$(cd "$(dirname "$0")/.." && pwd)"
+perl -i -pe "s/(APP_VERSION'\\s*,\\s*')\\d+\\.\\d+\\.\\d+(')/\${1}${VERSION}\${2}/"          "$SROOT/api/config.php"
+perl -i -pe "s/(APPEK_ADMIN_JS_VERSION\\s*=\\s*')\\d+\\.\\d+\\.\\d+(')/\${1}${VERSION}\${2}/" "$SROOT/admin/admin.js"
+perl -i -pe "s/(--appek-css-version:\\s*\")\\d+\\.\\d+\\.\\d+(\")/\${1}${VERSION}\${2}/"       "$SROOT/admin/admin.css"
+echo "🔖 Verze sjednoceny na ${VERSION}: config.php · admin.js · admin.css"
+
 OUTPUT="appek-update-${VERSION}.zip"
 TMPDIR="/tmp/appek-update-${VERSION}-$$"
 mkdir -p "$TMPDIR/files"
