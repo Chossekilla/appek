@@ -35,6 +35,23 @@ if (!$isCli && !in_array($ip, $allowedIPs, true)) {
     exit;
 }
 
+// 🆕 v3.0.165 — RETENCE: auto-reset běží jen jednou za DEMO_RESET_DAYS (default 30),
+// aby testovací data na demu přežila. Dřív hodinový cron mazal VŠE každou hodinu
+// (21× DELETE FROM v seedu) → testy mizely. Ruční vynucení: php admin_reset_demo.php --force
+$RESET_DAYS = defined('DEMO_RESET_DAYS') ? (int) DEMO_RESET_DAYS : 30;
+$force = $isCli && in_array('--force', $argv ?? [], true);
+if (!$force && $RESET_DAYS > 0) {
+    try {
+        $last = db()->query("SELECT MAX(cas) FROM demo_pristupy WHERE akce='auto_reset'")->fetchColumn();
+        if ($last && (time() - strtotime($last)) < $RESET_DAYS * 86400) {
+            $zbyva = (int) ceil($RESET_DAYS - (time() - strtotime($last)) / 86400);
+            if (php_sapi_name() !== 'cli') header('Content-Type: text/plain; charset=UTF-8');
+            echo "⏭️  Demo reset přeskočen — interval {$RESET_DAYS} dní ještě neuplynul (zbývá ~{$zbyva} dní). Vynuť: --force\n";
+            exit(0);
+        }
+    } catch (Throwable $e) { /* demo_pristupy ještě nemusí existovat → pokračuj resetem */ }
+}
+
 $startTime = microtime(true);
 
 try {
