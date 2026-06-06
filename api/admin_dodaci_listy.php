@@ -84,7 +84,7 @@ try {
             LEFT JOIN objednavky o ON o.id = dl.objednavka_id
             -- 🐛 v3.0.64 fix: INNER JOIN → LEFT JOIN aby orphan DL (s neexistujícím
             -- odberatel_id) zůstaly viditelné. Dashboard alert je počítá ale list je
-            -- skrýval → user reportoval "8 nefakturovaných v alertu ale prázdný list".
+            -- skrýval → user reportoval '8 nefakturovaných v alertu ale prázdný list'.
             LEFT JOIN odberatele od ON od.id = dl.odberatel_id
             LEFT JOIN mista_dodani md ON md.id = dl.misto_dodani_id
             -- 🚀 N+1 → 2 agregované JOINy
