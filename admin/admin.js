@@ -19617,9 +19617,9 @@ async function renderKitchenCapacity() {
                     </div>
                     <span style="background:${cKey};color:${cFg};padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700">${lbl}</span>
                     <div style="display:flex;gap:4px">
-                      ${q.stav === 'queued' ? `<button class="btn-primary" style="font-size:11px;padding:4px 8px" onclick="kitchenQStatus(${q.id}, 'preparing')">▶ Začít</button>` : ''}
-                      ${q.stav === 'preparing' ? `<button class="btn-primary btn-green" style="font-size:11px;padding:4px 8px" onclick="kitchenQStatus(${q.id}, 'ready')">✓ Hotovo</button>` : ''}
-                      ${q.stav === 'ready' ? `<button class="btn-primary btn-green" style="font-size:11px;padding:4px 8px" onclick="kitchenQStatus(${q.id}, 'served')">📤 Vydáno</button>` : ''}
+                      ${q.stav === 'queued' ? `<button class="btn-primary" style="font-size:11px;padding:4px 8px" onclick="kitchenQStatus(${q.id}, '${q.src}', 'preparing')">▶ Začít</button>` : ''}
+                      ${q.stav === 'preparing' ? `<button class="btn-primary btn-green" style="font-size:11px;padding:4px 8px" onclick="kitchenQStatus(${q.id}, '${q.src}', 'ready')">✓ Hotovo</button>` : ''}
+                      ${q.stav === 'ready' ? `<button class="btn-primary btn-green" style="font-size:11px;padding:4px 8px" onclick="kitchenQStatus(${q.id}, '${q.src}', 'served')">📤 Vydáno</button>` : ''}
                     </div>
                   </div>
                 `;
@@ -19688,9 +19688,9 @@ window.kitchenSettingsSave = async function() {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
-window.kitchenQStatus = async function(id, stav) {
+window.kitchenQStatus = async function(id, src, stav) {
   try {
-    await api('admin_kitchen.php?action=order_status', { method:'POST', body: JSON.stringify({ id, stav })});
+    await api('admin_kitchen.php?action=order_status', { method:'POST', body: JSON.stringify({ id, src, stav })});
     renderKitchenCapacity();
   } catch (e) { alert('Chyba: ' + e.message); }
 };

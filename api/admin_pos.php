@@ -252,18 +252,14 @@ function pos_kitchen_insert(PDO $pdo, array $items, ?int $objId, string $pozn): 
 
 /** Vystřelí nevystřelené (ne-storno) položky stolního účtu do kuchyně. Idempotentní (dle polozka_id). Vrací počet. */
 function pos_fire_ucet_to_kitchen(PDO $pdo, int $ucetId): int {
-    $st = $pdo->prepare("SELECT t.nazev FROM restaurant_pos_ucty u LEFT JOIN restaurant_tables t ON t.id = u.stul_id WHERE u.id = :u");
-    $st->execute(['u' => $ucetId]);
-    $stul = $st->fetchColumn();
-    $pozn = $stul ? ('Stůl ' . $stul) : ('Účet #' . $ucetId);
-    $q = $pdo->prepare("
-        SELECT p.id AS polozka_id, p.vyrobek_id, p.nazev, p.mnozstvi
-        FROM restaurant_pos_polozky p
-        WHERE p.ucet_id = :u AND p.stav <> 'storno'
-          AND NOT EXISTS (SELECT 1 FROM kitchen_queue k WHERE k.polozka_id = p.id AND k.objednavka_id IS NULL)
-    ");
-    $q->execute(['u' => $ucetId]);
-    return pos_kitchen_insert($pdo, $q->fetchAll(PDO::FETCH_ASSOC), null, $pozn);
+    // 🐛 fix v3.0.164 — dine-in položky se v kuchyni (Kapacita + KDS) zobrazují PŘÍMO
+    // z restaurant_pos_polozky (viz admin_kitchen.php + admin_pos.php?action=kds).
+    // Samostatná kitchen_queue se proto pro dine-in už neplní (dřív hromadila stale,
+    // nesynchronizované řádky bez stanice). Položka je „v kuchyni" automaticky, jakmile
+    // je na otevřeném účtu. No-op zachováno kvůli volajícím (auto-fire + ruční tlačítko
+    // „Odeslat do kuchyně") → vrací 0 = nic nového k odeslání. Rozvoz/s sebou se plní
+    // dál přes pos_kitchen_insert() v quick_order (ty žijí jen v kitchen_queue).
+    return 0;
 }
 
 /**
@@ -695,7 +691,7 @@ if ($method === 'POST' && $action === 'move') {
 // 👨‍🍳 GET ?action=kds → kitchen display data (všechny aktivní položky)
 if ($method === 'GET' && $action === 'kds') {
     $stmt = $pdo->query("
-        SELECT p.*, u.stul_id, u.id AS ucet_id,
+        SELECT p.*, p.nazev AS vyrobek_nazev, u.stul_id, u.id AS ucet_id,
                t.nazev AS stul_nazev, t.zone_id
         FROM restaurant_pos_polozky p
         INNER JOIN restaurant_pos_ucty u ON u.id = p.ucet_id

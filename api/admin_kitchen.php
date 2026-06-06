@@ -151,14 +151,31 @@ if ($action === 'order_status' && $method === 'POST') {
     $d = json_input();
     $id  = (int) ($d['id'] ?? 0);
     $st  = $d['stav'] ?? '';
+    $src = $d['src'] ?? 'queue';
     if (!$id || !in_array($st, ['queued','preparing','ready','served','cancelled'], true)) {
         json_error('Neplatné parametry', 400);
     }
-    $setExtra = '';
-    if ($st === 'preparing') $setExtra = ', cas_zacatek = NOW()';
-    if ($st === 'ready')     $setExtra = ', cas_hotovo = NOW()';
-    $pdo->prepare("UPDATE kitchen_queue SET stav=:s $setExtra WHERE id=:id")
-        ->execute(['s'=>$st,'id'=>$id]);
+    // 🐛 fix v3.0.164 — kapacita kuchyně sdílí zdroj pravdy s KDS:
+    //   • 'pos'   → dine-in položka v restaurant_pos_polozky (mapuj stav, sync s KDS)
+    //   • 'queue' → rozvoz/s sebou v kitchen_queue (jen tam existuje)
+    if ($src === 'pos') {
+        $map = ['queued'=>'objednano','preparing'=>'vari_se','ready'=>'hotovo','served'=>'servirovano','cancelled'=>'storno'];
+        $posStav = $map[$st];
+        $timeCol = match($posStav) {
+            'vari_se'     => 'cas_vari_se',
+            'hotovo'      => 'cas_pripraveno',
+            'servirovano' => 'cas_servirovano',
+            default       => null,
+        };
+        $sql = "UPDATE restaurant_pos_polozky SET stav = :s" . ($timeCol ? ", $timeCol = NOW()" : "") . " WHERE id = :id";
+        $pdo->prepare($sql)->execute(['s'=>$posStav,'id'=>$id]);
+    } else {
+        $setExtra = '';
+        if ($st === 'preparing') $setExtra = ', cas_zacatek = NOW()';
+        if ($st === 'ready')     $setExtra = ', cas_hotovo = NOW()';
+        $pdo->prepare("UPDATE kitchen_queue SET stav=:s $setExtra WHERE id=:id")
+            ->execute(['s'=>$st,'id'=>$id]);
+    }
     json_response(['ok'=>true]);
 }
 
@@ -166,33 +183,54 @@ if ($action === 'order_status' && $method === 'POST') {
 $settings = $pdo->query("SELECT * FROM kitchen_settings WHERE id=1")->fetch();
 $stanice  = $pdo->query("SELECT * FROM kitchen_stations WHERE aktivni=1 ORDER BY poradi, id")->fetchAll();
 
-// Aktivní queue items
+// 🐛 fix v3.0.164 — fronta výroby = JEDEN zdroj pravdy:
+//   • dine-in: živě z restaurant_pos_polozky (otevřené účty) — stejně jako KDS,
+//     takže stav je vždy aktuální (dřív se kitchen_queue nesynchronizovala → stale data).
+//     Stanici + dobu přípravy bereme z výrobku (vyrobky.kitchen_station_id / priprava_min).
+//   • rozvoz / s sebou: z kitchen_queue (objednavka_id IS NOT NULL) — ty žijí jen tam.
 $queue = $pdo->query("
-    SELECT q.*, s.nazev AS station_nazev, s.ikona AS station_ikona, s.barva AS station_barva,
-        TIMESTAMPDIFF(MINUTE, q.cas_pridani, NOW()) AS minut_v_queue,
-        IF(q.cas_zacatek IS NOT NULL, TIMESTAMPDIFF(MINUTE, q.cas_zacatek, NOW()), NULL) AS minut_pripravuje
-    FROM kitchen_queue q
-    LEFT JOIN kitchen_stations s ON s.id = q.station_id
-    WHERE q.stav IN ('queued','preparing','ready')
-    ORDER BY q.priorita DESC, q.cas_pridani ASC
+    SELECT x.*, s.nazev AS station_nazev, s.ikona AS station_ikona, s.barva AS station_barva,
+           TIMESTAMPDIFF(MINUTE, x.cas_ref, NOW()) AS minut_v_queue,
+           IF(x.cas_zacatek IS NOT NULL, TIMESTAMPDIFF(MINUTE, x.cas_zacatek, NOW()), NULL) AS minut_pripravuje
+    FROM (
+        SELECT p.id AS id, 'pos' AS src,
+               CASE p.stav WHEN 'objednano' THEN 'queued' WHEN 'vari_se' THEN 'preparing' WHEN 'hotovo' THEN 'ready' END AS stav,
+               p.nazev AS vyrobek_nazev, p.mnozstvi, COALESCE(v.priprava_min, 10) AS priprava_min,
+               v.kitchen_station_id AS station_id, p.ucet_id AS objednavka_id,
+               p.cas_vari_se AS cas_zacatek, p.cas_objednavky AS cas_ref
+        FROM restaurant_pos_polozky p
+        INNER JOIN restaurant_pos_ucty u ON u.id = p.ucet_id AND u.stav = 'open'
+        LEFT JOIN vyrobky v ON v.id = p.vyrobek_id
+        WHERE p.stav IN ('objednano','vari_se','hotovo')
+        UNION ALL
+        SELECT k.id AS id, 'queue' AS src, k.stav,
+               k.vyrobek_nazev, k.mnozstvi, k.priprava_min,
+               k.station_id, k.objednavka_id,
+               k.cas_zacatek, k.cas_pridani AS cas_ref
+        FROM kitchen_queue k
+        WHERE k.objednavka_id IS NOT NULL AND k.stav IN ('queued','preparing','ready')
+    ) x
+    LEFT JOIN kitchen_stations s ON s.id = x.station_id
+    ORDER BY (x.stav = 'ready') ASC, x.cas_ref ASC
     LIMIT 100
 ")->fetchAll();
 
-// Active orders count (z queue, distinct objednavka_id)
-$activeOrders = $pdo->query("SELECT COUNT(DISTINCT objednavka_id) FROM kitchen_queue WHERE stav IN ('queued','preparing','ready') AND objednavka_id IS NOT NULL")->fetchColumn();
-$preparing = $pdo->query("SELECT COUNT(*) FROM kitchen_queue WHERE stav='preparing'")->fetchColumn();
-$ready     = $pdo->query("SELECT COUNT(*) FROM kitchen_queue WHERE stav='ready'")->fetchColumn();
-
-// Per-station load
+// Statistiky + zátěž stanic — odvozeno z $queue (žádné N+1 dotazy)
 $stationLoad = [];
+foreach ($stanice as $s) $stationLoad[(int)$s['id']] = ['queued'=>0,'preparing'=>0,'ready'=>0,'load_pct'=>0];
+$activeKeys = []; $preparing = 0; $ready = 0;
+foreach ($queue as $q) {
+    if ($q['objednavka_id'] !== null) $activeKeys[$q['src'] . ':' . $q['objednavka_id']] = true;
+    if ($q['stav'] === 'preparing') $preparing++;
+    elseif ($q['stav'] === 'ready') $ready++;
+    $sid = (int) $q['station_id'];
+    if ($sid && isset($stationLoad[$sid][$q['stav']])) $stationLoad[$sid][$q['stav']]++;
+}
+$activeOrders = count($activeKeys);
 foreach ($stanice as $s) {
-    $cnt = (int) $pdo->query("SELECT COUNT(*) FROM kitchen_queue WHERE station_id={$s['id']} AND stav IN ('queued','preparing')")->fetchColumn();
-    $stationLoad[(int)$s['id']] = [
-        'queued'     => (int) $pdo->query("SELECT COUNT(*) FROM kitchen_queue WHERE station_id={$s['id']} AND stav='queued'")->fetchColumn(),
-        'preparing'  => (int) $pdo->query("SELECT COUNT(*) FROM kitchen_queue WHERE station_id={$s['id']} AND stav='preparing'")->fetchColumn(),
-        'ready'      => (int) $pdo->query("SELECT COUNT(*) FROM kitchen_queue WHERE station_id={$s['id']} AND stav='ready'")->fetchColumn(),
-        'load_pct'   => $s['max_paralelni'] > 0 ? min(100, round($cnt / $s['max_paralelni'] * 100)) : 0,
-    ];
+    $sid  = (int) $s['id'];
+    $busy = $stationLoad[$sid]['queued'] + $stationLoad[$sid]['preparing'];
+    $stationLoad[$sid]['load_pct'] = $s['max_paralelni'] > 0 ? min(100, (int) round($busy / $s['max_paralelni'] * 100)) : 0;
 }
 
 $globalLoad = $settings['max_paralelni_objednavky'] > 0

@@ -364,34 +364,35 @@ if [[ -n "$ODB_ID" ]]; then
   q "DELETE FROM faktury WHERE id=$GFA" >/dev/null
 else sk "#G faktura úhrada" "chybí odběratel"; fi
 
-sec "#H — doba přípravy výrobku + propojení POS→kuchyně (KDS) (feature v3.0.156)"
-api GET "admin_kitchen.php" >/dev/null 2>&1   # vytvoří/seed kuchyňské tabulky (vyžaduje balíček restaurace)
+sec "#H — doba přípravy + stanice výrobku → kapacita kuchyně (derive z POS, v3.0.164)"
+api GET "admin_kitchen.php" >/dev/null 2>&1   # vytvoří/seed kuchyňské tabulky (balíček restaurace)
 KSTN="$(q "SELECT id FROM kitchen_stations WHERE aktivni=1 ORDER BY poradi LIMIT 1")"
 if [[ -n "$STUL_ID" && -n "$VYR_ID" && -n "$KSTN" ]]; then
+  # 1) výrobek persistuje dobu přípravy + kuchyňskou stanici (editor výrobku)
   BODY="{\"id\":$VYR_ID,\"priprava_min\":17,\"kitchen_station_id\":$KSTN}"
   api PUT "admin_vyrobky.php" "$BODY" >/dev/null
   aeq "#H výrobek persistoval priprava_min=17" "17" "$(q "SELECT priprava_min FROM vyrobky WHERE id=$VYR_ID")"
   aeq "#H výrobek persistoval kuchyňskou stanici" "$KSTN" "$(q "SELECT kitchen_station_id FROM vyrobky WHERE id=$VYR_ID")"
-  api POST "admin_kitchen.php?action=settings" '{"auto_fire":1,"auto_block":1,"max_paralelni_objednavky":8,"max_min_priprava":25,"slot_velikost_min":15}' >/dev/null
-  HU="$(q "INSERT INTO restaurant_pos_ucty (stul_id,otevrel_jmeno) VALUES ($STUL_ID,'SMOKE #H'); SELECT LAST_INSERT_ID()")"
+  # 2) dine-in položka → kapacita ji odvodí ŽIVĚ z POS, se stanicí+dobou z výrobku
+  HU="$(jval "$(api GET "admin_pos.php?action=ucet&stul_id=$STUL_ID")" "['id']")"
+  [[ -z "$HU" ]] && HU="$(q "SELECT id FROM restaurant_pos_ucty WHERE stul_id=$STUL_ID AND stav='open' ORDER BY id DESC LIMIT 1")"
   BODY="{\"ucet_id\":$HU,\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1,\"jednotkova_cena\":100}"
   HRESP="$(api POST "admin_pos.php?action=item" "$BODY")"
-  aeq "#H auto-fire: položka odeslána do kuchyně (kitchen_fired=1)" "1" "$(jval "$HRESP" "['kitchen_fired']")"
   HIT="$(q "SELECT id FROM restaurant_pos_polozky WHERE ucet_id=$HU ORDER BY id DESC LIMIT 1")"
-  aeq "#H queue: stanice z výrobku" "$KSTN" "$(q "SELECT station_id FROM kitchen_queue WHERE polozka_id=$HIT AND objednavka_id IS NULL")"
-  aeq "#H queue: doba přípravy 17 z výrobku" "17" "$(q "SELECT priprava_min FROM kitchen_queue WHERE polozka_id=$HIT AND objednavka_id IS NULL")"
-  api POST "admin_kitchen.php?action=settings" '{"auto_fire":0,"auto_block":1,"max_paralelni_objednavky":8,"max_min_priprava":25,"slot_velikost_min":15}' >/dev/null
-  HU2="$(q "INSERT INTO restaurant_pos_ucty (stul_id,otevrel_jmeno) VALUES ($STUL_ID,'SMOKE #H2'); SELECT LAST_INSERT_ID()")"
-  BODY="{\"ucet_id\":$HU2,\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1,\"jednotkova_cena\":100}"
-  HR2="$(api POST "admin_pos.php?action=item" "$BODY")"
-  aeq "#H ruční režim: NEfiruje při přidání (kitchen_fired=0)" "0" "$(jval "$HR2" "['kitchen_fired']")"
-  HIT2="$(q "SELECT id FROM restaurant_pos_polozky WHERE ucet_id=$HU2 ORDER BY id DESC LIMIT 1")"
-  BODY="{\"ucet_id\":$HU2}"
-  HFR="$(api POST "admin_pos.php?action=fire_kitchen" "$BODY")"
-  aeq "#H fire_kitchen vystřelí (fired=1)" "1" "$(jval "$HFR" "['fired']")"
-  aeq "#H po ručním fire JE v queue" "1" "$(q "SELECT COUNT(*) FROM kitchen_queue WHERE polozka_id=$HIT2 AND objednavka_id IS NULL")"
-  api POST "admin_kitchen.php?action=settings" '{"auto_fire":1,"auto_block":1,"max_paralelni_objednavky":8,"max_min_priprava":25,"slot_velikost_min":15}' >/dev/null
-  q "DELETE FROM kitchen_queue WHERE polozka_id IN ($HIT,$HIT2); DELETE FROM restaurant_pos_polozky WHERE ucet_id IN ($HU,$HU2); DELETE FROM restaurant_pos_ucty WHERE id IN ($HU,$HU2)" >/dev/null
+  read -r HSTAV HSTID HPREP <<<"$(api GET "admin_kitchen.php" | python3 -c "import json,sys
+try:
+ d=json.load(sys.stdin); o=[x for x in d.get('queue',[]) if str(x.get('id'))=='$HIT' and x.get('src')=='pos']
+ print((o[0].get('stav') or '-'), (o[0].get('station_id') or '-'), (o[0].get('priprava_min') or '-')) if o else print('- - -')
+except Exception: print('- - -')" 2>/dev/null)"
+  aeq "#H kapacita: dine-in položka stav=queued" "queued" "$HSTAV"
+  aeq "#H kapacita: stanice z výrobku" "$KSTN" "$HSTID"
+  aeq "#H kapacita: doba přípravy 17 z výrobku" "17" "$HPREP"
+  # 3) staré firing je no-op — dine-in je v kuchyni přímo přes POS (1 zdroj pravdy)
+  aeq "#H dine-in auto-fire deprecated → kitchen_fired=0" "0" "$(jval "$HRESP" "['kitchen_fired']")"
+  HFR="$(api POST "admin_pos.php?action=fire_kitchen" "{\"ucet_id\":$HU}")"
+  aeq "#H fire_kitchen no-op (už je v kuchyni) → fired=0" "0" "$(jval "$HFR" "['fired']")"
+  aeq "#H dine-in NEplní kitchen_queue (jen rozvoz/s sebou)" "0" "$(q "SELECT COUNT(*) FROM kitchen_queue WHERE polozka_id=$HIT")"
+  q "UPDATE restaurant_pos_ucty SET stav='paid' WHERE id=$HU; DELETE FROM restaurant_pos_polozky WHERE ucet_id=$HU; UPDATE restaurant_tables SET stav='free' WHERE id=$STUL_ID" >/dev/null
 else sk "#H kuchyně/prep" "chybí stůl/výrobek/stanice (balíček restaurace?)"; fi
 
 sec "#I — sklad: inventura nesmí být záporná (z adversariálního testu v3.0.162)"
@@ -426,6 +427,42 @@ if [[ -n "$DEL_ID" && -n "$ISKL" ]]; then
   aeq "#J sklad_pohyby_v2 vyčištěny (žádný orphan)" "0" \
     "$(q "SELECT COUNT(*) FROM sklad_pohyby_v2 WHERE item_typ='surovina' AND item_id=$DEL_ID")"
 else sk "#J mazání suroviny" "nepodařilo se vytvořit testovací surovinu"; fi
+
+sec "#K — KDS/Výdej zobrazuje názvy položek (BUG fix: action=kds → vyrobek_nazev)"
+# uklid starých SMOKE položek v kitchen_queue (z předchozích běhů / auto-fire)
+q "DELETE FROM kitchen_queue WHERE vyrobek_nazev LIKE 'SMOKE %'" >/dev/null
+if [[ -n "$STUL_ID" && -n "$VYR_ID" ]]; then
+  KU="$(api GET "admin_pos.php?action=ucet&stul_id=$STUL_ID")"
+  KUID="$(jval "$KU" "['id']")"
+  if [[ -n "$KUID" ]]; then
+    KBODY="{\"ucet_id\":$KUID,\"vyrobek_id\":$VYR_ID,\"mnozstvi\":1,\"jednotkova_cena\":100}"
+    api POST "admin_pos.php?action=item" "$KBODY" >/dev/null
+    KDS="$(api GET "admin_pos.php?action=kds")"
+    KVN="$(printf '%s' "$KDS" | python3 -c "import json,sys
+try:
+ d=json.load(sys.stdin); o=[x for x in d.get('orders',[]) if x['ucet_id']==$KUID]
+ print(o[0]['polozky'][0].get('vyrobek_nazev','') if o and o[0]['polozky'] else '')
+except Exception: print('')" 2>/dev/null)"
+    aeq "#K action=kds → položka má vyrobek_nazev (ne prázdné/?)" "SMOKE Pizza" "$KVN"
+    # BUG 2 — kapacita kuchyně čte tytéž ŽIVÉ POS položky (1 zdroj pravdy)
+    PIID="$(q "SELECT id FROM restaurant_pos_polozky WHERE ucet_id=$KUID ORDER BY id DESC LIMIT 1")"
+    KCAP="$(api GET "admin_kitchen.php")"
+    KQN="$(printf '%s' "$KCAP" | python3 -c "import json,sys
+try:
+ d=json.load(sys.stdin); o=[x for x in d.get('queue',[]) if str(x.get('id'))=='$PIID' and x.get('src')=='pos']
+ print(o[0].get('vyrobek_nazev','') if o else '')
+except Exception: print('')" 2>/dev/null)"
+    aeq "#K kapacita kuchyně obsahuje živou POS položku (src=pos, ne stale queue)" "SMOKE Pizza" "$KQN"
+    # order_status src=pos → posune POS položku (sync kapacita ↔ KDS, 1 zdroj)
+    api POST "admin_kitchen.php?action=order_status" "{\"id\":$PIID,\"src\":\"pos\",\"stav\":\"preparing\"}" >/dev/null
+    aeq "#K order_status(src=pos) posune POS položku → vari_se" "vari_se" "$(q "SELECT stav FROM restaurant_pos_polozky WHERE id=$PIID")"
+    # cleanup: zavři účet, smaž testovací položky + kitchen_queue, uvolni stůl
+    q "UPDATE restaurant_pos_ucty SET stav='paid' WHERE id=$KUID;
+       DELETE FROM restaurant_pos_polozky WHERE ucet_id=$KUID;
+       DELETE FROM kitchen_queue WHERE vyrobek_nazev LIKE 'SMOKE %';
+       UPDATE restaurant_tables SET stav='free' WHERE id=$STUL_ID" >/dev/null
+  else sk "#K KDS názvy" "nepodařilo se otevřít účet (${KU:0:60})"; fi
+else sk "#K KDS názvy" "chybí stůl/výrobek fixtura"; fi
 
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
