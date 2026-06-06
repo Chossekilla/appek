@@ -227,14 +227,17 @@
       e.stopPropagation();
       e.preventDefault();
 
-      // Select item okamžitě
-      const wasSelected = State.selected === it.id;
-      State.selected = it.id;
-      if (!wasSelected) {
-        renderCanvas();
-        renderProps();
-        // Re-attach handlers (renderCanvas přepsal DOM)
-        return;
+      // 🐛 fix v3.0.164 — vyber prvek BEZ renderCanvas(). Předtím se při kliku
+      // na nevybraný stůl zavolal renderCanvas() (přepsal DOM, odpojil 'el') +
+      // return → probíhající pointer gesto se zahodilo a táhnout šlo až napodruhé
+      // ("canvas se chová špatně"). Teď jen zvýrazníme výběr přes class a táhnutí
+      // pokračuje ve stejném gestu; handles (resize/rotate) dorenderujeme v cleanup().
+      if (State.selected !== it.id) {
+        State.selected = it.id;
+        document.querySelectorAll('#fp-canvas-items .fp-item.is-selected')
+          .forEach(n => n.classList.remove('is-selected'));
+        el.classList.add('is-selected');
+        renderProps(); // panel vlastností nesahá na canvas DOM → gesto přežije
       }
 
       // Capture pointer — všechny pointer události půjdou na el i mimo
@@ -278,9 +281,12 @@
         el.removeEventListener('pointerup',   cleanup);
         el.removeEventListener('pointercancel', cleanup);
         try { el.releasePointerCapture(ev.pointerId); } catch (_) {}
-        el.style.cursor = 'grab';
         el.classList.remove('dragging');
-        if (didMove) { pushHistory(); renderProps(); }
+        if (didMove) pushHistory();
+        // Po skončení gesta přerenderuj — vykreslí handles vybraného prvku
+        // i finální pozici (bezpečné, gesto už doběhlo). 🐛 fix v3.0.164
+        renderCanvas();
+        renderProps();
       }
 
       el.addEventListener('pointermove', onPointerMove);
