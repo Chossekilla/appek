@@ -16,8 +16,8 @@
 //      3. Po prvním běhu admin smaže klíč a soubor přestane fungovat
 header('Content-Type: text/html; charset=utf-8');
 
+require_once __DIR__ . '/config.php';  // 🐛 v3.0.173 — config DŘÍV (definuje session_secure_start), jinak "Call to undefined function" fatal (ř.19)
 session_secure_start(); // 🐛 v2.9.327 — bylo bare session_start (špatný session_name)
-require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_authz.php';  // 🐛 fix v2.9.186 — aktualni_uzivatel_z_session() volaná níže
 

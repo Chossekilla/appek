@@ -38,6 +38,21 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
 
+    // 🐛 v3.0.173 — self-heal schématu: starší demo_pristupy mohl vzniknout s jiným
+    //    schématem (chybějící sloupec) → INSERT padal → 500. ADD COLUMN IF NOT EXISTS
+    //    je idempotentní; wrap v try, ať absence ALTER práv neshodí endpoint.
+    foreach ([
+        'ip'         => 'VARCHAR(45)',
+        'user_agent' => 'TEXT',
+        'akce'       => 'VARCHAR(50)',
+        'referer'    => 'VARCHAR(255)',
+        'jazyk'      => 'VARCHAR(5)',
+        'cas'        => 'DATETIME DEFAULT CURRENT_TIMESTAMP',
+    ] as $col => $def) {
+        try { $pdo->exec("ALTER TABLE demo_pristupy ADD COLUMN IF NOT EXISTS `$col` $def"); }
+        catch (Throwable $e) { /* sloupec existuje / bez ALTER práv → ignoruj */ }
+    }
+
     // Načti data
     $raw = file_get_contents('php://input');
     $data = json_decode($raw, true) ?: [];
