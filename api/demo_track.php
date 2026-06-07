@@ -54,7 +54,8 @@ try {
     $referer = substr($_SERVER['HTTP_REFERER'] ?? '', 0, 255);
 
     // Rate limit — max 30 záznamů z jedné IP za 5 minut
-    $count = (int) $pdo->prepare("
+    // 🐛 v3.0.172 — odstraněn chybný (int) cast na PDOStatement (zmršil statement → execute() on int → 500)
+    $count = $pdo->prepare("
         SELECT COUNT(*) FROM demo_pristupy
         WHERE ip = :ip AND cas > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
     ");
