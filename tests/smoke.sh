@@ -488,6 +488,16 @@ if [[ -n "$S2ID" ]]; then
   q "DELETE FROM sklad_polozky WHERE item_typ='surovina' AND item_id=$S2ID; DELETE FROM suroviny WHERE id=$S2ID" >/dev/null
 else sk "#S2 vytvoření suroviny" "nepodařilo se vytvořit"; fi
 
+sec "#S4 — změna sklad_polozky (inventura) přepočítá suroviny.stock_aktualni"
+if [[ -n "$SUR_ID" ]]; then
+  S4DEF="$(q "SELECT id FROM sklady WHERE COALESCE(aktivni,1)=1 ORDER BY id LIMIT 1")"
+  BODY="{\"sklad_id\":$S4DEF,\"item_typ\":\"surovina\",\"item_id\":$SUR_ID,\"novy_stav\":123}"
+  http POST "admin_sklad_pohyby.php?action=inventura" "$BODY" >/dev/null
+  aeq "#S4 stock_aktualni = SUM(B) po inventuře" \
+    "$(q "SELECT ROUND(COALESCE(SUM(stav),0),3) FROM sklad_polozky WHERE item_typ='surovina' AND item_id=$SUR_ID")" \
+    "$(q "SELECT ROUND(stock_aktualni,3) FROM suroviny WHERE id=$SUR_ID")"
+else sk "#S4 přepočet" "chybí surovina"; fi
+
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
 # sdílená session by paralelní requesty serializovala; multi-login zase naráží na

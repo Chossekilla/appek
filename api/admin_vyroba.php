@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_sklad_lib.php';
 cors_headers();
 $admin = require_admin();
 
@@ -293,55 +294,22 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
             ], 409);
         }
 
-        // 🆕 PHASE 2: Skutečný odpis (legacy + v2)
-        $updStock = $pdo->prepare("UPDATE suroviny SET stock_aktualni = :s WHERE id = :id");
-        $insPohyb = $pdo->prepare("
-            INSERT INTO sklad_pohyby (surovina_id, typ, mnozstvi, jednotka, stock_pred, stock_po, poznamka, kdo)
-            VALUES (:sid, 'vydej', :mn, :jed, :pred, :po, :pz, :kdo)
-        ");
-        // 🆕 v2.9.286 — dual-write do v2 (multi-warehouse audit) — najdi default SK01
-        $sk01 = (int) $pdo->query("SELECT id FROM sklady WHERE kod = 'SK01' LIMIT 1")->fetchColumn();
-        $insPohybV2 = $sk01 ? $pdo->prepare("
-            INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, poznamka, kdo)
-            VALUES (:sid, 'surovina', :iid, 'vydej', :mn, :sp, :sP, :pz, :kdo)
-        ") : null;
-
+        // 🐛 v3.0.168 — odpis surovin ze systému B (sklad_polozky domovského skladu) +
+        // log sklad_pohyby_v2. Atomický odečet `stav = stav - :mn` → konzistentní s POS
+        // (stejný domovský sklad). suroviny.stock_aktualni se dopočítá jako SUM(B).
         foreach ($rows as $r) {
             $sid = (int) $r['surovina_id'];
-            $pred = $aktualniStavy[$sid] ?? 0;
             $potreba = (float) $r['potreba'];
             if ($potreba <= 0) continue;
-            // 🆕 force=true → může do mínusu (audit ztratí přesnost ale uživatel věděl)
-            $po = $force ? ($pred - $potreba) : max(0, $pred - $potreba);
-            $updStock->execute(['s' => $po, 'id' => $sid]);
-            $insPohyb->execute([
-                'sid'  => $sid,
-                'mn'   => $potreba,
-                'jed'  => $r['jednotka'],
-                'pred' => $pred,
-                'po'   => $po,
-                'pz'   => $pozn . ($force && $pred < $potreba ? ' [FORCE — záporný stav]' : ''),
-                'kdo'  => $kdo,
-            ]);
-            // Dual-write v2 (best-effort, neporušíme legacy pokud selže)
-            if ($insPohybV2) {
-                try {
-                    $insPohybV2->execute([
-                        'sid' => $sk01, 'iid' => $sid,
-                        'mn'  => -$potreba, // záporné = vydej
-                        'sp'  => $pred, 'sP' => $po,
-                        'pz'  => $pozn, 'kdo' => $kdo,
-                    ]);
-                    // Update sklad_polozky stav (synchronizace s legacy)
-                    try {
-                        $pdo->prepare("
-                            INSERT INTO sklad_polozky (sklad_id, item_typ, item_id, stav)
-                            VALUES (:s, 'surovina', :i, :st)
-                            ON DUPLICATE KEY UPDATE stav = :st2
-                        ")->execute(['s' => $sk01, 'i' => $sid, 'st' => $po, 'st2' => $po]);
-                    } catch (Throwable $e) { /* sklad_polozky optional */ }
-                } catch (Throwable $e) { /* v2 optional, soft-fail */ }
-            }
+            $home  = surovina_home_sklad($pdo, $sid);
+            $rowId = sklad_polozky_ensure($pdo, $home, 'surovina', $sid);
+            $pdo->prepare("UPDATE sklad_polozky SET stav = stav - :mn WHERE id = :r")->execute(['mn' => $potreba, 'r' => $rowId]);
+            $po   = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id = " . $rowId)->fetchColumn();
+            $pred = $po + $potreba;
+            $pdo->prepare("INSERT INTO sklad_pohyby_v2 (sklad_id,item_typ,item_id,typ,mnozstvi,stav_pred,stav_po,poznamka,kdo,kdy)
+                           VALUES (:s,'surovina',:i,'vydej',:mn,:pr,:po,:pz,:kdo,NOW())")
+                ->execute(['s' => $home, 'i' => $sid, 'mn' => $potreba, 'pr' => $pred, 'po' => $po, 'pz' => $pozn, 'kdo' => $kdo]);
+            surovina_recompute_total($pdo, $sid);
             $odepsano++;
             $celkemMnozstvi += $potreba;
         }
