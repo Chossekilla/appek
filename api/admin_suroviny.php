@@ -547,7 +547,17 @@ if ($method === 'POST') {
             'p'  => isset($d['poznamka']) && trim($d['poznamka']) !== '' ? trim($d['poznamka']) : null,
             'ak' => isset($d['aktivni']) ? (int) $d['aktivni'] : 1,
         ]));
-        json_response(['id' => $pdo->lastInsertId(), 'slozeni_alergeny' => $slozeni_alergeny], 201);
+        $newId = (int) $pdo->lastInsertId();
+        // 🆕 v3.0.168 — nová surovina rovnou do systému B (domovský sklad = default)
+        $home = sklad_default_id($pdo);
+        if ($home > 0) {
+            $pdo->prepare("UPDATE suroviny SET domovsky_sklad_id=:d WHERE id=:id")->execute(['d' => $home, 'id' => $newId]);
+            $rowId = sklad_polozky_ensure($pdo, $home, 'surovina', $newId);
+            $stockInit = (isset($d['stock_aktualni']) && $d['stock_aktualni'] !== '') ? (float) $d['stock_aktualni'] : 0;
+            $pdo->prepare("UPDATE sklad_polozky SET stav=:st WHERE id=:r")->execute(['st' => $stockInit, 'r' => $rowId]);
+            surovina_recompute_total($pdo, $newId);
+        }
+        json_response(['id' => $newId, 'slozeni_alergeny' => $slozeni_alergeny], 201);
     } catch (PDOException $e) {
         if ($e->getCode() === '23000') json_error('Surovina s tímto názvem už existuje');
         json_error_safe('Chyba uložení', $e, 500);

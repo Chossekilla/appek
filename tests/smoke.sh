@@ -473,6 +473,18 @@ aeq "#S1 žádná surovina bez řádku v sklad_polozky" "0" \
 aeq "#S1 stock_aktualni = SUM(sklad_polozky) u všech surovin" "0" \
   "$(q "SELECT COUNT(*) FROM suroviny s WHERE ROUND(COALESCE(s.stock_aktualni,0),3) <> ROUND((SELECT COALESCE(SUM(stav),0) FROM sklad_polozky p WHERE p.item_typ='surovina' AND p.item_id=s.id),3)")"
 
+sec "#S2 — vytvoření suroviny založí řádek v sklad_polozky (systém B)"
+q "DELETE FROM sklad_polozky WHERE item_typ='surovina' AND item_id IN (SELECT id FROM suroviny WHERE nazev LIKE 'SMOKE S2%'); DELETE FROM suroviny WHERE nazev LIKE 'SMOKE S2%'" >/dev/null
+S2R="$(api POST admin_suroviny.php '{"nazev":"SMOKE S2sur","jednotka":"kg","stock_aktualni":42}')"
+S2ID="$(jval "$S2R" "['id']")"
+[[ -z "$S2ID" ]] && S2ID="$(q "SELECT id FROM suroviny WHERE nazev LIKE 'SMOKE S2%' ORDER BY id DESC LIMIT 1")"
+if [[ -n "$S2ID" ]]; then
+  aeq "#S2 surovina má řádek v B s počátečním stavem 42" "42.000" \
+    "$(q "SELECT IFNULL(SUM(stav),'NIC') FROM sklad_polozky WHERE item_typ='surovina' AND item_id=$S2ID")"
+  aeq "#S2 stock_aktualni = součet z B" "42.000" "$(q "SELECT stock_aktualni FROM suroviny WHERE id=$S2ID")"
+  q "DELETE FROM sklad_polozky WHERE item_typ='surovina' AND item_id=$S2ID; DELETE FROM suroviny WHERE id=$S2ID" >/dev/null
+else sk "#S2 vytvoření suroviny" "nepodařilo se vytvořit"; fi
+
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
 # sdílená session by paralelní requesty serializovala; multi-login zase naráží na
