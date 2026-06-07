@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.170';
+const APPEK_ADMIN_JS_VERSION = '3.0.171';
 
 (async function detectStaleCode() {
   try {
@@ -19772,6 +19772,18 @@ async function renderPrepTimes() {
 
   state._prepEdits = {};
 
+  // 🆕 v3.0.171 — data pro tlačítkový filtr podle kuchyňské stanice
+  const _vyr = data.vyrobky || [];
+  const _stanice = data.stanice || [];
+  const _cntFor = (sid) => _vyr.filter(v => (parseInt(v.kitchen_station_id) || 0) === sid).length;
+  const _noneCnt = _cntFor(0);
+  const _chips = _stanice.length ? `
+    <div id="prep-station-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <button class="qp-chip is-active" onclick="prepFilterStation('all', this)">Vše <span style="opacity:.6;font-weight:700">${_vyr.length}</span></button>
+      ${_stanice.map(s => `<button class="qp-chip" onclick="prepFilterStation('${s.id}', this)">${s.ikona || ''} ${esc(s.nazev)} <span style="opacity:.6;font-weight:700">${_cntFor(parseInt(s.id))}</span></button>`).join('')}
+      ${_noneCnt ? `<button class="qp-chip" onclick="prepFilterStation('0', this)">— Bez stanice <span style="opacity:.6;font-weight:700">${_noneCnt}</span></button>` : ''}
+    </div>` : '';
+
   body.innerHTML = `
     <div class="card-block" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div style="display:flex;gap:16px;flex-wrap:wrap">
@@ -19781,6 +19793,8 @@ async function renderPrepTimes() {
       </div>
       <button class="btn-primary btn-green" onclick="prepTimesSaveAll()">💾 Uložit změny</button>
     </div>
+
+    ${_chips}
 
     <div class="card-block" style="padding:0;overflow:hidden">
       <table style="width:100%;border-collapse:collapse">
@@ -19793,8 +19807,8 @@ async function renderPrepTimes() {
           </tr>
         </thead>
         <tbody>
-          ${(data.vyrobky || []).map(v => `
-            <tr style="border-top:1px solid var(--border);font-size:13px">
+          ${_vyr.map(v => `
+            <tr data-station="${parseInt(v.kitchen_station_id) || 0}" style="border-top:1px solid var(--border);font-size:13px">
               <td style="padding:8px 14px">
                 <strong>${esc(v.nazev)}</strong>
                 ${v.cislo ? `<div style="font-size:11px;color:var(--text-3)">#${esc(v.cislo)}</div>` : ''}
@@ -19825,6 +19839,18 @@ async function renderPrepTimes() {
     </div>
   `;
 }
+
+// 🆕 v3.0.171 — klientský filtr řádků podle kuchyňské stanice (nemění rozpracované edits)
+window.prepFilterStation = function(stationId, el) {
+  if (el && el.parentElement) {
+    el.parentElement.querySelectorAll('.qp-chip').forEach(c => c.classList.remove('is-active'));
+    el.classList.add('is-active');
+  }
+  document.querySelectorAll('#rest-tab-body table tbody tr').forEach(tr => {
+    const s = tr.getAttribute('data-station') || '0';
+    tr.style.display = (stationId === 'all' || String(s) === String(stationId)) ? '' : 'none';
+  });
+};
 
 window.prepTimeSetEdit = function(id, field, value) {
   state._prepEdits[id] = state._prepEdits[id] || { id };
