@@ -15,6 +15,7 @@
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_sklad_lib.php';
 cors_headers();
 require_admin();
 
@@ -416,6 +417,7 @@ if ($action === 'pro_vyrobek' && $method === 'GET') {
 // GET seznam / detail
 // =============================================================
 if ($method === 'GET') {
+    sklad_unify_migrate($pdo); // 🆕 v3.0.168 idempotentní — 1× sjednotí A↔B (guard uvnitř)
     if (isset($_GET['id'])) {
         $stmt = $pdo->prepare("SELECT * FROM suroviny WHERE id = :id");
         $stmt->execute(['id' => (int) $_GET['id']]);

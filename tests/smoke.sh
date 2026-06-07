@@ -464,6 +464,15 @@ except Exception: print('')" 2>/dev/null)"
   else sk "#K KDS názvy" "nepodařilo se otevřít účet (${KU:0:60})"; fi
 else sk "#K KDS názvy" "chybí stůl/výrobek fixtura"; fi
 
+sec "#S1 — sklad sjednocen: každá surovina má řádek v B + stock_aktualni=součet"
+api GET admin_suroviny.php >/dev/null   # spustí idempotentní migraci A→B
+aeq "#S1 sloupec domovsky_sklad_id existuje" "1" \
+  "$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='suroviny' AND COLUMN_NAME='domovsky_sklad_id'")"
+aeq "#S1 žádná surovina bez řádku v sklad_polozky" "0" \
+  "$(q "SELECT COUNT(*) FROM suroviny s WHERE NOT EXISTS(SELECT 1 FROM sklad_polozky p WHERE p.item_typ='surovina' AND p.item_id=s.id)")"
+aeq "#S1 stock_aktualni = SUM(sklad_polozky) u všech surovin" "0" \
+  "$(q "SELECT COUNT(*) FROM suroviny s WHERE ROUND(COALESCE(s.stock_aktualni,0),3) <> ROUND((SELECT COALESCE(SUM(stav),0) FROM sklad_polozky p WHERE p.item_typ='surovina' AND p.item_id=s.id),3)")"
+
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
 # sdílená session by paralelní requesty serializovala; multi-login zase naráží na
