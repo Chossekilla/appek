@@ -325,14 +325,22 @@ if ($action === 'sklad_pohyby' && $method === 'GET') {
     $sid = (int) ($_GET['surovina_id'] ?? 0);
     $limit = max(1, min(500, (int) ($_GET['limit'] ?? 100)));
 
+    // 🐛 v3.0.168 — historie ze sjednoceného logu sklad_pohyby_v2 (aliasy na staré názvy
+    // kvůli zpětné kompatibilitě frontendu) + název skladu.
     $sql = "
-        SELECT p.*, s.nazev AS surovina_nazev, s.jednotka AS surovina_jednotka
-        FROM sklad_pohyby p
-        JOIN suroviny s ON s.id = p.surovina_id
+        SELECT p.id, p.item_id AS surovina_id, p.typ, p.mnozstvi,
+               p.stav_pred AS stock_pred, p.stav_po AS stock_po,
+               p.poznamka, p.kdo, p.kdy, p.sklad_id,
+               s.nazev AS surovina_nazev, s.jednotka AS surovina_jednotka,
+               sk.nazev AS sklad_nazev
+        FROM sklad_pohyby_v2 p
+        JOIN suroviny s ON s.id = p.item_id
+        LEFT JOIN sklady sk ON sk.id = p.sklad_id
+        WHERE p.item_typ = 'surovina'
     ";
     $params = [];
     if ($sid > 0) {
-        $sql .= " WHERE p.surovina_id = :sid";
+        $sql .= " AND p.item_id = :sid";
         $params['sid'] = $sid;
     }
     $sql .= " ORDER BY p.kdy DESC LIMIT $limit";
@@ -438,6 +446,7 @@ if ($method === 'GET') {
         } catch (Throwable $e) {
             $s['pouzito_ve_vyrobcich'] = [];
         }
+        $s['sklady'] = $pdo->query("SELECT id, nazev FROM sklady WHERE COALESCE(aktivni,1)=1 ORDER BY id")->fetchAll(PDO::FETCH_ASSOC); // 🆕 v3.0.168 pro picker domovského skladu
         json_response($s);
     }
 
@@ -592,7 +601,8 @@ if ($method === 'PUT') {
                 nutri_sacharidy = :nsa, nutri_cukry = :ncu,
                 nutri_bilkoviny = :nb, nutri_sul = :nsl,
                 stock_minimalni = :sm, stock_cilove = :sc,
-                poznamka = :p, aktivni = :ak
+                poznamka = :p, aktivni = :ak,
+                domovsky_sklad_id = COALESCE(:dom, domovsky_sklad_id)
             WHERE id = :id
         ")->execute([
             'n'  => title_case_cs($d['nazev'] ?? ''),
@@ -614,6 +624,7 @@ if ($method === 'PUT') {
             'sc' => isset($d['stock_cilove'])    && $d['stock_cilove']    !== '' ? (float) $d['stock_cilove'] : null,
             'p'  => isset($d['poznamka']) && trim($d['poznamka']) !== '' ? trim($d['poznamka']) : null,
             'ak' => isset($d['aktivni']) ? (int) $d['aktivni'] : 1,
+            'dom' => (isset($d['domovsky_sklad_id']) && $d['domovsky_sklad_id']) ? (int) $d['domovsky_sklad_id'] : null,
             'id' => $id,
         ]);
         json_response(['ok' => true, 'slozeni_alergeny' => $slozeni_alergeny]);
