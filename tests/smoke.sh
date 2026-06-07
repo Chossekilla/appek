@@ -205,18 +205,21 @@ A_R="$(api POST admin_suroviny.php '{"nazev":"SMOKE Hořčice dijon","jednotka":
 acont "#7 \"hořčičná semínka\" → hořčice" "hořčice" "$(jval "$A_R" "['slozeni_alergeny']")"
 q "DELETE FROM suroviny WHERE nazev='SMOKE Hořčice dijon'"
 
-sec "#11 — POS prodej odepisuje suroviny ze skladu"
+sec "#11 — POS prodej odepisuje suroviny ze SKLADU (systém B, v3.0.168)"
 if [[ -n "$VYR_ID" && -n "$SUR_ID" ]]; then
-  STOCK_PRE="$(q "SELECT stock_aktualni FROM suroviny WHERE id=$SUR_ID")"
-  POH_PRE="$(q "SELECT COUNT(*) FROM sklad_pohyby WHERE surovina_id=$SUR_ID AND typ='vydej'")"
+  DEF="$(q "SELECT id FROM sklady WHERE COALESCE(aktivni,1)=1 ORDER BY id LIMIT 1")"
+  q "UPDATE suroviny SET domovsky_sklad_id=$DEF WHERE id=$SUR_ID" >/dev/null
+  BPRE="$(q "SELECT IFNULL(stav,0) FROM sklad_polozky WHERE sklad_id=$DEF AND item_typ='surovina' AND item_id=$SUR_ID")"
+  V2_PRE="$(q "SELECT COUNT(*) FROM sklad_pohyby_v2 WHERE item_typ='surovina' AND item_id=$SUR_ID AND typ='vydej'")"
   R11="$(api POST "admin_pos.php?action=quick_order" "{\"pos_typ\":\"sebou\",\"pos_payment\":\"hotove\",\"poznamka\":\"SMOKE #11\",\"polozky\":[{\"vyrobek_id\":$VYR_ID,\"nazev\":\"SMOKE Pizza\",\"mnozstvi\":3,\"cena_bez_dph\":100,\"sazba_dph\":12}]}")"
   if [[ -n "$(jval "$R11" "['id']")" ]]; then
-    STOCK_POST="$(q "SELECT stock_aktualni FROM suroviny WHERE id=$SUR_ID")"
-    POH_POST="$(q "SELECT COUNT(*) FROM sklad_pohyby WHERE surovina_id=$SUR_ID AND typ='vydej'")"
-    # prodány 3 ks × 5 jednotek = 15 úbytek
-    DIFF="$(q "SELECT ROUND($STOCK_PRE - $STOCK_POST, 3)")"
-    aeq "#11 stock klesl o 15 (3ks × recept 5)" "15.000" "$DIFF"
-    if (( POH_POST > POH_PRE )); then ok "#11 sklad_pohyby výdej zalogován"; else no "#11 sklad_pohyby výdej" "žádný nový pohyb"; fi
+    BPOST="$(q "SELECT IFNULL(stav,0) FROM sklad_polozky WHERE sklad_id=$DEF AND item_typ='surovina' AND item_id=$SUR_ID")"
+    aeq "#11 sklad_polozky (B) domovského skladu klesl o 15 (3ks × recept 5)" "15.000" "$(q "SELECT ROUND($BPRE - $BPOST, 3)")"
+    aeq "#11 stock_aktualni = SUM(B) (odvozený cache)" \
+      "$(q "SELECT ROUND(COALESCE(SUM(stav),0),3) FROM sklad_polozky WHERE item_typ='surovina' AND item_id=$SUR_ID")" \
+      "$(q "SELECT ROUND(stock_aktualni,3) FROM suroviny WHERE id=$SUR_ID")"
+    V2_POST="$(q "SELECT COUNT(*) FROM sklad_pohyby_v2 WHERE item_typ='surovina' AND item_id=$SUR_ID AND typ='vydej'")"
+    if (( V2_POST > V2_PRE )); then ok "#11 sklad_pohyby_v2 výdej zalogován"; else no "#11 sklad_pohyby_v2 výdej" "žádný nový pohyb"; fi
   else no "#11 POS prodej proběhl" "${R11:0:80}"; fi
 else sk "#11 odpis skladu" "chybí fixtura výrobek/surovina"; fi
 

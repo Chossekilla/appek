@@ -17,6 +17,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_packages_lib.php';
+require_once __DIR__ . '/_sklad_lib.php';
 
 cors_headers();
 require_admin();
@@ -289,29 +290,23 @@ function pos_deduct_ingredients(PDO $pdo, array $items, string $label, string $k
     }
     if (!$need) return ['deducted' => 0, 'items' => []];
 
-    $hasPohyby = false;
-    try { $hasPohyby = (bool) $pdo->query("SHOW TABLES LIKE 'sklad_pohyby'")->fetchColumn(); } catch (Throwable $e) {}
-
-    $upd = $pdo->prepare("UPDATE suroviny SET stock_aktualni = COALESCE(stock_aktualni,0) - :mn WHERE id = :id");
-    $ins = $hasPohyby ? $pdo->prepare("
-        INSERT INTO sklad_pohyby (surovina_id, typ, mnozstvi, jednotka, stock_pred, stock_po, poznamka, kdo)
-        VALUES (:sid, 'vydej', :mn, :jed, :pred, :po, :pz, :kdo)
-    ") : null;
-    $sel = $pdo->prepare("SELECT stock_aktualni, jednotka FROM suroviny WHERE id = :id");
-
+    // 🐛 v3.0.168 — odpis ze systému B (sklad_polozky domovského skladu) + log sklad_pohyby_v2.
+    // Běží post-commit (soft-fail per surovina). Atomický odečet `stav = stav - :mn`
+    // (žádný read-then-write race) → stav_pred/po dopočítáme po odečtu.
     $done = 0;
     foreach ($need as $sid => $mn) {
+        if ($mn <= 0) continue;
         try {
-            $sel->execute(['id' => $sid]);
-            $sur = $sel->fetch(PDO::FETCH_ASSOC);
-            if (!$sur) continue;
-            $pred = (float) ($sur['stock_aktualni'] ?? 0);
-            $upd->execute(['mn' => $mn, 'id' => $sid]);   // povolí mínus
-            if ($ins) $ins->execute([
-                'sid' => $sid, 'mn' => $mn, 'jed' => $sur['jednotka'] ?? 'g',
-                'pred' => $pred, 'po' => $pred - $mn,
-                'pz' => 'POS prodej — ' . $label, 'kdo' => $kdo,
-            ]);
+            $sid   = (int) $sid;
+            $home  = surovina_home_sklad($pdo, $sid);
+            $rowId = sklad_polozky_ensure($pdo, $home, 'surovina', $sid);
+            $pdo->prepare("UPDATE sklad_polozky SET stav = stav - :mn WHERE id = :r")->execute(['mn' => $mn, 'r' => $rowId]);
+            $po   = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id = " . $rowId)->fetchColumn();
+            $pred = $po + $mn;
+            $pdo->prepare("INSERT INTO sklad_pohyby_v2 (sklad_id,item_typ,item_id,typ,mnozstvi,stav_pred,stav_po,poznamka,kdo,kdy)
+                           VALUES (:s,'surovina',:i,'vydej',:mn,:pr,:po,:pz,:kdo,NOW())")
+                ->execute(['s' => $home, 'i' => $sid, 'mn' => $mn, 'pr' => $pred, 'po' => $po, 'pz' => 'POS prodej — ' . $label, 'kdo' => $kdo]);
+            surovina_recompute_total($pdo, $sid);
             $done++;
         } catch (Throwable $e) { /* soft-fail per surovina — prodej nesmí spadnout */ }
     }
