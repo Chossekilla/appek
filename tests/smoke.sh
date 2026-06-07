@@ -498,6 +498,15 @@ if [[ -n "$SUR_ID" ]]; then
     "$(q "SELECT ROUND(stock_aktualni,3) FROM suroviny WHERE id=$SUR_ID")"
 else sk "#S4 přepočet" "chybí surovina"; fi
 
+sec "#S5 — detail suroviny: picker domovského skladu + historie z v2"
+if [[ -n "$SUR_ID" ]]; then
+  D5="$(api GET "admin_suroviny.php?id=$SUR_ID")"
+  acont "#S5 detail vrací domovsky_sklad_id (selected v pickeru)" "domovsky_sklad_id" "$D5"
+  acont "#S5 detail vrací seznam skladů (Hlavní sklad)" "Hlavní sklad" "$D5"
+  H5="$(api GET "admin_suroviny.php?action=sklad_pohyby&surovina_id=$SUR_ID&limit=5")"
+  acont "#S5 historie ze sklad_pohyby_v2 (má sklad_nazev)" "sklad_nazev" "$H5"
+else sk "#S5 detail suroviny" "chybí surovina"; fi
+
 # Pozn.: behaviorální souběh (#13 POS číslo race, #14 B2B deadlock) se ve smoke
 # záměrně netestuje — PHP zamyká session soubor (žádný session_write_close), takže
 # sdílená session by paralelní requesty serializovala; multi-login zase naráží na

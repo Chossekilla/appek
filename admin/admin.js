@@ -29698,6 +29698,12 @@ window.editSurovina = async function(id = null) {
             <label class="form-label">Cílová hladina (pro doplnění)</label>
             <input class="form-input" id="sur-stock-cil" type="number" step="0.001" min="0" value="${s.stock_cilove || ''}" placeholder="—">
           </div>
+          <div>
+            <label class="form-label">🏭 Domovský sklad <span style="color:var(--text-3);font-weight:400;font-size:11px">(odkud POS/výroba odepisuje)</span></label>
+            <select class="form-select" id="sur-home-sklad">
+              ${(s.sklady || []).map(sk => `<option value="${sk.id}" ${s.domovsky_sklad_id == sk.id ? 'selected' : ''}>${esc(sk.nazev)}</option>`).join('')}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -29872,6 +29878,7 @@ window.ulozitSurovinu = async function(id) {
     stock_cilove:        numOrNull('sur-stock-cil'),
     poznamka: document.getElementById('sur-pozn').value.trim() || null,
     aktivni: document.getElementById('sur-akt').checked ? 1 : 0,
+    domovsky_sklad_id: parseInt(document.getElementById('sur-home-sklad')?.value) || null,
   };
   if (!data.nazev) return alert('Vyplňte název');
   // Zachyť flag PŘED closeModal/navigate (aby se neztratil)
