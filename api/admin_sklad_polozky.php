@@ -15,6 +15,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_schema_lib.php';
+require_once __DIR__ . '/_sklad_lib.php';
 cors_headers();
 require_admin();
 
@@ -278,6 +279,11 @@ if ($method === 'PUT') {
     if (empty($sets)) json_error('Nic k uložení');
 
     $pdo->prepare("UPDATE sklad_polozky SET " . implode(', ', $sets) . " WHERE id = :id")->execute($params);
+    // 🆕 v3.0.168 — když se měnil stav, přepočítej odvozený total suroviny
+    if (array_key_exists('stav', $d)) {
+        $__r = $pdo->query("SELECT item_typ, item_id FROM sklad_polozky WHERE id = " . (int) $id)->fetch();
+        if ($__r && $__r['item_typ'] === 'surovina') surovina_recompute_total($pdo, (int) $__r['item_id']);
+    }
     json_response(['ok' => true]);
 }
 

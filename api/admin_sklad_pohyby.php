@@ -22,6 +22,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_schema_lib.php';
+require_once __DIR__ . '/_sklad_lib.php';
 cors_headers();
 require_admin();
 
@@ -130,6 +131,7 @@ if ($method === 'POST') {
             $stavDoNov = $do['stav'] + $mn;
             $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :id")->execute(['s' => $stavZNov, 'id' => $z['id']]);
             $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :id")->execute(['s' => $stavDoNov, 'id' => $do['id']]);
+            if ($itemTyp === 'surovina') surovina_recompute_total($pdo, (int) $itemId); // 🆕 v3.0.168 přepočet cache
             // 2 pohyby: výdej ze zdroj + příjem do cíl (oba s typ='presun' a vzájemnými sklad_id)
             $insert = $pdo->prepare("
                 INSERT INTO sklad_pohyby_v2 (sklad_id, sklad_id_cil, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, poznamka, kdo)
@@ -194,6 +196,7 @@ if ($method === 'POST') {
         $cenaZaJed = isset($d['cena_za_jed']) && $d['cena_za_jed'] !== '' ? (float) $d['cena_za_jed'] : null;
         $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :id")
             ->execute(['s' => $stavPo, 'id' => $p['id']]);
+        if ($itemTyp === 'surovina') surovina_recompute_total($pdo, (int) $itemId); // 🆕 v3.0.168 přepočet cache
         $pdo->prepare("
             INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, cena_za_jed, poznamka, kdo)
             VALUES (:s, :t, :i, :typ, :m, :sp, :sP, :c, :p, :k)
