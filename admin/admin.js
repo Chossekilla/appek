@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.176';
+const APPEK_ADMIN_JS_VERSION = '3.0.177';
 
 (async function detectStaleCode() {
   try {
@@ -4759,9 +4759,9 @@ async function renderDashboard(filters = {}) {
           Tvá databáze je prázdná. Klikni níže a vytvoří se <strong>John Doe s.r.o.</strong> + 4 varianty odběratelů, 10 výrobků, 1 objednávka, dodací list a faktura. Vše jedním klikem. Smažeš později v Nastavení → Údržba.
         </div>
       </div>
-      <!-- 🆕 v2.9.294 — Banner jen pro prázdnou DB. Reset přesunut do Nastavení → Údržba. -->
-      <button class="btn-primary btn-green" onclick="openDemoSeed()" style="font-weight:700;padding:10px 20px;font-size:14px;border:none;border-radius:10px;cursor:pointer;white-space:nowrap;flex-shrink:0">
-        🎬 Naplnit demo daty
+      <!-- 🆕 v3.0.177 — seed/reset má JEDNO místo (Nastavení → Údržba). Banner sem jen naviguje. -->
+      <button class="btn-primary btn-green" onclick="navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='udrzba';renderNastaveni();},120)" style="font-weight:700;padding:10px 20px;font-size:14px;border:none;border-radius:10px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+        🛠️ Naplnit v Údržbě →
       </button>
     </div>
   ` : '';
@@ -5056,7 +5056,7 @@ async function renderDashboard(filters = {}) {
           <p style="font-size:12px;color:var(--text-3);margin:0 0 14px;max-width:280px;line-height:1.5">
             Zatím málo dat (${d.casovy_graf.length === 0 ? 'žádné' : '1'} den objednávek). Graf se vyrenderuje po 2+ dnech aktivity.
           </p>
-          ${isSuperAdmin() ? `<button class="btn-secondary" onclick="openDemoSeed()" style="font-size:12px;padding:8px 14px">🎬 Naplnit demo daty</button>` : ''}
+          <!-- 🆕 v3.0.177 — demo seed/reset sjednocen do Nastavení → Údržba (jediné místo) -->
         </div>
       `}
 
@@ -11340,7 +11340,7 @@ async function renderVyrobky(filters = {}) {
               actions: `
                 <button class="btn-primary btn-green" onclick="editVyrobek()" style="font-size:15px;padding:11px 22px">+ Přidat první výrobek</button>
                 ${adminOnly('<button class="btn-secondary" onclick="openImportCenik(\'vyrobky\')">📊 Import ceníku</button>')}
-                ${adminOnly('<button class="btn-secondary" onclick="openDemoSeed()" style="border:1px dashed var(--text-3);background:transparent">🎬 Naplnit demo daty</button>')}
+                <!-- 🆕 v3.0.177 — „Naplnit demo daty" sjednoceno do Nastavení → Údržba -->
               `,
             });
           }
