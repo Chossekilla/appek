@@ -125,6 +125,12 @@ $csrfToken  = csrf_token();
   </div>
   <div class="pos-header-right">
     <span class="pos-time" id="pos-clock">--:--</span>
+    <!-- 🆕 v3.0.191 — zoom kasy +/- (přehlednost na všech zařízeních) -->
+    <div class="pos-zoom-ctrl" role="group" aria-label="Velikost kasy">
+      <button class="pos-zoom-btn" onclick="posZoom(-1)" title="Zmenšit" aria-label="Zmenšit">−</button>
+      <span class="pos-zoom-val" id="pos-zoom-val">100%</span>
+      <button class="pos-zoom-btn" onclick="posZoom(1)" title="Zvětšit" aria-label="Zvětšit">+</button>
+    </div>
     <span class="pos-user">
       <span class="pos-user-avatar"><?= htmlspecialchars(mb_substr($adminJmeno ?: 'A', 0, 1)) ?></span>
       <span class="pos-user-name"><?= htmlspecialchars($adminJmeno ?: 'Admin') ?></span>
