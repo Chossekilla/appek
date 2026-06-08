@@ -4578,3 +4578,13 @@ main, .layout { padding: var(--fl-py) var(--fl-px) !important; gap: var(--fl-gap
   .app { max-width: 1680px !important; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; }
 }
+
+/* 🆕 v3.0.198 — mobil: header-row-top se vejde bez ořezu. Dřív logo+lang-pily+akce
+   v jednom flex řádku bez wrapu přetekly za pravý okraj (header-actions right≈456 > 375)
+   → pravé ikony se ořezávaly. Teď wrap + akce na 1. řádek vpravo, lang-pily zalomí. */
+@media (max-width: 560px) {
+  .header-row-top { flex-wrap: wrap; row-gap: 8px; }
+  .header-row-top .logo { flex: 1 1 auto; min-width: 0; }
+  .header-row-top .header-actions { margin-left: auto; }
+  .header-row-top .b2b-lang-pills { margin-left: 0; order: 3; width: fit-content; justify-content: flex-start; }
+}
