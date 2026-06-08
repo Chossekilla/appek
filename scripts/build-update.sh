@@ -74,6 +74,7 @@ INCLUDE_PATHS=(
   "b2b"
   "pos"
   "floorplan"
+  "qr"
   "demo"
   "install.php"
   "index.php"
