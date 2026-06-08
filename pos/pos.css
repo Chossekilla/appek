@@ -95,6 +95,9 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .pos-tab-h {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 13px;
   font-weight: 600;
   color: var(--pos-text-2);
@@ -102,6 +105,7 @@ button { font-family: inherit; cursor: pointer; }
   border-radius: 999px;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 .pos-tab-h:hover { background: rgba(0,0,0,0.04); }
 .pos-tab-h.active {
@@ -901,7 +905,10 @@ button { font-family: inherit; cursor: pointer; }
    ═════════════════════════════════════════════════════════════════ */
 @media (max-width: 1100px) {
   .pos-main { grid-template-columns: 1fr 360px; }
-  .pos-header-center { display: none; }
+  /* 🆕 v3.0.191 — taby NEschováváme (dřív display:none → Účtenky/Statistiky
+     nedostupné na tabletu/mobilu). Jen kompaktní. */
+  .pos-tab-h { padding: 6px 10px; font-size: 12px; }
+  .pos-header-center { gap: 3px; }
 }
 
 @media (max-width: 900px) {
@@ -915,10 +922,17 @@ button { font-family: inherit; cursor: pointer; }
   .pos-products, .pos-cart { min-width: 0; max-width: 100%; }
   .pos-products { border-right: none; border-bottom: 1px solid var(--pos-border); }
   .pos-cart { max-height: 50vh; border-top: 2px solid var(--pos-primary); }
-  .pos-header { grid-template-columns: 1fr auto; }
-  .pos-header-center { display: none; }
+  /* header zůstává 3-sloupcový (1fr auto 1fr), aby měl střed (taby) místo */
   .pos-user-name { display: none; }
   .pos-loc { display: none; }
+}
+
+/* 🆕 v3.0.191 — telefon: taby jen ikony (text skryt), ať se vejdou do hlavičky */
+@media (max-width: 700px) {
+  .pos-tab-h .pth-txt { display: none; }
+  .pos-tab-h { padding: 7px 9px; font-size: 15px; }
+  .pos-header { padding: 0 8px; }
+  .pos-header-left { gap: 8px; }
 }
 
 @media (max-width: 600px) {
