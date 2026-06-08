@@ -3008,3 +3008,26 @@ html, body {
     border-radius: 7px !important;
   }
 }
+
+/* 🆕 v3.0.193 — Zoom kasy +/- (přehlednost na všech zařízeních) */
+.pos-zoom-ctrl {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: var(--pos-card); border: 1px solid var(--pos-border);
+  border-radius: 999px; padding: 2px;
+}
+.pos-zoom-btn {
+  width: 30px; height: 30px; border: none; border-radius: 50%; cursor: pointer;
+  background: transparent; color: var(--pos-primary-3); font-size: 20px; font-weight: 800;
+  line-height: 1; display: flex; align-items: center; justify-content: center;
+  font-family: inherit; transition: background 0.12s; -webkit-tap-highlight-color: transparent;
+}
+.pos-zoom-btn:hover { background: var(--pos-primary-2); }
+.pos-zoom-btn:active { background: var(--pos-primary); color: #fff; }
+.pos-zoom-val {
+  min-width: 44px; text-align: center; font-size: 12px; font-weight: 700;
+  color: var(--pos-text-2); font-variant-numeric: tabular-nums; user-select: none;
+}
+@media (max-width: 600px) {
+  .pos-zoom-val { display: none; }
+  .pos-zoom-btn { width: 34px; height: 34px; font-size: 22px; }
+}

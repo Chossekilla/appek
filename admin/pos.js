@@ -46,6 +46,30 @@
 (function () {
   const CFG = window.POS_CONFIG || {};
 
+  // ─── i18n fallback ───────────────────────────────────────────
+  // 🐛 v3.0.193 — KRITICKÝ FIX: admin/pos.php nenačítá i18n.js → globální t()
+  //   neexistovala. Volání t('pos_item_added' …) házela „t is not defined" →
+  //   v posTableAddItem se add provedl (DB), ale toast(t(...)) spadl PŘED
+  //   refreshTableModal → košík se NEOBNOVIL = „přidání nefunguje / modal nefunguje".
+  //   Stejně padaly drafty a hláška o uzavření účtu. Lokální t() to spolehlivě řeší.
+  const _T_FALLBACK = {
+    pos_item_added:         '✓ Přidáno: {nazev}',
+    pos_bill_closed:        '✓ Účet {cislo} · {amount} Kč zaplaceno',
+    pos_bill_ready:         '✓ Účet připraven',
+    pos_bill_print_confirm: 'Vytisknout účet?',
+    pos_draft_saved:        '💾 Uloženo do rozpracovaných',
+    pos_draft_loaded:       '✓ Rozpracovaný účet obnoven',
+  };
+  function t(key, params) {
+    // Preferuj reálné i18n, pokud je (a není to tahle funkce).
+    if (typeof window.t === 'function' && window.t !== t) {
+      try { const r = window.t(key, params); if (r && r !== key) return r; } catch (e) {}
+    }
+    let s = _T_FALLBACK[key] || key;
+    if (params) Object.keys(params).forEach(k => { s = s.split('{' + k + '}').join(params[k]); });
+    return s;
+  }
+
   // ─── State ────────────────────────────────────────────────────
   const State = {
     cart:          [],
@@ -148,6 +172,31 @@
     } else {
       (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
     }
+  };
+
+  // ─── Zoom (velikost kasy) ────────────────────────────────────
+  // 🆕 v3.0.193 — +/- zvětšení/zmenšení celé kasy (user: „pos na mobilu je velké…
+  //   kasa musí být přehledná na všech zařízeních"). CSS zoom = reflow, persist.
+  const POS_ZOOM_STEPS = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.4, 1.6];
+  function getPosZoom() {
+    const v = parseFloat(localStorage.getItem('pos_zoom'));
+    return POS_ZOOM_STEPS.includes(v) ? v : 1.0;
+  }
+  function applyPosZoom() {
+    const z = getPosZoom();
+    document.body.style.zoom = z;
+    const el = $('#pos-zoom-val');
+    if (el) el.textContent = Math.round(z * 100) + '%';
+  }
+  window.posZoom = function (dir) {
+    const cur = getPosZoom();
+    let i = POS_ZOOM_STEPS.indexOf(cur);
+    if (i < 0) i = POS_ZOOM_STEPS.indexOf(1.0);
+    i = Math.max(0, Math.min(POS_ZOOM_STEPS.length - 1, i + dir));
+    const z = POS_ZOOM_STEPS[i];
+    try { localStorage.setItem('pos_zoom', String(z)); } catch (e) {}
+    applyPosZoom();
+    try { toast((dir > 0 ? 'Zvětšeno · ' : 'Zmenšeno · ') + Math.round(z * 100) + '%', ''); } catch (e) {}
   };
 
   // ─── Catalog loading ─────────────────────────────────────────
@@ -2211,6 +2260,8 @@
     // Clock
     tickClock();
     setInterval(tickClock, 30000);
+    // 🆕 v3.0.193 — obnov uložený zoom kasy
+    applyPosZoom();
     // Load
     loadCatalog();
     // Online/offline indicator
