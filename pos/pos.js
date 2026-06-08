@@ -111,6 +111,38 @@
     }
   };
 
+  // ─── Zoom (velikost UI) ──────────────────────────────────────
+  // 🆕 v3.0.191 — +/- zvětšení/zmenšení celé kasy (user: „pos na mobilu je velké…
+  //   kasa musí být přehledná na všech zařízeních"). CSS zoom = reflow (vejde se víc),
+  //   persist per-zařízení. Krok po ~10–15 %.
+  const POS_ZOOM_STEPS = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.4, 1.6];
+  function getPosZoom() {
+    const v = parseFloat(localStorage.getItem('pos_zoom'));
+    return POS_ZOOM_STEPS.includes(v) ? v : 1.0;
+  }
+  function applyPosZoom() {
+    const z = getPosZoom();
+    // body zoom = reflow celé appky (header/grid/košík/modal). Fallback na transform pokud
+    // by prohlížeč zoom neuměl (zachová aspoň vizuální zmenšení).
+    document.body.style.zoom = z;
+    if ('zoom' in document.body.style === false || getComputedStyle(document.body).zoom === undefined) {
+      document.body.style.transform = z === 1 ? '' : `scale(${z})`;
+      document.body.style.transformOrigin = 'top left';
+    }
+    const el = $('#pos-zoom-val');
+    if (el) el.textContent = Math.round(z * 100) + '%';
+  }
+  window.posZoom = function (dir) {
+    const cur = getPosZoom();
+    let i = POS_ZOOM_STEPS.indexOf(cur);
+    if (i < 0) i = POS_ZOOM_STEPS.indexOf(1.0);
+    i = Math.max(0, Math.min(POS_ZOOM_STEPS.length - 1, i + dir));
+    const z = POS_ZOOM_STEPS[i];
+    try { localStorage.setItem('pos_zoom', String(z)); } catch (e) {}
+    applyPosZoom();
+    try { toast(dir > 0 ? 'Zvětšeno · ' + Math.round(z * 100) + '%' : 'Zmenšeno · ' + Math.round(z * 100) + '%', ''); } catch (e) {}
+  };
+
   // ─── Catalog loading ─────────────────────────────────────────
   async function loadCatalog() {
     $('#pos-cats').innerHTML = '<div class="pos-loading">⏳ Načítám katalog…</div>';
@@ -815,6 +847,8 @@
     // Clock
     tickClock();
     setInterval(tickClock, 30000);
+    // 🆕 v3.0.191 — obnov uložený zoom kasy
+    applyPosZoom();
     // Load
     loadCatalog();
     // Online/offline indicator
