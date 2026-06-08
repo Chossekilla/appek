@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.187';
+const APPEK_ADMIN_JS_VERSION = '3.0.188';
 
 (async function detectStaleCode() {
   try {
@@ -28802,21 +28802,21 @@ async function renderSuroviny() {
     </div>
 
     <!-- Filtry -->
-    <div class="card-block sur-filtry" style="padding:20px 22px;margin-bottom:16px">
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:center" class="sur-filter-grid">
-        <input class="form-input" type="search" id="sf-q" placeholder="🔍 Hledat (název, alergen, složení)..." value="${esc(q)}" oninput="state._suroviny_q=this.value;debounce('sf-q', renderSuroviny, 220)" style="font-size:18px;padding:14px 18px;height:56px;font-weight:500">
-        <select class="form-input" onchange="state._suroviny_aktivni=this.value;renderSuroviny()" style="font-size:16px;padding:12px 16px;height:56px;font-weight:500">
+    <div class="card-block sur-filtry" style="margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:stretch" class="sur-filter-grid">
+        <input class="form-input" type="search" id="sf-q" placeholder="🔍 Hledat (název, alergen, složení)..." value="${esc(q)}" oninput="state._suroviny_q=this.value;debounce('sf-q', renderSuroviny, 220)">
+        <select class="form-input" onchange="state._suroviny_aktivni=this.value;renderSuroviny()">
           <option value="vse"     ${aktivni === 'vse'     ? 'selected' : ''}>Stav: vše</option>
           <option value="aktivni" ${aktivni === 'aktivni' ? 'selected' : ''}>✓ Jen aktivní</option>
           <option value="skryte"  ${aktivni === 'skryte'  ? 'selected' : ''}>○ Jen skryté</option>
         </select>
-        <select class="form-input" onchange="state._suroviny_alergen=this.value;renderSuroviny()" style="font-size:16px;padding:12px 16px;height:56px;font-weight:500">
+        <select class="form-input" onchange="state._suroviny_alergen=this.value;renderSuroviny()">
           <option value="vse" ${alergen === 'vse' ? 'selected' : ''}>Alergeny: vše</option>
           <option value="s"   ${alergen === 's'   ? 'selected' : ''}>⚠ S alergeny</option>
           <option value="bez" ${alergen === 'bez' ? 'selected' : ''}>✓ Bez alergenů</option>
         </select>
-        <label style="display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;white-space:nowrap;padding:0 10px;cursor:pointer">
-          <input type="checkbox" ${groupBy ? 'checked' : ''} onchange="state._suroviny_group=this.checked;renderSuroviny()" style="width:24px;height:24px;cursor:pointer;accent-color:var(--primary)">
+        <label class="sur-group-toggle" style="display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap;cursor:pointer">
+          <input type="checkbox" ${groupBy ? 'checked' : ''} onchange="state._suroviny_group=this.checked;renderSuroviny()" style="width:18px;height:18px;cursor:pointer;accent-color:var(--primary)">
           Roztřídit
         </label>
       </div>
