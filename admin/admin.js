@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.180';
+const APPEK_ADMIN_JS_VERSION = '3.0.181';
 
 (async function detectStaleCode() {
   try {
@@ -1633,7 +1633,7 @@ window.skeletonLine = function(width = '60%', height = '14px') {
   // Statické navigation položky (vždy v paletě)
   function staticNav() {
     return [
-      { kind: 'nav', id: 'dashboard',     icon: '📊', title: 'Přehled',          sub: 'Dashboard se statistikami', page: 'dashboard' },
+      { kind: 'nav', id: 'dashboard',     icon: '📊', title: 'Dashboard',         sub: 'Dashboard se statistikami', page: 'dashboard' },
       { kind: 'nav', id: 'objednavky',    icon: '📋', title: 'Objednávky',       sub: 'Seznam objednávek', page: 'objednavky' },
       { kind: 'nav', id: 'vyroba',        icon: '🥖', title: 'Výroba',           sub: 'Výrobní list, suroviny, sklad, HACCP', page: 'vyroba' },
       { kind: 'nav', id: 'dodaci_listy',  icon: '📃', title: 'Dodací listy',     sub: '', page: 'dodaci_listy' },
@@ -2406,7 +2406,7 @@ const DEFAULT_ROLE_PRAVA = {
 const ALL_NAV_PAGES = [
   // 🆕 v2.9.226 — rozvozy NENÍ v menu (user: 'pryč z menu'),
   // dostupné přes Dashboard tile + Dodací listy. katalog+stitky v 'nastroje' hub.
-  { key: 'dashboard',    icon: '📊', label: 'Přehled' },
+  { key: 'dashboard',    icon: '📊', label: 'Dashboard' },
   { key: 'objednavky',   icon: '📋', label: 'Objednávky' },
   { key: 'vyroba',       icon: '🥖', label: 'Výroba' },
   { key: 'dodaci_listy', icon: '📃', label: 'Dodací listy' },
@@ -4775,7 +4775,7 @@ async function renderDashboard(filters = {}) {
     ${emptyBanner}
     <div class="page-head">
       <div>
-        <h1 class="page-title">📊 Přehled</h1>
+        <h1 class="page-title">📊 Dashboard</h1>
         <p class="page-sub">${greeting}, <strong>${esc(state.admin.jmeno)}</strong> · ${new Date().toLocaleDateString('cs-CZ', {weekday:'long', day:'numeric', month:'long'})}</p>
       </div>
     </div>
@@ -9176,7 +9176,7 @@ async function renderSalesReport() {
         <p class="page-sub">Přehled tržeb, top výrobky a top odběratelé za zvolené období</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Dashboard</button>
         <button class="btn-primary btn-green" onclick="salesPrint()">🖨️ Stáhnout / vytisknout</button>
       </div>
     </div>
@@ -15994,7 +15994,7 @@ async function renderPackagePage(pageKey) {
         <p class="page-sub">${esc(meta.popis)}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Dashboard</button>
         <button class="btn-secondary" onclick="navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='balicky';renderNastaveni();},100)">🎁 Správa balíčků</button>
       </div>
     </div>
@@ -16025,7 +16025,7 @@ async function renderCakeConfigurator() {
         <p class="page-sub">Konfigurátor dortů · Kapacita pečení · Galerie produktů</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Dashboard</button>
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
@@ -16706,7 +16706,7 @@ async function renderCateringCalculator() {
         <p class="page-sub">Catering kalkulátor · Šaržová HACCP evidence · Mix-and-match · Catering objednávky s časem</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Dashboard</button>
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
@@ -21097,7 +21097,7 @@ async function renderCateringPage() {
         <p class="page-sub">Firemní objednávky · Cenové úrovně · PDF smlouvy · Záloha 50 %</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Dashboard</button>
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
@@ -21928,7 +21928,7 @@ async function renderSeasonalCatalog() {
         <p class="page-sub">Sezónní okna pro výrobky · B2B portal je filtruje automaticky.</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Přehled</button>
+        <button class="btn-secondary" onclick="navigate('dashboard')">← Dashboard</button>
       </div>
     </div>
 

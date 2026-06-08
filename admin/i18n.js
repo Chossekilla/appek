@@ -118,7 +118,7 @@ const I18N = {
   blocked:     { cs: 'Blokován',         en: 'Blocked',        es: 'Bloqueado' },
 
   // ─────────────── SIDEBAR / NAVIGATION ───────────────
-  nav_dashboard:    { cs: 'Přehled',           en: 'Dashboard',         es: 'Panel' },
+  nav_dashboard:    { cs: 'Dashboard',         en: 'Dashboard',         es: 'Panel' },
   nav_orders:       { cs: 'Objednávky',        en: 'Orders',            es: 'Pedidos' },
   nav_production:   { cs: 'Výroba',            en: 'Production',        es: 'Producción' },
   nav_delivery:     { cs: 'Dodací listy',      en: 'Delivery notes',    es: 'Albaranes' },
