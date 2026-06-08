@@ -473,11 +473,17 @@ if ($method === 'GET') {
         $total = (int) $cs->fetchColumn();
     }
 
+    // 🐛 v3.0.195 — list dříve VŮBEC nevracel stock_* (vypadly při LEFT JOIN optimalizaci)
+    //   → obrazovka Suroviny ukazovala 0/— u všech a záporný sklad nebyl vidět (odhaleno
+    //   zátěžovým testem). Vracíme je zpět + stock_aktualni počítáme ŽIVĚ ze sklad_polozky
+    //   (zdroj pravdy, vč. mínusů) s fallbackem na cache sloupec.
     $sql = "
         SELECT s.id, s.nazev, s.jednotka, s.alergen, s.cena_baleni, s.obsah_baleni,
                s.slozeni, s.slozeni_alergeny, s.poznamka, s.aktivni, s.created_at,
                s.nutri_energie_kj, s.nutri_energie_kcal, s.nutri_tuky, s.nutri_tuky_nasycene,
                s.nutri_sacharidy, s.nutri_cukry, s.nutri_bilkoviny, s.nutri_sul,
+               s.stock_minimalni, s.stock_cilove,
+               COALESCE(sp.stav_sum, s.stock_aktualni, 0) AS stock_aktualni,
                COALESCE(vs.pocet, 0) AS pocet_vyrobku
         FROM suroviny s
         LEFT JOIN (
@@ -485,6 +491,12 @@ if ($method === 'GET') {
             FROM vyrobek_suroviny
             GROUP BY surovina_id
         ) vs ON vs.surovina_id = s.id
+        LEFT JOIN (
+            SELECT item_id, SUM(stav) AS stav_sum
+            FROM sklad_polozky
+            WHERE item_typ='surovina'
+            GROUP BY item_id
+        ) sp ON sp.item_id = s.id
         $whereSql
         ORDER BY s.aktivni DESC, s.nazev
     ";
