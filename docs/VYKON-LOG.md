@@ -16,7 +16,7 @@
 ### Run 3 — dimenze + ověření odpisů
 - B2B 150/150 (201) ✓ · dine-in 76 + 4× 409 (ochrana) ✓
 - **Odpisy DO MÍNUSU prokázány:** snížené suroviny šly hluboko záporně ve `sklad_polozky`/pohybech (např. Droždí **−47 053**), řetězec stav_pred→stav_po konzistentní, prodej se NEblokuje. ✅
-- 🐛 **Bug:** souhrnný sloupec `suroviny.stock_aktualni` (Suroviny přehled) zůstal **NULL** — reálný stav je správně v pohybech, ale přehledový sloupec se po odpisech neaktualizoval (recompute neprošel/nepsal). K opravě.
+- ✅ **OPRAVENO (v3.0.195):** „suroviny ukazují 0/—" — ROOT CAUSE: list Surovin VŮBEC nevracel `stock_*` (vypadly při LEFT JOIN optimalizaci), ne NULL v DB. Reálný stav byl celou dobu správně ve `sklad_polozky` (Mouka chlebová **−1 193 700**, hladká −961 700, žitná −891 500…). Fix: list počítá stock_aktualni živě ze sklad_polozky → po opravě **15/35 surovin viditelně v mínusu** na demu.
 
 ### Klíčové (3 běhy konzistentně)
 - **Server strop ~15,5–15,7 ok/s** bez ohledu na -P (12/25/50) → strop je **počet souběžných PHP workerů hostingu (velmi nízký, ~3–6)**, NE databáze. Nad strop = odmítání (HTTP 000). 0 odmítnutí by bylo cca **-P5**.
