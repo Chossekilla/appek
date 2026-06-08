@@ -60,7 +60,7 @@
   }
 })();
 </script>
-<link rel="stylesheet" href="admin.css?v=3.0.185">
+<link rel="stylesheet" href="admin.css?v=3.0.186">
 </head>
 <body>
 
@@ -309,7 +309,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js" defer></script>
-<script src="i18n.js?v=3.0.185"></script>
+<script src="i18n.js?v=3.0.186"></script>
 <!-- 🚀 v2.9.314 — Lazy i18n: CS users (~80% bázi) předtím tahali 4 MB JS zbytečně.
      i18n_auto.js (2.3 MB, EN+ES) a i18n_extra.js (1.7 MB, SK+DE) se teď loadují
      jen pro non-CS jazyky. Switching at runtime: window.loadI18nForLang() v i18n.js. -->
@@ -321,14 +321,14 @@
   // EN/ES needs i18n_auto.js. SK/DE need both.
   // document.write je deprecated ale funguje synchronně před admin.js — což je co potřebujeme.
   if (lang === 'en' || lang === 'es' || lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_auto.js?v=3.0.185"><\/script>');
+    document.write('<script src="i18n_auto.js?v=3.0.186"><\/script>');
   }
   if (lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_extra.js?v=3.0.185"><\/script>');
+    document.write('<script src="i18n_extra.js?v=3.0.186"><\/script>');
   }
 })();
 </script>
-<script src="admin.js?v=3.0.185"></script>
+<script src="admin.js?v=3.0.186"></script>
 <script>
 // 🔄 AUTO-CHECK pro update — admin loadne → ptáme se vendora.
 //    v2.9.52 — Client-side semver kontrola: pill se ukáže JEN když je

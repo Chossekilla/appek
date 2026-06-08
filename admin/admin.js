@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.185';
+const APPEK_ADMIN_JS_VERSION = '3.0.186';
 
 (async function detectStaleCode() {
   try {
@@ -18199,6 +18199,13 @@ window.posOpenUcet = async function(stulId) {
     const ucet = await api('admin_pos.php?action=ucet&stul_id=' + stulId);
     posState.currentUcet = ucet;
     posRenderUcetModal();
+    // 🆕 v3.0.186 — propojení stolu s účtem: action=ucet při otevření založí účet a
+    //   překlopí stůl na 'occupied' v DB. Osvěž floor plan / seznam účtů POD modalem,
+    //   ať je stůl hned obsazený (dřív zůstal zelený „volný" → re-klik otevřel akční
+    //   menu místo účtu). Guard na #rt-body = běží jen v sekci Restaurace.
+    if (document.getElementById('rt-body') && typeof renderRestaurantTables === 'function') {
+      renderRestaurantTables();
+    }
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
@@ -18257,12 +18264,12 @@ window.posRenderUcetModal = function() {
         </div>
         <div style="text-align:right">
           <div style="font-size:11px;color:#92400e;text-transform:uppercase;font-weight:600">Celkem</div>
-          <div style="font-size:22px;font-weight:800;color:#1d1d1f">${total.toFixed(2)} Kč</div>
+          <div id="pos-head-total" style="font-size:22px;font-weight:800;color:#1d1d1f">${total.toFixed(2)} Kč</div>
         </div>
       </div>
 
       <div style="display:flex;gap:6px;border-bottom:1.5px solid var(--border);padding-bottom:6px">
-        <button class="pos-tab is-active" data-tab="items" onclick="posTabClick(this)" style="padding:6px 12px;background:transparent;border:0;border-bottom:3px solid #BA7517;font-weight:700;cursor:pointer;color:#854F0B">📋 Položky (${activeCount})</button>
+        <button class="pos-tab is-active" data-tab="items" onclick="posTabClick(this)" style="padding:6px 12px;background:transparent;border:0;border-bottom:3px solid #BA7517;font-weight:700;cursor:pointer;color:#854F0B">📋 Položky (<span id="pos-head-count">${activeCount}</span>)</button>
         <button class="pos-tab" data-tab="add" onclick="posTabClick(this)" style="padding:6px 12px;background:transparent;border:0;border-bottom:3px solid transparent;font-weight:600;cursor:pointer;color:var(--text-3)">+ Přidat z menu</button>
         <button class="pos-tab" data-tab="actions" onclick="posTabClick(this)" style="padding:6px 12px;background:transparent;border:0;border-bottom:3px solid transparent;font-weight:600;cursor:pointer;color:var(--text-3)">⚙️ Akce</button>
       </div>
@@ -18274,7 +18281,7 @@ window.posRenderUcetModal = function() {
       <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:10px;border-top:1.5px solid var(--border)">
         <a href="../api/admin_pos_print.php?ucet_id=${u.id}&typ=kuchyne&autoprint=1" target="_blank" class="btn-secondary" style="text-decoration:none;font-size:13px;padding:9px 14px">🍳 Kuchyňský bon</a>
         <a href="../api/admin_pos_print.php?ucet_id=${u.id}&typ=ucet" target="_blank" class="btn-secondary" style="text-decoration:none;font-size:13px;padding:9px 14px">🧾 Účet</a>
-        <button class="btn-primary btn-green" onclick="posPaymentDialog()" style="flex:1;font-size:14px;padding:11px;background:linear-gradient(135deg,#16a34a,#15803d);font-weight:700">🧾 Zaplatit (${total.toFixed(2)} Kč)</button>
+        <button class="btn-primary btn-green" onclick="posPaymentDialog()" style="flex:1;font-size:14px;padding:11px;background:linear-gradient(135deg,#16a34a,#15803d);font-weight:700">🧾 Zaplatit (<span id="pos-pay-total">${total.toFixed(2)}</span> Kč)</button>
       </div>
     </div>
   `);
@@ -18296,6 +18303,15 @@ window.posTabClick = function(btn) {
   const u = posState.currentUcet;
   const polozky = u.polozky || [];
   const total = polozky.filter(p => p.stav !== 'storno').reduce((s, p) => s + p.jednotkova_cena * p.mnozstvi, 0);
+  // 🆕 v3.0.186 — sync hlavičkového „Celkem", počtu položek a tlačítka „Zaplatit".
+  //   Dřív se po „Přidat z menu" překreslilo jen tělo tabu (#pos-tab-body) → header total
+  //   i tlačítko Zaplatit zůstaly na staré hodnotě (typicky 0) = „pos stolů modal nepočítá".
+  {
+    const _ac = polozky.filter(p => p.stav !== 'storno').length;
+    const _ht = document.getElementById('pos-head-total'); if (_ht) _ht.textContent = total.toFixed(2) + ' Kč';
+    const _pt = document.getElementById('pos-pay-total');  if (_pt) _pt.textContent = total.toFixed(2);
+    const _hc = document.getElementById('pos-head-count');  if (_hc) _hc.textContent = _ac;
+  }
   const stavLabels = {
     objednano: { ico: '⏳', label: 'Objednáno', color: '#F59E0B' },
     vari_se: { ico: '🍳', label: 'Vaří se', color: '#3B82F6' },
