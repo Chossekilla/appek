@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.174";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.175";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -19580,18 +19580,41 @@ html.dark .tb-app-name { color: #f5f5f7; }
    rail se taky nemění (úmyslně kompaktní režim ikon).
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── PC sidebar — PROSTORNÉ ────────────────────────────────────── */
-html.density-spacious body:not(.sidebar-pinned) .sidebar-nav .nav-item {
-  padding: 20px 22px !important;
+/* ── PC sidebar — DENSITY FONT RAMP (v3.0.175) ──────────────────────────
+   User: „hustota UI boční menu PC — font se nemění, jen extrém funguje."
+   Příčina: jen spacious/extreme měly dedikovaná .sidebar-nav pravidla (vysoká
+   specificita → vyhrála), compact/comfortable měly jen .nav-item (ř.11225/11227)
+   a na některých breakpointech je přebilo base `.sidebar-nav .nav-item`.
+   Fix: všechny 4 úrovně mají dedikované pravidlo + ROVNOMĚRNÝ ramp 12/15/19/23,
+   ať je každý krok jasně vidět. */
+/* ── KOMPAKTNÍ ─────────────────────────────────────────────────── */
+html.density-compact body:not(.sidebar-pinned) .sidebar-nav .nav-item {
+  padding: 7px 12px !important;
+  font-size: 12px !important;
+}
+html.density-compact body:not(.sidebar-pinned) .sidebar-nav .nav-icon {
+  font-size: 16px !important;
+}
+/* ── POHODLNÉ (výchozí) ────────────────────────────────────────── */
+html.density-comfortable body:not(.sidebar-pinned) .sidebar-nav .nav-item {
+  padding: 11px 16px !important;
+  font-size: 15px !important;
+}
+html.density-comfortable body:not(.sidebar-pinned) .sidebar-nav .nav-icon {
   font-size: 20px !important;
 }
-html.density-spacious body:not(.sidebar-pinned) .sidebar-nav .nav-icon {
-  font-size: 26px !important;
+/* ── PROSTORNÉ ─────────────────────────────────────────────────── */
+html.density-spacious body:not(.sidebar-pinned) .sidebar-nav .nav-item {
+  padding: 16px 20px !important;
+  font-size: 19px !important;
 }
-/* ── PC sidebar — EXTRÉMNÍ ─────────────────────────────────────── */
+html.density-spacious body:not(.sidebar-pinned) .sidebar-nav .nav-icon {
+  font-size: 25px !important;
+}
+/* ── EXTRÉMNÍ ──────────────────────────────────────────────────── */
 html.density-extreme body:not(.sidebar-pinned) .sidebar-nav .nav-item {
-  padding: 26px 26px !important;
-  font-size: 22px !important;
+  padding: 22px 24px !important;
+  font-size: 23px !important;
 }
 html.density-extreme body:not(.sidebar-pinned) .sidebar-nav .nav-icon {
   font-size: 30px !important;

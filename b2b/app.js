@@ -1062,7 +1062,10 @@ function renderCatalogGrid(vyrobky) {
   const isWide = window.innerWidth >= 600;
   const gridCols = isWide ? 'repeat(auto-fill, minmax(180px, 1fr))' : '1fr 1fr';
   const gridGap = isWide ? '14px' : '8px';
-  const gridStyle = `display:grid;grid-template-columns:${gridCols};gap:${gridGap};`;
+  // 🆕 v3.0.175 — align-items:start → karty drží přirozenou výšku. Bez toho grid roztáhl
+  //   sousedy in-cart karty (která má stepper navíc) na její výšku → ošklivá díra mezi
+  //   jednotkou a cenou (cena má margin-top:auto → spadla dolů).
+  const gridStyle = `display:grid;grid-template-columns:${gridCols};gap:${gridGap};align-items:start;`;
 
   // Pokud je filter / search aktivní → plochý seznam (uživatel chce vidět výsledky)
   if (state.filterKategorie || (state.search && state.search.trim())) {
