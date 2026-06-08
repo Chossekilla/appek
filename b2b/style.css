@@ -1235,11 +1235,13 @@ textarea.input { resize: vertical; min-height: 60px; font-size: 14px; }
 /* Mini karta — 4 tlačítka v řadě */
 .order-mini-actions {
   display: flex;
+  flex-wrap: wrap; /* 🆕 v3.0.199 — když se 4 tlačítka nevejdou do úzké mini-karty, zalomí se (ne ořez) */
   gap: 4px;
   margin-top: 6px;
 }
 .order-mini-actions .oc-btn {
-  flex: 1;
+  flex: 1 1 auto; /* 🆕 v3.0.199 — bylo flex:1 (basis 0) → stejné úzké sloupce → ořez „Detail"/„Znovu".
+                     Teď respektuje obsahovou šířku, růst rozdělí volné místo rovnoměrně. */
   text-align: center;
   justify-content: center;
 }
@@ -1913,7 +1915,10 @@ html.dark .orders-list .order-card:nth-child(even) { background: var(--surface-2
 }
 .oc-btn {
   flex: 1 1 auto;
-  min-width: 0;
+  /* 🆕 v3.0.199 — obsahové dno: tlačítko se NESMRŠTÍ pod šířku svého textu.
+     Dřív min-width:0 dovolil flexu stlačit button pod text → text přetékal/ořízl se.
+     Teď když se nevejdou, kontejner (flex-wrap) je zalomí na další řádek — vždy čitelné. */
+  min-width: auto;
   padding: 9px 10px;
   border-radius: 8px;
   font-size: 13px;
