@@ -1839,14 +1839,17 @@ async function loadDopravaPlatbaCards() {
 
   // Default selection (z localStorage)
   if (!state.checkoutData.doprava) {
-    state.checkoutData.doprava = localStorage.getItem('b2b_doprava_default') || 'vlastni';
+    state.checkoutData.doprava = localStorage.getItem('b2b_doprava_default') || 'rozvoz';
   }
   if (!state.checkoutData.platba) {
     state.checkoutData.platba = localStorage.getItem('b2b_platba_default') || 'prevod';
   }
 
   // Doprava karty
+  // 🆕 v3.0.176 — rozvoz + kurýr (always) per user; vlastní odvoz / Zásilkovna / DPD dle integrace
   const dopravaOpts = [
+    { key: 'rozvoz',     icon: '🚚', label: 'Rozvoz na adresu', desc: 'Přivezeme přímo k vám naším rozvozem', always: true },
+    { key: 'kuryr',      icon: '🛵', label: 'Kurýr', desc: 'Doručení kurýrní službou na adresu', always: true },
     { key: 'vlastni',    icon: '🚐', label: 'Vlastní odvoz / pickup', desc: 'Zboží si vyzvednu osobně nebo vyřešíme jinak', always: true },
     { key: 'zasilkovna', icon: '📦', label: 'Zásilkovna', desc: 'Výdejní místo po ČR/EU · dobírka možná', enabled: services.zas },
     { key: 'dpd',        icon: '📦', label: 'DPD CZ', desc: 'Kurýrní doručení na adresu · dobírka možná', enabled: services.dpd },
@@ -1865,29 +1868,52 @@ async function loadDopravaPlatbaCards() {
     `).join('') || '<div style="color:var(--text-3);font-size:13px">Žádný způsob dopravy zatím není zapnutý. Kontaktuj dodavatele.</div>';
   }
 
-  // Platba karty
-  const platbaOpts = [
-    { key: 'prevod',   icon: '🏦', label: 'Bankovní převod', desc: 'Faktura po dodání, splatnost typicky 14 dní', always: true },
-    { key: 'hotove',   icon: '💵', label: 'Hotově při převzetí', desc: 'Platba na ruku při doručení', always: true },
-    { key: 'dobirka',  icon: '📦', label: 'Dobírka', desc: 'Platba kurýrovi/výdejně při převzetí', condition: (s) => s.zas || s.dpd },
-    { key: 'stripe',   icon: '💳', label: 'Karta online (Stripe)', desc: 'Visa, Mastercard, Apple Pay, Google Pay', enabled: services.stripe },
-    { key: 'gopay',    icon: '💳', label: 'GoPay (karta + bank)', desc: 'CZ karty + okamžitý bank převod', enabled: services.gopay },
-  ];
+  // Platba karty — 🆕 v3.0.176 — z VEŘEJNÉHO payment_methods.php?context=b2b
+  //   (dřív se četlo admin_integrace.php — to zákazník nesmí → online/faktura se nikdy
+  //   nenačetly). Teď faktura + převod + online (Stripe/GoPay) dle nastavení admina.
+  let payMethods = [];
+  try {
+    const pm = await api('payment_methods.php?context=b2b');
+    payMethods = pm.methods || [];
+  } catch (e) { /* fallback níže */ }
+  if (!payMethods.length) {
+    payMethods = [
+      { key: 'faktura', label: '📄 Faktura + převod' },
+      { key: 'prevod',  label: '🏦 Bankovní převod' },
+      { key: 'hotove',  label: '💵 Hotově při převzetí' },
+    ];
+  }
+  const payDesc = {
+    faktura: 'Fakturu dostaneš po dodání, splatnost typicky 14 dní',
+    prevod:  'Zaplatíš převodem na účet podle faktury',
+    dobirka: 'Platba kurýrovi / výdejně při převzetí',
+    hotove:  'Platba na ruku při doručení',
+    stripe:  'Karta online — Visa, Mastercard, Apple/Google Pay',
+    gopay:   'GoPay — karta + okamžitý bankovní převod',
+    paypal:  'Platba přes PayPal účet',
+  };
+  // Default — preferuj fakturu, jinak první v seznamu (a vyčisti neplatný výběr)
+  if (!payMethods.some(m => m.key === state.checkoutData.platba)) {
+    const pref = payMethods.find(m => m.key === 'faktura') || payMethods[0];
+    state.checkoutData.platba = pref ? pref.key : 'faktura';
+  }
   const platbaEl = document.getElementById('b2b-platba-cards');
   if (platbaEl) {
-    const visible = platbaOpts.filter(o =>
-      o.always || o.enabled || (o.condition && o.condition(services))
-    );
-    platbaEl.innerHTML = visible.map(o => `
+    platbaEl.innerHTML = payMethods.map(o => {
+      const lbl = o.label || o.key;
+      const sp = lbl.indexOf(' ');
+      const ico = sp > 0 ? lbl.slice(0, sp) : '💳';
+      const name = sp > 0 ? lbl.slice(sp + 1) : lbl;
+      return `
       <button type="button" class="b2b-pay-card ${state.checkoutData.platba === o.key ? 'active' : ''}"
               onclick="setPlatba('${o.key}')" data-svc="${o.key}">
-        <span class="b2b-pay-ico">${o.icon}</span>
+        <span class="b2b-pay-ico">${ico}</span>
         <span class="b2b-pay-info">
-          <span class="b2b-pay-name">${esc(o.label)}</span>
-          <span class="b2b-pay-desc">${esc(o.desc)}</span>
+          <span class="b2b-pay-name">${esc(name)}</span>
+          <span class="b2b-pay-desc">${esc(payDesc[o.key] || '')}</span>
         </span>
-      </button>
-    `).join('');
+      </button>`;
+    }).join('');
   }
 }
 

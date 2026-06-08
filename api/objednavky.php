@@ -159,6 +159,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         json_error('Neplatné místo dodání', 403);
     }
 
+    // 🆕 v3.0.176 — sloupce pro způsob doručení (rozvoz/kurýr/…) + platby (faktura/online/…).
+    //   DDL MIMO transakci (ALTER dělá implicit commit). Soft-fail.
+    try {
+        $ocols = $pdo->query("SHOW COLUMNS FROM objednavky")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('zpusob_doruceni', $ocols, true)) $pdo->exec("ALTER TABLE objednavky ADD COLUMN zpusob_doruceni VARCHAR(30) NULL");
+        if (!in_array('zpusob_platby', $ocols, true))   $pdo->exec("ALTER TABLE objednavky ADD COLUMN zpusob_platby VARCHAR(30) NULL");
+    } catch (Throwable $e) { /* soft-fail — uložení proběhne bez těchto sloupců */ }
+
     $pdo->beginTransaction();
     try {
         // FIX #2: Atomické číslování přes cislovani tabulku
@@ -207,8 +215,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("
             INSERT INTO objednavky (cislo, odberatel_id, misto_dodani_id, typ, datum_dodani,
                                     plati_od, plati_do, dny_v_tydnu,
-                                    castka_bez_dph, castka_dph, castka_celkem, poznamka)
-            VALUES (:c,:o,:m,:t,:d,:po,:pdo_,:dny,:b,:dph,:cel,:pozn)
+                                    castka_bez_dph, castka_dph, castka_celkem, poznamka,
+                                    zpusob_doruceni, zpusob_platby)
+            VALUES (:c,:o,:m,:t,:d,:po,:pdo_,:dny,:b,:dph,:cel,:pozn,:dor,:plt)
         ");
         $stmt->execute([
             'c' => $cislo, 'o' => $odberatel_id, 'm' => $misto_id,
@@ -220,6 +229,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      : null,
             'b' => round($bez, 2), 'dph' => round($dph, 2),
             'cel' => round($bez + $dph, 2), 'pozn' => $data['poznamka'] ?? null,
+            'dor' => (substr(trim((string)($data['doprava'] ?? '')), 0, 30) ?: null),
+            'plt' => (substr(trim((string)($data['platba'] ?? '')), 0, 30) ?: null),
         ]);
         $obj_id = (int) $pdo->lastInsertId();
 
