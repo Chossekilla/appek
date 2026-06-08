@@ -48,9 +48,13 @@ $pdo->exec("
         max_paralelni INT NOT NULL DEFAULT 4,
         aktivni TINYINT(1) NOT NULL DEFAULT 1,
         poradi INT NOT NULL DEFAULT 0,
-        barva VARCHAR(20) DEFAULT '#F59E0B'
+        barva VARCHAR(20) DEFAULT '#F59E0B',
+        printer_id INT NULL DEFAULT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ");
+// 🆕 v3.0.200 — párování tiskáren na stanice: bon položky jde na tiskárnu její stanice.
+//   Idempotentní pro existující instalace (sloupec přidán dodatečně).
+try { $pdo->exec("ALTER TABLE kitchen_stations ADD COLUMN IF NOT EXISTS printer_id INT NULL DEFAULT NULL"); } catch (Throwable $e) {}
 
 // Seed default stanice
 $cnt = (int) $pdo->query("SELECT COUNT(*) FROM kitchen_stations")->fetchColumn();
@@ -116,23 +120,27 @@ if ($action === 'station' && $method === 'POST') {
     $id = (int) ($d['id'] ?? 0);
     $nazev = trim($d['nazev'] ?? '');
     if (!$nazev) json_error('Vyplň název', 400);
+    // 🆕 v3.0.200 — printer_id (nullable): tiskárna této stanice pro bony
+    $pid = (isset($d['printer_id']) && (int)$d['printer_id'] > 0) ? (int)$d['printer_id'] : null;
     if ($id) {
-        $pdo->prepare("UPDATE kitchen_stations SET nazev=:n, ikona=:i, max_paralelni=:m, barva=:b, poradi=:p, aktivni=:a WHERE id=:id")
+        $pdo->prepare("UPDATE kitchen_stations SET nazev=:n, ikona=:i, max_paralelni=:m, barva=:b, poradi=:p, aktivni=:a, printer_id=:pr WHERE id=:id")
             ->execute([
                 'n'=>$nazev,'i'=>$d['ikona'] ?? '🔥',
                 'm'=>(int)($d['max_paralelni'] ?? 4),
                 'b'=>$d['barva'] ?? '#F59E0B',
                 'p'=>(int)($d['poradi'] ?? 0),
                 'a'=>isset($d['aktivni']) ? (int)!!$d['aktivni'] : 1,
+                'pr'=>$pid,
                 'id'=>$id,
             ]);
     } else {
-        $pdo->prepare("INSERT INTO kitchen_stations (nazev, ikona, max_paralelni, barva, poradi) VALUES (:n,:i,:m,:b,:p)")
+        $pdo->prepare("INSERT INTO kitchen_stations (nazev, ikona, max_paralelni, barva, poradi, printer_id) VALUES (:n,:i,:m,:b,:p,:pr)")
             ->execute([
                 'n'=>$nazev,'i'=>$d['ikona'] ?? '🔥',
                 'm'=>(int)($d['max_paralelni'] ?? 4),
                 'b'=>$d['barva'] ?? '#F59E0B',
                 'p'=>(int)($d['poradi'] ?? 0),
+                'pr'=>$pid,
             ]);
         $id = (int) $pdo->lastInsertId();
     }
@@ -182,6 +190,9 @@ if ($action === 'order_status' && $method === 'POST') {
 // ────── DEFAULT GET: dashboard ──────
 $settings = $pdo->query("SELECT * FROM kitchen_settings WHERE id=1")->fetch();
 $stanice  = $pdo->query("SELECT * FROM kitchen_stations WHERE aktivni=1 ORDER BY poradi, id")->fetchAll();
+// 🆕 v3.0.200 — aktivní tiskárny pro dropdown „stanice → tiskárna" (defenzivně, tabulka nemusí existovat)
+$printers = [];
+try { $printers = $pdo->query("SELECT id, nazev, typ, aktivni FROM restaurant_printers WHERE aktivni=1 ORDER BY typ, nazev")->fetchAll(); } catch (Throwable $e) {}
 
 // 🐛 fix v3.0.164 — fronta výroby = JEDEN zdroj pravdy:
 //   • dine-in: živě z restaurant_pos_polozky (otevřené účty) — stejně jako KDS,
@@ -240,6 +251,7 @@ $globalLoad = $settings['max_paralelni_objednavky'] > 0
 json_response([
     'settings'      => $settings,
     'stanice'       => $stanice,
+    'printers'      => $printers,
     'station_load'  => $stationLoad,
     'queue'         => $queue,
     'stats' => [
