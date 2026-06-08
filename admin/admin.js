@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.184';
+const APPEK_ADMIN_JS_VERSION = '3.0.185';
 
 (async function detectStaleCode() {
   try {
@@ -14317,36 +14317,7 @@ async function renderNastaveni() {
       </p>
     </div>
 
-    <!-- 🆕 v3.0.14 — Video návody YouTube -->
-    <div class="card-block" style="margin-bottom:14px;background:linear-gradient(135deg,#FEF2F2,#FEE2E2);border:1px solid #FECACA;padding:18px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-        <div>
-          <h3 style="margin:0 0 4px;font-size:18px;color:#991B1B;display:flex;align-items:center;gap:8px">
-            <span style="font-size:24px">▶️</span> Video návody na YouTube
-          </h3>
-          <p style="margin:0;font-size:13px;color:#7F1D1D;line-height:1.55">
-            Postupně přibývají krátká instruktážní videa — od onboardingu přes POS až po pokročilé features.
-          </p>
-        </div>
-        <a href="https://youtu.be/oeOdpkFAg8M" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,#DC2626,#991B1B);color:#fff;text-decoration:none;border-radius:10px;font-weight:800;font-size:14px;box-shadow:0 3px 8px rgba(220,38,38,0.3);transition:all 0.15s ease;white-space:nowrap" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 5px 14px rgba(220,38,38,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 3px 8px rgba(220,38,38,0.3)'">
-          <span style="font-size:18px">▶️</span> Otevřít na YouTube
-        </a>
-      </div>
-      <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,0.15)">
-        <iframe
-          src="https://www.youtube.com/embed/oeOdpkFAg8M"
-          title="APPEK B2B — Video návody"
-          style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowfullscreen
-          loading="lazy"
-          referrerpolicy="strict-origin-when-cross-origin"
-        ></iframe>
-      </div>
-      <p style="margin:10px 0 0;font-size:12px;color:#7F1D1D;text-align:center;font-style:italic">
-        💡 Tip: Přihlas se k odběru kanálu — dostaneš notifikaci u nového videa
-      </p>
-    </div>
+    <!-- 🆕 v3.0.185 — YouTube video návody ODSTRANĚNY z Nápovědy (user: „youtube z nápovědy pryč") -->
 
     <div class="faq-grid">
     ${[

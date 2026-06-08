@@ -60,7 +60,7 @@
   }
 })();
 </script>
-<link rel="stylesheet" href="admin.css?v=3.0.184">
+<link rel="stylesheet" href="admin.css?v=3.0.185">
 </head>
 <body>
 
@@ -112,36 +112,10 @@
       if (rt && j.reset_at) rt.textContent = '🔄 Další reset: ' + j.reset_at;
     }
 
-    // Idle-logout timer (15 min default, configurable přes session_ttl)
-    window.__demoIdleSec = j.session_ttl || 900;
-    window.__demoLastActivity = Date.now();
-
-    const resetIdle = () => { window.__demoLastActivity = Date.now(); };
-    ['click', 'keypress', 'scroll', 'touchstart', 'mousemove'].forEach(ev => {
-      document.addEventListener(ev, resetIdle, { passive: true });
-    });
-
-    // Check každých 30 sekund
-    setInterval(() => {
-      const idleMs = Date.now() - window.__demoLastActivity;
-      const ttlMs = window.__demoIdleSec * 1000;
-      if (idleMs >= ttlMs) {
-        // Logout
-        document.cookie = 'PHPSESSID=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
-        try { localStorage.removeItem('appek_admin'); } catch (e) {}
-        alert('⏱️ Demo session vypršela (15 min). Stránka se obnoví.');
-        window.location.reload();
-      } else if (idleMs >= ttlMs - 60000) {
-        // 1 min warning
-        const banner = document.getElementById('demo-banner');
-        if (banner && !banner.dataset.warned) {
-          banner.dataset.warned = '1';
-          banner.style.background = 'rgba(255,149,0,0.15)';
-          banner.style.borderLeftColor = '#ff9500';
-          banner.innerHTML = '⏱️ <strong>Demo session vyprší za 1 min</strong> — pokračuj v práci pro prodloužení.';
-        }
-      }
-    }, 30000);
+    // 🆕 v3.0.185 — DEMO IDLE-RESET ODSTRANĚN (user: „reset dema pryč všude").
+    //   Dřív: po 15 min nečinnosti alert + logout + reload (rušilo rozdělanou práci,
+    //   např. uprostřed objednávky). Demo data se teď resetují JEN ručně přes
+    //   Nastavení → Údržba → 🗑️ Reset. Auto-fill přihlášení + banner zůstávají.
   } catch (e) { /* ignore */ }
 })();
 </script>
@@ -335,7 +309,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js" defer></script>
-<script src="i18n.js?v=3.0.184"></script>
+<script src="i18n.js?v=3.0.185"></script>
 <!-- 🚀 v2.9.314 — Lazy i18n: CS users (~80% bázi) předtím tahali 4 MB JS zbytečně.
      i18n_auto.js (2.3 MB, EN+ES) a i18n_extra.js (1.7 MB, SK+DE) se teď loadují
      jen pro non-CS jazyky. Switching at runtime: window.loadI18nForLang() v i18n.js. -->
@@ -347,14 +321,14 @@
   // EN/ES needs i18n_auto.js. SK/DE need both.
   // document.write je deprecated ale funguje synchronně před admin.js — což je co potřebujeme.
   if (lang === 'en' || lang === 'es' || lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_auto.js?v=3.0.184"><\/script>');
+    document.write('<script src="i18n_auto.js?v=3.0.185"><\/script>');
   }
   if (lang === 'sk' || lang === 'de') {
-    document.write('<script src="i18n_extra.js?v=3.0.184"><\/script>');
+    document.write('<script src="i18n_extra.js?v=3.0.185"><\/script>');
   }
 })();
 </script>
-<script src="admin.js?v=3.0.184"></script>
+<script src="admin.js?v=3.0.185"></script>
 <script>
 // 🔄 AUTO-CHECK pro update — admin loadne → ptáme se vendora.
 //    v2.9.52 — Client-side semver kontrola: pill se ukáže JEN když je
