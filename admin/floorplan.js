@@ -817,6 +817,7 @@
       State.zones.forEach((z, zoneIdx) => {
         (z.items || []).forEach(it => {
           allItems.push({
+            dbId:    it.dbId ?? null,   // 🆕 v3.0.202 — reálné DB id existujícího stolu → server UPDATEuje (zachová rezervace/ID), místo destruktivního reinsertu
             type:    it.type,
             nazev:   it.nazev,
             mist:    it.mist || null,
@@ -835,6 +836,7 @@
         method: 'POST',
         body: JSON.stringify({
           zones: State.zones.map(z => ({
+            dbId:     z.dbId ?? null,   // 🆕 v3.0.202 — reálné DB id zóny
             nazev:    z.nazev,
             ikona:    z.ikona,
             canvas_w: z.canvas_w || 1200,
@@ -843,6 +845,10 @@
           tables: allItems,
         }),
       });
+
+      // 🆕 v3.0.202 — resync editor s DB: nové stoly/zóny dostanou dbId, takže další „Aplikovat"
+      //   je UPDATEem (neduplikuje). Reload je levný a stav je po uložení konzistentní.
+      await loadFromDB();
 
       if (!silent) {
         const stoly = r.pocet_stolu ?? 0;

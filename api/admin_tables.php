@@ -1099,44 +1099,56 @@ if ($method === 'POST' && $action === 'apply_editor_state') {
     ];
 
     try {
+        ensure_table_columns($pdo); // zajisti x/y/width/height/tvar/zone_id/stav/rotace/barva/aktivni
         $pdo->beginTransaction();
-        // Wipe existing
-        $pdo->exec("DELETE FROM restaurant_tables");
-        $pdo->exec("DELETE FROM restaurant_zones");
 
-        // Insert zones
-        $zoneIds = [];
+        // 🆕 v3.0.202 — NEDESTRUKTIVNÍ sync. Dřív: DELETE all + reinsert → FK ON DELETE CASCADE
+        //   smazal VŠECHNY rezervace a nová ID rozsynchronizovala editor (následný drag-save
+        //   trefil neexistující id → nic se neuložilo). Teď: UPDATE podle dbId / INSERT nové /
+        //   soft-delete odebrané (aktivni=0) → rezervace + otevřené účty + ID zůstanou.
         if (empty($zones)) {
-            // Fallback: vždy alespoň jedna výchozí zóna
             $zones = [['nazev' => 'Hlavní sál', 'ikona' => '🍽️', 'canvas_w' => 1200, 'canvas_h' => 800]];
         }
-        $zStmt = $pdo->prepare("INSERT INTO restaurant_zones (nazev, ikona, canvas_w, canvas_h, sort_order, aktivni) VALUES (:n,:i,:w,:h,:s,1)");
+
+        // ── ZÓNY: upsert podle dbId, deaktivuj odebrané ──
+        $zUpd = $pdo->prepare("UPDATE restaurant_zones SET nazev=:n, ikona=:i, canvas_w=:w, canvas_h=:h, sort_order=:s, aktivni=1 WHERE id=:id");
+        $zIns = $pdo->prepare("INSERT INTO restaurant_zones (nazev, ikona, canvas_w, canvas_h, sort_order, aktivni) VALUES (:n,:i,:w,:h,:s,1)");
+        $zExists = $pdo->prepare("SELECT 1 FROM restaurant_zones WHERE id=:id");
+        $zoneIds = [];
+        $keptZoneIds = [];
         foreach ($zones as $idx => $z) {
-            $zStmt->execute([
-                'n' => trim($z['nazev'] ?? 'Zóna ' . ($idx+1)),
+            $zp = [
+                'n' => trim($z['nazev'] ?? ('Zóna ' . ($idx+1))),
                 'i' => trim($z['ikona'] ?? '🍽️'),
                 'w' => (int)($z['canvas_w'] ?? 1200),
                 'h' => (int)($z['canvas_h'] ?? 800),
                 's' => $idx,
-            ]);
-            $zoneIds[$idx] = (int)$pdo->lastInsertId();
+            ];
+            $zdb = (isset($z['dbId']) && (int)$z['dbId'] > 0) ? (int)$z['dbId'] : 0;
+            if ($zdb) { $zExists->execute(['id'=>$zdb]); if (!$zExists->fetchColumn()) $zdb = 0; }
+            if ($zdb) { $zUpd->execute($zp + ['id'=>$zdb]); $zoneIds[$idx] = $zdb; }
+            else      { $zIns->execute($zp);                 $zoneIds[$idx] = (int)$pdo->lastInsertId(); }
+            $keptZoneIds[] = $zoneIds[$idx];
+        }
+        if ($keptZoneIds) {
+            $pdo->exec("UPDATE restaurant_zones SET aktivni=0 WHERE id NOT IN (" . implode(',', array_map('intval', $keptZoneIds)) . ")");
         }
 
-        // Insert tables (jen ty co jsou skutečně stoly — type round/square/rect/bar/lounge)
+        // ── STOLY: upsert podle dbId, soft-delete odebrané (jen skutečné stoly) ──
         $stoly_types = ['round','square','rect','bar','lounge'];
-        $tStmt = $pdo->prepare("
-            INSERT INTO restaurant_tables (nazev, mist, sekce, x, y, width, height, tvar, zone_id, stav, rotace, barva, aktivni)
-            VALUES (:n,:m,:s,:x,:y,:w,:h,:t,:z,'free',:r,:b,1)
-        ");
+        $tUpd = $pdo->prepare("UPDATE restaurant_tables SET nazev=:n, mist=:m, sekce=:s, x=:x, y=:y, width=:w, height=:h, tvar=:t, zone_id=:z, rotace=:r, barva=:b, aktivni=1 WHERE id=:id");
+        $tIns = $pdo->prepare("INSERT INTO restaurant_tables (nazev, mist, sekce, x, y, width, height, tvar, zone_id, stav, rotace, barva, aktivni) VALUES (:n,:m,:s,:x,:y,:w,:h,:t,:z,'free',:r,:b,1)");
+        $tExists = $pdo->prepare("SELECT 1 FROM restaurant_tables WHERE id=:id");
+        $keptTableIds = [];
         $pocet_stolu = 0;
         $celkem_mist = 0;
         foreach ($items as $it) {
             $type = $it['type'] ?? 'square';
-            if (!in_array($type, $stoly_types, true)) continue; // skip wall/door/etc.
-            $zi = (int)($it['zone_idx'] ?? 0);
+            if (!in_array($type, $stoly_types, true)) continue; // přeskoč zeď/dveře/kuchyň/WC/text…
+            $zi   = (int)($it['zone_idx'] ?? 0);
             $tvar = $TYP_MAP[$type] ?? 'square';
             $mist = (int)($it['mist'] ?? 2);
-            $tStmt->execute([
+            $tp = [
                 'n' => substr(trim((string)($it['nazev'] ?? 'S')), 0, 60),
                 'm' => $mist,
                 's' => $zones[$zi]['nazev'] ?? null,
@@ -1148,16 +1160,26 @@ if ($method === 'POST' && $action === 'apply_editor_state') {
                 'z' => $zoneIds[$zi] ?? null,
                 'r' => (int)($it['rotace'] ?? 0),
                 'b' => $it['barva'] ?? null,
-            ]);
+            ];
+            $tdb = (isset($it['dbId']) && (int)$it['dbId'] > 0) ? (int)$it['dbId'] : 0;
+            if ($tdb) { $tExists->execute(['id'=>$tdb]); if (!$tExists->fetchColumn()) $tdb = 0; }
+            if ($tdb) { $tUpd->execute($tp + ['id'=>$tdb]); $keptTableIds[] = $tdb; }
+            else      { $tIns->execute($tp);                 $keptTableIds[] = (int)$pdo->lastInsertId(); }
             $pocet_stolu++;
             $celkem_mist += $mist;
+        }
+        // Odebrané stoly → aktivni=0 (NEmaž → zachová rezervace/historii; LIST filtruje aktivni=1)
+        if ($keptTableIds) {
+            $pdo->exec("UPDATE restaurant_tables SET aktivni=0 WHERE id NOT IN (" . implode(',', array_map('intval', $keptTableIds)) . ")");
+        } else {
+            $pdo->exec("UPDATE restaurant_tables SET aktivni=0");
         }
 
         $pdo->commit();
         json_response([
             'ok' => true,
             'message' => 'Floor plan aplikován do produkce',
-            'pocet_zon' => count($zoneIds),
+            'pocet_zon' => count($keptZoneIds),
             'pocet_stolu' => $pocet_stolu,
             'celkem_mist' => $celkem_mist,
         ]);
