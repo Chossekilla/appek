@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.189';
+const APPEK_ADMIN_JS_VERSION = '3.0.190';
 
 (async function detectStaleCode() {
   try {
@@ -1996,6 +1996,31 @@ window.setConfirmDelete2xEnabled = function(on) {
   }
 };
 
+// 🆕 v3.0.190 — Mobilní rychlá akční tlačítka (FAB) on/off (Nastavení → Vzhled).
+//   User: „rychlá volba swipovací z boku … dej možnost v adminu zapnout/vypnout zobrazení."
+//   Per-zařízení (localStorage, jako téma/hustota); default ZAP.
+window.getAppFabEnabled = function() {
+  try {
+    const v = localStorage.getItem('appFabEnabled');
+    return v === null ? true : v === '1';   // default ON
+  } catch { return true; }
+};
+window.setAppFabEnabled = function(on) {
+  try { localStorage.setItem('appFabEnabled', on ? '1' : '0'); } catch {}
+  const badge = document.getElementById('ns-fab-status');
+  if (badge) {
+    badge.textContent = on ? '✓ Zapnuto' : '✕ Vypnuto';
+    badge.style.background = on ? 'var(--success-bg)' : '#FEE2E2';
+    badge.style.color = on ? 'var(--success-text)' : '#7F1D1D';
+  }
+  // Okamžitě aplikuj — skryj/zobraz FAB bez reloadu.
+  try {
+    const fab = document.getElementById('app-fab');
+    if (!on) { if (fab) fab.classList.add('is-hidden'); }
+    else if (typeof window.updateAppFAB === 'function') window.updateAppFAB((window.state && state.current) || 'dashboard');
+  } catch (e) {}
+};
+
 // Použití:
 //   if (!await confirmDelete2x('výrobek "Bageta"')) return;
 // nebo
@@ -2462,6 +2487,11 @@ const APPEK_FAB_CONFIG = {
 
 window.updateAppFAB = function(page) {
   let fab = document.getElementById('app-fab');
+  // 🆕 v3.0.190 — globální vypínač mobilních rychlých tlačítek (Nastavení → Vzhled).
+  if (typeof window.getAppFabEnabled === 'function' && !window.getAppFabEnabled()) {
+    if (fab) fab.classList.add('is-hidden');
+    return;
+  }
   const cfg = APPEK_FAB_CONFIG[page];
   if (!cfg) {
     if (fab) fab.classList.add('is-hidden');
@@ -14057,6 +14087,22 @@ async function renderNastaveni() {
             `;
           }).join('')}
         </div>
+      </div>
+
+      <!-- 🆕 v3.0.190 — 📱 Rychlá akční tlačítka na mobilu (FAB) on/off -->
+      <div style="margin-top:18px;padding-top:18px;border-top:1px dashed var(--border)">
+        <h4 style="margin:0 0 4px;font-size:14px">📱 Rychlá tlačítka na mobilu</h4>
+        <p style="font-size:12px;color:var(--text-3);margin:0 0 12px;line-height:1.5">
+          Plovoucí akční tlačítko v rohu (Nová objednávka, Nový DL, Nová FA…) — <strong>swipni do strany</strong> pro skrytí. Zobrazuje se jen na mobilu / dotyku.
+        </p>
+        <label class="checkbox-row" style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface-2);border-radius:8px;cursor:pointer">
+          <input type="checkbox" id="ns-fab-toggle" ${getAppFabEnabled() ? 'checked' : ''} onchange="setAppFabEnabled(this.checked)" style="width:20px;height:20px;cursor:pointer">
+          <span style="flex:1">
+            <strong style="font-size:14px">📱 Zobrazit rychlá tlačítka</strong>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px">Plovoucí rychlá akce na mobilu (swipovací). Vypni, pokud ho nechceš zobrazovat.</div>
+          </span>
+          <span id="ns-fab-status" style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:12px;${getAppFabEnabled() ? 'background:var(--success-bg);color:var(--success-text)' : 'background:#FEE2E2;color:#7F1D1D'}">${getAppFabEnabled() ? '✓ Zapnuto' : '✕ Vypnuto'}</span>
+        </label>
       </div>
     </div>
 
