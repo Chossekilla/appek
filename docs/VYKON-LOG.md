@@ -26,6 +26,17 @@
 | Dvojitá platba (dine-in kolize) | ✅ blokováno (409) |
 → Po opravách B2B (3.0.194) + Suroviny (3.0.195) + admin/pos.php t() (3.0.193) **žádné další bugy nenalezeny.**
 
+## Bug hunt round 2 — „projeď vše" (race / moduly / QR) — 2 NOVÉ bugy NALEZENY + OPRAVENY
+| Test | Výsledek |
+|---|---|
+| Moduly (Výroba/HACCP/Catering/dort/kalkulace) | ✅ čisté (404/400 = jen špatné názvy/params) |
+| Souběžné přidání 12× na 1 účet | ✅ 12/12 (žádný lost update) |
+| Dvojí platba souběžně | ✅ 1 platba, 2. → 409 |
+| 🐛 **move/split/merge na ZAPLACENÉM účtu** | ❌→✅ **FIX 3.0.196** — split na paid vytvářel otevřené pod-účty z už zaplacených položek (riziko DVOJÍ TRŽBY). Teď všechny 3 vyžadují stav='open' → 409. Ověřeno. |
+| 🐛 **QR self-order `/qr/` = 404** | ❌→✅ **FIX 3.0.197** — qr/index.php nebyl v deploy bundlu (chyběl v INCLUDE_PATHS) → zákazník po QR scanu dostal „Page does not exist". Přidáno → /qr/ teď 200 („🍽️ Objednejte si"). |
+| QR generate / pending | ✅ token+URL, fronta OK |
+→ Demo na **3.0.197**. Obě chyby integrity/deploy opraveny + ověřeny.
+
 ### Run 3 — dimenze + ověření odpisů
 - B2B 150/150 (201) ✓ · dine-in 76 + 4× 409 (ochrana) ✓
 - **Odpisy DO MÍNUSU prokázány:** snížené suroviny šly hluboko záporně ve `sklad_polozky`/pohybech (např. Droždí **−47 053**), řetězec stav_pred→stav_po konzistentní, prodej se NEblokuje. ✅
