@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.177";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.178";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12137,7 +12137,6 @@ html.theme-apple .modal-close {
 html.theme-apple .nav-item {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
 }
 html.theme-apple .nav-icon {
   display: inline-flex;
@@ -16321,27 +16320,8 @@ aside.sidebar::after { display: none !important; content: '' !important; }
 
 @media (max-width: 1024px) {
   .topbar { padding: 10px 16px; gap: 8px; }
-  /* Date pill → icon only (📅) + tooltip s plnou hodnotou via title attr */
-  .topbar-datum-svatek {
-    width: 40px; height: 40px; padding: 0; border-radius: 50%;
-    justify-content: center;
-    overflow: hidden;
-    font-size: 0;  /* skryje textový obsah */
-  }
-  .topbar-datum-svatek > span,
-  .topbar-datum-svatek > strong {
-    display: none !important;
-  }
-  .topbar-datum-svatek::before {
-    content: '📅';
-    font-size: 18px;
-    display: block !important;
-    position: static !important;
-    background: none !important;
-    width: auto !important;
-    height: auto !important;
-    margin: 0 !important;
-  }
+  /* 🆕 v3.0.178 — datum/svátek úplně skrytý na ≤1024px (user: display:none, ne 📅 kolečko) */
+  .topbar-datum-svatek { display: none; }
   /* Role badge — show as compact */
   .role-badge {
     font-size: 10px !important;
