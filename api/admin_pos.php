@@ -572,6 +572,10 @@ if ($method === 'POST' && $action === 'split') {
         $origStmt->execute(['id' => $ucetId]);
         $orig = $origStmt->fetch();
         if (!$orig) throw new Exception('Účet nenalezen');
+        // 🐛 v3.0.196 — nedělit UZAVŘENÝ účet. Dřív split na 'paid' vytvořil otevřené
+        //   pod-účty z už zaplacených položek → šly zaplatit znovu (dvojí tržba).
+        //   Odhaleno race testem. Jen 'open' lze dělit.
+        if (($orig['stav'] ?? '') !== 'open') { $pdo->rollBack(); json_error('Účet je uzavřený (' . ($orig['stav'] ?? '?') . ') — nelze rozdělit', 409); }
 
         $newIds = [];
         foreach ($parts as $i => $p) {
@@ -629,6 +633,13 @@ if ($method === 'POST' && $action === 'merge') {
 
     try {
         $pdo->beginTransaction();
+        // 🐛 v3.0.196 — slučovat lze jen OTEVŘENÉ účty (target i zdroje). Dřív šly
+        //   re-linkovat položky z už zaplaceného účtu → korupce tržby. Odhaleno race testem.
+        $allIds = array_merge([$target], $sources);
+        $ph0 = implode(',', array_fill(0, count($allIds), '?'));
+        $chk = $pdo->prepare("SELECT COUNT(*) FROM restaurant_pos_ucty WHERE id IN ($ph0) AND stav = 'open'");
+        $chk->execute($allIds);
+        if ((int) $chk->fetchColumn() !== count($allIds)) { $pdo->rollBack(); json_error('Sloučit lze jen otevřené účty (některý je uzavřený)', 409); }
         // Re-link položky a platby
         $place = implode(',', array_fill(0, count($sources), '?'));
         $args = array_merge([$target], $sources);
@@ -665,9 +676,13 @@ if ($method === 'POST' && $action === 'move') {
     if (!$ucetId || !$novyStulId) json_error('Chybí', 400);
     try {
         $pdo->beginTransaction();
-        $old = $pdo->prepare("SELECT stul_id FROM restaurant_pos_ucty WHERE id = :id");
+        $old = $pdo->prepare("SELECT stul_id, stav FROM restaurant_pos_ucty WHERE id = :id");
         $old->execute(['id' => $ucetId]);
-        $oldStul = (int) $old->fetchColumn();
+        $oldRow = $old->fetch();
+        // 🐛 v3.0.196 — přesouvat lze jen OTEVŘENÝ účet (ne paid/merged/split). Odhaleno race testem.
+        if (!$oldRow) { $pdo->rollBack(); json_error('Účet nenalezen', 404); }
+        if (($oldRow['stav'] ?? '') !== 'open') { $pdo->rollBack(); json_error('Účet je uzavřený (' . ($oldRow['stav'] ?? '?') . ') — nelze přesunout', 409); }
+        $oldStul = (int) $oldRow['stul_id'];
         $pdo->prepare("UPDATE restaurant_pos_ucty SET stul_id = :s WHERE id = :id")->execute(['s' => $novyStulId, 'id' => $ucetId]);
         // Uvolni starý stůl pokud žádný open ucet
         $o = $pdo->prepare("SELECT COUNT(*) FROM restaurant_pos_ucty WHERE stul_id = :s AND stav = 'open'");
