@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.187";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.188";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20919,3 +20919,19 @@ html.theme-win98 .topbar-datum-svatek {
 }
 /* Period-tabs kontejner → win98 zapuštěný panel */
 html.theme-win98 .period-tabs { background: #C0C0C0 !important; border: 2px inset #DFDFDF !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   🆕 v3.0.188 — Výroba→Suroviny: hustota UI + okraje + zarovnání
+   Filtry měly inline font-size:18px;height:56px → přebíjely html.density-*.
+   Inline odstraněn v JS (renderSuroviny) → .form-input teď poslouchá hustotu.
+   Tady jen: lehký dolní + pravý okraj obsahu (scoped přes :has) a zarovnání.
+   ═══════════════════════════════════════════════════════════════ */
+main#content:has(.sur-filtry) {
+  padding-right: calc(var(--fl-content-px) + 10px);
+  padding-bottom: calc(var(--fl-content-py) + 24px);
+}
+/* filtry stejně vysoké (search + 2 selecty), density řídí font/padding */
+.sur-filter-grid { align-items: stretch; }
+.sur-filtry .sur-group-toggle { padding-inline: 6px; }
+/* Pozn.: filtry teď používají standardní .form-input → dědí app-wide density chování
+   jako zbytek aplikace (dřív je inline 56px/18px od density odstřihl). */
