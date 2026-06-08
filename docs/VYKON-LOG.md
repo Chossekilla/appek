@@ -11,7 +11,20 @@
 | 1 | 2026-06-08 | 3.0.193 | POS -P50 | ~6490 | **3038** | 3452 (53 %) | — | ~18 (burst) | 3 243 obj · 892 679 Kč | server saturace @ -P50; B2B padalo (plati_od) |
 | 2 | 2026-06-08 | 3.0.194 | POS -P25 | 10 000 | **4156** | 5844 (58 %) | 268 s | **15,5** | 7 401 obj · 2 047 127 Kč | DB nesmazána (kumul.); B2B opraveno |
 | 3 | 2026-06-08 | 3.0.194 | POS -P12 | 10 000 | **3801** | 6199 (62 %) | 241 s | **15,7** | čistá DB → 3 801 obj · 1 034 506 Kč | po Reset+seed; 6 surovin sraženo na 2 |
+| 4 | 2026-06-08 | 3.0.195 | POS -P5 | 2 000 | **1815** | 185 (9 %)* | 104 s | ~17 | benchmark | *odmítnutí z mého souběžného bug-huntu, ne -P5 |
 | – | pilot | 3.0.193 | -P30 (200) | 200 | 200 | 0 | 11 s | **18,1** | – | čistý burst, 0 chyb |
+
+## Bug hunt po opravách (v3.0.195) — VŠE ČISTÉ ✅
+| Test | Výsledek |
+|---|---|
+| Endpoint sweep (23 reálných admin GET) | ✅ 0 fatal/500 |
+| Těžké agregace na 7k+ obj (dashboard/objednávky/faktury) | ✅ 200, 0,2–0,4 s |
+| POS validace (8 edge cases: prázdný/záporné/overflow/neznámý/150% sleva) | ✅ 8/8 správně 400, žádný 500 |
+| faktura.php PDF | ✅ 200 |
+| **Fakturační řetězec DL→faktura→PDF** | ✅ DL-0048 → FA-0026 (203 Kč) → PDF 200 |
+| rozvozy / couriers / haccp endpointy | ✅ 200 |
+| Dvojitá platba (dine-in kolize) | ✅ blokováno (409) |
+→ Po opravách B2B (3.0.194) + Suroviny (3.0.195) + admin/pos.php t() (3.0.193) **žádné další bugy nenalezeny.**
 
 ### Run 3 — dimenze + ověření odpisů
 - B2B 150/150 (201) ✓ · dine-in 76 + 4× 409 (ochrana) ✓
