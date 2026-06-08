@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.200';
+const APPEK_ADMIN_JS_VERSION = '3.0.201';
 
 (async function detectStaleCode() {
   try {
@@ -17130,6 +17130,7 @@ async function renderRestaurantTables() {
   }
 
   const stoly = data.stoly || [];
+  state._rtHours = data.oteviraci_doba || []; // 🆕 v3.0.201 — týdenní otevírací doba pro editor
   const sekce = [...new Set(stoly.map(s => s.sekce || '— bez sekce —'))];
   const rezervaciDnes = stoly.reduce((s, t) => s + (t.obsazenost_dnes || 0), 0);
 
@@ -17155,10 +17156,18 @@ async function renderRestaurantTables() {
   // 🎨 v3.0.24 — Rezervace tab kombinuje Timeline + Seznam jako segment switch
   if (tab === 'timeline' || tab === 'list') {
     const subView = state._rtRezSubView || 'timeline';
+    // 🆕 v3.0.201 — popisek otevírací doby vybraného dne + tlačítko editoru
+    const denDnes = data.den_dnes;
+    const hoursLabel = denDnes
+      ? (denDnes.zavreno == 1 ? '🔒 Zavřeno' : `${String(denDnes.otevreno_od).slice(0,5)}–${String(denDnes.otevreno_do).slice(0,5)}`)
+      : '';
     const segSwitch = `
-      <div style="display:flex;gap:6px;margin-bottom:14px;padding:4px;background:var(--surface-2);border-radius:10px;width:fit-content">
-        <button class="${subView === 'timeline' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='timeline';state._rtTab='timeline';renderRestaurantTables()" style="padding:8px 16px;font-size:13px;border:none">⏱️ Timeline</button>
-        <button class="${subView === 'list' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='list';state._rtTab='list';renderRestaurantTables()" style="padding:8px 16px;font-size:13px;border:none">📋 Seznam</button>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+        <div style="display:flex;gap:6px;padding:4px;background:var(--surface-2);border-radius:10px;width:fit-content">
+          <button class="${subView === 'timeline' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='timeline';state._rtTab='timeline';renderRestaurantTables()" style="padding:8px 16px;font-size:13px;border:none">⏱️ Timeline</button>
+          <button class="${subView === 'list' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='list';state._rtTab='list';renderRestaurantTables()" style="padding:8px 16px;font-size:13px;border:none">📋 Seznam</button>
+        </div>
+        <button class="btn-secondary" onclick="editOpeningHours()" style="padding:8px 14px;font-size:13px" title="Nastavit otevírací dobu po dnech v týdnu">🕐 Otevírací doba${hoursLabel ? ` · <strong>${hoursLabel}</strong>` : ''}</button>
       </div>
     `;
     if (subView === 'list' || tab === 'list') {
@@ -17168,9 +17177,9 @@ async function renderRestaurantTables() {
     document.getElementById('rt-body').innerHTML = statsBar + segSwitch + '<div style="padding:30px;text-align:center;color:var(--text-3)">⏳ Načítám otevřené účty…</div>';
     api('admin_pos.php?action=open_ucty').then(r => {
       const openUcty = (r && r.ucty) || [];
-      document.getElementById('rt-body').innerHTML = statsBar + segSwitch + renderRestaurantTimeline(stoly, today, openUcty);
+      document.getElementById('rt-body').innerHTML = statsBar + segSwitch + renderRestaurantTimeline(stoly, today, openUcty, denDnes);
     }).catch(() => {
-      document.getElementById('rt-body').innerHTML = statsBar + segSwitch + renderRestaurantTimeline(stoly, today, []);
+      document.getElementById('rt-body').innerHTML = statsBar + segSwitch + renderRestaurantTimeline(stoly, today, [], denDnes);
     });
     return;
   }
@@ -19038,14 +19047,35 @@ window.rtDeleteZone = async function(id) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
-function renderRestaurantTimeline(stoly, datum, openUcty) {
+function renderRestaurantTimeline(stoly, datum, openUcty, dayHours) {
   openUcty = openUcty || [];
   // 🆕 v3.0.19 — Live obsazenost: index POS účet podle stul_id
   const uByStul = {};
   openUcty.forEach(u => { uByStul[u.stul_id] = u; });
 
-  // Range: 10:00 – 24:00 (14 hodin, každá 70px)
-  const startH = 10, endH = 24, hourPx = 70;
+  // 🆕 v3.0.201 — Zavřený den → info panel místo timeline
+  if (dayHours && (dayHours.zavreno == 1 || dayHours.zavreno === true)) {
+    return `<div class="card-block" style="padding:42px 20px;text-align:center;color:var(--text-3)">
+      <div style="font-size:42px;margin-bottom:10px">🔒</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px;color:var(--text-1)">Zavřeno</div>
+      <div style="font-size:13px">V tento den máš zavřeno. Otevírací dobu změníš tlačítkem <strong>🕐 Otevírací doba</strong>.</div>
+    </div>`;
+  }
+
+  // 🆕 v3.0.201 — Rozsah kalendáře dle otevírací doby daného dne (fallback 10–24).
+  //   od → dolů na hodinu, do → nahoru na hodinu; do ≤ od (přes půlnoc) → do konce dne.
+  let startH = 10, endH = 24;
+  if (dayHours && dayHours.otevreno_od && dayHours.otevreno_do) {
+    const oh = parseInt(String(dayHours.otevreno_od).slice(0, 2), 10);
+    const dh = parseInt(String(dayHours.otevreno_do).slice(0, 2), 10);
+    const dm = parseInt(String(dayHours.otevreno_do).slice(3, 5), 10);
+    if (!isNaN(oh)) startH = Math.max(0, Math.min(23, oh));
+    if (!isNaN(dh)) endH = dm > 0 ? dh + 1 : dh;
+    if (endH <= startH) endH = 24;
+    if (endH > 24) endH = 24;
+  }
+  // Responzivní šířka hodiny (úzký displej = užší sloupce, ať se víc vejde)
+  const hourPx = (typeof window !== 'undefined' && window.innerWidth && window.innerWidth < 640) ? 52 : 70;
   const totalMinutes = (endH - startH) * 60;
   const totalPx = (endH - startH) * hourPx;
   const colsHeader = Array.from({ length: endH - startH }, (_, i) => `
@@ -19064,7 +19094,7 @@ function renderRestaurantTimeline(stoly, datum, openUcty) {
     }
   }
 
-  const tableLabelW = 130;
+  const tableLabelW = (typeof window !== 'undefined' && window.innerWidth && window.innerWidth < 640) ? 96 : 130; // 🆕 v3.0.201 responzivní
   const colorForGuest = (name) => {
     const palette = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
     let h = 0;
@@ -19131,7 +19161,7 @@ function renderRestaurantTimeline(stoly, datum, openUcty) {
           ${labelExtra}
         </div>
         <div style="position:relative;width:${totalPx}px;flex-shrink:0;background:repeating-linear-gradient(to right, transparent 0, transparent ${hourPx - 1}px, var(--border) ${hourPx - 1}px, var(--border) ${hourPx}px);min-height:48px"
-             onclick="timelineCellClick(${t.id}, '${esc(t.nazev)}', event, ${startH})">
+             onclick="timelineCellClick(${t.id}, '${esc(t.nazev)}', event, ${startH}, ${hourPx})">
           ${blocks}
           ${liveBlock}
         </div>
@@ -19209,11 +19239,11 @@ function renderRestaurantList(stoly, datum) {
   `;
 }
 
-window.timelineCellClick = function(stulId, stulNazev, ev, startH) {
+window.timelineCellClick = function(stulId, stulNazev, ev, startH, hourPx) {
   // Compute approx start time from click X-offset
+  hourPx = hourPx || 70; // 🆕 v3.0.201 — respektuj responzivní šířku hodiny
   const rect = ev.currentTarget.getBoundingClientRect();
   const x = ev.clientX - rect.left;
-  const hourPx = 70;
   const minute = Math.floor((x / hourPx) * 60);
   const h = startH + Math.floor(minute / 60);
   const m = Math.floor((minute % 60) / 15) * 15;
@@ -19224,6 +19254,62 @@ window.timelineCellClick = function(stulId, stulNazev, ev, startH) {
 window.rezervaceClick = function(id) {
   if (!id) return;
   toastInfo('Detail rezervace #' + id);
+};
+
+// 🆕 v3.0.201 — Editor otevírací doby (po dnech v týdnu). Kalendář rezervací se podle ní přizpůsobí.
+window.editOpeningHours = function() {
+  const DNY = ['Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota', 'Neděle'];
+  const byDen = {};
+  (state._rtHours || []).forEach(h => { byDen[+h.den] = h; });
+  const rows = DNY.map((nazev, den) => {
+    const h = byDen[den] || { otevreno_od: '11:00', otevreno_do: '23:00', zavreno: 0 };
+    const zav = (h.zavreno == 1 || h.zavreno === true);
+    const od = String(h.otevreno_od || '11:00').slice(0, 5);
+    const doo = String(h.otevreno_do || '23:00').slice(0, 5);
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);flex-wrap:wrap">
+        <strong style="flex:0 0 80px;font-size:13px">${nazev}</strong>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3);cursor:pointer">
+          <input type="checkbox" id="oh-zav-${den}" ${zav ? 'checked' : ''} onchange="ohToggleClosed(${den})" style="width:16px;height:16px;cursor:pointer"> Zavřeno
+        </label>
+        <div id="oh-times-${den}" style="display:${zav ? 'none' : 'flex'};align-items:center;gap:6px;margin-left:auto">
+          <input type="time" id="oh-od-${den}" value="${od}" class="form-input" style="width:auto;padding:5px 8px">
+          <span style="color:var(--text-3)">–</span>
+          <input type="time" id="oh-do-${den}" value="${doo}" class="form-input" style="width:auto;padding:5px 8px">
+        </div>
+      </div>
+    `;
+  }).join('');
+  openModal('🕐 Otevírací doba', `
+    <div style="display:flex;flex-direction:column;gap:8px;padding:4px 2px">
+      <p style="font-size:12px;color:var(--text-3);margin:0 0 4px">Kalendář rezervací (timeline) se přizpůsobí otevírací době vybraného dne. Zavřený den se zobrazí jako 🔒 Zavřeno.</p>
+      ${rows}
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
+        <button class="btn-primary" onclick="saveOpeningHours()">💾 Uložit</button>
+      </div>
+    </div>
+  `);
+};
+window.ohToggleClosed = function(den) {
+  const zav = document.getElementById('oh-zav-' + den)?.checked;
+  const t = document.getElementById('oh-times-' + den);
+  if (t) t.style.display = zav ? 'none' : 'flex';
+};
+window.saveOpeningHours = async function() {
+  const hours = [];
+  for (let den = 0; den <= 6; den++) {
+    const zav = document.getElementById('oh-zav-' + den)?.checked ? 1 : 0;
+    const od = document.getElementById('oh-od-' + den)?.value || '11:00';
+    const doo = document.getElementById('oh-do-' + den)?.value || '23:00';
+    hours.push({ den, otevreno_od: od, otevreno_do: doo, zavreno: zav });
+  }
+  try {
+    await api('admin_tables.php?action=save_hours', { method: 'POST', body: JSON.stringify({ hours }) });
+    toast('✓ Otevírací doba uložena', 'success');
+    closeModal();
+    renderRestaurantTables();
+  } catch (e) { toast('Chyba: ' + e.message, 'error'); }
 };
 
 window.addRestaurantTable = async function() {

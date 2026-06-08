@@ -89,6 +89,21 @@ $pdo->exec("
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ");
 
+// 🆕 v3.0.201 — otevírací doba po dnech v týdnu (0=Po … 6=Ne). Kalendář rezervací se podle ní přizpůsobí.
+$pdo->exec("
+    CREATE TABLE IF NOT EXISTS restaurant_hours (
+        den TINYINT NOT NULL PRIMARY KEY,
+        otevreno_od TIME NOT NULL DEFAULT '11:00:00',
+        otevreno_do TIME NOT NULL DEFAULT '23:00:00',
+        zavreno TINYINT(1) NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+");
+// Seed všech 7 dnů (jen pokud chybí) — výchozí 11:00–23:00, nic zavřeno
+for ($d = 0; $d <= 6; $d++) {
+    $pdo->prepare("INSERT IGNORE INTO restaurant_hours (den, otevreno_od, otevreno_do, zavreno) VALUES (:d, '11:00:00', '23:00:00', 0)")
+        ->execute(['d' => $d]);
+}
+
 // 🆕 v2.2 — rozšíření restaurant_tables o floor plan + stav + POS hooks
 function ensure_table_columns(PDO $pdo): void {
     static $done = false;
@@ -780,12 +795,41 @@ if ($method === 'GET' && !$action) {
             if ($zMatch) $s['zone_id'] = (int) reset($zMatch)['id'];
         }
     }
+    // 🆕 v3.0.201 — otevírací doba: celý týden + den vybraného data (0=Po..6=Ne)
+    $hoursAll = $pdo->query("SELECT den, otevreno_od, otevreno_do, zavreno FROM restaurant_hours ORDER BY den")->fetchAll();
+    $denIdx = (int) date('N', strtotime($date)) - 1;
+    $denDnes = null;
+    foreach ($hoursAll as $h) { if ((int)$h['den'] === $denIdx) { $denDnes = $h; break; } }
     json_response([
         'stoly' => $stoly,
         'zones' => $zones,
         'datum' => $date,
         'rezervace_celkem' => count($rezervace),
+        'oteviraci_doba' => $hoursAll,
+        'den_idx' => $denIdx,
+        'den_dnes' => $denDnes,
     ]);
+}
+
+// 🆕 v3.0.201 — uložit otevírací dobu (celý týden najednou)
+if ($method === 'POST' && $action === 'save_hours') {
+    $d = json_input();
+    $hours = $d['hours'] ?? [];
+    if (!is_array($hours)) json_error('Chybí hours', 400);
+    $stmt = $pdo->prepare("
+        INSERT INTO restaurant_hours (den, otevreno_od, otevreno_do, zavreno)
+        VALUES (:den, :od, :do_, :z)
+        ON DUPLICATE KEY UPDATE otevreno_od = VALUES(otevreno_od), otevreno_do = VALUES(otevreno_do), zavreno = VALUES(zavreno)
+    ");
+    foreach ($hours as $h) {
+        $den = (int) ($h['den'] ?? -1);
+        if ($den < 0 || $den > 6) continue;
+        $od = (isset($h['otevreno_od']) && preg_match('/^\d{1,2}:\d{2}/', $h['otevreno_od'])) ? substr($h['otevreno_od'], 0, 5) : '11:00';
+        $do = (isset($h['otevreno_do']) && preg_match('/^\d{1,2}:\d{2}/', $h['otevreno_do'])) ? substr($h['otevreno_do'], 0, 5) : '23:00';
+        $z  = !empty($h['zavreno']) ? 1 : 0;
+        $stmt->execute(['den' => $den, 'od' => $od, 'do_' => $do, 'z' => $z]);
+    }
+    json_response(['ok' => true]);
 }
 
 // 🗓️ REZERVACE
