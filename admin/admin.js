@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.199';
+const APPEK_ADMIN_JS_VERSION = '3.0.200';
 
 (async function detectStaleCode() {
   try {
@@ -14951,7 +14951,7 @@ async function loadTiskarnyPanel() {
       api('admin_printers.php?action=settings'),
     ]);
     const printers = list.printers || [];
-    const kategorie = list.kategorie || [];
+    const stanice = list.stanice || []; // 🆕 v3.0.200 — mapování stanice → tiskárna (nahradilo kategorie)
     const TYP_LABEL = {
       kasa: '🧾 Kasa (účtenka)',
       kuchyne: '👨‍🍳 Kuchyně (bon)',
@@ -15012,7 +15012,7 @@ async function loadTiskarnyPanel() {
                 <div style="font-size:28px">${(TYP_LABEL[p.typ] || '🖨️').split(' ')[0]}</div>
                 <div>
                   <div style="font-weight:700;font-size:14px">${esc(p.nazev)}</div>
-                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">${esc(TYP_LABEL[p.typ] || p.typ)} · <code>${esc(p.ip)}:${p.port}</code> · ${p.sirka_papiru}mm · ${p.pocet_tisku}× tištěno</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">${esc(TYP_LABEL[p.typ] || p.typ)} · <code>${esc(p.ip)}:${p.port}</code> · ${p.sirka_papiru}mm · ${p.pocet_tisku}× tištěno${p.pocet_stanic > 0 ? ` · 🍳 ${p.pocet_stanic} ${p.pocet_stanic === 1 ? 'stanice' : (p.pocet_stanic < 5 ? 'stanice' : 'stanic')}` : ''}</div>
                   ${p.posledni_chyba ? `<div style="font-size:11px;color:#DC2626;margin-top:4px;background:#FEE2E2;padding:4px 8px;border-radius:4px">⚠️ ${esc(p.posledni_chyba)}</div>` : ''}
                 </div>
                 <button class="btn-secondary" onclick="tiskarnaTest(${p.id})" title="Testovací tisk">🧪 Test</button>
@@ -15026,21 +15026,21 @@ async function loadTiskarnyPanel() {
         `}
       </div>
 
-      <!-- Mapování kategorií -->
-      ${kategorie.length > 0 ? `
+      <!-- 🆕 v3.0.200 — Párování stanic → tiskárna (nahradilo mapování kategorií) -->
+      ${stanice.length > 0 ? `
         <div class="card-block" style="padding:18px;margin-bottom:14px">
-          <h3 style="margin:0 0 6px;font-size:16px">🗺️ Mapování kategorií → tiskárna</h3>
+          <h3 style="margin:0 0 6px;font-size:16px">🗺️ Párování: kuchyňská stanice → tiskárna</h3>
           <p style="font-size:12px;color:var(--text-3);margin:0 0 14px">
-            Když host objedná položku z kategorie, bon se vytiskne na přiřazenou tiskárnu. Kategorie bez tiskárny = nikam neposílá.
+            Bon se vytiskne na tiskárnu té stanice, ke které výrobek patří (stanici nastavíš u výrobku v <strong>Výrobky → Doba přípravy + stanice</strong>). Stanice bez tiskárny = bon se nikam neposílá.
           </p>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">
-            ${kategorie.map(k => `
-              <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#FAFAFA;border:1px solid var(--border);border-radius:10px">
-                <span style="font-size:20px">${esc(k.ikona || '🥖')}</span>
-                <span style="flex:1;font-weight:600;font-size:13px">${esc(k.nazev)}</span>
-                <select class="input" onchange="tiskarnaMap(${k.id}, this.value)" style="flex:0 0 140px;font-size:12px">
+            ${stanice.map(s => `
+              <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#FAFAFA;border:1px solid var(--border);border-left:4px solid ${esc(s.barva || '#F59E0B')};border-radius:10px">
+                <span style="font-size:20px">${esc(s.ikona || '🔥')}</span>
+                <span style="flex:1;font-weight:600;font-size:13px">${esc(s.nazev)}</span>
+                <select class="input" onchange="staniceMap(${s.id}, this.value)" style="flex:0 0 150px;font-size:12px">
                   <option value="">— bez tisku —</option>
-                  ${printers.map(p => `<option value="${p.id}" ${String(k.printer_id) === String(p.id) ? 'selected' : ''}>${esc(p.nazev)}</option>`).join('')}
+                  ${printers.map(p => `<option value="${p.id}" ${String(s.printer_id) === String(p.id) ? 'selected' : ''}>${esc(p.nazev)}</option>`).join('')}
                 </select>
               </label>
             `).join('')}
@@ -15048,7 +15048,7 @@ async function loadTiskarnyPanel() {
         </div>
       ` : `
         <div class="card-block" style="padding:16px;margin-bottom:14px;background:#FFFBEB;border-color:#FCD34D">
-          <p style="margin:0;font-size:13px;color:#92400E">💡 Žádné kategorie výrobků k mapování. Vytvoř je v <strong>Výrobky → Kategorie</strong>.</p>
+          <p style="margin:0;font-size:13px;color:#92400E">💡 Žádné kuchyňské stanice k párování. Vytvoř je v <strong>Nastavení → 🍕 Restaurace → Kapacita kuchyně</strong>.</p>
         </div>
       `}
 
@@ -15139,12 +15139,13 @@ window.tiskarnaDelete = async function(id, nazev) {
   } catch (e) { toast('Chyba: ' + e.message, 'error'); }
 };
 
-window.tiskarnaMap = async function(kategorieId, printerId) {
+// 🆕 v3.0.200 — párování tiskárny na kuchyňskou stanici (nahradilo tiskarnaMap pro kategorie)
+window.staniceMap = async function(stationId, printerId) {
   try {
-    await api('admin_printers.php?action=map', {
-      method: 'POST', body: JSON.stringify({ kategorie_id: kategorieId, printer_id: printerId ? parseInt(printerId) : null })
+    await api('admin_printers.php?action=map_station', {
+      method: 'POST', body: JSON.stringify({ station_id: stationId, printer_id: printerId ? parseInt(printerId) : null })
     });
-    toast('✓ Mapování uloženo', 'success');
+    toast('✓ Tiskárna přiřazena ke stanici', 'success');
   } catch (e) { toast('Chyba: ' + e.message, 'error'); }
 };
 
@@ -19698,6 +19699,9 @@ async function renderKitchenCapacity() {
                     <div>
                       <strong style="font-size:14px">${st.ikona} ${esc(st.nazev)}</strong>
                       <div style="font-size:11px;color:var(--text-3)">max ${st.max_paralelni} paralelně</div>
+                      ${(() => { const pr = (data.printers || []).find(p => String(p.id) === String(st.printer_id)); return pr
+                        ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px">🖨️ ${esc(pr.nazev)}</div>`
+                        : `<div style="font-size:11px;color:#B45309;margin-top:2px" title="Přiřaď v Nastavení → Tiskárny">🖨️ bez tiskárny</div>`; })()}
                     </div>
                     <button class="btn-secondary" style="font-size:10px;padding:3px 6px" onclick="kitchenStationEdit(${st.id})">✏️</button>
                   </div>

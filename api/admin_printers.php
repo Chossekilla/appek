@@ -26,25 +26,25 @@ $action = $_GET['action'] ?? '';
 
 try {
     if ($method === 'GET' && $action === 'list') {
-        // Seznam tiskáren + počet namapovaných kategorií
+        // Seznam tiskáren + kuchyňské stanice (pro mapování stanice → tiskárna)
         printer_ensure_schema($pdo);
-        $rows = $pdo->query("
-            SELECT p.*,
-                   (SELECT COUNT(*) FROM kategorie_vyrobku WHERE printer_id = p.id) AS pocet_kategorii
-            FROM restaurant_printers p
-            ORDER BY p.typ, p.nazev
-        ")->fetchAll();
-        // Kategorie (pro mapování UI)
-        $kategorie = [];
+        $rows = $pdo->query("SELECT p.* FROM restaurant_printers p ORDER BY p.typ, p.nazev")->fetchAll();
+        // 🆕 v3.0.200 — stanice (nahradilo mapování kategorií). Defenzivně — tabulka nemusí existovat.
+        $stanice = [];
         try {
-            $kategorie = $pdo->query("
-                SELECT id, nazev, ikona, printer_id
-                FROM kategorie_vyrobku
+            $stanice = $pdo->query("
+                SELECT id, nazev, ikona, barva, printer_id
+                FROM kitchen_stations
                 WHERE aktivni = 1
-                ORDER BY poradi, nazev
+                ORDER BY poradi, id
             ")->fetchAll();
         } catch (Throwable $e) {}
-        json_response(['printers' => $rows, 'kategorie' => $kategorie]);
+        // Počet stanic přiřazených každé tiskárně (v PHP, bez padajícího subSELECTu)
+        $cnt = [];
+        foreach ($stanice as $s) { if ($s['printer_id']) { $k = (int)$s['printer_id']; $cnt[$k] = ($cnt[$k] ?? 0) + 1; } }
+        foreach ($rows as &$r) { $r['pocet_stanic'] = $cnt[(int)$r['id']] ?? 0; }
+        unset($r);
+        json_response(['printers' => $rows, 'stanice' => $stanice]);
     }
 
     if ($method === 'GET' && $action === 'settings') {
@@ -111,6 +111,24 @@ try {
         printer_ensure_schema($pdo);
         $pdo->prepare("UPDATE kategorie_vyrobku SET printer_id = :p WHERE id = :k")
             ->execute(['p' => $pid, 'k' => $kid]);
+        json_response(['ok' => true]);
+    }
+
+    // 🆕 v3.0.200 — párování tiskárny na KUCHYŇSKOU STANICI (nahradilo kategorie→tiskárna)
+    if ($method === 'POST' && $action === 'map_station') {
+        $d = json_decode(file_get_contents('php://input'), true) ?? [];
+        $sid = (int)($d['station_id'] ?? 0);
+        $pid = isset($d['printer_id']) ? (int)$d['printer_id'] : null;
+        if (!$sid) json_error('Chybí station_id', 400);
+        if ($pid !== null && $pid <= 0) $pid = null;
+        if ($pid !== null) {
+            $exists = $pdo->prepare("SELECT 1 FROM restaurant_printers WHERE id = :id");
+            $exists->execute(['id' => $pid]);
+            if (!$exists->fetchColumn()) json_error('Tiskárna neexistuje', 404);
+        }
+        printer_ensure_schema($pdo); // zajistí kitchen_stations.printer_id
+        $pdo->prepare("UPDATE kitchen_stations SET printer_id = :p WHERE id = :s")
+            ->execute(['p' => $pid, 's' => $sid]);
         json_response(['ok' => true]);
     }
 

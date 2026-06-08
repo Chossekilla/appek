@@ -40,7 +40,7 @@ function printer_ensure_schema(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
 
-    // Přidej printer_id do kategorie_vyrobku (mapování kategorie → tiskárna)
+    // Přidej printer_id do kategorie_vyrobku (legacy mapování kategorie → tiskárna; ponecháno kvůli kompatibilitě)
     try {
         $cols = $pdo->query("SHOW COLUMNS FROM kategorie_vyrobku")->fetchAll(PDO::FETCH_COLUMN);
         if (!in_array('printer_id', $cols, true)) {
@@ -48,6 +48,17 @@ function printer_ensure_schema(PDO $pdo): void {
             $pdo->exec("ALTER TABLE kategorie_vyrobku ADD INDEX idx_printer (printer_id)");
         }
     } catch (Throwable $e) { /* tabulka možná ještě neexistuje */ }
+
+    // 🆕 v3.0.200 — routing bonů podle KUCHYŇSKÉ STANICE: stanice má svou tiskárnu.
+    //   Sloupec přidán idempotentně (jen když tabulka stanic už existuje).
+    try {
+        if ($pdo->query("SHOW TABLES LIKE 'kitchen_stations'")->fetchColumn()) {
+            $scols = $pdo->query("SHOW COLUMNS FROM kitchen_stations")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('printer_id', $scols, true)) {
+                $pdo->exec("ALTER TABLE kitchen_stations ADD COLUMN printer_id INT NULL DEFAULT NULL");
+            }
+        }
+    } catch (Throwable $e) {}
 
     $done = true;
 }
@@ -129,6 +140,11 @@ function printer_delete(PDO $pdo, int $id): void {
     // Vyčisti FK v kategorie_vyrobku (set printer_id = NULL)
     try {
         $pdo->prepare("UPDATE kategorie_vyrobku SET printer_id = NULL WHERE printer_id = :id")
+            ->execute(['id' => $id]);
+    } catch (Throwable $e) {}
+    // 🆕 v3.0.200 — vyčisti i FK v kuchyňských stanicích (smazaná tiskárna nesmí nechat viset stanici)
+    try {
+        $pdo->prepare("UPDATE kitchen_stations SET printer_id = NULL WHERE printer_id = :id")
             ->execute(['id' => $id]);
     } catch (Throwable $e) {}
     $pdo->prepare("DELETE FROM restaurant_printers WHERE id = :id")->execute(['id' => $id]);
@@ -346,28 +362,35 @@ function printer_log_error(PDO $pdo, int $id, string $err): void {
 }
 
 // ─────────────────────────────────────────────────────────────
-// DISPATCH — rozeslat objednávku na tiskárny podle kategorie
+// DISPATCH — rozeslat objednávku na tiskárny podle KUCHYŇSKÉ STANICE
+//   🆕 v3.0.200 — položka → vyrobky.kitchen_station_id → kitchen_stations.printer_id.
+//   Nahradilo mapování kategorie→tiskárna. Položky bez stanice/tiskárny se přeskočí.
 // ─────────────────────────────────────────────────────────────
 function printer_dispatch_order(PDO $pdo, int $objednavka_id, array $context = []): array {
     printer_ensure_schema($pdo);
 
-    // Načti položky + kategorie + printer mapping
+    // Načti položky + stanice + tiskárna stanice
     $sql = "
         SELECT op.*,
                v.nazev AS vyrobek_nazev,
-               v.kategorie_id,
-               kv.printer_id,
-               kv.nazev AS kat_nazev
+               v.kitchen_station_id,
+               ks.printer_id,
+               ks.nazev AS station_nazev
         FROM objednavky_polozky op
         LEFT JOIN vyrobky v          ON v.id = op.vyrobek_id
-        LEFT JOIN kategorie_vyrobku kv ON kv.id = v.kategorie_id
+        LEFT JOIN kitchen_stations ks ON ks.id = v.kitchen_station_id
         WHERE op.objednavka_id = :id
     ";
-    $s = $pdo->prepare($sql);
-    $s->execute(['id' => $objednavka_id]);
-    $items = $s->fetchAll();
+    try {
+        $s = $pdo->prepare($sql);
+        $s->execute(['id' => $objednavka_id]);
+        $items = $s->fetchAll();
+    } catch (Throwable $e) {
+        // kitchen_stations ještě neexistuje (restaurace balíček neinicializovaný) → nic k routování
+        return [];
+    }
 
-    // Group by printer_id (skip ty bez přiřazené tiskárny)
+    // Group by printer_id stanice (přeskoč položky bez stanice / bez tiskárny stanice)
     $byPrinter = [];
     foreach ($items as $it) {
         $pid = (int)($it['printer_id'] ?? 0);
