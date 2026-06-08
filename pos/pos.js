@@ -442,10 +442,12 @@
     m = document.createElement('div');
     m.className = 'pos-pay-menu pos-cart-menu';
     m.style.cssText = 'position:absolute;right:14px;top:54px;z-index:99';
+    const _draftN = loadDrafts().length;
     m.innerHTML = `
       <button class="pos-pay-opt" data-act="discount">💰 Sleva %</button>
       <button class="pos-pay-opt" data-act="tip">💵 Spropitné</button>
       <button class="pos-pay-opt" data-act="note">💬 Poznámka</button>
+      <button class="pos-pay-opt" data-act="drafts">📋 Rozpracované${_draftN ? ' (' + _draftN + ')' : ''}</button>
       <button class="pos-pay-opt" data-act="clear">🗑️ Vyprázdnit košík</button>
     `;
     $('#pos-cart-panel').appendChild(m);
@@ -456,6 +458,7 @@
         if (a === 'discount') askDiscount();
         if (a === 'tip')      askTip();
         if (a === 'note')     addNote();
+        if (a === 'drafts')   openDrafts();
         if (a === 'clear') {
           if (confirm('Smazat celý košík?')) { State.cart = []; renderCart(); }
         }
@@ -491,8 +494,7 @@
   }
 
   // ─── New order / draft / print / finish ──────────────────────
-  function newOrder() {
-    if (State.cart.length > 0 && !confirm('Aktuální košík obsahuje položky. Začít nový?')) return;
+  function clearOrder() {
     State.cart = [];
     State.odberatel = null;
     State.poznamka = '';
@@ -503,9 +505,79 @@
     _pickCust(null);
     renderCart();
   }
+  function newOrder() {
+    if (State.cart.length > 0 && !confirm('Aktuální košík obsahuje položky. Začít nový?')) return;
+    clearOrder();
+  }
+
+  // ─── Rozpracované objednávky (drafty) ────────────────────────
+  // 🆕 v3.0.187 — saveDraft byl stub (toast „Uloženo", ale TODO/nic neuložil → klamal).
+  //   Teď reálná persistence v localStorage (drafty žijí na terminálu) + obnova/smazání.
+  const DRAFTS_KEY = 'appek_pos_drafts';
+  function loadDrafts() { try { return JSON.parse(localStorage.getItem(DRAFTS_KEY) || '[]'); } catch (e) { return []; } }
+  function storeDrafts(a) { try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(a)); } catch (e) {} }
+  function cartTotal() {
+    let s = 0;
+    for (const it of State.cart) s += it.mnozstvi * it.cena_bez_dph * (1 + (it.sazba_dph || 0) / 100);
+    return s * (1 - (State.sleva_pct || 0) / 100) + (State.pos_tip || 0);
+  }
   function saveDraft() {
+    if (State.cart.length === 0) return toast('Košík je prázdný', 'error');
+    const drafts = loadDrafts();
+    drafts.unshift({
+      id: Date.now(),
+      ts: new Date().toISOString(),
+      cart: State.cart.map(it => ({ ...it })),
+      odberatel: State.odberatel,
+      pos_typ: State.pos_typ,
+      pos_payment: State.pos_payment,
+      pos_tip: State.pos_tip,
+      sleva_pct: State.sleva_pct,
+      poznamka: State.poznamka,
+      pocet: State.cart.length,
+      total: cartTotal(),
+    });
+    storeDrafts(drafts.slice(0, 30));
     toast('💾 Uloženo do rozpracovaných', 'success');
-    // TODO: backend endpoint pro draft persist
+    clearOrder();
+  }
+  function openDrafts() {
+    const drafts = loadDrafts();
+    if (drafts.length === 0) return toast('Žádné rozpracované objednávky', '');
+    const body = `<div class="pos-draft-list">${drafts.map(d => `
+      <div class="pos-draft-row">
+        <button class="pos-draft-load" onclick="POS.restoreDraft(${d.id})">
+          <span class="pos-draft-main"><strong>${esc(_hhmm(d.ts))}</strong> · ${d.pocet} pol.</span>
+          <span class="pos-receipt-meta">${d.odberatel ? esc(d.odberatel.nazev || 'Zákazník') : 'Neznámý zákazník'}${d.poznamka ? ' · 💬' : ''}</span>
+        </button>
+        <span class="pos-draft-amt">${fmt(d.total)} Kč</span>
+        <button class="pos-draft-del" onclick="POS.deleteDraft(${d.id})" title="Smazat">🗑️</button>
+      </div>`).join('')}</div>`;
+    modal('📋 Rozpracované objednávky', body);
+  }
+  function restoreDraft(id) {
+    const drafts = loadDrafts();
+    const d = drafts.find(x => x.id === id);
+    if (!d) return;
+    if (State.cart.length > 0 && !confirm('Nahradit aktuální košík rozpracovanou objednávkou?')) return;
+    State.cart = (d.cart || []).map(it => ({ ...it }));
+    State.odberatel = d.odberatel || null;
+    State.pos_tip = d.pos_tip || 0;
+    State.sleva_pct = d.sleva_pct || 0;
+    State.poznamka = d.poznamka || '';
+    setTyp(d.pos_typ || 'sebou');
+    setPay(d.pos_payment || 'hotove');
+    _pickCust(d.odberatel || null);
+    renderCart();
+    storeDrafts(drafts.filter(x => x.id !== id));  // stal se aktivním → ven z draftů
+    closeModal();
+    switchTab('products');
+    toast('Obnoveno do košíku', 'success');
+  }
+  function deleteDraft(id) {
+    storeDrafts(loadDrafts().filter(x => x.id !== id));
+    if (loadDrafts().length === 0) { closeModal(); toast('Smazáno', ''); }
+    else openDrafts();
   }
   function printReceipt() {
     if (State.cart.length === 0) return toast('Košík je prázdný', 'error');
@@ -566,6 +638,137 @@
     }
   }
 
+  // ─── Taby v hlavičce: Produkty / Účtenky / Statistiky ────────
+  // 🆕 v3.0.187 — taby byly v HTML, ale bez handleru (mrtvé). Teď přepínají
+  //   mezi katalogem (.pos-main) a alt-view (#pos-altview) s reálnými daty.
+  function switchTab(tab) {
+    if (!tab) return;
+    State.activeTab = tab;
+    $$('.pos-tab-h').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    const main = $('.pos-main');
+    const alt  = $('#pos-altview');
+    if (tab === 'products') {
+      if (main) main.style.display = '';
+      if (alt) { alt.hidden = true; alt.innerHTML = ''; }
+      return;
+    }
+    if (main) main.style.display = 'none';
+    if (alt) { alt.hidden = false; alt.innerHTML = '<div class="pos-alt-empty">⏳ Načítám…</div>'; }
+    if (tab === 'orders')  renderOrders();
+    if (tab === 'reports') renderReports();
+  }
+
+  const _PAY_IC = { hotove:'💵', karta:'💳', qr_platba:'📲', gift_card:'🎁', voucher:'🎟️', mobile:'📱', paypal:'🅿️', stripe:'💳', gopay:'📲', prevod:'🏦', dobirka:'📦', faktura:'🧾' };
+  const _TYP_LBL = { sebou:'🛍️ Sebou', vyzvednuti:'📦 Vyzvednutí', rozvoz:'🛵 Rozvoz', na_miste:'🍽️ Na místě' };
+  const _hhmm = (dt) => { try { return new Date(String(dt).replace(' ','T')).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'}); } catch(e){ return ''; } };
+
+  // ─── Účtenky — dnešní POS prodeje ────────────────────────────
+  async function renderOrders() {
+    const alt = $('#pos-altview');
+    if (!alt) return;
+    try {
+      const r = await api('admin_pos.php?action=quick_history&limit=100');
+      const orders = r.objednavky || [];
+      const s = r.souhrn || {};
+      const trzby = s['tržby'] ?? s.trzby ?? 0;
+      alt.innerHTML = `
+        <div class="pos-alt-wrap">
+          <div class="pos-alt-head">
+            <h2 class="pos-alt-title">📜 Účtenky — dnes</h2>
+            <div class="pos-alt-sum">
+              <span class="pos-chip"><strong>${s.pocet || 0}</strong> účtenek</span>
+              <span class="pos-chip pos-chip-green"><strong>${fmt(trzby)}</strong> Kč</span>
+              <span class="pos-chip">💵 ${fmt(s.hotove || 0)}</span>
+              <span class="pos-chip">💳 ${fmt(s.karta || 0)}</span>
+            </div>
+          </div>
+          ${orders.length === 0
+            ? '<div class="pos-alt-empty">🧾 Dnes zatím žádné účtenky.</div>'
+            : `<div class="pos-receipt-list">${orders.map(o => `
+                <button class="pos-receipt-row" onclick="POS.receipt(${o.id})">
+                  <div class="pos-receipt-main">
+                    <strong>${esc(o.cislo)}</strong>
+                    <span class="pos-receipt-meta">${_hhmm(o.datum_objednani)} · ${o.pocet_polozek} pol. · ${_PAY_IC[o.pos_payment] || ''} · ${_TYP_LBL[o.pos_typ] || esc(o.pos_typ || '')}</span>
+                  </div>
+                  <div class="pos-receipt-amt">${fmt(o.castka_celkem)} Kč</div>
+                </button>`).join('')}</div>`}
+        </div>`;
+    } catch (e) {
+      alt.innerHTML = `<div class="pos-alt-empty">❌ ${esc(e.message)}</div>`;
+    }
+  }
+
+  async function showReceipt(id) {
+    try {
+      const o = await api('admin_pos.php?action=quick_order_detail&id=' + id);
+      const pol = o.polozky || [];
+      const body = `
+        <div class="pos-rdetail-meta">${esc(o.odberatel_nazev || '—')}${o.pos_uzivatel ? ' · ' + esc(o.pos_uzivatel) : ''} · ${_hhmm(o.datum_objednani)}</div>
+        <table class="pos-rdetail-tbl">
+          ${pol.map(p => `<tr><td class="rd-q">${(+p.mnozstvi)}×</td><td class="rd-n">${esc(p.vyrobek_nazev)}</td><td class="rd-a">${fmt(p.cena_bez_dph * p.mnozstvi)} Kč</td></tr>`).join('')}
+        </table>
+        <div class="pos-rdetail-tot">
+          <div><span>Bez DPH</span><span>${fmt(o.castka_bez_dph)} Kč</span></div>
+          <div><span>DPH</span><span>${fmt(o.castka_dph)} Kč</span></div>
+          <div class="rd-grand"><span>CELKEM</span><span>${fmt(o.castka_celkem)} Kč</span></div>
+        </div>`;
+      const foot = `<button class="pos-modal-btn" onclick='POS._printReceipt(${JSON.stringify(o)})'>🖨️ Tisk účtenky</button>`;
+      modal('🧾 ' + o.cislo, body, foot);
+    } catch (e) { toast('Chyba: ' + e.message, 'error'); }
+  }
+
+  function printReceiptDoc(o) {
+    const pol = o.polozky || [];
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Účtenka ${esc(o.cislo)}</title>
+      <style>body{font-family:Courier,monospace;font-size:12px;width:280px;margin:10px auto}
+        h1{font-size:14px;text-align:center;margin:0 0 4px}
+        .it{display:flex;justify-content:space-between;border-bottom:1px dashed #aaa;padding:4px 0}
+        .tot{font-weight:700;font-size:14px;margin-top:8px;text-align:right}</style></head><body>
+      <h1>APPEK POS — ${esc(o.cislo)}</h1>
+      <div style="text-align:center;margin-bottom:8px">${esc(_hhmm(o.datum_objednani))}</div>
+      ${pol.map(p => `<div class="it"><span>${esc(p.vyrobek_nazev)} ×${(+p.mnozstvi)}</span><span>${(p.cena_bez_dph*p.mnozstvi).toFixed(2)}</span></div>`).join('')}
+      <div class="tot">CELKEM: ${Number(o.castka_celkem||0).toFixed(2)} Kč</div>
+      <div style="text-align:center;margin-top:10px;font-size:10px">Děkujeme za nákup!</div>
+      <script>window.print();<\/script></body></html>`;
+    const w = window.open('', '_blank', 'width=320,height=600');
+    if (!w) return toast('Povolte popup okna pro tisk', 'error');
+    w.document.write(html); w.document.close();
+  }
+
+  // ─── Statistiky — dnešní souhrn + TOP položky ────────────────
+  async function renderReports() {
+    const alt = $('#pos-altview');
+    if (!alt) return;
+    try {
+      const r = await api('admin_pos.php?action=launcher_summary&limit_items=15');
+      const s = r.souhrn || {};
+      const top = r.top_items || [];
+      alt.innerHTML = `
+        <div class="pos-alt-wrap">
+          <div class="pos-alt-head"><h2 class="pos-alt-title">📊 Statistiky — dnes</h2></div>
+          <div class="pos-stat-cards">
+            <div class="pos-stat-card pos-stat-green"><div class="pos-stat-val">${fmt(s.trzby || 0)} Kč</div><div class="pos-stat-lbl">Tržby</div></div>
+            <div class="pos-stat-card"><div class="pos-stat-val">${s.pocet || 0}</div><div class="pos-stat-lbl">Účtenek</div></div>
+            <div class="pos-stat-card"><div class="pos-stat-val">💵 ${fmt(s.hotove || 0)}</div><div class="pos-stat-lbl">Hotově</div></div>
+            <div class="pos-stat-card"><div class="pos-stat-val">💳 ${fmt(s.karta || 0)}</div><div class="pos-stat-lbl">Kartou</div></div>
+            <div class="pos-stat-card"><div class="pos-stat-val">🎁 ${fmt(s.tipy || 0)}</div><div class="pos-stat-lbl">Spropitné</div></div>
+          </div>
+          <h3 class="pos-alt-sub">🔥 TOP prodané položky</h3>
+          ${top.length === 0
+            ? '<div class="pos-alt-empty">Žádná data.</div>'
+            : `<div class="pos-top-list">${top.map((t, i) => `
+                <div class="pos-top-row">
+                  <span class="pos-top-rank">${i + 1}.</span>
+                  <span class="pos-top-name">${esc(t.vyrobek_nazev)}</span>
+                  <span class="pos-top-qty">${fmt(t.mnozstvi_sum)}×</span>
+                  <span class="pos-top-amt">${fmt(t.trzba_sum)} Kč</span>
+                </div>`).join('')}</div>`}
+        </div>`;
+    } catch (e) {
+      alt.innerHTML = `<div class="pos-alt-empty">❌ ${esc(e.message)}</div>`;
+    }
+  }
+
   // ─── Public POS object ───────────────────────────────────────
   window.POS = {
     search:        setSearch,
@@ -579,6 +782,12 @@
     saveDraft:     saveDraft,
     addNote:       addNote,
     finish:        finish,
+    switchTab:     switchTab,
+    receipt:       showReceipt,
+    openDrafts:    openDrafts,
+    restoreDraft:  restoreDraft,
+    deleteDraft:   deleteDraft,
+    _printReceipt: printReceiptDoc,
     _pickCust:     _pickCust,
     _closeModal:   closeModal,
     state:         State,
@@ -592,6 +801,8 @@
     if (inp) {
       inp.addEventListener('input', (e) => setSearch(e.target.value));
     }
+    // 🆕 v3.0.187 — taby v hlavičce (Produkty / Účtenky / Statistiky)
+    $$('.pos-tab-h').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
     // Keyboard ⌘K / Ctrl+K → focus search
     document.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {

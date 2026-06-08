@@ -222,6 +222,9 @@ $csrfToken  = csrf_token();
 
 </main>
 
+<!-- 🆕 v3.0.187 — ALT VIEW: Účtenky / Statistiky (přepínané v hlavičce; dřív byly taby mrtvé) -->
+<section class="pos-altview" id="pos-altview" hidden></section>
+
 <!-- MODAL host -->
 <div id="pos-modal-host" class="pos-modal-host" hidden></div>
 

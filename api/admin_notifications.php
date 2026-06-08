@@ -110,10 +110,15 @@ function generate_fresh_notifications(PDO $pdo): void {
 
     // 2. Nízký sklad surovin
     try {
+        // 🐛 v3.0.187 — low-stock alert četl suroviny.sklad_stav/sklad_min, ALE odpis
+        //   (pos_deduct_ingredients → surovina_recompute_total) i obrazovka Suroviny pracují
+        //   se stock_aktualni/stock_minimalni. sklad_stav se po prodeji NEAKTUALIZOVAL →
+        //   upozornění nereflektovala reálnou spotřebu (suroviny „nesedí"). Čteme teď živý
+        //   sloupec = sjednoceno s odpisem i UI.
         $rs = $pdo->query("
-            SELECT id, nazev, sklad_stav, sklad_min FROM suroviny
-            WHERE sklad_min IS NOT NULL AND sklad_min > 0
-              AND sklad_stav IS NOT NULL AND sklad_stav < sklad_min
+            SELECT id, nazev, stock_aktualni, stock_minimalni FROM suroviny
+            WHERE stock_minimalni IS NOT NULL AND stock_minimalni > 0
+              AND stock_aktualni < stock_minimalni
               AND aktivni = 1
             LIMIT 10
         ");
@@ -121,7 +126,7 @@ function generate_fresh_notifications(PDO $pdo): void {
             notif_emit(
                 $pdo, 'low_stock',
                 'Nízký sklad: ' . $s['nazev'],
-                'Stav ' . rtrim(rtrim($s['sklad_stav'], '0'), '.') . ' / min ' . rtrim(rtrim($s['sklad_min'], '0'), '.'),
+                'Stav ' . rtrim(rtrim($s['stock_aktualni'], '0'), '.') . ' / min ' . rtrim(rtrim($s['stock_minimalni'], '0'), '.'),
                 '#/suroviny/' . $s['id'],
                 'warn',
                 'Nízký sklad: ' . $s['nazev']
