@@ -165,6 +165,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ocols = $pdo->query("SHOW COLUMNS FROM objednavky")->fetchAll(PDO::FETCH_COLUMN);
         if (!in_array('zpusob_doruceni', $ocols, true)) $pdo->exec("ALTER TABLE objednavky ADD COLUMN zpusob_doruceni VARCHAR(30) NULL");
         if (!in_array('zpusob_platby', $ocols, true))   $pdo->exec("ALTER TABLE objednavky ADD COLUMN zpusob_platby VARCHAR(30) NULL");
+        // 🐛 v3.0.194 — sloupce opakované objednávky. Bez nich padal INSERT na
+        //   „Unknown column 'plati_od'" (1054) → VŠECHNY B2B objednávky selhaly
+        //   (odhaleno zátěžovým testem). POS cesta je neinsertuje, proto jela.
+        if (!in_array('plati_od', $ocols, true))    $pdo->exec("ALTER TABLE objednavky ADD COLUMN plati_od DATE NULL");
+        if (!in_array('plati_do', $ocols, true))    $pdo->exec("ALTER TABLE objednavky ADD COLUMN plati_do DATE NULL");
+        if (!in_array('dny_v_tydnu', $ocols, true)) $pdo->exec("ALTER TABLE objednavky ADD COLUMN dny_v_tydnu VARCHAR(30) NULL");
     } catch (Throwable $e) { /* soft-fail — uložení proběhne bez těchto sloupců */ }
 
     $pdo->beginTransaction();
