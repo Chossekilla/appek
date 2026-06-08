@@ -348,7 +348,7 @@ $csrfToken  = csrf_token();
     <div class="pos-loc" id="pos-location">📍 Provozovna</div>
   </div>
   <div class="pos-header-center">
-    <span class="pos-tab-h active" data-tab="products">📦 Produkty</span>
+    <span class="pos-tab-h active" data-tab="products">🧾 KASA</span>
     <span class="pos-tab-h" data-tab="tables">🪑 Stoly</span>
     <span class="pos-tab-h" data-tab="orders">📜 Účtenky</span>
     <span class="pos-tab-h" data-tab="reports">📊 Statistiky</span>

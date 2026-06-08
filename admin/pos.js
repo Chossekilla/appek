@@ -1412,8 +1412,10 @@
 
   // 🆕 v3.0.18 — Otevři Floor plan editor v adminu (nové okno)
   window.posOpenFloorEditor = function() {
+    // 🐛 fix v3.0.202 — dřív '../admin/#/restaurace?...' → admin SPA nemá hash-routing →
+    //   otevřela se jen úvodní stránka (frontpage). Floor plan editor je samostatná stránka.
     const w = window.open(
-      '../admin/#/restaurace?tab=tables&subtab=map&edit=1',
+      'floorplan.php',
       'appek_floor_editor',
       `width=${Math.min(1400, screen.availWidth)},height=${Math.min(900, screen.availHeight)},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
     );
