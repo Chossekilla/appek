@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.181';
+const APPEK_ADMIN_JS_VERSION = '3.0.182';
 
 (async function detectStaleCode() {
   try {
@@ -28661,6 +28661,9 @@ async function renderSuroviny() {
   // Seřaď abecedně
   filtered.sort((a, b) => (a.nazev || '').localeCompare(b.nazev || '', 'cs'));
 
+  // 🆕 v3.0.182 — ulož aktuálně filtrovaný seznam pro Export CSV (respektuje kategorii + hledání)
+  state._suroviny_filtered_export = filtered;
+
   // Skupiny podle kategorie (pro group view)
   const skupiny = {};
   SUROVINA_KATEGORIE.forEach(k => skupiny[k.key] = []);
@@ -28805,6 +28808,7 @@ async function renderSuroviny() {
         <button class="btn-secondary" onclick="otevritKategorieSurovin()" title="Spravovat kategorie surovin (přidat, upravit, ikony)">📂 Kategorie</button>
         <button class="btn-secondary" onclick="otevritMatchSlozeni()" title="Projde složení výrobků a napáruje na suroviny">🔗 Spárovat</button>
         <button class="btn-secondary" onclick="openImportCenik('suroviny')" title="Import ceníku z Excel/CSV s auto-matchingem">📊 Import ceníku</button>
+        <button class="btn-secondary" onclick="exportSurovinyCsv()" title="Export zobrazených surovin do CSV — seskupeno dle kategorie (respektuje filtr/kategorii)">📤 Export CSV</button>
         <button class="btn-secondary" onclick="otevritImportSurovin()" title="Hromadný import — základní balíček nebo CSV">📥 JSON / vzorky</button>
         <button class="btn-primary btn-green btn-big-action" onclick="editSurovina()" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nová surovina</button>
       </div>
@@ -28880,6 +28884,48 @@ async function renderSuroviny() {
     </div>
   `;
 }
+
+// =============================================================
+// 📤 EXPORT SUROVIN — CSV seskupené dle kategorie (v3.0.182)
+// =============================================================
+window.exportSurovinyCsv = function() {
+  const rows = state._suroviny_filtered_export || [];
+  if (!rows.length) return alert('Žádné suroviny k exportu — zkontroluj filtr / kategorii.');
+  const katLabel = {};
+  (typeof SUROVINA_KATEGORIE !== 'undefined' ? SUROVINA_KATEGORIE : []).forEach(k => { katLabel[k.key] = k.label; });
+  // seřaď dle kategorie, pak název
+  const sorted = [...rows].sort((a, b) =>
+    (katLabel[a._kat] || a._kat || '').localeCompare(katLabel[b._kat] || b._kat || '', 'cs')
+    || (a.nazev || '').localeCompare(b.nazev || '', 'cs'));
+  const cell = (v) => { const s = (v == null ? '' : String(v)); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const num = (v) => (v == null || v === '' ? '' : String(v).replace('.', ','));
+  const head = ['Kategorie', 'Název', 'Jednotka', 'Cena balení (Kč)', 'Obsah balení', 'Cena/jednotka', 'Stav', 'Min. zásoba', 'Alergen'];
+  const lines = [head.join(';')];
+  sorted.forEach(s => {
+    const cb = parseFloat(s.cena_baleni) || 0, ob = parseFloat(s.obsah_baleni) || 0;
+    const cenaJed = (cb > 0 && ob > 0) ? (cb / ob) : 0;
+    lines.push([
+      katLabel[s._kat] || s._kat || '',
+      s.nazev || '',
+      s.jednotka || '',
+      cb ? num(cb.toFixed(2)) : '',
+      ob || '',
+      cenaJed ? num(cenaJed.toFixed(4)) : '',
+      num(s.stock_aktualni),
+      num(s.stock_minimalni),
+      s.alergen || '',
+    ].map(cell).join(';'));
+  });
+  const csv = '﻿' + lines.join('\r\n');  // BOM → Excel správně načte UTF-8 + diakritiku
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `suroviny_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  if (typeof toastSuccess === 'function') toastSuccess(`Exportováno ${sorted.length} surovin do CSV (dle kategorií)`);
+};
 
 // =============================================================
 // 📥 IMPORT SUROVIN — základní balíček + CSV
