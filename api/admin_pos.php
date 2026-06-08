@@ -532,9 +532,11 @@ if ($method === 'POST' && $action === 'pay') {
         $hasOther = (int) $o->fetchColumn() > 0;
 
         if (!$hasOther && $stulId) {
+            // 🆕 v3.0.189 — po zaplacení stůl rovnou UVOLNI (free), ne 'cleaning'.
+            //   User: „zaplatit a zavřít" → stůl má být zavřený/volný hned, ne viset v úklidu.
             $pdo->prepare("
                 UPDATE restaurant_tables
-                SET stav = 'cleaning', stav_od = NOW(), hostu_aktual = 0, obsluhuje = NULL
+                SET stav = 'free', stav_od = NULL, hostu_aktual = 0, obsluhuje = NULL
                 WHERE id = :id
             ")->execute(['id' => $stulId]);
         }

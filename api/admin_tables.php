@@ -592,28 +592,51 @@ if ($method === 'POST' && $action === 'apply_template') {
     $d = json_input();
     $tplKey = $d['template'] ?? '';
     $merge  = !empty($d['merge']); // pokud true, NESMAŽE existující, přidá vedle
+    // 🆕 v3.0.189 — keep_zones: přepiš JEN stoly, existující zóny zachovej (user:
+    //   „potřebuji jenom stoly přepsat, ostatní zóny zůstanou jak jsou"). Stoly šablony
+    //   se namapují na existující zóny dle pořadí (zone_idx → N-tá zóna, clamp).
+    $keepZones = !empty($d['keep_zones']);
     $templates = default_templates();
     if (!isset($templates[$tplKey])) json_error('Neznámá šablona: ' . $tplKey, 400);
     $tpl = $templates[$tplKey];
     try {
         $pdo->beginTransaction();
-        if (!$merge) {
+        $zoneIds = [];  // template zone_idx → DB zone id
+        if ($keepZones) {
+            // 🆕 Zachovej zóny — smaž jen stoly, template stoly namapuj na existující zóny.
             $pdo->exec("DELETE FROM restaurant_tables");
-            $pdo->exec("DELETE FROM restaurant_zones");
-        }
-        // Insert zóny
-        $zoneIds = [];
-        foreach ($tpl['zones'] as $idx => $z) {
-            $stmt = $pdo->prepare("
-                INSERT INTO restaurant_zones (nazev, ikona, canvas_w, canvas_h, sort_order)
-                VALUES (:n, :i, :w, :h, :s)
-            ");
-            $stmt->execute([
-                'n' => $z['nazev'], 'i' => $z['ikona'] ?? '🍽️',
-                'w' => $z['canvas_w'] ?? 800, 'h' => $z['canvas_h'] ?? 500,
-                's' => $z['sort_order'] ?? $idx,
-            ]);
-            $zoneIds[$idx] = (int) $pdo->lastInsertId();
+            $existing = $pdo->query("SELECT id FROM restaurant_zones WHERE COALESCE(aktivni,1)=1 ORDER BY sort_order, id")->fetchAll(PDO::FETCH_COLUMN);
+            if (empty($existing)) {
+                // Žádná zóna neexistuje → fallback: vytvoř zóny ze šablony (jako full).
+                foreach ($tpl['zones'] as $idx => $z) {
+                    $stmt = $pdo->prepare("INSERT INTO restaurant_zones (nazev, ikona, canvas_w, canvas_h, sort_order) VALUES (:n, :i, :w, :h, :s)");
+                    $stmt->execute(['n' => $z['nazev'], 'i' => $z['ikona'] ?? '🍽️', 'w' => $z['canvas_w'] ?? 800, 'h' => $z['canvas_h'] ?? 500, 's' => $z['sort_order'] ?? $idx]);
+                    $zoneIds[$idx] = (int) $pdo->lastInsertId();
+                }
+            } else {
+                // Mapuj každou template-zónu na existující (clamp na poslední).
+                foreach ($tpl['zones'] as $idx => $z) {
+                    $zoneIds[$idx] = (int) ($existing[$idx] ?? $existing[count($existing) - 1]);
+                }
+            }
+        } else {
+            if (!$merge) {
+                $pdo->exec("DELETE FROM restaurant_tables");
+                $pdo->exec("DELETE FROM restaurant_zones");
+            }
+            // Insert zóny
+            foreach ($tpl['zones'] as $idx => $z) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO restaurant_zones (nazev, ikona, canvas_w, canvas_h, sort_order)
+                    VALUES (:n, :i, :w, :h, :s)
+                ");
+                $stmt->execute([
+                    'n' => $z['nazev'], 'i' => $z['ikona'] ?? '🍽️',
+                    'w' => $z['canvas_w'] ?? 800, 'h' => $z['canvas_h'] ?? 500,
+                    's' => $z['sort_order'] ?? $idx,
+                ]);
+                $zoneIds[$idx] = (int) $pdo->lastInsertId();
+            }
         }
         // Insert stoly
         $tStmt = $pdo->prepare("
@@ -632,7 +655,7 @@ if ($method === 'POST' && $action === 'apply_template') {
             ]);
         }
         $pdo->commit();
-        json_response(['ok' => true, 'template' => $tplKey, 'stoly' => count($tpl['tables']), 'zones' => count($tpl['zones'])]);
+        json_response(['ok' => true, 'template' => $tplKey, 'stoly' => count($tpl['tables']), 'zones' => ($keepZones ? 'zachovány' : count($tpl['zones'])), 'mode' => ($keepZones ? 'keep_zones' : ($merge ? 'merge' : 'full'))]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         json_error_safe('Apply template selhalo', $e, 500);
