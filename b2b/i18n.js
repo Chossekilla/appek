@@ -16,17 +16,18 @@ window.b2bCurrentLang = (function() {
 
 window.setB2bLang = function(code) {
   if (!window.b2bLangs.find(l => l.code === code)) code = 'cs';
-  window.b2bCurrentLang = code;
+  if (code === window.b2bCurrentLang) return;   // stejný jazyk → nic
   try { localStorage.setItem(B2B_LANG_KEY, code); } catch (e) {}
-  document.documentElement.lang = code;
-  // Update pill segmented switcher (B2B header)
+  // okamžitá vizuální odezva na pill (než doběhne reload)
   document.querySelectorAll('.b2b-lang-pill').forEach(b => {
     b.classList.toggle('is-active', b.dataset.lang === code);
   });
-  // Fallback for legacy <select>
-  const sel = document.getElementById('b2b-lang-switch');
-  if (sel) sel.value = code;
-  applyB2bTranslations();
+  // 🆕 v3.0.184 — RELOAD: B2B překládá text přímo v DOM (in-place), což NEJDE vrátit
+  //   na CS (text zůstal v EN/ES → přepínač vypadal „zaseklý"). Reload → init aplikuje
+  //   uložený jazyk od nuly = spolehlivý přepnutí i návrat na češtinu.
+  window.b2bCurrentLang = code;
+  document.documentElement.lang = code;
+  location.reload();
 };
 
 const B2B_PHRASES = [

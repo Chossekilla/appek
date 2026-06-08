@@ -40,10 +40,11 @@ SROOT="$(cd "$(dirname "$0")/.." && pwd)"
 perl -i -pe "s/(APP_VERSION'\\s*,\\s*')\\d+\\.\\d+\\.\\d+(')/\${1}${VERSION}\${2}/"          "$SROOT/api/config.php"
 perl -i -pe "s/(APPEK_ADMIN_JS_VERSION\\s*=\\s*')\\d+\\.\\d+\\.\\d+(')/\${1}${VERSION}\${2}/" "$SROOT/admin/admin.js"
 perl -i -pe "s/(--appek-css-version:\\s*\")\\d+\\.\\d+\\.\\d+(\")/\${1}${VERSION}\${2}/"       "$SROOT/admin/admin.css"
-# 🆕 v3.0.183 — cache-bust: bumpni ?v=X.Y.Z na VŠECH assetech v admin/index.html (admin.js/css, i18n).
-#   Dřív zamrzlé na 3.0.162 → prohlížeč nestáhl nový JS/CSS bez hard-refreshe. Teď auto-sync.
-perl -i -pe "s/(\\?v=)\\d+\\.\\d+\\.\\d+/\${1}${VERSION}/g"                                    "$SROOT/admin/index.html"
-echo "🔖 Verze sjednoceny na ${VERSION}: config.php · admin.js · admin.css · index.html (?v cache-bust)"
+# 🆕 v3.0.183/184 — cache-bust: bumpni ?v=X.Y.Z na VŠECH assetech v admin/index.html I b2b/index.html
+#   (admin.js/css, i18n, app.js, style.css). Dřív zamrzlé na 3.0.162 → prohlížeč nestáhl nový
+#   JS/CSS bez hard-refreshe. Teď auto-sync obou portálů.
+perl -i -pe "s/(\\?v=)\\d+\\.\\d+\\.\\d+/\${1}${VERSION}/g"                                    "$SROOT/admin/index.html" "$SROOT/b2b/index.html"
+echo "🔖 Verze sjednoceny na ${VERSION}: config.php · admin.js · admin.css · admin+b2b/index.html (?v cache-bust)"
 
 # 🆕 v3.0.166 — php -l guard: zachyť PARSE ERROR před buildem. Jinak se nasadí soubor
 # s fatální chybou → 500 na endpointu (viz admin_dodaci_listy.php v3.0.165: dvojitá
