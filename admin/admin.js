@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.188';
+const APPEK_ADMIN_JS_VERSION = '3.0.189';
 
 (async function detectStaleCode() {
   try {
@@ -17578,7 +17578,7 @@ function renderFloorPlan(data, today) {
       </div>
       <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:11px;color:#1E3A8A;opacity:0.8">
-          ⚠️ Aplikace šablony <strong>smaže stávající stoly a zóny</strong> (zachová otevřené účty pokud existují).
+          💡 Šablona přepíše <strong>rozložení stolů</strong> — tvoje zóny i otevřené účty zůstanou (v „Všechny šablony" lze přepnout).
         </span>
         <button onclick="rtOpenTemplatePicker()" style="padding:6px 14px;background:#1E40AF;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">
           📋 Všechny šablony s náhledem →
@@ -18449,8 +18449,10 @@ window.posAddItem = async function(vyrobekId, nazev, cena, kategorie) {
     });
     posState.currentUcet = await api('admin_pos.php?action=ucet&stul_id=' + u.stul_id);
     toastSuccess(t('toast_added_item_price', { nazev, cena: cena.toFixed(2) }));
-    const activeTab = document.querySelector('.pos-tab.is-active');
-    if (activeTab) posTabClick(activeTab);
+    // 🆕 v3.0.189 — po přidání ukaž účet (tab Položky) s novou položkou. Dřív se zůstalo
+    //   na „Přidat z menu" → uživatel přidání neviděl → působilo „nefunguje". Pro další
+    //   položku je „+ Přidat z menu" hned v záložkách.
+    posRenderUcetModal();
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
@@ -18518,12 +18520,32 @@ window.posPaySingle = async function(amount, zpusob) {
     await api('admin_pos.php?action=pay', {
       method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby: [{ castka: amount, zpusob }] }),
     });
-    closeModal();
-    toastSuccess(t('toast_paid_amount', { amount: amount.toFixed(2), method: zpusob }));
-    setTimeout(() => window.open(`../api/admin_pos_print.php?ucet_id=${u.id}&typ=ucet&autoprint=1`, '_blank', 'width=400,height=700'), 300);
-    posState.currentUcet = null;
-    renderRestaurantTables();
+    // 🆕 v3.0.189 — server účet uzavřel (stav=paid) + uvolnil stůl. Nabídni tisk (ne auto-tisk).
+    posPaidPrintPrompt(u.id, amount);
   } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v3.0.189 — „Zaplaceno → Vytisknout účtenku? Ano/Ne". Obojí účet zavře a osvěží plán;
+//   Ano navíc otevře tiskovou účtenku. (User: „zaplatit a zavřít · vytisknout ano/ne".)
+window.posPaidPrintPrompt = function(ucetId, amount) {
+  openModal('✅ Zaplaceno', `
+    <div style="text-align:center;padding:8px 0 2px">
+      <div style="font-size:46px;line-height:1">✅</div>
+      <div style="font-size:26px;font-weight:800;margin:8px 0 2px;color:#15803d">${(+amount).toFixed(2)} Kč</div>
+      <div style="color:var(--text-3);font-size:13px">Účet uzavřen · stůl uvolněn</div>
+    </div>
+    <p style="text-align:center;font-weight:700;margin:16px 0 8px">Vytisknout účtenku?</p>
+    <div style="display:flex;gap:8px">
+      <button class="btn-primary btn-green" style="flex:1;padding:15px;font-weight:800;font-size:15px" onclick="posFinishPaid(${ucetId}, true)">🖨️ Ano, tisk</button>
+      <button class="btn-secondary" style="flex:1;padding:15px;font-weight:800;font-size:15px" onclick="posFinishPaid(${ucetId}, false)">Ne, hotovo</button>
+    </div>
+  `);
+};
+window.posFinishPaid = function(ucetId, doPrint) {
+  closeModal();
+  if (doPrint) window.open(`../api/admin_pos_print.php?ucet_id=${ucetId}&typ=ucet&autoprint=1`, '_blank', 'width=400,height=700');
+  posState.currentUcet = null;
+  renderRestaurantTables();
 };
 
 window.posSplitPayDialog = function(total) {
@@ -18581,11 +18603,8 @@ window.posSubmitSplitPay = async function(total) {
     await api('admin_pos.php?action=pay', {
       method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby }),
     });
-    closeModal();
-    toastSuccess('✅ Zaplaceno');
-    setTimeout(() => window.open(`../api/admin_pos_print.php?ucet_id=${u.id}&typ=ucet&autoprint=1`, '_blank', 'width=400,height=700'), 300);
-    posState.currentUcet = null;
-    renderRestaurantTables();
+    // 🆕 v3.0.189 — sjednoceno s posPaySingle: nabídni tisk + zavři.
+    posPaidPrintPrompt(u.id, sum);
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
@@ -18852,9 +18871,15 @@ window.rtOpenTemplatePicker = async function() {
   };
 
   openModal(`📋 Šablony layoutu (${templates.length})`, `
-    <p style="color:#374151;font-size:14px;margin-bottom:18px;background:#FEE2E2;border-left:3px solid #DC2626;padding:10px 14px;border-radius:6px">
-      <strong style="color:#991B1B">⚠️ Pozor:</strong> nahrazení šablonou <strong>smaže všechny stávající stoly a zóny</strong>! Vyber kompletní layout pro typický gastro provoz — náhled vidíš nahoře každé karty.
-    </p>
+    <div style="margin-bottom:18px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 16px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;color:#1E40AF;font-size:14px">
+        <input type="checkbox" id="rt-tpl-keepzones" checked style="width:18px;height:18px;accent-color:#1E40AF;cursor:pointer"
+               onchange="document.getElementById('rt-tpl-warn').innerHTML = this.checked ? '✅ Zachová tvoje <strong>zóny</strong> — přepíše se <strong>jen rozložení stolů</strong> (stoly šablony se rozmístí do tvých zón).' : '⚠️ Smaže <strong>všechny stávající stoly i zóny</strong> a založí kompletní layout ze šablony.'">
+        Zachovat moje zóny (přepsat jen stoly)
+      </label>
+      <p id="rt-tpl-warn" style="margin:10px 0 0;font-size:13px;color:#1E3A8A;line-height:1.5">✅ Zachová tvoje <strong>zóny</strong> — přepíše se <strong>jen rozložení stolů</strong> (stoly šablony se rozmístí do tvých zón).</p>
+      <p style="margin:6px 0 0;font-size:12px;color:#64748B">Vyber kompletní layout — náhled vidíš nahoře každé karty.</p>
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%, 260px),1fr));gap:14px">
       ${templates.map(t => `
         <div style="border:2px solid #E5E7EB;border-radius:14px;padding:16px;cursor:pointer;transition:all 0.18s ease;background:#fff;display:flex;flex-direction:column"
@@ -18876,15 +18901,23 @@ window.rtOpenTemplatePicker = async function() {
 };
 
 window.rtApplyTemplate = async function(key, nazev) {
-  if (!confirm(t('confirm_import_template_destructive', { nazev }))) return;
+  // 🆕 v3.0.189 — keep_zones: default ano (přepíše jen stoly, zóny nech). Checkbox je
+  //   v pickeru; když se volá z banneru bez checkboxu → fallback true (bezpečnější).
+  const keepZones = document.getElementById('rt-tpl-keepzones')?.checked ?? true;
+  const msg = keepZones
+    ? `Přepsat rozložení stolů šablonou „${nazev}"?\n\nTvoje zóny ZŮSTANOU. Otevřené účty se zachovají.`
+    : `Nahradit VŠECHNY stoly i zóny šablonou „${nazev}"?\n\nTohle smaže současný layout (zóny i stoly).`;
+  if (!confirm(msg)) return;
   try {
     const r = await api('admin_tables.php?action=apply_template', {
       method: 'POST',
-      body: JSON.stringify({ template: key, merge: false }),
+      body: JSON.stringify({ template: key, merge: false, keep_zones: keepZones }),
     });
     if (r && r.ok) {
       closeModal();
-      toastSuccess(t('toast_floorplan_imported', { stoly: r.stoly, zones: r.zones }));
+      toastSuccess(keepZones
+        ? `✅ Stoly přepsány (${r.stoly}) · zóny zachovány`
+        : `✅ Naimportováno: ${r.stoly} stolů, ${r.zones} zón`);
       rtState.activeZoneId = null;
       rtState.dirtyTables.clear();
       renderRestaurantTables();
