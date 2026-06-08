@@ -10,7 +10,17 @@
 |---|-------|-------|-----------|--------|--------------|------------------|-----|-------------------|--------------|-------|
 | 1 | 2026-06-08 | 3.0.193 | POS -P50 | ~6490 | **3038** | 3452 (53 %) | — | ~18 (burst) | 3 243 obj · 892 679 Kč | server saturace @ -P50; B2B padalo (plati_od) |
 | 2 | 2026-06-08 | 3.0.194 | POS -P25 | 10 000 | **4156** | 5844 (58 %) | 268 s | **15,5** | 7 401 obj · 2 047 127 Kč | DB nesmazána (kumul.); B2B opraveno |
+| 3 | 2026-06-08 | 3.0.194 | POS -P12 | 10 000 | **3801** | 6199 (62 %) | 241 s | **15,7** | čistá DB → 3 801 obj · 1 034 506 Kč | po Reset+seed; 6 surovin sraženo na 2 |
 | – | pilot | 3.0.193 | -P30 (200) | 200 | 200 | 0 | 11 s | **18,1** | – | čistý burst, 0 chyb |
+
+### Run 3 — dimenze + ověření odpisů
+- B2B 150/150 (201) ✓ · dine-in 76 + 4× 409 (ochrana) ✓
+- **Odpisy DO MÍNUSU prokázány:** snížené suroviny šly hluboko záporně ve `sklad_polozky`/pohybech (např. Droždí **−47 053**), řetězec stav_pred→stav_po konzistentní, prodej se NEblokuje. ✅
+- 🐛 **Bug:** souhrnný sloupec `suroviny.stock_aktualni` (Suroviny přehled) zůstal **NULL** — reálný stav je správně v pohybech, ale přehledový sloupec se po odpisech neaktualizoval (recompute neprošel/nepsal). K opravě.
+
+### Klíčové (3 běhy konzistentně)
+- **Server strop ~15,5–15,7 ok/s** bez ohledu na -P (12/25/50) → strop je **počet souběžných PHP workerů hostingu (velmi nízký, ~3–6)**, NE databáze. Nad strop = odmítání (HTTP 000). 0 odmítnutí by bylo cca **-P5**.
+- DB i při tom přijala statisíce zápisů + odpisů bez chyby; integrita (žádné duplicity, 409 ochrana, odpisy v pohybech) zachována.
 
 ### Doprovodné dimenze (run 2)
 | Dimenze | Objem | Výsledek |
