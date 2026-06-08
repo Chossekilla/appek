@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.178';
+const APPEK_ADMIN_JS_VERSION = '3.0.179';
 
 (async function detectStaleCode() {
   try {
@@ -9470,8 +9470,11 @@ async function renderDodaciListy(filters = {}) {
     <div class="mobile-only-block wide-table-block">
       ${data.dodaci_listy.length === 0 ? '<div class="card-block"><div class="empty-state">Žádné dodací listy</div></div>' :
         data.dodaci_listy.map((d) => `
-          <div class="dl-card" onclick="openDodaciListDetail(${d.id})">
+          <div class="dl-card${(state._dlSelected && state._dlSelected.has(d.id)) ? ' is-selected' : ''}" onclick="openDodaciListDetail(${d.id})">
             <div class="dl-card-head">
+              <label class="doc-card-check" onclick="event.stopPropagation()" title="Vybrat pro export / e-mail">
+                <input type="checkbox" ${(state._dlSelected && state._dlSelected.has(d.id)) ? 'checked' : ''} onchange="dlToggleSelect(${d.id}, this.checked)" data-dl-check="${d.id}">
+              </label>
               <div class="dl-card-cislo">${esc(d.cislo)}${upravenoDot(d.obsah_upraveno)}</div>
               ${dlStavBadge(d)}
             </div>
@@ -9637,6 +9640,58 @@ window.dlBulkOdeslatEmailemProvest = async function() {
       await api('admin_doklad_email.php', {
         method: 'POST',
         body: { typ: 'dl', id: d.id, emails: [d.odberatel_email], predmet: '', zprava },
+      });
+      ok++;
+    } catch (e) { chyby++; }
+  }
+  alert(t('confirm_send_finished', { ok, chyby_text: chyby > 0 ? `\n✗ Chyby: ${chyby}` : '' }));
+  closeModal();
+};
+
+// 🆕 v3.0.179 — FA hromadný e-mail (mirror DL; FA bulk bar dřív email neměl)
+window.faBulkOdeslatEmailem = function() {
+  const ids = [...(state._faSelected || [])];
+  if (ids.length === 0) return alert('Nejprve vyber faktury.');
+  const list = state._faList || [];
+  const vybrane = ids.map(id => list.find(x => x.id === id)).filter(Boolean);
+  const bezEmailu = vybrane.filter(f => !f.odberatel_email).length;
+  const radky = vybrane.map(f => `
+    <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span><strong>${esc(f.cislo)}</strong> · ${esc(f.odberatel_nazev || '—')}</span>
+      <span style="color:${f.odberatel_email ? 'var(--text-2)' : 'var(--danger-text)'}">${f.odberatel_email ? esc(f.odberatel_email) : '⚠️ chybí e-mail'}</span>
+    </div>`).join('');
+  openModal('✉️ Odeslat faktury e-mailem', `
+    <div style="background:var(--surface-2);border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--text-2)">
+      Každá faktura se odešle <strong>svému odběrateli</strong> (PDF v příloze).
+      ${bezEmailu > 0 ? `<div style="color:var(--danger-text);margin-top:6px">⚠️ ${bezEmailu}× chybí e-mail odběratele — ty se přeskočí.</div>` : ''}
+    </div>
+    <div style="max-height:240px;overflow:auto;margin-bottom:14px">${radky}</div>
+    <div class="form-row">
+      <label class="form-label" for="fabe-zprava">💬 Vlastní zpráva (volitelné — připojí se ke všem)</label>
+      <textarea id="fabe-zprava" class="form-input" rows="3" placeholder="Dobrý den, posíláme přiloženou fakturu..." style="font-size:14px;resize:vertical"></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
+      <div style="flex:1"></div>
+      <button class="btn-primary btn-green" onclick="faBulkOdeslatEmailemProvest()">✉️ Odeslat vše</button>
+    </div>
+  `);
+};
+
+window.faBulkOdeslatEmailemProvest = async function() {
+  const zprava = (document.getElementById('fabe-zprava')?.value || '').trim();
+  const ids = [...(state._faSelected || [])];
+  const list = state._faList || [];
+  const vybrane = ids.map(id => list.find(x => x.id === id)).filter(Boolean).filter(f => f.odberatel_email);
+  if (vybrane.length === 0) return alert('Žádná z vybraných faktur nemá e-mail odběratele.');
+  const btn = document.querySelector('.modal-card .btn-green');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Odesílám…'; }
+  let ok = 0, chyby = 0;
+  for (const f of vybrane) {
+    try {
+      await api('admin_doklad_email.php', {
+        method: 'POST',
+        body: { typ: 'fa', id: f.id, emails: [f.odberatel_email], predmet: '', zprava },
       });
       ok++;
     } catch (e) { chyby++; }
@@ -10327,6 +10382,7 @@ async function renderFaktury(filters = {}) {
       <div class="bulk-bar-actions">
         <button class="btn-primary" onclick="faBulkTisk()" title="Otevře tiskový dialog se všemi vybranými fakturami za sebou">🖨️ Tisk vybrané</button>
         <button class="btn-secondary" onclick="faBulkExportIsdoc()">📤 Export ISDOC ZIP</button>
+        <button class="btn-secondary" onclick="faBulkOdeslatEmailem()" title="Odeslat každou vybranou fakturu e-mailem jejímu odběrateli (PDF v příloze)">✉️ Odeslat e-mailem</button>
         <button class="btn-link" onclick="faClearSelection()">✕ Zrušit výběr</button>
       </div>
     </div>
@@ -10335,8 +10391,11 @@ async function renderFaktury(filters = {}) {
     <div class="mobile-only-block wide-table-block">
       ${data.faktury.length === 0 ? '<div class="card-block"><div class="empty-state">Žádné faktury</div></div>' :
         data.faktury.map((f) => `
-          <div class="faktura-card" onclick="openFakturaDetail(${f.id})">
+          <div class="faktura-card${(state._faSelected && state._faSelected.has(f.id)) ? ' is-selected' : ''}" onclick="openFakturaDetail(${f.id})">
             <div class="faktura-card-head">
+              <label class="doc-card-check" onclick="event.stopPropagation()" title="Vybrat pro export / e-mail">
+                <input type="checkbox" ${(state._faSelected && state._faSelected.has(f.id)) ? 'checked' : ''} onchange="faToggleSelect(${f.id}, this.checked)" data-fa-check="${f.id}">
+              </label>
               <div class="faktura-card-cislo">${esc(f.cislo)}${upravenoDot(f.obsah_upraveno)}</div>
               ${stavUhradyBadge(f.stav_uhrady)}
             </div>
