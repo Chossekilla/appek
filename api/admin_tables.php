@@ -135,6 +135,22 @@ function ensure_table_columns(PDO $pdo): void {
 }
 ensure_table_columns($pdo);
 
+// 🆕 v3.0.209 — kolik OTEVŘENÝCH POS účtů (kasa) je na daných stolech (nebo globálně).
+//   Guard proti zničení nezaplacených účtů destruktivními floor-plan operacemi:
+//   restaurant_pos_ucty.stul_id má FK ON DELETE CASCADE → smazání stolu smaže i otevřený účet
+//   (+ table_reservations, restaurant_qr_orders/sessions). Proto guard + soft-delete (aktivni=0).
+function pos_open_count(PDO $pdo, ?array $tableIds = null): int {
+    try {
+        $sql = "SELECT COUNT(*) FROM restaurant_pos_ucty WHERE stav = 'open'";
+        if ($tableIds !== null) {
+            $ids = array_values(array_filter(array_map('intval', $tableIds)));
+            if (empty($ids)) return 0;
+            $sql .= " AND stul_id IN (" . implode(',', $ids) . ")";
+        }
+        return (int) $pdo->query($sql)->fetchColumn();
+    } catch (Throwable $e) { return 0; }
+}
+
 // Default zone — pokud žádná není, vytvoř "Hlavní sál"
 try {
     $cnt = (int) $pdo->query("SELECT COUNT(*) FROM restaurant_zones")->fetchColumn();
@@ -657,12 +673,17 @@ if ($method === 'POST' && $action === 'apply_template') {
         }
     }
 
+    // 🆕 v3.0.209 — destruktivní režimy (keep/full) nesmí běžet s otevřenými účty (CASCADE wipe kasy)
+    if (pos_open_count($pdo) > 0) {
+        json_error('Máš otevřené účty (kasa) — nejdřív je zavři, pak měň layout šablonou.', 409);
+    }
+
     try {
         $pdo->beginTransaction();
         $zoneIds = [];  // template zone_idx → DB zone id
         if ($keepZones) {
-            // 🆕 Zachovej zóny — smaž jen stoly, template stoly namapuj na existující zóny.
-            $pdo->exec("DELETE FROM restaurant_tables");
+            // 🆕 v3.0.209 — soft-delete stolů (zachová rezervace/historii, žádný CASCADE), pak namapuj na existující zóny.
+            $pdo->exec("UPDATE restaurant_tables SET aktivni = 0 WHERE COALESCE(aktivni,1) = 1");
             $existing = $pdo->query("SELECT id FROM restaurant_zones WHERE COALESCE(aktivni,1)=1 ORDER BY sort_order, id")->fetchAll(PDO::FETCH_COLUMN);
             if (empty($existing)) {
                 // Žádná zóna neexistuje → fallback: vytvoř zóny ze šablony (jako full).
@@ -679,8 +700,9 @@ if ($method === 'POST' && $action === 'apply_template') {
             }
         } else {
             if (!$merge) {
-                $pdo->exec("DELETE FROM restaurant_tables");
-                $pdo->exec("DELETE FROM restaurant_zones");
+                // 🆕 v3.0.209 — soft-delete (aktivni=0) místo hard DELETE → zachová rezervace/historii (žádný CASCADE)
+                $pdo->exec("UPDATE restaurant_tables SET aktivni = 0 WHERE COALESCE(aktivni,1) = 1");
+                $pdo->exec("UPDATE restaurant_zones SET aktivni = 0 WHERE COALESCE(aktivni,1) = 1");
             }
             // Insert zóny
             foreach ($tpl['zones'] as $idx => $z) {
@@ -747,9 +769,14 @@ if ($method === 'POST' && $action === 'zone_save') {
 }
 if ($method === 'DELETE' && $action === 'zone' && $id) {
     require_super_admin();
-    // Smaž stoly v zóně
-    $pdo->prepare("DELETE FROM restaurant_tables WHERE zone_id = :z")->execute(['z' => $id]);
-    $pdo->prepare("DELETE FROM restaurant_zones WHERE id = :id")->execute(['id' => $id]);
+    // 🆕 v3.0.209 — guard: žádný stůl v zóně nesmí mít otevřený účet (jinak CASCADE smaže kasu)
+    $zTableIds = $pdo->query("SELECT id FROM restaurant_tables WHERE zone_id = " . (int) $id . " AND COALESCE(aktivni,1)=1")->fetchAll(PDO::FETCH_COLUMN);
+    if (pos_open_count($pdo, $zTableIds) > 0) {
+        json_error('V zóně je otevřený účet — nejdřív ho zavři, pak smaž zónu.', 409);
+    }
+    // Soft-delete (aktivni=0) zóny i jejích stolů → zachová rezervace/historii (žádný CASCADE).
+    $pdo->prepare("UPDATE restaurant_tables SET aktivni = 0 WHERE zone_id = :z")->execute(['z' => $id]);
+    $pdo->prepare("UPDATE restaurant_zones SET aktivni = 0 WHERE id = :id")->execute(['id' => $id]);
     json_response(['ok' => true]);
 }
 
@@ -945,7 +972,12 @@ if ($method === 'PUT' && $id) {
 
 if ($method === 'DELETE' && $id) {
     require_super_admin();
-    $pdo->prepare("DELETE FROM restaurant_tables WHERE id = :id")->execute(['id' => $id]);
+    // 🆕 v3.0.209 — neumaž stůl s otevřeným účtem (CASCADE by smazal nezaplacenou kasu!)
+    if (pos_open_count($pdo, [$id]) > 0) {
+        json_error('Stůl má otevřený účet — nejdřív ho zaplať/zavři nebo přesuň jinam.', 409);
+    }
+    // Soft-delete (aktivni=0) místo hard DELETE → zachová rezervace + historii (FK necascaduje).
+    $pdo->prepare("UPDATE restaurant_tables SET aktivni = 0 WHERE id = :id")->execute(['id' => $id]);
     json_response(['ok' => true]);
 }
 
@@ -1056,11 +1088,16 @@ if ($method === 'POST' && $action === 'apply_user_template') {
     if (!is_array($snap) || !isset($snap['zones']) || !isset($snap['tables'])) {
         json_error('Šablona je poškozená', 500);
     }
+    // 🆕 v3.0.209 — destruktivní apply nesmí běžet s otevřenými účty (CASCADE wipe kasy)
+    if (!$merge && pos_open_count($pdo) > 0) {
+        json_error('Máš otevřené účty (kasa) — nejdřív je zavři, pak aplikuj šablonu.', 409);
+    }
     try {
         $pdo->beginTransaction();
         if (!$merge) {
-            $pdo->exec("DELETE FROM restaurant_tables");
-            $pdo->exec("DELETE FROM restaurant_zones");
+            // soft-delete (aktivni=0) místo hard DELETE → zachová rezervace/historii (žádný CASCADE)
+            $pdo->exec("UPDATE restaurant_tables SET aktivni = 0 WHERE COALESCE(aktivni,1) = 1");
+            $pdo->exec("UPDATE restaurant_zones SET aktivni = 0 WHERE COALESCE(aktivni,1) = 1");
         }
         $zoneIds = [];
         foreach ($snap['zones'] as $idx => $z) {
