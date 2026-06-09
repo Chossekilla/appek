@@ -230,9 +230,22 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
   .upd-table .changelog-row td { background: #fafafa !important; padding: 12px 18px; }
   .upd-table .changelog-row details summary { padding: 4px 0; font-weight: 600; }
   .upd-table .changelog-row pre { font-size: 12px; color: #3a3a3c; margin: 8px 0 0; line-height: 1.6; white-space: pre-wrap; font-family: inherit; }
+  /* 🆕 v3.0.225 — horizontální scroll wrapper: na úzkých displejích tabulka scrolluje,
+     stránka se nerozbije (místo rozdrcených sloupců / overflow body). */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; }
   @media (max-width: 900px) {
-    .upd-table { table-layout: auto; font-size: 12px; }
+    .upd-table { table-layout: auto; font-size: 12px; min-width: 720px; } /* min-width → scrolluje ve wrapperu */
     .upd-table th, .upd-table td { padding: 9px 8px; }
+  }
+  /* Mobil: skryj nejméně kritické sloupce (SHA-256, Stahování) → méně scrollu, čitelnější.
+     Pořadí sloupců: 1=☑ 2=Verze 3=Channel 4=Stav 5=Velikost 6=SHA 7=Stahování 8=Vytvořeno 9=Akce */
+  @media (max-width: 640px) {
+    .upd-table { min-width: 560px; }
+    .upd-table th:nth-child(6), .upd-table td:nth-child(6),
+    .upd-table th:nth-child(7), .upd-table td:nth-child(7) { display: none; }
+    .upd-table col.col-sha, .upd-table col.col-staho { display: none; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .page-header-master { flex-wrap: wrap; gap: 10px; }
   }
 
   .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
@@ -351,6 +364,7 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
       <button type="submit" form="bulk-form" style="padding:7px 16px;background:#DC2626;border:none;color:#fff;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer">🗑️ Smazat vybrané</button>
     </div>
 
+    <div class="table-scroll">
     <table class="upd-table">
       <colgroup>
         <col style="width:36px">
@@ -431,10 +445,12 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
         <?php endforeach; ?>
       </tbody>
     </table>
+    </div>
   <?php endif; ?>
 
   <?php if (!empty($installs)): ?>
     <h2 style="margin:24px 0 12px;font-size:16px">📥 Posledních 20 stažení</h2>
+    <div class="table-scroll">
     <table class="upd-table">
       <thead>
         <tr>
@@ -459,6 +475,7 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
         <?php endforeach; ?>
       </tbody>
     </table>
+    </div>
   <?php endif; ?>
 
   <div class="panel-master" style="margin-top:30px;background:#fafafa;border:1px dashed #d2d2d7">
