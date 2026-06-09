@@ -614,6 +614,49 @@ if ($method === 'POST' && $action === 'apply_template') {
     $templates = default_templates();
     if (!isset($templates[$tplKey])) json_error('Neznámá šablona: ' . $tplKey, 400);
     $tpl = $templates[$tplKey];
+
+    // 🆕 v3.0.208 — ADITIVNÍ mód: přidat stoly šablony do JEDNÉ (aktuální) zóny.
+    //   Nemaže NIC (stávající stoly i ostatní zóny zůstanou). User: „přidám ze šablony
+    //   stoly do zóny bar" — dřív to šlo jen destruktivně (replace + rozhoz dle indexu).
+    if (($d['mode'] ?? '') === 'add_zone') {
+        ensure_table_columns($pdo);
+        $targetZone = (int) ($d['target_zone_id'] ?? 0);
+        if (!$targetZone) json_error('Chybí cílová zóna', 400);
+        $zq = $pdo->prepare("SELECT nazev FROM restaurant_zones WHERE id = :id AND COALESCE(aktivni,1)=1");
+        $zq->execute(['id' => $targetZone]);
+        $zoneName = $zq->fetchColumn();
+        if ($zoneName === false) json_error('Cílová zóna neexistuje', 404);
+        try {
+            $pdo->beginTransaction();
+            // Nové stoly umísti POD stávající stoly v zóně (offset Y) + unikátní názvy.
+            $maxBottom = (int) $pdo->query("SELECT COALESCE(MAX(y + height), 0) FROM restaurant_tables WHERE zone_id = " . (int) $targetZone . " AND COALESCE(aktivni,1)=1")->fetchColumn();
+            $offsetY = $maxBottom > 0 ? $maxBottom + 30 : 0;
+            $used = array_flip($pdo->query("SELECT nazev FROM restaurant_tables WHERE zone_id = " . (int) $targetZone)->fetchAll(PDO::FETCH_COLUMN));
+            $tIns = $pdo->prepare("
+                INSERT INTO restaurant_tables (nazev, mist, sekce, x, y, width, height, tvar, zone_id, stav, aktivni)
+                VALUES (:n,:m,:s,:x,:y,:w,:h,:t,:z,'free',1)
+            ");
+            $cnt = 0;
+            foreach ($tpl['tables'] as $t) {
+                $base = (string) ($t['nazev'] ?? 'S'); $name = $base; $k = 2;
+                while (isset($used[$name])) { $name = $base . '·' . $k; $k++; }
+                $used[$name] = true;
+                $tIns->execute([
+                    'n' => $name, 'm' => (int) ($t['mist'] ?? 2), 's' => $zoneName,
+                    'x' => (int) ($t['x'] ?? 0), 'y' => (int) ($t['y'] ?? 0) + $offsetY,
+                    'w' => (int) ($t['width'] ?? 80), 'h' => (int) ($t['height'] ?? 80),
+                    't' => $t['tvar'] ?? 'square', 'z' => $targetZone,
+                ]);
+                $cnt++;
+            }
+            $pdo->commit();
+            json_response(['ok' => true, 'template' => $tplKey, 'stoly' => $cnt, 'mode' => 'add_zone', 'zone_id' => $targetZone, 'zone_nazev' => $zoneName]);
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            json_error_safe('Přidání stolů do zóny selhalo', $e, 500);
+        }
+    }
+
     try {
         $pdo->beginTransaction();
         $zoneIds = [];  // template zone_idx → DB zone id
