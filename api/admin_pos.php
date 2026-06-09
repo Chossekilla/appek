@@ -1497,6 +1497,118 @@ if ($method === 'GET' && $action === 'quick_history') {
     }
 }
 
+// 🆕 v3.0.210 — DENNÍ UZÁVĚRKA na stanice (= obsluha). Sčítá OBA zdroje POS prodeje:
+//   dine-in (restaurant_pos_ucty paid + restaurant_pos_platby, obsluha=otevrel_jmeno)
+//   + takeaway (objednavky puvod='pos', obsluha=pos_uzivatel, pos_payment).
+function pos_uzaverka_data(PDO $pdo, string $date): array {
+    $dNext = date('Y-m-d', strtotime($date . ' +1 day'));
+    $METODY = ['hotovost','karta','qr','online','poukaz','prevod','ostatni'];
+    $normZ = function ($z) {
+        $z = strtolower(trim((string) $z));
+        $map = [
+            'hotove'=>'hotovost','hotovost'=>'hotovost','cash'=>'hotovost',
+            'karta'=>'karta','card'=>'karta','terminal'=>'karta',
+            'qr'=>'qr','online'=>'online','poukaz'=>'poukaz','voucher'=>'poukaz',
+            'prevod'=>'prevod','faktura'=>'prevod','bankovni_prevod'=>'prevod',
+        ];
+        return $map[$z] ?? 'ostatni';
+    };
+    $stanice = [];
+    $touch = function (&$st, $jmeno) use ($METODY) {
+        if (!isset($st[$jmeno])) $st[$jmeno] = ['obsluha'=>$jmeno,'pocet'=>0,'trzba'=>0.0,'tip'=>0.0,'metody'=>array_fill_keys($METODY, 0.0)];
+    };
+    // 1) Dine-in — platby paid účtů (datum dle zaplaceno_v)
+    try {
+        $din = $pdo->prepare("
+            SELECT COALESCE(NULLIF(u.otevrel_jmeno,''),'(bez obsluhy)') AS obsluha, p.zpusob, p.castka, p.ucet_id
+            FROM restaurant_pos_platby p
+            JOIN restaurant_pos_ucty u ON u.id = p.ucet_id
+            WHERE u.stav = 'paid' AND u.zaplaceno_v >= :d AND u.zaplaceno_v < :dn
+        ");
+        $din->execute(['d' => $date . ' 00:00:00', 'dn' => $dNext . ' 00:00:00']);
+        $seen = [];
+        foreach ($din->fetchAll() as $r) {
+            $j = $r['obsluha']; $touch($stanice, $j);
+            $stanice[$j]['metody'][$normZ($r['zpusob'])] += (float) $r['castka'];
+            $stanice[$j]['trzba'] += (float) $r['castka'];
+            $key = $j . '#' . $r['ucet_id'];
+            if (!isset($seen[$key])) { $stanice[$j]['pocet']++; $seen[$key] = true; }
+        }
+    } catch (Throwable $e) { /* dine-in tabulky nemusí existovat */ }
+    // 2) Takeaway / quick (objednavky puvod='pos', datum dle datum_objednani)
+    try {
+        $tw = $pdo->prepare("
+            SELECT COALESCE(NULLIF(pos_uzivatel,''),'(bez obsluhy)') AS obsluha, pos_payment, castka_celkem, COALESCE(pos_tip,0) AS tip
+            FROM objednavky
+            WHERE puvod = 'pos' AND datum_objednani >= :d AND datum_objednani < :dn
+        ");
+        $tw->execute(['d' => $date, 'dn' => $dNext]);
+        foreach ($tw->fetchAll() as $r) {
+            $j = $r['obsluha']; $touch($stanice, $j);
+            $stanice[$j]['metody'][$normZ($r['pos_payment'])] += (float) $r['castka_celkem'];
+            $stanice[$j]['trzba'] += (float) $r['castka_celkem'];
+            $stanice[$j]['tip']   += (float) $r['tip'];
+            $stanice[$j]['pocet']++;
+        }
+    } catch (Throwable $e) {}
+    // Součty + zaokrouhlení
+    $total = ['trzba'=>0.0,'pocet'=>0,'tip'=>0.0,'metody'=>array_fill_keys($METODY, 0.0)];
+    foreach ($stanice as &$s) {
+        $total['trzba'] += $s['trzba']; $total['pocet'] += $s['pocet']; $total['tip'] += $s['tip'];
+        foreach ($METODY as $m) { $total['metody'][$m] += $s['metody'][$m]; $s['metody'][$m] = round($s['metody'][$m], 2); }
+        $s['trzba'] = round($s['trzba'], 2); $s['tip'] = round($s['tip'], 2);
+    }
+    unset($s);
+    $total['trzba'] = round($total['trzba'], 2); $total['tip'] = round($total['tip'], 2);
+    foreach ($METODY as $m) $total['metody'][$m] = round($total['metody'][$m], 2);
+    $arr = array_values($stanice);
+    usort($arr, fn($a, $b) => $b['trzba'] <=> $a['trzba']);
+    return ['date' => $date, 'metody' => $METODY, 'stanice' => $arr, 'total' => $total];
+}
+function pos_uzaverky_ensure(PDO $pdo): void {
+    static $done = false; if ($done) return; $done = true;
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS pos_uzaverky (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            datum DATE NOT NULL,
+            celkem DECIMAL(12,2) NOT NULL DEFAULT 0,
+            pocet_dokladu INT NOT NULL DEFAULT 0,
+            snapshot_json MEDIUMTEXT NOT NULL,
+            kdo VARCHAR(120) NULL,
+            vytvoreno DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_datum (datum)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    } catch (Throwable $e) {}
+}
+
+// GET ?action=uzaverka&date=YYYY-MM-DD → X-přehled (rozpad na obsluhu + platby + součty)
+if ($method === 'GET' && $action === 'uzaverka') {
+    $date = $_GET['date'] ?? date('Y-m-d');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) json_error('Neplatné datum', 400);
+    pos_uzaverky_ensure($pdo);
+    $data = pos_uzaverka_data($pdo, $date);
+    $uz = $pdo->prepare("SELECT id, kdo, vytvoreno, celkem, pocet_dokladu FROM pos_uzaverky WHERE datum = :d ORDER BY id DESC LIMIT 1");
+    $uz->execute(['d' => $date]);
+    $data['uzavreno'] = $uz->fetch(PDO::FETCH_ASSOC) ?: null;
+    json_response($data);
+}
+
+// POST ?action=uzaverka_close { date } → Z-uzávěrka: ulož snapshot dne (audit + tisk)
+if ($method === 'POST' && $action === 'uzaverka_close') {
+    $d = json_input();
+    $date = $d['date'] ?? date('Y-m-d');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) json_error('Neplatné datum', 400);
+    pos_uzaverky_ensure($pdo);
+    $data = pos_uzaverka_data($pdo, $date);
+    $kdo = $_SESSION['admin_jmeno'] ?? 'admin';
+    $pdo->prepare("INSERT INTO pos_uzaverky (datum, celkem, pocet_dokladu, snapshot_json, kdo) VALUES (:d,:c,:p,:s,:k)")
+        ->execute([
+            'd' => $date, 'c' => $data['total']['trzba'], 'p' => $data['total']['pocet'],
+            's' => json_encode($data, JSON_UNESCAPED_UNICODE), 'k' => $kdo,
+        ]);
+    json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId(), 'celkem' => $data['total']['trzba'], 'pocet' => $data['total']['pocet'], 'kdo' => $kdo]);
+}
+
 // 🆕 v2.9.308 — GET ?action=quick_order_detail&id=X — detail jedné POS účtenky (modal)
 // Vrací objednavku + polozky. LEFT JOIN odberatele aby fungovalo i pro POS quick orders
 // bez zákazníka (puvod='pos', odberatel_id může být null nebo dummy).

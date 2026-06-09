@@ -352,6 +352,7 @@ $csrfToken  = csrf_token();
     <span class="pos-tab-h" data-tab="tables">🪑 Stoly</span>
     <span class="pos-tab-h" data-tab="orders">📜 Účtenky</span>
     <span class="pos-tab-h" data-tab="reports">📊 Statistiky</span>
+    <span class="pos-tab-h" data-tab="uzaverka">🧮 Uzávěrka</span>
   </div>
   <div class="pos-header-right">
     <span class="pos-time" id="pos-clock">--:--</span>
