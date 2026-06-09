@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.224';
+const APPEK_ADMIN_JS_VERSION = '3.0.226';
 
 (async function detectStaleCode() {
   try {
@@ -5500,10 +5500,7 @@ async function renderKanalyPanel() {
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;font-weight:700"><input type="checkbox" data-f="zapnuto" ${k.zapnuto ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer" onchange="this.closest('.kanal-row').style.opacity=this.checked?'1':'0.55'"> Zapnuto</label>
     </div>
   `).join('') + `
-    <p style="font-size:11px;color:var(--text-3);margin-top:10px;line-height:1.5">
-      💡 <strong>Pokladní</strong> = objednávky kanálu se započítají do POS Účtenek a denní uzávěrky.
-      <strong>Řada</strong> (např. POS-, B2B-, DORT-) je pevná a zajišťuje, že se čísla dokladů nepřebíjejí.
-    </p>`;
+    <p style="font-size:11px;color:var(--text-3);margin-top:10px;line-height:1.5">💡 Pokladní = objednávky kanálu se započítají do POS Účtenek a denní uzávěrky. Řada (např. POS-, B2B-, DORT-) je pevná a zajišťuje, že se čísla dokladů nepřebíjejí.</p>`;
 }
 
 async function ulozitKanaly() {
@@ -15050,11 +15047,7 @@ async function renderNastaveni() {
   const blokKanaly = `
     <div class="card-block">
       <h3 style="margin-bottom:6px">🔀 Prodejní kanály</h3>
-      <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.5">
-        Každý balíček (POS, B2B portál, dort konfigurátor, rozvozové platformy, opakované…) zapisuje objednávky
-        s <strong>vlastním označením a číselnou řadou</strong>, takže se navzájem nepřebíjejí. Přejmenuj kanály,
-        vypni nepoužívané a označ, které se počítají jako <strong>pokladní prodej</strong> (teče do POS Účtenek a uzávěrky).
-      </p>
+      <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.5">Každý balíček (POS, B2B portál, dort konfigurátor, rozvozové platformy, opakované…) zapisuje objednávky s vlastním označením a číselnou řadou, takže se navzájem nepřebíjejí. Přejmenuj kanály, vypni nepoužívané a označ, které se počítají jako pokladní prodej (teče do POS Účtenek a uzávěrky).</p>
       <div id="kanaly-container"><div style="text-align:center;padding:20px;color:var(--text-3)">Načítám…</div></div>
       <div style="display:flex;justify-content:flex-end;margin-top:14px">
         <button class="btn-primary btn-green" onclick="ulozitKanaly()" style="font-weight:700;padding:12px 24px;border-radius:10px">💾 Uložit kanály</button>
