@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.218';
+const APPEK_ADMIN_JS_VERSION = '3.0.219';
 
 (async function detectStaleCode() {
   try {
@@ -9505,16 +9505,27 @@ window.recurringSpustit = async function() {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
-async function renderDodaciListy(filters = {}) {
-  const params = new URLSearchParams(filters).toString();
+async function renderDodaciListy(filters = {}, opts = {}) {
+  // 🆕 v3.0.219 — paging (offset/limit + total), styl dle pagination_styl
+  const append = !!opts.append;
+  const pg = (state._dlPag ??= { items: [], total: 0, offset: 0, limit: 50, filters: {} });
+  if (append) { pg.offset = pg.items.length; }
+  else if (opts.offset !== undefined) { pg.offset = Math.max(0, opts.offset); pg.filters = filters; }
+  else { pg.offset = 0; pg.items = []; pg.filters = filters; }
+  await loadPaginationStyl();
+
+  const qp = new URLSearchParams({ ...pg.filters, offset: pg.offset, limit: pg.limit }).toString();
   let data;
   try {
-    data = await api('admin_dodaci_listy.php' + (params ? '?' + params : ''));
+    data = await api('admin_dodaci_listy.php?' + qp);
   } catch (e) { data = null; }
   // 🆕 v2.9.288 — defenzivní fallback
   if (!data || typeof data !== 'object') data = { dodaci_listy: [], souhrn: {} };
   if (!Array.isArray(data.dodaci_listy)) data.dodaci_listy = [];
   if (!data.souhrn || typeof data.souhrn !== 'object') data.souhrn = {};
+  pg.total = Number.isFinite(data.total) ? data.total : (parseInt(data.pocet) || data.dodaci_listy.length);
+  pg.items = append ? pg.items.concat(data.dodaci_listy) : data.dodaci_listy;
+  data.dodaci_listy = pg.items; // render čte z akumulovaného seznamu
 
   if (!state._dlSelected) state._dlSelected = new Set();
   state._dlList = data.dodaci_listy;
@@ -9524,7 +9535,7 @@ async function renderDodaciListy(filters = {}) {
     <div class="page-head">
       <div>
         <h1 class="page-title">📃 Dodací listy</h1>
-        <p class="page-sub">${parseInt(data.pocet || 0)} dodacích listů</p>
+        <p class="page-sub">${pg.total} dodacích listů${pg.items.length < pg.total ? ` · zobrazeno ${pg.items.length}` : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn-icon-action btn-rozvozy-action" onclick="navigate('rozvozy')" title="Rozvozové trasy — DL seskupené podle města/PSČ s pořadovými čísly zastávek pro řidiče" aria-label="Rozvozové trasy">
@@ -9684,8 +9695,13 @@ async function renderDodaciListy(filters = {}) {
         `).join('')
       }
     </div>
+
+    ${pagControlHtml('dl', pg, 'dlGoToPage', 'dlLoadMore')}
   `;
+  pagSetupInfinite('dl', pg, 'dlLoadMore'); // 🆕 v3.0.219
 }
+window.dlLoadMore = function() { renderDodaciListy(state._dlPag.filters, { append: true }); };
+window.dlGoToPage = function(p) { renderDodaciListy(state._dlPag.filters, { offset: p * (state._dlPag.limit || 50) }); };
 
 // =============================================================
 // DL hromadný výběr a export
@@ -10431,16 +10447,25 @@ window.upravitDodaciList = async function(id) {
 };
 
 
-async function renderFaktury(filters = {}) {
+async function renderFaktury(filters = {}, opts = {}) {
+  // 🆕 v3.0.219 — paging (offset/limit + total), styl dle pagination_styl
+  const append = !!opts.append;
+  const pg = (state._fakPag ??= { items: [], total: 0, offset: 0, limit: 50, filters: {} });
+  if (append) { pg.offset = pg.items.length; }
+  else if (opts.offset !== undefined) { pg.offset = Math.max(0, opts.offset); pg.filters = filters; }
+  else { pg.offset = 0; pg.items = []; pg.filters = filters; }
+
   const c0 = document.getElementById('content');
-  if (c0) c0.innerHTML = `
+  if (c0 && !append && opts.offset === undefined) c0.innerHTML = `
     <div class="page-head"><div><h1 class="page-title">💰 Faktury</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
-  const params = new URLSearchParams(filters).toString();
+  await loadPaginationStyl();
+
+  const qp = new URLSearchParams({ ...pg.filters, offset: pg.offset, limit: pg.limit }).toString();
   let data;
   try {
-    data = await api('admin_faktury.php' + (params ? '?' + params : ''));
+    data = await api('admin_faktury.php?' + qp);
   } catch (e) {
     data = null;
   }
@@ -10448,6 +10473,9 @@ async function renderFaktury(filters = {}) {
   if (!data || typeof data !== 'object') data = { faktury: [], souhrn: {} };
   if (!Array.isArray(data.faktury)) data.faktury = [];
   if (!data.souhrn || typeof data.souhrn !== 'object') data.souhrn = { celkem: 0, celkem_kc: 0, po_splatnosti_kc: 0 };
+  pg.total = Number.isFinite(data.total) ? data.total : data.faktury.length;
+  pg.items = append ? pg.items.concat(data.faktury) : data.faktury;
+  data.faktury = pg.items; // render čte z akumulovaného seznamu
   const c = document.getElementById('content');
 
   if (!state._faSelected) state._faSelected = new Set();
@@ -10457,7 +10485,7 @@ async function renderFaktury(filters = {}) {
     <div class="page-head">
       <div>
         <h1 class="page-title">💰 Faktury</h1>
-        <p class="page-sub">${data.faktury.length} faktur</p>
+        <p class="page-sub">${pg.total} faktur${data.faktury.length < pg.total ? ` · zobrazeno ${data.faktury.length}` : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary" onclick="faBulkTiskNahore()" title="Vytiskni vybrané (nebo všechny zobrazené, pokud nic není zaškrtnuté)">🖨️ Tisk</button>
@@ -10599,8 +10627,13 @@ async function renderFaktury(filters = {}) {
         `).join('')
       }
     </div>
+
+    ${pagControlHtml('fak', pg, 'faGoToPage', 'faLoadMore')}
   `;
+  pagSetupInfinite('fak', pg, 'faLoadMore'); // 🆕 v3.0.219
 }
+window.faLoadMore = function() { renderFaktury(state._fakPag.filters, { append: true }); };
+window.faGoToPage = function(p) { renderFaktury(state._fakPag.filters, { offset: p * (state._fakPag.limit || 50) }); };
 
 function zdrojFakturyBadge(f) {
   const wrap = (inner) => `<span class="doc-badges-row" style="justify-content:flex-start;flex-wrap:nowrap">${inner}</span>`;

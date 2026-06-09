@@ -1844,14 +1844,20 @@
   };
 
   // ─── History / Účtenky ───────────────────────────────────────
-  async function renderHistory(panel) {
-    panel.innerHTML = `<div class="pos-loading" style="padding:40px;text-align:center">⏳ Načítám účtenky…</div>`;
+  async function renderHistory(panel, append = false) {
+    if (!append) panel.innerHTML = `<div class="pos-loading" style="padding:40px;text-align:center">⏳ Načítám účtenky…</div>`;
     try {
       const today = new Date().toISOString().slice(0, 10);
       const date = State._historyDate || today;
       State._historyDate = date;
-      const d = await api('admin_pos.php?action=quick_history&date=' + encodeURIComponent(date));
-      const orders = d.objednavky || [];
+      // 🆕 v3.0.219 — paging Účtenek (POS = touch → „Načíst další")
+      if (!append) { State._historyItems = []; }
+      const offset = append ? (State._historyItems ? State._historyItems.length : 0) : 0;
+      const d = await api('admin_pos.php?action=quick_history&date=' + encodeURIComponent(date) + '&offset=' + offset + '&limit=50');
+      const batch = d.objednavky || [];
+      State._historyItems = append ? (State._historyItems || []).concat(batch) : batch;
+      State._historyTotal = Number.isFinite(d.total) ? d.total : State._historyItems.length;
+      const orders = State._historyItems;
       const s = d.souhrn || {};
 
       const TYP_LABEL = {
@@ -1878,7 +1884,7 @@
           <div class="pos-history-head">
             <div class="pos-history-title">
               <h2 style="margin:0 0 4px;font-size:24px;font-weight:800">📜 Účtenky</h2>
-              <p style="margin:0;color:#6b7280;font-size:14px">Den ${fmtDateCs(date)} · ${orders.length} účtenek</p>
+              <p style="margin:0;color:#6b7280;font-size:14px">Den ${fmtDateCs(date)} · ${State._historyTotal} účtenek${orders.length < State._historyTotal ? ` · zobrazeno ${orders.length}` : ''}</p>
             </div>
             <div class="pos-history-date">
               <button class="pos-history-day-btn" onclick="posShiftDay(-1)">← Předchozí</button>
@@ -1946,6 +1952,10 @@
                 </tbody>
               </table>
             </div>
+            ${orders.length < State._historyTotal ? `<div style="text-align:center;margin:18px 0">
+              <button class="pos-history-day-btn" onclick="posHistoryLoadMore()" style="padding:12px 28px;font-weight:700;font-size:15px">▾ Načíst další (${Math.min(50, State._historyTotal - orders.length)})</button>
+              <div style="margin-top:6px;color:#9097a3;font-size:13px">Zobrazeno ${orders.length} z ${State._historyTotal}</div>
+            </div>` : ''}
           `}
         </div>
       `;
@@ -1953,6 +1963,11 @@
       panel.innerHTML = `<div class="pos-error" style="margin:20px">⚠️ Chyba načtení historie: ${esc(e.message)}</div>`;
     }
   }
+  // 🆕 v3.0.219 — Účtenky: načíst další dávku (append)
+  window.posHistoryLoadMore = function() {
+    const panel = document.getElementById('pos-tab-content');
+    if (panel) renderHistory(panel, true);
+  };
 
   function fmtDateCs(dateStr) {
     try {

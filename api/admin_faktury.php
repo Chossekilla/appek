@@ -125,29 +125,39 @@ if ($method === 'GET') {
     ";
     $params = [];
 
+    // 🆕 v3.0.219 — filtr WHERE zvlášť (sdílí list i COUNT total pro paging)
+    $where = '';
     // FIX #13: filter pushed into WHERE, ne až po LIMITu v PHP
     if ($stav === 'uhrazena') {
-        $sql .= " AND f.castka_uhrazeno >= f.castka_celkem";
+        $where .= " AND f.castka_uhrazeno >= f.castka_celkem";
     } elseif ($stav === 'po_splatnosti') {
-        $sql .= " AND f.castka_uhrazeno < f.castka_celkem AND f.datum_splatnosti < CURDATE()";
+        $where .= " AND f.castka_uhrazeno < f.castka_celkem AND f.datum_splatnosti < CURDATE()";
     } elseif ($stav === 'cekajici') {
-        $sql .= " AND f.castka_uhrazeno < f.castka_celkem AND f.datum_splatnosti >= CURDATE()";
+        $where .= " AND f.castka_uhrazeno < f.castka_celkem AND f.datum_splatnosti >= CURDATE()";
     }
 
     if ($hledat !== '') {
         $hl = str_replace(['\\','%','_'], ['\\\\','\\%','\\_'], $hledat);
-        $sql .= " AND (f.cislo LIKE :q OR od.nazev LIKE :q OR f.variabilni_symbol LIKE :q)";
+        $where .= " AND (f.cislo LIKE :q OR od.nazev LIKE :q OR f.variabilni_symbol LIKE :q)";
         $params['q'] = '%' . $hl . '%';
     }
     if ($datum_od !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum_od)) {
-        $sql .= " AND f.datum_vystaveni >= :do_";
+        $where .= " AND f.datum_vystaveni >= :do_";
         $params['do_'] = $datum_od;
     }
     if ($datum_do !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum_do)) {
-        $sql .= " AND f.datum_vystaveni <= :ddo";
+        $where .= " AND f.datum_vystaveni <= :ddo";
         $params['ddo'] = $datum_do;
     }
-    $sql .= " ORDER BY f.datum_vystaveni DESC, f.id DESC LIMIT 200";
+
+    // 🆕 v3.0.219 — paging: offset/limit + total
+    $limit  = max(1, min(200, (int) ($_GET['limit'] ?? 50)));
+    $offset = max(0, (int) ($_GET['offset'] ?? 0));
+    $cs = $pdo->prepare("SELECT COUNT(*) FROM faktury f JOIN odberatele od ON od.id = f.odberatel_id WHERE 1=1" . $where);
+    $cs->execute($params);
+    $total = (int) $cs->fetchColumn();
+
+    $sql .= $where . " ORDER BY f.datum_vystaveni DESC, f.id DESC LIMIT $limit OFFSET $offset";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -161,7 +171,14 @@ if ($method === 'GET') {
         FROM faktury
     ")->fetch();
 
-    json_response(['faktury' => $faktury, 'souhrn' => $souhrn]);
+    json_response([
+        'faktury'  => $faktury,
+        'souhrn'   => $souhrn,
+        'total'    => $total,
+        'offset'   => $offset,
+        'limit'    => $limit,
+        'has_more' => ($offset + count($faktury)) < $total,
+    ]);
 }
 
 if ($method === 'PUT') {

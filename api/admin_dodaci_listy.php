@@ -104,49 +104,59 @@ try {
             WHERE 1=1
         ";
         $params = [];
+        $where = ''; // 🆕 v3.0.219 — filtr zvlášť (sdílí list + agregát/COUNT pro paging)
 
         if (!empty($_GET['q'])) {
-            $sql .= " AND (dl.cislo LIKE :q OR od.nazev LIKE :q OR (o.cislo IS NOT NULL AND o.cislo LIKE :q))";
+            $where .= " AND (dl.cislo LIKE :q OR od.nazev LIKE :q OR (o.cislo IS NOT NULL AND o.cislo LIKE :q))";
             $params['q'] = '%' . $_GET['q'] . '%';
         }
         if (!empty($_GET['datum_od'])) {
-            $sql .= " AND dl.datum_vystaveni >= :datum_od";
+            $where .= " AND dl.datum_vystaveni >= :datum_od";
             $params['datum_od'] = $_GET['datum_od'];
         }
         if (!empty($_GET['datum_do'])) {
-            $sql .= " AND dl.datum_vystaveni <= :datum_do";
+            $where .= " AND dl.datum_vystaveni <= :datum_do";
             $params['datum_do'] = $_GET['datum_do'];
         }
         if (isset($_GET['fakturovano']) && $_GET['fakturovano'] !== '') {
-            $sql .= " AND dl.fakturovano = :fakt";
+            $where .= " AND dl.fakturovano = :fakt";
             $params['fakt'] = (int) $_GET['fakturovano'];
         }
         if (!empty($_GET['odberatel_id'])) {
-            $sql .= " AND dl.odberatel_id = :oid";
+            $where .= " AND dl.odberatel_id = :oid";
             $params['oid'] = (int) $_GET['odberatel_id'];
         }
 
-        $sql .= " ORDER BY dl.datum_vystaveni DESC, dl.id DESC";
+        // 🆕 v3.0.219 — paging + agregát (sumy přes VŠECHNY odpovídající, ne jen stránku)
+        $limit  = max(1, min(200, (int) ($_GET['limit'] ?? 50)));
+        $offset = max(0, (int) ($_GET['offset'] ?? 0));
+        $agg = $pdo->prepare("
+            SELECT COUNT(*) AS c,
+                   COALESCE(SUM(dl.castka_celkem), 0) AS celkem,
+                   COALESCE(SUM(CASE WHEN dl.fakturovano = 0 THEN dl.castka_celkem ELSE 0 END), 0) AS nefakt
+            FROM dodaci_listy dl
+            LEFT JOIN odberatele od ON od.id = dl.odberatel_id
+            LEFT JOIN objednavky o ON o.id = dl.objednavka_id
+            WHERE 1=1" . $where);
+        $agg->execute($params);
+        $aggRow = $agg->fetch() ?: ['c' => 0, 'celkem' => 0, 'nefakt' => 0];
+        $total = (int) $aggRow['c'];
+
+        $sql .= $where . " ORDER BY dl.datum_vystaveni DESC, dl.id DESC LIMIT $limit OFFSET $offset";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $list = $stmt->fetchAll();
 
-        // Sumy pro stat boxy
-        $celkem = 0;
-        $nefakt = 0;
-        foreach ($list as $r) {
-            $celkem += (float) $r['castka_celkem'];
-            if (!$r['fakturovano']) {
-                $nefakt += (float) $r['castka_celkem'];
-            }
-        }
-
         json_response([
             'dodaci_listy'        => $list,
-            'pocet'               => count($list),
-            'castka_celkem'       => $celkem,
-            'castka_nefakturovana'=> $nefakt,
+            'pocet'               => $total,
+            'castka_celkem'       => (float) $aggRow['celkem'],
+            'castka_nefakturovana'=> (float) $aggRow['nefakt'],
+            'total'               => $total,
+            'offset'              => $offset,
+            'limit'               => $limit,
+            'has_more'            => ($offset + count($list)) < $total,
         ]);
     }
 
