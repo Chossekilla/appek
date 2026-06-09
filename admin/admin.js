@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.219';
+const APPEK_ADMIN_JS_VERSION = '3.0.220';
 
 (async function detectStaleCode() {
   try {
@@ -31841,8 +31841,11 @@ async function renderStitky() {
   // Načti data podle režimu
   if (s.rezim === 'expedicni') {
     try {
-      const params = new URLSearchParams({ datum_od: s.od, datum_do: s.dto }).toString();
-      s.obj = await api('admin_objednavky.php?' + params);
+      // 🐛 v3.0.220 — admin_objednavky vrací od v3.0.218 envelope {objednavky,...} (ne pole);
+      //   unwrap + limit 200 (plánovač chce všechny v rozsahu, ne jen 1. stránku 50).
+      const params = new URLSearchParams({ datum_od: s.od, datum_do: s.dto, limit: 200 }).toString();
+      const _r = await api('admin_objednavky.php?' + params);
+      s.obj = Array.isArray(_r) ? _r : (_r.objednavky || []);
     } catch (e) { s.obj = []; }
   } else if (s.rezim === 'cenovky') {
     // 📦 Vždy fetchni produkty z DB (i když máme cache) — pokud cache prázdná, NEBO timestamp > 60s starý
