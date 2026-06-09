@@ -414,6 +414,68 @@ function printer_dispatch_order(PDO $pdo, int $objednavka_id, array $context = [
 }
 
 // ─────────────────────────────────────────────────────────────
+// DISPATCH DINE-IN — bony otevřeného POS účtu (stoly) na tiskárny stanic
+//   🆕 v3.0.203 — když se dine-in položky „pošlou do kuchyně" (auto-fire / tlačítko),
+//   rozešle NOVÉ (kuchyne_tisk=0) položky na SÍŤOVOU tiskárnu jejich stanice a označí je
+//   kuchyne_tisk=1. Položky bez stanice / bez tiskárny stanice nechá být (zůstanou pro
+//   browser bon admin_pos_print.php). Soft-fail — tisk nikdy neblokuje POS.
+// ─────────────────────────────────────────────────────────────
+function printer_dispatch_pos_ucet(PDO $pdo, int $ucetId, array $context = []): array {
+    printer_ensure_schema($pdo);
+
+    $sql = "
+        SELECT p.id, p.nazev AS vyrobek_nazev, p.mnozstvi, p.poznamka,
+               v.kitchen_station_id, ks.printer_id, ks.nazev AS station_nazev
+        FROM restaurant_pos_polozky p
+        LEFT JOIN vyrobky v          ON v.id = p.vyrobek_id
+        LEFT JOIN kitchen_stations ks ON ks.id = v.kitchen_station_id
+        WHERE p.ucet_id = :u AND p.kuchyne_tisk = 0 AND p.stav != 'storno'
+        ORDER BY ks.poradi, p.id
+    ";
+    try {
+        $s = $pdo->prepare($sql);
+        $s->execute(['u' => $ucetId]);
+        $items = $s->fetchAll();
+    } catch (Throwable $e) {
+        return []; // restaurant_pos_polozky / kitchen_stations chybí → nic
+    }
+
+    // Group jen položky, jejichž stanice MÁ tiskárnu
+    $byPrinter = [];
+    foreach ($items as $it) {
+        $pid = (int)($it['printer_id'] ?? 0);
+        if (!$pid) continue;
+        $byPrinter[$pid][] = $it;
+    }
+    if (!$byPrinter) return []; // žádná stanice s tiskárnou → browser bon to pokryje
+
+    $results = [];
+    $printedIds = [];
+    foreach ($byPrinter as $pid => $its) {
+        $printer = printer_get($pdo, $pid);
+        if (!$printer || !$printer['aktivni']) {
+            $results[] = ['printer_id' => $pid, 'ok' => false, 'error' => 'Tiskárna neaktivní/smazaná'];
+            continue;
+        }
+        $ctx = array_merge($context, ['poznamka' => $its[0]['station_nazev'] ?? ($context['poznamka'] ?? null)]);
+        $payload = printer_build_bon($its, $ctx, $printer);
+        $res = printer_send($pdo, $printer, $payload);
+        $results[] = array_merge(['printer_id' => $pid, 'nazev' => $printer['nazev'], 'station' => $its[0]['station_nazev'] ?? null], $res);
+        if (!empty($res['ok'])) {
+            foreach ($its as $it) $printedIds[] = (int)$it['id'];
+        }
+    }
+
+    // Označ úspěšně vytištěné položky jako kuchyne_tisk=1 (nereprintovat + nevyjedou 2× na browser bon)
+    if ($printedIds) {
+        $ph = implode(',', array_fill(0, count($printedIds), '?'));
+        $pdo->prepare("UPDATE restaurant_pos_polozky SET kuchyne_tisk = 1 WHERE id IN ($ph)")->execute($printedIds);
+    }
+
+    return $results;
+}
+
+// ─────────────────────────────────────────────────────────────
 // PRINT RECEIPT — účtenka na kasa
 // ─────────────────────────────────────────────────────────────
 function printer_print_receipt(PDO $pdo, int $objednavka_id): array {
