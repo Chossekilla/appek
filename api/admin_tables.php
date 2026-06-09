@@ -907,15 +907,33 @@ if ($method === 'POST' && $action === 'reserve') {
     $d = json_input();
     $stulId    = (int) ($d['stul_id'] ?? 0);
     if (!$stulId) json_error('Chybí stůl', 400);
+    // 🐛 v3.0.214 — validace + anti-double-booking. Dřív slepý INSERT → překryvy rezervací,
+    //   obrácený čas (cas_od>cas_do) i rezervace v minulosti prošly.
+    $datum = trim((string) ($d['datum'] ?? ''));
+    $casOd = substr(trim((string) ($d['cas_od'] ?? '')), 0, 5);
+    $casDo = substr(trim((string) ($d['cas_do'] ?? '')), 0, 5);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum))         json_error('Neplatné datum', 400);
+    if (!preg_match('/^\d{1,2}:\d{2}$/', $casOd) || !preg_match('/^\d{1,2}:\d{2}$/', $casDo)) json_error('Neplatný čas', 400);
+    if ($casDo <= $casOd)                                     json_error('Konec rezervace musí být po začátku', 400);
+    if ($datum < date('Y-m-d'))                               json_error('Nelze rezervovat v minulosti', 400);
     try {
+        // Překryv s aktivní rezervací téhož stolu/dne (čas. intervaly se protínají).
+        $ov = $pdo->prepare("
+            SELECT COUNT(*) FROM table_reservations
+            WHERE stul_id = :s AND datum = :d AND COALESCE(stav,'confirmed') <> 'cancelled'
+              AND cas_od < :do_ AND cas_do > :od
+        ");
+        $ov->execute(['s' => $stulId, 'd' => $datum, 'do_' => $casDo, 'od' => $casOd]);
+        if ((int) $ov->fetchColumn() > 0) json_error('Stůl je v tomto čase už rezervovaný', 409);
+
         $pdo->prepare("
             INSERT INTO table_reservations (stul_id, datum, cas_od, cas_do, jmeno, telefon, pocet_osob, poznamka, stav)
             VALUES (:s, :d, :od, :do_, :j, :t, :p, :pz, 'confirmed')
         ")->execute([
             's'   => $stulId,
-            'd'   => $d['datum'],
-            'od'  => $d['cas_od'],
-            'do_' => $d['cas_do'],
+            'd'   => $datum,
+            'od'  => $casOd,
+            'do_' => $casDo,
             'j'   => trim($d['jmeno'] ?? ''),
             't'   => $d['telefon'] ?? null,
             'p'   => (int) ($d['pocet_osob'] ?? 2),
