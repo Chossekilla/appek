@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.217';
+const APPEK_ADMIN_JS_VERSION = '3.0.218';
 
 (async function detectStaleCode() {
   try {
@@ -5527,22 +5527,36 @@ async function ulozitKanaly() {
   }
 }
 
-async function renderObjednavky(filters = {}) {
+async function renderObjednavky(filters = {}, opts = {}) {
+  // 🆕 v3.0.218 — paging (offset/limit + total); styl dle pagination_styl (load_more/stranky/infinite)
+  const append = !!opts.append;
+  const pg = (state._objPag ??= { items: [], total: 0, offset: 0, limit: 50, filters: {} });
+  if (append) {
+    pg.offset = pg.items.length;                       // další dávka navazuje
+  } else if (opts.offset !== undefined) {
+    pg.offset = Math.max(0, opts.offset); pg.filters = filters;  // skok na stránku
+  } else {
+    pg.offset = 0; pg.items = []; pg.filters = filters;          // nový filtr → reset
+  }
+
   const c0 = document.getElementById('content');
-  if (c0) c0.innerHTML = `
+  if (c0 && !append && opts.offset === undefined) c0.innerHTML = `
     <div class="page-head"><div><h1 class="page-title">🛒 Objednávky</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
-  const params = new URLSearchParams(filters).toString();
-  // 🆕 v2.9.289 — defenzivní fallback (řeší "list.map is not a function")
-  let list;
-  try {
-    list = await api('admin_objednavky.php' + (params ? '?' + params : ''));
-  } catch (e) { list = []; }
-  // Backend může vrátit {objednavky: [...]} nebo přímo [...]
-  if (list && !Array.isArray(list) && Array.isArray(list.objednavky)) list = list.objednavky;
-  if (!Array.isArray(list)) list = [];
-  await loadKanalyRegistry(); // 🆕 v3.0.212 — pro chips + badge dle kanálů
+  await loadPaginationStyl();   // 🆕 v3.0.218
+  await loadKanalyRegistry();   // 🆕 v3.0.212 — pro chips + badge dle kanálů
+
+  const qp = new URLSearchParams({ ...pg.filters, offset: pg.offset, limit: pg.limit }).toString();
+  let resp;
+  try { resp = await api('admin_objednavky.php?' + qp); } catch (e) { resp = {}; }
+  // Backend vrací {objednavky,total,has_more} (nebo legacy pole)
+  let batch = Array.isArray(resp) ? resp : (Array.isArray(resp.objednavky) ? resp.objednavky : []);
+  pg.total = Array.isArray(resp) ? batch.length : (Number.isFinite(resp.total) ? resp.total : batch.length);
+  pg.items = append ? pg.items.concat(batch) : batch;
+
+  const list = pg.items;
+  const total = pg.total;
   const c = document.getElementById('content');
   state._objList = list;
   if (!state._objSelected) state._objSelected = new Set();
@@ -5552,7 +5566,7 @@ async function renderObjednavky(filters = {}) {
   const validIds = new Set(list.map(o => o.id));
   for (const id of [...state._objSelected]) if (!validIds.has(id)) state._objSelected.delete(id);
 
-  // Spočítej souhrn pro stat-grid (klient-side z načteného listu)
+  // Souhrn pro stat-grid (z načtených; celkový počet = total z backendu)
   const sumCelkem = list.reduce((a, o) => a + (parseFloat(o.castka_celkem) || 0), 0);
   const sumKVyfakturovani = list
     .filter(o => o.stav !== 'zrusena' && (parseInt(o.pocet_faktur) || 0) === 0)
@@ -5562,7 +5576,7 @@ async function renderObjednavky(filters = {}) {
     <div class="page-head">
       <div>
         <h1 class="page-title">🛒 Objednávky</h1>
-        <p class="page-sub">${list.length} objednávek</p>
+        <p class="page-sub">${total} objednávek${list.length < total ? ` · zobrazeno ${list.length}` : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn-secondary" onclick="navigate('recurring')" title="Opakující se objednávky (cron)">🔁 Opakující</button>
@@ -5573,7 +5587,7 @@ async function renderObjednavky(filters = {}) {
     <div class="stat-grid">
       <div class="stat-card">
         <div class="stat-label">Celkem objednávek</div>
-        <div class="stat-value">${list.length}</div>
+        <div class="stat-value">${total}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Celková tržba</div>
@@ -5744,6 +5758,8 @@ async function renderObjednavky(filters = {}) {
         `).join('')}
     </div>
 
+    ${pagControlHtml('obj', pg, 'objGoToPage', 'objLoadMore')}
+
     <div id="obj-bulk-bar" class="bulk-bar" style="display:none;">
       <div class="bulk-bar-info">
         <span class="bulk-bar-count" id="obj-bulk-count">0</span>
@@ -5759,6 +5775,58 @@ async function renderObjednavky(filters = {}) {
     </div>
   `;
   updateObjBulkBar();
+  pagSetupInfinite('obj', pg, 'objLoadMore'); // 🆕 v3.0.218 — nekonečné scrollování (pokud styl=infinite)
+}
+
+// 🆕 v3.0.218 — paging helpers (sdílené pro hlavní seznamy)
+async function loadPaginationStyl() {
+  if (state._pagStyl) return state._pagStyl;
+  try {
+    const n = await api('admin_nastaveni.php');
+    state._pagStyl = (n && n.pagination_styl) ? n.pagination_styl : 'load_more';
+  } catch (e) { state._pagStyl = 'load_more'; }
+  return state._pagStyl;
+}
+// Vykreslí ovládání stránkování dle zvoleného stylu.
+function pagControlHtml(key, pg, gotoFn, moreFn) {
+  const styl = state._pagStyl || 'load_more';
+  const shown = pg.items.length, total = pg.total || 0;
+  if (total <= shown && pg.offset === 0) return ''; // vše se vešlo, žádné ovládání netřeba
+  const info = `<span style="font-size:12px;color:var(--text-3)">Zobrazeno <strong>${shown}</strong> z <strong>${total}</strong></span>`;
+  if (styl === 'stranky') {
+    const limit = pg.limit || 50, pages = Math.max(1, Math.ceil(total / limit)), cur = Math.floor(pg.offset / limit);
+    let btns = '';
+    const win = 2;
+    for (let p = 0; p < pages; p++) {
+      if (p > 1 && p < pages - 1 && Math.abs(p - cur) > win) { if (btns.slice(-1) !== '…') btns += '<span style="padding:0 4px;color:var(--text-3)">…</span>'; continue; }
+      btns += `<button onclick="${gotoFn}(${p})" style="min-width:34px;padding:6px 10px;border-radius:8px;border:1.5px solid ${p===cur?'#1F2937':'#E5E7EB'};background:${p===cur?'#1F2937':'#fff'};color:${p===cur?'#fff':'#374151'};font-weight:700;cursor:pointer">${p+1}</button>`;
+    }
+    return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center;margin:16px 0">
+      <button onclick="${gotoFn}(${Math.max(0,cur-1)})" ${cur===0?'disabled':''} style="padding:6px 12px;border-radius:8px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;${cur===0?'opacity:.4':''}">‹</button>
+      ${btns}
+      <button onclick="${gotoFn}(${Math.min(pages-1,cur+1)})" ${cur>=pages-1?'disabled':''} style="padding:6px 12px;border-radius:8px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;${cur>=pages-1?'opacity:.4':''}">›</button>
+      <span style="margin-left:8px">${info}</span></div>`;
+  }
+  // load_more + infinite: tlačítko (u infinite navíc auto přes observer)
+  const hasMore = shown < total;
+  return `<div id="${key}-pag-more" style="display:flex;flex-direction:column;align-items:center;gap:6px;margin:16px 0">
+    ${hasMore ? `<button onclick="${moreFn}()" class="btn-secondary" style="padding:10px 22px;font-weight:700;border-radius:10px">▾ Načíst další (${Math.min(pg.limit||50, total-shown)})</button>` : ''}
+    ${info}</div>`;
+}
+window.objLoadMore = function() { renderObjednavky(state._objPag.filters, { append: true }); };
+window.objGoToPage = function(p) { renderObjednavky(state._objPag.filters, { offset: p * (state._objPag.limit || 50) }); };
+// Nekonečné scrollování: napojí IntersectionObserver na sentinel (jen styl=infinite).
+function pagSetupInfinite(key, pg, moreFn) {
+  if ((state._pagStyl || 'load_more') !== 'infinite') return;
+  if (pg.items.length >= (pg.total || 0)) return;
+  const anchor = document.getElementById(key + '-pag-more');
+  if (!anchor) return;
+  if (state['_io_' + key]) { try { state['_io_' + key].disconnect(); } catch (e) {} }
+  const io = new IntersectionObserver((entries) => {
+    if (entries.some(e => e.isIntersecting)) { io.disconnect(); window[moreFn](); }
+  }, { rootMargin: '200px' });
+  io.observe(anchor);
+  state['_io_' + key] = io;
 }
 
 window.objToggleSelect = function(id, checked) {
@@ -14121,6 +14189,18 @@ async function renderNastaveni() {
           `;
         }).join('')}
       </div>
+    </div>
+
+    <!-- 📃 STRÁNKOVÁNÍ DLOUHÝCH SEZNAMŮ (v3.0.218) -->
+    <div class="card-block" style="margin-top:14px">
+      <h3 style="margin-bottom:6px;">📃 Dlouhé seznamy</h3>
+      <p class="page-sub" style="margin-bottom:14px;">Jak načítat dlouhé seznamy (Objednávky, Faktury, Dodací listy, POS Účtenky) při velkém počtu záznamů.</p>
+      <select class="form-select" id="ns-pagination" style="max-width:340px">
+        <option value="load_more" ${(n.pagination_styl || 'load_more') === 'load_more' ? 'selected' : ''}>▾ Načíst další (tlačítko)</option>
+        <option value="stranky" ${n.pagination_styl === 'stranky' ? 'selected' : ''}># Stránkování (čísla stránek)</option>
+        <option value="infinite" ${n.pagination_styl === 'infinite' ? 'selected' : ''}>∞ Nekonečné scrollování</option>
+      </select>
+      <p style="font-size:11px;color:var(--text-3);margin-top:8px">Uloží se tlačítkem „Uložit nastavení" dole. Platí pro všechna zařízení.</p>
     </div>
 
     <!-- 🎨 VZHLED APLIKACE -->
@@ -25104,6 +25184,7 @@ window.ulozitNastaveni = async function() {
   setIf('admin_email_pro_objednavky', v('ns-admin-email'));
   setIf('uzaverka_hodina', v('ns-uzaverka-h'));
   setIf('uzaverka_dni_predem', v('ns-uzaverka-d'));
+  setIf('pagination_styl', v('ns-pagination')); // 🆕 v3.0.218 — styl stránkování seznamů
   if (document.getElementById('ns-notif-nova')) data.notif_nova_objednavka = cb('ns-notif-nova') ? '1' : '0';
   if (document.getElementById('ns-notif-stav')) data.notif_zmena_stavu     = cb('ns-notif-stav') ? '1' : '0';
   if (document.querySelector('[data-stav-notif]')) {
@@ -25129,7 +25210,7 @@ window.ulozitNastaveni = async function() {
 
   try {
     await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify(data) });
-    
+    if ('pagination_styl' in data) state._pagStyl = null; // 🆕 v3.0.218 — projeví se nový styl
     // Hezčí toast místo alert
     const toast = document.createElement('div');
     toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:14px 22px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:14px;font-weight:500;z-index:1000;';
