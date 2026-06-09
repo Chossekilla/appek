@@ -868,9 +868,14 @@ function da_handle_inbound_order(string $sluzba, array $parsed): array {
 
         // 🆕 datum_objednani — NOT NULL bez defaultu → na strict MySQL by INSERT spadl
         //   (stejný root cause jako admin_objednavky vytvorit). Příchozí Wolt/Bolt objednávka.
-        $fields  = ['cislo', 'odberatel_id', 'datum_objednani', 'datum_dodani', 'castka_celkem', 'stav'];
-        $vals    = [':c', ':o', ':doo', ':dd', ':ck', ':st'];
-        $params  = ['c' => $cislo, 'o' => $odbId, 'doo' => date('Y-m-d'), 'dd' => $datumDodani, 'ck' => $parsed['castka'], 'st' => 'nova'];
+        // 🐛 v3.0.214 — dopočet DPH rozpadu z celkové částky (rozvoz jídla = 12 %).
+        //   Dřív se plnila jen castka_celkem → castka_bez_dph/dph zůstaly 0 → rozbité DPH/účetní reporty.
+        $ckCelkem = (float) ($parsed['castka'] ?? 0);
+        $ckBez    = round($ckCelkem / 1.12, 2);
+        $ckDph    = round($ckCelkem - $ckBez, 2);
+        $fields  = ['cislo', 'odberatel_id', 'datum_objednani', 'datum_dodani', 'castka_bez_dph', 'castka_dph', 'castka_celkem', 'stav'];
+        $vals    = [':c', ':o', ':doo', ':dd', ':bez', ':dph', ':ck', ':st'];
+        $params  = ['c' => $cislo, 'o' => $odbId, 'doo' => date('Y-m-d'), 'dd' => $datumDodani, 'bez' => $ckBez, 'dph' => $ckDph, 'ck' => $ckCelkem, 'st' => 'nova'];
 
         if ($hasPuvod) { $fields[] = 'puvod';        $vals[] = ':pu';   $params['pu'] = $sluzba; }
         if ($hasPozn)  {
