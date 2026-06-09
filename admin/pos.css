@@ -3067,3 +3067,28 @@ html, body {
   .pos-zoom-val { display: none; }
   .pos-zoom-btn { width: 34px; height: 34px; font-size: 22px; }
 }
+
+/* 🆕 v3.0.210 — Denní uzávěrka na stanice */
+.pos-uzav { padding: 18px; max-width: 920px; margin: 0 auto; overflow-y: auto; }
+.pos-uzav-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.pos-uzav-head h2 { margin: 0; font-size: 21px; font-weight: 800; }
+.pos-uzav-date { padding: 9px 12px; border: 1.5px solid var(--pos-border, #E3E6EE); border-radius: 10px; font-size: 14px; font-family: inherit; }
+.uzav-closed { background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+.uzav-total-box { background: linear-gradient(135deg, #1e8e3e, #166534); color: #fff; border-radius: 14px; padding: 18px 20px; box-shadow: 0 6px 18px rgba(30,142,62,0.28); }
+.uzav-total-main { display: flex; justify-content: space-between; align-items: baseline; font-weight: 800; }
+.uzav-total-main span { font-size: 15px; letter-spacing: 1px; opacity: 0.92; }
+.uzav-total-main strong { font-size: 30px; font-variant-numeric: tabular-nums; }
+.uzav-total-sub { font-size: 13px; opacity: 0.9; margin-top: 2px; }
+.uzav-metody { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.25); display: grid; gap: 4px; }
+.uzav-row { display: flex; justify-content: space-between; font-size: 14px; }
+.uzav-h3 { margin: 20px 0 10px; font-size: 15px; font-weight: 800; color: var(--pos-text, #1a1d24); }
+.uzav-stanice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.uzav-stanice { background: #fff; border: 1.5px solid var(--pos-border, #E3E6EE); border-radius: 12px; padding: 14px; }
+.uzav-st-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.uzav-st-head strong { font-size: 15px; }
+.uzav-st-cnt { font-size: 11px; color: var(--pos-text-2, #6B7280); background: var(--pos-soft, #F5F6FA); padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+.uzav-st-trzba { font-size: 22px; font-weight: 800; color: var(--pos-primary, #BA7517); font-variant-numeric: tabular-nums; }
+.uzav-st-metody { font-size: 11.5px; color: var(--pos-text-2, #6B7280); margin-top: 4px; line-height: 1.45; }
+.uzav-st-tip { font-size: 11.5px; color: #B45309; margin-top: 3px; }
+.uzav-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 18px; }
+.pos-uzav-empty { grid-column: 1 / -1; text-align: center; padding: 30px; color: var(--pos-text-2, #6B7280); background: var(--pos-soft, #F5F6FA); border-radius: 12px; }
