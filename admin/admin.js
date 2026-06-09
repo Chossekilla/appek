@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.221';
+const APPEK_ADMIN_JS_VERSION = '3.0.222';
 
 (async function detectStaleCode() {
   try {
@@ -19319,24 +19319,27 @@ function renderRestaurantTimeline(stoly, datum, openUcty, dayHours) {
     </div>`;
   }
 
-  // 🆕 v3.0.201 — Rozsah kalendáře dle otevírací doby daného dne (fallback 10–24).
-  //   od → dolů na hodinu, do → nahoru na hodinu; do ≤ od (přes půlnoc) → do konce dne.
-  let startH = 10, endH = 24;
+  // 🆕 v3.0.201 / 🐛 v3.0.222 — Rozsah kalendáře dle otevírací doby daného dne (fallback 10–24).
+  //   od → dolů na hodinu, do → nahoru na hodinu. PŘES PŮLNOC (do ≤ od, např. 11–03): pokračuj
+  //   do dalšího dne → endH = 24 + do (11–03 → 11..27, sloupce 11:00…23:00, 00:00, 01:00, 02:00).
+  let startH = 10, endH = 24, crossMidnight = false;
   if (dayHours && dayHours.otevreno_od && dayHours.otevreno_do) {
     const oh = parseInt(String(dayHours.otevreno_od).slice(0, 2), 10);
     const dh = parseInt(String(dayHours.otevreno_do).slice(0, 2), 10);
     const dm = parseInt(String(dayHours.otevreno_do).slice(3, 5), 10);
     if (!isNaN(oh)) startH = Math.max(0, Math.min(23, oh));
-    if (!isNaN(dh)) endH = dm > 0 ? dh + 1 : dh;
+    let rawEnd = !isNaN(dh) ? (dm > 0 ? dh + 1 : dh) : 24;
+    if (rawEnd <= startH) { crossMidnight = true; endH = 24 + rawEnd; } // přes půlnoc
+    else endH = rawEnd;
+    if (endH > 30) endH = 30; // bezpečnostní strop (max +6 h po půlnoci)
     if (endH <= startH) endH = 24;
-    if (endH > 24) endH = 24;
   }
   // Responzivní šířka hodiny (úzký displej = užší sloupce, ať se víc vejde)
   const hourPx = (typeof window !== 'undefined' && window.innerWidth && window.innerWidth < 640) ? 52 : 70;
   const totalMinutes = (endH - startH) * 60;
   const totalPx = (endH - startH) * hourPx;
   const colsHeader = Array.from({ length: endH - startH }, (_, i) => `
-    <div style="width:${hourPx}px;flex-shrink:0;text-align:center;font-size:11px;font-weight:600;color:var(--text-3);padding:6px 0;border-left:1px solid var(--border)">${String(startH + i).padStart(2, '0')}:00</div>
+    <div style="width:${hourPx}px;flex-shrink:0;text-align:center;font-size:11px;font-weight:600;color:var(--text-3);padding:6px 0;border-left:1px solid var(--border)">${String((startH + i) % 24).padStart(2, '0')}:00</div>
   `).join('');
 
   // 🆕 v3.0.19 — Aktuální čas marker pozice
@@ -19345,7 +19348,9 @@ function renderRestaurantTimeline(stoly, datum, openUcty, dayHours) {
   const isToday = nowDateStr === datum;
   let nowLeftPx = null;
   if (isToday) {
-    const nowMin = (now.getHours() * 60 + now.getMinutes()) - startH * 60;
+    let nowH = now.getHours();
+    if (crossMidnight && nowH < startH) nowH += 24; // 🐛 v3.0.222 — po půlnoci
+    const nowMin = (nowH * 60 + now.getMinutes()) - startH * 60;
     if (nowMin >= 0 && nowMin <= totalMinutes) {
       nowLeftPx = (nowMin / 60) * hourPx;
     }
@@ -19363,8 +19368,10 @@ function renderRestaurantTimeline(stoly, datum, openUcty, dayHours) {
     const ucet = uByStul[t.id];
     // Rezervace blocks
     const blocks = (t.rezervace_dnes || []).filter(r => r.datum === datum || !r.datum).map(r => {
-      const [oh, om] = (r.cas_od || '00:00').split(':').map(Number);
-      const [dh, dm] = (r.cas_do || '00:00').split(':').map(Number);
+      let [oh, om] = (r.cas_od || '00:00').split(':').map(Number);
+      let [dh, dm] = (r.cas_do || '00:00').split(':').map(Number);
+      // 🐛 v3.0.222 — přes půlnoc: časy < otevírací hodina patří do dalšího dne (+24 h)
+      if (crossMidnight) { if (oh < startH) oh += 24; if (dh < startH) dh += 24; }
       const fromMin = Math.max(0, (oh * 60 + om) - startH * 60);
       const toMin = Math.min(totalMinutes, (dh * 60 + dm) - startH * 60);
       if (toMin <= fromMin) return '';
