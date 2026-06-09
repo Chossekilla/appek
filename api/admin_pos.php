@@ -777,6 +777,17 @@ if ($method === 'POST' && $action === 'move') {
         // 🐛 v3.0.196 — přesouvat lze jen OTEVŘENÝ účet (ne paid/merged/split). Odhaleno race testem.
         if (!$oldRow) { $pdo->rollBack(); json_error('Účet nenalezen', 404); }
         if (($oldRow['stav'] ?? '') !== 'open') { $pdo->rollBack(); json_error('Účet je uzavřený (' . ($oldRow['stav'] ?? '?') . ') — nelze přesunout', 409); }
+        // 🐛 v3.0.217 — cílový stůl musí existovat/být aktivní a NESMÍ mít jiný otevřený účet.
+        //   Jinak vzniknou 2 open účty na 1 stole → `ucet` GET vrátí jen poslední → první se skryje
+        //   z mapy = obsluha o něm neví → ztracená/nezaplacená tržba.
+        $tgt = $pdo->prepare("SELECT COALESCE(aktivni,1) FROM restaurant_tables WHERE id = :id");
+        $tgt->execute(['id' => $novyStulId]);
+        $tgtAkt = $tgt->fetchColumn();
+        if ($tgtAkt === false) { $pdo->rollBack(); json_error('Cílový stůl neexistuje', 404); }
+        if ((int) $tgtAkt === 0) { $pdo->rollBack(); json_error('Cílový stůl není aktivní', 409); }
+        $busy = $pdo->prepare("SELECT COUNT(*) FROM restaurant_pos_ucty WHERE stul_id = :s AND stav = 'open' AND id <> :u");
+        $busy->execute(['s' => $novyStulId, 'u' => $ucetId]);
+        if ((int) $busy->fetchColumn() > 0) { $pdo->rollBack(); json_error('Cílový stůl má otevřený účet — nejdřív účty slučte (merge)', 409); }
         $oldStul = (int) $oldRow['stul_id'];
         $pdo->prepare("UPDATE restaurant_pos_ucty SET stul_id = :s WHERE id = :id")->execute(['s' => $novyStulId, 'id' => $ucetId]);
         // Uvolni starý stůl pokud žádný open ucet
