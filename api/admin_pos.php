@@ -1488,6 +1488,7 @@ if ($method === 'GET' && $action === 'quick_history') {
     try {
         $date = $_GET['date'] ?? date('Y-m-d');
         $limit = max(10, min(200, (int)($_GET['limit'] ?? 50)));
+        $offset = max(0, (int)($_GET['offset'] ?? 0)); // 🆕 v3.0.219 — paging Účtenek
         pos_backfill_sales($pdo, $date); // 🆕 v3.0.211 — dine-in paid účty → objednávky, ať jsou v Účtenkách/Statistikách
         // 🚀 v2.9.314 — range scan místo DATE(datum_objednani)=:d. Předtím DATE() wrap
         // znemožnil použití idx_puvod_datum (puvod, datum_objednani) → full table scan.
@@ -1505,7 +1506,7 @@ if ($method === 'GET' && $action === 'quick_history') {
             LEFT JOIN odberatele od ON od.id = o.odberatel_id
             WHERE {$pokInO} AND o.datum_objednani >= :d AND o.datum_objednani < :d_next
             ORDER BY o.datum_objednani DESC
-            LIMIT {$limit}
+            LIMIT {$limit} OFFSET {$offset}
         ");
         $st->execute(['d' => $date, 'd_next' => $date_next]);
         $orders = $st->fetchAll(PDO::FETCH_ASSOC);
@@ -1528,11 +1529,16 @@ if ($method === 'GET' && $action === 'quick_history') {
         $sum->execute(['d' => $date, 'd_next' => $date_next]);
         $souhrn = $sum->fetch(PDO::FETCH_ASSOC) ?: [];
 
+        $total = (int) ($souhrn['pocet'] ?? count($orders));
         json_response([
             'ok'         => true,
             'date'       => $date,
             'objednavky' => $orders,
             'souhrn'     => $souhrn,
+            'total'      => $total,                                  // 🆕 v3.0.219 — paging
+            'offset'     => $offset,
+            'limit'      => $limit,
+            'has_more'   => ($offset + count($orders)) < $total,
         ]);
     } catch (Throwable $e) {
         json_error_safe('Chyba načtení historie', $e, 500);
