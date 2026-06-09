@@ -185,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $placeholders = implode(',', array_fill(0, count($vyrobek_ids), '?'));
         $stmt = $pdo->prepare("
-            SELECT v.id, v.cena_bez_dph, v.min_objednavka, s.sazba
+            SELECT v.id, v.nazev, v.cena_bez_dph, v.min_objednavka, s.sazba
             FROM vyrobky v
             JOIN sazby_dph s ON s.id = v.sazba_dph_id
             WHERE v.aktivni = 1 AND v.id IN ($placeholders)
@@ -212,6 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $polozky_clean[] = [
                 'vyrobek_id' => $vid, 'mnozstvi' => $mn,
+                'nazev' => $c['nazev'] ?? '',
                 'cena' => $c['cena_bez_dph'], 'sazba' => $c['sazba'],
                 'poznamka' => $p['poznamka'] ?? null,
             ];
@@ -254,6 +255,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $pdo->commit();
+
+        // 🆕 v3.0.207 — pravidelné typy z portálu (pravidelna_denni / tydenni_plan) založí
+        //   RECURRING PRAVIDLO (recurring_orders) → cron_recurring pak generuje opakované
+        //   objednávky. Dřív se uložil jen plati_od/dny na 1 obj. a nic se neopakovalo.
+        //   Soft-fail (objednávka už je commitnutá). První obj. otagujeme [Recurring #id],
+        //   aby ji cron u datum_zacatku znovu nevygeneroval (anti-duplikát).
+        $recurringCreated = false;
+        try {
+            $freqMap = ['pravidelna_denni' => 'denne', 'tydenni_plan' => 'tydne'];
+            if (isset($freqMap[$typ])) {
+                $frekvence = $freqMap[$typ];
+                $dny = (isset($data['dny_v_tydnu']) && is_array($data['dny_v_tydnu']))
+                    ? implode(',', array_filter(array_map('intval', $data['dny_v_tydnu']), fn($x) => $x >= 1 && $x <= 7))
+                    : null;
+                // 'tydne' bez dnů by se nikdy nespustil → fallback Po–Pá
+                if ($frekvence === 'tydne' && empty($dny)) $dny = '1,2,3,4,5';
+                $recPolozky = array_map(fn($p) => [
+                    'vyrobek_id'    => $p['vyrobek_id'],
+                    'vyrobek_nazev' => $p['nazev'] ?? '',
+                    'mnozstvi'      => $p['mnozstvi'],
+                    'cena_bez_dph'  => $p['cena'],
+                    'sazba_dph'     => $p['sazba'],
+                ], $polozky_clean);
+                $odbNazev = (string) $pdo->query("SELECT nazev FROM odberatele WHERE id = " . (int) $odberatel_id)->fetchColumn();
+                $recNazev = ($frekvence === 'denne' ? '🔁 Denní objednávka' : '🔁 Týdenní plán')
+                          . ($odbNazev !== '' ? ' — ' . $odbNazev : '');
+                $pdo->prepare("
+                    INSERT INTO recurring_orders
+                        (nazev, odberatel_id, misto_dodani_id, frekvence, dny_v_tydnu, polozky_json, poznamka, datum_zacatku, datum_konce, aktivni)
+                    VALUES (:n,:o,:m,:f,:dt,:pj,:pz,:dz,:dk,1)
+                ")->execute([
+                    'n'  => mb_substr($recNazev, 0, 100),
+                    'o'  => $odberatel_id,
+                    'm'  => $misto_id ?: null,
+                    'f'  => $frekvence,
+                    'dt' => $dny,
+                    'pj' => json_encode($recPolozky, JSON_UNESCAPED_UNICODE),
+                    'pz' => 'Automaticky z B2B portálu (obj. ' . $cislo . ')',
+                    'dz' => $data['plati_od'] ?? $data['datum_dodani'] ?? date('Y-m-d'),
+                    'dk' => $data['plati_do'] ?? null,
+                ]);
+                $ruleId = (int) $pdo->lastInsertId();
+                $pdo->prepare("UPDATE objednavky SET poznamka = TRIM(CONCAT(IFNULL(poznamka,''), ' [Recurring #', :rid, ']')) WHERE id = :id")
+                    ->execute(['rid' => $ruleId, 'id' => $obj_id]);
+                $recurringCreated = true;
+            }
+        } catch (Throwable $e) { error_log('objednavky recurring rule: ' . $e->getMessage()); }
 
         // Notifikace odběrateli (po commitu, chyby nelogují selhání objednávky)
         notifikace_nova_objednavka($pdo, $obj_id);
@@ -322,6 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'cislo' => $cislo,
             'platba' => $platba,
             'payment_url' => $paymentUrl,
+            'recurring_created' => $recurringCreated,
         ], 201);
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();

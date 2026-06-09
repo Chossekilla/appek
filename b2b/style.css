@@ -4593,3 +4593,19 @@ main, .layout { padding: var(--fl-py) var(--fl-px) !important; gap: var(--fl-gap
   .header-row-top .header-actions { margin-left: auto; }
   .header-row-top .b2b-lang-pills { margin-left: 0; order: 3; width: fit-content; justify-content: flex-start; }
 }
+
+/* 🆕 v3.0.207 — výběr dnů v týdnu pro „Týdenní plán" (recurring) */
+.b2b-day-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.b2b-day {
+  min-width: 42px; padding: 9px 10px;
+  border: 1.5px solid var(--primary-border, #E5C499);
+  background: #fff; color: var(--text-2, #6B7280);
+  border-radius: 9px; font-weight: 700; font-size: 13px; font-family: inherit;
+  cursor: pointer; transition: all 0.14s ease;
+}
+.b2b-day:hover { border-color: var(--primary, #BA7517); }
+.b2b-day.is-on {
+  background: var(--primary, #BA7517); color: #fff;
+  border-color: var(--primary, #BA7517);
+  box-shadow: 0 2px 6px rgba(186,117,23,0.25);
+}
