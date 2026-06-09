@@ -258,8 +258,29 @@ function pos_fire_ucet_to_kitchen(PDO $pdo, int $ucetId): int {
     // Samostatná kitchen_queue se proto pro dine-in už neplní (dřív hromadila stale,
     // nesynchronizované řádky bez stanice). Položka je „v kuchyni" automaticky, jakmile
     // je na otevřeném účtu. No-op zachováno kvůli volajícím (auto-fire + ruční tlačítko
-    // „Odeslat do kuchyně") → vrací 0 = nic nového k odeslání. Rozvoz/s sebou se plní
-    // dál přes pos_kitchen_insert() v quick_order (ty žijí jen v kitchen_queue).
+    // „Odeslat do kuchyně") → KDS pokryt. Rozvoz/s sebou se plní dál přes pos_kitchen_insert().
+    //
+    // 🆕 v3.0.203 — navíc rozešle kuchyňské bony na SÍŤOVÉ tiskárny stanic (pokud jsou
+    //   nastavené v Nastavení → Tiskárny + pos_print_kitchen_mode != 'off'). Stoly tak tisknou
+    //   per stanici jako takeaway. Soft-fail — tisk NIKDY neblokuje POS.
+    try {
+        require_once __DIR__ . '/_printer_lib.php';
+        $mode = (string) setting_get($pdo, 'pos_print_kitchen_mode', 'auto');
+        if ($mode !== 'off') {
+            $ctx = [];
+            try {
+                $st = $pdo->prepare("SELECT t.nazev, u.otevrel_jmeno FROM restaurant_pos_ucty u JOIN restaurant_tables t ON t.id = u.stul_id WHERE u.id = :id");
+                $st->execute(['id' => $ucetId]);
+                if ($row = $st->fetch()) {
+                    $ctx['stul_nazev']   = $row['nazev'] ?? ('Účet #' . $ucetId);
+                    $ctx['cislo']        = (string) $ucetId;
+                    if (!empty($row['otevrel_jmeno'])) $ctx['pos_uzivatel'] = $row['otevrel_jmeno'];
+                }
+            } catch (Throwable $e) {}
+            $res = printer_dispatch_pos_ucet($pdo, $ucetId, $ctx);
+            return is_array($res) ? count($res) : 0;
+        }
+    } catch (Throwable $e) { /* tisk nesmí blokovat POS */ }
     return 0;
 }
 
