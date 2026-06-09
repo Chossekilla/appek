@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.203';
+const APPEK_ADMIN_JS_VERSION = '3.0.204';
 
 (async function detectStaleCode() {
   try {
@@ -6955,6 +6955,14 @@ async function renderSkladyInline() {
                 </span>
               `).join('')}
               ${podMinimem.length > 12 ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="state._suroviny_pod_minimem=true;navigate('suroviny')">+${podMinimem.length - 12} dalších</button>` : ''}
+            </div>
+            <!-- 🆕 v3.0.204 — 1-klik naskladnění všech pod minimem na cílovou zásobu -->
+            <div style="margin-top:10px">
+              <button class="btn-primary btn-green" style="font-size:12px;padding:7px 14px;font-weight:700"
+                      onclick='doplnitVse(${JSON.stringify(podMinimem.map(s => s.id))})'
+                      title="Naskladní všechny suroviny pod minimem na jejich cílovou zásobu (1 klik)">
+                🛒 Doplnit vše na cíl (${podMinimem.length})
+              </button>
             </div>
           </details>
         ` : ''}
@@ -29924,6 +29932,27 @@ window.surSkladModal = async function(id) {
   window._surSkladId = id;
   window._surSkladState = null;
   return _origSurSkladModal(id);
+};
+
+// 🆕 v3.0.204 — 1-klik naskladnění suroviny na cílovou zásobu (low-stock list)
+window.doplnitSurovinu = async function(id, silent) {
+  const r = await api('admin_suroviny.php?action=restock', { method: 'POST', body: JSON.stringify({ id }) });
+  if (!silent) {
+    if (r.doplneno > 0) toast(`✓ ${r.nazev}: +${(+r.doplneno).toFixed(2)} ${r.jednotka || ''} → ${(+r.stav).toFixed(2)}`, 'success');
+    else toast(`${r.nazev || 'Surovina'}: už na cíli`, 'info');
+  }
+  return r;
+};
+window.doplnitVse = async function(ids) {
+  if (!Array.isArray(ids) || !ids.length) return;
+  if (!(await confirmDialog({ title: 'Doplnit zásoby?', msg: `Naskladnit ${ids.length} surovin pod minimem na jejich cílovou zásobu?`, okText: '🛒 Doplnit vše' }))) return;
+  let ok = 0, skip = 0;
+  for (const id of ids) {
+    try { const r = await window.doplnitSurovinu(id, true); (r && r.doplneno > 0) ? ok++ : skip++; }
+    catch (e) { skip++; }
+  }
+  toast(`🛒 Doplněno ${ok} surovin${skip ? `, ${skip} přeskočeno (bez cíle / už na cíli)` : ''}`, ok ? 'success' : 'info');
+  if (typeof renderSkladyInline === 'function') renderSkladyInline();
 };
 
 window.editSurovina = async function(id = null) {
