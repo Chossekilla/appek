@@ -165,8 +165,8 @@ if ($action === 'create_order' && $method === 'POST') {
         $sazbaDphId = (int) $pdo->query("SELECT id FROM sazby_dph WHERE sazba = $dph LIMIT 1")->fetchColumn();
         if (!$sazbaDphId) $sazbaDphId = (int) $pdo->query("SELECT id FROM sazby_dph LIMIT 1")->fetchColumn();
 
-        // Generuj číslo objednávky
-        $cislo = dalsi_cislo($pdo, 'OBJ', (int) date('Y'));
+        // Generuj číslo objednávky (🆕 v3.0.212 — kanál dort, vlastní řada DORT-rok-N)
+        $cislo = kanal_dalsi_cislo($pdo, 'dort');
 
         $pdo->beginTransaction();
 
@@ -177,8 +177,8 @@ if ($action === 'create_order' && $method === 'POST') {
 
         $pdo->prepare("
             INSERT INTO objednavky (cislo, odberatel_id, datum_objednani, datum_dodani,
-                                    castka_bez_dph, castka_dph, castka_celkem, stav, poznamka)
-            VALUES (:c, :o, NOW(), :dd, :bd, :d, :sd, 'nova', :p)
+                                    castka_bez_dph, castka_dph, castka_celkem, stav, poznamka, puvod)
+            VALUES (:c, :o, NOW(), :dd, :bd, :d, :sd, 'nova', :p, 'dort')
         ")->execute([
             'c'  => $cislo,
             'o'  => $odberatel_id,

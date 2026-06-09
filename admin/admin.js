@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.211';
+const APPEK_ADMIN_JS_VERSION = '3.0.212';
 
 (async function detectStaleCode() {
   try {
@@ -5450,6 +5450,72 @@ function upravenoDot(edited) {
   return edited ? ' <span class="upraveno-dot" title="Doklad byl po vytvoření upraven"></span>' : '';
 }
 
+// 🆕 v3.0.212 — registr prodejních kanálů (puvod) z backendu; cache v session.
+async function loadKanalyRegistry() {
+  if (state._kanaly && state._kanalyMap) return state._kanaly;
+  try {
+    const r = await api('admin_nastaveni.php?action=kanaly');
+    state._kanaly = (r && Array.isArray(r.kanaly)) ? r.kanaly : [];
+  } catch (e) { state._kanaly = []; }
+  state._kanalyMap = {};
+  for (const k of state._kanaly) state._kanalyMap[k.klic] = k;
+  return state._kanaly;
+}
+
+// 🆕 v3.0.212 — badge původu objednávky (ikona + tint barvy kanálu, label na hover).
+function puvodBadge(o) {
+  if (!o || !o.puvod) return '';
+  const m = (state._kanalyMap && state._kanalyMap[o.puvod]) || {};
+  const ikona = o.puvod_ikona || m.ikona, label = o.puvod_label || m.label || o.puvod, barva = o.puvod_barva || m.barva || '#6B7280';
+  if (!ikona) return '';
+  return ` <span title="${esc(label)}" style="display:inline-block;background:${barva}1A;color:${barva};font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;vertical-align:middle">${ikona}</span>`;
+}
+
+// 🆕 v3.0.212 — Nastavení → Prodejní kanály: editovatelná tabulka.
+async function renderKanalyPanel() {
+  const el = document.getElementById('kanaly-container');
+  if (!el) return;
+  state._kanaly = null; state._kanalyMap = null; // vynuť čerstvé načtení
+  await loadKanalyRegistry();
+  const rows = state._kanaly || [];
+  if (!rows.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-3)">Žádné kanály</div>'; return; }
+  el.innerHTML = rows.map(k => `
+    <div class="kanal-row" data-klic="${esc(k.klic)}" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;flex-wrap:wrap;${k.zapnuto ? '' : 'opacity:0.55'}">
+      <input type="color" value="${esc(k.barva || '#6B7280')}" data-f="barva" style="width:32px;height:32px;border:none;background:none;cursor:pointer;flex-shrink:0;padding:0" title="Barva štítku">
+      <span style="font-size:20px;flex-shrink:0">${k.ikona || '•'}</span>
+      <input class="form-input" data-f="label" value="${esc(k.label || '')}" style="flex:1;min-width:150px" placeholder="Název kanálu" maxlength="40">
+      <span style="font-size:11px;color:var(--text-3);font-family:monospace;background:var(--surface-2);padding:5px 9px;border-radius:6px;flex-shrink:0" title="Číselná řada dokladů (proti přebíjení)">${esc(k.rada || 'OBJ')}-</span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap"><input type="checkbox" data-f="pokladni" ${k.pokladni ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer"> 🧾 Pokladní</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;font-weight:700"><input type="checkbox" data-f="zapnuto" ${k.zapnuto ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer" onchange="this.closest('.kanal-row').style.opacity=this.checked?'1':'0.55'"> Zapnuto</label>
+    </div>
+  `).join('') + `
+    <p style="font-size:11px;color:var(--text-3);margin-top:10px;line-height:1.5">
+      💡 <strong>Pokladní</strong> = objednávky kanálu se započítají do POS Účtenek a denní uzávěrky.
+      <strong>Řada</strong> (např. POS-, B2B-, DORT-) je pevná a zajišťuje, že se čísla dokladů nepřebíjejí.
+    </p>`;
+}
+
+async function ulozitKanaly() {
+  const kanaly = {};
+  document.querySelectorAll('#kanaly-container .kanal-row').forEach(r => {
+    const klic = r.getAttribute('data-klic');
+    if (!klic) return;
+    kanaly[klic] = {
+      label:    r.querySelector('[data-f=label]')?.value || '',
+      barva:    r.querySelector('[data-f=barva]')?.value || '#6B7280',
+      pokladni: !!r.querySelector('[data-f=pokladni]')?.checked,
+      zapnuto:  !!r.querySelector('[data-f=zapnuto]')?.checked,
+    };
+  });
+  try {
+    await api('admin_nastaveni.php?action=kanaly', { method: 'POST', body: JSON.stringify({ kanaly }) });
+    state._kanaly = null; state._kanalyMap = null; // invaliduj cache → projeví se v Objednávkách
+    toastSuccess('Kanály uloženy');
+  } catch (e) {
+    toastError('Uložení kanálů selhalo');
+  }
+}
+
 async function renderObjednavky(filters = {}) {
   const c0 = document.getElementById('content');
   if (c0) c0.innerHTML = `
@@ -5465,6 +5531,7 @@ async function renderObjednavky(filters = {}) {
   // Backend může vrátit {objednavky: [...]} nebo přímo [...]
   if (list && !Array.isArray(list) && Array.isArray(list.objednavky)) list = list.objednavky;
   if (!Array.isArray(list)) list = [];
+  await loadKanalyRegistry(); // 🆕 v3.0.212 — pro chips + badge dle kanálů
   const c = document.getElementById('content');
   state._objList = list;
   if (!state._objSelected) state._objSelected = new Set();
@@ -5509,17 +5576,22 @@ async function renderObjednavky(filters = {}) {
 
     ${dashStylePeriodHtml('obj', filters.datum_od, filters.datum_do)}
 
-    <!-- 🆕 v3.0.27 — Puvod chips (POS / B2B / Walk-in / Interní / QR) -->
+    <!-- 🆕 v3.0.212 — Puvod chips (řízené registrem kanálů + nastavením) -->
     ${(() => {
       const counts = list.reduce((a, o) => { const p = o.puvod || 'interni'; a[p] = (a[p] || 0) + 1; return a; }, {});
       const totalAll = list.length;
       const activeP = filters.puvod || '';
       const chip = (val, label, icon, color) => `
         <button onclick="applyObjFilters({puvod:'${val}'})" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid ${activeP === val ? color : '#E5E7EB'};background:${activeP === val ? color : '#fff'};color:${activeP === val ? '#fff' : '#374151'};transition:all 0.15s ease">
-          <span>${icon}</span><span>${label}</span>
+          <span>${icon}</span><span>${esc(label)}</span>
           ${counts[val] ? `<span style="background:${activeP === val ? 'rgba(255,255,255,0.25)' : '#F3F4F6'};font-size:11px;padding:1px 7px;border-radius:99px;font-weight:800">${counts[val]}</span>` : ''}
         </button>
       `;
+      // Pořadí dle registru; ukaž zapnuté kanály + jakýkoli kanál s objednávkami (i vypnutý/legacy).
+      const reg = state._kanaly || [];
+      const known = new Set(reg.map(k => k.klic));
+      const chipKeys = reg.filter(k => k.zapnuto || counts[k.klic]).map(k => k.klic);
+      for (const p of Object.keys(counts)) if (!known.has(p)) chipKeys.push(p); // legacy puvod
       return `
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
           <span style="font-size:12px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.06em;margin-right:4px">Zdroj:</span>
@@ -5527,11 +5599,7 @@ async function renderObjednavky(filters = {}) {
             <span>📋</span><span>Vše</span>
             <span style="background:${!activeP ? 'rgba(255,255,255,0.25)' : '#F3F4F6'};font-size:11px;padding:1px 7px;border-radius:99px;font-weight:800">${totalAll}</span>
           </button>
-          ${chip('pos', 'POS', '🧾', '#FB923C')}
-          ${chip('b2b', 'B2B portal', '🏢', '#3B82F6')}
-          ${chip('interni', 'Interní', '✏️', '#10B981')}
-          ${chip('qr', 'QR objednávky', '📲', '#7C3AED')}
-          ${chip('recurring', 'Opakující', '🔁', '#EC4899')}
+          ${chipKeys.map(k => { const m = state._kanalyMap?.[k] || { label: k, ikona: '•', barva: '#6B7280' }; return chip(k, m.label, m.ikona || '•', m.barva || '#6B7280'); }).join('')}
         </div>
       `;
     })()}
@@ -5591,13 +5659,7 @@ async function renderObjednavky(filters = {}) {
                 <td class="col-check" onclick="event.stopPropagation();">
                   <input type="checkbox" ${isSel(o.id) ? 'checked' : ''} onchange="objToggleSelect(${o.id}, this.checked)" data-obj-check="${o.id}">
                 </td>
-                <td><strong>${esc(o.cislo)}</strong>${upravenoDot(o.pocet_zmen > 0)}${(() => {
-                  // 🆕 v3.0.27 — Puvod badge (barva podle zdroje)
-                  const p = o.puvod || 'interni';
-                  const badge = ({ pos: ['🧾','#FFEDD5','#C2410C'], b2b: ['🏢','#DBEAFE','#1E40AF'], interni: ['✏️','#D1FAE5','#065F46'], qr: ['📲','#EDE9FE','#5B21B6'], recurring: ['🔁','#FCE7F3','#9D174D'] })[p];
-                  if (!badge) return '';
-                  return ` <span style="display:inline-block;background:${badge[1]};color:${badge[2]};font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;margin-left:4px;vertical-align:middle">${badge[0]}</span>`;
-                })()}</td>
+                <td><strong>${esc(o.cislo)}</strong>${upravenoDot(o.pocet_zmen > 0)}${puvodBadge(o)}</td>
                 <td>
                   <div>${esc(o.odberatel_nazev)}</div>
                   ${o.misto_nazev ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px">📍 ${esc(o.misto_nazev)}</div>` : ''}
@@ -5649,7 +5711,7 @@ async function renderObjednavky(filters = {}) {
               <label class="obj-card-check" onclick="event.stopPropagation();">
                 <input type="checkbox" ${isSel(o.id) ? 'checked' : ''} onchange="objToggleSelect(${o.id}, this.checked)" data-obj-check="${o.id}">
               </label>
-              <div class="obj-card-cislo">${esc(o.cislo)}${upravenoDot(o.pocet_zmen > 0)}</div>
+              <div class="obj-card-cislo">${esc(o.cislo)}${upravenoDot(o.pocet_zmen > 0)}${puvodBadge(o)}</div>
               <span class="status ${o.stav}">${statusLabel(o.stav)}</span>
             </div>
             <div class="obj-card-odb">${esc(o.odberatel_nazev)}</div>
@@ -13607,6 +13669,7 @@ async function renderNastaveni() {
     { key: 'firma',      label: '🏢 Firma & doklady',  popis: 'Firemní údaje, kontakt, číselné řady, DPH' },
     { key: 'notifikace', label: '📧 Notifikace',        popis: 'E-maily a uzávěrka úprav objednávek' },
     { key: 'platby',     label: '💳 Platby',            popis: 'Zapnout/vypnout platební metody pro POS, B2B a checkout.' },
+    { key: 'kanaly',     label: '🔀 Kanály',            popis: 'Prodejní kanály objednávek — označení, číselná řada, pokladní prodej. Aby se balíčky nepřebíjely.', adminOnly: true },
     { key: 'integrace',  label: '🔌 Integrace',         popis: 'Stripe + GoPay (platby), POHODA + FlexiBee (účetní), Zásilkovna + DPD (doprava).', adminOnly: true },
     { key: 'pristupy',   label: '👥 Přístupy & ceny',   popis: 'Uživatelé a slevové skupiny', adminOnly: true },
     { key: 'balicky',    label: '🎁 Balíčky',           popis: 'Aktivace doplňkových modulů (Cukrárna, Lahůdky, …)', adminOnly: true },
@@ -14847,10 +14910,27 @@ async function renderNastaveni() {
     </div>
   ` + blokUcetni;
 
+  // 🆕 v3.0.212 — Prodejní kanály (puvod objednávky)
+  const blokKanaly = `
+    <div class="card-block">
+      <h3 style="margin-bottom:6px">🔀 Prodejní kanály</h3>
+      <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.5">
+        Každý balíček (POS, B2B portál, dort konfigurátor, rozvozové platformy, opakované…) zapisuje objednávky
+        s <strong>vlastním označením a číselnou řadou</strong>, takže se navzájem nepřebíjejí. Přejmenuj kanály,
+        vypni nepoužívané a označ, které se počítají jako <strong>pokladní prodej</strong> (teče do POS Účtenek a uzávěrky).
+      </p>
+      <div id="kanaly-container"><div style="text-align:center;padding:20px;color:var(--text-3)">Načítám…</div></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:14px">
+        <button class="btn-primary btn-green" onclick="ulozitKanaly()" style="font-weight:700;padding:12px 24px;border-radius:10px">💾 Uložit kanály</button>
+      </div>
+    </div>
+  `;
+
   const blokyTabu = {
     firma:      blokFirmaDoklady,
     notifikace: blokNotifikace,
     platby:     blokPlatby,
+    kanaly:     blokKanaly,
     integrace:  blokIntegraceCombined,
     pristupy:   blokPristupy,
     balicky:    blokBalicky,
@@ -14931,6 +15011,9 @@ async function renderNastaveni() {
   }
   if (aktTab === 'platby') {
     loadPaymentMethodsPanel();
+  }
+  if (aktTab === 'kanaly') {
+    renderKanalyPanel();
   }
   // 🆕 v3.0.29 — Tiskárny přesunuté → naviguj na standalone page
   if (aktTab === 'tiskarny') {

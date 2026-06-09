@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pdo->beginTransaction();
     try {
         // FIX #2: Atomické číslování přes cislovani tabulku
-        $cislo = dalsi_cislo($pdo, 'OBJ', (int) date('Y'));
+        $cislo = kanal_dalsi_cislo($pdo, 'b2b'); // 🆕 v3.0.212 — vlastní řada B2B-rok-N
 
         // FIX #4: Načítej ceny POUZE pro aktivní výrobky
         $vyrobek_ids = array_unique(array_map('intval',
@@ -218,13 +218,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
         }
 
-        // Vlož hlavičku
+        // Vlož hlavičku (🆕 v3.0.212 — puvod='b2b' → kanál B2B portál, vlastní řada B2B-rok-N)
         $stmt = $pdo->prepare("
             INSERT INTO objednavky (cislo, odberatel_id, misto_dodani_id, typ, datum_dodani,
                                     plati_od, plati_do, dny_v_tydnu,
                                     castka_bez_dph, castka_dph, castka_celkem, poznamka,
-                                    zpusob_doruceni, zpusob_platby)
-            VALUES (:c,:o,:m,:t,:d,:po,:pdo_,:dny,:b,:dph,:cel,:pozn,:dor,:plt)
+                                    zpusob_doruceni, zpusob_platby, puvod)
+            VALUES (:c,:o,:m,:t,:d,:po,:pdo_,:dny,:b,:dph,:cel,:pozn,:dor,:plt,'b2b')
         ");
         $stmt->execute([
             'c' => $cislo, 'o' => $odberatel_id, 'm' => $misto_id,
