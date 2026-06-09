@@ -329,26 +329,37 @@ if ($method === 'GET') {
         LEFT JOIN faktury_dodaci_listy fdl ON fdl.dodaci_list_id = dl.id
         WHERE 1=1
     ";
+    // 🆕 v3.0.218 — filtr WHERE zvlášť (sdílí list i COUNT total pro paging)
+    $where = '';
     $params = [];
-    if ($stav !== '') { $sql .= " AND o.stav = :stav"; $params['stav'] = $stav; }
-    if ($datum_od !== '') { $sql .= " AND o.datum_dodani >= :do_"; $params['do_'] = $datum_od; }
-    if ($datum_do !== '') { $sql .= " AND o.datum_dodani <= :ddo"; $params['ddo'] = $datum_do; }
+    if ($stav !== '') { $where .= " AND o.stav = :stav"; $params['stav'] = $stav; }
+    if ($datum_od !== '') { $where .= " AND o.datum_dodani >= :do_"; $params['do_'] = $datum_od; }
+    if ($datum_do !== '') { $where .= " AND o.datum_dodani <= :ddo"; $params['ddo'] = $datum_do; }
     if ($hledat !== '') {
         $hl = str_replace(['\\','%','_'], ['\\\\','\\%','\\_'], $hledat);
-        $sql .= " AND (o.cislo LIKE :q OR od.nazev LIKE :q)";
+        $where .= " AND (o.cislo LIKE :q OR od.nazev LIKE :q)";
         $params['q'] = '%' . $hl . '%';
     }
     if ($puvod !== '') {
         // 🆕 v3.0.212 — povolené hodnoty z centrálního registru kanálů
         $allowedPuvod = array_keys(kanaly_config($pdo));
         if (in_array($puvod, $allowedPuvod, true)) {
-            $sql .= " AND o.puvod = :puvod";
+            $where .= " AND o.puvod = :puvod";
             $params['puvod'] = $puvod;
         }
     }
-    $sql .= " GROUP BY o.id ORDER BY o.datum_dodani DESC, o.datum_objednani DESC LIMIT 200";
+
+    // 🆕 v3.0.218 — paging: offset/limit + total (styl řeší frontend dle pagination_styl)
+    $limit  = max(1, min(200, (int) ($_GET['limit'] ?? 50)));
+    $offset = max(0, (int) ($_GET['offset'] ?? 0));
 
     kanaly_backfill_once($pdo); // 🆕 v3.0.212 — jednorázově doplň puvod existujícím (recurring/dort)
+
+    $cs = $pdo->prepare("SELECT COUNT(*) FROM objednavky o JOIN odberatele od ON od.id = o.odberatel_id WHERE 1=1" . $where);
+    $cs->execute($params);
+    $total = (int) $cs->fetchColumn();
+
+    $sql .= $where . " GROUP BY o.id ORDER BY o.datum_dodani DESC, o.datum_objednani DESC LIMIT $limit OFFSET $offset";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     // 🆕 v3.0.212 — ke každému řádku štítek + barvu kanálu (pro badge v UI)
@@ -360,7 +371,13 @@ if ($method === 'GET') {
         $r['puvod_ikona'] = $meta['ikona'] ?? '•';
     }
     unset($r);
-    json_response($rows);
+    json_response([
+        'objednavky' => $rows,
+        'total'      => $total,
+        'offset'     => $offset,
+        'limit'      => $limit,
+        'has_more'   => ($offset + count($rows)) < $total,
+    ]);
 }
 
 if ($method === 'POST') {

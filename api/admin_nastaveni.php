@@ -366,6 +366,8 @@ if ($method === 'PUT') {
         'haccp_defaults',
         // 🆕 v2.9.270 — Custom kategorie surovin (JSON array)
         'suroviny_kategorie',
+        // 🆕 v3.0.218 — styl stránkování dlouhých seznamů: 'load_more' | 'stranky' | 'infinite'
+        'pagination_styl',
     ];
 
     $applied = [];
