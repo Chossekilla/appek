@@ -412,6 +412,98 @@ if ($method === 'GET') {
 // =============================================================
 // Helper - synchronizuje pivot vyrobek_suroviny (replace-all)
 // =============================================================
+/**
+ * 🆕 v3.0.223 — server-side odvození alergenů z receptury (vyrobek_suroviny → suroviny.alergen
+ *   + slozeni_alergeny). Vrací set (case-insensitive dedup). Zdroj pravdy pro provázání alergenů.
+ */
+function alergeny_z_receptury(PDO $pdo, int $vyrobek_id): array {
+    $set = [];
+    try {
+        $st = $pdo->prepare("
+            SELECT s.alergen, s.slozeni_alergeny
+            FROM vyrobek_suroviny vs JOIN suroviny s ON s.id = vs.surovina_id
+            WHERE vs.vyrobek_id = :v
+        ");
+        $st->execute(['v' => $vyrobek_id]);
+        foreach ($st->fetchAll() as $r) {
+            foreach ([(string) ($r['alergen'] ?? ''), (string) ($r['slozeni_alergeny'] ?? '')] as $field) {
+                foreach (preg_split('/[,;]+/', $field) as $a) {
+                    $a = trim($a);
+                    if ($a !== '') $set[mb_strtolower($a)] = $a; // dedup, zachová první podobu
+                }
+            }
+        }
+    } catch (Throwable $e) { /* tabulky nemusí existovat */ }
+    return array_values($set);
+}
+
+/**
+ * 🆕 v3.0.223 — sloučí alergeny z receptury do vyrobky.alergeny (UNION, add-only): zajistí,
+ *   že deklarované alergeny obsahují VŠECHNY z receptury (nikdy nevynechat = bezpečnost),
+ *   ale NEODEBÍRÁ manuální (např. „může obsahovat stopy ořechů"). Vrací true, pokud doplnil.
+ */
+function merge_alergeny_z_receptury(PDO $pdo, int $vyrobek_id): bool {
+    $recipe = alergeny_z_receptury($pdo, $vyrobek_id);
+    if (!$recipe) return false;
+    $st = $pdo->prepare("SELECT alergeny FROM vyrobky WHERE id = :id");
+    $st->execute(['id' => $vyrobek_id]);
+    $cur = (string) ($st->fetchColumn() ?: '');
+    $curSet = [];
+    foreach (preg_split('/[,;]+/', $cur) as $a) { $a = trim($a); if ($a !== '') $curSet[mb_strtolower($a)] = $a; }
+    $changed = false;
+    foreach ($recipe as $a) {
+        $k = mb_strtolower($a);
+        if (!isset($curSet[$k])) { $curSet[$k] = $a; $changed = true; }
+    }
+    if ($changed) {
+        $pdo->prepare("UPDATE vyrobky SET alergeny = :a WHERE id = :id")
+            ->execute(['a' => implode(', ', array_values($curSet)), 'id' => $vyrobek_id]);
+    }
+    return $changed;
+}
+
+/**
+ * 🆕 v3.0.223 — nutrice (na 100 g) z receptury = vážený průměr surovin dle hmotnosti
+ *   (sjednoceno s JS vyNutriZeSurovin: kg/l→g, ml→g, ks se přeskočí; nutri surovin je per 100 g).
+ *   Vrací null, pokud žádná surovina nemá nutri → volající nepřepisuje.
+ */
+function nutrice_z_receptury(PDO $pdo, int $vyrobek_id): ?array {
+    $map = [
+        'energie_kj' => 'nutri_energie_kj', 'energie_kcal' => 'nutri_energie_kcal',
+        'tuky' => 'nutri_tuky', 'tuky_nasycene' => 'nutri_tuky_nasycene',
+        'sacharidy' => 'nutri_sacharidy', 'cukry' => 'nutri_cukry',
+        'bilkoviny' => 'nutri_bilkoviny', 'sul' => 'nutri_sul',
+    ];
+    try {
+        $cols = implode(', ', array_map(fn($c) => "s.$c", $map));
+        $st = $pdo->prepare("SELECT vs.mnozstvi, vs.jednotka, $cols
+                             FROM vyrobek_suroviny vs JOIN suroviny s ON s.id = vs.surovina_id
+                             WHERE vs.vyrobek_id = :v");
+        $st->execute(['v' => $vyrobek_id]);
+        $rows = $st->fetchAll();
+    } catch (Throwable $e) { return null; }
+    $toG = function (float $m, ?string $j): float {
+        $j = strtolower($j ?: 'g');
+        if ($j === 'kg' || $j === 'l') return $m * 1000;
+        if ($j === 'ks') return 0.0;       // ks nelze (nutri je per 100 g)
+        return $m;                          // g, ml (ρ≈1)
+    };
+    $totalG = 0.0; $sums = array_fill_keys(array_keys($map), 0.0);
+    foreach ($rows as $r) {
+        $g = $toG((float) $r['mnozstvi'], $r['jednotka'] ?? 'g');
+        if ($g <= 0) continue;
+        $maNutri = false;
+        foreach ($map as $sk) { if ($r[$sk] !== null && $r[$sk] !== '') { $maNutri = true; break; } }
+        if (!$maNutri) continue;
+        $totalG += $g;
+        foreach ($map as $k => $sk) { $sums[$k] += ((float) $r[$sk]) * $g / 100; }
+    }
+    if ($totalG <= 0) return null;
+    $out = [];
+    foreach ($map as $k => $sk) { $out[$k] = round($sums[$k] / $totalG * 100, 2); }
+    return $out;
+}
+
 function sync_slozeni(PDO $pdo, int $vyrobek_id, array $polozky): void {
     try {
         $pdo->prepare("DELETE FROM vyrobek_suroviny WHERE vyrobek_id = :v")
@@ -444,6 +536,24 @@ function sync_slozeni(PDO $pdo, int $vyrobek_id, array $polozky): void {
         if (str_contains($e->getMessage(), "doesn't exist") || str_contains($e->getMessage(), 'Base table')) return;
         throw $e;
     }
+    // 🆕 v3.0.223 — PROVÁZÁNÍ: recept se změnil → doplň alergeny ze surovin do výrobku (union,
+    //   add-only). Zabraňuje drift / podhodnocení alergenů při změně receptury (bezpečnost). Soft-fail.
+    try { merge_alergeny_z_receptury($pdo, $vyrobek_id); }
+    catch (Throwable $e) { error_log('merge alergeny #' . $vyrobek_id . ': ' . $e->getMessage()); }
+
+    // 🆕 v3.0.223 — nutrice z receptury: vyplň JEN když je prázdná (NEpřepisuj manuální/laboratorní
+    //   hodnoty — recept je odhad). Tlačítko „🧮 Spočítat ze surovin" zůstává pro ruční přepočet.
+    try {
+        $hasNutri = (string) ($pdo->query("SELECT COALESCE(nutricni_hodnoty,'') FROM vyrobky WHERE id = " . (int) $vyrobek_id)->fetchColumn() ?: '');
+        $hasNutri = trim($hasNutri);
+        if ($hasNutri === '' || $hasNutri === '{}' || $hasNutri === 'null' || $hasNutri === '[]') {
+            $nutri = nutrice_z_receptury($pdo, $vyrobek_id);
+            if ($nutri !== null) {
+                $pdo->prepare("UPDATE vyrobky SET nutricni_hodnoty = :n WHERE id = :id")
+                    ->execute(['n' => json_encode($nutri, JSON_UNESCAPED_UNICODE), 'id' => $vyrobek_id]);
+            }
+        }
+    } catch (Throwable $e) { error_log('nutri z receptury #' . $vyrobek_id . ': ' . $e->getMessage()); }
 }
 
 // =============================================================
@@ -566,13 +676,18 @@ if ($method === 'PUT') {
             }
         }
     }
-    if (empty($sets)) json_error('Žádné změny');
+    // 🐛 v3.0.223 — i samostatná změna receptury je validní změna (dřív „Žádné změny" 400 →
+    //   sync_slozeni neproběhl → recept ani odvození alergenů se neuložilo).
+    $maRecept = isset($d['slozeni_polozky']) && is_array($d['slozeni_polozky']);
+    if (empty($sets) && !$maRecept) json_error('Žádné změny');
 
-    $sql = "UPDATE vyrobky SET " . implode(', ', $sets) . " WHERE id = :id";
-    $pdo->prepare($sql)->execute($params);
+    if (!empty($sets)) {
+        $sql = "UPDATE vyrobky SET " . implode(', ', $sets) . " WHERE id = :id";
+        $pdo->prepare($sql)->execute($params);
+    }
 
-    // Volitelně - položky složení
-    if (isset($d['slozeni_polozky']) && is_array($d['slozeni_polozky'])) {
+    // Položky složení → sync receptury + auto-merge alergenů ze surovin (uvnitř sync_slozeni)
+    if ($maRecept) {
         sync_slozeni($pdo, (int) $d['id'], $d['slozeni_polozky']);
     }
     json_response(['ok' => true]);
