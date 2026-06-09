@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.212';
+const APPEK_ADMIN_JS_VERSION = '3.0.213';
 
 (async function detectStaleCode() {
   try {
@@ -5448,6 +5448,17 @@ function renderCasovyGraf(data) {
 // 🔴 v2.9.120 — červená tečka „doklad byl po vytvoření upraven" (obj/fa/dl seznamy)
 function upravenoDot(edited) {
   return edited ? ' <span class="upraveno-dot" title="Doklad byl po vytvoření upraven"></span>' : '';
+}
+
+// 🆕 v3.0.213 — je balíček aktivní? (licencovaný + zapnutý, nebo core). Cache v session.
+async function packageActive(key) {
+  if (!state._pkgActive) {
+    try {
+      const r = await api('admin_packages.php');
+      state._pkgActive = new Set((r.packages || []).filter(p => p.always_on || (p.enabled && p.licensed)).map(p => p.key));
+    } catch (e) { state._pkgActive = new Set(); }
+  }
+  return state._pkgActive.has(key);
 }
 
 // 🆕 v3.0.212 — registr prodejních kanálů (puvod) z backendu; cache v session.
@@ -11965,6 +11976,8 @@ window.editVyrobek = async function(id = null) {
 
   // 🆕 v3.0.156 — kuchyňské stanice pro pole „Doba přípravy + stanice" (jen balíček Restaurace; 402/chyba → bez sekce)
   data.stanice = await api('admin_kitchen.php').then(r => r.stanice || []).catch(() => []);
+  // 🆕 v3.0.213 — přepínač „Zobrazovat na POS" jen když je aktivní balíček Restaurace (POS = restaurace)
+  data._restaurace = await packageActive('restaurace');
 
   // Pro nový výrobek — předvyplň další volné číslo (max + 1)
   if (!id && !v.cislo) {
@@ -12160,6 +12173,14 @@ window.editVyrobek = async function(id = null) {
           <label for="vy-obl">⭐ Oblíbený výrobek</label>
         </div>
       </div>
+      ${data._restaurace ? `
+      <div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="vy-pos" ${(v.zobrazit_na_pos == 1 || v.zobrazit_na_pos === undefined || v.zobrazit_na_pos === null || !id) ? 'checked' : ''}>
+          <label for="vy-pos">🧾 Zobrazovat na POS (KASA)</label>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-3);margin-top:2px;margin-left:26px">Vypnutím se výrobek skryje z pokladny. V katalogu / B2B zůstane.</div>
+      </div>` : ''}
     </div>
 
     <!-- 🏷️ Statusové štítky — viditelné na kartě v katalogu, nezávislé na slevě -->
@@ -12776,6 +12797,8 @@ window.ulozitVyrobek = async function(id) {
     // 🆕 v3.0.156 — doba přípravy + kuchyňská stanice (jen když je sekce vyrenderovaná = balíček Restaurace)
     ...(document.getElementById('vy-prep') ? { priprava_min: parseInt(document.getElementById('vy-prep').value) || 0 } : {}),
     ...(document.getElementById('vy-station') ? { kitchen_station_id: parseInt(document.getElementById('vy-station').value) || null } : {}),
+    // 🆕 v3.0.213 — viditelnost na POS (jen když je přepínač vyrenderovaný = balíček Restaurace)
+    ...(document.getElementById('vy-pos') ? { zobrazit_na_pos: document.getElementById('vy-pos').checked ? 1 : 0 } : {}),
   };
 
   // Validace s konkrétními hláškami (snáz se zjistí, co chybí)
