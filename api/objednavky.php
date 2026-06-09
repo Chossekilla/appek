@@ -183,16 +183,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                               array_column($data['polozky'], 'vyrobek_id')));
         if (empty($vyrobek_ids)) throw new Exception('Žádné platné položky');
 
-        $placeholders = implode(',', array_fill(0, count($vyrobek_ids), '?'));
-        $stmt = $pdo->prepare("
-            SELECT v.id, v.nazev, v.cena_bez_dph, v.min_objednavka, s.sazba
-            FROM vyrobky v
-            JOIN sazby_dph s ON s.id = v.sazba_dph_id
-            WHERE v.aktivni = 1 AND v.id IN ($placeholders)
-        ");
-        $stmt->execute($vyrobek_ids);
+        // 🐛 v3.0.215 — ceny z ceníku odběratele (cenová skupina/slevy), ne základní cena.
+        //   Dřív create bral v.cena_bez_dph (base) → zákazník ve slevové skupině platil plnou cenu;
+        //   edit (PUT) přitom cenik_pro_odberatele používal → nekonzistence. Sjednoceno (server-authoritative).
+        //   Bez skupiny vrací cenik_pro_odberatele základní ceny → beze změny chování.
         $cenik = [];
-        foreach ($stmt->fetchAll() as $row) $cenik[$row['id']] = $row;
+        foreach (cenik_pro_odberatele($pdo, $odberatel_id) as $row) {
+            $cenik[(int) $row['id']] = [
+                'nazev'          => $row['nazev'] ?? '',
+                'cena_bez_dph'   => (float) $row['cena_bez_dph'],
+                'sazba'          => (float) ($row['dph'] ?? 0),
+                'min_objednavka' => $row['min_objednavka'] ?? 1,
+            ];
+        }
 
         // Validace položek
         $polozky_clean = [];
