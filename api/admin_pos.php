@@ -523,6 +523,17 @@ if ($method === 'POST' && $action === 'pay') {
     $d = json_input();
     $ucetId = (int) ($d['ucet_id'] ?? 0);
     $platby = $d['platby'] ?? [];
+    // 🆕 v3.0.206 — fallback „zaplatit a zavřít" jedním klikem: když volající nepošle pole `platby`
+    //   (jen `payment`/`zpusob`), vytvoř jednu platbu na CELOU částku účtu. Fix: floor-plan POS
+    //   (admin/pos.js posTableCloseUcet) posílal `payment:'hotove'` → pay vracel 400 → modal se
+    //   nezavřel (účtenka se přesto otevřela). Zpětně kompatibilní s callery, co posílají `platby`.
+    if (!is_array($platby) || empty($platby)) {
+        if ($ucetId) {
+            $tot = (float) $pdo->query("SELECT suma_kc FROM restaurant_pos_ucty WHERE id = " . (int)$ucetId)->fetchColumn();
+            $zp  = (string) ($d['payment'] ?? $d['zpusob'] ?? 'hotove');
+            if ($tot > 0) $platby = [['zpusob' => $zp, 'castka' => round($tot, 2)]];
+        }
+    }
     if (!$ucetId || !is_array($platby) || empty($platby)) json_error('Chybí ucet_id nebo platby', 400);
 
     // 🆕 v3.0.154 BUG F — žádná platba ≤ 0 (záporná/nulová částka korumpuje tržbu)
@@ -545,9 +556,19 @@ if ($method === 'POST' && $action === 'pay') {
             INSERT INTO restaurant_pos_platby (ucet_id, castka, zpusob, doklad_cislo, poznamka)
             VALUES (:u, :c, :z, :d, :p)
         ");
+        // 🆕 v3.0.206 — normalizace způsobu platby na ENUM(hotovost,karta,qr,online,poukaz,prevod).
+        //   Klient (POS) posílá 'hotove' → dřív „Data truncated for column 'zpusob'" → celá platba
+        //   spadla (500) a modal se nezavřel. Mapuje aliasy, neznámé → 'hotovost' (nikdy netruncuje).
+        $ZPUSOB_MAP = [
+            'hotove' => 'hotovost', 'hotovost' => 'hotovost', 'cash' => 'hotovost', 'hotove_platba' => 'hotovost',
+            'karta' => 'karta', 'card' => 'karta', 'terminal' => 'karta',
+            'qr' => 'qr', 'online' => 'online', 'poukaz' => 'poukaz', 'voucher' => 'poukaz',
+            'prevod' => 'prevod', 'faktura' => 'prevod', 'bankovni_prevod' => 'prevod',
+        ];
         foreach ($platby as $p) {
             $c = (float) ($p['castka'] ?? 0);
-            $z = $p['zpusob'] ?? 'hotovost';
+            $zRaw = strtolower(trim((string) ($p['zpusob'] ?? 'hotovost')));
+            $z = $ZPUSOB_MAP[$zRaw] ?? 'hotovost';
             $st->execute(['u' => $ucetId, 'c' => $c, 'z' => $z, 'd' => $cislo, 'p' => $p['poznamka'] ?? null]);
             $sumPaid += $c;
         }
