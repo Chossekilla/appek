@@ -227,6 +227,9 @@ function pos_pokladni_sql(PDO $pdo, string $col = 'puvod'): string {
         if ($k !== '') $safe[] = "'" . $k . "'";
     }
     if (!$safe) $safe = ["'pos'"];
+    // 🐛 v3.0.214 PERF — single-value: '=' (optimalizátor vezme idx_puvod_datum range).
+    //   Dříve i 1 hodnota → IN(...), a 2-hodnotový IN na POS-heavy DB padal do full scanu.
+    if (count($safe) === 1) return $col . ' = ' . $safe[0];
     return $col . ' IN (' . implode(',', $safe) . ')';
 }
 

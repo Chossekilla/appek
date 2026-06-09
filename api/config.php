@@ -46,7 +46,7 @@ if (DB_NAME === '' || DB_USER === '') {
 // Aplikace
 if (!defined('APP_URL'))     define('APP_URL',     'https://white-badger-130749.hostingersite.com');
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.213'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.214'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -237,7 +237,10 @@ function dalsi_cislo(PDO $pdo, string $typ, int $rok): string {
 function kanaly_defaults(): array {
     return [
         'pos'       => ['label' => 'POS pokladna',      'ikona' => '🧾', 'barva' => '#16a34a', 'rada' => 'POS',  'pokladni' => true,  'zapnuto' => true],
-        'qr'        => ['label' => 'QR samoobsluha',    'ikona' => '📲', 'barva' => '#0891b2', 'rada' => 'POS',  'pokladni' => true,  'zapnuto' => true],
+        // QR samoobsluha: účtuje se přes dine-in účet → ukládá se jako puvod='pos' (puvod='qr'
+        // v objednavky nevzniká). pokladni=false → default pokladní řada je jednohodnotová ('pos'),
+        // takže POS reporty jedou přes index, ne full scan (v3.0.214 perf fix).
+        'qr'        => ['label' => 'QR samoobsluha',    'ikona' => '📲', 'barva' => '#0891b2', 'rada' => 'POS',  'pokladni' => false, 'zapnuto' => true],
         'b2b'       => ['label' => 'B2B portál',        'ikona' => '🏢', 'barva' => '#2563eb', 'rada' => 'B2B',  'pokladni' => false, 'zapnuto' => true],
         'dort'      => ['label' => 'Dort konfigurátor', 'ikona' => '🎂', 'barva' => '#db2777', 'rada' => 'DORT', 'pokladni' => false, 'zapnuto' => true],
         'recurring' => ['label' => 'Opakované',         'ikona' => '🔁', 'barva' => '#9333ea', 'rada' => 'OPAK', 'pokladni' => false, 'zapnuto' => true],
