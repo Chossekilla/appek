@@ -615,6 +615,9 @@ if ($method === 'POST' && $action === 'pay') {
             if ($sold) pos_deduct_ingredients($pdo, $sold, 'účet #' . $ucetId, aktualni_admin($pdo)['jmeno']);
         } catch (Throwable $e) { /* sklad odpis ne-fatal */ }
 
+        // 🆕 v3.0.211 — prodejní záznam (objednávka puvod='pos') z paid účtu → Účtenky/Statistiky/Přehledy.
+        try { pos_ucet_create_sale($pdo, $ucetId); } catch (Throwable $e) { /* reporting ne-fatal */ }
+
         json_response(['ok' => true, 'doklad' => $cislo, 'sum_paid' => $sumPaid]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -1449,6 +1452,7 @@ if ($method === 'GET' && $action === 'quick_history') {
     try {
         $date = $_GET['date'] ?? date('Y-m-d');
         $limit = max(10, min(200, (int)($_GET['limit'] ?? 50)));
+        pos_backfill_sales($pdo, $date); // 🆕 v3.0.211 — dine-in paid účty → objednávky, ať jsou v Účtenkách/Statistikách
         // 🚀 v2.9.314 — range scan místo DATE(datum_objednani)=:d. Předtím DATE() wrap
         // znemožnil použití idx_puvod_datum (puvod, datum_objednani) → full table scan.
         // Teď klasický range — index funguje, 5-50× rychlejší při >10k řádků/měsíc.
@@ -1500,6 +1504,72 @@ if ($method === 'GET' && $action === 'quick_history') {
 // 🆕 v3.0.210 — DENNÍ UZÁVĚRKA na stanice (= obsluha). Sčítá OBA zdroje POS prodeje:
 //   dine-in (restaurant_pos_ucty paid + restaurant_pos_platby, obsluha=otevrel_jmeno)
 //   + takeaway (objednavky puvod='pos', obsluha=pos_uzivatel, pos_payment).
+// 🆕 v3.0.211 — dine-in účet (paid) → objednávka (puvod='pos'), aby prodej tekl do
+//   Účtenek / Statistik / launcheru / detailu (jednotná POS pipeline). Dřív dine-in žil
+//   jen v restaurant_pos_ucty → v Účtenkách/Historii „nic". Idempotentní (marker
+//   [POS účet #X] v poznámce). Volá pay (forward) + pos_backfill_sales (self-heal).
+function pos_ucet_create_sale(PDO $pdo, int $ucetId): ?int {
+    try {
+        $u = $pdo->prepare("SELECT u.*, t.nazev AS stul_nazev FROM restaurant_pos_ucty u LEFT JOIN restaurant_tables t ON t.id = u.stul_id WHERE u.id = :id");
+        $u->execute(['id' => $ucetId]);
+        $ucet = $u->fetch(PDO::FETCH_ASSOC);
+        if (!$ucet || ($ucet['stav'] ?? '') !== 'paid') return null;
+        $marker = '[POS účet #' . $ucetId . ']';
+        $ex = $pdo->prepare("SELECT id FROM objednavky WHERE puvod='pos' AND poznamka LIKE :m LIMIT 1");
+        $ex->execute(['m' => '%' . $marker . '%']);
+        $had = $ex->fetchColumn();
+        if ($had) return (int) $had;
+        $pol = $pdo->prepare("SELECT vyrobek_id, nazev, mnozstvi, jednotkova_cena FROM restaurant_pos_polozky WHERE ucet_id = :u AND stav <> 'storno'");
+        $pol->execute(['u' => $ucetId]);
+        $items = $pol->fetchAll(PDO::FETCH_ASSOC);
+        if (!$items) return null;
+        $celkem = 0.0;
+        foreach ($items as $it) $celkem += (float) $it['mnozstvi'] * (float) $it['jednotkova_cena'];
+        $celkem = round($celkem, 2);
+        $bez = round($celkem / 1.21, 2); $dph = round($celkem - $bez, 2);
+        $zp = $pdo->prepare("SELECT zpusob FROM restaurant_pos_platby WHERE ucet_id = :u ORDER BY castka DESC LIMIT 1");
+        $zp->execute(['u' => $ucetId]);
+        $zpusob = strtolower((string) ($zp->fetchColumn() ?: 'hotovost'));
+        $payMap = ['hotovost'=>'hotove','karta'=>'karta','qr'=>'karta','online'=>'karta','prevod'=>'karta','poukaz'=>'hotove'];
+        $pos_payment = $payMap[$zpusob] ?? 'hotove';
+        $walkin = $pdo->query("SELECT id FROM odberatele WHERE nazev = 'POS Walk-in' LIMIT 1")->fetchColumn();
+        if (!$walkin) { $pdo->exec("INSERT INTO odberatele (nazev, aktivni) VALUES ('POS Walk-in', 1)"); $walkin = $pdo->lastInsertId(); }
+        $datum = $ucet['zaplaceno_v'] ?: date('Y-m-d H:i:s');
+        $cislo = $ucet['cislo_dokladu'] ?: ('POS-' . date('Ymd', strtotime($datum)) . '-S' . $ucetId);
+        $poz = '🍽️ ' . ($ucet['stul_nazev'] ?? ('Stůl #' . $ucet['stul_id'])) . ' ' . $marker;
+        $ins = $pdo->prepare("
+            INSERT INTO objednavky (cislo, typ, odberatel_id, datum_objednani, datum_dodani, castka_bez_dph, castka_dph, castka_celkem, stav, puvod, pos_typ, pos_payment, pos_tip, pos_uzivatel, poznamka)
+            VALUES (:c, 'pos', :ob, :dt, :dd, :bd, :d, :cel, 'zaplaceno', 'pos', 'na_miste', :pp, 0, :uz, :poz)
+        ");
+        $objId = 0;
+        for ($a = 0; $a < 5; $a++) {
+            try {
+                $ins->execute(['c'=>$cislo,'ob'=>(int)$walkin,'dt'=>$datum,'dd'=>date('Y-m-d', strtotime($datum)),'bd'=>$bez,'d'=>$dph,'cel'=>$celkem,'pp'=>$pos_payment,'uz'=>($ucet['otevrel_jmeno'] ?: 'POS'),'poz'=>$poz]);
+                $objId = (int) $pdo->lastInsertId(); break;
+            } catch (PDOException $e) {
+                if ((int)($e->errorInfo[1] ?? 0) === 1062 && $a < 4) { $cislo .= '-' . ($a + 2); continue; }
+                throw $e;
+            }
+        }
+        if (!$objId) return null;
+        $ip = $pdo->prepare("INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, mnozstvi, jednotka, cena_bez_dph, sazba_dph, poznamka) VALUES (:o,:v,:n,:m,'ks',:c,21,NULL)");
+        foreach ($items as $it) {
+            $cbez = round(((float) $it['jednotkova_cena']) / 1.21, 4);
+            $ip->execute(['o'=>$objId,'v'=>($it['vyrobek_id'] ?: null),'n'=>$it['nazev'],'m'=>$it['mnozstvi'],'c'=>$cbez]);
+        }
+        return $objId;
+    } catch (Throwable $e) { error_log('pos_ucet_create_sale #' . $ucetId . ': ' . $e->getMessage()); return null; }
+}
+// Self-heal: pro daný den dotvoř chybějící prodejní záznamy z paid dine-in účtů (idempotentní).
+function pos_backfill_sales(PDO $pdo, string $date): void {
+    try {
+        $dn = date('Y-m-d', strtotime($date . ' +1 day'));
+        $ids = $pdo->prepare("SELECT id FROM restaurant_pos_ucty WHERE stav='paid' AND zaplaceno_v >= :d AND zaplaceno_v < :dn");
+        $ids->execute(['d' => $date . ' 00:00:00', 'dn' => $dn . ' 00:00:00']);
+        foreach ($ids->fetchAll(PDO::FETCH_COLUMN) as $uid) pos_ucet_create_sale($pdo, (int) $uid);
+    } catch (Throwable $e) {}
+}
+
 function pos_uzaverka_data(PDO $pdo, string $date): array {
     $dNext = date('Y-m-d', strtotime($date . ' +1 day'));
     $METODY = ['hotovost','karta','qr','online','poukaz','prevod','ostatni'];
@@ -1517,25 +1587,10 @@ function pos_uzaverka_data(PDO $pdo, string $date): array {
     $touch = function (&$st, $jmeno) use ($METODY) {
         if (!isset($st[$jmeno])) $st[$jmeno] = ['obsluha'=>$jmeno,'pocet'=>0,'trzba'=>0.0,'tip'=>0.0,'metody'=>array_fill_keys($METODY, 0.0)];
     };
-    // 1) Dine-in — platby paid účtů (datum dle zaplaceno_v)
-    try {
-        $din = $pdo->prepare("
-            SELECT COALESCE(NULLIF(u.otevrel_jmeno,''),'(bez obsluhy)') AS obsluha, p.zpusob, p.castka, p.ucet_id
-            FROM restaurant_pos_platby p
-            JOIN restaurant_pos_ucty u ON u.id = p.ucet_id
-            WHERE u.stav = 'paid' AND u.zaplaceno_v >= :d AND u.zaplaceno_v < :dn
-        ");
-        $din->execute(['d' => $date . ' 00:00:00', 'dn' => $dNext . ' 00:00:00']);
-        $seen = [];
-        foreach ($din->fetchAll() as $r) {
-            $j = $r['obsluha']; $touch($stanice, $j);
-            $stanice[$j]['metody'][$normZ($r['zpusob'])] += (float) $r['castka'];
-            $stanice[$j]['trzba'] += (float) $r['castka'];
-            $key = $j . '#' . $r['ucet_id'];
-            if (!isset($seen[$key])) { $stanice[$j]['pocet']++; $seen[$key] = true; }
-        }
-    } catch (Throwable $e) { /* dine-in tabulky nemusí existovat */ }
-    // 2) Takeaway / quick (objednavky puvod='pos', datum dle datum_objednani)
+    // 🆕 v3.0.211 — dine-in i takeaway jsou teď OBA v objednavky (puvod='pos'): dine-in se
+    //   vytvoří z paid účtu (pos_ucet_create_sale / backfill). Čteme JEN objednavky → žádné
+    //   dvojí počítání. (Volající spustí pos_backfill_sales($date) předem.)
+    // POS prodeje (objednavky puvod='pos', datum dle datum_objednani)
     try {
         $tw = $pdo->prepare("
             SELECT COALESCE(NULLIF(pos_uzivatel,''),'(bez obsluhy)') AS obsluha, pos_payment, castka_celkem, COALESCE(pos_tip,0) AS tip
@@ -1586,6 +1641,7 @@ if ($method === 'GET' && $action === 'uzaverka') {
     $date = $_GET['date'] ?? date('Y-m-d');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) json_error('Neplatné datum', 400);
     pos_uzaverky_ensure($pdo);
+    pos_backfill_sales($pdo, $date); // dine-in účty → objednávky (než spočítáme)
     $data = pos_uzaverka_data($pdo, $date);
     $uz = $pdo->prepare("SELECT id, kdo, vytvoreno, celkem, pocet_dokladu FROM pos_uzaverky WHERE datum = :d ORDER BY id DESC LIMIT 1");
     $uz->execute(['d' => $date]);
@@ -1599,6 +1655,7 @@ if ($method === 'POST' && $action === 'uzaverka_close') {
     $date = $d['date'] ?? date('Y-m-d');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) json_error('Neplatné datum', 400);
     pos_uzaverky_ensure($pdo);
+    pos_backfill_sales($pdo, $date); // dine-in účty → objednávky (než uložíme snapshot)
     $data = pos_uzaverka_data($pdo, $date);
     $kdo = $_SESSION['admin_jmeno'] ?? 'admin';
     $pdo->prepare("INSERT INTO pos_uzaverky (datum, celkem, pocet_dokladu, snapshot_json, kdo) VALUES (:d,:c,:p,:s,:k)")
@@ -1657,6 +1714,7 @@ if ($method === 'GET' && $action === 'launcher_summary') {
         $date = $_GET['date'] ?? date('Y-m-d');
         $limit_orders = max(3, min(30, (int)($_GET['limit_orders'] ?? 8)));
         $limit_items  = max(3, min(30, (int)($_GET['limit_items']  ?? 8)));
+        pos_backfill_sales($pdo, $date); // 🆕 v3.0.211 — dine-in paid účty → objednávky (do souhrnu)
         // 🚀 v2.9.314 — range scan (viz quick_history fix)
         $date_next = date('Y-m-d', strtotime($date . ' +1 day'));
 
