@@ -2358,6 +2358,15 @@ html, body {
   min-height: 50px;
 }
 .pos-tm-btn:hover { border-color: #FB923C; color: #FB923C; }
+/* 🆕 v3.0.205 — „a zavřít" jako malý pod-popisek (malými písmeny) vedle hlavní akce */
+.pos-tm-btn-sub {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: lowercase;
+  opacity: 0.82;
+  letter-spacing: 0;
+  margin-left: -2px;
+}
 .pos-tm-btn:active { transform: scale(0.98); }
 .pos-tm-btn.is-primary {
   background: linear-gradient(135deg, #10B981, #059669);
