@@ -67,7 +67,7 @@ const state = {
   filterKategorie: null,
   cart: JSON.parse(localStorage.getItem('cart') || '{}'),
   currentTab: 'catalog',
-  checkoutData: { typ: 'jednorazova', misto_dodani_id: null },
+  checkoutData: { typ: 'jednorazova', misto_dodani_id: null, dny: [1, 2, 3, 4, 5] },
   // Moderní featury
   search: '',                                                        // fulltextové vyhledávání
   sablony: JSON.parse(localStorage.getItem('sablony') || '[]'),      // uložené šablony objednávek
@@ -1692,6 +1692,16 @@ function renderCheckout() {
           <label class="form-label" for="dt-do" style="font-weight:500">📅 Platí do <span class="form-hint">— volitelné, jinak běží do odvolání</span></label>
           <input class="input" type="date" id="dt-do" min="${minDate}">
         </div>
+        ${state.checkoutData.typ === 'tydenni_plan' ? `
+        <div class="form-row">
+          <label class="form-label" style="font-weight:500">📆 Dny v týdnu <span class="form-hint">— kdy dodávat</span></label>
+          <div class="b2b-day-pick">
+            ${[[1, 'Po'], [2, 'Út'], [3, 'St'], [4, 'Čt'], [5, 'Pá'], [6, 'So'], [7, 'Ne']].map(([d, l]) => `
+              <button type="button" class="b2b-day ${(state.checkoutData.dny || []).includes(d) ? 'is-on' : ''}" onclick="toggleDen(${d})">${l}</button>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
       `}
 
       <div class="form-row" style="align-items: start;">
@@ -1933,6 +1943,15 @@ window.setTyp = function(typ) {
   renderCheckout();
 };
 
+// 🆕 v3.0.207 — přepínání dnů v týdnu pro „Týdenní plán" (recurring pravidlo)
+window.toggleDen = function(d) {
+  const arr = state.checkoutData.dny || (state.checkoutData.dny = []);
+  const i = arr.indexOf(d);
+  if (i >= 0) arr.splice(i, 1); else arr.push(d);
+  arr.sort((a, b) => a - b);
+  renderCheckout();
+};
+
 window.setDatumDodani = function(dateStr) {
   state.checkoutData.datumDodaniPick = dateStr;
   const inp = document.getElementById('dt-dodani');
@@ -2045,6 +2064,11 @@ window.submitOrder = async function() {
     data.plati_od = document.getElementById('dt-od').value;
     data.plati_do = document.getElementById('dt-do').value || null;
     data.datum_dodani = data.plati_od;
+    // 🆕 v3.0.207 — týdenní plán: pošli vybrané dny → backend založí recurring pravidlo
+    if (typBackend === 'tydenni_plan') {
+      data.dny_v_tydnu = state.checkoutData.dny || [];
+      if (!data.dny_v_tydnu.length) return alert('Vyber aspoň jeden den v týdnu');
+    }
   }
 
   if (!data.datum_dodani) return alert('Vyplňte datum dodání');

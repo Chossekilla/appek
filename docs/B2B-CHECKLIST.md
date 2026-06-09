@@ -21,8 +21,8 @@
 | B2 | Souhrn objednávky (checkout) | Tab Košík → položky, mezisoučet | ✅ | ⬜ |
 | B3 | Typ: jednorázová | Default, datum_dodani = zítra | ✅ (karty) | ⬜ |
 | B4 | Typ: naplánovaná (konkrétní den) | Výběr data | ✅ (karty) | 🟢 |
-| B5 | Typ: denně (období) | plati_od/plati_do na obj. | ⚠️ uloží schedule na 1 obj., ale NEzaloží recurring pravidlo → negeneruje | ⬜ |
-| B6 | Typ: týdenní plán (dny v týdnu) | dny_v_tydnu na obj. | ⚠️ dtto — portál nezaloží recurring pravidlo | ⬜ |
+| B5 | Typ: denně (období) | Odeslání → recurring pravidlo (denne) → cron generuje | ✅ **v3.0.207** (pravidlo+cron, anti-dup) | 🔒 |
+| B6 | Typ: týdenní plán (dny v týdnu) | Den-picker Po–Ne → pravidlo (tydne) → cron dle dnů | ✅ **v3.0.207** (St gen, Út skip, Po anti-dup) | 🔒 |
 | B7 | Odeslat objednávku → vznikne OBJ | POST objednavky.php → OBJ-…-NNNN | ✅ OBJ-2026-0077 | ⬜ |
 | B8 | Uložit jako šablonu | Tlačítko v checkoutu | 🟢 | ⬜ |
 | B9 | Zopakovat poslední objednávku | „🔁 Znovu" → naplní košík | ✅ (reorder) | ⬜ |
@@ -72,7 +72,7 @@
 - **Responzivita portálu: ČISTÁ** 390/768/1024 (všechny 4 taby) — „pokulhává na B2B" vyřešeno (v3.0.198/199 + ověřeno).
 - **Doověřeno živě (✅, zamčeno):** A3 ceny dle skupiny (−8 %), D2 cenové skupiny (4), D3 místa dodání (2), D5 blokace (401), E7 recurring mechanika (pravidlo+cron → OBJ-2026-0033).
 - **Řetězec** obj→DL→faktura→PDF ověřen (DL-0048→FA-0026→PDF 200).
-- ⚠️ **B5/B6 GAP:** portálové typy „denně/týdenní" uloží `plati_od`/`dny_v_tydnu` na JEDNU objednávku, ale **nezaloží pravidlo do `recurring_orders`** → reálně se NEopakují (generování běží jen z admin pravidel přes cron). Doporučení: napojit portálové typy → vytvořit recurring_orders pravidlo při odeslání.
-- Otevřené (⬜): B5/B6 (po napojení), E6 ruční faktura (živý test vystaví reálnou fakturu).
+- ✅ **B5/B6 OPRAVENO (v3.0.207):** portálové typy denně/týdenní teď zakládají `recurring_orders` pravidlo → `cron_recurring` generuje opakované objednávky. Týdenní plán má výběr dnů (Po–Ne). První obj. otagována `[Recurring #id]` (anti-duplikát). Ověřeno end-to-end.
+- Otevřené (⬜): jen **E6 ruční faktura** (živý test vystaví reálnou fakturu — bez pokynu nedělám).
 
-> Zamčeno 24/27. Otevřené: B5/B6 (gap k napojení), E6 (živý test faktury).
+> Zamčeno 26/27. Jediné otevřené: E6 (živý test faktury).
