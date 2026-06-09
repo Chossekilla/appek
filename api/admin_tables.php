@@ -914,17 +914,43 @@ if ($method === 'POST' && $action === 'reserve') {
     $casDo = substr(trim((string) ($d['cas_do'] ?? '')), 0, 5);
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum))         json_error('Neplatné datum', 400);
     if (!preg_match('/^\d{1,2}:\d{2}$/', $casOd) || !preg_match('/^\d{1,2}:\d{2}$/', $casDo)) json_error('Neplatný čas', 400);
-    if ($casDo <= $casOd)                                     json_error('Konec rezervace musí být po začátku', 400);
     if ($datum < date('Y-m-d'))                               json_error('Nelze rezervovat v minulosti', 400);
+
+    // 🐛 v3.0.222 — PROVÁZÁNÍ s otevírací dobou: u provozů otevřených PŘES PŮLNOC (otevreno_do
+    //   ≤ otevreno_od, např. 11–03) je rezervace 23:00–01:00 legitimní. Časy < otevírací hodina
+    //   patří do dalšího dne → normalizujeme na minuty (+24 h). Tím funguje i validace i overlap.
+    $den = (int) date('N', strtotime($datum)) - 1; // 0=Po … 6=Ne
+    $openH = 0; $crossDay = false;
     try {
-        // Překryv s aktivní rezervací téhož stolu/dne (čas. intervaly se protínají).
-        $ov = $pdo->prepare("
-            SELECT COUNT(*) FROM table_reservations
+        $hrs = $pdo->prepare("SELECT otevreno_od, otevreno_do, zavreno FROM restaurant_hours WHERE den = :den");
+        $hrs->execute(['den' => $den]);
+        if (($hrow = $hrs->fetch()) && empty($hrow['zavreno'])) {
+            $oOd = substr((string) $hrow['otevreno_od'], 0, 5);
+            $oDo = substr((string) $hrow['otevreno_do'], 0, 5);
+            $openH = (int) substr($oOd, 0, 2);
+            $crossDay = ($oDo !== '' && $oDo <= $oOd); // zavírá po půlnoci
+        }
+    } catch (Throwable $e) { /* tabulka nemusí existovat → bez cross-midnight */ }
+    $nm = function (string $t) use ($crossDay, $openH): int {
+        $h = (int) substr($t, 0, 2); $m = (int) substr($t, 3, 2);
+        if ($crossDay && $h < $openH) $h += 24;
+        return $h * 60 + $m;
+    };
+    $odMin = $nm($casOd); $doMin = $nm($casDo);
+    if ($doMin <= $odMin)                                     json_error('Konec rezervace musí být po začátku', 400);
+
+    try {
+        // Překryv s aktivní rezervací téhož stolu/dne — normalizovaně (zvládá i přes půlnoc).
+        $ex = $pdo->prepare("
+            SELECT cas_od, cas_do FROM table_reservations
             WHERE stul_id = :s AND datum = :d AND COALESCE(stav,'confirmed') <> 'cancelled'
-              AND cas_od < :do_ AND cas_do > :od
         ");
-        $ov->execute(['s' => $stulId, 'd' => $datum, 'do_' => $casDo, 'od' => $casOd]);
-        if ((int) $ov->fetchColumn() > 0) json_error('Stůl je v tomto čase už rezervovaný', 409);
+        $ex->execute(['s' => $stulId, 'd' => $datum]);
+        foreach ($ex->fetchAll() as $r) {
+            $eOd = $nm(substr((string) $r['cas_od'], 0, 5));
+            $eDo = $nm(substr((string) $r['cas_do'], 0, 5));
+            if ($odMin < $eDo && $doMin > $eOd) json_error('Stůl je v tomto čase už rezervovaný', 409);
+        }
 
         $pdo->prepare("
             INSERT INTO table_reservations (stul_id, datum, cas_od, cas_do, jmeno, telefon, pocet_osob, poznamka, stav)
