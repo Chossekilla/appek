@@ -51,6 +51,10 @@ $pdo = db();
         if (!in_array('je_vyprodano', $cols, true)) {
             $pdo->exec("ALTER TABLE vyrobky ADD COLUMN je_vyprodano TINYINT(1) DEFAULT 0 AFTER je_doprodej");
         }
+        // 🆕 v3.0.213 — viditelnost výrobku na POS (KASA). Default 1 = zobrazit (nenarušuje stávající).
+        if (!in_array('zobrazit_na_pos', $cols, true)) {
+            $pdo->exec("ALTER TABLE vyrobky ADD COLUMN zobrazit_na_pos TINYINT(1) DEFAULT 1 AFTER je_vyprodano");
+        }
     } catch (Throwable $e) {
         error_log('admin_vyrobky auto-migrace: ' . $e->getMessage());
     }
@@ -453,9 +457,9 @@ if ($method === 'POST') {
         INSERT INTO vyrobky (cislo, ean, nazev, popis, slozeni, alergeny, nutricni_hodnoty,
                              kategorie_id, jednotka_id, cena_bez_dph, sazba_dph_id,
                              hmotnost_g, obsah, obsah_jednotka, obrazek_url, min_objednavka,
-                             aktivni, oblibeny, je_akce, je_novinka, je_doprodej, je_vyprodano, poradi,
+                             aktivni, oblibeny, je_akce, je_novinka, je_doprodej, je_vyprodano, zobrazit_na_pos, poradi,
                              priprava_min, kitchen_station_id)
-        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:por,:prip,:station)
+        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:zpos,:por,:prip,:station)
     ");
     $stmt->execute([
         'cislo' => $d['cislo'] ?? null,
@@ -482,6 +486,7 @@ if ($method === 'POST') {
         'jno' => isset($d['je_novinka']) ? (int) $d['je_novinka'] : 0,
         'jdo' => isset($d['je_doprodej']) ? (int) $d['je_doprodej'] : 0,
         'jvy' => isset($d['je_vyprodano']) ? (int) $d['je_vyprodano'] : 0,
+        'zpos' => isset($d['zobrazit_na_pos']) ? (int) $d['zobrazit_na_pos'] : 1, // 🆕 v3.0.213 — default zobrazit
         'por' => $d['poradi'] ?? 0,
         // 🆕 v3.0.156 — doba přípravy (min) + kuchyňská stanice (propojení do KDS)
         'prip' => max(0, (int) ($d['priprava_min'] ?? 10)),
@@ -521,6 +526,7 @@ if ($method === 'PUT') {
         'aktivni' => 'aktivni', 'oblibeny' => 'oblibeny', 'poradi' => 'poradi',
         'je_akce' => 'je_akce', 'je_novinka' => 'je_novinka',
         'je_doprodej' => 'je_doprodej', 'je_vyprodano' => 'je_vyprodano',
+        'zobrazit_na_pos' => 'zobrazit_na_pos', // 🆕 v3.0.213 — viditelnost na POS (KASA)
         // 🆕 v3.0.156 — doba přípravy + kuchyňská stanice (KDS)
         'priprava_min' => 'priprava_min', 'kitchen_station_id' => 'kitchen_station_id',
     ];
@@ -532,7 +538,7 @@ if ($method === 'PUT') {
             // Cast pro číselné sloupce
             if (in_array($jk, ['cena_bez_dph'])) {
                 $params[$dbk] = (float) $d[$jk];
-            } elseif (in_array($jk, ['aktivni','oblibeny','je_akce','je_novinka','je_doprodej','je_vyprodano'])) {
+            } elseif (in_array($jk, ['aktivni','oblibeny','je_akce','je_novinka','je_doprodej','je_vyprodano','zobrazit_na_pos'])) {
                 $params[$dbk] = (int) $d[$jk];
             } elseif ($jk === 'nutricni_hodnoty' || $jk === 'kalkulace_data' || $jk === 'haccp_data') {
                 // Přijmi pole nebo JSON string

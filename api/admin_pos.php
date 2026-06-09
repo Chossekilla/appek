@@ -1026,6 +1026,8 @@ if ($method === 'GET' && $action === 'catalog') {
         $sazbaJoin = (in_array('sazba_dph_id', $vyrCols, true) && $hasSazbyDph)
             ? "LEFT JOIN sazby_dph s ON s.id = v.sazba_dph_id"
             : "";
+        // 🆕 v3.0.213 — skryj výrobky vypnuté pro POS (zobrazit_na_pos=0). Guard: jen pokud sloupec existuje.
+        $posFilter = in_array('zobrazit_na_pos', $vyrCols, true) ? "AND COALESCE(v.zobrazit_na_pos, 1) = 1" : "";
 
         $vyrobky = $pdo->query("
             SELECT v.id, v.nazev, v.kategorie_id, v.cislo,
@@ -1038,7 +1040,7 @@ if ($method === 'GET' && $action === 'catalog') {
             FROM vyrobky v
             LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
             {$sazbaJoin}
-            WHERE COALESCE(v.aktivni, 1) = 1
+            WHERE COALESCE(v.aktivni, 1) = 1 {$posFilter}
             ORDER BY " . (in_array('oblibeny', $vyrCols, true) ? 'v.oblibeny DESC, ' : '') . "v.nazev ASC
             LIMIT 500
         ")->fetchAll(PDO::FETCH_ASSOC);
