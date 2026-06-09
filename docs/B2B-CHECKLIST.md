@@ -53,7 +53,7 @@
 | E3 | Vytvoření dodacího listu z objednávky | admin → DL (13) | ✅ DL-0048 | ⬜ |
 | E4 | Vytvoření faktury z DL | DL → faktura (10) | ✅ FA-0026 | ⬜ |
 | E5 | PDF dodacího listu i faktury | PDF se vygeneruje (200) | ✅ PDF 200 | ⬜ |
-| E6 | Ruční faktura bez vazby | POST admin_faktury.php | 🟢 endpoint | ⬜ |
+| E6 | Ruční faktura bez vazby | POST admin_faktury.php → číslo + PDF | ✅ FAK-2026-0011 (242 Kč, rucni=1, PDF 200, delete OK) | 🔒 |
 | E7 | Recurring objednávky (admin pravidla + cron) | Pravidlo → cron_recurring(zítřek) → vygeneruje obj + anti-dup | ✅ OBJ-2026-0033 z pravidla #1 | 🔒 |
 
 ## F) Responzivita portálu
@@ -73,6 +73,6 @@
 - **Doověřeno živě (✅, zamčeno):** A3 ceny dle skupiny (−8 %), D2 cenové skupiny (4), D3 místa dodání (2), D5 blokace (401), E7 recurring mechanika (pravidlo+cron → OBJ-2026-0033).
 - **Řetězec** obj→DL→faktura→PDF ověřen (DL-0048→FA-0026→PDF 200).
 - ✅ **B5/B6 OPRAVENO (v3.0.207):** portálové typy denně/týdenní teď zakládají `recurring_orders` pravidlo → `cron_recurring` generuje opakované objednávky. Týdenní plán má výběr dnů (Po–Ne). První obj. otagována `[Recurring #id]` (anti-duplikát). Ověřeno end-to-end.
-- Otevřené (⬜): jen **E6 ruční faktura** (živý test vystaví reálnou fakturu — bez pokynu nedělám).
+- ✅ **E6 ověřeno (live):** ruční faktura FAK-2026-0011 vytvořena (242 Kč, rucni=1, VS), PDF 200, smazána. Pozn.: ruční faktura bez vazby je admin-doklad (v portálu zákazníka se bez objednávky neukazuje — korektní).
 
-> Zamčeno 26/27. Jediné otevřené: E6 (živý test faktury).
+> **Zamčeno 27/27 — balíček B2B 100 % uzavřen.** ✅
