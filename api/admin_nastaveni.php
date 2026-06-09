@@ -282,6 +282,47 @@ if ($method === 'POST' && $action === 'test_email') {
     }
 }
 
+// =============================================================
+// 🆕 v3.0.212 — PRODEJNÍ KANÁLY (objednavky.puvod)
+//   GET  ?action=kanaly  → konfigurace (defaulty + override z nastaveni)
+//   POST ?action=kanaly  {kanaly:{klic:{label,barva,pokladni,zapnuto}}}
+//   Sada kanálů je pevná; panel mění jen label/barvu/pokladni/zapnuto.
+// =============================================================
+if ($action === 'kanaly' && $method === 'GET') {
+    $cfg = kanaly_config($pdo);
+    $out = [];
+    foreach (kanaly_defaults() as $k => $_d) {
+        $out[] = ['klic' => $k] + $cfg[$k];
+    }
+    json_response(['kanaly' => $out]);
+}
+
+if ($action === 'kanaly' && $method === 'POST') {
+    $d = json_input();
+    $in = $d['kanaly'] ?? null;
+    if (!is_array($in)) json_error('Neplatná data', 400);
+    $defaults = kanaly_defaults();
+    $override = [];
+    foreach ($in as $k => $v) {
+        if (!isset($defaults[$k]) || !is_array($v)) continue; // jen známé kanály
+        $row = [];
+        if (array_key_exists('label', $v)) {
+            $lbl = trim((string) $v['label']);
+            if ($lbl !== '') $row['label'] = mb_substr($lbl, 0, 40);
+        }
+        if (array_key_exists('barva', $v) && preg_match('/^#[0-9a-fA-F]{6}$/', trim((string) $v['barva']))) {
+            $row['barva'] = trim((string) $v['barva']);
+        }
+        if (array_key_exists('pokladni', $v)) $row['pokladni'] = (bool) $v['pokladni'];
+        if (array_key_exists('zapnuto', $v))  $row['zapnuto']  = (bool) $v['zapnuto'];
+        if ($row) $override[$k] = $row;
+    }
+    $json = json_encode($override, JSON_UNESCAPED_UNICODE);
+    $pdo->prepare("INSERT INTO nastaveni (klic, hodnota, popis) VALUES ('kanaly_config', :v, 'Prodejní kanály (puvod objednávky)') ON DUPLICATE KEY UPDATE hodnota = :v2")
+        ->execute(['v' => $json, 'v2' => $json]);
+    json_response(['ok' => true]);
+}
+
 if ($method === 'GET') {
     $stmt = $pdo->query("SELECT klic, hodnota, popis FROM nastaveni ORDER BY klic");
     $vsechna = $stmt->fetchAll();

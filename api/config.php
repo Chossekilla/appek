@@ -46,7 +46,7 @@ if (DB_NAME === '' || DB_USER === '') {
 // Aplikace
 if (!defined('APP_URL'))     define('APP_URL',     'https://white-badger-130749.hostingersite.com');
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.211'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.212'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -219,6 +219,108 @@ function dalsi_cislo(PDO $pdo, string $typ, int $rok): string {
     // Předtím "FA-2026-1" / "FA-2026-2" / ... / "FA-2026-1000"; teď "FA-2026-0001".
     // Konzistentní s demo seedem a docstringem ("FA-2026-0042").
     return $predcisli . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * 🆕 v3.0.212 — Centrální registr prodejních KANÁLŮ (objednavky.puvod)
+ *
+ * Jeden zdroj pravdy pro každý balíček, který zapisuje do `objednavky`:
+ *   • label    — štítek do UI
+ *   • barva    — barva badge
+ *   • rada     — vlastní číselná řada (prefix v `cislovani`) → kanály se NEPŘEBÍJEJÍ
+ *   • pokladni — počítá se jako pokladní prodej (teče do POS Účtenek/uzávěrky)
+ *   • zapnuto  — kanál aktivní
+ *
+ * Defaulty lze přepsat v `nastaveni` (klic='kanaly_config', JSON) přes admin panel.
+ * Sada kanálů je pevná (známé balíčky); panel mění jen label/pokladni/zapnuto.
+ * ──────────────────────────────────────────────────────────────────────── */
+function kanaly_defaults(): array {
+    return [
+        'pos'       => ['label' => 'POS pokladna',      'ikona' => '🧾', 'barva' => '#16a34a', 'rada' => 'POS',  'pokladni' => true,  'zapnuto' => true],
+        'qr'        => ['label' => 'QR samoobsluha',    'ikona' => '📲', 'barva' => '#0891b2', 'rada' => 'POS',  'pokladni' => true,  'zapnuto' => true],
+        'b2b'       => ['label' => 'B2B portál',        'ikona' => '🏢', 'barva' => '#2563eb', 'rada' => 'B2B',  'pokladni' => false, 'zapnuto' => true],
+        'dort'      => ['label' => 'Dort konfigurátor', 'ikona' => '🎂', 'barva' => '#db2777', 'rada' => 'DORT', 'pokladni' => false, 'zapnuto' => true],
+        'recurring' => ['label' => 'Opakované',         'ikona' => '🔁', 'barva' => '#9333ea', 'rada' => 'OPAK', 'pokladni' => false, 'zapnuto' => true],
+        'wolt'      => ['label' => 'Wolt',              'ikona' => '🛵', 'barva' => '#00b8a9', 'rada' => 'D-WO', 'pokladni' => false, 'zapnuto' => true],
+        'bolt'      => ['label' => 'Bolt Food',         'ikona' => '🛵', 'barva' => '#30d175', 'rada' => 'D-BO', 'pokladni' => false, 'zapnuto' => true],
+        'foodora'   => ['label' => 'Foodora',           'ikona' => '🛵', 'barva' => '#d6006e', 'rada' => 'D-FO', 'pokladni' => false, 'zapnuto' => true],
+        'interni'   => ['label' => 'Interní / ručně',   'ikona' => '✏️', 'barva' => '#6b7280', 'rada' => 'OBJ',  'pokladni' => false, 'zapnuto' => true],
+    ];
+}
+
+/** Sloučí defaulty s uloženým override (nastaveni klic='kanaly_config'). */
+function kanaly_config(PDO $pdo): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    $cfg = kanaly_defaults();
+    try {
+        $raw = nastaveni_get($pdo, 'kanaly_config', null);
+        if ($raw) {
+            $over = json_decode((string) $raw, true);
+            if (is_array($over)) {
+                foreach ($over as $k => $v) {
+                    if (isset($cfg[$k]) && is_array($v)) {
+                        // měnitelné jen bezpečné klíče (řadu necháváme z kódu)
+                        foreach (['label', 'barva', 'pokladni', 'zapnuto'] as $field) {
+                            if (array_key_exists($field, $v)) $cfg[$k][$field] = $v[$field];
+                        }
+                    }
+                }
+            }
+        }
+    } catch (Throwable $e) { /* defaults */ }
+    return $cache = $cfg;
+}
+
+/** Metadata jednoho kanálu (fallback na neznámý → šedý 'interni' styl). */
+function kanal_meta(PDO $pdo, ?string $puvod): array {
+    $cfg = kanaly_config($pdo);
+    $p = ($puvod !== null && $puvod !== '') ? $puvod : 'interni';
+    if (isset($cfg[$p])) return ['klic' => $p] + $cfg[$p];
+    return ['klic' => $p, 'label' => ucfirst($p), 'ikona' => '•', 'barva' => '#6b7280', 'rada' => 'OBJ', 'pokladni' => false, 'zapnuto' => true];
+}
+
+/** Seznam puvod hodnot, které se počítají jako pokladní prodej (Účtenky/uzávěrka). */
+function kanaly_pokladni(PDO $pdo): array {
+    $out = [];
+    foreach (kanaly_config($pdo) as $k => $v) {
+        if (!empty($v['pokladni']) && !empty($v['zapnuto'])) $out[] = $k;
+    }
+    return $out ?: ['pos'];
+}
+
+/** Vlastní číslo dokladu pro daný kanál (proti přebíjení). */
+function kanal_dalsi_cislo(PDO $pdo, string $puvod, ?int $rok = null): string {
+    ensure_puvod_column($pdo);
+    $rada = kanal_meta($pdo, $puvod)['rada'] ?? 'OBJ';
+    return dalsi_cislo($pdo, $rada, $rok ?? (int) date('Y'));
+}
+
+/** Self-heal: zajistí sloupec objednavky.puvod (+ index) na čerstvé instalaci. */
+function ensure_puvod_column(PDO $pdo): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $has = $pdo->query("SHOW COLUMNS FROM objednavky LIKE 'puvod'")->fetchAll();
+        if (!$has) {
+            $pdo->exec("ALTER TABLE objednavky ADD COLUMN puvod VARCHAR(20) DEFAULT 'interni' AFTER stav, ADD INDEX idx_puvod (puvod)");
+        }
+    } catch (Throwable $e) { /* ignore */ }
+}
+
+/** Jednorázový backfill: doplní puvod existujícím objednávkám podle markerů v poznámce. */
+function kanaly_backfill_once(PDO $pdo): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        if ((string) nastaveni_get($pdo, 'kanaly_backfill_done', '') === '1') return;
+        ensure_puvod_column($pdo);
+        $pdo->prepare("UPDATE objednavky SET puvod='recurring' WHERE (puvod IS NULL OR puvod IN ('interni','')) AND poznamka LIKE '[Recurring #%'")->execute();
+        $pdo->prepare("UPDATE objednavky SET puvod='dort' WHERE (puvod IS NULL OR puvod IN ('interni','')) AND poznamka LIKE '%dort z konfigurátoru%'")->execute();
+        $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('kanaly_backfill_done','1') ON DUPLICATE KEY UPDATE hodnota='1'")->execute();
+    } catch (Throwable $e) { /* ignore */ }
 }
 
 /**

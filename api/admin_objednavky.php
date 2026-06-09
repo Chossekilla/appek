@@ -339,7 +339,8 @@ if ($method === 'GET') {
         $params['q'] = '%' . $hl . '%';
     }
     if ($puvod !== '') {
-        $allowedPuvod = ['pos', 'b2b', 'interni', 'qr', 'recurring'];
+        // 🆕 v3.0.212 — povolené hodnoty z centrálního registru kanálů
+        $allowedPuvod = array_keys(kanaly_config($pdo));
         if (in_array($puvod, $allowedPuvod, true)) {
             $sql .= " AND o.puvod = :puvod";
             $params['puvod'] = $puvod;
@@ -347,9 +348,19 @@ if ($method === 'GET') {
     }
     $sql .= " GROUP BY o.id ORDER BY o.datum_dodani DESC, o.datum_objednani DESC LIMIT 200";
 
+    kanaly_backfill_once($pdo); // 🆕 v3.0.212 — jednorázově doplň puvod existujícím (recurring/dort)
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    json_response($stmt->fetchAll());
+    // 🆕 v3.0.212 — ke každému řádku štítek + barvu kanálu (pro badge v UI)
+    $rows = $stmt->fetchAll();
+    foreach ($rows as &$r) {
+        $meta = kanal_meta($pdo, $r['puvod'] ?? null);
+        $r['puvod_label'] = $meta['label'];
+        $r['puvod_barva'] = $meta['barva'];
+        $r['puvod_ikona'] = $meta['ikona'] ?? '•';
+    }
+    unset($r);
+    json_response($rows);
 }
 
 if ($method === 'POST') {

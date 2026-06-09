@@ -97,13 +97,13 @@ function recurring_generate(PDO $pdo, string $datum_dodani): array {
 
             // Vygeneruj číslo objednávky
             $rok = (int) date('Y', strtotime($datum_dodani));
-            $cislo = dalsi_cislo($pdo, 'OBJ', $rok);
+            $cislo = kanal_dalsi_cislo($pdo, 'recurring', $rok); // 🆕 v3.0.212 — řada OPAK-rok-N
 
             $stmt = $pdo->prepare("
                 INSERT INTO objednavky
                     (cislo, odberatel_id, misto_dodani_id, datum_objednani, datum_dodani,
-                     stav, castka_bez_dph, castka_dph, castka_celkem, poznamka)
-                VALUES (:c, :o, :m, :do, :dd, 'potvrzena', :cbez, :cdph, :cc, :p)
+                     stav, castka_bez_dph, castka_dph, castka_celkem, poznamka, puvod)
+                VALUES (:c, :o, :m, :do, :dd, 'potvrzena', :cbez, :cdph, :cc, :p, 'recurring')
             ");
             $pozn = "[Recurring #{$rule['id']}] " . ($rule['nazev'] ?? '');
             if ($rule['poznamka']) $pozn .= " — " . $rule['poznamka'];

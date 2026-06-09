@@ -206,6 +206,30 @@ function get_ucet_with_polozky(PDO $pdo, int $ucetId): ?array {
     return $ucet;
 }
 
+/**
+ * 🆕 v3.0.212 — Atomické číslo POS dokladu: POS-YYYYMMDD-NNNN.
+ * Dine-in i rychlý prodej sdílí JEDEN denní čítač (cislovani typ='POS', rok=Ymd),
+ * číslo NIKDY = ID účtu → konec kolizí v UNIQUE objednavky.cislo.
+ */
+function pos_next_doklad(PDO $pdo, ?string $ymd = null): string {
+    $ymd = $ymd ?: date('Ymd');
+    return dalsi_cislo($pdo, 'POS', (int) $ymd);
+}
+
+/**
+ * 🆕 v3.0.212 — SQL fragment "puvod IN (...)" pro pokladní kanály (Účtenky/uzávěrka).
+ * Klíče pocházejí z pevné sady kanaly_defaults() → sanitizováno, bezpečné do SQL.
+ */
+function pos_pokladni_sql(PDO $pdo, string $col = 'puvod'): string {
+    $safe = [];
+    foreach (kanaly_pokladni($pdo) as $k) {
+        $k = preg_replace('/[^a-z0-9_]/', '', (string) $k);
+        if ($k !== '') $safe[] = "'" . $k . "'";
+    }
+    if (!$safe) $safe = ["'pos'"];
+    return $col . ' IN (' . implode(',', $safe) . ')';
+}
+
 function aktualni_admin(PDO $pdo): array {
     return [
         'id' => $_SESSION['admin_id'] ?? null,
@@ -551,7 +575,8 @@ if ($method === 'POST' && $action === 'pay') {
         if (!in_array($payStav, ['open','awaiting_payment'], true)) { $pdo->rollBack(); json_error('Účet už je uzavřený (' . $payStav . ')', 409); }
         // Insert platby
         $sumPaid = 0;
-        $cislo = 'POS-' . date('Ymd') . '-' . $ucetId;
+        // 🆕 v3.0.212 — atomický denní čítač (ne ID účtu) → konec kolizí s rychlým prodejem
+        $cislo = pos_next_doklad($pdo);
         $st = $pdo->prepare("
             INSERT INTO restaurant_pos_platby (ucet_id, castka, zpusob, doklad_cislo, poznamka)
             VALUES (:u, :c, :z, :d, :p)
@@ -1166,13 +1191,10 @@ if ($method === 'POST' && $action === 'quick_order') {
     try {
         $pdo->beginTransaction();
 
-        // Vygeneruj číslo objednávky: POS-YYYYMMDD-NNN
+        // 🆕 v3.0.212 — atomický denní čítač (dine-in i rychlý prodej sdílí cislovani 'POS').
+        //   Dříve MAX+1 nad objednavky kolidoval s dine-in číslem (= ID účtu) → přebíjení.
         $today = date('Ymd');
-        $st = $pdo->prepare("SELECT MAX(CAST(SUBSTRING_INDEX(cislo, '-', -1) AS UNSIGNED)) AS m
-                              FROM objednavky WHERE cislo LIKE :p");
-        $st->execute(['p' => "POS-{$today}-%"]);
-        $next  = (int)($st->fetchColumn() ?? 0) + 1;
-        $cislo = sprintf('POS-%s-%03d', $today, $next);
+        $cislo = pos_next_doklad($pdo);
 
         // Spočítej částky
         $bezDph = 0.0;
@@ -1253,10 +1275,8 @@ if ($method === 'POST' && $action === 'quick_order') {
             'uziv'  => $admin_login,
             'poz'   => $poznamka . ($poznamka ? "\n\n" : '') . "POS-META: " . $meta_json,
         ];
-        // 🆕 v3.0.144 — RACE FIX: cislo = MAX+1 (read-then-insert) kolidovalo při souběhu
-        //   více POS terminálů → "Duplicate entry POS-...-NNN" → HTTP 500 (zátěž odhalila ~2%).
-        //   Retry: na duplicitu inkrementuj $next a zkus další číslo (re-SELECT nelze — REPEATABLE
-        //   READ snapshot by vrátil stejné MAX). Najde volnou mezeru během pár pokusů.
+        // 🆕 v3.0.212 — číslo z atomického čítače (pos_next_doklad). Retry je už jen pojistka:
+        //   na nepravděpodobnou duplicitu vezme další atomické číslo (dříve MAX+1 race ~2%).
         $objId = 0;
         for ($attempt = 0; $attempt < 8; $attempt++) {
             try {
@@ -1266,8 +1286,8 @@ if ($method === 'POST' && $action === 'quick_order') {
             } catch (PDOException $e) {
                 $dup = ($e->getCode() === '23000') || (isset($e->errorInfo[1]) && (int)$e->errorInfo[1] === 1062);
                 if ($dup && $attempt < 7) {
-                    $next++;
-                    $cislo = sprintf('POS-%s-%03d', $today, $next);
+                    // atomický čítač by neměl kolidovat; pro jistotu vezmi další číslo
+                    $cislo = pos_next_doklad($pdo);
                     usleep(mt_rand(500, 4000));
                     continue;
                 }
@@ -1457,6 +1477,8 @@ if ($method === 'GET' && $action === 'quick_history') {
         // znemožnil použití idx_puvod_datum (puvod, datum_objednani) → full table scan.
         // Teď klasický range — index funguje, 5-50× rychlejší při >10k řádků/měsíc.
         $date_next = date('Y-m-d', strtotime($date . ' +1 day'));
+        $pokIn  = pos_pokladni_sql($pdo);          // 🆕 v3.0.212 — puvod IN (pokladní kanály)
+        $pokInO = pos_pokladni_sql($pdo, 'o.puvod');
 
         $st = $pdo->prepare("
             SELECT o.id, o.cislo, o.datum_objednani, o.castka_celkem, o.castka_bez_dph, o.castka_dph, o.stav,
@@ -1465,7 +1487,7 @@ if ($method === 'GET' && $action === 'quick_history') {
                    (SELECT COUNT(*) FROM objednavky_polozky p WHERE p.objednavka_id = o.id) AS pocet_polozek
             FROM objednavky o
             LEFT JOIN odberatele od ON od.id = o.odberatel_id
-            WHERE o.puvod = 'pos' AND o.datum_objednani >= :d AND o.datum_objednani < :d_next
+            WHERE {$pokInO} AND o.datum_objednani >= :d AND o.datum_objednani < :d_next
             ORDER BY o.datum_objednani DESC
             LIMIT {$limit}
         ");
@@ -1485,7 +1507,7 @@ if ($method === 'GET' && $action === 'quick_history') {
                 COALESCE(SUM(CASE WHEN pos_typ='rozvoz'     THEN 1 ELSE 0 END), 0) AS pocet_rozvoz,
                 COALESCE(SUM(CASE WHEN pos_typ='vyzvednuti' THEN 1 ELSE 0 END), 0) AS pocet_vyzvednuti
             FROM objednavky
-            WHERE puvod = 'pos' AND datum_objednani >= :d AND datum_objednani < :d_next
+            WHERE {$pokIn} AND datum_objednani >= :d AND datum_objednani < :d_next
         ");
         $sum->execute(['d' => $date, 'd_next' => $date_next]);
         $souhrn = $sum->fetch(PDO::FETCH_ASSOC) ?: [];
@@ -1535,7 +1557,7 @@ function pos_ucet_create_sale(PDO $pdo, int $ucetId): ?int {
         $walkin = $pdo->query("SELECT id FROM odberatele WHERE nazev = 'POS Walk-in' LIMIT 1")->fetchColumn();
         if (!$walkin) { $pdo->exec("INSERT INTO odberatele (nazev, aktivni) VALUES ('POS Walk-in', 1)"); $walkin = $pdo->lastInsertId(); }
         $datum = $ucet['zaplaceno_v'] ?: date('Y-m-d H:i:s');
-        $cislo = $ucet['cislo_dokladu'] ?: ('POS-' . date('Ymd', strtotime($datum)) . '-S' . $ucetId);
+        $cislo = $ucet['cislo_dokladu'] ?: pos_next_doklad($pdo, date('Ymd', strtotime($datum)));
         $poz = '🍽️ ' . ($ucet['stul_nazev'] ?? ('Stůl #' . $ucet['stul_id'])) . ' ' . $marker;
         $ins = $pdo->prepare("
             INSERT INTO objednavky (cislo, typ, odberatel_id, datum_objednani, datum_dodani, castka_bez_dph, castka_dph, castka_celkem, stav, puvod, pos_typ, pos_payment, pos_tip, pos_uzivatel, poznamka)
@@ -1590,12 +1612,13 @@ function pos_uzaverka_data(PDO $pdo, string $date): array {
     // 🆕 v3.0.211 — dine-in i takeaway jsou teď OBA v objednavky (puvod='pos'): dine-in se
     //   vytvoří z paid účtu (pos_ucet_create_sale / backfill). Čteme JEN objednavky → žádné
     //   dvojí počítání. (Volající spustí pos_backfill_sales($date) předem.)
-    // POS prodeje (objednavky puvod='pos', datum dle datum_objednani)
+    // POS prodeje (objednavky pokladních kanálů, datum dle datum_objednani)
+    $pokIn = pos_pokladni_sql($pdo); // 🆕 v3.0.212
     try {
         $tw = $pdo->prepare("
             SELECT COALESCE(NULLIF(pos_uzivatel,''),'(bez obsluhy)') AS obsluha, pos_payment, castka_celkem, COALESCE(pos_tip,0) AS tip
             FROM objednavky
-            WHERE puvod = 'pos' AND datum_objednani >= :d AND datum_objednani < :dn
+            WHERE {$pokIn} AND datum_objednani >= :d AND datum_objednani < :dn
         ");
         $tw->execute(['d' => $date, 'dn' => $dNext]);
         foreach ($tw->fetchAll() as $r) {
@@ -1675,13 +1698,14 @@ if ($method === 'GET' && $action === 'quick_order_detail') {
     $id = (int) ($_GET['id'] ?? 0);
     if (!$id) json_error('Chybí ID', 400);
     try {
+        $pokInO = pos_pokladni_sql($pdo, 'o.puvod'); // 🆕 v3.0.212 — detail jen pokladních kanálů
         $st = $pdo->prepare("
             SELECT o.id, o.cislo, o.datum_objednani, o.castka_celkem, o.castka_bez_dph, o.castka_dph,
                    o.stav, o.poznamka, o.puvod, o.pos_typ, o.pos_payment, o.pos_tip, o.pos_uzivatel,
                    o.odberatel_id, COALESCE(od.nazev, '—') AS odberatel_nazev
             FROM objednavky o
             LEFT JOIN odberatele od ON od.id = o.odberatel_id
-            WHERE o.id = :id AND o.puvod = 'pos'
+            WHERE o.id = :id AND {$pokInO}
         ");
         $st->execute(['id' => $id]);
         $obj = $st->fetch(PDO::FETCH_ASSOC);
@@ -1717,6 +1741,8 @@ if ($method === 'GET' && $action === 'launcher_summary') {
         pos_backfill_sales($pdo, $date); // 🆕 v3.0.211 — dine-in paid účty → objednávky (do souhrnu)
         // 🚀 v2.9.314 — range scan (viz quick_history fix)
         $date_next = date('Y-m-d', strtotime($date . ' +1 day'));
+        $pokIn  = pos_pokladni_sql($pdo);          // 🆕 v3.0.212
+        $pokInO = pos_pokladni_sql($pdo, 'o.puvod');
 
         // Souhrn dne (kompaktní)
         $sum = $pdo->prepare("
@@ -1727,7 +1753,7 @@ if ($method === 'GET' && $action === 'launcher_summary') {
                 COALESCE(SUM(CASE WHEN pos_payment='hotove' THEN castka_celkem ELSE 0 END), 0) AS hotove,
                 COALESCE(SUM(CASE WHEN pos_payment='karta'  THEN castka_celkem ELSE 0 END), 0) AS karta
             FROM objednavky
-            WHERE puvod = 'pos' AND datum_objednani >= :d AND datum_objednani < :d_next
+            WHERE {$pokIn} AND datum_objednani >= :d AND datum_objednani < :d_next
         ");
         $sum->execute(['d' => $date, 'd_next' => $date_next]);
         $souhrn = $sum->fetch(PDO::FETCH_ASSOC) ?: [];
@@ -1737,7 +1763,7 @@ if ($method === 'GET' && $action === 'launcher_summary') {
             SELECT id, cislo, datum_objednani, castka_celkem, pos_typ, pos_payment, pos_uzivatel,
                    (SELECT COUNT(*) FROM objednavky_polozky p WHERE p.objednavka_id = o.id) AS pocet_polozek
             FROM objednavky o
-            WHERE puvod = 'pos' AND datum_objednani >= :d AND datum_objednani < :d_next
+            WHERE {$pokIn} AND datum_objednani >= :d AND datum_objednani < :d_next
             ORDER BY datum_objednani DESC
             LIMIT {$limit_orders}
         ");
@@ -1751,7 +1777,7 @@ if ($method === 'GET' && $action === 'launcher_summary') {
                    SUM(p.mnozstvi * COALESCE(p.cena_bez_dph, 0) * (1 + COALESCE(p.sazba_dph, 0) / 100)) AS trzba_sum
             FROM objednavky_polozky p
             JOIN objednavky o ON o.id = p.objednavka_id
-            WHERE o.puvod = 'pos' AND o.datum_objednani >= :d AND o.datum_objednani < :d_next
+            WHERE {$pokInO} AND o.datum_objednani >= :d AND o.datum_objednani < :d_next
               AND p.vyrobek_nazev IS NOT NULL
             GROUP BY p.vyrobek_nazev, p.vyrobek_id
             ORDER BY mnozstvi_sum DESC, trzba_sum DESC
