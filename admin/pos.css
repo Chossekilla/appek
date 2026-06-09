@@ -2204,6 +2204,33 @@ html, body {
 }
 .pos-tm-item-rm:hover { background: #FECACA; transform: scale(1.05); }
 
+/* 🆕 v3.0.204 — +/− množství v účtu stolu */
+.pos-tm-qty {
+  display: flex; align-items: center; gap: 2px;
+  background: var(--pos-soft, #F5F6FA);
+  border: 1px solid var(--pos-border, #E3E6EE);
+  border-radius: 8px; padding: 2px;
+  flex-shrink: 0;
+}
+.pos-tm-qbtn {
+  width: 30px; height: 30px;
+  border: none; background: #fff;
+  color: var(--pos-primary, #BA7517);
+  border-radius: 6px; cursor: pointer;
+  font-size: 18px; font-weight: 800; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  transition: all 0.12s ease;
+}
+.pos-tm-qbtn:hover { background: var(--pos-primary, #BA7517); color: #fff; }
+.pos-tm-qbtn:active { transform: scale(0.92); }
+.pos-tm-qval {
+  min-width: 30px; text-align: center;
+  font-weight: 800; font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.pos-tm-item-qstatic { font-weight: 700; color: var(--pos-text-2, #6B7280); font-size: 13px; flex-shrink: 0; }
+
 /* Cart summary */
 .pos-tm-cart-foot {
   border-top: 2px solid #E5E7EB;

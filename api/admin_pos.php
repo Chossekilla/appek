@@ -479,6 +479,28 @@ if ($method === 'POST' && $action === 'item_state') {
     json_response(['ok' => true]);
 }
 
+// 🆕 v3.0.204 — změna množství položky otevřeného účtu (+/− přímo v účtu stolu)
+if ($method === 'POST' && $action === 'item_qty') {
+    $d = json_input();
+    $itemId   = (int) ($d['id'] ?? 0);
+    $mnozstvi = (float) ($d['mnozstvi'] ?? 0);
+    if (!$itemId) json_error('Chybí id', 400);
+    if ($mnozstvi < 0.01) json_error('Množství musí být ≥ 0.01', 400);
+    $q = $pdo->prepare("
+        SELECT p.ucet_id, p.stav AS p_stav, u.stav AS u_stav
+        FROM restaurant_pos_polozky p JOIN restaurant_pos_ucty u ON u.id = p.ucet_id
+        WHERE p.id = :id
+    ");
+    $q->execute(['id' => $itemId]);
+    $row = $q->fetch();
+    if (!$row) json_error('Položka nenalezena', 404);
+    if (($row['u_stav'] ?? '') !== 'open') json_error('Účet je uzavřený — množství nelze měnit', 409);
+    if (($row['p_stav'] ?? '') === 'storno') json_error('Stornovanou položku nelze měnit', 409);
+    $pdo->prepare("UPDATE restaurant_pos_polozky SET mnozstvi = :m WHERE id = :id")->execute(['m' => $mnozstvi, 'id' => $itemId]);
+    recalc_ucet_total($pdo, (int) $row['ucet_id']);
+    json_response(['ok' => true, 'mnozstvi' => $mnozstvi]);
+}
+
 // ❌ DELETE ?action=item&id=N → smaž (nebo storno)
 if ($method === 'DELETE' && $action === 'item') {
     $id = (int) ($_GET['id'] ?? 0);

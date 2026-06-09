@@ -1712,6 +1712,7 @@
         </div>`;
       return;
     }
+    const isOpen = ((detail && detail.stav) || 'open') === 'open'; // 🆕 v3.0.204 — +/− jen na otevřeném účtu
     c.innerHTML = polozky.map(p => {
       const mn = parseFloat(p.mnozstvi) || 0;
       const jc = parseFloat(p.jednotkova_cena) || 0;
@@ -1724,10 +1725,16 @@
         <div class="pos-tm-item ${stavCls}">
           <div class="pos-tm-item-info">
             <div class="pos-tm-item-name">${esc(p.nazev || '?')}${stavIc}</div>
-            <div class="pos-tm-item-meta">${mn}× ${fmt(jc)} Kč</div>
+            <div class="pos-tm-item-meta">${fmt(jc)} Kč/ks</div>
           </div>
+          ${isOpen ? `
+          <div class="pos-tm-qty">
+            <button class="pos-tm-qbtn" onclick="posTableItemQty(${p.id}, ${mn}, -1)" aria-label="Méně">−</button>
+            <span class="pos-tm-qval">${mn}</span>
+            <button class="pos-tm-qbtn" onclick="posTableItemQty(${p.id}, ${mn}, 1)" aria-label="Více">+</button>
+          </div>` : `<div class="pos-tm-item-qstatic">${mn}×</div>`}
           <div class="pos-tm-item-price">${fmt(cena)} Kč</div>
-          <button class="pos-tm-item-rm" onclick="posTableRemoveItem(${p.id})" title="Odebrat">✕</button>
+          ${isOpen ? `<button class="pos-tm-item-rm" onclick="posTableRemoveItem(${p.id})" title="Odebrat">✕</button>` : ''}
         </div>
       `;
     }).join('');
@@ -1757,6 +1764,20 @@
         method: 'POST', body: JSON.stringify({ id: itemId, stav: 'storno' })
       });
       toast('✕ Odebráno', 'success');
+      refreshTableModal(window.__posTableUcetId);
+    } catch (e) {
+      toast('Chyba: ' + e.message, 'error');
+    }
+  };
+
+  // 🆕 v3.0.204 — +/− množství položky přímo v účtu stolu. Pod 1 ks → nabídne storno.
+  window.posTableItemQty = async function(itemId, current, delta) {
+    const next = +((parseFloat(current) || 1) + delta).toFixed(3);
+    if (next < 1) return posTableRemoveItem(itemId);
+    try {
+      await api('admin_pos.php?action=item_qty', {
+        method: 'POST', body: JSON.stringify({ id: itemId, mnozstvi: next })
+      });
       refreshTableModal(window.__posTableUcetId);
     } catch (e) {
       toast('Chyba: ' + e.message, 'error');

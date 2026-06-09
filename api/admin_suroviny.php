@@ -402,6 +402,44 @@ if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_kor
     }
 }
 
+// 🆕 v3.0.204 — 1-klik doplnění suroviny na cílovou zásobu (systém B: sklad_polozky + recompute)
+//   { id }  → příjem (stock_cilove − aktuální) do domovského skladu suroviny. Pro low-stock list.
+if ($action === 'restock' && $method === 'POST') {
+    $d = json_input();
+    $sid = (int) ($d['id'] ?? $d['surovina_id'] ?? 0);
+    if (!$sid) json_error('Chybí id', 400);
+    $sur = $pdo->prepare("SELECT id, nazev, jednotka, stock_minimalni, stock_cilove FROM suroviny WHERE id = :id");
+    $sur->execute(['id' => $sid]);
+    $surData = $sur->fetch(PDO::FETCH_ASSOC);
+    if (!$surData) json_error('Surovina nenalezena', 404);
+    $cil    = (float) ($surData['stock_cilove'] ?? 0);
+    $min    = (float) ($surData['stock_minimalni'] ?? 0);
+    $target = $cil > 0 ? $cil : $min;   // cíl, jinak aspoň minimum
+    if ($target <= 0) json_error('Surovina nemá cílovou ani minimální zásobu — nelze doplnit jedním klikem', 400);
+    // živý stav ze systému B
+    $cur   = (float) $pdo->query("SELECT COALESCE(SUM(stav),0) FROM sklad_polozky WHERE item_typ='surovina' AND item_id=" . (int)$sid)->fetchColumn();
+    $delta = round($target - $cur, 3);
+    if ($delta <= 0) json_response(['ok' => true, 'doplneno' => 0, 'stav' => $cur, 'nazev' => $surData['nazev'], 'msg' => 'Už na/nad cílem']);
+    try {
+        $home  = surovina_home_sklad($pdo, $sid);
+        $rowId = sklad_polozky_ensure($pdo, $home, 'surovina', $sid);
+        $pdo->beginTransaction();
+        $stavPred = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id=" . (int)$rowId . " FOR UPDATE")->fetchColumn();
+        $stavPo   = $stavPred + $delta;
+        $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :r")->execute(['s' => $stavPo, 'r' => $rowId]);
+        $pdo->prepare("
+            INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, poznamka, kdo)
+            VALUES (:s, 'surovina', :i, 'prijem', :m, :sp, :sP, :p, :k)
+        ")->execute(['s' => $home, 'i' => $sid, 'm' => $delta, 'sp' => $stavPred, 'sP' => $stavPo, 'p' => '1-klik doplnění na cíl', 'k' => _aktualni_uzivatel()]);
+        $pdo->commit();
+        surovina_recompute_total($pdo, $sid);
+        json_response(['ok' => true, 'doplneno' => $delta, 'stav' => $target, 'nazev' => $surData['nazev'], 'jednotka' => $surData['jednotka']]);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error_safe('Doplnění selhalo', $e, 500);
+    }
+}
+
 // =============================================================
 // GET složení výrobku
 // =============================================================
