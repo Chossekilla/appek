@@ -1501,6 +1501,7 @@ function renderCard(v) {
       <div class="card-body">
         <div class="card-name">${esc(v.nazev)}</div>
         <div class="card-unit">${v.hmotnost_g ? v.hmotnost_g + ' g · ' : ''}${esc(v.jednotka || 'ks')}</div>
+        ${v.alergeny ? `<div class="card-alergeny" title="Alergeny (dle nař. 1169/2011): ${esc(v.alergeny)}" style="font-size:10.5px;color:#92400e;background:#FEF3C7;border-radius:6px;padding:2px 7px;margin-top:3px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom">⚠️ ${esc(v.alergeny)}</div>` : ''}
         <div class="card-price-row">
           ${cenaHtml}
           ${inCart ? `<button class="qty-btn-del" onclick="removeFromCart(${v.id})" title="Odebrat z košíku">🗑️</button>` : ''}

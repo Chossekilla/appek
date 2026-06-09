@@ -46,7 +46,7 @@ if (DB_NAME === '' || DB_USER === '') {
 // Aplikace
 if (!defined('APP_URL'))     define('APP_URL',     'https://white-badger-130749.hostingersite.com');
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.223'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.224'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -695,6 +695,7 @@ function cenik_pro_odberatele(PDO $pdo, int $odberatel_id): array {
     $vyrobky = $pdo->query("
         SELECT v.id, v.cislo, v.nazev, v.cena_bez_dph AS cena_zakladni,
                v.kategorie_id, v.hmotnost_g, v.min_objednavka,
+               v.alergeny, v.slozeni, v.nutricni_hodnoty, -- 🆕 v3.0.224 — food-info do B2B (alergeny legálně!)
                j.kod AS jednotka,
                s.sazba AS dph,
                k.nazev AS kategorie_nazev, k.ikona AS kategorie_ikona
