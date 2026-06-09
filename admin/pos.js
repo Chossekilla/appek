@@ -1507,8 +1507,8 @@
           <button class="pos-tm-btn" id="pos-tbl-qr">📲 QR platba</button>
           <button class="pos-tm-btn is-danger" id="pos-tbl-reopen" style="display:none">🔓 Znovu otevřít</button>
           <div class="pos-tm-btn-spacer"></div>
-          <button class="pos-tm-btn is-save" id="pos-tbl-save">💾 Uložit a zavřít</button>
-          <button class="pos-tm-btn is-primary" id="pos-tbl-pay">💰 Zaplatit</button>
+          <button class="pos-tm-btn is-save" id="pos-tbl-save">💾 Uložit <span class="pos-tm-btn-sub">a zavřít</span></button>
+          <button class="pos-tm-btn is-primary" id="pos-tbl-pay">💰 Zaplatit <span class="pos-tm-btn-sub">a zavřít</span></button>
         </footer>
       </div>
     `;
