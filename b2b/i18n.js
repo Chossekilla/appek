@@ -1150,6 +1150,12 @@ const B2B_PHRASES = [
   ['Top', 'Top', 'Top'],
   ['Objednávku můžete upravovat', 'You can edit the order', 'Puede editar el pedido'],
   ['do', 'until', 'hasta'],
+  // Typ objednávky — info boxy (renderTypHelp) + role label, dříve CS-only fragmenty
+  ['Odběratel', 'Customer', 'Cliente'],
+  ['. Provoz ti ji potvrdí a v ten den ti zboží přivezou. Defaultně', '. The operator will confirm it and deliver the goods to you that day. By default', '. El operador lo confirmará y te llevará la mercancía ese día. Por defecto'],
+  ['(např. „pondělí za týden") přes rychlé chipy nebo kalendář.', '(e.g. "Monday next week") via the quick chips or the calendar.', '(p. ej. "lunes de la próxima semana") mediante los chips rápidos o el calendario.'],
+  ['v zadaném období. Když potřebuješ identickou objednávku po dobu několika dní/týdnů (např. dovolenou v hotelu). Můžeš ji kdykoli upravit nebo zrušit v Historii.', 'in the specified period. When you need an identical order for several days/weeks (e.g. a hotel stay). You can edit or cancel it anytime in History.', 'en el periodo indicado. Cuando necesitas un pedido idéntico durante varios días/semanas (p. ej. una estancia de hotel). Puedes editarlo o cancelarlo en cualquier momento en el Historial.'],
+  ['ve stejné dny v zvoleném období. Pro hotely / kavárny s pravidelným rytmem (např. „každý pátek a sobota").', 'on the same days in the chosen period. For hotels / cafés with a regular rhythm (e.g. "every Friday and Saturday").', 'los mismos días en el periodo elegido. Para hoteles / cafeterías con un ritmo regular (p. ej. "cada viernes y sábado").'],
 ];
 
 const B2B_LOOKUP = new Map();

@@ -25365,6 +25365,33 @@ const I18N_PHRASES = [
   ['🔻 Ze skladu (zdroj) *', '🔻 From warehouse (source) *', '🔻 Del almacén (origen) *'],
   ['🛒 POS — fyzická platba', '🛒 POS — physical payment', '🛒 TPV — pago físico'],
   ['🧾 POS kasa', '🧾 POS till', '🧾 Caja TPV'],
+
+  // ─────────── v3.0.226 — Kanály / Stránkování / POS přepínač (CS-only feature strings) ───────────
+  ['Kanály', 'Channels', 'Canales'],
+  ['Prodejní kanály', 'Sales channels', 'Canales de venta'],
+  ['Uložit kanály', 'Save channels', 'Guardar canales'],
+  ['Prodejní kanály objednávek — označení, číselná řada, pokladní prodej. Aby se balíčky nepřebíjely.', 'Order sales channels — label, number series, cashier sale. So packages don\'t clash.', 'Canales de venta de pedidos — etiqueta, serie numérica, venta en caja. Para que los paquetes no se solapen.'],
+  ['Každý balíček (POS, B2B portál, dort konfigurátor, rozvozové platformy, opakované…) zapisuje objednávky s vlastním označením a číselnou řadou, takže se navzájem nepřebíjejí. Přejmenuj kanály, vypni nepoužívané a označ, které se počítají jako pokladní prodej (teče do POS Účtenek a uzávěrky).', 'Each package (POS, B2B portal, cake configurator, delivery platforms, recurring…) records orders with its own label and number series, so they don\'t clash. Rename channels, turn off unused ones and mark which ones count as a cashier sale (flows into POS Receipts and the closing report).', 'Cada paquete (POS, portal B2B, configurador de tartas, plataformas de reparto, recurrentes…) registra pedidos con su propia etiqueta y serie numérica, para que no se solapen. Renombra los canales, desactiva los que no uses y marca cuáles cuentan como venta en caja (fluye a los Recibos POS y al cierre de caja).'],
+  ['Dlouhé seznamy', 'Long lists', 'Listas largas'],
+  ['Jak načítat dlouhé seznamy (Objednávky, Faktury, Dodací listy, POS Účtenky) při velkém počtu záznamů.', 'How to load long lists (Orders, Invoices, Delivery notes, POS Receipts) with a large number of records.', 'Cómo cargar listas largas (Pedidos, Facturas, Albaranes, Recibos POS) con un gran número de registros.'],
+  ['Načíst další (tlačítko)', 'Load more (button)', 'Cargar más (botón)'],
+  ['Stránkování (čísla stránek)', 'Pagination (page numbers)', 'Paginación (números de página)'],
+  ['Uloží se tlačítkem „Uložit nastavení" dole. Platí pro všechna zařízení.', 'Saved with the “Save settings” button below. Applies to all devices.', 'Se guarda con el botón «Guardar configuración» de abajo. Aplica a todos los dispositivos.'],
+  ['Zobrazovat na POS (KASA)', 'Show on POS (KASA)', 'Mostrar en POS (KASA)'],
+  ['Vypnutím se výrobek skryje z pokladny. V katalogu / B2B zůstane.', 'Turning it off hides the product from the till. It stays in the catalog / B2B.', 'Al desactivarlo, el producto se oculta de la caja. Permanece en el catálogo / B2B.'],
+  ['Žádné kanály', 'No channels', 'Sin canales'],
+  ['Název kanálu', 'Channel name', 'Nombre del canal'],
+  ['Barva štítku', 'Label color', 'Color de etiqueta'],
+  ['Číselná řada dokladů (proti přebíjení)', 'Document number series (anti-clash)', 'Serie numérica de documentos (anti-duplicado)'],
+  ['Řada', 'Series', 'Serie'],
+  ['Pokladní = objednávky kanálu se započítají do POS Účtenek a denní uzávěrky. Řada (např. POS-, B2B-, DORT-) je pevná a zajišťuje, že se čísla dokladů nepřebíjejí.', 'Cashier = the channel\'s orders are counted into POS Receipts and the daily closing. The series (e.g. POS-, B2B-, DORT-) is fixed and ensures document numbers don\'t clash.', 'En caja = los pedidos del canal se cuentan en los Recibos POS y el cierre diario. La serie (p. ej. POS-, B2B-, DORT-) es fija y garantiza que los números de documento no se solapen.'],
+  // Nastavení — taby + popisy (dříve CS-only)
+  ['Firma & doklady', 'Company & documents', 'Empresa y documentos'],
+  ['Platby', 'Payments', 'Pagos'],
+  ['Přístupy & ceny', 'Access & pricing', 'Accesos y precios'],
+  ['Nápověda & FAQ', 'Help & FAQ', 'Ayuda y FAQ'],
+  ['Zapnout/vypnout platební metody pro POS, B2B a checkout.', 'Turn payment methods on/off for POS, B2B and checkout.', 'Activar/desactivar métodos de pago para POS, B2B y checkout.'],
+  ['Stripe + GoPay (platby), POHODA + FlexiBee (účetní), Zásilkovna + DPD (doprava).', 'Stripe + GoPay (payments), POHODA + FlexiBee (accounting), Zásilkovna + DPD (shipping).', 'Stripe + GoPay (pagos), POHODA + FlexiBee (contabilidad), Zásilkovna + DPD (envíos).'],
 ];
 
 // Build lookup index pro O(1) access
