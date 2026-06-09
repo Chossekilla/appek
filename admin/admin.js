@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.207';
+const APPEK_ADMIN_JS_VERSION = '3.0.208';
 
 (async function detectStaleCode() {
   try {
@@ -18908,6 +18908,9 @@ window.rtOpenTemplatePicker = async function() {
   try { tpls = await api('admin_tables.php?action=templates'); }
   catch (e) { alert('Chyba: ' + e.message); return; }
   const templates = tpls.templates || [];
+  // 🆕 v3.0.208 — aktivní zóna pro režim „přidat stoly do zóny"
+  const _zones = state._rtData?.zones || [];
+  const _az = _zones.find(z => String(z.id) === String(rtState.activeZoneId)) || _zones[0];
 
   // 🎨 v3.0.33/37 — Bigger karty s mini SVG preview layoutu (s barvou per typ)
   const miniPreview = (t) => {
@@ -18936,13 +18939,23 @@ window.rtOpenTemplatePicker = async function() {
 
   openModal(`📋 Šablony layoutu (${templates.length})`, `
     <div style="margin-bottom:18px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 16px">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:700;color:#1E40AF;font-size:14px">
-        <input type="checkbox" id="rt-tpl-keepzones" checked style="width:18px;height:18px;accent-color:#1E40AF;cursor:pointer"
-               onchange="document.getElementById('rt-tpl-warn').innerHTML = this.checked ? '✅ Zachová tvoje <strong>zóny</strong> — přepíše se <strong>jen rozložení stolů</strong> (stoly šablony se rozmístí do tvých zón).' : '⚠️ Smaže <strong>všechny stávající stoly i zóny</strong> a založí kompletní layout ze šablony.'">
-        Zachovat moje zóny (přepsat jen stoly)
-      </label>
-      <p id="rt-tpl-warn" style="margin:10px 0 0;font-size:13px;color:#1E3A8A;line-height:1.5">✅ Zachová tvoje <strong>zóny</strong> — přepíše se <strong>jen rozložení stolů</strong> (stoly šablony se rozmístí do tvých zón).</p>
-      <p style="margin:6px 0 0;font-size:12px;color:#64748B">Vyber kompletní layout — náhled vidíš nahoře každé karty.</p>
+      <div style="font-weight:800;color:#1E40AF;font-size:14px;margin-bottom:10px">Jak šablonu použít?</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${_az ? `
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:#1E3A8A;background:#fff;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px">
+          <input type="radio" name="rt-tpl-mode" value="add_zone" checked style="width:17px;height:17px;margin-top:1px;accent-color:#1E40AF;cursor:pointer">
+          <span><strong>➕ Přidat stoly do zóny „${esc(_az.nazev)}"</strong> — ponechá stávající stoly i ostatní zóny (skládáš si plán)</span>
+        </label>` : ''}
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:#1E3A8A;padding:6px 12px">
+          <input type="radio" name="rt-tpl-mode" value="keep" ${_az ? '' : 'checked'} style="width:17px;height:17px;margin-top:1px;accent-color:#1E40AF;cursor:pointer">
+          <span><strong>♻️ Přepsat jen stoly</strong> — zóny zachovat, stoly šablony rozmístit do tvých zón</span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:#1E3A8A;padding:6px 12px">
+          <input type="radio" name="rt-tpl-mode" value="full" style="width:17px;height:17px;margin-top:1px;accent-color:#1E40AF;cursor:pointer">
+          <span><strong>🗑️ Nahradit vše</strong> — smaže všechny stoly i zóny, založí kompletní layout</span>
+        </label>
+      </div>
+      <p style="margin:10px 0 0;font-size:12px;color:#64748B">Náhled vidíš nahoře každé karty. Klikni na šablonu pro použití.</p>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%, 260px),1fr));gap:14px">
       ${templates.map(t => `
@@ -18965,24 +18978,41 @@ window.rtOpenTemplatePicker = async function() {
 };
 
 window.rtApplyTemplate = async function(key, nazev) {
-  // 🆕 v3.0.189 — keep_zones: default ano (přepíše jen stoly, zóny nech). Checkbox je
-  //   v pickeru; když se volá z banneru bez checkboxu → fallback true (bezpečnější).
-  const keepZones = document.getElementById('rt-tpl-keepzones')?.checked ?? true;
-  const msg = keepZones
-    ? `Přepsat rozložení stolů šablonou „${nazev}"?\n\nTvoje zóny ZŮSTANOU. Otevřené účty se zachovají.`
-    : `Nahradit VŠECHNY stoly i zóny šablonou „${nazev}"?\n\nTohle smaže současný layout (zóny i stoly).`;
+  // 🆕 v3.0.208 — 3 režimy (radio v pickeru; z banneru bez radia → 'keep' fallback):
+  //   add_zone = PŘIDAT stoly šablony do aktuální zóny (nic nemaže) ← „přidám stoly do baru"
+  //   keep     = přepsat jen stoly, zóny zachovat (dřívější default)
+  //   full     = nahradit vše (zóny i stoly)
+  const mode = document.querySelector('input[name="rt-tpl-mode"]:checked')?.value || 'keep';
+  const zones = state._rtData?.zones || [];
+  const az = zones.find(z => String(z.id) === String(rtState.activeZoneId)) || zones[0];
+
+  let body, msg;
+  if (mode === 'add_zone') {
+    if (!az) return alert('Nejdřív vyber/vytvoř zónu, do které stoly přidat.');
+    body = { template: key, mode: 'add_zone', target_zone_id: az.id };
+    msg = `Přidat stoly šablony „${nazev}" do zóny „${az.nazev}"?\n\nStávající stoly i ostatní zóny ZŮSTANOU.`;
+  } else if (mode === 'full') {
+    body = { template: key, merge: false, keep_zones: false };
+    msg = `Nahradit VŠECHNY stoly i zóny šablonou „${nazev}"?\n\nTohle smaže současný layout (zóny i stoly).`;
+  } else {
+    body = { template: key, merge: false, keep_zones: true };
+    msg = `Přepsat rozložení stolů šablonou „${nazev}"?\n\nTvoje zóny ZŮSTANOU. Otevřené účty se zachovají.`;
+  }
   if (!confirm(msg)) return;
   try {
     const r = await api('admin_tables.php?action=apply_template', {
       method: 'POST',
-      body: JSON.stringify({ template: key, merge: false, keep_zones: keepZones }),
+      body: JSON.stringify(body),
     });
     if (r && r.ok) {
       closeModal();
-      toastSuccess(keepZones
-        ? `✅ Stoly přepsány (${r.stoly}) · zóny zachovány`
-        : `✅ Naimportováno: ${r.stoly} stolů, ${r.zones} zón`);
-      rtState.activeZoneId = null;
+      toastSuccess(
+        mode === 'add_zone' ? `✅ Přidáno ${r.stoly} stolů do zóny „${r.zone_nazev || ''}"`
+        : mode === 'full'   ? `✅ Naimportováno: ${r.stoly} stolů, ${r.zones} zón`
+        :                     `✅ Stoly přepsány (${r.stoly}) · zóny zachovány`
+      );
+      // add_zone → zůstaň v té zóně (vidíš přidané stoly); jinak reset.
+      rtState.activeZoneId = (mode === 'add_zone' && az) ? az.id : null;
       rtState.dirtyTables.clear();
       renderRestaurantTables();
     }
