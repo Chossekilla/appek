@@ -25376,6 +25376,8 @@ const I18N_PHRASES = [
   ['Jak načítat dlouhé seznamy (Objednávky, Faktury, Dodací listy, POS Účtenky) při velkém počtu záznamů.', 'How to load long lists (Orders, Invoices, Delivery notes, POS Receipts) with a large number of records.', 'Cómo cargar listas largas (Pedidos, Facturas, Albaranes, Recibos POS) con un gran número de registros.'],
   ['Načíst další (tlačítko)', 'Load more (button)', 'Cargar más (botón)'],
   ['Stránkování (čísla stránek)', 'Pagination (page numbers)', 'Paginación (números de página)'],
+  ['faktur', 'invoices', 'facturas'],
+  ['zobrazeno', 'shown', 'mostrado'],
   ['Uloží se tlačítkem „Uložit nastavení" dole. Platí pro všechna zařízení.', 'Saved with the “Save settings” button below. Applies to all devices.', 'Se guarda con el botón «Guardar configuración» de abajo. Aplica a todos los dispositivos.'],
   ['Zobrazovat na POS (KASA)', 'Show on POS (KASA)', 'Mostrar en POS (KASA)'],
   ['Vypnutím se výrobek skryje z pokladny. V katalogu / B2B zůstane.', 'Turning it off hides the product from the till. It stays in the catalog / B2B.', 'Al desactivarlo, el producto se oculta de la caja. Permanece en el catálogo / B2B.'],

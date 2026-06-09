@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.226';
+const APPEK_ADMIN_JS_VERSION = '3.0.227';
 
 (async function detectStaleCode() {
   try {
@@ -5573,7 +5573,7 @@ async function renderObjednavky(filters = {}, opts = {}) {
     <div class="page-head">
       <div>
         <h1 class="page-title">🛒 Objednávky</h1>
-        <p class="page-sub">${total} objednávek${list.length < total ? ` · zobrazeno ${list.length}` : ''}</p>
+        <p class="page-sub">${total} <span>objednávek</span>${list.length < total ? ` · <span>zobrazeno</span> ${list.length}` : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn-secondary" onclick="navigate('recurring')" title="Opakující se objednávky (cron)">🔁 Opakující</button>
@@ -5722,7 +5722,7 @@ async function renderObjednavky(filters = {}, opts = {}) {
             <input type="checkbox" id="obj-check-all-mobile"
                    onchange="objSelectAll(this.checked)"
                    style="width:18px;height:18px;cursor:pointer;accent-color:var(--primary,#BA7517)">
-            <span>Vybrat vše (${list.length})</span>
+            <span><span>Vybrat vše</span> (${list.length})</span>
           </label>
           <button class="btn-link" onclick="objClearSelection()" style="font-size:12px;padding:4px 8px">✕ Zrušit</button>
         </div>
@@ -5789,7 +5789,7 @@ function pagControlHtml(key, pg, gotoFn, moreFn) {
   const styl = state._pagStyl || 'load_more';
   const shown = pg.items.length, total = pg.total || 0;
   if (total <= shown && pg.offset === 0) return ''; // vše se vešlo, žádné ovládání netřeba
-  const info = `<span style="font-size:12px;color:var(--text-3)">Zobrazeno <strong>${shown}</strong> z <strong>${total}</strong></span>`;
+  const info = `<span style="font-size:12px;color:var(--text-3)">Zobrazeno <strong>${shown}</strong> / <strong>${total}</strong></span>`;
   if (styl === 'stranky') {
     const limit = pg.limit || 50, pages = Math.max(1, Math.ceil(total / limit)), cur = Math.floor(pg.offset / limit);
     let btns = '';
@@ -5807,7 +5807,7 @@ function pagControlHtml(key, pg, gotoFn, moreFn) {
   // load_more + infinite: tlačítko (u infinite navíc auto přes observer)
   const hasMore = shown < total;
   return `<div id="${key}-pag-more" style="display:flex;flex-direction:column;align-items:center;gap:6px;margin:16px 0">
-    ${hasMore ? `<button onclick="${moreFn}()" class="btn-secondary" style="padding:10px 22px;font-weight:700;border-radius:10px">▾ Načíst další (${Math.min(pg.limit||50, total-shown)})</button>` : ''}
+    ${hasMore ? `<button onclick="${moreFn}()" class="btn-secondary" style="padding:10px 22px;font-weight:700;border-radius:10px">▾ <span>Načíst další</span> (${Math.min(pg.limit||50, total-shown)})</button>` : ''}
     ${info}</div>`;
 }
 window.objLoadMore = function() { renderObjednavky(state._objPag.filters, { append: true }); };
@@ -9532,7 +9532,7 @@ async function renderDodaciListy(filters = {}, opts = {}) {
     <div class="page-head">
       <div>
         <h1 class="page-title">📃 Dodací listy</h1>
-        <p class="page-sub">${pg.total} dodacích listů${pg.items.length < pg.total ? ` · zobrazeno ${pg.items.length}` : ''}</p>
+        <p class="page-sub">${pg.total} <span>dodacích listů</span>${pg.items.length < pg.total ? ` · <span>zobrazeno</span> ${pg.items.length}` : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn-icon-action btn-rozvozy-action" onclick="navigate('rozvozy')" title="Rozvozové trasy — DL seskupené podle města/PSČ s pořadovými čísly zastávek pro řidiče" aria-label="Rozvozové trasy">
@@ -10482,7 +10482,7 @@ async function renderFaktury(filters = {}, opts = {}) {
     <div class="page-head">
       <div>
         <h1 class="page-title">💰 Faktury</h1>
-        <p class="page-sub">${pg.total} faktur${data.faktury.length < pg.total ? ` · zobrazeno ${data.faktury.length}` : ''}</p>
+        <p class="page-sub">${pg.total} <span>faktur</span>${data.faktury.length < pg.total ? ` · <span>zobrazeno</span> ${data.faktury.length}` : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary" onclick="faBulkTiskNahore()" title="Vytiskni vybrané (nebo všechny zobrazené, pokud nic není zaškrtnuté)">🖨️ Tisk</button>
@@ -11540,7 +11540,7 @@ async function renderVyrobky(filters = {}) {
     <div class="page-head">
       <div>
         <h1 class="page-title">📦 Výrobky</h1>
-        <p class="page-sub">${filtered.length} z ${d.vyrobky.length} výrobků</p>
+        <p class="page-sub">${filtered.length} / ${d.vyrobky.length} <span>výrobků</span></p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary" onclick="navigate('kategorie')" title="Spravovat kategorie výrobků">🏷️ Kategorie</button>
