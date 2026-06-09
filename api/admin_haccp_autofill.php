@@ -16,11 +16,17 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
-cors_headers();
-require_admin();
+
+// 🆕 v3.0.221 — soubor lze includnout jako knihovnu: `define('HACCP_AUTOFILL_LIB',1)` před
+//   require → definují se jen funkce (haccp_autofill_one / build_haccp_for_vyrobek), endpoint
+//   se nespustí. Používá admin_vyrobky.php pro auto-HACCP nového výrobku (drží provázání).
+if (!defined('HACCP_AUTOFILL_LIB')) {
+    cors_headers();
+    require_admin();
+}
 
 $pdo = db();
-$method = $_SERVER['REQUEST_METHOD'];
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $force = !empty($_GET['force']);
 
 // =============================================================
@@ -335,6 +341,47 @@ function build_haccp_for_vyrobek(array $v, string $cilovy_trh, array $grafyMapa,
 }
 
 // =============================================================
+// 🆕 v3.0.221 — auto-HACCP pro JEDEN výrobek (volá admin_vyrobky.php po vytvoření).
+//   Self-contained (rebuilds grafy mapu + cílový trh). No-op, pokud nejsou grafy.
+// =============================================================
+function haccp_autofill_one(PDO $pdo, int $vyrobekId, bool $force = false): array {
+    $st = $pdo->prepare("SELECT v.id, v.cislo, v.nazev, v.popis, v.slozeni, v.haccp_data, v.haccp_graf_id,
+                                k.nazev AS kategorie_nazev
+                         FROM vyrobky v LEFT JOIN kategorie_vyrobku k ON v.kategorie_id = k.id
+                         WHERE v.id = :id");
+    $st->execute(['id' => $vyrobekId]);
+    $row = $st->fetch();
+    if (!$row) return ['ok' => false, 'reason' => 'not_found'];
+
+    $grafyMapa = []; $grafyKrokyById = [];
+    try {
+        foreach ($pdo->query("SELECT id, nazev, kroky FROM haccp_grafy WHERE aktivni = 1")->fetchAll() as $r) {
+            $grafyMapa[$r['nazev']] = (int) $r['id'];
+            $kroky = is_string($r['kroky']) ? json_decode($r['kroky'], true) : ($r['kroky'] ?? []);
+            $grafyKrokyById[(int) $r['id']] = is_array($kroky) ? $kroky : [];
+        }
+    } catch (Throwable $e) {}
+    if (empty($grafyMapa)) return ['ok' => false, 'reason' => 'no_grafy']; // žádné šablony → nic
+
+    $cilovy = trim(nastaveni_get($pdo, 'firma_nazev', '') . ', '
+                 . nastaveni_get($pdo, 'firma_ulice', '') . ', '
+                 . nastaveni_get($pdo, 'firma_mesto', ''), ' ,');
+    $n = build_haccp_for_vyrobek($row, $cilovy, $grafyMapa, $grafyKrokyById, $force);
+    $hdJson = json_encode($n['haccp_data'], JSON_UNESCAPED_UNICODE);
+    if (!empty($n['graf_id'])) {
+        $pdo->prepare("UPDATE vyrobky SET haccp_data = :hd, haccp_graf_id = :gid WHERE id = :id")
+            ->execute(['hd' => $hdJson, 'gid' => $n['graf_id'], 'id' => $vyrobekId]);
+    } else {
+        $pdo->prepare("UPDATE vyrobky SET haccp_data = :hd WHERE id = :id")
+            ->execute(['hd' => $hdJson, 'id' => $vyrobekId]);
+    }
+    return ['ok' => true, 'graf_id' => $n['graf_id'] ?? 0, 'typ' => $n['typ'] ?? ''];
+}
+
+// === Endpoint runtime (přeskočí se v lib módu) ===
+if (!defined('HACCP_AUTOFILL_LIB')):
+
+// =============================================================
 // Načti všechny výrobky
 // =============================================================
 $vyrobky = $pdo->query("
@@ -401,3 +448,5 @@ if ($method === 'POST') {
 }
 
 json_error('Neznámá metoda', 405);
+
+endif; // 🆕 v3.0.221 — konec endpoint runtime (lib mód běží jen funkce výše)

@@ -499,6 +499,14 @@ if ($method === 'POST') {
         sync_slozeni($pdo, $new_id, $d['slozeni_polozky']);
     }
 
+    // 🆕 v3.0.221 — auto-HACCP pro nový výrobek (drží provázání: přiřadí graf + vyplní haccp_data
+    //   dle pravidel pekařské praxe). No-op, pokud nejsou naimportované grafy. Soft-fail.
+    try {
+        if (!defined('HACCP_AUTOFILL_LIB')) define('HACCP_AUTOFILL_LIB', 1);
+        require_once __DIR__ . '/admin_haccp_autofill.php';
+        if (function_exists('haccp_autofill_one')) haccp_autofill_one($pdo, $new_id, false);
+    } catch (Throwable $e) { error_log('auto-haccp create #' . $new_id . ': ' . $e->getMessage()); }
+
     json_response(['id' => $new_id], 201);
 }
 
