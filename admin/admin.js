@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.220';
+const APPEK_ADMIN_JS_VERSION = '3.0.221';
 
 (async function detectStaleCode() {
   try {
@@ -36634,11 +36634,19 @@ function haccpRenderKarty() {
   });
 
   const grafy = haccpState.grafy || [];
+  // 🆕 v3.0.221 — coverage indikátor (kolik aktivních výrobků má přiřazený HACCP graf)
+  const aktivni = (haccpState.vyrobky || []).filter(v => parseInt(v.aktivni) === 1);
+  const sGrafem = aktivni.filter(v => parseInt(v.haccp_graf_id) > 0).length;
+  const bezGrafu = aktivni.length - sGrafem;
+  const pct = aktivni.length ? Math.round(sGrafem / aktivni.length * 100) : 0;
+  const covBadge = bezGrafu === 0
+    ? `<span style="background:#DCFCE7;color:#166534;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700">✓ Všech ${aktivni.length} výrobků má HACCP graf (100 %)</span>`
+    : `<span style="background:#FEE2E2;color:#991B1B;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700">⚠️ ${bezGrafu} z ${aktivni.length} výrobků bez HACCP grafu (${pct} % pokryto)</span>`;
   return `
     <div class="card-block" style="padding:10px 14px;margin-bottom:12px;background:linear-gradient(135deg,#FFF8E7,#FEF3C7);border:1px solid #F59E0B33;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <div>
-        <strong style="color:#92400e">🪄 Auto-vyplnit HACCP karty</strong>
-        <div style="font-size:11px;color:var(--text-2);margin-top:2px">Automaticky doplní typ, skupinu, trvanlivost, popis, kritické body, jakost a mikrobio podle pravidel pekařské praxe (ČSN, EK 2073/2005). Existující ruční úpravy zachová.</div>
+        <strong style="color:#92400e">🪄 Auto-vyplnit HACCP karty</strong> ${covBadge}
+        <div style="font-size:11px;color:var(--text-2);margin-top:4px">Automaticky doplní typ, skupinu, trvanlivost, popis, kritické body, jakost a mikrobio podle pravidel pekařské praxe (ČSN, EK 2073/2005). Existující ruční úpravy zachová. Nové výrobky dostanou HACCP automaticky.</div>
       </div>
       <button class="btn-primary" onclick="haccpAutofillPreview()" style="font-size:13px;background:#F59E0B;border-color:#F59E0B">🪄 Auto-vyplnit vše</button>
     </div>
