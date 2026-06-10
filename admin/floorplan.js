@@ -85,6 +85,17 @@
     return s;
   }
 
+  // 🆕 v3.0.243 — po zápisu do DB (Použít / načtení šablony) pošli zprávu admin oknu
+  //   (openeru), ať si překreslí Stoly. Bez toho admin po návratu z editoru ukazoval
+  //   starý layout, dokud uživatel ručně nepřepnul tab. Same-origin → targetOrigin přesný.
+  function notifyAdminApplied() {
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type: 'appek_floorplan_applied' }, window.location.origin);
+      }
+    } catch (e) { /* opener z jiného originu / zavřený — nevadí */ }
+  }
+
   // ─── Modal ───────────────────────────────────────────────────
   function modal(title, bodyHtml, footHtml = '') {
     const host = $('#fp-modal');
@@ -811,6 +822,7 @@
       toast(merge ? '✓ Šablona přidána jako nová zóna' : '✓ Šablona načtena', 'success');
       // Reload from DB
       await loadFromDB();
+      notifyAdminApplied();   // 🆕 v3.0.243 — šablona zapisuje rovnou do DB → admin se musí překreslit
     } catch (e) {
       toast('Chyba: ' + e.message, 'error');
     }
@@ -871,6 +883,10 @@
       // 🆕 v3.0.202 — resync editor s DB: nové stoly/zóny dostanou dbId, takže další „Aplikovat"
       //   je UPDATEem (neduplikuje). Reload je levný a stav je po uložení konzistentní.
       await loadFromDB();
+
+      // 🆕 v3.0.243 — řekni adminu (openeru), že se floor plan změnil → admin si sám
+      //   překreslí Stoly (dřív po návratu z editoru ukazoval starý stav, dokud user nekliknul).
+      notifyAdminApplied();
 
       if (!silent) {
         const stoly = r.pocet_stolu ?? 0;

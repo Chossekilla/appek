@@ -6,6 +6,18 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.243] — 2026-06-10
+
+### 🪑 Stoly — empty state už není slepá ulička + směrování po uložení
+_User: "po smazání jde přidat jenom stůl a ne šablona nebo zóna. tohle musí být 100%. a prověř prolinkování na správné pozice i vnitřní směrování — směrování po uložení a tak."_
+
+- **Empty state „Žádné stoly"** nově nabízí 4 akce: **📋 Načíst šablonu** (nový picker přímo v adminu — vlastní šablony s „➕ Jako zónu" + předpřipravené), **➕ Nová zóna**, **🪑 Přidat stůl**, **🗺️ Editor mapy**. Dřív šel přidat jen jednotlivý stůl.
+- **Picker šablon v adminu** (`openSablonyPicker`): destruktivní „Načíst" má confirm + varování; „Jako zónu" přidá šablonu ke stávajícím zónám bez přepsání.
+- **Nová zóna z adminu** (`pridatZonu` → `zone_save`).
+- **„+ Nový stůl" ukládá zónu** — select zóny místo free-text sekce (dřív stůl vznikal bez `zone_id` → sirotek: neviděl ho floor plan ani filtr rezervací). Fallback text zůstává, když zóny nejsou.
+- **Směrování po uložení:** floorplan editor po „Použít"/načtení šablony pošle `postMessage` admin oknu → admin invaliduje cache a překreslí Stoly + toast „Floor plan aktualizován z editoru". Dřív admin po návratu z editoru ukazoval starý layout, dokud user ručně nepřepnul.
+- Prověřeno vnitřní směrování: všechny save akce (rezervace, stůl, šablona, zóna, otevírací doba) končí rerenderem na stejné pozici (tab/subview zachován); `openFloorplanWindow` fallback směruje na Stoly → mapa.
+
 ## [3.0.242] — 2026-06-10
 
 ### 🗓️ Rezervace — filtr na zóny + úprava rezervace proklikem
