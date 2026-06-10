@@ -1913,7 +1913,8 @@
       // 🆕 v3.0.219 — paging Účtenek (POS = touch → „Načíst další")
       if (!append) { State._historyItems = []; }
       const offset = append ? (State._historyItems ? State._historyItems.length : 0) : 0;
-      const d = await api('admin_pos.php?action=quick_history&date=' + encodeURIComponent(date) + '&offset=' + offset + '&limit=50');
+      const pagLimit = (CFG.pagPocet && [25, 50, 100, 200].includes(CFG.pagPocet)) ? CFG.pagPocet : 50; // 🆕 v3.0.249 — počet/stránku z nastavení
+      const d = await api('admin_pos.php?action=quick_history&date=' + encodeURIComponent(date) + '&offset=' + offset + '&limit=' + pagLimit);
       const batch = d.objednavky || [];
       State._historyItems = append ? (State._historyItems || []).concat(batch) : batch;
       State._historyTotal = Number.isFinite(d.total) ? d.total : State._historyItems.length;
@@ -2013,7 +2014,7 @@
               </table>
             </div>
             ${orders.length < State._historyTotal ? `<div style="text-align:center;margin:18px 0">
-              <button class="pos-history-day-btn" onclick="posHistoryLoadMore()" style="padding:12px 28px;font-weight:700;font-size:15px">▾ Načíst další (${Math.min(50, State._historyTotal - orders.length)})</button>
+              <button class="pos-history-day-btn" onclick="posHistoryLoadMore()" style="padding:12px 28px;font-weight:700;font-size:15px">▾ Načíst další (${Math.min(pagLimit, State._historyTotal - orders.length)})</button>
               <div style="margin-top:6px;color:#9097a3;font-size:13px">Zobrazeno ${orders.length} z ${State._historyTotal}</div>
             </div>` : ''}
           `}

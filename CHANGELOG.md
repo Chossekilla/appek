@@ -6,6 +6,12 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.249] — 2026-06-10
+
+### 📃 POS Účtenky čtou nastavení počtu řádků (dotažení)
+- POS Účtenky (quick_history) měly limit hardcoded 50 → teď čtou `pagination_pocet` z nastavení (injektnuto do `POS_CONFIG.pagPocet` z pos.php). „Načíst další" chunk respektuje zvolený počet.
+- Popisek „Dlouhé seznamy" vrácen na (Objednávky, Faktury, Dodací listy, POS Účtenky) — přesný: počet řádků platí všude, styl jen pro admin seznamy (POS vždy „Načíst další").
+
 ## [3.0.248] — 2026-06-10
 
 ### 📝 Audit informačních popisků

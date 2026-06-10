@@ -331,6 +331,8 @@ $csrfToken  = csrf_token();
     apiBase:    '../api/',  // 🐛 v3.0.9 fix: relativní (předtím absolutní '/api/' = 404 na subdirectory hostingu)
     locale:     'cs-CZ',
     currency:   'Kč',
+    // 🆕 v3.0.249 — počet řádků na stránku (sdíleno s admin nastavením „Dlouhé seznamy")
+    pagPocet:   <?= (function () { $p = (int) (function_exists('nastaveni') ? (nastaveni()['pagination_pocet'] ?? 50) : 50); return in_array($p, [25, 50, 100, 200], true) ? $p : 50; })() ?>,
   };
 </script>
 </head>
