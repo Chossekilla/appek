@@ -37,9 +37,12 @@ $datum_do = $_GET['datum_do'] ?? null;
 })();
 
 // Hlavní statistika za zvolené období
+// 🐛 v3.0.230 — tržby NEPOČÍTAJÍ zrušené objednávky (dřív SUM přes všechny stavy
+// → dashboard "milion" vs POS kasa 0; zrušené nafukovaly tržby, graf i top odběratele).
+// Počty objednávek zrušené dál zahrnují — breakdown je ukazuje explicitně (zrusenych).
 $stmt = $pdo->prepare("
     SELECT COUNT(*) AS objednavek,
-           COALESCE(SUM(castka_celkem), 0) AS trzby,
+           COALESCE(SUM(CASE WHEN stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS trzby,
            SUM(CASE WHEN stav = 'nova'      THEN 1 ELSE 0 END) AS novych,
            SUM(CASE WHEN stav = 'dorucena'  THEN 1 ELSE 0 END) AS dorucenych,
            SUM(CASE WHEN stav = 'zrusena'   THEN 1 ELSE 0 END) AS zrusenych,
@@ -53,10 +56,37 @@ $obdobi_stats = $stmt->fetch();
 $dny_v_obdobi = max(1, (strtotime($do) - strtotime($od)) / 86400 + 1);
 $obdobi_stats['prumerne_denne'] = round($obdobi_stats['trzby'] / $dny_v_obdobi, 2);
 
+// 🆕 v3.0.230 — tržby podle kanálu (puvod) za období: dashboard ukáže, Z ČEHO se
+// celková tržba skládá (POS pokladna vs B2B vs interní…) — provázané s kanálovým
+// registrem (kanal_meta). Odpovídá na "proč dashboard X a POS kasa Y".
+$stmt = $pdo->prepare("
+    SELECT COALESCE(puvod,'interni') AS puvod,
+           COUNT(*) AS objednavek,
+           COALESCE(SUM(CASE WHEN stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS trzby
+    FROM objednavky
+    WHERE DATE(datum_objednani) BETWEEN :od AND :do
+    GROUP BY COALESCE(puvod,'interni')
+    ORDER BY trzby DESC
+");
+$stmt->execute(['od' => $od, 'do' => $do]);
+$trzby_kanaly = [];
+foreach ($stmt->fetchAll() as $rk) {
+    $meta = function_exists('kanal_meta') ? kanal_meta($pdo, $rk['puvod']) : null;
+    $trzby_kanaly[] = [
+        'puvod'      => $rk['puvod'],
+        'label'      => $meta['label'] ?? $rk['puvod'],
+        'ikona'      => $meta['ikona'] ?? '•',
+        'barva'      => $meta['barva'] ?? '#6B7280',
+        'pokladni'   => (int) ($meta['pokladni'] ?? 0),
+        'objednavek' => (int) $rk['objednavek'],
+        'trzby'      => (float) $rk['trzby'],
+    ];
+}
+
 // Vždy: dnes + po splatnosti
 $dnes = $pdo->query("
     SELECT COUNT(*) AS objednavek,
-           COALESCE(SUM(castka_celkem), 0) AS trzby
+           COALESCE(SUM(CASE WHEN stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS trzby
     FROM objednavky
     WHERE DATE(datum_objednani) = CURDATE()
 ")->fetch();
@@ -71,7 +101,7 @@ $po_splatnosti = $pdo->query("
 $stmt = $pdo->prepare("
     SELECT DATE(datum_objednani) AS den,
            COUNT(*) AS objednavek,
-           COALESCE(SUM(castka_celkem), 0) AS trzby
+           COALESCE(SUM(CASE WHEN stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS trzby
     FROM objednavky
     WHERE DATE(datum_objednani) BETWEEN :od AND :do
     GROUP BY DATE(datum_objednani)
@@ -88,6 +118,7 @@ $stmt = $pdo->prepare("
     FROM objednavky o
     JOIN odberatele od ON od.id = o.odberatel_id
     WHERE DATE(o.datum_objednani) BETWEEN :od AND :do
+      AND o.stav <> 'zrusena'
     GROUP BY od.id, od.nazev
     ORDER BY trzba DESC
     LIMIT 5
@@ -318,6 +349,7 @@ json_response([
     'dny_v_obdobi'  => (int) $dny_v_obdobi,
 
     'obdobi_stats'  => $obdobi_stats,
+    'trzby_kanaly'  => $trzby_kanaly,
     'dnes'          => $dnes,
     'po_splatnosti' => $po_splatnosti,
     'alerts'        => $alerts,

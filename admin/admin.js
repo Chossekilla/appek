@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.229';
+const APPEK_ADMIN_JS_VERSION = '3.0.230';
 
 (async function detectStaleCode() {
   try {
@@ -4936,6 +4936,14 @@ async function renderDashboard(filters = {}) {
         <div class="stat-label">💰 Tržby ${obdobiLabel}</div>
         <div class="stat-value stat-value-lg">${fmt(d.obdobi_stats.trzby)}</div>
         ${d.dny_v_obdobi > 1 ? `<div class="stat-sub">⌀ ${fmt(d.obdobi_stats.prumerne_denne)} / den</div>` : '<div class="stat-sub">&nbsp;</div>'}
+        ${(Array.isArray(d.trzby_kanaly) && d.trzby_kanaly.filter(k => +k.trzby > 0).length > 1) ? `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+          ${d.trzby_kanaly.filter(k => +k.trzby > 0).slice(0, 6).map(k => `
+            <span title="${esc(k.label)}: ${k.objednavek}× · ${k.pokladni ? 'pokladní prodej (teče do POS kasy)' : 'mimo POS kasu'}"
+                  style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:color-mix(in srgb, ${esc(k.barva)} 14%, transparent);color:var(--text-1);border:1px solid color-mix(in srgb, ${esc(k.barva)} 35%, transparent)">
+              <span style="width:8px;height:8px;border-radius:50%;background:${esc(k.barva)};flex-shrink:0"></span>${k.ikona ? esc(k.ikona) + ' ' : ''}${esc(k.label)} · ${fmt(+k.trzby)}${k.pokladni ? ' 🧾' : ''}
+            </span>`).join('')}
+        </div>` : ''}
         ${(d.casovy_graf && d.casovy_graf.length >= 2) ? `<div class="stat-spark">${sparklineSVG(d.casovy_graf.map(r => +r.trzby), {h: 32, color: 'var(--primary)'})}</div>` : ''}
       </div>
       <!-- Row 1: Dnes objednávek 25% -->
