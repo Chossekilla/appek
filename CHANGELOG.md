@@ -6,6 +6,15 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.239] — 2026-06-10
+
+### 🔄 POS — detekce nové verze (konec „zaseklé staré UI")
+_User: horní taby (KASA/Stoly…) pořád hranaté, ne oválné — přitom oválný CSS byl nasazený (v3.0.234). Příčina: starý service worker admin SPA (scope /admin/) servíroval starou `pos.css` z cache i přes `?v=` bump._
+
+- `pos.js` nově při startu (+ každých 5 min) porovná načtenou verzi (`POS_CONFIG.version`, server-rendered) s živou `api/version.php`. Při neshodě ukáže banner **„🆕 Nová verze X — klikni pro obnovení"**.
+- Obnovení **odregistruje service worker + smaže všechny caches** → spolehlivě probije i zaseklý starý SW (ne jen `location.reload`). POS dosud neměl stale-detektor, který admin SPA má.
+- Oválné taby (`.pos-tab-h` border-radius 999px) byly korektně nasazené už ve v3.0.234 — ověřeno, že živé `pos.css?v=` je obsahuje; šlo čistě o klientskou cache.
+
 ## [3.0.238] — 2026-06-10
 
 ### 🚨 Inode kvóta — oprava úniku v self-update (KRITICKÉ)
