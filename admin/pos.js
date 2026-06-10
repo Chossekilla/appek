@@ -2374,5 +2374,47 @@
     window.addEventListener('online', updateOnline);
     window.addEventListener('offline', updateOnline);
     updateOnline();
+    // 🆕 v3.0.239 — detekce nové verze (POS dosud neměl stale-detektor jako admin SPA →
+    //   po deploji zůstával na staré cache/SW, dokud uživatel ručně tvrdě-neobnovil).
+    setTimeout(posCheckVersion, 3000);
+    setInterval(posCheckVersion, 300000);
   });
+
+  // 🆕 v3.0.239 — porovnej načtenou verzi (CFG.version, server-rendered) s živou
+  //   api/version.php; při neshodě nabídni obnovení. posForceReload navíc ODREGISTRUJE
+  //   service worker + smaže caches → spolehlivě probije i zaseklý starý SW (root cause
+  //   "horní taby pořád hranaté" — stará pos.css ze SW cache i přes ?v= bump).
+  async function posCheckVersion() {
+    try {
+      const r = await fetch(CFG.apiBase + 'version.php?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const j = await r.json();
+      const live = String(j.build_version || j.version || '').replace(/[^0-9.\-a-z]/gi, '');
+      if (live && CFG.version && live !== CFG.version) posShowUpdateBanner(live);
+    } catch (e) { /* offline → ignoruj */ }
+  }
+  function posShowUpdateBanner(live) {
+    if (document.getElementById('pos-update-banner')) return;
+    const b = document.createElement('div');
+    b.id = 'pos-update-banner';
+    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:99999;'
+      + 'background:#BA7517;color:#fff;padding:13px 22px;border-radius:999px;font-weight:700;font-size:15px;'
+      + 'box-shadow:0 8px 28px rgba(0,0,0,0.28);cursor:pointer;display:flex;gap:10px;align-items:center';
+    b.textContent = '🆕 Nová verze ' + live + ' — klikni pro obnovení';
+    b.onclick = posForceReload;
+    document.body.appendChild(b);
+  }
+  async function posForceReload() {
+    try {
+      if (navigator.serviceWorker) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if (window.caches) {
+        const ks = await caches.keys();
+        await Promise.all(ks.map(k => caches.delete(k)));
+      }
+    } catch (e) { /* nevadí */ }
+    location.reload(true);
+  }
 })();
