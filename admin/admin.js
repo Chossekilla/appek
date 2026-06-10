@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.242';
+const APPEK_ADMIN_JS_VERSION = '3.0.243';
 
 (async function detectStaleCode() {
   try {
@@ -17420,10 +17420,18 @@ async function renderRestaurantTables() {
   `;
 
   if (stoly.length === 0) {
+    // 🆕 v3.0.243 — empty state nesmí být slepá ulička: dřív šel přidat JEN stůl,
+    //   šablona/zóna ne (user po smazání všeho neměl jak obnovit layout bez editoru).
     document.getElementById('rt-body').innerHTML = emptyState({
       icon: '🪑', title: 'Žádné stoly',
-      msg: 'Přidej první stůl. Můžeš nastavit počet míst, sekci (např. terasa / hlavní sál), polohu.',
-      actions: '<button class="btn-primary btn-green" onclick="addRestaurantTable()">+ Přidat první stůl</button>',
+      msg: 'Začni šablonou (hotový layout restaurace na 1 klik), nebo si vytvoř zónu a stoly ručně.',
+      actions: `
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+          <button class="btn-primary btn-green" onclick="openSablonyPicker()">📋 Načíst šablonu</button>
+          <button class="btn-secondary" onclick="pridatZonu()">➕ Nová zóna</button>
+          <button class="btn-secondary" onclick="addRestaurantTable()">🪑 Přidat stůl</button>
+          <button class="btn-secondary" onclick="window.open('floorplan.php','appek_fp','width='+screen.availWidth+',height='+screen.availHeight+',toolbar=no,menubar=no')">🗺️ Editor mapy</button>
+        </div>`,
     });
     return;
   }
@@ -19701,6 +19709,82 @@ window.zrusitRezervaci = async function(id) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
+// 🆕 v3.0.243 — picker šablon floor planu přímo v adminu (dřív jen ve floorplan editoru;
+//   po smazání všech stolů byl admin slepá ulička — šlo přidat jen jednotlivý stůl).
+window.openSablonyPicker = async function() {
+  let builtin = [], user = [];
+  try { builtin = (await api('admin_tables.php?action=templates')).templates || []; } catch (e) {}
+  try { user = (await api('admin_tables.php?action=user_templates')).templates || []; } catch (e) {}
+  const maStoly = (state._rtStolyCache || []).length > 0;
+  const row = (ikona, nazev, popis, akce) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)">
+      <span style="font-size:22px">${ikona}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13.5px">${nazev}</div>
+        <div style="font-size:11.5px;color:var(--text-3)">${popis}</div>
+      </div>
+      <div style="display:flex;gap:6px">${akce}</div>
+    </div>`;
+  const userHtml = user.length ? user.map(t => row(
+    esc(t.ikona || '🗺️'), esc(t.nazev),
+    `${esc(t.popis || '')} · ${t.pocet_stolu || 0} stolů, ${t.pocet_zon || 0} zón`,
+    `<button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="adminApplySablona(${t.id},'user',true)" title="Přidá zóny šablony ke stávajícím — nic nepřepíše">➕ Jako zónu</button>
+     <button class="btn-primary" style="font-size:12px;padding:6px 12px" onclick="adminApplySablona(${t.id},'user',false)">📥 Načíst</button>`
+  )).join('') : '';
+  const builtinHtml = builtin.map(t => row(
+    esc(t.ikona || '🍕'), esc(t.nazev || t.key),
+    `${esc(t.popis || '')} · předpřipravená šablona`,
+    `<button class="btn-primary" style="font-size:12px;padding:6px 12px" onclick="adminApplySablona('${esc(t.key)}','builtin',false)">📥 Načíst</button>`
+  )).join('');
+  openModal('📋 Šablony floor planu', `
+    ${maStoly ? `<div style="margin-bottom:12px;padding:10px 14px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;font-size:12.5px;color:#92400E">⚠️ „Načíst" přepíše aktuální rozložení (stoly zůstanou v historii). „➕ Jako zónu" přidá šablonu ke stávajícím zónám.</div>` : ''}
+    ${user.length ? `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:700;margin-bottom:8px">Vlastní šablony</div><div style="display:grid;gap:8px;margin-bottom:16px">${userHtml}</div>` : ''}
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:700;margin-bottom:8px">Předpřipravené</div>
+    <div style="display:grid;gap:8px">${builtinHtml || '<div style="color:var(--text-3);padding:14px">Žádné šablony.</div>'}</div>
+  `, 'wide');
+};
+
+window.adminApplySablona = async function(idOrKey, kind, merge) {
+  const maStoly = (state._rtStolyCache || []).length > 0;
+  if (!merge && maStoly && !(await confirmDialog({ title: 'Přepsat floor plan?', msg: 'Načtení šablony nahradí všechny aktuální zóny i stoly (zůstanou v historii, rezervace se nemažou).', danger: true, okText: 'Načíst šablonu' }))) return;
+  try {
+    const action = (kind === 'user') ? 'apply_user_template' : 'apply_template';
+    const body = (kind === 'user') ? { id: idOrKey, merge: !!merge } : { template: idOrKey, merge: !!merge };
+    await api('admin_tables.php?action=' + action, { method: 'POST', body: JSON.stringify(body) });
+    closeModal();
+    toastSuccess(merge ? '✓ Šablona přidána jako nové zóny' : '✓ Šablona načtena');
+    renderRestaurantTables();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v3.0.243 — SMĚROVÁNÍ PO ULOŽENÍ: floorplan editor (samostatné okno) po „Použít"
+//   nebo načtení šablony pošle postMessage → admin si invaliduje cache a překreslí
+//   Stoly. Dřív admin po návratu z editoru ukazoval starý layout, dokud user nekliknul.
+window.addEventListener('message', (ev) => {
+  if (ev.origin !== window.location.origin) return;            // jen vlastní okna
+  if (!ev.data || ev.data.type !== 'appek_floorplan_applied') return;
+  try {
+    apiCacheInvalidate('admin_tables');
+    if (state.current === 'pkg_restaurace' && document.getElementById('rt-body')) {
+      renderRestaurantTables();
+      toastInfo('🗺️ Floor plan aktualizován z editoru');
+    }
+  } catch (e) { /* stránka zrovna není na Stolech — refresh proběhne při příchodu */ }
+});
+
+// 🆕 v3.0.243 — nová zóna přímo z adminu (dřív jen ve floorplan editoru)
+window.pridatZonu = async function() {
+  const nazev = prompt('Název nové zóny (např. Terasa, Salonek):', '');
+  if (nazev === null) return;
+  const n = nazev.trim();
+  if (!n) return toastInfo('Název zóny nesmí být prázdný');
+  try {
+    await api('admin_tables.php?action=zone_save', { method: 'POST', body: JSON.stringify({ nazev: n }) });
+    toastSuccess(`✓ Zóna „${n}" vytvořena — přidej do ní stoly`);
+    renderRestaurantTables();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
 // 🆕 v3.0.201 — Editor otevírací doby (po dnech v týdnu). Kalendář rezervací se podle ní přizpůsobí.
 window.editOpeningHours = function() {
   const DNY = ['Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota', 'Neděle'];
@@ -19758,6 +19842,20 @@ window.saveOpeningHours = async function() {
 };
 
 window.addRestaurantTable = async function() {
+  // 🆕 v3.0.243 — výběr zóny místo free-text sekce (stůl dřív vznikal BEZ zone_id →
+  //   sirotek mimo zóny: neviděl ho floor plan ani filtr rezervací). Fallback text
+  //   zůstává jen pro instalace bez zón.
+  const zones = state._rtZones || [];
+  const zonaField = zones.length
+    ? `<div><label class="form-label">Zóna</label>
+         <select class="form-input" id="rt-zona">
+           ${zones.map((z, i) => `<option value="${z.id}" ${i === 0 ? 'selected' : ''}>${esc(`${z.ikona || ''} ${z.nazev}`.trim())}</option>`).join('')}
+           <option value="">— bez zóny —</option>
+         </select>
+       </div>`
+    : `<div><label class="form-label">Sekce</label>
+         <input class="form-input" id="rt-sekce" placeholder="např. Terasa, Hlavní sál, Salonek">
+       </div>`;
   openModal('+ Nový stůl', `
     <div class="form-grid form-grid-tight">
       <div><label class="form-label">Název *</label>
@@ -19766,9 +19864,7 @@ window.addRestaurantTable = async function() {
       <div><label class="form-label">Počet míst</label>
         <input type="number" class="form-input" id="rt-mist" value="4" min="1" max="20">
       </div>
-      <div><label class="form-label">Sekce</label>
-        <input class="form-input" id="rt-sekce" placeholder="např. Terasa, Hlavní sál, Salonek">
-      </div>
+      ${zonaField}
       <div><label class="form-label">Tvar</label>
         <select class="form-input" id="rt-tvar">
           <option value="square">⬜ Čtverec</option>
@@ -19787,11 +19883,15 @@ window.addRestaurantTable = async function() {
 window.saveRestaurantTable = async function() {
   const nazev = document.getElementById('rt-nazev')?.value?.trim();
   if (!nazev) { alert('Vyplň název.'); return; }
+  const zonaSel = document.getElementById('rt-zona');
+  const zoneId = zonaSel ? (parseInt(zonaSel.value) || null) : null;
+  const zona = zoneId ? (state._rtZones || []).find(z => z.id === zoneId) : null;
   try {
     await api('admin_tables.php', { method: 'POST', body: JSON.stringify({
       nazev,
       mist: parseInt(document.getElementById('rt-mist').value) || 2,
-      sekce: document.getElementById('rt-sekce').value.trim() || null,
+      zone_id: zoneId,
+      sekce: zona ? zona.nazev : (document.getElementById('rt-sekce')?.value?.trim() || null),
       tvar: document.getElementById('rt-tvar').value,
     })});
     closeModal();
