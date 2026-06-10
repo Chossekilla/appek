@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.232';
+const APPEK_ADMIN_JS_VERSION = '3.0.233';
 
 (async function detectStaleCode() {
   try {
@@ -6442,6 +6442,21 @@ window.vytvoritFakturu = async function(objednavka_id) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
+// 🆕 v3.0.233 — Vystavit fakturu přímo z dodacího listu (i ruční DL bez objednávky).
+window.vytvoritFakturuZDL = async function(dlId, objednavkaId) {
+  if (!confirm('Vystavit fakturu z tohoto dodacího listu?')) return;
+  try {
+    const payload = objednavkaId ? { objednavka_id: objednavkaId } : { dodaci_list_id: dlId };
+    const res = await api(`faktura.php?action=vytvor`, { method: 'POST', body: JSON.stringify(payload) });
+    apiCacheInvalidate('admin_dodaci_listy'); apiCacheInvalidate('admin_faktury'); // fresh stav po fakturaci
+    closeModal();
+    if (res.existing) toastSuccess('Faktura už existuje — otevírám ji.', 'Hotovo');
+    else toastSuccess(`Faktura ${res.cislo || ''} vystavena.`, '✅ Vyfakturováno');
+    window.open(`../api/faktura.php?id=${res.faktura_id}`, '_blank');
+    navigate('faktury');
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
 // =============================================================
 // NOVÁ OBJEDNÁVKA — stateful modal (stejný layout jako Ruční DL/FA)
 // =============================================================
@@ -10417,7 +10432,10 @@ window.openDodaciListDetail = async function(id) {
         </div>
         <!-- "Zavřít" smazáno v v2.5.11 — × v rohu modal-card stačí (větší klikací plocha) -->
         <div style="flex:1"></div>
-        <a href="${dlPdfUrl(dl)}" target="_blank" class="btn-primary" style="text-decoration:none">📃 Otevřít PDF</a>
+        <a href="${dlPdfUrl(dl)}" target="_blank" class="btn-secondary" style="text-decoration:none">📃 PDF</a>
+        ${dl.faktury.length > 0
+          ? `<button class="btn-primary" onclick="closeModal();openFakturaDetail(${dl.faktury[0].id})">💰 Otevřít fakturu ${esc(dl.faktury[0].cislo)}</button>`
+          : `<button class="btn-primary btn-green" onclick="vytvoritFakturuZDL(${dl.id}, ${dl.objednavka_id || 'null'})">💰 Vystavit fakturu</button>`}
       </div>
     `, 'wide');
   } catch (e) {
