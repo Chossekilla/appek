@@ -2045,10 +2045,15 @@ html.dark .orders-list .order-card:nth-child(even) { background: var(--surface-2
   align-items: center;
   gap: 4px;
 }
-/* +/− tlačítka — větší, fixní úzká; množství je ještě vyšší (dominantní) */
+/* 🆕 v3.0.250 — qty stepper PLNĚ RESPONZIVNÍ. Dřív qty-btn flex:0 0 36px (fixní) →
+   při úzké kartě (5 sloupců) tlačítka sežrala místo a input s množstvím zkolaboval na 0
+   (číslo zmizelo). Teď: base shrinkovatelný (funguje všude) + container-query scaling
+   (velikost přesně dle šířky karty) → číslo množství je VŽDY čitelné. */
+.card-qty-row { gap: 4px; }
 .card-qty-row .qty-btn {
-  flex: 0 0 36px !important;
-  width: 36px !important;
+  flex: 0 1 36px !important;
+  width: auto !important;
+  min-width: 22px !important;
   height: 42px !important;
   font-size: 18px !important;
   font-weight: 700 !important;
@@ -2060,14 +2065,31 @@ html.dark .orders-list .order-card:nth-child(even) { background: var(--surface-2
 }
 .card-qty-row .qty-input {
   flex: 1 1 auto !important;
-  height: 50px !important;        /* o ~8 px vyšší než tlačítka — počet kusů dominuje */
-  font-size: 22px !important;
+  width: auto !important;
+  min-width: 28px !important;     /* číslo se NIKDY nezkolabuje */
+  height: 50px !important;        /* vyšší než tlačítka — počet kusů dominuje */
+  font-size: 20px !important;
   font-weight: 800 !important;
   border-radius: 10px !important;
   border: 2px solid var(--primary-border) !important;
   background: var(--surface) !important;
   color: var(--text) !important;
-  min-width: 0 !important;
+  padding: 0 2px !important;
+}
+/* Container queries — škáluje qty stepper přesně dle šířky karty (best-in-class responzivita) */
+@supports (container-type: inline-size) {
+  .card { container-type: inline-size; }
+  .card-qty-row { gap: clamp(2px, 2cqi, 5px); }
+  .card-qty-row .qty-btn {
+    flex: 0 0 auto !important;
+    width: clamp(20px, 25cqi, 40px) !important;
+    height: clamp(34px, 30cqi, 46px) !important;
+    font-size: clamp(15px, 14cqi, 20px) !important;
+  }
+  .card-qty-row .qty-input {
+    height: clamp(38px, 34cqi, 50px) !important;
+    font-size: clamp(15px, 17cqi, 22px) !important;
+  }
 }
 
 /* Editovatelný input množství */
