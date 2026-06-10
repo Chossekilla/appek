@@ -6,6 +6,10 @@ require_admin();
 
 $pdo = db();
 
+// 🐛 v3.0.235 — jednorázový backfill puvod + datum_objednani (b2b objednávky měly 0000-00-00
+// → mizely z přehledu). Guarded flagem, takže po 1. běhu jen levný nastaveni_get.
+if (function_exists('kanaly_backfill_once')) kanaly_backfill_once($pdo);
+
 // =============================================================
 // Vstup: obdobi (dnes|tyden|mesic|rok|vlastni) + datum_od / datum_do
 // =============================================================
