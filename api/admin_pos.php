@@ -1511,14 +1511,15 @@ if ($method === 'GET' && $action === 'quick_history') {
         $st->execute(['d' => $date, 'd_next' => $date_next]);
         $orders = $st->fetchAll(PDO::FETCH_ASSOC);
 
-        // Souhrn dne
+        // Souhrn dne — 🐛 v3.0.230: částky (tržby/tip/hotově/karta) NEPOČÍTAJÍ zrušené;
+        // počet a typy zůstávají vč. zrušených (provozní přehled, storno je vidět v seznamu).
         $sum = $pdo->prepare("
             SELECT
                 COUNT(*) AS pocet,
-                COALESCE(SUM(castka_celkem), 0) AS tržby,
-                COALESCE(SUM(pos_tip), 0) AS tip_sum,
-                COALESCE(SUM(CASE WHEN pos_payment='hotove' THEN castka_celkem ELSE 0 END), 0) AS hotove,
-                COALESCE(SUM(CASE WHEN pos_payment='karta'  THEN castka_celkem ELSE 0 END), 0) AS karta,
+                COALESCE(SUM(CASE WHEN stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS tržby,
+                COALESCE(SUM(CASE WHEN stav <> 'zrusena' THEN pos_tip ELSE 0 END), 0) AS tip_sum,
+                COALESCE(SUM(CASE WHEN pos_payment='hotove' AND stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS hotove,
+                COALESCE(SUM(CASE WHEN pos_payment='karta'  AND stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS karta,
                 COALESCE(SUM(CASE WHEN pos_typ='sebou'      THEN 1 ELSE 0 END), 0) AS pocet_sebou,
                 COALESCE(SUM(CASE WHEN pos_typ='na_miste'   THEN 1 ELSE 0 END), 0) AS pocet_na_miste,
                 COALESCE(SUM(CASE WHEN pos_typ='rozvoz'     THEN 1 ELSE 0 END), 0) AS pocet_rozvoz,
@@ -1640,7 +1641,7 @@ function pos_uzaverka_data(PDO $pdo, string $date): array {
         $tw = $pdo->prepare("
             SELECT COALESCE(NULLIF(pos_uzivatel,''),'(bez obsluhy)') AS obsluha, pos_payment, castka_celkem, COALESCE(pos_tip,0) AS tip
             FROM objednavky
-            WHERE {$pokIn} AND datum_objednani >= :d AND datum_objednani < :dn
+            WHERE {$pokIn} AND stav <> 'zrusena' AND datum_objednani >= :d AND datum_objednani < :dn
         ");
         $tw->execute(['d' => $date, 'dn' => $dNext]);
         foreach ($tw->fetchAll() as $r) {
@@ -1766,14 +1767,14 @@ if ($method === 'GET' && $action === 'launcher_summary') {
         $pokIn  = pos_pokladni_sql($pdo);          // 🆕 v3.0.212
         $pokInO = pos_pokladni_sql($pdo, 'o.puvod');
 
-        // Souhrn dne (kompaktní)
+        // Souhrn dne (kompaktní) — 🐛 v3.0.230: částky bez zrušených
         $sum = $pdo->prepare("
             SELECT
                 COUNT(*) AS pocet,
-                COALESCE(SUM(castka_celkem), 0) AS trzby,
-                COALESCE(SUM(pos_tip), 0) AS tipy,
-                COALESCE(SUM(CASE WHEN pos_payment='hotove' THEN castka_celkem ELSE 0 END), 0) AS hotove,
-                COALESCE(SUM(CASE WHEN pos_payment='karta'  THEN castka_celkem ELSE 0 END), 0) AS karta
+                COALESCE(SUM(CASE WHEN stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS trzby,
+                COALESCE(SUM(CASE WHEN stav <> 'zrusena' THEN pos_tip ELSE 0 END), 0) AS tipy,
+                COALESCE(SUM(CASE WHEN pos_payment='hotove' AND stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS hotove,
+                COALESCE(SUM(CASE WHEN pos_payment='karta'  AND stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS karta
             FROM objednavky
             WHERE {$pokIn} AND datum_objednani >= :d AND datum_objednani < :d_next
         ");
@@ -1799,7 +1800,7 @@ if ($method === 'GET' && $action === 'launcher_summary') {
                    SUM(p.mnozstvi * COALESCE(p.cena_bez_dph, 0) * (1 + COALESCE(p.sazba_dph, 0) / 100)) AS trzba_sum
             FROM objednavky_polozky p
             JOIN objednavky o ON o.id = p.objednavka_id
-            WHERE {$pokInO} AND o.datum_objednani >= :d AND o.datum_objednani < :d_next
+            WHERE {$pokInO} AND o.stav <> 'zrusena' AND o.datum_objednani >= :d AND o.datum_objednani < :d_next
               AND p.vyrobek_nazev IS NOT NULL
             GROUP BY p.vyrobek_nazev, p.vyrobek_id
             ORDER BY mnozstvi_sum DESC, trzba_sum DESC
