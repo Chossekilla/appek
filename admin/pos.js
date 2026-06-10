@@ -430,6 +430,46 @@
       $tr.style.display = State.pos_tip > 0 ? 'flex' : 'none';
       if (State.pos_tip > 0) $('#pos-tip-abs').textContent = fmt(State.pos_tip);
     }
+    // 🆕 v3.0.240 — aktualizuj mobilní lištu / přepínač
+    updateMobileBar(total, State.cart.reduce((s, it) => s + (parseFloat(it.mnozstvi) || 0), 0));
+  }
+
+  // ─── 🆕 v3.0.240 — Mobilní košík (režim 'bar' / 'toggle') ─────
+  function mcartMode() {
+    const m = localStorage.getItem('pos_mcart_mode');
+    return (m === 'toggle' || m === 'bar') ? m : 'bar';   // výchozí = lišta
+  }
+  function applyMcartMode() {
+    const mode = mcartMode();
+    document.body.classList.toggle('pos-mc-bar', mode === 'bar');
+    document.body.classList.toggle('pos-mc-toggle', mode === 'toggle');
+    if (mode !== 'toggle') document.body.classList.remove('mview-cart');
+  }
+  function setMcartMode(mode) {
+    try { localStorage.setItem('pos_mcart_mode', mode); } catch (e) {}
+    cartClose();
+    applyMcartMode();
+    toast(mode === 'toggle' ? 'Mobilní košík: přepínač Produkty/Košík' : 'Mobilní košík: spodní lišta', 'success');
+  }
+  function cartOpen() {
+    $('#pos-cart-panel')?.classList.add('is-open');
+    $('#pos-cart-backdrop')?.classList.add('is-open');
+    if (mcartMode() === 'toggle') { document.body.classList.add('mview-cart'); syncMswitch('cart'); }
+  }
+  function cartClose() {
+    $('#pos-cart-panel')?.classList.remove('is-open');
+    $('#pos-cart-backdrop')?.classList.remove('is-open');
+    document.body.classList.remove('mview-cart');
+    syncMswitch('products');
+  }
+  function mobileView(v) { v === 'cart' ? cartOpen() : cartClose(); }
+  function syncMswitch(v) {
+    document.querySelectorAll('#pos-mswitch button').forEach(b => b.classList.toggle('is-active', b.dataset.mv === v));
+  }
+  function updateMobileBar(total, count) {
+    const c = $('#pos-bar-count'); if (c) c.textContent = count || 0;
+    const t = $('#pos-bar-total'); if (t) t.textContent = fmt(total || 0) + ' ' + (CFG.currency || 'Kč');
+    const mc = $('#pos-mswitch-count'); if (mc) mc.textContent = count || 0;
   }
 
   // ─── Search ──────────────────────────────────────────────────
@@ -568,16 +608,26 @@
     m = document.createElement('div');
     m.className = 'pos-pay-menu pos-cart-menu';
     m.style.cssText = 'position:absolute;right:14px;top:54px;z-index:99';
+    const mode = mcartMode();
     m.innerHTML = `
       <button class="pos-pay-opt" data-act="discount">💰 Sleva %</button>
       <button class="pos-pay-opt" data-act="tip">💵 Spropitné</button>
       <button class="pos-pay-opt" data-act="note">💬 Poznámka</button>
       <button class="pos-pay-opt" data-act="clear">🗑️ Vyprázdnit košík</button>
+      <div class="pos-menu-sep">📂 Navigace</div>
+      <button class="pos-pay-opt" data-nav="products">🧾 KASA</button>
+      <button class="pos-pay-opt" data-nav="tables">🪑 Stoly</button>
+      <button class="pos-pay-opt" data-nav="orders">📜 Účtenky</button>
+      <button class="pos-pay-opt" data-nav="reports">📊 Statistiky</button>
+      <button class="pos-pay-opt" data-nav="uzaverka">🧮 Uzávěrka</button>
+      <div class="pos-menu-sep">📱 Mobilní košík</div>
+      <button class="pos-pay-opt" data-mcart="bar">${mode === 'bar' ? '✓ ' : '   '}Spodní lišta</button>
+      <button class="pos-pay-opt" data-mcart="toggle">${mode === 'toggle' ? '✓ ' : '   '}Přepínač Produkty/Košík</button>
     `;
     $('#pos-cart-panel').appendChild(m);
     m.querySelectorAll('.pos-pay-opt').forEach(b => {
       b.onclick = () => {
-        const a = b.dataset.act;
+        const a = b.dataset.act, nav = b.dataset.nav, mc = b.dataset.mcart;
         m.remove();
         if (a === 'discount') askDiscount();
         if (a === 'tip')      askTip();
@@ -585,6 +635,8 @@
         if (a === 'clear') {
           if (confirm('Smazat celý košík?')) { State.cart = []; renderCart(); }
         }
+        if (nav) { cartClose(); setActiveTab(nav); }
+        if (mc)  setMcartMode(mc);
       };
     });
     setTimeout(() => {
@@ -628,6 +680,7 @@
     setPay('hotove');
     _pickCust(null);
     renderCart();
+    cartClose();   // 🆕 v3.0.240 — na mobilu zavři výsuvný košík zpět na produkty
   }
   // Externí "Nová objednávka" tlačítko — ptá se před vymazáním plného košíku
   function newOrder() {
@@ -1239,6 +1292,10 @@
     _addCustomItem: addCustomItem,
     state:         State,
     reload:        loadCatalog,
+    cartOpen:      cartOpen,        // 🆕 v3.0.240 — mobilní košík
+    cartClose:     cartClose,
+    mobileView:    mobileView,
+    setMcartMode:  setMcartMode,
   };
 
   // ─── Tab switching (Produkty / Účtenky / Statistiky) ─────────
@@ -1252,11 +1309,14 @@
     let panel = document.getElementById('pos-tab-content');
     if (tab === 'products') {
       // Show products + cart
+      document.body.classList.remove('pos-tab-alt');   // 🆕 v3.0.240 — povol mobilní lištu/přepínač
       if (products) products.style.display = '';
       if (cart) cart.style.display = '';
       if (panel) panel.remove();
     } else {
       // Hide products+cart, render alternate panel
+      document.body.classList.add('pos-tab-alt');       // 🆕 v3.0.240 — skryj mobilní lištu/přepínač mimo KASU
+      cartClose();
       if (products) products.style.display = 'none';
       if (cart) cart.style.display = 'none';
       if (!panel) {
@@ -2363,6 +2423,8 @@
     setInterval(tickClock, 30000);
     // 🆕 v3.0.193 — obnov uložený zoom kasy
     applyPosZoom();
+    // 🆕 v3.0.240 — aplikuj uložený režim mobilního košíku (lišta/přepínač)
+    applyMcartMode();
     // Load
     loadCatalog();
     // Online/offline indicator
