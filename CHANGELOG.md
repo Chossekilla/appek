@@ -6,6 +6,16 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.245] — 2026-06-10
+
+### 🪟 Sjednocené dialogy v CELÉ aplikaci (dokončení)
+_User: dokončit sjednocení dialogů v celé appce (po Nastavení)._
+
+- **87 nativních `confirm()`/`prompt()` → `confirmDialog`/`promptDialog`** napříč celým adminem (objednávky, faktury, sklad, výroba, výrobky, HACCP, cenovky, šablony, restaurace, odběratelé…). Žádný systémový blokující popup už v aplikaci není.
+- Transformace string/paren-aware skriptem (respektuje vnořené závorky i řetězce), `danger` se odvozuje z klíčových slov (smazat/přepsat/ztratit…) → červené tlačítko u destruktivních akcí.
+- 17 handlerů doplněno o `async` (kvůli `await` dialogu) — všechny jsou onclick handlery, návratová hodnota se nikde synchronně nečte (ověřeno).
+- Ověřeno: jsc syntax OK, 0 zbylých nativních dialogů, převedený confirm i promptDialog renderují stylově (Preview MCP).
+
 ## [3.0.244] — 2026-06-10
 
 ### 🪟 Sjednocené dialogy v Nastavení (konec systémových confirm/prompt)
