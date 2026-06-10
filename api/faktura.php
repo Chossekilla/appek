@@ -36,6 +36,57 @@ if (($_GET['action'] ?? '') === 'vytvor') {
     // ID objednávky lze poslat v query nebo v JSON body
     $body   = json_input();
     $obj_id = (int) ($_GET['objednavka_id'] ?? $body['objednavka_id'] ?? 0);
+    $dl_in  = (int) ($_GET['dodaci_list_id'] ?? $body['dodaci_list_id'] ?? 0);
+
+    // 🆕 v3.0.233 — fakturace PŘÍMO z dodacího listu (ruční DL bez objednávky).
+    // Když DL má objednávku, použij objednávkovou cestu níž (snapshot položek je tam).
+    if ($dl_in && !$obj_id) {
+        $pdo->beginTransaction();
+        try {
+            $st = $pdo->prepare("SELECT * FROM dodaci_listy WHERE id = :id");
+            $st->execute(['id' => $dl_in]);
+            $dl = $st->fetch();
+            if (!$dl) throw new Exception('Dodací list nenalezen');
+            if (!empty($dl['objednavka_id'])) { $obj_id = (int) $dl['objednavka_id']; } // → standardní cesta
+            else {
+                // Už fakturováno?
+                $st = $pdo->prepare("SELECT faktura_id FROM faktury_dodaci_listy WHERE dodaci_list_id = :d LIMIT 1");
+                $st->execute(['d' => $dl_in]);
+                if ($ex = $st->fetchColumn()) { $pdo->commit(); echo json_encode(['faktura_id' => (int) $ex, 'existing' => true]); exit; }
+
+                $spl = (int) ($pdo->query("SELECT splatnost_dni FROM odberatele WHERE id = " . (int) $dl['odberatel_id'])->fetchColumn() ?: 14);
+                // DPH rozpad z položek DL
+                $sums = $pdo->prepare("SELECT
+                        COALESCE(SUM(mnozstvi * cena_bez_dph), 0) AS bez,
+                        COALESCE(SUM(mnozstvi * cena_bez_dph * COALESCE(sazba_dph,0)/100), 0) AS dph
+                    FROM dodaci_list_polozky WHERE dodaci_list_id = :d");
+                $sums->execute(['d' => $dl_in]);
+                $s = $sums->fetch() ?: ['bez' => 0, 'dph' => 0];
+                $bez = round((float) $s['bez'], 2);
+                $dph = round((float) $s['dph'], 2);
+                $cel = ($bez + $dph) > 0 ? round($bez + $dph, 2) : (float) $dl['castka_celkem'];
+                if ($bez == 0 && $cel > 0) { $bez = $cel; } // fallback když položky nemají rozpad
+
+                $cislo_fa = dalsi_cislo($pdo, 'FA', (int) date('Y'));
+                $vs = preg_replace('/\D/', '', $cislo_fa);
+                $pdo->prepare("
+                    INSERT INTO faktury (cislo, odberatel_id, datum_vystaveni, datum_dph, datum_splatnosti,
+                                         castka_bez_dph, castka_dph, castka_celkem, variabilni_symbol)
+                    VALUES (:c,:o,CURDATE(),CURDATE(),DATE_ADD(CURDATE(), INTERVAL :sp DAY),:bez,:dph,:cel,:vs)
+                ")->execute(['c' => $cislo_fa, 'o' => $dl['odberatel_id'], 'sp' => $spl, 'bez' => $bez, 'dph' => $dph, 'cel' => $cel, 'vs' => $vs]);
+                $fa_id = (int) $pdo->lastInsertId();
+                $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f,:d)")->execute(['f' => $fa_id, 'd' => $dl_in]);
+                $pdo->prepare("UPDATE dodaci_listy SET fakturovano = 1 WHERE id = :id")->execute(['id' => $dl_in]);
+                $pdo->commit();
+                echo json_encode(['faktura_id' => $fa_id, 'cislo' => $cislo_fa]);
+                exit;
+            }
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            http_response_code(500); echo json_encode(['error' => $e->getMessage()]); exit;
+        }
+    }
+
     if (!$obj_id) { http_response_code(400); echo json_encode(['error' => 'Chybí ID']); exit; }
 
     $pdo->beginTransaction();
