@@ -368,6 +368,8 @@ if ($method === 'PUT') {
         'suroviny_kategorie',
         // 🆕 v3.0.218 — styl stránkování dlouhých seznamů: 'load_more' | 'stranky' | 'infinite'
         'pagination_styl',
+        // 🆕 v3.0.247 — počet řádků na stránku (25/50/100/200)
+        'pagination_pocet',
     ];
 
     $applied = [];

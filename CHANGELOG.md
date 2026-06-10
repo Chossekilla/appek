@@ -6,6 +6,14 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.247] — 2026-06-10
+
+### 📃 Dlouhé seznamy — chybějící Uložit + volba počtu řádků
+_User: v sekci „Dlouhé seznamy" (Nastavení → Údržba) není tlačítko Uložit, i když text říká „dole". A přidat volbu po kolika řádcích na stránku._
+
+- **Bug:** „💾 Uložit nastavení" se zobrazoval jen v tabech Firma/Notifikace; sekce „Dlouhé seznamy" je v **Údržbě** → tlačítko tam chybělo, nešlo uložit. Opraveno (`ukazatUlozit` zahrnuje `udrzba`).
+- **Nově: výběr počtu řádků na stránku** (25 / 50 / 100 / 200) — setting `pagination_pocet`, aplikuje se na Objednávky, Faktury, Dodací listy (sdílené paging helpery). Při změně se resetuje offset. Platí pro všechna zařízení (server-side nastavení).
+
 ## [3.0.246] — 2026-06-10
 
 ### 🍽️ Restaurace — šablony s náhledy, oválky, filtr timeline, profi doklady

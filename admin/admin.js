@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.246';
+const APPEK_ADMIN_JS_VERSION = '3.0.247';
 
 (async function detectStaleCode() {
   try {
@@ -5603,7 +5603,7 @@ async function renderObjednavky(filters = {}, opts = {}) {
     <div class="page-head"><div><h1 class="page-title">🛒 Objednávky</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
-  await loadPaginationStyl();   // 🆕 v3.0.218
+  await loadPaginationStyl(); applyPagLimit(pg);   // 🆕 v3.0.218
   await loadKanalyRegistry();   // 🆕 v3.0.212 — pro chips + badge dle kanálů
 
   const qp = new URLSearchParams({ ...pg.filters, offset: pg.offset, limit: pg.limit }).toString();
@@ -5843,8 +5843,16 @@ async function loadPaginationStyl() {
   try {
     const n = await api('admin_nastaveni.php');
     state._pagStyl = (n && n.pagination_styl) ? n.pagination_styl : 'load_more';
-  } catch (e) { state._pagStyl = 'load_more'; }
+    // 🆕 v3.0.247 — počet řádků na stránku (volitelné, default 50)
+    const poc = parseInt(n && n.pagination_pocet);
+    state._pagLimit = [25, 50, 100, 200].includes(poc) ? poc : 50;
+  } catch (e) { state._pagStyl = 'load_more'; state._pagLimit = state._pagLimit || 50; }
   return state._pagStyl;
+}
+// 🆕 v3.0.247 — aplikuj zvolený počet řádků na pg (reset offset při změně)
+function applyPagLimit(pg) {
+  const lim = state._pagLimit || 50;
+  if (pg.limit !== lim) { pg.limit = lim; pg.offset = 0; }
 }
 // Vykreslí ovládání stránkování dle zvoleného stylu.
 function pagControlHtml(key, pg, gotoFn, moreFn) {
@@ -9587,7 +9595,7 @@ async function renderDodaciListy(filters = {}, opts = {}) {
   if (append) { pg.offset = pg.items.length; }
   else if (opts.offset !== undefined) { pg.offset = Math.max(0, opts.offset); pg.filters = filters; }
   else { pg.offset = 0; pg.items = []; pg.filters = filters; }
-  await loadPaginationStyl();
+  await loadPaginationStyl(); applyPagLimit(pg);
 
   const qp = new URLSearchParams({ ...pg.filters, offset: pg.offset, limit: pg.limit }).toString();
   let data;
@@ -10536,7 +10544,7 @@ async function renderFaktury(filters = {}, opts = {}) {
     <div class="page-head"><div><h1 class="page-title">💰 Faktury</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
-  await loadPaginationStyl();
+  await loadPaginationStyl(); applyPagLimit(pg);
 
   const qp = new URLSearchParams({ ...pg.filters, offset: pg.offset, limit: pg.limit }).toString();
   let data;
@@ -14304,12 +14312,23 @@ async function renderNastaveni() {
     <div class="card-block" style="margin-top:14px">
       <h3 style="margin-bottom:6px;">📃 Dlouhé seznamy</h3>
       <p class="page-sub" style="margin-bottom:14px;">Jak načítat dlouhé seznamy (Objednávky, Faktury, Dodací listy, POS Účtenky) při velkém počtu záznamů.</p>
-      <select class="form-select" id="ns-pagination" style="max-width:340px">
-        <option value="load_more" ${(n.pagination_styl || 'load_more') === 'load_more' ? 'selected' : ''}>▾ Načíst další (tlačítko)</option>
-        <option value="stranky" ${n.pagination_styl === 'stranky' ? 'selected' : ''}># Stránkování (čísla stránek)</option>
-        <option value="infinite" ${n.pagination_styl === 'infinite' ? 'selected' : ''}>∞ Nekonečné scrollování</option>
-      </select>
-      <p style="font-size:11px;color:var(--text-3);margin-top:8px">Uloží se tlačítkem „Uložit nastavení" dole. Platí pro všechna zařízení.</p>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <label class="form-label" style="font-size:12px">Styl načítání</label>
+          <select class="form-select" id="ns-pagination" style="max-width:340px">
+            <option value="load_more" ${(n.pagination_styl || 'load_more') === 'load_more' ? 'selected' : ''}>▾ Načíst další (tlačítko)</option>
+            <option value="stranky" ${n.pagination_styl === 'stranky' ? 'selected' : ''}># Stránkování (čísla stránek)</option>
+            <option value="infinite" ${n.pagination_styl === 'infinite' ? 'selected' : ''}>∞ Nekonečné scrollování</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" style="font-size:12px">Řádků na stránku</label>
+          <select class="form-select" id="ns-pag-pocet" style="max-width:160px">
+            ${[25, 50, 100, 200].map(p => `<option value="${p}" ${(parseInt(n.pagination_pocet) || 50) === p ? 'selected' : ''}>${p} řádků</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--text-3);margin-top:10px">Uloží se tlačítkem „💾 Uložit nastavení" dole. Platí pro všechna zařízení.</p>
     </div>
 
     <!-- 🎨 VZHLED APLIKACE -->
@@ -15152,7 +15171,8 @@ async function renderNastaveni() {
   const aktivniBlok = blokyTabu[aktTab] || blokyTabu.firma;
   // Jen Firma + Notifikace mají formulářová pole, která vyžadují "Uložit"
   // (ostatní taby ukládají on-change nebo navigují na samostatné endpointy).
-  const ukazatUlozit = (aktTab === 'firma' || aktTab === 'notifikace');
+  // 🐛 v3.0.247 — Údržba taky potřebuje Uložit (sekce „Dlouhé seznamy" tam byla bez tlačítka → nešlo uložit)
+  const ukazatUlozit = (aktTab === 'firma' || aktTab === 'notifikace' || aktTab === 'udrzba');
 
   c.innerHTML = `
     <div class="page-head">
@@ -25582,6 +25602,7 @@ window.ulozitNastaveni = async function() {
   setIf('uzaverka_hodina', v('ns-uzaverka-h'));
   setIf('uzaverka_dni_predem', v('ns-uzaverka-d'));
   setIf('pagination_styl', v('ns-pagination')); // 🆕 v3.0.218 — styl stránkování seznamů
+  setIf('pagination_pocet', v('ns-pag-pocet')); // 🆕 v3.0.247 — počet řádků na stránku
   if (document.getElementById('ns-notif-nova')) data.notif_nova_objednavka = cb('ns-notif-nova') ? '1' : '0';
   if (document.getElementById('ns-notif-stav')) data.notif_zmena_stavu     = cb('ns-notif-stav') ? '1' : '0';
   if (document.querySelector('[data-stav-notif]')) {
@@ -25608,6 +25629,7 @@ window.ulozitNastaveni = async function() {
   try {
     await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify(data) });
     if ('pagination_styl' in data) state._pagStyl = null; // 🆕 v3.0.218 — projeví se nový styl
+    if ('pagination_pocet' in data) { state._pagStyl = null; state._pagLimit = null; } // 🆕 v3.0.247 — reload limitu
     // Hezčí toast místo alert
     const toast = document.createElement('div');
     toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:14px 22px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:14px;font-weight:500;z-index:1000;';
