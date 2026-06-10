@@ -6,6 +6,15 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.241] — 2026-06-10
+
+### 🗺️ Floor plan — oprava „Chyba apply: t is not defined" + šablona do nové zóny
+_User: "floorplan není úplně funkční, prověř ho. šablony z něj ukládat do vytvořených šablon, přidat aby se dala použít do nové zóny."_
+
+- **Kritický bug:** `admin/floorplan.js` mělo 4 volání i18n funkce `t()`, která se v tomto editoru vůbec nenačítá → `ReferenceError: t is not defined`. Rozbíjelo to: **Použít** (apply — i když se uložilo, ukázalo chybu), **Načíst šablonu** (tiché selhání), **mazání zóny**, **import JSON**. Doplněn lokální `t()` fallback s českými texty.
+- **Šablony do nové zóny:** tlačítko **„➕ Jako zónu"** u vlastních šablon — přidá šablonu jako nové zóny **bez přepsání** stávajícího rozložení (`apply_user_template` s `merge=true`; backend nově posouvá `sort_order` nových zón za stávající, aby taby neskákaly). Vedle zůstává „📥 Načíst" (přepíše vše).
+- Uložení šablony (`save_user_template` → `floorplan_templates`) ověřeno — ukládá do existujících vlastních šablon.
+
 ## [3.0.240] — 2026-06-10
 
 ### 📱 POS na mobilu použitelná — košík přes celou plochu byl problém

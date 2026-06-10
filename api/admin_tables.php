@@ -1143,6 +1143,12 @@ if ($method === 'POST' && $action === 'apply_user_template') {
             $pdo->exec("UPDATE restaurant_tables SET aktivni = 0 WHERE COALESCE(aktivni,1) = 1");
             $pdo->exec("UPDATE restaurant_zones SET aktivni = 0 WHERE COALESCE(aktivni,1) = 1");
         }
+        // 🆕 v3.0.241 — při merge posuň sort_order nových zón ZA stávající (jinak by se
+        //   proložily se stávajícími a taby zón by skákaly). Bez merge začínáme od 0.
+        $sortBase = 0;
+        if ($merge) {
+            $sortBase = (int)$pdo->query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM restaurant_zones WHERE COALESCE(aktivni,1) = 1")->fetchColumn();
+        }
         $zoneIds = [];
         foreach ($snap['zones'] as $idx => $z) {
             $pdo->prepare("INSERT INTO restaurant_zones (nazev, ikona, canvas_w, canvas_h, sort_order) VALUES (:n,:i,:w,:h,:s)")
@@ -1151,7 +1157,7 @@ if ($method === 'POST' && $action === 'apply_user_template') {
                     'i'=>$z['ikona'] ?? '🍽️',
                     'w'=>(int)($z['canvas_w'] ?? 800),
                     'h'=>(int)($z['canvas_h'] ?? 500),
-                    's'=>(int)($z['sort_order'] ?? $idx),
+                    's'=>$sortBase + (int)($z['sort_order'] ?? $idx),
                 ]);
             $zoneIds[$idx] = (int)$pdo->lastInsertId();
         }
