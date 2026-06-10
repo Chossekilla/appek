@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.235';
+const APPEK_ADMIN_JS_VERSION = '3.0.236';
 
 (async function detectStaleCode() {
   try {
@@ -17,18 +17,16 @@ const APPEK_ADMIN_JS_VERSION = '3.0.235';
     // Skip pokud build version je placeholder (lokální dev)
     if (APPEK_ADMIN_JS_VERSION.startsWith('__APPEK_')) return;
 
-    // Načti .update-manifest.json (no-cache) — to říká co je SKUTEČNĚ na disku
+    // Načti manifest (no-cache) — říká co je SKUTEČNĚ na disku.
+    // 🆕 v3.0.236 — non-dotfile první (dotfile .update-manifest.json je na Hostingeru 403),
+    //   fallback na dotfile kvůli starým instalacím co ho ještě nemají.
     let manifestVersion = null;
-    try {
-      const r = await fetch('../api/.update-manifest.json?t=' + Date.now(), {
-        cache: 'no-store',
-        credentials: 'same-origin',
-      });
-      if (r.ok) {
-        const j = await r.json();
-        manifestVersion = j.version;
-      }
-    } catch (e) { /* manifest neexistuje — to je OK, jen skip detection */ }
+    for (const mf of ['../api/update-manifest.json', '../api/.update-manifest.json']) {
+      try {
+        const r = await fetch(mf + '?t=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' });
+        if (r.ok) { const j = await r.json(); manifestVersion = j.version; break; }
+      } catch (e) { /* zkus další */ }
+    }
 
     // Porovnej semver: APPEK_ADMIN_JS_VERSION (z loaded JS) vs manifestVersion (z disk manifest)
     const semverCompare = (a, b) => {

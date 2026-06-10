@@ -44,7 +44,13 @@ perl -i -pe "s/(--appek-css-version:\\s*\")\\d+\\.\\d+\\.\\d+(\")/\${1}${VERSION
 #   (admin.js/css, i18n, app.js, style.css). Dřív zamrzlé na 3.0.162 → prohlížeč nestáhl nový
 #   JS/CSS bez hard-refreshe. Teď auto-sync obou portálů.
 perl -i -pe "s/(\\?v=)\\d+\\.\\d+\\.\\d+/\${1}${VERSION}/g"                                    "$SROOT/admin/index.html" "$SROOT/b2b/index.html"
-echo "🔖 Verze sjednoceny na ${VERSION}: config.php · admin.js · admin.css · admin+b2b/index.html (?v cache-bust)"
+# 🆕 v3.0.236 — KRITICKÉ: bumpni CACHE_VERSION v service-workerech. Dřív zamrzlé (admin
+#   'appek-v3.0.153', b2b 'appek-b2b-v1') → SW activate NIKDY nepurgoval starou cache →
+#   uživatelé zamrzli na staré verzi navždy (footer X, licence Y). Teď se s každým deployem
+#   změní byte sw.js → prohlížeč přeinstaluje SW → activate smaže starou cache → čerstvé assety.
+perl -i -pe "s/(CACHE_VERSION\\s*=\\s*')appek-v[0-9.]+(')/\${1}appek-v${VERSION}\${2}/"        "$SROOT/admin/sw.js"
+perl -i -pe "s/(CACHE_NAME\\s*=\\s*')appek-b2b-v[0-9.a-z]+(')/\${1}appek-b2b-v${VERSION}\${2}/" "$SROOT/b2b/sw.js"
+echo "🔖 Verze sjednoceny na ${VERSION}: config.php · admin.js · admin.css · admin+b2b/index.html (?v) · sw.js CACHE_VERSION (admin+b2b)"
 
 # 🆕 v3.0.166 — php -l guard: zachyť PARSE ERROR před buildem. Jinak se nasadí soubor
 # s fatální chybou → 500 na endpointu (viz admin_dodaci_listy.php v3.0.165: dvojitá
