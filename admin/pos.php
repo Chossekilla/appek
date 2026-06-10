@@ -400,6 +400,7 @@ $csrfToken  = csrf_token();
   <aside class="pos-cart" id="pos-cart-panel">
 
     <div class="pos-cart-head">
+      <button class="pos-cart-close" onclick="POS.cartClose()" title="Zavřít košík" aria-label="Zavřít košík">✕</button>
       <button class="pos-new-btn" onclick="POS.newOrder()">🆕 Nová objednávka</button>
       <button class="pos-more-btn" onclick="POS.menuToggle(event)" title="Možnosti">⋮</button>
     </div>
@@ -463,6 +464,23 @@ $csrfToken  = csrf_token();
   </aside>
 
 </main>
+
+<!-- 🆕 v3.0.240 — MOBILNÍ OVLÁDÁNÍ KOŠÍKU (jen ≤768px; režim 'bar'/'toggle' = volba v ⋮ menu) -->
+<!-- Režim PŘEPÍNAČ: segmentové přepínání Produkty / Košík -->
+<div class="pos-mswitch" id="pos-mswitch" aria-hidden="true">
+  <button type="button" data-mv="products" class="is-active" onclick="POS.mobileView('products')">📦 Produkty</button>
+  <button type="button" data-mv="cart" onclick="POS.mobileView('cart')">🛒 Košík <span class="pos-mswitch-badge" id="pos-mswitch-count">0</span></button>
+</div>
+<!-- Režim LIŠTA: spodní lišta s počtem + součtem; ťuknutím vyjede košík -->
+<div class="pos-cart-bar" id="pos-cart-bar" onclick="POS.cartOpen()" role="button" tabindex="0"
+     aria-label="Otevřít košík" onkeydown="if(event.key==='Enter'){POS.cartOpen()}">
+  <span class="pos-cart-bar-info">🛒 <strong id="pos-bar-count">0</strong> ks</span>
+  <span class="pos-cart-bar-total" id="pos-bar-total">0,00 Kč</span>
+  <button type="button" class="pos-cart-bar-finish" onclick="event.stopPropagation();POS.finish()">✓ FINISH</button>
+  <span class="pos-cart-bar-chev" aria-hidden="true">▲</span>
+</div>
+<!-- Backdrop pod vysunutým košíkem -->
+<div class="pos-cart-backdrop" id="pos-cart-backdrop" onclick="POS.cartClose()" aria-hidden="true"></div>
 
 <!-- MODAL host -->
 <div id="pos-modal-host" class="pos-modal-host" hidden></div>

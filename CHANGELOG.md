@@ -6,6 +6,19 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.240] — 2026-06-10
+
+### 📱 POS na mobilu použitelná — košík přes celou plochu byl problém
+_User: "na iphone je pos v podstatě nepoužitelná." Příčina: desktopový pravý panel košíku se na výšku zalomil dolů s `max-height:50vh` i prázdný → na produkty zbyl proužek (1 řádek dlaždic)._
+
+- **Produkty přes celou obrazovku** (≤768px). Košík vytažen z flow jako výsuvný overlay.
+- **Dva režimy mobilního košíku — volba v ⋮ menu** (výchozí = lišta):
+  - **Spodní lišta** — dole tenká lišta `🛒 N ks · CELKEM · ✓ FINISH`; ťuknutím vyjede košík nahoru přes ztmavený backdrop, ✕ / klik mimo zavře.
+  - **Přepínač Produkty / Košík** — horní segmentový přepínač, čistá celoobrazovková výměna.
+  - Uloženo v `localStorage pos_mcart_mode` (vzor jako `pos_zoom`).
+- **Navigace vrácena na mobil** — KASA / Stoly / Účtenky / Statistiky / Uzávěrka v ⋮ menu (horní taby jsou ≤1100px skryté). Mimo KASU se lišta/přepínač skryje.
+- Ověřeno Preview MCP na 375×812 (lišta zavřená/otevřená + přepínač oba pohledy).
+
 ## [3.0.239] — 2026-06-10
 
 ### 🔄 POS — detekce nové verze (konec „zaseklé staré UI")
