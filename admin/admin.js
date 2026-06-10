@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.243';
+const APPEK_ADMIN_JS_VERSION = '3.0.244';
 
 (async function detectStaleCode() {
   try {
@@ -1577,6 +1577,46 @@ window.confirmDialog = function({ title = 'Potvrzení', msg = '', okText = 'Pokr
     };
     document.addEventListener('keydown', onKey);
     setTimeout(() => overlay.querySelector('.confirm-primary, .confirm-danger')?.focus(), 200);
+  });
+};
+
+// 🆕 v3.0.244 — stylový prompt() (Apple-style, jako confirmDialog). Vrací zadaný text,
+//   nebo null při Zrušit/Escape. Nahrazuje nativní blokující window.prompt v adminu.
+window.promptDialog = function({ title = 'Zadej hodnotu', msg = '', value = '', placeholder = '', okText = 'OK', cancelText = 'Zrušit', icon = '✏️', inputType = 'text' } = {}) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML = `
+      <div class="confirm-card">
+        <div class="confirm-icon">${icon}</div>
+        <h3 class="confirm-title">${esc(title)}</h3>
+        ${msg ? `<p class="confirm-msg">${esc(msg)}</p>` : ''}
+        <input type="${esc(inputType)}" class="confirm-input form-input" value="${esc(value)}" placeholder="${esc(placeholder)}"
+               style="width:100%;margin:6px 0 4px;box-sizing:border-box">
+        <div class="confirm-actions">
+          <button class="confirm-cancel">${esc(cancelText)}</button>
+          <button class="confirm-primary">${esc(okText)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector('.confirm-input');
+    requestAnimationFrame(() => overlay.classList.add('show'));
+    const close = (result) => {
+      overlay.classList.remove('show');
+      setTimeout(() => overlay.remove(), 200);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+    overlay.querySelector('.confirm-cancel').onclick = () => close(null);
+    overlay.querySelector('.confirm-primary').onclick = () => close(input.value);
+    overlay.onclick = (e) => { if (e.target === overlay) close(null); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(null);
+      if (e.key === 'Enter') close(input.value);
+    };
+    document.addEventListener('keydown', onKey);
+    setTimeout(() => { input.focus(); input.select(); }, 200);
   });
 };
 
@@ -23394,15 +23434,11 @@ window.runSelfUpdate = async function(version, downloadUrl, expectedChecksum) {
     alert('Chyba: chybí verze nebo download URL');
     return;
   }
-  const ok = confirm(
-    `Spustit aktualizaci na verzi ${version}?\n\n` +
-    `Co se stane:\n` +
-    `  1. Stáhne se update ZIP z appek.cz\n` +
-    `  2. Vytvoří se záloha současné instalace (api/zalohy/)\n` +
-    `  3. Soubory se přepíšou novou verzí\n` +
-    `  4. Tvá data + konfigurace zůstanou\n\n` +
-    `Doporučuji předem zálohovat DB. Pokračovat?`
-  );
+  const ok = await confirmDialog({
+    title: `Aktualizovat na verzi ${version}?`,
+    msg: 'Stáhne se update ZIP z appek.cz, vytvoří se záloha (api/zalohy/), soubory se přepíšou novou verzí. Tvá data + konfigurace zůstanou. Doporučuji předem zálohovat DB.',
+    okText: 'Spustit aktualizaci', danger: true,
+  });
   if (!ok) return;
 
   const btn = document.getElementById('ns-self-update-btn');
@@ -23819,7 +23855,7 @@ window.syncLoadStatus = async function() {
 };
 
 window.syncRunNow = async function() {
-  if (!confirm('Spustit synchronizaci teď?')) return;
+  if (!(await confirmDialog({ title: 'Spustit synchronizaci?', msg: 'Synchronizace proběhne teď.', okText: 'Spustit' }))) return;
   const host = document.getElementById('ns-sync-status');
   if (host) host.innerHTML = '⏳ Synchronizuji…';
   try {
@@ -23916,7 +23952,7 @@ window.syncOpenConfig = async function() {
 };
 
 window.syncGenerateSecret = async function() {
-  if (!confirm('Vygenerovat nový shared secret? Pokud máš sync zapnutý, MUSÍŠ tento secret nastavit i na druhé straně (master/mirror), jinak sync přestane fungovat.')) return;
+  if (!(await confirmDialog({ title: 'Nový shared secret?', msg: 'Pokud máš sync zapnutý, MUSÍŠ tento secret nastavit i na druhé straně (master/mirror), jinak sync přestane fungovat.', okText: 'Vygenerovat', danger: true }))) return;
   try {
     const r = await api('sync/status.php?action=generate_secret', { method: 'POST' });
     const el = document.getElementById('sync-secret-status');
@@ -24036,12 +24072,13 @@ window.zalohyRefresh = async function() {
 };
 
 window.zalohaVytvorit = async function(includeUploads) {
-  const label = prompt(
-    includeUploads
-      ? 'Popis zálohy (volitelně, např. „před změnou cen"):\n\n📦 Zahrnu i složku /uploads (loga, fotky výrobků, podpisy) — záloha bude větší.'
-      : 'Popis zálohy (volitelně, např. „před změnou cen"):'
-    , ''
-  );
+  const label = await promptDialog({
+    title: 'Vytvořit zálohu',
+    msg: includeUploads
+      ? 'Popis zálohy (volitelně). 📦 Zahrnu i složku /uploads (loga, fotky výrobků, podpisy) — záloha bude větší.'
+      : 'Popis zálohy (volitelně, např. „před změnou cen").',
+    placeholder: 'Popis zálohy…', okText: 'Vytvořit zálohu', icon: '💾',
+  });
   if (label === null) return; // zrušeno
 
   const btns = document.querySelectorAll('#ns-zalohy-block button');
@@ -24082,7 +24119,7 @@ window.zalohaObnov = async function(id, datum) {
     `• Změny po datu této zálohy budou ZTRACENY.\n` +
     `• Před obnovou se automaticky udělá snapshot stávajícího stavu (pro případ že obnova selže).\n\n` +
     `Pokud rozumíš a chceš pokračovat, napiš velkými písmeny:  OBNOVIT`;
-  const reply = prompt(msg, '');
+  const reply = await promptDialog({ title: '⚠️ Obnova zálohy', msg, placeholder: 'napiš: OBNOVIT', okText: 'Obnovit', icon: '⚠️' });
   if (reply !== 'OBNOVIT') {
     if (reply !== null) alert('Obnova zrušena (musíš napsat přesně OBNOVIT velkými písmeny).');
     return;
@@ -24596,7 +24633,7 @@ window.diagLint = async function() {
 };
 
 window.diagPingMail = async function() {
-  const to = prompt('E-mail kam poslat testovací zprávu (nech prázdné pro firma_email z nastavení):', '');
+  const to = await promptDialog({ title: 'Testovací e-mail', msg: 'E-mail, kam poslat testovací zprávu (nech prázdné pro firma_email z nastavení).', placeholder: 'jmeno@firma.cz', okText: 'Odeslat test', icon: '📧', inputType: 'email' });
   try {
     const url = 'admin_diagnostika.php?action=ping_mail' + (to ? '&to=' + encodeURIComponent(to) : '');
     const r = await api(url);
@@ -24681,12 +24718,11 @@ window.ulozitCisloRadu = async function(typ, rok) {
   const predcisli = card.querySelector('.cislo-predcisli').value;
   const pocatecni = parseInt(card.querySelector('.cislo-pocatecni').value) || 1;
 
-  if (!confirm(
-    `Uložit číselnou řadu?\n\n` +
-    `Předčíslí: "${predcisli}"\n` +
-    `Příští doklad: ${predcisli}${pocatecni}\n\n` +
-    `⚠️ Pokud máte vystavené doklady s vyšším číslem, neměňte to.`
-  )) return;
+  if (!(await confirmDialog({
+    title: 'Uložit číselnou řadu?',
+    msg: `Předčíslí „${predcisli}" · příští doklad ${predcisli}${pocatecni}. Pokud máte vystavené doklady s vyšším číslem, raději neměňte.`,
+    okText: 'Uložit řadu', danger: true,
+  }))) return;
 
   try {
     await api('admin_cislovani.php', {
@@ -24765,7 +24801,7 @@ window.pushSendTest = async function() {
 };
 
 window.pushSendTestAll = async function() {
-  if (!confirm('Opravdu poslat testovací push VŠEM subscriberům (odběratelé + admini)?')) return;
+  if (!(await confirmDialog({ title: 'Poslat testovací push?', msg: 'Notifikace odejde VŠEM subscriberům (odběratelé + admini).', okText: 'Poslat', danger: true }))) return;
   try {
     const r = await api('push.php?action=test', {
       method: 'POST',
@@ -24932,7 +24968,7 @@ window.emailTplSetMode = function(mode) {
 
 // 🎲 Generuj náhodný HTML design (nebo konkrétní) — volá se z otevřeného editoru
 window.emailTplGenerate = async function(klic, style) {
-  if (style === 'random' && !confirm('Načíst náhodný HTML design? Aktuální obsah těla bude přepsán.')) return;
+  if (style === 'random' && !(await confirmDialog({ title: 'Náhodný HTML design?', msg: 'Aktuální obsah těla bude přepsán.', okText: 'Načíst', danger: true }))) return;
   try {
     const r = await api(`admin_nastaveni.php?action=email_template_generate_html&klic=${encodeURIComponent(klic)}&style=${style}`);
     const ta = document.getElementById('et-telo');
@@ -25187,7 +25223,7 @@ window.emailTemplatePreviewLive = async function(klic) {
 };
 
 window.emailTemplateReset = async function(klic) {
-  if (!confirm('Vrátit šablonu na výchozí text? Vaše úpravy se ztratí.')) return;
+  if (!(await confirmDialog({ title: 'Vrátit šablonu na výchozí?', msg: 'Vaše úpravy se ztratí.', okText: 'Vrátit výchozí', danger: true }))) return;
   try {
     await api('admin_nastaveni.php?action=email_template_reset', {
       method: 'POST',
@@ -25366,7 +25402,7 @@ window.otevritMatchSlozeni = async function() {
 window.spustitMatchSlozeni = async function() {
   const prepsat_alergeny = document.getElementById('ms-prepsat-alergeny')?.checked || false;
   const jen_existujici = document.getElementById('ms-jen-existujici')?.checked || false;
-  if (!confirm('Spustit párování?\n' + (jen_existujici ? '• Jen napároje existující suroviny\n' : '• Vytvoří nové chybějící suroviny\n') + (prepsat_alergeny ? '• Přepíše alergeny u výrobků' : '• Doplní alergeny jen kde chybí'))) return;
+  if (!(await confirmDialog({ title: 'Spustit párování?', msg: (jen_existujici ? 'Jen napáruje existující suroviny. ' : 'Vytvoří nové chybějící suroviny. ') + (prepsat_alergeny ? 'Přepíše alergeny u výrobků.' : 'Doplní alergeny jen kde chybí.'), okText: 'Spustit párování' }))) return;
   try {
     const r = await api('admin_match_slozeni.php?action=apply', {
       method: 'POST',
@@ -25845,7 +25881,7 @@ window.ulozitPrava = async function() {
 };
 
 window.resetovatPrava = async function() {
-  if (!confirm('Obnovit výchozí práva pro všechny role? Tím přepíšeš všechny vlastní úpravy.')) return;
+  if (!(await confirmDialog({ title: 'Obnovit výchozí práva?', msg: 'Pro všechny role — přepíšeš všechny vlastní úpravy.', okText: 'Obnovit výchozí', danger: true }))) return;
   state.rolePrava = JSON.parse(JSON.stringify(state.rolePravaDefaults || DEFAULT_ROLE_PRAVA));
   vykresliPravaPanel();
 };
@@ -26311,7 +26347,7 @@ window.sk_pridatOdbSubmit = async function(sk_id) {
 };
 
 window.sk_odebratOdb = async function(sk_id, odb_id, nazev) {
-  if (!confirm(t('confirm_remove_from_group', { nazev }))) return;
+  if (!(await confirmDialog({ title: 'Odebrat ze skupiny?', msg: t('confirm_remove_from_group', { nazev }), okText: 'Odebrat', danger: true }))) return;
   try {
     await api('admin_cenove_skupiny.php?action=odebrat_odberatele', {
       method: 'POST',

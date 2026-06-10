@@ -6,6 +6,17 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.244] — 2026-06-10
+
+### 🪟 Sjednocené dialogy v Nastavení (konec systémových confirm/prompt)
+_User: nativní `confirm()` u uložení číselné řady (a další v Nastavení) — sjednotit na hezký dialog jako všude jinde._
+
+- **Nový `promptDialog`** — stylový input dialog (Apple-style, sdílí vzhled s `confirmDialog`); vrací text nebo `null` při zrušení/Escape, Enter potvrdí.
+- **9× `confirm()` → `confirmDialog`** v Nastavení: uložení číselné řady, testovací push všem, náhodný HTML design, sync teď, nový shared secret, vrátit šablonu na výchozí, párování surovin, obnovit výchozí práva, odebrat ze skupiny, self-update na novou verzi.
+- **3× `prompt()` → `promptDialog`**: popis zálohy, potvrzení obnovy zálohy (napiš OBNOVIT), testovací e-mail.
+- Žádný systémový blokující dialog v Nastavení → konzistentní vzhled + nezamrzá UI. (`alert()` už dřív řešil smart-intercept → toast/modal.)
+- Ověřeno Preview MCP: promptDialog vrací zadaný text, confirmDialog (danger) vrací true.
+
 ## [3.0.243] — 2026-06-10
 
 ### 🪑 Stoly — empty state už není slepá ulička + směrování po uložení
