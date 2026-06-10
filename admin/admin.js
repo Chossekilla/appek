@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.245';
+const APPEK_ADMIN_JS_VERSION = '3.0.246';
 
 (async function detectStaleCode() {
   try {
@@ -6295,20 +6295,24 @@ window.openObjednavkaDetail = async function(id) {
       </div>
     ` : ''}
 
-    <!-- Doklady akce: Znovu / DL / FA — v3.0.237 faktura zvýrazněna (uživatel ji nenacházel) -->
-    <div class="obj-doc-actions" style="align-items:center">
-      <span style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:600;margin-right:2px">📋 Doklady:</span>
-      <button class="btn-secondary" onclick="noOpakovatZeZdroje('obj', ${o.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu</button>
-      ${(!o.dodaci_listy || o.dodaci_listy.length === 0) ? `
-        <a href="../api/dodaci_list.php?id=${o.id}" target="_blank" class="btn-secondary" style="text-decoration:none">📃 Vytvořit DL</a>
-      ` : `
-        <a href="../api/dodaci_list.php?id=${o.id}" target="_blank" class="btn-secondary" style="text-decoration:none">📃 Otevřít DL</a>
-      `}
-      ${(!o.faktury || o.faktury.length === 0) ? `
-        <button class="btn-primary btn-green" onclick="vytvoritFakturu(${o.id})" style="font-weight:700">💰 Vystavit fakturu</button>
-      ` : `
-        <a href="../api/faktura.php?id=${o.faktury[0].id}" target="_blank" class="btn-primary" style="text-decoration:none">💰 Faktura ${esc(o.faktury[0].cislo || '')}</a>
-      `}
+    <!-- 🆕 v3.0.246 — Doklady: sjednocená profi sada 3 tlačítek (label jako hlavička, ne v gridu) -->
+    <div class="obj-doc-actions-wrap">
+      <div class="obj-doc-actions-label">📋 Doklady</div>
+      <div class="obj-doc-actions">
+        <button class="doc-action" onclick="noOpakovatZeZdroje('obj', ${o.id})" title="Vytvořit novou objednávku se stejnými položkami">
+          <span class="doc-action-ic">🔁</span><span>Znovu objednat</span>
+        </button>
+        ${(!o.dodaci_listy || o.dodaci_listy.length === 0) ? `
+          <a href="../api/dodaci_list.php?id=${o.id}" target="_blank" class="doc-action"><span class="doc-action-ic">📃</span><span>Vytvořit DL</span></a>
+        ` : `
+          <a href="../api/dodaci_list.php?id=${o.id}" target="_blank" class="doc-action doc-action-done"><span class="doc-action-ic">📃</span><span>Otevřít DL</span></a>
+        `}
+        ${(!o.faktury || o.faktury.length === 0) ? `
+          <button class="doc-action doc-action-primary" onclick="vytvoritFakturu(${o.id})"><span class="doc-action-ic">💰</span><span>Vystavit fakturu</span></button>
+        ` : `
+          <a href="../api/faktura.php?id=${o.faktury[0].id}" target="_blank" class="doc-action doc-action-done"><span class="doc-action-ic">💰</span><span>Faktura ${esc(o.faktury[0].cislo || '')}</span></a>
+        `}
+      </div>
     </div>
 
     <!-- Footer: Zavřít + ✉️/🗑️ + Uložit -->
@@ -19452,6 +19456,16 @@ function renderRestaurantTimeline(stoly, datum, openUcty, dayHours) {
     return palette[h];
   };
 
+  // 🆕 v3.0.246 — filtr zón i v timeline (sdílí state._rtRezZona se Seznamem)
+  const _allStoly = stoly;
+  const _zones = state._rtZones || [];
+  const _activeZona = state._rtRezZona ?? null;
+  const _zCount = {};
+  _allStoly.forEach(t => { _zCount[t.zone_id] = (_zCount[t.zone_id] || 0) + 1; });
+  if (_activeZona !== null) stoly = _allStoly.filter(t => t.zone_id === _activeZona);
+  const _chip = (label, val, count) => `<button class="${_activeZona === val ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezZona=${val === null ? 'null' : val};renderRestaurantTables()" style="padding:6px 14px;font-size:12.5px;border-radius:999px;border:none">${label}${count != null ? ` <span style="opacity:.75">(${count})</span>` : ''}</button>`;
+  const zoneChips = _zones.length > 1 ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:600;margin-right:2px">🗺️ Zóna:</span>${_chip('Vše', null, _allStoly.length)}${_zones.filter(z => _zCount[z.id]).map(z => _chip(`${z.ikona || ''} ${esc(z.nazev)}`.trim(), z.id, _zCount[z.id])).join('')}</div>` : '';
+
   const rows = stoly.map(t => {
     const ucet = uByStul[t.id];
     // Rezervace blocks
@@ -19530,6 +19544,7 @@ function renderRestaurantTimeline(stoly, datum, openUcty, dayHours) {
   ` : '';
 
   return `
+    ${zoneChips}
     <div class="card-block" style="padding:0;overflow:auto;max-width:100%;position:relative">
       <div style="display:flex;align-items:center;border-bottom:2px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:5">
         <div style="width:${tableLabelW}px;flex-shrink:0;padding:8px 10px;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase">Stůl</div>
@@ -19743,49 +19758,82 @@ window.zrusitRezervaci = async function(id) {
 
 // 🆕 v3.0.243 — picker šablon floor planu přímo v adminu (dřív jen ve floorplan editoru;
 //   po smazání všech stolů byl admin slepá ulička — šlo přidat jen jednotlivý stůl).
+// 🆕 v3.0.246 — mini SVG náhled rozložení stolů ze šablony (user chtěl „výběr s náhledama").
+function fpSablonaThumb(tables, cw, ch) {
+  tables = tables || [];
+  if (!tables.length) return '<div style="height:110px;display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:26px;background:#FFFCF7;border-radius:8px">🪑</div>';
+  let maxX = +cw || 0, maxY = +ch || 0;
+  tables.forEach(t => { maxX = Math.max(maxX, (+t.x || 0) + (+t.width || 80)); maxY = Math.max(maxY, (+t.y || 0) + (+t.height || 80)); });
+  maxX = maxX || 1000; maxY = maxY || 680;
+  const W = 260, H = Math.max(90, Math.min(150, Math.round(W * maxY / maxX)));
+  const s = Math.min(W / maxX, H / maxY);
+  const shapes = tables.map(t => {
+    const x = (+t.x || 0) * s, y = (+t.y || 0) * s, w = Math.max(3, (+t.width || 80) * s), h = Math.max(3, (+t.height || 80) * s);
+    if (t.tvar === 'round') return `<ellipse cx="${(x + w / 2).toFixed(1)}" cy="${(y + h / 2).toFixed(1)}" rx="${(w / 2).toFixed(1)}" ry="${(h / 2).toFixed(1)}" fill="#EAD8B6" stroke="#BA7517" stroke-width="0.7"/>`;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(3, w / 4).toFixed(1)}" fill="#EAD8B6" stroke="#BA7517" stroke-width="0.7"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="xMidYMid meet" style="display:block;background:#FFFCF7;border-radius:8px;border:1px solid var(--border)">${shapes}</svg>`;
+}
+
 window.openSablonyPicker = async function() {
   let builtin = [], user = [];
   try { builtin = (await api('admin_tables.php?action=templates')).templates || []; } catch (e) {}
   try { user = (await api('admin_tables.php?action=user_templates')).templates || []; } catch (e) {}
   const maStoly = (state._rtStolyCache || []).length > 0;
-  const row = (ikona, nazev, popis, akce) => `
-    <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)">
-      <span style="font-size:22px">${ikona}</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13.5px">${nazev}</div>
-        <div style="font-size:11.5px;color:var(--text-3)">${popis}</div>
+  // karta s náhledem; clean apply (Načíst = nahradí, žádné hromadění → editor zůstává přehledný)
+  const card = (thumb, nazev, meta, applyAttr, extra = '') => `
+    <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface);display:flex;flex-direction:column">
+      ${thumb}
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1">
+        <div>
+          <div style="font-weight:700;font-size:13.5px">${nazev}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px">${meta}</div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:auto">
+          <button class="btn-primary btn-green" style="flex:1;font-size:12.5px;padding:7px 12px" onclick="${applyAttr}">📥 Načíst</button>
+          ${extra}
+        </div>
       </div>
-      <div style="display:flex;gap:6px">${akce}</div>
     </div>`;
-  const userHtml = user.length ? user.map(t => row(
-    esc(t.ikona || '🗺️'), esc(t.nazev),
-    `${esc(t.popis || '')} · ${t.pocet_stolu || 0} stolů, ${t.pocet_zon || 0} zón`,
-    `<button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="adminApplySablona(${t.id},'user',true)" title="Přidá zóny šablony ke stávajícím — nic nepřepíše">➕ Jako zónu</button>
-     <button class="btn-primary" style="font-size:12px;padding:6px 12px" onclick="adminApplySablona(${t.id},'user',false)">📥 Načíst</button>`
-  )).join('') : '';
-  const builtinHtml = builtin.map(t => row(
-    esc(t.ikona || '🍕'), esc(t.nazev || t.key),
-    `${esc(t.popis || '')} · předpřipravená šablona`,
-    `<button class="btn-primary" style="font-size:12px;padding:6px 12px" onclick="adminApplySablona('${esc(t.key)}','builtin',false)">📥 Načíst</button>`
+  const userHtml = user.map(t => card(
+    fpSablonaThumb(t.tables, (t.zones && t.zones[0] && t.zones[0].canvas_w) || 1000, (t.zones && t.zones[0] && t.zones[0].canvas_h) || 680),
+    esc(t.nazev), `${t.pocet_stolu || (t.tables || []).length} stolů · ${t.pocet_zon || (t.zones || []).length} zón`,
+    `adminApplySablona(${t.id},'user')`,
+    `<button class="btn-secondary" style="font-size:12px;padding:7px 10px" title="Smazat šablonu" onclick="adminSmazatSablonu(${t.id})">🗑️</button>`
+  )).join('');
+  const builtinHtml = builtin.map(t => card(
+    fpSablonaThumb(t.tables, t.canvas_w, t.canvas_h),
+    esc(t.nazev || t.key), esc(t.popis || ''),
+    `adminApplySablona('${esc(t.key)}','builtin')`
   )).join('');
   openModal('📋 Šablony floor planu', `
-    ${maStoly ? `<div style="margin-bottom:12px;padding:10px 14px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;font-size:12.5px;color:#92400E">⚠️ „Načíst" přepíše aktuální rozložení (stoly zůstanou v historii). „➕ Jako zónu" přidá šablonu ke stávajícím zónám.</div>` : ''}
-    ${user.length ? `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:700;margin-bottom:8px">Vlastní šablony</div><div style="display:grid;gap:8px;margin-bottom:16px">${userHtml}</div>` : ''}
+    ${maStoly ? `<div style="margin-bottom:14px;padding:10px 14px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;font-size:12.5px;color:#92400E">⚠️ Načtení šablony <strong>nahradí</strong> aktuální rozložení (stoly zůstanou v historii, rezervace se nemažou).</div>` : ''}
+    ${user.length ? `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:700;margin-bottom:8px">Vlastní šablony</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:18px">${userHtml}</div>` : ''}
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:700;margin-bottom:8px">Předpřipravené</div>
-    <div style="display:grid;gap:8px">${builtinHtml || '<div style="color:var(--text-3);padding:14px">Žádné šablony.</div>'}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">${builtinHtml || '<div style="color:var(--text-3);padding:14px">Žádné šablony.</div>'}</div>
   `, 'wide');
 };
 
-window.adminApplySablona = async function(idOrKey, kind, merge) {
+// 🆕 v3.0.246 — apply = vždy CLEAN nahrazení (žádný merge). Konec hromadění stolů přes zóny.
+window.adminApplySablona = async function(idOrKey, kind) {
   const maStoly = (state._rtStolyCache || []).length > 0;
-  if (!merge && maStoly && !(await confirmDialog({ title: 'Přepsat floor plan?', msg: 'Načtení šablony nahradí všechny aktuální zóny i stoly (zůstanou v historii, rezervace se nemažou).', danger: true, okText: 'Načíst šablonu' }))) return;
+  if (maStoly && !(await confirmDialog({ title: 'Načíst šablonu?', msg: 'Nahradí aktuální rozložení stolů (zůstanou v historii, rezervace se nemažou).', danger: true, okText: 'Načíst šablonu' }))) return;
   try {
     const action = (kind === 'user') ? 'apply_user_template' : 'apply_template';
-    const body = (kind === 'user') ? { id: idOrKey, merge: !!merge } : { template: idOrKey, merge: !!merge };
+    const body = (kind === 'user') ? { id: idOrKey } : { template: idOrKey };  // bez merge → wipe+insert
     await api('admin_tables.php?action=' + action, { method: 'POST', body: JSON.stringify(body) });
     closeModal();
-    toastSuccess(merge ? '✓ Šablona přidána jako nové zóny' : '✓ Šablona načtena');
+    toastSuccess('✓ Šablona načtena');
     renderRestaurantTables();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+window.adminSmazatSablonu = async function(id) {
+  if (!(await confirmDialog({ title: 'Smazat šablonu?', msg: 'Vlastní šablona bude trvale smazána.', danger: true, okText: 'Smazat' }))) return;
+  try {
+    await api('admin_tables.php?action=user_template&id=' + id, { method: 'DELETE' });
+    toastSuccess('Šablona smazána');
+    openSablonyPicker();
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 

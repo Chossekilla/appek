@@ -6,6 +6,19 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.246] — 2026-06-10
+
+### 🍽️ Restaurace — šablony s náhledy, oválky, filtr timeline, profi doklady
+- **Oválky POS tabů (4× hlášeno):** kritické CSS oválných tabů vloženo přímo do `pos.php` (no-store HTML) → KASA/Stoly… jsou oválné i kdyby `pos.css` zůstala v cache.
+- **Picker šablon s náhledy:** vrácen vizuální výběr — každá šablona má mini SVG náhled rozložení stolů (built-in i vlastní). `user_templates` API nově vrací zóny+stoly pro náhled.
+- **Konec hromadění stolů:** zrušen merge „➕ Jako zónu" (v adminu i editoru). Načtení šablony = vždy čisté nahrazení → editor zůstává přehledný, jde hýbat/mazat.
+- **Filtr zón i v Timeline** kalendáři rezervací (dřív jen v Seznamu); sdílí stav filtru.
+- **Doklady tlačítka sjednocena** do profi sady `.doc-action` (Znovu objednat / Vytvořit DL / Vystavit fakturu) — stejný tvar/velikost, primární zelená CTA, modrá „otevřít existující". Label „📋 Doklady" jako hlavička (dřív rozhazoval grid).
+
+### ✅ Ověřeno (testy)
+- Změna firmy (IČO) → propis do faktury PDF live (odběratel zůstává snapshot). Test 03118592→99887766→zpět.
+- Přidání/odebrání zóny → 0 sirotků, soft-delete stolů, rezervace netknuté, data validní.
+
 ## [3.0.245] — 2026-06-10
 
 ### 🪟 Sjednocené dialogy v CELÉ aplikaci (dokončení)

@@ -1113,13 +1113,21 @@ if ($method === 'DELETE' && $id) {
 
 // 📋 GET ?action=user_templates — seznam user-defined šablon
 if ($method === 'GET' && $action === 'user_templates') {
+    // 🆕 v3.0.246 — vrať i snapshot (zóny+stoly) pro náhledy v pickeru
     $rows = $pdo->query("
-        SELECT id, nazev, popis, ikona, created_by, created_at, updated_at,
+        SELECT id, nazev, popis, ikona, created_by, created_at, updated_at, snapshot,
                JSON_LENGTH(snapshot, '$.tables') AS pocet_stolu,
                JSON_LENGTH(snapshot, '$.zones')  AS pocet_zon
         FROM floorplan_templates
         ORDER BY updated_at DESC
     ")->fetchAll();
+    foreach ($rows as &$r) {
+        $snap = json_decode($r['snapshot'] ?? '', true);
+        $r['tables'] = is_array($snap) ? ($snap['tables'] ?? []) : [];
+        $r['zones']  = is_array($snap) ? ($snap['zones'] ?? []) : [];
+        unset($r['snapshot']);
+    }
+    unset($r);
     json_response(['templates' => $rows]);
 }
 
