@@ -76,7 +76,7 @@
   function t(key, params) {
     const S = {
       fp_confirm_delete_zone: 'Smazat zónu „{nazev}"? Smaže i všechny stoly v této zóně.',
-      fp_confirm_load_template_destructive: 'POZOR — Načtení šablony PŘEPÍŠE celý floor plan (všechny zóny i stoly). Pokračovat?\n\nTip: „Přidat jako novou zónu" šablonu připojí bez přepsání.',
+      fp_confirm_load_template_destructive: 'POZOR — Načtení šablony PŘEPÍŠE celý floor plan (všechny zóny i stoly). Pokračovat?',
       fp_toast_applied_zones: '✓ Aplikováno do produkce: {zon} zón · {stoly} stolů · {mist} míst',
       fp_confirm_import_overwrite: 'Importovat JSON? Přepíše aktuální rozložení.',
     };
@@ -771,8 +771,7 @@
           <div class="fp-tpl-popis">${esc(t.popis || '')} · ${t.pocet_stolu || 0} stolů, ${t.pocet_zon || 0} zón · ${esc(t.created_by || '')}</div>
         </div>
         <div class="fp-tpl-actions">
-          <button onclick="FP._applyTemplate(${t.id}, 'user')" title="Přepsat celý floor plan touto šablonou">📥 Načíst</button>
-          <button onclick="FP._applyTemplate(${t.id}, 'user', true)" title="Přidat jako nové zóny — nepřepíše stávající">➕ Jako zónu</button>
+          <button onclick="FP._applyTemplate(${t.id}, 'user')" title="Načíst šablonu (nahradí aktuální rozložení)">📥 Načíst</button>
           <button onclick="FP._exportTemplate(${t.id})">📤 Export</button>
           <button onclick="FP._deleteTemplate(${t.id})" title="Smazat" style="color:#EF4444">🗑️</button>
         </div>
@@ -805,21 +804,18 @@
 
   // 🆕 v3.0.241 — merge=true → přidá šablonu jako NOVÉ zóny (additivně, nepřepíše).
   //   Backend apply_user_template merge param to umí (jen wipe přeskočí).
-  async function applyTemplate(id, kind, merge) {
-    if (merge) {
-      if (!confirm('Přidat šablonu jako nové zóny? Stávající zóny i stoly zůstanou zachované.')) return;
-    } else {
-      if (!confirm(t('fp_confirm_load_template_destructive'))) return;
-    }
+  // 🆕 v3.0.246 — apply = vždy clean nahrazení (merge zrušen: hromadil stoly přes zóny → editor přeplněný)
+  async function applyTemplate(id, kind) {
+    if (!confirm(t('fp_confirm_load_template_destructive'))) return;
     try {
       const action = (kind === 'user') ? 'apply_user_template' : 'apply_template';
-      const body = (kind === 'user') ? { id, merge: !!merge } : { template: id, merge: !!merge };
+      const body = (kind === 'user') ? { id } : { template: id };
       await api('admin_tables.php?action=' + action, {
         method: 'POST',
         body: JSON.stringify(body),
       });
       closeModal();
-      toast(merge ? '✓ Šablona přidána jako nová zóna' : '✓ Šablona načtena', 'success');
+      toast('✓ Šablona načtena', 'success');
       // Reload from DB
       await loadFromDB();
       notifyAdminApplied();   // 🆕 v3.0.243 — šablona zapisuje rovnou do DB → admin se musí překreslit

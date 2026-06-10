@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.245";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.246";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -1230,40 +1230,48 @@ html.is-fullscreen .btn-fullscreen {
 }
 
 /* Doklady akce — řada tlačítek (Znovu / DL / FA) */
-.obj-doc-actions {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+/* 🆕 v3.0.246 — Doklady: sjednocená profi sada tlačítek (label nad, 3 stejné akce) */
+.obj-doc-actions-wrap {
   margin-top: 16px;
   padding: 12px 14px;
   background: #F7F8FA;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
 }
-.obj-doc-actions .btn-secondary,
-.obj-doc-actions a.btn-secondary {
-  font-size: 13px;
-  padding: 8px 10px;
-  text-align: center;
-  white-space: normal;
-  line-height: 1.2;
-  min-width: 0;
-  word-break: break-word;
+.obj-doc-actions-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--text-3); font-weight: 700; margin-bottom: 10px;
 }
+.obj-doc-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.doc-action {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 11px 12px; border-radius: 10px;
+  border: 1.5px solid var(--border); background: #fff;
+  color: var(--text-1); font-size: 13px; font-weight: 600; line-height: 1.2;
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+  transition: border-color .15s ease, transform .12s ease, background .15s ease, box-shadow .15s ease;
+}
+.doc-action:hover { border-color: var(--pos-primary, #BA7517); background: #FFFCF7; transform: translateY(-1px); }
+.doc-action .doc-action-ic { font-size: 16px; line-height: 1; }
+/* primární = hlavní CTA (vystavit fakturu) */
+.doc-action-primary {
+  background: linear-gradient(180deg, #34C759, #28A745);
+  border-color: #1f9d3d; color: #fff;
+  box-shadow: 0 1px 3px rgba(40, 167, 69, 0.3);
+}
+.doc-action-primary:hover { filter: brightness(1.05); border-color: #1f9d3d; background: linear-gradient(180deg, #34C759, #28A745); }
+/* hotovo = doklad existuje, otevřít (modrá) */
+.doc-action-done {
+  background: #EFF6FF; border-color: #B5D4F4; color: #0C447C;
+}
+.doc-action-done:hover { border-color: #3B82F6; background: #E0EBFF; }
 @media (max-width: 700px) {
-  .obj-doc-actions { grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px; }
-  .obj-doc-actions .btn-secondary,
-  .obj-doc-actions a.btn-secondary {
-    font-size: 13px;
-    padding: 12px 8px;
-    min-height: 48px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1.25;
-  }
-  /* 3 tlačítka v 2-col gridu — třetí přes celou šíři */
-  .obj-doc-actions > *:nth-child(3):last-child { grid-column: 1 / -1; }
+  .obj-doc-actions { grid-template-columns: 1fr; gap: 8px; }
+  .doc-action { min-height: 48px; font-size: 13.5px; }
 }
 
 /* MOBIL: položky 2-řádkový kompaktní layout */
