@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.241';
+const APPEK_ADMIN_JS_VERSION = '3.0.242';
 
 (async function detectStaleCode() {
   try {
@@ -17397,6 +17397,18 @@ async function renderRestaurantTables() {
   const sekce = [...new Set(stoly.map(s => s.sekce || '— bez sekce —'))];
   const rezervaciDnes = stoly.reduce((s, t) => s + (t.obsazenost_dnes || 0), 0);
 
+  // 🆕 v3.0.242 — cache pro edit rezervace (proklik ze seznamu i timeline) + filtr zón
+  state._rtZones = data.zones || [];
+  state._rtStolyCache = stoly;
+  state._rtRezMap = {};
+  const _zoneById = Object.fromEntries((data.zones || []).map(z => [z.id, z]));
+  for (const t of stoly) {
+    const zona = _zoneById[t.zone_id] || null;
+    for (const r of (t.rezervace_dnes || [])) {
+      state._rtRezMap[r.id] = { ...r, stul_nazev: t.nazev, stul_id: t.id, zone_id: t.zone_id || null, zona_nazev: zona ? zona.nazev : (t.sekce || ''), zona_ikona: zona ? zona.ikona : '' };
+    }
+  }
+
   const statsBar = `
     <div class="card-block" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
@@ -19494,13 +19506,34 @@ function renderRestaurantTimeline(stoly, datum, openUcty, dayHours) {
 }
 
 function renderRestaurantList(stoly, datum) {
+  // 🆕 v3.0.242 — filtr na zóny + proklik řádku do úpravy rezervace
+  const zones = state._rtZones || [];
+  const zoneById = Object.fromEntries(zones.map(z => [z.id, z]));
   const all = [];
   for (const t of stoly) {
+    const zona = zoneById[t.zone_id] || null;
     for (const r of (t.rezervace_dnes || [])) {
-      all.push({ ...r, stul_nazev: t.nazev, stul_id: t.id });
+      all.push({ ...r, stul_nazev: t.nazev, stul_id: t.id, zone_id: t.zone_id || null, zona_nazev: zona ? zona.nazev : (t.sekce || '—'), zona_ikona: zona ? (zona.ikona || '') : '' });
     }
   }
   all.sort((a, b) => (a.cas_od || '').localeCompare(b.cas_od || ''));
+
+  // Chips: Vše + jednotlivé zóny s počtem rezervací (jen zóny co nějakou mají, ať není mrtvý filtr)
+  const aktivniZona = state._rtRezZona ?? null;
+  const countByZone = {};
+  for (const r of all) countByZone[r.zone_id] = (countByZone[r.zone_id] || 0) + 1;
+  const chip = (label, val, count) => `
+    <button class="${(aktivniZona === val) ? 'btn-primary' : 'btn-secondary'}"
+            onclick="state._rtRezZona=${val === null ? 'null' : val};renderRestaurantTables()"
+            style="padding:6px 14px;font-size:12.5px;border-radius:999px;border:none">${label}${count != null ? ` <span style="opacity:0.75">(${count})</span>` : ''}</button>`;
+  const zoneChips = `
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <span style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:600;margin-right:2px">🗺️ Zóna:</span>
+      ${chip('Vše', null, all.length)}
+      ${zones.filter(z => countByZone[z.id]).map(z => chip(`${z.ikona || ''} ${esc(z.nazev)}`.trim(), z.id, countByZone[z.id])).join('')}
+    </div>`;
+
+  const filtered = aktivniZona === null ? all : all.filter(r => r.zone_id === aktivniZona);
 
   if (all.length === 0) {
     return emptyState({
@@ -19509,27 +19542,37 @@ function renderRestaurantList(stoly, datum) {
       actions: '',
     });
   }
-  return `
+  const stavBadge = (s) => ({
+    pending:   '<span style="background:#FEF3C7;color:#92400E;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:600">⏳ Čeká</span>',
+    confirmed: '<span style="background:#D1FAE5;color:#065F46;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:600">✓ Potvrzená</span>',
+    no_show:   '<span style="background:#FEE2E2;color:#991B1B;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:600">👻 Nepřišli</span>',
+  })[s] || esc(s || '');
+  return zoneChips + `
     <div class="card-block" style="padding:0;overflow:hidden">
       <table style="width:100%;border-collapse:collapse">
         <thead style="background:var(--surface-2)">
           <tr style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase">
             <th style="text-align:left;padding:10px 14px">Čas</th>
             <th style="text-align:left;padding:10px 14px">Stůl</th>
+            <th style="text-align:left;padding:10px 14px">Zóna</th>
             <th style="text-align:left;padding:10px 14px">Jméno</th>
             <th style="text-align:center;padding:10px 14px">Osob</th>
             <th style="text-align:left;padding:10px 14px">Telefon</th>
+            <th style="text-align:left;padding:10px 14px">Stav</th>
             <th style="text-align:left;padding:10px 14px">Poznámka</th>
           </tr>
         </thead>
         <tbody>
-          ${all.map(r => `
-            <tr style="border-top:1px solid var(--border);font-size:13px">
+          ${filtered.length === 0 ? `<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--text-3)">V této zóně nejsou žádné rezervace.</td></tr>` : filtered.map(r => `
+            <tr class="row-clickable" onclick="openRezervaceEdit(${r.id})" title="Upravit rezervaci"
+                style="border-top:1px solid var(--border);font-size:13px;cursor:pointer">
               <td style="padding:10px 14px;font-weight:600;font-variant-numeric:tabular-nums">${(r.cas_od||'').slice(0,5)} – ${(r.cas_do||'').slice(0,5)}</td>
               <td style="padding:10px 14px">${esc(r.stul_nazev)}</td>
-              <td style="padding:10px 14px;font-weight:500">${esc(r.jmeno)}</td>
+              <td style="padding:10px 14px;color:var(--text-3)">${esc(`${r.zona_ikona} ${r.zona_nazev}`.trim())}</td>
+              <td style="padding:10px 14px;font-weight:500">${esc(r.jmeno)} <span style="color:var(--text-3);font-size:11px">✏️</span></td>
               <td style="padding:10px 14px;text-align:center">${r.pocet_osob}</td>
               <td style="padding:10px 14px;color:var(--text-3)">${esc(r.telefon || '—')}</td>
+              <td style="padding:10px 14px">${stavBadge(r.stav)}</td>
               <td style="padding:10px 14px;color:var(--text-3);font-size:12px">${esc(r.poznamka || '')}</td>
             </tr>
           `).join('')}
@@ -19551,9 +19594,111 @@ window.timelineCellClick = function(stulId, stulNazev, ev, startH, hourPx) {
   rezervovatStul(stulId, stulNazev);
 };
 
+// 🆕 v3.0.242 — proklik na rezervaci (seznam i timeline) → plnohodnotná úprava.
+//   Dřív stub (jen toast „Detail rezervace #id") — rezervace nešla vůbec upravit.
 window.rezervaceClick = function(id) {
   if (!id) return;
-  toastInfo('Detail rezervace #' + id);
+  openRezervaceEdit(id);
+};
+
+window.openRezervaceEdit = function(id) {
+  const r = (state._rtRezMap || {})[id];
+  if (!r) { toastInfo('Rezervace nenalezena — obnov stránku'); return; }
+  const zones = state._rtZones || [];
+  const zoneById = Object.fromEntries(zones.map(z => [z.id, z]));
+  // Stoly groupnuté podle zóny (výběr pro přesun rezervace jinam)
+  const stoly = state._rtStolyCache || [];
+  const byZone = {};
+  for (const t of stoly) (byZone[t.zone_id || 0] ??= []).push(t);
+  const stulOptions = Object.entries(byZone).map(([zid, ts]) => {
+    const z = zoneById[zid];
+    const label = z ? `${z.ikona || ''} ${z.nazev}`.trim() : 'Bez zóny';
+    return `<optgroup label="${esc(label)}">${ts.map(t => `<option value="${t.id}" ${t.id == r.stul_id ? 'selected' : ''}>${esc(t.nazev)} · ${t.mist} míst</option>`).join('')}</optgroup>`;
+  }).join('');
+
+  openModal(`✏️ Rezervace · ${esc(r.jmeno)}`, `
+    <div class="form-grid form-grid-tight" style="grid-template-columns:1fr 1fr">
+      <div>
+        <label class="form-label">Stůl (zóna)</label>
+        <select class="form-select" id="rez-stul">${stulOptions}</select>
+      </div>
+      <div>
+        <label class="form-label">Datum</label>
+        <input type="date" class="form-input" id="rez-datum" value="${esc(String(r.datum || '').slice(0, 10))}">
+      </div>
+      <div>
+        <label class="form-label">Od</label>
+        <input type="time" class="form-input" id="rez-od" value="${esc((r.cas_od || '').slice(0, 5))}">
+      </div>
+      <div>
+        <label class="form-label">Do</label>
+        <input type="time" class="form-input" id="rez-do" value="${esc((r.cas_do || '').slice(0, 5))}">
+      </div>
+      <div>
+        <label class="form-label">Jméno</label>
+        <input type="text" class="form-input" id="rez-jmeno" value="${esc(r.jmeno || '')}">
+      </div>
+      <div>
+        <label class="form-label">Telefon</label>
+        <input type="text" class="form-input" id="rez-tel" value="${esc(r.telefon || '')}">
+      </div>
+      <div>
+        <label class="form-label">Počet osob</label>
+        <input type="number" min="1" class="form-input" id="rez-osob" value="${parseInt(r.pocet_osob) || 2}">
+      </div>
+      <div>
+        <label class="form-label">Stav</label>
+        <select class="form-select" id="rez-stav">
+          <option value="confirmed" ${r.stav === 'confirmed' ? 'selected' : ''}>✓ Potvrzená</option>
+          <option value="pending" ${r.stav === 'pending' ? 'selected' : ''}>⏳ Čeká na potvrzení</option>
+          <option value="no_show" ${r.stav === 'no_show' ? 'selected' : ''}>👻 Nepřišli</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <label class="form-label">Poznámka</label>
+      <input type="text" class="form-input" id="rez-pozn" value="${esc(r.poznamka || '')}" placeholder="Volitelná…">
+    </div>
+    <div class="form-actions">
+      <button class="btn-danger-corner" onclick="zrusitRezervaci(${r.id})" title="Zrušit rezervaci (uvolní stůl)" aria-label="Zrušit rezervaci">🗑️</button>
+      <div style="flex:1"></div>
+      <button class="btn-primary btn-green" onclick="ulozitRezervaci(${r.id})">💾 Uložit změny</button>
+    </div>
+  `);
+};
+
+window.ulozitRezervaci = async function(id) {
+  const v = (sel) => (document.getElementById(sel) || {}).value;
+  try {
+    await api('admin_tables.php?action=update_reservation', {
+      method: 'POST',
+      body: JSON.stringify({
+        id,
+        stul_id: parseInt(v('rez-stul')) || undefined,
+        datum: v('rez-datum'),
+        cas_od: v('rez-od'),
+        cas_do: v('rez-do'),
+        jmeno: (v('rez-jmeno') || '').trim(),
+        telefon: v('rez-tel'),
+        pocet_osob: parseInt(v('rez-osob')) || 2,
+        stav: v('rez-stav'),
+        poznamka: v('rez-pozn'),
+      }),
+    });
+    closeModal();
+    toastSuccess('✓ Rezervace upravena');
+    renderRestaurantTables();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+window.zrusitRezervaci = async function(id) {
+  if (!(await confirmDialog({ title: 'Zrušit rezervaci?', msg: 'Stůl se v tomto čase uvolní. Rezervace zůstane v historii jako zrušená.', danger: true, okText: 'Zrušit rezervaci' }))) return;
+  try {
+    await api('admin_tables.php?action=reservation&id=' + id, { method: 'DELETE' });
+    closeModal();
+    toastSuccess('Rezervace zrušena');
+    renderRestaurantTables();
+  } catch (e) { alert('Chyba: ' + e.message); }
 };
 
 // 🆕 v3.0.201 — Editor otevírací doby (po dnech v týdnu). Kalendář rezervací se podle ní přizpůsobí.

@@ -6,6 +6,15 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.242] — 2026-06-10
+
+### 🗓️ Rezervace — filtr na zóny + úprava rezervace proklikem
+_User: "restaurace balíček — rezervace — přidat filtr na zóny; v seznamu rezervací proklik do úpravy rezervace."_
+
+- **Filtr na zóny** v seznamu rezervací (Stoly → Rezervace → Seznam): chips „Vše (N)" + jednotlivé zóny s počty rezervací; nový sloupec **Zóna** v tabulce.
+- **Proklik do úpravy:** řádek seznamu i blok v timeline otevírá modal **✏️ Rezervace** — změna stolu (select groupnutý po zónách), data, časů, jména, telefonu, počtu osob, stavu (potvrzená/čeká/nepřišli) a poznámky; 🗑️ zrušení rezervace. Dřív byl proklik jen stub (toast „Detail rezervace #id") — rezervace nešla upravit vůbec.
+- **Backend `update_reservation`:** partial update + stejná anti-double-booking validace jako vytvoření (sdílený helper `tr_validate_slot` — drží fixy v3.0.214 překryvy + v3.0.222 přes-půlnoc; při editu vynechá sebe sama z kolizí). Přesun do minulosti blokován jen při změně data (oprava jména u historické rezervace projde). Testy 7/7: edit, kolize 409, partial, self-overlap, neexistující stůl 400, zrušení.
+
 ## [3.0.241] — 2026-06-10
 
 ### 🗺️ Floor plan — oprava „Chyba apply: t is not defined" + šablona do nové zóny
