@@ -108,6 +108,15 @@ if (!$expected || !preg_match('/^[a-f0-9]{64}$/i', $expected)) {
 $root  = realpath(__DIR__ . '/..');
 $tmpDir = sys_get_temp_dir() . '/appek-update-' . $version . '-' . bin2hex(random_bytes(4));
 @mkdir($tmpDir, 0755, true);
+// 🧹 v3.0.229 — úklid temp i při PHP timeout/OOM killu (catch tehdy NEběží).
+// 19 nedoklizených appek-update-* složek (2556 souborů) přeteklo inode kvótu hostingu (Jun 2026).
+register_shutdown_function(function () use ($tmpDir) {
+    if (is_dir($tmpDir)) deleteRecursive($tmpDir);
+});
+// + sweep: leftovery starší 1 h z dřívějších killnutých běhů (shutdown handler nepokryje SIGKILL)
+foreach (glob(sys_get_temp_dir() . '/appek-update-*', GLOB_ONLYDIR) ?: [] as $stale) {
+    if ($stale !== $tmpDir && (time() - (int) @filemtime($stale)) > 3600) deleteRecursive($stale);
+}
 $bundlePath = $tmpDir . '/bundle.zip';
 $stagingDir = $tmpDir . '/staging';
 
@@ -263,6 +272,15 @@ try {
         }
     }
     $result['steps'][] = "💾 Záloha vytvořena · $backupCount souborů (api/zalohy/" . basename($backupDir) . ")";
+
+    // 🧹 v3.0.229 — rotace záloh: nech poslední 3 (každá = ~252 souborů; bez rotace
+    // se po ~20 updatech zase přeteče inode kvóta hostingu). Aktuální backup nikdy nemazat.
+    $allBackups = glob($root . '/api/zalohy/update-backup-*', GLOB_ONLYDIR) ?: [];
+    sort($allBackups); // jméno začíná timestampem YmdHis → lexikograficky = chronologicky
+    foreach (array_slice($allBackups, 0, max(0, count($allBackups) - 3)) as $oldBak) {
+        if ($oldBak !== $backupDir) deleteRecursive($oldBak);
+    }
+    if (count($allBackups) > 3) $result['steps'][] = '🧹 Rotace záloh: ' . (count($allBackups) - 3) . ' starých odstraněno (nechávám 3)';
 
     // ─── 8. Apply — copy files do live + per-file HASH MAP + OPCACHE INVALIDATE ─────
     // 🆕 v2.0.84 — Po každém zapisu .php souboru INVALIDUJ opcache. Bez toho PHP
