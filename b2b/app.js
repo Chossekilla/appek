@@ -73,6 +73,14 @@ const state = {
   sablony: JSON.parse(localStorage.getItem('sablony') || '[]'),      // uložené šablony objednávek
   oblibene: new Set(JSON.parse(localStorage.getItem('oblibene') || '[]')), // oblíbené výrobky (vyrobek_id)
   darkMode: localStorage.getItem('darkMode') === '1',                // dark/light theme
+  catalogCols: localStorage.getItem('b2b_cols') || 'auto',           // 🆕 sloupců v katalogu: auto|2|3|4|5|6
+};
+
+// 🆕 v3.0.232 — počet sloupců katalogu (persist + re-render)
+window.setCatalogCols = function(c) {
+  state.catalogCols = c;
+  localStorage.setItem('b2b_cols', c);
+  renderCatalog();
 };
 
 // Dark mode init (před jakýmkoli renderem)
@@ -734,7 +742,24 @@ async function loadCatalog() {
     const data = await api('katalog.php');
     state.vyrobky = data.vyrobky;
     state.kategorie = data.kategorie;
+    pruneCart(); // 🆕 v3.0.232 — vyhoď z košíku produkty, co už neexistují (po reset/smazání dat)
   } catch (e) { console.error(e); }
+}
+
+// 🆕 v3.0.232 — synchronizace košíku s katalogem. Dřív cartCount() sčítal i smazané
+// produkty → badge "112 ks · 0,00 Kč" zatímco panel hlásil prázdno. Teď se neexistující
+// položky odeberou (jen pokud katalog reálně dorazil — neumažeme při výpadku API).
+function pruneCart() {
+  if (!Array.isArray(state.vyrobky) || state.vyrobky.length === 0) return;
+  const validIds = new Set(state.vyrobky.map(v => String(v.id)));
+  let removed = 0;
+  for (const id of Object.keys(state.cart)) {
+    if (!validIds.has(String(id))) { delete state.cart[id]; removed++; }
+  }
+  if (removed > 0) {
+    saveCart();
+    if (typeof toast === 'function') toast(`Z košíku odebráno ${removed} už neexistujících položek.`, 'info');
+  }
 }
 
 async function loadMista() {
@@ -994,7 +1019,13 @@ function renderCatalog() {
       </div>
     ` : ''}
 
-    <h1 class="section-title">Katalog výrobků</h1>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+      <h1 class="section-title" style="margin:0">Katalog výrobků</h1>
+      <!-- 🆕 v3.0.232 — přepínač sloupců (desktop; mobil = vždy 2, skryto v CSS) -->
+      <div class="cols-switch" role="group" aria-label="Počet sloupců">
+        ${['auto','3','4','5'].map(c => `<button class="${(state.catalogCols||'auto')===c?'active':''}" onclick="setCatalogCols('${c}')" title="${c==='auto'?'Automaticky':c+' sloupce'}">${c==='auto'?'⊞ Auto':c}</button>`).join('')}
+      </div>
+    </div>
 
     <!-- 🔍 Vyhledávání -->
     <div class="catalog-search">
@@ -1059,17 +1090,13 @@ function renderCatalog() {
  * seskupí podle kategorie s nadpisy. Jinak plochý seznam.
  */
 function renderCatalogGrid(vyrobky) {
-  const isWide = window.innerWidth >= 600;
-  const gridCols = isWide ? 'repeat(auto-fill, minmax(180px, 1fr))' : '1fr 1fr';
-  const gridGap = isWide ? '14px' : '8px';
-  // 🆕 v3.0.175 — align-items:start → karty drží přirozenou výšku. Bez toho grid roztáhl
-  //   sousedy in-cart karty (která má stepper navíc) na její výšku → ošklivá díra mezi
-  //   jednotkou a cenou (cena má margin-top:auto → spadla dolů).
-  const gridStyle = `display:grid;grid-template-columns:${gridCols};gap:${gridGap};align-items:start;`;
+  // 🆕 v3.0.232 — vlastní třída .catalog-grid (mimo .grid !important chaos);
+  // počet sloupců řízený nastavením (auto = karty komfortní velikosti, doleva).
+  const colsAttr = (state.catalogCols && state.catalogCols !== 'auto') ? ` data-cols="${state.catalogCols}"` : '';
 
   // Pokud je filter / search aktivní → plochý seznam (uživatel chce vidět výsledky)
   if (state.filterKategorie || (state.search && state.search.trim())) {
-    return `<div class="grid" style="${gridStyle}">${vyrobky.map(renderCard).join('')}</div>`;
+    return `<div class="catalog-grid"${colsAttr}>${vyrobky.map(renderCard).join('')}</div>`;
   }
 
   // Bez filtru → grupovat podle kategorie, s hezkými oddělovači
@@ -1100,7 +1127,7 @@ function renderCatalogGrid(vyrobky) {
             <span class="catalog-section-name">${esc(nazev)}</span>
             <span class="catalog-section-count">${items.length}</span>
           </h2>
-          <div class="grid" style="${gridStyle}">
+          <div class="catalog-grid"${colsAttr}>
             ${items.map(renderCard).join('')}
           </div>
         </section>
