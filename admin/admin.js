@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.230';
+const APPEK_ADMIN_JS_VERSION = '3.0.231';
 
 (async function detectStaleCode() {
   try {
@@ -1471,15 +1471,16 @@ window.openDemoSeed = async function() {
   }
 };
 
-// 🆕 v2.9.277 — Reset demo data (smaže VŠE + naplní znova)
+// 🆕 v2.9.277 — Smazat vše. 🔄 v3.0.231: UŽ NENAPLŇUJE automaticky — systém zůstane
+// prázdný; demo data jen ručně tlačítkem 🎬 Naplnit demo daty (user 2026-06-10).
 window.resetDemoSeed = async function() {
   if (!isSuperAdmin()) return alert('Tato akce vyžaduje super admin práva');
 
   // 1. Strong confirm — 2 kroky
   const proceed1 = await confirmDialog({
-    title: '⚠️ RESET DEMO DAT',
+    title: '⚠️ SMAZAT VŠECHNA DATA',
     icon: '🗑️',
-    msg: 'Smaže VŠECHNA data v systému (objednávky, výrobky, suroviny, faktury, odběratele, sklad pohyby…) a naplní znova z čistého demo seedu.\n\n⚠️ TOTO NELZE VRÁTIT ZPĚT.\n\nPoužij jen pokud chceš začít s čistým demo. Pokračovat?',
+    msg: 'Smaže VŠECHNA data v systému (objednávky, výrobky, suroviny, faktury, odběratele, sklad pohyby…). Systém zůstane PRÁZDNÝ.\n\n⚠️ TOTO NELZE VRÁTIT ZPĚT.\n\nDemo data pak můžeš naplnit tlačítkem 🎬 Naplnit demo daty. Pokračovat?',
     okText: '⚠️ Pokračovat',
     cancelText: 'Zrušit',
   });
@@ -1498,12 +1499,7 @@ window.resetDemoSeed = async function() {
       method: 'POST',
       body: JSON.stringify({ confirm: 'SMAZAT VSE' }),
     });
-    // 3. Naplnit znova
-    const r = await api('admin_demo_seed.php?action=apply', { method: 'POST' });
-    toastSuccess(
-      `+${r.vyrobky || 0} výrobků, +${r.suroviny || 0} surovin, +${r.recepty || 0} receptů, +${r.historie_objednavky || 0} obj`,
-      '✅ Demo resetováno + naplněno'
-    );
+    toastSuccess('Systém je prázdný. Demo data naplníš tlačítkem 🎬.', '✅ Vše smazáno');
     setTimeout(() => location.reload(), 1500);
   } catch (e) {
     alert('Chyba resetu: ' + e.message);
@@ -14575,8 +14571,8 @@ async function renderNastaveni() {
           </button>
           <button class="btn-secondary" onclick="resetDemoSeed()"
                   style="padding:9px 16px;font-size:13px;background:#FEE2E2;color:#991B1B;border-color:#FECACA"
-                  title="⚠️ Smazat VŠE + naplnit znova (vyžaduje 2× confirm + typed input)">
-            🗑️ Reset (smaže VŠE)
+                  title="⚠️ Smaže VŠECHNA data — systém zůstane prázdný (vyžaduje 2× confirm + typed input)">
+            🗑️ Smazat vše
           </button>
         </div>
         <div style="margin-top:12px;padding:10px 12px;background:#FEF3C7;border-left:3px solid #F59E0B;border-radius:6px;font-size:12px;color:#854F0B;line-height:1.5">
