@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.244';
+const APPEK_ADMIN_JS_VERSION = '3.0.245';
 
 (async function detectStaleCode() {
   try {
@@ -1122,7 +1122,7 @@ window.toggleNotifGroup = function(kind) {
 
 // 🆕 v2.0.71 — Delete all notifications of a kind at once
 window.deleteNotifGroup = async function(kind, idsCsv) {
-  if (!confirm(t('confirm_delete_notif_kind', { kind, n: idsCsv.split(',').length }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_delete_notif_kind', { kind, n: idsCsv.split(',').length }), danger: false }))) return;
   const ids = idsCsv.split(',').filter(Boolean);
   try {
     await Promise.all(ids.map(id =>
@@ -1485,7 +1485,7 @@ window.resetDemoSeed = async function() {
   if (!proceed1) return;
 
   // 2. Typed confirmation
-  const typed = prompt('Pro potvrzení napiš velkými písmeny:\n\nSMAZAT VSE');
+  const typed = (await promptDialog({ msg: 'Pro potvrzení napiš velkými písmeny:\n\nSMAZAT VSE', value: '' }));
   if (typed !== 'SMAZAT VSE') {
     if (typed !== null) alert('Neshoduje se — reset zrušen');
     return;
@@ -2065,12 +2065,12 @@ window.confirmDelete2x = async function(arg) {
   const detail = typeof arg === 'object' ? (arg?.detail || '') : '';
 
   // 1. krok — běžný prompt
-  const krok1 = confirm(t('confirm_delete_co', { co, detail: detail ? '\n\n' + detail : '' }));
+  const krok1 = (await confirmDialog({ msg: t('confirm_delete_co', { co, detail: detail ? '\n\n' + detail : '' }), danger: false }));
   if (!krok1) return false;
 
   // 2. krok — definitivní potvrzení (nepřeskočitelné), JEN pokud je v nastavení zapnuté
   if (!getConfirmDelete2xEnabled()) return true;
-  const krok2 = confirm(t('confirm_delete_final_step', { co }));
+  const krok2 = (await confirmDialog({ msg: t('confirm_delete_final_step', { co }), danger: false }));
   return krok2;
 };
 
@@ -3095,7 +3095,7 @@ window.appekScanFromVyrobky = function() {
           navigate('vyrobky');
         } else {
           // Nový výrobek — otevři prázdný a EAN doplň po načtení formuláře
-          if (confirm('📦 EAN ' + code + ' nenalezen. Vytvořit nový výrobek?')) {
+          if ((await confirmDialog({ msg: '📦 EAN ' + code + ' nenalezen. Vytvořit nový výrobek?', danger: false }))) {
             window.editVyrobek?.();
             setTimeout(() => {
               const eanInput = document.querySelector('#vyr-ean, input[name="ean"], [data-field="ean"]');
@@ -4203,7 +4203,7 @@ window.onboardBack = function() { state._onboard.step = Math.max(0, state._onboa
 window.onboardSkipStep = function() { state._onboard.step++; renderOnboardingStep(); };
 
 window.onboardSkip = async function() {
-  if (!confirm('Opravdu přeskočit onboarding? Všechno najdete v Nastavení a můžete dokončit kdykoliv.')) return;
+  if (!(await confirmDialog({ msg: 'Opravdu přeskočit onboarding? Všechno najdete v Nastavení a můžete dokončit kdykoliv.', danger: false }))) return;
   try { await api('admin_onboarding.php?action=dismiss', { method: 'POST' }); } catch {}
   closeModal();
 };
@@ -4320,7 +4320,7 @@ window.onboardKategorieToggle = function(nazev, checked) {
 window.onboardSeedAndNext = async function() {
   const kategorie = state._onboard.data.kategorie_zvolene || [];
   if (kategorie.length === 0) {
-    if (!confirm('Žádné kategorie nejsou vybrané. Pokračovat bez vzorových dat?')) return;
+    if (!(await confirmDialog({ msg: 'Žádné kategorie nejsou vybrané. Pokračovat bez vzorových dat?', danger: false }))) return;
     return onboardNext();
   }
   try {
@@ -6037,7 +6037,7 @@ window.objBulkEmail = async function() {
     msg += `\n\n⚠️ ${bezEmailu.length} bez e-mailu (přeskočí):\n` + bezEmailu.slice(0, 5).map(o => `• ${o.cislo} — ${o.odberatel}`).join('\n');
     if (bezEmailu.length > 5) msg += `\n... a další ${bezEmailu.length - 5}`;
   }
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog({ msg: msg, danger: false }))) return;
 
   // Progress toast
   const toast = document.createElement('div');
@@ -6081,7 +6081,7 @@ window.objBulkAction = async function(typ) {
   const ids = [...(state._objSelected || [])];
   if (ids.length === 0) return;
   const akce = typ === 'fa' ? 'vytvořit FAKTURY' : 'vytvořit DODACÍ LISTY';
-  if (!confirm(t('confirm_bulk_action_orders', { akce, n: ids.length, label: ids.length === 1 ? 'objednávku' : (ids.length < 5 ? 'objednávky' : 'objednávek') }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_bulk_action_orders', { akce, n: ids.length, label: ids.length === 1 ? 'objednávku' : (ids.length < 5 ? 'objednávky' : 'objednávek') }), danger: false }))) return;
 
   try {
     const res = await api('admin_objednavky_hromadne.php', {
@@ -6340,11 +6340,9 @@ window.ulozitObjednavku = async function(id) {
 
   if (datumZmenen && (maDL || maFA)) {
     const co = maFA ? 'FAKTURU a dodací list' : 'DODACÍ LIST';
-    if (!confirm(
-      `⚠️ Měníte datum dodání objednávky, která má vystavenou ${co}.\n\n` +
+    if (!(await confirmDialog({ msg: `⚠️ Měníte datum dodání objednávky, která má vystavenou ${co}.\n\n` +
       `Datum dodání na objednávce se změní, ale na již vystavených dokladech zůstane staré.\n\n` +
-      `Pokračovat?`
-    )) return;
+      `Pokračovat?`, danger: false }))) return;
     data.vynutit = true;
   }
 
@@ -6373,12 +6371,10 @@ window.ulozitMnozstvi = async function(id) {
   let vynutit = false;
   if (maDL || maFA) {
     const co = maFA ? 'FAKTURU a dodací list' : 'DODACÍ LIST';
-    if (!confirm(
-      `⚠️ Tato objednávka má vystavenou ${co}.\n\n` +
+    if (!(await confirmDialog({ msg: `⚠️ Tato objednávka má vystavenou ${co}.\n\n` +
       `Pokud budete pokračovat, ${maFA ? 'faktura i dodací list' : 'dodací list'} se automaticky přepíše podle nových položek.\n\n` +
       `Pokud již byl doklad vytištěn, zahoďte ho a vytiskněte nový.\n\n` +
-      `Opravdu pokračovat?`
-    )) return;
+      `Opravdu pokračovat?`, danger: true }))) return;
     vynutit = true;
   }
 
@@ -6468,7 +6464,7 @@ window.ulozitNovouPolozku = async function(objednavka_id) {
 };
 
 window.vytvoritFakturu = async function(objednavka_id) {
-  if (!confirm('Vytvořit fakturu z této objednávky?')) return;
+  if (!(await confirmDialog({ msg: 'Vytvořit fakturu z této objednávky?', danger: false }))) return;
   try {
     const res = await api(`faktura.php?action=vytvor`, {
       method: 'POST',
@@ -6483,7 +6479,7 @@ window.vytvoritFakturu = async function(objednavka_id) {
 
 // 🆕 v3.0.233 — Vystavit fakturu přímo z dodacího listu (i ruční DL bez objednávky).
 window.vytvoritFakturuZDL = async function(dlId, objednavkaId) {
-  if (!confirm('Vystavit fakturu z tohoto dodacího listu?')) return;
+  if (!(await confirmDialog({ msg: 'Vystavit fakturu z tohoto dodacího listu?', danger: false }))) return;
   try {
     const payload = objednavkaId ? { objednavka_id: objednavkaId } : { dodaci_list_id: dlId };
     const res = await api(`faktura.php?action=vytvor`, { method: 'POST', body: JSON.stringify(payload) });
@@ -7341,7 +7337,7 @@ window.ulozitSklad = async function(id) {
 };
 
 window.smazatSklad = async function(id, nazev) {
-  if (!confirm(t('confirm_delete_warehouse', { nazev }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_delete_warehouse', { nazev }), danger: false }))) return;
   try {
     const r = await api('admin_sklady.php?id=' + id, { method: 'DELETE' });
     renderSkladyInline();
@@ -7974,7 +7970,7 @@ window.spravaProvestInventuru = async function(skladId) {
     return;
   }
 
-  if (!confirm(t('confirm_inventory_action', { n: ucinit.length, label: ucinit.length === 1 ? 'položku' : (ucinit.length < 5 ? 'položky' : 'položek') }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_inventory_action', { n: ucinit.length, label: ucinit.length === 1 ? 'položku' : (ucinit.length < 5 ? 'položky' : 'položek') }), danger: false }))) return;
 
   let ok = 0, fail = 0;
   for (const item of ucinit) {
@@ -8250,12 +8246,12 @@ window.ulozitPrirazeni = async function(skladId) {
   }
 };
 
-window.editSkladPolozku = function(id, stav, min, cil, nazev) {
-  const newStav = prompt(`Aktuální stav "${nazev}":`, stav);
+window.editSkladPolozku = async function(id, stav, min, cil, nazev) {
+  const newStav = (await promptDialog({ msg: `Aktuální stav "${nazev}":`, value: stav }));
   if (newStav === null) return;
-  const newMin = prompt(`Minimum (prázdné = bez):`, min !== null ? min : '');
+  const newMin = (await promptDialog({ msg: `Minimum (prázdné = bez):`, value: min !== null ? min : '' }));
   if (newMin === null) return;
-  const newCil = prompt(`Cíl (prázdné = bez):`, cil !== null ? cil : '');
+  const newCil = (await promptDialog({ msg: `Cíl (prázdné = bez):`, value: cil !== null ? cil : '' }));
   if (newCil === null) return;
 
   api('admin_sklad_polozky.php?id=' + id, {
@@ -8274,7 +8270,7 @@ window.editSkladPolozku = function(id, stav, min, cil, nazev) {
 };
 
 window.odebratPolozku = async function(id, nazev) {
-  if (!confirm(t('confirm_remove_from_warehouse', { nazev }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_remove_from_warehouse', { nazev }), danger: false }))) return;
   try {
     await api('admin_sklad_polozky.php?id=' + id, { method: 'DELETE' });
     closeModal();
@@ -9572,7 +9568,7 @@ window.salesPrint = function() {
 };
 
 window.recurringSpustit = async function() {
-  if (!confirm('Spustit generování objednávek pro ZÍTRA? (Anti-duplikát zajistí že se neuhrazené pravidla nevytvoří dvakrát.)')) return;
+  if (!(await confirmDialog({ msg: 'Spustit generování objednávek pro ZÍTRA? (Anti-duplikát zajistí že se neuhrazené pravidla nevytvoří dvakrát.)', danger: false }))) return;
   try {
     const r = await api('admin_recurring.php?action=spustit_ted', { method: 'POST' });
     alert(t('bulk_done_stats', { ok: r.vytvoreno, skip: r.preskoceno, err: r.chyby }));
@@ -9846,12 +9842,10 @@ window.dlBulkVystavitFakturu = async function() {
 
   const odberatel = vybrane[0]?.odberatel_nazev || 'odběratele';
   const celkemCastka = vybrane.reduce((s, d) => s + parseFloat(d.castka_celkem || 0), 0);
-  if (!confirm(
-    `Vystavit JEDNU fakturu z ${ids.length} dodacích listů?\n\n` +
+  if (!(await confirmDialog({ msg: `Vystavit JEDNU fakturu z ${ids.length} dodacích listů?\n\n` +
     `Odběratel: ${odberatel}\n` +
     `Celkem: ${fmt(celkemCastka)}\n\n` +
-    `DL čísla: ${vybrane.map(d => d.cislo).join(', ')}`
-  )) return;
+    `DL čísla: ${vybrane.map(d => d.cislo).join(', ')}`, danger: false }))) return;
 
   try {
     const res = await api('admin_faktura_z_dl.php', {
@@ -9993,14 +9987,14 @@ window.dlBulkTisk = function() {
 };
 
 // Tisk z hlavičky DL — pokud nic vybráno, vytiskne všechny zobrazené
-window.dlBulkTiskNahore = function() {
+window.dlBulkTiskNahore = async function() {
   let ids = [...(state._dlSelected || [])];
   const list = state._dlList || [];
   if (ids.length === 0) {
     if (list.length === 0) return alert('Žádné dodací listy k tisku.');
     if (list.length > 30) {
-      if (!confirm(t('confirm_print_all_dl_many', { n: list.length }))) return;
-    } else if (!confirm(t('confirm_print_all_dl', { n: list.length }))) return;
+      if (!(await confirmDialog({ msg: t('confirm_print_all_dl_many', { n: list.length }), danger: false }))) return;
+    } else if (!(await confirmDialog({ msg: t('confirm_print_all_dl', { n: list.length }), danger: false }))) return;
     ids = list.map(d => d.id);
   }
   // Rozdělím na DL z objednávek vs ruční
@@ -10817,14 +10811,14 @@ window.faBulkTisk = function() {
 };
 
 // Tisk z hlavičky — pokud nic vybráno, zeptá se a vytiskne všechny zobrazené
-window.faBulkTiskNahore = function() {
+window.faBulkTiskNahore = async function() {
   let ids = [...(state._faSelected || [])];
   if (ids.length === 0) {
     const all = (state._faList || []).map(f => f.id);
     if (all.length === 0) return alert('Žádné faktury k tisku.');
     if (all.length > 30) {
-      if (!confirm(t('confirm_print_all_invoices_many', { n: all.length }))) return;
-    } else if (!confirm(t('confirm_print_all_invoices', { n: all.length }))) return;
+      if (!(await confirmDialog({ msg: t('confirm_print_all_invoices_many', { n: all.length }), danger: false }))) return;
+    } else if (!(await confirmDialog({ msg: t('confirm_print_all_invoices', { n: all.length }), danger: false }))) return;
     ids = all;
   }
   window.open(`../api/faktura.php?ids=${ids.join(',')}&autoprint=1`, '_blank');
@@ -10926,7 +10920,7 @@ window.exportFakturEmail = async function() {
   const email = (document.getElementById('exp-email').value || '').trim();
   if (!email || !email.includes('@')) return alert('Vyplň email');
   if (!od || !dto) return alert('Vyplň období');
-  if (!confirm(t('confirm_send_isdoc_zip', { email }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_send_isdoc_zip', { email }), danger: false }))) return;
   try {
     const r = await api('admin_export_isdoc.php?action=email', {
       method: 'POST',
@@ -10947,7 +10941,7 @@ window.exportFakturIsdocPeriod = async function() {
     const data = await api('admin_faktury.php?' + params);
     const ids = (data.faktury || []).map(f => f.id);
     if (ids.length === 0) return alert('V období nejsou žádné faktury');
-    if (!confirm(t('confirm_download_isdoc_zip', { n: ids.length }))) return;
+    if (!(await confirmDialog({ msg: t('confirm_download_isdoc_zip', { n: ids.length }), danger: false }))) return;
 
     const res = await fetch('../api/admin_export_isdoc.php?action=zip', {
       method: 'POST',
@@ -11102,8 +11096,8 @@ window.importFakturProvest = async function() {
   if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
     return alert('Vyberte soubor');
   }
-  if (!confirm('Spustit import vybraného souboru?\n\nDuplicitní faktury budou ' +
-      (document.getElementById('imp-skip-dup')?.checked ? 'přeskočeny.' : 'hlášeny jako chyba.'))) return;
+  if (!(await confirmDialog({ msg: 'Spustit import vybraného souboru?\n\nDuplicitní faktury budou ' +
+      (document.getElementById('imp-skip-dup')?.checked ? 'přeskočeny.' : 'hlášeny jako chyba.'), danger: false }))) return;
 
   const r = await _impSendFile('import');
   if (!r) return;
@@ -11391,12 +11385,12 @@ window.opakovatObjednavkuZFaktury = async function(id) {
     }
 
     const skipnuto = f.polozky.length - polozky.length;
-    const datumDodani = prompt(
-      `Vytvoří novou objednávku se ${polozky.length} položkami pro odběratele "${f.odberatel_nazev}".\n` +
-      (skipnuto > 0 ? `(${skipnuto} volných řádků bude přeskočeno)\n` : '') +
-      `\nZadejte datum dodání (RRRR-MM-DD):`,
-      new Date(Date.now() + 86400000).toISOString().slice(0, 10) // zítra
-    );
+    const datumDodani = (await promptDialog({
+      msg: `Vytvoří novou objednávku se ${polozky.length} položkami pro odběratele "${f.odberatel_nazev}".\n`
+        + (skipnuto > 0 ? `(${skipnuto} volných řádků bude přeskočeno)\n` : '')
+        + `\nZadejte datum dodání (RRRR-MM-DD):`,
+      value: new Date(Date.now() + 86400000).toISOString().slice(0, 10), // zítra
+    }));
     if (!datumDodani) return;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(datumDodani)) {
       return alert('Neplatný formát data. Použijte RRRR-MM-DD.');
@@ -11482,12 +11476,10 @@ window.ulozitPolozkyFaktury = async function(id) {
   });
   if (zmeny.length === 0) return alert('Nebyly provedeny žádné změny');
 
-  if (!confirm(
-    '⚠️ Měníte položky na již vystavené faktuře.\n\n' +
+  if (!(await confirmDialog({ msg: '⚠️ Měníte položky na již vystavené faktuře.\n\n' +
     'Faktura se přepíše a součty se přepočítají.\n' +
     'Pokud již byla faktura vytištěna nebo poslána odběrateli, zahoďte ji a vytiskněte nové PDF.\n\n' +
-    'Opravdu pokračovat?'
-  )) return;
+    'Opravdu pokračovat?', danger: true }))) return;
 
   try {
     await api('admin_faktury.php', {
@@ -12119,7 +12111,7 @@ window.precislovatVyrobky = async function() {
   let msg = `Přečíslovat výrobky?\n\nPříklad nových kódů: ${sample.join(', ')}…`;
   if (propagovat) msg += '\n\n🔗 Propagace: změny se promítnou do dodacích listů a faktur.';
   msg += '\n\nTato akce je nevratná — všechna stávající čísla budou přepsána.';
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog({ msg: msg, danger: false }))) return;
 
   try {
     const r = await api('admin_vyrobky.php?action=renumber', {
@@ -12581,7 +12573,7 @@ window.vyNutriZeSurovin = function() {
   setTimeout(() => t.remove(), surBezNutri.length || surKs.length ? 6000 : 2500);
 };
 
-window.vyOdvoditAlergeny = function(silent) {
+window.vyOdvoditAlergeny = async function(silent) {
   const rows = document.querySelectorAll('#vy-sloz-rows .sloz-row');
   const sur = state._suroviny_cache || [];
   const indexById = Object.fromEntries(sur.map(s => [s.id, s]));
@@ -12607,7 +12599,7 @@ window.vyOdvoditAlergeny = function(silent) {
   if (!stary || silent) {
     aler.value = list;
   } else if (stary !== list) {
-    if (confirm(t('confirm_overwrite_allergens', { list: list || '(žádné)', old: stary }))) {
+    if ((await confirmDialog({ msg: t('confirm_overwrite_allergens', { list: list || '(žádné)', old: stary }), danger: false }))) {
       aler.value = list;
     }
   }
@@ -12832,7 +12824,7 @@ window.uploadLogo = async function() {
 };
 
 window.removeLogo = async function() {
-  if (!confirm('Opravdu odstranit logo a favicon? Vrátí se výchozí.')) return;
+  if (!(await confirmDialog({ msg: 'Opravdu odstranit logo a favicon? Vrátí se výchozí.', danger: true }))) return;
   try {
     await api('admin_nastaveni.php?action=remove_logo', { method: 'POST' });
     aplikovatFavicon(null);
@@ -15434,7 +15426,7 @@ window.tiskarnaTest = async function(id) {
 };
 
 window.tiskarnaDelete = async function(id, nazev) {
-  if (!confirm(t('confirm_delete_printer', { nazev }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_delete_printer', { nazev }), danger: false }))) return;
   try {
     await api('admin_printers.php?action=delete', { method: 'POST', body: JSON.stringify({ id }) });
     toast('✓ Smazáno', 'success');
@@ -16874,10 +16866,10 @@ async function renderCakeGallery() {
 }
 
 window.addGalleryPhoto = async function() {
-  const url = prompt('URL fotky (zatím podporujeme jen URL — upload bude v dalším batch):');
+  const url = (await promptDialog({ msg: 'URL fotky (zatím podporujeme jen URL — upload bude v dalším batch):', value: '' }));
   if (!url) return;
-  const nazev = prompt('Název / popis fotky:', '');
-  const tag   = prompt('Tag (např. svatba, narozeniny, firemní):', '');
+  const nazev = (await promptDialog({ msg: 'Název / popis fotky:', value: '' }));
+  const tag   = (await promptDialog({ msg: 'Tag (např. svatba, narozeniny, firemní):', value: '' }));
   try {
     await api('admin_cake_gallery.php', { method: 'POST', body: JSON.stringify({ url, nazev, tag }) });
     toastSuccess('Foto přidáno');
@@ -17177,7 +17169,7 @@ window.cateringRecalc = async function() {
 // =============================================================
 // 🆕 v3.0.20 — Seed restaurant demo pack (pizzy, káva, saláty, dezerty + suroviny + recepty + nutri)
 window.seedRestaurantPack = async function() {
-  if (!confirm('🍕 Naseed restaurant demo data?\n\nVloží:\n• 6 kategorií (Pizzy, Káva, Nealko, Saláty, Dezerty, Těstoviny)\n• 18 surovin s nutričními hodnotami\n• 11 výrobků (Margherita, Quattro Formaggi, Espresso, Cappuccino, Caesar, Tiramisu...)\n• Receptury → auto-výpočet nutri\n\nExistující se zachová (idempotent).')) return;
+  if (!(await confirmDialog({ msg: '🍕 Naseed restaurant demo data?\n\nVloží:\n• 6 kategorií (Pizzy, Káva, Nealko, Saláty, Dezerty, Těstoviny)\n• 18 surovin s nutričními hodnotami\n• 11 výrobků (Margherita, Quattro Formaggi, Espresso, Cappuccino, Caesar, Tiramisu...)\n• Receptury → auto-výpočet nutri\n\nExistující se zachová (idempotent).', danger: false }))) return;
   try {
     const r = await api('admin_demo_seed.php?action=seed_restaurant_pack', { method: 'POST' });
     if (r && r.ok) {
@@ -17778,7 +17770,7 @@ window.qrApproveAll = async function(stulId, ids) {
 };
 
 window.qrRejectAll = async function(ids) {
-  if (!confirm(t('confirm_reject_items', { n: ids.length }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_reject_items', { n: ids.length }), danger: false }))) return;
   try {
     for (const id of ids) {
       await api('admin_pos.php?action=qr_reject', {
@@ -18315,9 +18307,9 @@ function rtTableDragEnd(e) {
 // =============================================================
 // 🎯 ACTIONS
 // =============================================================
-window.rtToggleEditMode = function() {
+window.rtToggleEditMode = async function() {
   if (rtState.editMode && rtState.dirtyTables.size > 0) {
-    if (!confirm('Máš neuložené změny. Zahodit?')) return;
+    if (!(await confirmDialog({ msg: 'Máš neuložené změny. Zahodit?', danger: true }))) return;
     rtState.dirtyTables.clear();
   }
   rtState.editMode = !rtState.editMode;
@@ -18450,7 +18442,7 @@ window.rtQuickAddTable = async function(preset) {
 };
 
 window.rtDeleteTable = async function(id) {
-  if (!confirm('Smazat tento stůl?')) return;
+  if (!(await confirmDialog({ msg: 'Smazat tento stůl?', danger: true }))) return;
   try {
     await api('admin_tables.php?id=' + id, { method: 'DELETE' });
     rtState.dirtyTables.delete(id);
@@ -18847,7 +18839,7 @@ window.posItemState = async function(itemId, stav) {
 };
 
 window.posItemDelete = async function(itemId) {
-  if (!confirm('Odebrat tuto položku? (Pokud už se vaří, bude storno)')) return;
+  if (!(await confirmDialog({ msg: 'Odebrat tuto položku? (Pokud už se vaří, bude storno)', danger: true }))) return;
   try {
     await api('admin_pos.php?action=item&id=' + itemId, { method: 'DELETE' });
     const u = posState.currentUcet;
@@ -18975,7 +18967,7 @@ window.posSubmitSplitPay = async function(total) {
   });
   const sum = platby.reduce((s, p) => s + p.castka, 0);
   if (Math.abs(sum - total) > 0.01) {
-    if (!confirm(t('confirm_sum_mismatch', { sum: sum.toFixed(2), total: total.toFixed(2) }))) return;
+    if (!(await confirmDialog({ msg: t('confirm_sum_mismatch', { sum: sum.toFixed(2), total: total.toFixed(2) }), danger: false }))) return;
   }
   const u = posState.currentUcet;
   try {
@@ -19139,7 +19131,7 @@ window.posShowQR = async function(stulId, stulNazev) {
 };
 
 window.posResetQR = async function(stulId, stulNazev) {
-  if (!confirm('Vygenerovat nový QR token? Předchozí QR kódy přestanou fungovat.')) return;
+  if (!(await confirmDialog({ msg: 'Vygenerovat nový QR token? Předchozí QR kódy přestanou fungovat.', danger: false }))) return;
   try {
     await api('admin_pos.php?action=qr_generate', {
       method: 'POST', body: JSON.stringify({ stul_id: stulId, reset: true }),
@@ -19313,7 +19305,7 @@ window.rtApplyTemplate = async function(key, nazev) {
     body = { template: key, merge: false, keep_zones: true };
     msg = `Přepsat rozložení stolů šablonou „${nazev}"?\n\nTvoje zóny ZŮSTANOU. Otevřené účty se zachovají.`;
   }
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog({ msg: msg, danger: false }))) return;
   try {
     const r = await api('admin_tables.php?action=apply_template', {
       method: 'POST',
@@ -19376,7 +19368,7 @@ window.rtSaveZone = async function(id) {
 };
 
 window.rtAddZone = async function() {
-  const nazev = prompt('Název nové zóny:', 'Terasa');
+  const nazev = (await promptDialog({ msg: 'Název nové zóny:', value: 'Terasa' }));
   if (!nazev) return;
   try {
     const r = await api('admin_tables.php?action=zone_save', {
@@ -19391,7 +19383,7 @@ window.rtAddZone = async function() {
 };
 
 window.rtDeleteZone = async function(id) {
-  if (!confirm('Smazat zónu? Všechny stoly v ní budou taky smazány!')) return;
+  if (!(await confirmDialog({ msg: 'Smazat zónu? Všechny stoly v ní budou taky smazány!', danger: true }))) return;
   try {
     await api('admin_tables.php?action=zone&id=' + id, { method: 'DELETE' });
     if (rtState.activeZoneId == id) rtState.activeZoneId = null;
@@ -19814,7 +19806,7 @@ window.addEventListener('message', (ev) => {
 
 // 🆕 v3.0.243 — nová zóna přímo z adminu (dřív jen ve floorplan editoru)
 window.pridatZonu = async function() {
-  const nazev = prompt('Název nové zóny (např. Terasa, Salonek):', '');
+  const nazev = (await promptDialog({ msg: 'Název nové zóny (např. Terasa, Salonek):', value: '' }));
   if (nazev === null) return;
   const n = nazev.trim();
   if (!n) return toastInfo('Název zóny nesmí být prázdný');
@@ -20287,7 +20279,7 @@ window.posPresetsSave = async function() {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 window.posPresetsReset = async function() {
-  if (!confirm('Vrátit presety na továrenské 4 (Korkovné, Obal, Sleva, Poplatek)?')) return;
+  if (!(await confirmDialog({ msg: 'Vrátit presety na továrenské 4 (Korkovné, Obal, Sleva, Poplatek)?', danger: true }))) return;
   try {
     const r = await api('admin_pos_presets.php?action=reset', { method: 'POST' });
     state._posPresets = r.presets || [];
@@ -21088,7 +21080,7 @@ window.courierTestIntegration = async function(sluzba) {
 
 // 🆕 v3.0.38 — Sync menu
 window.courierSyncMenu = async function(sluzba) {
-  if (!confirm('Pošle všechny tvoje restaurační výrobky do ' + sluzba + ' katalogu. Pokračovat?')) return;
+  if (!(await confirmDialog({ msg: 'Pošle všechny tvoje restaurační výrobky do ' + sluzba + ' katalogu. Pokračovat?', danger: false }))) return;
   const result = document.getElementById('ci-result');
   if (result) { result.style.display = 'block'; result.style.background = '#FEF3C7'; result.style.color = '#78350F'; result.innerHTML = '⏳ Sync menu…'; }
   try {
@@ -24615,7 +24607,7 @@ window.diagCopy = function() {
   const txt = JSON.stringify(raw, null, 2);
   navigator.clipboard.writeText(txt).then(
     () => alert('✓ Diagnostické info zkopírováno do schránky (' + Math.round(txt.length / 1024) + ' kB).'),
-    () => prompt('Schránka selhala — zkopíruj manuálně:', txt.substring(0, 5000))
+    () => { promptDialog({ msg: 'Schránka selhala — zkopíruj manuálně:', value: txt.substring(0, 5000) }); }
   );
 };
 
@@ -28881,7 +28873,7 @@ window.ke_odeslat = async function() {
   // Validace extra emailů — pokud user napsal něco co nezavalidovalo
   const rawExtra = (document.getElementById('ke-extra-emaily')?.value || '').trim();
   if (rawExtra && extraEmaily.length === 0) {
-    if (!confirm('V poli „Další e-mailové adresy" jsi něco napsal, ale žádný platný e-mail jsem nenašel. Pokračovat bez nich?')) return;
+    if (!(await confirmDialog({ msg: 'V poli „Další e-mailové adresy" jsi něco napsal, ale žádný platný e-mail jsem nenašel. Pokračovat bez nich?', danger: false }))) return;
   }
 
   const btn = document.getElementById('ke-odeslat-btn');
@@ -28920,7 +28912,7 @@ window.ke_testNaSebe = async function() {
     const ns = await api('admin_nastaveni.php');
     testEmail = ns?.firma_email || '';
   } catch (e) {}
-  testEmail = prompt('Zadej e-mail pro test (defaultně firma_email z nastavení):', testEmail);
+  testEmail = (await promptDialog({ msg: 'Zadej e-mail pro test (defaultně firma_email z nastavení):', value: testEmail }));
   if (!testEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmail)) {
     if (testEmail !== null) alert('Neplatný e-mail.');
     return;
@@ -29158,20 +29150,20 @@ window.pridatKategoriiSurovin = function() {
   }, 50);
 };
 
-window.smazatKategoriiSurovin = function(idx) {
+window.smazatKategoriiSurovin = async function(idx) {
   const k = state._katsDraft[idx];
   if (!k) return;
   if (k.key === 'ostatni') {
     alert('Kategorii „Ostatní" nelze smazat — slouží jako fallback pro nezařazené suroviny.');
     return;
   }
-  if (!confirm(t('confirm_delete_category', { label: k.label }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_delete_category', { label: k.label }), danger: false }))) return;
   state._katsDraft.splice(idx, 1);
   renderKategoriGrid();
 };
 
-window.obnovitVychoziKategorie = function() {
-  if (!confirm('Obnovit výchozí systémové kategorie? Ztratíš vlastní úpravy.')) return;
+window.obnovitVychoziKategorie = async function() {
+  if (!(await confirmDialog({ msg: 'Obnovit výchozí systémové kategorie? Ztratíš vlastní úpravy.', danger: true }))) return;
   state._katsDraft = SUROVINA_KATEGORIE_DEFAULTS.map(k => ({ ...k, kw: [...k.kw] }));
   renderKategoriGrid();
 };
@@ -30743,7 +30735,7 @@ window.surDetekovatAlergenyAuto = function() {
   }
 };
 
-window.surDetekovatAlergeny = function() {
+window.surDetekovatAlergeny = async function() {
   surDetekovatAlergenyAuto();
   const txt = document.getElementById('sur-slozeni')?.value || '';
   const found = surDetekujAlergenyZTextu(txt);
@@ -30758,7 +30750,7 @@ window.surDetekovatAlergeny = function() {
     alerEl.value = found.join(', ');
     return;
   }
-  if (confirm(t('confirm_detected_overwrite_allergens', { found: found.join(', '), current: alerEl.value }))) {
+  if ((await confirmDialog({ msg: t('confirm_detected_overwrite_allergens', { found: found.join(', '), current: alerEl.value }), danger: false }))) {
     alerEl.value = found.join(', ');
   }
 };
@@ -30843,7 +30835,7 @@ window.smazatSurovinu = async function(id) {
 };
 
 window.seedSuroviny = async function() {
-  if (!confirm('Naplnit databázi sadou ~70 výchozích surovin? (Existující se nepřepíší.)')) return;
+  if (!(await confirmDialog({ msg: 'Naplnit databázi sadou ~70 výchozích surovin? (Existující se nepřepíší.)', danger: true }))) return;
   try {
     const res = await api('admin_suroviny.php?action=seed', { method: 'POST' });
     // Invalidate cache aby seed byl vidět hned
@@ -30869,7 +30861,7 @@ async function loadSurovinyCache() {
 
 // 🆕 v2.9.290 — Tlačítko v editVyrobek pro doplnění demo receptu (RK01, CH01, …)
 window.vyNaplnitDemoRecept = async function(vyrobekId, cislo) {
-  if (!confirm(t('confirm_demo_recipe', { cislo }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_demo_recipe', { cislo }), danger: false }))) return;
   try {
     const r = await api('admin_demo_seed.php?action=seed_one_recipe', {
       method: 'POST',
@@ -30957,7 +30949,7 @@ window.vyTestoUpdateDisplay = function() {
   }
 };
 
-window.vyTestoPrepocitat = function() {
+window.vyTestoPrepocitat = async function() {
   const targetEl = document.getElementById('vy-testo-target');
   const target = parseFloat(targetEl?.value) || 0;
   if (target <= 0) {
@@ -30971,7 +30963,7 @@ window.vyTestoPrepocitat = function() {
   {
     const fromStr = aktualni.toFixed(3).replace(/\.?0+$/, '').replace('.', ',');
     const multStr = mult.toFixed(3).replace(/\.?0+$/, '').replace('.', ',');
-    if (!confirm(t('confirm_recalc_recipe', { from: fromStr, to: target, mult: multStr }))) return;
+    if (!(await confirmDialog({ msg: t('confirm_recalc_recipe', { from: fromStr, to: target, mult: multStr }), danger: false }))) return;
   }
 
   document.querySelectorAll('#vy-sloz-rows .sloz-row').forEach(r => {
@@ -31277,7 +31269,7 @@ window.cenikApply = async function() {
               `• Vytvořit nové: ${summary.create || 0} záznamů\n` +
               `• Přeskočit: ${summary.skip || 0} záznamů\n\n` +
               `Akce není automaticky reverzibilní — udělej zálohu DB jestli máš pochybnost.`;
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog({ msg: msg, danger: false }))) return;
 
   try {
     const r = await api('admin_import_cenik.php?action=apply', {
@@ -31439,7 +31431,7 @@ window.importVyrobkuPreview = async function() {
 window.importVyrobkuSpustit = async function() {
   const file = document.getElementById('imp-file').files[0];
   if (!file) return alert('Vyberte JSON soubor');
-  if (!confirm('Spustit import? Tato akce zapíše do databáze.')) return;
+  if (!(await confirmDialog({ msg: 'Spustit import? Tato akce zapíše do databáze.', danger: false }))) return;
 
   const fd = new FormData();
   fd.append('soubor', file);
@@ -31694,7 +31686,7 @@ window.vcardImport = async function() {
   const cards = window.vcardRozdelit(text);
   if (cards.length === 0) return alert('Žádné platné vCard bloky.');
   const typ = document.getElementById('vc-typ').value || null;
-  if (!confirm(t('confirm_import_cards', { n: cards.length, typ_text: typ ? ' Všechny jako "' + (window.odbTypByKey(typ)?.label || typ) + '".' : '' }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_import_cards', { n: cards.length, typ_text: typ ? ' Všechny jako "' + (window.odbTypByKey(typ)?.label || typ) + '".' : '' }), danger: false }))) return;
 
   try {
     const res = await api('admin_odberatele.php?action=import_vcard', {
@@ -31719,7 +31711,7 @@ window.vcardImport = async function() {
 window.importOdbSpustit = async function() {
   const file = document.getElementById('impo-file').files[0];
   if (!file) return alert('Vyberte JSON soubor');
-  if (!confirm('Spustit import? Tato akce zapíše do databáze.')) return;
+  if (!(await confirmDialog({ msg: 'Spustit import? Tato akce zapíše do databáze.', danger: false }))) return;
 
   const fd = new FormData();
   fd.append('soubor', file);
@@ -32114,9 +32106,9 @@ window.stChipRemove = function(vId) {
   if (typeof renderStitky === 'function') renderStitky();
 };
 
-window.stVymazatVse = function() {
+window.stVymazatVse = async function() {
   if (!stState.vybraneVyr || stState.vybraneVyr.size === 0) return;
-  if (!confirm(t('confirm_clear_selected_products', { n: stState.vybraneVyr.size }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_clear_selected_products', { n: stState.vybraneVyr.size }), danger: false }))) return;
   stState.vybraneVyr.clear();
   stState.poctyPerVyrobek = {};
   if (typeof renderStitky === 'function') renderStitky();
@@ -32592,7 +32584,7 @@ function renderStitkyCenovkaConfig() {
 // — vezme zaškrtnutá pole z stState.cenovkaPole + badge a vygeneruje
 //   hotové layout prvky které se otevřou v editoru
 // =============================================================
-window.stOtevritEditorZeCenovky = function() {
+window.stOtevritEditorZeCenovky = async function() {
   const pole = stState.cenovkaPole || {};
   const fmt = STITKY_FORMATY.find(f => f.id === stState.formatId) || STITKY_FORMATY[0];
   const isVisitka = (fmt.h <= 50);  // malé cenovky (vizitka 90×50)
@@ -32695,7 +32687,7 @@ window.stOtevritEditorZeCenovky = function() {
 
   // Kontrola: pokud uživatel rozdělaný editor přepíšeme
   if (stEditor.prvky.length > 0 && stEditor.sablonaId !== stState.sablonaId) {
-    if (!confirm('V editoru máš rozdělané prvky. Přepsat je vygenerovanými z aktuální cenovky?')) return;
+    if (!(await confirmDialog({ msg: 'V editoru máš rozdělané prvky. Přepsat je vygenerovanými z aktuální cenovky?', danger: false }))) return;
   }
 
   stEditor.sablonaId = null; // nová šablona — uživatel pak uloží
@@ -33826,7 +33818,7 @@ window.stCenovkyZVsechVyrobku = async function() {
             + `• Už mají cenovku (skip): ${vyr.length - noviKandidati.length}\n`
             + `• Bude vytvořeno nových: ${noviKandidati.length}\n\n`
             + `Pokračovat?`;
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog({ msg: msg, danger: false }))) return;
 
   if (noviKandidati.length === 0) {
     alert('✅ Všechny aktivní výrobky už mají vlastní cenovku.');
@@ -34375,7 +34367,7 @@ window.stSetRezim = async function(r) {
   if (r === 'editor' && stState.designId && !stState.sablonaId) {
     const design = DESIGN_PRESETS.find(d => d.id === stState.designId);
     if (design) {
-      if (stEditor.prvky.length > 0 && !confirm('V editoru máš rozdělanou šablonu. Načíst design z náhledu (neuložené změny se ztratí)?')) {
+      if (stEditor.prvky.length > 0 && !(await confirmDialog({ msg: 'V editoru máš rozdělanou šablonu. Načíst design z náhledu (neuložené změny se ztratí)?', danger: true }))) {
         renderStitky();
         return;
       }
@@ -34397,7 +34389,7 @@ window.stSetRezim = async function(r) {
   if (r === 'editor' && stState.sablonaId && stEditor.sablonaId != stState.sablonaId) {
     // Pokud má editor neuložené prvky, zeptej se
     if (stEditor.prvky.length > 0 && stEditor.sablonaId !== stState.sablonaId) {
-      if (!confirm('V editoru máš rozdělanou šablonu. Načíst „aktivní" šablonu z náhledu (neuložené změny se ztratí)?')) {
+      if (!(await confirmDialog({ msg: 'V editoru máš rozdělanou šablonu. Načíst „aktivní" šablonu z náhledu (neuložené změny se ztratí)?', danger: true }))) {
         renderStitky();
         return;
       }
@@ -34931,8 +34923,8 @@ function ed_setupDrag(el) {
   el.addEventListener('pointerdown', onDown);
 }
 
-window.ed_novaSablona = function() {
-  if (stEditor.prvky.length > 0 && !confirm('Vytvořit novou šablonu? Neuložené změny budou ztraceny.')) return;
+window.ed_novaSablona = async function() {
+  if (stEditor.prvky.length > 0 && !(await confirmDialog({ msg: 'Vytvořit novou šablonu? Neuložené změny budou ztraceny.', danger: false }))) return;
   stEditor.sablonaId = null;
   stEditor.nazev = 'Nová šablona';
   stEditor.prvky = [];
@@ -35107,9 +35099,9 @@ function ed_prvkyOverlap(a, b) {
   );
 }
 
-window.ed_autoTransform = function() {
+window.ed_autoTransform = async function() {
   if (!stEditor.prvky.length) return;
-  if (!confirm('🪄 Chytrý auto-fit:\n\n• Přizpůsobí fontSize textu šířce + výšce prvku\n• Vyřeší překryvy posunutím dolů\n• Ořízne prvky přes okraj\n\nPokračovat?')) return;
+  if (!(await confirmDialog({ msg: '🪄 Chytrý auto-fit:\n\n• Přizpůsobí fontSize textu šířce + výšce prvku\n• Vyřeší překryvy posunutím dolů\n• Ořízne prvky přes okraj\n\nPokračovat?', danger: false }))) return;
 
   const fmt = STITKY_FORMATY.find(f => f.id === stEditor.formatId) || STITKY_FORMATY[0];
 
@@ -35568,7 +35560,7 @@ const SABLONY_PRESET = [
 ];
 
 window.ed_seedPreset = async function() {
-  if (!confirm(t('confirm_create_template_presets', { n: SABLONY_PRESET.length }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_create_template_presets', { n: SABLONY_PRESET.length }), danger: true }))) return;
   let ok = 0, chyby = 0;
   for (const tpl of SABLONY_PRESET) {
     try {
@@ -35593,7 +35585,7 @@ window.ed_seedPreset = async function() {
 
 window.ed_nacist = async function(id) {
   if (!id) return;
-  if (stEditor.prvky.length > 0 && !confirm('Načíst jinou šablonu? Neuložené změny budou ztraceny.')) return;
+  if (stEditor.prvky.length > 0 && !(await confirmDialog({ msg: 'Načíst jinou šablonu? Neuložené změny budou ztraceny.', danger: false }))) return;
   try {
     const sab = await api(`admin_stitky_sablony.php?id=${id}`);
     stEditor.sablonaId = parseInt(sab.id) || sab.id;
@@ -37184,7 +37176,7 @@ window.haccpAutofillPreview = async function() {
   // Zkontroluj zda jsou grafy
   const grafy = haccpState.grafy || [];
   if (grafy.length === 0) {
-    if (!confirm('Nejprve potřebuješ HACCP grafy (šablony). Naimportovat výchozí sadu (5 šablon) automaticky?')) return;
+    if (!(await confirmDialog({ msg: 'Nejprve potřebuješ HACCP grafy (šablony). Naimportovat výchozí sadu (5 šablon) automaticky?', danger: false }))) return;
     try {
       await api('admin_haccp_grafy.php?action=import_default', { method: 'POST', body: '{}' });
       haccpState.grafy = await api('admin_haccp_grafy.php');
@@ -37529,11 +37521,11 @@ window.haccpDokUpgradeRun = async function() {
 };
 
 window.haccpDokImportDefault = async function() {
-  if (!confirm('Naimportovat výchozí sadu HACCP dokumentů (Plán, Sanitační řád, Vstupní instruktáž, Postupy CCP, Formuláře, Záznamy školení)?')) return;
+  if (!(await confirmDialog({ msg: 'Naimportovat výchozí sadu HACCP dokumentů (Plán, Sanitační řád, Vstupní instruktáž, Postupy CCP, Formuláře, Záznamy školení)?', danger: false }))) return;
   try {
     const r = await api('admin_haccp_dokumenty.php?action=import_default', { method: 'POST', body: '{}' });
     if (r && r.ok === false && r.existing) {
-      if (!confirm(t('confirm_add_more_docs', { n: r.existing }))) return;
+      if (!(await confirmDialog({ msg: t('confirm_add_more_docs', { n: r.existing }), danger: false }))) return;
       await api('admin_haccp_dokumenty.php?action=import_default&force=1', { method: 'POST', body: '{}' });
     }
     haccpState.dokumenty = await api('admin_haccp_dokumenty.php');
@@ -37544,7 +37536,7 @@ window.haccpDokImportDefault = async function() {
 // 🏢 Re-personalizace HACCP — nahradí v textech výchozí "APPEK" údaji z Nastavení firmy
 // Volá se po změně firma_nazev/adresa/IČO atd. nebo z onboardingu.
 window.haccpDokPersonalizovat = async function() {
-  if (!confirm('Personalizovat HACCP dokumenty aktuálními údaji firmy (z Nastavení → Firma a doklady)?\n\nNahradí se "APPEK pekařství..." aktuálním názvem firmy, adresou, IČO, jednatelem.')) return;
+  if (!(await confirmDialog({ msg: 'Personalizovat HACCP dokumenty aktuálními údaji firmy (z Nastavení → Firma a doklady)?\n\nNahradí se "APPEK pekařství..." aktuálním názvem firmy, adresou, IČO, jednatelem.', danger: false }))) return;
   try {
     const r = await api('admin_haccp_dokumenty.php?action=personalize', { method: 'POST', body: '{}' });
     haccpState.dokumenty = await api('admin_haccp_dokumenty.php');
@@ -37563,7 +37555,7 @@ window.haccpDokPersonalizovat = async function() {
 window.haccpDokOtevrit = async function(id) {
   // Pokud je něco rozeditované, dotaz
   if (haccpState.dok_aktivni_obsah && haccpState.dok_aktivni_id !== id) {
-    if (haccpDokJeZmena() && !confirm('Máš neuložené změny. Pokračovat bez uložení?')) return;
+    if (haccpDokJeZmena() && !(await confirmDialog({ msg: 'Máš neuložené změny. Pokračovat bez uložení?', danger: false }))) return;
   }
   haccpState.dok_aktivni_id = id;
   try {
@@ -38000,11 +37992,11 @@ window.haccpGrafFillPopisyRun = async function(force) {
 };
 
 window.haccpGrafImportDefault = async function() {
-  if (!confirm('Naimportovat výchozí sadu 5 HACCP šablon (Pšeničné základní, Pšeničné se zdobením, Chleba, Speciální pečivo, Jemné pečivo)?')) return;
+  if (!(await confirmDialog({ msg: 'Naimportovat výchozí sadu 5 HACCP šablon (Pšeničné základní, Pšeničné se zdobením, Chleba, Speciální pečivo, Jemné pečivo)?', danger: false }))) return;
   try {
     const r = await api('admin_haccp_grafy.php?action=import_default', { method: 'POST', body: '{}' });
     if (r && r.ok === false && r.existing) {
-      if (!confirm(t('confirm_add_more_templates', { n: r.existing }))) return;
+      if (!(await confirmDialog({ msg: t('confirm_add_more_templates', { n: r.existing }), danger: false }))) return;
       await api('admin_haccp_grafy.php?action=import_default&force=1', { method: 'POST', body: '{}' });
     }
     await haccpRefreshGrafy();
@@ -38054,7 +38046,7 @@ window.haccpGrafDelete = async function(id) {
   if (!g) return;
   let msg = `Smazat šablonu „${g.nazev}"?`;
   if (g.pocet_vyrobku > 0) msg += `\n\nUpozornění: tato šablona je přiřazena k ${g.pocet_vyrobku} výrobkům — ti ji ztratí (HACCP graf bude prázdný).`;
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog({ msg: msg, danger: false }))) return;
   try {
     await api(`admin_haccp_grafy.php?id=${id}`, { method: 'DELETE' });
     await haccpRefreshGrafy();
@@ -38703,8 +38695,8 @@ window.haccpPostupRemove = function(i) {
   haccpState.editor.data.postup.splice(i, 1);
   haccpRenderEditor();
 };
-window.haccpPostupReset = function() {
-  if (!confirm('Nahradit aktuální postup šablonou pro pekařství?')) return;
+window.haccpPostupReset = async function() {
+  if (!(await confirmDialog({ msg: 'Nahradit aktuální postup šablonou pro pekařství?', danger: false }))) return;
   haccpState.editor.data.postup = JSON.parse(JSON.stringify(HACCP_POSTUP_TEMPLATE));
   haccpRenderEditor();
 };
@@ -38751,8 +38743,8 @@ window.haccpKbRemove = function(i) {
   haccpState.editor.data.kriticke_body.splice(i, 1);
   haccpRenderEditor();
 };
-window.haccpKbReset = function() {
-  if (!confirm('Nahradit aktuální tabulku šablonou pro pekařství?')) return;
+window.haccpKbReset = async function() {
+  if (!(await confirmDialog({ msg: 'Nahradit aktuální tabulku šablonou pro pekařství?', danger: false }))) return;
   haccpState.editor.data.kriticke_body = JSON.parse(JSON.stringify(HACCP_KB_TEMPLATE));
   haccpRenderEditor();
 };
@@ -39429,8 +39421,8 @@ window.vkUpdateFixniNazev = function(i, val) {
   vkState.fixni[i].nazev = val;
   // bez re-renderu — text se ukládá do state, render proběhne až později
 };
-window.vkReset = function() {
-  if (!confirm('Vyčistit kalkulačku? Všechny zadané hodnoty budou ztraceny.')) return;
+window.vkReset = async function() {
+  if (!(await confirmDialog({ msg: 'Vyčistit kalkulačku? Všechny zadané hodnoty budou ztraceny.', danger: false }))) return;
   vkState.vyrobek_id = null;
   vkState.current_vyrobni_cena = null;
   vkState.receptura = [];
@@ -39502,7 +39494,7 @@ window.otevritKalkulaciProVyrobek = function(vyrobekId) {
 // Načíst recepturu z aktuálně vybraného výrobku (z pivot vyrobek_suroviny)
 window.vkLoadFromVyrobek = async function() {
   if (!vkState.vyrobek_id) return;
-  if (vkState.receptura.length > 0 && !confirm('Aktuální receptura bude přepsána. Pokračovat?')) return;
+  if (vkState.receptura.length > 0 && !(await confirmDialog({ msg: 'Aktuální receptura bude přepsána. Pokračovat?', danger: true }))) return;
   try {
     const v = await api(`admin_vyrobky.php?id=${vkState.vyrobek_id}`);
     const slozeni = Array.isArray(v.slozeni) ? v.slozeni : [];
@@ -39544,7 +39536,7 @@ window.vkLoadFromVyrobek = async function() {
 
     if (vkState.receptura.length === 0) {
       // 🆕 v2.9.290 — nabídnout otevření editoru výrobku místo jen alertu
-      if (confirm('Výrobek nemá ve složení žádné suroviny.\n\nOtevřít editor výrobku a doplnit recept?')) {
+      if ((await confirmDialog({ msg: 'Výrobek nemá ve složení žádné suroviny.\n\nOtevřít editor výrobku a doplnit recept?', danger: false }))) {
         const vid = vkState.vyrobek_id;
         if (vid && typeof editVyrobek === 'function') {
           // Navigate na Výrobky stránku + otevřít modal editoru
@@ -39616,7 +39608,7 @@ window.vkSaveToVyrobek = async function() {
     `Aktuální: ${vkState.current_vyrobni_cena !== null ? vkState.current_vyrobni_cena.toFixed(4).replace(/\.?0+$/, '').replace('.', ',') + ' Kč' : '— (nic)'}\n` +
     `Nová:     ${cenaPerKus.toFixed(4).replace(/\.?0+$/, '').replace('.', ',')} Kč\n\n` +
     `Uloží se i kompletní kalkulace pro pozdější úpravy.`;
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog({ msg: msg, danger: false }))) return;
 
   try {
     await api('admin_vyrobky.php', {
@@ -39666,7 +39658,7 @@ window.vkEditSurovina = function(surovina_id) {
 // =============================================================
 // PLÁNOVAČ VÁRKY — škálování receptury na cílový počet kusů
 // =============================================================
-window.vkScaleApply = function() {
+window.vkScaleApply = async function() {
   const mode = vkState.scale_mode || 'ks';
   let mult = 0, label = '';
   let totalMassG = 0;
@@ -39699,7 +39691,7 @@ window.vkScaleApply = function() {
   if (!isFinite(mult) || mult <= 0 || mult > 10000) {
     return alert(t('invalid_multiplier', { mult }));
   }
-  if (!confirm(t('confirm_overwrite_recipe', { label, mult: mult.toFixed(3) }))) return;
+  if (!(await confirmDialog({ msg: t('confirm_overwrite_recipe', { label, mult: mult.toFixed(3) }), danger: false }))) return;
   vkState.receptura = vkState.receptura.map(r => {
     // 🆕 v2.9.286 — clamp na non-negative (defenzivně proti NaN/záporu)
     const novaMn = Math.max(0, (parseFloat(r.mnozstvi) || 0) * mult);
