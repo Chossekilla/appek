@@ -6,6 +6,19 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.237] — 2026-06-10
+
+### 🧾 Faktury — výběr nefakturovaných dokladů + zvýraznění
+_User: "u tlačítka nová faktura musí být pole s výběrem nefakturovaných objednávek a dodacích listů. ne každá objednávka musí mít dl a fa a obráceně, aby nekolidovaly číselné řady. modal objednávky — vystavit fakturu je někde malé, udělej to přehlednější."_
+
+- **Nová faktura → picker:** modal "+ Nová faktura" nově nabízí `<select>` s nefakturovanými **objednávkami bez DL** a **nefakturovanými dodacími listy** (optgroupy s počty). Výběr rovnou vystaví fakturu z objednávky (`vytvoritFakturu`) nebo z DL (`vytvoritFakturuZDL`). Pod selectem je poznámka, že objednávka/DL/faktura mají vlastní číselné řady a nekolidují.
+- **Detail objednávky:** "💰 Vystavit fakturu" zvýrazněno na zelené CTA (dřív splývalo jako `btn-secondary`); řada akcí má popisek "📋 Doklady:"; když faktura existuje, tlačítko ukazuje její číslo.
+- **Detail DL (v3.0.233):** velké tlačítko "💰 Vystavit fakturu" / "Otevřít fakturu".
+
+### 🗄️ Service-worker cache (v3.0.236)
+- Build bumpuje `CACHE_VERSION` v `admin/sw.js` + `b2b/sw.js` (dřív zamrzlé → uživatelé viděli starou verzi nahoře vs. dole). Po jednom hard-refreshi se SW přeinstaluje a dál se aktualizuje sám.
+- Manifest se píše i bez tečky (`update-manifest.json`) — hostingová CDN blokovala dotfile (403).
+
 ## [3.0.69] — 2026-05-27
 
 ### ✨ Rail mode polish — krásnější design (žádné bílé pilly, větší ikony, elegant pin)

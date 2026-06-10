@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.236';
+const APPEK_ADMIN_JS_VERSION = '3.0.237';
 
 (async function detectStaleCode() {
   try {
@@ -6255,18 +6255,19 @@ window.openObjednavkaDetail = async function(id) {
       </div>
     ` : ''}
 
-    <!-- Doklady akce: Znovu / DL / FA -->
-    <div class="obj-doc-actions">
-      <button class="btn-secondary" onclick="noOpakovatZeZdroje('obj', ${o.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu objednat</button>
+    <!-- Doklady akce: Znovu / DL / FA — v3.0.237 faktura zvýrazněna (uživatel ji nenacházel) -->
+    <div class="obj-doc-actions" style="align-items:center">
+      <span style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);font-weight:600;margin-right:2px">📋 Doklady:</span>
+      <button class="btn-secondary" onclick="noOpakovatZeZdroje('obj', ${o.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu</button>
       ${(!o.dodaci_listy || o.dodaci_listy.length === 0) ? `
         <a href="../api/dodaci_list.php?id=${o.id}" target="_blank" class="btn-secondary" style="text-decoration:none">📃 Vytvořit DL</a>
       ` : `
         <a href="../api/dodaci_list.php?id=${o.id}" target="_blank" class="btn-secondary" style="text-decoration:none">📃 Otevřít DL</a>
       `}
       ${(!o.faktury || o.faktury.length === 0) ? `
-        <button class="btn-secondary" onclick="vytvoritFakturu(${o.id})">💰 Vystavit fakturu</button>
+        <button class="btn-primary btn-green" onclick="vytvoritFakturu(${o.id})" style="font-weight:700">💰 Vystavit fakturu</button>
       ` : `
-        <a href="../api/faktura.php?id=${o.faktury[0].id}" target="_blank" class="btn-secondary" style="text-decoration:none">💰 Otevřít fakturu</a>
+        <a href="../api/faktura.php?id=${o.faktury[0].id}" target="_blank" class="btn-primary" style="text-decoration:none">💰 Faktura ${esc(o.faktury[0].cislo || '')}</a>
       `}
     </div>
 
@@ -26501,10 +26502,29 @@ window.otevritRucniFakturu = async function() {
   };
 
   try {
-    rucniFakturaState.vsechny_odberatele = await api('admin_odberatele.php');
-  } catch (e) { alert('Nepodařilo se načíst odběratele: ' + e.message); return; }
+    // 🆕 v3.0.237 — načti i nefakturované objednávky (bez DL) + nefakturované DL pro picker
+    const [odb, objRes, dlRes] = await Promise.all([
+      api('admin_odberatele.php'),
+      api('admin_objednavky.php?limit=300').catch(() => ([])),
+      api('admin_dodaci_listy.php?fakturovano=0&limit=300').catch(() => ([])),
+    ]);
+    rucniFakturaState.vsechny_odberatele = odb;
+    const objArr = Array.isArray(objRes) ? objRes : (objRes.objednavky || []);
+    // Objednávky bez dodacího listu a nezrušené → vyfakturovat = vytvoří DL+FA
+    rucniFakturaState.nefakt_obj = objArr.filter(o => (parseInt(o.pocet_dl) || 0) === 0 && o.stav !== 'zrusena');
+    const dlArr = Array.isArray(dlRes) ? dlRes : (dlRes.dodaci_listy || []);
+    rucniFakturaState.nefakt_dl = dlArr.filter(d => !parseInt(d.fakturovano));
+  } catch (e) { alert('Nepodařilo se načíst data: ' + e.message); return; }
 
   vykreslitRucniFakturu();
+};
+
+// 🆕 v3.0.237 — vystavit fakturu z vybrané položky pickeru (objednávka NEBO DL)
+window.rfVystavitZVyberu = function(sel) {
+  if (!sel || !sel.value) return;
+  const [typ, id] = sel.value.split(':');
+  if (typ === 'obj') vytvoritFakturu(parseInt(id));
+  else if (typ === 'dl') vytvoritFakturuZDL(parseInt(id), null);
 };
 
 function vykreslitRucniFakturu() {
@@ -26585,7 +26605,22 @@ function vykreslitRucniFakturu() {
     ? `<span style="background:#FAEEDA;color:#854F0B;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600">💰 ${esc(s.odberatel.skupina_nazev)}</span>`
     : '';
 
+  // 🆕 v3.0.237 — picker: vystavit fakturu z nefakturované objednávky (bez DL) nebo z DL
+  const _nObj = s.nefakt_obj || [];
+  const _nDl  = s.nefakt_dl  || [];
+  const _pickerHtml = (_nObj.length || _nDl.length) ? `
+    <div style="background:#EFF6FF;border:1px solid #B5D4F4;border-radius:10px;padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:#0C447C;margin-bottom:8px">📋 Vystavit z existující objednávky / dodacího listu <span style="font-weight:400;color:#5b7a9c">(volitelné)</span></div>
+      <select class="form-select" onchange="rfVystavitZVyberu(this)" style="width:100%">
+        <option value="">— vyber nefakturovanou objednávku / DL —</option>
+        ${_nObj.length ? `<optgroup label="📦 Objednávky bez dodacího listu (${_nObj.length})">${_nObj.map(o => `<option value="obj:${o.id}">${esc(o.cislo || ('#' + o.id))} · ${esc(o.odberatel_nazev || o.odberatel || '—')} · ${fmt(parseFloat(o.castka_celkem) || 0)}</option>`).join('')}</optgroup>` : ''}
+        ${_nDl.length ? `<optgroup label="📃 Nefakturované dodací listy (${_nDl.length})">${_nDl.map(d => `<option value="dl:${d.id}">${esc(d.cislo || ('#' + d.id))} · ${esc(d.odberatel_nazev || d.odberatel || '—')} · ${fmt(parseFloat(d.castka_celkem) || 0)}</option>`).join('')}</optgroup>` : ''}
+      </select>
+      <div style="font-size:11px;color:#5b7a9c;margin-top:6px;line-height:1.5">Objednávka, DL i faktura mají <strong>vlastní číselné řady</strong> — nekolidují. Ne každá objednávka musí mít DL/fakturu a naopak. Nebo vyplň fakturu ručně níže.</div>
+    </div>` : '';
+
   openModal('+ Nová faktura', `
+    ${_pickerHtml}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div style="background:#F7F8FA;border:1px solid #E8D5B0;border-radius:8px;padding:14px">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#854F0B;margin-bottom:6px;font-weight:600">\ud83c\udfe2 Odběratel</div>
