@@ -413,8 +413,13 @@ try {
             'admin/admin.css' => isset($appliedFiles['admin/admin.css']) ? substr($appliedFiles['admin/admin.css'], 0, 16) : null,
         ],
     ];
-    @file_put_contents($manifestPath, json_encode($manifestData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-    $result['steps'][] = "📄 .update-manifest.json zapsán";
+    $manifestJson = json_encode($manifestData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    @file_put_contents($manifestPath, $manifestJson);
+    // 🆕 v3.0.236 — zapiš i NON-dotfile kopii. Dotfile .update-manifest.json je na Hostingeru
+    //   blokovaný (HTTP 403 — server-level deny .files) → stale-code detektor dostával 403,
+    //   nikdy nezasáhl. Non-dot verze je čitelná → detektor self-heal funguje.
+    @file_put_contents($root . '/api/update-manifest.json', $manifestJson);
+    $result['steps'][] = "📄 update-manifest.json zapsán (dot + non-dot)";
 
     // ─── 11. Cleanup ─────────────────────────────────────────────
     deleteRecursive($tmpDir);
