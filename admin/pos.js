@@ -16,7 +16,7 @@
       fetch('../api/admin_klient_chyby.php', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: (CFG.csrfToken ? { 'Content-Type': 'application/json', 'X-CSRF-Token': CFG.csrfToken } : { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           app: 'pos',
           ...payload,

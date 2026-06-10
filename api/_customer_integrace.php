@@ -137,6 +137,30 @@ function customer_int_stripe_request(string $method, string $endpoint, array $pa
 }
 
 /**
+ * Ověří Stripe-Signature header proti tenant webhook secretu (HMAC SHA-256).
+ * Stejný algoritmus jako vendor/_stripe.php, ale bere zákaznický int_stripe_webhook_secret.
+ *
+ * @return bool|null  true = platný podpis · false = neplatný · null = secret nenakonfigurován (grace)
+ */
+function customer_int_stripe_verify_signature(string $payload, string $sigHeader): ?bool {
+    $cfg = customer_int_settings('stripe');
+    $secret = $cfg['int_stripe_webhook_secret'] ?? '';
+    if (!$secret) return null; // tenant nemá webhook secret → grace (caller rozhodne)
+
+    // Parse "t=TIMESTAMP,v1=SIG[,v1=SIG2]"
+    $parts = [];
+    foreach (explode(',', $sigHeader) as $pair) {
+        [$k, $v] = array_pad(explode('=', $pair, 2), 2, '');
+        $parts[trim($k)] = trim($v);
+    }
+    if (empty($parts['t']) || empty($parts['v1'])) return false;
+    if (abs(time() - (int) $parts['t']) > 300) return false; // tolerance ±5 min (replay ochrana)
+
+    $expected = hash_hmac('sha256', $parts['t'] . '.' . $payload, $secret);
+    return hash_equals($expected, (string) $parts['v1']);
+}
+
+/**
  * Vytvoří Stripe Checkout pro fakturu nebo objednávku zákazníka.
  *
  * @param array $payload [

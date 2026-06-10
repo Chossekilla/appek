@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.227';
+const APPEK_ADMIN_JS_VERSION = '3.0.228';
 
 (async function detectStaleCode() {
   try {
@@ -196,7 +196,7 @@ const state = {
       fetch('../api/admin_klient_chyby.php', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           app: 'admin',
           ...payload,
@@ -2040,6 +2040,14 @@ window.confirmDelete2x = async function(arg) {
   return krok2;
 };
 
+// 🔒 v3.0.228 — CSRF header helper pro raw fetch() volání mimo api() wrapper
+// (exporty=blob, importy/uploady=FormData → nejdou přes api(), který dělá res.json()).
+// Stejný zdroj tokenu jako api(). Pod CSRF strict módem MUSÍ raw POSTy token poslat.
+function csrfHeaders(extra = {}) {
+  const t = (typeof state !== 'undefined' && state && state.csrfToken) || localStorage.getItem('appek_csrf_token') || '';
+  return t ? { 'X-CSRF-Token': t, ...extra } : { ...extra };
+}
+
 async function api(path, opts = {}) {
   const method = (opts.method || 'GET').toUpperCase();
 
@@ -2089,6 +2097,18 @@ async function api(path, opts = {}) {
   // 🆕 v2.9.321 — Přilep request_id k error message, aby user mohl říct "rozbité, reqId=abc12345"
   // a admin to našel v Diagnostice → 🐛 Chyby aplikace přes search.
   if (!res.ok) {
+    // 🔒 v3.0.228 — CSRF strict self-heal: zastaralý/chybějící token → obnov přes whoami (GET) a 1× zopakuj.
+    // whoami vrací čerstvý session token → další pokus už projde. Uživatel nic nepozná.
+    if (res.status === 403 && data && data.error === 'csrf_invalid' && !opts._csrfRetried) {
+      try {
+        const who = await fetch(`${API}/whoami.php`, { credentials: 'include' }).then(r => r.json()).catch(() => null);
+        if (who && who.csrf_token) {
+          if (typeof state !== 'undefined' && state) state.csrfToken = who.csrf_token;
+          try { localStorage.setItem('appek_csrf_token', who.csrf_token); } catch (e) {}
+          return await api(path, { ...opts, _csrfRetried: true });
+        }
+      } catch (e) { /* fall through na chybu níže */ }
+    }
     const err = new Error(data.error || 'Chyba serveru');
     if (data.request_id) {
       err.message += ' (reqId: ' + data.request_id + ')';
@@ -9955,7 +9975,7 @@ window.dlBulkExportCsvZip = async function() {
   try {
     const res = await fetch('../api/admin_export_dl.php?action=csv-zip', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
       credentials: 'include',
       body: JSON.stringify({ ids }),
     });
@@ -10756,7 +10776,7 @@ window.faBulkExportIsdoc = async function() {
     // Vytvoříme POST request a streamem stáhneme ZIP
     const res = await fetch('../api/admin_export_isdoc.php?action=zip', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
       credentials: 'include',
       body: JSON.stringify({ ids }),
     });
@@ -10870,7 +10890,7 @@ window.exportFakturIsdocPeriod = async function() {
 
     const res = await fetch('../api/admin_export_isdoc.php?action=zip', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
       credentials: 'include',
       body: JSON.stringify({ ids }),
     });
@@ -10953,6 +10973,7 @@ async function _impSendFile(action) {
   const res = await fetch(`../api/admin_import_isdoc.php?action=${action}`, {
     method: 'POST',
     credentials: 'include',
+    headers: csrfHeaders(),
     body: fd,
   });
   let j = null;
@@ -27802,7 +27823,7 @@ window.nahratKatObrazek = async function() {
 
   try {
     const res = await fetch('../api/admin_kategorie.php?action=upload', {
-      method: 'POST', credentials: 'include', body: fd,
+      method: 'POST', credentials: 'include', headers: csrfHeaders(), body: fd,
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Chyba při nahrávání');
@@ -30707,7 +30728,7 @@ window.cenikUpload = async function() {
   fd.append('target', state._cenikImport.target);
   try {
     const r = await fetch('../api/admin_import_cenik.php?action=upload', {
-      method: 'POST', body: fd, credentials: 'same-origin',
+      method: 'POST', body: fd, credentials: 'same-origin', headers: csrfHeaders(),
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Upload failed');
@@ -31029,7 +31050,7 @@ window.importVyrobkuPreview = async function() {
   document.getElementById('imp-preview').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3)">⏳ Analyzuji…</div>';
 
   try {
-    const res = await fetch(`${API}/admin_vyrobky_import.php`, { method: 'POST', credentials: 'include', body: fd });
+    const res = await fetch(`${API}/admin_vyrobky_import.php`, { method: 'POST', credentials: 'include', headers: csrfHeaders(), body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Chyba');
 
@@ -31092,7 +31113,7 @@ window.importVyrobkuSpustit = async function() {
   document.getElementById('imp-btn-spustit').textContent = '⏳ Importuji…';
 
   try {
-    const res = await fetch(`${API}/admin_vyrobky_import.php`, { method: 'POST', credentials: 'include', body: fd });
+    const res = await fetch(`${API}/admin_vyrobky_import.php`, { method: 'POST', credentials: 'include', headers: csrfHeaders(), body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Chyba');
 
@@ -31174,7 +31195,7 @@ window.importOdbPreview = async function() {
   document.getElementById('impo-preview').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3)">⏳ Analyzuji…</div>';
 
   try {
-    const res = await fetch(`${API}/admin_odberatele_import.php`, { method: 'POST', credentials: 'include', body: fd });
+    const res = await fetch(`${API}/admin_odberatele_import.php`, { method: 'POST', credentials: 'include', headers: csrfHeaders(), body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Chyba');
 
@@ -31372,7 +31393,7 @@ window.importOdbSpustit = async function() {
   document.getElementById('impo-btn-spustit').textContent = '⏳ Importuji…';
 
   try {
-    const res = await fetch(`${API}/admin_odberatele_import.php`, { method: 'POST', credentials: 'include', body: fd });
+    const res = await fetch(`${API}/admin_odberatele_import.php`, { method: 'POST', credentials: 'include', headers: csrfHeaders(), body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Chyba');
 
