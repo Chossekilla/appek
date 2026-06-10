@@ -46,7 +46,7 @@ if (DB_NAME === '' || DB_USER === '') {
 // Aplikace
 if (!defined('APP_URL'))     define('APP_URL',     'https://white-badger-130749.hostingersite.com');
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.234'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.235'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -318,11 +318,21 @@ function kanaly_backfill_once(PDO $pdo): void {
     if ($done) return;
     $done = true;
     try {
-        if ((string) nastaveni_get($pdo, 'kanaly_backfill_done', '') === '1') return;
-        ensure_puvod_column($pdo);
-        $pdo->prepare("UPDATE objednavky SET puvod='recurring' WHERE (puvod IS NULL OR puvod IN ('interni','')) AND poznamka LIKE '[Recurring #%'")->execute();
-        $pdo->prepare("UPDATE objednavky SET puvod='dort' WHERE (puvod IS NULL OR puvod IN ('interni','')) AND poznamka LIKE '%dort z konfigurátoru%'")->execute();
-        $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('kanaly_backfill_done','1') ON DUPLICATE KEY UPDATE hodnota='1'")->execute();
+        if ((string) nastaveni_get($pdo, 'kanaly_backfill_done', '') !== '1') {
+            ensure_puvod_column($pdo);
+            $pdo->prepare("UPDATE objednavky SET puvod='recurring' WHERE (puvod IS NULL OR puvod IN ('interni','')) AND poznamka LIKE '[Recurring #%'")->execute();
+            $pdo->prepare("UPDATE objednavky SET puvod='dort' WHERE (puvod IS NULL OR puvod IN ('interni','')) AND poznamka LIKE '%dort z konfigurátoru%'")->execute();
+            $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('kanaly_backfill_done','1') ON DUPLICATE KEY UPDATE hodnota='1'")->execute();
+        }
+        // 🐛 v3.0.235 — datum_objednani backfill: b2b portál ho dřív neukládal → 0000-00-00,
+        //   objednávky pak MIZELY z dashboardu/tržeb/statistik (vše filtruje DATE(datum_objednani)).
+        //   Fallback = datum_dodani (nejlepší proxy pro historická data).
+        if ((string) nastaveni_get($pdo, 'datum_obj_backfill_done', '') !== '1') {
+            $pdo->prepare("UPDATE objednavky SET datum_objednani = datum_dodani
+                           WHERE (datum_objednani IS NULL OR datum_objednani = '0000-00-00')
+                             AND datum_dodani IS NOT NULL AND datum_dodani <> '0000-00-00'")->execute();
+            $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('datum_obj_backfill_done','1') ON DUPLICATE KEY UPDATE hodnota='1'")->execute();
+        }
     } catch (Throwable $e) { /* ignore */ }
 }
 

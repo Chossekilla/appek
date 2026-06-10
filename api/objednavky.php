@@ -222,12 +222,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Vlož hlavičku (🆕 v3.0.212 — puvod='b2b' → kanál B2B portál, vlastní řada B2B-rok-N)
+        // 🐛 v3.0.235 FIX — datum_objednani CHYBĚL → b2b objednávky měly 0000-00-00
+        //   a MIZELY z dashboardu/tržeb/statistik (vše filtruje DATE(datum_objednani)).
+        //   Datum přijetí objednávky = dnes (CURDATE), nezávisle na datum_dodani.
         $stmt = $pdo->prepare("
-            INSERT INTO objednavky (cislo, odberatel_id, misto_dodani_id, typ, datum_dodani,
+            INSERT INTO objednavky (cislo, odberatel_id, misto_dodani_id, typ, datum_objednani, datum_dodani,
                                     plati_od, plati_do, dny_v_tydnu,
                                     castka_bez_dph, castka_dph, castka_celkem, poznamka,
                                     zpusob_doruceni, zpusob_platby, puvod)
-            VALUES (:c,:o,:m,:t,:d,:po,:pdo_,:dny,:b,:dph,:cel,:pozn,:dor,:plt,'b2b')
+            VALUES (:c,:o,:m,:t,CURDATE(),:d,:po,:pdo_,:dny,:b,:dph,:cel,:pozn,:dor,:plt,'b2b')
         ");
         $stmt->execute([
             'c' => $cislo, 'o' => $odberatel_id, 'm' => $misto_id,
