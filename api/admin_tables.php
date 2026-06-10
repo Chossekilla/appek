@@ -902,19 +902,13 @@ if ($method === 'POST' && $action === 'save_hours') {
     json_response(['ok' => true]);
 }
 
-// 🗓️ REZERVACE
-if ($method === 'POST' && $action === 'reserve') {
-    $d = json_input();
-    $stulId    = (int) ($d['stul_id'] ?? 0);
-    if (!$stulId) json_error('Chybí stůl', 400);
-    // 🐛 v3.0.214 — validace + anti-double-booking. Dřív slepý INSERT → překryvy rezervací,
-    //   obrácený čas (cas_od>cas_do) i rezervace v minulosti prošly.
-    $datum = trim((string) ($d['datum'] ?? ''));
-    $casOd = substr(trim((string) ($d['cas_od'] ?? '')), 0, 5);
-    $casDo = substr(trim((string) ($d['cas_do'] ?? '')), 0, 5);
+// 🗓️ REZERVACE — sdílená validace slotu (reserve + update_reservation, v3.0.242).
+//   Drží pohromadě fixy v3.0.214 (anti-double-booking, obrácený čas) a v3.0.222
+//   (cross-midnight otevírací doba). $excludeId vynechá vlastní rezervaci při editu.
+//   Při chybě json_error (exit); jinak vrátí nic — slot je volný a validní.
+function tr_validate_slot(PDO $pdo, int $stulId, string $datum, string $casOd, string $casDo, int $excludeId = 0): void {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum))         json_error('Neplatné datum', 400);
     if (!preg_match('/^\d{1,2}:\d{2}$/', $casOd) || !preg_match('/^\d{1,2}:\d{2}$/', $casDo)) json_error('Neplatný čas', 400);
-    if ($datum < date('Y-m-d'))                               json_error('Nelze rezervovat v minulosti', 400);
 
     // 🐛 v3.0.222 — PROVÁZÁNÍ s otevírací dobou: u provozů otevřených PŘES PŮLNOC (otevreno_do
     //   ≤ otevreno_od, např. 11–03) je rezervace 23:00–01:00 legitimní. Časy < otevírací hodina
@@ -939,19 +933,32 @@ if ($method === 'POST' && $action === 'reserve') {
     $odMin = $nm($casOd); $doMin = $nm($casDo);
     if ($doMin <= $odMin)                                     json_error('Konec rezervace musí být po začátku', 400);
 
-    try {
-        // Překryv s aktivní rezervací téhož stolu/dne — normalizovaně (zvládá i přes půlnoc).
-        $ex = $pdo->prepare("
-            SELECT cas_od, cas_do FROM table_reservations
-            WHERE stul_id = :s AND datum = :d AND COALESCE(stav,'confirmed') <> 'cancelled'
-        ");
-        $ex->execute(['s' => $stulId, 'd' => $datum]);
-        foreach ($ex->fetchAll() as $r) {
-            $eOd = $nm(substr((string) $r['cas_od'], 0, 5));
-            $eDo = $nm(substr((string) $r['cas_do'], 0, 5));
-            if ($odMin < $eDo && $doMin > $eOd) json_error('Stůl je v tomto čase už rezervovaný', 409);
-        }
+    // Překryv s aktivní rezervací téhož stolu/dne — normalizovaně (zvládá i přes půlnoc).
+    $sql = "SELECT cas_od, cas_do FROM table_reservations
+            WHERE stul_id = :s AND datum = :d AND COALESCE(stav,'confirmed') <> 'cancelled'";
+    $params = ['s' => $stulId, 'd' => $datum];
+    if ($excludeId > 0) { $sql .= " AND id <> :ex"; $params['ex'] = $excludeId; }
+    $ex = $pdo->prepare($sql);
+    $ex->execute($params);
+    foreach ($ex->fetchAll() as $r) {
+        $eOd = $nm(substr((string) $r['cas_od'], 0, 5));
+        $eDo = $nm(substr((string) $r['cas_do'], 0, 5));
+        if ($odMin < $eDo && $doMin > $eOd) json_error('Stůl je v tomto čase už rezervovaný', 409);
+    }
+}
 
+if ($method === 'POST' && $action === 'reserve') {
+    $d = json_input();
+    $stulId    = (int) ($d['stul_id'] ?? 0);
+    if (!$stulId) json_error('Chybí stůl', 400);
+    // 🐛 v3.0.214 — validace + anti-double-booking (sdílené v tr_validate_slot).
+    $datum = trim((string) ($d['datum'] ?? ''));
+    $casOd = substr(trim((string) ($d['cas_od'] ?? '')), 0, 5);
+    $casDo = substr(trim((string) ($d['cas_do'] ?? '')), 0, 5);
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum) && $datum < date('Y-m-d')) json_error('Nelze rezervovat v minulosti', 400);
+    tr_validate_slot($pdo, $stulId, $datum, $casOd, $casDo);
+
+    try {
         $pdo->prepare("
             INSERT INTO table_reservations (stul_id, datum, cas_od, cas_do, jmeno, telefon, pocet_osob, poznamka, stav)
             VALUES (:s, :d, :od, :do_, :j, :t, :p, :pz, 'confirmed')
@@ -973,6 +980,61 @@ if ($method === 'DELETE' && $action === 'reservation') {
     require_super_admin();
     $pdo->prepare("UPDATE table_reservations SET stav = 'cancelled' WHERE id = :id")->execute(['id' => $id]);
     json_response(['ok' => true]);
+}
+
+// ✏️ v3.0.242 — ÚPRAVA REZERVACE (proklik ze seznamu/timeline). Partial update:
+//   pošli jen měněná pole, zbytek se vezme z existující rezervace. Stejná slot
+//   validace jako reserve (tr_validate_slot, sebe sama vynechá z overlap checku).
+if ($method === 'POST' && $action === 'update_reservation') {
+    $d = json_input();
+    $rid = (int) ($d['id'] ?? 0);
+    if (!$rid) json_error('Chybí id rezervace', 400);
+    $st = $pdo->prepare("SELECT * FROM table_reservations WHERE id = :id");
+    $st->execute(['id' => $rid]);
+    $cur = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$cur) json_error('Rezervace nenalezena', 404);
+
+    $stulId = isset($d['stul_id']) ? (int) $d['stul_id'] : (int) $cur['stul_id'];
+    $datum  = isset($d['datum'])  ? trim((string) $d['datum']) : (string) $cur['datum'];
+    $casOd  = substr(trim((string) ($d['cas_od'] ?? $cur['cas_od'])), 0, 5);
+    $casDo  = substr(trim((string) ($d['cas_do'] ?? $cur['cas_do'])), 0, 5);
+
+    // Ověř existenci cílového stolu (FK by jinak leakl raw SQLSTATE)
+    $tEx = $pdo->prepare("SELECT 1 FROM restaurant_tables WHERE id = :id AND COALESCE(aktivni,1) = 1");
+    $tEx->execute(['id' => $stulId]);
+    if (!$tEx->fetchColumn()) json_error('Stůl neexistuje', 400);
+
+    // Posun do minulosti zakázán jen při ZMĚNĚ data (oprava jména u historické rezervace musí projít)
+    if ($datum !== (string) $cur['datum'] && preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum) && $datum < date('Y-m-d')) {
+        json_error('Nelze přesunout rezervaci do minulosti', 400);
+    }
+    tr_validate_slot($pdo, $stulId, $datum, $casOd, $casDo, $rid);
+
+    $stav = $d['stav'] ?? $cur['stav'];
+    if (!in_array($stav, ['pending', 'confirmed', 'no_show', 'cancelled'], true)) json_error('Neplatný stav', 400);
+    $jmeno = trim((string) ($d['jmeno'] ?? $cur['jmeno']));
+    if ($jmeno === '') json_error('Chybí jméno', 400);
+
+    try {
+        $pdo->prepare("
+            UPDATE table_reservations
+            SET stul_id = :s, datum = :d, cas_od = :od, cas_do = :do_,
+                jmeno = :j, telefon = :t, pocet_osob = :p, poznamka = :pz, stav = :sv
+            WHERE id = :id
+        ")->execute([
+            's'   => $stulId,
+            'd'   => $datum,
+            'od'  => $casOd,
+            'do_' => $casDo,
+            'j'   => $jmeno,
+            't'   => array_key_exists('telefon', $d) ? ($d['telefon'] ?: null) : $cur['telefon'],
+            'p'   => max(1, (int) ($d['pocet_osob'] ?? $cur['pocet_osob'])),
+            'pz'  => array_key_exists('poznamka', $d) ? ($d['poznamka'] ?: null) : $cur['poznamka'],
+            'sv'  => $stav,
+            'id'  => $rid,
+        ]);
+        json_response(['ok' => true, 'id' => $rid]);
+    } catch (Throwable $e) { json_error_safe('DB', $e, 500); }
 }
 
 // 🪑 CRUD STOLŮ
