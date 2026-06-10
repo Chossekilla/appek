@@ -95,18 +95,26 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .pos-tab-h {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--pos-text-2);
-  padding: 8px 14px;
-  border-radius: 999px;
+  padding: 11px 24px;
+  border-radius: 999px;                              /* plně oválné */
+  border: 1.5px solid var(--pos-border, #E2E2E7);     /* viditelný obrys i u neaktivních */
+  background: var(--pos-surface, #fff);
   cursor: pointer;
   transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
 }
-.pos-tab-h:hover { background: rgba(0,0,0,0.04); }
+.pos-tab-h:hover { background: rgba(0,0,0,0.05); border-color: var(--pos-primary); }
 .pos-tab-h.active {
   background: var(--pos-primary);
   color: #fff;
+  border-color: var(--pos-primary);
+  box-shadow: 0 2px 8px rgba(186,117,23,0.28);
 }
 
 .pos-time {
@@ -2661,8 +2669,8 @@ html, body {
 }
 .pos-app .pos-brand-name { font-size: clamp(13px, 1.3vw, 17px); }
 .pos-app .pos-tab-h {
-  padding: clamp(6px, 0.9vw, 10px) clamp(10px, 1.4vw, 18px);
-  font-size: var(--fl-small);
+  padding: clamp(10px, 1.2vw, 14px) clamp(18px, 2vw, 28px);   /* 🆕 v3.0.234 — větší dotyková plocha */
+  font-size: var(--fl-body);
 }
 
 /* Cart fluid */

@@ -4627,12 +4627,12 @@ main, .layout { padding: var(--fl-py) var(--fl-px) !important; gap: var(--fl-gap
 @media (min-width: 1500px) {
   .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 }
-/* Pevný počet sloupců z nastavení (přebíjí auto-fill) */
-.catalog-grid[data-cols="2"] { grid-template-columns: repeat(2, 1fr); }
-.catalog-grid[data-cols="3"] { grid-template-columns: repeat(3, 1fr); }
-.catalog-grid[data-cols="4"] { grid-template-columns: repeat(4, 1fr); }
-.catalog-grid[data-cols="5"] { grid-template-columns: repeat(5, 1fr); }
-.catalog-grid[data-cols="6"] { grid-template-columns: repeat(6, 1fr); }
+/* Pevný počet sloupců z nastavení (!important = neprůstřelné vůči starým .grid pravidlům) */
+.catalog-grid[data-cols="2"] { grid-template-columns: repeat(2, 1fr) !important; }
+.catalog-grid[data-cols="3"] { grid-template-columns: repeat(3, 1fr) !important; }
+.catalog-grid[data-cols="4"] { grid-template-columns: repeat(4, 1fr) !important; }
+.catalog-grid[data-cols="5"] { grid-template-columns: repeat(5, 1fr) !important; }
+.catalog-grid[data-cols="6"] { grid-template-columns: repeat(6, 1fr) !important; }
 /* Tablet/menší: drž rozumně, ať nejsou karty moc úzké */
 @media (max-width: 760px) {
   .catalog-grid, .catalog-grid[data-cols] { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
