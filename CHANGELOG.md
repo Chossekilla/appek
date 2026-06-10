@@ -6,6 +6,13 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.250] — 2026-06-10
+
+### 📱 B2B karty produktů — qty stepper 100% responzivní
+_User: při 5 sloupcích není vidět množství, je utlačené mezi +/−, špatný flex._
+- **Bug:** `.card-qty-row .qty-btn` mělo `flex: 0 0 36px` (fixní) + input `min-width: 0` → při úzké kartě tlačítka sežrala místo a input s množstvím **zkolaboval na 0** (číslo zmizelo).
+- **Fix:** tlačítka shrinkovatelná (`flex: 0 1 36px; min-width: 22px`), input `min-width: 28px` (číslo se nikdy nezkolabuje) + **container queries** — velikost stepperu škáluje přesně dle šířky karty (best-in-class responzivita napříč 3/4/5 sloupci i mobilem). Ověřeno živě: číslo množství vždy čitelné.
+
 ## [3.0.249] — 2026-06-10
 
 ### 📃 POS Účtenky čtou nastavení počtu řádků (dotažení)
