@@ -6,6 +6,14 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.251] — 2026-06-10
+
+### ⚡ Výkon — minifikace admin.js (build)
+_User: „přijde mi to pomalé". Vyšetření: backend rychlý (0.16 s napříč seznamy/modaly/účtenkami), pomalost byla kontence demo serveru, ne kód. Jediná reálná frontend páka = velikost admin.js._
+- **admin.js (~2.1 MB nezminifikovaného zdroje, načítá se synchronně)** se teď v CI buildu minifikuje esbuildem (~2.1 MB → ~1.2 MB) → rychlejší download i parse, hlavně na mobilu/slabém zařízení.
+- Běží v `build-zip.sh` po version-editech a **před** `.build-manifest.json` (SHA-256 sedí s nasazeným souborem). Bez `--bundle` → globální onclick handlery se nepřejmenují (inline `onclick="fn()"` fungují). `--charset=utf8` zachová české znaky + emoji.
+- **Fail-safe:** když esbuild chybí nebo výstup neprojde sanity checkem (velikost + přítomnost známých handlerů), ponechá se plný admin.js a build pokračuje (radši nezminifikováno než rozbito). Zdroj v gitu zůstává needitovaný (minifikace jen v ephemerálním CI checkoutu).
+
 ## [3.0.250] — 2026-06-10
 
 ### 📱 B2B karty produktů — qty stepper 100% responzivní
