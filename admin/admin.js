@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.247';
+const APPEK_ADMIN_JS_VERSION = '3.0.248';
 
 (async function detectStaleCode() {
   try {
@@ -14311,7 +14311,7 @@ async function renderNastaveni() {
     <!-- 📃 STRÁNKOVÁNÍ DLOUHÝCH SEZNAMŮ (v3.0.218) -->
     <div class="card-block" style="margin-top:14px">
       <h3 style="margin-bottom:6px;">📃 Dlouhé seznamy</h3>
-      <p class="page-sub" style="margin-bottom:14px;">Jak načítat dlouhé seznamy (Objednávky, Faktury, Dodací listy, POS Účtenky) při velkém počtu záznamů.</p>
+      <p class="page-sub" style="margin-bottom:14px;">Jak načítat dlouhé seznamy (Objednávky, Faktury, Dodací listy) při velkém počtu záznamů.</p>
       <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
         <div>
           <label class="form-label" style="font-size:12px">Styl načítání</label>

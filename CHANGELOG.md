@@ -6,6 +6,13 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.248] — 2026-06-10
+
+### 📝 Audit informačních popisků
+Projeté popisky napříč aplikací (podtituly sekcí, hinty nastavení, FAQ, tooltipy s tvrzeními o chování) proti reálné funkčnosti.
+- **Oprava:** popisek „Dlouhé seznamy" tvrdil, že nastavení platí i pro **POS Účtenky** — neplatí (řídí jen Objednávky/Faktury/DL; POS je samostatná appka). Odebráno.
+- Ověřeno jako **přesné:** firma/logo na dokladech (live + „existující se aktualizují při dalším otevření"), B2B sezónní filtr (katalog.php dle data), témata/jazyk (per-zařízení), catering (smlouvy/záloha 50 %), reset dat (2× confirm + typed), bulk faktura z DL (stejný odběratel + nefakturované), „foto jen URL" (upload fakt není).
+
 ## [3.0.247] — 2026-06-10
 
 ### 📃 Dlouhé seznamy — chybějící Uložit + volba počtu řádků
