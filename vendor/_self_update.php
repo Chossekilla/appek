@@ -103,6 +103,12 @@ function self_update_apply(string $zipPath, array &$log, ?string $webroot = null
         }
         logStep('Backup vytvořen v ' . $backupDir, $log);
 
+        // 🧹 v3.0.238 — RETENCE: starý kód nechával KAŽDOU /tmp/appek-self-update-backup-*
+        //   (cp -R 8 dirů) napořád → 59 záloh × ~11k souborů = 641k inodů → přetekla inode
+        //   kvóta (na CloudLinux /tmp = ~/.cagefs/tmp se počítá do kvóty účtu → 107 %, web
+        //   přestal tvořit soubory). Necháme newest 2 zálohy + smažeme staré extract/staging.
+        self_update_prune_tmp($log, 2);
+
         // ─── 5. EXTRAKCE ZIPu ────────────────────────────────────
         $extractDir = sys_get_temp_dir() . '/appek-self-update-extract-' . date('Ymd-His');
         @mkdir($extractDir, 0755, true);
@@ -274,6 +280,31 @@ function self_update_rmdir(string $dir): void {
         is_dir($p) ? self_update_rmdir($p) : @unlink($p);
     }
     @rmdir($dir);
+}
+
+/**
+ * 🧹 v3.0.238 — Úklid /tmp po self-update: nech newest $keepBackups záloh, zbytek smaž;
+ * extract/staging/deploy diry starší 1 h smaž celé (jsou ephemeral). Bez tohohle inody
+ * lineárně rostly s každým deployem (viz komentář u volání) → přetekla kvóta účtu.
+ */
+function self_update_prune_tmp(array &$log, int $keepBackups = 2): void {
+    $tmp = sys_get_temp_dir();
+    // Zálohy: seřaď newest-first podle mtime, smaž vše za prvními $keepBackups.
+    $backups = glob($tmp . '/appek-self-update-backup-*', GLOB_ONLYDIR) ?: [];
+    if (count($backups) > $keepBackups) {
+        usort($backups, fn($a, $b) => (@filemtime($b) ?: 0) <=> (@filemtime($a) ?: 0));
+        $removed = 0;
+        foreach (array_slice($backups, $keepBackups) as $old) { self_update_rmdir($old); $removed++; }
+        logStep("🧹 Prune záloh: smazáno {$removed} starých (nechávám {$keepBackups})", $log);
+    }
+    // Ephemeral staging/extract/deploy diry: smaž starší 1 h (leaknuté z crashlých běhů).
+    $sweptDirs = 0;
+    foreach (['appek-self-update-extract-*', 'appek-update-*', 'appek-deploy-*'] as $pat) {
+        foreach (glob($tmp . '/' . $pat, GLOB_ONLYDIR) ?: [] as $d) {
+            if ((time() - (int) @filemtime($d)) > 3600) { self_update_rmdir($d); $sweptDirs++; }
+        }
+    }
+    if ($sweptDirs) logStep("🧹 Sweep staging: {$sweptDirs} starých temp dirů smazáno", $log);
 }
 
 /**

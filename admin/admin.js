@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.237';
+const APPEK_ADMIN_JS_VERSION = '3.0.238';
 
 (async function detectStaleCode() {
   try {
@@ -11139,15 +11139,16 @@ window.openFakturaDetail = async function(id) {
       </div>
     </div>
 
-    <!-- Zdroj (objednávka / ruční) -->
-    ${parseInt(f.rucni) === 1
+    <!-- Zdroj / vázané doklady (objednávka + DL) — v3.0.238 konzistentní řetězec obousměrně -->
+    ${parseInt(f.rucni) === 1 && !(f.objednavky || []).length && !(f.dodaci_listy || []).length
       ? `<div style="margin-bottom:14px;padding:10px 14px;background:#F7F8FA;border-left:3px solid #BA7517;border-radius:4px;font-size:13px">
-           <strong>✏️ Ručně vystavená faktura</strong> <span style="color:var(--text-3)">— bez vazby na objednávku</span>
+           <strong>✏️ Ručně vystavená faktura</strong> <span style="color:var(--text-3)">— bez vazby na objednávku/DL</span>
          </div>`
-      : (f.objednavky && f.objednavky.length)
-        ? `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:10px 14px;background:#F7F8FA;border:1px solid var(--border);border-radius:8px">
-             <span style="font-size:12px;color:var(--text-3);font-weight:500">🛒 Z objednávky:</span>
-             ${f.objednavky.map(o => `<a href="#" onclick="closeModal();setTimeout(()=>openObjednavkaDetail(${o.id}),100);return false" class="doc-badge obj">🛒 ${esc(o.cislo)}</a>`).join('')}
+      : ((f.objednavky || []).length || (f.dodaci_listy || []).length)
+        ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:10px 14px;background:#F7F8FA;border:1px solid var(--border);border-radius:8px">
+             <span style="font-size:12px;color:var(--text-3);font-weight:500">🔗 Vázané doklady:</span>
+             ${(f.objednavky || []).map(o => `<a href="#" onclick="closeModal();setTimeout(()=>openObjednavkaDetail(${o.id}),100);return false" class="doc-badge obj" title="Otevřít objednávku ${esc(o.cislo)}">🛒 ${esc(o.cislo)}</a>`).join('')}
+             ${(f.dodaci_listy || []).map(d => `<a href="#" onclick="closeModal();setTimeout(()=>openDodaciListDetail(${d.id}),100);return false" class="doc-badge dl" title="Otevřít dodací list ${esc(d.cislo)}">📃 ${esc(d.cislo)}</a>`).join('')}
            </div>`
         : ''
     }
