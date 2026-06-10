@@ -112,6 +112,39 @@ if [[ -f scripts/gen_i18n_extra.py ]]; then
   fi
 fi
 
+# ─── 🗜️  MINIFIKACE admin.js (v3.0.251) ───────────────────────
+# admin.js je ~2.1 MB nezminifikovaného zdroje a načítá se synchronně → parse
+# blokuje boot (hlavně mobil/slabé zařízení). esbuild minifikace ~2.1 MB → ~1.2 MB.
+# DŮLEŽITÉ pořadí: běží AŽ po všech text-editech admin.js (APPEK_ADMIN_JS_VERSION)
+# a PŘED .build-manifest.json (aby SHA-256 seděl s nasazeným minifikovaným souborem).
+# BEZPEČNOST: bez --bundle → globální handlery (top-level function / window.fn) se
+# NEpřejmenují, takže inline onclick="fn()" zůstávají funkční. --charset=utf8 zachová
+# české znaky + emoji. FAIL-SAFE: když esbuild chybí nebo výstup neprojde sanity
+# checkem, ponechá se PLNÝ admin.js a build pokračuje (radši nezminifikováno než rozbito).
+if [[ -f admin/admin.js ]]; then
+  _JS_SRC_BYTES=$(wc -c < admin/admin.js | tr -d ' ')
+  if npx --yes esbuild admin/admin.js --minify --charset=utf8 --legal-comments=none \
+        --outfile=admin/admin.min.tmp 2>/tmp/appek-esbuild.log; then
+    _JS_MIN_BYTES=$(wc -c < admin/admin.min.tmp | tr -d ' ')
+    # Sanity: výstup je menší než zdroj, ne absurdně malý (>600 kB), a stále obsahuje
+    # známé globální handlery volané z inline onclick (důkaz že mangling nesmazal globály).
+    if [[ "$_JS_MIN_BYTES" -gt 600000 && "$_JS_MIN_BYTES" -lt "$_JS_SRC_BYTES" ]] \
+       && grep -q "renderDashboard" admin/admin.min.tmp \
+       && grep -q "renderObjednavky" admin/admin.min.tmp \
+       && grep -q "ulozitNastaveni" admin/admin.min.tmp; then
+      mv admin/admin.min.tmp admin/admin.js
+      echo "🗜️  admin.js minifikován: $((_JS_SRC_BYTES/1024)) kB → $((_JS_MIN_BYTES/1024)) kB"
+    else
+      rm -f admin/admin.min.tmp
+      echo "⚠️  Minifikace přeskočena (sanity check selhal) — ponechán plný admin.js"
+    fi
+  else
+    rm -f admin/admin.min.tmp
+    echo "⚠️  esbuild nedostupný/selhal — ponechán plný admin.js (build pokračuje)"
+    head -3 /tmp/appek-esbuild.log 2>/dev/null || true
+  fi
+fi
+
 # ─── 🔐 DEPLOY MANIFEST — SHA-256 každého klientského souboru ────
 # 🆕 v2.9.65 — api/.build-manifest.json říká "co MÁ být na serveru po tomto buildu".
 # admin/deploy-check.php to po deployi porovná s realitou na disku → pozná STALE
