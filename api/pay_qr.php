@@ -268,9 +268,18 @@ if ($method === 'POST' && $action === 'admin_confirm_manual') {
 // (Public — Stripe ho volá. Verifikace přes signature.)
 // ─────────────────────────────────────────────────────────────
 if ($method === 'POST' && $action === 'stripe_webhook') {
-    // TODO: ověřit Stripe-Signature header proti webhook_secret
-    // Pro MVP: rovnou parse, příjmu event
+    // 🔒 v3.0.228 SECURITY: ověř Stripe-Signature (HMAC) proti tenant webhook secretu.
+    //   secret nastaven → neplatný podpis = 400 · secret NEnastaven → grace (token v ref chrání)
     $payload = file_get_contents('php://input');
+    $sig = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
+    $sigValid = customer_int_stripe_verify_signature($payload, $sig);
+    if ($sigValid === false) {
+        error_log('pay_qr stripe_webhook: NEPLATNÝ podpis from ' . ($_SERVER['REMOTE_ADDR'] ?? '?'));
+        json_error('invalid signature', 400);
+    }
+    if ($sigValid === null) {
+        error_log('⚠️ pay_qr stripe_webhook: webhook secret nenastaven — grace (ověřuji jen token v ref)');
+    }
     $event = json_decode($payload, true);
     if (!$event) json_error('Bad payload', 400);
     if (($event['type'] ?? '') === 'checkout.session.completed') {

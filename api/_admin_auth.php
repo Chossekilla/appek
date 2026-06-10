@@ -22,14 +22,13 @@ function require_admin(): array {
     //    Lze deaktivovat per-endpoint definicí konstanty SKIP_CSRF před require.
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     if (!defined('SKIP_CSRF') && in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
-        // GRACE: pokud klient ještě neposlal token (přechod), warning v logu, neblokujeme.
-        // Po prosince 2026 nahradit za csrf_require() (strict).
+        // 🔒 v3.0.228 STRICT: frontend rozjel tokeny všude (admin.js api()+raw fetche, pos.js,
+        // whoami self-heal). Neplatný/chybějící token = 403. Klient se zotaví přes whoami retry.
         if (!csrf_check()) {
-            error_log('⚠️ CSRF_MISSING admin endpoint ' . ($_SERVER['REQUEST_URI'] ?? '?')
+            error_log('⛔ CSRF_REJECT admin endpoint ' . ($_SERVER['REQUEST_URI'] ?? '?')
                     . ' from ' . ($_SERVER['REMOTE_ADDR'] ?? '?')
                     . ' user_id=' . ($_SESSION['admin_id'] ?? '?'));
-            // TODO v2.7: enable strict mode after frontend rolls out CSRF tokens
-            // json_error('csrf_invalid', 403);
+            json_error('csrf_invalid', 403);
         }
     }
     return [
