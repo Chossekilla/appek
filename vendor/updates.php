@@ -110,6 +110,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             vendor_audit($pdo, $user, 'update_upload', null, $version);
             $flash_ok = "Verze $version nahrána ($size bajtů, " . substr($checksum, 0, 12) . "...). Stav: draft — klikni Publikovat pro zpřístupnění zákazníkům.";
+
+            // 🧹 v3.0.229 — auto-prune: nech posledních 10 verzí, starší smaž (soubor + DB řádek).
+            // 49 nahromaděných zipů (135 MB) přeteklo diskovou kvótu hostingu (Jun 2026) →
+            // session write fail → celý portál "odhlašoval". Prune nesmí shodit upload.
+            try {
+                $old = $pdo->query("SELECT id, version, file_path FROM vendor_updates ORDER BY id DESC LIMIT 1000 OFFSET 10")->fetchAll();
+                foreach ($old as $o) {
+                    @unlink($storage . '/' . $o['file_path']);
+                    $pdo->prepare("DELETE FROM vendor_updates WHERE id=:id")->execute(['id' => $o['id']]);
+                }
+                if ($old) {
+                    vendor_audit($pdo, $user, 'update_autoprune', null, count($old) . ' verzí');
+                    $flash_ok .= ' 🧹 Auto-prune: ' . count($old) . ' starých verzí odstraněno (nechávám 10).';
+                }
+            } catch (Throwable $e) { /* best-effort */ }
         } elseif ($action === 'publish') {
             $id = (int) $_POST['id'];
             $pdo->prepare("UPDATE vendor_updates SET status='published', published_at=NOW() WHERE id=:id")
