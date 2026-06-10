@@ -6,6 +6,21 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.238] — 2026-06-10
+
+### 🚨 Inode kvóta — oprava úniku v self-update (KRITICKÉ)
+_Účet měl 647 630 / 600 000 inodů (107 %) → filesystém přestal tvořit soubory (sessions, uploady, updaty)._
+
+- **Příčina:** `vendor/_self_update.php` dělal při každém deployi `cp -R` celého stromu (vendor+api+sales+admin+b2b+demo+pos+floorplan) do `/tmp/appek-self-update-backup-<datum>/` a **nikdy nemazal** (komentář „backup zůstává pro rollback"). Na CloudLinuxu `/tmp` = `~/.cagefs/tmp` → počítá se do kvóty účtu. 59 záloh × ~11k souborů = 641k inodů.
+- **Hned:** smazáno 58 starých záloh → `/home` z 647 630 na **7 918 inodů** (1,3 %).
+- **Trvale:** přidána retence `self_update_prune_tmp()` — nechává **newest 2 zálohy**, staré extract/staging diry (>1 h) maže. Customer `updates_apply.php` byl už OK (zálohuje jen měněné soubory do `api/zalohy/` + maže staré).
+
+### 🔗 Doklady — konzistentní obousměrný řetězec
+_User: "z objednávky musí jít vytvořit DL a fakturu a z faktur a DL musí jít nová objednávka, skrz naskrz konzistentní."_
+
+- Doplněna **zpětná navigace faktura → dodací list** (`admin_faktury.php` vrací `dodaci_listy`; modal faktury ukazuje sjednocené „🔗 Vázané doklady" s 🛒 objednávkou i 📃 DL). Dřív faktura linkovala jen objednávku.
+- Ověřeno, že zbytek řetězce už funguje: objednávka → vytvořit DL / fakturu (zvýrazněno v 3.0.237), DL → objednávka (badge) + vystavit fakturu, faktura/DL/objednávka → 🔁 znovu objednat (nová objednávka ze stejných položek).
+
 ## [3.0.237] — 2026-06-10
 
 ### 🧾 Faktury — výběr nefakturovaných dokladů + zvýraznění

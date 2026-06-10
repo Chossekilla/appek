@@ -66,6 +66,22 @@ if ($method === 'GET') {
             $f['objednavky'] = [];
         }
 
+        // 🆕 v3.0.238 — související dodací listy (zpětná navigace faktura → DL; dřív
+        //   chyběla, faktura linkovala jen na objednávku → nekonzistentní řetězec).
+        try {
+            $stmt = $pdo->prepare("
+                SELECT dl.id, dl.cislo, dl.datum_dodani
+                FROM faktury_dodaci_listy fdl
+                JOIN dodaci_listy dl ON dl.id = fdl.dodaci_list_id
+                WHERE fdl.faktura_id = :id
+                ORDER BY dl.id
+            ");
+            $stmt->execute(['id' => (int) $f['id']]);
+            $f['dodaci_listy'] = $stmt->fetchAll();
+        } catch (Exception $e) {
+            $f['dodaci_listy'] = [];
+        }
+
         json_response($f);
     }
 
