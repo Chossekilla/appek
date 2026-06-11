@@ -6,12 +6,19 @@ Per-batch log spravovaný překladovým vláknem. Hlavní vlákno NEEDITUJE.
 
 | Metric | Start | Aktuální | Cíl |
 |---|---|---|---|
-| CS frází celkem | 15800 | 15844 | — |
-| SK překlady (`SK_EXTRA`) | 8561 | **15204** | ≥ 14500 (≥ 92%) ✅ |
-| DE překlady (`DE_EXTRA`) | 8513 | **15156** | ≥ 14500 (≥ 92%) ✅ |
-| SK pokrytí (po rule fallbacks) | 48.3% | **92.4%** | ≥ 92% ✅ |
-| DE pokrytí | 48.1% | **92.3%** | ≥ 92% ✅ |
-| Poslední batch | — | **13** | — |
+| Metric | Start | Final (batch 19) | Cíl |
+|---|---|---|---|
+| CS frází celkem | 15800 | 19055 | — |
+| SK překlady | 8561 | **20265** | ≥ 14500 ✅ |
+| DE překlady | 8513 | **20254** | ≥ 14500 ✅ |
+| EN overlay (mimo i18n_auto.js) | 0 | **1959** | — |
+| ES overlay (mimo i18n_auto.js) | 0 | **1951** | — |
+| SK pokrytí | 48.3% | **99.99%** | ≥ 92% ✅ |
+| DE pokrytí | 48.1% | **99.99%** | ≥ 92% ✅ |
+| EN pokrytí | 100% (i18n_auto.js) | **100% + 1959 overlay** | — |
+| ES pokrytí | 100% (i18n_auto.js) | **100% + 1951 overlay** | — |
+| Bundle size | 775 KB | **2.08 MB** | — |
+| Total batches | — | **19** | — |
 
 ## ✅ HOTOVO · 2026-05-19
 
