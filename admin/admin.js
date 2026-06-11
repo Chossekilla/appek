@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.255';
+const APPEK_ADMIN_JS_VERSION = '3.0.256';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5626,6 +5626,7 @@ async function renderObjednavky(filters = {}, opts = {}) {
   // 🆕 v3.0.255 — per-zdroj počty ze serveru (přes CELÝ dataset, ne jen načtená stránka) pro ZDROJ čipy
   pg.counts = (resp && resp.counts && typeof resp.counts === 'object') ? resp.counts : null;
   pg.countsTotal = (resp && Number.isFinite(resp.counts_total)) ? resp.counts_total : null;
+  pg.souhrn = (resp && resp.souhrn && typeof resp.souhrn === 'object') ? resp.souhrn : null; // 🆕 v3.0.255 — server tržba/k-vyfakturování (celý dataset, ne stránka)
 
   const list = pg.items;
   const total = pg.total;
@@ -5638,11 +5639,15 @@ async function renderObjednavky(filters = {}, opts = {}) {
   const validIds = new Set(list.map(o => o.id));
   for (const id of [...state._objSelected]) if (!validIds.has(id)) state._objSelected.delete(id);
 
-  // Souhrn pro stat-grid (z načtených; celkový počet = total z backendu)
-  const sumCelkem = list.reduce((a, o) => a + (parseFloat(o.castka_celkem) || 0), 0);
-  const sumKVyfakturovani = list
-    .filter(o => o.stav !== 'zrusena' && (parseInt(o.pocet_faktur) || 0) === 0)
-    .reduce((a, o) => a + (parseFloat(o.castka_celkem) || 0), 0);
+  // 🆕 v3.0.255 — souhrn (tržba, k vyfakturování) ze serveru přes CELÝ filtrovaný dataset,
+  //   ne jen z načtené stránky (dřív „Celková tržba" odpovídala jen 25 zobrazeným = špatně).
+  //   Fallback na načtenou stránku, kdyby backend souhrn nevrátil.
+  const sumCelkem = pg.souhrn ? (parseFloat(pg.souhrn.celkem_kc) || 0)
+    : list.reduce((a, o) => a + (parseFloat(o.castka_celkem) || 0), 0);
+  const sumKVyfakturovani = pg.souhrn ? (parseFloat(pg.souhrn.k_vyfakturovani_kc) || 0)
+    : list
+      .filter(o => o.stav !== 'zrusena' && (parseInt(o.pocet_faktur) || 0) === 0)
+      .reduce((a, o) => a + (parseFloat(o.castka_celkem) || 0), 0);
 
   c.innerHTML = `
     <div class="page-head">

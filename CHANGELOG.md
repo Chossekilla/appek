@@ -6,6 +6,12 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.256] — 2026-06-11
+
+### 🔢 FIX: stat karty Objednávek (tržba/k vyfakturování) z celého datasetu
+- „Celková tržba" a „K vyfakturování" v Objednávkách se počítaly jen z NAČTENÉ stránky (25 řádků) místo z celého filtrovaného datasetu (118) — stejná třída jako počty u ZDROJ čipů. Backend `admin_objednavky.php` teď vrací `souhrn` (SUM přes celý filtr) a frontend ho použije (fallback na stránku). (DL a Faktury to už dělaly server-side, Objednávky byly výjimka.)
+- _Pozn.: obsahuje i v3.0.255 (přepínání jazyků + počty ZDROJ čipů) — demo se na 3.0.255 kvůli zaseklému self-update nestihlo aktualizovat, tahle verze re-publikuje vše._
+
 ## [3.0.255] — 2026-06-11
 
 ### 🌍 FIX: přepínání jazyků (nepřepínalo se)

@@ -377,6 +377,23 @@ if ($method === 'GET') {
         }
     } catch (Throwable $e) { /* fallback: frontend dopočítá z načtené stránky */ }
 
+    // 🆕 v3.0.255 — souhrn (tržba + k vyfakturování) přes CELÝ filtrovaný dataset (vč. puvod filtru),
+    //   aby stat karty neodpovídaly jen načtené stránce (dřív „Celková tržba" = jen 25 zobrazených).
+    //   k_vyfakturovani = nezrušené objednávky bez navázané faktury (přes DL).
+    $souhrn = ['celkem_kc' => 0, 'k_vyfakturovani_kc' => 0];
+    try {
+        $ssql = "SELECT
+                   COALESCE(SUM(o.castka_celkem), 0) AS celkem_kc,
+                   COALESCE(SUM(CASE WHEN o.stav <> 'zrusena' AND NOT EXISTS (
+                       SELECT 1 FROM dodaci_listy dl JOIN faktury_dodaci_listy fdl ON fdl.dodaci_list_id = dl.id
+                        WHERE dl.objednavka_id = o.id
+                   ) THEN o.castka_celkem ELSE 0 END), 0) AS k_vyfakturovani_kc
+                 FROM objednavky o JOIN odberatele od ON od.id = o.odberatel_id WHERE 1=1" . $where;
+        $ss = $pdo->prepare($ssql);
+        $ss->execute($params);
+        $souhrn = $ss->fetch() ?: $souhrn;
+    } catch (Throwable $e) { /* fallback na frontend dopočet */ }
+
     $sql .= $where . " GROUP BY o.id ORDER BY o.datum_dodani DESC, o.datum_objednani DESC LIMIT $limit OFFSET $offset";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -397,6 +414,7 @@ if ($method === 'GET') {
         'has_more'   => ($offset + count($rows)) < $total,
         'counts'       => $countsByPuvod,   // 🆕 v3.0.255 — počty per zdroj přes celý dataset
         'counts_total' => $countsTotal,
+        'souhrn'       => $souhrn,           // 🆕 v3.0.255 — tržba + k vyfakturování (celý dataset)
     ]);
 }
 
