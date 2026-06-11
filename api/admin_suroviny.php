@@ -359,35 +359,39 @@ if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_kor
     if (!$sid) json_error('Chybí surovina_id');
     if ($mnozstvi <= 0) json_error('Množství musí být > 0');
 
-    // Načti aktuální stav pro audit + ověření
-    $sur = $pdo->prepare("SELECT id, nazev, jednotka, stock_aktualni FROM suroviny WHERE id = :id");
+    $sur = $pdo->prepare("SELECT id, nazev, jednotka FROM suroviny WHERE id = :id");
     $sur->execute(['id' => $sid]);
     $surData = $sur->fetch(PDO::FETCH_ASSOC);
     if (!$surData) json_error('Surovina nenalezena', 404);
-    $stockPred = (float) $surData['stock_aktualni'];
 
-    // Spočítej nový stav podle typu
     $typ = str_replace('sklad_', '', $action);
-    $stockPo = $stockPred;
-    if ($typ === 'prijem')      $stockPo = $stockPred + $mnozstvi;
-    elseif ($typ === 'vydej')   $stockPo = max(0, $stockPred - $mnozstvi);
-    elseif ($typ === 'inventura') $stockPo = $mnozstvi;  // mnozstvi = nový reálný stav
-    elseif ($typ === 'korekce') $stockPo = $stockPred + $mnozstvi; // ± podle znaménka? Vždy přidat
 
+    // 🆕 v3.0.262 — BUGFIX: zápis do SYSTÉMU B (sklad_polozky domovského skladu) + recompute,
+    //   konzistentně s admin_sklad_pohyby.php / restock / odpisem výroby. Dřív se psalo jen
+    //   suroviny.stock_aktualni (systém A) → recompute z B (po výrobě / restocku / GET migraci)
+    //   ho přepsal → stav spadl do mínusu (příjem přes kartu suroviny + výroba = drift).
+    //   Číselné chování i tvar odpovědi zachovány (vydej clampuje na 0, inventura = nový stav).
     try {
+        $home  = surovina_home_sklad($pdo, $sid);
+        $rowId = sklad_polozky_ensure($pdo, $home, 'surovina', $sid);
         $pdo->beginTransaction();
-        // Update stock
-        $pdo->prepare("UPDATE suroviny SET stock_aktualni = :s WHERE id = :id")
-            ->execute(['s' => $stockPo, 'id' => $sid]);
-        // Zaznamenat pohyb (audit)
+        $stockPred = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id=" . (int) $rowId . " FOR UPDATE")->fetchColumn();
+        if ($typ === 'prijem')        $stockPo = $stockPred + $mnozstvi;
+        elseif ($typ === 'vydej')     $stockPo = max(0, $stockPred - $mnozstvi);
+        elseif ($typ === 'inventura') $stockPo = $mnozstvi;            // mnozstvi = nový reálný stav
+        else /* korekce */            $stockPo = $stockPred + $mnozstvi;
+        $delta = $stockPo - $stockPred;
+        $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :r")
+            ->execute(['s' => $stockPo, 'r' => $rowId]);
+        // Zaznamenat pohyb (audit) do systému B
         $pdo->prepare("
-            INSERT INTO sklad_pohyby (surovina_id, typ, mnozstvi, jednotka, stock_pred, stock_po, cena_za_jed, poznamka, kdo)
-            VALUES (:sid, :typ, :mn, :jed, :pred, :po, :cz, :pz, :kdo)
+            INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, cena_za_jed, poznamka, kdo)
+            VALUES (:s, 'surovina', :i, :typ, :mn, :pred, :po, :cz, :pz, :kdo)
         ")->execute([
-            'sid'  => $sid,
+            's'    => $home,
+            'i'    => $sid,
             'typ'  => $typ,
-            'mn'   => $mnozstvi,
-            'jed'  => $surData['jednotka'],
+            'mn'   => $delta,
             'pred' => $stockPred,
             'po'   => $stockPo,
             'cz'   => isset($d['cena_za_jed']) && $d['cena_za_jed'] !== '' ? (float) $d['cena_za_jed'] : null,
@@ -395,9 +399,10 @@ if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_kor
             'kdo'  => _aktualni_uzivatel(),
         ]);
         $pdo->commit();
+        surovina_recompute_total($pdo, $sid); // systém A (stock_aktualni) = SUM(B)
         json_response(['ok' => true, 'stock_pred' => $stockPred, 'stock_po' => $stockPo]);
     } catch (Throwable $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) $pdo->rollBack();
         json_error_safe('Chyba pohybu skladu', $e, 500);
     }
 }
