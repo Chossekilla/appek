@@ -6,6 +6,11 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.257] — 2026-06-11
+
+### 🎨 POS — větší horní taby (KASA / Stoly / Účtenky / Statistiky / Uzávěrka)
+- `.pos-tab-h` zvětšeno: admin/pos.css font 15→18px, padding 11×24→14×30 (kiosk ≥1441px 16→20px); pos/pos.css font 13→16px, padding 8×14→12×24. Větší dotyková plocha, čitelnější. Mobil/tablet overrides ponechány (kompaktace, ať se vejdou).
+
 ## [3.0.256] — 2026-06-11
 
 ### 🔢 FIX: stat karty Objednávek (tržba/k vyfakturování) z celého datasetu

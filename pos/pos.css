@@ -98,11 +98,11 @@ button { font-family: inherit; cursor: pointer; }
 .pos-tab-h {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 13px;
+  gap: 8px;
+  font-size: 16px;                                   /* 🆕 v3.0.257 — větší taby (user) */
   font-weight: 600;
   color: var(--pos-text-2);
-  padding: 8px 14px;
+  padding: 12px 24px;                                /* 🆕 v3.0.257 — větší dotyková plocha */
   border-radius: 5px;   /* 🆕 v3.0.253 — jemné zaoblení 5px (sjednoceno s admin/pos.php, user po 5×) */
   cursor: pointer;
   transition: all 0.15s ease;
