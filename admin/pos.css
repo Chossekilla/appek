@@ -96,10 +96,10 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .pos-tab-h {
-  font-size: 15px;
+  font-size: 18px;                                   /* 🆕 v3.0.257 — větší taby (user) */
   font-weight: 700;
   color: var(--pos-text-2);
-  padding: 11px 24px;
+  padding: 14px 30px;                                /* 🆕 v3.0.257 — větší dotyková plocha */
   border-radius: 5px;                                /* 🆕 v3.0.252 — jemné zaoblení 5px (user po 5×) */
   border: 1.5px solid var(--pos-border, #E2E2E7);     /* viditelný obrys i u neaktivních */
   background: var(--pos-surface, #fff);
@@ -1047,7 +1047,7 @@ html, body {
 .pos-brand-sub  { font-size: 14px !important; }
 .pos-brand-ic   { font-size: 30px !important; }
 .pos-loc        { font-size: 16px !important; padding: 9px 14px !important; }
-.pos-tab-h      { font-size: 16px !important; padding: 10px 20px !important; }
+.pos-tab-h      { font-size: 20px !important; padding: 14px 28px !important; }  /* 🆕 v3.0.257 — větší taby i na kiosku */
 .pos-time       { font-size: 18px !important; padding: 9px 14px !important; }
 .pos-user-name  { font-size: 16px !important; }
 .pos-user-avatar { width: 44px !important; height: 44px !important; font-size: 18px !important; }
