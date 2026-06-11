@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.254';
+const APPEK_ADMIN_JS_VERSION = '3.0.255';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5623,6 +5623,9 @@ async function renderObjednavky(filters = {}, opts = {}) {
   let batch = Array.isArray(resp) ? resp : (Array.isArray(resp.objednavky) ? resp.objednavky : []);
   pg.total = Array.isArray(resp) ? batch.length : (Number.isFinite(resp.total) ? resp.total : batch.length);
   pg.items = append ? pg.items.concat(batch) : batch;
+  // 🆕 v3.0.255 — per-zdroj počty ze serveru (přes CELÝ dataset, ne jen načtená stránka) pro ZDROJ čipy
+  pg.counts = (resp && resp.counts && typeof resp.counts === 'object') ? resp.counts : null;
+  pg.countsTotal = (resp && Number.isFinite(resp.counts_total)) ? resp.counts_total : null;
 
   const list = pg.items;
   const total = pg.total;
@@ -5672,8 +5675,9 @@ async function renderObjednavky(filters = {}, opts = {}) {
 
     <!-- 🆕 v3.0.212 — Puvod chips (řízené registrem kanálů + nastavením) -->
     ${(() => {
-      const counts = list.reduce((a, o) => { const p = o.puvod || 'interni'; a[p] = (a[p] || 0) + 1; return a; }, {});
-      const totalAll = list.length;
+      // 🆕 v3.0.255 — počty per zdroj ze serveru (celý dataset); fallback na načtenou stránku
+      const counts = pg.counts || list.reduce((a, o) => { const p = o.puvod || 'interni'; a[p] = (a[p] || 0) + 1; return a; }, {});
+      const totalAll = (pg.countsTotal != null) ? pg.countsTotal : (pg.total || list.length);
       const activeP = filters.puvod || '';
       const chip = (val, label, icon, color) => `
         <button onclick="applyObjFilters({puvod:'${val}'})" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid ${activeP === val ? color : '#E5E7EB'};background:${activeP === val ? color : '#fff'};color:${activeP === val ? '#fff' : '#374151'};transition:all 0.15s ease">

@@ -340,6 +340,9 @@ if ($method === 'GET') {
         $where .= " AND (o.cislo LIKE :q OR od.nazev LIKE :q)";
         $params['q'] = '%' . $hl . '%';
     }
+    // 🆕 v3.0.255 — snapshot WHERE PŘED puvod filtrem → počty per zdroj (čipy) přes celý dataset
+    $whereBezPuvod = $where;
+    $paramsBezPuvod = $params;
     if ($puvod !== '') {
         // 🆕 v3.0.212 — povolené hodnoty z centrálního registru kanálů
         $allowedPuvod = array_keys(kanaly_config($pdo));
@@ -359,6 +362,21 @@ if ($method === 'GET') {
     $cs->execute($params);
     $total = (int) $cs->fetchColumn();
 
+    // 🆕 v3.0.255 — počty per zdroj (puvod) přes celý dataset BEZ puvod filtru → ZDROJ čipy
+    //   ukazují skutečné totály (dřív frontend počítal jen z načtené stránky = „Vše 25" místo 118).
+    $countsByPuvod = [];
+    $countsTotal = 0;
+    try {
+        $csp = $pdo->prepare("SELECT COALESCE(NULLIF(o.puvod,''),'interni') AS p, COUNT(*) AS c
+                              FROM objednavky o JOIN odberatele od ON od.id = o.odberatel_id
+                              WHERE 1=1" . $whereBezPuvod . " GROUP BY p");
+        $csp->execute($paramsBezPuvod);
+        foreach ($csp->fetchAll() as $cr) {
+            $countsByPuvod[$cr['p']] = (int) $cr['c'];
+            $countsTotal += (int) $cr['c'];
+        }
+    } catch (Throwable $e) { /* fallback: frontend dopočítá z načtené stránky */ }
+
     $sql .= $where . " GROUP BY o.id ORDER BY o.datum_dodani DESC, o.datum_objednani DESC LIMIT $limit OFFSET $offset";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -377,6 +395,8 @@ if ($method === 'GET') {
         'offset'     => $offset,
         'limit'      => $limit,
         'has_more'   => ($offset + count($rows)) < $total,
+        'counts'       => $countsByPuvod,   // 🆕 v3.0.255 — počty per zdroj přes celý dataset
+        'counts_total' => $countsTotal,
     ]);
 }
 

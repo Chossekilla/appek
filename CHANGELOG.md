@@ -6,6 +6,14 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.255] — 2026-06-11
+
+### 🌍 FIX: přepínání jazyků (nepřepínalo se)
+- Výběr jiného jazyka (ES/EN/DE/SK) nepřekládal už vyrenderovaný obsah. Příčina: `setAppekLang` volal jen `applyTranslations()` ([data-i18n]), ale SPA renderuje obsah jako hardcoded CS přes innerHTML. `translatePage()` (DOM walker z i18n_auto.js) se při PRVNÍM přepnutí nestihl spustit (wrapper se instaluje až po lazy-loadu 4.5 MB bundle). Teď `setAppekLang` po načtení bundle sám zavolá `translatePage(document.body)` (+ restore-to-CS při přepnutí Z cizího jazyka). Druhý pass jako pojistka pro pomalé komponenty.
+
+### 🔢 FIX: počty u ZDROJ filtru objednávek
+- Čipy zdrojů (Vše/Interní/POS/B2B…) ukazovaly „25" (jen načtená stránka) místo skutečných totálů (118). Backend (`admin_objednavky.php`) teď vrací `counts` (GROUP BY puvod přes celý dataset, bez puvod filtru) + `counts_total`; frontend je použije (fallback na stránku, kdyby chyběly).
+
 ## [3.0.254] — 2026-06-11
 
 ### 🛠️ Demo overlay — zrcadlí i /pos/ a /floorplan/
