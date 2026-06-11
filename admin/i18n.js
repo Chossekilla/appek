@@ -61,12 +61,25 @@ window.loadI18nForLang = async function(code) {
 
 window.setAppekLang = async function(code) {
   if (!window.appekLangs.find(l => l.code === code)) code = 'cs';
+  // 🆕 v3.0.255 — restore aktuální DOM do CS PŘED změnou (řeší switch Z non-cs jazyka).
+  //   Feature-detect: restorePageToCS je v i18n_auto.js (načítá se lazy přes loadI18nForLang).
+  try { if (typeof window.restorePageToCS === 'function') window.restorePageToCS(document.body); } catch (e) {}
   // 🆕 v2.9.314 — pre-load i18n bundles BEFORE applying (jinak by translatePage() failnul lookup)
   try { await window.loadI18nForLang(code); } catch (e) {}
   window.appekCurrentLang = code;
   try { localStorage.setItem(I18N_LANG_KEY, code); } catch (e) {}
   document.documentElement.lang = code;
   applyTranslations();
+  // 🆕 v3.0.255 — FIX „nepřepíná jazyky": přelož i UŽ VYRENDEROVANÝ dynamický obsah.
+  //   Dřív se volala jen applyTranslations() ([data-i18n]) → SPA obsah (hardcoded CS přes
+  //   innerHTML) zůstal česky při PRVNÍM přepnutí (wrapper s translatePage z i18n_auto.js
+  //   se instaluje až po lazy-loadu, tj. pozdě pro tenhle call). translatePage() je teď
+  //   načtený (await výše) → přelož celý DOM CS→cíl. Observer pak řeší následné rendery.
+  if (code !== 'cs' && typeof window.translatePage === 'function') {
+    try { window.translatePage(document.body); } catch (e) {}
+    // pojistka pro pomalu rendrované komponenty (modaly, async listy)
+    setTimeout(function () { try { window.translatePage(document.body); } catch (e) {} }, 300);
+  }
 };
 
 const I18N = {
