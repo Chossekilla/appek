@@ -6,6 +6,14 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.253] — 2026-06-11
+
+### 🎨 POS /pos/ (standalone) — sjednoceno s /admin/pos.php
+_Pozn.: existují dvě POS aplikace — `/admin/pos.php` (otevírá „POS Kasa" v adminu) a `/pos/` (standalone). Předchozí úpravy mířily na admin verzi; tahle dorovnává standalone verzi, ať je vzhled konzistentní bez ohledu na URL._
+- **Taby `border-radius: 5px`** (z 999px pilulek) + 1.5px obrys — inline kritické CSS v pos/index.php (no-store, vyhrává nad CDN cache) + base pos/pos.css.
+- **Mobil:** `body.pos-app` `100vh`→`100dvh` + footer `env(safe-area-inset-bottom)` → stavový řádek/finish nad spodní lištou mobilu.
+- Záloha `pos/pos.css.bak-*` (mimo build).
+
 ## [3.0.252] — 2026-06-11
 
 ### 📱 POS mobil — finish + stavový řádek nad spodní lištou
