@@ -32989,6 +32989,147 @@ DE_EXTRA = {
     '✗ Nevyhovuje': '✗ Nicht bestanden',
 }
 
+# ═════════════════════════════════════════════════════════════════════
+# 🇬🇧 EN_EXTRA — overlay pro fráze, které nemají EN překlad v i18n_auto.js
+# Hlavní fond EN/ES se generuje z i18n_auto.js jako [cs, en, es] triple.
+# Tento overlay přidává EN/ES pro nové fráze (HACCP, modal titles, core UI
+# v admin/i18n.js které nejsou v i18n_auto.js).
+# ═════════════════════════════════════════════════════════════════════
+
+EN_EXTRA = {
+    # 🆕 BATCH 17 (2026-05-19) — HACCP module EN translations
+    # --- Tabs / main UI ---
+    '📋 Produktové karty': '📋 Product cards',
+    '📈 Grafy (šablony postupu)': '📈 Graphs (process templates)',
+    '⚙️ Defaultní hodnoty': '⚙️ Default values',
+    'Produktové karty, plán kritických bodů a dokumentace': 'Product cards, critical control points plan and documentation',
+    'HACCP karta': 'HACCP card',
+    '🪄 Auto-vyplnit HACCP karty': '🪄 Auto-fill HACCP cards',
+    '🪄 Auto-vyplnit vše': '🪄 Auto-fill all',
+    'Hledat (název, číslo)...': 'Search (name, number)...',
+    'Všechny kategorie': 'All categories',
+    '— nevyplněno —': '— not filled —',
+    '+ vytvoř šablony': '+ create templates',
+    # --- HACCP_FIELDS labels ---
+    'Cílový trh': 'Target market',
+    'Skladování': 'Storage',
+    'Podmínky a způsob distribuce': 'Distribution conditions and method',
+    # --- HACCP_FIELDS placeholders ---
+    'např. Běžné pečivo pšeničné': 'e.g. Common wheat bakery products',
+    'název na obale': 'name on packaging',
+    'ČR': 'CZ',
+    'k přímé konzumaci': 'for direct consumption',
+    'do 25 °C, suché místo': 'up to 25 °C, dry place',
+    'výrobek určen pro prodej…': 'product intended for sale…',
+    'bez omezení (nevhodné pro diabetiky, coeliky)': 'no restrictions (not suitable for diabetics, celiacs)',
+    # --- HACCP_POSTUP_TEMPLATE missing step names ---
+    'Dávkování surovin': 'Ingredient dosing',
+    'Smísení / hnětení těsta': 'Mixing / kneading the dough',
+    'Zrání / kynutí těsta': 'Maturing / proofing the dough',
+    'Dělení na klonky': 'Dividing into pieces',
+    'Ukládání do přepravek': 'Placing into transport crates',
+    # --- HACCP_KB_TEMPLATE descriptions (hazards) ---
+    'Kontaminace mikroorganizmy / škůdci': 'Contamination by microorganisms / pests',
+    'Mykotoxiny, rezidua pesticidů, těžké kovy': 'Mycotoxins, pesticide residues, heavy metals',
+    'Pomnožení MO, tvorba toxinů': 'Microbial growth, toxin formation',
+    'Kontaminace MO z prostředí a nářadí': 'Microbial contamination from environment and tools',
+    'Nedostatečné prohřátí — přežití patogenů': 'Insufficient heating — pathogen survival',
+    'Sekundární kontaminace, kondenzace': 'Secondary contamination, condensation',
+    'Pomnožení MO při nesprávné teplotě': 'Microbial growth at incorrect temperature',
+    'Mechanická kontaminace při manipulaci': 'Mechanical contamination during handling',
+    # --- HACCP_KB_TEMPLATE measures ---
+    'Ověření dodavatelů, atesty, vizuální kontrola obalů a DMT, kontrola teploty': 'Supplier verification, certificates, visual inspection of packaging and best-before date, temperature check',
+    'Atesty dodavatelů, kontrola specifikací': 'Supplier certificates, specification check',
+    'Dodržení podmínek skladování, FIFO, kontrola teploty a vlhkosti': 'Compliance with storage conditions, FIFO, temperature and humidity check',
+    'Hygiena pracoviště a pracovníků, dezinfekce nářadí': 'Workplace and worker hygiene, tool disinfection',
+    'Kontrola teploty pece a doby pečení dle receptury': 'Oven temperature and baking time control per recipe',
+    'Chlazení v čistém prostředí, dostatečný odvod par': 'Cooling in clean environment, sufficient vapor extraction',
+    'Kontrola teploty skladu, FIFO, čistota přepravek': 'Warehouse temperature check, FIFO, crate cleanliness',
+    'Čisté přepravky, hygiena, kontrola DMT': 'Clean crates, hygiene, best-before date check',
+    # --- HACCP_KB_TEMPLATE krok references ---
+    'Hnětení / zrání': 'Kneading / maturing',
+    'Skladování hotových': 'Finished product storage',
+    # --- haccpRenderGrafy ---
+    'Použito': 'Used',
+    # --- HACCP_VYSLEDKY labels ---
+    '✓ V pořádku': '✓ OK',
+    '⚠ S připomínkami': '⚠ With remarks',
+    '✗ Nevyhovuje': '✗ Fails',
+    # --- HACCP audity ---
+    'Vnitřní audit': 'Internal audit',
+    'Žádné firemní HACCP dokumenty': 'No company HACCP documents',
+    # --- Misc ---
+    'Název kroku': 'Step name',
+    'Šablona': 'Template',
+}
+
+ES_EXTRA = {
+    # 🆕 BATCH 17 (2026-05-19) — HACCP module ES translations
+    # --- Tabs / main UI ---
+    '📋 Produktové karty': '📋 Fichas de producto',
+    '📈 Grafy (šablony postupu)': '📈 Diagramas (plantillas de proceso)',
+    '⚙️ Defaultní hodnoty': '⚙️ Valores por defecto',
+    'Produktové karty, plán kritických bodů a dokumentace': 'Fichas de producto, plan de puntos críticos y documentación',
+    'HACCP karta': 'Ficha APPCC',
+    '🪄 Auto-vyplnit HACCP karty': '🪄 Rellenar fichas APPCC automáticamente',
+    '🪄 Auto-vyplnit vše': '🪄 Rellenar todo automáticamente',
+    'Hledat (název, číslo)...': 'Buscar (nombre, número)...',
+    'Všechny kategorie': 'Todas las categorías',
+    '— nevyplněno —': '— sin rellenar —',
+    '+ vytvoř šablony': '+ crear plantillas',
+    # --- HACCP_FIELDS labels ---
+    'Cílový trh': 'Mercado objetivo',
+    'Skladování': 'Almacenamiento',
+    'Podmínky a způsob distribuce': 'Condiciones y forma de distribución',
+    # --- HACCP_FIELDS placeholders ---
+    'např. Běžné pečivo pšeničné': 'p. ej. Bollería corriente de trigo',
+    'název na obale': 'nombre en el envase',
+    'ČR': 'CZ',
+    'k přímé konzumaci': 'para consumo directo',
+    'do 25 °C, suché místo': 'hasta 25 °C, lugar seco',
+    'výrobek určen pro prodej…': 'producto destinado a la venta…',
+    'bez omezení (nevhodné pro diabetiky, coeliky)': 'sin restricciones (no apto para diabéticos, celíacos)',
+    # --- HACCP_POSTUP_TEMPLATE missing step names ---
+    'Dávkování surovin': 'Dosificación de ingredientes',
+    'Smísení / hnětení těsta': 'Mezcla / amasado de la masa',
+    'Zrání / kynutí těsta': 'Maduración / fermentación de la masa',
+    'Dělení na klonky': 'División en porciones',
+    'Ukládání do přepravek': 'Colocación en cajas de transporte',
+    # --- HACCP_KB_TEMPLATE descriptions (hazards) ---
+    'Kontaminace mikroorganizmy / škůdci': 'Contaminación por microorganismos / plagas',
+    'Mykotoxiny, rezidua pesticidů, těžké kovy': 'Micotoxinas, residuos de pesticidas, metales pesados',
+    'Pomnožení MO, tvorba toxinů': 'Multiplicación de MO, formación de toxinas',
+    'Kontaminace MO z prostředí a nářadí': 'Contaminación por MO del entorno y utensilios',
+    'Nedostatečné prohřátí — přežití patogenů': 'Calentamiento insuficiente — supervivencia de patógenos',
+    'Sekundární kontaminace, kondenzace': 'Contaminación secundaria, condensación',
+    'Pomnožení MO při nesprávné teplotě': 'Multiplicación de MO a temperatura incorrecta',
+    'Mechanická kontaminace při manipulaci': 'Contaminación mecánica durante la manipulación',
+    # --- HACCP_KB_TEMPLATE measures ---
+    'Ověření dodavatelů, atesty, vizuální kontrola obalů a DMT, kontrola teploty': 'Verificación de proveedores, certificados, inspección visual de envases y fecha de caducidad, control de temperatura',
+    'Atesty dodavatelů, kontrola specifikací': 'Certificados de proveedores, control de especificaciones',
+    'Dodržení podmínek skladování, FIFO, kontrola teploty a vlhkosti': 'Cumplimiento de condiciones de almacenamiento, FIFO, control de temperatura y humedad',
+    'Hygiena pracoviště a pracovníků, dezinfekce nářadí': 'Higiene del lugar de trabajo y de los trabajadores, desinfección de utensilios',
+    'Kontrola teploty pece a doby pečení dle receptury': 'Control de la temperatura del horno y tiempo de horneado según la receta',
+    'Chlazení v čistém prostředí, dostatečný odvod par': 'Enfriamiento en entorno limpio, extracción suficiente de vapores',
+    'Kontrola teploty skladu, FIFO, čistota přepravek': 'Control de temperatura del almacén, FIFO, limpieza de cajas',
+    'Čisté přepravky, hygiena, kontrola DMT': 'Cajas limpias, higiene, control de fecha de caducidad',
+    # --- HACCP_KB_TEMPLATE krok references ---
+    'Hnětení / zrání': 'Amasado / maduración',
+    'Skladování hotových': 'Almacenamiento de productos terminados',
+    # --- haccpRenderGrafy ---
+    'Použito': 'Usado',
+    # --- HACCP_VYSLEDKY labels ---
+    '✓ V pořádku': '✓ Correcto',
+    '⚠ S připomínkami': '⚠ Con observaciones',
+    '✗ Nevyhovuje': '✗ No conforme',
+    # --- HACCP audity ---
+    'Vnitřní audit': 'Auditoría interna',
+    'Žádné firemní HACCP dokumenty': 'No hay documentos APPCC de la empresa',
+    # --- Misc ---
+    'Název kroku': 'Nombre del paso',
+    'Šablona': 'Plantilla',
+}
+
 
 # === v2.9.119 — doplnění zbývajících frází (6 paralelních dávek) ===
 SK_EXTRA.update({
