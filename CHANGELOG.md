@@ -6,6 +6,11 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.260] — 2026-06-11
+
+### ✅ Ověření hardened deploy-hooku
+- Testovací deploy přes NOVÝ deploy-hook (v3.0.259): ověřuje, že publish-check + `published` flag + trvalý log fungují na happy-path (nerozbily normální deploy). Bez funkční změny v appce.
+
 ## [3.0.259] — 2026-06-11
 
 ### 🛡️ Deploy hardening — konec tichých selhání publishe
