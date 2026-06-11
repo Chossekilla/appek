@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.251";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.252";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -20943,3 +20943,22 @@ main#content:has(.sur-filtry) {
 .sur-filtry .sur-group-toggle { padding-inline: 6px; }
 /* Pozn.: filtry teď používají standardní .form-input → dědí app-wide density chování
    jako zbytek aplikace (dřív je inline 56px/18px od density odstřihl). */
+
+/* ⚡ v3.0.252 — ODLEHČENÝ REŽIM (volba výkonu v Nastavení → body.perf-lite).
+   Opt-in (výchozí VYPNUTO) — vypne drahé efekty (animace, stíny, blur) pro svižnost
+   na slabších zařízeních / starších mobilech. Bez třídy = NULOVÝ dopad na výchozí vzhled. */
+body.perf-lite *,
+body.perf-lite *::before,
+body.perf-lite *::after {
+  animation-duration: 0.001ms !important;
+  animation-delay: 0ms !important;
+  transition-duration: 0.001ms !important;   /* 0.001ms (ne 0) → transitionend eventy stále fungují */
+  transition-delay: 0ms !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+body.perf-lite { scroll-behavior: auto !important; }
+/* zachovej viditelnost fokusu (a11y) i v lite režimu, i když jinak rušíme box-shadow */
+body.perf-lite *:focus-visible { box-shadow: 0 0 0 2px var(--primary, #BA7517) !important; }

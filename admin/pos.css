@@ -45,7 +45,8 @@ html, body {
 body.pos-app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100vh;   /* fallback pro staré prohlížeče */
+  height: 100dvh;  /* 🆕 v3.0.252 — dynamický viewport: footer/obsah se vejde nad spodní lištu mobilu */
 }
 
 button { font-family: inherit; cursor: pointer; }
@@ -99,7 +100,7 @@ button { font-family: inherit; cursor: pointer; }
   font-weight: 700;
   color: var(--pos-text-2);
   padding: 11px 24px;
-  border-radius: 999px;                              /* plně oválné */
+  border-radius: 5px;                                /* 🆕 v3.0.252 — jemné zaoblení 5px (user po 5×) */
   border: 1.5px solid var(--pos-border, #E2E2E7);     /* viditelný obrys i u neaktivních */
   background: var(--pos-surface, #fff);
   cursor: pointer;
@@ -818,8 +819,9 @@ button { font-family: inherit; cursor: pointer; }
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: var(--pos-footer-h);
+  min-height: var(--pos-footer-h);   /* 🆕 v3.0.252 — bylo height; ať naroste o safe-area */
   padding: 0 14px;
+  padding-bottom: env(safe-area-inset-bottom);   /* 🆕 stavový řádek se připne nad spodní lištu mobilu */
   background: #fff;
   border-top: 1px solid var(--pos-border);
   font-size: 11px;
@@ -3125,6 +3127,7 @@ html, body {
     z-index: 1200; border-top: none;
     border-radius: 18px 18px 0 0;
     box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.28);
+    padding-bottom: env(safe-area-inset-bottom);   /* 🆕 v3.0.252 — FINISH se vejde nad spodní lištu/home indicator */
   }
   .pos-app .pos-cart.is-open { transform: translateY(0); }
   .pos-app .pos-cart-close {
@@ -3144,7 +3147,8 @@ html, body {
   .pos-app.pos-mc-bar .pos-cart-bar {
     display: flex; align-items: center; gap: 10px;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100;
-    height: 60px; padding: 0 12px;
+    min-height: 60px; padding: 0 12px;                              /* 🆕 v3.0.252 — bylo height; naroste o safe-area */
+    padding-bottom: env(safe-area-inset-bottom);                   /* 🆕 FINISH lišta nad spodní lištou mobilu */
     background: #fff; border-top: 2px solid var(--pos-primary, #BA7517);
     box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.12);
   }
@@ -3155,7 +3159,7 @@ html, body {
     border-radius: 999px; padding: 11px 18px; font-size: 14px; font-weight: 800; cursor: pointer; white-space: nowrap;
   }
   .pos-app.pos-mc-bar .pos-cart-bar-chev { font-size: 12px; color: var(--pos-text-2, #9097a3); }
-  .pos-app.pos-mc-bar .pos-products { padding-bottom: 64px; }      /* místo na lištu */
+  .pos-app.pos-mc-bar .pos-products { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }   /* místo na lištu + safe-area */
   .pos-app.pos-mc-bar .pos-mswitch { display: none; }
 
   /* ── Režim PŘEPÍNAČ ── horní segmentový přepínač Produkty / Košík */
@@ -3177,7 +3181,7 @@ html, body {
   .pos-app.pos-mc-toggle .pos-cart-backdrop { display: none; }
   /* Toggle = čistá výměna (žádný slide/overlay): košík ukotven pod přepínač, produkty se schovají */
   .pos-app.pos-mc-toggle .pos-cart {
-    top: calc(var(--pos-header-h, 56px) + 52px); bottom: var(--pos-footer-h, 28px);
+    top: calc(var(--pos-header-h, 56px) + 52px); bottom: calc(var(--pos-footer-h, 28px) + env(safe-area-inset-bottom));
     height: auto; transform: none; border-radius: 0; box-shadow: none;
     display: none;
   }

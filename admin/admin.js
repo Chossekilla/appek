@@ -6,7 +6,17 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.251';
+const APPEK_ADMIN_JS_VERSION = '3.0.252';
+
+// ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
+(function applyPerfLite() {
+  try {
+    if (localStorage.getItem('appek_perf_lite') === '1') {
+      const set = () => { if (document.body) document.body.classList.add('perf-lite'); };
+      if (document.body) set(); else document.addEventListener('DOMContentLoaded', set);
+    }
+  } catch (e) {}
+})();
 
 (async function detectStaleCode() {
   try {
@@ -14331,6 +14341,19 @@ async function renderNastaveni() {
       <p style="font-size:11px;color:var(--text-3);margin-top:10px">Uloží se tlačítkem „💾 Uložit nastavení" dole. Platí pro všechna zařízení.</p>
     </div>
 
+    <!-- ⚡ VÝKON (v3.0.252) -->
+    <div class="card-block" style="margin-top:14px">
+      <h3 style="margin-bottom:6px;">⚡ Výkon</h3>
+      <p class="page-sub" style="margin-bottom:14px;">Odlehčený režim vypne animace, stíny a rozostření — aplikace je svižnější na slabších zařízeních a starších mobilech. Vzhled je plošší, funkce zůstávají stejné.</p>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600">
+        <input type="checkbox" id="ns-perf-lite" ${n.vykon_lite === '1' ? 'checked' : ''}
+          onchange="document.body.classList.toggle('perf-lite', this.checked); try{localStorage.setItem('appek_perf_lite', this.checked?'1':'0')}catch(e){}"
+          style="width:18px;height:18px;cursor:pointer">
+        Odlehčený režim <span style="color:var(--text-3);font-weight:400">(rychlejší na slabších zařízeních)</span>
+      </label>
+      <p style="font-size:11px;color:var(--text-3);margin-top:10px">Projeví se hned (toto zařízení) · „💾 Uložit nastavení" dole uloží pro všechna zařízení.</p>
+    </div>
+
     <!-- 🎨 VZHLED APLIKACE -->
     <div class="card-block" style="margin-top:14px">
       <h3 style="margin-bottom:6px;">🎨 Vzhled aplikace</h3>
@@ -25603,6 +25626,12 @@ window.ulozitNastaveni = async function() {
   setIf('uzaverka_dni_predem', v('ns-uzaverka-d'));
   setIf('pagination_styl', v('ns-pagination')); // 🆕 v3.0.218 — styl stránkování seznamů
   setIf('pagination_pocet', v('ns-pag-pocet')); // 🆕 v3.0.247 — počet řádků na stránku
+  if (document.getElementById('ns-perf-lite')) {                  // ⚡ v3.0.252 — odlehčený režim (výkon)
+    const _pl = cb('ns-perf-lite');
+    data.vykon_lite = _pl ? '1' : '0';
+    try { localStorage.setItem('appek_perf_lite', _pl ? '1' : '0'); } catch (e) {}
+    document.body.classList.toggle('perf-lite', _pl);
+  }
   if (document.getElementById('ns-notif-nova')) data.notif_nova_objednavka = cb('ns-notif-nova') ? '1' : '0';
   if (document.getElementById('ns-notif-stav')) data.notif_zmena_stavu     = cb('ns-notif-stav') ? '1' : '0';
   if (document.querySelector('[data-stav-notif]')) {

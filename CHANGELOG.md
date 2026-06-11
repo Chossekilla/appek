@@ -6,6 +6,20 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.252] — 2026-06-11
+
+### 📱 POS mobil — finish + stavový řádek nad spodní lištou
+- **FINISH tlačítko + footer (🟢 Online) už nemizí pod spodní lištou mobilního prohlížeče.** `body.pos-app` přešel z `100vh` na `100dvh` (dynamický viewport) a všechny spodní fixní prvky (výsuvný košík, lišta košíku, footer, toggle-košík) dostaly `padding-bottom: env(safe-area-inset-bottom)` → obsah se připne nad lištu/home indicator, ne pod ni.
+
+### 🎨 POS taby — border-radius 5px
+- `.pos-header-center .pos-tab-h`: z `999px` (pilulky) na **`5px`** jemné zaoblení + 1.5px obrys (dle explicitního zadání). Sjednoceno inline pos.php (no-store, vždy čerstvé) i base pos.css, ať se projeví bez ohledu na CDN cache.
+
+### ⚡ Volba výkonu v Nastavení
+- Nový přepínač **„Odlehčený režim"** (Nastavení → Výkon). Vypne animace, stíny a rozostření (`body.perf-lite`) → svižnější na slabších zařízeních/starších mobilech. Projeví se okamžitě (localStorage, toto zařízení) + uloží se na server pro všechna zařízení. Opt-in, výchozí vypnuto → nulový dopad na výchozí vzhled. Zachovává viditelnost fokusu (a11y).
+
+### 🛟 Záloha
+- Před úpravami vytvořena `admin/pos.css.bak-*` (vyloučeno z buildu) pro snadný revert.
+
 ## [3.0.251] — 2026-06-10
 
 ### ⚡ Výkon — minifikace admin.js (build)
