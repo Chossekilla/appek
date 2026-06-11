@@ -6,6 +6,11 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.261] — 2026-06-11
+
+### 🛡️ Deploy hardening — neblokující (oprava regrese z 259)
+- v3.0.259 blokoval deploy (HTTP 502 + CI retry) když publish neproběhl. Jenže publish občas flakuje (koreluje s rychlými po sobě jdoucími deployi) → 502 zablokoval test-deploy 260. Teď NEBLOKUJÍCÍ: publish-ověření jen nastaví `published` flag + zaloguje varování (response + trvalý log `vendor/_deploy_logs/`), deploy projde. Vzácný flake → ruční publish přes vendor portál. Diagnostika zůstává.
+
 ## [3.0.260] — 2026-06-11
 
 ### ✅ Ověření hardened deploy-hooku

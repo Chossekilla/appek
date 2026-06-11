@@ -74,15 +74,17 @@ try {
     if (empty($res['ok'])) {
         deploy_fail(500, $res['error'] ?? 'Apply selhal.', $log);
     }
-    // 🆕 v3.0.259 — publish MUSÍ skutečně proběhnout (vendor_updates published). Když ne, vrať
-    //   chybu → CI retry (auto-recovery z transient publish failu — to tiše selhalo u 255/256).
-    if (empty($res['published'])) {
-        deploy_fail(502, 'Apply OK, ale publish do vendor_updates NEPROBĚHL (v' . ($res['version'] ?? '?') . '). Retry.', $log);
+    // 🆕 v3.0.261 — publish ověření je NEBLOKUJÍCÍ (jen flag + log). Blokující 502 (v3.0.259)
+    //   zablokoval deploy 260, když publish flaknul (255/256/260 občas selže). Pro hladký deploy
+    //   radši projít a `published:false` nahlásit (response + trvalý log) → vzácný flake = ruční publish.
+    $publishedOk = !empty($res['published']);
+    if (!$publishedOk) {
+        $log[] = '⚠️ POZOR: publish do vendor_updates NEPROBĚHL (v' . ($res['version'] ?? '?') . ') — demo/zákazníci se nezaktualizují, publikuj ručně přes vendor portál. Viz log výše.';
     }
     echo json_encode([
         'status'    => 'ok',
         'version'   => $res['version'] ?? null,
-        'published' => true,
+        'published' => $publishedOk,
         'health'    => $res['health'] ?? null,
         'log'       => $log,
     ]);
