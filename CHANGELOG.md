@@ -6,6 +6,11 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.258] — 2026-06-11
+
+### 🎨 POS větší taby — oprava (správné pravidlo)
+- v3.0.257 zvětšil jen base `.pos-tab-h`, ale ten přebíjí `.pos-app .pos-tab-h` (vyšší specificita, fluidní `var(--fl-body)` ~14px). Zvětšeno teď tam: `font-size: clamp(16px,1.5vw,20px)` + `padding: clamp(13px,1.4vw,17px) clamp(24px,2.4vw,34px)`. Bez `!important` → mobil/tablet shrink overrides dál fungují (nepřeteče).
+
 ## [3.0.257] — 2026-06-11
 
 ### 🎨 POS — větší horní taby (KASA / Stoly / Účtenky / Statistiky / Uzávěrka)

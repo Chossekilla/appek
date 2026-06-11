@@ -2671,8 +2671,8 @@ html, body {
 }
 .pos-app .pos-brand-name { font-size: clamp(13px, 1.3vw, 17px); }
 .pos-app .pos-tab-h {
-  padding: clamp(10px, 1.2vw, 14px) clamp(18px, 2vw, 28px);   /* 🆕 v3.0.234 — větší dotyková plocha */
-  font-size: var(--fl-body);
+  padding: clamp(13px, 1.4vw, 17px) clamp(24px, 2.4vw, 34px);   /* 🆕 v3.0.257 — větší taby (user "zvětši") */
+  font-size: clamp(16px, 1.5vw, 20px);                          /* dřív var(--fl-body) ~14px → teď 16–20px */
 }
 
 /* Cart fluid */
