@@ -29,6 +29,16 @@ except ImportError:
     DE_EXTRA = {}
     HAS_EXTRA = False
 
+# Optional EN/ES overlays (for phrases not in i18n_auto.js — HACCP, modal titles, core UI)
+try:
+    from i18n_dicts_extra import EN_EXTRA
+except ImportError:
+    EN_EXTRA = {}
+try:
+    from i18n_dicts_extra import ES_EXTRA
+except ImportError:
+    ES_EXTRA = {}
+
 # ─────────────────────────────────────────────────────────────────────
 # 🇸🇰 SLOVAK RULES — phonetic + morphological CS→SK transformations
 # ─────────────────────────────────────────────────────────────────────
@@ -2218,6 +2228,8 @@ def main():
         SK_DICT.update(SK_EXTRA)
         DE_DICT.update(DE_EXTRA)
         print(f"📦 Loaded {len(SK_EXTRA)} SK + {len(DE_EXTRA)} DE extras from i18n_dicts_extra.py")
+    if EN_EXTRA or ES_EXTRA:
+        print(f"📦 Loaded {len(EN_EXTRA)} EN + {len(ES_EXTRA)} ES overlays from i18n_dicts_extra.py")
 
     phrases = read_cs_phrases()
     print(f"📖 Read {len(phrases)} unique CS phrases")
@@ -2275,6 +2287,24 @@ def main():
     for cs, de in sorted(de_translations.items()):
         lines.append(f"    '{js_escape(cs)}': '{js_escape(de)}',")
     lines.append("  },")
+
+    # EN overlay section (for phrases not in i18n_auto.js)
+    if EN_EXTRA:
+        lines.append("")
+        lines.append("  // 🇬🇧 English overlay — " + str(len(EN_EXTRA)) + " frází (nad rámec i18n_auto.js)")
+        lines.append("  en: {")
+        for cs, en in sorted(EN_EXTRA.items()):
+            lines.append(f"    '{js_escape(cs)}': '{js_escape(en)}',")
+        lines.append("  },")
+
+    # ES overlay section
+    if ES_EXTRA:
+        lines.append("")
+        lines.append("  // 🇪🇸 Español overlay — " + str(len(ES_EXTRA)) + " frází (nad rámec i18n_auto.js)")
+        lines.append("  es: {")
+        for cs, es in sorted(ES_EXTRA.items()):
+            lines.append(f"    '{js_escape(cs)}': '{js_escape(es)}',")
+        lines.append("  },")
 
     lines.append("};")
     lines.append("")
