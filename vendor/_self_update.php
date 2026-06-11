@@ -227,7 +227,7 @@ function self_update_apply(string $zipPath, array &$log, ?string $webroot = null
 
         $health = self_update_health_check($webroot, $version);
         logStep($health['ok'] ? '✅ Health check OK' : '⚠️ Health check nahlásil problém', $log);
-        return ['ok' => true, 'version' => $version, 'health' => $health, 'backupDir' => $backupDir];
+        return ['ok' => true, 'version' => $version, 'health' => $health, 'backupDir' => $backupDir, 'published' => (is_array($customerZipMeta) && !empty($customerZipMeta['published']))];
 
     } catch (Throwable $e) {
         logStep('❌ CHYBA: ' . $e->getMessage(), $log);
@@ -407,13 +407,27 @@ function self_update_build_customer_zip(string $webroot, array &$log): ?array {
             logStep('⚠️ vendor_updates INSERT selhal: ' . $e->getMessage(), $log);
         }
 
+        // 🆕 v3.0.259 — OVĚŘ že publish row SKUTEČNĚ existuje jako 'published'. Bez toho deploy
+        //   "uspěl" tiše i když INSERT spadl (try/catch výše) → vendor kanál se neposune →
+        //   demo/zákazníci nedostanou update. Tahle kontrola to nahlásí výš (deploy-hook → CI retry).
+        $published = false;
+        try {
+            $vpdo = $pdo ?? vendor_db();
+            $vc = $vpdo->prepare("SELECT COUNT(*) FROM vendor_updates WHERE version = :v AND status = 'published'");
+            $vc->execute(['v' => $version]);
+            $published = ((int) $vc->fetchColumn()) > 0;
+        } catch (Throwable $e) { $published = false; }
+        logStep($published
+            ? "✅ Publish OVĚŘEN · vendor_updates má published v{$version}"
+            : "❌ Publish NEOVĚŘEN · vendor_updates NEMÁ published v{$version} → deploy nahlásí chybu (CI retry)", $log);
+
         // Zapiš verzi do vendor/.appek-version
         try {
             @file_put_contents($webroot . '/vendor/.appek-version', $version);
             logStep("vendor/.appek-version → {$version}", $log);
         } catch (Throwable $e) {}
 
-        return ['version' => $version, 'size' => $size, 'file' => basename($zipFile)];
+        return ['version' => $version, 'size' => $size, 'file' => basename($zipFile), 'published' => $published];
 
     } catch (Throwable $e) {
         logStep('❌ Customer ZIP build chyba: ' . $e->getMessage(), $log);

@@ -6,6 +6,14 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.259] — 2026-06-11
+
+### 🛡️ Deploy hardening — konec tichých selhání publishe
+_Příčina anabáze 255/256: `self_update_build_customer_zip` měl INSERT do `vendor_updates` v try/catch — když spadl, jen zalogoval „selhal" a vrátil success-looking data → deploy-hook vrátil `ok`, ale vendor kanál se neposunul (demo/zákazníci nedostali update). Tiše._
+- **Ověření publishe:** po INSERT/UPDATE se teď ověří, že `vendor_updates` má danou verzi jako `published`. Výsledek se propaguje (`published` flag) přes `self_update_apply` do deploy-hooku.
+- **CI retry místo tichého ok:** když publish neproběhl, `deploy-hook.php` vrátí HTTP 502 → GitHub Actions to zkusí znovu (backoff 0/5/15/30 s) → **auto-recovery z transient failu** (přesně to, co tiše selhalo u 255/256).
+- **Trvalý log:** každý deploy zapíše log do `vendor/_deploy_logs/` (drží 20, chráněno `.htaccess`) → příště dohledatelné přes hpanel File Manager, ne jen v CI logu.
+
 ## [3.0.258] — 2026-06-11
 
 ### 🎨 POS větší taby — oprava (správné pravidlo)

@@ -14,6 +14,26 @@ function deploy_fail(int $code, string $msg, array $log = []): void {
     exit;
 }
 
+// 🆕 v3.0.259 — persistuj deploy log na disk, ať je dohledatelný i bez CI logu (hpanel File Manager).
+//   Drží posledních 20, chráněno .htaccess (logy nejsou web-čitelné).
+function deploy_persist_log(string $version, array $log): void {
+    try {
+        $dir = __DIR__ . '/_deploy_logs';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+            @file_put_contents($dir . '/.htaccess', "Require all denied\nDeny from all\n");
+        }
+        $body = '=== ' . date('Y-m-d H:i:s') . ' · v' . $version . " ===\n"
+              . implode("\n", array_map(fn($l) => is_string($l) ? $l : json_encode($l), $log));
+        @file_put_contents($dir . '/deploy-' . preg_replace('/[^0-9.]/', '', $version) . '-' . date('Ymd-His') . '.log', $body);
+        $files = glob($dir . '/deploy-*.log') ?: [];
+        if (count($files) > 20) {
+            usort($files, fn($a, $b) => @filemtime($a) <=> @filemtime($b));
+            foreach (array_slice($files, 0, count($files) - 20) as $old) @unlink($old);
+        }
+    } catch (Throwable $e) { /* logging je best-effort, nikdy nesmí shodit deploy */ }
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     deploy_fail(405, 'Pouze POST.');
 }
@@ -45,19 +65,29 @@ try {
     $res = self_update_apply($zipPath, $log);
     @unlink($zipPath);
 
+    // 🆕 v3.0.259 — persistuj log (i pro selhání níže ho už máme na disku)
+    deploy_persist_log($res['version'] ?? 'unknown', $log);
+
     try { vendor_audit(vendor_db(), ['email' => 'ci@github', 'role' => 'ci'], 'deploy_hook', null, $res['version'] ?? '?'); }
     catch (Throwable $e) {}
 
     if (empty($res['ok'])) {
         deploy_fail(500, $res['error'] ?? 'Apply selhal.', $log);
     }
+    // 🆕 v3.0.259 — publish MUSÍ skutečně proběhnout (vendor_updates published). Když ne, vrať
+    //   chybu → CI retry (auto-recovery z transient publish failu — to tiše selhalo u 255/256).
+    if (empty($res['published'])) {
+        deploy_fail(502, 'Apply OK, ale publish do vendor_updates NEPROBĚHL (v' . ($res['version'] ?? '?') . '). Retry.', $log);
+    }
     echo json_encode([
-        'status'  => 'ok',
-        'version' => $res['version'] ?? null,
-        'health'  => $res['health'] ?? null,
-        'log'     => $log,
+        'status'    => 'ok',
+        'version'   => $res['version'] ?? null,
+        'published' => true,
+        'health'    => $res['health'] ?? null,
+        'log'       => $log,
     ]);
 } catch (Throwable $e) {
+    deploy_persist_log('error', $log);
     deploy_fail(500, $e->getMessage(), $log);
 } finally {
     flock($fh, LOCK_UN);
