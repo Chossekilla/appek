@@ -93,6 +93,17 @@ $csrfToken  = csrf_token();
 <link rel="icon" type="image/svg+xml" href="/admin/icons/icon-192.svg">
 <link rel="apple-touch-icon" href="/admin/icons/icon-apple.svg">
 <link rel="stylesheet" href="pos.css?v=<?= htmlspecialchars($appVersion) ?>">
+<!-- 🆕 v3.0.253 — KRITICKÉ CSS tabů přímo v HTML (pos/index.php je no-store = vždy čerstvé,
+     vyhrává nad CDN-zacachovanou pos.css). border-radius 5px + 1.5px obrys, sjednoceno s admin/pos.php. -->
+<style>
+  .pos-header-center .pos-tab-h {
+    border-radius: 5px !important;
+    border: 1.5px solid var(--pos-border, #E2E2E7) !important;
+  }
+  .pos-header-center .pos-tab-h.active {
+    border-color: var(--pos-primary, #BA7517) !important;
+  }
+</style>
 <script>
   // Globální config — předáno z PHP do JS
   window.POS_CONFIG = {
