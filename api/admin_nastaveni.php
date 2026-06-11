@@ -370,6 +370,8 @@ if ($method === 'PUT') {
         'pagination_styl',
         // 🆕 v3.0.247 — počet řádků na stránku (25/50/100/200)
         'pagination_pocet',
+        // ⚡ v3.0.252 — odlehčený režim (výkon): '1' | '0'
+        'vykon_lite',
     ];
 
     $applied = [];
