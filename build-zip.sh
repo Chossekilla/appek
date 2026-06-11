@@ -291,7 +291,9 @@ DEMO_OVERLAY="/tmp/appek-master-demo-overlay-$$"
 mkdir -p "$DEMO_OVERLAY/demo"
 
 # Customer-relevant složky a soubory do demo/
-for p in api admin b2b install.php; do
+# 🆕 v3.0.254 — přidány pos/ + floorplan/ (standalone /pos/ Kasa a /floorplan/ Mapa stolů).
+#   Dřív chyběly → demo neukazovalo jejich změny (admin/pos.php se aktualizoval, ale /pos/ ne).
+for p in api admin b2b pos floorplan install.php; do
   [[ -e "$p" ]] && cp -R "$p" "$DEMO_OVERLAY/demo/"
 done
 

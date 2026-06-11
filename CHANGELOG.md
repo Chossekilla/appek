@@ -6,6 +6,11 @@ Formát: [Keep a Changelog](https://keepachangelog.com/cs/) · [Semantic Version
 
 ---
 
+## [3.0.254] — 2026-06-11
+
+### 🛠️ Demo overlay — zrcadlí i /pos/ a /floorplan/
+- Build (`build-zip.sh`) demo overlay dřív kopíroval jen `api admin b2b install.php` → demo neukazovalo změny ve standalone `/pos/` (Kasa) a `/floorplan/` (Mapa stolů), i když customer/MASTER zip je obsahoval. Přidáno `pos floorplan` → demo teď věrně zrcadlí to, co dostane zákazník. (Tím se na demo konečně projeví taby 5px + mobil safe-area ve `/pos/` z v3.0.253.)
+
 ## [3.0.253] — 2026-06-11
 
 ### 🎨 POS /pos/ (standalone) — sjednoceno s /admin/pos.php
