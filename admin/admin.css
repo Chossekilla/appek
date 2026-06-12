@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.268";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.269";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -1875,6 +1875,16 @@ body.role-restricted .admin-only { display: none !important; }
 
 /* MAIN CONTENT */
 .main-content { padding: 28px 32px; max-width: 1400px; }
+/* 🆕 v3.0.269 — datové SEZNAMY (široké tabulky) vyplní celou šířku monitoru.
+   max-width:1400 zůstává pro dashboard/formuláře (čitelnost), ale faktury,
+   dodací listy, objednávky, výrobky, suroviny ho zruší → tabulka „flex". */
+#content[data-page="faktury"],
+#content[data-page="dodaci_listy"],
+#content[data-page="objednavky"],
+#content[data-page="vyrobky"],
+#content[data-page="suroviny"],
+#content[data-page="sklad"],
+#content[data-page="odberatele"] { max-width: none; }
 
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
 .page-title { font-size: 24px; font-weight: 600; margin-bottom: 4px; }
@@ -12830,28 +12840,21 @@ html.density-extreme .nastaveni-tab {
    - Extreme: cards pod 2200px (skoro vždy kromě 4K monitorů)
    ========================================================= */
 
-/* Spacious density — cards na všem mimo velkých monitorů */
-@media (max-width: 1700px) {
-  html.density-spacious .desktop-only-block {
-    display: none !important;
-  }
-  html.density-spacious .mobile-only-block {
-    display: block !important;
-  }
-  html.density-spacious .vyrobky-grid.mobile-only-block,
-  html.density-spacious .kategorie-grid.mobile-only-block {
-    display: grid !important;
-  }
-}
-
-/* Extreme density — cards skoro vždy (kromě 4K monitorů 2200px+) */
-@media (max-width: 2200px) {
+/* 🐛 v3.0.269 — spacious/extreme breakpointy 1700/2200 → 1300. Dřív „skoro
+   vždy karty kromě 4K" (komentář to sám přiznával) → na běžných monitorech
+   natlačené karty místo tabulek. Sjednoceno na 1300 (tablet) pro všechny
+   hustoty; nad 1300 = full-width tabulka (viz #content max-width:none fix). */
+@media (max-width: 1300px) {
+  html.density-spacious .desktop-only-block,
   html.density-extreme .desktop-only-block {
     display: none !important;
   }
+  html.density-spacious .mobile-only-block,
   html.density-extreme .mobile-only-block {
     display: block !important;
   }
+  html.density-spacious .vyrobky-grid.mobile-only-block,
+  html.density-spacious .kategorie-grid.mobile-only-block,
   html.density-extreme .vyrobky-grid.mobile-only-block,
   html.density-extreme .kategorie-grid.mobile-only-block {
     display: grid !important;
@@ -12882,19 +12885,17 @@ html.density-extreme .card-block.desktop-only-block {
   }
 }
 
-/* Pro spacious/extreme zachovat agresivní breakpointy z dřívější */
-@media (max-width: 1700px) {
-  html.density-spacious .desktop-only-block.wide-table-block {
-    display: none !important;
-  }
-  html.density-spacious .mobile-only-block.wide-table-block {
-    display: block !important;
-  }
-}
-@media (max-width: 2200px) {
+/* 🐛 v3.0.269 — breakpointy sníženy z 1700/2200 na 1300: dřív i hustota
+   Prostorná/Extrémní házela široké tabulky do karet skoro vždy (i na 1920
+   monitoru) → karty natlačené vlevo, prázdno vpravo. Teď tabulka full-width
+   na desktopu (>1300) ve VŠECH hustotách; karty jen pod 1300 (tablet/mobil).
+   Přetečení řeší overflow-x:auto na .wide-table-block. */
+@media (max-width: 1300px) {
+  html.density-spacious .desktop-only-block.wide-table-block,
   html.density-extreme .desktop-only-block.wide-table-block {
     display: none !important;
   }
+  html.density-spacious .mobile-only-block.wide-table-block,
   html.density-extreme .mobile-only-block.wide-table-block {
     display: block !important;
   }
