@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.276';
+const APPEK_ADMIN_JS_VERSION = '3.0.277';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -4389,6 +4389,7 @@ async function navigate(page, args) {
   try {
     if (page === 'dashboard') await renderDashboard(args);
     else if (page === 'objednavky') await renderObjednavky(args);
+    else if (page === 'vratky') await renderVratky(); // 🆕 v3.0.277 — správa vratek (VRA- + DOB-)
     else if (page === 'vyroba') await renderVyrobaHub();
     else if (page === 'vyrobni_list') await renderVyrobniList();
     else if (page === 'dodaci_listy') await renderDodaciListy(args);
@@ -5600,10 +5601,87 @@ async function ulozitKanaly() {
   }
 }
 
+// 🆕 v3.0.277 — SPRÁVA VRATEK: sjednocený přehled POS refundací (VRA-) + dobropisů (DOB-),
+//   propojený s původním dokladem, s datumy vrácení a lhůtou na vrácení (politika dní).
+async function renderVratky() {
+  const c = document.getElementById('content');
+  c.innerHTML = `<div class="page-head"><div><h1 class="page-title">↩️ Vratky</h1><p class="page-sub">Načítám…</p></div></div>`;
+  let d;
+  try { d = await api('admin_vratky.php' + (state._vratkyTyp ? '?typ=' + state._vratkyTyp : '')); }
+  catch (e) { c.innerHTML = `<div class="page-head"><h1 class="page-title">↩️ Vratky</h1></div><p style="color:var(--danger-text)">Chyba: ${esc(e.message)}</p>`; return; }
+  const s = d.souhrn || {};
+  const lhuta = d.lhuta_dni || 14;
+  const typ = state._vratkyTyp || '';
+  const chip = (val, label) => `<button class="period-tab ${typ === val ? 'active' : ''}" onclick="state._vratkyTyp='${val}';renderVratky()" style="padding:5px 12px;font-size:13px">${label}</button>`;
+  c.innerHTML = `
+    <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+      <div>
+        <h1 class="page-title">↩️ Vratky</h1>
+        <p class="page-sub">POS refundace (VRA-) i dobropisy (DOB-), propojené s původním dokladem.</p>
+      </div>
+      <button class="btn-secondary" onclick="navigate('objednavky')">← Objednávky</button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Vratek celkem</div><div class="stat-value">${s.pocet || 0}</div></div>
+      <div class="stat-card"><div class="stat-label">Vráceno</div><div class="stat-value" style="color:#16a34a">${fmt(s.celkem_kc || 0)}</div></div>
+      <div class="stat-card"><div class="stat-label">🧾 POS refundace</div><div class="stat-value">${s.pocet_pos || 0}</div></div>
+      <div class="stat-card"><div class="stat-label">📄 Dobropisy</div><div class="stat-value">${s.pocet_faktura || 0}</div></div>
+    </div>
+
+    <div class="card-block" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin:12px 0;padding:12px 16px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${chip('', 'Vše')}${chip('pos', '🧾 POS')}${chip('faktura', '📄 Dobropisy')}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:13px;font-weight:600" title="Politika: do kolika dní od prodeje lze výrobek vrátit">⏳ Lhůta na vrácení</label>
+        <input type="number" id="vratky-lhuta" value="${lhuta}" min="0" max="365" style="width:70px;text-align:right" class="form-input">
+        <span style="font-size:13px;color:var(--text-3)">dní</span>
+        <button class="btn-secondary" onclick="ulozitVratkaLhuta()" style="font-size:13px">💾 Uložit</button>
+      </div>
+    </div>
+
+    <div class="card-block" style="padding:0">
+      ${(d.vratky || []).length === 0 ? '<div class="empty-state" style="padding:30px">Žádné vratky</div>' : `
+        <table class="table">
+          <thead><tr><th>Doklad</th><th>Typ</th><th>Datum vrácení</th><th>Původní doklad</th><th>Zákazník / pokladní</th><th class="num">Částka</th><th>V lhůtě</th><th>Důvod</th></tr></thead>
+          <tbody>
+            ${d.vratky.map(v => {
+              const origLink = v.puvodni_cislo
+                ? (v.typ === 'faktura' && v.puvodni_id ? `<a href="../api/faktura.php?id=${v.puvodni_id}" target="_blank" style="color:var(--brand)">${esc(v.puvodni_cislo)}</a>` : esc(v.puvodni_cislo))
+                : '<span style="color:var(--text-3)">—</span>';
+              const docLink = v.typ === 'faktura' ? `<a href="../api/faktura.php?id=${v.id}" target="_blank" style="color:var(--brand);font-weight:700">${esc(v.cislo)}</a>` : `<strong>${esc(v.cislo)}</strong>`;
+              const lhutaBadge = v.v_lhute === true ? `<span style="background:#DCFCE7;color:#166534;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">✓ ${v.dni_od_prodeje} d</span>`
+                : v.v_lhute === false ? `<span style="background:#FEE2E2;color:#991B1B;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600" title="Vráceno po nastavené lhůtě">⚠️ ${v.dni_od_prodeje} d</span>`
+                : '<span style="color:var(--text-3)">—</span>';
+              return `<tr>
+                <td>${docLink}</td>
+                <td style="white-space:nowrap">${v.typ === 'faktura' ? '📄 Dobropis' : '🧾 POS refundace'}</td>
+                <td style="white-space:nowrap">${fmtDate(v.datum_vratky)}</td>
+                <td>${origLink}</td>
+                <td>${esc(v.kdo || '—')}</td>
+                <td class="num" style="font-weight:700;color:#16a34a;white-space:nowrap">${fmt(v.castka)}</td>
+                <td>${lhutaBadge}</td>
+                <td style="color:var(--text-2);font-size:13px">${esc(v.duvod || '')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      `}
+    </div>
+  `;
+}
+window.ulozitVratkaLhuta = async function() {
+  const v = parseInt(document.getElementById('vratky-lhuta').value) || 14;
+  try {
+    await api('admin_vratky.php', { method: 'PUT', body: JSON.stringify({ lhuta_dni: v }) });
+    if (typeof toast === 'function') toast('✅ Lhůta na vrácení uložena: ' + v + ' dní', 'success');
+    renderVratky();
+  } catch (e) { if (typeof toast === 'function') toast('❌ ' + (e.message || 'Nepodařilo se uložit'), 'error'); }
+};
+
 async function renderObjednavky(filters = {}, opts = {}) {
   // 🆕 v3.0.218 — paging (offset/limit + total); styl dle pagination_styl (load_more/stranky/infinite)
   const append = !!opts.append;
-  const pg = (state._objPag ??= { items: [], total: 0, offset: 0, limit: 50, filters: {} });
+  const pg = (state._objPag ??= { items: [], total: 0, offset: 0, limit: 10, filters: {} });
   if (append) {
     pg.offset = pg.items.length;                       // další dávka navazuje
   } else if (opts.offset !== undefined) {
@@ -5660,6 +5738,7 @@ async function renderObjednavky(filters = {}, opts = {}) {
         <p class="page-sub">${total} <span>objednávek</span>${list.length < total ? ` · <span>zobrazeno</span> ${list.length}` : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-secondary" onclick="navigate('vratky')" title="Správa vratek — POS refundace + dobropisy, lhůta na vrácení">↩️ Vratky</button>
         <button class="btn-secondary" onclick="navigate('recurring')" title="Opakující se objednávky (cron)">🔁 Opakující</button>
         <button class="btn-primary btn-green btn-big-action" onclick="otevritNovouObjednavku()">+ Nová objednávka</button>
       </div>
@@ -5866,15 +5945,15 @@ async function loadPaginationStyl() {
   try {
     const n = await api('admin_nastaveni.php');
     state._pagStyl = (n && n.pagination_styl) ? n.pagination_styl : 'load_more';
-    // 🆕 v3.0.247 — počet řádků na stránku (volitelné, default 50)
+    // 🆕 v3.0.247 — počet řádků na stránku (volitelné). v3.0.277 — default 10 (rychlý první load), pak 25/50…
     const poc = parseInt(n && n.pagination_pocet);
-    state._pagLimit = [25, 50, 100, 200].includes(poc) ? poc : 50;
-  } catch (e) { state._pagStyl = 'load_more'; state._pagLimit = state._pagLimit || 50; }
+    state._pagLimit = [10, 25, 50, 100, 200].includes(poc) ? poc : 10;
+  } catch (e) { state._pagStyl = 'load_more'; state._pagLimit = state._pagLimit || 10; }
   return state._pagStyl;
 }
 // 🆕 v3.0.247 — aplikuj zvolený počet řádků na pg (reset offset při změně)
 function applyPagLimit(pg) {
-  const lim = state._pagLimit || 50;
+  const lim = state._pagLimit || 10;
   if (pg.limit !== lim) { pg.limit = lim; pg.offset = 0; }
 }
 // Vykreslí ovládání stránkování dle zvoleného stylu.
@@ -5908,7 +5987,7 @@ function pagControlHtml(key, pg, gotoFn, moreFn) {
   // load_more + infinite: tlačítko (u infinite navíc auto přes observer)
   const hasMore = shown < total;
   return `<div id="${key}-pag-more" style="display:flex;flex-direction:column;align-items:center;gap:6px;margin:16px 0">
-    ${hasMore ? `<button onclick="${moreFn}()" class="btn-secondary" style="padding:10px 22px;font-weight:700;border-radius:10px">▾ <span>Načíst další</span> (${Math.min(pg.limit||50, total-shown)})</button>` : ''}
+    ${hasMore ? `<button onclick="${moreFn}()" class="btn-secondary" style="padding:10px 22px;font-weight:700;border-radius:10px">▾ <span>Načíst další</span> (${Math.min(pg.limit||10, total-shown)})</button>` : ''}
     ${info}</div>`;
 }
 window.objLoadMore = function() { renderObjednavky(state._objPag.filters, { append: true }); };
@@ -6475,14 +6554,17 @@ window.pridatPolozkuForm = async function(objednavka_id) {
   const data = await api('admin_vyrobky.php');
   // 🐛 fix v2.9.187 — defenzivní fallback pro prázdnou DB / API error
   const aktivni = (data?.vyrobky || []).filter((v) => v.aktivni == 1);
-  
+  // 🆕 v3.0.277 — searchable combobox místo <select> s tisíci položkami (giant dropdown nepoužitelný)
+  window._addVyrobky = aktivni;
   document.getElementById('add-polozka-form').innerHTML = `
-    <div style="display:flex;gap:8px;align-items:flex-end;margin-top:8px;padding:12px;background:var(--surface-2);border-radius:6px;">
-      <div style="flex:2;">
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-top:8px;padding:12px;background:var(--surface-2);border-radius:6px;flex-wrap:wrap">
+      <div style="flex:2;min-width:200px;position:relative">
         <label class="form-label">Výrobek</label>
-        <select class="form-select" id="add-vyrobek">
-          ${aktivni.map((v) => `<option value="${v.id}">${esc(v.nazev)} (${fmt(v.cena_bez_dph)})</option>`).join('')}
-        </select>
+        <input type="text" class="form-input" id="add-vyrobek-search" autocomplete="off" placeholder="Začni psát název nebo kód…"
+               oninput="addVyrobekFilter()" onfocus="addVyrobekFilter()"
+               onblur="setTimeout(function(){var l=document.getElementById('add-vyrobek-list');if(l)l.style.display='none'},160)">
+        <input type="hidden" id="add-vyrobek">
+        <div id="add-vyrobek-list" style="display:none;position:absolute;z-index:50;left:0;right:0;top:100%;margin-top:2px;max-height:260px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14)"></div>
       </div>
       <div style="width:100px;">
         <label class="form-label">Množství</label>
@@ -6491,6 +6573,36 @@ window.pridatPolozkuForm = async function(objednavka_id) {
       <button class="btn-primary" onclick="ulozitNovouPolozku(${objednavka_id})">Přidat</button>
     </div>
   `;
+};
+
+// 🆕 v3.0.277 — combobox pro výběr výrobku (filtruje název i kód, max 40 výsledků kvůli výkonu)
+window.addVyrobekFilter = function() {
+  const inp = document.getElementById('add-vyrobek-search');
+  const list = document.getElementById('add-vyrobek-list');
+  if (!inp || !list) return;
+  const q = (inp.value || '').trim().toLowerCase();
+  const all = window._addVyrobky || [];
+  const matched = (q ? all.filter(v => (v.nazev || '').toLowerCase().includes(q) || (v.cislo || '').toLowerCase().includes(q)) : all).slice(0, 40);
+  if (!matched.length) {
+    list.innerHTML = '<div style="padding:10px 12px;color:var(--text-3);font-size:13px">Nic nenalezeno</div>';
+    list.style.display = 'block';
+    return;
+  }
+  list.innerHTML = matched.map(v => `
+    <div onmousedown="addVyrobekPick(${v.id})" style="padding:8px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px"
+         onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background=''">
+      <span>${esc(v.nazev)}${v.cislo ? ` <span style="color:var(--text-3);font-size:12px">${esc(v.cislo)}</span>` : ''}</span>
+      <span style="color:var(--text-3);white-space:nowrap">${fmt(v.cena_bez_dph)}</span>
+    </div>`).join('');
+  list.style.display = 'block';
+};
+window.addVyrobekPick = function(id) {
+  const v = (window._addVyrobky || []).find(x => x.id == id);
+  if (!v) return;
+  document.getElementById('add-vyrobek').value = id;
+  document.getElementById('add-vyrobek-search').value = v.nazev + (v.cislo ? ` (${v.cislo})` : '');
+  const list = document.getElementById('add-vyrobek-list');
+  if (list) list.style.display = 'none';
 };
 
 window.ulozitNovouPolozku = async function(objednavka_id) {
@@ -9622,7 +9734,7 @@ window.recurringSpustit = async function() {
 async function renderDodaciListy(filters = {}, opts = {}) {
   // 🆕 v3.0.219 — paging (offset/limit + total), styl dle pagination_styl
   const append = !!opts.append;
-  const pg = (state._dlPag ??= { items: [], total: 0, offset: 0, limit: 50, filters: {} });
+  const pg = (state._dlPag ??= { items: [], total: 0, offset: 0, limit: 10, filters: {} });
   if (append) { pg.offset = pg.items.length; }
   else if (opts.offset !== undefined) { pg.offset = Math.max(0, opts.offset); pg.filters = filters; }
   else { pg.offset = 0; pg.items = []; pg.filters = filters; }
@@ -10565,7 +10677,7 @@ window.upravitDodaciList = async function(id) {
 async function renderFaktury(filters = {}, opts = {}) {
   // 🆕 v3.0.219 — paging (offset/limit + total), styl dle pagination_styl
   const append = !!opts.append;
-  const pg = (state._fakPag ??= { items: [], total: 0, offset: 0, limit: 50, filters: {} });
+  const pg = (state._fakPag ??= { items: [], total: 0, offset: 0, limit: 10, filters: {} });
   if (append) { pg.offset = pg.items.length; }
   else if (opts.offset !== undefined) { pg.offset = Math.max(0, opts.offset); pg.filters = filters; }
   else { pg.offset = 0; pg.items = []; pg.filters = filters; }
@@ -14478,7 +14590,7 @@ async function renderNastaveni() {
         <div>
           <label class="form-label" style="font-size:12px">Řádků na stránku</label>
           <select class="form-select" id="ns-pag-pocet" style="max-width:160px">
-            ${[25, 50, 100, 200].map(p => `<option value="${p}" ${(parseInt(n.pagination_pocet) || 50) === p ? 'selected' : ''}>${p} řádků</option>`).join('')}
+            ${[10, 25, 50, 100, 200].map(p => `<option value="${p}" ${(parseInt(n.pagination_pocet) || 10) === p ? 'selected' : ''}>${p} řádků</option>`).join('')}
           </select>
         </div>
       </div>
@@ -37229,8 +37341,22 @@ const haccpState = {
   audity: [],        // pole interních HACCP auditů (rok, auditor, ...)
   filter_q: '',
   filter_kat: '',
+  filter_abc: '',     // 🆕 v3.0.277 — abecední rozsah (např. 'A-B') pro 1000+ výrobků
+  shown_karty: 30,    // 🆕 v3.0.277 — kolik karet zobrazit (load-more)
   vybrany_id: null,
 };
+
+// 🆕 v3.0.277 — normalizace první písmene (diakritika pryč: Č→C, Ř→R, Ž→Z, Á→A…) pro abecední filtr
+const HACCP_DIA = { 'Á':'A','Ä':'A','À':'A','Â':'A','Č':'C','Ç':'C','Ć':'C','Ď':'D','É':'E','Ě':'E','Ë':'E','È':'E','Ê':'E','Í':'I','Ï':'I','Î':'I','Ľ':'L','Ĺ':'L','Ł':'L','Ň':'N','Ñ':'N','Ó':'O','Ö':'O','Ô':'O','Ő':'O','Ř':'R','Ŕ':'R','Š':'S','Ś':'S','Ť':'T','Ú':'U','Ů':'U','Ü':'U','Ű':'U','Ý':'Y','Ž':'Z','Ź':'Z','Ż':'Z' };
+function haccpFirstLetter(s) {
+  const t = (s || '').trim();
+  if (!t) return '';
+  const c = t.charAt(0).toUpperCase();
+  return HACCP_DIA[c] || c;
+}
+const HACCP_ABC_RANGES = [['A','B'],['C','D'],['E','F'],['G','H'],['I','J'],['K','L'],['M','N'],['O','P'],['Q','R'],['S','T'],['U','V'],['W','Z']];
+window.haccpSetAbc = function(r) { haccpState.filter_abc = (haccpState.filter_abc === r) ? '' : r; haccpState.shown_karty = 30; haccpRender(); };
+window.haccpShowMore = function() { haccpState.shown_karty = (haccpState.shown_karty || 30) + 30; haccpRender(); };
 
 const HACCP_FIELDS = [
   { k: 'produkt',          l: 'Produkt (kategorie)',        type: 'text', placeholder: 'např. Běžné pečivo pšeničné', srcDefault: 'kategorie_nazev' },
@@ -37298,12 +37424,25 @@ function haccpRender() {
 function haccpRenderKarty() {
   const q = haccpState.filter_q.toLowerCase();
   const kat = haccpState.filter_kat;
+  const abcRange = haccpState.filter_abc ? haccpState.filter_abc.split('-') : null; // 🆕 v3.0.277
   const list = haccpState.vyrobky.filter(v => {
     if (parseInt(v.aktivni) !== 1) return false;
     if (kat && v.kategorie_id != kat) return false;
     if (q && !((v.nazev || '').toLowerCase().includes(q) || (v.cislo || '').toString().toLowerCase().includes(q))) return false;
+    if (abcRange) { const fl = haccpFirstLetter(v.nazev); if (!(fl >= abcRange[0] && fl <= abcRange[1])) return false; }
     return true;
   });
+  // 🆕 v3.0.277 — paginace (load-more) — ať se nenačítá 1400+ řádků naráz
+  const totalFiltered = list.length;
+  const shown = Math.min(haccpState.shown_karty || 30, totalFiltered);
+  const pageList = list.slice(0, shown);
+  const abcChips = `<div style="display:flex;gap:4px;flex-wrap:wrap;margin:0 0 10px">
+    <button onclick="haccpSetAbc('')" class="period-tab ${!haccpState.filter_abc ? 'active' : ''}" style="padding:4px 10px;font-size:12px">Vše</button>
+    ${HACCP_ABC_RANGES.map(([a, b]) => { const r = a + '-' + b; return `<button onclick="haccpSetAbc('${r}')" class="period-tab ${haccpState.filter_abc === r ? 'active' : ''}" style="padding:4px 10px;font-size:12px">${a}–${b}</button>`; }).join('')}
+  </div>`;
+  const loadMoreHtml = shown < totalFiltered
+    ? `<div style="text-align:center;padding:14px"><button class="btn-secondary" onclick="haccpShowMore()" style="font-weight:700;padding:10px 22px;border-radius:10px">▾ Načíst další (${Math.min(30, totalFiltered - shown)})</button><div style="font-size:12px;color:var(--text-3);margin-top:6px">Zobrazeno ${shown} / ${totalFiltered}</div></div>`
+    : (totalFiltered > 0 ? `<div style="text-align:center;padding:10px;font-size:12px;color:var(--text-3)">Zobrazeno všech ${totalFiltered}</div>` : '');
 
   const grafy = haccpState.grafy || [];
   // 🆕 v3.0.221 — coverage indikátor (kolik aktivních výrobků má přiřazený HACCP graf)
@@ -37331,8 +37470,10 @@ function haccpRenderKarty() {
       </select>
     </div>
 
+    ${abcChips}
+
     <div class="card-block" style="padding:0">
-      ${list.length === 0 ? '<div class="empty-state" style="padding:30px">Žádné výrobky</div>' : `
+      ${totalFiltered === 0 ? '<div class="empty-state" style="padding:30px">Žádné výrobky</div>' : `
         <table class="table table-selectable">
           <thead>
             <tr>
@@ -37346,7 +37487,7 @@ function haccpRenderKarty() {
             </tr>
           </thead>
           <tbody>
-            ${list.map(v => {
+            ${pageList.map(v => {
               let hd = {};
               try { hd = v.haccp_data ? (typeof v.haccp_data === 'string' ? JSON.parse(v.haccp_data) : v.haccp_data) : {}; } catch (e) {}
               const filledCount = HACCP_FIELDS.filter(f => hd[f.k] && String(hd[f.k]).trim() !== '').length;
@@ -37384,6 +37525,7 @@ function haccpRenderKarty() {
         </table>
       `}
     </div>
+    ${loadMoreHtml}
 
     <div id="hk-bulk-bar" class="bulk-bar" style="display:none;">
       <div class="bulk-bar-info">
