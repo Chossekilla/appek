@@ -32,7 +32,9 @@ $b2bPass    = defined('APPEK_DEMO_B2B_PASSWORD') ? APPEK_DEMO_B2B_PASSWORD : 'de
 echo json_encode([
     'demo'        => true,
     'session_ttl' => defined('APPEK_DEMO_SESSION_TTL') ? (int)APPEK_DEMO_SESSION_TTL : 900,
-    'reset_at'    => date('Y-m-d H:00:00', strtotime('+1 hour')),
+    // 🐛 v3.0.266 — reset_at ODSTRANĚN: vracel fiktivní „příští celou hodinu", ale hodinový
+    //   auto-reset je vypnutý od v3.0.174 (data se nabalují). Banner tím sliboval reset, který
+    //   nikdy nepřijde. Idle-logout pryč od v3.0.185.
 
     // Legacy zpětně kompatibilní pole (admin login používá toto)
     'credentials' => [
