@@ -663,44 +663,33 @@ if ($method === 'PUT') {
         $nutri[$k] = (isset($d[$k]) && $d[$k] !== '' && $d[$k] !== null) ? (float) $d[$k] : null;
     }
 
+    // 🐛 v3.0.270 — PARTIAL UPDATE: měň JEN pole, která přišla v requestu.
+    //   Dřív full-replace UPDATE všech sloupců → parciální PUT (např. jen
+    //   {id, domovsky_sklad_id}) PŘEPSAL nazev na prázdno + cenu/jednotku/nutri
+    //   na NULL. Destruktivní (multi-warehouse přiřazení skladu mazalo surovinu).
+    $sets = [];
+    $params = ['id' => $id];
+    $addCol = function (string $col, $val) use (&$sets, &$params) {
+        $sets[] = "$col = :$col";
+        $params[$col] = $val;
+    };
+    if (array_key_exists('nazev', $d) && trim((string) $d['nazev']) !== '') $addCol('nazev', title_case_cs($d['nazev']));
+    if (array_key_exists('jednotka', $d))     $addCol('jednotka', trim($d['jednotka'] ?? 'g') ?: 'g');
+    if (array_key_exists('alergen', $d))      $addCol('alergen', trim((string) $d['alergen']) !== '' ? trim($d['alergen']) : null);
+    if (array_key_exists('cena_baleni', $d))  $addCol('cena_baleni', $d['cena_baleni'] !== '' ? (float) $d['cena_baleni'] : null);
+    if (array_key_exists('obsah_baleni', $d)) $addCol('obsah_baleni', $d['obsah_baleni'] !== '' ? (float) $d['obsah_baleni'] : null);
+    if (array_key_exists('slozeni', $d)) { $addCol('slozeni', $slozeni !== '' ? $slozeni : null); $addCol('slozeni_alergeny', $slozeni_alergeny !== '' ? $slozeni_alergeny : null); }
+    foreach ($nutri_keys as $k) { if (array_key_exists($k, $d)) $addCol($k, $nutri[$k]); }
+    if (array_key_exists('stock_minimalni', $d)) $addCol('stock_minimalni', $d['stock_minimalni'] !== '' ? (float) $d['stock_minimalni'] : null);
+    if (array_key_exists('stock_cilove', $d))    $addCol('stock_cilove', $d['stock_cilove'] !== '' ? (float) $d['stock_cilove'] : null);
+    if (array_key_exists('poznamka', $d))        $addCol('poznamka', trim((string) $d['poznamka']) !== '' ? trim($d['poznamka']) : null);
+    if (array_key_exists('aktivni', $d))         $addCol('aktivni', (int) $d['aktivni']);
+    if (!empty($d['domovsky_sklad_id']))         $addCol('domovsky_sklad_id', (int) $d['domovsky_sklad_id']);
+
+    if (empty($sets)) json_response(['ok' => true, 'nezmeneno' => true]);
     try {
-        $pdo->prepare("
-            UPDATE suroviny
-            SET nazev = :n, jednotka = :j, alergen = :a,
-                cena_baleni = :cb, obsah_baleni = :ob,
-                slozeni = :sl, slozeni_alergeny = :sla,
-                nutri_energie_kj = :nkj, nutri_energie_kcal = :nkcal,
-                nutri_tuky = :nt, nutri_tuky_nasycene = :ntn,
-                nutri_sacharidy = :nsa, nutri_cukry = :ncu,
-                nutri_bilkoviny = :nb, nutri_sul = :nsl,
-                stock_minimalni = :sm, stock_cilove = :sc,
-                poznamka = :p, aktivni = :ak,
-                domovsky_sklad_id = COALESCE(:dom, domovsky_sklad_id)
-            WHERE id = :id
-        ")->execute([
-            'n'  => title_case_cs($d['nazev'] ?? ''),
-            'j'  => trim($d['jednotka'] ?? 'g') ?: 'g',
-            'a'  => isset($d['alergen']) && trim($d['alergen']) !== '' ? trim($d['alergen']) : null,
-            'cb' => isset($d['cena_baleni']) && $d['cena_baleni'] !== '' ? (float) $d['cena_baleni'] : null,
-            'ob' => isset($d['obsah_baleni']) && $d['obsah_baleni'] !== '' ? (float) $d['obsah_baleni'] : null,
-            'sl' => $slozeni !== '' ? $slozeni : null,
-            'sla'=> $slozeni_alergeny !== '' ? $slozeni_alergeny : null,
-            'nkj'   => $nutri['nutri_energie_kj'],
-            'nkcal' => $nutri['nutri_energie_kcal'],
-            'nt'    => $nutri['nutri_tuky'],
-            'ntn'   => $nutri['nutri_tuky_nasycene'],
-            'nsa'   => $nutri['nutri_sacharidy'],
-            'ncu'   => $nutri['nutri_cukry'],
-            'nb'    => $nutri['nutri_bilkoviny'],
-            'nsl'   => $nutri['nutri_sul'],
-            'sm' => isset($d['stock_minimalni']) && $d['stock_minimalni'] !== '' ? (float) $d['stock_minimalni'] : null,
-            'sc' => isset($d['stock_cilove'])    && $d['stock_cilove']    !== '' ? (float) $d['stock_cilove'] : null,
-            'p'  => isset($d['poznamka']) && trim($d['poznamka']) !== '' ? trim($d['poznamka']) : null,
-            'ak' => isset($d['aktivni']) ? (int) $d['aktivni'] : 1,
-            'dom' => (isset($d['domovsky_sklad_id']) && $d['domovsky_sklad_id']) ? (int) $d['domovsky_sklad_id'] : null,
-            'id' => $id,
-        ]);
-        json_response(['ok' => true, 'slozeni_alergeny' => $slozeni_alergeny]);
+        $pdo->prepare("UPDATE suroviny SET " . implode(', ', $sets) . " WHERE id = :id")->execute($params);
+        json_response(['ok' => true, 'slozeni_alergeny' => $slozeni_alergeny, 'zmeneno' => array_keys($params)]);
     } catch (PDOException $e) {
         if ($e->getCode() === '23000') json_error('Surovina s tímto názvem už existuje');
         json_error_safe('Chyba úpravy', $e, 500);
