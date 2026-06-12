@@ -20,6 +20,20 @@ cors_headers();
 require_admin();
 
 $pdo = db();
+
+// 🆕 v3.0.263 — BUGFIX fresh install: tabulky sklady / sklad_polozky / sklad_pohyby_v2
+//   (systém B, v3.0.168) NEJSOU v _schema.sql ani _full_schema.php — vytváří je až runtime
+//   ensure_* z _schema_lib.php, dosud volané jen v admin_sklad_pohyby.php. admin_suroviny.php
+//   GET ale volá sklad_unify_migrate() → sklad_default_id() → "SELECT id FROM sklady" MIMO
+//   try/catch → fatal 500 při PRVNÍM otevření Surovin na čerstvé instalaci (tabulky ještě
+//   neexistují). Zajisti je dřív (idempotentní CREATE TABLE IF NOT EXISTS).
+require_once __DIR__ . '/_schema_lib.php';
+try {
+    ensure_sklady_schema($pdo);
+    ensure_sklad_polozky_schema($pdo);
+    ensure_sklad_pohyby_schema($pdo);
+} catch (Throwable $e) { /* best-effort; první GET dorovná */ }
+
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
