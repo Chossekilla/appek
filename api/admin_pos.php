@@ -1774,6 +1774,17 @@ if ($method === 'POST' && $action === 'refund_order') {
     if (!$o) json_error('Účtenka nenalezena', 404);
     if ((float) $o['castka_celkem'] <= 0 || !empty($o['refund_of'])) json_error('Vratku nelze vracet', 400);
 
+    // 🆕 v3.0.278 — LHŮTA NA VRÁCENÍ: blokuj refundaci po uplynutí lhůty (override: vynutit).
+    if (empty($d['vynutit']) && !empty($o['datum_objednani'])) {
+        $lhuta = (int) ($pdo->query("SELECT hodnota FROM nastaveni WHERE klic='vratka_lhuta_dni' LIMIT 1")->fetchColumn() ?: 14);
+        if ($lhuta > 0) {
+            $dni = (int) floor((time() - strtotime($o['datum_objednani'])) / 86400);
+            if ($dni > $lhuta) {
+                json_error('Účtenka je ' . $dni . ' dní stará — lhůta na vrácení je ' . $lhuta . ' dní (vrátit šlo do ' . date('j.n.Y', strtotime($o['datum_objednani'] . " +{$lhuta} days")) . '). Pro vrácení i přesto pošli "vynutit": true.', 409);
+            }
+        }
+    }
+
     // Původní řádky účtenky
     $lst = $pdo->prepare("SELECT id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph
                           FROM objednavky_polozky WHERE objednavka_id = :id");

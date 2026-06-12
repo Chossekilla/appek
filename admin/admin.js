@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.277';
+const APPEK_ADMIN_JS_VERSION = '3.0.278';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -11498,11 +11498,18 @@ window.dobSubmit = async function(id) {
   if (!polozky.length) { toast('Vyber alespoň jednu položku k vrácení', 'error'); return; }
   const btn = document.getElementById('dob-submit'); if (btn) btn.disabled = true;
   const duvod = (document.getElementById('dob-duvod') || {}).value || '';
+  const doPost = (vynutit) => api('admin_faktury.php?action=dobropis', {
+    method: 'POST',
+    body: JSON.stringify({ faktura_id: id, duvod, polozky, vynutit }),
+  });
   try {
-    const r = await api('admin_faktury.php?action=dobropis', {
-      method: 'POST',
-      body: JSON.stringify({ faktura_id: id, duvod, polozky }),
-    });
+    let r;
+    try { r = await doPost(false); }
+    catch (e1) {
+      // 🆕 v3.0.278 — lhůta na vrácení (409) → nabídni override
+      if (/lhůt|vynutit/i.test(e1.message || '') && confirm((e1.message || '') + '\n\nVystavit dobropis i přesto?')) r = await doPost(true);
+      else throw e1;
+    }
     toast(`✅ Dobropis ${r.cislo} vystaven (${fmt(r.castka_celkem)})`, 'success');
     closeModal();
     if (state.current === 'faktury') renderFaktury(state._faPag && state._faPag.filters || {});
