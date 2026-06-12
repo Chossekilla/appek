@@ -19,6 +19,7 @@
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_platby_lib.php'; // 🆕 v3.0.272 — config (poplatky, doprava, splatnost)
 cors_headers();
 
 header('Content-Type: application/json; charset=UTF-8');
@@ -83,26 +84,55 @@ if ($method === 'GET') {
     // Public read OK — žádné secrets v metadatech
     $all = payment_methods_load($pdo);
     $context = $_GET['context'] ?? '';
+    $cfg = platby_config_load($pdo);
+
+    // 🆕 v3.0.272 — náhled příplatků pro checkout (B2B portál volá při změně volby)
+    if (($_GET['action'] ?? '') === 'surcharges') {
+        $payment  = preg_replace('/[^a-z_]/', '', (string) ($_GET['payment'] ?? ''));
+        $shipping = preg_replace('/[^a-z_]/', '', (string) ($_GET['shipping'] ?? ''));
+        $subtotal = (float) ($_GET['subtotal'] ?? 0);
+        json_response(platby_surcharges($pdo, $payment, $shipping, max(0, $subtotal)));
+    }
 
     if ($context === 'pos') {
         $filtered = array_filter($all, fn($m) => $m['enabled'] && $m['pos']);
         json_response(['methods' => array_values($filtered)]);
     }
+    // 🆕 v3.0.272 — přilep per-metoda config (poplatek, splatnost) — ne IBAN (jen na doklad/server)
+    $attachCfg = function (array $m) use ($cfg): array {
+        $c = $cfg['methods_config'][$m['key']] ?? [];
+        $m['poplatek']      = isset($c['poplatek']) ? (float) $c['poplatek'] : 0;
+        $m['poplatek_typ']  = $c['poplatek_typ'] ?? 'kc';
+        $m['splatnost_dni'] = isset($c['splatnost_dni']) ? (int) $c['splatnost_dni'] : null;
+        return $m;
+    };
+
     if ($context === 'b2b') {
-        $filtered = array_filter($all, fn($m) => $m['enabled'] && $m['b2b']);
-        json_response(['methods' => array_values($filtered)]);
+        $filtered = array_map($attachCfg, array_values(array_filter($all, fn($m) => $m['enabled'] && $m['b2b'])));
+        $dopravaPub = array_values(array_filter($cfg['doprava']['metody'], fn($m) => $m['aktivni']));
+        json_response(['methods' => $filtered, 'doprava' => ['zdarma_od' => $cfg['doprava']['zdarma_od'], 'metody' => $dopravaPub]]);
     }
-    // No context → all (pro admin UI)
-    json_response(['methods' => array_values($all)]);
+    // No context → all (pro admin UI) — vč. plného configu (s IBAN) a dopravy
+    json_response([
+        'methods' => array_values(array_map($attachCfg, $all)),
+        'config'  => $cfg['methods_config'],
+        'doprava' => $cfg['doprava'],
+    ]);
 }
 
 if ($method === 'PUT' || $method === 'POST') {
     require_admin();  // jen admin smí měnit
     $d = json_input();
-    $methods = $d['methods'] ?? [];
-    if (!is_array($methods)) json_error('Pole "methods" musí být objekt {key: bool}', 400);
-    payment_methods_save($pdo, $methods);
-    json_response(['ok' => true, 'methods' => array_values(payment_methods_load($pdo))]);
+    // on/off mapa (zpětně kompatibilní)
+    if (isset($d['methods']) && is_array($d['methods'])) {
+        payment_methods_save($pdo, $d['methods']);
+    }
+    // 🆕 v3.0.272 — per-metoda config (poplatky/splatnost/IBAN) + doprava (práh + ceny)
+    if (array_key_exists('config', $d) || array_key_exists('doprava', $d)) {
+        platby_config_save($pdo, $d['config'] ?? null, $d['doprava'] ?? null);
+    }
+    $cfg = platby_config_load($pdo);
+    json_response(['ok' => true, 'methods' => array_values(payment_methods_load($pdo)), 'config' => $cfg['methods_config'], 'doprava' => $cfg['doprava']]);
 }
 
 json_error('Method not allowed', 405);
