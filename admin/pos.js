@@ -411,11 +411,28 @@
       bez = bez * (1 - State.sleva_pct / 100);
       dph = dph * (1 - State.sleva_pct / 100);
     }
-    const total = bez + dph + (State.pos_tip || 0);
+    // 🆕 v3.0.279 — poplatek platby (např. karta +1,5 %) z vybrané metody — pokladní ho vidí PŘED zaplacením
+    let poplatek = 0;
+    const pm = (__posPaymentMethods || []).find(m => m.key === State.pos_payment);
+    if (pm && parseFloat(pm.poplatek) > 0) {
+      poplatek = (pm.poplatek_typ === 'pct') ? (bez + dph) * parseFloat(pm.poplatek) / 100 : parseFloat(pm.poplatek);
+      poplatek = Math.round(poplatek * 100) / 100;
+    }
+    const total = bez + dph + (State.pos_tip || 0) + poplatek;
 
     $('#pos-sub-bez').textContent = fmt(bez);
     $('#pos-sub-dph').textContent = fmt(dph);
     $('#pos-total').textContent   = fmt(total) + ' ' + (CFG.currency || 'Kč');
+
+    const $pr = $('#pos-poplatek-row');
+    if ($pr) {
+      $pr.style.display = poplatek > 0 ? 'flex' : 'none';
+      if (poplatek > 0) {
+        const lbl = (pm && pm.poplatek_typ === 'pct') ? `Poplatek (${pm.label || State.pos_payment} ${parseFloat(pm.poplatek)} %)` : `Poplatek (${(pm && pm.label) || State.pos_payment})`;
+        const lblEl = $('#pos-poplatek-lbl'); if (lblEl) lblEl.textContent = lbl;
+        $('#pos-poplatek-abs').textContent = '+' + fmt(poplatek);
+      }
+    }
 
     const $sr = $('#pos-sleva-row');
     if ($sr) {
@@ -490,6 +507,7 @@
   function setPay(p) {
     State.pos_payment = p;
     $$('.pos-pay-btn').forEach(b => b.classList.toggle('is-active', b.dataset.pay === p));
+    recalc(); // 🆕 v3.0.279 — přepočítej poplatek platby (karta-fee se promítne hned)
   }
   // 🆕 v2.9.205 — payment methods z centrálního API (admin Nastavení→Platby toggle).
   // Cache v paměti pro performance.
@@ -530,6 +548,7 @@
     if (!methods.some(m => m.key === State.pos_payment) && primary.length) {
       setPay(primary[0].key);
     }
+    recalc(); // 🆕 v3.0.279 — metody načteny (s poplatkem) → promítni poplatek do součtu
   }
 
   async function payMenu(e) {

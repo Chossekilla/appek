@@ -445,6 +445,11 @@ $csrfToken  = csrf_token();
         <span>Spropitné</span>
         <strong id="pos-tip-abs">0,00</strong>
       </div>
+      <!-- 🆕 v3.0.279 — poplatek platby (karta-fee) z configu vybrané metody -->
+      <div class="pos-sum-row" id="pos-poplatek-row" style="display:none">
+        <span id="pos-poplatek-lbl">Poplatek</span>
+        <strong id="pos-poplatek-abs" style="color:#854F0B">+0,00</strong>
+      </div>
     </div>
 
     <!-- 🆕 v2.9.205 — buttons dynamicky rendrovány z /api/payment_methods.php?context=pos -->

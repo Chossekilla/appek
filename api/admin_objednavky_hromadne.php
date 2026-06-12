@@ -41,8 +41,10 @@ $pdo = db();
 
 // 🔄 v2.9.175 — DDL přesunut do _schema_lib.php (sdílený helper, idempotentní).
 require_once __DIR__ . '/_schema_lib.php';
+require_once __DIR__ . '/_platby_lib.php'; // 🆕 v3.0.279 — splatnost faktury dle platební metody
 ensure_dodaci_list_polozky_schema($pdo);
 ensure_dodaci_listy_schema($pdo);
+ensure_objednavky_schema($pdo); // zajistí o.zpusob_platby (fresh-install safe)
 
 $d = json_input();
 
@@ -61,7 +63,7 @@ $placeholders = implode(',', array_fill(0, count($ids), '?'));
 $stmt = $pdo->prepare("
     SELECT o.id, o.cislo, o.odberatel_id, o.misto_dodani_id, o.datum_dodani,
            o.datum_objednani, o.castka_bez_dph, o.castka_dph, o.castka_celkem,
-           o.stav,
+           o.stav, o.zpusob_platby,
            od.nazev AS odberatel_nazev, od.splatnost_dni,
            md.nazev AS misto_nazev,
            (SELECT COUNT(*) FROM objednavky_polozky op WHERE op.objednavka_id = o.id) AS pocet_polozek,
@@ -209,6 +211,7 @@ if ($action === 'dl') {
 if ($action === 'fa') {
     $datum_vystaveni = $d['datum_vystaveni'] ?? date('Y-m-d');
     $splatnost_override = isset($d['splatnost_dni']) ? max(0, (int) $d['splatnost_dni']) : null;
+    $platbyCfg = platby_config_load($pdo)['methods_config']; // 🆕 v3.0.279 — splatnost dle metody
 
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum_vystaveni)) {
         json_error('Neplatné datum vystavení');
@@ -237,9 +240,11 @@ if ($action === 'fa') {
                 'odberatel_id'    => $k,
                 'odberatel_nazev' => $o['odberatel_nazev'],
                 'splatnost_dni'   => (int) ($o['splatnost_dni'] ?: 14),
+                'platby'          => [],
                 'objednavky'      => [],
             ];
         }
+        if (!empty($o['zpusob_platby'])) $skupiny[$k]['platby'][] = $o['zpusob_platby'];
         $skupiny[$k]['objednavky'][] = $o;
     }
 
@@ -283,7 +288,14 @@ if ($action === 'fa') {
             // Vytvoř fakturu
             $cislo_fa = dalsi_cislo($pdo, 'FA', (int) date('Y', strtotime($datum_vystaveni)));
             $vs = preg_replace('/\D/', '', $cislo_fa);
-            $spl_dni = $splatnost_override !== null ? $splatnost_override : $sk['splatnost_dni'];
+            // 🆕 v3.0.279 — splatnost: jednotná platební metoda skupiny s nastavenou splatností (config) PŘEBÍJÍ zákazníka.
+            //   Když objednávky skupiny mají různé metody → fallback na splatnost odběratele.
+            $methodSpl = null;
+            $metody = array_values(array_unique(array_filter($sk['platby'] ?? [])));
+            if (count($metody) === 1 && isset($platbyCfg[$metody[0]]['splatnost_dni']) && $platbyCfg[$metody[0]]['splatnost_dni'] !== '') {
+                $methodSpl = (int) $platbyCfg[$metody[0]]['splatnost_dni'];
+            }
+            $spl_dni = $splatnost_override !== null ? $splatnost_override : ($methodSpl !== null ? $methodSpl : $sk['splatnost_dni']);
 
             // 🐛 fix v2.9.169 — PDO native prepared statements neumožňují reuse stejného
             // pojmenovaného placeholderu 3x (PDO::ATTR_EMULATE_PREPARES=false). Místo
