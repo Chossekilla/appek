@@ -2196,6 +2196,7 @@
       <button class="btn-secondary" onclick="posReprintReceipt(${objId})">🖨️ Reprint</button>
       <button class="btn-secondary" onclick="posShowPayQR(${objId}, '${esc(d.cislo || '')}', ${parseFloat(d.castka_celkem) || 0})">📲 QR platba</button>
       ${(parseFloat(d.castka_celkem) || 0) > 0 ? `<button class="btn-secondary" style="color:#DC2626;border-color:#FCA5A5" onclick="posRefundReceipt(${objId}, '${esc(d.cislo || '').replace(/'/g, '')}')" title="Vrátit peníze — vznikne záporná účtenka (VRA-…), uzávěrka i tržby se sníží">↩️ Vrátit</button>` : ''}
+      ${(parseFloat(d.castka_celkem) || 0) > 0 ? `<button class="btn-secondary" style="color:#7c3aed;border-color:#c4b5fd" onclick="posExchange(${objId}, '${esc(d.cislo || '').replace(/'/g, '')}')" title="Výměna — vrátit vybrané položky a přidat nové, spočítá doplatek/přeplatek">🔄 Výměna</button>` : ''}
       <button class="btn-primary" onclick="POS._closeModal();posOpenOrderInAdmin(${objId})">✏️ Upravit v adminu</button>
     `;
     modal('📜 Účtenka ' + (d.cislo || ''), body, foot);
@@ -2280,6 +2281,143 @@
       if (btn) btn.disabled = false;
       if (typeof toast === 'function') toast('❌ ' + (e.message || 'Vratka selhala'), 'error');
       else alert('❌ ' + (e.message || 'Vratka selhala'));
+    }
+  };
+
+  // ─── 🆕 v3.0.276 — VÝMĚNA: vrátit vybrané položky + přidat nové, spočítat doplatek/přeplatek ───
+  //   Realizováno přes ověřené endpointy: refund_order (částečná vratka) + quick_order (nový prodej).
+  //   Vznikne VRA- (vratka) + nová účtenka, propojené poznámkou. Net rozdíl = nové − vrácené.
+  window.posExchange = async function(objId, cislo) {
+    let data;
+    try { data = await api('admin_pos.php?action=refundovatelne&objednavka_id=' + objId); }
+    catch (e) { (typeof toast === 'function' ? toast : alert)('❌ ' + (e.message || 'Nelze načíst položky účtenky')); return; }
+    const vrLines = (data.polozky || []).filter(p => p.zbyva > 0.0001);
+    window._exchOrig = {}; vrLines.forEach(p => window._exchOrig[p.id] = p);
+    window._exchNew = [];   // [{vyrobek_id, nazev, cena_bez_dph, sazba_dph, mnozstvi}]
+    window._exchSrc = { objId, cislo };
+
+    const vrRows = vrLines.length ? vrLines.map(p => `
+      <tr>
+        <td style="text-align:center;padding:3px"><input type="checkbox" data-exch-vr-chk="${p.id}" onchange="posExchangeRecalc()"></td>
+        <td style="padding:3px">${esc(p.vyrobek_nazev)}</td>
+        <td style="text-align:right;padding:3px"><input type="number" data-exch-vr-qty="${p.id}" min="0" max="${p.zbyva}" step="any" value="${p.zbyva}" style="width:54px;text-align:right" oninput="posExchangeRecalc()"> <span style="color:#999;font-size:11px">/${p.zbyva}</span></td>
+      </tr>`).join('') : `<tr><td colspan="3" style="padding:8px;color:#9097a3;font-size:13px">Nic k vrácení.</td></tr>`;
+
+    const catOpts = (State.catalog?.vyrobky || []).map(v =>
+      `<option value="${v.id}">${esc(v.nazev)} — ${fmt(parseFloat(v.cena_bez_dph) || 0)}</option>`).join('');
+
+    const body = `
+      <p style="margin:0 0 12px;font-size:13px;color:#6b7280">Vrať z účtenky <strong>${esc(cislo)}</strong> co zákazník nechce a přidej náhradu. Spočítám doplatek/přeplatek. Vznikne vratka (VRA-) + nová účtenka.</p>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <div style="font-weight:700;margin-bottom:6px;color:#DC2626">↩️ Vrátit z účtenky</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>${vrRows}</tbody></table>
+        </div>
+        <div style="flex:1;min-width:240px">
+          <div style="font-weight:700;margin-bottom:6px;color:#16a34a">🆕 Nové položky</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <select id="exch-new-select" style="flex:1;min-width:0;padding:7px;border:1px solid #d1d5db;border-radius:8px">${catOpts}</select>
+            <button class="btn-secondary" type="button" onclick="posExchangeAddItem()">+ Přidat</button>
+          </div>
+          <div id="exch-new-list"></div>
+        </div>
+      </div>
+      <div id="exch-net" style="margin-top:14px;padding-top:12px;border-top:1px solid #E1E5EB;font-size:15px"></div>`;
+    const foot = `
+      <button class="btn-secondary" onclick="POS._closeModal()">Zrušit</button>
+      <button class="btn-primary" id="exch-submit" style="background:#7c3aed;border-color:#7c3aed" onclick="posExchangeSubmit()">🔄 Provést výměnu</button>`;
+    modal('🔄 Výměna — účtenka ' + (cislo || ''), body, foot);
+    posExchangeRecalc();
+  };
+
+  window.posExchangeAddItem = function() {
+    const sel = document.getElementById('exch-new-select');
+    if (!sel) return;
+    const v = (State.catalog?.vyrobky || []).find(x => x.id === parseInt(sel.value, 10));
+    if (!v) return;
+    const ex = window._exchNew.find(n => n.vyrobek_id === v.id);
+    if (ex) ex.mnozstvi += 1;
+    else window._exchNew.push({ vyrobek_id: v.id, nazev: v.nazev, cena_bez_dph: parseFloat(v.cena_bez_dph) || 0, sazba_dph: parseFloat(v.sazba_dph || v.dph || 12), mnozstvi: 1 });
+    posExchangeRenderNew();
+    posExchangeRecalc();
+  };
+  window.posExchangeSetNewQty = function(vid, val) {
+    const n = parseFloat(val) || 0;
+    const it = window._exchNew.find(x => x.vyrobek_id === vid);
+    if (!it) return;
+    if (n <= 0) window._exchNew = window._exchNew.filter(x => x.vyrobek_id !== vid);
+    else it.mnozstvi = n;
+    posExchangeRenderNew();
+    posExchangeRecalc();
+  };
+  function posExchangeRenderNew() {
+    const el = document.getElementById('exch-new-list');
+    if (!el) return;
+    el.innerHTML = window._exchNew.length ? window._exchNew.map(n => `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:13px">
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.nazev)}</span>
+        <span style="color:#999">${fmt(n.cena_bez_dph)}</span>
+        <input type="number" min="0" step="any" value="${n.mnozstvi}" style="width:54px;text-align:right" oninput="posExchangeSetNewQty(${n.vyrobek_id}, this.value)">
+      </div>`).join('') : '<div style="color:#9097a3;font-size:13px">Zatím nic.</div>';
+  }
+  window.posExchangeRecalc = function() {
+    let vrat = 0;
+    Object.values(window._exchOrig || {}).forEach(p => {
+      const chk = document.querySelector(`[data-exch-vr-chk="${p.id}"]`);
+      const qtyEl = document.querySelector(`[data-exch-vr-qty="${p.id}"]`);
+      if (!chk || !qtyEl) return;
+      let q = parseFloat(qtyEl.value) || 0;
+      if (q > p.zbyva) { q = p.zbyva; qtyEl.value = p.zbyva; }
+      qtyEl.disabled = !chk.checked;
+      if (chk.checked) vrat += q * p.cena_bez_dph * (1 + p.sazba_dph / 100);
+    });
+    let nove = 0;
+    (window._exchNew || []).forEach(n => { nove += n.mnozstvi * n.cena_bez_dph * (1 + n.sazba_dph / 100); });
+    vrat = Math.round(vrat * 100) / 100;
+    nove = Math.round(nove * 100) / 100;
+    const rozdil = Math.round((nove - vrat) * 100) / 100;
+    const el = document.getElementById('exch-net');
+    if (!el) return;
+    let netLine;
+    if (rozdil > 0.005) netLine = `<strong style="color:#DC2626">Doplatek zákazníka: ${fmt(rozdil)}</strong>`;
+    else if (rozdil < -0.005) netLine = `<strong style="color:#16a34a">Vrátit zákazníkovi: ${fmt(-rozdil)}</strong>`;
+    else netLine = `<strong>Beze změny ceny (0)</strong>`;
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between"><span>↩️ Vrácené</span><span>− ${fmt(vrat)}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>🆕 Nové</span><span>+ ${fmt(nove)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">${netLine}<span></span></div>`;
+  };
+  window.posExchangeSubmit = async function() {
+    const src = window._exchSrc || {};
+    // Vrácené
+    const vraceno = [];
+    Object.values(window._exchOrig || {}).forEach(p => {
+      const chk = document.querySelector(`[data-exch-vr-chk="${p.id}"]`);
+      const qtyEl = document.querySelector(`[data-exch-vr-qty="${p.id}"]`);
+      if (chk && chk.checked && qtyEl) { const q = parseFloat(qtyEl.value) || 0; if (q > 0.0001) vraceno.push({ polozka_id: p.id, mnozstvi: q }); }
+    });
+    const nove = (window._exchNew || []).filter(n => n.mnozstvi > 0).map(n => ({ vyrobek_id: n.vyrobek_id, mnozstvi: n.mnozstvi, cena_bez_dph: n.cena_bez_dph, sazba_dph: n.sazba_dph, nazev: n.nazev }));
+    if (!vraceno.length && !nove.length) { (typeof toast === 'function' ? toast : alert)('Vyber co vrátit a/nebo přidej nové položky'); return; }
+    const btn = document.getElementById('exch-submit'); if (btn) btn.disabled = true;
+    try {
+      let vraCislo = null, novaCislo = null;
+      // 1) Vratka (částečná) — když je co vracet
+      if (vraceno.length) {
+        const r1 = await api('admin_pos.php?action=refund_order', { method: 'POST', body: JSON.stringify({ objednavka_id: src.objId, duvod: 'Výměna za ' + src.cislo, polozky: vraceno }) });
+        vraCislo = r1.cislo;
+      }
+      // 2) Nová účtenka — když jsou nové položky
+      if (nove.length) {
+        const r2 = await api('admin_pos.php?action=quick_order', { method: 'POST', body: JSON.stringify({ pos_typ: 'sebou', pos_payment: 'hotove', polozky: nove, poznamka: 'Výměna za účtenku ' + src.cislo }) });
+        novaCislo = r2.cislo;
+      }
+      POS._closeModal();
+      const msg = `✅ Výměna hotová${vraCislo ? ' · vratka ' + vraCislo : ''}${novaCislo ? ' · nová ' + novaCislo : ''}`;
+      if (typeof toast === 'function') toast(msg, 'success'); else alert(msg);
+      if (typeof posLoadOrders === 'function') posLoadOrders();
+    } catch (e) {
+      if (btn) btn.disabled = false;
+      (typeof toast === 'function' ? toast : alert)('❌ ' + (e.message || 'Výměna selhala'));
     }
   };
 

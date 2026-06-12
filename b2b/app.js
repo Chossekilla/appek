@@ -1206,6 +1206,9 @@ window.reorderObjednavku = async function(id) {
   let nedostupne = 0;
 
   obj.polozky.forEach((p) => {
+    // 🆕 v3.0.276 — přeskoč příplatkové řádky (doprava/poplatek, vyrobek_id=NULL) — nejsou to produkty,
+    //   nepatří do košíku ani do počtu „nedostupných" (jinak falešné „X nedostupných v katalogu").
+    if (!p.vyrobek_id) return;
     if (dostupneIds.has(p.vyrobek_id)) {
       // Přičti množství k aktuálnímu košíku (pokud už něco bylo)
       state.cart[p.vyrobek_id] = (state.cart[p.vyrobek_id] || 0) + parseFloat(p.mnozstvi);
@@ -1833,9 +1836,9 @@ function renderCheckout() {
       </div>
     </div>
 
-    <!-- 4️⃣ CELKOVÝ SOUHRN — nahoře nad odeslání -->
+    <!-- 6️⃣ CELKOVÝ SOUHRN — nahoře nad odeslání -->
     <div class="checkout-total-block">
-      <div class="checkout-total-head">4. 💰 Celkem k objednání</div>
+      <div class="checkout-total-head">6. 💰 Celkem k objednání</div>
       <div class="checkout-total-rows">
         ${t.usetreno > 0.005 ? `
           <div class="cart-summary-row cart-summary-saved">
@@ -1850,7 +1853,9 @@ function renderCheckout() {
             <span>⚖️ Hmotnost celkem</span><span>${fmtHmotnost(cartTotalWeightG())}</span>
           </div>
         ` : ''}
-        <div class="cart-summary-row total"><span>Celkem s DPH</span><span>${fmt(t.total)}</span></div>
+        <!-- 🆕 v3.0.276 — doprava / poplatek / práh „zdarma" (živě dle vybrané metody, plní updateSurchargeDisplay) -->
+        <div id="b2b-surcharge-rows"></div>
+        <div class="cart-summary-row total"><span>Celkem s DPH</span><span id="b2b-grand-total">${fmt(t.total)}</span></div>
       </div>
     </div>
 
@@ -1953,7 +1958,46 @@ async function loadDopravaPlatbaCards() {
       </button>`;
     }).join('');
   }
+
+  // 🆕 v3.0.276 — po vykreslení karet promítni dopravu/poplatek do součtu
+  updateSurchargeDisplay();
 }
+
+// 🆕 v3.0.276 — živé promítnutí dopravy + poplatku platby + prahu „zdarma" do součtu košíku.
+//   Volá veřejný surcharges endpoint (stejná logika jako server při vytvoření objednávky),
+//   takže zákazník vidí přesně to, co reálně zaplatí (žádné překvapení na faktuře).
+async function updateSurchargeDisplay() {
+  const rowsEl = document.getElementById('b2b-surcharge-rows');
+  const totalEl = document.getElementById('b2b-grand-total');
+  if (!rowsEl || !totalEl) return; // nejsme na checkoutu
+  const subtotal = cartTotals().total;
+  const platba = state.checkoutData.platba || '';
+  const doprava = state.checkoutData.doprava || '';
+  let sur;
+  try {
+    sur = await api(`payment_methods.php?action=surcharges&payment=${encodeURIComponent(platba)}&shipping=${encodeURIComponent(doprava)}&subtotal=${subtotal}`);
+  } catch (e) {
+    rowsEl.innerHTML = '';
+    totalEl.textContent = fmt(subtotal);
+    return;
+  }
+  let html = '';
+  if (sur.doprava_zdarma) {
+    html += `<div class="cart-summary-row" style="color:#16a34a;font-weight:600"><span>🚚 Doprava</span><span>🎉 zdarma</span></div>`;
+  } else if (sur.doprava_cena > 0) {
+    html += `<div class="cart-summary-row"><span>🚚 Doprava</span><span>+ ${fmt(sur.doprava_cena)}</span></div>`;
+    if (sur.zdarma_od && subtotal < sur.zdarma_od) {
+      const chybi = sur.zdarma_od - subtotal;
+      html += `<div class="cart-summary-row" style="color:var(--accent, #BA7517);font-size:13px"><span>🎯 Přidej za ${fmt(chybi)} a máš dopravu zdarma</span><span></span></div>`;
+    }
+  }
+  if (sur.platba_poplatek > 0) {
+    html += `<div class="cart-summary-row"><span>➕ Poplatek za platbu</span><span>+ ${fmt(sur.platba_poplatek)}</span></div>`;
+  }
+  rowsEl.innerHTML = html;
+  totalEl.textContent = fmt(subtotal + (parseFloat(sur.priplatky_celkem) || 0));
+}
+window.updateSurchargeDisplay = updateSurchargeDisplay;
 
 window.setDoprava = function(key) {
   state.checkoutData.doprava = key;
@@ -2132,27 +2176,65 @@ async function renderHistory() {
   c.innerHTML = `<h1 class="section-title">Historie objednávek</h1><p class="section-sub">Načítám…</p>`;
   try {
     const data = await api('objednavky.php?last=50');
-    if (!data.length) {
-      c.innerHTML = `
-        <h1 class="section-title">Historie objednávek</h1>
-        <div class="empty">Zatím žádné objednávky</div>
-      `;
-      return;
-    }
     // Cache pro reorder (sdílí se s posledniObjednavky pro konsistenci)
-    state.posledniObjednavky = data;
-
+    state.posledniObjednavky = data || [];
+    const ordersHtml = (data && data.length)
+      ? `<p class="section-sub">${data.length} ${data.length === 1 ? 'objednávka' : (data.length < 5 ? 'objednávky' : 'objednávek')}</p>
+         <div class="orders-list">${data.map(renderOrderCard).join('')}</div>`
+      : `<div class="empty">Zatím žádné objednávky</div>`;
     c.innerHTML = `
       <h1 class="section-title">Historie objednávek</h1>
-      <p class="section-sub">${data.length} ${data.length === 1 ? 'objednávka' : (data.length < 5 ? 'objednávky' : 'objednávek')}</p>
-      <div class="orders-list">
-        ${data.map(renderOrderCard).join('')}
-      </div>
+      ${ordersHtml}
+      <!-- 🆕 v3.0.276 — Faktury & dobropisy (transparentnost vratek) -->
+      <div id="b2b-doklady" style="margin-top:26px"></div>
     `;
+    loadDoklady();
   } catch (e) {
     c.innerHTML = `<h1 class="section-title">Historie</h1><p style="color:var(--danger-text)">Chyba: ${esc(e.message)}</p>`;
   }
 }
+
+// 🆕 v3.0.276 — Faktury & dobropisy zákazníka (volitelná sekce v Historii).
+//   Zákazník vidí i vystavené DOB- dobropisy (vrácení/oprava) → transparentnost.
+async function loadDoklady() {
+  const el = document.getElementById('b2b-doklady');
+  if (!el) return;
+  let fa;
+  try { fa = await api('faktury_odberatele.php'); }
+  catch (e) { return; } // sekce je volitelná — ticho
+  const list = fa.faktury || [];
+  if (!list.length) return;
+  const pocetDob = list.filter(f => f.je_dobropis).length;
+  const badge = (f) => {
+    const s = (t, bg, col) => `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:${bg};color:${col}">${t}</span>`;
+    if (f.je_dobropis) return s('↩️ Dobropis', '#dcfce7', '#15803d');
+    if (f.stav_uhrady === 'po_splatnosti') return s('Po splatnosti', '#fee2e2', '#b91c1c');
+    if (f.stav_uhrady === 'neuhrazena') return s('Neuhrazená', '#fef3c7', '#92400e');
+    return s('Uhrazená', '#dcfce7', '#15803d');
+  };
+  el.innerHTML = `
+    <h2 class="section-title" style="font-size:18px;margin-bottom:2px">📄 Faktury & dobropisy</h2>
+    <p class="section-sub">${list.length} ${list.length === 1 ? 'doklad' : (list.length < 5 ? 'doklady' : 'dokladů')}${pocetDob ? ` · ${pocetDob} ${pocetDob === 1 ? 'dobropis' : 'dobropisů'} (vrácení/oprava)` : ''}</p>
+    <div class="orders-list">
+      ${list.map(f => `
+        <div class="order-card" style="${f.je_dobropis ? 'border-left:4px solid #16a34a' : ''}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+            <div style="min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>${esc(f.cislo)}</strong> ${badge(f)}</div>
+              ${f.puvodni_cislo ? `<div style="font-size:12px;color:var(--text-3);margin-top:2px">k faktuře ${esc(f.puvodni_cislo)}</div>` : ''}
+              <div style="font-size:12px;color:var(--text-3);margin-top:2px">Vystaveno ${fmtDate(f.datum_vystaveni)}${(f.datum_splatnosti && !f.je_dobropis) ? ' · splatnost ' + fmtDate(f.datum_splatnosti) : ''}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <strong style="font-size:16px;${(f.je_dobropis || f.castka_celkem < 0) ? 'color:#16a34a' : ''}">${fmt(f.castka_celkem)}</strong>
+              <div style="margin-top:4px"><a class="oc-btn oc-btn-ghost oc-btn-sm" href="../api/faktura.php?id=${f.id}" target="_blank" rel="noopener">📄 PDF</a></div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+window.loadDoklady = loadDoklady;
 
 // =============================================================
 // PŘEHLED
@@ -2351,11 +2433,32 @@ function renderDetailObjednavky(o) {
       ${lze ? `
         <button class="btn-cancel-order" onclick="zrusitObjednavku(${o.id})">❌ Zrušit objednávku</button>
         <button class="btn-primary" onclick="zacniUpravuObjednavky(${o.id})">✏️ Upravit objednávku</button>
-      ` : ''}
+      ` : `
+        <button class="btn-primary" onclick="zadatZmenu(${o.id}, '${esc(String(o.cislo || '')).replace(/'/g, '')}')" title="Objednávka už je ve výrobě/vyfakturovaná — pošli pekárně žádost o změnu nebo storno">✏️ Požádat o změnu / storno</button>
+      `}
     </div>
   `;
   openModal(html);
 }
+
+// =============================================================
+// 🆕 v3.0.276 — ŽÁDOST O ZMĚNU / STORNO (po vystavení DL, kdy zákazník už needituje sám)
+// =============================================================
+window.zadatZmenu = async function(id, cislo) {
+  const zprava = prompt(`Objednávka ${cislo} už je ve výrobě / vyfakturovaná, takže ji nelze upravit přímo.\n\nNapiš pekárně co potřebuješ (změna množství, storno, výměna…) — ozve se ti.\n\nTvá žádost:`, '');
+  if (zprava === null) return;            // zrušeno
+  if (!zprava.trim()) { alert('Napiš prosím o co jde.'); return; }
+  try {
+    const r = await api('objednavky.php?action=zadost', {
+      method: 'POST',
+      body: JSON.stringify({ id, zprava: zprava.trim() }),
+    });
+    closeModal();
+    alert('✅ Žádost byla odeslána pekárně. Ozve se ti co nejdřív.');
+  } catch (e) {
+    alert('Chyba: ' + (e.message || 'Žádost se nepodařilo odeslat'));
+  }
+};
 
 // =============================================================
 // ZRUŠENÍ OBJEDNÁVKY

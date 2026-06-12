@@ -647,6 +647,12 @@ if ($method === 'PUT') {
 
         if (isset($d['stav'])) {
             if (!in_array($d['stav'], $platne_stavy)) throw new Exception('Neplatný stav');
+            // 🆕 v3.0.276 — KONZISTENCE: stornovat (zrusena) VYFAKTUROVANOU objednávku nelze bez
+            //   vystavení dobropisu — jinak tržby (z objednávek) klesnou, ale faktura osiří
+            //   v pohledávkách → knihy se rozejdou. Vyžaduj nejdřív dobropis k faktuře, nebo vynutit.
+            if ($d['stav'] === 'zrusena' && $orig['stav'] !== 'zrusena' && $maFA && !$vynutit) {
+                throw new Exception('Objednávka má vystavenou FAKTURU. Storno by rozhodilo tržby vs. pohledávky — vystav nejdřív DOBROPIS k faktuře (záporný doklad), pak teprve storno. (Nutno-li přesto stornovat, pošli "vynutit": true.)');
+            }
             if ($d['stav'] !== $orig['stav']) {
                 $zmenyDoEmailu['stav'] = ['z' => $orig['stav'], 'na' => $d['stav']];
             }

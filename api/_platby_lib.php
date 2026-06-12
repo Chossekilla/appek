@@ -120,6 +120,7 @@ function platby_surcharges(PDO $pdo, string $payment, ?string $shipping, float $
         'platba_poplatek'  => round($popl, 2),
         'doprava_cena'     => round($dCena, 2),
         'doprava_zdarma'   => $dZdarma,
+        'zdarma_od'        => $cfg['doprava']['zdarma_od'], // 🆕 v3.0.276 — pro „přidej X do dopravy zdarma" v košíku
         'splatnost_dni'    => (isset($pc['splatnost_dni']) && $pc['splatnost_dni'] !== '') ? (int) $pc['splatnost_dni'] : null,
         'priplatky_celkem' => round($popl + $dCena, 2),
     ];
