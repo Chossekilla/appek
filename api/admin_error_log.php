@@ -67,8 +67,11 @@ if ($method === 'GET' && $action === 'list') {
         $where[] = 'severity = :sev'; $params['sev'] = $severity;
     }
     if ($q !== '') {
-        $where[] = '(message LIKE :q OR exception_msg LIKE :q OR source LIKE :q OR request_id = :rid)';
+        // 🐛 v3.0.265 — opakovaný :q s EMULATE_PREPARES=false → 500. Unikátní placeholdery.
+        $where[] = '(message LIKE :q OR exception_msg LIKE :q2 OR source LIKE :q3 OR request_id = :rid)';
         $params['q']   = '%' . str_replace(['%','_'], ['\\%','\\_'], $q) . '%';
+        $params['q2']  = $params['q'];
+        $params['q3']  = $params['q'];
         $params['rid'] = $q; // přesný match na reqId (uživatel zkopíruje z toast)
     }
     $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';

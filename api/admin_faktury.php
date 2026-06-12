@@ -154,8 +154,11 @@ if ($method === 'GET') {
 
     if ($hledat !== '') {
         $hl = str_replace(['\\','%','_'], ['\\\\','\\%','\\_'], $hledat);
-        $where .= " AND (f.cislo LIKE :q OR od.nazev LIKE :q OR f.variabilni_symbol LIKE :q)";
+        // 🐛 v3.0.265 — opakovaný :q s EMULATE_PREPARES=false → 500. Unikátní placeholdery.
+        $where .= " AND (f.cislo LIKE :q OR od.nazev LIKE :q2 OR f.variabilni_symbol LIKE :q3)";
         $params['q'] = '%' . $hl . '%';
+        $params['q2'] = $params['q'];
+        $params['q3'] = $params['q'];
     }
     if ($datum_od !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum_od)) {
         $where .= " AND f.datum_vystaveni >= :do_";

@@ -337,8 +337,11 @@ if ($method === 'GET') {
     if ($datum_do !== '') { $where .= " AND o.datum_dodani <= :ddo"; $params['ddo'] = $datum_do; }
     if ($hledat !== '') {
         $hl = str_replace(['\\','%','_'], ['\\\\','\\%','\\_'], $hledat);
-        $where .= " AND (o.cislo LIKE :q OR od.nazev LIKE :q)";
+        // 🐛 v3.0.265 — opakovaný :q placeholder s EMULATE_PREPARES=false → "Invalid
+        //   parameter number" → 500 na KAŽDÉM hledání v seznamu. Unikátní placeholdery.
+        $where .= " AND (o.cislo LIKE :q OR od.nazev LIKE :q2)";
         $params['q'] = '%' . $hl . '%';
+        $params['q2'] = $params['q'];
     }
     // 🆕 v3.0.255 — snapshot WHERE PŘED puvod filtrem → počty per zdroj (čipy) přes celý dataset
     $whereBezPuvod = $where;

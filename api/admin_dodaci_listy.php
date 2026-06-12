@@ -107,8 +107,11 @@ try {
         $where = ''; // 🆕 v3.0.219 — filtr zvlášť (sdílí list + agregát/COUNT pro paging)
 
         if (!empty($_GET['q'])) {
-            $where .= " AND (dl.cislo LIKE :q OR od.nazev LIKE :q OR (o.cislo IS NOT NULL AND o.cislo LIKE :q))";
+            // 🐛 v3.0.265 — opakovaný :q s EMULATE_PREPARES=false → 500. Unikátní placeholdery.
+            $where .= " AND (dl.cislo LIKE :q OR od.nazev LIKE :q2 OR (o.cislo IS NOT NULL AND o.cislo LIKE :q3))";
             $params['q'] = '%' . $_GET['q'] . '%';
+            $params['q2'] = $params['q'];
+            $params['q3'] = $params['q'];
         }
         if (!empty($_GET['datum_od'])) {
             $where .= " AND dl.datum_vystaveni >= :datum_od";
