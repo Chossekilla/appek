@@ -2201,20 +2201,83 @@
     modal('📜 Účtenka ' + (d.cislo || ''), body, foot);
   };
 
-  // 🆕 v3.0.268 — VRATKY: refundace zaplacené účtenky (záporná účtenka VRA-…)
+  // 🆕 v3.0.268 / částečná v3.0.275 — VRATKY: refundace zaplacené účtenky (VRA-…) s výběrem položek
   window.posRefundReceipt = async function(objId, cislo) {
-    const duvod = prompt(`Vrátit účtenku ${cislo}?\n\nVznikne záporná účtenka — uzávěrka i tržby se automaticky sníží.\nDůvod (volitelný):`, '');
-    if (duvod === null) return;
+    let data;
+    try { data = await api('admin_pos.php?action=refundovatelne&objednavka_id=' + objId); }
+    catch (e) { (typeof toast === 'function' ? toast : alert)('❌ ' + (e.message || 'Nelze načíst položky účtenky')); return; }
+    const lines = (data.polozky || []).filter(p => p.zbyva > 0.0001);
+    if (!lines.length) { (typeof toast === 'function' ? toast : alert)('Účtenka už je celá vrácená'); return; }
+    window._posRefLines = {};
+    const rows = lines.map(p => {
+      window._posRefLines[p.id] = p;
+      const jiz = p.jiz_vraceno > 0 ? ` <span style="color:#999;font-size:11px">(už ${p.jiz_vraceno})</span>` : '';
+      return `<tr>
+        <td style="text-align:center;padding:4px"><input type="checkbox" data-pref-chk="${p.id}" checked onchange="posRefundRecalc()"></td>
+        <td style="padding:4px">${esc(p.vyrobek_nazev)}${jiz}</td>
+        <td style="text-align:right;padding:4px;white-space:nowrap">${fmt(p.cena_bez_dph)}</td>
+        <td style="text-align:right;padding:4px;white-space:nowrap"><input type="number" data-pref-qty="${p.id}" min="0" max="${p.zbyva}" step="any" value="${p.zbyva}" style="width:60px;text-align:right" oninput="posRefundRecalc()"> <span style="color:#999;font-size:11px">/${p.zbyva}</span></td>
+      </tr>`;
+    }).join('');
+    const body = `
+      <p style="margin:0 0 10px;font-size:13px;color:#6b7280">Vyber co vrátit. Vznikne záporná účtenka (VRA-), uzávěrka i tržby se sníží. Lze opakovat, dokud něco zbývá.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:1px solid #E1E5EB;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase">
+          <th style="width:28px"></th><th style="padding:4px">Položka</th><th style="text-align:right;padding:4px">Cena</th><th style="text-align:right;padding:4px">Vrátit</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid #E1E5EB">
+        <strong>Vrátit celkem (s DPH):</strong><strong id="pref-sum" style="color:#DC2626;font-size:17px">0 Kč</strong>
+      </div>
+      <label style="display:block;margin-top:10px;font-size:13px">Důvod (volitelný)
+        <input id="pref-duvod" type="text" style="width:100%;margin-top:4px" placeholder="např. reklamace"></label>`;
+    const foot = `
+      <button class="btn-secondary" onclick="POS._closeModal()">Zrušit</button>
+      <button class="btn-primary" id="pref-submit" style="background:#DC2626;border-color:#DC2626" onclick="posRefundSubmit(${objId})">↩️ Vrátit vybrané</button>`;
+    modal('↩️ Vrátit účtenku ' + (cislo || ''), body, foot);
+    posRefundRecalc();
+  };
+
+  window.posRefundRecalc = function() {
+    let sum = 0;
+    Object.values(window._posRefLines || {}).forEach(p => {
+      const chk = document.querySelector(`[data-pref-chk="${p.id}"]`);
+      const qtyEl = document.querySelector(`[data-pref-qty="${p.id}"]`);
+      if (!chk || !qtyEl) return;
+      let q = parseFloat(qtyEl.value) || 0;
+      if (q > p.zbyva) { q = p.zbyva; qtyEl.value = p.zbyva; }
+      if (q < 0) { q = 0; qtyEl.value = 0; }
+      qtyEl.disabled = !chk.checked;
+      if (chk.checked) sum += q * p.cena_bez_dph * (1 + p.sazba_dph / 100);
+    });
+    const el = document.getElementById('pref-sum');
+    if (el) el.textContent = '−' + fmt(Math.round(sum * 100) / 100);
+  };
+
+  window.posRefundSubmit = async function(objId) {
+    const polozky = [];
+    Object.values(window._posRefLines || {}).forEach(p => {
+      const chk = document.querySelector(`[data-pref-chk="${p.id}"]`);
+      const qtyEl = document.querySelector(`[data-pref-qty="${p.id}"]`);
+      if (chk && chk.checked && qtyEl) {
+        const q = parseFloat(qtyEl.value) || 0;
+        if (q > 0.0001) polozky.push({ polozka_id: p.id, mnozstvi: q });
+      }
+    });
+    if (!polozky.length) { (typeof toast === 'function' ? toast : alert)('Vyber alespoň jednu položku'); return; }
+    const btn = document.getElementById('pref-submit'); if (btn) btn.disabled = true;
+    const duvod = (document.getElementById('pref-duvod') || {}).value || '';
     try {
       const r = await api('admin_pos.php?action=refund_order', {
         method: 'POST',
-        body: JSON.stringify({ objednavka_id: objId, duvod: duvod || '' }),
+        body: JSON.stringify({ objednavka_id: objId, duvod, polozky }),
       });
       POS._closeModal();
       if (typeof toast === 'function') toast(`✅ Vratka ${r.cislo} (${fmt(r.castka_celkem)} Kč)`, 'success');
       else alert(`✅ Vratka ${r.cislo} vytvořena (${fmt(r.castka_celkem)} Kč)`);
       if (typeof posLoadOrders === 'function') posLoadOrders();
     } catch (e) {
+      if (btn) btn.disabled = false;
       if (typeof toast === 'function') toast('❌ ' + (e.message || 'Vratka selhala'), 'error');
       else alert('❌ ' + (e.message || 'Vratka selhala'));
     }

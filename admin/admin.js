@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.274';
+const APPEK_ADMIN_JS_VERSION = '3.0.275';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -11318,12 +11318,78 @@ window.tiskFaktury = function(id) {
 
 // 🆕 v3.0.268 — VRATKY: dobropis k faktuře (opravný daňový doklad, řada DOB-)
 window.vystavitDobropis = async function(id, cislo) {
-  const duvod = prompt(`Vystavit dobropis k faktuře ${cislo}?\n\nCelá částka se odečte ze statistik (záporný doklad).\nDůvod (volitelný):`, '');
-  if (duvod === null) return; // zrušeno
+  // 🆕 v3.0.275 — výběr položek + množství (částečný dobropis). Načti vratitelné řádky.
+  let data;
+  try { data = await api('admin_faktury.php?action=vratitelne&faktura_id=' + id); }
+  catch (e) { toast('❌ ' + (e.message || 'Nelze načíst položky faktury'), 'error'); return; }
+  const lines = (data.polozky || []).filter(p => p.zbyva > 0.0001);
+  if (!lines.length) { toast('ℹ️ Faktura už je celá dobropisovaná', 'info'); return; }
+  window._dobLines = {};
+  const rows = lines.map(p => {
+    window._dobLines[p.id] = p;
+    const jiz = p.jiz_vraceno > 0 ? ` <span style="color:#999;font-size:11px">(už vráceno ${p.jiz_vraceno})</span>` : '';
+    return `<tr>
+      <td style="text-align:center;padding:4px"><input type="checkbox" data-dob-chk="${p.id}" checked onchange="dobRecalc()"></td>
+      <td style="padding:4px">${esc(p.vyrobek_nazev)}${jiz}</td>
+      <td style="text-align:right;padding:4px;white-space:nowrap">${fmt(p.cena_bez_dph)} <span style="color:#999">/${p.sazba_dph}%</span></td>
+      <td style="text-align:right;padding:4px;white-space:nowrap"><input type="number" data-dob-qty="${p.id}" min="0" max="${p.zbyva}" step="any" value="${p.zbyva}" style="width:64px;text-align:right" oninput="dobRecalc()"> <span style="color:#999;font-size:11px">/ ${p.zbyva}</span></td>
+    </tr>`;
+  }).join('');
+  openModal(`↩️ Dobropis k faktuře ${esc(cislo)}`, `
+    <p style="margin:0 0 10px;font-size:13px;color:var(--text-2)">Vyber položky a množství k vrácení. Vznikne záporný opravný doklad (řada DOB-), který se odečte ze statistik. Lze vystavit i opakovaně, dokud něco zbývá.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="border-bottom:1px solid var(--border);text-align:left;color:var(--text-2);font-size:11px;text-transform:uppercase">
+        <th style="width:30px"></th><th style="padding:4px">Položka</th><th style="text-align:right;padding:4px">Cena/ks</th><th style="text-align:right;padding:4px">Vrátit</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+      <strong>Dobropis celkem (s DPH):</strong><strong id="dob-sum" style="color:#DC2626;font-size:17px">0 Kč</strong>
+    </div>
+    <label style="display:block;margin-top:12px;font-size:13px">Důvod (volitelný)
+      <input id="dob-duvod" type="text" style="width:100%;margin-top:4px" placeholder="např. reklamace, vrácené zboží">
+    </label>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
+      <button class="btn-primary" id="dob-submit" style="background:#DC2626;border-color:#DC2626" onclick="dobSubmit(${id})">↩️ Vystavit dobropis</button>
+    </div>
+  `, 'modal-wide');
+  dobRecalc();
+};
+
+window.dobRecalc = function() {
+  let sum = 0;
+  Object.values(window._dobLines || {}).forEach(p => {
+    const chk = document.querySelector(`[data-dob-chk="${p.id}"]`);
+    const qtyEl = document.querySelector(`[data-dob-qty="${p.id}"]`);
+    if (!chk || !qtyEl) return;
+    let q = parseFloat(qtyEl.value) || 0;
+    if (q > p.zbyva) { q = p.zbyva; qtyEl.value = p.zbyva; }
+    if (q < 0) { q = 0; qtyEl.value = 0; }
+    qtyEl.disabled = !chk.checked;
+    if (chk.checked) sum += q * p.cena_bez_dph * (1 + p.sazba_dph / 100);
+  });
+  const el = document.getElementById('dob-sum');
+  if (el) el.textContent = '−' + fmt(Math.round(sum * 100) / 100);
+};
+
+window.dobSubmit = async function(id) {
+  const polozky = [];
+  Object.values(window._dobLines || {}).forEach(p => {
+    const chk = document.querySelector(`[data-dob-chk="${p.id}"]`);
+    const qtyEl = document.querySelector(`[data-dob-qty="${p.id}"]`);
+    if (chk && chk.checked && qtyEl) {
+      const q = parseFloat(qtyEl.value) || 0;
+      if (q > 0.0001) polozky.push({ polozka_id: p.id, mnozstvi: q });
+    }
+  });
+  if (!polozky.length) { toast('Vyber alespoň jednu položku k vrácení', 'error'); return; }
+  const btn = document.getElementById('dob-submit'); if (btn) btn.disabled = true;
+  const duvod = (document.getElementById('dob-duvod') || {}).value || '';
   try {
     const r = await api('admin_faktury.php?action=dobropis', {
       method: 'POST',
-      body: JSON.stringify({ faktura_id: id, duvod: duvod || '' }),
+      body: JSON.stringify({ faktura_id: id, duvod, polozky }),
     });
     toast(`✅ Dobropis ${r.cislo} vystaven (${fmt(r.castka_celkem)})`, 'success');
     closeModal();
@@ -11331,6 +11397,7 @@ window.vystavitDobropis = async function(id, cislo) {
     setTimeout(() => openFakturaDetail(r.id), 250);
   } catch (e) {
     toast('❌ ' + (e.message || 'Dobropis se nepodařilo vystavit'), 'error');
+    if (btn) btn.disabled = false;
   }
 };
 

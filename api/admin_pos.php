@@ -1712,18 +1712,60 @@ if ($method === 'POST' && $action === 'uzaverka_close') {
     json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId(), 'celkem' => $data['total']['trzba'], 'pocet' => $data['total']['pocet'], 'kdo' => $kdo]);
 }
 
+// 🆕 v3.0.275 — GET ?action=refundovatelne&objednavka_id=X → řádky účtenky + už vráceno + zbývá (UI částečné vratky)
+if ($method === 'GET' && $action === 'refundovatelne') {
+    $oid = (int) ($_GET['objednavka_id'] ?? 0);
+    if (!$oid) json_error('Chybí objednavka_id', 400);
+    try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN IF NOT EXISTS refund_of INT NULL"); } catch (Throwable $e) {}
+    try { $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN IF NOT EXISTS vraci_polozku_id INT NULL"); } catch (Throwable $e) {}
+    $pokIn = pos_pokladni_sql($pdo, 'puvod');
+    $st = $pdo->prepare("SELECT id, cislo, castka_celkem, refund_of FROM objednavky WHERE id = :id AND {$pokIn}");
+    $st->execute(['id' => $oid]);
+    $o = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$o) json_error('Účtenka nenalezena', 404);
+    if ((float) $o['castka_celkem'] <= 0 || !empty($o['refund_of'])) json_error('Vratku nelze vracet', 400);
+    $lst = $pdo->prepare("SELECT id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph
+                          FROM objednavky_polozky WHERE objednavka_id = :id");
+    $lst->execute(['id' => $oid]);
+    $lines = $lst->fetchAll(PDO::FETCH_ASSOC);
+    $rf = $pdo->prepare("
+        SELECT op.vraci_polozku_id AS pid, COALESCE(SUM(-op.mnozstvi), 0) AS qty
+        FROM objednavky_polozky op JOIN objednavky vr ON vr.id = op.objednavka_id
+        WHERE vr.refund_of = :oid AND op.vraci_polozku_id IS NOT NULL
+        GROUP BY op.vraci_polozku_id");
+    $rf->execute(['oid' => $oid]);
+    $already = [];
+    foreach ($rf->fetchAll(PDO::FETCH_ASSOC) as $r) $already[(int) $r['pid']] = (float) $r['qty'];
+    $out = [];
+    foreach ($lines as $l) {
+        $id  = (int) $l['id'];
+        $rem = (float) $l['mnozstvi'] - ($already[$id] ?? 0);
+        $out[] = [
+            'id' => $id, 'vyrobek_nazev' => $l['vyrobek_nazev'], 'jednotka' => $l['jednotka'],
+            'mnozstvi' => (float) $l['mnozstvi'], 'cena_bez_dph' => (float) $l['cena_bez_dph'],
+            'sazba_dph' => (float) $l['sazba_dph'],
+            'jiz_vraceno' => round($already[$id] ?? 0, 3), 'zbyva' => round(max(0, $rem), 3),
+        ];
+    }
+    json_response(['uctenka' => $o['cislo'], 'castka_celkem' => (float) $o['castka_celkem'], 'polozky' => $out]);
+}
+
 // 🆕 v3.0.268 — VRATKY: refundace ZAPLACENÉ účtenky → záporná účtenka (VRA-…)
-//   POST ?action=refund_order { objednavka_id, duvod? }
+//   POST ?action=refund_order { objednavka_id, duvod?, polozky?:[{polozka_id,mnozstvi}] }
 //   Vznikne zrcadlová objednávka se zápornými částkami + položkami (mnozstvi < 0),
 //   stejný puvod/pos_payment → uzávěrka, dashboard i kanálové tržby ji odečtou
-//   automaticky. Guard: 1 účtenka = max 1 vratka; vratku nelze vracet.
+//   automaticky. Částečná = vybrané řádky/množství; více vratek dokud něco zbývá.
 if ($method === 'POST' && $action === 'refund_order') {
     $d = json_input();
     $oid   = (int) ($d['objednavka_id'] ?? 0);
     $duvod = trim((string) ($d['duvod'] ?? ''));
+    // POZN: GET ?action=refundovatelne (níže) vrací řádky účtenky + zbývá k vrácení (UI).
+    // 🆕 v3.0.275 — částečná vratka: polozky:[{polozka_id, mnozstvi}]. Bez nich = plné vrácení zbytku.
+    $reqPolozky = (isset($d['polozky']) && is_array($d['polozky']) && $d['polozky']) ? $d['polozky'] : null;
     if (!$oid) json_error('Chybí objednavka_id', 400);
 
     try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN IF NOT EXISTS refund_of INT NULL"); } catch (Throwable $e) {}
+    try { $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN IF NOT EXISTS vraci_polozku_id INT NULL"); } catch (Throwable $e) {}
 
     $pokIn = pos_pokladni_sql($pdo, 'puvod');
     $st = $pdo->prepare("SELECT * FROM objednavky WHERE id = :id AND {$pokIn}");
@@ -1731,10 +1773,57 @@ if ($method === 'POST' && $action === 'refund_order') {
     $o = $st->fetch(PDO::FETCH_ASSOC);
     if (!$o) json_error('Účtenka nenalezena', 404);
     if ((float) $o['castka_celkem'] <= 0 || !empty($o['refund_of'])) json_error('Vratku nelze vracet', 400);
-    $ex = $pdo->prepare("SELECT cislo FROM objednavky WHERE refund_of = :id LIMIT 1");
-    $ex->execute(['id' => $oid]);
-    $exC = $ex->fetchColumn();
-    if ($exC) json_error('Účtenka už byla vrácena (' . $exC . ')', 409);
+
+    // Původní řádky účtenky
+    $lst = $pdo->prepare("SELECT id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph
+                          FROM objednavky_polozky WHERE objednavka_id = :id");
+    $lst->execute(['id' => $oid]);
+    $origLines = $lst->fetchAll(PDO::FETCH_ASSOC);
+    if (!$origLines) json_error('Účtenka nemá položky', 400);
+    $origById = [];
+    foreach ($origLines as $l) $origById[(int) $l['id']] = $l;
+
+    // Kolik z každého řádku už vráceno (napříč předchozími VRA- této účtenky)
+    $rf = $pdo->prepare("
+        SELECT op.vraci_polozku_id AS pid, COALESCE(SUM(-op.mnozstvi), 0) AS qty
+        FROM objednavky_polozky op JOIN objednavky vr ON vr.id = op.objednavka_id
+        WHERE vr.refund_of = :oid AND op.vraci_polozku_id IS NOT NULL
+        GROUP BY op.vraci_polozku_id");
+    $rf->execute(['oid' => $oid]);
+    $already = [];
+    foreach ($rf->fetchAll(PDO::FETCH_ASSOC) as $r) $already[(int) $r['pid']] = (float) $r['qty'];
+
+    // Co vracet
+    $want = [];
+    if ($reqPolozky !== null) {
+        foreach ($reqPolozky as $rp) {
+            $pid = (int) ($rp['polozka_id'] ?? 0);
+            $q   = (float) ($rp['mnozstvi'] ?? 0);
+            if (!$pid || !isset($origById[$pid]) || $q <= 0) continue;
+            $want[$pid] = ($want[$pid] ?? 0) + $q;
+        }
+        if (!$want) json_error('Nevybrány žádné platné položky k vrácení', 400);
+    } else {
+        foreach ($origLines as $l) {
+            $rem = (float) $l['mnozstvi'] - ($already[(int) $l['id']] ?? 0);
+            if ($rem > 0.0001) $want[(int) $l['id']] = $rem;
+        }
+    }
+
+    // Validace proti zbytku + součty
+    $refundLines = []; $bez = 0.0; $dph = 0.0;
+    foreach ($want as $pid => $q) {
+        $l   = $origById[$pid];
+        $rem = (float) $l['mnozstvi'] - ($already[$pid] ?? 0);
+        $nm  = $l['vyrobek_nazev'] ?: '?';
+        if ($rem <= 0.0001) json_error('Položka „' . $nm . '" už byla celá vrácena', 409);
+        if ($q - $rem > 0.0001) json_error('U „' . $nm . '" lze vrátit max ' . rtrim(rtrim(number_format($rem, 3, '.', ''), '0'), '.'), 400);
+        $refundLines[] = ['orig' => $l, 'qty' => $q];
+        $bez += $q * (float) $l['cena_bez_dph'];
+        $dph += $q * (float) $l['cena_bez_dph'] * (float) $l['sazba_dph'] / 100;
+    }
+    if (!$refundLines) json_error('Účtenka už byla celá vrácena', 409);
+    $bez = round($bez, 2); $dph = round($dph, 2); $cel = round($bez + $dph, 2);
 
     $pdo->beginTransaction();
     try {
@@ -1749,32 +1838,27 @@ if ($method === 'POST' && $action === 'refund_order') {
                     :pt, :pp, 0, :u, :pozn, :ref)
         ")->execute([
             'c'   => $cislo, 'typ' => $o['typ'] ?: 'jednorazova', 'odb' => $o['odberatel_id'],
-            'bez' => -1 * (float) $o['castka_bez_dph'],
-            'dph' => -1 * (float) $o['castka_dph'],
-            'cel' => -1 * (float) $o['castka_celkem'],
+            'bez' => -$bez, 'dph' => -$dph, 'cel' => -$cel,
             'stav' => $o['stav'] ?: 'zaplaceno', 'puv' => $o['puvod'],
             'pt'  => $o['pos_typ'], 'pp' => $o['pos_payment'], 'u' => $admin['jmeno'],
-            'pozn' => 'Vratka účtenky ' . $o['cislo'] . ($duvod !== '' ? ' — důvod: ' . $duvod : ''),
+            'pozn' => 'Vratka účtenky ' . $o['cislo'] . ($reqPolozky !== null ? ' (částečná)' : '') . ($duvod !== '' ? ' — důvod: ' . $duvod : ''),
             'ref' => $oid,
         ]);
         $rid = (int) $pdo->lastInsertId();
-        $items = $pdo->prepare("
-            SELECT vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph
-            FROM objednavky_polozky WHERE objednavka_id = :id");
-        $items->execute(['id' => $oid]);
         $insP = $pdo->prepare("
-            INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph)
-            VALUES (:o,:v,:n,:j,:m,:c,:s)");
-        foreach ($items->fetchAll(PDO::FETCH_ASSOC) as $p) {
+            INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph, vraci_polozku_id)
+            VALUES (:o,:v,:n,:j,:m,:c,:s,:vp)");
+        foreach ($refundLines as $rl) {
             $insP->execute([
-                'o' => $rid, 'v' => $p['vyrobek_id'], 'n' => $p['vyrobek_nazev'],
-                'j' => $p['jednotka'] ?: 'ks', 'm' => -1 * (float) $p['mnozstvi'],
-                'c' => $p['cena_bez_dph'], 's' => $p['sazba_dph'],
+                'o' => $rid, 'v' => $rl['orig']['vyrobek_id'], 'n' => $rl['orig']['vyrobek_nazev'],
+                'j' => $rl['orig']['jednotka'] ?: 'ks', 'm' => -$rl['qty'],
+                'c' => $rl['orig']['cena_bez_dph'], 's' => $rl['orig']['sazba_dph'], 'vp' => (int) $rl['orig']['id'],
             ]);
         }
         $pdo->commit();
         json_response(['ok' => true, 'id' => $rid, 'cislo' => $cislo,
-                       'castka_celkem' => -1 * (float) $o['castka_celkem'], 'puvodni' => $o['cislo']]);
+                       'castka_celkem' => -$cel, 'puvodni' => $o['cislo'],
+                       'castecna' => ($reqPolozky !== null), 'polozek' => count($refundLines)]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         json_error_safe('Vratku se nepodařilo vytvořit', $e, 500);

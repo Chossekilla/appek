@@ -11,6 +11,75 @@ $pdo = db();
 // 🆕 v3.0.11 — auto-migrace faktury snapshot sloupců (idempotent)
 ensure_faktury_schema($pdo);
 
+/** 🆕 v3.0.275 — řádky faktury se stabilním faktura_polozky.id. Faktura vystavená z DL
+ *  vlastní položky nemá → MATERIALIZUJ je z dodaci_list_polozky (jednorázově, idempotentně),
+ *  aby šel částečný dobropis adresovat konkrétní řádek a kumulativně hlídat zbytek. */
+function faktura_ensure_polozky(PDO $pdo, int $faId): array {
+    $load = function () use ($pdo, $faId) {
+        $p = $pdo->prepare("SELECT id, vyrobek_id, vyrobek_cislo, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph
+                            FROM faktura_polozky WHERE faktura_id = :id ORDER BY poradi, id");
+        $p->execute(['id' => $faId]);
+        return $p->fetchAll(PDO::FETCH_ASSOC);
+    };
+    $items = $load();
+    if ($items) return $items;
+    $dlp = $pdo->prepare("SELECT dlp.vyrobek_id, dlp.vyrobek_cislo, dlp.vyrobek_nazev, dlp.jednotka,
+                                 dlp.mnozstvi, dlp.cena_bez_dph, dlp.sazba_dph
+                          FROM faktury_dodaci_listy fdl
+                          JOIN dodaci_list_polozky dlp ON dlp.dodaci_list_id = fdl.dodaci_list_id
+                          WHERE fdl.faktura_id = :id ORDER BY dlp.dodaci_list_id, dlp.id");
+    $dlp->execute(['id' => $faId]);
+    $dlItems = $dlp->fetchAll(PDO::FETCH_ASSOC);
+    if (!$dlItems) return [];
+    $im = $pdo->prepare("INSERT INTO faktura_polozky (faktura_id, vyrobek_id, vyrobek_cislo, vyrobek_nazev,
+                                                      jednotka, mnozstvi, cena_bez_dph, sazba_dph, poradi)
+                         VALUES (:f,:v,:vc,:vn,:j,:m,:c,:s,:p)");
+    foreach ($dlItems as $i => $it) {
+        $im->execute(['f' => $faId, 'v' => $it['vyrobek_id'], 'vc' => $it['vyrobek_cislo'] ?? null,
+                      'vn' => $it['vyrobek_nazev'], 'j' => $it['jednotka'] ?: 'ks',
+                      'm' => $it['mnozstvi'], 'c' => $it['cena_bez_dph'], 's' => $it['sazba_dph'], 'p' => $i]);
+    }
+    return $load();
+}
+
+/** Kolik z každého řádku faktury už dobropisováno (DOB- řádky = kladné mnozstvi). pid => qty */
+function faktura_jiz_dobropis(PDO $pdo, int $faId): array {
+    $cr = $pdo->prepare("SELECT fp.vraci_polozku_id AS pid, COALESCE(SUM(fp.mnozstvi), 0) AS qty
+                         FROM faktura_polozky fp JOIN faktury db ON db.id = fp.faktura_id
+                         WHERE db.puvodni_faktura_id = :src AND db.je_dobropis = 1 AND fp.vraci_polozku_id IS NOT NULL
+                         GROUP BY fp.vraci_polozku_id");
+    $cr->execute(['src' => $faId]);
+    $m = [];
+    foreach ($cr->fetchAll(PDO::FETCH_ASSOC) as $r) $m[(int) $r['pid']] = (float) $r['qty'];
+    return $m;
+}
+
+// 🆕 v3.0.275 — GET ?action=vratitelne&faktura_id=X → řádky + kolik už dobropisováno + zbývá (pro UI).
+if ($method === 'GET' && ($_GET['action'] ?? '') === 'vratitelne') {
+    $srcId = (int) ($_GET['faktura_id'] ?? 0);
+    if (!$srcId) json_error('Chybí faktura_id', 400);
+    try { $pdo->exec("ALTER TABLE faktura_polozky ADD COLUMN IF NOT EXISTS vraci_polozku_id INT NULL"); } catch (Throwable $e) {}
+    $f = $pdo->prepare("SELECT id, cislo, je_dobropis, castka_celkem FROM faktury WHERE id = :id");
+    $f->execute(['id' => $srcId]);
+    $fa = $f->fetch(PDO::FETCH_ASSOC);
+    if (!$fa) json_error('Faktura nenalezena', 404);
+    if (!empty($fa['je_dobropis'])) json_error('Dobropis nelze dobropisovat', 400);
+    $items   = faktura_ensure_polozky($pdo, $srcId);
+    $already = faktura_jiz_dobropis($pdo, $srcId);
+    $out = [];
+    foreach ($items as $it) {
+        $id  = (int) $it['id'];
+        $rem = (float) $it['mnozstvi'] - ($already[$id] ?? 0);
+        $out[] = [
+            'id' => $id, 'vyrobek_nazev' => $it['vyrobek_nazev'], 'jednotka' => $it['jednotka'],
+            'mnozstvi' => (float) $it['mnozstvi'], 'cena_bez_dph' => (float) $it['cena_bez_dph'],
+            'sazba_dph' => (float) $it['sazba_dph'],
+            'jiz_vraceno' => round($already[$id] ?? 0, 3), 'zbyva' => round(max(0, $rem), 3),
+        ];
+    }
+    json_response(['faktura' => $fa['cislo'], 'castka_celkem' => (float) $fa['castka_celkem'], 'polozky' => $out]);
+}
+
 if ($method === 'GET') {
     if (isset($_GET['id'])) {
         $stmt = $pdo->prepare("
@@ -305,7 +374,11 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
     $d = json_input();
     $srcId = (int) ($d['faktura_id'] ?? 0);
     $duvod = trim((string) ($d['duvod'] ?? ''));
+    // 🆕 v3.0.275 — částečný dobropis: polozky:[{polozka_id, mnozstvi}]. Bez nich = plný dobropis zbytku.
+    $reqPolozky = (isset($d['polozky']) && is_array($d['polozky']) && $d['polozky']) ? $d['polozky'] : null;
     if (!$srcId) json_error('Chybí faktura_id', 400);
+
+    try { $pdo->exec("ALTER TABLE faktura_polozky ADD COLUMN IF NOT EXISTS vraci_polozku_id INT NULL"); } catch (Throwable $e) {}
 
     $src = $pdo->prepare("SELECT * FROM faktury WHERE id = :id");
     $src->execute(['id' => $srcId]);
@@ -313,28 +386,44 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
     if (!$f) json_error('Faktura nenalezena', 404);
     if (!empty($f['je_dobropis'])) json_error('K dobropisu nelze vystavit další dobropis', 400);
 
-    // 1 faktura = max 1 (plný) dobropis — brání dvojímu odečtení
-    $ex = $pdo->prepare("SELECT cislo FROM faktury WHERE puvodni_faktura_id = :id AND je_dobropis = 1 LIMIT 1");
-    $ex->execute(['id' => $srcId]);
-    $exC = $ex->fetchColumn();
-    if ($exC) json_error('K faktuře už existuje dobropis ' . $exC, 409);
+    // Řádky faktury se stabilním id (materializace z DL když chybí) + kolik už dobropisováno.
+    $items = faktura_ensure_polozky($pdo, $srcId);
+    if (!$items) json_error('Faktura nemá položky k dobropisu', 400);
+    $itemsById = [];
+    foreach ($items as $it) $itemsById[(int) $it['id']] = $it;
+    $already = faktura_jiz_dobropis($pdo, $srcId);
 
-    // Položky: faktura_polozky; FA vystavené z DL je nemají → fallback na DL položky
-    $pol = $pdo->prepare("
-        SELECT vyrobek_id, vyrobek_cislo, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph
-        FROM faktura_polozky WHERE faktura_id = :id ORDER BY poradi, id");
-    $pol->execute(['id' => $srcId]);
-    $items = $pol->fetchAll(PDO::FETCH_ASSOC);
-    if (!$items) {
-        $pol = $pdo->prepare("
-            SELECT dlp.vyrobek_id, dlp.vyrobek_cislo, dlp.vyrobek_nazev, dlp.jednotka,
-                   dlp.mnozstvi, dlp.cena_bez_dph, dlp.sazba_dph
-            FROM faktury_dodaci_listy fdl
-            JOIN dodaci_list_polozky dlp ON dlp.dodaci_list_id = fdl.dodaci_list_id
-            WHERE fdl.faktura_id = :id ORDER BY dlp.dodaci_list_id, dlp.id");
-        $pol->execute(['id' => $srcId]);
-        $items = $pol->fetchAll(PDO::FETCH_ASSOC);
+    // Co dobropisovat
+    $want = [];
+    if ($reqPolozky !== null) {
+        foreach ($reqPolozky as $rp) {
+            $pid = (int) ($rp['polozka_id'] ?? 0);
+            $q   = (float) ($rp['mnozstvi'] ?? 0);
+            if (!$pid || !isset($itemsById[$pid]) || $q <= 0) continue;
+            $want[$pid] = ($want[$pid] ?? 0) + $q;
+        }
+        if (!$want) json_error('Nevybrány žádné platné položky', 400);
+    } else {
+        foreach ($items as $it) {
+            $rem = (float) $it['mnozstvi'] - ($already[(int) $it['id']] ?? 0);
+            if ($rem > 0.0001) $want[(int) $it['id']] = $rem;
+        }
     }
+
+    // Validace proti zbytku + součty
+    $credLines = []; $bez = 0.0; $dph = 0.0;
+    foreach ($want as $pid => $q) {
+        $it  = $itemsById[$pid];
+        $rem = (float) $it['mnozstvi'] - ($already[$pid] ?? 0);
+        $nm  = $it['vyrobek_nazev'] ?: '?';
+        if ($rem <= 0.0001) json_error('Položka „' . $nm . '" už byla celá dobropisována', 409);
+        if ($q - $rem > 0.0001) json_error('U „' . $nm . '" lze dobropisovat max ' . rtrim(rtrim(number_format($rem, 3, '.', ''), '0'), '.'), 400);
+        $credLines[] = ['orig' => $it, 'qty' => $q];
+        $bez += $q * (float) $it['cena_bez_dph'];
+        $dph += $q * (float) $it['cena_bez_dph'] * (float) $it['sazba_dph'] / 100;
+    }
+    if (!$credLines) json_error('Faktura už byla celá dobropisována', 409);
+    $bez = round($bez, 2); $dph = round($dph, 2); $cel = round($bez + $dph, 2);
 
     require_once __DIR__ . '/_zaloha_helper.php';
     try { zaloha_snapshot($pdo, 'Před dobropisem k ' . $f['cislo']); } catch (Throwable $e) {}
@@ -342,7 +431,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
     $pdo->beginTransaction();
     try {
         $cislo = dalsi_cislo($pdo, 'DOB', (int) date('Y'));
-        $pozn  = 'Dobropis k faktuře ' . $f['cislo'] . ($duvod !== '' ? ' — důvod: ' . $duvod : '');
+        $pozn  = 'Dobropis k faktuře ' . $f['cislo'] . ($reqPolozky !== null ? ' (částečný)' : '') . ($duvod !== '' ? ' — důvod: ' . $duvod : '');
         $pdo->prepare("
             INSERT INTO faktury (cislo, odberatel_id, misto_dodani_id, datum_vystaveni, datum_splatnosti,
                                  castka_bez_dph, castka_dph, castka_celkem, castka_uhrazeno,
@@ -355,9 +444,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
                     :sn, :si, :sd, :su, :sm, :sp)
         ")->execute([
             'c'   => $cislo, 'o' => $f['odberatel_id'], 'm' => $f['misto_dodani_id'] ?? null,
-            'bez' => -1 * (float) $f['castka_bez_dph'],
-            'dph' => -1 * (float) $f['castka_dph'],
-            'cel' => -1 * (float) $f['castka_celkem'],
+            'bez' => -$bez, 'dph' => -$dph, 'cel' => -$cel,
             // VS s prefixem 9 — nekolidovat s VS původních faktur (stejné číslice řady)
             'vs'  => '9' . (preg_replace('/\D/', '', $cislo) ?: '0'),
             'p'   => $pozn, 'puv' => $srcId,
@@ -366,24 +453,23 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
             'sm'  => $f['odb_mesto_snapshot'] ?? null, 'sp' => $f['odb_psc_snapshot'] ?? null,
         ]);
         $dobId = (int) $pdo->lastInsertId();
-        if ($items) {
-            $ins = $pdo->prepare("
-                INSERT INTO faktura_polozky (faktura_id, vyrobek_id, vyrobek_cislo, vyrobek_nazev,
-                                             jednotka, mnozstvi, cena_bez_dph, sazba_dph, poradi)
-                VALUES (:f,:v,:vc,:vn,:j,:m,:c,:s,:p)");
-            foreach ($items as $i => $it) {
-                $ins->execute([
-                    'f' => $dobId, 'v' => $it['vyrobek_id'], 'vc' => $it['vyrobek_cislo'] ?? null,
-                    'vn' => $it['vyrobek_nazev'], 'j' => $it['jednotka'] ?: 'ks',
-                    'm' => $it['mnozstvi'], 'c' => -1 * (float) $it['cena_bez_dph'],
-                    's' => $it['sazba_dph'], 'p' => $i,
-                ]);
-            }
+        $ins = $pdo->prepare("
+            INSERT INTO faktura_polozky (faktura_id, vyrobek_id, vyrobek_cislo, vyrobek_nazev,
+                                         jednotka, mnozstvi, cena_bez_dph, sazba_dph, poradi, vraci_polozku_id)
+            VALUES (:f,:v,:vc,:vn,:j,:m,:c,:s,:p,:vp)");
+        foreach ($credLines as $i => $cl) {
+            $it = $cl['orig'];
+            $ins->execute([
+                'f' => $dobId, 'v' => $it['vyrobek_id'], 'vc' => $it['vyrobek_cislo'] ?? null,
+                'vn' => $it['vyrobek_nazev'], 'j' => $it['jednotka'] ?: 'ks',
+                'm' => $cl['qty'], 'c' => -1 * (float) $it['cena_bez_dph'],
+                's' => $it['sazba_dph'], 'p' => $i, 'vp' => (int) $it['id'],
+            ]);
         }
         $pdo->commit();
         json_response(['ok' => true, 'id' => $dobId, 'cislo' => $cislo,
-                       'castka_celkem' => -1 * (float) $f['castka_celkem'],
-                       'puvodni' => $f['cislo'], 'polozek' => count($items)], 201);
+                       'castka_celkem' => -$cel, 'puvodni' => $f['cislo'],
+                       'castecny' => ($reqPolozky !== null), 'polozek' => count($credLines)], 201);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         json_error_safe('Dobropis se nepodařilo vystavit', $e, 500);
