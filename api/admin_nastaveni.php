@@ -372,6 +372,8 @@ if ($method === 'PUT') {
         'pagination_pocet',
         // ⚡ v3.0.252 — odlehčený režim (výkon): '1' | '0'
         'vykon_lite',
+        // 📊 v3.0.284 — Google Analytics measurement ID (G-XXXX…) — měří jen B2B portál
+        'ga_measurement_id',
     ];
 
     $applied = [];

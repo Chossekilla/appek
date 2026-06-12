@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.283';
+const APPEK_ADMIN_JS_VERSION = '3.0.284';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5670,14 +5670,18 @@ async function renderVratky() {
           <thead><tr><th>Doklad</th><th>Typ</th><th>Datum vrácení</th><th>Původní doklad</th><th>Zákazník / pokladní</th><th class="num">Částka</th><th>V lhůtě</th><th>Důvod</th></tr></thead>
           <tbody>
             ${d.vratky.map(v => {
-              const origLink = v.puvodni_cislo
-                ? (v.typ === 'faktura' && v.puvodni_id ? `<a href="../api/faktura.php?id=${v.puvodni_id}" target="_blank" style="color:var(--brand)">${esc(v.puvodni_cislo)}</a>` : esc(v.puvodni_cislo))
-                : '<span style="color:var(--text-3)">—</span>';
-              const docLink = v.typ === 'faktura' ? `<a href="../api/faktura.php?id=${v.id}" target="_blank" style="color:var(--brand);font-weight:700">${esc(v.cislo)}</a>` : `<strong>${esc(v.cislo)}</strong>`;
+              // 🆕 v3.0.284 — proklik na detail v adminu: VRA- → detail objednávky-refundace,
+              // DOB- → detail dobropisu; původní doklad stejně. PDF zvlášť přes 🖨️ (jen faktury).
+              const detailFn = v.typ === 'faktura' ? 'openFakturaDetail' : 'openObjednavkaDetail';
+              const pdfIco = (id, title) => v.typ === 'faktura' ? ` <a href="../api/faktura.php?id=${id}" target="_blank" title="${title}" style="text-decoration:none" onclick="event.stopPropagation()">🖨️</a>` : '';
+              const docLink = `<a href="#" onclick="event.stopPropagation();${detailFn}(${v.id});return false" style="color:var(--brand);font-weight:700">${esc(v.cislo)}</a>${pdfIco(v.id, 'PDF dobropisu')}`;
+              const origLink = v.puvodni_id
+                ? `<a href="#" onclick="event.stopPropagation();${detailFn}(${v.puvodni_id});return false" style="color:var(--brand)">${esc(v.puvodni_cislo || '')}</a>${pdfIco(v.puvodni_id, 'PDF původní faktury')}`
+                : (v.puvodni_cislo ? esc(v.puvodni_cislo) : '<span style="color:var(--text-3)">—</span>');
               const lhutaBadge = v.v_lhute === true ? `<span style="background:#DCFCE7;color:#166534;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">✓ ${v.dni_od_prodeje} d</span>`
                 : v.v_lhute === false ? `<span style="background:#FEE2E2;color:#991B1B;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600" title="Vráceno po nastavené lhůtě">⚠️ ${v.dni_od_prodeje} d</span>`
                 : '<span style="color:var(--text-3)">—</span>';
-              return `<tr>
+              return `<tr style="cursor:pointer" title="Klikni pro detail" onclick="${detailFn}(${v.id})">
                 <td>${docLink}</td>
                 <td style="white-space:nowrap">${v.typ === 'faktura' ? '📄 Dobropis' : '🧾 POS refundace'}</td>
                 <td style="white-space:nowrap">${fmtDate(v.datum_vratky)}</td>
@@ -5694,6 +5698,18 @@ async function renderVratky() {
     </div>
   `;
 }
+// 📊 v3.0.284 — Google Analytics measurement ID (měří jen B2B portál; gtag vkládá b2b/app.js)
+window.ulozitGaId = async function() {
+  const raw = (document.getElementById('ns-ga-id').value || '').trim();
+  if (raw && !/^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(raw)) { toast('❌ Neplatné ID — čekám formát G-XXXXXXXXXX', 'error'); return; }
+  try {
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ ga_measurement_id: raw }) });
+    toast(raw ? '✅ Google Analytics zapnuto pro B2B portál' : '✅ Google Analytics vypnuto', 'success');
+    const info = document.getElementById('ns-ga-info');
+    if (info) info.textContent = raw ? `Měří se B2B portál (${raw})` : 'Vypnuto';
+  } catch (e) { toast('❌ ' + (e.message || 'Uložení selhalo'), 'error'); }
+};
+
 window.ulozitVratkaLhuta = async function() {
   const v = parseInt(document.getElementById('vratky-lhuta').value) || 14;
   try {
@@ -15669,6 +15685,19 @@ async function renderNastaveni() {
 
   // 🆕 v2.5 — INTEGRACE pro customer (Stripe, GoPay, Zásilkovna, DPD)
   const blokIntegrace = `
+    <!-- 📊 v3.0.284 — Google Analytics (B2B portál) — jen measurement ID, žádná další konfigurace -->
+    <div class="card-block" id="ns-ga-block" style="margin-bottom:14px;padding:14px 16px">
+      <h3 style="margin:0 0 6px;font-size:15px">📊 Google Analytics</h3>
+      <p class="page-sub" style="font-size:12px;margin:0 0 10px">
+        Measurement ID (např. <code>G-XXXXXXXXXX</code>) — měří návštěvnost <strong>B2B portálu</strong> (objednávkový web pro odběratele). Admin a pokladna se neměří. Nech prázdné = vypnuto.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input class="form-input" id="ns-ga-id" placeholder="G-XXXXXXXXXX" style="width:200px;font-family:monospace" value="">
+        <button class="btn-primary btn-green" onclick="ulozitGaId()">💾 Uložit</button>
+        <span id="ns-ga-info" style="font-size:12px;color:var(--text-3)"></span>
+      </div>
+    </div>
+
     <!-- 🆕 v2.9.243 — sales-pitch header (proč to chtít, value proposition) -->
     <div class="card-block int-hero" style="padding:20px 22px;margin-bottom:14px;background:linear-gradient(135deg, #FFF8E7 0%, #FEF3C7 100%);border:1.5px solid #FBBF24">
       <div style="display:flex;gap:14px;align-items:start;flex-wrap:wrap">
@@ -15909,6 +15938,11 @@ async function renderNastaveni() {
   }
   if (aktTab === 'integrace') {
     loadCustomerIntegrace();
+    // 📊 v3.0.284 — předvyplň GA measurement ID
+    api('admin_nastaveni.php').then(n => {
+      const inp = document.getElementById('ns-ga-id');
+      if (inp && n && n.ga_measurement_id) inp.value = n.ga_measurement_id;
+    }).catch(() => {});
   }
   if (aktTab === 'platby') {
     loadPaymentMethodsPanel();
