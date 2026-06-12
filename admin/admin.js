@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.280';
+const APPEK_ADMIN_JS_VERSION = '3.0.281';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -4390,6 +4390,7 @@ async function navigate(page, args) {
     if (page === 'dashboard') await renderDashboard(args);
     else if (page === 'objednavky') await renderObjednavky(args);
     else if (page === 'vratky') await renderVratky(); // 🆕 v3.0.277 — správa vratek (VRA- + DOB-)
+    else if (page === 'vouchery') await renderVouchers(); // 🆕 v3.0.281 — vouchery / dárkové karty
     else if (page === 'vyroba') await renderVyrobaHub();
     else if (page === 'vyrobni_list') await renderVyrobniList();
     else if (page === 'dodaci_listy') await renderDodaciListy(args);
@@ -5676,6 +5677,99 @@ window.ulozitVratkaLhuta = async function() {
     if (typeof toast === 'function') toast('✅ Lhůta na vrácení uložena: ' + v + ' dní', 'success');
     renderVratky();
   } catch (e) { if (typeof toast === 'function') toast('❌ ' + (e.message || 'Nepodařilo se uložit'), 'error'); }
+};
+
+// 🆕 v3.0.281 — VOUCHERY / DÁRKOVÉ KARTY — kódy s hodnotou, částečné uplatnění, dobíjení.
+async function renderVouchers() {
+  const c = document.getElementById('content');
+  c.innerHTML = `<div class="page-head"><div><h1 class="page-title">🎟️ Vouchery & dárkové karty</h1><p class="page-sub">Načítám…</p></div></div>`;
+  let d;
+  try { d = await api('admin_vouchers.php'); }
+  catch (e) { c.innerHTML = `<div class="page-head"><h1 class="page-title">🎟️ Vouchery</h1></div><p style="color:var(--danger-text)">Chyba: ${esc(e.message)}</p>`; return; }
+  const s = d.souhrn || {};
+  const stavBadge = (v) => {
+    const m = { aktivni: ['#DCFCE7', '#166534', 'Aktivní'], vycerpany: ['#E5E7EB', '#374151', 'Vyčerpaný'], zruseny: ['#FEE2E2', '#991B1B', 'Zrušený'], expirovany: ['#FEF3C7', '#92400e', 'Expirovaný'] };
+    const a = m[v.stav_aktualni] || m.aktivni;
+    return `<span style="background:${a[0]};color:${a[1]};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${a[2]}</span>`;
+  };
+  c.innerHTML = `
+    <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+      <div><h1 class="page-title">🎟️ Vouchery & dárkové karty</h1><p class="page-sub">Poukazy a dárkové karty s hodnotou — částečné uplatnění na pokladně, dárkové karty lze dobíjet.</p></div>
+      <button class="btn-secondary" onclick="navigate('nastaveni')">← Nastavení</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Celkem</div><div class="stat-value">${s.pocet || 0}</div></div>
+      <div class="stat-card"><div class="stat-label">Aktivních</div><div class="stat-value">${s.aktivnich || 0}</div></div>
+      <div class="stat-card"><div class="stat-label">Vydaná hodnota</div><div class="stat-value">${fmt(s.hodnota_celkem || 0)}</div></div>
+      <div class="stat-card"><div class="stat-label">Nevyčerpáno (aktivní)</div><div class="stat-value" style="color:#16a34a">${fmt(s.zustatek_aktivni || 0)}</div></div>
+    </div>
+
+    <div class="card-block" style="margin:12px 0;padding:14px 16px">
+      <h3 style="margin:0 0 10px;font-size:15px">➕ Vytvořit nové</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div><label class="form-label" style="font-size:12px">Typ</label><select class="form-input" id="vch-typ" style="width:160px"><option value="voucher">🎟️ Voucher</option><option value="darkova_karta">💳 Dárková karta</option></select></div>
+        <div><label class="form-label" style="font-size:12px">Hodnota (Kč)</label><input class="form-input" id="vch-hodnota" type="number" min="1" step="1" value="500" style="width:110px"></div>
+        <div><label class="form-label" style="font-size:12px">Počet</label><input class="form-input" id="vch-pocet" type="number" min="1" max="500" value="1" style="width:80px"></div>
+        <div><label class="form-label" style="font-size:12px">Platnost do (volitelné)</label><input class="form-input" id="vch-platnost" type="date" style="width:160px"></div>
+        <div style="flex:1;min-width:140px"><label class="form-label" style="font-size:12px">Poznámka</label><input class="form-input" id="vch-pozn" placeholder="např. vánoční akce"></div>
+        <button class="btn-primary btn-green" onclick="voucherVytvorit()">Vytvořit</button>
+      </div>
+      <div id="vch-vysledek" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card-block" style="padding:0">
+      ${(d.vouchery || []).length === 0 ? '<div class="empty-state" style="padding:30px">Žádné vouchery — vytvoř první nahoře</div>' : `
+        <table class="table">
+          <thead><tr><th>Kód</th><th>Typ</th><th class="num">Hodnota</th><th class="num">Zůstatek</th><th>Platnost</th><th>Stav</th><th></th></tr></thead>
+          <tbody>
+            ${d.vouchery.map(v => `
+              <tr>
+                <td><strong style="font-family:monospace;letter-spacing:0.5px">${esc(v.kod)}</strong></td>
+                <td style="white-space:nowrap">${v.typ === 'darkova_karta' ? '💳 Dárková karta' : '🎟️ Voucher'}</td>
+                <td class="num">${fmt(v.hodnota)}</td>
+                <td class="num" style="font-weight:700;${parseFloat(v.zustatek) > 0 ? 'color:#16a34a' : 'color:var(--text-3)'}">${fmt(v.zustatek)}</td>
+                <td style="white-space:nowrap">${v.platnost_do ? fmtDate(v.platnost_do) : '<span style="color:var(--text-3)">bez omezení</span>'}</td>
+                <td>${stavBadge(v)}</td>
+                <td style="white-space:nowrap;text-align:right">
+                  ${v.typ === 'darkova_karta' && v.stav_aktualni !== 'zruseny' ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="voucherDobit(${v.id}, '${esc(v.kod)}')">➕ Dobít</button>` : ''}
+                  ${v.stav_aktualni !== 'zruseny' ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px;color:#DC2626;border-color:#FCA5A5" onclick="voucherDeaktivovat(${v.id}, '${esc(v.kod)}')">Zrušit</button>` : ''}
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      `}
+    </div>
+  `;
+}
+window.voucherVytvorit = async function() {
+  const typ = document.getElementById('vch-typ').value;
+  const hodnota = parseFloat(document.getElementById('vch-hodnota').value) || 0;
+  const pocet = parseInt(document.getElementById('vch-pocet').value) || 1;
+  const platnost_do = document.getElementById('vch-platnost').value || null;
+  const poznamka = document.getElementById('vch-pozn').value || '';
+  if (hodnota <= 0) { toast('Zadej kladnou hodnotu', 'error'); return; }
+  try {
+    const r = await api('admin_vouchers.php?action=create', { method: 'POST', body: JSON.stringify({ typ, hodnota, pocet, platnost_do, poznamka }) });
+    const el = document.getElementById('vch-vysledek');
+    if (el) el.innerHTML = `<div style="background:var(--surface-2);border-radius:8px;padding:10px 12px;font-size:13px">✅ Vytvořeno ${r.pocet} ks · kódy: ${r.vytvoreno.map(x => `<strong style="font-family:monospace">${esc(x.kod)}</strong>`).join(', ')}</div>`;
+    toast(`✅ Vytvořeno ${r.pocet} ${r.pocet === 1 ? 'kus' : 'ks'}`, 'success');
+    const recent = el ? el.innerHTML : '';
+    await renderVouchers();
+    const el2 = document.getElementById('vch-vysledek'); if (el2 && recent) el2.innerHTML = recent;
+  } catch (e) { toast('❌ ' + (e.message || 'Vytvoření selhalo'), 'error'); }
+};
+window.voucherDeaktivovat = async function(id, kod) {
+  if (!confirm(`Zrušit voucher ${kod}? Nepůjde už uplatnit.`)) return;
+  try { await api('admin_vouchers.php?action=deactivate', { method: 'POST', body: JSON.stringify({ id }) }); toast('Zrušeno', 'success'); renderVouchers(); }
+  catch (e) { toast('❌ ' + (e.message || 'Chyba'), 'error'); }
+};
+window.voucherDobit = async function(id, kod) {
+  const v = prompt(`Dobít dárkovou kartu ${kod} o kolik Kč?`, '500');
+  if (v === null) return;
+  const castka = parseFloat(v) || 0;
+  if (castka <= 0) { toast('Zadej kladnou částku', 'error'); return; }
+  try { const r = await api('admin_vouchers.php?action=topup', { method: 'POST', body: JSON.stringify({ id, castka }) }); toast(`✅ Dobito, zůstatek ${fmt(r.zustatek)}`, 'success'); renderVouchers(); }
+  catch (e) { toast('❌ ' + (e.message || 'Dobití selhalo'), 'error'); }
 };
 
 async function renderObjednavky(filters = {}, opts = {}) {
@@ -15470,12 +15564,15 @@ async function renderNastaveni() {
   // 🆕 v3.0.271 — sloučeno s Kanály. Dvě sekce: Platební metody (JAK platí) +
   //   Prodejní kanály (ODKUD objednávka přišla). Vysvětlen rozdíl, ať je jasné co je co.
   const blokPlatby = `
-    <div class="card-block" style="padding:16px;margin-bottom:14px;border-left:4px solid #34C759">
-      <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">💳 Platební metody</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 4px;line-height:1.55">
-        <strong>JAK</strong> zákazník zaplatí. Zapni jen metody, které reálně přijímáš — objeví se v POS pokladně, B2B portálu i v online checkoutu. Vypnutá metoda se zákazníkovi vůbec nenabídne.
-      </p>
-      <p style="font-size:12px;color:var(--text-3);margin:0;opacity:0.85">Hotově, kartou, QR, převodem, dobírka, stravenky… Online brány (Stripe, GoPay) napoj v záložce <strong>🔌 Integrace</strong>.</p>
+    <div class="card-block" style="padding:16px;margin-bottom:14px;border-left:4px solid #34C759;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+      <div style="min-width:0">
+        <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">💳 Platební metody</h2>
+        <p style="font-size:13px;color:var(--text-3);margin:0 0 4px;line-height:1.55">
+          <strong>JAK</strong> zákazník zaplatí. Zapni jen metody, které reálně přijímáš — objeví se v POS pokladně, B2B portálu i v online checkoutu. Vypnutá metoda se zákazníkovi vůbec nenabídne.
+        </p>
+        <p style="font-size:12px;color:var(--text-3);margin:0;opacity:0.85">Hotově, kartou, QR, převodem, dobírka, stravenky… Online brány (Stripe, GoPay) napoj v záložce <strong>🔌 Integrace</strong>.</p>
+      </div>
+      <button class="btn-secondary" style="white-space:nowrap" onclick="navigate('vouchery')" title="Vytvořit a spravovat poukazy / dárkové karty">🎟️ Vouchery & dárkové karty</button>
     </div>
     <div id="ns-platby-panel" style="margin-bottom:26px">⏳ Načítám…</div>
 

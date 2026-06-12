@@ -695,6 +695,7 @@
     State.poznamka = '';
     State.sleva_pct = 0;
     State.pos_tip = 0;
+    State._voucherRedeem = null; // 🆕 v3.0.281 — zruš případný uplatněný voucher
     setTyp('sebou');
     setPay('hotove');
     _pickCust(null);
@@ -1107,6 +1108,33 @@
     toast('✓ Přidáno: ' + nazev, 'success');
   }
 
+  // 🆕 v3.0.281 — uplatnění voucheru / dárkové karty: validace → negativní řádek (sníží částku
+  //   k úhradě) → zůstatek voucheru se odečte až po úspěšné platbě (finish, doklad=číslo účtenky).
+  async function applyVoucher() {
+    if (!State.cart.length) return toast('Nejdřív přidej položky', 'error');
+    const kod = (prompt('Zadej kód voucheru / dárkové karty:') || '').trim().toUpperCase();
+    if (!kod) return;
+    let v;
+    try { v = await api('admin_vouchers.php?kod=' + encodeURIComponent(kod)); }
+    catch (e) { return toast('❌ ' + (e.message || 'Voucher nenalezen'), 'error'); }
+    const vch = v.voucher || {};
+    if (vch.stav_aktualni !== 'aktivni') return toast('❌ Voucher není aktivní (' + (vch.stav_aktualni || '?') + ')', 'error');
+    const balance = parseFloat(vch.zustatek) || 0;
+    if (balance <= 0) return toast('❌ Voucher nemá zůstatek', 'error');
+    State.cart = State.cart.filter(it => !it.is_voucher); // jen jeden voucher řádek
+    let total = 0;
+    State.cart.forEach(it => { total += it.mnozstvi * it.cena_bez_dph * (1 + (it.sazba_dph || 0) / 100); });
+    if (State.sleva_pct > 0) total *= (1 - State.sleva_pct / 100);
+    total = Math.round((total + (State.pos_tip || 0)) * 100) / 100;
+    if (total <= 0) { renderCart(); return toast('Nejdřív přidej položky', 'error'); }
+    const apply = Math.round(Math.min(balance, total) * 100) / 100;
+    State.cart.push({ vyrobek_id: null, nazev: '🎟️ ' + (vch.typ === 'darkova_karta' ? 'Dárková karta' : 'Voucher') + ' ' + kod, jednotka: 'ks', mnozstvi: 1, cena_bez_dph: -apply, sazba_dph: 0, is_custom: true, is_voucher: true });
+    State._voucherRedeem = { kod, amount: apply };
+    renderCart();
+    const zbyva = Math.round((balance - apply) * 100) / 100;
+    toast(`🎟️ Uplatněno ${fmt(apply)}${zbyva > 0 ? ` · zbývá ${fmt(zbyva)}` : ' · vyčerpáno'}${apply < total ? ` · doplatit ${fmt(total - apply)}` : ''}`, 'success');
+  }
+
   async function finish() {
     if (State.cart.length === 0) return toast('Košík je prázdný', 'error');
     // v2.9.43 — žádný confirm dialog (user klikl velké FINISH = vědomé rozhodnutí)
@@ -1136,6 +1164,14 @@
         }),
       });
       toast(t('pos_bill_ready', { cislo: r.cislo, amount: fmt(r.celkem) }), 'success');
+
+      // 🆕 v3.0.281 — voucher už je řádkem na účtence; teď odečti zůstatek (doklad=číslo).
+      if (State._voucherRedeem && State._voucherRedeem.kod && State.cart.some(it => it.is_voucher)) {
+        try {
+          await api('admin_vouchers.php?action=redeem', { method: 'POST', body: JSON.stringify({ kod: State._voucherRedeem.kod, castka: State._voucherRedeem.amount, doklad: r.cislo }) });
+        } catch (e) { toast('⚠️ Účtenka OK, ale voucher se nepodařilo odečíst: ' + (e.message || ''), 'warn'); }
+      }
+      State._voucherRedeem = null;
 
       // 🆕 v3.0.5 — Tisk účtenky podle nastavení (always / ask / never)
       const mode = r.print_receipt_mode || 'ask';
@@ -1303,6 +1339,7 @@
     resetCart:     resetCart,
     setTab:        setActiveTab,
     openCustomItem: openCustomItem,
+    applyVoucher:  applyVoucher, // 🆕 v3.0.281 — uplatnit voucher / dárkovou kartu
     _pickCust:     _pickCust,
     _closeModal:   closeModal,
     _printBrowser: _printBrowser,
