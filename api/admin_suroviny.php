@@ -518,8 +518,11 @@ if ($method === 'GET') {
     $whereSql = '';
     $params = [];
     if ($q !== '') {
-        $whereSql = " WHERE (s.nazev LIKE :q OR s.alergen LIKE :q OR s.slozeni LIKE :q) ";
+        // 🐛 v3.0.265 — opakovaný :q s EMULATE_PREPARES=false → 500. Unikátní placeholdery.
+        $whereSql = " WHERE (s.nazev LIKE :q OR s.alergen LIKE :q2 OR s.slozeni LIKE :q3) ";
         $params['q'] = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q) . '%';
+        $params['q2'] = $params['q'];
+        $params['q3'] = $params['q'];
     }
 
     // Total count pro paginaci

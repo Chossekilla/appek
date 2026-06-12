@@ -185,8 +185,11 @@ if ($method === 'GET') {
     $params = [];
     if ($hledat !== '') {
         $hl = str_replace(['\\','%','_'], ['\\\\','\\%','\\_'], $hledat);
-        $sql .= " AND (o.nazev LIKE :q OR o.email LIKE :q OR o.ico LIKE :q)";
+        // 🐛 v3.0.265 — opakovaný :q s EMULATE_PREPARES=false → 500. Unikátní placeholdery.
+        $sql .= " AND (o.nazev LIKE :q OR o.email LIKE :q2 OR o.ico LIKE :q3)";
         $params['q'] = '%' . $hl . '%';
+        $params['q2'] = $params['q'];
+        $params['q3'] = $params['q'];
     }
     if ($filtrTyp !== '') {
         if ($filtrTyp === '_nezarazeno') {
