@@ -321,6 +321,17 @@ $csrfToken  = csrf_token();
     border-color: var(--pos-primary, #BA7517) !important;
   }
 </style>
+<?php
+  // 📊 v3.0.286 — Google Analytics pro POS (vlastní measurement ID, odděleně od B2B)
+  try {
+      $gaPos = trim((string) (function_exists('nastaveni') ? (nastaveni()['ga_measurement_id_pos'] ?? '') : ''));
+      if ($gaPos !== '' && preg_match('/^(G|AW|UA)-[A-Z0-9-]{4,}$/i', $gaPos)) {
+          $gaPosEsc = htmlspecialchars($gaPos, ENT_QUOTES);
+          echo "<script async src=\"https://www.googletagmanager.com/gtag/js?id={$gaPosEsc}\"></script>\n";
+          echo "<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','{$gaPosEsc}',{anonymize_ip:true});</script>\n";
+      }
+  } catch (Throwable $e) { /* bez GA */ }
+?>
 <script>
   // Globální config — předáno z PHP do JS
   window.POS_CONFIG = {

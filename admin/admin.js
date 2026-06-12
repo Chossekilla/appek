@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.285';
+const APPEK_ADMIN_JS_VERSION = '3.0.286';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5698,15 +5698,21 @@ async function renderVratky() {
     </div>
   `;
 }
-// 📊 v3.0.284 — Google Analytics measurement ID (měří jen B2B portál; gtag vkládá b2b/app.js)
+// 📊 v3.0.284/286 — Google Analytics: oddělená ID pro B2B portál (gtag vkládá b2b/app.js)
+// a POS pokladnu (gtag vkládá server-side admin/pos.php + pos/index.php).
 window.ulozitGaId = async function() {
-  const raw = (document.getElementById('ns-ga-id').value || '').trim();
-  if (raw && !/^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(raw)) { toast('❌ Neplatné ID — čekám formát G-XXXXXXXXXX', 'error'); return; }
+  const rxOk = (v) => !v || /^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(v);
+  const b2b = (document.getElementById('ns-ga-id').value || '').trim();
+  const pos = ((document.getElementById('ns-ga-id-pos') || {}).value || '').trim();
+  if (!rxOk(b2b) || !rxOk(pos)) { toast('❌ Neplatné ID — čekám formát G-XXXXXXXXXX', 'error'); return; }
   try {
-    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ ga_measurement_id: raw }) });
-    toast(raw ? '✅ Google Analytics zapnuto pro B2B portál' : '✅ Google Analytics vypnuto', 'success');
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ ga_measurement_id: b2b, ga_measurement_id_pos: pos }) });
+    const stavy = [];
+    if (b2b) stavy.push(`B2B ${b2b}`);
+    if (pos) stavy.push(`POS ${pos}`);
+    toast(stavy.length ? '✅ Google Analytics uloženo' : '✅ Google Analytics vypnuto', 'success');
     const info = document.getElementById('ns-ga-info');
-    if (info) info.textContent = raw ? `Měří se B2B portál (${raw})` : 'Vypnuto';
+    if (info) info.textContent = stavy.length ? `Měří se: ${stavy.join(' · ')}` : 'Vypnuto';
   } catch (e) { toast('❌ ' + (e.message || 'Uložení selhalo'), 'error'); }
 };
 
@@ -15685,14 +15691,21 @@ async function renderNastaveni() {
 
   // 🆕 v2.5 — INTEGRACE pro customer (Stripe, GoPay, Zásilkovna, DPD)
   const blokIntegrace = `
-    <!-- 📊 v3.0.284 — Google Analytics (B2B portál) — jen measurement ID, žádná další konfigurace -->
+    <!-- 📊 v3.0.284/286 — Google Analytics — oddělená ID pro B2B portál a POS pokladnu -->
     <div class="card-block" id="ns-ga-block" style="margin-bottom:14px;padding:14px 16px">
       <h3 style="margin:0 0 6px;font-size:15px">📊 Google Analytics</h3>
       <p class="page-sub" style="font-size:12px;margin:0 0 10px">
-        Measurement ID (např. <code>G-XXXXXXXXXX</code>) — měří návštěvnost <strong>B2B portálu</strong> (objednávkový web pro odběratele). Admin a pokladna se neměří. Nech prázdné = vypnuto.
+        Measurement ID (např. <code>G-XXXXXXXXXX</code>) — <strong>zvlášť pro B2B portál a zvlášť pro pokladnu</strong>, ať se data nemíchají. Admin se neměří. Prázdné pole = vypnuto.
       </p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input class="form-input" id="ns-ga-id" placeholder="G-XXXXXXXXXX" style="width:200px;font-family:monospace" value="">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <label class="form-label" style="font-size:12px">🌐 B2B portál (objednávky odběratelů)</label>
+          <input class="form-input" id="ns-ga-id" placeholder="G-XXXXXXXXXX" style="width:200px;font-family:monospace" value="">
+        </div>
+        <div>
+          <label class="form-label" style="font-size:12px">🧾 POS pokladna</label>
+          <input class="form-input" id="ns-ga-id-pos" placeholder="G-YYYYYYYYYY" style="width:200px;font-family:monospace" value="">
+        </div>
         <button class="btn-primary btn-green" onclick="ulozitGaId()">💾 Uložit</button>
         <span id="ns-ga-info" style="font-size:12px;color:var(--text-3)"></span>
       </div>
@@ -15938,10 +15951,12 @@ async function renderNastaveni() {
   }
   if (aktTab === 'integrace') {
     loadCustomerIntegrace();
-    // 📊 v3.0.284 — předvyplň GA measurement ID
+    // 📊 v3.0.284/286 — předvyplň GA measurement ID (B2B + POS zvlášť)
     api('admin_nastaveni.php').then(n => {
       const inp = document.getElementById('ns-ga-id');
       if (inp && n && n.ga_measurement_id) inp.value = n.ga_measurement_id;
+      const inpPos = document.getElementById('ns-ga-id-pos');
+      if (inpPos && n && n.ga_measurement_id_pos) inpPos.value = n.ga_measurement_id_pos;
     }).catch(() => {});
   }
   if (aktTab === 'platby') {
