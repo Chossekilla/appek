@@ -55,6 +55,16 @@ $pdo = db();
         if (!in_array('zobrazit_na_pos', $cols, true)) {
             $pdo->exec("ALTER TABLE vyrobky ADD COLUMN zobrazit_na_pos TINYINT(1) DEFAULT 1 AFTER je_vyprodano");
         }
+        // 🆕 v3.0.264 — BUGFIX fresh install: priprava_min + kitchen_station_id přidával dosud
+        //   JEN admin_prep_times.php. POST create (níže) je ale INSERTuje vždy → na čerstvé
+        //   instalaci, kde admin_prep_times nikdo nezavolal, "Unknown column" → fatal 500
+        //   (zákazník nepřidá produkt přes UI). Zajisti je tady.
+        if (!in_array('priprava_min', $cols, true)) {
+            $pdo->exec("ALTER TABLE vyrobky ADD COLUMN priprava_min INT NOT NULL DEFAULT 10");
+        }
+        if (!in_array('kitchen_station_id', $cols, true)) {
+            $pdo->exec("ALTER TABLE vyrobky ADD COLUMN kitchen_station_id INT NULL");
+        }
     } catch (Throwable $e) {
         error_log('admin_vyrobky auto-migrace: ' . $e->getMessage());
     }
