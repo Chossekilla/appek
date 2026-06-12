@@ -2268,11 +2268,18 @@
     if (!polozky.length) { (typeof toast === 'function' ? toast : alert)('Vyber alespoň jednu položku'); return; }
     const btn = document.getElementById('pref-submit'); if (btn) btn.disabled = true;
     const duvod = (document.getElementById('pref-duvod') || {}).value || '';
+    const doPost = (vynutit) => api('admin_pos.php?action=refund_order', {
+      method: 'POST',
+      body: JSON.stringify({ objednavka_id: objId, duvod, polozky, vynutit }),
+    });
     try {
-      const r = await api('admin_pos.php?action=refund_order', {
-        method: 'POST',
-        body: JSON.stringify({ objednavka_id: objId, duvod, polozky }),
-      });
+      let r;
+      try { r = await doPost(false); }
+      catch (e1) {
+        // 🆕 v3.0.278 — lhůta na vrácení (409) → nabídni override
+        if (/lhůt|vynutit/i.test(e1.message || '') && confirm((e1.message || '') + '\n\nVrátit i přesto?')) r = await doPost(true);
+        else throw e1;
+      }
       POS._closeModal();
       if (typeof toast === 'function') toast(`✅ Vratka ${r.cislo} (${fmt(r.castka_celkem)} Kč)`, 'success');
       else alert(`✅ Vratka ${r.cislo} vytvořena (${fmt(r.castka_celkem)} Kč)`);

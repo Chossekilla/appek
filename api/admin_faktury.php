@@ -386,6 +386,17 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
     if (!$f) json_error('Faktura nenalezena', 404);
     if (!empty($f['je_dobropis'])) json_error('K dobropisu nelze vystavit další dobropis', 400);
 
+    // 🆕 v3.0.278 — LHŮTA NA VRÁCENÍ: blokuj dobropis po uplynutí lhůty (override: vynutit).
+    if (empty($d['vynutit']) && !empty($f['datum_vystaveni'])) {
+        $lhuta = (int) ($pdo->query("SELECT hodnota FROM nastaveni WHERE klic='vratka_lhuta_dni' LIMIT 1")->fetchColumn() ?: 14);
+        if ($lhuta > 0) {
+            $dni = (int) floor((time() - strtotime($f['datum_vystaveni'])) / 86400);
+            if ($dni > $lhuta) {
+                json_error('Faktura je ' . $dni . ' dní stará — lhůta na vrácení je ' . $lhuta . ' dní (vrátit šlo do ' . date('j.n.Y', strtotime($f['datum_vystaveni'] . " +{$lhuta} days")) . '). Pro dobropis i přesto pošli "vynutit": true.', 409);
+            }
+        }
+    }
+
     // Řádky faktury se stabilním id (materializace z DL když chybí) + kolik už dobropisováno.
     $items = faktura_ensure_polozky($pdo, $srcId);
     if (!$items) json_error('Faktura nemá položky k dobropisu', 400);
