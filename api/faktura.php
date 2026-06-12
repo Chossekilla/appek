@@ -514,6 +514,18 @@ $autoprint = !empty($_GET['autoprint']);
     <div class="summary-final">
       <div class="lbl">K úhradě</div>
       <div class="val"><?= fmt_kc($f['castka_celkem']) ?></div>
+      <?php
+        // 💱 v3.0.283 — informativní přepočet na cílovou měnu (mena_config_json, dual_doklady)
+        try {
+            $mcRaw = nastaveni_get($pdo, 'mena_config_json', '');
+            $mc = $mcRaw ? json_decode($mcRaw, true) : null;
+            if (is_array($mc) && !empty($mc['dual_doklady']) && ($mc['kod'] ?? 'CZK') !== 'CZK' && (float) ($mc['kurz'] ?? 0) > 0) {
+                $prep = round((float) $f['castka_celkem'] / (float) $mc['kurz'], 2);
+                echo '<div style="font-size:10pt;color:#855;margin-top:3px">≈ ' . number_format($prep, 2, ',', ' ') . ' ' . htmlspecialchars($mc['kod'])
+                   . ' <span style="font-size:8pt">(kurz ' . number_format((float) $mc['kurz'], 3, ',', ' ') . ' Kč/' . htmlspecialchars($mc['kod']) . ')</span></div>';
+            }
+        } catch (Throwable $e) { /* bez přepočtu */ }
+      ?>
     </div>
   </div>
   <div class="foot">

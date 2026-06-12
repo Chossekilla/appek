@@ -106,15 +106,27 @@ if (!$expected || !preg_match('/^[a-f0-9]{64}$/i', $expected)) {
 }
 
 $root  = realpath(__DIR__ . '/..');
-$tmpDir = sys_get_temp_dir() . '/appek-update-' . $version . '-' . bin2hex(random_bytes(4));
+// Temp dir MUSÍ být zapisovatelný PHP procesem — na XAMPP/macOS vrací sys_get_temp_dir()
+// per-user TMPDIR vlastníka terminálu, kam Apache (daemon) psát nemůže → fallback do instalace.
+$sysTmp = sys_get_temp_dir();
+if (!is_dir($sysTmp) || !is_writable($sysTmp)) {
+    $sysTmp = __DIR__ . '/zalohy';
+    if (!is_dir($sysTmp)) @mkdir($sysTmp, 0755, true);
+}
+$tmpDir = $sysTmp . '/appek-update-' . $version . '-' . bin2hex(random_bytes(4));
 @mkdir($tmpDir, 0755, true);
+if (!is_dir($tmpDir) || !is_writable($tmpDir)) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'tmp_unwritable', 'message' => "Nelze zapisovat do temp adresáře ($tmpDir) — zkontroluj oprávnění."]);
+    exit;
+}
 // 🧹 v3.0.229 — úklid temp i při PHP timeout/OOM killu (catch tehdy NEběží).
 // 19 nedoklizených appek-update-* složek (2556 souborů) přeteklo inode kvótu hostingu (Jun 2026).
 register_shutdown_function(function () use ($tmpDir) {
     if (is_dir($tmpDir)) deleteRecursive($tmpDir);
 });
 // + sweep: leftovery starší 1 h z dřívějších killnutých běhů (shutdown handler nepokryje SIGKILL)
-foreach (glob(sys_get_temp_dir() . '/appek-update-*', GLOB_ONLYDIR) ?: [] as $stale) {
+foreach (glob($sysTmp . '/appek-update-*', GLOB_ONLYDIR) ?: [] as $stale) {
     if ($stale !== $tmpDir && (time() - (int) @filemtime($stale)) > 3600) deleteRecursive($stale);
 }
 $bundlePath = $tmpDir . '/bundle.zip';
@@ -127,7 +139,13 @@ try {
     $result['steps'][] = '⬇️ Stahování bundle…';
     $separator = strpos($url, '?') !== false ? '&' : '?';
     $fullUrl = $url . $separator . 'key=' . urlencode($licenseKey);
-    $ctx = stream_context_create(['http' => ['timeout' => 120, 'follow_location' => 1]]);
+    // User-Agent POVINNÝ — hcdn CDN před appek.cz vrací 403 requestům bez UA
+    // (PHP file_get_contents defaultně žádný neposílá → „Stažení selhalo nebo prázdný response").
+    $ctx = stream_context_create(['http' => [
+        'timeout'         => 120,
+        'follow_location' => 1,
+        'header'          => "User-Agent: Appek-Updater/1.0\r\n",
+    ]]);
     $bundle = @file_get_contents($fullUrl, false, $ctx);
     if ($bundle === false || strlen($bundle) < 100) {
         throw new Exception('Stažení selhalo nebo prázdný response.');

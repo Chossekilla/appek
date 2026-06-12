@@ -210,8 +210,8 @@ function generate_fresh_notifications(PDO $pdo): void {
                     notif_emit(
                         $pdo, 'app_update',
                         "🆕 Dostupná nová verze {$latest}",
-                        "Máš {$current}. Update ZIP {$mb} MB. Klikni pro detail.",
-                        '#/nastaveni',
+                        "Máš {$current}. Update ZIP {$mb} MB. Klikni pro aktualizaci.",
+                        '#/nastaveni/update',   // v3.0.283 — klik vede přímo na update sekci (Údržba)
                         'info',
                         "update_available_{$latest}"  // dedup key = jedna notif per verze
                     );
