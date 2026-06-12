@@ -1913,7 +1913,7 @@
       // 🆕 v3.0.219 — paging Účtenek (POS = touch → „Načíst další")
       if (!append) { State._historyItems = []; }
       const offset = append ? (State._historyItems ? State._historyItems.length : 0) : 0;
-      const pagLimit = (CFG.pagPocet && [25, 50, 100, 200].includes(CFG.pagPocet)) ? CFG.pagPocet : 50; // 🆕 v3.0.249 — počet/stránku z nastavení
+      const pagLimit = (CFG.pagPocet && [10, 25, 50, 100, 200].includes(CFG.pagPocet)) ? CFG.pagPocet : 10; // 🆕 v3.0.249 — počet/stránku z nastavení (v3.0.277 default 10)
       const d = await api('admin_pos.php?action=quick_history&date=' + encodeURIComponent(date) + '&offset=' + offset + '&limit=' + pagLimit);
       const batch = d.objednavky || [];
       State._historyItems = append ? (State._historyItems || []).concat(batch) : batch;
