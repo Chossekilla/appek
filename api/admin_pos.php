@@ -1231,6 +1231,19 @@ if ($method === 'POST' && $action === 'quick_order') {
         $bezDph = round($bezDph, 2);
         $dphSum = round($dphSum, 2);
 
+        // 🆕 v3.0.279 — POPLATEK PLATBY (karta-fee) z configu metody → do součtu i jako řádek.
+        //   Frontend (recalc) ho ukazuje pokladnímu PŘED zaplacením, server je autoritativní.
+        require_once __DIR__ . '/_platby_lib.php';
+        $sur = platby_surcharges($pdo, $pos_payment, '', $bezDph + $dphSum);
+        $poplatek = (float) $sur['platba_poplatek'];
+        $poplatekBez = 0.0;
+        if ($poplatek > 0) {
+            $poplatekBez = round($poplatek / 1.21, 2); // poplatek vč. 21% DPH → rozpad
+            $bezDph = round($bezDph + $poplatekBez, 2);
+            $dphSum = round($dphSum + ($poplatek - $poplatekBez), 2);
+            $celkem = round($celkem + $poplatek, 2);
+        }
+
         // POS metadata
         $meta_arr = [
             'typ'       => $pos_typ,
@@ -1364,6 +1377,18 @@ if ($method === 'POST' && $action === 'quick_order') {
                 'm'   => 1,
                 'c'   => $pos_tip,
                 's'   => 0,
+            ]);
+        }
+        // 🆕 v3.0.279 — poplatek platby jako řádek (vyrobek_id=NULL, sazba 21) → vidí ho admin i účtenka
+        if ($poplatek > 0) {
+            $stItem->execute([
+                'o'   => $objId,
+                'vid' => null,
+                'n'   => '➕ Poplatek za platbu (' . $pos_payment . ')',
+                'j'   => 'ks',
+                'm'   => 1,
+                'c'   => $poplatekBez,
+                's'   => 21,
             ]);
         }
 

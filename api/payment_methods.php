@@ -94,10 +94,6 @@ if ($method === 'GET') {
         json_response(platby_surcharges($pdo, $payment, $shipping, max(0, $subtotal)));
     }
 
-    if ($context === 'pos') {
-        $filtered = array_filter($all, fn($m) => $m['enabled'] && $m['pos']);
-        json_response(['methods' => array_values($filtered)]);
-    }
     // 🆕 v3.0.272 — přilep per-metoda config (poplatek, splatnost) — ne IBAN (jen na doklad/server)
     $attachCfg = function (array $m) use ($cfg): array {
         $c = $cfg['methods_config'][$m['key']] ?? [];
@@ -106,6 +102,12 @@ if ($method === 'GET') {
         $m['splatnost_dni'] = isset($c['splatnost_dni']) ? (int) $c['splatnost_dni'] : null;
         return $m;
     };
+
+    if ($context === 'pos') {
+        // 🆕 v3.0.279 — POS metody teď nesou poplatek (karta-fee na pokladně) → recalc je zobrazí
+        $filtered = array_map($attachCfg, array_values(array_filter($all, fn($m) => $m['enabled'] && $m['pos'])));
+        json_response(['methods' => $filtered]);
+    }
 
     if ($context === 'b2b') {
         $filtered = array_map($attachCfg, array_values(array_filter($all, fn($m) => $m['enabled'] && $m['b2b'])));

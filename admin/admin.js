@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.278';
+const APPEK_ADMIN_JS_VERSION = '3.0.279';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -6602,6 +6602,31 @@ window.addVyrobekPick = function(id) {
   document.getElementById('add-vyrobek').value = id;
   document.getElementById('add-vyrobek-search').value = v.nazev + (v.cislo ? ` (${v.cislo})` : '');
   const list = document.getElementById('add-vyrobek-list');
+  if (list) list.style.display = 'none';
+};
+
+// 🆕 v3.0.279 — searchable combobox výrobku pro slevy cenové skupiny (sl-vyrobek)
+window.slVyrobekFilter = function() {
+  const inp = document.getElementById('sl-vyrobek-search');
+  const list = document.getElementById('sl-vyrobek-list');
+  if (!inp || !list) return;
+  const q = (inp.value || '').trim().toLowerCase();
+  const all = window._slVyrobky || [];
+  const matched = (q ? all.filter(v => (v.nazev || '').toLowerCase().includes(q) || (v.cislo || '').toString().toLowerCase().includes(q)) : all).slice(0, 40);
+  if (!matched.length) { list.innerHTML = '<div style="padding:10px 12px;color:var(--text-3);font-size:13px">Nic nenalezeno</div>'; list.style.display = 'block'; return; }
+  list.innerHTML = matched.map(v => `
+    <div onmousedown="slVyrobekPick(${v.id})" style="padding:8px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border)"
+         onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background=''">
+      ${esc(v.nazev)}${v.cislo ? ` <span style="color:var(--text-3);font-size:12px">${esc(v.cislo)}</span>` : ''}
+    </div>`).join('');
+  list.style.display = 'block';
+};
+window.slVyrobekPick = function(id) {
+  const v = (window._slVyrobky || []).find(x => x.id == id);
+  if (!v) return;
+  document.getElementById('sl-vyrobek').value = id;
+  document.getElementById('sl-vyrobek-search').value = v.nazev + (v.cislo ? ` (${v.cislo})` : '');
+  const list = document.getElementById('sl-vyrobek-list');
   if (list) list.style.display = 'none';
 };
 
@@ -26856,12 +26881,8 @@ window.otevritSlevySkupiny = async function(skupina_id, nazev) {
       `<option value="${k.id}">${esc(k.ikona)} ${esc(k.nazev)}</option>`
     ).join('');
 
-    const vyrobkyOptions = vyrData.vyrobky
-      .filter((v) => v.aktivni == 1)
-      .map((v) => `<option value="${v.id}" data-cena="${v.cena_bez_dph}" data-dph="${v.dph || 12}">
-        ${esc(v.nazev)} (${esc(v.cislo || '')})
-      </option>`)
-      .join('');
+    // 🆕 v3.0.279 — data pro searchable combobox výrobku (sl-vyrobek) místo giant <select>
+    window._slVyrobky = vyrData.vyrobky.filter((v) => v.aktivni == 1);
 
     openModal(`🧾 Slevy skupiny: ${nazev}`, `
       <!-- Sekce: existující pravidla slev -->
@@ -27003,9 +27024,13 @@ window.otevritSlevySkupiny = async function(skupina_id, nazev) {
           <label class="form-label">Kategorie</label>
           <select class="form-input" id="sl-kategorie">${kategorieOptions}</select>
         </div>
-        <div id="lbl-vyrobek" style="display:none">
+        <div id="lbl-vyrobek" style="display:none;position:relative">
           <label class="form-label">Výrobek</label>
-          <select class="form-input" id="sl-vyrobek">${vyrobkyOptions}</select>
+          <input type="text" class="form-input" id="sl-vyrobek-search" autocomplete="off" placeholder="Začni psát název nebo kód…"
+                 oninput="slVyrobekFilter()" onfocus="slVyrobekFilter()"
+                 onblur="setTimeout(function(){var l=document.getElementById('sl-vyrobek-list');if(l)l.style.display='none'},160)">
+          <input type="hidden" id="sl-vyrobek">
+          <div id="sl-vyrobek-list" style="display:none;position:absolute;z-index:60;left:0;right:0;top:100%;margin-top:2px;max-height:240px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14)"></div>
         </div>
         <div id="lbl-sortiment-info" style="display:none;grid-column:1 / -1">
           <div style="padding:11px 14px;background:#FAEEDA;color:#854F0B;border-radius:8px;font-size:13px">
