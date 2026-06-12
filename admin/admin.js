@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.270';
+const APPEK_ADMIN_JS_VERSION = '3.0.271';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -13962,8 +13962,8 @@ async function renderNastaveni() {
   const TABS = [
     { key: 'firma',      label: '🏢 Firma & doklady',  popis: 'Firemní údaje, kontakt, číselné řady, DPH' },
     { key: 'notifikace', label: '📧 Notifikace',        popis: 'E-maily a uzávěrka úprav objednávek' },
-    { key: 'platby',     label: '💳 Platby',            popis: 'Zapnout/vypnout platební metody pro POS, B2B a checkout.' },
-    { key: 'kanaly',     label: '🔀 Kanály',            popis: 'Prodejní kanály objednávek — označení, číselná řada, pokladní prodej. Aby se balíčky nepřebíjely.', adminOnly: true },
+    // 🆕 v3.0.271 — Kanály sloučeny pod Platby (souvisí: jak platí × odkud přišla objednávka).
+    { key: 'platby',     label: '💳 Platby & kanály',   popis: 'Platební metody (jak zákazník zaplatí) + prodejní kanály (odkud objednávka přišla).' },
     { key: 'integrace',  label: '🔌 Integrace',         popis: 'Stripe + GoPay (platby), POHODA + FlexiBee (účetní), Zásilkovna + DPD (doprava).', adminOnly: true },
     { key: 'pristupy',   label: '👥 Přístupy & ceny',   popis: 'Uživatelé a slevové skupiny', adminOnly: true },
     { key: 'balicky',    label: '🎁 Balíčky',           popis: 'Aktivace doplňkových modulů (Cukrárna, Lahůdky, …)', adminOnly: true },
@@ -13982,6 +13982,7 @@ async function renderNastaveni() {
     return;
   }
   if (aktTab === 'ucetni') aktTab = 'integrace';
+  if (aktTab === 'kanaly') aktTab = 'platby'; // 🆕 v3.0.271 — kanály sloučeny pod Platby
   if (!validTabKeys.includes(aktTab)) aktTab = 'firma';
 
   // === BLOKY OBSAHU JEDNOTLIVÝCH TABŮ ===
@@ -15209,14 +15210,31 @@ async function renderNastaveni() {
   `;
 
   // 🆕 v2.9.205 — blokPlatby je placeholder; reálný obsah loaduje renderPlatbyPanel()
+  // 🆕 v3.0.271 — sloučeno s Kanály. Dvě sekce: Platební metody (JAK platí) +
+  //   Prodejní kanály (ODKUD objednávka přišla). Vysvětlen rozdíl, ať je jasné co je co.
   const blokPlatby = `
-    <div class="card-block" style="padding:16px;margin-bottom:14px">
+    <div class="card-block" style="padding:16px;margin-bottom:14px;border-left:4px solid #34C759">
       <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">💳 Platební metody</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">
-        Vyber které platební metody chceš nabízet zákazníkům. Změny se hned promítnou do POS, B2B portálu i checkout.
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 4px;line-height:1.55">
+        <strong>JAK</strong> zákazník zaplatí. Zapni jen metody, které reálně přijímáš — objeví se v POS pokladně, B2B portálu i v online checkoutu. Vypnutá metoda se zákazníkovi vůbec nenabídne.
       </p>
+      <p style="font-size:12px;color:var(--text-3);margin:0;opacity:0.85">Hotově, kartou, QR, převodem, dobírka, stravenky… Online brány (Stripe, GoPay) napoj v záložce <strong>🔌 Integrace</strong>.</p>
     </div>
-    <div id="ns-platby-panel">⏳ Načítám…</div>
+    <div id="ns-platby-panel" style="margin-bottom:26px">⏳ Načítám…</div>
+
+    ${adminOnly(`
+    <div class="card-block" style="padding:16px;margin-bottom:14px;border-left:4px solid #0a84ff">
+      <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">🔀 Prodejní kanály</h2>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 4px;line-height:1.55">
+        <strong>ODKUD</strong> objednávka přišla. Každý zdroj (POS pokladna, B2B portál, dort konfigurátor, rozvoz Wolt/Bolt, opakované objednávky…) má vlastní označení a <strong>vlastní číselnou řadu</strong>, aby se doklady nepřebíjely.
+      </p>
+      <p style="font-size:12px;color:var(--text-3);margin:0;opacity:0.85">U každého kanálu: přejmenuj, vypni nepoužívaný, a zaškrtni „pokladní prodej" u těch, co se mají počítat do <strong>POS Účtenek a uzávěrky</strong> (typicky kasa a rozvoz, ne B2B faktury).</p>
+    </div>
+    <div id="kanaly-container"><div style="text-align:center;padding:20px;color:var(--text-3)">⏳ Načítám…</div></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px">
+      <button class="btn-primary btn-green" onclick="ulozitKanaly()" style="font-weight:700;padding:12px 24px;border-radius:10px">💾 Uložit kanály</button>
+    </div>
+    `)}
   `;
 
   // 🆕 v3.0.5 — Tiskárny tab (CRUD + mapping + settings)
@@ -15240,23 +15258,12 @@ async function renderNastaveni() {
     </div>
   ` + blokUcetni;
 
-  // 🆕 v3.0.212 — Prodejní kanály (puvod objednávky)
-  const blokKanaly = `
-    <div class="card-block">
-      <h3 style="margin-bottom:6px">🔀 Prodejní kanály</h3>
-      <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.5">Každý balíček (POS, B2B portál, dort konfigurátor, rozvozové platformy, opakované…) zapisuje objednávky s vlastním označením a číselnou řadou, takže se navzájem nepřebíjejí. Přejmenuj kanály, vypni nepoužívané a označ, které se počítají jako pokladní prodej (teče do POS Účtenek a uzávěrky).</p>
-      <div id="kanaly-container"><div style="text-align:center;padding:20px;color:var(--text-3)">Načítám…</div></div>
-      <div style="display:flex;justify-content:flex-end;margin-top:14px">
-        <button class="btn-primary btn-green" onclick="ulozitKanaly()" style="font-weight:700;padding:12px 24px;border-radius:10px">💾 Uložit kanály</button>
-      </div>
-    </div>
-  `;
+  // 🆕 v3.0.271 — blokKanaly zrušen jako samostatný tab; obsah je teď uvnitř blokPlatby.
 
   const blokyTabu = {
     firma:      blokFirmaDoklady,
     notifikace: blokNotifikace,
     platby:     blokPlatby,
-    kanaly:     blokKanaly,
     integrace:  blokIntegraceCombined,
     pristupy:   blokPristupy,
     balicky:    blokBalicky,
@@ -15338,9 +15345,8 @@ async function renderNastaveni() {
   }
   if (aktTab === 'platby') {
     loadPaymentMethodsPanel();
-  }
-  if (aktTab === 'kanaly') {
-    renderKanalyPanel();
+    // 🆕 v3.0.271 — kanály sloučeny pod Platby → naplň i jejich panel (jen admin; kontejner existuje jen pro něj)
+    if (document.getElementById('kanaly-container')) renderKanalyPanel();
   }
   // 🆕 v3.0.29 — Tiskárny přesunuté → naviguj na standalone page
   if (aktTab === 'tiskarny') {
