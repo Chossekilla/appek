@@ -401,6 +401,9 @@ $csrfToken  = csrf_token();
       <button class="pos-custom-btn" onclick="POS.openCustomItem()" title="Volná položka (zadej ručně název a cenu)">
         ➕ Volná položka
       </button>
+      <button class="pos-custom-btn" onclick="POS.applyVoucher()" title="Uplatnit voucher / dárkovou kartu — sníží částku k úhradě">
+        🎟️ Voucher
+      </button>
     </div>
 
     <div class="pos-filters" id="pos-filters"></div>

@@ -1162,8 +1162,10 @@ if ($method === 'POST' && $action === 'quick_order') {
         $mn = (float)($p['mnozstvi'] ?? 0);
         $cena = (float)($p['cena_bez_dph'] ?? 0);
         if ($mn <= 0 || $mn > 9999)                       json_error('Položka #' . ($i + 1) . ': množství mimo rozsah (0–9999)', 400);
-        // 🆕 v3.0.153 BUG A — záporná cena dřív prošla (abs() validoval jen velikost) → záporná tržba
-        if ($cena < 0 || $cena > 1000000)                 json_error('Položka #' . ($i + 1) . ': cena mimo rozsah (0–1000000)', 400);
+        // 🆕 v3.0.153 BUG A — záporná cena dřív prošla (abs() validoval jen velikost) → záporná tržba.
+        //   🆕 v3.0.281 — záporná cena povolená JEN u volných řádků (vyrobek_id=NULL = voucher / sleva-řádek),
+        //   reálné produkty (s vyrobek_id) dál nesmí mít zápornou cenu.
+        if ($cena > 1000000 || ($cena < 0 && !empty($p['vyrobek_id']))) json_error('Položka #' . ($i + 1) . ': cena mimo rozsah (0–1000000)', 400);
     }
     // 🆕 v3.0.153 BUG B — ověř existenci vyrobek_id PŘED insertem (jinak FK violation → 500 + leak schématu)
     $reqVids = [];
