@@ -33,6 +33,18 @@ function ensure_objednavky_schema(PDO $pdo): void {
         if (!in_array('interni_pozn', $cols, true)) {
             $pdo->exec("ALTER TABLE objednavky ADD COLUMN interni_pozn TEXT NULL AFTER poznamka");
         }
+        // 🐛 v3.0.274 — upraveno_kdy chybělo ve schématu i migracích, ale objednavky.php
+        //   PUT do něj zapisuje → B2B edit objednávky 500-oval na KAŽDÉ čisté instalaci.
+        if (!in_array('upraveno_kdy', $cols, true)) {
+            $pdo->exec("ALTER TABLE objednavky ADD COLUMN upraveno_kdy DATETIME NULL");
+        }
+        // způsob platby/doručení — zapisuje POST i (nově) PUT; ať je má i fresh install
+        if (!in_array('zpusob_doruceni', $cols, true)) {
+            $pdo->exec("ALTER TABLE objednavky ADD COLUMN zpusob_doruceni VARCHAR(30) NULL");
+        }
+        if (!in_array('zpusob_platby', $cols, true)) {
+            $pdo->exec("ALTER TABLE objednavky ADD COLUMN zpusob_platby VARCHAR(30) NULL");
+        }
     } catch (Throwable $e) {
         error_log('ensure_objednavky_schema: ' . $e->getMessage());
     }
