@@ -221,6 +221,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
         }
 
+        // 🆕 v3.0.272 — PŘÍPLATKY: doprava (s prahem „zdarma od") + poplatek platby (dobírka…).
+        //   Promítnou se do CELKEM a uloží jako řádky dokladu → propíšou se i do DL/faktury.
+        require_once __DIR__ . '/_platby_lib.php';
+        $platbaKey  = strtolower(preg_replace('/[^a-z_]/', '', (string) ($data['platba'] ?? '')));
+        $dopravaKey = strtolower(preg_replace('/[^a-z_]/', '', (string) ($data['doprava'] ?? '')));
+        $subtotal   = round($bez + $dph, 2);
+        $sur = platby_surcharges($pdo, $platbaKey, $dopravaKey, $subtotal);
+        $dopCfg = platby_config_load($pdo)['doprava']['metody'][$dopravaKey] ?? null;
+        $surLines = [];
+        if ($sur['doprava_cena'] > 0) $surLines[] = ['nazev' => '🚚 Doprava — ' . ($dopCfg['nazev'] ?? $dopravaKey), 'castka' => $sur['doprava_cena']];
+        if ($sur['platba_poplatek'] > 0) $surLines[] = ['nazev' => '➕ Poplatek za platbu (' . $platbaKey . ')', 'castka' => $sur['platba_poplatek']];
+        foreach ($surLines as $sl) {
+            $cenaBez = round($sl['castka'] / 1.21, 2); // příplatek vč. 21% DPH → rozpad
+            $bez += $cenaBez;
+            $dph += round($sl['castka'] - $cenaBez, 2);
+            $polozky_clean[] = ['vyrobek_id' => null, 'mnozstvi' => 1, 'nazev' => $sl['nazev'], 'cena' => $cenaBez, 'sazba' => 21, 'poznamka' => null];
+        }
+
         // Vlož hlavičku (🆕 v3.0.212 — puvod='b2b' → kanál B2B portál, vlastní řada B2B-rok-N)
         // 🐛 v3.0.235 FIX — datum_objednani CHYBĚL → b2b objednávky měly 0000-00-00
         //   a MIZELY z dashboardu/tržeb/statistik (vše filtruje DATE(datum_objednani)).
@@ -247,16 +265,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
         $obj_id = (int) $pdo->lastInsertId();
 
-        // Vlož položky
+        // Vlož položky (🆕 v3.0.272 — vyrobek_nazev kvůli volným řádkům příplatků s vyrobek_id=NULL)
         $stmt = $pdo->prepare("
             INSERT INTO objednavky_polozky
-                (objednavka_id, vyrobek_id, mnozstvi, cena_bez_dph, sazba_dph, poznamka)
-            VALUES (:o,:v,:m,:c,:s,:p)
+                (objednavka_id, vyrobek_id, vyrobek_nazev, mnozstvi, cena_bez_dph, sazba_dph, poznamka)
+            VALUES (:o,:v,:n,:m,:c,:s,:p)
         ");
         foreach ($polozky_clean as $p) {
             $stmt->execute([
-                'o' => $obj_id, 'v' => $p['vyrobek_id'], 'm' => $p['mnozstvi'],
-                'c' => $p['cena'], 's' => $p['sazba'], 'p' => $p['poznamka'],
+                'o' => $obj_id, 'v' => $p['vyrobek_id'], 'n' => $p['nazev'] ?? null,
+                'm' => $p['mnozstvi'], 'c' => $p['cena'], 's' => $p['sazba'], 'p' => $p['poznamka'],
             ]);
         }
 
