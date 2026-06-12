@@ -95,7 +95,7 @@ if ($method === 'POST') {
     $itemId  = (int) ($d['item_id'] ?? 0);
     $poznamka = trim((string) ($d['poznamka'] ?? ''));
 
-    if (!in_array($action, ['prijem','vydej','inventura','korekce','presun'], true)) {
+    if (!in_array($action, ['prijem','vydej','inventura','korekce','presun','vratka'], true)) {
         json_error('Neplatná akce: ' . $action, 400);
     }
     if (!in_array($itemTyp, ['surovina','vyrobek'], true)) json_error('item_typ musí být surovina nebo vyrobek');
@@ -161,7 +161,12 @@ if ($method === 'POST') {
         $mnozstvi = 0;
         $stavPo = $stavPred;
 
-        if ($action === 'prijem') {
+        if ($action === 'vratka') { // 🆕 v3.0.268 — vratka zboží zpět na sklad (matematicky příjem, auditovaný vlastní typ)
+            $mnozstvi = (float) ($d['mnozstvi'] ?? 0);
+            if ($mnozstvi <= 0) { $pdo->rollBack(); json_error('Množství musí být > 0'); }
+            $stavPo = $stavPred + $mnozstvi;
+        }
+        elseif ($action === 'prijem') {
             $mnozstvi = (float) ($d['mnozstvi'] ?? 0);
             if ($mnozstvi <= 0) { $pdo->rollBack(); json_error('Množství musí být kladné'); }
             $stavPo = $stavPred + $mnozstvi;

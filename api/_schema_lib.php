@@ -215,6 +215,10 @@ function ensure_faktury_schema(PDO $pdo): void {
             // 🆕 misto_dodani_id — ruční faktura INSERT (admin_faktury.php) ho vyžaduje;
             //   bez něj "Column not found 'misto_dodani_id'" → ruční faktura nešla vytvořit.
             'misto_dodani_id'    => 'INT',
+            // 🆕 v3.0.268 — VRATKY: dobropis (opravný daňový doklad) = faktura se zápornou
+            //   částkou, řadou DOB- a vazbou na původní fakturu.
+            'je_dobropis'        => "TINYINT(1) NOT NULL DEFAULT 0",
+            'puvodni_faktura_id' => 'INT',
         ] as $col => $type) {
             if (!in_array(strtolower($col), $cols_lower, true)) {
                 $pdo->exec("ALTER TABLE faktury ADD COLUMN $col $type NULL");
@@ -261,7 +265,7 @@ function ensure_sklad_pohyby_schema(PDO $pdo): void {
                 sklad_id_cil INT NULL,
                 item_typ ENUM('surovina','vyrobek') NOT NULL,
                 item_id INT NOT NULL,
-                typ ENUM('prijem','vydej','inventura','korekce','presun') NOT NULL,
+                typ ENUM('prijem','vydej','inventura','korekce','presun','vratka') NOT NULL,
                 mnozstvi DECIMAL(12,3) NOT NULL,
                 stav_pred DECIMAL(12,3) NULL,
                 stav_po DECIMAL(12,3) NULL,
@@ -277,6 +281,15 @@ function ensure_sklad_pohyby_schema(PDO $pdo): void {
         ");
         // Pozn.: nová tabulka 'sklad_pohyby_v2' aby koexistovala s legacy
         // 'sklad_pohyby' (jen surovina_id, bez sklad_id) — žádný conflict.
+
+        // 🆕 v3.0.268 — VRATKY: existující instalace mají ENUM bez 'vratka' → dorovnej.
+        $typCol = $pdo->query("
+            SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sklad_pohyby_v2' AND COLUMN_NAME = 'typ'
+        ")->fetchColumn();
+        if ($typCol && stripos($typCol, 'vratka') === false) {
+            $pdo->exec("ALTER TABLE sklad_pohyby_v2 MODIFY typ ENUM('prijem','vydej','inventura','korekce','presun','vratka') NOT NULL");
+        }
     } catch (Throwable $e) {
         error_log('ensure_sklad_pohyby_schema: ' . $e->getMessage());
     }

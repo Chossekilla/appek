@@ -366,7 +366,7 @@ if ($action === 'sklad_pohyby' && $method === 'GET') {
 
 // POST pohyb — přijem / výdej / inventura / korekce
 //   { surovina_id, typ, mnozstvi, cena_za_jed?, poznamka? }
-if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_korekce'], true) && $method === 'POST') {
+if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_korekce','sklad_vratka'], true) && $method === 'POST') {
     $d = json_input();
     $sid = (int) ($d['surovina_id'] ?? 0);
     $mnozstvi = (float) ($d['mnozstvi'] ?? 0);
@@ -391,6 +391,7 @@ if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_kor
         $pdo->beginTransaction();
         $stockPred = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id=" . (int) $rowId . " FOR UPDATE")->fetchColumn();
         if ($typ === 'prijem')        $stockPo = $stockPred + $mnozstvi;
+        elseif ($typ === 'vratka')    $stockPo = $stockPred + $mnozstvi; // 🆕 v3.0.268 — vratka zboží zpět na sklad (auditovaný typ)
         elseif ($typ === 'vydej')     $stockPo = max(0, $stockPred - $mnozstvi);
         elseif ($typ === 'inventura') $stockPo = $mnozstvi;            // mnozstvi = nový reálný stav
         else /* korekce */            $stockPo = $stockPred + $mnozstvi;

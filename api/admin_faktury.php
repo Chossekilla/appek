@@ -93,7 +93,7 @@ if ($method === 'GET') {
     $sql = "
         SELECT f.id, f.cislo, f.datum_vystaveni, f.datum_splatnosti,
                f.castka_celkem, f.castka_uhrazeno, f.variabilni_symbol, f.odeslano_email,
-               f.rucni, f.obsah_upraveno,
+               f.rucni, f.obsah_upraveno, f.je_dobropis, f.puvodni_faktura_id,
                od.nazev AS odberatel_nazev,
                CASE
                    WHEN f.castka_uhrazeno >= f.castka_celkem THEN 'uhrazena'
@@ -292,6 +292,102 @@ if ($method === 'PUT') {
     }
 
     json_response(['ok' => true]);
+}
+
+// =============================================================
+// 🆕 v3.0.268 — VRATKY: DOBROPIS (opravný daňový doklad) k faktuře
+// POST ?action=dobropis { faktura_id, duvod? } → nová faktura řady DOB- se
+// zápornými částkami + položkami a vazbou puvodni_faktura_id. Souhrny/statistiky
+// ji započtou záporně automaticky; stav_uhrady vyjde 'uhrazena' (0 ≥ záporné
+// celkem) → nešpiní „po splatnosti".
+// =============================================================
+if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
+    $d = json_input();
+    $srcId = (int) ($d['faktura_id'] ?? 0);
+    $duvod = trim((string) ($d['duvod'] ?? ''));
+    if (!$srcId) json_error('Chybí faktura_id', 400);
+
+    $src = $pdo->prepare("SELECT * FROM faktury WHERE id = :id");
+    $src->execute(['id' => $srcId]);
+    $f = $src->fetch(PDO::FETCH_ASSOC);
+    if (!$f) json_error('Faktura nenalezena', 404);
+    if (!empty($f['je_dobropis'])) json_error('K dobropisu nelze vystavit další dobropis', 400);
+
+    // 1 faktura = max 1 (plný) dobropis — brání dvojímu odečtení
+    $ex = $pdo->prepare("SELECT cislo FROM faktury WHERE puvodni_faktura_id = :id AND je_dobropis = 1 LIMIT 1");
+    $ex->execute(['id' => $srcId]);
+    $exC = $ex->fetchColumn();
+    if ($exC) json_error('K faktuře už existuje dobropis ' . $exC, 409);
+
+    // Položky: faktura_polozky; FA vystavené z DL je nemají → fallback na DL položky
+    $pol = $pdo->prepare("
+        SELECT vyrobek_id, vyrobek_cislo, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph
+        FROM faktura_polozky WHERE faktura_id = :id ORDER BY poradi, id");
+    $pol->execute(['id' => $srcId]);
+    $items = $pol->fetchAll(PDO::FETCH_ASSOC);
+    if (!$items) {
+        $pol = $pdo->prepare("
+            SELECT dlp.vyrobek_id, dlp.vyrobek_cislo, dlp.vyrobek_nazev, dlp.jednotka,
+                   dlp.mnozstvi, dlp.cena_bez_dph, dlp.sazba_dph
+            FROM faktury_dodaci_listy fdl
+            JOIN dodaci_list_polozky dlp ON dlp.dodaci_list_id = fdl.dodaci_list_id
+            WHERE fdl.faktura_id = :id ORDER BY dlp.dodaci_list_id, dlp.id");
+        $pol->execute(['id' => $srcId]);
+        $items = $pol->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    require_once __DIR__ . '/_zaloha_helper.php';
+    try { zaloha_snapshot($pdo, 'Před dobropisem k ' . $f['cislo']); } catch (Throwable $e) {}
+
+    $pdo->beginTransaction();
+    try {
+        $cislo = dalsi_cislo($pdo, 'DOB', (int) date('Y'));
+        $pozn  = 'Dobropis k faktuře ' . $f['cislo'] . ($duvod !== '' ? ' — důvod: ' . $duvod : '');
+        $pdo->prepare("
+            INSERT INTO faktury (cislo, odberatel_id, misto_dodani_id, datum_vystaveni, datum_splatnosti,
+                                 castka_bez_dph, castka_dph, castka_celkem, castka_uhrazeno,
+                                 variabilni_symbol, poznamka, rucni, je_dobropis, puvodni_faktura_id,
+                                 odb_nazev_snapshot, odb_ico_snapshot, odb_dic_snapshot,
+                                 odb_ulice_snapshot, odb_mesto_snapshot, odb_psc_snapshot)
+            VALUES (:c, :o, :m, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 14 DAY),
+                    :bez, :dph, :cel, 0,
+                    :vs, :p, 1, 1, :puv,
+                    :sn, :si, :sd, :su, :sm, :sp)
+        ")->execute([
+            'c'   => $cislo, 'o' => $f['odberatel_id'], 'm' => $f['misto_dodani_id'] ?? null,
+            'bez' => -1 * (float) $f['castka_bez_dph'],
+            'dph' => -1 * (float) $f['castka_dph'],
+            'cel' => -1 * (float) $f['castka_celkem'],
+            // VS s prefixem 9 — nekolidovat s VS původních faktur (stejné číslice řady)
+            'vs'  => '9' . (preg_replace('/\D/', '', $cislo) ?: '0'),
+            'p'   => $pozn, 'puv' => $srcId,
+            'sn'  => $f['odb_nazev_snapshot'] ?? null, 'si' => $f['odb_ico_snapshot'] ?? null,
+            'sd'  => $f['odb_dic_snapshot'] ?? null,  'su' => $f['odb_ulice_snapshot'] ?? null,
+            'sm'  => $f['odb_mesto_snapshot'] ?? null, 'sp' => $f['odb_psc_snapshot'] ?? null,
+        ]);
+        $dobId = (int) $pdo->lastInsertId();
+        if ($items) {
+            $ins = $pdo->prepare("
+                INSERT INTO faktura_polozky (faktura_id, vyrobek_id, vyrobek_cislo, vyrobek_nazev,
+                                             jednotka, mnozstvi, cena_bez_dph, sazba_dph, poradi)
+                VALUES (:f,:v,:vc,:vn,:j,:m,:c,:s,:p)");
+            foreach ($items as $i => $it) {
+                $ins->execute([
+                    'f' => $dobId, 'v' => $it['vyrobek_id'], 'vc' => $it['vyrobek_cislo'] ?? null,
+                    'vn' => $it['vyrobek_nazev'], 'j' => $it['jednotka'] ?: 'ks',
+                    'm' => $it['mnozstvi'], 'c' => -1 * (float) $it['cena_bez_dph'],
+                    's' => $it['sazba_dph'], 'p' => $i,
+                ]);
+            }
+        }
+        $pdo->commit();
+        json_response(['ok' => true, 'id' => $dobId, 'cislo' => $cislo,
+                       'castka_celkem' => -1 * (float) $f['castka_celkem'],
+                       'puvodni' => $f['cislo'], 'polozek' => count($items)], 201);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error_safe('Dobropis se nepodařilo vystavit', $e, 500);
+    }
 }
 
 // =============================================================
