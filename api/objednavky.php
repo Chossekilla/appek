@@ -142,6 +142,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_input();
 
+    // 🆕 v3.0.276 — ŽÁDOST O ZMĚNU/STORNO po vystavení DL (zákazník už needituje přímo, jen požádá).
+    //   Zapíše se do historie objednávky + do interní poznámky → pekárna to vidí v adminu.
+    if (($_GET['action'] ?? '') === 'zadost') {
+        $id = (int) ($data['id'] ?? 0);
+        $zprava = trim((string) ($data['zprava'] ?? ''));
+        if (!$id) json_error('Chybí ID objednávky', 400);
+        if ($zprava === '') json_error('Napiš o co jde', 400);
+        $st = $pdo->prepare("SELECT id FROM objednavky WHERE id = :id AND odberatel_id = :odb");
+        $st->execute(['id' => $id, 'odb' => $odberatel_id]);
+        if (!$st->fetchColumn()) json_error('Objednávka nenalezena', 404);
+        $jm = $pdo->prepare("SELECT nazev FROM odberatele WHERE id = :id");
+        $jm->execute(['id' => $odberatel_id]);
+        $odbNazev = $jm->fetchColumn() ?: 'Odběratel';
+        $zprava = mb_substr($zprava, 0, 1000);
+        try { log_zmena_objednavky($pdo, $id, 'odberatel', $odberatel_id, $odbNazev, 'zadost_zmena', ['zprava' => $zprava]); } catch (Throwable $e) {}
+        // Prominentně do interní poznámky (admin ji vidí hned v detailu)
+        try {
+            $pdo->prepare("UPDATE objednavky SET interni_pozn = TRIM(CONCAT(IFNULL(interni_pozn,''), '\n📩 ŽÁDOST ZÁKAZNÍKA (', :d, '): ', :z)) WHERE id = :id")
+                ->execute(['d' => date('j.n. H:i'), 'z' => $zprava, 'id' => $id]);
+        } catch (Throwable $e) {}
+        json_response(['ok' => true]);
+    }
+
     // Validace typu
     $typ = $data['typ'] ?? 'jednorazova';
     if (!in_array($typ, ['jednorazova','pravidelna_denni','tydenni_plan'])) {
