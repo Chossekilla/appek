@@ -691,6 +691,18 @@ async function showApp() {
     const f = await api('firma_branding.php');
     // 💱 v3.0.283 — měna pro fmt()
     if (f && f.mena) window._mena = f.mena;
+    // 📊 v3.0.284 — Google Analytics (jen B2B portál, jen když je v Nastavení → Integrace vyplněné ID)
+    if (f && f.ga_id && !window._gaLoaded && /^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(f.ga_id)) {
+      window._gaLoaded = true;
+      const gs = document.createElement('script');
+      gs.async = true;
+      gs.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(f.ga_id);
+      document.head.appendChild(gs);
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { window.dataLayer.push(arguments); };
+      window.gtag('js', new Date());
+      window.gtag('config', f.ga_id, { anonymize_ip: true });
+    }
     const cEl = document.getElementById('app-footer-contact');
     if (cEl && f) {
       const tel  = f.firma_telefon ? `<a href="tel:${esc(f.firma_telefon).replace(/\s+/g,'')}">📞 ${esc(f.firma_telefon)}</a>` : '';
