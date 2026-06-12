@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.279';
+const APPEK_ADMIN_JS_VERSION = '3.0.280';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -6630,6 +6630,55 @@ window.slVyrobekPick = function(id) {
   if (list) list.style.display = 'none';
 };
 
+// 🆕 v3.0.279 — REUSABLE row-scoped searchable combobox výrobku (pro per-řádkové repeatery:
+//   výrobní list, opakující objednávky). Hidden input nese stejnou TŘÍDU (+ data-fld), takže
+//   stávající čtení (row.querySelector('.trida').value / [data-fld=...]) funguje beze změny.
+//   Dropdown je position:FIXED (přes getBoundingClientRect) → neořízne ho scrollovací kontejner.
+function vyrComboRow(hiddenClass, items, preId, extraAttrs) {
+  window._vyrComboItems = items; // sdílený zdroj (jen jeden repeater modal otevřený naráz)
+  const pre = preId ? (items || []).find(v => v.id == preId) : null;
+  const preLabel = pre ? (pre.nazev + (pre.cislo ? ` (${pre.cislo})` : '')) : '';
+  const dataA = pre
+    ? `data-cena="${pre.cena_bez_dph || ''}" data-dph="${pre.dph || 12}" data-jed="${esc(pre.jednotka_kod || pre.jednotka || 'ks')}" data-nazev="${esc(pre.nazev)}"`
+    : '';
+  return `
+    <div class="vyr-combo" style="position:relative;min-width:0">
+      <input type="text" class="form-input vyr-combo-search" autocomplete="off" placeholder="Začni psát…" value="${esc(preLabel)}"
+             oninput="vyrComboFilter(this)" onfocus="vyrComboFilter(this)"
+             onblur="setTimeout(()=>{var l=this.closest('.vyr-combo').querySelector('.vyr-combo-list');if(l)l.style.display='none'},170)">
+      <input type="hidden" class="${hiddenClass}" ${extraAttrs || ''} ${dataA} value="${preId || ''}">
+      <div class="vyr-combo-list" style="display:none;z-index:9999;max-height:240px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18)"></div>
+    </div>`;
+}
+window.vyrComboFilter = function(inp) {
+  const wrap = inp.closest('.vyr-combo'); if (!wrap) return;
+  const list = wrap.querySelector('.vyr-combo-list');
+  const q = (inp.value || '').trim().toLowerCase();
+  const all = window._vyrComboItems || [];
+  const matched = (q ? all.filter(v => (v.nazev || '').toLowerCase().includes(q) || (v.cislo || '').toString().toLowerCase().includes(q)) : all).slice(0, 40);
+  list.innerHTML = matched.length
+    ? matched.map(v => `<div data-id="${v.id}" data-cena="${v.cena_bez_dph || ''}" data-dph="${v.dph || 12}" data-jed="${esc(v.jednotka_kod || v.jednotka || 'ks')}" data-nazev="${esc(v.nazev)}" onmousedown="vyrComboPick(this)" style="padding:8px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background=''">${esc(v.ikona || '')} ${esc(v.nazev)}${v.cislo ? ` <span style="color:var(--text-3);font-size:12px">${esc(v.cislo)}</span>` : ''}</div>`).join('')
+    : '<div style="padding:10px 12px;color:var(--text-3);font-size:13px">Nic nenalezeno</div>';
+  // position:fixed dle inputu → escapuje overflow:auto kontejner (rec-polozky)
+  const r = inp.getBoundingClientRect();
+  list.style.position = 'fixed';
+  list.style.left = r.left + 'px';
+  list.style.top = r.bottom + 'px';
+  list.style.width = r.width + 'px';
+  list.style.display = 'block';
+};
+window.vyrComboPick = function(optEl) {
+  const wrap = optEl.closest('.vyr-combo'); if (!wrap) return;
+  const hidden = wrap.querySelector('input[type=hidden]');
+  const search = wrap.querySelector('.vyr-combo-search');
+  hidden.value = optEl.dataset.id;
+  hidden.dataset.cena = optEl.dataset.cena; hidden.dataset.dph = optEl.dataset.dph;
+  hidden.dataset.jed = optEl.dataset.jed; hidden.dataset.nazev = optEl.dataset.nazev;
+  if (search) search.value = (optEl.dataset.nazev || '');
+  hidden.dispatchEvent(new Event('change', { bubbles: true })); // spustí případný autofill/recompute řádku
+  const list = wrap.querySelector('.vyr-combo-list'); if (list) list.style.display = 'none';
+};
+
 window.ulozitNovouPolozku = async function(objednavka_id) {
   const vyrobek_id = parseInt(document.getElementById('add-vyrobek').value);
   const mnozstvi = parseFloat(document.getElementById('add-mnozstvi').value);
@@ -9110,9 +9159,9 @@ window.vlPridatPolozku = function(vyrobek_id = null, mnozstvi = 1) {
   const div = document.getElementById('vl-polozky');
   const row = document.createElement('div');
   row.style.cssText = 'display:flex;gap:8px;margin-bottom:6px;align-items:center;';
-  const sel = window._vlVyrobky.map((v) => `<option value="${v.id}" ${v.id == vyrobek_id ? 'selected' : ''}>${esc(v.ikona || '🥖')} ${esc(v.nazev)}</option>`).join('');
+  // 🆕 v3.0.279 — searchable combobox místo giant <select> (hidden input nese .vl-vyrobek → čtení beze změny)
   row.innerHTML = `
-    <select class="form-select vl-vyrobek" style="flex:2;">${sel}</select>
+    <div style="flex:2;min-width:0">${vyrComboRow('vl-vyrobek', window._vlVyrobky, vyrobek_id)}</div>
     <input type="number" class="form-input vl-mn" min="1" value="${mnozstvi}" style="width:90px;" placeholder="Ks">
     <button class="btn-danger" style="padding:8px 12px;" onclick="this.parentElement.remove()">×</button>
   `;
@@ -9513,10 +9562,7 @@ window.recurringEdit = async function(id) {
 function recurringPolozkaRow(p, idx, vyrobky) {
   return `
     <div class="rec-polozka-row" data-idx="${idx}" style="display:grid;grid-template-columns:2fr 100px 80px 100px auto;gap:8px;margin-bottom:6px;align-items:center">
-      <select class="form-input rec-pol-vyrobek" data-fld="vyrobek_id">
-        <option value="">— Vyberte —</option>
-        ${vyrobky.map(v => `<option value="${v.id}" data-cena="${v.cena_bez_dph}" data-jed="${esc(v.jednotka_kod || 'ks')}" data-dph="${v.dph || 12}" ${p.vyrobek_id == v.id ? 'selected' : ''}>${esc(v.nazev)}${v.cislo ? ` (${esc(v.cislo)})` : ''}</option>`).join('')}
-      </select>
+      ${vyrComboRow('rec-pol-vyrobek', vyrobky, p.vyrobek_id, 'data-fld="vyrobek_id"')}
       <input class="form-input rec-pol-mn" type="number" step="0.01" min="0" data-fld="mnozstvi" value="${p.mnozstvi || ''}" placeholder="ks">
       <input class="form-input" type="text" data-fld="jednotka" value="${esc(p.jednotka || 'ks')}" placeholder="jed.">
       <input class="form-input" type="number" step="0.01" min="0" data-fld="cena_bez_dph" value="${p.cena_bez_dph || ''}" placeholder="Cena">
@@ -9535,15 +9581,15 @@ window.recurringAddPolozka = function() {
 window.recurringSave = async function(id) {
   const polozky = [];
   document.querySelectorAll('.rec-polozka-row').forEach(row => {
-    const vid = parseInt(row.querySelector('[data-fld="vyrobek_id"]').value);
+    const idEl = row.querySelector('[data-fld="vyrobek_id"]');
+    const vid = parseInt(idEl.value);
     const mn  = parseFloat(row.querySelector('[data-fld="mnozstvi"]').value) || 0;
     const jed = row.querySelector('[data-fld="jednotka"]').value || 'ks';
     const cena = parseFloat(row.querySelector('[data-fld="cena_bez_dph"]').value) || 0;
     if (vid && mn > 0) {
-      // Načti DPH ze selectu
-      const opt = row.querySelector('[data-fld="vyrobek_id"]').selectedOptions[0];
-      const dph = parseFloat(opt?.dataset.dph) || 12;
-      const nazev = opt?.textContent.split('(')[0].trim() || '';
+      // 🆕 v3.0.279 — DPH + název z hidden inputu comboboxu (data-* nastaví vyrComboRow/vyrComboPick)
+      const dph = parseFloat(idEl.dataset.dph) || 12;
+      const nazev = idEl.dataset.nazev || '';
       polozky.push({ vyrobek_id: vid, vyrobek_nazev: nazev, mnozstvi: mn, jednotka: jed, cena_bez_dph: cena, sazba_dph: dph });
     }
   });
