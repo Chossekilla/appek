@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.266';
+const APPEK_ADMIN_JS_VERSION = '3.0.267';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5883,8 +5883,16 @@ function pagControlHtml(key, pg, gotoFn, moreFn) {
     const limit = pg.limit || 50, pages = Math.max(1, Math.ceil(total / limit)), cur = Math.floor(pg.offset / limit);
     let btns = '';
     const win = 2;
+    // 🐛 v3.0.267 — dedup „…" kontroloval btns.slice(-1)!=='…', ale btns končí '</span>'
+    //   → nikdy nesepnul → jedna tečka za KAŽDOU přeskočenou stránku (při 203 stránkách
+    //   ~200 teček přes několik řádků). Flag místo string-check.
+    let lastEllipsis = false;
     for (let p = 0; p < pages; p++) {
-      if (p > 1 && p < pages - 1 && Math.abs(p - cur) > win) { if (btns.slice(-1) !== '…') btns += '<span style="padding:0 4px;color:var(--text-3)">…</span>'; continue; }
+      if (p > 1 && p < pages - 1 && Math.abs(p - cur) > win) {
+        if (!lastEllipsis) { btns += '<span style="padding:0 4px;color:var(--text-3)">…</span>'; lastEllipsis = true; }
+        continue;
+      }
+      lastEllipsis = false;
       btns += `<button onclick="${gotoFn}(${p})" style="min-width:34px;padding:6px 10px;border-radius:8px;border:1.5px solid ${p===cur?'#1F2937':'#E5E7EB'};background:${p===cur?'#1F2937':'#fff'};color:${p===cur?'#fff':'#374151'};font-weight:700;cursor:pointer">${p+1}</button>`;
     }
     return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center;margin:16px 0">
@@ -11642,6 +11650,28 @@ async function renderVyrobky(filters = {}) {
     });
   }
 
+  // 🆕 v3.0.267 — stránkování výrobků (dosud jediný hlavní seznam BEZ stránkování — 1400+
+  //   řádků v DOM). Klientské nad `filtered` (kategorie badge/řazení/grupování potřebují plný
+  //   dataset, server vrací vše). Režim řazení a „Roztřídit" zůstávají bez stránkování.
+  const paginated = !grouping && !reorderMode;
+  const vp = state._vyrPag || (state._vyrPag = { offset: 0, shown: 0 });
+  applyPagLimit(vp);
+  const vpSig = JSON.stringify([aktivniKat, q, stav]);
+  if (vp.sig !== vpSig) { vp.sig = vpSig; vp.offset = 0; vp.shown = 0; }
+  let pageItems = filtered;
+  if (paginated) {
+    const vLim = vp.limit || 50;
+    if ((state._pagStyl || 'load_more') === 'stranky') {
+      if (vp.offset >= filtered.length) vp.offset = 0;
+      pageItems = filtered.slice(vp.offset, vp.offset + vLim);
+    } else {
+      vp.offset = 0;
+      if (!vp.shown) vp.shown = vLim;
+      pageItems = filtered.slice(0, vp.shown);
+    }
+  }
+  vp.items = pageItems; vp.total = filtered.length;
+
   c.innerHTML = `
     <div class="page-head">
       <div>
@@ -11746,7 +11776,7 @@ async function renderVyrobky(filters = {}) {
           </tr>
         `;
         if (!grouping) {
-          return `<table class="table ${reorderMode ? 'reorder-table' : ''}">${head}<tbody id="vyrobky-tbody">${filtered.map(radek).join('')}</tbody></table>`;
+          return `<table class="table ${reorderMode ? 'reorder-table' : ''}">${head}<tbody id="vyrobky-tbody">${pageItems.map(radek).join('')}</tbody></table>`;
         }
         // 🔀 Group view — sekce podle kategorie
         const rendered = [];
@@ -11802,7 +11832,7 @@ async function renderVyrobky(filters = {}) {
         return `<div class="vyrobky-grid mobile-only-block" id="vyrobky-grid-mobile"><div class="card-block" style="grid-column:1/-1"><div class="empty-state">Žádné výrobky</div></div></div>`;
       }
       if (!grouping) {
-        return `<div class="vyrobky-grid mobile-only-block" id="vyrobky-grid-mobile">${filtered.map(karta).join('')}</div>`;
+        return `<div class="vyrobky-grid mobile-only-block" id="vyrobky-grid-mobile">${pageItems.map(karta).join('')}</div>`;
       }
       // 🔀 Group view (mobile) — nadpisy + grid pro každou kategorii
       const out = ['<div class="mobile-only-block">'];
@@ -11831,10 +11861,14 @@ async function renderVyrobky(filters = {}) {
       out.push('</div>');
       return out.join('');
     })()}
+    ${paginated ? pagControlHtml('vyr', vp, 'vyrGoToPage', 'vyrLoadMore') : ''}
   `;
 
   // Ulož aktuální filtry pro re-render
   state._vyrobkyFilters = { kategorie_id: aktivniKat, q, stav };
+
+  // 🆕 v3.0.267 — nekonečné scrollování výrobků (jen styl=infinite)
+  if (paginated) pagSetupInfinite('vyr', vp, 'vyrLoadMore');
 
   // Pokud je reorder mode, attachni drag listenery
   if (reorderMode && filtered.length > 1) {
@@ -11842,6 +11876,16 @@ async function renderVyrobky(filters = {}) {
     attachReorderListeners('vyrobky-grid-mobile', '.vyrobek-card');
   }
 }
+
+// 🆕 v3.0.267 — stránkování výrobků (klientské; viz renderVyrobky)
+window.vyrLoadMore = function() {
+  const vp = state._vyrPag; if (vp) vp.shown = (vp.shown || vp.limit || 50) + (vp.limit || 50);
+  renderVyrobky(state._vyrobkyFilters || {});
+};
+window.vyrGoToPage = function(p) {
+  const vp = state._vyrPag; if (vp) { vp.offset = p * (vp.limit || 50); vp.shown = 0; }
+  renderVyrobky(state._vyrobkyFilters || {});
+};
 
 window.toggleVyrobkyReorder = function() {
   state._vyrobkyReorder = !state._vyrobkyReorder;
