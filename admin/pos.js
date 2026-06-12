@@ -2195,9 +2195,29 @@
       <button class="btn-secondary" onclick="POS._closeModal()">Zavřít</button>
       <button class="btn-secondary" onclick="posReprintReceipt(${objId})">🖨️ Reprint</button>
       <button class="btn-secondary" onclick="posShowPayQR(${objId}, '${esc(d.cislo || '')}', ${parseFloat(d.castka_celkem) || 0})">📲 QR platba</button>
+      ${(parseFloat(d.castka_celkem) || 0) > 0 ? `<button class="btn-secondary" style="color:#DC2626;border-color:#FCA5A5" onclick="posRefundReceipt(${objId}, '${esc(d.cislo || '').replace(/'/g, '')}')" title="Vrátit peníze — vznikne záporná účtenka (VRA-…), uzávěrka i tržby se sníží">↩️ Vrátit</button>` : ''}
       <button class="btn-primary" onclick="POS._closeModal();posOpenOrderInAdmin(${objId})">✏️ Upravit v adminu</button>
     `;
     modal('📜 Účtenka ' + (d.cislo || ''), body, foot);
+  };
+
+  // 🆕 v3.0.268 — VRATKY: refundace zaplacené účtenky (záporná účtenka VRA-…)
+  window.posRefundReceipt = async function(objId, cislo) {
+    const duvod = prompt(`Vrátit účtenku ${cislo}?\n\nVznikne záporná účtenka — uzávěrka i tržby se automaticky sníží.\nDůvod (volitelný):`, '');
+    if (duvod === null) return;
+    try {
+      const r = await api('admin_pos.php?action=refund_order', {
+        method: 'POST',
+        body: JSON.stringify({ objednavka_id: objId, duvod: duvod || '' }),
+      });
+      POS._closeModal();
+      if (typeof toast === 'function') toast(`✅ Vratka ${r.cislo} (${fmt(r.castka_celkem)} Kč)`, 'success');
+      else alert(`✅ Vratka ${r.cislo} vytvořena (${fmt(r.castka_celkem)} Kč)`);
+      if (typeof posLoadOrders === 'function') posLoadOrders();
+    } catch (e) {
+      if (typeof toast === 'function') toast('❌ ' + (e.message || 'Vratka selhala'), 'error');
+      else alert('❌ ' + (e.message || 'Vratka selhala'));
+    }
   };
 
   // ─── 🆕 v3.0.7 — QR k platbě (pay-at-table) ───────────────────

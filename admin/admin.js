@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.267';
+const APPEK_ADMIN_JS_VERSION = '3.0.268';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -10667,7 +10667,7 @@ async function renderFaktury(filters = {}, opts = {}) {
                 <td class="col-check" onclick="event.stopPropagation();">
                   <input type="checkbox" ${sel ? 'checked' : ''} onchange="faToggleSelect(${f.id}, this.checked)" data-fa-check="${f.id}">
                 </td>
-                <td><strong>${esc(f.cislo)}</strong>${upravenoDot(f.obsah_upraveno)}</td>
+                <td><strong${f.je_dobropis == 1 ? ' style="color:#DC2626"' : ''}>${esc(f.cislo)}</strong>${f.je_dobropis == 1 ? ' <span class="status zrusena" style="font-size:10px">↩️ Dobropis</span>' : ''}${upravenoDot(f.obsah_upraveno)}</td>
                 <td>
                   <div>${esc(f.odberatel_nazev)}</div>
                   ${f.pobocky_nazvy ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px">📍 ${esc(f.pobocky_nazvy)}${f.pobocka_adresa ? ' — ' + esc(f.pobocka_adresa) : ''}</div>` : ''}
@@ -11293,6 +11293,7 @@ window.openFakturaDetail = async function(id) {
         <a href="../api/admin_export_isdoc.php?action=isdoc&id=${f.id}" class="btn-secondary" style="text-decoration:none;" title="Stáhnout ISDOC XML pro účetnictví (Money S3, Pohoda…)">📤 ISDOC export</a>
         <button class="btn-secondary" onclick="tiskFaktury(${f.id})" title="Otevře tiskový dialog (PDF / tiskárna)">🖨️ Tisk</button>
         <button class="btn-secondary" onclick="noOpakovatZeZdroje('fa', ${f.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu objednat</button>
+        ${!f.je_dobropis ? adminOnly(`<button class="btn-secondary" style="color:#DC2626;border-color:#FCA5A5" onclick="vystavitDobropis(${f.id}, '${esc(f.cislo).replace(/'/g, '')}')" title="Vystavit opravný daňový doklad (dobropis) — záporná částka se propíše do statistik">↩️ Dobropis</button>`) : ''}
       </div>
       <div class="form-actions-icons-row">
         <button class="btn-icon-corner" onclick="tiskNaTermo('fa', ${f.id}, '${esc(f.cislo).replace(/'/g, '')}')" title="Tisk na termo-tiskárnu (účtenka / bon)" aria-label="Tisk na tiskárnu">🖨️</button>
@@ -11309,6 +11310,24 @@ window.openFakturaDetail = async function(id) {
 window.tiskFaktury = function(id) {
   // Otevře PDF s autoprint=1 — dialog Tisk se spustí sám
   window.open(`../api/faktura.php?id=${id}&autoprint=1`, '_blank');
+};
+
+// 🆕 v3.0.268 — VRATKY: dobropis k faktuře (opravný daňový doklad, řada DOB-)
+window.vystavitDobropis = async function(id, cislo) {
+  const duvod = prompt(`Vystavit dobropis k faktuře ${cislo}?\n\nCelá částka se odečte ze statistik (záporný doklad).\nDůvod (volitelný):`, '');
+  if (duvod === null) return; // zrušeno
+  try {
+    const r = await api('admin_faktury.php?action=dobropis', {
+      method: 'POST',
+      body: JSON.stringify({ faktura_id: id, duvod: duvod || '' }),
+    });
+    toast(`✅ Dobropis ${r.cislo} vystaven (${fmt(r.castka_celkem)})`, 'success');
+    closeModal();
+    if (state.current === 'faktury') renderFaktury(state._faPag && state._faPag.filters || {});
+    setTimeout(() => openFakturaDetail(r.id), 250);
+  } catch (e) {
+    toast('❌ ' + (e.message || 'Dobropis se nepodařilo vystavit'), 'error');
+  }
 };
 
 // =============================================================
@@ -30534,6 +30553,7 @@ window.surSkladModal = async function(id) {
     <div class="period-tab-row" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
       <button type="button" class="period-tab active" onclick="surSkladTab('prijem')" data-tab="prijem" style="font-size:14px;padding:10px 16px;font-weight:600"><span class="period-tab-icon">📥</span><span class="period-tab-text">Příjem</span></button>
       <button type="button" class="period-tab" onclick="surSkladTab('vydej')" data-tab="vydej" style="font-size:14px;padding:10px 16px;font-weight:600">📤 Výdej</button>
+      <button type="button" class="period-tab" onclick="surSkladTab('vratka')" data-tab="vratka" style="font-size:14px;padding:10px 16px;font-weight:600">↩️ Vratka</button>
       <button type="button" class="period-tab" onclick="surSkladTab('inventura')" data-tab="inventura" style="font-size:14px;padding:10px 16px;font-weight:600">📋 Inventura</button>
     </div>
 
@@ -30550,7 +30570,7 @@ window.surSkladModal = async function(id) {
             <thead><tr><th>Kdy</th><th>Typ</th><th class="num">Změna</th><th class="num">Stav po</th><th>Pozn.</th></tr></thead>
             <tbody>
               ${pohyby.map(p => {
-                const typIko = { prijem: '📥', vydej: '📤', inventura: '📋', korekce: '⚙' }[p.typ] || '';
+                const typIko = { prijem: '📥', vydej: '📤', inventura: '📋', korekce: '⚙', vratka: '↩️' }[p.typ] || '';
                 const znak = (p.typ === 'vydej') ? '−' : (p.typ === 'inventura' ? '=' : '+');
                 return `
                   <tr>
@@ -30602,9 +30622,10 @@ function _skladForm(typ, s) {
       </div>
     `;
   }
-  const label = typ === 'prijem' ? 'Přijaté množství' : 'Vydané množství';
-  const btnTxt = typ === 'prijem' ? '📥 Naskladnit' : '📤 Odepsat ze skladu';
-  const btnColor = typ === 'prijem' ? 'btn-green' : 'btn-secondary';
+  // 🆕 v3.0.268 — vratka = příjem zpět na sklad (vlastní auditovaný typ pohybu)
+  const label = typ === 'prijem' ? 'Přijaté množství' : (typ === 'vratka' ? 'Vrácené množství' : 'Vydané množství');
+  const btnTxt = typ === 'prijem' ? '📥 Naskladnit' : (typ === 'vratka' ? '↩️ Přijmout vratku' : '📤 Odepsat ze skladu');
+  const btnColor = (typ === 'prijem' || typ === 'vratka') ? 'btn-green' : 'btn-secondary';
   return `
     <div class="form-grid form-grid-tight">
       <div>

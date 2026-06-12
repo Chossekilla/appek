@@ -424,8 +424,14 @@ $autoprint = !empty($_GET['autoprint']);
             if ($logoUrl): ?>
         <img src="<?= esc($logoUrl) ?>" style="max-height:18mm;max-width:60mm;margin-bottom:6mm;object-fit:contain" alt="Logo">
       <?php endif; ?>
-      <h1>Faktura</h1>
+      <?php // 🆕 v3.0.268 — dobropis = opravný daňový doklad (vlastní nadpis + vazba na původní FA)
+            $jeDobropis = !empty($f['je_dobropis']); ?>
+      <h1><?= $jeDobropis ? 'Opravný daňový doklad (dobropis)' : 'Faktura' ?></h1>
       <div class="cislo">č. <strong><?= esc($f['cislo']) ?></strong></div>
+      <?php if ($jeDobropis && !empty($f['puvodni_faktura_id'])):
+          $puvC = $pdo->query("SELECT cislo FROM faktury WHERE id = " . (int) $f['puvodni_faktura_id'])->fetchColumn();
+          if ($puvC): ?><div style="font-size:9pt;color:#666;margin-top:1mm">k faktuře <strong><?= esc($puvC) ?></strong></div><?php endif;
+      endif; ?>
     </div>
     <div class="firma">
       <div class="nazev"><?= esc(firma('nazev', 'APPEK B2B')) ?></div>

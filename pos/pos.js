@@ -744,9 +744,23 @@
           <div><span>DPH</span><span>${fmt(o.castka_dph)} Kč</span></div>
           <div class="rd-grand"><span>CELKEM</span><span>${fmt(o.castka_celkem)} Kč</span></div>
         </div>`;
-      const foot = `<button class="pos-modal-btn" onclick='POS._printReceipt(${JSON.stringify(o)})'>🖨️ Tisk účtenky</button>`;
+      // 🆕 v3.0.268 — VRATKY: refundace zaplacené účtenky (záporná účtenka VRA-…)
+      const foot = `<button class="pos-modal-btn" onclick='POS._printReceipt(${JSON.stringify(o)})'>🖨️ Tisk účtenky</button>`
+        + ((+o.castka_celkem) > 0 ? `<button class="pos-modal-btn" style="color:#DC2626" onclick="POS.refundReceipt(${o.id}, '${esc(o.cislo || '').replace(/'/g, '')}')">↩️ Vrátit</button>` : '');
       modal('🧾 ' + o.cislo, body, foot);
     } catch (e) { toast('Chyba: ' + e.message, 'error'); }
+  }
+
+  // 🆕 v3.0.268 — VRATKY
+  async function refundReceipt(id, cislo) {
+    const duvod = prompt('Vrátit účtenku ' + cislo + '?\n\nVznikne záporná účtenka — tržby i uzávěrka se sníží.\nDůvod (volitelný):', '');
+    if (duvod === null) return;
+    try {
+      const r = await api('admin_pos.php?action=refund_order', { method: 'POST', body: JSON.stringify({ objednavka_id: id, duvod: duvod || '' }) });
+      closeModal();
+      toast('✅ Vratka ' + r.cislo + ' (' + fmt(r.castka_celkem) + ' Kč)', 'success');
+      if (typeof renderOrders === 'function') renderOrders();
+    } catch (e) { toast('❌ ' + e.message, 'error'); }
   }
 
   function printReceiptDoc(o) {
@@ -805,6 +819,8 @@
   window.POS = {
     search:        setSearch,
     newOrder:      newOrder,
+    refundReceipt: refundReceipt, // 🆕 v3.0.268 — vratky
+
     pickCustomer:  pickCustomer,
     setTyp:        setTyp,
     setPay:        setPay,

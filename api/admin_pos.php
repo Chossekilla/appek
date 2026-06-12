@@ -1712,6 +1712,75 @@ if ($method === 'POST' && $action === 'uzaverka_close') {
     json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId(), 'celkem' => $data['total']['trzba'], 'pocet' => $data['total']['pocet'], 'kdo' => $kdo]);
 }
 
+// 🆕 v3.0.268 — VRATKY: refundace ZAPLACENÉ účtenky → záporná účtenka (VRA-…)
+//   POST ?action=refund_order { objednavka_id, duvod? }
+//   Vznikne zrcadlová objednávka se zápornými částkami + položkami (mnozstvi < 0),
+//   stejný puvod/pos_payment → uzávěrka, dashboard i kanálové tržby ji odečtou
+//   automaticky. Guard: 1 účtenka = max 1 vratka; vratku nelze vracet.
+if ($method === 'POST' && $action === 'refund_order') {
+    $d = json_input();
+    $oid   = (int) ($d['objednavka_id'] ?? 0);
+    $duvod = trim((string) ($d['duvod'] ?? ''));
+    if (!$oid) json_error('Chybí objednavka_id', 400);
+
+    try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN IF NOT EXISTS refund_of INT NULL"); } catch (Throwable $e) {}
+
+    $pokIn = pos_pokladni_sql($pdo, 'puvod');
+    $st = $pdo->prepare("SELECT * FROM objednavky WHERE id = :id AND {$pokIn}");
+    $st->execute(['id' => $oid]);
+    $o = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$o) json_error('Účtenka nenalezena', 404);
+    if ((float) $o['castka_celkem'] <= 0 || !empty($o['refund_of'])) json_error('Vratku nelze vracet', 400);
+    $ex = $pdo->prepare("SELECT cislo FROM objednavky WHERE refund_of = :id LIMIT 1");
+    $ex->execute(['id' => $oid]);
+    $exC = $ex->fetchColumn();
+    if ($exC) json_error('Účtenka už byla vrácena (' . $exC . ')', 409);
+
+    $pdo->beginTransaction();
+    try {
+        $cislo = 'VRA-' . pos_next_doklad($pdo);
+        $admin = aktualni_admin($pdo);
+        $pdo->prepare("
+            INSERT INTO objednavky (cislo, typ, odberatel_id, datum_objednani, datum_dodani,
+                                    castka_bez_dph, castka_dph, castka_celkem, stav, puvod,
+                                    pos_typ, pos_payment, pos_tip, pos_uzivatel, poznamka, refund_of)
+            VALUES (:c, :typ, :odb, NOW(), CURDATE(),
+                    :bez, :dph, :cel, :stav, :puv,
+                    :pt, :pp, 0, :u, :pozn, :ref)
+        ")->execute([
+            'c'   => $cislo, 'typ' => $o['typ'] ?: 'jednorazova', 'odb' => $o['odberatel_id'],
+            'bez' => -1 * (float) $o['castka_bez_dph'],
+            'dph' => -1 * (float) $o['castka_dph'],
+            'cel' => -1 * (float) $o['castka_celkem'],
+            'stav' => $o['stav'] ?: 'zaplaceno', 'puv' => $o['puvod'],
+            'pt'  => $o['pos_typ'], 'pp' => $o['pos_payment'], 'u' => $admin['jmeno'],
+            'pozn' => 'Vratka účtenky ' . $o['cislo'] . ($duvod !== '' ? ' — důvod: ' . $duvod : ''),
+            'ref' => $oid,
+        ]);
+        $rid = (int) $pdo->lastInsertId();
+        $items = $pdo->prepare("
+            SELECT vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph
+            FROM objednavky_polozky WHERE objednavka_id = :id");
+        $items->execute(['id' => $oid]);
+        $insP = $pdo->prepare("
+            INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph)
+            VALUES (:o,:v,:n,:j,:m,:c,:s)");
+        foreach ($items->fetchAll(PDO::FETCH_ASSOC) as $p) {
+            $insP->execute([
+                'o' => $rid, 'v' => $p['vyrobek_id'], 'n' => $p['vyrobek_nazev'],
+                'j' => $p['jednotka'] ?: 'ks', 'm' => -1 * (float) $p['mnozstvi'],
+                'c' => $p['cena_bez_dph'], 's' => $p['sazba_dph'],
+            ]);
+        }
+        $pdo->commit();
+        json_response(['ok' => true, 'id' => $rid, 'cislo' => $cislo,
+                       'castka_celkem' => -1 * (float) $o['castka_celkem'], 'puvodni' => $o['cislo']]);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error_safe('Vratku se nepodařilo vytvořit', $e, 500);
+    }
+}
+
 // 🆕 v2.9.308 — GET ?action=quick_order_detail&id=X — detail jedné POS účtenky (modal)
 // Vrací objednavku + polozky. LEFT JOIN odberatele aby fungovalo i pro POS quick orders
 // bez zákazníka (puvod='pos', odberatel_id může být null nebo dummy).
