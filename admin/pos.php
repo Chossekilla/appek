@@ -330,7 +330,20 @@ $csrfToken  = csrf_token();
     csrfToken:  <?= json_encode($csrfToken) ?>,
     apiBase:    '../api/',  // 🐛 v3.0.9 fix: relativní (předtím absolutní '/api/' = 404 na subdirectory hostingu)
     locale:     'cs-CZ',
-    currency:   'Kč',
+    // 💱 v3.0.283 — měna z nastavení (mena_config_json): zobrazeni='mena' → POS přepočítává kurzem
+    <?php
+      $menaCfg = ['kod' => 'CZK', 'symbol' => 'Kč', 'kurz' => 1, 'zobrazeni' => 'kc'];
+      try {
+          $mcRaw = function_exists('nastaveni') ? (nastaveni()['mena_config_json'] ?? '') : '';
+          $mc = $mcRaw ? json_decode($mcRaw, true) : null;
+          if (is_array($mc) && !empty($mc['kod']) && $mc['kod'] !== 'CZK') {
+              $symboly = ['EUR' => '€', 'USD' => '$', 'GBP' => '£', 'PLN' => 'zł', 'HUF' => 'Ft', 'CHF' => 'CHF'];
+              $menaCfg = ['kod' => $mc['kod'], 'symbol' => $symboly[$mc['kod']] ?? $mc['kod'], 'kurz' => max(0.0001, (float) ($mc['kurz'] ?? 1)), 'zobrazeni' => ($mc['zobrazeni'] ?? 'kc') === 'mena' ? 'mena' : 'kc'];
+          }
+      } catch (Throwable $e) { /* default Kč */ }
+    ?>
+    currency:   <?= json_encode($menaCfg['zobrazeni'] === 'mena' ? $menaCfg['symbol'] : 'Kč') ?>,
+    mena:       <?= json_encode($menaCfg) ?>,
     // 🆕 v3.0.249 — počet řádků na stránku (sdíleno s admin nastavením „Dlouhé seznamy")
     pagPocet:   <?= (function () { $p = (int) (function_exists('nastaveni') ? (nastaveni()['pagination_pocet'] ?? 50) : 50); return in_array($p, [25, 50, 100, 200], true) ? $p : 50; })() ?>,
   };

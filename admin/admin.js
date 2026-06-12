@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.282';
+const APPEK_ADMIN_JS_VERSION = '3.0.283';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -1159,6 +1159,21 @@ window.onNotifClick = async function(id, link) {
     const parts = link.slice(2).split('/');
     closeNotifPanel();
     if (parts[0]) navigate(parts[0]);
+    // 🆕 v3.0.283 — #/nastaveni/<tab|update> otevře konkrétní sekci nastavení;
+    // 'update' = tab Údržba + scroll na kartu Licence & aktualizace (self-update).
+    if (parts[0] === 'nastaveni' && parts[1]) {
+      const tab = parts[1] === 'update' ? 'udrzba' : parts[1];
+      setTimeout(() => {
+        state._nastaveniTab = tab;
+        renderNastaveni();
+        if (parts[1] === 'update') {
+          setTimeout(() => {
+            const blk = document.getElementById('ns-license-block');
+            if (blk) { blk.scrollIntoView({ behavior: 'smooth', block: 'start' }); blk.style.outline = '2px solid #16a34a'; setTimeout(() => { blk.style.outline = ''; }, 2500); }
+          }, 400);
+        }
+      }, 150);
+    }
   }
   refreshNotifBadge();
   loadNotifList();
@@ -1953,7 +1968,13 @@ window.skeletonLine = function(width = '60%', height = '14px') {
 })();
 function fmt(n) {
   // 🌍 T4 — locale-aware formátování měny. Default cs-CZ/CZK, ale respektuje getCurrentLocale().
+  // 💱 v3.0.283 — display přepočet na cílovou měnu (Nastavení → Přístupy & ceny → Měna).
+  //   DB hodnoty jsou VŽDY v Kč; při zobrazeni='mena' se dělí kurzem a formátuje cílovou měnou.
   try {
+    const m = window._menaCfg;
+    if (m && m.zobrazeni === 'mena' && m.kod !== 'CZK' && m.kurz > 0) {
+      return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: m.kod, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((n || 0) / m.kurz);
+    }
     const cfg = (typeof window.getCurrentLocale === 'function') ? window.getCurrentLocale() : null;
     const locale   = (cfg && cfg.locale)   || 'cs-CZ';
     const currency = (cfg && cfg.currency) || 'CZK';
@@ -3168,6 +3189,9 @@ async function showApp() {
 
   // 🎨 Apply brand customization (primary color + logo z firma nastavení)
   applyBrandCustomization();
+
+  // 💱 v3.0.283 — měna config pro fmt() (display přepočet; neblokuje boot)
+  api('admin_mena.php').then(r => { window._menaCfg = r.config || null; }).catch(() => {});
 
   // 🔔 Start notifikační polling
   startNotifPolling();
@@ -5837,6 +5861,116 @@ window.voucherDobit = async function(id, kod) {
   if (castka <= 0) { toast('Zadej kladnou částku', 'error'); return; }
   try { const r = await api('admin_vouchers.php?action=topup', { method: 'POST', body: JSON.stringify({ id, castka }) }); toast(`✅ Dobito, zůstatek ${fmt(r.zustatek)}`, 'success'); renderVouchers(); }
   catch (e) { toast('❌ ' + (e.message || 'Dobití selhalo'), 'error'); }
+};
+
+// ═══════════════════════════════════════════════════════════
+// 💱 MĚNA & PŘEPOČET (v3.0.283) — Nastavení → Přístupy & ceny
+// ═══════════════════════════════════════════════════════════
+window.menaLoad = async function() {
+  const el = document.getElementById('ns-mena-body');
+  if (!el) return;
+  try {
+    const r = await api('admin_mena.php');
+    const c = r.config || {};
+    window._menaCfg = c;
+    const opts = Object.entries(r.podporovane || { CZK: 'Kč', EUR: '€' })
+      .map(([k, s]) => `<option value="${k}" ${c.kod === k ? 'selected' : ''}>${k} (${s})</option>`).join('');
+    const cizi = c.kod !== 'CZK';
+    el.innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div><label class="form-label" style="font-size:12px">Cílová měna</label>
+          <select class="form-input" id="mena-kod" style="width:130px" onchange="menaKodChange()">${opts}</select></div>
+        <div id="mena-kurz-wrap" style="${cizi ? '' : 'display:none'}"><label class="form-label" style="font-size:12px">Kurz (1 <span id="mena-kurz-kod">${esc(c.kod)}</span> = ? Kč)</label>
+          <input class="form-input" id="mena-kurz" type="number" min="0.0001" step="0.001" value="${c.kurz || 1}" style="width:120px"></div>
+        <button class="btn-secondary" id="mena-cnb-btn" style="${cizi ? '' : 'display:none'}" onclick="menaCnb()">🏦 Načíst z ČNB</button>
+        <span id="mena-cnb-info" style="font-size:12px;color:var(--text-3);padding-bottom:9px"></span>
+      </div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:12px" id="mena-volby" ${cizi ? '' : 'hidden'}>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="radio" name="mena-zobr" value="kc" ${c.zobrazeni !== 'mena' ? 'checked' : ''}> Zobrazovat v Kč (základ)</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="radio" name="mena-zobr" value="mena" ${c.zobrazeni === 'mena' ? 'checked' : ''}> Zobrazovat přepočtené v cílové měně</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="mena-dual" ${c.dual_doklady ? 'checked' : ''}> Informativní přepočet na dokladech</label>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+        <button class="btn-primary btn-green" onclick="menaSave()">💾 Uložit měnu</button>
+        <span id="mena-save-info" style="font-size:12px;color:var(--text-3)"></span>
+      </div>
+      <div style="border-top:1px dashed var(--border);margin-top:14px;padding-top:12px" ${cizi ? '' : 'hidden'} id="mena-prepocet-sekce">
+        <strong style="font-size:13px">⚠️ Trvalý přepočet ceníku</strong>
+        <p class="page-sub" style="font-size:12px;margin:4px 0 8px">Přepíše uložené ceny všech výrobků (cena ÷ kurz). Nevratné bez zálohy — záloha DB se vytvoří automaticky před přepočtem.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn-secondary" onclick="menaPrepocetNahled()">👁️ Náhled přepočtu</button>
+          <div id="mena-prepocet-nahled" style="font-size:12px;flex-basis:100%"></div>
+        </div>
+      </div>`;
+  } catch (e) { el.innerHTML = `<span style="color:var(--danger-text)">Chyba: ${esc(e.message)}</span>`; }
+};
+window.menaKodChange = function() {
+  const kod = document.getElementById('mena-kod').value;
+  const cizi = kod !== 'CZK';
+  document.getElementById('mena-kurz-wrap').style.display = cizi ? '' : 'none';
+  document.getElementById('mena-cnb-btn').style.display = cizi ? '' : 'none';
+  document.getElementById('mena-volby').hidden = !cizi;
+  document.getElementById('mena-prepocet-sekce').hidden = !cizi;
+  const kk = document.getElementById('mena-kurz-kod'); if (kk) kk.textContent = kod;
+};
+window.menaCnb = async function() {
+  const kod = document.getElementById('mena-kod').value;
+  const info = document.getElementById('mena-cnb-info');
+  info.textContent = '⏳ ČNB…';
+  try {
+    const r = await api(`admin_mena.php?action=cnb&kod=${encodeURIComponent(kod)}`);
+    document.getElementById('mena-kurz').value = r.kurz;
+    info.textContent = `✅ ČNB ${r.datum}: 1 ${kod} = ${r.kurz} Kč`;
+  } catch (e) { info.textContent = '❌ ' + (e.message || 'ČNB nedostupná'); }
+};
+window.menaSave = async function() {
+  const kod = document.getElementById('mena-kod').value;
+  const cfg = {
+    kod,
+    kurz: parseFloat(document.getElementById('mena-kurz').value) || 1,
+    zobrazeni: (document.querySelector('input[name="mena-zobr"]:checked') || {}).value || 'kc',
+    dual_doklady: !!(document.getElementById('mena-dual') || {}).checked,
+  };
+  try {
+    const r = await api('admin_mena.php?action=save', { method: 'POST', body: JSON.stringify({ config: cfg }) });
+    window._menaCfg = r.config;
+    toast('✅ Měna uložena', 'success');
+    const info = document.getElementById('mena-save-info');
+    if (info) info.textContent = r.config.zobrazeni === 'mena' ? `Ceny se zobrazují v ${r.config.kod} (kurz ${r.config.kurz})` : 'Ceny se zobrazují v Kč';
+  } catch (e) { toast('❌ ' + (e.message || 'Uložení selhalo'), 'error'); }
+};
+window.menaPrepocetNahled = async function() {
+  const kurz = parseFloat(document.getElementById('mena-kurz').value) || 0;
+  const el = document.getElementById('mena-prepocet-nahled');
+  if (kurz <= 0) { el.innerHTML = '<span style="color:var(--danger-text)">Zadej kladný kurz</span>'; return; }
+  el.innerHTML = '⏳ Počítám…';
+  try {
+    const r = await api(`admin_mena.php?action=prepocet_nahled&kurz=${kurz}`);
+    el.innerHTML = `
+      <div style="background:var(--surface-2);border-radius:8px;padding:10px 12px;margin-top:8px">
+        <strong>${r.pocet} výrobků</strong> · kurz ${kurz} · ukázka:
+        <table class="table" style="font-size:12px;margin-top:6px">
+          <thead><tr><th>Výrobek</th><th class="num">Teď (Kč)</th><th class="num">Po přepočtu</th></tr></thead>
+          <tbody>${(r.ukazky || []).map(u => `<tr><td>${esc(u.nazev)}</td><td class="num">${u.stara.toFixed(2)}</td><td class="num"><strong>${u.nova.toFixed(2)}</strong></td></tr>`).join('')}</tbody>
+        </table>
+        <button class="btn-primary" style="margin-top:8px;background:#DC2626" onclick="menaPrepocet(${kurz})">⚠️ Zálohovat DB a TRVALE přepočítat</button>
+      </div>`;
+  } catch (e) { el.innerHTML = `<span style="color:var(--danger-text)">${esc(e.message)}</span>`; }
+};
+window.menaPrepocet = async function(kurz) {
+  if (!confirm(`TRVALE přepočítat ceny všech výrobků kurzem ${kurz}?\n\nNejdřív se automaticky vytvoří záloha DB.`)) return;
+  const el = document.getElementById('mena-prepocet-nahled');
+  try {
+    el.innerHTML = '💾 Vytvářím zálohu DB…';
+    await api('admin_zalohy.php?action=create', { method: 'POST', body: JSON.stringify({ label: `před přepočtem měny (kurz ${kurz})`, include_uploads: false }) });
+    el.innerHTML = '⏳ Přepočítávám ceník…';
+    const r = await api('admin_mena.php?action=prepocet', { method: 'POST', body: JSON.stringify({ kurz }) });
+    el.innerHTML = `<div style="background:var(--success-bg);color:var(--success-text);border-radius:8px;padding:10px 12px;margin-top:8px">✅ Přepočteno ${r.prepocteno} výrobků kurzem ${r.kurz}. Záloha DB vytvořena (Údržba → Zálohy).</div>`;
+    toast(`✅ Ceník přepočten (${r.prepocteno} výrobků)`, 'success');
+  } catch (e) { el.innerHTML = `<span style="color:var(--danger-text)">❌ ${esc(e.message)} — ceny NEzměněny${String(e.message).includes('záloh') ? '' : ' (pokud selhala záloha)'}</span>`; }
 };
 
 async function renderObjednavky(filters = {}, opts = {}) {
@@ -14710,6 +14844,15 @@ async function renderNastaveni() {
   `;
 
   const blokPristupy = `
+    <!-- 💱 MĚNA & PŘEPOČET (v3.0.283) -->
+    <div class="card-block admin-only" id="ns-mena-block" style="margin-bottom:14px">
+      <h3 style="margin-bottom:6px">💱 Měna & přepočet</h3>
+      <p class="page-sub" style="margin-bottom:12px;font-size:12px">
+        Ceny v databázi jsou v Kč. Zde nastavíš cílovou měnu a kurz — zobrazení se přepočítá v adminu, na pokladně i v B2B portálu; na doklady lze přidat informativní přepočet. Trvalý přepočet ceníku níže ceny skutečně přepíše.
+      </p>
+      <div id="ns-mena-body" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
+    </div>
+
     <!-- ŘADA: Slevové skupiny + Uživatelé -->
     <div class="nastaveni-row">
       <div class="card-block admin-only">
@@ -15754,6 +15897,9 @@ async function renderNastaveni() {
     loadActivityLog();
     loadWebhooks();
     if (typeof errorsLoad === 'function') errorsLoad(); // 🆕 v2.9.321 — app_errors viewer
+  }
+  if (aktTab === 'pristupy') {
+    menaLoad();   // 💱 v3.0.283 — měna & přepočet
   }
   if (aktTab === 'balicky') {
     loadBalicky();
@@ -24668,7 +24814,7 @@ function _zalohaVel(b) {
   return (b / 1024 / 1024 / 1024).toFixed(2) + ' GB';
 }
 
-window.zalohyRefresh = async function() {
+window.zalohyRefresh = async function(showAll = false) {
   const el = document.getElementById('ns-zalohy-list');
   if (!el) return;
   el.innerHTML = '⏳ Načítám…';
@@ -24691,6 +24837,10 @@ window.zalohyRefresh = async function() {
         </div>`;
       return;
     }
+    // 🆕 v3.0.283 — defaultně jen 5 nejnovějších, zbytek na kliknutí
+    const LIMIT = 5;
+    const zobraz = showAll ? d.zalohy : d.zalohy.slice(0, LIMIT);
+    const skryto = d.zalohy.length - zobraz.length;
     el.innerHTML = `
       <table class="table zalohy-table" style="font-size:12px">
         <thead>
@@ -24701,7 +24851,7 @@ window.zalohyRefresh = async function() {
           </tr>
         </thead>
         <tbody>
-          ${d.zalohy.map(z => `
+          ${zobraz.map(z => `
             <tr>
               <td class="zaloha-cell-when">
                 <strong>${esc(z.vytvoreno?.substring(0, 16).replace('T', ' ') || '?')}</strong>
@@ -24723,6 +24873,13 @@ window.zalohyRefresh = async function() {
           `).join('')}
         </tbody>
       </table>
+      ${skryto > 0 ? `
+        <div style="text-align:center;padding:8px 0 2px">
+          <button class="btn-secondary" style="font-size:12px;padding:6px 14px" onclick="zalohyRefresh(true)">Zobrazit všech ${d.zalohy.length} záloh ▾</button>
+        </div>` : (showAll && d.zalohy.length > LIMIT ? `
+        <div style="text-align:center;padding:8px 0 2px">
+          <button class="btn-secondary" style="font-size:12px;padding:6px 14px" onclick="zalohyRefresh(false)">Zobrazit jen posledních ${LIMIT} ▴</button>
+        </div>` : '')}
     `;
   } catch (e) {
     el.innerHTML = `<div style="color:var(--danger-text);padding:14px;background:var(--danger-bg);border-radius:6px">Chyba: ${esc(e.message)}</div>`;

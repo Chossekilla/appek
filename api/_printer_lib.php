@@ -238,6 +238,16 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
     $celk = sprintf('CELKEM: %.2f Kč', (float)($order['castka_celkem'] ?? 0));
     $out .= pr_text(str_pad($celk, $w, ' ', STR_PAD_LEFT) . "\n", $enc);
     $out .= pr_size() . pr_bold(false);
+    // 💱 v3.0.283 — informativní přepočet na cílovou měnu (mena_config_json, dual_doklady)
+    try {
+        $mcSt = db()->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'mena_config_json'");
+        $mcSt->execute();
+        $mc = json_decode((string) $mcSt->fetchColumn(), true);
+        if (is_array($mc) && !empty($mc['dual_doklady']) && ($mc['kod'] ?? 'CZK') !== 'CZK' && (float) ($mc['kurz'] ?? 0) > 0) {
+            $prep = sprintf('= %.2f %s (kurz %.3f)', (float) ($order['castka_celkem'] ?? 0) / (float) $mc['kurz'], $mc['kod'], (float) $mc['kurz']);
+            $out .= pr_text(str_pad($prep, $w, ' ', STR_PAD_LEFT) . "\n", $enc);
+        }
+    } catch (Throwable $e) { /* bez přepočtu */ }
 
     if (!empty($order['pos_payment'])) {
         $out .= pr_text(pr_two_col('Platba:', (string)$order['pos_payment'], $w), $enc);

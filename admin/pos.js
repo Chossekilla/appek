@@ -54,7 +54,7 @@
   //   Stejně padaly drafty a hláška o uzavření účtu. Lokální t() to spolehlivě řeší.
   const _T_FALLBACK = {
     pos_item_added:         '✓ Přidáno: {nazev}',
-    pos_bill_closed:        '✓ Účet {cislo} · {amount} Kč zaplaceno',
+    pos_bill_closed:        '✓ Účet {cislo} · {amount} zaplaceno',
     pos_bill_ready:         '✓ Účet připraven',
     pos_bill_print_confirm: 'Vytisknout účet?',
     pos_draft_saved:        '💾 Uloženo do rozpracovaných',
@@ -93,7 +93,13 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[m]));
-  const fmt = (n) => Number(n || 0).toFixed(2).replace('.', ',');
+  // 💱 v3.0.283 — zobrazeni='mena' → POS dělí kurzem (DB hodnoty jsou v Kč, CFG.currency nese symbol)
+  const fmt = (n) => {
+    let v = Number(n || 0);
+    const m = CFG.mena;
+    if (m && m.zobrazeni === 'mena' && m.kurz > 0) v = v / m.kurz;
+    return v.toFixed(2).replace('.', ',');
+  };
 
   // ─── API helper ──────────────────────────────────────────────
   async function api(path, opts = {}) {
@@ -382,7 +388,7 @@
               <span class="pos-qty-val">${it.mnozstvi}</span>
               <button class="pos-qty-btn" data-act="inc" data-idx="${idx}" aria-label="Více">+</button>
             </div>
-            <div class="pos-line-sum">${fmt(lineCelkem)} Kč</div>
+            <div class="pos-line-sum">${fmt(lineCelkem)} ${CFG.currency || 'Kč'}</div>
             <button class="pos-line-x" data-act="rm" data-idx="${idx}" title="Odebrat">🗑️</button>
           </div>`;
       }).join('');
@@ -770,7 +776,7 @@
           return `
             <div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:6px">
               <div style="flex:1">
-                <div style="font-weight:600;font-size:14px">${d.itemCount} položek · ${Math.round(d.total)} Kč</div>
+                <div style="font-weight:600;font-size:14px">${d.itemCount} položek · ${fmt(d.total)} ${CFG.currency || 'Kč'}</div>
                 <div style="font-size:11px;color:#666">${time} · ${d.pos_typ}${d.odberatel ? ' · ' + d.odberatel.nazev : ''}</div>
               </div>
               <button class="btn-primary" onclick="POS.loadDraft('${d.id}');POS.closeModal()" style="font-size:12px;padding:6px 12px">Načíst</button>
@@ -842,7 +848,7 @@
       <h1>APPEK POS — Účtenka</h1>
       <div style="text-align:center;margin-bottom:8px">${new Date().toLocaleString('cs-CZ')}</div>
       ${State.cart.map(it => `<div class="it"><span>${esc(it.nazev)} ×${it.mnozstvi}</span><span>${(it.mnozstvi*it.cena_bez_dph*(1+(it.sazba_dph||0)/100)).toFixed(2)}</span></div>`).join('')}
-      <div class="tot">CELKEM: ${total.toFixed(2)} Kč</div>
+      <div class="tot">CELKEM: ${fmt(total)} ${CFG.currency || 'Kč'}</div>
       <div style="text-align:center;margin-top:10px;font-size:10px">Děkujeme za nákup!</div>
       <script>window.print();<\/script></body></html>`;
     const w = window.open('', '_blank', 'width=320,height=600');
@@ -1182,7 +1188,7 @@
           poznamka:     State.poznamka || '',
         }),
       });
-      toast(t('pos_bill_ready', { cislo: r.cislo, amount: fmt(r.celkem) }), 'success');
+      toast(t('pos_bill_ready', { cislo: r.cislo, amount: fmt(r.celkem) + ' ' + (CFG.currency || 'Kč') }), 'success');
 
       // 🆕 v3.0.281 — voucher už je řádkem na účtence; teď odečti zůstatek (doklad=číslo).
       if (State._voucherRedeem && State._voucherRedeem.kod && State.cart.some(it => it.is_voucher)) {
@@ -1202,7 +1208,7 @@
         if (typeof askPrintReceipt === 'function') {
           askPrintReceipt(r.id, r.cislo, r.celkem);
         } else {
-          if (confirm(t('pos_bill_print_confirm', { cislo: r.cislo, amount: fmt(r.celkem) }))) {
+          if (confirm(t('pos_bill_print_confirm', { cislo: r.cislo, amount: fmt(r.celkem) + ' ' + (CFG.currency || 'Kč') }))) {
             sendPrintReceipt(r.id);
           }
         }
@@ -1260,7 +1266,7 @@
         <div style="font-size:48px;margin-bottom:10px">🖨️</div>
         <h2 style="font-size:22px;font-weight:800;margin-bottom:6px">Vytisknout účtenku?</h2>
         <div style="color:#6B7280;font-size:13px;margin-bottom:6px">Účet <strong>${esc(cislo)}</strong></div>
-        <div style="font-size:32px;font-weight:900;color:#15803D;margin-bottom:20px">${fmt(celkem)} Kč</div>
+        <div style="font-size:32px;font-weight:900;color:#15803D;margin-bottom:20px">${fmt(celkem)} ${CFG.currency || 'Kč'}</div>
         <div style="display:flex;gap:10px;justify-content:center">
           <button id="pos-print-no"  style="flex:1;padding:14px;font-size:16px;font-weight:700;border:2px solid #E5E7EB;background:#fff;color:#374151;border-radius:10px;cursor:pointer">Ne, díky</button>
           <button id="pos-print-yes" style="flex:1;padding:14px;font-size:16px;font-weight:800;border:none;background:linear-gradient(135deg,#10B981,#059669);color:#fff;border-radius:10px;cursor:pointer">🖨️ Tisk</button>
@@ -1531,10 +1537,10 @@
       <div class="pos-floor-tile state-${stav}"
            style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;border-radius:${shape}"
            onclick="posOpenTable(${t.id}, '${esc(nazev)}')"
-           title="${esc(t.nazev)} — ${t.mist || '?'} míst${ucet ? ` · ${fmt(sum)} Kč · ${min} min` : ''}">
+           title="${esc(t.nazev)} — ${t.mist || '?'} míst${ucet ? ` · ${fmt(sum)} ${CFG.currency || 'Kč'} · ${min} min` : ''}">
         <div class="pos-floor-tile-name" style="font-size:${fontSize}">${esc(t.nazev)}</div>
         ${t.mist > 0 ? `<div class="pos-floor-tile-mist">👥 ${t.mist}</div>` : ''}
-        ${ucet ? `<div class="pos-floor-tile-info">${fmt(sum)} Kč</div>` : ''}
+        ${ucet ? `<div class="pos-floor-tile-info">${fmt(sum)} ${CFG.currency || 'Kč'}</div>` : ''}
         ${ucet ? `<div style="font-size:9px;font-weight:600;opacity:0.7">${pcs} pol · ${min}m</div>` : ''}
       </div>
     `;
@@ -1834,9 +1840,9 @@
     const sumDphEl = document.getElementById('pos-tm-sum-dph');
     const sumTotEl = document.getElementById('pos-tm-sum-total');
     const foot = document.getElementById('pos-tm-cart-foot');
-    if (sumBezEl) sumBezEl.textContent = fmt(sumBez) + ' Kč';
-    if (sumDphEl) sumDphEl.textContent = fmt(sumDph) + ' Kč';
-    if (sumTotEl) sumTotEl.textContent = fmt(sumTotal) + ' Kč';
+    if (sumBezEl) sumBezEl.textContent = fmt(sumBez) + ' ' + (CFG.currency || 'Kč');
+    if (sumDphEl) sumDphEl.textContent = fmt(sumDph) + ' ' + (CFG.currency || 'Kč');
+    if (sumTotEl) sumTotEl.textContent = fmt(sumTotal) + ' ' + (CFG.currency || 'Kč');
     if (foot)     foot.style.display = polozky.length > 0 ? 'block' : 'none';
 
     if (polozky.length === 0) {
@@ -1861,7 +1867,7 @@
         <div class="pos-tm-item ${stavCls}">
           <div class="pos-tm-item-info">
             <div class="pos-tm-item-name">${esc(p.nazev || '?')}${stavIc}</div>
-            <div class="pos-tm-item-meta">${fmt(jc)} Kč/ks</div>
+            <div class="pos-tm-item-meta">${fmt(jc)} ${CFG.currency || 'Kč'}/ks</div>
           </div>
           ${isOpen ? `
           <div class="pos-tm-qty">
@@ -1869,7 +1875,7 @@
             <span class="pos-tm-qval">${mn}</span>
             <button class="pos-tm-qbtn" onclick="posTableItemQty(${p.id}, ${mn}, 1)" aria-label="Více">+</button>
           </div>` : `<div class="pos-tm-item-qstatic">${mn}×</div>`}
-          <div class="pos-tm-item-price">${fmt(cena)} Kč</div>
+          <div class="pos-tm-item-price">${fmt(cena)} ${CFG.currency || 'Kč'}</div>
           ${isOpen ? `<button class="pos-tm-item-rm" onclick="posTableRemoveItem(${p.id})" title="Odebrat">✕</button>` : ''}
         </div>
       `;
@@ -1882,7 +1888,7 @@
         method: 'POST',
         body: JSON.stringify({ ucet_id: ucetId, payment: payment || 'hotove' }),
       });
-      toast(t('pos_bill_closed', { cislo: r.cislo || '', amount: fmt(r.celkem || 0) }), 'success');
+      toast(t('pos_bill_closed', { cislo: r.cislo || '', amount: fmt(r.celkem || 0) + ' ' + (CFG.currency || 'Kč') }), 'success');
       const m = document.getElementById('pos-table-modal');
       if (m) m.remove();
       // Refresh floor tab
@@ -1934,7 +1940,7 @@
       return `
         <button class="pos-tm-prod" onclick="posTableAddItem(${v.id})">
           <div class="pos-tm-prod-name">${esc(v.nazev || '?')}</div>
-          <div class="pos-tm-prod-price">${fmt(cenaS)} Kč</div>
+          <div class="pos-tm-prod-price">${fmt(cenaS)} ${CFG.currency || 'Kč'}</div>
         </button>
       `;
     }).join('');
@@ -2032,10 +2038,10 @@
 
           <div class="pos-history-stats">
             <div class="pos-hs-card"><div class="pos-hs-label">Účtenek</div><div class="pos-hs-value">${s.pocet ?? 0}</div></div>
-            <div class="pos-hs-card pos-hs-success"><div class="pos-hs-label">Tržby celkem</div><div class="pos-hs-value">${fmt(s['tržby'] ?? 0)} Kč</div></div>
-            <div class="pos-hs-card"><div class="pos-hs-label">💵 Hotově</div><div class="pos-hs-value">${fmt(s.hotove ?? 0)} Kč</div></div>
-            <div class="pos-hs-card"><div class="pos-hs-label">💳 Kartou</div><div class="pos-hs-value">${fmt(s.karta ?? 0)} Kč</div></div>
-            <div class="pos-hs-card"><div class="pos-hs-label">💰 Tip</div><div class="pos-hs-value">${fmt(s.tip_sum ?? 0)} Kč</div></div>
+            <div class="pos-hs-card pos-hs-success"><div class="pos-hs-label">Tržby celkem</div><div class="pos-hs-value">${fmt(s['tržby'] ?? 0)} ${CFG.currency || 'Kč'}</div></div>
+            <div class="pos-hs-card"><div class="pos-hs-label">💵 Hotově</div><div class="pos-hs-value">${fmt(s.hotove ?? 0)} ${CFG.currency || 'Kč'}</div></div>
+            <div class="pos-hs-card"><div class="pos-hs-label">💳 Kartou</div><div class="pos-hs-value">${fmt(s.karta ?? 0)} ${CFG.currency || 'Kč'}</div></div>
+            <div class="pos-hs-card"><div class="pos-hs-label">💰 Tip</div><div class="pos-hs-value">${fmt(s.tip_sum ?? 0)} ${CFG.currency || 'Kč'}</div></div>
           </div>
 
           ${orders.length === 0 ? `
@@ -2073,7 +2079,7 @@
                         <td>${TYP_LABEL[o.pos_typ] || o.pos_typ || '—'}</td>
                         <td>${PAY_LABEL[o.pos_payment] || o.pos_payment || '—'}</td>
                         <td>${STAV_BADGE(o.stav)}</td>
-                        <td class="num" style="font-weight:800;font-size:15px">${fmt(o.castka_celkem)} Kč</td>
+                        <td class="num" style="font-weight:800;font-size:15px">${fmt(o.castka_celkem)} ${CFG.currency || 'Kč'}</td>
                         <td>
                           <button class="pos-hist-btn pos-hist-btn-edit" onclick="event.stopPropagation();posOpenOrderInAdmin(${o.id})" title="Otevřít v admin pro úpravu / fakturu / vrácení">
                             ✏️ Upravit
@@ -2236,7 +2242,7 @@
                     </td>
                     <td style="text-align:right;padding:8px 10px;font-variant-numeric:tabular-nums">${mn % 1 ? mn.toFixed(2) : mn.toFixed(0)}${p.jednotka && p.jednotka !== 'ks' ? ' ' + esc(p.jednotka) : '×'}</td>
                     <td style="text-align:right;padding:8px 10px;font-variant-numeric:tabular-nums">${fmt(cs)}</td>
-                    <td style="text-align:right;padding:8px 10px;font-weight:700;font-variant-numeric:tabular-nums">${fmt(sum)} Kč</td>
+                    <td style="text-align:right;padding:8px 10px;font-weight:700;font-variant-numeric:tabular-nums">${fmt(sum)} ${CFG.currency || 'Kč'}</td>
                   </tr>
                 `;
               }).join('')}
@@ -2247,21 +2253,21 @@
       <div style="margin-top:14px;padding-top:12px;border-top:2px solid #E1E5EB">
         <div style="display:flex;justify-content:space-between;font-size:13px;color:#5C6370;padding:3px 0">
           <span>Mezisoučet (bez DPH)</span>
-          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_bez_dph) || 0)} Kč</span>
+          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_bez_dph) || 0)} ${CFG.currency || 'Kč'}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:13px;color:#5C6370;padding:3px 0">
           <span>DPH</span>
-          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_dph) || 0)} Kč</span>
+          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_dph) || 0)} ${CFG.currency || 'Kč'}</span>
         </div>
         ${tip > 0 ? `
           <div style="display:flex;justify-content:space-between;font-size:13px;color:#BA7517;padding:3px 0">
             <span>Spropitné</span>
-            <span style="font-variant-numeric:tabular-nums">${fmt(tip)} Kč</span>
+            <span style="font-variant-numeric:tabular-nums">${fmt(tip)} ${CFG.currency || 'Kč'}</span>
           </div>
         ` : ''}
         <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:800;color:#1a1d24;padding:8px 0 0;border-top:1px solid #E1E5EB;margin-top:6px">
           <span>CELKEM</span>
-          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_celkem) || 0)} Kč</span>
+          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_celkem) || 0)} ${CFG.currency || 'Kč'}</span>
         </div>
       </div>
     `;
@@ -2610,7 +2616,7 @@
         ${r.uzavreno ? `<div class="uzav-closed">🔒 Den už uzavřen — <strong>${esc(r.uzavreno.kdo || '')}</strong> · ${esc(String(r.uzavreno.vytvoreno || '').slice(0, 16))} · ${fmt(r.uzavreno.celkem)} Kč</div>` : ''}
         <div class="uzav-total-box">
           <div class="uzav-total-main"><span>CELKEM</span><strong>${fmt(r.total.trzba)} Kč</strong></div>
-          <div class="uzav-total-sub">${r.total.pocet} dokladů${r.total.tip > 0 ? ` · 💟 dýška ${fmt(r.total.tip)} Kč` : ''}</div>
+          <div class="uzav-total-sub">${r.total.pocet} dokladů${r.total.tip > 0 ? ` · 💟 dýška ${fmt(r.total.tip)} ${CFG.currency || 'Kč'}` : ''}</div>
           <div class="uzav-metody">${metodyRows}</div>
         </div>
         <h3 class="uzav-h3">Na stanice (obsluhu)</h3>
@@ -2662,7 +2668,7 @@
           <div class="pos-history-stats" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
             <div class="pos-hs-card pos-hs-success">
               <div class="pos-hs-label">Tržby celkem</div>
-              <div class="pos-hs-value" style="font-size:32px">${fmt(s['tržby'] ?? 0)} Kč</div>
+              <div class="pos-hs-value" style="font-size:32px">${fmt(s['tržby'] ?? 0)} ${CFG.currency || 'Kč'}</div>
             </div>
             <div class="pos-hs-card">
               <div class="pos-hs-label">Účtenek</div>
@@ -2670,15 +2676,15 @@
             </div>
             <div class="pos-hs-card">
               <div class="pos-hs-label">💰 Spropitné</div>
-              <div class="pos-hs-value">${fmt(s.tip_sum ?? 0)} Kč</div>
+              <div class="pos-hs-value">${fmt(s.tip_sum ?? 0)} ${CFG.currency || 'Kč'}</div>
             </div>
             <div class="pos-hs-card">
               <div class="pos-hs-label">💵 Hotově</div>
-              <div class="pos-hs-value">${fmt(s.hotove ?? 0)} Kč</div>
+              <div class="pos-hs-value">${fmt(s.hotove ?? 0)} ${CFG.currency || 'Kč'}</div>
             </div>
             <div class="pos-hs-card">
               <div class="pos-hs-label">💳 Kartou</div>
-              <div class="pos-hs-value">${fmt(s.karta ?? 0)} Kč</div>
+              <div class="pos-hs-value">${fmt(s.karta ?? 0)} ${CFG.currency || 'Kč'}</div>
             </div>
           </div>
 

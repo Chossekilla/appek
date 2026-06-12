@@ -44,6 +44,12 @@ function zaloha_migrate_columns(PDO $pdo): void {
             catch (Throwable $e) { error_log('zaloha_migrate_columns ' . $col . ': ' . $e->getMessage()); }
         }
     }
+    // 🐛 v3.0.283 — prastará tabulka má legacy `nazev_souboru` NOT NULL bez defaultu,
+    // dnešní INSERT ho neplní → 1364 "Field doesn't have a default value". Uvolni default.
+    if (in_array('nazev_souboru', $have, true)) {
+        try { $pdo->exec("ALTER TABLE zalohy MODIFY nazev_souboru VARCHAR(255) NOT NULL DEFAULT ''"); }
+        catch (Throwable $e) { error_log('zaloha_migrate_columns nazev_souboru: ' . $e->getMessage()); }
+    }
 }
 }
 

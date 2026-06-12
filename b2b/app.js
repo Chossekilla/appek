@@ -95,6 +95,14 @@ function esc(s) {
   ));
 }
 function fmt(n) {
+  // 💱 v3.0.283 — display přepočet na cílovou měnu (config z firma_branding.php; DB je v Kč)
+  const m = window._mena;
+  if (m && m.zobrazeni === 'mena' && m.kod !== 'CZK' && m.kurz > 0) {
+    return new Intl.NumberFormat('cs-CZ', {
+      style: 'currency', currency: m.kod,
+      minimumFractionDigits: 2, maximumFractionDigits: 2,
+    }).format((n || 0) / m.kurz);
+  }
   return new Intl.NumberFormat('cs-CZ', {
     style: 'currency', currency: 'CZK',
     minimumFractionDigits: 2, maximumFractionDigits: 2,
@@ -681,6 +689,8 @@ async function showApp() {
   // Footer kontakt z nastavení firmy (telefon, email, adresa)
   try {
     const f = await api('firma_branding.php');
+    // 💱 v3.0.283 — měna pro fmt()
+    if (f && f.mena) window._mena = f.mena;
     const cEl = document.getElementById('app-footer-contact');
     if (cEl && f) {
       const tel  = f.firma_telefon ? `<a href="tel:${esc(f.firma_telefon).replace(/\s+/g,'')}">📞 ${esc(f.firma_telefon)}</a>` : '';
