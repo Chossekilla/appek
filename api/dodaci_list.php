@@ -64,14 +64,19 @@ function nacti_dl_z_objednavky(PDO $pdo, int $id): ?array {
         $polozky = $stmt->fetchAll();
         $cislo_dl = $o['dl_cislo'];
     } else {
+        // 🆕 v3.0.274 — LEFT JOIN (dřív INNER) + COALESCE: volné řádky příplatků
+        //   (doprava/poplatek, vyrobek_id=NULL) se MUSÍ objevit na náhledu DL i v Kč součtu.
+        //   p.vyrobek_id → ks-count je sčítá jen u reálných produktů (ne u poplatků).
         $stmt = $pdo->prepare("
-            SELECT v.cislo AS vyrobek_cislo, v.nazev AS vyrobek_nazev,
-                   j.kod AS jednotka, p.mnozstvi, p.cena_bez_dph, p.sazba_dph
+            SELECT p.vyrobek_id,
+                   COALESCE(v.cislo, '') AS vyrobek_cislo,
+                   COALESCE(v.nazev, p.vyrobek_nazev) AS vyrobek_nazev,
+                   COALESCE(j.kod, p.jednotka) AS jednotka, p.mnozstvi, p.cena_bez_dph, p.sazba_dph
             FROM objednavky_polozky p
-            JOIN vyrobky v ON v.id = p.vyrobek_id
+            LEFT JOIN vyrobky v ON v.id = p.vyrobek_id
             LEFT JOIN jednotky j ON j.id = v.jednotka_id
             WHERE p.objednavka_id = :id
-            ORDER BY v.nazev
+            ORDER BY (p.vyrobek_id IS NULL), COALESCE(v.nazev, p.vyrobek_nazev)
         ");
         $stmt->execute(['id' => $id]);
         $polozky = $stmt->fetchAll();
@@ -100,7 +105,7 @@ function nacti_dl_primo(PDO $pdo, int $dl_id): ?array {
     if (!$dl) return null;
 
     $stmt = $pdo->prepare("
-        SELECT vyrobek_cislo, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph
+        SELECT vyrobek_id, vyrobek_cislo, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph
         FROM dodaci_list_polozky
         WHERE dodaci_list_id = :id
         ORDER BY id
@@ -141,7 +146,8 @@ function pripravit_dl_render(array $data): array {
 
     $celkem_ks = 0; $celkem_kc = 0;
     foreach ($polozky as $p) {
-        $celkem_ks += $p['mnozstvi'];
+        // Příplatkové řádky (doprava/poplatek, vyrobek_id=NULL) se počítají do Kč, ne do „kusů"
+        if (!array_key_exists('vyrobek_id', $p) || $p['vyrobek_id'] !== null) $celkem_ks += $p['mnozstvi'];
         $celkem_kc += $p['cena_bez_dph'] * $p['mnozstvi'];
     }
     return [

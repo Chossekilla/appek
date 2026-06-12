@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_schema_lib.php'; // 🐛 v3.0.274 — ensure upraveno_kdy/zpusob_* (B2B edit padal na fresh installu)
 cors_headers();
 $odberatel_id = require_odberatel();
 
 $pdo = db();
+ensure_objednavky_schema($pdo);
 
 // =============================================================
 // GET - seznam nebo detail (pouze vlastní)
@@ -21,14 +23,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $obj = $stmt->fetch();
         if (!$obj) json_error('Objednávka nenalezena', 404);
 
+        // 🆕 v3.0.274 — LEFT JOIN + COALESCE: zákazník MUSÍ v detailu objednávky vidět
+        //   i řádky příplatků (doprava/poplatek, vyrobek_id=NULL), které platí.
         $stmt = $pdo->prepare("
-            SELECT p.*, v.nazev AS vyrobek_nazev, v.cislo AS vyrobek_cislo,
-                   j.kod AS jednotka
+            SELECT p.*, COALESCE(v.nazev, p.vyrobek_nazev) AS vyrobek_nazev, v.cislo AS vyrobek_cislo,
+                   COALESCE(j.kod, p.jednotka) AS jednotka
             FROM objednavky_polozky p
-            JOIN vyrobky v ON v.id = p.vyrobek_id
+            LEFT JOIN vyrobky v ON v.id = p.vyrobek_id
             LEFT JOIN jednotky j ON j.id = v.jednotka_id
             WHERE p.objednavka_id = :id
-            ORDER BY v.nazev
+            ORDER BY (p.vyrobek_id IS NULL), COALESCE(v.nazev, p.vyrobek_nazev)
         ");
         $stmt->execute(['id' => $obj['id']]);
         $obj['polozky'] = $stmt->fetchAll();
@@ -465,6 +469,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         $dph += $b * $p['sazba'] / 100;
     }
 
+    // 🆕 v3.0.274 — PŘÍPLATKY i při EDITaci. Bez tohoto edit B2B objednávky smazal
+    //   řádky dopravy + poplatku (DELETE všech položek + reinsert jen produktů) →
+    //   CELKEM spadlo a doklady přišly o příplatky. Přepočítej z ULOŽENÉ metody
+    //   platby/dopravy (nebo z dat, pokud je portál pošle). Řádky držíme zvlášť
+    //   (mimo $polozky_clean), ať nezašpiní diff/log pro notifikaci.
+    require_once __DIR__ . '/_platby_lib.php';
+    $platbaKey  = strtolower(preg_replace('/[^a-z_]/', '', (string) ($data['platba']  ?? $orig['zpusob_platby']   ?? '')));
+    $dopravaKey = strtolower(preg_replace('/[^a-z_]/', '', (string) ($data['doprava'] ?? $orig['zpusob_doruceni'] ?? '')));
+    $sur = platby_surcharges($pdo, $platbaKey, $dopravaKey, round($bez + $dph, 2));
+    $dopCfg = platby_config_load($pdo)['doprava']['metody'][$dopravaKey] ?? null;
+    $surRows = [];
+    if ($sur['doprava_cena'] > 0)    $surRows[] = ['nazev' => '🚚 Doprava — ' . ($dopCfg['nazev'] ?? $dopravaKey), 'castka' => $sur['doprava_cena']];
+    if ($sur['platba_poplatek'] > 0) $surRows[] = ['nazev' => '➕ Poplatek za platbu (' . $platbaKey . ')', 'castka' => $sur['platba_poplatek']];
+    foreach ($surRows as &$sr) {
+        $sr['cena']  = round($sr['castka'] / 1.21, 2); // příplatek vč. 21% DPH → rozpad
+        $sr['sazba'] = 21;
+        $bez += $sr['cena'];
+        $dph += round($sr['castka'] - $sr['cena'], 2);
+    }
+    unset($sr);
+
     try {
         $pdo->beginTransaction();
 
@@ -489,6 +514,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
             UPDATE objednavky SET
                 misto_dodani_id = :m,
                 poznamka = :p,
+                zpusob_platby = :plt,
+                zpusob_doruceni = :dor,
                 castka_bez_dph = :b,
                 castka_dph = :d,
                 castka_celkem = :c,
@@ -498,6 +525,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
             'id' => $id,
             'm'  => $misto_id,
             'p'  => $data['poznamka'] ?? $orig['poznamka'],
+            'plt' => $platbaKey ?: null,
+            'dor' => $dopravaKey ?: null,
             'b'  => round($bez, 2),
             'd'  => round($dph, 2),
             'c'  => round($bez + $dph, 2),
@@ -509,13 +538,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 
         $stmt = $pdo->prepare("
             INSERT INTO objednavky_polozky
-                (objednavka_id, vyrobek_id, mnozstvi, cena_bez_dph, sazba_dph, poznamka)
-            VALUES (:o, :v, :m, :c, :s, :p)
+                (objednavka_id, vyrobek_id, vyrobek_nazev, mnozstvi, cena_bez_dph, sazba_dph, poznamka)
+            VALUES (:o, :v, :n, :m, :c, :s, :p)
         ");
         foreach ($polozky_clean as $p) {
             $stmt->execute([
-                'o' => $id, 'v' => $p['vyrobek_id'], 'm' => $p['mnozstvi'],
+                'o' => $id, 'v' => $p['vyrobek_id'], 'n' => null, 'm' => $p['mnozstvi'],
                 'c' => $p['cena'], 's' => $p['sazba'], 'p' => $p['poznamka'],
+            ]);
+        }
+        // 🆕 v3.0.274 — znovu vlož volné řádky příplatků (doprava/poplatek), vyrobek_id=NULL
+        foreach ($surRows as $sr) {
+            $stmt->execute([
+                'o' => $id, 'v' => null, 'n' => $sr['nazev'], 'm' => 1,
+                'c' => $sr['cena'], 's' => $sr['sazba'], 'p' => null,
             ]);
         }
 
