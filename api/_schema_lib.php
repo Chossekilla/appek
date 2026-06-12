@@ -100,6 +100,11 @@ function ensure_objednavky_polozky_schema(PDO $pdo): void {
         if (!in_array('jednotka', $cols, true)) {
             $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN jednotka VARCHAR(20) NULL AFTER vyrobek_nazev");
         }
+        // 🆕 v3.0.275 — částečná POS refundace: řádek VRA- ukazuje na původní řádek účtenky
+        //   → kumulativně sledujeme kolik z každé položky už vráceno (nelze přefakturovat víc).
+        if (!in_array('vraci_polozku_id', $cols, true)) {
+            $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN vraci_polozku_id INT NULL");
+        }
     } catch (Throwable $e) {
         error_log('ensure_objednavky_polozky_schema: ' . $e->getMessage());
     }
@@ -249,6 +254,9 @@ function ensure_faktury_schema(PDO $pdo): void {
             foreach ([
                 'vyrobek_cislo' => 'VARCHAR(50)',
                 'poznamka'      => 'VARCHAR(255)',
+                // 🆕 v3.0.275 — částečný dobropis: řádek DOB- ukazuje na původní řádek faktury
+                //   → kumulativně sledujeme kolik z každé položky už dobropisováno.
+                'vraci_polozku_id' => 'INT',
             ] as $col => $type) {
                 if (!in_array(strtolower($col), $pcols_lower, true)) {
                     $pdo->exec("ALTER TABLE faktura_polozky ADD COLUMN $col $type NULL");
