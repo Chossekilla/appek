@@ -33,6 +33,13 @@ if (!function_exists('package_enabled')) {
     function package_enabled(string $key): bool {
         if ($key === 'core') return true;
         if (!license_has_package($key)) return false;
+        // 🆕 v3.0.301 — po vypršení roční licence (po grace období) se add-on balíčky VYPNOU
+        //   (core/POS jede dál). Řídí valid_until z heartbeatu, viz _license_enforce.php.
+        if (!function_exists('license_packages_active')) {
+            $enf = __DIR__ . '/_license_enforce.php';
+            if (is_file($enf)) { require_once $enf; }
+        }
+        if (function_exists('license_packages_active') && !license_packages_active()) return false;
         static $cache = null;
         if ($cache === null) {
             try { $cache = packages_state_get(db()); }

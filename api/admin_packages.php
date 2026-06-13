@@ -148,6 +148,8 @@ if ($method === 'GET') {
             'ok'           => $licStatus['ok'],
             'masked'       => license_masked($licStatus['key']),
             'licensed_pkgs' => $licensedPkgs,
+            // 🆕 v3.0.301 — stav roční platnosti (expiring_soon/grace/expired) pro upozornění + gating balíčků
+            'validity'     => (function () { $f = __DIR__ . '/_license_enforce.php'; if (is_file($f)) require_once $f; return function_exists('license_validity') ? license_validity() : ['expiry_state' => 'active', 'valid_until' => null, 'days_left' => null, 'packages_active' => true]; })(),
         ],
     ]);
 }
