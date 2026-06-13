@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.299';
+const APPEK_ADMIN_JS_VERSION = '3.0.300';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5382,10 +5382,11 @@ async function loadProvozWidget() {
           <select onchange="window._provozIntervalSec=parseInt(this.value);loadProvozWidget()"
                   style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:12px;padding:5px 8px;border-radius:6px;cursor:pointer"
                   title="Frekvence automatického obnovení">
-            <option value="30" ${(window._provozIntervalSec||60)===30?'selected':''} style="background:#1a1d24">30s</option>
-            <option value="60" ${(window._provozIntervalSec||60)===60?'selected':''} style="background:#1a1d24">60s</option>
-            <option value="120" ${(window._provozIntervalSec||60)===120?'selected':''} style="background:#1a1d24">2min</option>
-            <option value="300" ${(window._provozIntervalSec||60)===300?'selected':''} style="background:#1a1d24">5min</option>
+            <option value="10" ${(window._provozIntervalSec||10)===10?'selected':''} style="background:#1a1d24">10s</option>
+            <option value="30" ${(window._provozIntervalSec||10)===30?'selected':''} style="background:#1a1d24">30s</option>
+            <option value="60" ${(window._provozIntervalSec||10)===60?'selected':''} style="background:#1a1d24">60s</option>
+            <option value="120" ${(window._provozIntervalSec||10)===120?'selected':''} style="background:#1a1d24">2min</option>
+            <option value="300" ${(window._provozIntervalSec||10)===300?'selected':''} style="background:#1a1d24">5min</option>
           </select>
           <button class="btn-secondary" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.12);color:#fff;font-size:12px;padding:6px 12px"
                   onclick="window.openFloorplanWindow?.()" title="Floor Plan editor">🪑 Stoly</button>
@@ -5474,7 +5475,7 @@ async function loadProvozWidget() {
   if (window._provozRefreshTimer) {
     clearInterval(window._provozRefreshTimer);
   }
-  const intervalSec = window._provozIntervalSec || 60;
+  const intervalSec = window._provozIntervalSec || 10;
   window._provozRefreshTimer = setInterval(() => {
     const el = document.getElementById('dash-provoz-widget');
     if (!el) {
@@ -18581,7 +18582,7 @@ async function renderRestaurantProvoz() {
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
       <div>
         <h3 style="margin:0 0 4px;font-size:18px">📊 Živý přehled provozu</h3>
-        <p style="margin:0;font-size:12px;color:var(--text-3)">Stoly · Kuchyně · Rozvoz · POS dnes — auto-refresh každých 60 s.</p>
+        <p style="margin:0;font-size:12px;color:var(--text-3)">Stoly · Kuchyně · Rozvoz · POS dnes — auto-refresh každých 10 s.</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary" onclick="window.openProvozMonitor?.()" title="Otevřít na samostatném monitoru (např. v kanceláři / kuchyni / na shop floor)" style="display:flex;align-items:center;gap:6px">
