@@ -46,7 +46,7 @@ if (DB_NAME === '' || DB_USER === '') {
 // Aplikace
 if (!defined('APP_URL'))     define('APP_URL',     'https://white-badger-130749.hostingersite.com');
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.297'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.298'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -243,6 +243,7 @@ function kanaly_defaults(): array {
         'qr'        => ['label' => 'QR samoobsluha',    'ikona' => '📲', 'barva' => '#0891b2', 'rada' => 'POS',  'pokladni' => false, 'zapnuto' => true],
         'b2b'       => ['label' => 'B2B portál',        'ikona' => '🏢', 'barva' => '#2563eb', 'rada' => 'B2B',  'pokladni' => false, 'zapnuto' => true],
         'dort'      => ['label' => 'Dort konfigurátor', 'ikona' => '🎂', 'barva' => '#db2777', 'rada' => 'DORT', 'pokladni' => false, 'zapnuto' => true],
+        'catering'  => ['label' => 'Catering kalkulačka','ikona' => '🥗', 'barva' => '#0d9488', 'rada' => 'CAT',  'pokladni' => false, 'zapnuto' => true],
         'recurring' => ['label' => 'Opakované',         'ikona' => '🔁', 'barva' => '#9333ea', 'rada' => 'OPAK', 'pokladni' => false, 'zapnuto' => true],
         'wolt'      => ['label' => 'Wolt',              'ikona' => '🛵', 'barva' => '#00b8a9', 'rada' => 'D-WO', 'pokladni' => false, 'zapnuto' => true],
         'bolt'      => ['label' => 'Bolt Food',         'ikona' => '🛵', 'barva' => '#30d175', 'rada' => 'D-BO', 'pokladni' => false, 'zapnuto' => true],
