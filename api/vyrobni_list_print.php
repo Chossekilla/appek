@@ -126,6 +126,9 @@ foreach ($rozpis as $r) {
   .pobocka-polozky td:last-child{text-align:right;font-weight:600;width:80px}
   .pobocka-pokyny{background:#E6F1FB;color:#0C447C;padding:2mm 4mm;border-radius:4px;margin-top:3mm;font-size:9pt}
   .pobocka-pozn{background:#FAEEDA;color:#854F0B;padding:2mm 4mm;border-radius:4px;margin-top:2mm;font-size:9pt}
+  .pobocka-predloha{margin-top:2mm}
+  .pobocka-predloha img{max-height:40mm;max-width:65mm;object-fit:contain;border:1px solid #E8D5B0;border-radius:4px;display:block}
+  .pobocka-predloha .lbl{font-size:8pt;color:#854F0B;margin-bottom:1mm;font-weight:600}
   .foot{margin-top:12mm;text-align:center;font-size:9pt;color:#aaa;padding-top:4mm;border-top:1px solid #eee}
   /* 🆕 Výrobní postup */
   .postup-box{background:#FFFDF8;border:1px solid #E8D5B0;border-radius:6px;padding:4mm 6mm;margin-bottom:4mm;page-break-inside:avoid}
@@ -259,6 +262,13 @@ foreach ($rozpis as $r) {
         <?php endif; ?>
         <?php if ($p['poznamka']): ?>
           <div class="pobocka-pozn">📝 <?= esc($p['poznamka']) ?></div>
+          <?php
+            // 🆕 v3.0.307 — fotka předlohy z poznámky (konfigurátor dortů/cateringu) → miniatura do tisku
+            $predlohaUrl = preg_match('~📸 Předloha:\s*(\S+)~u', (string) $p['poznamka'], $pm) ? $pm[1] : '';
+          ?>
+          <?php if ($predlohaUrl !== ''): ?>
+            <div class="pobocka-predloha"><div class="lbl">📸 Předloha:</div><img src="<?= esc($predlohaUrl) ?>" alt="Fotka předlohy" onerror="this.style.display='none'"></div>
+          <?php endif; ?>
         <?php endif; ?>
       </div>
     <?php endforeach; ?>
