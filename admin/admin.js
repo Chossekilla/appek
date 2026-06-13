@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.298';
+const APPEK_ADMIN_JS_VERSION = '3.0.299';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -17427,6 +17427,7 @@ async function renderCakeConfigurator() {
       <button class="nastaveni-tab ${tab === 'capacity' ? 'active' : ''}" onclick="state._cakeTab='capacity';renderCakeConfigurator()">📅 Kapacita pečení</button>
       <button class="nastaveni-tab ${tab === 'gallery' ? 'active' : ''}" onclick="state._cakeTab='gallery';renderCakeConfigurator()">🖼️ Galerie inspirací</button>
       <button class="nastaveni-tab ${tab === 'stands' ? 'active' : ''}" onclick="state._cakeTab='stands';renderCakeConfigurator()">♻️ Vratné stojany</button>
+      <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._cakeTab='settings';renderCakeConfigurator()">⚙️ Nastavení konfigurátoru</button>
     </div>
     <div id="cake-tab-body"></div>
   `;
@@ -17435,6 +17436,7 @@ async function renderCakeConfigurator() {
   if (tab === 'capacity')     return renderCakeCapacity();
   if (tab === 'gallery')      return renderCakeGallery();
   if (tab === 'stands')       return renderCakeStands();
+  if (tab === 'settings')     return renderCakeConfigSettings();
 }
 
 // ───────── VRATNÉ STOJANY ─────────
@@ -17681,9 +17683,11 @@ async function renderCakeConfiguratorBody() {
 
   // Init defaults if not set (musí být před tím, než šablona čte state._cake.porci atd.)
   if (!state._cake) state._cake = {};
-  if (state._cake.porci    === undefined) state._cake.porci    = opts.velikosti[0]?.porci || 10;
-  if (state._cake.prichut  === undefined) state._cake.prichut  = opts.prichute[0]?.vyrobek_id ?? null;
-  if (state._cake.dekorace === undefined) state._cake.dekorace = opts.dekorace[0]?.id || 'zadna';
+  if (state._cake.velikost_id === undefined) state._cake.velikost_id = opts.velikosti[0]?.id ?? null;
+  if (state._cake.prichut     === undefined) state._cake.prichut     = opts.prichute[0]?.vyrobek_id ?? null;
+  if (!state._cake.volby || typeof state._cake.volby !== 'object') state._cake.volby = {};
+  // single skupiny: defaultně první volba (obvykle „Bez…/Základní" = 0 Kč) → čisté UI bez překvapení
+  (opts.moznosti || []).forEach(g => { if (g.typ !== 'multi' && state._cake.volby[g.id] === undefined) state._cake.volby[g.id] = g.volby[0]?.id ?? null; });
   if (state._cake.text     === undefined) state._cake.text     = '';
   if (state._cake.foto     === undefined) state._cake.foto     = '';
 
@@ -17695,9 +17699,9 @@ async function renderCakeConfiguratorBody() {
           <h3 style="margin:0 0 10px">📏 Velikost (počet porcí)</h3>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
             ${opts.velikosti.map(v => `
-              <button class="ck-size-btn" data-porci="${v.porci}" onclick="cakePick('porci',${v.porci})" style="padding:12px;border:2px solid ${state._cake.porci === v.porci ? 'var(--primary)' : 'var(--border)'};background:${state._cake.porci === v.porci ? 'var(--surface-2)' : 'var(--surface)'};border-radius:10px;cursor:pointer;text-align:left;font-family:inherit">
+              <button class="ck-size-btn" onclick="cakePick('velikost_id','${esc(v.id)}')" style="padding:12px;border:2px solid ${String(state._cake.velikost_id) === String(v.id) ? 'var(--primary)' : 'var(--border)'};background:${String(state._cake.velikost_id) === String(v.id) ? 'var(--surface-2)' : 'var(--surface)'};border-radius:10px;cursor:pointer;text-align:left;font-family:inherit">
                 <div style="font-weight:700;font-size:14px">${esc(v.label)}</div>
-                <div style="font-size:11px;color:var(--text-3);margin-top:4px">⌀ ${v.prumer_cm} cm · ${v.hmotnost_g} g${v.patro ? ` · ${v.patro} patra` : ''}</div>
+                <div style="font-size:11px;color:var(--text-3);margin-top:4px">${v.prumer_cm ? '⌀ ' + v.prumer_cm + ' cm · ' : ''}${v.hmotnost_g} g · ×${v.nasobic}</div>
               </button>
             `).join('')}
           </div>
@@ -17719,26 +17723,30 @@ async function renderCakeConfiguratorBody() {
           </div>
         </div>
 
-        <!-- DEKORACE -->
+        <!-- MOŽNOSTI (dynamické skupiny z konfigurace) -->
+        ${(opts.moznosti || []).map(g => `
         <div class="card-block">
-          <h3 style="margin:0 0 10px">✨ Dekorace</h3>
+          <h3 style="margin:0 0 10px">${g.typ === 'multi' ? '☑️' : '🔘'} ${esc(g.nazev)}${g.povinne ? ' <span style="font-size:11px;color:var(--danger-text)">*</span>' : ''}</h3>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
-            ${opts.dekorace.map(d => `
-              <button onclick="cakePick('dekorace','${esc(d.id)}')" style="padding:10px 12px;border:2px solid ${state._cake.dekorace === d.id ? 'var(--primary)' : 'var(--border)'};background:${state._cake.dekorace === d.id ? 'var(--surface-2)' : 'var(--surface)'};border-radius:8px;cursor:pointer;font-family:inherit;text-align:left">
-                <span style="font-size:18px">${d.ikona}</span>
-                <div style="font-weight:600;font-size:13px;margin-top:2px">${esc(d.nazev)}</div>
-                <div style="font-size:11px;color:var(--text-3)">${d.cena_kc > 0 ? `+${d.cena_kc} Kč` : 'zdarma'}</div>
-              </button>
-            `).join('')}
+            ${g.volby.map(vo => {
+              const isMulti = g.typ === 'multi';
+              const sel = state._cake.volby[g.id];
+              const active = isMulti ? (Array.isArray(sel) && sel.includes(vo.id)) : String(sel) === String(vo.id);
+              return `<button onclick="cakePickVolba('${esc(g.id)}','${esc(vo.id)}',${isMulti})" style="padding:10px 12px;border:2px solid ${active ? 'var(--primary)' : 'var(--border)'};background:${active ? 'var(--surface-2)' : 'var(--surface)'};border-radius:8px;cursor:pointer;font-family:inherit;text-align:left">
+                <div style="font-weight:600;font-size:13px">${esc(vo.nazev)}</div>
+                <div style="font-size:11px;color:var(--text-3)">${vo.priplatek_kc > 0 ? `+${vo.priplatek_kc} Kč` : 'v ceně'}${vo.odecte_sklad ? ` · 🧮 ${fmt(vo.material_kc)}` : ''}</div>
+              </button>`;
+            }).join('')}
           </div>
         </div>
+        `).join('')}
 
         <!-- TEXT + FOTKA -->
         <div class="card-block">
           <h3 style="margin:0 0 10px">📝 Text na dortu &amp; foto předlohy</h3>
           <div class="form-grid form-grid-tight">
             <div class="full">
-              <label class="form-label">Text na dortu (max ${opts.text_na_dortu.max_chars} znaků) <span style="font-weight:400;font-size:11px;color:var(--text-3)">+ ${opts.text_na_dortu.cena_kc} Kč pokud vyplníš</span></label>
+              <label class="form-label">Text na dortu (max ${opts.text_na_dortu.max_chars} znaků) <span style="font-weight:400;font-size:11px;color:var(--text-3)">+ ${opts.text_na_dortu.priplatek_kc} Kč pokud vyplníš</span></label>
               <input class="form-input" id="cake-text" maxlength="${opts.text_na_dortu.max_chars}" value="${esc(state._cake.text || '')}" placeholder="Např. Všechno nejlepší, Aničko!" oninput="state._cake.text=this.value;cakeRecalc()">
             </div>
             <div class="full">
@@ -17765,6 +17773,137 @@ window.cakePick = function(field, value) {
   state._cake = state._cake || {};
   state._cake[field] = value;
   renderCakeConfiguratorBody();
+};
+
+// 🆕 v3.0.299 — výběr volby ve skupině možností (single = nahradí, multi = toggle).
+window.cakePickVolba = function(skupinaId, volbaId, isMulti) {
+  state._cake = state._cake || {};
+  state._cake.volby = state._cake.volby || {};
+  if (isMulti) {
+    const cur = Array.isArray(state._cake.volby[skupinaId]) ? state._cake.volby[skupinaId] : [];
+    state._cake.volby[skupinaId] = cur.includes(volbaId) ? cur.filter(x => x !== volbaId) : [...cur, volbaId];
+  } else {
+    state._cake.volby[skupinaId] = volbaId;
+  }
+  renderCakeConfiguratorBody();
+};
+
+// ═══════════════════ ADMIN EDITOR KONFIGURÁTORU (v3.0.299) ═══════════════════
+async function renderCakeConfigSettings() {
+  const body = document.getElementById('cake-tab-body');
+  if (!body) return;
+  body.innerHTML = skeletonCards(2);
+  try {
+    const [cfg, vyr] = await Promise.all([
+      api('admin_cake_configurator.php?action=config'),
+      api('admin_vyrobky.php'),
+    ]);
+    let sur = [];
+    try { const sr = await api('admin_suroviny.php'); sur = Array.isArray(sr) ? sr : (sr.suroviny || sr.data || sr.polozky || []); } catch (e) {}
+    state._cakeCfg = cfg;
+    state._cakeCfgSur = sur.map(s => ({ id: s.id, nazev: s.nazev, jednotka: s.jednotka }));
+    state._cakeCfgVyr = (vyr.vyrobky || []).map(v => ({ id: v.id, nazev: v.nazev }));
+  } catch (e) { body.innerHTML = `<div class="alert err">${esc(e.message)}</div>`; return; }
+  cakeCfgRender();
+}
+
+function cakeCfgRender() {
+  const body = document.getElementById('cake-tab-body');
+  if (!body) return;
+  const cfg = state._cakeCfg;
+  const surOpts = (sel, typ) => {
+    const list = typ === 'vyrobek' ? state._cakeCfgVyr : state._cakeCfgSur;
+    return '<option value="">— vyber —</option>' + (list || []).map(x => `<option value="${x.id}" ${String(sel) === String(x.id) ? 'selected' : ''}>${esc(x.nazev)}</option>`).join('');
+  };
+  body.innerHTML = `
+    <div class="card-block" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div style="font-size:13px;color:var(--text-2)">Uprav velikosti, skupiny možností a volby. Volba může <strong>linkovat surovinu/výrobek</strong> → odečte se ze skladu + počítá do kalkulace.</div>
+      <button class="btn-primary btn-green" onclick="cakeCfgSave()">💾 Uložit konfiguraci</button>
+    </div>
+
+    <!-- VELIKOSTI -->
+    <div class="card-block" style="margin-bottom:14px">
+      <h3 style="margin:0 0 10px">📏 Velikosti</h3>
+      <table class="table" style="width:100%"><thead><tr>
+        <th>Popis</th><th style="width:90px">Porcí</th><th style="width:110px">Hmotnost (g)</th><th style="width:90px">Násobič</th><th style="width:80px">⌀ cm</th><th style="width:40px"></th>
+      </tr></thead><tbody>
+        ${cfg.velikosti.map((v, i) => `<tr>
+          <td><input class="form-input" value="${esc(v.label || '')}" onchange="state._cakeCfg.velikosti[${i}].label=this.value"></td>
+          <td><input class="form-input" type="number" value="${v.porci || 0}" onchange="state._cakeCfg.velikosti[${i}].porci=parseInt(this.value)||0"></td>
+          <td><input class="form-input" type="number" value="${v.hmotnost_g || 0}" onchange="state._cakeCfg.velikosti[${i}].hmotnost_g=parseFloat(this.value)||0"></td>
+          <td><input class="form-input" type="number" step="0.1" value="${v.nasobic ?? 1}" onchange="state._cakeCfg.velikosti[${i}].nasobic=parseFloat(this.value)||1"></td>
+          <td><input class="form-input" type="number" value="${v.prumer_cm || 0}" onchange="state._cakeCfg.velikosti[${i}].prumer_cm=parseInt(this.value)||0"></td>
+          <td><button class="btn-icon" title="Smazat" onclick="cakeCfgDel('velikosti',${i})">🗑️</button></td>
+        </tr>`).join('')}
+      </tbody></table>
+      <button class="btn-secondary" style="margin-top:8px" onclick="cakeCfgAddVelikost()">➕ Přidat velikost</button>
+      <div style="font-size:11px;color:var(--text-3);margin-top:6px">Cena = cena příchuti (dort výrobek / 10 porcí) × <strong>násobič</strong>. Recept se škáluje stejně.</div>
+    </div>
+
+    <!-- SKUPINY MOŽNOSTÍ -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h3 style="margin:0">🎛️ Skupiny možností</h3>
+      <button class="btn-secondary" onclick="cakeCfgAddSkupina()">➕ Přidat skupinu</button>
+    </div>
+    ${cfg.moznosti.map((g, gi) => `
+      <div class="card-block" style="margin-bottom:12px;border-left:3px solid var(--primary)">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <input class="form-input" style="flex:1;min-width:160px;font-weight:700" value="${esc(g.nazev || '')}" onchange="state._cakeCfg.moznosti[${gi}].nazev=this.value">
+          <select class="form-input" style="width:140px" onchange="state._cakeCfg.moznosti[${gi}].typ=this.value">
+            <option value="single" ${g.typ !== 'multi' ? 'selected' : ''}>Jedna volba</option>
+            <option value="multi" ${g.typ === 'multi' ? 'selected' : ''}>Více voleb</option>
+          </select>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" ${g.povinne ? 'checked' : ''} onchange="state._cakeCfg.moznosti[${gi}].povinne=this.checked">povinné</label>
+          <button class="btn-icon" title="Smazat skupinu" onclick="cakeCfgDel('moznosti',${gi})">🗑️</button>
+        </div>
+        <table class="table" style="width:100%;font-size:12px"><thead><tr>
+          <th>Volba</th><th style="width:90px">Příplatek</th><th style="width:110px">Link</th><th style="width:170px">Surovina/výrobek</th><th style="width:80px">Množ.</th><th style="width:60px">Jedn.</th><th style="width:36px"></th>
+        </tr></thead><tbody>
+          ${(g.volby || []).map((vo, vi) => `<tr>
+            <td><input class="form-input" value="${esc(vo.nazev || '')}" onchange="state._cakeCfg.moznosti[${gi}].volby[${vi}].nazev=this.value"></td>
+            <td><input class="form-input" type="number" value="${vo.priplatek_kc || 0}" onchange="state._cakeCfg.moznosti[${gi}].volby[${vi}].priplatek_kc=parseFloat(this.value)||0"></td>
+            <td><select class="form-input" onchange="cakeCfgVolbaLinkTyp(${gi},${vi},this.value)">
+              <option value="none" ${(vo.link_typ || 'none') === 'none' ? 'selected' : ''}>—</option>
+              <option value="surovina" ${vo.link_typ === 'surovina' ? 'selected' : ''}>Surovina</option>
+              <option value="vyrobek" ${vo.link_typ === 'vyrobek' ? 'selected' : ''}>Výrobek</option>
+            </select></td>
+            <td>${(vo.link_typ || 'none') === 'none' ? '<span style="color:var(--text-3)">—</span>' : `<select class="form-input" onchange="state._cakeCfg.moznosti[${gi}].volby[${vi}].link_id=parseInt(this.value)||null">${surOpts(vo.link_id, vo.link_typ)}</select>`}</td>
+            <td>${(vo.link_typ || 'none') === 'none' ? '' : `<input class="form-input" type="number" step="0.1" value="${vo.mnozstvi || 0}" onchange="state._cakeCfg.moznosti[${gi}].volby[${vi}].mnozstvi=parseFloat(this.value)||0">`}</td>
+            <td>${(vo.link_typ || 'none') === 'none' ? '' : `<input class="form-input" value="${esc(vo.jednotka || 'g')}" onchange="state._cakeCfg.moznosti[${gi}].volby[${vi}].jednotka=this.value">`}</td>
+            <td><button class="btn-icon" title="Smazat volbu" onclick="cakeCfgDelVolba(${gi},${vi})">🗑️</button></td>
+          </tr>`).join('')}
+        </tbody></table>
+        <button class="btn-secondary" style="margin-top:6px;font-size:12px" onclick="cakeCfgAddVolba(${gi})">➕ Přidat volbu</button>
+      </div>
+    `).join('')}
+
+    <!-- TEXT NA DORTU -->
+    <div class="card-block" style="margin-bottom:14px">
+      <h3 style="margin:0 0 10px">📝 Text na dortu</h3>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px">
+        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" ${cfg.text_na_dortu?.povolit ? 'checked' : ''} onchange="state._cakeCfg.text_na_dortu.povolit=this.checked">povolit</label>
+        <label>Příplatek <input class="form-input" style="width:90px;display:inline-block" type="number" value="${cfg.text_na_dortu?.priplatek_kc || 0}" onchange="state._cakeCfg.text_na_dortu.priplatek_kc=parseFloat(this.value)||0"> Kč</label>
+        <label>Max znaků <input class="form-input" style="width:80px;display:inline-block" type="number" value="${cfg.text_na_dortu?.max_chars || 40}" onchange="state._cakeCfg.text_na_dortu.max_chars=parseInt(this.value)||40"></label>
+      </div>
+    </div>
+
+    <div style="text-align:right"><button class="btn-primary btn-green btn-big-action" onclick="cakeCfgSave()">💾 Uložit konfiguraci</button></div>
+  `;
+}
+
+window.cakeCfgAddVelikost = function() { state._cakeCfg.velikosti.push({ id: 'v' + Date.now().toString(36), label: 'Nová velikost', porci: 10, hmotnost_g: 1000, nasobic: 1, prumer_cm: 0 }); cakeCfgRender(); };
+window.cakeCfgAddSkupina = function() { state._cakeCfg.moznosti.push({ id: 'g' + Date.now().toString(36), nazev: 'Nová skupina', typ: 'single', povinne: false, volby: [{ id: 'o' + Date.now().toString(36), nazev: 'Bez', priplatek_kc: 0, link_typ: 'none', link_id: null, mnozstvi: 0, jednotka: '' }] }); cakeCfgRender(); };
+window.cakeCfgAddVolba = function(gi) { state._cakeCfg.moznosti[gi].volby.push({ id: 'o' + Date.now().toString(36), nazev: 'Nová volba', priplatek_kc: 0, link_typ: 'none', link_id: null, mnozstvi: 0, jednotka: 'g' }); cakeCfgRender(); };
+window.cakeCfgDel = function(klic, i) { state._cakeCfg[klic].splice(i, 1); cakeCfgRender(); };
+window.cakeCfgDelVolba = function(gi, vi) { state._cakeCfg.moznosti[gi].volby.splice(vi, 1); cakeCfgRender(); };
+window.cakeCfgVolbaLinkTyp = function(gi, vi, typ) { const vo = state._cakeCfg.moznosti[gi].volby[vi]; vo.link_typ = typ; if (typ === 'none') { vo.link_id = null; } if (typ !== 'none' && !vo.jednotka) vo.jednotka = (typ === 'vyrobek' ? 'ks' : 'g'); cakeCfgRender(); };
+window.cakeCfgSave = async function() {
+  try {
+    const r = await api('admin_cake_configurator.php?action=save_config', { method: 'POST', body: JSON.stringify(state._cakeCfg) });
+    state._cakeCfg = r.config || state._cakeCfg;
+    if (typeof toast === 'function') toast('✅ Konfigurace uložena', 'success'); else alert('Uloženo');
+    cakeCfgRender();
+  } catch (e) { alert('Chyba uložení: ' + e.message + '\n(Uložení vyžaduje super-admin práva.)'); }
 };
 
 // ───────── KAPACITA PEČENÍ ─────────
@@ -17973,17 +18112,16 @@ window.cakeRecalc = async function() {
   if (!host) return;
   // Defenzivní init — funkce může být volaná před renderCakeConfiguratorBody (oninput race, refresh apod.)
   if (!state._cake || typeof state._cake !== 'object') state._cake = {};
-  if (state._cake.porci    === undefined) state._cake.porci    = 10;
-  if (state._cake.prichut  === undefined) state._cake.prichut  = null;
-  if (state._cake.dekorace === undefined) state._cake.dekorace = 'zadna';
+  if (state._cake.prichut === undefined) state._cake.prichut = null;
+  if (!state._cake.volby || typeof state._cake.volby !== 'object') state._cake.volby = {};
   const text = document.getElementById('cake-text')?.value || '';
   state._cake.text = text;
   try {
     const r = await api('admin_cake_configurator.php?action=quote', {
       method: 'POST',
       body: JSON.stringify({
-        porci: state._cake.porci, vyrobek_id: state._cake.prichut,
-        dekorace_id: state._cake.dekorace, text: state._cake.text,
+        vyrobek_id: state._cake.prichut, velikost_id: state._cake.velikost_id,
+        volby: state._cake.volby || {}, text: state._cake.text,
       }),
     });
     host.innerHTML = `
@@ -18052,7 +18190,7 @@ window.cakeCreateOrder = async function(quote) {
 
   openModal('🎂 Vytvořit objednávku dortu', `
     <div style="background:#FFF8E5;border-left:3px solid #BA7517;padding:12px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#854F0B">
-      📋 <strong>${esc(quote.velikost.label)}</strong> · ${esc(quote.prichut.nazev)} · ${esc(quote.dekorace.nazev)}<br>
+      📋 <strong>${esc(quote.velikost.label)}</strong> · ${esc(quote.prichut.nazev)}${(quote.volby || []).length ? ' · ' + quote.volby.map(v => esc(v.nazev)).join(', ') : ''}${quote.text ? ' · „' + esc(quote.text) + '"' : ''}<br>
       💰 ${fmt(quote.cena_s_dph)} celkem · ⏱️ ${quote.doba_pripravy_dni} dní příprava
     </div>
     <div class="form-grid form-grid-tight">
@@ -18086,9 +18224,9 @@ window.cakeSubmitOrder = async function() {
       body: JSON.stringify({
         odberatel_id: odberatelId,
         datum_dodani: datum,
-        porci: state._cake.porci,
         vyrobek_id: state._cake.prichut,
-        dekorace_id: state._cake.dekorace,
+        velikost_id: state._cake.velikost_id,
+        volby: state._cake.volby || {},
         text: state._cake.text,
       }),
     });
