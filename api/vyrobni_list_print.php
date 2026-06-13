@@ -26,6 +26,23 @@ $stmt = $pdo->prepare("
 $stmt->execute(['datum' => $datum]);
 $souhrn = $stmt->fetchAll();
 
+// 🆕 v3.0.304 — výrobní postupy (postup_json) pro výrobky na listu (tiskne se jako kroky)
+$postupy = [];
+try {
+    $cols = $pdo->query("SHOW COLUMNS FROM vyrobky")->fetchAll(PDO::FETCH_COLUMN);
+    if (in_array('postup_json', $cols, true) && !empty($souhrn)) {
+        $ids = array_values(array_unique(array_map(fn($s) => (int) $s['id'], $souhrn)));
+        $in  = implode(',', array_fill(0, count($ids), '?'));
+        $pst = $pdo->prepare("SELECT id, postup_json FROM vyrobky WHERE id IN ($in)");
+        $pst->execute($ids);
+        foreach ($pst->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $kroky = json_decode($r['postup_json'] ?? '[]', true);
+            $kroky = is_array($kroky) ? array_values(array_filter(array_map('trim', $kroky), fn($x) => $x !== '')) : [];
+            if ($kroky) $postupy[(int) $r['id']] = $kroky;
+        }
+    }
+} catch (Throwable $e) {}
+
 $stmt = $pdo->prepare("
     SELECT od.id AS odberatel_id, od.nazev AS odberatel,
            md.id AS misto_id, md.nazev AS misto,
@@ -110,6 +127,11 @@ foreach ($rozpis as $r) {
   .pobocka-pokyny{background:#E6F1FB;color:#0C447C;padding:2mm 4mm;border-radius:4px;margin-top:3mm;font-size:9pt}
   .pobocka-pozn{background:#FAEEDA;color:#854F0B;padding:2mm 4mm;border-radius:4px;margin-top:2mm;font-size:9pt}
   .foot{margin-top:12mm;text-align:center;font-size:9pt;color:#aaa;padding-top:4mm;border-top:1px solid #eee}
+  /* 🆕 Výrobní postup */
+  .postup-box{background:#FFFDF8;border:1px solid #E8D5B0;border-radius:6px;padding:4mm 6mm;margin-bottom:4mm;page-break-inside:avoid}
+  .postup-nazev{font-weight:700;font-size:12pt;color:#854F0B;margin-bottom:2mm}
+  .postup-kroky{margin:0;padding-left:6mm;font-size:10pt;line-height:1.7}
+  .postup-kroky li{margin-bottom:1mm}
   @media print {
     body { background: #fff; padding: 0; margin: 0; }
     .toolbar { display: none; }
@@ -185,6 +207,18 @@ foreach ($rozpis as $r) {
             <?php endforeach; ?>
           </tbody>
         </table>
+      </div>
+    <?php endforeach; ?>
+  <?php endif; ?>
+
+  <?php if (!empty($postupy)): ?>
+    <h2>👨‍🍳 Výrobní postup</h2>
+    <?php foreach ($souhrn as $s): if (empty($postupy[(int) $s['id']])) continue; ?>
+      <div class="postup-box">
+        <div class="postup-nazev"><?= esc($s['nazev']) ?> <span style="color:#888;font-weight:400">· <?= fmt_ks($s['celkem']) ?> <?= esc($s['jednotka'] ?? 'ks') ?></span></div>
+        <ol class="postup-kroky">
+          <?php foreach ($postupy[(int) $s['id']] as $krok): ?><li><?= esc($krok) ?></li><?php endforeach; ?>
+        </ol>
       </div>
     <?php endforeach; ?>
   <?php endif; ?>

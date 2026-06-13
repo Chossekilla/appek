@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.303';
+const APPEK_ADMIN_JS_VERSION = '3.0.304';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -9146,7 +9146,8 @@ window.vyLoadSpotreba = async function(datum) {
   host.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-3)">⏳ Počítám spotřebu surovin…</div>';
   try {
     const d = await api(`admin_vyroba.php?action=spotreba&datum=${datum}`);
-    if (!d.suroviny || d.suroviny.length === 0) {
+    const maPolotovary = Array.isArray(d.polotovary) && d.polotovary.length > 0;
+    if ((!d.suroviny || d.suroviny.length === 0) && !maPolotovary) {
       host.innerHTML = `
         <div class="empty-state" style="padding:24px;text-align:center">
           <div style="font-size:14px;margin-bottom:6px">Žádné suroviny k zobrazení</div>
@@ -9156,6 +9157,7 @@ window.vyLoadSpotreba = async function(datum) {
         </div>`;
       return;
     }
+    d.suroviny = d.suroviny || [];
 
     const chybi = d.chybi_pocet || 0;
     const naklad = d.celkem_naklad;
@@ -9217,6 +9219,38 @@ window.vyLoadSpotreba = async function(datum) {
         </tbody>
       </table>
 
+      ${maPolotovary ? `
+      <!-- 🧩 Stockované polotovary (sleduje_sklad=1) — vyrábí se v dávkách, odečítají se ze skladu hotových -->
+      <div style="margin-top:18px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          🧩 Polotovary ze skladu
+          <span style="font-weight:400;color:var(--text-3);font-size:11px">(nerozpadají se na suroviny — vyrábějí se v dávkách dopředu)</span>
+        </div>
+        <table class="table" style="margin:0;font-size:13px">
+          <thead><tr><th>Polotovar</th><th class="num">Potřeba</th><th class="num">Skladem</th><th>Stav</th><th></th></tr></thead>
+          <tbody>
+            ${d.polotovary.map(p => {
+              const jed = esc(p.jednotka || 'ks');
+              const chybiP = parseFloat(p.chybi) || 0;
+              const okP = chybiP <= 0;
+              const navrh = Math.max(chybiP, 1);
+              const nazevEsc = esc(p.nazev || ('#' + p.vyrobek_id));
+              const stav = okP
+                ? '<span style="background:#DCFCE7;color:#166534;font-weight:700;padding:3px 10px;border-radius:8px;font-size:11px">✓ Skladem</span>'
+                : `<span style="background:#FEE2E2;color:#991B1B;font-weight:700;padding:3px 10px;border-radius:8px;font-size:11px">⚠ Chybí ${chybiP.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')} ${jed}</span>`;
+              return `
+                <tr ${okP ? '' : 'style="background:rgba(220,38,38,0.06)"'}>
+                  <td><strong>${nazevEsc}</strong></td>
+                  <td class="num"><strong>${(parseFloat(p.potreba) || 0).toFixed(2).replace(/\.?0+$/, '').replace('.', ',')}</strong> ${jed}</td>
+                  <td class="num">${(parseFloat(p.skladem) || 0).toFixed(2).replace(/\.?0+$/, '').replace('.', ',')} ${jed}</td>
+                  <td>${stav}</td>
+                  <td class="num"><button class="btn-secondary" style="font-size:12px;padding:5px 12px;white-space:nowrap" onclick="vyVyrobitPolotovar(${p.vyrobek_id}, ${navrh}, '${datum}', '${nazevEsc.replace(/'/g, "\\'")}')">🏭 Vyrobit dávku</button></td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>` : ''}
+
       <!-- Akce -->
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
         ${chybi > 0
@@ -9247,6 +9281,24 @@ window.vyOdepsatSuroviny = async function(datum) {
     alert(t('warehouse_writeoff', { n: r.odepsano }));
     vyLoadSpotreba(datum);   // refresh data
   } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v3.0.304 — Výroba dávky stockovaného polotovaru: odečte suroviny dle receptury + naskladní hotový polotovar
+window.vyVyrobitPolotovar = async function(vid, navrh, datum, nazev) {
+  const label = nazev || ('#' + vid);
+  const q = prompt(`🏭 Vyrobit dávku polotovaru „${label}" — kolik ks?\n\nOdečtou se suroviny dle receptury a naskladní se hotový polotovar (ten se pak při výrobě dortů ubírá ze skladu místo rozpadu na suroviny).`, String(navrh || 1));
+  if (q === null) return;
+  const mnozstvi = parseFloat(String(q).replace(',', '.'));
+  if (!(mnozstvi > 0)) { alert('Neplatné množství'); return; }
+  try {
+    const r = await api('admin_vyroba.php?action=vyrobit_polotovar', {
+      method: 'POST', body: JSON.stringify({ vyrobek_id: vid, mnozstvi }),
+    });
+    state._suroviny_cache = null;
+    state._suroviny_full_cache = null;
+    alert(`✅ Vyrobeno ${r.vyrobeno ?? mnozstvi} ks „${label}".\nOdepsáno surovin: ${r.surovin_odepsano ?? '?'}.\nNa skladě polotovaru nyní: ${r.skladem ?? '?'} ks.`);
+    vyLoadSpotreba(datum);   // refresh — krém už bude skladem
+  } catch (e) { alert('Chyba výroby polotovaru: ' + e.message); }
 };
 
 // ====== Kalendář výroby ======

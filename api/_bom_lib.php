@@ -45,7 +45,8 @@ function bom_vyrobek_meta(PDO $pdo, int $vid): array {
         if ($cols === null) $cols = $pdo->query("SHOW COLUMNS FROM vyrobky")->fetchAll(PDO::FETCH_COLUMN);
         $sled = in_array('sleduje_sklad', $cols, true) ? 'sleduje_sklad' : '0 AS sleduje_sklad';
         $pol  = in_array('je_polotovar', $cols, true) ? 'je_polotovar' : '0 AS je_polotovar';
-        $st = $pdo->prepare("SELECT nazev, alergeny, jednotka, {$sled}, {$pol} FROM vyrobky WHERE id = :id");
+        // POZOR: vyrobky má jednotka_id (FK), NE 'jednotka' → SELECTovat jen jisté sloupce
+        $st = $pdo->prepare("SELECT nazev, alergeny, {$sled}, {$pol} FROM vyrobky WHERE id = :id");
         $st->execute(['id' => $vid]);
         $r = $st->fetch(PDO::FETCH_ASSOC);
         if ($r) $m = [
@@ -53,7 +54,7 @@ function bom_vyrobek_meta(PDO $pdo, int $vid): array {
             'je_polotovar'  => (int) ($r['je_polotovar'] ?? 0),
             'nazev'         => (string) $r['nazev'],
             'alergeny'      => (string) ($r['alergeny'] ?? ''),
-            'jednotka'      => (string) ($r['jednotka'] ?? 'ks'),
+            'jednotka'      => 'ks',
         ];
     } catch (Throwable $e) {}
     $cache[$vid] = $m;

@@ -98,14 +98,16 @@ if ($method === 'GET') {
         }
         unset($r);
 
-        // 🆕 v3.0.303 — stockované polotovary (sleduje_sklad=1) potřebné na den (ubírají se ze skladu výrobku, ne rozpadem)
+        // 🆕 v3.0.303/304 — stockované polotovary (sleduje_sklad=1): potřeba + SKLADEM (item_typ='vyrobek')
         $polotovary = [];
         foreach (($src['pol'] ?? []) as $pvid => $pq) {
             try {
-                $pst = $pdo->prepare("SELECT nazev, jednotka FROM vyrobky WHERE id = :id");
+                $pst = $pdo->prepare("SELECT v.nazev, COALESCE(j.kod,'ks') AS jednotka FROM vyrobky v LEFT JOIN jednotky j ON j.id = v.jednotka_id WHERE v.id = :id");
                 $pst->execute(['id' => (int) $pvid]);
                 $pr = $pst->fetch(PDO::FETCH_ASSOC) ?: [];
-                $polotovary[] = ['vyrobek_id' => (int) $pvid, 'nazev' => $pr['nazev'] ?? ('#' . $pvid), 'jednotka' => $pr['jednotka'] ?? 'ks', 'potreba' => round((float) $pq, 3)];
+                $skl = (float) $pdo->query("SELECT COALESCE(SUM(stav),0) FROM sklad_polozky WHERE item_typ='vyrobek' AND item_id=" . (int) $pvid)->fetchColumn();
+                $potr = round((float) $pq, 3);
+                $polotovary[] = ['vyrobek_id' => (int) $pvid, 'nazev' => $pr['nazev'] ?? ('#' . $pvid), 'jednotka' => $pr['jednotka'] ?? 'ks', 'potreba' => $potr, 'skladem' => $skl, 'chybi' => max(0, round($potr - $skl, 3))];
             } catch (Throwable $e) {}
         }
 
@@ -117,6 +119,29 @@ if ($method === 'GET') {
             'celkem_naklad' => round($celkemNakladu, 2),
             'polotovary'    => $polotovary,
         ]);
+    }
+
+    // 🆕 v3.0.304 — ŠKÁLOVÁNÍ DÁVKY: recept × N + „vyrobitelné ze skladu"
+    //   GET ?action=skalovat&vyrobek_id=X&mnozstvi=N → potřeby surovin × N + max vyrobitelné z aktuálního skladu
+    if (($_GET['action'] ?? '') === 'skalovat') {
+        require_once __DIR__ . '/_bom_lib.php';
+        $vid = (int) ($_GET['vyrobek_id'] ?? 0);
+        $n   = max(0.0001, (float) ($_GET['mnozstvi'] ?? 1));
+        if ($vid <= 0) json_error('Chybí vyrobek_id');
+        $sur1 = []; $pol1 = [];
+        bom_explode($pdo, $vid, 1, $sur1, $pol1);   // potřeba na 1 ks
+        $polozky = []; $vyrobitelne = null;
+        foreach ($sur1 as $sid => $per) {
+            if ($per <= 0) continue;
+            $st = $pdo->prepare("SELECT nazev, jednotka, COALESCE(stock_aktualni,0) AS sk FROM suroviny WHERE id = :i");
+            $st->execute(['i' => (int) $sid]);
+            $s = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+            $sk = (float) ($s['sk'] ?? 0);
+            $polozky[] = ['nazev' => $s['nazev'] ?? ('#' . $sid), 'jednotka' => $s['jednotka'] ?? 'g', 'per_kus' => round($per, 4), 'potreba' => round($per * $n, 3), 'skladem' => $sk, 'staci' => $sk >= $per * $n];
+            $mozne = floor($sk / $per);
+            $vyrobitelne = ($vyrobitelne === null) ? $mozne : min($vyrobitelne, $mozne);
+        }
+        json_response(['vyrobek_id' => $vid, 'mnozstvi' => $n, 'polozky' => $polozky, 'vyrobitelne_ze_skladu' => $vyrobitelne === null ? 0 : (int) $vyrobitelne]);
     }
 
     // 📤 Odepsat suroviny ze skladu pro daný den (po výrobě) — POST
@@ -273,6 +298,54 @@ if ($method === 'GET') {
 //   { datum, poznamka?, force?: bool } → vrátí počet odepsaných surovin + celkem hodnotu
 // 🆕 v2.9.286 — Pre-check dostatku + FOR UPDATE lock + dual-write do v2
 // Pokud chybí stav → 409 s deficit_seznam. Pokud force=true, povolí odpis do mínusu (warn).
+// 🆕 v3.0.304 — VÝROBA DÁVKY POLOTOVARU: odepíše suroviny dle receptury + naskladní polotovar
+//   POST ?action=vyrobit_polotovar { vyrobek_id, mnozstvi } → sklad_polozky item_typ='vyrobek' += mnozstvi
+if ($method === 'POST' && ($_GET['action'] ?? '') === 'vyrobit_polotovar') {
+    require_once __DIR__ . '/_bom_lib.php';
+    $d = json_input();
+    $vid = (int) ($d['vyrobek_id'] ?? 0);
+    $qty = (float) ($d['mnozstvi'] ?? 0);
+    if ($vid <= 0 || $qty <= 0) json_error('Chybí výrobek nebo množství');
+    $kdo = $admin['email'] ?? $admin['jmeno'] ?? 'system';
+    $sur = []; $pol = [];
+    bom_explode($pdo, $vid, $qty, $sur, $pol);   // suroviny (+ vnořené stockované polotovary) potřebné na dávku
+    try {
+        $pdo->beginTransaction();
+        // 1) odepiš suroviny ze skladu (systém B)
+        foreach ($sur as $sid => $mn) {
+            $sid = (int) $sid; $mn = (float) $mn;
+            if ($mn <= 0) continue;
+            $home  = surovina_home_sklad($pdo, $sid);
+            $rowId = sklad_polozky_ensure($pdo, $home, 'surovina', $sid);
+            $pdo->prepare("UPDATE sklad_polozky SET stav = stav - :m WHERE id = :r")->execute(['m' => $mn, 'r' => $rowId]);
+            $po = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id = " . $rowId)->fetchColumn();
+            $pdo->prepare("INSERT INTO sklad_pohyby_v2 (sklad_id,item_typ,item_id,typ,mnozstvi,stav_pred,stav_po,poznamka,kdo,kdy)
+                           VALUES (:s,'surovina',:i,'vydej',:m,:pr,:po,:pz,:kdo,NOW())")
+                ->execute(['s' => $home, 'i' => $sid, 'm' => $mn, 'pr' => $po + $mn, 'po' => $po, 'pz' => 'Výroba polotovaru', 'kdo' => $kdo]);
+            surovina_recompute_total($pdo, $sid);
+        }
+        // 2) odepiš vnořené stockované polotovary (pokud sestava polotovaru používá další stockovaný polotovar)
+        foreach ($pol as $pvid2 => $pq2) {
+            $pvid2 = (int) $pvid2; $pq2 = (float) $pq2; if ($pvid2 <= 0 || $pq2 <= 0) continue;
+            $sk2 = sklad_default_id($pdo); $r2 = sklad_polozky_ensure($pdo, $sk2, 'vyrobek', $pvid2);
+            $pdo->prepare("UPDATE sklad_polozky SET stav = stav - :m WHERE id = :r")->execute(['m' => $pq2, 'r' => $r2]);
+        }
+        // 3) naskladni vyrobenou dávku polotovaru
+        $sklad = sklad_default_id($pdo);
+        $rowId = sklad_polozky_ensure($pdo, $sklad, 'vyrobek', $vid);
+        $pdo->prepare("UPDATE sklad_polozky SET stav = stav + :m WHERE id = :r")->execute(['m' => $qty, 'r' => $rowId]);
+        $po = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id = " . $rowId)->fetchColumn();
+        $pdo->prepare("INSERT INTO sklad_pohyby_v2 (sklad_id,item_typ,item_id,typ,mnozstvi,stav_pred,stav_po,poznamka,kdo,kdy)
+                       VALUES (:s,'vyrobek',:i,'prijem',:m,:pr,:po,:pz,:kdo,NOW())")
+            ->execute(['s' => $sklad, 'i' => $vid, 'm' => $qty, 'pr' => $po - $qty, 'po' => $po, 'pz' => 'Výroba dávky polotovaru', 'kdo' => $kdo]);
+        $pdo->commit();
+        json_response(['ok' => true, 'vyrobeno' => $qty, 'skladem' => $po, 'surovin_odepsano' => count(array_filter($sur, fn($m) => $m > 0))]);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error_safe('Chyba výroby polotovaru', $e, 500);
+    }
+}
+
 if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
     $d = json_input();
     $datum = $d['datum'] ?? '';
@@ -291,7 +364,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
     ");
     $stmt->execute($src['params']);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    if (empty($rows)) json_error('Žádné suroviny k odepsání — neexistují objednávky na tento datum nebo výrobky bez receptur', 404);
+    if (empty($rows) && empty($src['pol'])) json_error('Žádné suroviny ani polotovary k odepsání — neexistují objednávky na tento datum nebo výrobky bez receptur', 404);
 
     $kdo = $admin['email'] ?? $admin['jmeno'] ?? 'system';
     $odepsano = 0;
@@ -303,14 +376,15 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
         // 🆕 PHASE 1: Lock + pre-validace dostatku (FOR UPDATE)
         // Atomic — jiná transakce nemůže snížit stock dokud necommitneme
         $surIds = array_filter(array_map(fn($r) => (int) $r['surovina_id'], $rows));
-        if (empty($surIds)) { $pdo->rollBack(); json_error('Žádné valid surovina IDs', 400); }
-        $placeholders = implode(',', array_fill(0, count($surIds), '?'));
-        $lockStmt = $pdo->prepare("SELECT id, stock_aktualni FROM suroviny WHERE id IN ($placeholders) FOR UPDATE");
-        $lockStmt->execute($surIds);
         $aktualniStavy = [];
-        foreach ($lockStmt->fetchAll(PDO::FETCH_ASSOC) as $sr) {
-            $aktualniStavy[(int) $sr['id']] = (float) $sr['stock_aktualni'];
-        }
+        if (!empty($surIds)) {
+            $placeholders = implode(',', array_fill(0, count($surIds), '?'));
+            $lockStmt = $pdo->prepare("SELECT id, stock_aktualni FROM suroviny WHERE id IN ($placeholders) FOR UPDATE");
+            $lockStmt->execute($surIds);
+            foreach ($lockStmt->fetchAll(PDO::FETCH_ASSOC) as $sr) {
+                $aktualniStavy[(int) $sr['id']] = (float) $sr['stock_aktualni'];
+            }
+        } elseif (empty($src['pol'])) { $pdo->rollBack(); json_error('Žádné valid surovina IDs', 400); }
 
         // Pre-check: kterým chybí
         $deficity = [];
@@ -359,9 +433,23 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
             $odepsano++;
             $celkemMnozstvi += $potreba;
         }
+        // 🆕 v3.0.304 — odpis STOCKOVANÝCH polotovarů (sleduje_sklad=1) ze skladu výrobku (item_typ='vyrobek')
+        $odepsanoPol = 0;
+        foreach (($src['pol'] ?? []) as $pvid => $pq) {
+            $pvid = (int) $pvid; $pq = (float) $pq;
+            if ($pvid <= 0 || $pq <= 0) continue;
+            $sklad = sklad_default_id($pdo);
+            $rowId = sklad_polozky_ensure($pdo, $sklad, 'vyrobek', $pvid);
+            $pdo->prepare("UPDATE sklad_polozky SET stav = stav - :mn WHERE id = :r")->execute(['mn' => $pq, 'r' => $rowId]);
+            $po = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id = " . $rowId)->fetchColumn();
+            $pdo->prepare("INSERT INTO sklad_pohyby_v2 (sklad_id,item_typ,item_id,typ,mnozstvi,stav_pred,stav_po,poznamka,kdo,kdy)
+                           VALUES (:s,'vyrobek',:i,'vydej',:mn,:pr,:po,:pz,:kdo,NOW())")
+                ->execute(['s' => $sklad, 'i' => $pvid, 'mn' => $pq, 'pr' => $po + $pq, 'po' => $po, 'pz' => $pozn . ' (polotovar)', 'kdo' => $kdo]);
+            $odepsanoPol++;
+        }
         $pdo->commit();
         json_response([
-            'ok' => true, 'odepsano' => $odepsano, 'datum' => $datum,
+            'ok' => true, 'odepsano' => $odepsano, 'odepsano_polotovary' => $odepsanoPol, 'datum' => $datum,
             'celkem_mnozstvi' => $celkemMnozstvi,
             'force_used' => $force, 'deficity_byly' => count($deficity),
         ]);
