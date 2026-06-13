@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.293';
+const APPEK_ADMIN_JS_VERSION = '3.0.294';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -25735,11 +25735,15 @@ window.diagPingMail = async function() {
 };
 
 window.loadCislovani = async function() {
+  // 🐛 v3.0.294 — async race: když uživatel přepne tab dřív než dorazí API,
+  // 'cislovani-container' už není v DOM → guard (jinak TypeError na null.innerHTML).
+  if (!document.getElementById('cislovani-container')) return;
   try {
     const data = await api('admin_cislovani.php');
     renderCislovani(data);
   } catch (e) {
-    document.getElementById('cislovani-container').innerHTML =
+    const host = document.getElementById('cislovani-container');
+    if (host) host.innerHTML =
       `<div style="color:var(--danger-text);padding:12px;background:var(--danger-bg);border-radius:6px;">
         Chyba při načítání: ${esc(e.message)}
       </div>`;
@@ -25748,6 +25752,7 @@ window.loadCislovani = async function() {
 
 function renderCislovani(data) {
   const c = document.getElementById('cislovani-container');
+  if (!c) return;   // 🐛 v3.0.294 — element může zmizet (přepnutý tab) než dorazí async data
   c.innerHTML = `
     <p style="margin-bottom:14px;font-size:13px;color:var(--text-3);">
       Aktuální rok: <strong>${data.rok}</strong>
@@ -26382,11 +26387,14 @@ window.emailTemplateReset = async function(klic) {
 };
 
 window.loadDph = async function() {
+  // 🐛 v3.0.294 — stejný async race jako loadCislovani: tab přepnut dřív než dorazí API
+  if (!document.getElementById('dph-container')) return;
   try {
     const data = await api('admin_sazby_dph.php');
     renderDph(data);
   } catch (e) {
-    document.getElementById('dph-container').innerHTML =
+    const host = document.getElementById('dph-container');
+    if (host) host.innerHTML =
       `<div style="color:var(--danger-text);padding:12px;background:var(--danger-bg);border-radius:6px;">
         Chyba při načítání: ${esc(e.message)}
       </div>`;
@@ -26395,6 +26403,7 @@ window.loadDph = async function() {
 
 function renderDph(data) {
   const c = document.getElementById('dph-container');
+  if (!c) return;   // 🐛 v3.0.294 — element mohl zmizet (přepnutý tab)
   c.innerHTML = `
     ${data.sazby.length === 0 ? `
       <div class="empty-state" style="padding:24px;background:var(--surface-2);border-radius:8px">Žádné sazby DPH</div>
