@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.294';
+const APPEK_ADMIN_JS_VERSION = '3.0.295';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -13097,6 +13097,19 @@ window.editVyrobek = async function(id = null) {
           <input class="form-input" id="vy-min" type="number" min="1" value="${v.min_objednavka || 1}">
         </div>
       </div>
+      <!-- 🆕 v3.0.295 — Obor (provázání s balíčky): kapacita pečení + dort konfigurátor -->
+      <div class="full" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;background:var(--surface-2);border-radius:10px;padding:10px 14px;margin-top:4px">
+        <div>
+          <label class="form-label" style="font-size:12px">🎁 Obor (pro balíčky)</label>
+          <select class="form-select" id="vy-obor" onchange="vyOborChange()" style="min-width:170px">
+            <option value=""           ${!v.obor ? 'selected' : ''}>— běžný výrobek —</option>
+            <option value="dort"       ${v.obor === 'dort' ? 'selected' : ''}>🎂 Dort (konfigurovatelný)</option>
+            <option value="chlebicek"  ${v.obor === 'chlebicek' ? 'selected' : ''}>🥪 Chlebíček</option>
+            <option value="zakusek"    ${v.obor === 'zakusek' ? 'selected' : ''}>🍰 Zákusek</option>
+          </select>
+        </div>
+        <div id="vy-obor-hint" style="flex:1;min-width:200px;font-size:12px;color:var(--text-3);padding-bottom:9px"></div>
+      </div>
       <!-- Popis | Složení (vedle sebe) -->
       <div class="full vy-popis-sloz-row">
         <div>
@@ -13309,6 +13322,7 @@ window.editVyrobek = async function(id = null) {
   setTimeout(() => {
     if (typeof vyPrepocet === 'function') vyPrepocet();
     if (typeof vyUpdateCenaSDph === 'function') vyUpdateCenaSDph();
+    if (typeof vyOborChange === 'function') vyOborChange();   // 🆕 v3.0.295 — hint dle oboru
   }, 30);
 };
 
@@ -13749,6 +13763,20 @@ window.zrusitObrazek = function() {
   document.getElementById('img-preview').innerHTML = '<div class="image-preview-empty">📷</div>';
 };
 
+// 🆕 v3.0.295 — obor výrobku → hint + zvýraznění relevantních polí (provázání s balíčky)
+window.vyOborChange = function() {
+  const obor = (document.getElementById('vy-obor') || {}).value || '';
+  const hint = document.getElementById('vy-obor-hint');
+  const hmRow = document.getElementById('vy-obsah');
+  const map = {
+    dort: '🎂 Konfigurovatelný dort — zákazník volí velikost/příchuť/dekoraci. Počítá se do denní <strong>kapacity pečení</strong>. Vyplň hmotnost (porce).',
+    chlebicek: '🥪 Počítá se do denní kapacity (chlebíčky).',
+    zakusek: '🍰 Počítá se do denní kapacity (zákusky).',
+  };
+  if (hint) hint.innerHTML = map[obor] || 'Běžný výrobek — nezapočítává se do speciální kapacity balíčků.';
+  if (hmRow) hmRow.style.boxShadow = obor === 'dort' ? '0 0 0 2px var(--primary)' : '';
+};
+
 window.vyPrepocet = function() {
   const cena = parseFloat(document.getElementById('vy-cena')?.value) || 0;
   const obsah = parseFloat(document.getElementById('vy-obsah')?.value) || 0;
@@ -13829,6 +13857,7 @@ window.ulozitVyrobek = async function(id) {
     // 🆕 v3.0.156 — doba přípravy + kuchyňská stanice (jen když je sekce vyrenderovaná = balíček Restaurace)
     ...(document.getElementById('vy-prep') ? { priprava_min: parseInt(document.getElementById('vy-prep').value) || 0 } : {}),
     ...(document.getElementById('vy-station') ? { kitchen_station_id: parseInt(document.getElementById('vy-station').value) || null } : {}),
+    ...(document.getElementById('vy-obor') ? { obor: document.getElementById('vy-obor').value || null } : {}),
     // 🆕 v3.0.213 — viditelnost na POS (jen když je přepínač vyrenderovaný = balíček Restaurace)
     ...(document.getElementById('vy-pos') ? { zobrazit_na_pos: document.getElementById('vy-pos').checked ? 1 : 0 } : {}),
   };
@@ -17990,7 +18019,9 @@ window.cakeCreateOrder = async function(quote) {
   try { odb = await api('admin_odberatele.php'); }
   catch (e) { return alert('Chyba načtení odběratelů: ' + e.message); }
 
-  const odberatele = odb.odberatele || [];
+  // 🐛 v3.0.295 — admin_odberatele.php vrací HOLÉ pole, ne {odberatele:[]} → dřív vždy
+  //   „Nejsou žádní odběratelé" (dead-end konfigurátoru, i když odběratelé existovali).
+  const odberatele = Array.isArray(odb) ? odb : (odb.odberatele || odb.data || []);
   if (odberatele.length === 0) {
     alert('Nejsou žádní odběratelé. Vytvoř nejdřív odběratele.');
     return;
