@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.296';
+const APPEK_ADMIN_JS_VERSION = '3.0.297';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -187,7 +187,7 @@ const state = {
   current: 'dashboard',
   vyrobaMode: 'auto',
   // Pre-init pro balíčky (zabraňuje "state._cake is undefined" pokud něco volá konfigurátor přes event/timer)
-  _cake: { porci: 10, prichut: 'cokoladovy', dekorace: 'zadna', text: '', foto: '' },
+  _cake: { porci: 10, prichut: null, dekorace: 'zadna', text: '', foto: '' },
   _catering: null,
 };
 
@@ -17682,7 +17682,7 @@ async function renderCakeConfiguratorBody() {
   // Init defaults if not set (musí být před tím, než šablona čte state._cake.porci atd.)
   if (!state._cake) state._cake = {};
   if (state._cake.porci    === undefined) state._cake.porci    = opts.velikosti[0]?.porci || 10;
-  if (state._cake.prichut  === undefined) state._cake.prichut  = opts.prichute[0]?.id || 'cokoladovy';
+  if (state._cake.prichut  === undefined) state._cake.prichut  = opts.prichute[0]?.vyrobek_id ?? null;
   if (state._cake.dekorace === undefined) state._cake.dekorace = opts.dekorace[0]?.id || 'zadna';
   if (state._cake.text     === undefined) state._cake.text     = '';
   if (state._cake.foto     === undefined) state._cake.foto     = '';
@@ -17698,7 +17698,6 @@ async function renderCakeConfiguratorBody() {
               <button class="ck-size-btn" data-porci="${v.porci}" onclick="cakePick('porci',${v.porci})" style="padding:12px;border:2px solid ${state._cake.porci === v.porci ? 'var(--primary)' : 'var(--border)'};background:${state._cake.porci === v.porci ? 'var(--surface-2)' : 'var(--surface)'};border-radius:10px;cursor:pointer;text-align:left;font-family:inherit">
                 <div style="font-weight:700;font-size:14px">${esc(v.label)}</div>
                 <div style="font-size:11px;color:var(--text-3);margin-top:4px">⌀ ${v.prumer_cm} cm · ${v.hmotnost_g} g${v.patro ? ` · ${v.patro} patra` : ''}</div>
-                <div style="font-size:13px;color:var(--primary-dark);font-weight:700;margin-top:4px">${fmt(v.cena_bez_dph)}</div>
               </button>
             `).join('')}
           </div>
@@ -17708,11 +17707,13 @@ async function renderCakeConfiguratorBody() {
         <div class="card-block">
           <h3 style="margin:0 0 10px">🍫 Příchuť</h3>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
+            ${opts.prichute.length === 0 ? `<div style="grid-column:1/-1;padding:14px;background:var(--surface-2);border-radius:8px;font-size:13px;color:var(--text-2)">Zatím žádný dort. Založ výrobek s <strong>obor = 🎂 Dort</strong> a recepturou ve <a href="#" onclick="navigate('vyrobky');return false">Výrobky</a> — objeví se tu jako příchuť.</div>` : ''}
             ${opts.prichute.map(p => `
-              <button onclick="cakePick('prichut','${esc(p.id)}')" style="padding:10px 12px;border:2px solid ${state._cake.prichut === p.id ? 'var(--primary)' : 'var(--border)'};background:${state._cake.prichut === p.id ? 'var(--surface-2)' : 'var(--surface)'};border-radius:8px;cursor:pointer;font-family:inherit;text-align:left">
+              <button onclick="cakePick('prichut',${p.vyrobek_id})" title="Materiál z receptury: ${fmt(p.material_kc)} (base 1000 g)" style="padding:10px 12px;border:2px solid ${String(state._cake.prichut) === String(p.vyrobek_id) ? 'var(--primary)' : 'var(--border)'};background:${String(state._cake.prichut) === String(p.vyrobek_id) ? 'var(--surface-2)' : 'var(--surface)'};border-radius:8px;cursor:pointer;font-family:inherit;text-align:left">
                 <span style="font-size:18px">${p.ikona}</span>
                 <div style="font-weight:600;font-size:13px;margin-top:2px">${esc(p.nazev)}</div>
-                ${p.priplatek_kc > 0 ? `<div style="font-size:11px;color:var(--text-3)">+${p.priplatek_kc} Kč</div>` : '<div style="font-size:11px;color:var(--success-text)">v ceně</div>'}
+                <div style="font-size:11px;color:var(--primary-dark);font-weight:700;margin-top:2px">${fmt(p.cena_bez_dph)} <span style="font-weight:400;color:var(--text-3)">/ 10 porcí</span></div>
+                <div style="font-size:10px;color:var(--text-3)">🧮 materiál ${fmt(p.material_kc)} · ${p.recept_polozek} surovin</div>
               </button>
             `).join('')}
           </div>
@@ -17973,7 +17974,7 @@ window.cakeRecalc = async function() {
   // Defenzivní init — funkce může být volaná před renderCakeConfiguratorBody (oninput race, refresh apod.)
   if (!state._cake || typeof state._cake !== 'object') state._cake = {};
   if (state._cake.porci    === undefined) state._cake.porci    = 10;
-  if (state._cake.prichut  === undefined) state._cake.prichut  = 'cokoladovy';
+  if (state._cake.prichut  === undefined) state._cake.prichut  = null;
   if (state._cake.dekorace === undefined) state._cake.dekorace = 'zadna';
   const text = document.getElementById('cake-text')?.value || '';
   state._cake.text = text;
@@ -17981,7 +17982,7 @@ window.cakeRecalc = async function() {
     const r = await api('admin_cake_configurator.php?action=quote', {
       method: 'POST',
       body: JSON.stringify({
-        porci: state._cake.porci, prichut_id: state._cake.prichut,
+        porci: state._cake.porci, vyrobek_id: state._cake.prichut,
         dekorace_id: state._cake.dekorace, text: state._cake.text,
       }),
     });
@@ -18011,6 +18012,14 @@ window.cakeRecalc = async function() {
         <span style="font-variant-numeric:tabular-nums">${fmt(r.cena_s_dph)}</span>
       </div>
       <div style="font-size:11px;color:var(--text-3);text-align:right;margin-top:2px">${fmt(r.cena_per_porci)} / porci</div>
+
+      ${r.kalkulace ? `
+      <div style="background:var(--surface-2);border-radius:8px;margin-top:10px;padding:8px 10px;font-size:11.5px">
+        <div style="font-weight:700;color:var(--text-2);margin-bottom:4px">🧮 Z kalkulace (receptura × ${r.velikost.skala})</div>
+        <div style="display:flex;justify-content:space-between"><span>Materiál (suroviny)</span><span style="font-variant-numeric:tabular-nums">${fmt(r.kalkulace.material_kc)}</span></div>
+        <div style="display:flex;justify-content:space-between;color:var(--success-text)"><span>Marže</span><span style="font-variant-numeric:tabular-nums">${fmt(r.kalkulace.marze_kc)} · ${r.kalkulace.marze_pct}%</span></div>
+        <div style="font-size:10px;color:var(--text-3);margin-top:3px">📦 ${r.kalkulace.recept_polozek} surovin — odečte se ze skladu při výrobě</div>
+      </div>` : ''}
 
       <div style="background:#DCFCE7;color:#166534;padding:8px 10px;border-radius:8px;margin-top:12px;font-size:12px;text-align:center">
         ⏱️ Doba přípravy: <strong>${r.doba_pripravy_dni} ${r.doba_pripravy_dni === 1 ? 'den' : (r.doba_pripravy_dni < 5 ? 'dny' : 'dní')}</strong>
@@ -18078,7 +18087,7 @@ window.cakeSubmitOrder = async function() {
         odberatel_id: odberatelId,
         datum_dodani: datum,
         porci: state._cake.porci,
-        prichut_id: state._cake.prichut,
+        vyrobek_id: state._cake.prichut,
         dekorace_id: state._cake.dekorace,
         text: state._cake.text,
       }),
