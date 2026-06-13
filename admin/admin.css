@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.295";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.296";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -117,6 +117,7 @@ a:hover { text-decoration: underline; }
 /* 🆕 v2.9.263 — Login screen refresh (Apple/Linear inspired) */
 .login-screen {
   min-height: 100vh;
+  min-height: 100dvh; /* 🆕 v3.0.296 — iOS dynamická výška */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -727,6 +728,7 @@ body.sidebar-pinned .main-wrap {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh; /* 🆕 v3.0.296 — iOS: dynamická výška (počítá s URL barem) */
   min-width: 0;
   max-width: 100%;
   overflow-x: hidden;
@@ -14147,6 +14149,7 @@ html.theme-dark .btn-notif-badge { border-color: #1d1d1f; }
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh; /* 🆕 v3.0.296 — iOS: dynamická výška (počítá s URL barem) */
   min-width: 0;
   max-width: 100%;
   overflow-x: hidden;
@@ -20963,3 +20966,38 @@ body.perf-lite *::after {
 body.perf-lite { scroll-behavior: auto !important; }
 /* zachovej viditelnost fokusu (a11y) i v lite režimu, i když jinak rušíme box-shadow */
 body.perf-lite *:focus-visible { box-shadow: 0 0 0 2px var(--primary, #BA7517) !important; }
+
+/* 🆕 v3.0.296 — MOBIL FIX: balíčková lišta („🎁 TVÉ BALÍČKY") NIKDY nepřeteče viewport.
+   #package-subheader (flex row: label / řada karet / toggle) necháme WRAPOVAT na řádky,
+   ale samotnou řadu karet .topbar-pkg-badges roztáhneme na 100 % vlastní řádek a uděláme
+   z ní jednořádkový swipe-scroll (overflow-x:auto) — karty se nesmršťují ani nepřetékají
+   stránku. (Dřív měl wrapper max-width:none → karty přetékaly přes pravý okraj iPhonu;
+   pozor: nowrap na CELÉM wrapperu rozdrtí řadu karet, label sežere šířku — proto cílíme
+   jen .topbar-pkg-badges.) Poslední v souboru + #id & !important → vyhraje nad staršími bloky. */
+@media (max-width: 700px) {
+  #package-subheader,
+  #package-subheader.show,
+  .package-subheader.show {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  #package-subheader .topbar-pkg-badges,
+  .package-subheader .topbar-pkg-badges {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none;
+  }
+  #package-subheader .topbar-pkg-badges::-webkit-scrollbar { display: none; }
+  #package-subheader .pkg-badge-square,
+  .package-subheader .pkg-badge-square {
+    flex: 0 0 auto !important;
+    box-sizing: border-box !important;
+  }
+}
