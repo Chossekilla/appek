@@ -15,25 +15,37 @@ $pdo = db();
  *   Sloupec surovina_id nemusí existovat (staré instalace) → pak jen receptury.
  */
 function vyroba_potreba_src(PDO $pdo, string $datum): array {
-    $sql = "SELECT vs.surovina_id AS sid, SUM(op.mnozstvi * vs.mnozstvi) AS potreba
-            FROM objednavky o
-            JOIN objednavky_polozky op ON op.objednavka_id = o.id
-            JOIN vyrobek_suroviny vs   ON vs.vyrobek_id = op.vyrobek_id
-            WHERE o.datum_dodani = :datum AND o.stav NOT IN ('zrusena')
-            GROUP BY vs.surovina_id";
-    $params = ['datum' => $datum];
-    $hasCol = false;
-    try { $hasCol = in_array('surovina_id', $pdo->query("SHOW COLUMNS FROM objednavky_polozky")->fetchAll(PDO::FETCH_COLUMN), true); } catch (Throwable $e) {}
-    if ($hasCol) {
-        $sql .= " UNION ALL
-            SELECT op.surovina_id AS sid, SUM(op.mnozstvi) AS potreba
-            FROM objednavky o
-            JOIN objednavky_polozky op ON op.objednavka_id = o.id
-            WHERE o.datum_dodani = :datum2 AND o.stav NOT IN ('zrusena') AND op.surovina_id IS NOT NULL
-            GROUP BY op.surovina_id";
-        $params['datum2'] = $datum;
+    require_once __DIR__ . '/_bom_lib.php';
+    $sur = []; $pol = [];   // surovina_id => mn, vyrobek_id(polotovar se skladem) => mn
+    // a) výrobky objednané na den → VÍCEÚROVŇOVÝ rozpad sestav (bom_explode: rekurze přes polotovary)
+    try {
+        $st = $pdo->prepare("SELECT op.vyrobek_id AS vid, SUM(op.mnozstvi) AS mn
+            FROM objednavky o JOIN objednavky_polozky op ON op.objednavka_id = o.id
+            WHERE o.datum_dodani = :d AND o.stav NOT IN ('zrusena') AND op.vyrobek_id IS NOT NULL
+            GROUP BY op.vyrobek_id");
+        $st->execute(['d' => $datum]);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) bom_explode($pdo, (int) $r['vid'], (float) $r['mn'], $sur, $pol);
+    } catch (Throwable $e) {}
+    // b) přímé suroviny z volných řádků (konfigurátor: náplně/polevy/dekorace linkující surovinu)
+    try {
+        if (in_array('surovina_id', $pdo->query("SHOW COLUMNS FROM objednavky_polozky")->fetchAll(PDO::FETCH_COLUMN), true)) {
+            $st2 = $pdo->prepare("SELECT op.surovina_id AS sid, SUM(op.mnozstvi) AS mn
+                FROM objednavky o JOIN objednavky_polozky op ON op.objednavka_id = o.id
+                WHERE o.datum_dodani = :d AND o.stav NOT IN ('zrusena') AND op.surovina_id IS NOT NULL
+                GROUP BY op.surovina_id");
+            $st2->execute(['d' => $datum]);
+            foreach ($st2->fetchAll(PDO::FETCH_ASSOC) as $r) { $s = (int) $r['sid']; $sur[$s] = ($sur[$s] ?? 0) + (float) $r['mn']; }
+        }
+    } catch (Throwable $e) {}
+    // literal-values subdotaz (sid, potreba) → konzumenti (spotreba/odepsat) zůstávají beze změny
+    if (empty($sur)) {
+        $sql = "SELECT NULL AS sid, 0 AS potreba FROM (SELECT 1) z WHERE 1=0";
+    } else {
+        $parts = [];
+        foreach ($sur as $sid => $q) $parts[] = "SELECT " . (int) $sid . " AS sid, " . sprintf('%.4f', (float) $q) . " AS potreba";
+        $sql = implode(" UNION ALL ", $parts);
     }
-    return ['sql' => $sql, 'params' => $params];
+    return ['sql' => $sql, 'params' => [], 'sur' => $sur, 'pol' => $pol];
 }
 
 // =============================================================
@@ -86,12 +98,24 @@ if ($method === 'GET') {
         }
         unset($r);
 
+        // 🆕 v3.0.303 — stockované polotovary (sleduje_sklad=1) potřebné na den (ubírají se ze skladu výrobku, ne rozpadem)
+        $polotovary = [];
+        foreach (($src['pol'] ?? []) as $pvid => $pq) {
+            try {
+                $pst = $pdo->prepare("SELECT nazev, jednotka FROM vyrobky WHERE id = :id");
+                $pst->execute(['id' => (int) $pvid]);
+                $pr = $pst->fetch(PDO::FETCH_ASSOC) ?: [];
+                $polotovary[] = ['vyrobek_id' => (int) $pvid, 'nazev' => $pr['nazev'] ?? ('#' . $pvid), 'jednotka' => $pr['jednotka'] ?? 'ks', 'potreba' => round((float) $pq, 3)];
+            } catch (Throwable $e) {}
+        }
+
         json_response([
             'datum'         => $datum,
             'suroviny'      => $rows,
             'pocet_polozek' => count($rows),
             'chybi_pocet'   => $chybi,
             'celkem_naklad' => round($celkemNakladu, 2),
+            'polotovary'    => $polotovary,
         ]);
     }
 
