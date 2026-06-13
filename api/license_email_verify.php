@@ -143,7 +143,7 @@ function send_verify_email(string $to, string $code, string $licenseMasked, int 
         . "Content-Type: text/plain; charset=UTF-8\r\n"
         . "X-APPEK-License-Code: 1";
 
-    return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
+    return appek_mail_raw($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, $headers);
 }
 
 try {

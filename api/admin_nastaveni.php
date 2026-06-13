@@ -331,6 +331,10 @@ if ($method === 'GET') {
     foreach ($vsechna as $n) {
         $data[$n['klic']] = $n['hodnota'];
     }
+    // 📧 v3.0.289 — SMTP heslo NIKDY plain do frontendu; jen indikace že je nastavené
+    if (isset($data['smtp_pass'])) {
+        $data['smtp_pass'] = $data['smtp_pass'] !== '' ? '••••••••' : '';
+    }
 
     json_response($data);
 }
@@ -375,6 +379,9 @@ if ($method === 'PUT') {
         // 📊 v3.0.284/286 — Google Analytics measurement ID — B2B portál + POS pokladna zvlášť
         'ga_measurement_id',
         'ga_measurement_id_pos',
+        // 📧 v3.0.289 — SMTP odesílání
+        'smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass',
+        'smtp_secure', 'smtp_from', 'smtp_from_name',
     ];
 
     $applied = [];
@@ -392,6 +399,8 @@ if ($method === 'PUT') {
                 continue;
             }
             $hodnota = is_string($val) ? trim($val) : (string) $val;
+            // 📧 v3.0.289 — SMTP heslo: prázdné / maska = NEPŘEPISUJ uložené (UI ho maskuje)
+            if ($klic === 'smtp_pass' && ($hodnota === '' || $hodnota === '••••••••')) { continue; }
             $stmt->execute(['k' => $klic, 'v' => $hodnota, 'v2' => $hodnota]);
             $applied[] = $klic;
         }

@@ -192,7 +192,7 @@ try {
                     'MIME-Version: 1.0',
                     'X-Mailer: APPEK Seasonal Catalog',
                 ];
-                $ok = @mail(
+                $ok = appek_mail_raw(
                     $r['email'],
                     '=?UTF-8?B?' . base64_encode($subject) . '?=',
                     $html,

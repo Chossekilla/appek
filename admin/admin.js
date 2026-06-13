@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.288';
+const APPEK_ADMIN_JS_VERSION = '3.0.289';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -4265,6 +4265,31 @@ window.onboardComplete = async function() {
   closeModal();
   alert('🎉 Onboarding dokončen!' + haccpInfo);
   navigate('dashboard');
+};
+
+// 🔍 v3.0.289 — ARES/RPO lookup ve formuláři ODBĚRATELE (reuse onboarding endpointu)
+window.odberatelAresLookup = async function() {
+  const inp = document.getElementById('od-ico');
+  const ico = (inp ? inp.value : '').trim();
+  if (!ico) return alert('Vyplň IČO');
+  const btn = event && event.target ? event.target : null;
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  try {
+    const d = await api(`admin_onboarding.php?action=ares&ico=${encodeURIComponent(ico)}`);
+    const setFld = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    setFld('od-nazev', d.nazev);
+    setFld('od-dic',   d.dic);
+    setFld('od-ul',    d.ulice);
+    setFld('od-me',    d.mesto);
+    setFld('od-psc',   d.psc);
+    const zdroj = d._zdroj === 'rpo' ? '🇸🇰 RPO' : '🇨🇿 ARES';
+    toast(`✅ Načteno z ${zdroj}: ${d.nazev || ''} — nezapomeň uložit`, 'success');
+  } catch (e) {
+    toast('❌ ' + (/nenalezen/i.test(String(e.message)) ? 'IČO nenalezeno (zkontroluj 8 číslic)' : (e.message || 'ARES chyba')), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+  }
 };
 
 // 🔍 ARES/RPO lookup z Nastavení → Firma a doklady
@@ -14135,7 +14160,10 @@ window.editOdberatel = async function(id = null) {
         </div>
         <div>
           <label class="form-label">IČO</label>
-          <input class="form-input" id="od-ico" value="${esc(o.ico || '')}">
+          <div style="display:flex;gap:6px">
+            <input class="form-input" id="od-ico" value="${esc(o.ico || '')}" style="flex:1;min-width:0">
+            <button type="button" class="btn-secondary" onclick="odberatelAresLookup()" title="Načíst název, adresu a DIČ z ARES (CZ) / RPO (SK)" style="white-space:nowrap;padding:6px 10px">🔍 ARES</button>
+          </div>
         </div>
         <div class="full">
           <label class="form-label">Název firmy *</label>
@@ -14898,6 +14926,39 @@ async function renderNastaveni() {
   `;
 
   const blokNotifikace = `
+    <!-- 📧 v3.0.289 — SMTP odesílání -->
+    <div class="card-block" id="ns-smtp-block" style="margin-bottom:14px">
+      <h3 style="margin:0 0 4px">📧 SMTP odesílání</h3>
+      <p style="font-size:12px;color:var(--text-3);margin:0 0 12px">
+        Výchozí jdou e-maily přes server (PHP <code>mail()</code>) — často padají do spamu. Nastav SMTP svého poskytovatele (Seznam, Google Workspace, vlastní…) pro spolehlivé doručení faktur, voucherů a notifikací. Prázdné / vypnuté = nativní odesílání.
+      </p>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px;cursor:pointer">
+        <input type="checkbox" id="smtp-enabled" onchange="smtpToggle()"> <strong>Posílat e-maily přes SMTP</strong>
+      </label>
+      <div id="smtp-fields" style="display:none">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:2;min-width:200px"><label class="form-label" style="font-size:12px">Server (host)</label><input class="form-input" id="smtp-host" placeholder="smtp.seznam.cz"></div>
+          <div style="width:90px"><label class="form-label" style="font-size:12px">Port</label><input class="form-input" id="smtp-port" type="number" value="587"></div>
+          <div style="width:130px"><label class="form-label" style="font-size:12px">Zabezpečení</label>
+            <select class="form-input" id="smtp-secure"><option value="tls">STARTTLS (587)</option><option value="ssl">SSL/TLS (465)</option><option value="none">Žádné</option></select></div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:8px">
+          <div style="flex:1;min-width:180px"><label class="form-label" style="font-size:12px">Uživatel (login)</label><input class="form-input" id="smtp-user" autocomplete="off" placeholder="faktury@firma.cz"></div>
+          <div style="flex:1;min-width:160px"><label class="form-label" style="font-size:12px">Heslo</label><input class="form-input" id="smtp-pass" type="password" autocomplete="new-password" placeholder="••••••••"></div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:8px">
+          <div style="flex:1;min-width:180px"><label class="form-label" style="font-size:12px">Odesílatel (e-mail)</label><input class="form-input" id="smtp-from" placeholder="faktury@firma.cz"></div>
+          <div style="flex:1;min-width:160px"><label class="form-label" style="font-size:12px">Jméno odesílatele</label><input class="form-input" id="smtp-from-name" placeholder="Pekárna Novák"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+        <button class="btn-primary btn-green" onclick="smtpSave()">💾 Uložit SMTP</button>
+        <button class="btn-secondary" onclick="smtpTest()">✉️ Odeslat testovací</button>
+        <span id="smtp-info" style="font-size:12px;color:var(--text-3)"></span>
+      </div>
+      <pre id="smtp-log" style="display:none;margin-top:10px;background:#1d1d1f;color:#cdd;padding:10px 12px;border-radius:8px;font-size:11px;line-height:1.6;max-height:240px;overflow:auto;white-space:pre-wrap"></pre>
+    </div>
+
     <!-- ŘADA 2: Notifikace + Uzávěrka -->
     <div class="nastaveni-row">
       <div class="card-block">
@@ -16091,6 +16152,7 @@ async function renderNastaveni() {
   if (aktTab === 'notifikace') {
     loadEmailTemplates();
     loadPushStats();
+    smtpLoad();   // 📧 v3.0.289
   }
   if (aktTab === 'udrzba') {
     zalohyRefresh();
@@ -25840,6 +25902,65 @@ window.pushSendTestAll = async function() {
     alert(t('bulk_test_sent', { sent: r.stats.sent, failed: r.stats.failed, expired: r.stats.expired }));
     loadPushStats();
   } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 📧 v3.0.289 — SMTP odesílání (Nastavení → Notifikace)
+window.smtpToggle = function() {
+  const on = !!(document.getElementById('smtp-enabled') || {}).checked;
+  const f = document.getElementById('smtp-fields'); if (f) f.style.display = on ? '' : 'none';
+};
+window.smtpLoad = async function() {
+  try {
+    const n = await api('admin_nastaveni.php');
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+    if (document.getElementById('smtp-enabled')) document.getElementById('smtp-enabled').checked = (n.smtp_enabled === '1' || n.smtp_enabled === 1);
+    set('smtp-host', n.smtp_host); set('smtp-port', n.smtp_port || '587');
+    set('smtp-user', n.smtp_user); set('smtp-from', n.smtp_from); set('smtp-from-name', n.smtp_from_name);
+    const sec = document.getElementById('smtp-secure'); if (sec) sec.value = n.smtp_secure || 'tls';
+    const pass = document.getElementById('smtp-pass'); if (pass) pass.value = n.smtp_pass === '••••••••' ? '••••••••' : '';
+    smtpToggle();
+  } catch (e) { /* ignore */ }
+};
+window.smtpSave = async function() {
+  const v = (id) => (document.getElementById(id) || {}).value || '';
+  const passEl = document.getElementById('smtp-pass');
+  const payload = {
+    smtp_enabled: (document.getElementById('smtp-enabled') || {}).checked ? '1' : '0',
+    smtp_host: v('smtp-host').trim(), smtp_port: v('smtp-port') || '587',
+    smtp_user: v('smtp-user').trim(), smtp_secure: v('smtp-secure'),
+    smtp_from: v('smtp-from').trim(), smtp_from_name: v('smtp-from-name').trim(),
+  };
+  // heslo posíláme jen když uživatel zadal nové (ne maska) — jinak backend zachová staré
+  if (passEl && passEl.value && passEl.value !== '••••••••') payload.smtp_pass = passEl.value;
+  try {
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify(payload) });
+    toast(payload.smtp_enabled === '1' ? '✅ SMTP uloženo a zapnuto' : '✅ SMTP uloženo (vypnuto)', 'success');
+    const info = document.getElementById('smtp-info');
+    if (info) info.textContent = payload.smtp_enabled === '1' ? `Aktivní: ${payload.smtp_host}:${payload.smtp_port}` : 'Vypnuto (nativní mail)';
+    if (passEl) passEl.value = payload.smtp_pass ? '••••••••' : passEl.value;
+  } catch (e) { toast('❌ ' + (e.message || 'Uložení selhalo'), 'error'); }
+};
+window.smtpTest = async function() {
+  const v = (id) => (document.getElementById(id) || {}).value || '';
+  const to = prompt('Kam poslat testovací e-mail?', v('smtp-from') || v('smtp-user'));
+  if (!to) return;
+  const passEl = document.getElementById('smtp-pass');
+  const body = {
+    host: v('smtp-host').trim(), port: v('smtp-port') || '587', user: v('smtp-user').trim(),
+    secure: v('smtp-secure'), from: v('smtp-from').trim(), from_name: v('smtp-from-name').trim(), to: to.trim(),
+  };
+  if (passEl && passEl.value && passEl.value !== '••••••••') body.pass = passEl.value;
+  const info = document.getElementById('smtp-info'); if (info) info.textContent = '⏳ Odesílám…';
+  const logEl = document.getElementById('smtp-log');
+  try {
+    const r = await api('admin_smtp_test.php', { method: 'POST', body: JSON.stringify(body) });
+    if (logEl) { logEl.style.display = 'block'; logEl.textContent = (r.log || []).join('\n'); }
+    if (r.ok) { toast('✅ ' + r.message, 'success'); if (info) info.textContent = '✅ ' + r.message; }
+    else { toast('❌ SMTP: ' + (r.error || 'chyba'), 'error'); if (info) info.textContent = '❌ ' + (r.error || 'chyba'); }
+  } catch (e) {
+    if (info) info.textContent = '❌ ' + (e.message || 'Test selhal');
+    toast('❌ ' + (e.message || 'Test selhal'), 'error');
+  }
 };
 
 window.loadPushStats = async function() {

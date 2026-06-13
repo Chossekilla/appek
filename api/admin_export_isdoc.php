@@ -512,7 +512,7 @@ if ($action === 'email') {
     $message .= '--' . $boundary . '--';
 
     $predmet_enc = '=?UTF-8?B?' . base64_encode($predmet) . '?=';
-    $ok = @mail($email, $predmet_enc, $message, implode("\r\n", $headers));
+    $ok = appek_mail_raw($email, $predmet_enc, $message, implode("\r\n", $headers));
     if (!$ok) {
         error_log("ISDOC email failed for $email");
         json_error('Email se nepodařilo odeslat (PHP mail() selhal)', 500);
