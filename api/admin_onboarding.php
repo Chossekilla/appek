@@ -104,8 +104,10 @@ if ($action === 'ares' && $method === 'GET') {
     $tryAres = function() use ($ico, $fetch) {
         $url = "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/$ico";
         $r = $fetch($url);
+        // 🐛 v3.0.290 — definitivní odpověď (404/400) MUSÍ jít před body===false.
+        // ARES na neexistující/chybné IČO vrací 404 (i 400) → to je „nenalezeno", ne „nedostupné".
+        if ($r['status'] === 404 || $r['status'] === 400) return ['err' => 'ARES_NOT_FOUND'];
         if ($r['body'] === false) return ['err' => 'ARES_UNREACHABLE'];
-        if ($r['status'] === 404)  return ['err' => 'ARES_NOT_FOUND'];
         $data = json_decode($r['body'], true);
         if (!$data || empty($data['ico'])) return ['err' => 'ARES_NOT_FOUND'];
         return ['ok' => true, 'zdroj' => 'ares', 'data' => [
@@ -127,8 +129,10 @@ if ($action === 'ares' && $method === 'GET') {
         // Pozn.: RPO se občas přejmenovává — proto zkoušíme i finstat scraper jako záložku
         $url = "https://rpo.statistics.sk/rpo/services/rpoBrowser/finder/legalEntityByIco/$ico";
         $r = $fetch($url);
+        // 🐛 v3.0.290 — status 404 (= nenalezeno) PŘED body===false. RPO z PHP občas vrátí
+        // prázdné tělo i u 404 → dřív padalo do UNREACHABLE a maskovalo definitivní odpověď.
+        if ($r['status'] === 404 || $r['status'] === 400) return ['err' => 'RPO_NOT_FOUND'];
         if ($r['body'] === false || $r['status'] >= 500) return ['err' => 'RPO_UNREACHABLE'];
-        if ($r['status'] === 404) return ['err' => 'RPO_NOT_FOUND'];
         $data = json_decode($r['body'], true);
         if (!$data || empty($data)) return ['err' => 'RPO_NOT_FOUND'];
 
@@ -184,7 +188,7 @@ if ($action === 'ares' && $method === 'GET') {
     else if ($zeme === 'cz') $pokusy = ['ares'];
     else $pokusy = ['ares', 'rpo']; // auto-fallback
 
-    $posledniChyba = null;
+    $chyby = [];
     foreach ($pokusy as $p) {
         $res = ($p === 'ares') ? $tryAres() : $tryRpo();
         if (isset($res['ok'])) {
@@ -192,14 +196,17 @@ if ($action === 'ares' && $method === 'GET') {
             $out['_zdroj'] = $res['zdroj']; // 'ares' nebo 'rpo' (pro UI hlášku)
             json_response($out);
         }
-        $posledniChyba = $res['err'] ?? 'UNKNOWN';
+        $chyby[] = $res['err'] ?? 'UNKNOWN';
     }
 
-    // Žádný registr nenašel
-    if ($posledniChyba === 'ARES_UNREACHABLE' || $posledniChyba === 'RPO_UNREACHABLE') {
-        json_error('Registry nedostupný (zkontroluj síť / firewall)', 502);
+    // 🐛 v3.0.290 — definitivní NOT_FOUND z kteréhokoli registru PŘEBÍJÍ UNREACHABLE fallbacku.
+    // Dřív se bralo jen $posledniChyba → wrong CZ IČO hlásilo „Registry nedostupný", když SK RPO
+    // fallback selhal (firewall blokující zahraniční endpoint / SSL / výpadek RPO). Registr, který
+    // ODPOVĚDĚL „nenalezeno", je směrodatný; 502 jen když ŽÁDNÝ registr nedal definitivní odpověď.
+    if (in_array('ARES_NOT_FOUND', $chyby, true) || in_array('RPO_NOT_FOUND', $chyby, true)) {
+        json_error('Subjekt s IČO ' . $ico . ' nenalezen v ARES ani v slovenském RPO', 404);
     }
-    json_error('Subjekt s IČO ' . $ico . ' nenalezen v ARES ani v slovenském RPO', 404);
+    json_error('Registry nedostupný (zkontroluj síť / firewall)', 502);
 }
 
 // 🎁 Seed — naplní demo daty (kategorie + 15 výrobků)
