@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.302';
+const APPEK_ADMIN_JS_VERSION = '3.0.303';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -13121,6 +13121,16 @@ window.editVyrobek = async function(id = null) {
         </div>
         <div id="vy-obor-hint" style="flex:1;min-width:200px;font-size:12px;color:var(--text-3);padding-bottom:9px"></div>
       </div>
+      <!-- 🆕 v3.0.303 — Polotovar (sestavy/BOM) + rollup + výrobní postup -->
+      <div class="full" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;background:#FAF5FF;border:1px solid #E9D5FF;border-radius:10px;padding:10px 14px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#7C3AED"><input type="checkbox" id="vy-polotovar" ${v.je_polotovar ? 'checked' : ''} onchange="var w=document.getElementById('vy-sled-wrap');if(w)w.style.display=this.checked?'flex':'none'">🧩 Polotovar (složka jiných výrobků)</label>
+        <label id="vy-sled-wrap" style="display:${v.je_polotovar ? 'flex' : 'none'};align-items:center;gap:6px;font-size:12px;color:var(--text-2)"><input type="checkbox" id="vy-sleduje-sklad" ${v.sleduje_sklad ? 'checked' : ''}>📦 sleduje vlastní sklad <span style="color:var(--text-3)">(jinak se ve výrobě rozpadne na suroviny)</span></label>
+        ${v.bom_naklad != null ? `<span style="margin-left:auto;font-size:12px;color:#1E40AF">🧮 Materiál sestavy: <strong>${fmt(v.bom_naklad)}</strong>${(Array.isArray(v.bom_alergeny) && v.bom_alergeny.length) ? ' · alergeny: ' + v.bom_alergeny.map(esc).join(', ') : ''}</span>` : ''}
+      </div>
+      <div class="full" style="margin-top:4px">
+        <label class="form-label" style="font-size:12px">👨‍🍳 Výrobní postup <span style="font-weight:400;color:var(--text-3)">(kroky — jeden na řádek, tiskne se ve výrobním listu)</span></label>
+        <textarea class="form-input" id="vy-postup" rows="3" placeholder="Vyšlehat máslo s cukrem&#10;Přidat vejce po jednom&#10;Péct 180 °C / 35 min" style="font-size:13px;resize:vertical">${esc((function(){try{return (JSON.parse(v.postup_json||'[]')||[]).join('\n');}catch(e){return '';}})())}</textarea>
+      </div>
       <!-- Popis | Složení (vedle sebe) -->
       <div class="full vy-popis-sloz-row">
         <div>
@@ -13275,6 +13285,7 @@ window.editVyrobek = async function(id = null) {
         <h3 style="margin:0;font-size:15px;color:#854F0B">🌾 Složení / suroviny</h3>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn-secondary" type="button" onclick="vySlozeniAddRow()" style="font-size:13px">+ Přidat surovinu</button>
+          <button class="btn-secondary" type="button" onclick="vySlozeniAddPolotovar()" style="font-size:13px;border-color:#9333EA;color:#7C3AED" title="Přidat polotovar / výrobek jako složku (sestava / BOM)">+ Přidat polotovar</button>
           <button class="btn-secondary" type="button" onclick="vyOdvoditAlergeny()" style="font-size:13px" title="Sečte alergeny ze surovin a vyplní pole Alergeny výše">🧪 Odvodit alergeny</button>
           <button class="btn-secondary" type="button" onclick="vyKalkulace()" style="font-size:13px" title="Přepočítat náklady">💰 Spočítat náklady</button>
         </div>
@@ -13326,8 +13337,18 @@ window.editVyrobek = async function(id = null) {
   `, 'wide');
 
   // Po renderu doplň existující řádky složení a spusť přepočet ceny/kg
+  // 🆕 v3.0.303 — cache výrobků pro polotovar-picker + id editovaného výrobku (anti-cyklus self)
+  state._vyEditId = id || 0;
+  if (!state._vyrobky_pol_cache) {
+    api('admin_vyrobky.php').then(r => {
+      state._vyrobky_pol_cache = (r.vyrobky || []).map(x => ({ id: x.id, nazev: x.nazev, je_polotovar: x.je_polotovar }));
+    }).catch(() => { state._vyrobky_pol_cache = []; });
+  }
   if (Array.isArray(v.slozeni)) {
-    v.slozeni.forEach(p => vySlozeniAddRow(p.surovina_id, p.mnozstvi, p.jednotka || 'g', p.poznamka || ''));
+    v.slozeni.forEach(p => {
+      if (p.slozka_vyrobek_id) vySlozeniAddPolotovar(p.slozka_vyrobek_id, p.mnozstvi, p.jednotka || 'ks', p.slozka_nazev || '');
+      else vySlozeniAddRow(p.surovina_id, p.mnozstvi, p.jednotka || 'g', p.poznamka || '');
+    });
   }
   // Live přepočet — reaguj i na změnu ceny a DPH
   setTimeout(() => {
@@ -13869,6 +13890,12 @@ window.ulozitVyrobek = async function(id) {
     ...(document.getElementById('vy-prep') ? { priprava_min: parseInt(document.getElementById('vy-prep').value) || 0 } : {}),
     ...(document.getElementById('vy-station') ? { kitchen_station_id: parseInt(document.getElementById('vy-station').value) || null } : {}),
     ...(document.getElementById('vy-obor') ? { obor: document.getElementById('vy-obor').value || null } : {}),
+    // 🆕 v3.0.303 — polotovar (sestavy/BOM) + hybrid sklad + výrobní postup
+    ...(document.getElementById('vy-polotovar') ? {
+      je_polotovar: document.getElementById('vy-polotovar').checked ? 1 : 0,
+      sleduje_sklad: (document.getElementById('vy-sleduje-sklad') && document.getElementById('vy-sleduje-sklad').checked) ? 1 : 0,
+      postup_json: JSON.stringify((document.getElementById('vy-postup')?.value || '').split('\n').map(s => s.trim()).filter(Boolean)),
+    } : {}),
     // 🆕 v3.0.213 — viditelnost na POS (jen když je přepínač vyrenderovaný = balíček Restaurace)
     ...(document.getElementById('vy-pos') ? { zobrazit_na_pos: document.getElementById('vy-pos').checked ? 1 : 0 } : {}),
   };
@@ -32439,6 +32466,19 @@ window.vyCollectSlozeni = function() {
   const out = [];
   let i = 0;
   rows.forEach(r => {
+    const polSel = r.querySelector('.sloz-pol');  // 🆕 v3.0.303 — řádek typu POLOTOVAR (výrobek)
+    if (polSel) {
+      const vid = parseInt(polSel.value) || 0;
+      if (!vid) return;
+      out.push({
+        slozka_vyrobek_id: vid,
+        mnozstvi: parseFloat(r.querySelector('.sloz-mn').value) || 0,
+        jednotka: r.querySelector('.sloz-jed').value || 'ks',
+        poradi: i++,
+        poznamka: (r.querySelector('.sloz-pozn')?.value || '').trim() || null,
+      });
+      return;
+    }
     const sid = parseInt(r.querySelector('.sloz-sur').value) || 0;
     if (!sid) return;
     out.push({
@@ -32450,6 +32490,34 @@ window.vyCollectSlozeni = function() {
     });
   });
   return out;
+};
+
+// 🆕 v3.0.303 — přidá řádek POLOTOVARU (jiný výrobek) do receptury (sestava/BOM).
+window.vySlozeniAddPolotovar = function(slozka_id = '', mnozstvi = '', jednotka = 'ks', slozka_nazev = '') {
+  const c = document.getElementById('vy-sloz-rows');
+  if (!c) return;
+  let vyr = (state._vyrobky_pol_cache || []).filter(x => x.id != (state._vyEditId || 0)); // ne sám sebe
+  // fallback: cache ještě nedorazila / položka chybí → přidej aktuální vybranou (z detailu)
+  if (slozka_id && slozka_nazev && !vyr.some(x => x.id == slozka_id)) {
+    vyr = [{ id: slozka_id, nazev: slozka_nazev, je_polotovar: 1 }, ...vyr];
+  }
+  const row = document.createElement('div');
+  row.className = 'sloz-row';
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr auto;gap:8px;margin-bottom:6px;align-items:center';
+  row.innerHTML = `
+    <select class="form-select sloz-pol" style="font-size:13px;border-color:#9333EA">
+      <option value="">— polotovar / výrobek —</option>
+      ${vyr.map(x => `<option value="${x.id}" ${x.id == slozka_id ? 'selected' : ''}>${x.je_polotovar ? '🧩 ' : '📦 '}${esc(x.nazev)}</option>`).join('')}
+    </select>
+    <input class="form-input sloz-mn" type="number" step="0.001" min="0" placeholder="Množ." value="${mnozstvi}" style="font-size:13px" oninput="vyTestoUpdateDisplay()">
+    <select class="form-select sloz-jed" style="font-size:13px">
+      ${['ks','g','kg','ml','l','porce','dávka'].map(j => `<option value="${j}" ${j===jednotka?'selected':''}>${j}</option>`).join('')}
+    </select>
+    <span style="font-size:11px;color:#9333EA">🧩 polotovar (sestava)</span>
+    <button class="btn-secondary" type="button" style="padding:6px 10px;font-size:13px" onclick="this.parentElement.remove();vyTestoUpdateDisplay()">✕</button>
+  `;
+  c.appendChild(row);
+  vyTestoUpdateDisplay();
 };
 
 // =============================================================

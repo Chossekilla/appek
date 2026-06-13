@@ -71,6 +71,25 @@ $pdo = db();
             $pdo->exec("ALTER TABLE vyrobky ADD COLUMN obor VARCHAR(20) NULL");
             $pdo->exec("ALTER TABLE vyrobky ADD INDEX idx_obor (obor)");
         }
+        // 🆕 v3.0.303 — BOM/sestavy: polotovar + hybrid sklad + výrobní postup
+        if (!in_array('je_polotovar', $cols, true)) {
+            $pdo->exec("ALTER TABLE vyrobky ADD COLUMN je_polotovar TINYINT(1) NOT NULL DEFAULT 0 AFTER obor");
+        }
+        if (!in_array('sleduje_sklad', $cols, true)) {
+            $pdo->exec("ALTER TABLE vyrobky ADD COLUMN sleduje_sklad TINYINT(1) NOT NULL DEFAULT 0 AFTER je_polotovar");
+        }
+        if (!in_array('postup_json', $cols, true)) {
+            $pdo->exec("ALTER TABLE vyrobky ADD COLUMN postup_json TEXT NULL AFTER sleduje_sklad");
+        }
+        // 🆕 v3.0.303 — řádek receptu může být polotovar (jiný výrobek) místo suroviny → surovina_id NULLABLE
+        try {
+            $vsCols = $pdo->query("SHOW COLUMNS FROM vyrobek_suroviny")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('slozka_vyrobek_id', $vsCols, true)) {
+                $pdo->exec("ALTER TABLE vyrobek_suroviny ADD COLUMN slozka_vyrobek_id INT NULL AFTER surovina_id");
+                $pdo->exec("ALTER TABLE vyrobek_suroviny ADD INDEX idx_vs_slozka (slozka_vyrobek_id)");
+                $pdo->exec("ALTER TABLE vyrobek_suroviny MODIFY surovina_id INT NULL");
+            }
+        } catch (Throwable $e) { error_log('vyrobek_suroviny BOM migrace: ' . $e->getMessage()); }
     } catch (Throwable $e) {
         error_log('admin_vyrobky auto-migrace: ' . $e->getMessage());
     }
@@ -338,20 +357,29 @@ if ($method === 'GET') {
         // Slozeni text → přesun pod jiný klíč, abychom v 'slozeni' mohli vrátit pivot
         $v['slozeni_text'] = $v['slozeni'] ?? null;
 
-        // Složení (pivot s cenami pro kalkulaci nákladů)
+        // Složení (pivot s cenami pro kalkulaci nákladů) — 🆕 v3.0.303 surovina NEBO polotovar (BOM)
         try {
+            $hasSlozkaCol = in_array('slozka_vyrobek_id', $pdo->query("SHOW COLUMNS FROM vyrobek_suroviny")->fetchAll(PDO::FETCH_COLUMN), true);
+            $slozkaSel  = $hasSlozkaCol ? 'vs.slozka_vyrobek_id,' : 'NULL AS slozka_vyrobek_id,';
+            $slozkaCols = $hasSlozkaCol ? 'pv.nazev AS slozka_nazev, pv.cena_bez_dph AS slozka_cena, pv.sleduje_sklad AS slozka_sleduje_sklad' : 'NULL AS slozka_nazev, NULL AS slozka_cena, NULL AS slozka_sleduje_sklad';
+            $slozkaJoin = $hasSlozkaCol ? 'LEFT JOIN vyrobky pv ON pv.id = vs.slozka_vyrobek_id' : '';
             $stmt = $pdo->prepare("
-                SELECT vs.id, vs.surovina_id, vs.mnozstvi, vs.jednotka, vs.poradi, vs.poznamka,
+                SELECT vs.id, vs.surovina_id, {$slozkaSel} vs.mnozstvi, vs.jednotka, vs.poradi, vs.poznamka,
                        s.nazev AS surovina_nazev, s.alergen AS surovina_alergen,
-                       s.jednotka AS surovina_jednotka,
-                       s.cena_baleni, s.obsah_baleni
+                       s.jednotka AS surovina_jednotka, s.cena_baleni, s.obsah_baleni,
+                       {$slozkaCols}
                 FROM vyrobek_suroviny vs
-                JOIN suroviny s ON s.id = vs.surovina_id
+                LEFT JOIN suroviny s ON s.id = vs.surovina_id
+                {$slozkaJoin}
                 WHERE vs.vyrobek_id = :v
-                ORDER BY vs.poradi, s.nazev
+                ORDER BY vs.poradi, vs.id
             ");
             $stmt->execute(['v' => $vid]);
             $v['slozeni'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // BOM rollup — náklad + alergeny přes celou sestavu (rekurzivně přes polotovary)
+            require_once __DIR__ . '/_bom_lib.php';
+            $v['bom_naklad']   = bom_cost($pdo, $vid);
+            $v['bom_alergeny'] = bom_allergens($pdo, $vid);
         } catch (PDOException $e) {
             // Tabulky ještě nejsou - nevadí
             $v['slozeni'] = [];
@@ -526,26 +554,36 @@ function sync_slozeni(PDO $pdo, int $vyrobek_id, array $polozky): void {
             ->execute(['v' => $vyrobek_id]);
         if (empty($polozky)) return;
 
-        $ins = $pdo->prepare("
-            INSERT INTO vyrobek_suroviny
-                (vyrobek_id, surovina_id, mnozstvi, jednotka, poradi, poznamka)
-            VALUES (:v, :s, :m, :j, :p, :pozn)
-            ON DUPLICATE KEY UPDATE mnozstvi = VALUES(mnozstvi),
-                                    jednotka = VALUES(jednotka),
-                                    poradi   = VALUES(poradi),
-                                    poznamka = VALUES(poznamka)
-        ");
+        // 🆕 v3.0.303 — řádek receptu může být SUROVINA nebo POLOTOVAR (slozka_vyrobek_id).
+        $hasSlozka = in_array('slozka_vyrobek_id', $pdo->query("SHOW COLUMNS FROM vyrobek_suroviny")->fetchAll(PDO::FETCH_COLUMN), true);
+        if ($hasSlozka) require_once __DIR__ . '/_bom_lib.php';
+
+        $ins = $hasSlozka
+            ? $pdo->prepare("INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, slozka_vyrobek_id, mnozstvi, jednotka, poradi, poznamka)
+                             VALUES (:v, :s, :sl, :m, :j, :p, :pozn)")
+            : $pdo->prepare("INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, mnozstvi, jednotka, poradi, poznamka)
+                             VALUES (:v, :s, :m, :j, :p, :pozn)
+                             ON DUPLICATE KEY UPDATE mnozstvi = VALUES(mnozstvi), jednotka = VALUES(jednotka), poradi = VALUES(poradi), poznamka = VALUES(poznamka)");
         foreach ($polozky as $i => $p) {
-            $sid = (int) ($p['surovina_id'] ?? 0);
-            if ($sid <= 0) continue;
-            $ins->execute([
+            $sid    = (int) ($p['surovina_id'] ?? 0);
+            $slozka = $hasSlozka ? (int) ($p['slozka_vyrobek_id'] ?? 0) : 0;
+            // BOM cyklus-guard: polotovar nesmí být sám sebe ani (ne)přímo tvořit cyklus → řádek zahodíme
+            if ($slozka > 0) {
+                if ($slozka === $vyrobek_id) continue;
+                if (function_exists('bom_would_cycle') && bom_would_cycle($pdo, $vyrobek_id, $slozka)) continue;
+                $sid = 0; // polotovar řádek nemá surovinu
+            }
+            if ($sid <= 0 && $slozka <= 0) continue;
+            $params = [
                 'v'    => $vyrobek_id,
-                's'    => $sid,
+                's'    => $sid ?: null,
                 'm'    => (float) ($p['mnozstvi'] ?? 0),
                 'j'    => trim($p['jednotka'] ?? 'g') ?: 'g',
                 'p'    => (int) ($p['poradi'] ?? $i),
                 'pozn' => isset($p['poznamka']) && trim($p['poznamka']) !== '' ? trim($p['poznamka']) : null,
-            ]);
+            ];
+            if ($hasSlozka) $params['sl'] = $slozka ?: null;
+            $ins->execute($params);
         }
     } catch (PDOException $e) {
         // Pokud tabulky ještě neexistují, ignoruj - frontend zatím neposílá
@@ -665,6 +703,7 @@ if ($method === 'PUT') {
         // 🆕 v3.0.156 — doba přípravy + kuchyňská stanice (KDS)
         'priprava_min' => 'priprava_min', 'kitchen_station_id' => 'kitchen_station_id',
         'obor' => 'obor', // 🆕 v3.0.295 — obor výrobku (provázání s balíčky)
+        'je_polotovar' => 'je_polotovar', 'sleduje_sklad' => 'sleduje_sklad', 'postup_json' => 'postup_json', // 🆕 v3.0.303 BOM/sestavy
     ];
 
     $sets = []; $params = ['id' => (int) $d['id']];
@@ -674,9 +713,9 @@ if ($method === 'PUT') {
             // Cast pro číselné sloupce
             if (in_array($jk, ['cena_bez_dph'])) {
                 $params[$dbk] = (float) $d[$jk];
-            } elseif (in_array($jk, ['aktivni','oblibeny','je_akce','je_novinka','je_doprodej','je_vyprodano','zobrazit_na_pos'])) {
+            } elseif (in_array($jk, ['aktivni','oblibeny','je_akce','je_novinka','je_doprodej','je_vyprodano','zobrazit_na_pos','je_polotovar','sleduje_sklad'])) {
                 $params[$dbk] = (int) $d[$jk];
-            } elseif ($jk === 'nutricni_hodnoty' || $jk === 'kalkulace_data' || $jk === 'haccp_data') {
+            } elseif ($jk === 'nutricni_hodnoty' || $jk === 'kalkulace_data' || $jk === 'haccp_data' || $jk === 'postup_json') {
                 // Přijmi pole nebo JSON string
                 $params[$dbk] = is_array($d[$jk])
                     ? json_encode($d[$jk], JSON_UNESCAPED_UNICODE)
