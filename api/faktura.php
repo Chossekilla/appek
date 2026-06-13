@@ -303,6 +303,53 @@ $dph_rozpis = $faktury_render[0]['dph_rozpis'];
 
 $bulk_count = count($faktury_render);
 $autoprint = !empty($_GET['autoprint']);
+
+// 💸 v3.0.287 — QR Platba (SPD — český standard „QR Platba", spec SPAYD 1.0).
+//   IBAN: 1) platby config (payment_methods_config_json → libovolný ucet_iban),
+//         2) fallback z firma_banka (IBAN přímo nebo CZ účet [předčíslí-]číslo/kód → IBAN).
+//   QR se renderuje client-side (qrcode.min.js) — faktura je vždy v prohlížeči (tisk/e-mail link).
+if (!function_exists('faktura_cz_ucet_to_iban')) {
+    function faktura_cz_ucet_to_iban(string $ucet): string {
+        $compact = strtoupper(preg_replace('/\s+/', '', $ucet));
+        if (preg_match('/^CZ\d{22}$/', $compact)) return $compact;           // už IBAN
+        if (!preg_match('#^(?:(\d{1,6})-)?(\d{2,10})/(\d{4})$#', $compact, $m)) return '';
+        $prefix = str_pad($m[1] ?? '', 6, '0', STR_PAD_LEFT);
+        $number = str_pad($m[2], 10, '0', STR_PAD_LEFT);
+        $bban   = $m[3] . $prefix . $number;                                  // 20 číslic: banka+předčíslí+číslo
+        // IBAN kontrolní číslice: BBAN + "CZ00" (C=12,Z=35) → mod 97 → 98-mod
+        $check = $bban . '123500';
+        $mod = 0;
+        for ($i = 0, $n = strlen($check); $i < $n; $i++) $mod = ($mod * 10 + (int) $check[$i]) % 97;
+        return 'CZ' . str_pad((string) (98 - $mod), 2, '0', STR_PAD_LEFT) . $bban;
+    }
+    /** Sestaví SPD řetězec; vrátí '' pokud chybí IBAN nebo nekladná částka / dobropis. */
+    function faktura_spd_string(array $f, PDO $pdo): string {
+        if (!empty($f['je_dobropis'])) return '';                             // dobropis = vratka, ne platba
+        $castka = round((float) ($f['castka_celkem'] ?? 0), 2);
+        if ($castka <= 0) return '';
+        // 1) IBAN z platby configu
+        $iban = '';
+        try {
+            $raw = nastaveni_get($pdo, 'payment_methods_config_json', '');
+            $cfg = $raw ? json_decode($raw, true) : null;
+            if (is_array($cfg)) foreach ($cfg as $m) {
+                if (!empty($m['ucet_iban'])) { $iban = faktura_cz_ucet_to_iban((string) $m['ucet_iban']); if ($iban) break; }
+            }
+        } catch (Throwable $e) { /* ignore */ }
+        if ($iban === '') $iban = faktura_cz_ucet_to_iban(firma('banka', ''));  // 2) fallback z bankovního spojení
+        if ($iban === '') return '';
+        $vs  = preg_replace('/\D/', '', (string) ($f['variabilni_symbol'] ?? ''));
+        $am  = number_format($castka, 2, '.', '');
+        // MSG: bez diakritiky a hvězdiček, max 60 znaků (SPAYD limit)
+        $msg = 'Faktura ' . ($f['cislo'] ?? '');
+        $msg = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $msg) ?: $msg;
+        $msg = mb_substr(str_replace('*', ' ', $msg), 0, 60);
+        $spd = 'SPD*1.0*ACC:' . $iban . '*AM:' . $am . '*CC:CZK';
+        if ($vs !== '') $spd .= '*X-VS:' . $vs;
+        $spd .= '*MSG:' . $msg;
+        return $spd;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="cs">
@@ -525,7 +572,15 @@ $autoprint = !empty($_GET['autoprint']);
                    . ' <span style="font-size:8pt">(kurz ' . number_format((float) $mc['kurz'], 3, ',', ' ') . ' Kč/' . htmlspecialchars($mc['kod']) . ')</span></div>';
             }
         } catch (Throwable $e) { /* bez přepočtu */ }
+        // 💸 v3.0.287 — QR Platba (SPD) — naskenuj v bankovní aplikaci, předvyplní platbu
+        $spd = faktura_spd_string($f, $pdo);
+        if ($spd !== ''):
       ?>
+        <div class="qr-platba" style="margin-top:8px;display:flex;flex-direction:column;align-items:center">
+          <div class="qr-img" data-spd="<?= htmlspecialchars($spd, ENT_QUOTES) ?>" style="width:108px;height:108px;background:#fff;padding:4px;border-radius:6px"></div>
+          <div style="font-size:8pt;color:#855;margin-top:3px;font-weight:600">📱 QR Platba</div>
+        </div>
+      <?php endif; ?>
     </div>
   </div>
   <div class="foot">
@@ -555,10 +610,27 @@ $autoprint = !empty($_GET['autoprint']);
   </div>
 </div>
 <?php endforeach; ?>
+<!-- 💸 v3.0.287 — QR Platba render (lokální lib, offline; žádný externí dotaz při tisku) -->
+<script src="../admin/lib/qrcode.min.js"></script>
+<script>
+  (function () {
+    function drawQr() {
+      if (typeof QRCode === 'undefined') return;
+      document.querySelectorAll('.qr-img[data-spd]').forEach(function (el) {
+        if (el.dataset.done) return;
+        el.dataset.done = '1';
+        try { new QRCode(el, { text: el.getAttribute('data-spd'), width: 100, height: 100, correctLevel: QRCode.CorrectLevel.M }); }
+        catch (e) { el.textContent = ''; }
+      });
+    }
+    if (document.readyState !== 'loading') drawQr();
+    else document.addEventListener('DOMContentLoaded', drawQr);
+  })();
+</script>
 <?php if ($autoprint): ?>
 <script>
-  // Auto-trigger print dialog po načtení
-  window.addEventListener('load', function() { setTimeout(function() { window.print(); }, 250); });
+  // Auto-trigger print dialog po načtení (QR už vykreslen na DOMContentLoaded)
+  window.addEventListener('load', function() { setTimeout(function() { window.print(); }, 350); });
 </script>
 <?php endif; ?>
 </body>
