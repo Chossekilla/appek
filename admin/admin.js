@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.297';
+const APPEK_ADMIN_JS_VERSION = '3.0.298';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -18147,8 +18147,8 @@ async function renderCateringCalculator() {
     <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;background:${picked.includes(k) ? 'var(--surface-2)' : 'transparent'};border:1px solid ${picked.includes(k) ? 'var(--primary)' : 'transparent'}">
       <input type="checkbox" value="${esc(k)}" ${picked.includes(k) ? 'checked' : ''} onchange="cateringTogglePick('${esc(key)}','${esc(k)}',this.checked)" style="width:16px;height:16px">
       <div style="flex:1;font-size:13px">
-        <div style="font-weight:600">${esc(it.nazev)}</div>
-        <div style="font-size:11px;color:var(--text-3)">${it.per_osobu} ${esc(it.jednotka)} / osoba · ${it.cena_kc} Kč/${esc(it.jednotka)}</div>
+        <div style="font-weight:600">${esc(it.vyrobek_nazev || it.nazev)} ${it.odecte_sklad ? '<span title="Napárováno na výrobek s recepturou — odečte se ze skladu" style="font-size:9.5px;background:#DCFCE7;color:#166534;padding:1px 5px;border-radius:5px;font-weight:700">🧮 sklad</span>' : '<span title="Odhadová položka — neodečítá suroviny" style="font-size:9.5px;color:var(--text-3)">odhad</span>'}</div>
+        <div style="font-size:11px;color:var(--text-3)">${it.per_osobu} ${esc(it.jednotka)} / osoba · ${it.cena_kc} Kč/${esc(it.jednotka)}${it.material_kc ? ` · materiál ${fmt(it.material_kc)}` : ''}</div>
       </div>
     </label>
   `).join('');
@@ -18247,10 +18247,72 @@ window.cateringRecalc = async function() {
         <span>Celkem s DPH</span><span style="font-variant-numeric:tabular-nums">${fmt(r.cena_s_dph)}</span>
       </div>
       <div style="font-size:11px;color:var(--text-3);text-align:right;margin-top:2px">${fmt(r.cena_per_osobu)} / osoba</div>
+
+      ${r.kalkulace ? `
+      <div style="background:var(--surface-2);border-radius:8px;margin-top:10px;padding:8px 10px;font-size:11.5px">
+        <div style="font-weight:700;color:var(--text-2);margin-bottom:4px">🧮 Z kalkulace (receptury)</div>
+        <div style="display:flex;justify-content:space-between"><span>Materiál (suroviny)</span><span style="font-variant-numeric:tabular-nums">${fmt(r.kalkulace.material_kc)}</span></div>
+        <div style="display:flex;justify-content:space-between;color:var(--success-text)"><span>Marže</span><span style="font-variant-numeric:tabular-nums">${fmt(r.kalkulace.marze_kc)} · ${r.kalkulace.marze_pct}%</span></div>
+        <div style="font-size:10px;color:var(--text-3);margin-top:3px">📦 ${r.kalkulace.polozek_se_skladem}/${r.kalkulace.polozek_celkem} položek se odečte ze skladu při výrobě</div>
+      </div>` : ''}
+
+      ${r.polozky.length > 0 ? `<button class="btn-primary btn-green btn-big-action" style="width:100%;margin-top:12px;padding:13px;font-size:14px;font-weight:700" onclick="cateringCreateOrder(${JSON.stringify(r).replace(/"/g, '&quot;')})">📋 Vytvořit objednávku</button>` : ''}
     `;
   } catch (e) {
     host.innerHTML = `<div style="color:var(--danger-text)">Chyba: ${esc(e.message)}</div>`;
   }
+};
+
+// 🆕 v3.0.298 — Catering kalkulačka → reálná objednávka (kanál 'catering', řádky s vyrobek_id → odpis).
+window.cateringCreateOrder = async function(quote) {
+  let odb;
+  try { odb = await api('admin_odberatele.php'); }
+  catch (e) { return alert('Chyba načtení odběratelů: ' + e.message); }
+  const odberatele = Array.isArray(odb) ? odb : (odb.odberatele || odb.data || []);
+  if (odberatele.length === 0) { alert('Nejsou žádní odběratelé. Vytvoř nejdřív odběratele.'); return; }
+
+  const minDate = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+  const odecitanych = (quote.kalkulace && quote.kalkulace.polozek_se_skladem) || 0;
+  openModal('🥗 Vytvořit catering objednávku', `
+    <div style="background:#DCFCE7;border-left:3px solid #166534;padding:12px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#14532D">
+      📋 <strong>${quote.osob} osob</strong> · ${esc(quote.typ.nazev)}<br>
+      💰 ${fmt(quote.cena_s_dph)} celkem · 🧮 ${odecitanych}/${quote.polozky.length} položek se odečte ze skladu
+    </div>
+    <div class="form-grid form-grid-tight">
+      <div class="full"><label class="form-label">Odběratel *</label>
+        <select class="form-input" id="cat-odb">
+          ${odberatele.map(o => `<option value="${o.id}">${esc(o.nazev)}${o.ico ? ' · IČ ' + esc(o.ico) : ''}</option>`).join('')}
+        </select>
+      </div>
+      <div class="full"><label class="form-label">📅 Datum dodání *</label>
+        <input type="date" class="form-input" id="cat-datum" value="${minDate}" min="${minDate}">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
+      <button class="btn-primary btn-green" onclick="cateringSubmitOrder()">✓ Vytvořit objednávku</button>
+    </div>
+  `);
+};
+
+window.cateringSubmitOrder = async function() {
+  const odberatelId = parseInt(document.getElementById('cat-odb').value);
+  const datum = document.getElementById('cat-datum').value;
+  if (!odberatelId || !datum) { alert('Vyplň odběratele a datum.'); return; }
+  if (!state._catering) { alert('Nejprve nastav kalkulaci.'); return; }
+  try {
+    const r = await api('admin_catering_calc.php?action=create_order', {
+      method: 'POST',
+      body: JSON.stringify({
+        osob: state._catering.osob, typ_udalosti: state._catering.typ,
+        prilohy: state._catering.jidlo || [], napoje: state._catering.napoje || [],
+        odberatel_id: odberatelId, datum_dodani: datum,
+      }),
+    });
+    closeModal();
+    toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: fmt(r.castka) }));
+    setTimeout(() => navigate('objednavky'), 600);
+  } catch (e) { alert('Chyba: ' + e.message); }
 };
 
 // =============================================================
