@@ -133,7 +133,10 @@ try {
     $newReason = null;
     if (($vendorReply['status'] ?? '') === 'pirate') {
         $reason = $vendorReply['reason'] ?? '';
-        if (in_array($reason, ['revoked_used', 'expired_used'], true)) {
+        if ($reason === 'expired_used') {
+            // 🆕 v3.0.301 — VYPRŠENÍ ≠ pirátství: nezamyká celý admin, jen balíčky (přes valid_until).
+            $newState = 'active';
+        } elseif ($reason === 'revoked_used') {
             $newState = 'revoked';
         } elseif (in_array($reason, ['key_reuse', 'unknown_key'], true)) {
             $newState = 'locked';
@@ -142,11 +145,15 @@ try {
         }
         $newReason = $vendorReply['message'] ?? $reason;
     }
+    // 🆕 v3.0.301 — ulož valid_until (= expires_at od vendora) pro roční expiraci.
+    //   Když vendor pole nepošle, zachovej předchozí (neztratit datum mezi heartbeaty).
+    $prevState = license_state_load();
     license_state_save([
-        'state'      => $newState,
-        'reason'     => $newReason,
-        'lock_until' => $vendorReply['lock_until'] ?? null,
-        'last_check' => time(),
+        'state'       => $newState,
+        'reason'      => $newReason,
+        'lock_until'  => $vendorReply['lock_until'] ?? null,
+        'valid_until' => $vendorReply['expires_at'] ?? ($prevState['valid_until'] ?? null),
+        'last_check'  => time(),
     ]);
 
     // Update timestamp posledního heartbeatu (pro client-side detekci)

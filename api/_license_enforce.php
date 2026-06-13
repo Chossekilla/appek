@@ -121,3 +121,47 @@ function license_enforce_check(): array {
 
     return ['ok' => true, 'state' => $state['state'] ?? 'active'];
 }
+
+// ════════════════════════════════════════════════════════════
+// 🆕 v3.0.301 — ROČNÍ EXPIRACE LICENCE (expirace ≠ pirátství)
+//   valid_until (= vendorReply.expires_at) ukládá heartbeat do .license-state.json.
+//   Po vypršení + grace se vypnou JEN add-on balíčky (core/POS jede dál) — NE full lock.
+//   Bez valid_until → vždy 'active' (zpětně kompatibilní, žádná expirace).
+// ════════════════════════════════════════════════════════════
+const LICENSE_GRACE_DAYS = 14;  // po vypršení appka + balíčky ještě jedou (s varováním)
+const LICENSE_WARN_DAYS  = 30;  // kolik dní předem začít upozorňovat
+
+/**
+ * Stav platnosti licence dle valid_until.
+ *   active        — platí, >30 dní do konce
+ *   expiring_soon — platí, ≤30 dní do konce (žluté upozornění)
+ *   grace         — vypršela, ale v grace období (≤14 dní) → balíčky JEŠTĚ jedou (červené upozornění)
+ *   expired       — po grace → balíčky VYPNUTÉ (core jede dál)
+ * Vrací: ['expiry_state','valid_until','days_left','packages_active']
+ */
+function license_validity(): array {
+    $state = license_state_load();
+    $vu = $state['valid_until'] ?? null;
+    if (!$vu || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $vu)) {
+        return ['expiry_state' => 'active', 'valid_until' => null, 'days_left' => null, 'packages_active' => true];
+    }
+    $now = time();
+    $exp = strtotime($vu . ' 23:59:59');
+    $graceEnd = $exp + LICENSE_GRACE_DAYS * 86400;
+    if ($now <= $exp) {
+        $daysLeft = (int) ceil(($exp - $now) / 86400);
+        return ['expiry_state' => $daysLeft <= LICENSE_WARN_DAYS ? 'expiring_soon' : 'active', 'valid_until' => $vu, 'days_left' => $daysLeft, 'packages_active' => true];
+    }
+    if ($now <= $graceEnd) {
+        return ['expiry_state' => 'grace', 'valid_until' => $vu, 'days_left' => (int) ceil(($graceEnd - $now) / 86400), 'packages_active' => true];
+    }
+    return ['expiry_state' => 'expired', 'valid_until' => $vu, 'days_left' => 0, 'packages_active' => false];
+}
+
+/** Jsou add-on balíčky aktivní? (false = po grace, balíčky se vypnou; core vždy jede)
+ *  Per-request cache — package_enabled() se volá vícekrát, valid_until se v rámci requestu nemění. */
+function license_packages_active(): bool {
+    static $c = null;
+    if ($c === null) $c = license_validity()['packages_active'];
+    return $c;
+}

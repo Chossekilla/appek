@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.300';
+const APPEK_ADMIN_JS_VERSION = '3.0.301';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -17107,8 +17107,22 @@ window.loadBalicky = async function() {
         <button class="btn-secondary" style="font-size:11.5px;padding:4px 10px" onclick="openLicenseUpdate()">🔑 Zadat klíč</button>
       </div>`;
 
+    // 🆕 v3.0.301 — banner roční platnosti (expiring_soon/grace/expired)
+    const _val = lic.validity || {};
+    const _dl = _val.days_left;
+    const _dStr = (n) => `${n} ${n === 1 ? 'den' : (n < 5 ? 'dny' : 'dní')}`;
+    let expiryBanner = '';
+    if (_val.expiry_state === 'expiring_soon') {
+      expiryBanner = `<div style="background:#FEF3C7;border-left:3px solid #92400E;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:12.5px;color:#92400E">⏳ <strong>Licence končí ${esc(_val.valid_until || '')}</strong> (za ${_dStr(_dl)}). Obnov u dodavatele, ať se ti nevypnou balíčky.</div>`;
+    } else if (_val.expiry_state === 'grace') {
+      expiryBanner = `<div style="background:#FEE2E2;border-left:3px solid #991B1B;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:12.5px;color:#991B1B">🔴 <strong>Licence vypršela ${esc(_val.valid_until || '')}.</strong> Balíčky ještě jedou ${_dStr(_dl)} (grace období), pak se vypnou. Obnov u dodavatele.</div>`;
+    } else if (_val.expiry_state === 'expired') {
+      expiryBanner = `<div style="background:#E5E7EB;border-left:3px solid #374151;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:12.5px;color:#374151">⛔ <strong>Licence vypršela ${esc(_val.valid_until || '')} — placené balíčky jsou vypnuté.</strong> Core (objednávky, fakturace, POS) jede dál. Obnov licenci u dodavatele.</div>`;
+    }
+
     host.innerHTML = `
       ${licInfo}
+      ${expiryBanner}
       <div style="background:#FFF8E5;border-left:3px solid #BA7517;padding:14px 16px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#854F0B;line-height:1.6">
         🎁 <strong>Modulární licence.</strong> Můžeš aktivovat/deaktivovat jen balíčky obsažené ve tvém licenčním klíči (zelené). Zamčené (🔒) si dokoupíš u dodavatele — pošle ti nový klíč, který sem vložíš.
       </div>
