@@ -72,6 +72,42 @@ function catering_napoje(): array {
 
 const CATERING_DPH = 12;
 
+// ════════════════════════════════════════════════════════════
+// 🆕 v3.0.306 — ADMIN-EDITOVATELNÝ CONFIG (nastaveni klic='catering_config')
+//   Default = hardcoded typy/jídlo/nápoje. Admin může položky přidat/upravit/smazat,
+//   nastavit per_osobu/cenu/jednotku a EXPLICITNĚ napárovat na výrobek (odpis ze skladu).
+// ════════════════════════════════════════════════════════════
+function catering_default_config(): array {
+    return [
+        'typy_udalosti' => catering_typy(),
+        'jidlo'         => catering_jidlo(),
+        'napoje'        => catering_napoje(),
+        'dph'           => CATERING_DPH,
+    ];
+}
+function catering_config(PDO $pdo): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    $cfg = catering_default_config();
+    try {
+        $raw = $pdo->query("SELECT hodnota FROM nastaveni WHERE klic = 'catering_config' LIMIT 1")->fetchColumn();
+        if ($raw) {
+            $saved = json_decode($raw, true);
+            if (is_array($saved)) {
+                if (!empty($saved['typy_udalosti']) && is_array($saved['typy_udalosti'])) $cfg['typy_udalosti'] = array_values($saved['typy_udalosti']);
+                if (isset($saved['jidlo'])  && is_array($saved['jidlo']))  $cfg['jidlo']  = $saved['jidlo'];
+                if (isset($saved['napoje']) && is_array($saved['napoje'])) $cfg['napoje'] = $saved['napoje'];
+                if (isset($saved['dph']))   $cfg['dph'] = (float) $saved['dph'];
+            }
+        }
+    } catch (Throwable $e) {}
+    return $cache = $cfg;
+}
+function catering_cfg_typy(PDO $pdo): array   { return catering_config($pdo)['typy_udalosti'] ?: catering_typy(); }
+function catering_cfg_jidlo(PDO $pdo): array  { return catering_config($pdo)['jidlo']  ?? catering_jidlo(); }
+function catering_cfg_napoje(PDO $pdo): array { return catering_config($pdo)['napoje'] ?? catering_napoje(); }
+function catering_cfg_dph(PDO $pdo): float    { return (float) (catering_config($pdo)['dph'] ?? CATERING_DPH); }
+
 // Materiálové náklady výrobku z receptury (Σ mnozstvi × jednotková cena suroviny).
 function catering_material_cost(PDO $pdo, int $vyrobek_id): float {
     try {
@@ -98,31 +134,38 @@ function catering_resolve_vyrobky(PDO $pdo): array {
         ")->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable $e) { $vyr = []; }
 
-    $resolve = function (array $matches) use ($vyr, $pdo) {
-        // Páruj POUZE výrobky obor='lahudka' s recepturou (jinak by „ovocné mísy" chytlo
-        // Ovocný dort a „sýrové mísy" chlebíček „…sýrový"). Nenamapované → volný řádek.
+    $pack = function (array $v) use ($pdo) {
+        return [
+            'vyrobek_id' => (int) $v['id'],
+            'nazev'      => $v['nazev'],
+            'cena'       => round((float) $v['cena_bez_dph'], 2),
+            'material'   => catering_material_cost($pdo, (int) $v['id']),
+            'dph'        => (float) $v['dph'],
+            'recept_polozek' => (int) $v['recept'],
+        ];
+    };
+    $resolve = function (array $item) use ($vyr, $pack) {
+        // 1) EXPLICITNÍ link (admin napároval) má přednost — povol jakýkoli aktivní výrobek.
+        $eid = (int) ($item['vyrobek_id'] ?? 0);
+        if ($eid > 0) {
+            foreach ($vyr as $v) if ((int) $v['id'] === $eid) return $pack($v);
+            return null; // napárovaný výrobek smazán/neaktivní → volný řádek
+        }
+        // 2) Fuzzy match POUZE výrobky obor='lahudka' s recepturou (jinak by „ovocné mísy" chytlo
+        //    Ovocný dort a „sýrové mísy" chlebíček „…sýrový"). Nenamapované → volný řádek.
         foreach ($vyr as $v) {
             if (($v['obor'] ?? '') !== 'lahudka' || (int) $v['recept'] <= 0) continue;
             $n = mb_strtolower((string) $v['nazev']);
-            foreach ($matches as $m) {
-                if ($m !== '' && str_contains($n, $m)) {
-                    return [
-                        'vyrobek_id' => (int) $v['id'],
-                        'nazev'      => $v['nazev'],
-                        'cena'       => round((float) $v['cena_bez_dph'], 2),
-                        'material'   => catering_material_cost($pdo, (int) $v['id']),
-                        'dph'        => (float) $v['dph'],
-                        'recept_polozek' => (int) $v['recept'],
-                    ];
-                }
+            foreach ((array) ($item['match'] ?? []) as $m) {
+                if ($m !== '' && str_contains($n, $m)) return $pack($v);
             }
         }
         return null;
     };
 
     $out = [];
-    foreach (array_merge(catering_jidlo(), catering_napoje()) as $key => $item) {
-        $out[$key] = $resolve($item['match'] ?? []);
+    foreach (array_merge(catering_cfg_jidlo($pdo), catering_cfg_napoje($pdo)) as $key => $item) {
+        $out[$key] = $resolve((array) $item);
     }
     return $out;
 }
@@ -224,11 +267,13 @@ function catering_compute(PDO $pdo, array $d): array {
     $vJidlo = (array) ($d['prilohy'] ?? []);
     $vNapoj = (array) ($d['napoje'] ?? []);
 
-    $typ = current(array_filter(catering_typy(), fn($t) => $t['id'] === $typId)) ?: catering_typy()[0];
+    $typy = catering_cfg_typy($pdo);
+    $typ = current(array_filter($typy, fn($t) => $t['id'] === $typId)) ?: $typy[0];
     $koef = (float) $typ['koef'];
+    $dphDef = catering_cfg_dph($pdo);
 
     $vyrMap = catering_resolve_vyrobky($pdo);
-    $all = array_merge(catering_jidlo(), catering_napoje());
+    $all = array_merge(catering_cfg_jidlo($pdo), catering_cfg_napoje($pdo));
     $vybrano = array_values(array_unique(array_merge($vJidlo, $vNapoj)));
 
     $polozky = [];
@@ -249,7 +294,7 @@ function catering_compute(PDO $pdo, array $d): array {
             'cena_kc'   => $cena,
             'vyrobek_id'=> $vyr['vyrobek_id'] ?? null,
             'material_kc' => $vyr ? round($vyr['material'] * $mnozstvi, 2) : null,
-            'dph'       => $vyr ? $vyr['dph'] : CATERING_DPH,
+            'dph'       => $vyr ? $vyr['dph'] : $dphDef,
             'odecte_sklad' => (bool) $vyr,
         ];
     }
@@ -271,26 +316,111 @@ if ($action === 'options') {
         return $out;
     };
     json_response([
-        'typy_udalosti' => catering_typy(),
-        'doporuceni'    => $deco(catering_jidlo()),
-        'napoje'        => $deco(catering_napoje()),
-        'sazba_dph'     => CATERING_DPH,
+        'typy_udalosti' => array_values(catering_cfg_typy($pdo)),
+        'doporuceni'    => $deco(catering_cfg_jidlo($pdo)),
+        'napoje'        => $deco(catering_cfg_napoje($pdo)),
+        'sazba_dph'     => catering_cfg_dph($pdo),
     ]);
+}
+
+// 🆕 v3.0.306 — surová konfigurace pro editor (+ seznam výrobků pro párování)
+if ($action === 'config') {
+    $pdo = db();
+    catering_ensure_demo_lahudky($pdo);
+    $vyrobky = [];
+    try {
+        $vyrobky = $pdo->query("
+            SELECT v.id, v.nazev, v.obor, COALESCE(v.cena_bez_dph,0) AS cena_bez_dph,
+                   (SELECT COUNT(*) FROM vyrobek_suroviny WHERE vyrobek_id = v.id) AS recept
+            FROM vyrobky v WHERE v.aktivni = 1 ORDER BY (v.obor='lahudka') DESC, v.nazev
+        ")->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {}
+    json_response([
+        'config'   => catering_config($pdo),
+        'default'  => catering_default_config(),
+        'vyrobky'  => array_map(fn($v) => [
+            'id' => (int) $v['id'], 'nazev' => $v['nazev'], 'obor' => $v['obor'],
+            'cena' => round((float) $v['cena_bez_dph'], 2), 'ma_recept' => ((int) $v['recept']) > 0,
+        ], $vyrobky),
+    ]);
+}
+
+// 🆕 v3.0.306 — uložení konfigurace (jen super_admin)
+if ($action === 'save_config' && $method === 'POST') {
+    $pdo = db();
+    require_super_admin();
+    $in = json_input();
+    $cfg = is_array($in['config'] ?? null) ? $in['config'] : $in;
+
+    // sanitizace: jídlo/nápoje = mapa key => {nazev,per_osobu,cena_kc,jednotka,vyrobek_id?,match?}
+    $cleanItems = function ($items) {
+        $out = [];
+        if (!is_array($items)) return $out;
+        foreach ($items as $key => $it) {
+            $key = preg_replace('~[^a-z0-9_]~', '', mb_strtolower((string) $key));
+            if ($key === '' || !is_array($it)) continue;
+            $nazev = trim((string) ($it['nazev'] ?? ''));
+            if ($nazev === '') continue;
+            $jed = in_array(($it['jednotka'] ?? 'ks'), ['ks', 'kg', 'l', 'porce'], true) ? $it['jednotka'] : 'ks';
+            $out[$key] = [
+                'nazev'      => mb_substr($nazev, 0, 60),
+                'per_osobu'  => max(0, round((float) ($it['per_osobu'] ?? 0), 4)),
+                'cena_kc'    => max(0, round((float) ($it['cena_kc'] ?? 0), 2)),
+                'jednotka'   => $jed,
+                'vyrobek_id' => (int) ($it['vyrobek_id'] ?? 0) ?: null,
+                'match'      => array_values(array_filter(array_map(fn($m) => trim((string) $m), (array) ($it['match'] ?? [])), fn($m) => $m !== '')),
+            ];
+        }
+        return $out;
+    };
+    $cleanTypy = function ($typy) {
+        $out = [];
+        foreach ((array) $typy as $t) {
+            $id = preg_replace('~[^a-z0-9_]~', '', mb_strtolower((string) ($t['id'] ?? '')));
+            $nazev = trim((string) ($t['nazev'] ?? ''));
+            if ($id === '' || $nazev === '') continue;
+            $out[] = ['id' => $id, 'nazev' => mb_substr($nazev, 0, 50), 'ikona' => mb_substr(trim((string) ($t['ikona'] ?? '🍽️')), 0, 4) ?: '🍽️', 'koef' => max(0.1, min(5, round((float) ($t['koef'] ?? 1), 2)))];
+        }
+        return $out;
+    };
+    $save = [
+        'typy_udalosti' => $cleanTypy($cfg['typy_udalosti'] ?? []) ?: catering_typy(),
+        'jidlo'         => $cleanItems($cfg['jidlo'] ?? []),
+        'napoje'        => $cleanItems($cfg['napoje'] ?? []),
+        'dph'           => max(0, min(30, round((float) ($cfg['dph'] ?? CATERING_DPH), 2))),
+    ];
+    if (empty($save['jidlo']) && empty($save['napoje'])) json_error('Musí zůstat aspoň jedna položka (jídlo nebo nápoj)', 400);
+    try {
+        $json = json_encode($save, JSON_UNESCAPED_UNICODE);
+        $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('catering_config', :v) ON DUPLICATE KEY UPDATE hodnota = :v2")
+            ->execute(['v' => $json, 'v2' => $json]);
+        json_response(['ok' => true, 'config' => $save]);
+    } catch (Throwable $e) {
+        json_error_safe('Uložení konfigurace selhalo', $e, 500);
+    }
+}
+
+// 🆕 v3.0.306 — upload fotky předlohy (sdílené s konfigurátorem dortů)
+if ($action === 'upload_predloha' && $method === 'POST') {
+    require_once __DIR__ . '/_upload_lib.php';
+    $url = upload_predloha_image('foto');
+    json_response(['ok' => true, 'url' => $url, 'nazev' => $_FILES['foto']['name'] ?? '']);
 }
 
 if ($action === 'quote' && $method === 'POST') {
     $pdo = db();
     catering_ensure_demo_lahudky($pdo);
     $c = catering_compute($pdo, json_input());
+    $dph = catering_cfg_dph($pdo);
     $bezDPH = round(array_sum(array_column($c['polozky'], 'cena_kc')), 2);
     $material = round(array_sum(array_map(fn($p) => (float) ($p['material_kc'] ?? 0), $c['polozky'])), 2);
-    $sDPH = round($bezDPH * (1 + CATERING_DPH / 100), 2);
+    $sDPH = round($bezDPH * (1 + $dph / 100), 2);
     $odecitanych = count(array_filter($c['polozky'], fn($p) => $p['odecte_sklad']));
     json_response([
         'osob'        => $c['osob'],
         'typ'         => $c['typ'],
         'polozky'     => $c['polozky'],
-        'sazba_dph'   => CATERING_DPH,
+        'sazba_dph'   => $dph,
         'cena_bez_dph'=> $bezDPH,
         'cena_dph'    => round($sDPH - $bezDPH, 2),
         'cena_s_dph'  => $sDPH,
@@ -320,8 +450,15 @@ if ($action === 'create_order' && $method === 'POST') {
     $c = catering_compute($pdo, $d);
     if (empty($c['polozky'])) json_error('Nevybral jsi žádné položky', 400);
 
+    $dph = catering_cfg_dph($pdo);
     $bezDPH = round(array_sum(array_column($c['polozky'], 'cena_kc')), 2);
-    $sDPH   = round($bezDPH * (1 + CATERING_DPH / 100), 2);
+    $sDPH   = round($bezDPH * (1 + $dph / 100), 2);
+    // 🆕 v3.0.306 — volitelná fotka předlohy + poznámka (jako u dortů) → do poznámky objednávky
+    $pozn = "🥗 Catering z kalkulačky: {$c['osob']} osob · {$c['typ']['nazev']}";
+    $textPozn = trim((string) ($d['poznamka'] ?? ''));
+    if ($textPozn !== '') $pozn .= "\n📝 " . mb_substr($textPozn, 0, 300);
+    $foto = trim((string) ($d['foto'] ?? ''));
+    if ($foto !== '' && preg_match('~^(https?://|/uploads/)~i', $foto) && mb_strlen($foto) <= 500) $pozn .= "\n📸 Předloha: " . $foto;
 
     try {
         $cislo = kanal_dalsi_cislo($pdo, 'catering');
@@ -334,7 +471,7 @@ if ($action === 'create_order' && $method === 'POST') {
         ")->execute([
             'c' => $cislo, 'o' => $odberatel_id, 'dd' => $datum_dodani,
             'bd' => $bezDPH, 'dh' => round($sDPH - $bezDPH, 2), 'sd' => $sDPH,
-            'p' => "🥗 Catering z kalkulačky: {$c['osob']} osob · {$c['typ']['nazev']}",
+            'p' => $pozn,
         ]);
         $objId = (int) $pdo->lastInsertId();
 
