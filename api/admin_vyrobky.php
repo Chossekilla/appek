@@ -65,6 +65,12 @@ $pdo = db();
         if (!in_array('kitchen_station_id', $cols, true)) {
             $pdo->exec("ALTER TABLE vyrobky ADD COLUMN kitchen_station_id INT NULL");
         }
+        // 🆕 v3.0.295 — obor výrobku (provázání s balíčky): dort/chlebicek/zakusek/… →
+        //   kapacita pečení počítá explicitně (ne heuristikou z názvu kategorie) + dort = konfigurovatelný.
+        if (!in_array('obor', $cols, true)) {
+            $pdo->exec("ALTER TABLE vyrobky ADD COLUMN obor VARCHAR(20) NULL");
+            $pdo->exec("ALTER TABLE vyrobky ADD INDEX idx_obor (obor)");
+        }
     } catch (Throwable $e) {
         error_log('admin_vyrobky auto-migrace: ' . $e->getMessage());
     }
@@ -578,8 +584,8 @@ if ($method === 'POST') {
                              kategorie_id, jednotka_id, cena_bez_dph, sazba_dph_id,
                              hmotnost_g, obsah, obsah_jednotka, obrazek_url, min_objednavka,
                              aktivni, oblibeny, je_akce, je_novinka, je_doprodej, je_vyprodano, zobrazit_na_pos, poradi,
-                             priprava_min, kitchen_station_id)
-        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:zpos,:por,:prip,:station)
+                             priprava_min, kitchen_station_id, obor)
+        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:zpos,:por,:prip,:station,:obor)
     ");
     $stmt->execute([
         'cislo' => $d['cislo'] ?? null,
@@ -611,6 +617,7 @@ if ($method === 'POST') {
         // 🆕 v3.0.156 — doba přípravy (min) + kuchyňská stanice (propojení do KDS)
         'prip' => max(0, (int) ($d['priprava_min'] ?? 10)),
         'station' => empty($d['kitchen_station_id']) ? null : (int) $d['kitchen_station_id'],
+        'obor' => !empty($d['obor']) ? substr((string) $d['obor'], 0, 20) : null,
     ]);
     $new_id = (int) $pdo->lastInsertId();
 
@@ -657,6 +664,7 @@ if ($method === 'PUT') {
         'zobrazit_na_pos' => 'zobrazit_na_pos', // 🆕 v3.0.213 — viditelnost na POS (KASA)
         // 🆕 v3.0.156 — doba přípravy + kuchyňská stanice (KDS)
         'priprava_min' => 'priprava_min', 'kitchen_station_id' => 'kitchen_station_id',
+        'obor' => 'obor', // 🆕 v3.0.295 — obor výrobku (provázání s balíčky)
     ];
 
     $sets = []; $params = ['id' => (int) $d['id']];
@@ -681,6 +689,8 @@ if ($method === 'PUT') {
                 $params[$dbk] = max(0, (int) $d[$jk]);
             } elseif ($jk === 'kitchen_station_id') {
                 $params[$dbk] = ($d[$jk] === null || $d[$jk] === '' || (int) $d[$jk] === 0) ? null : (int) $d[$jk];
+            } elseif ($jk === 'obor') {
+                $params[$dbk] = !empty($d[$jk]) ? substr((string) $d[$jk], 0, 20) : null;
             } else {
                 $params[$dbk] = $d[$jk];
             }
