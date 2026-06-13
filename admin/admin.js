@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.304';
+const APPEK_ADMIN_JS_VERSION = '3.0.305';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -6641,7 +6641,12 @@ window.openObjednavkaDetail = async function(id) {
       </div>
     </div>
 
-    ${o.poznamka ? `<div style="margin-bottom:14px;padding:10px 14px;background:#F7F8FA;border-left:3px solid #BA7517;border-radius:4px;font-size:13px"><strong>📝 Poznámka:</strong> ${esc(o.poznamka)}</div>` : ''}
+    ${o.poznamka ? (() => {
+      // 🆕 v3.0.305 — pokud poznámka nese fotku předlohy (konfigurátor dortů), ukaž klikací náhled
+      const _fm = String(o.poznamka).match(/📸 Předloha:\s*(\S+)/);
+      const _furl = _fm ? _fm[1] : '';
+      return `<div style="margin-bottom:14px;padding:10px 14px;background:#F7F8FA;border-left:3px solid #BA7517;border-radius:4px;font-size:13px"><strong>📝 Poznámka:</strong> ${esc(o.poznamka)}${_furl ? `<div style="margin-top:8px"><a href="${esc(_furl)}" target="_blank" rel="noopener" title="Otevřít fotku předlohy v plné velikosti"><img src="${esc(_furl)}" alt="Fotka předlohy" style="max-height:130px;max-width:220px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:block" onerror="this.style.display='none'"></a></div>` : ''}</div>`;
+    })() : ''}
 
     <!-- POLOŽKY jako seznam řádků -->
     <h3 class="modal-section-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -17844,8 +17849,13 @@ async function renderCakeConfiguratorBody() {
               <input class="form-input" id="cake-text" maxlength="${opts.text_na_dortu.max_chars}" value="${esc(state._cake.text || '')}" placeholder="Např. Všechno nejlepší, Aničko!" oninput="state._cake.text=this.value;cakeRecalc()">
             </div>
             <div class="full">
-              <label class="form-label">📸 URL fotky předlohy <span style="font-weight:400;font-size:11px;color:var(--text-3)">(volitelné, zdarma — jen pro inspiraci)</span></label>
-              <input class="form-input" id="cake-foto" value="${esc(state._cake.foto || '')}" placeholder="https://… nebo nahraj v Outils → Logo">
+              <label class="form-label">📸 Fotka předlohy <span style="font-weight:400;font-size:11px;color:var(--text-3)">(volitelné, zdarma — jen pro inspiraci)</span></label>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input class="form-input" id="cake-foto" style="flex:1;min-width:200px" value="${esc(state._cake.foto || '')}" placeholder="https://… nebo nahraj fotku →" oninput="state._cake.foto=this.value;cakeRenderPredlohaNahled()">
+                <input type="file" id="cake-foto-file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="cakeUploadPredloha(this)">
+                <button type="button" class="btn-secondary" id="cake-foto-btn" onclick="document.getElementById('cake-foto-file').click()" style="white-space:nowrap">⬆️ Nahrát fotku</button>
+              </div>
+              <div id="cake-foto-nahled" style="margin-top:8px"></div>
             </div>
           </div>
         </div>
@@ -17861,6 +17871,7 @@ async function renderCakeConfiguratorBody() {
     </div>
   `;
   cakeRecalc();
+  cakeRenderPredlohaNahled();
 }
 
 window.cakePick = function(field, value) {
@@ -17880,6 +17891,44 @@ window.cakePickVolba = function(skupinaId, volbaId, isMulti) {
     state._cake.volby[skupinaId] = volbaId;
   }
   renderCakeConfiguratorBody();
+};
+
+// 🆕 v3.0.305 — náhled fotky předlohy (URL i nahraná) + možnost odebrat
+window.cakeRenderPredlohaNahled = function() {
+  const host = document.getElementById('cake-foto-nahled');
+  if (!host) return;
+  const url = ((state._cake && state._cake.foto) || '').trim();
+  if (!url) { host.innerHTML = ''; return; }
+  host.innerHTML = `
+    <div style="display:inline-flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--bg-2,#fafafa)">
+      <img src="${esc(url)}" alt="předloha" style="height:56px;width:56px;object-fit:cover;border-radius:6px;background:#eee" onerror="this.style.opacity=.3;this.alt='⚠ nelze načíst'">
+      <span style="font-size:11px;color:var(--text-3);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(url)}</span>
+      <button type="button" title="Odebrat fotku" onclick="state._cake.foto='';var i=document.getElementById('cake-foto');if(i)i.value='';cakeRenderPredlohaNahled();" style="border:none;background:none;cursor:pointer;color:var(--danger-text,#DC2626);font-size:18px;line-height:1;padding:0 4px">×</button>
+    </div>`;
+};
+
+// 🆕 v3.0.305 — upload fotky předlohy → /uploads/predlohy/ → URL do state._cake.foto
+window.cakeUploadPredloha = async function(input) {
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const btn = document.getElementById('cake-foto-btn');
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Nahrávám…'; }
+  try {
+    const fd = new FormData();
+    fd.append('foto', file);
+    const res = await api('admin_cake_configurator.php?action=upload_predloha', { method: 'POST', body: fd });
+    state._cake = state._cake || {};
+    state._cake.foto = res.url;
+    const i = document.getElementById('cake-foto');
+    if (i) i.value = res.url;
+    cakeRenderPredlohaNahled();
+  } catch (e) {
+    alert('Chyba při nahrávání fotky: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+    input.value = '';   // reset → lze nahrát stejný soubor znovu
+  }
 };
 
 // ═══════════════════ ADMIN EDITOR KONFIGURÁTORU (v3.0.299) ═══════════════════
@@ -18322,6 +18371,7 @@ window.cakeSubmitOrder = async function() {
         velikost_id: state._cake.velikost_id,
         volby: state._cake.volby || {},
         text: state._cake.text,
+        foto: (state._cake.foto || '').trim(),
       }),
     });
     closeModal();
