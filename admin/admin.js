@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.305';
+const APPEK_ADMIN_JS_VERSION = '3.0.306';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -18401,6 +18401,7 @@ async function renderCateringCalculator() {
       <button class="nastaveni-tab ${tab === 'batches' ? 'active' : ''}" onclick="state._lahudkyTab='batches';renderCateringCalculator()">📋 Šaržová evidence</button>
       <button class="nastaveni-tab ${tab === 'mix' ? 'active' : ''}" onclick="state._lahudkyTab='mix';renderCateringCalculator()">🧩 Mix-and-match</button>
       <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._lahudkyTab='orders';renderCateringCalculator()">🚚 Catering s časem</button>
+      <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._lahudkyTab='settings';renderCateringCalculator()">⚙️ Nastavení kalkulačky</button>
     </div>
     <div id="lahudky-tab-body"></div>
   `;
@@ -18408,6 +18409,7 @@ async function renderCateringCalculator() {
   if (tab === 'batches') return renderBatches();
   if (tab === 'mix')     return renderMixMatch();
   if (tab === 'orders')  return renderLahudkyCateringList();
+  if (tab === 'settings') return renderCateringSettings();
 
   // Default: catering calc
   const body = document.getElementById('lahudky-tab-body');
@@ -18547,6 +18549,7 @@ window.cateringRecalc = async function() {
 
 // 🆕 v3.0.298 — Catering kalkulačka → reálná objednávka (kanál 'catering', řádky s vyrobek_id → odpis).
 window.cateringCreateOrder = async function(quote) {
+  state._cateringFoto = '';   // reset náhledu pro novou objednávku
   let odb;
   try { odb = await api('admin_odberatele.php'); }
   catch (e) { return alert('Chyba načtení odběratelů: ' + e.message); }
@@ -18569,12 +18572,25 @@ window.cateringCreateOrder = async function(quote) {
       <div class="full"><label class="form-label">📅 Datum dodání *</label>
         <input type="date" class="form-input" id="cat-datum" value="${minDate}" min="${minDate}">
       </div>
+      <div class="full">
+        <label class="form-label">📸 Fotka předlohy <span style="font-weight:400;font-size:11px;color:var(--text-3)">(volitelné — aranžmá / vzor mís)</span></label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input class="form-input" id="cat-foto" style="flex:1;min-width:180px" placeholder="https://… nebo nahraj fotku →" oninput="state._cateringFoto=this.value;cateringRenderFotoNahled()">
+          <input type="file" id="cat-foto-file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="cateringUploadPredloha(this)">
+          <button type="button" class="btn-secondary" id="cat-foto-btn" onclick="document.getElementById('cat-foto-file').click()" style="white-space:nowrap">⬆️ Nahrát fotku</button>
+        </div>
+        <div id="cat-foto-nahled" style="margin-top:8px"></div>
+      </div>
+      <div class="full"><label class="form-label">📝 Poznámka <span style="font-weight:400;font-size:11px;color:var(--text-3)">(volitelné — alergie, čas, speciální požadavky)</span></label>
+        <input class="form-input" id="cat-pozn" placeholder="Např. bezlepkové chlebíčky, dovoz 9:00">
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
       <button class="btn-primary btn-green" onclick="cateringSubmitOrder()">✓ Vytvořit objednávku</button>
     </div>
   `);
+  cateringRenderFotoNahled();
 };
 
 window.cateringSubmitOrder = async function() {
@@ -18589,11 +18605,166 @@ window.cateringSubmitOrder = async function() {
         osob: state._catering.osob, typ_udalosti: state._catering.typ,
         prilohy: state._catering.jidlo || [], napoje: state._catering.napoje || [],
         odberatel_id: odberatelId, datum_dodani: datum,
+        foto: (state._cateringFoto || '').trim(),
+        poznamka: (document.getElementById('cat-pozn')?.value || '').trim(),
       }),
     });
     closeModal();
     toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: fmt(r.castka) }));
     setTimeout(() => navigate('objednavky'), 600);
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v3.0.306 — catering: náhled + upload fotky předlohy (sdílí /uploads/predlohy/ s dorty)
+window.cateringRenderFotoNahled = function() {
+  const host = document.getElementById('cat-foto-nahled');
+  if (!host) return;
+  const url = ((state._cateringFoto) || '').trim();
+  host.innerHTML = url ? `
+    <div style="display:inline-flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--bg-2,#fafafa)">
+      <img src="${esc(url)}" alt="předloha" style="height:54px;width:54px;object-fit:cover;border-radius:6px;background:#eee" onerror="this.style.opacity=.3;this.alt='⚠'">
+      <span style="font-size:11px;color:var(--text-3);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(url)}</span>
+      <button type="button" title="Odebrat" onclick="state._cateringFoto='';var i=document.getElementById('cat-foto');if(i)i.value='';cateringRenderFotoNahled()" style="border:none;background:none;cursor:pointer;color:var(--danger-text,#DC2626);font-size:18px;line-height:1;padding:0 4px">×</button>
+    </div>` : '';
+};
+window.cateringUploadPredloha = async function(input) {
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const btn = document.getElementById('cat-foto-btn');
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Nahrávám…'; }
+  try {
+    const fd = new FormData(); fd.append('foto', file);
+    const res = await api('admin_catering_calc.php?action=upload_predloha', { method: 'POST', body: fd });
+    state._cateringFoto = res.url;
+    const i = document.getElementById('cat-foto'); if (i) i.value = res.url;
+    cateringRenderFotoNahled();
+  } catch (e) { alert('Chyba při nahrávání fotky: ' + e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = orig; } input.value = ''; }
+};
+
+// ═══════════════════ CATERING EDITOR KONFIGURÁTORU (v3.0.306) ═══════════════════
+async function renderCateringSettings() {
+  const body = document.getElementById('lahudky-tab-body');
+  if (!body) return;
+  body.innerHTML = skeletonCards(2);
+  try {
+    const c = await api('admin_catering_calc.php?action=config');
+    state._catCfg = c.config;
+    state._catCfgVyr = c.vyrobky || [];
+  } catch (e) { body.innerHTML = `<div class="alert err">${esc(e.message)}</div>`; return; }
+  cateringCfgRender();
+}
+
+function cateringCfgRender() {
+  const body = document.getElementById('lahudky-tab-body');
+  if (!body) return;
+  const cfg = state._catCfg || {};
+  const vyr = state._catCfgVyr || [];
+  const vyrOpts = (sel) => `<option value="">— bez napárování (odhad) —</option>` + vyr.map(v => `<option value="${v.id}" ${String(sel) === String(v.id) ? 'selected' : ''}>${esc(v.nazev)}${v.obor === 'lahudka' ? ' 🥗' : ''}${v.ma_recept ? ' · recept' : ''}</option>`).join('');
+  const jedOpts = (sel) => ['ks', 'kg', 'l', 'porce'].map(j => `<option value="${j}" ${sel === j ? 'selected' : ''}>${j}</option>`).join('');
+
+  const itemRows = (skupina) => Object.entries(cfg[skupina] || {}).map(([key, it]) => `
+    <tr>
+      <td><input class="form-input" style="font-size:12px;min-width:140px" value="${esc(it.nazev || '')}" oninput="cateringCfgSet('${skupina}','${esc(key)}','nazev',this.value)"></td>
+      <td><input type="number" step="0.01" min="0" class="form-input" style="font-size:12px;width:78px" value="${it.per_osobu || 0}" oninput="cateringCfgSet('${skupina}','${esc(key)}','per_osobu',this.value)"></td>
+      <td><input type="number" step="0.5" min="0" class="form-input" style="font-size:12px;width:78px" value="${it.cena_kc || 0}" oninput="cateringCfgSet('${skupina}','${esc(key)}','cena_kc',this.value)"></td>
+      <td><select class="form-input" style="font-size:12px;width:72px" onchange="cateringCfgSet('${skupina}','${esc(key)}','jednotka',this.value)">${jedOpts(it.jednotka || 'ks')}</select></td>
+      <td><select class="form-input" style="font-size:12px;min-width:170px" onchange="cateringCfgSet('${skupina}','${esc(key)}','vyrobek_id',this.value)">${vyrOpts(it.vyrobek_id)}</select></td>
+      <td style="text-align:center"><button class="btn-icon" title="Smazat položku" onclick="cateringCfgDel('${skupina}','${esc(key)}')" style="border:none;background:none;cursor:pointer;color:var(--danger-text,#DC2626);font-size:15px">🗑</button></td>
+    </tr>`).join('');
+
+  const itemTable = (skupina, titulek, ikona) => `
+    <div class="card-block">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h3 style="margin:0;font-size:15px">${ikona} ${titulek}</h3>
+        <button class="btn-secondary" onclick="cateringCfgAdd('${skupina}')" style="font-size:12px">+ Přidat položku</button>
+      </div>
+      <div style="overflow-x:auto">
+      <table class="table" style="font-size:12px;margin:0">
+        <thead><tr><th>Název</th><th>Na osobu</th><th>Cena/jed</th><th>Jedn.</th><th>Napárovat na výrobek (→ odpis ze skladu)</th><th></th></tr></thead>
+        <tbody>${itemRows(skupina) || `<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:14px">Žádné položky — přidej tlačítkem výše</td></tr>`}</tbody>
+      </table>
+      </div>
+    </div>`;
+
+  body.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="background:#FEF9E7;border-left:3px solid #BA7517;padding:10px 14px;border-radius:6px;font-size:12.5px;color:#7a5a12">
+        ⚙️ Uprav položky, ceny a množství na osobu. <strong>Napáruj na výrobek</strong> (s recepturou) → kalkulačka při objednávce odečte suroviny ze skladu a vezme cenu z výrobku. Bez napárování = odhadová položka bez odpisu.
+      </div>
+      ${itemTable('jidlo', 'Jídlo', '🍽️')}
+      ${itemTable('napoje', 'Nápoje', '🥤')}
+      <div class="card-block">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3 style="margin:0;font-size:15px">🎉 Typy událostí <span style="font-weight:400;color:var(--text-3);font-size:12px">(koeficient množství × na osobu)</span></h3>
+          <button class="btn-secondary" onclick="cateringCfgAddTyp()" style="font-size:12px">+ Přidat typ</button>
+        </div>
+        <table class="table" style="font-size:12px;margin:0">
+          <thead><tr><th style="width:60px">Ikona</th><th>Název</th><th style="width:90px">Koef ×</th><th></th></tr></thead>
+          <tbody>${(cfg.typy_udalosti || []).map((t, i) => `
+            <tr>
+              <td><input class="form-input" style="width:52px;font-size:15px;text-align:center" value="${esc(t.ikona || '')}" oninput="cateringCfgSetTyp(${i},'ikona',this.value)"></td>
+              <td><input class="form-input" style="font-size:12px" value="${esc(t.nazev || '')}" oninput="cateringCfgSetTyp(${i},'nazev',this.value)"></td>
+              <td><input type="number" step="0.1" min="0.1" class="form-input" style="width:80px;font-size:12px" value="${t.koef || 1}" oninput="cateringCfgSetTyp(${i},'koef',this.value)"></td>
+              <td style="text-align:center"><button class="btn-icon" title="Smazat typ" onclick="cateringCfgDelTyp(${i})" style="border:none;background:none;cursor:pointer;color:var(--danger-text,#DC2626);font-size:15px">🗑</button></td>
+            </tr>`).join('') || `<tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:14px">Žádné typy</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:4px 2px">
+        <label style="font-size:13px;font-weight:600">DPH %: <input type="number" step="1" min="0" max="30" class="form-input" style="width:80px;display:inline-block;margin-left:4px" value="${cfg.dph || 12}" oninput="state._catCfg.dph=parseFloat(this.value)||12"></label>
+        <button class="btn-secondary" onclick="cateringCfgResetDefault()" style="margin-left:auto">↺ Načíst výchozí</button>
+        <button class="btn-primary btn-green" onclick="cateringCfgSave()" style="font-weight:700">💾 Uložit konfiguraci</button>
+      </div>
+    </div>`;
+}
+
+window.cateringCfgSet = function(skupina, key, field, val) {
+  if (!state._catCfg || !state._catCfg[skupina] || !state._catCfg[skupina][key]) return;
+  if (field === 'per_osobu' || field === 'cena_kc') val = parseFloat(String(val).replace(',', '.')) || 0;
+  if (field === 'vyrobek_id') val = val ? parseInt(val) : null;
+  state._catCfg[skupina][key][field] = val;   // bez re-renderu → input neztratí fokus
+};
+window.cateringCfgDel = function(skupina, key) {
+  if (state._catCfg && state._catCfg[skupina]) { delete state._catCfg[skupina][key]; cateringCfgRender(); }
+};
+window.cateringCfgAdd = function(skupina) {
+  state._catCfg = state._catCfg || {};
+  state._catCfg[skupina] = state._catCfg[skupina] || {};
+  const key = 'pol_' + Math.random().toString(36).slice(2, 8);
+  state._catCfg[skupina][key] = { nazev: 'Nová položka', per_osobu: 1, cena_kc: 20, jednotka: 'ks', vyrobek_id: null, match: [] };
+  cateringCfgRender();
+};
+window.cateringCfgSetTyp = function(i, field, val) {
+  if (!state._catCfg || !state._catCfg.typy_udalosti || !state._catCfg.typy_udalosti[i]) return;
+  if (field === 'koef') val = parseFloat(String(val).replace(',', '.')) || 1;
+  state._catCfg.typy_udalosti[i][field] = val;
+};
+window.cateringCfgAddTyp = function() {
+  state._catCfg = state._catCfg || {};
+  state._catCfg.typy_udalosti = state._catCfg.typy_udalosti || [];
+  state._catCfg.typy_udalosti.push({ id: 'typ_' + Math.random().toString(36).slice(2, 7), nazev: 'Nový typ', ikona: '🎉', koef: 1 });
+  cateringCfgRender();
+};
+window.cateringCfgDelTyp = function(i) {
+  if (state._catCfg && state._catCfg.typy_udalosti) { state._catCfg.typy_udalosti.splice(i, 1); cateringCfgRender(); }
+};
+window.cateringCfgSave = async function() {
+  if (!state._catCfg) return;
+  (state._catCfg.typy_udalosti || []).forEach(t => { if (!t.id) t.id = 'typ_' + Math.random().toString(36).slice(2, 7); });
+  try {
+    const r = await api('admin_catering_calc.php?action=save_config', { method: 'POST', body: JSON.stringify({ config: state._catCfg }) });
+    state._catCfg = r.config;
+    if (typeof toastSuccess === 'function') toastSuccess('Konfigurace kalkulačky uložena'); else alert('Uloženo');
+    cateringCfgRender();
+  } catch (e) { alert('Chyba uložení: ' + e.message); }
+};
+window.cateringCfgResetDefault = async function() {
+  if (!(await confirmDialog({ msg: 'Načíst výchozí konfiguraci do editoru? (Uloží se až tlačítkem „Uložit".)', danger: false }))) return;
+  try {
+    const c = await api('admin_catering_calc.php?action=config');
+    state._catCfg = c.default;
+    cateringCfgRender();
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
