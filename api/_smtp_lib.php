@@ -23,13 +23,14 @@ function smtp_cfg(PDO $pdo): array {
         $st->execute($keys);
         $vals = $st->fetchAll(PDO::FETCH_KEY_PAIR);
     } catch (Throwable $e) { $vals = []; }
+    $sec = $vals['smtp_secure'] ?? 'tls';  // 🐛 v3.0.291 — bez ?? padalo „Undefined key" na každém mailu když SMTP nenastaveno
     $cache = [
         'enabled'   => !empty($vals['smtp_enabled']) && $vals['smtp_enabled'] !== '0',
         'host'      => trim((string)($vals['smtp_host'] ?? '')),
         'port'      => (int)($vals['smtp_port'] ?? 587),
         'user'      => trim((string)($vals['smtp_user'] ?? '')),
         'pass'      => (string)($vals['smtp_pass'] ?? ''),
-        'secure'    => in_array(($vals['smtp_secure'] ?? 'tls'), ['none','ssl','tls'], true) ? $vals['smtp_secure'] : 'tls',
+        'secure'    => in_array($sec, ['none','ssl','tls'], true) ? $sec : 'tls',
         'from'      => trim((string)($vals['smtp_from'] ?? '')),
         'from_name' => trim((string)($vals['smtp_from_name'] ?? '')),
     ];
