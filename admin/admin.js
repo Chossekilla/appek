@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.295';
+const APPEK_ADMIN_JS_VERSION = '3.0.296';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -4471,6 +4471,16 @@ async function navigate(page, args) {
     } else {
       setTimeout(labelizeTables, 0);
     }
+    // 📱 v3.0.296 — na mobilu po navigaci odscroluj na obsah. .sidebar-nav (dlaždice menu)
+    //   je na mobilu display:contents naskládaná NAD .main-content; bez tohoto zůstane
+    //   uživatel koukat na menu a sekce (typicky Rozvozové trasy) vypadá „nefunkční".
+    //   Dashboard = domácí launcher → nech ho být.
+    try {
+      if (page !== 'dashboard' && window.matchMedia && window.matchMedia('(max-width: 700px)').matches) {
+        const _mc = document.getElementById('content');
+        if (_mc) requestAnimationFrame(() => { try { _mc.scrollIntoView({ block: 'start' }); } catch (e) {} });
+      }
+    } catch (e) {}
   } catch (e) {
     document.getElementById('content').innerHTML = `<div style="color:var(--danger-text);padding:20px;background:var(--danger-bg);border-radius:8px;">Chyba: ${esc(e.message)}</div>`;
   }
