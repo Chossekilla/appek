@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.287';
+const APPEK_ADMIN_JS_VERSION = '3.0.288';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -11798,6 +11798,7 @@ window.openFakturaDetail = async function(id) {
         <button class="btn-secondary" onclick="tiskFaktury(${f.id})" title="Otevře tiskový dialog (PDF / tiskárna)">🖨️ Tisk</button>
         <button class="btn-secondary" onclick="noOpakovatZeZdroje('fa', ${f.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu objednat</button>
         ${!f.je_dobropis ? adminOnly(`<button class="btn-secondary" style="color:#DC2626;border-color:#FCA5A5" onclick="vystavitDobropis(${f.id}, '${esc(f.cislo).replace(/'/g, '')}')" title="Vystavit opravný daňový doklad (dobropis) — záporná částka se propíše do statistik">↩️ Dobropis</button>`) : ''}
+        ${!f.je_dobropis ? adminOnly(`<button class="btn-secondary" style="color:#7c3aed;border-color:#c4b5fd" onclick="fakturaVymena(${f.id}, '${esc(f.cislo).replace(/'/g, '')}', ${f.odberatel_id || 'null'})" title="Výměna — dobropis vybraných položek + nová objednávka s novými, spočítá doplatek/přeplatek">🔄 Výměna</button>`) : ''}
       </div>
       <div class="form-actions-icons-row">
         <button class="btn-icon-corner" onclick="tiskNaTermo('fa', ${f.id}, '${esc(f.cislo).replace(/'/g, '')}')" title="Tisk na termo-tiskárnu (účtenka / bon)" aria-label="Tisk na tiskárnu">🖨️</button>
@@ -11905,6 +11906,167 @@ window.dobSubmit = async function(id) {
   } catch (e) {
     toast('❌ ' + (e.message || 'Dobropis se nepodařilo vystavit'), 'error');
     if (btn) btn.disabled = false;
+  }
+};
+
+// =============================================================
+// 🔄 VÝMĚNA NA FAKTUŘE (v3.0.288) — dobropis vrácených + nová objednávka s novými + rozdíl.
+//   Analogie POS výměny (pos.js posExchange): dobropis (částečný) + admin_objednavky create.
+// =============================================================
+window.fakturaVymena = async function(id, cislo, odberatelId) {
+  let data, kat;
+  try {
+    [data, kat] = await Promise.all([
+      api('admin_faktury.php?action=vratitelne&faktura_id=' + id),
+      api('admin_vyrobky.php'),
+    ]);
+  } catch (e) { toast('❌ ' + (e.message || 'Nelze načíst data výměny'), 'error'); return; }
+  const lines = (data.polozky || []).filter(p => p.zbyva > 0.0001);
+  window._vymOdb = odberatelId || data.odberatel_id || null;
+  window._vymCislo = cislo;
+  window._vymId = id;
+  window._vymLines = {};
+  window._vymNove = [];
+  window._vymKat = (Array.isArray(kat) ? kat : (kat.vyrobky || kat.data || [])).map(v => ({
+    id: v.id, nazev: v.nazev, cena: parseFloat(v.cena_bez_dph) || 0,
+    dph: parseFloat(v.sazba_dph != null ? v.sazba_dph : v.dph) || 0, jednotka: v.jednotka || 'ks',
+  }));
+  const vraTbl = lines.length ? lines.map(p => {
+    window._vymLines[p.id] = p;
+    const jiz = p.jiz_vraceno > 0 ? ` <span style="color:#999;font-size:11px">(už ${p.jiz_vraceno})</span>` : '';
+    return `<tr>
+      <td style="text-align:center;padding:3px"><input type="checkbox" data-vym-chk="${p.id}" onchange="vymRecalc()"></td>
+      <td style="padding:3px">${esc(p.vyrobek_nazev)}${jiz}</td>
+      <td style="text-align:right;padding:3px;white-space:nowrap">${fmt(p.cena_bez_dph)}</td>
+      <td style="text-align:right;padding:3px"><input type="number" data-vym-qty="${p.id}" min="0" max="${p.zbyva}" step="any" value="${p.zbyva}" style="width:54px;text-align:right" oninput="vymRecalc()"> <span style="color:#999;font-size:11px">/${p.zbyva}</span></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="4" style="color:#999;padding:8px;font-size:13px">Faktura už je celá dobropisovaná — lze jen přidat nové.</td></tr>';
+  const opts = '<option value="">— vyber výrobek —</option>' + window._vymKat
+    .map(v => `<option value="${v.id}">${esc(v.nazev)} · ${fmt(v.cena)}</option>`).join('');
+  openModal(`🔄 Výměna — faktura ${esc(cislo)}`, `
+    <p style="margin:0 0 10px;font-size:13px;color:var(--text-2)">Vrať vybrané položky (vznikne dobropis) a/nebo přidej nové (vznikne nová objednávka). Spočítá se doplatek / přeplatek.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div>
+        <h4 style="margin:0 0 6px;font-size:13px;color:#DC2626">↩️ Vrátit z faktury</h4>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--border);text-align:left;color:var(--text-2);font-size:11px;text-transform:uppercase">
+            <th style="width:26px"></th><th style="padding:3px">Položka</th><th style="text-align:right;padding:3px">Cena</th><th style="text-align:right;padding:3px">Vrátit</th>
+          </tr></thead>
+          <tbody>${vraTbl}</tbody>
+        </table>
+      </div>
+      <div>
+        <h4 style="margin:0 0 6px;font-size:13px;color:#16a34a">🆕 Nové položky</h4>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <input type="text" id="vym-filter" placeholder="filtr…" oninput="vymFilter(this.value)" style="width:90px">
+          <select id="vym-select" style="flex:1;min-width:0">${opts}</select>
+          <button class="btn-secondary" type="button" onclick="vymAddItem()" style="white-space:nowrap">+ Přidat</button>
+        </div>
+        <div id="vym-new-list" style="min-height:30px"></div>
+      </div>
+    </div>
+    <div id="vym-net" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:14px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
+      <button class="btn-primary" id="vym-submit" style="background:#7c3aed;border-color:#7c3aed" onclick="vymSubmit()">🔄 Provést výměnu</button>
+    </div>
+  `, 'modal-wide');
+  vymRecalc();
+};
+window.vymFilter = function(q) {
+  q = (q || '').toLowerCase().trim();
+  const sel = document.getElementById('vym-select'); if (!sel) return;
+  const list = q ? window._vymKat.filter(v => v.nazev.toLowerCase().includes(q)) : window._vymKat;
+  sel.innerHTML = '<option value="">— vyber výrobek —</option>' + list.map(v => `<option value="${v.id}">${esc(v.nazev)} · ${fmt(v.cena)}</option>`).join('');
+};
+window.vymAddItem = function() {
+  const sel = document.getElementById('vym-select'); if (!sel || !sel.value) return;
+  const v = window._vymKat.find(x => x.id === parseInt(sel.value, 10)); if (!v) return;
+  const ex = window._vymNove.find(n => n.vyrobek_id === v.id);
+  if (ex) ex.mnozstvi += 1;
+  else window._vymNove.push({ vyrobek_id: v.id, nazev: v.nazev, cena_bez_dph: v.cena, sazba_dph: v.dph, mnozstvi: 1 });
+  vymRenderNew(); vymRecalc();
+};
+window.vymSetNewQty = function(vid, val) {
+  const n = parseFloat(val) || 0;
+  const it = window._vymNove.find(x => x.vyrobek_id === vid); if (!it) return;
+  if (n <= 0) window._vymNove = window._vymNove.filter(x => x.vyrobek_id !== vid);
+  else it.mnozstvi = n;
+  vymRenderNew(); vymRecalc();
+};
+function vymRenderNew() {
+  const el = document.getElementById('vym-new-list'); if (!el) return;
+  el.innerHTML = window._vymNove.length ? window._vymNove.map(n => `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:13px">
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.nazev)}</span>
+      <span style="color:#999">${fmt(n.cena_bez_dph)}</span>
+      <input type="number" min="0" step="any" value="${n.mnozstvi}" style="width:50px;text-align:right" oninput="vymSetNewQty(${n.vyrobek_id}, this.value)">
+    </div>`).join('') : '<div style="color:#9097a3;font-size:13px">Zatím nic.</div>';
+}
+window.vymRecalc = function() {
+  let vrat = 0;
+  Object.values(window._vymLines || {}).forEach(p => {
+    const chk = document.querySelector(`[data-vym-chk="${p.id}"]`);
+    const qtyEl = document.querySelector(`[data-vym-qty="${p.id}"]`);
+    if (!chk || !qtyEl) return;
+    let q = parseFloat(qtyEl.value) || 0;
+    if (q > p.zbyva) { q = p.zbyva; qtyEl.value = p.zbyva; }
+    if (q < 0) { q = 0; qtyEl.value = 0; }
+    qtyEl.disabled = !chk.checked;
+    if (chk.checked) vrat += q * p.cena_bez_dph * (1 + p.sazba_dph / 100);
+  });
+  let nove = 0;
+  (window._vymNove || []).forEach(n => { nove += n.mnozstvi * n.cena_bez_dph * (1 + n.sazba_dph / 100); });
+  vrat = Math.round(vrat * 100) / 100; nove = Math.round(nove * 100) / 100;
+  const rozdil = Math.round((nove - vrat) * 100) / 100;
+  let netLine;
+  if (rozdil > 0.005) netLine = `<strong style="color:#DC2626">Doplatek odběratele: ${fmt(rozdil)}</strong>`;
+  else if (rozdil < -0.005) netLine = `<strong style="color:#16a34a">Vrátit odběrateli: ${fmt(-rozdil)}</strong>`;
+  else netLine = `<strong>Beze změny ceny</strong>`;
+  const el = document.getElementById('vym-net'); if (!el) return;
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between"><span>↩️ Vrácené (dobropis)</span><span style="color:#DC2626">− ${fmt(vrat)}</span></div>
+    <div style="display:flex;justify-content:space-between"><span>🆕 Nová objednávka</span><span style="color:#16a34a">+ ${fmt(nove)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:15px">${netLine}<span></span></div>`;
+};
+window.vymSubmit = async function() {
+  const vraceno = [];
+  Object.values(window._vymLines || {}).forEach(p => {
+    const chk = document.querySelector(`[data-vym-chk="${p.id}"]`);
+    const qtyEl = document.querySelector(`[data-vym-qty="${p.id}"]`);
+    if (chk && chk.checked && qtyEl) { const q = parseFloat(qtyEl.value) || 0; if (q > 0.0001) vraceno.push({ polozka_id: p.id, mnozstvi: q }); }
+  });
+  const nove = (window._vymNove || []).filter(n => n.mnozstvi > 0);
+  if (!vraceno.length && !nove.length) { toast('Vyber co vrátit a/nebo přidej nové položky', 'error'); return; }
+  if (nove.length && !window._vymOdb) { toast('❌ Faktura nemá odběratele — nové položky nelze založit', 'error'); return; }
+  const btn = document.getElementById('vym-submit'); if (btn) btn.disabled = true;
+  const dnes = new Date().toISOString().slice(0, 10);
+  try {
+    let dobCislo = null, objCislo = null;
+    // 1) Dobropis vrácených (s 409 lhůta override)
+    if (vraceno.length) {
+      const doPost = (vynutit) => api('admin_faktury.php?action=dobropis', { method: 'POST', body: JSON.stringify({ faktura_id: window._vymId, duvod: 'Výměna za ' + window._vymCislo, polozky: vraceno, vynutit }) });
+      let r1;
+      try { r1 = await doPost(false); }
+      catch (e1) { if (/lhůt|vynutit/i.test(e1.message || '') && confirm((e1.message || '') + '\n\nVystavit dobropis i přesto?')) r1 = await doPost(true); else throw e1; }
+      dobCislo = r1.cislo;
+    }
+    // 2) Nová objednávka s novými položkami
+    if (nove.length) {
+      const polozky = nove.map(n => ({ vyrobek_id: n.vyrobek_id, mnozstvi: n.mnozstvi }));
+      const r2 = await api('admin_objednavky.php', { method: 'POST', body: JSON.stringify({
+        action: 'vytvorit', odberatel_id: window._vymOdb, misto_dodani_id: null,
+        datum_dodani: dnes, polozky, poznamka: 'Výměna za fakturu ' + window._vymCislo,
+      }) });
+      objCislo = r2.cislo;
+    }
+    closeModal();
+    toast(`✅ Výměna hotová${dobCislo ? ' · dobropis ' + dobCislo : ''}${objCislo ? ' · nová obj. ' + objCislo : ''}`, 'success');
+    if (state.current === 'faktury') renderFaktury(state._faPag && state._faPag.filters || {});
+    setTimeout(() => openFakturaDetail(window._vymId), 300);
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    toast('❌ ' + (e.message || 'Výměna selhala'), 'error');
   }
 };
 
