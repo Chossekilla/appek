@@ -110,7 +110,8 @@ if ($action === 'generate' && $method === 'POST') {
             'p'   => $d['customer_phone']   ?? null,
             'u'   => $d['install_url']      ?? null,
             'nt'  => $d['note']             ?? null,
-            'ex'  => !empty($d['expires_at']) ? $d['expires_at'] : null,
+            // 🆕 v3.0.302 — default ROČNÍ licence: bez zadaného data → platnost 1 rok od vystavení.
+            'ex'  => !empty($d['expires_at']) ? $d['expires_at'] : date('Y-m-d', strtotime('+1 year')),
             'uid' => $user['id'],
             'pr'  => isset($d['price_kc']) ? (float) $d['price_kc'] : null,
             'pd'  => !empty($d['paid']) ? 1 : 0,

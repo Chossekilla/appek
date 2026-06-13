@@ -101,9 +101,11 @@ try {
             $licenseStatus = $licenseRow['status'] ?: 'unknown';
             if ($licenseRow['status'] === 'revoked') {
                 $reason = 'revoked_used';
-            } elseif ($licenseRow['status'] === 'expired') {
-                $reason = 'expired_used';
             } else {
+                // 🆕 v3.0.302 — VYPRŠENÍ (status='expired') NENÍ pirátství: nepadá do pirate větve.
+                //   Heartbeat vrátí status='ok' + license_status='expired' + expires_at → appka udělá
+                //   grace (14 dní, balíčky ještě jedou) a pak vypne JEN balíčky (core/POS jede dál).
+                //   Fingerprint binding (anti-piracy) běží i tak — vypršelá licence na cizí doméně = pirát.
                 // 🆕 v2.6.1 — FINGERPRINT BINDING (anti-piracy enforcement)
                 //
                 // First-use bind: pokud license ještě nemá fingerprint, zapíšeme tento.
