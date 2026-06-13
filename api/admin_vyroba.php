@@ -8,6 +8,34 @@ $admin = require_admin();
 $method = $_SERVER['REQUEST_METHOD'];
 $pdo = db();
 
+/**
+ * 🆕 v3.0.299 — Zdroj potřeby surovin na :datum = receptury (vyrobek_suroviny přes vyrobek_id)
+ *   + PŘÍMÉ suroviny z volně linkovaných položek (objednavky_polozky.surovina_id — konfigurátor
+ *   dortů: náplně/polevy/dekorace linkující surovinu). Vrací ['sql'=>subdotaz (sid,potreba),'params'=>…].
+ *   Sloupec surovina_id nemusí existovat (staré instalace) → pak jen receptury.
+ */
+function vyroba_potreba_src(PDO $pdo, string $datum): array {
+    $sql = "SELECT vs.surovina_id AS sid, SUM(op.mnozstvi * vs.mnozstvi) AS potreba
+            FROM objednavky o
+            JOIN objednavky_polozky op ON op.objednavka_id = o.id
+            JOIN vyrobek_suroviny vs   ON vs.vyrobek_id = op.vyrobek_id
+            WHERE o.datum_dodani = :datum AND o.stav NOT IN ('zrusena')
+            GROUP BY vs.surovina_id";
+    $params = ['datum' => $datum];
+    $hasCol = false;
+    try { $hasCol = in_array('surovina_id', $pdo->query("SHOW COLUMNS FROM objednavky_polozky")->fetchAll(PDO::FETCH_COLUMN), true); } catch (Throwable $e) {}
+    if ($hasCol) {
+        $sql .= " UNION ALL
+            SELECT op.surovina_id AS sid, SUM(op.mnozstvi) AS potreba
+            FROM objednavky o
+            JOIN objednavky_polozky op ON op.objednavka_id = o.id
+            WHERE o.datum_dodani = :datum2 AND o.stav NOT IN ('zrusena') AND op.surovina_id IS NOT NULL
+            GROUP BY op.surovina_id";
+        $params['datum2'] = $datum;
+    }
+    return ['sql' => $sql, 'params' => $params];
+}
+
 // =============================================================
 // GET ?datum=2026-05-06  → automaticky sestavený list z objednávek
 // GET ?id=123  → uložený výrobní list
@@ -23,6 +51,7 @@ if ($method === 'GET') {
 
         // Pro každou surovinu sečti: SUM(op.mnozstvi × vs.mnozstvi) za daný den
         // Bere se z objednávek, kde stav ≠ 'zrusena'
+        $src = vyroba_potreba_src($pdo, $datum);
         $stmt = $pdo->prepare("
             SELECT s.id           AS surovina_id,
                    s.nazev        AS nazev,
@@ -30,17 +59,13 @@ if ($method === 'GET') {
                    COALESCE(s.stock_aktualni, 0)  AS skladem,
                    s.stock_minimalni              AS minimum,
                    s.cena_baleni, s.obsah_baleni,
-                   SUM(op.mnozstvi * vs.mnozstvi) AS potreba
-            FROM objednavky o
-            JOIN objednavky_polozky op ON op.objednavka_id = o.id
-            JOIN vyrobek_suroviny vs   ON vs.vyrobek_id = op.vyrobek_id
-            JOIN suroviny s            ON s.id = vs.surovina_id
-            WHERE o.datum_dodani = :datum
-              AND o.stav NOT IN ('zrusena')
+                   SUM(x.potreba) AS potreba
+            FROM ({$src['sql']}) x
+            JOIN suroviny s ON s.id = x.sid
             GROUP BY s.id, s.nazev, s.jednotka, s.stock_aktualni, s.stock_minimalni, s.cena_baleni, s.obsah_baleni
             ORDER BY s.nazev
         ");
-        $stmt->execute(['datum' => $datum]);
+        $stmt->execute($src['params']);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $celkemNakladu = 0.0;
@@ -232,18 +257,15 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
     $pozn = trim($d['poznamka'] ?? '') ?: ('Výroba ' . $datum);
 
     // Sečti spotřebu (stejně jako v ?action=spotreba)
+    $src = vyroba_potreba_src($pdo, $datum);
     $stmt = $pdo->prepare("
         SELECT s.id AS surovina_id, s.nazev, s.jednotka, s.stock_aktualni,
-               SUM(op.mnozstvi * vs.mnozstvi) AS potreba
-        FROM objednavky o
-        JOIN objednavky_polozky op ON op.objednavka_id = o.id
-        JOIN vyrobek_suroviny vs   ON vs.vyrobek_id = op.vyrobek_id
-        JOIN suroviny s            ON s.id = vs.surovina_id
-        WHERE o.datum_dodani = :datum
-          AND o.stav NOT IN ('zrusena')
+               SUM(x.potreba) AS potreba
+        FROM ({$src['sql']}) x
+        JOIN suroviny s ON s.id = x.sid
         GROUP BY s.id, s.nazev, s.jednotka, s.stock_aktualni
     ");
-    $stmt->execute(['datum' => $datum]);
+    $stmt->execute($src['params']);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     if (empty($rows)) json_error('Žádné suroviny k odepsání — neexistují objednávky na tento datum nebo výrobky bez receptur', 404);
 
