@@ -45,7 +45,7 @@ function packages_catalog(): array {
             'ikona'       => '🧁',
             'cena_kc'     => 5000,
             'mena'        => 'Kč',
-            'opakovani'   => 'jednorázově',
+            'opakovani'   => 'ročně',
             'popis'       => 'Specifické funkce pro cukrárny a pečírny dortů.',
             'features'    => [
                 '🎂 Konfigurátor dortů (porce → hmotnost → cena · text na dortu · foto předlohy)',
@@ -59,7 +59,7 @@ function packages_catalog(): array {
             'ikona'       => '🥗',
             'cena_kc'     => 3000,
             'mena'        => 'Kč',
-            'opakovani'   => 'jednorázově',
+            'opakovani'   => 'ročně',
             'popis'       => 'Catering, šaržová evidence, mix-and-match objednávky.',
             'features'    => [
                 '🍱 Catering kalkulátor (X osob → návrh chlebíčků/zákusků/nápojů)',
@@ -73,7 +73,7 @@ function packages_catalog(): array {
             'ikona'       => '🍕',
             'cena_kc'     => 4000,
             'mena'        => 'Kč',
-            'opakovani'   => 'jednorázově',
+            'opakovani'   => 'ročně',
             'popis'       => 'Stolová správa, kapacita kuchyně, rozvoz.',
             'features'    => [
                 '🪑 Stolová správa (rezervace, mapa stolů)',
@@ -87,7 +87,7 @@ function packages_catalog(): array {
             'ikona'       => '🎉',
             'cena_kc'     => 2500,
             'mena'        => 'Kč',
-            'opakovani'   => 'jednorázově',
+            'opakovani'   => 'ročně',
             'popis'       => 'Velkokapacitní objednávky pro firmy a akce.',
             'features'    => [
                 '🏢 Firemní objednávky (faktura na IČO, vlastní cenové úrovně)',

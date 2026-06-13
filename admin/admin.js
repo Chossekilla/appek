@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.291';
+const APPEK_ADMIN_JS_VERSION = '3.0.292';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -3945,8 +3945,8 @@ function _onboardPackagesStep() {
     { id: 'sezona',     ikona: '🍰', label: 'Sezónní',           popis: 'Auto on/off výrobků dle data, předobjednávky', cena: '+1 500 Kč/rok' },
   ];
   return `
-    <h3 style="margin:0 0 8px">🎁 Specializované balíčky (volitelné)</h3>
-    <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">Vyber které tě zajímají — můžeš aktivovat kdykoliv později. Core (objednávky/faktury/HACCP) je vždy zdarma.</p>
+    <h3 style="margin:0 0 8px">🎁 Specializované balíčky (roční licence)</h3>
+    <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">Rozšiřují systém o funkce pro tvůj obor. Jsou součástí <strong>roční licence</strong> — označ které tě zajímají a dodavatel ti připraví licenční klíč, který je odemkne. Core (objednávky / faktury / výroba / HACCP) je v základu zdarma.</p>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
       ${balicky.map(b => {
         const aktiv = data.balicky.includes(b.id);
@@ -3958,14 +3958,14 @@ function _onboardPackagesStep() {
             <div style="font-size:12.5px;color:var(--text-3);line-height:1.4">${b.popis}</div>
           </div>
           <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:11px;color:var(--text-3)">jednorázově</div>
-            <div style="font-weight:700;color:var(--primary-dark)">${b.cena}</div>
+            <div style="font-weight:700;color:var(--primary-dark);font-size:13px">🗓️ Roční licence</div>
+            <div style="font-size:11px;color:var(--text-3)">cena dle nabídky</div>
           </div>
         </label>`;
       }).join('')}
     </div>
     <div style="padding:12px;background:var(--info-bg);color:var(--info-text);border-radius:8px;font-size:12.5px">
-      💡 Vybrané balíčky <strong>nemusíš platit teď</strong> — zaplatí se až při skutečné aktivaci. Tady jen předvybíráš co tě zajímá.
+      💡 Tady jen <strong>nezávazně označíš</strong>, co tě zajímá. Balíčky se aktivují <strong>licenčním klíčem od dodavatele</strong> (roční licence) — cenu a klíč ti připraví na míru.
     </div>
     <div class="form-actions">
       <button class="btn-secondary" onclick="onboardBack()">← Zpět</button>
@@ -15842,8 +15842,8 @@ async function renderNastaveni() {
   // === MAPA TAB → OBSAH ===
   const blokBalicky = `
     <div class="card-block" style="padding:16px">
-      <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">🎁 Balíčky funkcí</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Modulární licence — zapnete jen ty featury, které vám sedí. Aktivace přepíná i UI a backend feature flagy.</p>
+      <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">🎁 Balíčky funkcí — roční licence</h2>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Rozšíření systému pro váš obor, jako <strong>roční licence</strong>. Balíčky ve vašem licenčním klíči zapnete přepínačem; ostatní odemkne nový klíč od dodavatele. Cenu připraví dodavatel na míru.</p>
       <div id="ns-balicky-host">⏳ Načítám…</div>
     </div>
   `;
@@ -17013,9 +17013,10 @@ window.loadBalicky = async function() {
       const licensed = !!p.licensed;
       const enabled = !!p.enabled;
 
-      const priceLabel = p.cena_kc > 0
-        ? `<span style="font-weight:700;font-size:15px;color:var(--primary-dark)">+${p.cena_kc.toLocaleString('cs-CZ')} ${esc(p.mena)}</span> <span style="font-size:11px;color:var(--text-3)">${esc(p.opakovani)}</span>`
-        : `<span style="font-weight:600;color:var(--success-text)">Zdarma · vždy zapnuto</span>`;
+      // 💳 v3.0.292 — balíčky = roční licence; cenu řídí dodavatel na vendoru (žádné fixní číslo v appce)
+      const priceLabel = isCore
+        ? `<span style="font-weight:600;color:var(--success-text)">Zdarma · vždy zapnuto</span>`
+        : `<span style="font-weight:700;font-size:14px;color:var(--primary-dark)">🗓️ Roční licence</span> <span style="font-size:11px;color:var(--text-3)">${licensed ? '· součást vaší licence' : '· cena dle nabídky'}</span>`;
 
       let toggleHtml;
       if (isCore) {
