@@ -250,7 +250,7 @@ function poslat_email_html(string $komu, string $jmeno, string $predmet, string 
     $body .= "--$boundary--\r\n";
 
     $predmet_enc = '=?UTF-8?B?' . base64_encode($predmet) . '?=';
-    return @mail($komu, $predmet_enc, $body, implode("\r\n", $headers));
+    return appek_mail_raw($komu, $predmet_enc, $body, implode("\r\n", $headers));
 }
 
 $odeslano = 0;

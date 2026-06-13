@@ -168,7 +168,7 @@ function send_email_with_attachment(string $komu, string $predmet, string $html_
     }
 
     $predmet_enc = '=?UTF-8?B?' . base64_encode($predmet) . '?=';
-    return @mail($komu, $predmet_enc, $body, implode("\r\n", $headers));
+    return appek_mail_raw($komu, $predmet_enc, $body, implode("\r\n", $headers));
 }
 
 // === HTML šablona ===

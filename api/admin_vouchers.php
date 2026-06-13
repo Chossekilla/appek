@@ -159,7 +159,7 @@ function voucher_send_email(PDO $pdo, array $v): array {
     $body .= "--$boundary\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n$html\r\n\r\n";
     $body .= "--$boundary--\r\n";
     $subjEnc = '=?UTF-8?B?' . base64_encode($subj) . '?=';
-    $ok = @mail($to, $subjEnc, $body, implode("\r\n", $headers));
+    $ok = appek_mail_raw($to, $subjEnc, $body, implode("\r\n", $headers));
     return ['ok' => (bool) $ok, 'to' => $to];
 }
 

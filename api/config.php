@@ -46,7 +46,7 @@ if (DB_NAME === '' || DB_USER === '') {
 // Aplikace
 if (!defined('APP_URL'))     define('APP_URL',     'https://white-badger-130749.hostingersite.com');
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.288'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.289'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -957,7 +957,7 @@ function poslat_email(array $emailKomu, string $predmet, string $telo, string $f
     $ok_count = 0;
     foreach ($emailKomu as $komu) {
         if (filter_var($komu, FILTER_VALIDATE_EMAIL) === false) continue;
-        $ok = @mail($komu, $predmet_enc, $telo, implode("\r\n", $headers));
+        $ok = appek_mail_raw($komu, $predmet_enc, $telo, implode("\r\n", $headers));
         if ($ok) $ok_count++;
         else error_log("Nepodařilo se odeslat email na: $komu");
     }
@@ -1427,3 +1427,6 @@ function notifikace_zmena_stavu(PDO $pdo, int $obj_id, string $stary, string $no
         error_log('notifikace_zmena_stavu: ' . $e->getMessage());
     }
 }
+
+// 📧 v3.0.289 — SMTP odesílání (appek_mail_raw drop-in)
+require_once __DIR__ . '/_smtp_lib.php';
