@@ -434,10 +434,11 @@ if ($action === 'apply') {
                         $values[$col] = $val;
                     }
                 }
-                // Heslo (bcrypt) — pokud má login_email
+                // Heslo (bcrypt) — pokud má login_email. 🔒 v3.0.317 demo1234 jen na DEMO instalaci.
                 if (!empty($o['heslo']) && isset($colSet['heslo_hash']) && isset($colSet['login_email'])) {
                     $fields[] = 'heslo_hash';
-                    $values['heslo_hash'] = password_hash($o['heslo'], PASSWORD_BCRYPT);
+                    $oSeedPwd = (defined('APPEK_DEMO_MODE') && APPEK_DEMO_MODE) ? $o['heslo'] : bin2hex(random_bytes(12));
+                    $values['heslo_hash'] = password_hash($oSeedPwd, PASSWORD_BCRYPT);
                 }
 
                 $cols_sql = implode(', ', $fields);
@@ -1365,13 +1366,16 @@ if ($action === 'apply') {
                         continue; // už existuje (po migraci) — neinsertuj znovu
                     }
 
+                    // 🔒 v3.0.317 — heslo demo1234 jen na DEMO instalaci (APPEK_DEMO_MODE);
+                    //   na zákaznické instalaci náhodné (demo účty nesmí být přihlašitelné veřejným heslem)
+                    $seedPwd = (defined('APPEK_DEMO_MODE') && APPEK_DEMO_MODE) ? $u['heslo'] : bin2hex(random_bytes(12));
                     $pdo->prepare("
                         INSERT INTO admin_users (email, jmeno, heslo_hash, role, pin_hash, pos_only, aktivni)
                         VALUES (:em, :j, :h, :r, :pin, :po, 1)
                     ")->execute([
                         'em'  => $u['email'],
                         'j'   => $u['jmeno'],
-                        'h'   => password_hash($u['heslo'], PASSWORD_DEFAULT),
+                        'h'   => password_hash($seedPwd, PASSWORD_DEFAULT),
                         'r'   => $u['role'],
                         'pin' => password_hash($u['pin'], PASSWORD_BCRYPT, ['cost' => 8]),
                         'po'  => (int) $u['pos_only'],

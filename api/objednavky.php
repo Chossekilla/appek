@@ -259,11 +259,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $surLines = [];
         if ($sur['doprava_cena'] > 0) $surLines[] = ['nazev' => '🚚 Doprava — ' . ($dopCfg['nazev'] ?? $dopravaKey), 'castka' => $sur['doprava_cena']];
         if ($sur['platba_poplatek'] > 0) $surLines[] = ['nazev' => '➕ Poplatek za platbu (' . $platbaKey . ')', 'castka' => $sur['platba_poplatek']];
+        // 🆕 v3.0.317 — sazba DPH příplatků (doprava/poplatek) konfigurovatelná (nastaveni
+        //   'dph_sazba_priplatky', default 21 % = beze změny). Pro neplátce/jiné sazby lze přenastavit.
+        $dphPripl = (float) nastaveni_get($pdo, 'dph_sazba_priplatky', 21);
+        $dphPriplDiv = 1 + $dphPripl / 100;
         foreach ($surLines as $sl) {
-            $cenaBez = round($sl['castka'] / 1.21, 2); // příplatek vč. 21% DPH → rozpad
+            $cenaBez = round($sl['castka'] / $dphPriplDiv, 2);
             $bez += $cenaBez;
             $dph += round($sl['castka'] - $cenaBez, 2);
-            $polozky_clean[] = ['vyrobek_id' => null, 'mnozstvi' => 1, 'nazev' => $sl['nazev'], 'cena' => $cenaBez, 'sazba' => 21, 'poznamka' => null];
+            $polozky_clean[] = ['vyrobek_id' => null, 'mnozstvi' => 1, 'nazev' => $sl['nazev'], 'cena' => $cenaBez, 'sazba' => $dphPripl, 'poznamka' => null];
         }
 
         // Vlož hlavičku (🆕 v3.0.212 — puvod='b2b' → kanál B2B portál, vlastní řada B2B-rok-N)
@@ -505,9 +509,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $surRows = [];
     if ($sur['doprava_cena'] > 0)    $surRows[] = ['nazev' => '🚚 Doprava — ' . ($dopCfg['nazev'] ?? $dopravaKey), 'castka' => $sur['doprava_cena']];
     if ($sur['platba_poplatek'] > 0) $surRows[] = ['nazev' => '➕ Poplatek za platbu (' . $platbaKey . ')', 'castka' => $sur['platba_poplatek']];
+    $dphPripl = (float) nastaveni_get($pdo, 'dph_sazba_priplatky', 21); // 🆕 v3.0.317 konfigurovatelné
+    $dphPriplDiv = 1 + $dphPripl / 100;
     foreach ($surRows as &$sr) {
-        $sr['cena']  = round($sr['castka'] / 1.21, 2); // příplatek vč. 21% DPH → rozpad
-        $sr['sazba'] = 21;
+        $sr['cena']  = round($sr['castka'] / $dphPriplDiv, 2);
+        $sr['sazba'] = $dphPripl;
         $bez += $sr['cena'];
         $dph += round($sr['castka'] - $sr['cena'], 2);
     }
