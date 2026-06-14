@@ -13,6 +13,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_packages_lib.php';
+require_once __DIR__ . '/_seasonal_lib.php'; // 🍰 v3.0.331 — sdílená logika sezón (sdílí s katalog.php/cenik)
 
 cors_headers();
 require_admin();
@@ -33,7 +34,7 @@ try {
     }
 } catch (Throwable $e) { /* ignore */ }
 
-// Tabulka pro CUSTOM sezóny (mimo default 6)
+// Tabulka pro CUSTOM sezóny (mimo default 6) — sleva_pct = sezónní úprava ceny (kladné=sleva, záporné=přirážka)
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS seasons_custom (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -42,48 +43,14 @@ $pdo->exec("
         start_md VARCHAR(5) NOT NULL,
         end_md VARCHAR(5) NOT NULL,
         color VARCHAR(20) DEFAULT '#888888',
+        sleva_pct DECIMAL(6,2) NOT NULL DEFAULT 0,
         aktivni TINYINT(1) NOT NULL DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ");
+seasonal_ensure_schema($pdo); // doplní sleva_pct u starších instalací
 
-function seasons_default(): array {
-    return [
-        ['key' => 'velikonoce',  'label' => '🐰 Velikonoce',    'start_md' => '03-15', 'end_md' => '04-15', 'color' => '#FBBF24', 'is_default' => true],
-        ['key' => 'denmatek',    'label' => '🌷 Den matek',      'start_md' => '05-01', 'end_md' => '05-15', 'color' => '#F472B6', 'is_default' => true],
-        ['key' => 'valentyn',    'label' => '💝 Sv. Valentýn',   'start_md' => '02-01', 'end_md' => '02-14', 'color' => '#EF4444', 'is_default' => true],
-        ['key' => 'haloween',    'label' => '🎃 Halloween',      'start_md' => '10-15', 'end_md' => '11-02', 'color' => '#EA580C', 'is_default' => true],
-        ['key' => 'vanoce',      'label' => '🎄 Vánoce',         'start_md' => '12-01', 'end_md' => '12-31', 'color' => '#16A34A', 'is_default' => true],
-        ['key' => 'mikulas',     'label' => '🎅 Mikuláš',        'start_md' => '11-25', 'end_md' => '12-06', 'color' => '#DC2626', 'is_default' => true],
-    ];
-}
-
-function seasons_all(PDO $pdo): array {
-    $out = seasons_default();
-    try {
-        $rows = $pdo->query("SELECT id, sezona_key, label, start_md, end_md, color, aktivni FROM seasons_custom WHERE aktivni = 1 ORDER BY label")->fetchAll();
-        foreach ($rows as $r) {
-            $out[] = [
-                'id' => (int) $r['id'],
-                'key' => $r['sezona_key'],
-                'label' => $r['label'],
-                'start_md' => $r['start_md'],
-                'end_md' => $r['end_md'],
-                'color' => $r['color'],
-                'is_default' => false,
-            ];
-        }
-    } catch (Throwable $e) {}
-    return $out;
-}
-
-function is_active_on(array $s, string $md): bool {
-    // Handle wrap-around (např. zimní 12-15 → 02-15)
-    if ($s['start_md'] <= $s['end_md']) {
-        return $md >= $s['start_md'] && $md <= $s['end_md'];
-    }
-    return $md >= $s['start_md'] || $md <= $s['end_md'];
-}
+// Definice/aktivita/cena sezón = sdílená _seasonal_lib.php (seasonal_default_defs / seasonal_all / seasonal_is_active).
 
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -103,7 +70,7 @@ if ($action === 'assign' && $method === 'POST') {
     $id = (int) ($d['product_id'] ?? 0);
     $sezona = trim($d['sezona'] ?? '');
     if (!$id) json_error('Chybí product_id', 400);
-    $valid = array_map(fn($s) => $s['key'], seasons_all($pdo));
+    $valid = array_map(fn($s) => $s['key'], seasonal_all($pdo));
     if ($sezona && !in_array($sezona, $valid, true)) json_error('Neplatná sezóna', 400);
     try {
         $pdo->prepare("UPDATE vyrobky SET sezona = :s WHERE id = :id")->execute(['s' => $sezona ?: null, 'id' => $id]);
@@ -114,7 +81,7 @@ if ($action === 'assign' && $method === 'POST') {
 if ($action === 'active') {
     $date = $_GET['date'] ?? date('Y-m-d');
     $md = substr($date, 5);
-    $seasons = array_filter(seasons_all($pdo), fn($s) => is_active_on($s, $md));
+    $seasons = array_filter(seasonal_all($pdo), fn($s) => seasonal_is_active($s, $md));
     json_response(['date' => $date, 'active' => array_values($seasons)]);
 }
 
@@ -127,23 +94,44 @@ if ($action === 'save_season' && $method === 'POST') {
     $end   = trim($d['end_md']   ?? '');
     $color = trim($d['color'] ?? '#888888');
     $id    = (int) ($d['id']    ?? 0);
+    $sleva = max(-90, min(90, (float) ($d['sleva_pct'] ?? 0))); // kladné=sleva, záporné=přirážka (cap ±90 %)
 
     if (!$key || !$label) json_error('Vyplň klíč a název', 400);
     if (!preg_match('/^\d{2}-\d{2}$/', $start) || !preg_match('/^\d{2}-\d{2}$/', $end)) {
         json_error('Datum ve formátu MM-DD', 400);
     }
     // Defaultní klíče nelze přepisovat
-    $defaultKeys = array_map(fn($s) => $s['key'], seasons_default());
+    $defaultKeys = array_map(fn($s) => $s['key'], seasonal_default_defs());
     if (in_array($key, $defaultKeys, true)) json_error('Klíč je rezervovaný (default sezóna)', 400);
 
     try {
         if ($id > 0) {
-            $pdo->prepare("UPDATE seasons_custom SET label = :l, start_md = :s, end_md = :e, color = :c WHERE id = :id")
-                ->execute(['l' => $label, 's' => $start, 'e' => $end, 'c' => $color, 'id' => $id]);
+            $pdo->prepare("UPDATE seasons_custom SET label = :l, start_md = :s, end_md = :e, color = :c, sleva_pct = :sp WHERE id = :id")
+                ->execute(['l' => $label, 's' => $start, 'e' => $end, 'c' => $color, 'sp' => $sleva, 'id' => $id]);
         } else {
-            $pdo->prepare("INSERT INTO seasons_custom (sezona_key, label, start_md, end_md, color) VALUES (:k, :l, :s, :e, :c)")
-                ->execute(['k' => $key, 'l' => $label, 's' => $start, 'e' => $end, 'c' => $color]);
+            $pdo->prepare("INSERT INTO seasons_custom (sezona_key, label, start_md, end_md, color, sleva_pct) VALUES (:k, :l, :s, :e, :c, :sp)")
+                ->execute(['k' => $key, 'l' => $label, 's' => $start, 'e' => $end, 'c' => $color, 'sp' => $sleva]);
         }
+        json_response(['ok' => true]);
+    } catch (Throwable $e) { json_error_safe('DB', $e, 500); }
+}
+
+// 🍰 v3.0.331 — nastav sezónní slevu/přirážku pro VÝCHOZÍ sezónu (klíč → pct do nastaveni.seasonal_default_sleva)
+if ($action === 'save_default_sleva' && $method === 'POST') {
+    require_super_admin();
+    $d = json_input();
+    $key   = trim($d['key'] ?? '');
+    $sleva = max(-90, min(90, (float) ($d['sleva_pct'] ?? 0)));
+    $defaultKeys = array_map(fn($s) => $s['key'], seasonal_default_defs());
+    if (!in_array($key, $defaultKeys, true)) json_error('Neznámá výchozí sezóna', 400);
+    try {
+        $cur = [];
+        $st = $pdo->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'seasonal_default_sleva' LIMIT 1");
+        $st->execute();
+        if ($raw = $st->fetchColumn()) { $j = json_decode($raw, true); if (is_array($j)) $cur = $j; }
+        if ($sleva == 0.0) unset($cur[$key]); else $cur[$key] = $sleva;
+        $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('seasonal_default_sleva', :v) ON DUPLICATE KEY UPDATE hodnota = :v2")
+            ->execute(['v' => json_encode($cur, JSON_UNESCAPED_UNICODE), 'v2' => json_encode($cur, JSON_UNESCAPED_UNICODE)]);
         json_response(['ok' => true]);
     } catch (Throwable $e) { json_error_safe('DB', $e, 500); }
 }
@@ -165,7 +153,7 @@ if ($action === 'delete_season' && $method === 'DELETE') {
 }
 
 // Default: full list with stats + currently active
-$seasons = seasons_all($pdo);
+$seasons = seasonal_all($pdo);
 $counts = [];
 try {
     $rows = $pdo->query("SELECT sezona, COUNT(*) AS cnt FROM vyrobky WHERE sezona IS NOT NULL GROUP BY sezona")->fetchAll();
@@ -177,8 +165,8 @@ $selectedMd = substr($selectedDate, 5);
 
 $out = [];
 foreach ($seasons as $s) {
-    $s['active_today'] = is_active_on($s, date('m-d'));
-    $s['active_on_selected'] = is_active_on($s, $selectedMd);
+    $s['active_today'] = seasonal_is_active($s, date('m-d'));
+    $s['active_on_selected'] = seasonal_is_active($s, $selectedMd);
     $s['count'] = $counts[$s['key']] ?? 0;
     $out[] = $s;
 }

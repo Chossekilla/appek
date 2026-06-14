@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.330';
+const APPEK_ADMIN_JS_VERSION = '3.0.331';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -24624,6 +24624,7 @@ async function renderSeasonalManage() {
                 </div>
               </div>
               <div style="font-size:11px;color:var(--text-3);margin-top:4px">${esc(s.start_md)} → ${esc(s.end_md)} · ${s.count} výrobků</div>
+              ${(+s.sleva_pct) ? `<div style="font-size:11px;font-weight:700;margin-top:4px;color:${(+s.sleva_pct) > 0 ? '#16A34A' : '#DC2626'}">${(+s.sleva_pct) > 0 ? '🏷️ −' + (+s.sleva_pct) + ' % sleva' : '➕ +' + Math.abs(+s.sleva_pct) + ' % přirážka'}</div>` : ''}
               <div style="font-size:11px;font-weight:700;margin-top:6px;color:${s.active_today ? s.color : 'var(--text-3)'}">${s.active_today ? '🟢 DNES AKTIVNÍ' : '⏸️ mimo'}</div>
             </div>
           `).join('')}
@@ -24632,12 +24633,18 @@ async function renderSeasonalManage() {
     </div>
 
     <div class="card-block">
-      <h3 style="margin:0 0 10px">🔒 Default sezóny (nelze upravit)</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">
+      <h3 style="margin:0 0 4px">💰 Výchozí sezóny</h3>
+      <p style="font-size:12px;color:var(--text-3);margin:0 0 10px">Datum a název jsou fixní, ale můžeš nastavit sezónní slevu/přirážku. Kladné = sleva, záporné = přirážka.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px">
         ${defaultSeasons.map(s => `
-          <div style="padding:10px 12px;background:var(--surface-2);border-radius:8px;border:1px solid var(--border);opacity:0.85">
+          <div style="padding:10px 12px;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">
             <strong style="font-size:13px">${esc(s.label)}</strong>
-            <div style="font-size:11px;color:var(--text-3);margin-top:2px">${esc(s.start_md)} → ${esc(s.end_md)}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:2px">${esc(s.start_md)} → ${esc(s.end_md)}${s.active_today ? ' · 🟢 dnes' : ''}</div>
+            <div style="display:flex;gap:5px;align-items:center;margin-top:7px">
+              <input class="form-input" id="ds-sleva-${esc(s.key)}" type="number" step="0.5" min="-90" max="90" value="${+s.sleva_pct || 0}" style="width:72px;padding:5px 7px;font-size:12px" title="kladné = sleva, záporné = přirážka">
+              <span style="font-size:11px;color:var(--text-3)">% ceny</span>
+              <button class="btn-icon" onclick="saveDefaultSleva('${esc(s.key)}')" title="Uložit sezónní cenu" style="font-size:13px">💾</button>
+            </div>
           </div>
         `).join('')}
       </div>
@@ -24645,8 +24652,18 @@ async function renderSeasonalManage() {
   `;
 }
 
+window.saveDefaultSleva = async function(key) {
+  const el = document.getElementById('ds-sleva-' + key);
+  const pct = parseFloat(el && el.value) || 0;
+  try {
+    await api('admin_seasonal.php?action=save_default_sleva', { method: 'POST', body: JSON.stringify({ key, sleva_pct: pct }) });
+    toastSuccess('Sezónní cena uložena');
+    renderSeasonalManage();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
 window.editCustomSeason = async function(id) {
-  let s = { id: 0, key: '', label: '', start_md: '06-01', end_md: '08-31', color: '#3B82F6' };
+  let s = { id: 0, key: '', label: '', start_md: '06-01', end_md: '08-31', color: '#3B82F6', sleva_pct: 0 };
   if (id) {
     try {
       const d = await api('admin_seasonal.php');
@@ -24671,6 +24688,10 @@ window.editCustomSeason = async function(id) {
       <div><label class="form-label">Konec (MM-DD)</label>
         <input class="form-input" id="cs-end" value="${esc(s.end_md)}" pattern="\\d{2}-\\d{2}" placeholder="08-31">
       </div>
+      <div class="full"><label class="form-label">💰 Sezónní úprava ceny (%)</label>
+        <input class="form-input" id="cs-sleva" type="number" step="0.5" min="-90" max="90" value="${s.sleva_pct || 0}" placeholder="0">
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">Kladné = sleva (např. 20 = −20 %), záporné = přirážka. Platí jen v aktivním okně sezóny.</div>
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
@@ -24687,6 +24708,7 @@ window.saveCustomSeason = async function(id) {
     start_md: document.getElementById('cs-start').value.trim(),
     end_md:   document.getElementById('cs-end').value.trim(),
     color: document.getElementById('cs-color').value,
+    sleva_pct: parseFloat(document.getElementById('cs-sleva').value) || 0,
   };
   if (!data.key || !data.label) { alert('Vyplň klíč a název.'); return; }
   if (!/^\d{2}-\d{2}$/.test(data.start_md) || !/^\d{2}-\d{2}$/.test(data.end_md)) { alert('Datum ve formátu MM-DD'); return; }
