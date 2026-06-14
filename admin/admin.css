@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.316";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.317";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -21006,4 +21006,18 @@ body.perf-lite *:focus-visible { box-shadow: 0 0 0 2px var(--primary, #BA7517) !
     flex: 0 0 auto !important;
     box-sizing: border-box !important;
   }
+}
+
+/* 🆕 v3.0.317 — TABLET (701–860px): datové tabulky → karty i na portrait tabletu.
+   Dřív portrait iPad (768px) dostával desktop tabulky v ~530px ploše (vedle 220px sidebaru)
+   → přetékaly. Scoped breakpoint → desktop (>860) i mobil (≤700, vlastní pravidlo) nedotčeny.
+   data-label nastavuje labelizeTables() v admin.js nezávisle na breakpointu. */
+@media (min-width: 701px) and (max-width: 860px) {
+  .table thead { display: none; }
+  .table, .table tbody, .table tr, .table td { display: block; width: 100%; }
+  .table tbody tr { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; padding: 12px; }
+  .table td { padding: 4px 0; border-bottom: none; font-size: 13px; text-align: left; }
+  .table td::before { content: attr(data-label); display: block; font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 500; margin-bottom: 2px; }
+  .table td.td-action::before { display: none; }
+  .table td.td-action { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
 }

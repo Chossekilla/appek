@@ -360,6 +360,8 @@ if ($method === 'PUT') {
         // Email + objednávky
         'admin_email_pro_objednavky',
         'uzaverka_hodina', 'uzaverka_dni_predem',
+        // 🆕 v3.0.317 — sazba DPH příplatků doprava/poplatek (default 21; pro neplátce/jiné sazby)
+        'dph_sazba_priplatky',
         // Notifikace pro odběratele
         'notif_nova_objednavka', 'notif_zmena_stavu', 'notif_stavy_pro_email',
         // Fixní náklady pro kalkulaci výrobků
