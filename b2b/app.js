@@ -691,18 +691,11 @@ async function showApp() {
     const f = await api('firma_branding.php');
     // 💱 v3.0.283 — měna pro fmt()
     if (f && f.mena) window._mena = f.mena;
-    // 📊 v3.0.284 — Google Analytics (jen B2B portál, jen když je v Nastavení → Integrace vyplněné ID)
-    if (f && f.ga_id && !window._gaLoaded && /^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(f.ga_id)) {
-      window._gaLoaded = true;
-      const gs = document.createElement('script');
-      gs.async = true;
-      gs.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(f.ga_id);
-      document.head.appendChild(gs);
-      window.dataLayer = window.dataLayer || [];
-      window.gtag = function () { window.dataLayer.push(arguments); };
-      window.gtag('js', new Date());
-      window.gtag('config', f.ga_id, { anonymize_ip: true });
-    }
+    // 📊 v3.0.312 — Google Analytics se načte AŽ PO SOUHLASU (GDPR/ePrivacy). GA ID + firma
+    //   se uloží pro cookie banner; samotné gtag vkládá cookieConsentInit() jen při souhlasu.
+    window._ccFirma = f || {};
+    if (f && f.ga_id && /^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(f.ga_id)) window._ccGaId = f.ga_id;
+    cookieConsentInit();
     const cEl = document.getElementById('app-footer-contact');
     if (cEl && f) {
       const tel  = f.firma_telefon ? `<a href="tel:${esc(f.firma_telefon).replace(/\s+/g,'')}">📞 ${esc(f.firma_telefon)}</a>` : '';
@@ -2681,3 +2674,97 @@ window.ulozUpravuObjednavky = async function() {
     alert('Chyba: ' + e.message);
   }
 };
+
+// ═══════════════════ 🍪 COOKIE CONSENT (GDPR/ePrivacy) v3.0.312 ═══════════════════
+// Banner jen když JSOU neesenciální cookies (GA). Odmítnout = stejně snadné jako Přijmout.
+// GA (gtag) se načte AŽ po opt-in. Souhlas uložen (verze+čas), kdykoli odvolatelný.
+var CC_KEY = 'appek_cookie_consent_v1';
+function ccGet() { try { var r = JSON.parse(localStorage.getItem(CC_KEY) || 'null'); return (r && typeof r.analytics === 'boolean') ? r : null; } catch (e) { return null; } }
+function ccSave(a) { try { localStorage.setItem(CC_KEY, JSON.stringify({ v: 1, analytics: !!a, ts: new Date().toISOString() })); } catch (e) {} }
+function ccFirmaNazev() { return (window._ccFirma && window._ccFirma.firma_nazev) || 'provozovatel portálu'; }
+function ccLoadGa() {
+  var id = window._ccGaId;
+  if (!id || window._gaLoaded) return;
+  window._gaLoaded = true;
+  var gs = document.createElement('script');
+  gs.async = true; gs.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(id);
+  document.head.appendChild(gs);
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function () { window.dataLayer.push(arguments); };
+  window.gtag('js', new Date());
+  window.gtag('config', id, { anonymize_ip: true });
+}
+function cookieConsentInit() {
+  if (!window._ccGaId) return;            // jen nezbytné cookies → banner GDPR nevyžaduje
+  ccEnsureFooterLink();
+  var c = ccGet();
+  if (c) { if (c.analytics) ccLoadGa(); } // souhlas uložen → respektuj (GA jen při opt-in)
+  else ccShowBanner();                    // 1. návštěva → banner, GA se NEnačte
+}
+function ccApply(analytics) {
+  ccSave(analytics);
+  if (analytics) ccLoadGa();
+  ['cc-banner', 'cc-modal'].forEach(function (id) { var e = document.getElementById(id); if (e) e.remove(); });
+}
+function ccShowBanner() {
+  if (document.getElementById('cc-banner')) return;
+  var d = document.createElement('div');
+  d.id = 'cc-banner'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Souhlas s cookies');
+  d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;background:#fff;border:1px solid #e2e2e2;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.18);padding:16px 18px;max-width:760px;margin:0 auto;font-size:14px;line-height:1.5;color:#222';
+  d.innerHTML =
+    '<div style="font-weight:700;margin-bottom:6px">🍪 Cookies</div>' +
+    '<div style="color:#444;margin-bottom:12px">Používáme nezbytné cookies pro fungování portálu. Se souhlasem také <strong>analytické</strong> (Google Analytics, anonymizovaná IP) pro měření návštěvnosti. Souhlas je dobrovolný a kdykoli odvolatelný. <a href="#" onclick="ccShowPolicy();return false" style="color:#BA7517;text-decoration:underline">Více informací</a>.</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button onclick="ccApply(true)" style="flex:1;min-width:130px;padding:10px 14px;border:none;border-radius:9px;background:#166534;color:#fff;font-weight:700;cursor:pointer;font-size:14px">Přijmout vše</button>' +
+      '<button onclick="ccApply(false)" style="flex:1;min-width:130px;padding:10px 14px;border:none;border-radius:9px;background:#374151;color:#fff;font-weight:700;cursor:pointer;font-size:14px">Odmítnout vše</button>' +
+      '<button onclick="ccShowSettings()" style="flex:1;min-width:130px;padding:10px 14px;border:1px solid #ccc;border-radius:9px;background:#fff;color:#222;font-weight:600;cursor:pointer;font-size:14px">Nastavení</button>' +
+    '</div>';
+  document.body.appendChild(d);
+}
+function ccShowSettings() {
+  var ex = ccGet(); var chk = ex && ex.analytics ? 'checked' : '';
+  var m = document.getElementById('cc-modal'); if (m) m.remove();
+  var ov = document.createElement('div'); ov.id = 'cc-modal';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML =
+    '<div role="dialog" aria-label="Nastavení cookies" style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:22px;font-size:14px;line-height:1.55;color:#222">' +
+      '<div style="font-size:18px;font-weight:800;margin-bottom:10px">🍪 Nastavení cookies</div>' +
+      '<label style="display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid #eee;border-radius:10px;margin-bottom:10px;opacity:0.75"><input type="checkbox" checked disabled style="margin-top:3px;width:18px;height:18px"><div><div style="font-weight:700">Nezbytné <span style="font-size:11px;color:#888">(vždy aktivní)</span></div><div style="color:#555;font-size:13px">Přihlášení, košík, bezpečnost. Bez nich portál nefunguje.</div></div></label>' +
+      '<label style="display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid #eee;border-radius:10px;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="cc-analytics" ' + chk + ' style="margin-top:3px;width:18px;height:18px"><div><div style="font-weight:700">Analytické</div><div style="color:#555;font-size:13px">Google Analytics (anonymizovaná IP) — měření návštěvnosti. Dobrovolné.</div></div></label>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button onclick="ccApply(document.getElementById(\'cc-analytics\').checked)" style="flex:1;min-width:140px;padding:10px 14px;border:none;border-radius:9px;background:#166534;color:#fff;font-weight:700;cursor:pointer">Uložit volbu</button>' +
+        '<button onclick="ccApply(false)" style="flex:1;min-width:140px;padding:10px 14px;border:1px solid #ccc;border-radius:9px;background:#fff;color:#222;font-weight:600;cursor:pointer">Odmítnout vše</button>' +
+        '<a href="#" onclick="ccShowPolicy();return false" style="align-self:center;color:#BA7517;text-decoration:underline;font-size:13px">Zásady</a>' +
+      '</div>' +
+    '</div>';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+}
+function ccShowPolicy() {
+  var firma = ccFirmaNazev();
+  var m = document.getElementById('cc-modal'); if (m) m.remove();
+  var ov = document.createElement('div'); ov.id = 'cc-modal';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML =
+    '<div role="dialog" aria-label="Zásady cookies" style="background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:88vh;overflow:auto;padding:24px;font-size:13.5px;line-height:1.6;color:#222">' +
+      '<div style="font-size:18px;font-weight:800;margin-bottom:12px">🍪 Zásady používání cookies</div>' +
+      '<p>Tento portál provozuje <strong>' + esc(firma) + '</strong> (dále „provozovatel"). Cookies jsou malé soubory ukládané ve vašem prohlížeči.</p>' +
+      '<p><strong>Nezbytné cookies</strong> (vždy aktivní; nutné pro poskytnutí služby): udržení přihlášení (session), bezpečnost (CSRF), obsah košíku. Bez nich portál nefunguje, proto nevyžadují souhlas.</p>' +
+      '<p><strong>Analytické cookies</strong> (pouze s vaším souhlasem): Google Analytics 4 — měří návštěvnost a chování pro zlepšení služby. IP adresa je <strong>anonymizována</strong>. Zpracovatelem je Google; přenos může zahrnovat USA (standardní smluvní doložky). Načtení se aktivuje až po udělení souhlasu.</p>' +
+      '<p><strong>Odvolání souhlasu:</strong> kdykoli tlačítkem „🍪 Cookies" vlevo dole, nebo smazáním cookies v prohlížeči. Odvolání nemá vliv na zpracování provedené před odvoláním.</p>' +
+      '<p><strong>Vaše práva (GDPR):</strong> přístup, oprava, výmaz, omezení zpracování, námitka a podání stížnosti u Úřadu pro ochranu osobních údajů (uoou.cz). Kontakt na provozovatele najdete v patičce portálu.</p>' +
+      '<div style="margin-top:16px;display:flex;gap:8px"><button onclick="ccShowSettings()" style="padding:9px 16px;border:none;border-radius:9px;background:#BA7517;color:#fff;font-weight:700;cursor:pointer">Upravit volbu</button><button onclick="var e=document.getElementById(\'cc-modal\');if(e)e.remove()" style="padding:9px 16px;border:1px solid #ccc;border-radius:9px;background:#fff;cursor:pointer">Zavřít</button></div>' +
+    '</div>';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+}
+function ccEnsureFooterLink() {
+  if (document.getElementById('cc-reopen')) return;
+  var a = document.createElement('button');
+  a.id = 'cc-reopen'; a.type = 'button'; a.textContent = '🍪 Cookies'; a.title = 'Nastavení cookies';
+  a.onclick = ccShowSettings;
+  a.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:99998;background:rgba(255,255,255,0.92);border:1px solid #ddd;border-radius:999px;padding:5px 12px;font-size:12px;color:#555;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.12)';
+  document.body.appendChild(a);
+}
+window.cookieConsentInit = cookieConsentInit; window.ccApply = ccApply;
+window.ccShowSettings = ccShowSettings; window.ccShowPolicy = ccShowPolicy;
