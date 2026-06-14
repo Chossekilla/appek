@@ -105,6 +105,16 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'upload') {
     ]);
 }
 
+// 🆕 v3.0.339 — produkty v kategorii (pro proklikávací výpis v modalu kategorie)
+if ($method === 'GET' && ($_GET['action'] ?? '') === 'produkty') {
+    require_admin();
+    $id = (int) ($_GET['id'] ?? 0);
+    if (!$id) json_error('Chybí id', 400);
+    $st = db()->prepare("SELECT id, cislo, nazev, cena_bez_dph, aktivni FROM vyrobky WHERE kategorie_id = :id ORDER BY nazev LIMIT 300");
+    $st->execute(['id' => $id]);
+    json_response(['produkty' => $st->fetchAll()]);
+}
+
 if ($method === 'GET') {
     require_admin();
     $stmt = db()->query("

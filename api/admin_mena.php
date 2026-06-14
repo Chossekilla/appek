@@ -28,7 +28,7 @@ $pdo = db();
 const MENA_PODPOROVANE = ['CZK' => 'Kč', 'EUR' => '€', 'USD' => '$', 'GBP' => '£', 'PLN' => 'zł', 'HUF' => 'Ft', 'CHF' => 'CHF'];
 
 function mena_config_load(PDO $pdo): array {
-    $def = ['kod' => 'CZK', 'kurz' => 1.0, 'zobrazeni' => 'kc', 'dual_doklady' => false];
+    $def = ['kod' => 'CZK', 'kurz' => 1.0, 'zobrazeni' => 'kc', 'dual_doklady' => false, 'kurz_zdroj' => 'rucni'];
     try {
         $st = $pdo->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'mena_config_json'");
         $st->execute();
@@ -41,6 +41,7 @@ function mena_config_load(PDO $pdo): array {
         $out['kurz'] = max(0.0001, (float) $out['kurz']);
         $out['zobrazeni'] = $out['zobrazeni'] === 'mena' ? 'mena' : 'kc';
         $out['dual_doklady'] = !empty($out['dual_doklady']);
+        $out['kurz_zdroj'] = ($out['kurz_zdroj'] ?? 'rucni') === 'cnb' ? 'cnb' : 'rucni';
         return $out;
     } catch (Throwable $e) { return $def; }
 }
@@ -108,6 +109,7 @@ if ($action === 'save') {
         'kurz' => $kod === 'CZK' ? 1.0 : round($kurz, 4),
         'zobrazeni' => (($cfg['zobrazeni'] ?? 'kc') === 'mena' && $kod !== 'CZK') ? 'mena' : 'kc',
         'dual_doklady' => !empty($cfg['dual_doklady']) && $kod !== 'CZK',
+        'kurz_zdroj' => (($cfg['kurz_zdroj'] ?? 'rucni') === 'cnb' && $kod !== 'CZK') ? 'cnb' : 'rucni',
     ];
     $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('mena_config_json', :v)
                    ON DUPLICATE KEY UPDATE hodnota = VALUES(hodnota)")

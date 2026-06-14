@@ -72,13 +72,34 @@ function seasonal_custom_rows(PDO $pdo): array {
     return $rows ?: [];
 }
 
+/** 🆕 v3.0.339 — přepis výchozích sezón (label/start_md/end_md/color/sleva_pct) z nastaveni.seasonal_default_overrides. */
+function seasonal_default_overrides(PDO $pdo): array {
+    static $o = null;
+    if ($o !== null) return $o;
+    $o = [];
+    try {
+        $st = $pdo->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'seasonal_default_overrides' LIMIT 1");
+        $st->execute();
+        $raw = $st->fetchColumn();
+        if ($raw) { $j = json_decode($raw, true); if (is_array($j)) $o = $j; }
+    } catch (Throwable $e) {}
+    return $o;
+}
+
 /** Všechny sezóny (výchozí + vlastní) s jednotným tvarem, vč. is_default a sleva_pct. */
 function seasonal_all(PDO $pdo): array {
     $dmap = seasonal_default_sleva_map($pdo);
+    $ovr = seasonal_default_overrides($pdo);
     $out = [];
     foreach (seasonal_default_defs() as $s) {
-        $s['is_default'] = true;
-        $s['sleva_pct']  = (float) ($dmap[$s['key']] ?? 0);
+        $o = $ovr[$s['key']] ?? [];
+        if (!empty($o['label']))    $s['label']    = (string) $o['label'];
+        if (!empty($o['start_md']) && preg_match('/^\d{2}-\d{2}$/', (string) $o['start_md'])) $s['start_md'] = $o['start_md'];
+        if (!empty($o['end_md'])   && preg_match('/^\d{2}-\d{2}$/', (string) $o['end_md']))   $s['end_md']   = $o['end_md'];
+        if (!empty($o['color']))    $s['color']    = (string) $o['color'];
+        $s['is_default']   = true;
+        $s['has_override'] = !empty($o);
+        $s['sleva_pct']    = isset($o['sleva_pct']) ? (float) $o['sleva_pct'] : (float) ($dmap[$s['key']] ?? 0);
         $out[] = $s;
     }
     foreach (seasonal_custom_rows($pdo) as $r) {
