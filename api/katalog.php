@@ -7,6 +7,11 @@ $hledat       = isset($_GET['q']) ? trim($_GET['q']) : '';
 
 $pdo = db();
 
+// 🍰 v3.0.331 — aktivní sezóny dnes (vlastní i výchozí, vč. přechodu přes Nový rok).
+//   Výrobek se sezónou se zobrazí jen v aktivním okně; sezónní cenu řeší cenik/PHP níže.
+require_once __DIR__ . '/_seasonal_lib.php';
+$seasonActiveSet = array_flip(seasonal_active_keys($pdo));
+
 // Pokud je přihlášený odběratel, použij ceník s aplikovanými slevami
 session_secure_start();
 $odb_id = $_SESSION['odberatel_id'] ?? null;
@@ -15,10 +20,12 @@ if ($odb_id) {
     // Plný ceník se slevami z cenové skupiny
     $vyrobky_full = cenik_pro_odberatele($pdo, (int) $odb_id);
 
-    // Filtrování podle kategorie / hledání
-    $vyrobky = array_values(array_filter($vyrobky_full, function ($v) use ($kategorie_id, $hledat) {
+    // Filtrování podle kategorie / hledání / aktivní sezóny
+    $vyrobky = array_values(array_filter($vyrobky_full, function ($v) use ($kategorie_id, $hledat, $seasonActiveSet) {
         if ($kategorie_id && (int) $v['kategorie_id'] !== $kategorie_id) return false;
         if ($hledat !== '' && stripos($v['nazev'], $hledat) === false) return false;
+        $sez = $v['sezona'] ?? '';
+        if ($sez !== '' && $sez !== null && !isset($seasonActiveSet[$sez])) return false; // sezónní výrobek mimo okno
         return true;
     }));
 
@@ -86,7 +93,7 @@ if ($odb_id) {
                v.hmotnost_g,
                v.obrazek_url, v.objednat_do_hod, v.alergeny, v.oblibeny,
                $jeAk, $jeNo, $jeDo, $jeVy,
-               v.min_objednavka,
+               v.min_objednavka, v.sezona,
                k.nazev AS kategorie, k.id AS kategorie_id, k.ikona AS kategorie_ikona,
                j.kod AS jednotka,
                s.sazba AS dph,
@@ -98,19 +105,17 @@ if ($odb_id) {
         LEFT JOIN sazby_dph s ON v.sazba_dph_id = s.id
         WHERE v.aktivni = 1
     ";
-    // 🍰 Seasonal filter — výrobky se sezonou se zobrazí jen v aktivním okně
-    $sql .= "
-      AND (
-        v.sezona IS NULL OR v.sezona = '' OR (
-          (DATE_FORMAT(CURDATE(), '%m-%d') >= '03-15' AND DATE_FORMAT(CURDATE(), '%m-%d') <= '04-15' AND v.sezona = 'velikonoce') OR
-          (DATE_FORMAT(CURDATE(), '%m-%d') >= '05-01' AND DATE_FORMAT(CURDATE(), '%m-%d') <= '05-15' AND v.sezona = 'denmatek') OR
-          (DATE_FORMAT(CURDATE(), '%m-%d') >= '02-01' AND DATE_FORMAT(CURDATE(), '%m-%d') <= '02-14' AND v.sezona = 'valentyn') OR
-          (DATE_FORMAT(CURDATE(), '%m-%d') >= '10-15' AND DATE_FORMAT(CURDATE(), '%m-%d') <= '11-02' AND v.sezona = 'haloween') OR
-          (DATE_FORMAT(CURDATE(), '%m-%d') >= '12-01' AND DATE_FORMAT(CURDATE(), '%m-%d') <= '12-31' AND v.sezona = 'vanoce') OR
-          (DATE_FORMAT(CURDATE(), '%m-%d') >= '11-25' AND DATE_FORMAT(CURDATE(), '%m-%d') <= '12-06' AND v.sezona = 'mikulas')
-        )
-      )";
+    // 🍰 v3.0.331 — Seasonal filter dynamicky (vlastní i výchozí sezóny, wrap přes Nový rok).
+    //   Aktivní klíče spočítané v PHP ($seasonActiveSet) — viditelnost i pro custom sezóny.
     $params = [];
+    $activeKeys = array_keys($seasonActiveSet);
+    if ($activeKeys) {
+        $ph = [];
+        foreach ($activeKeys as $i => $k) { $ph[] = ":sez$i"; $params["sez$i"] = $k; }
+        $sql .= " AND (v.sezona IS NULL OR v.sezona = '' OR v.sezona IN (" . implode(',', $ph) . "))";
+    } else {
+        $sql .= " AND (v.sezona IS NULL OR v.sezona = '')";
+    }
     if ($kategorie_id) {
         $sql .= " AND v.kategorie_id = :kat";
         $params['kat'] = $kategorie_id;
@@ -125,6 +130,14 @@ if ($odb_id) {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $vyrobky = $stmt->fetchAll();
+
+    // 🍰 v3.0.331 — sezónní cena: cena_bez_dph dle aktivní sezóny, cena_zakladni zůstává původní (web ukáže „bylo → teď").
+    foreach ($vyrobky as &$v) {
+        $adj = seasonal_adjust_price($pdo, (float) $v['cena_bez_dph'], $v['sezona'] ?? null);
+        $v['cena_bez_dph']     = $adj['cena'];
+        $v['sezona_sleva_pct'] = $adj['pct'];
+    }
+    unset($v);
 }
 
 $kategorie = $pdo->query("

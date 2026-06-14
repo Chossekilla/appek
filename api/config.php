@@ -55,7 +55,7 @@ if (!defined('APP_URL')) {
     define('APP_URL', $__host ? ($__sch . '://' . $__host) : '');
 }
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.330'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.331'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -706,6 +706,8 @@ function misto_patri_odberateli(PDO $pdo, ?int $misto_id, int $odberatel_id): bo
  *               pevna_cena, sazba_dph, jednotka, kategorie_id, ...
  */
 function cenik_pro_odberatele(PDO $pdo, int $odberatel_id): array {
+    require_once __DIR__ . '/_seasonal_lib.php'; // 🍰 v3.0.331 — sezónní úprava ceny
+
     // Najít skupinu odběratele
     $stmt = $pdo->prepare("SELECT cenova_skupina_id FROM odberatele WHERE id = :id");
     $stmt->execute(['id' => $odberatel_id]);
@@ -714,7 +716,7 @@ function cenik_pro_odberatele(PDO $pdo, int $odberatel_id): array {
     // Načti všechny aktivní výrobky se základními informacemi
     $vyrobky = $pdo->query("
         SELECT v.id, v.cislo, v.nazev, v.cena_bez_dph AS cena_zakladni,
-               v.kategorie_id, v.hmotnost_g, v.min_objednavka,
+               v.kategorie_id, v.hmotnost_g, v.min_objednavka, v.sezona,
                v.alergeny, v.slozeni, v.nutricni_hodnoty, -- 🆕 v3.0.224 — food-info do B2B (alergeny legálně!)
                j.kod AS jednotka,
                s.sazba AS dph,
@@ -728,13 +730,16 @@ function cenik_pro_odberatele(PDO $pdo, int $odberatel_id): array {
     ")->fetchAll();
 
     if (!$skupina_id) {
-        // Bez skupiny - vrátíme jen základní ceny
+        // Bez skupiny - vrátíme jen základní ceny (+ sezónní úprava)
         foreach ($vyrobky as &$v) {
-            $v['cena_bez_dph']   = (float) $v['cena_zakladni'];
-            $v['sleva_pct']      = null;
-            $v['pevna_cena']     = null;
-            $v['cena_skupina']   = null;
+            $adj = seasonal_adjust_price($pdo, (float) $v['cena_zakladni'], $v['sezona'] ?? null);
+            $v['cena_bez_dph']     = $adj['cena'];
+            $v['sleva_pct']        = null;
+            $v['pevna_cena']       = null;
+            $v['cena_skupina']     = null;
+            $v['sezona_sleva_pct'] = $adj['pct'];
         }
+        unset($v);
         return $vyrobky;
     }
 
@@ -797,7 +802,12 @@ function cenik_pro_odberatele(PDO $pdo, int $odberatel_id): array {
             $v['sleva_pct']      = null;
             $v['pevna_cena']     = null;
         }
+        // 🍰 sezónní úprava ceny (aplikuje se na cenu PO slevě skupiny/ceníku)
+        $adj = seasonal_adjust_price($pdo, (float) $v['cena_bez_dph'], $v['sezona'] ?? null);
+        $v['cena_bez_dph']     = $adj['cena'];
+        $v['sezona_sleva_pct'] = $adj['pct'];
     }
+    unset($v);
     return $vyrobky;
 }
 
