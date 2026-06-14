@@ -240,6 +240,27 @@ function apply_full_schema(PDO $pdo): void {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ",
 
+        // 🆕 v3.0.329 — expediční zásilky (přepravci dpd/zasilkovna/ppl/cp): tracking + štítek
+        'zasilky' => "
+            CREATE TABLE IF NOT EXISTS zasilky (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                objednavka_id INT NULL,
+                carrier VARCHAR(20) NOT NULL,
+                tracking_number VARCHAR(80) NULL,
+                label_url VARCHAR(500) NULL,
+                pickup_point VARCHAR(120) NULL,
+                cod_kc DECIMAL(10,2) NULL,
+                vaha_kg DECIMAL(8,3) NULL,
+                stav VARCHAR(30) NOT NULL DEFAULT 'created',
+                ext_id VARCHAR(80) NULL,
+                chyba VARCHAR(255) NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_obj (objednavka_id),
+                INDEX idx_carrier (carrier),
+                INDEX idx_tracking (tracking_number)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ",
+
         // 🏢 Pobočky (admin_pobocky.php)
         'pobocky' => "
             CREATE TABLE IF NOT EXISTS pobocky (
