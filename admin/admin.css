@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.317";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.318";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -8326,15 +8326,17 @@ body.has-bulk-bar .main-content {
     grid-column: 1 / -1;
   }
   
-  /* Reorder karty + neošetřené inline gridy — 1 sloupec na mobilu (v3.0.316 responsive audit)
-     Pokrývá: repeat(3,…), bare 1fr 1fr 1fr, sidebary 1fr 320px, řádky nákladů 1fr 140px auto */
+  /* Reorder karty + VŠECHNY inline 2-sloupcové gridy → 1 sloupec na mobilu (v3.0.317 robustní).
+     div[style*="grid-template-columns:1fr "] chytne JAKÝKOLI „1fr <Npx>" sidebar (konfigurátory
+     dort 1fr 360px / catering 1fr 380px / kalkulace 1fr 320px / 1fr 140px / 1fr 280px …) i 1fr 1fr;
+     div[style*="px 1fr"] chytne obrácené (Npx 1fr). form-grid-tight + .modal-card mají vyšší
+     specificitu → ponechají si vlastní mobilní pravidla. Řeší přetékání Kalkulace panelu. */
   .reorder-cards,
   .naklad-row,
   div[style*="grid-template-columns:repeat(3"],
-  div[style*="1fr 1fr 1fr"],
-  div[style*="1fr 320px"],
-  div[style*="320px 1fr"],
-  div[style*="1fr 140px"] {
+  div[style*="grid-template-columns:1fr "],
+  div[style*="grid-template-columns: 1fr "],
+  div[style*="px 1fr"] {
     grid-template-columns: 1fr !important;
   }
 
