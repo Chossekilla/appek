@@ -51,6 +51,11 @@ if ($integration && !empty($integration['api_key'])) {
         da_log_webhook('wolt', empty($signature) ? 'rejected_no_signature' : 'rejected_bad_signature', $payload);
         exit;
     }
+} else {
+    http_response_code(401); // 🔒 v3.0.315 fail-closed: bez secretu nepřijímat
+    echo json_encode(['error' => 'Webhook not configured (missing signing secret)']);
+    da_log_webhook('wolt', 'rejected_unconfigured', $payload);
+    exit;
 }
 
 $event = $payload['event_type'] ?? $payload['type'] ?? 'unknown';
