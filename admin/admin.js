@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.335';
+const APPEK_ADMIN_JS_VERSION = '3.0.336';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -29976,7 +29976,17 @@ window.editKategorie = async function(id = null) {
   const maSubkategorie = (k.pocet_subkategorii || 0) > 0;
 
   // Doporučené ikony pro pekařskou kategorii
-  const ikonyDoporucene = ['🥖', '🍞', '🥐', '🥨', '🧁', '🍰', '🥧', '🎃', '🥪', '🥯', '🌰', '🍪'];
+  // 🆕 v3.0.336 — roztříděná sada ikon pro kategorie (pekařství/cukrárna/lahůdky/restaurace)
+  const ikonySkupiny = [
+    { label: '🥖 Pečivo & chléb',     emojis: ['🥖', '🍞', '🥐', '🥨', '🥯', '🫓', '🧇', '🌾'] },
+    { label: '🍰 Sladké & cukrárna',  emojis: ['🧁', '🍰', '🎂', '🥧', '🍪', '🍩', '🍮', '🍫', '🍬', '🍭', '🍯', '🍡', '🍦', '🍨', '🍓'] },
+    { label: '🥛 Mléčné výrobky',     emojis: ['🥛', '🧈', '🧀', '🍶', '🥚'] },
+    { label: '🥩 Maso & uzeniny',     emojis: ['🥩', '🍖', '🍗', '🥓', '🌭', '🍔', '🍤', '🐟', '🐔'] },
+    { label: '🥪 Lahůdky & teplá',    emojis: ['🥪', '🥗', '🌮', '🌯', '🥙', '🧆', '🫔', '🍱', '🍲', '🥘', '🍳', '🍕', '🍝', '🧂'] },
+    { label: '🍎 Ovoce & zelenina',   emojis: ['🍎', '🍐', '🍓', '🍌', '🍇', '🍊', '🍋', '🍑', '🥝', '🥕', '🍅', '🥔', '🌽', '🥦', '🥬'] },
+    { label: '☕ Nápoje',             emojis: ['☕', '🍵', '🧃', '🥤', '🧋', '🍷', '🍺', '🍹', '🫗', '💧', '🍾'] },
+    { label: '🎁 Sezónní & ostatní',  emojis: ['🎃', '🎄', '🐰', '💝', '🌰', '🥜', '🧊', '🎁', '⭐', '📦'] },
+  ];
   const maObrazek = !!k.obrazek_url;
 
   openModal(id ? `Kategorie: ${esc(k.nazev)}` : 'Nová kategorie', `
@@ -30011,13 +30021,15 @@ window.editKategorie = async function(id = null) {
         <!-- EMOJI -->
         <div id="kat-emoji-block" style="${maObrazek ? 'display:none' : ''}">
           <input class="form-input" id="kat-ikona" value="${esc(k.ikona || '🥖')}" maxlength="8" style="font-size:24px;text-align:center;width:120px">
-          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">
-            ${ikonyDoporucene.map(ik => `
-              <button class="btn-secondary" style="padding:6px 10px;font-size:20px;min-width:42px"
-                      onclick="document.getElementById('kat-ikona').value='${ik}'">${ik}</button>
+          <div style="margin-top:10px;max-height:230px;overflow-y:auto;padding-right:4px;border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+            ${ikonySkupiny.map(g => `
+              <div style="font-size:11px;color:var(--text-3);font-weight:700;margin:8px 0 4px">${g.label}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                ${g.emojis.map(ik => `<button type="button" class="btn-secondary kat-ikona-btn" style="padding:5px 9px;font-size:20px;min-width:40px;line-height:1.2" onclick="document.getElementById('kat-ikona').value='${ik}';document.querySelectorAll('.kat-ikona-btn').forEach(b=>b.style.outline='');this.style.outline='2px solid var(--primary)'">${ik}</button>`).join('')}
+              </div>
             `).join('')}
           </div>
-          <p class="muted" style="font-size:12px;margin-top:8px">Můžete vložit jakýkoliv emoji znak.</p>
+          <p class="muted" style="font-size:12px;margin-top:8px">Klikni na ikonu, nebo vlož do políčka jakýkoliv emoji.</p>
         </div>
 
         <!-- OBRÁZEK -->
