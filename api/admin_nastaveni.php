@@ -377,8 +377,10 @@ if ($method === 'PUT') {
         // ⚡ v3.0.252 — odlehčený režim (výkon): '1' | '0'
         'vykon_lite',
         // 📊 v3.0.284/286 — Google Analytics measurement ID — B2B portál + POS pokladna zvlášť
+        // 📊 v3.0.310 — + admin core (hlavní aplikace)
         'ga_measurement_id',
         'ga_measurement_id_pos',
+        'ga_measurement_id_core',
         // 📧 v3.0.289 — SMTP odesílání
         'smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass',
         'smtp_secure', 'smtp_from', 'smtp_from_name',
