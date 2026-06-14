@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.332';
+const APPEK_ADMIN_JS_VERSION = '3.0.333';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -2560,7 +2560,7 @@ function aplikovatPravaNaMenu() {
 
 const APPEK_FAB_CONFIG = {
   // Per-page FAB akce — { ikona, label, onclick }
-  dashboard:    { icon: '🛒', label: 'Nová objednávka', action: () => navigate('objednavky') }, // navigate first, then otevritNovou
+  dashboard:    { icon: '🛒', label: 'Nová objednávka', action: () => { navigate('objednavky'); setTimeout(() => { if (typeof otevritNovouObjednavku === 'function') otevritNovouObjednavku(); }, 250); } }, // navigate → pak rovnou otevři formulář (v3.0.333)
   objednavky:   { icon: '➕', label: 'Nová',           action: () => { if (typeof otevritNovouObjednavku === 'function') otevritNovouObjednavku(); } },
   dodaci_listy: { icon: '➕', label: 'Nový DL',        action: () => { if (typeof otevritRucniDl === 'function') otevritRucniDl(); } },
   faktury:      { icon: '➕', label: 'Nová FA',        action: () => { if (typeof otevritRucniFakturu === 'function') otevritRucniFakturu(); } },
