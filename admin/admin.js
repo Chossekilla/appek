@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.329';
+const APPEK_ADMIN_JS_VERSION = '3.0.330';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -14901,7 +14901,6 @@ async function renderNastaveni() {
     { key: 'pristupy',   label: '👥 Přístupy & ceny',   popis: 'Uživatelé a slevové skupiny', adminOnly: true },
     { key: 'balicky',    label: '🎁 Balíčky',           popis: 'Aktivace doplňkových modulů (Cukrárna, Lahůdky, …)', adminOnly: true },
     { key: 'udrzba',     label: '🛠️ Údržba',            popis: 'Bezpečnost, zálohy DB, diagnostika' },
-    { key: 'skener',     label: '📷 Skener kódů',        popis: 'Čtečka čárových kódů (USB/BT), kamera, akce po skenu, EAN štítky', adminOnly: true },
     { key: 'napoveda',   label: '❓ Nápověda & FAQ',     popis: 'Jak na to — návody a časté dotazy' },
   ];
   // 🐛 fix v2.9.182 — pokud user měl uložený state._nastaveniTab='vyroba' (smazaný
@@ -16263,44 +16262,7 @@ async function renderNastaveni() {
 
   // 🆕 v3.0.271 — blokKanaly zrušen jako samostatný tab; obsah je teď uvnitř blokPlatby.
 
-  // 🆕 v3.0.327 — Skener čárových kódů (config se ukládá jako JSON do nastaveni.scanner_config)
-  let _skCfg = {};
-  try { _skCfg = n.scanner_config ? (typeof n.scanner_config === 'string' ? JSON.parse(n.scanner_config) : n.scanner_config) : {}; } catch (e) { _skCfg = {}; }
-  const sk = Object.assign({ enabled: true, hw_enabled: true, camera_enabled: true, default_action: 'find', hw_min_len: 6, hw_prefix: '', hw_suffix: '', beep: true }, _skCfg);
-  const blokSkener = `
-    <div class="nastaveni-row">
-      <div class="card-block">
-        <h3 style="margin-bottom:8px;">📷 Skener čárových kódů</h3>
-        <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">
-          Hardwarová čtečka (USB/Bluetooth) i kamera mobilu/tabletu. Naskenuj kód → najde produkt/surovinu a provede zvolenou akci.
-        </p>
-        <div class="form-grid form-grid-tight">
-          <label class="full" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="sk-enabled" ${sk.enabled ? 'checked' : ''}> <span>Skener zapnutý</span></label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="sk-hw" ${sk.hw_enabled ? 'checked' : ''}> <span>HW čtečka (USB/BT)</span></label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="sk-cam" ${sk.camera_enabled ? 'checked' : ''}> <span>Kamera (tlačítko 📷 v liště)</span></label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="sk-beep" ${sk.beep ? 'checked' : ''}> <span>Pípnutí při skenu</span></label>
-          <div>
-            <label class="form-label">Akce po naskenování</label>
-            <select class="form-input" id="sk-action">
-              <option value="find" ${sk.default_action === 'find' ? 'selected' : ''}>🔎 Najít produkt → otevřít detail</option>
-              <option value="pos" ${sk.default_action === 'pos' ? 'selected' : ''}>🍽️ Přidat na otevřený POS účet</option>
-              <option value="sklad" ${sk.default_action === 'sklad' ? 'selected' : ''}>📦 Příjem / inventura skladu</option>
-            </select>
-          </div>
-          <div><label class="form-label">Min. délka kódu</label><input class="form-input" id="sk-minlen" type="number" min="1" value="${sk.hw_min_len}"></div>
-          <div><label class="form-label">Prefix čtečky <span style="font-size:11px;color:var(--text-3)">(volitelné)</span></label><input class="form-input" id="sk-prefix" value="${esc(sk.hw_prefix || '')}"></div>
-          <div><label class="form-label">Suffix čtečky <span style="font-size:11px;color:var(--text-3)">(volitelné)</span></label><input class="form-input" id="sk-suffix" value="${esc(sk.hw_suffix || '')}"></div>
-        </div>
-        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button class="btn-primary btn-green" onclick="ulozitSkener()" style="font-weight:700;padding:10px 20px;border:none;border-radius:10px;cursor:pointer">💾 Uložit skener</button>
-          <button class="btn-secondary" type="button" onclick="window.appekScanGlobal && appekScanGlobal()">📷 Test kamera</button>
-          <input class="form-input" placeholder="…nebo napiš kód + Enter (test)" style="flex:1;min-width:180px" onkeydown="if(event.key==='Enter'){event.stopPropagation();window.appekScanHandle&&appekScanHandle(this.value);this.value='';}">
-        </div>
-        <p style="font-size:12px;color:var(--text-3);margin-top:10px">
-          💡 <b>HW čtečka:</b> stačí ji zapojit (USB/Bluetooth) — chová se jako klávesnice, naskenuj kdekoli v aplikaci. EAN štítky vygeneruješ a vytiskneš v editoru produktu. Změny se projeví po obnovení stránky.
-        </p>
-      </div>
-    </div>`;
+  // 🆕 v3.0.330 — Skener čárových kódů přesunut z Nastavení pod Nástroje (window.appekScannerSettings modal).
 
   const blokyTabu = {
     firma:      blokFirmaDoklady,
@@ -16310,7 +16272,6 @@ async function renderNastaveni() {
     pristupy:   blokPristupy,
     balicky:    blokBalicky,
     udrzba:     blokUdrzba,
-    skener:     blokSkener,
     napoveda:   blokNapoveda,
     // Backward-compat: kdyby starý state byl 'tiskarny' nebo 'ucetni', mapuj
     tiskarny:   blokIntegraceCombined,  // bude přesměrováno níže
@@ -30060,6 +30021,13 @@ async function renderNastroje() {
     </div>
 
     <div class="nastroje-grid">
+      <button class="nastroje-card" onclick="appekScannerSettings()" aria-label="Skener čárových kódů">
+        <div class="nastroje-card-icon">📷</div>
+        <div class="nastroje-card-title">Skener kódů</div>
+        <div class="nastroje-card-desc">Čtečka čárových kódů (USB/BT), kamera, akce po skenu a kódování váhových štítků.</div>
+        <div class="nastroje-card-cta">Nastavit →</div>
+      </button>
+
       <button class="nastroje-card" onclick="navigate('katalog')" aria-label="Otevřít PDF nabídku">
         <div class="nastroje-card-icon">📑</div>
         <div class="nastroje-card-title">PDF nabídka</div>
@@ -42500,11 +42468,74 @@ document.addEventListener('keydown', function(e) {
       hw_prefix: (g('sk-prefix') && g('sk-prefix').value) || '',
       hw_suffix: (g('sk-suffix') && g('sk-suffix').value) || ''
     };
+    // 🆕 v3.0.330 — kódování váhových kódů (prefixy + layout) → scanner_config.weight_barcode (čte ho dekodér)
+    if (g('sk-wb-price') || g('sk-wb-weight')) {
+      var sp = function (v) { return String(v || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean); };
+      cfg.weight_barcode = {
+        price_prefixes: sp(g('sk-wb-price') && g('sk-wb-price').value),
+        weight_prefixes: sp(g('sk-wb-weight') && g('sk-wb-weight').value),
+        item_start: parseInt((g('sk-wb-istart') && g('sk-wb-istart').value) || '2', 10),
+        item_len: parseInt((g('sk-wb-ilen') && g('sk-wb-ilen').value) || '5', 10),
+        value_len: parseInt((g('sk-wb-vlen') && g('sk-wb-vlen').value) || '5', 10)
+      };
+    }
     try {
       await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ scanner_config: JSON.stringify(cfg) }) });
       Object.assign(CFG, cfg);
       try { toast('💾 Skener uložen', 'success'); } catch (e) {}
     } catch (e) { try { toast('Uložení selhalo: ' + (e.message || e), 'error'); } catch (_) {} }
+  };
+
+  // 🆕 v3.0.330 — Skener: konfigurace (přesunuto z Nastavení pod Nástroje) + kódování váhových kódů.
+  window.appekScannerSettings = async function () {
+    var n = {};
+    try { n = await api('admin_nastaveni.php'); } catch (e) {}
+    var raw = n && (n.scanner_config || (n.nastaveni && n.nastaveni.scanner_config));
+    var c = {}; try { c = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {}; } catch (e) {}
+    var s = Object.assign({ enabled: true, hw_enabled: true, camera_enabled: true, default_action: 'find', hw_min_len: 6, hw_prefix: '', hw_suffix: '', beep: true }, c);
+    var wb = Object.assign({ price_prefixes: ['28'], weight_prefixes: ['29'], item_start: 2, item_len: 5, value_len: 5 }, (c.weight_barcode || {}));
+    var E = (typeof esc === 'function') ? esc : function (x) { return String(x == null ? '' : x); };
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto';
+    var ck = function (id, v, lbl) { return '<label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="' + id + '"' + (v ? ' checked' : '') + '> ' + lbl + '</label>'; };
+    var fld = function (id, lbl, val, type) { return '<div><div style="font-size:12px;color:#666">' + lbl + '</div><input id="' + id + '" class="form-input"' + (type ? ' type="' + type + '"' : '') + ' value="' + E(val) + '" style="width:100%"></div>'; };
+    ov.innerHTML =
+      '<div style="background:#fff;border-radius:14px;max-width:540px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3)">' +
+        '<div style="font-size:18px;font-weight:700;margin-bottom:4px">📷 Skener čárových kódů</div>' +
+        '<p style="font-size:12px;color:#666;margin:0 0 14px">HW čtečka (USB/BT) i kamera. Naskenuj kód → najde produkt/surovinu a provede zvolenou akci.</p>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+          '<div style="grid-column:1/-1">' + ck('sk-enabled', s.enabled, 'Skener zapnutý') + '</div>' +
+          ck('sk-hw', s.hw_enabled, 'HW čtečka (USB/BT)') + ck('sk-cam', s.camera_enabled, 'Kamera (📷 v liště)') +
+          ck('sk-beep', s.beep, 'Pípnutí při skenu') +
+          '<div><div style="font-size:12px;color:#666">Akce po skenu</div><select id="sk-action" class="form-input" style="width:100%">' +
+            '<option value="find"' + (s.default_action === 'find' ? ' selected' : '') + '>🔎 Najít produkt</option>' +
+            '<option value="pos"' + (s.default_action === 'pos' ? ' selected' : '') + '>🍽️ Přidat na POS účet</option>' +
+            '<option value="sklad"' + (s.default_action === 'sklad' ? ' selected' : '') + '>📦 Příjem skladu</option>' +
+          '</select></div>' +
+          fld('sk-minlen', 'Min. délka kódu', s.hw_min_len, 'number') +
+          fld('sk-prefix', 'Prefix čtečky', s.hw_prefix || '') + fld('sk-suffix', 'Suffix čtečky', s.hw_suffix || '') +
+        '</div>' +
+        '<div style="margin-top:16px;border-top:1px solid #eee;padding-top:12px">' +
+          '<div style="font-weight:600;font-size:14px;margin-bottom:2px">⚖️ Kódování váhových kódů</div>' +
+          '<p style="font-size:12px;color:#666;margin:0 0 10px">Jak váha kóduje hmotnost/cenu do EAN-13. Prefixy odděl čárkou. Výchozí: 28 = cena (haléře), 29 = hmotnost (g).</p>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+            fld('sk-wb-price', 'Prefixy CENA', (wb.price_prefixes || []).join(',')) +
+            fld('sk-wb-weight', 'Prefixy HMOTNOST', (wb.weight_prefixes || []).join(',')) +
+            fld('sk-wb-istart', 'PLU od pozice', wb.item_start, 'number') +
+            fld('sk-wb-ilen', 'Délka PLU', wb.item_len, 'number') +
+            fld('sk-wb-vlen', 'Délka hodnoty', wb.value_len, 'number') +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:18px">' +
+          '<input class="form-input" placeholder="test: kód + Enter" style="flex:1" onkeydown="if(event.key===\'Enter\'){event.stopPropagation();window.appekScanHandle&&appekScanHandle(this.value);this.value=\'\';}">' +
+          '<button id="sk-cancel" class="btn-secondary">Zavřít</button>' +
+          '<button id="sk-save" class="btn-primary btn-green" style="border:none;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer">💾 Uložit</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#sk-cancel').onclick = function () { ov.remove(); };
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    ov.querySelector('#sk-save').onclick = async function () { await window.ulozitSkener(); ov.remove(); };
   };
 
   // Editor produktu: vygeneruj interní EAN-13 + tisk EAN štítku/ů
