@@ -201,6 +201,11 @@ if ($method === 'POST') {
         $cenaZaJed = isset($d['cena_za_jed']) && $d['cena_za_jed'] !== '' ? (float) $d['cena_za_jed'] : null;
         $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :id")
             ->execute(['s' => $stavPo, 'id' => $p['id']]);
+        // 🆕 v3.0.332 — putaway: příjem/inventura/vratka může rovnou nastavit pozici (regál/police)
+        $pozice = isset($d['pozice']) && $d['pozice'] !== '' ? mb_substr(trim((string) $d['pozice']), 0, 50) : null;
+        if ($pozice !== null && in_array($action, ['prijem', 'inventura', 'vratka', 'korekce'], true)) {
+            $pdo->prepare("UPDATE sklad_polozky SET pozice = :pz WHERE id = :id")->execute(['pz' => $pozice, 'id' => $p['id']]);
+        }
         if ($itemTyp === 'surovina') surovina_recompute_total($pdo, (int) $itemId); // 🆕 v3.0.168 přepočet cache
         $pdo->prepare("
             INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, cena_za_jed, poznamka, kdo)
