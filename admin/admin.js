@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.326';
+const APPEK_ADMIN_JS_VERSION = '3.0.327';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -13125,7 +13125,11 @@ window.editVyrobek = async function(id = null) {
         </div>
         <div>
           <label class="form-label">EAN-13 <span style="color:var(--text-3);font-weight:400;font-size:11px">(volitelné)</span></label>
-          <input class="form-input" id="vy-ean" value="${esc(v.ean || '')}" placeholder="13 číslic" maxlength="13" pattern="\\d{12,13}">
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="form-input" id="vy-ean" value="${esc(v.ean || '')}" placeholder="13 číslic" maxlength="13" pattern="\\d{12,13}" style="flex:1">
+            <button type="button" class="btn-secondary" title="Vygeneruj interní EAN-13 (prefix 28)" onclick="appekGenEan(${v.id || 0}, function(e){var el=document.getElementById('vy-ean');if(el)el.value=e;})" style="white-space:nowrap;font-size:12px;padding:8px 10px">🔢 EAN</button>
+            <button type="button" class="btn-secondary" title="Tisk EAN štítku (čárový kód)" onclick="appekPrintEanLabels(${v.id || 0})" style="white-space:nowrap;font-size:12px;padding:8px 10px">🏷️ Tisk</button>
+          </div>
         </div>
         <div>
           <label class="form-label">Obsah balení <span style="color:var(--text-3);font-weight:400;font-size:11px">(přepočet ceny/kg)</span></label>
@@ -14876,6 +14880,7 @@ async function renderNastaveni() {
     { key: 'pristupy',   label: '👥 Přístupy & ceny',   popis: 'Uživatelé a slevové skupiny', adminOnly: true },
     { key: 'balicky',    label: '🎁 Balíčky',           popis: 'Aktivace doplňkových modulů (Cukrárna, Lahůdky, …)', adminOnly: true },
     { key: 'udrzba',     label: '🛠️ Údržba',            popis: 'Bezpečnost, zálohy DB, diagnostika' },
+    { key: 'skener',     label: '📷 Skener kódů',        popis: 'Čtečka čárových kódů (USB/BT), kamera, akce po skenu, EAN štítky', adminOnly: true },
     { key: 'napoveda',   label: '❓ Nápověda & FAQ',     popis: 'Jak na to — návody a časté dotazy' },
   ];
   // 🐛 fix v2.9.182 — pokud user měl uložený state._nastaveniTab='vyroba' (smazaný
@@ -16237,6 +16242,45 @@ async function renderNastaveni() {
 
   // 🆕 v3.0.271 — blokKanaly zrušen jako samostatný tab; obsah je teď uvnitř blokPlatby.
 
+  // 🆕 v3.0.327 — Skener čárových kódů (config se ukládá jako JSON do nastaveni.scanner_config)
+  let _skCfg = {};
+  try { _skCfg = n.scanner_config ? (typeof n.scanner_config === 'string' ? JSON.parse(n.scanner_config) : n.scanner_config) : {}; } catch (e) { _skCfg = {}; }
+  const sk = Object.assign({ enabled: true, hw_enabled: true, camera_enabled: true, default_action: 'find', hw_min_len: 6, hw_prefix: '', hw_suffix: '', beep: true }, _skCfg);
+  const blokSkener = `
+    <div class="nastaveni-row">
+      <div class="card-block">
+        <h3 style="margin-bottom:8px;">📷 Skener čárových kódů</h3>
+        <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">
+          Hardwarová čtečka (USB/Bluetooth) i kamera mobilu/tabletu. Naskenuj kód → najde produkt/surovinu a provede zvolenou akci.
+        </p>
+        <div class="form-grid form-grid-tight">
+          <label class="full" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="sk-enabled" ${sk.enabled ? 'checked' : ''}> <span>Skener zapnutý</span></label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="sk-hw" ${sk.hw_enabled ? 'checked' : ''}> <span>HW čtečka (USB/BT)</span></label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="sk-cam" ${sk.camera_enabled ? 'checked' : ''}> <span>Kamera (tlačítko 📷 v liště)</span></label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="sk-beep" ${sk.beep ? 'checked' : ''}> <span>Pípnutí při skenu</span></label>
+          <div>
+            <label class="form-label">Akce po naskenování</label>
+            <select class="form-input" id="sk-action">
+              <option value="find" ${sk.default_action === 'find' ? 'selected' : ''}>🔎 Najít produkt → otevřít detail</option>
+              <option value="pos" ${sk.default_action === 'pos' ? 'selected' : ''}>🍽️ Přidat na otevřený POS účet</option>
+              <option value="sklad" ${sk.default_action === 'sklad' ? 'selected' : ''}>📦 Příjem / inventura skladu</option>
+            </select>
+          </div>
+          <div><label class="form-label">Min. délka kódu</label><input class="form-input" id="sk-minlen" type="number" min="1" value="${sk.hw_min_len}"></div>
+          <div><label class="form-label">Prefix čtečky <span style="font-size:11px;color:var(--text-3)">(volitelné)</span></label><input class="form-input" id="sk-prefix" value="${esc(sk.hw_prefix || '')}"></div>
+          <div><label class="form-label">Suffix čtečky <span style="font-size:11px;color:var(--text-3)">(volitelné)</span></label><input class="form-input" id="sk-suffix" value="${esc(sk.hw_suffix || '')}"></div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn-primary btn-green" onclick="ulozitSkener()" style="font-weight:700;padding:10px 20px;border:none;border-radius:10px;cursor:pointer">💾 Uložit skener</button>
+          <button class="btn-secondary" type="button" onclick="window.appekScanGlobal && appekScanGlobal()">📷 Test kamera</button>
+          <input class="form-input" placeholder="…nebo napiš kód + Enter (test)" style="flex:1;min-width:180px" onkeydown="if(event.key==='Enter'){event.stopPropagation();window.appekScanHandle&&appekScanHandle(this.value);this.value='';}">
+        </div>
+        <p style="font-size:12px;color:var(--text-3);margin-top:10px">
+          💡 <b>HW čtečka:</b> stačí ji zapojit (USB/Bluetooth) — chová se jako klávesnice, naskenuj kdekoli v aplikaci. EAN štítky vygeneruješ a vytiskneš v editoru produktu. Změny se projeví po obnovení stránky.
+        </p>
+      </div>
+    </div>`;
+
   const blokyTabu = {
     firma:      blokFirmaDoklady,
     notifikace: blokNotifikace,
@@ -16245,6 +16289,7 @@ async function renderNastaveni() {
     pristupy:   blokPristupy,
     balicky:    blokBalicky,
     udrzba:     blokUdrzba,
+    skener:     blokSkener,
     napoveda:   blokNapoveda,
     // Backward-compat: kdyby starý state byl 'tiskarny' nebo 'ucetni', mapuj
     tiskarny:   blokIntegraceCombined,  // bude přesměrováno níže
@@ -42362,6 +42407,25 @@ document.addEventListener('keydown', function(e) {
     appekScanner.open({ onScan: function (code) { scanHandle(code); } });
   };
 
+  // Akce 'pos' — přidej naskenovaný produkt na PRÁVĚ otevřený účet u stolu (pos.js drží __posTableUcetId).
+  window.posScanAdd = async function (match) {
+    if (!match || match.type !== 'vyrobek') { try { toast('Pro POS naskenuj produkt (ne surovinu)', 'warn'); } catch (e) {} return; }
+    var ucetId = window.__posTableUcetId;
+    if (!ucetId) { try { toast('Nejdřív otevři účet u stolu', 'warn'); } catch (e) {} return; }
+    try {
+      await api('admin_pos.php?action=item', { method: 'POST', body: JSON.stringify({ ucet_id: ucetId, vyrobek_id: match.id }) });
+      try { toast('🍽️ + ' + match.nazev, 'success'); } catch (e) {}
+      if (typeof window.refreshTableModal === 'function') window.refreshTableModal(ucetId);
+    } catch (e) { try { toast('Přidání na účet selhalo', 'error'); } catch (_) {} }
+  };
+  // Akce 'sklad' — naviguj na sklad a předej naskenovanou položku (obrazovka skladu si ji vyzvedne z _skladScan).
+  window.skladScanAdd = function (match) {
+    if (!match) return;
+    window._skladScan = match;
+    try { if (typeof navigate === 'function') navigate('sklad'); } catch (e) {}
+    try { toast('📦 ' + (match.nazev || match.ean) + ' — doplň příjem / inventuru', 'info'); } catch (e) {}
+  };
+
   // HW čtečka = keyboard-wedge: rychlá dávka znaků (<50 ms mezi sebou) zakončená Enter.
   // 50ms práh → lidské psaní (>100ms/znak) buffer resetuje → žádná interference s psaním.
   var buf = '', lastT = 0;
@@ -42391,5 +42455,39 @@ document.addEventListener('keydown', function(e) {
     b.onclick = function () { window.appekScanGlobal(); };
     bar.insertBefore(b, bar.firstChild);
   }
+  // Uložení config z Nastavení → Skener (POST scanner_config JSON; aplikuje se i bez reloadu)
+  window.ulozitSkener = async function () {
+    var g = function (id) { return document.getElementById(id); };
+    var cfg = {
+      enabled: !!(g('sk-enabled') && g('sk-enabled').checked),
+      hw_enabled: !!(g('sk-hw') && g('sk-hw').checked),
+      camera_enabled: !!(g('sk-cam') && g('sk-cam').checked),
+      beep: !!(g('sk-beep') && g('sk-beep').checked),
+      default_action: (g('sk-action') && g('sk-action').value) || 'find',
+      hw_min_len: parseInt((g('sk-minlen') && g('sk-minlen').value) || '6', 10) || 6,
+      hw_prefix: (g('sk-prefix') && g('sk-prefix').value) || '',
+      hw_suffix: (g('sk-suffix') && g('sk-suffix').value) || ''
+    };
+    try {
+      await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ scanner_config: JSON.stringify(cfg) }) });
+      Object.assign(CFG, cfg);
+      try { toast('💾 Skener uložen', 'success'); } catch (e) {}
+    } catch (e) { try { toast('Uložení selhalo: ' + (e.message || e), 'error'); } catch (_) {} }
+  };
+
+  // Editor produktu: vygeneruj interní EAN-13 + tisk EAN štítku/ů
+  window.appekGenEan = async function (vyrobekId, cb) {
+    if (!vyrobekId) { try { toast('Nejdřív ulož produkt', 'warn'); } catch (e) {} return; }
+    try {
+      var r = await api('admin_scan.php?action=gen_ean', { method: 'POST', body: JSON.stringify({ vyrobek_id: vyrobekId }) });
+      if (r && r.ean) { try { toast('🔢 EAN: ' + r.ean, 'success'); } catch (e) {} if (typeof cb === 'function') cb(r.ean); return r.ean; }
+    } catch (e) { try { toast('Generování EAN selhalo', 'error'); } catch (_) {} }
+  };
+  window.appekPrintEanLabels = function (ids) {
+    var s = Array.isArray(ids) ? ids.join(',') : String(ids || '');
+    if (!s) { try { toast('Žádné produkty k tisku', 'warn'); } catch (e) {} return; }
+    window.open('../api/admin_ean_labels.php?ids=' + encodeURIComponent(s) + '&autoprint=1', 'appek_ean_print', 'width=720,height=820');
+  };
+
   setTimeout(injectBtn, 1500); setTimeout(injectBtn, 3500);
 })();
