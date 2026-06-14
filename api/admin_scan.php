@@ -30,6 +30,40 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_GET['action'] ?? '') ===
 $code = preg_replace('/\s+/', '', (string)($_GET['code'] ?? $_GET['ean'] ?? ''));
 if ($code === '') json_error('Chybí kód', 400);
 
+// 🆕 v3.0.328 — VÁHOVÝ čárový kód: váha vytiskne EAN-13 s prefixem (def. 28=cena v haléřích,
+//   29=hmotnost v g), uvnitř PLU + hodnota. Konfigurovatelné přes scanner_config.weight_barcode.
+//   Vrací produkt (dle plu/id) + price NEBO weight_g → frontend přidá vážený řádek.
+function scan_decode_weight_barcode(PDO $pdo, string $code): ?array {
+    if (strlen($code) !== 13 || !ctype_digit($code)) return null;
+    $cfg = [];
+    try {
+        $raw = $pdo->query("SELECT hodnota FROM nastaveni WHERE klic='scanner_config'")->fetchColumn();
+        if ($raw) { $j = json_decode($raw, true); if (is_array($j) && !empty($j['weight_barcode'])) $cfg = $j['weight_barcode']; }
+    } catch (Throwable $e) {}
+    $pricePref  = $cfg['price_prefixes']  ?? ['28'];
+    $weightPref = $cfg['weight_prefixes'] ?? ['29'];
+    $itemStart  = (int)($cfg['item_start'] ?? 2);
+    $itemLen    = (int)($cfg['item_len']   ?? 5);
+    $valLen     = (int)($cfg['value_len']  ?? 5);
+    $pref = substr($code, 0, 2);
+    $isPrice  = in_array($pref, $pricePref, true);
+    $isWeight = in_array($pref, $weightPref, true);
+    if (!$isPrice && !$isWeight) return null;
+    $itemCode = (int) substr($code, $itemStart, $itemLen);
+    $value    = (int) substr($code, $itemStart + $itemLen, $valLen);
+    $st = $pdo->prepare("SELECT id, nazev, cena_bez_dph, na_vahu FROM vyrobky WHERE aktivni = 1 AND (plu = :p OR id = :p2) ORDER BY (plu = :p3) DESC LIMIT 1");
+    $st->execute(['p' => $itemCode, 'p2' => $itemCode, 'p3' => $itemCode]);
+    $v = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$v) return null;
+    $res = ['type' => 'vyrobek', 'id' => (int)$v['id'], 'nazev' => $v['nazev'],
+            'cena_bez_dph' => (float)$v['cena_bez_dph'], 'na_vahu' => (int)$v['na_vahu'], 'weight_barcode' => true];
+    if ($isPrice)  $res['price'] = round($value / 100, 2);          // haléře → Kč
+    if ($isWeight) { $res['weight_g'] = $value; $res['weight_kg'] = round($value / 1000, 3); }
+    return $res;
+}
+$wb = scan_decode_weight_barcode($pdo, $code);
+if ($wb) json_response(['ok' => true, 'code' => $code, 'match' => $wb, 'candidates' => [$wb], 'found' => 1, 'weight' => true]);
+
 $matches = [];
 
 // 1) Produkty — podle EAN, fallback podle čísla výrobku

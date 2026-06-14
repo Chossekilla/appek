@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.327';
+const APPEK_ADMIN_JS_VERSION = '3.0.328';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -13132,6 +13132,22 @@ window.editVyrobek = async function(id = null) {
           </div>
         </div>
         <div>
+          <label class="form-label">⚖️ Prodej na váhu</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding-top:6px">
+            <input type="checkbox" id="vy-navahu" ${v.na_vahu ? 'checked' : ''}>
+            <span style="font-size:13px">Vážený produkt — cena za
+              <select id="vy-vjed" style="font-size:12px;padding:2px 4px">
+                <option value="kg" ${(v.vaha_jednotka || 'kg') === 'kg' ? 'selected' : ''}>kg</option>
+                <option value="100g" ${v.vaha_jednotka === '100g' ? 'selected' : ''}>100 g</option>
+              </select>
+            </span>
+          </label>
+        </div>
+        <div>
+          <label class="form-label">PLU <span style="color:var(--text-3);font-weight:400;font-size:11px">(kód pro váhové štítky)</span></label>
+          <input class="form-input" id="vy-plu" value="${v.plu || ''}" placeholder="např. 100" inputmode="numeric">
+        </div>
+        <div>
           <label class="form-label">Obsah balení <span style="color:var(--text-3);font-weight:400;font-size:11px">(přepočet ceny/kg)</span></label>
           <div style="display:flex;gap:4px">
             <input class="form-input" id="vy-obsah" type="number" step="0.01" min="0" value="${v.obsah || (v.hmotnost_g || '')}" placeholder="500" style="flex:1" oninput="vyPrepocet()">
@@ -13961,6 +13977,10 @@ window.ulozitVyrobek = async function(id) {
     min_objednavka: parseInt(document.getElementById('vy-min').value) || 1,
     aktivni: document.getElementById('vy-akt').checked ? 1 : 0,
     oblibeny: document.getElementById('vy-obl').checked ? 1 : 0,
+    // 🆕 v3.0.328 — prodej na váhu (cena = za vaha_jednotka; plu = kód pro váhové čárové kódy)
+    na_vahu: document.getElementById('vy-navahu')?.checked ? 1 : 0,
+    plu: parseInt(document.getElementById('vy-plu')?.value) || null,
+    vaha_jednotka: document.getElementById('vy-vjed')?.value || 'kg',
     // Statusové štítky — nezávislé na slevě
     je_akce: document.getElementById('vy-akce')?.checked ? 1 : 0,
     je_novinka: document.getElementById('vy-novinka')?.checked ? 1 : 0,
@@ -42412,9 +42432,20 @@ document.addEventListener('keydown', function(e) {
     if (!match || match.type !== 'vyrobek') { try { toast('Pro POS naskenuj produkt (ne surovinu)', 'warn'); } catch (e) {} return; }
     var ucetId = window.__posTableUcetId;
     if (!ucetId) { try { toast('Nejdřív otevři účet u stolu', 'warn'); } catch (e) {} return; }
+    var body = { ucet_id: ucetId, vyrobek_id: match.id };
+    // 🆕 v3.0.328 — váha: cena nebo hmotnost zakódovaná ve váhovém čárovém kódu, nebo prompt u váženého produktu
+    if (match.weight_barcode && typeof match.price === 'number') {
+      body.jednotkova_cena = match.price; body.mnozstvi = 1; body.nazev = match.nazev + ' (vážené)';
+    } else if (match.weight_barcode && match.weight_g) {
+      body.mnozstvi = match.weight_g / 1000; body.jednotkova_cena = match.cena_bez_dph; body.nazev = match.nazev + ' (' + match.weight_g + ' g)';
+    } else if (match.na_vahu) {
+      var g = parseFloat(window.prompt('Hmotnost v gramech — ' + match.nazev + ':', ''));
+      if (!g || g <= 0) return;
+      body.mnozstvi = g / 1000; body.jednotkova_cena = match.cena_bez_dph; body.nazev = match.nazev + ' (' + g + ' g)';
+    }
     try {
-      await api('admin_pos.php?action=item', { method: 'POST', body: JSON.stringify({ ucet_id: ucetId, vyrobek_id: match.id }) });
-      try { toast('🍽️ + ' + match.nazev, 'success'); } catch (e) {}
+      await api('admin_pos.php?action=item', { method: 'POST', body: JSON.stringify(body) });
+      try { toast('🍽️ + ' + (body.nazev || match.nazev), 'success'); } catch (e) {}
       if (typeof window.refreshTableModal === 'function') window.refreshTableModal(ucetId);
     } catch (e) { try { toast('Přidání na účet selhalo', 'error'); } catch (_) {} }
   };
