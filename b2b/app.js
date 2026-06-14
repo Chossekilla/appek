@@ -2710,14 +2710,15 @@ function ccShowBanner() {
   if (document.getElementById('cc-banner')) return;
   var d = document.createElement('div');
   d.id = 'cc-banner'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Souhlas s cookies');
-  d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;background:#fff;border:1px solid #e2e2e2;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.18);padding:16px 18px;max-width:760px;margin:0 auto;font-size:14px;line-height:1.5;color:#222';
+  // 🆕 v3.0.313 — malá nenápadná karta vpravo dole (neblokuje obsah)
+  d.style.cssText = 'position:fixed;right:14px;bottom:14px;z-index:99999;background:#fff;border:1px solid #e2e2e2;border-radius:12px;box-shadow:0 6px 22px rgba(0,0,0,0.16);padding:12px 13px;width:290px;max-width:calc(100vw - 28px);font-size:12.5px;line-height:1.45;color:#222';
   d.innerHTML =
-    '<div style="font-weight:700;margin-bottom:6px">🍪 Cookies</div>' +
-    '<div style="color:#444;margin-bottom:12px">Používáme nezbytné cookies pro fungování portálu. Se souhlasem také <strong>analytické</strong> (Google Analytics, anonymizovaná IP) pro měření návštěvnosti. Souhlas je dobrovolný a kdykoli odvolatelný. <a href="#" onclick="ccShowPolicy();return false" style="color:#BA7517;text-decoration:underline">Více informací</a>.</div>' +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-      '<button onclick="ccApply(true)" style="flex:1;min-width:130px;padding:10px 14px;border:none;border-radius:9px;background:#166534;color:#fff;font-weight:700;cursor:pointer;font-size:14px">Přijmout vše</button>' +
-      '<button onclick="ccApply(false)" style="flex:1;min-width:130px;padding:10px 14px;border:none;border-radius:9px;background:#374151;color:#fff;font-weight:700;cursor:pointer;font-size:14px">Odmítnout vše</button>' +
-      '<button onclick="ccShowSettings()" style="flex:1;min-width:130px;padding:10px 14px;border:1px solid #ccc;border-radius:9px;background:#fff;color:#222;font-weight:600;cursor:pointer;font-size:14px">Nastavení</button>' +
+    '<div style="font-weight:700;margin-bottom:4px">🍪 Cookies</div>' +
+    '<div style="color:#555;margin-bottom:10px">Nezbytné pro provoz, se souhlasem i <strong>analytické</strong> (GA, anonym. IP). <a href="#" onclick="ccShowPolicy();return false" style="color:#BA7517;text-decoration:underline">Více</a></div>' +
+    '<div style="display:flex;gap:6px;align-items:stretch">' +
+      '<button onclick="ccApply(true)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;background:#166534;color:#fff;font-weight:700;cursor:pointer;font-size:12.5px">Přijmout</button>' +
+      '<button onclick="ccApply(false)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;background:#374151;color:#fff;font-weight:700;cursor:pointer;font-size:12.5px">Odmítnout</button>' +
+      '<button onclick="ccShowSettings()" title="Nastavení cookies" style="padding:8px 10px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#444;cursor:pointer;font-size:13px">⚙</button>' +
     '</div>';
   document.body.appendChild(d);
 }
