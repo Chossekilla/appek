@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.310';
+const APPEK_ADMIN_JS_VERSION = '3.0.311';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -19013,7 +19013,7 @@ async function renderRestaurantTables() {
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
       <div></div>
       <div style="display:flex;gap:8px;align-items:center">
-        <input type="date" class="form-input" id="rt-date" value="${today}" onchange="state._rtDate=this.value;renderRestaurantTables()" style="width:auto">
+        ${(tab === 'timeline' || tab === 'list') ? '' : `<input type="date" class="form-input" id="rt-date" value="${today}" onchange="state._rtDate=this.value;renderRestaurantTables()" style="width:auto">`}
         <button class="btn-secondary" onclick="window.open('floorplan.php','appek_fp','width='+screen.availWidth+',height='+screen.availHeight+',toolbar=no,menubar=no')" title="Otevřít plnotučný Floor Plan editor v novém okně">🗺️ Editor mapy</button>
         <button class="btn-secondary" onclick="addRestaurantTable()">+ Nový stůl</button>
       </div>
@@ -19109,13 +19109,21 @@ async function renderRestaurantTables() {
     const hoursLabel = denDnes
       ? (denDnes.zavreno == 1 ? '🔒 Zavřeno' : `${String(denDnes.otevreno_od).slice(0,5)}–${String(denDnes.otevreno_do).slice(0,5)}`)
       : '';
+    // 🆕 v3.0.311 — rychlý filtr dne rezervací (dnes/zítra/pozítří + date picker) u otevírací doby
+    const _qd = (off) => { const d = new Date(); d.setDate(d.getDate() + off); return d.toISOString().slice(0, 10); };
     const segSwitch = `
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;justify-content:space-between">
         <div style="display:flex;gap:6px;padding:4px;background:var(--surface-2);border-radius:10px;width:fit-content">
           <button class="${subView === 'timeline' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='timeline';state._rtTab='timeline';renderRestaurantTables()" style="padding:8px 16px;font-size:13px;border:none">⏱️ Timeline</button>
           <button class="${subView === 'list' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='list';state._rtTab='list';renderRestaurantTables()" style="padding:8px 16px;font-size:13px;border:none">📋 Seznam</button>
         </div>
-        <button class="btn-secondary" onclick="editOpeningHours()" style="padding:8px 14px;font-size:13px" title="Nastavit otevírací dobu po dnech v týdnu">🕐 Otevírací doba${hoursLabel ? ` · <strong>${hoursLabel}</strong>` : ''}</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;gap:4px;padding:4px;background:var(--surface-2);border-radius:10px">
+            ${[['Dnes', 0], ['Zítra', 1], ['Pozítří', 2]].map(([lbl, off]) => { const ds = _qd(off); return `<button class="${today === ds ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtDate='${ds}';renderRestaurantTables()" style="padding:7px 12px;font-size:13px;border:none;white-space:nowrap">${lbl}</button>`; }).join('')}
+          </div>
+          <input type="date" class="form-input" value="${today}" onchange="if(this.value){state._rtDate=this.value;renderRestaurantTables()}" style="width:auto;padding:6px 10px;font-size:13px" title="Vyber datum rezervací">
+          <button class="btn-secondary" onclick="editOpeningHours()" style="padding:8px 14px;font-size:13px" title="Nastavit otevírací dobu po dnech v týdnu">🕐 Otevírací doba${hoursLabel ? ` · <strong>${hoursLabel}</strong>` : ''}</button>
+        </div>
       </div>
     `;
     if (subView === 'list' || tab === 'list') {
