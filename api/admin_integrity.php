@@ -20,6 +20,12 @@ $pdo = db();
 $action = $_GET['action'] ?? 'audit';
 if ($action !== 'audit') json_error('Neznámá akce (audit)', 404);
 
+// 🛡️ surovina_id na objednavky_polozky je z runtime migrace konfigurátoru (nemusí existovat na čisté instalaci)
+$hasSur = false;
+try { $hasSur = in_array('surovina_id', $pdo->query("SHOW COLUMNS FROM objednavky_polozky")->fetchAll(PDO::FETCH_COLUMN), true); } catch (Throwable $e) {}
+$surPosP   = $hasSur ? "COALESCE(p.surovina_id,0)>0"  : "0";   // p má surovina link
+$surZeroOp = $hasSur ? "COALESCE(op.surovina_id,0)=0" : "1";   // op nemá surovina link (bez sloupce = vždy bez)
+
 $checks = [];
 $add = function (string $klic, string $nazev, bool $ok, string $uroven, string $detail, array $vzorky = []) use (&$checks) {
     $checks[] = ['klic' => $klic, 'nazev' => $nazev, 'ok' => $ok, 'uroven' => $uroven, 'detail' => $detail, 'vzorky' => array_slice($vzorky, 0, 8)];
@@ -47,7 +53,7 @@ try {
             FROM objednavky o
             WHERE o.stav<>'zrusena'
               AND EXISTS (SELECT 1 FROM objednavky_polozky p WHERE p.objednavka_id=o.id)
-              AND NOT EXISTS (SELECT 1 FROM objednavky_polozky p WHERE p.objednavka_id=o.id AND (p.vyrobek_id IS NOT NULL OR COALESCE(p.surovina_id,0)>0))
+              AND NOT EXISTS (SELECT 1 FROM objednavky_polozky p WHERE p.objednavka_id=o.id AND (p.vyrobek_id IS NOT NULL OR $surPosP))
             ORDER BY o.datum_objednani DESC";
     $blind = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     $ok = count($blind) === 0;
@@ -60,7 +66,7 @@ try {
 try {
     $sql = "SELECT o.cislo, COALESCE(o.puvod,'?') puvod, op.vyrobek_nazev
             FROM objednavky_polozky op JOIN objednavky o ON o.id=op.objednavka_id
-            WHERE o.stav<>'zrusena' AND op.vyrobek_id IS NULL AND COALESCE(op.surovina_id,0)=0 AND NOT $LEGIT";
+            WHERE o.stav<>'zrusena' AND op.vyrobek_id IS NULL AND $surZeroOp AND NOT $LEGIT";
     $orph = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     $ok = count($orph) === 0;
     $add('orphan_produkt', 'Produktové řádky bez vazby na výrobek (propadnou výrobu/odpis)', $ok, $ok ? 'ok' : 'warn',
