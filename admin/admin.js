@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.325';
+const APPEK_ADMIN_JS_VERSION = '3.0.326';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -42302,4 +42302,94 @@ document.addEventListener('keydown', function(e) {
   setTimeout(applyMobileHeader, 800);
   setTimeout(applyMobileHeader, 2000);
   window.applyMobileHeader = applyMobileHeader;
+})();
+
+/* ═══════════════════════════════════════════════════════════════════
+   🆕 v3.0.326 — GLOBÁLNÍ SKENER ČÁROVÝCH KÓDŮ
+   HW čtečka (keyboard-wedge) + kamera + routing přes admin_scan.php.
+   Config nastaveni.scanner_config (JSON) — rozumné defaulty, funguje i bez nastavení.
+   ═══════════════════════════════════════════════════════════════════ */
+(function appekScannerInit() {
+  var CFG = { enabled: true, hw_enabled: true, hw_min_len: 6, hw_prefix: '', hw_suffix: '',
+              camera_enabled: true, default_action: 'find', beep: true };
+  try {
+    if (typeof api === 'function') {
+      api('admin_nastaveni.php').then(function (s) {
+        try {
+          var raw = s && (s.scanner_config || (s.nastaveni && s.nastaveni.scanner_config));
+          if (raw) { var c = (typeof raw === 'string') ? JSON.parse(raw) : raw; if (c && typeof c === 'object') Object.assign(CFG, c); }
+        } catch (e) {}
+        injectBtn();
+      }).catch(function () { injectBtn(); });
+    }
+  } catch (e) {}
+
+  function beep() {
+    if (!CFG.beep) return;
+    try {
+      var a = new (window.AudioContext || window.webkitAudioContext)(); var o = a.createOscillator();
+      o.frequency.value = 880; o.connect(a.destination); o.start();
+      setTimeout(function () { try { o.stop(); a.close && a.close(); } catch (e) {} }, 90);
+    } catch (e) {}
+  }
+
+  async function scanHandle(code) {
+    code = String(code || '').trim();
+    if (CFG.hw_prefix && code.indexOf(CFG.hw_prefix) === 0) code = code.slice(CFG.hw_prefix.length);
+    if (CFG.hw_suffix && code.length >= CFG.hw_suffix.length && code.slice(-CFG.hw_suffix.length) === CFG.hw_suffix) code = code.slice(0, -CFG.hw_suffix.length);
+    if (!code) return;
+    var r = null;
+    try { r = await api('admin_scan.php?code=' + encodeURIComponent(code)); } catch (e) {}
+    var m = r && r.match;
+    if (!m) { try { toast('🔍 Kód ' + code + ' nenalezen', 'warn'); } catch (e) {} return; }
+    beep();
+    var act = CFG.default_action || 'find';
+    if (act === 'pos' && typeof window.posScanAdd === 'function') { window.posScanAdd(m); return; }
+    if (act === 'sklad' && typeof window.skladScanAdd === 'function') { window.skladScanAdd(m); return; }
+    if (m.type === 'vyrobek') {
+      if (typeof window.editVyrobek === 'function') window.editVyrobek(m.id);
+      else if (typeof navigate === 'function') navigate('vyrobky');
+      try { toast('📦 ' + m.nazev, 'success'); } catch (e) {}
+    } else if (m.type === 'surovina') {
+      if (typeof navigate === 'function') navigate('suroviny');
+      try { toast('🧪 Surovina: ' + m.nazev, 'success'); } catch (e) {}
+    }
+  }
+  window.appekScanHandle = scanHandle;
+
+  window.appekScanGlobal = function () {
+    if (typeof appekScanner === 'undefined' || !appekScanner.open) { try { toast('Kamera skener není dostupný', 'error'); } catch (e) {} return; }
+    appekScanner.open({ onScan: function (code) { scanHandle(code); } });
+  };
+
+  // HW čtečka = keyboard-wedge: rychlá dávka znaků (<50 ms mezi sebou) zakončená Enter.
+  // 50ms práh → lidské psaní (>100ms/znak) buffer resetuje → žádná interference s psaním.
+  var buf = '', lastT = 0;
+  document.addEventListener('keydown', function (e) {
+    if (!CFG.enabled || !CFG.hw_enabled) return;
+    var now = (window.performance && performance.now) ? performance.now() : Date.now();
+    if (e.key === 'Enter') {
+      if (buf.length >= (CFG.hw_min_len || 6) && (now - lastT) < 50) { var code = buf; buf = ''; e.preventDefault(); e.stopPropagation(); scanHandle(code); }
+      else { buf = ''; }
+      return;
+    }
+    if (e.key && e.key.length === 1) {
+      if (now - lastT > 50) buf = '';
+      buf += e.key; lastT = now;
+    }
+  }, true);
+
+  // 📷 kamera tlačítko do topbaru (jednou; když topbar není, tiše přeskoč — HW čtečka jede tak jako tak)
+  function injectBtn() {
+    if (!CFG.camera_enabled || document.getElementById('appek-scan-btn')) return;
+    var bar = document.querySelector('.topbar-actions');
+    if (!bar) return;
+    var b = document.createElement('button');
+    b.id = 'appek-scan-btn'; b.type = 'button'; b.title = 'Skenovat čárový kód (kamera)';
+    b.textContent = '📷';
+    b.style.cssText = 'font-size:18px;background:none;border:none;cursor:pointer;padding:4px 8px;line-height:1';
+    b.onclick = function () { window.appekScanGlobal(); };
+    bar.insertBefore(b, bar.firstChild);
+  }
+  setTimeout(injectBtn, 1500); setTimeout(injectBtn, 3500);
 })();
