@@ -620,10 +620,10 @@ if ($method === 'POST') {
     $stmt = $pdo->prepare("
         INSERT INTO vyrobky (cislo, ean, nazev, popis, slozeni, alergeny, nutricni_hodnoty,
                              kategorie_id, jednotka_id, cena_bez_dph, sazba_dph_id,
-                             hmotnost_g, obsah, obsah_jednotka, obrazek_url, min_objednavka,
+                             hmotnost_g, obsah, obsah_jednotka, rozmer_d, rozmer_s, rozmer_v, obrazek_url, min_objednavka,
                              aktivni, oblibeny, je_akce, je_novinka, je_doprodej, je_vyprodano, zobrazit_na_pos, poradi,
                              priprava_min, kitchen_station_id, obor, na_vahu, plu, vaha_jednotka)
-        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:zpos,:por,:prip,:station,:obor,:navahu,:plu,:vjed)
+        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:rd,:rs,:rv,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:zpos,:por,:prip,:station,:obor,:navahu,:plu,:vjed)
     ");
     $stmt->execute([
         'cislo' => $d['cislo'] ?? null,
@@ -642,6 +642,9 @@ if ($method === 'POST') {
         'hm' => $d['hmotnost_g'] ?? null,
         'ob' => isset($d['obsah']) && $d['obsah'] !== '' ? (float) $d['obsah'] : null,
         'obj' => $d['obsah_jednotka'] ?? null,
+        'rd' => isset($d['rozmer_d']) && $d['rozmer_d'] !== '' ? (float) $d['rozmer_d'] : null,
+        'rs' => isset($d['rozmer_s']) && $d['rozmer_s'] !== '' ? (float) $d['rozmer_s'] : null,
+        'rv' => isset($d['rozmer_v']) && $d['rozmer_v'] !== '' ? (float) $d['rozmer_v'] : null,
         'obr' => $d['obrazek_url'] ?? null,
         'min' => $d['min_objednavka'] ?? 1,
         'akt' => isset($d['aktivni']) ? (int) $d['aktivni'] : 1,
@@ -698,6 +701,7 @@ if ($method === 'PUT') {
         'haccp_graf_id' => 'haccp_graf_id',
         'hmotnost_g' => 'hmotnost_g',
         'obsah' => 'obsah', 'obsah_jednotka' => 'obsah_jednotka',
+        'rozmer_d' => 'rozmer_d', 'rozmer_s' => 'rozmer_s', 'rozmer_v' => 'rozmer_v', // 🆕 v3.0.340
         'obrazek_url' => 'obrazek_url',
         'min_objednavka' => 'min_objednavka',
         'aktivni' => 'aktivni', 'oblibeny' => 'oblibeny', 'poradi' => 'poradi',
