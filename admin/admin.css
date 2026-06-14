@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.323";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.324";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -357,16 +357,19 @@ body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
 body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on  { display: inline; }
 body.sidebar-pinned .sidebar-pin .sidebar-pin-label-off { display: none; }
 
-/* 🆕 v3.0.319→322 — 📌 špendlík nad lištou prohlížeče, CROSS-PLATFORM (Android i iOS).
-   HISTORIE: v319 fixní ~1cm fungoval na iPhonu 15 (safe-area 34px), ne na SE/mini (safe 0).
-   v321 zkoušel (100lvh-100svh), jenže to je iOS-specifické (Safari má URL lištu DOLE) —
-   na Androidu je lišta NAHOŘE, takže by to zvedlo špendlík o výšku horní lišty (špatně).
-   v322 = SPRÁVNĚ cross-platform: rail má výšku 100svh (viz níže, "small viewport" = stav
-   se zobrazenou lištou) → spodek railu je VŽDY nad retrahovatelnou lištou na OBOU
-   platformách, ať je nahoře (Android) nebo dole (iOS). Špendlík pak jen + env(safe-area)
-   (iOS home-indicator / Android gesture bar) + vzduch. Žádná platform-specifická matika. */
+/* 🆕 v3.0.319→323 — 📌 špendlík nad spodní lištou prohlížeče.
+   v319 fixní 1cm fungoval na iPhone 15 (1cm + safe-area 34px = 72px → nad ~44px toolbar),
+   NE na SE/mini (safe-area 0 → jen 38px, pod toolbar). v322 (rail height:100svh) byl OMYL —
+   na SE uřízl špendlík (overflow:hidden) a na 15 zmenšil margin pod funkční hodnotu.
+   v323 = zpět dvh kontejner + margin = max(72px, 1cm + safe-area). 72px = hodnota
+   PROKAZATELNĚ funkční na iPhone 15 (v319) — použita jako podlaha pro VŠECHNA zařízení:
+     • iPhone 15 (safe 34): max(72, 1cm+34=72) = 72px → beze změny (funkční)
+     • iPhone SE (safe 0):  max(72, 1cm+0=38) = 72px → podlaha přebije nulovou safe-area
+       (SE má stejný ~44px toolbar ale ŽÁDNÝ home-indicator → 72px s rezervou čistí)
+     • notched s větší safe-area: vezme se větší (1cm+safe) → víc prostoru
+   max() je klíč: aditivní calc(base+safe) nešel (SE nemá safe-area na přičtení → málo). */
 @media (max-width: 700px) {
-  .sidebar-utils { margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
+  .sidebar-utils { margin-bottom: max(72px, calc(1cm + env(safe-area-inset-bottom, 0px))); }
 }
 
 /* ↔️ COLLAPSE button — vedle Pin */
@@ -544,7 +547,6 @@ body.sidebar-pinned .sidebar {
   width: 280px;
   height: 100vh;
   height: 100dvh;                 /* dynamic viewport — bere ohled na iOS toolbar */
-  height: 100svh;                 /* 🆕 v3.0.322 — small viewport (cross-platform, nikdy pod lištou) */
   z-index: 40;
   border-right: 2px solid var(--primary-border);
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.06);
@@ -565,8 +567,6 @@ body.sidebar-pinned .main-wrap {
     padding: 6px 4px;
     height: 100vh;
     height: 100dvh;
-    height: 100svh;                   /* 🆕 v3.0.322 — small viewport: spodek railu (a špendlík)
-                                          VŽDY nad retrahovatelnou lištou (iOS dole / Android nahoře) */
     overflow: hidden;
   }
   body.sidebar-pinned .admin-app {
