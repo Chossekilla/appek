@@ -10,8 +10,30 @@
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_schema_lib.php';
 require_admin();
 $pdo = db();
+// 🆕 v3.0.332 — zajisti sklad schema (vč. sloupce pozice), ať „kde leží" funguje i na čerstvé instalaci
+try { ensure_sklady_schema($pdo); ensure_sklad_polozky_schema($pdo); } catch (Throwable $e) {}
+
+// 🆕 v3.0.332 — „kde leží": doplň k matchi sklady + pozice + stav (per sklad).
+function scan_attach_sklad(PDO $pdo, ?array $match): ?array {
+    if (!$match || empty($match['type']) || empty($match['id'])) return $match;
+    try {
+        $st = $pdo->prepare("
+            SELECT s.kod AS sklad_kod, s.nazev AS sklad_nazev, sp.id AS polozka_id, sp.pozice, sp.stav
+            FROM sklad_polozky sp JOIN sklady s ON s.id = sp.sklad_id
+            WHERE sp.item_typ = :t AND sp.item_id = :id AND (sp.stav <> 0 OR (sp.pozice IS NOT NULL AND sp.pozice <> ''))
+            ORDER BY s.aktivni DESC, s.poradi, s.id
+        ");
+        $st->execute(['t' => $match['type'], 'id' => (int) $match['id']]);
+        $match['sklad_pozice'] = array_map(fn($r) => [
+            'polozka_id' => (int) $r['polozka_id'], 'sklad' => $r['sklad_nazev'], 'kod' => $r['sklad_kod'],
+            'pozice' => $r['pozice'], 'stav' => (float) $r['stav'],
+        ], $st->fetchAll(PDO::FETCH_ASSOC));
+    } catch (Throwable $e) { $match['sklad_pozice'] = []; }
+    return $match;
+}
 
 // 🆕 POST ?action=gen_ean { vyrobek_id } — vygeneruj interní EAN-13 (prefix 28 = in-store) a ulož produktu.
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_GET['action'] ?? '') === 'gen_ean') {
@@ -62,7 +84,7 @@ function scan_decode_weight_barcode(PDO $pdo, string $code): ?array {
     return $res;
 }
 $wb = scan_decode_weight_barcode($pdo, $code);
-if ($wb) json_response(['ok' => true, 'code' => $code, 'match' => $wb, 'candidates' => [$wb], 'found' => 1, 'weight' => true]);
+if ($wb) { $wb = scan_attach_sklad($pdo, $wb); json_response(['ok' => true, 'code' => $code, 'match' => $wb, 'candidates' => [$wb], 'found' => 1, 'weight' => true]); }
 
 $matches = [];
 
@@ -90,4 +112,5 @@ try {
     }
 } catch (Throwable $e) {}
 
-json_response(['ok' => true, 'code' => $code, 'match' => ($matches[0] ?? null), 'candidates' => $matches, 'found' => count($matches)]);
+$best = scan_attach_sklad($pdo, $matches[0] ?? null);
+json_response(['ok' => true, 'code' => $code, 'match' => $best, 'candidates' => $matches, 'found' => count($matches)]);

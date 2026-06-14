@@ -342,6 +342,13 @@ function ensure_sklad_polozky_schema(PDO $pdo): void {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
 
+        // 🆕 v3.0.332 — pozice/lokace ve skladu (regál/police/bin), per (sklad × položka). Volitelné.
+        $cols = $pdo->query("SHOW COLUMNS FROM sklad_polozky")->fetchAll(PDO::FETCH_COLUMN);
+        if ($cols && !in_array('pozice', $cols, true)) {
+            $pdo->exec("ALTER TABLE sklad_polozky ADD COLUMN pozice VARCHAR(50) NULL AFTER cil_stav");
+            try { $pdo->exec("ALTER TABLE sklad_polozky ADD INDEX idx_pozice (pozice)"); } catch (Throwable $e) {}
+        }
+
         // Migrace: pokud sklad_polozky je prázdná, naimportovat z suroviny.sklad_stav + vyrobky.sklad_stav do SK01
         $cnt = (int) $pdo->query("SELECT COUNT(*) FROM sklad_polozky")->fetchColumn();
         if ($cnt === 0) {

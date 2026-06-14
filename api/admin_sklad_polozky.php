@@ -53,7 +53,7 @@ if ($method === 'GET' && $action === 'compare') {
         $whereStav = $jenSNeNulovymStavem ? " AND sp.stav > 0" : "";
 
         $rows = $pdo->query("
-            SELECT sp.sklad_id, sp.item_typ, sp.item_id, sp.stav, sp.min_stav, sp.cil_stav,
+            SELECT sp.sklad_id, sp.item_typ, sp.item_id, sp.stav, sp.min_stav, sp.cil_stav, sp.pozice,
                    CASE sp.item_typ
                        WHEN 'surovina' THEN (SELECT nazev FROM suroviny WHERE id = sp.item_id LIMIT 1)
                        WHEN 'vyrobek'  THEN (SELECT nazev FROM vyrobky  WHERE id = sp.item_id LIMIT 1)
@@ -90,12 +90,14 @@ if ($method === 'GET' && $action === 'compare') {
                     'cena_baleni'  => $r['cena_baleni'] !== null ? (float) $r['cena_baleni'] : null,
                     'obsah_baleni' => $r['obsah_baleni'] !== null ? (float) $r['obsah_baleni'] : null,
                     'stavy'        => array_fill_keys($skladIds, 0.0), // sklad_id → stav
+                    'pozice'       => array_fill_keys($skladIds, null), // sklad_id → pozice
                     'celkem'       => 0.0,
                     'min_stav_max' => null, // max min_stav napříč sklady (pro warning)
                 ];
             }
             $stav = (float) $r['stav'];
             $itemMap[$key]['stavy'][(int) $r['sklad_id']] = $stav;
+            if (($r['pozice'] ?? null) !== null && $r['pozice'] !== '') $itemMap[$key]['pozice'][(int) $r['sklad_id']] = $r['pozice'];
             $itemMap[$key]['celkem'] += $stav;
             if ($r['min_stav'] !== null) {
                 $m = (float) $r['min_stav'];
@@ -237,14 +239,15 @@ if ($method === 'POST') {
     $stav    = isset($d['stav']) && $d['stav'] !== '' ? (float) $d['stav'] : 0;
     $minStav = isset($d['min_stav']) && $d['min_stav'] !== '' ? (float) $d['min_stav'] : null;
     $cilStav = isset($d['cil_stav']) && $d['cil_stav'] !== '' ? (float) $d['cil_stav'] : null;
+    $pozice  = isset($d['pozice']) && $d['pozice'] !== '' ? mb_substr(trim((string) $d['pozice']), 0, 50) : null;
 
     try {
         $pdo->prepare("
-            INSERT INTO sklad_polozky (sklad_id, item_typ, item_id, stav, min_stav, cil_stav)
-            VALUES (:s, :t, :i, :st, :mn, :cl)
+            INSERT INTO sklad_polozky (sklad_id, item_typ, item_id, stav, min_stav, cil_stav, pozice)
+            VALUES (:s, :t, :i, :st, :mn, :cl, :pz)
         ")->execute([
             's' => $skladId, 't' => $itemTyp, 'i' => $itemId,
-            'st' => $stav, 'mn' => $minStav, 'cl' => $cilStav,
+            'st' => $stav, 'mn' => $minStav, 'cl' => $cilStav, 'pz' => $pozice,
         ]);
         json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId()], 201);
     } catch (PDOException $e) {
@@ -275,6 +278,11 @@ if ($method === 'PUT') {
     if (array_key_exists('stav', $d)) {
         $sets[] = 'stav = :st';
         $params['st'] = (float) $d['stav'];
+    }
+    // 🆕 v3.0.332 — pozice/lokace ve skladu (regál/police)
+    if (array_key_exists('pozice', $d)) {
+        $sets[] = 'pozice = :pz';
+        $params['pz'] = ($d['pozice'] === '' || $d['pozice'] === null) ? null : mb_substr(trim((string) $d['pozice']), 0, 50);
     }
     if (empty($sets)) json_error('Nic k uložení');
 

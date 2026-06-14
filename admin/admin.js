@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.331';
+const APPEK_ADMIN_JS_VERSION = '3.0.332';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -8592,10 +8592,98 @@ window.spravaProvestInventuru = async function(skladId) {
   if (typeof renderSkladyInline === 'function') renderSkladyInline();
 };
 
+// 🆕 v3.0.332 — Navádějící dialog ze skeneru: „kde leží" + rychlý příjem na pozici + úprava pozice.
+window.skladScanDialog = async function(match) {
+  if (!match) return;
+  state._skladScanMatch = match;
+  const nm = match.nazev || match.ean || match.cislo || 'Položka';
+  openModal('📍 ' + nm, '<div id="skladscan-body" style="min-height:160px">⏳ Načítám…</div>');
+  await window.skladScanDialogRefresh();
+};
+
+window.skladScanDialogRefresh = async function() {
+  let m = state._skladScanMatch;
+  const body = document.getElementById('skladscan-body');
+  if (!m || !body) return;
+  // Re-resolve dle kódu → čerstvé pozice/stavy po akci
+  const code = m.ean || m.cislo || m.code;
+  if (code) { try { const r = await api('admin_scan.php?code=' + encodeURIComponent(code)); if (r && r.match) { m = Object.assign({}, m, r.match); state._skladScanMatch = m; } } catch (e) {} }
+  // Sklady (aktivní) pro výběr příjmu — z compare endpointu (spolehlivý tvar)
+  let sklady = [];
+  try { sklady = (await api('admin_sklad_polozky.php?action=compare&jen_aktivni=1')).sklady || []; } catch (e) {}
+  const typLabel = m.type === 'surovina' ? '🌾 Surovina' : '📦 Výrobek';
+  const lok = m.sklad_pozice || [];
+  body.innerHTML = `
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">${typLabel}${m.cislo ? ' · ' + esc(m.cislo) : ''}${m.ean ? ' · 🏷️ ' + esc(m.ean) : ''}</div>
+
+    <h4 style="margin:0 0 6px;font-size:13px">📍 Kde leží</h4>
+    ${lok.length ? `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+      ${lok.map(l => `
+        <div style="display:flex;gap:6px;align-items:center;padding:8px 10px;background:var(--surface-2);border-radius:8px">
+          <div style="flex:1;min-width:0">
+            <strong style="font-size:12.5px">${esc(l.kod || '')}</strong> <span style="font-size:12px;color:var(--text-3)">${esc(l.sklad || '')}</span>
+            <div style="font-size:11px;color:var(--text-3)">stav: ${(+l.stav).toFixed(2)}</div>
+          </div>
+          <input class="form-input" id="pz-${l.polozka_id}" value="${esc(l.pozice || '')}" placeholder="regál/police" style="width:130px;padding:5px 8px;font-size:12px">
+          <button class="btn-icon" onclick="skladScanSavePozice(${l.polozka_id},'pz-${l.polozka_id}')" title="Uložit pozici" style="font-size:13px">💾</button>
+        </div>`).join('')}
+    </div>` : '<div style="font-size:12px;color:var(--text-3);margin-bottom:16px">Zatím bez stavu/pozice na žádném skladu.</div>'}
+
+    <h4 style="margin:0 0 6px;font-size:13px">➕ Naskladnit (příjem)</h4>
+    <div style="display:grid;grid-template-columns:1fr 90px;gap:8px">
+      <select class="form-input" id="ss-sklad" style="font-size:13px">${sklady.map(s => `<option value="${s.id}">${esc(s.kod)} · ${esc(s.nazev)}</option>`).join('')}</select>
+      <input class="form-input" id="ss-qty" type="number" step="0.01" min="0" placeholder="množ." style="font-size:13px">
+      <input class="form-input" id="ss-poz" placeholder="pozice (regál/police)" value="${esc((lok[0] && lok[0].pozice) || '')}" style="grid-column:1/-1;font-size:13px">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn-secondary" onclick="closeModal()">Zavřít</button>
+      <button class="btn-primary btn-green" onclick="skladScanPrijem()" style="font-weight:700">📦 Naskladnit</button>
+    </div>`;
+};
+
+window.skladScanSavePozice = async function(polozkaId, inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  try {
+    await api('admin_sklad_polozky.php?id=' + polozkaId, { method: 'PUT', body: JSON.stringify({ pozice: el.value }) });
+    toastSuccess('📍 Pozice uložena');
+    skladScanDialogRefresh();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+window.skladScanPrijem = async function() {
+  const m = state._skladScanMatch;
+  const skladEl = document.getElementById('ss-sklad'), qtyEl = document.getElementById('ss-qty'), pozEl = document.getElementById('ss-poz');
+  if (!m || !skladEl) return;
+  const sklad = parseInt(skladEl.value), qty = parseFloat(qtyEl.value), poz = (pozEl.value || '').trim();
+  if (!sklad) { alert('Vyber sklad.'); return; }
+  if (!qty || qty <= 0) { alert('Zadej kladné množství.'); return; }
+  try {
+    const payload = { sklad_id: sklad, item_typ: m.type, item_id: m.id, mnozstvi: qty };
+    if (poz) payload.pozice = poz;
+    await api('admin_sklad_pohyby.php?action=prijem', { method: 'POST', body: JSON.stringify(payload) });
+    toastSuccess('📦 Naskladněno' + (poz ? ' → ' + poz : ''));
+    if (qtyEl) qtyEl.value = '';
+    skladScanDialogRefresh();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v3.0.332 — úprava pozice položky přímo z detailu skladu (prompt → PUT pozice).
+window.skladSetPozice = async function(polozkaId) {
+  const nova = prompt('Pozice ve skladu (regál / police / bin). Prázdné = smazat:');
+  if (nova === null) return;
+  try {
+    await api('admin_sklad_polozky.php?id=' + polozkaId, { method: 'PUT', body: JSON.stringify({ pozice: nova.trim() }) });
+    toastSuccess('📍 Pozice uložena');
+    if (state._currentSkladId) otevritSklad(state._currentSkladId, state._currentSkladNazev, state._currentSkladKod || '');
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
 // 🆕 v2.9.216 — Detail skladu (modal) — seznam přiřazených položek s edit
 window.otevritSklad = async function(skladId, nazev, kod) {
   state._currentSkladId = skladId;  // pro pohybSkladu actions
   state._currentSkladNazev = nazev;
+  state._currentSkladKod = kod || '';
   openModal(`🏭 ${kod} · ${nazev}`, `
     <div id="sklad-detail-content" style="min-height:200px">⏳ Načítám položky…</div>
   `);
@@ -8617,6 +8705,7 @@ window.otevritSklad = async function(skladId, nazev, kod) {
             <th style="padding:8px 10px;text-align:right">Stav</th>
             <th style="padding:8px 10px;text-align:right">Min</th>
             <th style="padding:8px 10px;text-align:right">Cíl</th>
+            <th style="padding:8px 10px;text-align:left">📍 Pozice</th>
             <th style="padding:8px 10px;text-align:right">Akce</th>
           </tr>
         </thead>
@@ -8632,6 +8721,10 @@ window.otevritSklad = async function(skladId, nazev, kod) {
                 <td style="padding:8px 10px;text-align:right;${underMin ? 'color:#c66800;font-weight:700' : ''}">${stav.toFixed(2)} ${esc(p.jednotka || '')}${underMin ? ' ⚠️' : ''}</td>
                 <td style="padding:8px 10px;text-align:right;color:var(--text-3)">${min !== null ? min.toFixed(2) : '—'}</td>
                 <td style="padding:8px 10px;text-align:right;color:var(--text-3)">${p.cil_stav !== null ? parseFloat(p.cil_stav).toFixed(2) : '—'}</td>
+                <td style="padding:8px 10px;white-space:nowrap">
+                  <span style="font-size:12px">${p.pozice ? esc(p.pozice) : '<span style="color:var(--text-3)">—</span>'}</span>
+                  <button class="btn-icon" onclick="skladSetPozice(${p.id})" title="Upravit pozici" style="font-size:11px;padding:2px 5px">✏️</button>
+                </td>
                 <td style="padding:8px 10px;text-align:right;white-space:nowrap">
                   <button class="btn-secondary" onclick="pohybSkladu(${state._currentSkladId || 0}, ${p.id}, 'prijem', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px;background:#dcfce7;color:#15803d;border-color:#dcfce7" title="Příjem">+</button>
                   <button class="btn-secondary" onclick="pohybSkladu(${state._currentSkladId || 0}, ${p.id}, 'vydej', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px;background:#fef3c7;color:#854F0B;border-color:#fef3c7" title="Výdej">−</button>
@@ -42440,10 +42533,11 @@ document.addEventListener('keydown', function(e) {
       if (typeof window.refreshTableModal === 'function') window.refreshTableModal(ucetId);
     } catch (e) { try { toast('Přidání na účet selhalo', 'error'); } catch (_) {} }
   };
-  // Akce 'sklad' — naviguj na sklad a předej naskenovanou položku (obrazovka skladu si ji vyzvedne z _skladScan).
+  // Akce 'sklad' — otevři navádějící dialog „kde leží" + rychlý příjem/pozice (v3.0.332).
   window.skladScanAdd = function (match) {
     if (!match) return;
     window._skladScan = match;
+    if (typeof window.skladScanDialog === 'function') { window.skladScanDialog(match); return; }
     try { if (typeof navigate === 'function') navigate('sklad'); } catch (e) {}
     try { toast('📦 ' + (match.nazev || match.ean) + ' — doplň příjem / inventuru', 'info'); } catch (e) {}
   };
