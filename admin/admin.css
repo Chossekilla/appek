@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.320";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.321";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -357,10 +357,19 @@ body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
 body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on  { display: inline; }
 body.sidebar-pinned .sidebar-pin .sidebar-pin-label-off { display: none; }
 
-/* 🆕 v3.0.319 — na mobilu zvednout 📌 špendlík (sidebar-utils) o ~1 cm nad spodní URL lištu
-   prohlížeče / iOS home-bar (dřív se schovával pod spodní lištu). + safe-area pro iPhone. */
+/* 🆕 v3.0.319/321 — na mobilu zvednout 📌 špendlík (sidebar-utils) nad spodní URL lištu
+   prohlížeče. v319 fixní ~1 cm fungoval na iPhone 15 (safe-area 34px → 1cm+34=72px
+   vyšplhalo nad ~50px toolbar), ale na SE/mini (safe-area 0 → jen 38px) se špendlík
+   schoval pod lištu. v321 = AUTO: lift navázán na SKUTEČNOU výšku retrahovatelné lišty
+   = (100lvh - 100svh). Spočítá se sám na 15 i SE/mini, žádná fixní konstanta. */
 @media (max-width: 700px) {
+  /* Fallback (iOS Safari <15.4 bez svh/lvh): původní fixní ~1 cm. */
   .sidebar-utils { margin-bottom: calc(1cm + env(safe-area-inset-bottom, 0px)); }
+  /* AUTO: max(1cm, 100lvh - 100svh) = podlaha 1cm (emulátor/edge) NEBO skutečná výška URL
+     lišty (reálné Safari), co je větší + env(safe-area) home-indicator + 8px vzduch. */
+  .sidebar-utils {
+    margin-bottom: calc(max(1cm, 100lvh - 100svh) + env(safe-area-inset-bottom, 0px) + 8px);
+  }
 }
 
 /* ↔️ COLLAPSE button — vedle Pin */
