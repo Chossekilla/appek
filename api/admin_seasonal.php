@@ -100,9 +100,20 @@ if ($action === 'save_season' && $method === 'POST') {
     if (!preg_match('/^\d{2}-\d{2}$/', $start) || !preg_match('/^\d{2}-\d{2}$/', $end)) {
         json_error('Datum ve formátu MM-DD', 400);
     }
-    // Defaultní klíče nelze přepisovat
     $defaultKeys = array_map(fn($s) => $s['key'], seasonal_default_defs());
-    if (in_array($key, $defaultKeys, true)) json_error('Klíč je rezervovaný (default sezóna)', 400);
+    // 🆕 v3.0.339 — výchozí sezóna se NEpřepisuje v seasons_custom, ale jako OVERRIDE (label/datum/barva/sleva)
+    if (in_array($key, $defaultKeys, true)) {
+        try {
+            $ovr = [];
+            $st = $pdo->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'seasonal_default_overrides' LIMIT 1");
+            $st->execute();
+            if ($raw = $st->fetchColumn()) { $j = json_decode($raw, true); if (is_array($j)) $ovr = $j; }
+            $ovr[$key] = ['label' => $label, 'start_md' => $start, 'end_md' => $end, 'color' => $color, 'sleva_pct' => $sleva];
+            $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('seasonal_default_overrides', :v) ON DUPLICATE KEY UPDATE hodnota = :v2")
+                ->execute(['v' => json_encode($ovr, JSON_UNESCAPED_UNICODE), 'v2' => json_encode($ovr, JSON_UNESCAPED_UNICODE)]);
+            json_response(['ok' => true, 'override' => true]);
+        } catch (Throwable $e) { json_error_safe('DB', $e, 500); }
+    }
 
     try {
         if ($id > 0) {
@@ -111,6 +122,25 @@ if ($action === 'save_season' && $method === 'POST') {
         } else {
             $pdo->prepare("INSERT INTO seasons_custom (sezona_key, label, start_md, end_md, color, sleva_pct) VALUES (:k, :l, :s, :e, :c, :sp)")
                 ->execute(['k' => $key, 'l' => $label, 's' => $start, 'e' => $end, 'c' => $color, 'sp' => $sleva]);
+        }
+        json_response(['ok' => true]);
+    } catch (Throwable $e) { json_error_safe('DB', $e, 500); }
+}
+
+// 🆕 v3.0.339 — reset výchozí sezóny na původní (smaž override + sleva map)
+if ($action === 'reset_default' && $method === 'POST') {
+    require_super_admin();
+    $d = json_input();
+    $key = trim($d['key'] ?? '');
+    $defaultKeys = array_map(fn($s) => $s['key'], seasonal_default_defs());
+    if (!in_array($key, $defaultKeys, true)) json_error('Neznámá výchozí sezóna', 400);
+    try {
+        foreach (['seasonal_default_overrides', 'seasonal_default_sleva'] as $klic) {
+            $st = $pdo->prepare("SELECT hodnota FROM nastaveni WHERE klic = :k LIMIT 1"); $st->execute(['k' => $klic]);
+            $cur = []; if ($raw = $st->fetchColumn()) { $j = json_decode($raw, true); if (is_array($j)) $cur = $j; }
+            unset($cur[$key]);
+            $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES (:k, :v) ON DUPLICATE KEY UPDATE hodnota = :v2")
+                ->execute(['k' => $klic, 'v' => json_encode($cur, JSON_UNESCAPED_UNICODE), 'v2' => json_encode($cur, JSON_UNESCAPED_UNICODE)]);
         }
         json_response(['ok' => true]);
     } catch (Throwable $e) { json_error_safe('DB', $e, 500); }

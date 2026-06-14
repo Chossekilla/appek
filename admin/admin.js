@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.338';
+const APPEK_ADMIN_JS_VERSION = '3.0.339';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5941,9 +5941,14 @@ window.menaLoad = async function() {
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
         <div><label class="form-label" style="font-size:12px">Cílová měna</label>
           <select class="form-input" id="mena-kod" style="width:130px" onchange="menaKodChange()">${opts}</select></div>
+        <div id="mena-zdroj-wrap" style="${cizi ? '' : 'display:none'}"><label class="form-label" style="font-size:12px">Zdroj kurzu</label>
+          <div style="display:flex;gap:4px">
+            <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;border:1px solid var(--border);border-radius:6px;padding:6px 9px"><input type="radio" name="mena-zdroj" value="rucni" ${c.kurz_zdroj !== 'cnb' ? 'checked' : ''} onchange="menaZdrojChange()"> ✍️ Vlastní</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;border:1px solid var(--border);border-radius:6px;padding:6px 9px"><input type="radio" name="mena-zdroj" value="cnb" ${c.kurz_zdroj === 'cnb' ? 'checked' : ''} onchange="menaZdrojChange()"> 🏦 ČNB</label>
+          </div></div>
         <div id="mena-kurz-wrap" style="${cizi ? '' : 'display:none'}"><label class="form-label" style="font-size:12px">Kurz (1 <span id="mena-kurz-kod">${esc(c.kod)}</span> = ? Kč)</label>
-          <input class="form-input" id="mena-kurz" type="number" min="0.0001" step="0.001" value="${c.kurz || 1}" style="width:120px"></div>
-        <button class="btn-secondary" id="mena-cnb-btn" style="${cizi ? '' : 'display:none'}" onclick="menaCnb()">🏦 Načíst z ČNB</button>
+          <input class="form-input" id="mena-kurz" type="number" min="0.0001" step="0.001" value="${c.kurz || 1}" style="width:120px" ${c.kurz_zdroj === 'cnb' ? 'readonly' : ''}></div>
+        <button class="btn-secondary" id="mena-cnb-btn" style="${cizi ? '' : 'display:none'}" onclick="menaCnb()">🔄 Aktualizovat z ČNB</button>
         <span id="mena-cnb-info" style="font-size:12px;color:var(--text-3);padding-bottom:9px"></span>
       </div>
       <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:12px" id="mena-volby" ${cizi ? '' : 'hidden'}>
@@ -5972,10 +5977,20 @@ window.menaKodChange = function() {
   const kod = document.getElementById('mena-kod').value;
   const cizi = kod !== 'CZK';
   document.getElementById('mena-kurz-wrap').style.display = cizi ? '' : 'none';
+  const zw = document.getElementById('mena-zdroj-wrap'); if (zw) zw.style.display = cizi ? '' : 'none';
   document.getElementById('mena-cnb-btn').style.display = cizi ? '' : 'none';
   document.getElementById('mena-volby').hidden = !cizi;
   document.getElementById('mena-prepocet-sekce').hidden = !cizi;
   const kk = document.getElementById('mena-kurz-kod'); if (kk) kk.textContent = kod;
+};
+// 🆕 v3.0.339 — přepínač zdroje kurzu: vlastní (editovatelný) vs ČNB (zamčený + auto-fetch)
+window.menaZdrojChange = function() {
+  const zdroj = (document.querySelector('input[name="mena-zdroj"]:checked') || {}).value || 'rucni';
+  const kurzEl = document.getElementById('mena-kurz');
+  if (kurzEl) kurzEl.readOnly = (zdroj === 'cnb');
+  const btn = document.getElementById('mena-cnb-btn');
+  if (btn) btn.style.opacity = (zdroj === 'cnb') ? '1' : '0.6';
+  if (zdroj === 'cnb') menaCnb(); // hned natáhni aktuální kurz ČNB
 };
 window.menaCnb = async function() {
   const kod = document.getElementById('mena-kod').value;
@@ -5994,6 +6009,7 @@ window.menaSave = async function() {
     kurz: parseFloat(document.getElementById('mena-kurz').value) || 1,
     zobrazeni: (document.querySelector('input[name="mena-zobr"]:checked') || {}).value || 'kc',
     dual_doklady: !!(document.getElementById('mena-dual') || {}).checked,
+    kurz_zdroj: (document.querySelector('input[name="mena-zdroj"]:checked') || {}).value || 'rucni',
   };
   try {
     const r = await api('admin_mena.php?action=save', { method: 'POST', body: JSON.stringify({ config: cfg }) });
@@ -24803,24 +24819,36 @@ async function renderSeasonalManage() {
     </div>
 
     <div class="card-block">
-      <h3 style="margin:0 0 4px">💰 Výchozí sezóny</h3>
-      <p style="font-size:12px;color:var(--text-3);margin:0 0 10px">Datum a název jsou fixní, ale můžeš nastavit sezónní slevu/přirážku. Kladné = sleva, záporné = přirážka.</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px">
+      <h3 style="margin:0 0 4px">📅 Výchozí sezóny</h3>
+      <p style="font-size:12px;color:var(--text-3);margin:0 0 10px">Můžeš upravit název, datum, barvu i sezónní slevu. „Upraveno" jde kdykoli vrátit na původní.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px">
         ${defaultSeasons.map(s => `
-          <div style="padding:10px 12px;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">
-            <strong style="font-size:13px">${esc(s.label)}</strong>
-            <div style="font-size:11px;color:var(--text-3);margin-top:2px">${esc(s.start_md)} → ${esc(s.end_md)}${s.active_today ? ' · 🟢 dnes' : ''}</div>
-            <div style="display:flex;gap:5px;align-items:center;margin-top:7px">
-              <input class="form-input" id="ds-sleva-${esc(s.key)}" type="number" step="0.5" min="-90" max="90" value="${+s.sleva_pct || 0}" style="width:72px;padding:5px 7px;font-size:12px" title="kladné = sleva, záporné = přirážka">
-              <span style="font-size:11px;color:var(--text-3)">% ceny</span>
-              <button class="btn-icon" onclick="saveDefaultSleva('${esc(s.key)}')" title="Uložit sezónní cenu" style="font-size:13px">💾</button>
+          <div style="padding:12px;border-radius:10px;background:${s.color}18;border:2px solid ${s.color}">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:6px">
+              <strong style="font-size:14px;flex:1;min-width:0">${esc(s.label)}</strong>
+              <div style="display:flex;gap:4px">
+                <button class="btn-icon" onclick='editCustomSeason(0, ${JSON.stringify(s).replace(/'/g, "&#39;")})' title="Upravit" style="font-size:12px">✏️</button>
+                ${s.has_override ? `<button class="btn-icon" onclick="resetDefaultSeason('${esc(s.key)}')" title="Vrátit na původní" style="font-size:12px">↩️</button>` : ''}
+              </div>
             </div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:4px">${esc(s.start_md)} → ${esc(s.end_md)} · ${s.count} výrobků${s.has_override ? ' · ✏️ upraveno' : ''}</div>
+            ${(+s.sleva_pct) ? `<div style="font-size:11px;font-weight:700;margin-top:4px;color:${(+s.sleva_pct) > 0 ? '#16A34A' : '#DC2626'}">${(+s.sleva_pct) > 0 ? '🏷️ −' + (+s.sleva_pct) + ' % sleva' : '➕ +' + Math.abs(+s.sleva_pct) + ' % přirážka'}</div>` : ''}
+            <div style="font-size:11px;font-weight:700;margin-top:5px;color:${s.active_today ? s.color : 'var(--text-3)'}">${s.active_today ? '🟢 DNES AKTIVNÍ' : '⏸️ mimo'}</div>
           </div>
         `).join('')}
       </div>
     </div>
   `;
 }
+
+window.resetDefaultSeason = async function(key) {
+  if (!(await confirmDialog({ title: 'Vrátit na původní?', msg: 'Smaže tvé úpravy této výchozí sezóny (název/datum/barva/sleva).', okText: 'Vrátit' }))) return;
+  try {
+    await api('admin_seasonal.php?action=reset_default', { method: 'POST', body: JSON.stringify({ key }) });
+    toastSuccess('Vráceno na původní');
+    renderSeasonalManage();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
 
 window.saveDefaultSleva = async function(key) {
   const el = document.getElementById('ds-sleva-' + key);
@@ -24832,22 +24860,26 @@ window.saveDefaultSleva = async function(key) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
-window.editCustomSeason = async function(id) {
+window.editCustomSeason = async function(id, preset) {
   let s = { id: 0, key: '', label: '', start_md: '06-01', end_md: '08-31', color: '#3B82F6', sleva_pct: 0 };
-  if (id) {
+  const isDefault = !!(preset && preset.is_default); // 🆕 v3.0.339 — editace výchozí sezóny (přes override)
+  if (preset) { s = Object.assign(s, preset); }
+  else if (id) {
     try {
       const d = await api('admin_seasonal.php');
       const found = (d.seasons || []).find(x => x.id === id);
       if (found) s = found;
     } catch (e) { return alert('Chyba: ' + e.message); }
   }
-  openModal(id ? '✏️ Upravit sezónu' : '+ Nová vlastní sezóna', `
+  const keyLocked = id || isDefault;
+  openModal(isDefault ? '✏️ Upravit výchozí sezónu' : (id ? '✏️ Upravit sezónu' : '+ Nová vlastní sezóna'), `
     <div class="form-grid form-grid-tight">
       <div class="full"><label class="form-label">Název *</label>
         <input class="form-input" id="cs-label" value="${esc(s.label)}" placeholder="např. 🌞 Letní speciály">
       </div>
       <div><label class="form-label">Klíč (slug) *</label>
-        <input class="form-input" id="cs-key" value="${esc(s.key)}" placeholder="leto" ${id ? 'readonly' : ''}>
+        <input class="form-input" id="cs-key" value="${esc(s.key)}" placeholder="leto" ${keyLocked ? 'readonly' : ''}>
+        ${isDefault ? '<div style="font-size:11px;color:var(--text-3);margin-top:2px">Výchozí sezóna — úpravy lze vrátit zpět (↩️).</div>' : ''}
       </div>
       <div><label class="form-label">🎨 Barva</label>
         <input type="color" class="form-input" id="cs-color" value="${esc(s.color)}" style="height:40px">
@@ -30028,6 +30060,12 @@ window.editKategorie = async function(id = null) {
   // 🆕 v3.0.334 — hlavní kategorie pro výběr nadřazené (jen 1 úroveň, ne sebe)
   const mainCats = list.filter(c => !c.parent_id && c.id != id);
   const maSubkategorie = (k.pocet_subkategorii || 0) > 0;
+  // 🆕 v3.0.339 — proklikávací výpis: subkategorie + výrobky v této kategorii
+  const subKat = id ? list.filter(c => c.parent_id == id) : [];
+  let produkty = [];
+  if (id && (k.pocet_vyrobku || 0) > 0) {
+    try { produkty = (await api('admin_kategorie.php?action=produkty&id=' + id)).produkty || []; } catch (e) {}
+  }
 
   // Doporučené ikony pro pekařskou kategorii
   // 🆕 v3.0.336 — roztříděná sada ikon pro kategorie (pekařství/cukrárna/lahůdky/restaurace)
@@ -30118,12 +30156,22 @@ window.editKategorie = async function(id = null) {
         </div>
       </div>
 
-      ${id && k.pocet_vyrobku > 0 ? `
+      ${id && (subKat.length || produkty.length) ? `
         <div class="full">
-          <div style="background:#FAEEDA;color:#854F0B;padding:10px 14px;border-radius:8px;font-size:13px">
-            ℹ️ V této kategorii je ${k.pocet_vyrobku} ${k.pocet_vyrobku === 1 ? 'výrobek' : (k.pocet_vyrobku < 5 ? 'výrobky' : 'výrobků')}.
-            Pro smazání kategorie je nejdříve přesuňte jinam.
-          </div>
+          ${subKat.length ? `
+            <div style="font-size:12px;color:var(--text-3);font-weight:700;margin:8px 0 4px">📂 Subkategorie (${subKat.length})</div>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+              ${subKat.map(s => `<button type="button" class="btn-secondary" style="display:flex;align-items:center;gap:8px;text-align:left;font-size:13px;padding:7px 10px;cursor:pointer" onclick="editKategorie(${s.id})">↳ ${esc(s.ikona || '📦')} <span>${esc(s.nazev)}</span><span style="color:var(--text-3);margin-left:auto;white-space:nowrap">${s.pocet_vyrobku || 0} ks · upravit →</span></button>`).join('')}
+            </div>` : ''}
+          ${produkty.length ? `
+            <div style="font-size:12px;color:var(--text-3);font-weight:700;margin:8px 0 4px">🥖 Výrobky v kategorii (${produkty.length})</div>
+            <div style="display:flex;flex-direction:column;gap:4px;max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:6px">
+              ${produkty.map(p => `<button type="button" class="btn-secondary" style="display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;font-size:13px;padding:7px 10px;cursor:pointer" onclick="closeModal();setTimeout(function(){editVyrobek(${p.id});},60)">
+                <span>${p.aktivni == 0 ? '🚫 ' : ''}${esc(p.nazev)}${p.cislo ? ` <span style="color:var(--text-3);font-size:11px">· ${esc(p.cislo)}</span>` : ''}</span>
+                <span style="color:var(--text-3);white-space:nowrap">${fmt(p.cena_bez_dph)} →</span>
+              </button>`).join('')}
+            </div>` : ''}
+          ${k.pocet_vyrobku > 0 ? `<p class="muted" style="font-size:11px;margin-top:8px">Pro smazání kategorie nejdřív přesuň výrobky jinam.</p>` : ''}
         </div>
       ` : ''}
     </div>
