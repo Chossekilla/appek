@@ -305,6 +305,9 @@ function apply_full_schema(PDO $pdo): void {
             'obsah'            => "ADD COLUMN obsah DECIMAL(10,3) DEFAULT NULL AFTER hmotnost_g",
             'obsah_jednotka'   => "ADD COLUMN obsah_jednotka VARCHAR(5) DEFAULT NULL AFTER obsah",
             'trvanlivost'      => "ADD COLUMN trvanlivost VARCHAR(50) DEFAULT NULL AFTER obsah_jednotka",
+            'rozmer_d'         => "ADD COLUMN rozmer_d DECIMAL(7,1) DEFAULT NULL", // 🆕 v3.0.340 — rozměry pro dopravu (cm)
+            'rozmer_s'         => "ADD COLUMN rozmer_s DECIMAL(7,1) DEFAULT NULL",
+            'rozmer_v'         => "ADD COLUMN rozmer_v DECIMAL(7,1) DEFAULT NULL",
             'nutricni_hodnoty' => "ADD COLUMN nutricni_hodnoty TEXT DEFAULT NULL",
             'vyrobni_cena'     => "ADD COLUMN vyrobni_cena DECIMAL(10,4) DEFAULT NULL",
             'kalkulace_data'   => "ADD COLUMN kalkulace_data TEXT DEFAULT NULL",

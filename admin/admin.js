@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.339';
+const APPEK_ADMIN_JS_VERSION = '3.0.340';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -13287,6 +13287,17 @@ window.editVyrobek = async function(id = null) {
       </div>
       <input type="hidden" id="vy-hm" value="${v.hmotnost_g || ''}">
 
+      <!-- 📦 Hmotnost & rozměry — pro výpočet dopravy / přepravce (v3.0.340) -->
+      <div class="full vy-section-box">
+        <div class="vy-section-title">📦 Hmotnost & rozměry <span style="color:var(--text-3);font-weight:400;font-size:11px">(pro dopravu / přepravce)</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
+          <div><label class="form-label">Hmotnost (g)</label><input class="form-input" id="vy-hmotnost" type="number" min="0" step="1" value="${v.hmotnost_g || ''}" placeholder="500"></div>
+          <div><label class="form-label">Délka (cm)</label><input class="form-input" id="vy-rozmer-d" type="number" min="0" step="0.1" value="${v.rozmer_d || ''}" placeholder="20"></div>
+          <div><label class="form-label">Šířka (cm)</label><input class="form-input" id="vy-rozmer-s" type="number" min="0" step="0.1" value="${v.rozmer_s || ''}" placeholder="10"></div>
+          <div><label class="form-label">Výška (cm)</label><input class="form-input" id="vy-rozmer-v" type="number" min="0" step="0.1" value="${v.rozmer_v || ''}" placeholder="8"></div>
+        </div>
+      </div>
+
       <!-- Řádek: Název | Kategorie | Jednotka | Min. obj. -->
       <div class="full vy-nazev-row">
         <div>
@@ -14092,7 +14103,10 @@ window.ulozitVyrobek = async function(id) {
     jednotka_id: parseInt(document.getElementById('vy-jed').value),
     cena_bez_dph: parseFloat(document.getElementById('vy-cena').value),
     sazba_dph_id: parseInt(document.getElementById('vy-dph').value),
-    hmotnost_g: parseInt(document.getElementById('vy-hm').value) || null,
+    hmotnost_g: parseInt((document.getElementById('vy-hmotnost') || {}).value) || parseInt(document.getElementById('vy-hm').value) || null,
+    rozmer_d: parseFloat((document.getElementById('vy-rozmer-d') || {}).value) || null,
+    rozmer_s: parseFloat((document.getElementById('vy-rozmer-s') || {}).value) || null,
+    rozmer_v: parseFloat((document.getElementById('vy-rozmer-v') || {}).value) || null,
     obsah: parseFloat(document.getElementById('vy-obsah')?.value) || null,
     obsah_jednotka: document.getElementById('vy-obsah-jed')?.value || null,
     nutricni_hodnoty: (() => {
@@ -15029,7 +15043,7 @@ async function renderNastaveni() {
     { key: 'notifikace', label: '📧 Notifikace',        popis: 'E-maily a uzávěrka úprav objednávek' },
     // 🆕 v3.0.271 — Kanály sloučeny pod Platby (souvisí: jak platí × odkud přišla objednávka).
     { key: 'platby',     label: '💳 Platby & kanály',   popis: 'Platební metody (jak zákazník zaplatí) + prodejní kanály (odkud objednávka přišla).' },
-    { key: 'integrace',  label: '🔌 Integrace',         popis: 'Stripe + GoPay (platby), POHODA + FlexiBee (účetní), Zásilkovna + DPD (doprava).', adminOnly: true },
+    // 🆕 v3.0.340 — Integrace přesunuty do Nástroje (karta → state._nastaveniTab='integrace'); blok zůstává renderovatelný.
     { key: 'pristupy',   label: '👥 Přístupy & ceny',   popis: 'Uživatelé a slevové skupiny', adminOnly: true },
     { key: 'balicky',    label: '🎁 Balíčky',           popis: 'Aktivace doplňkových modulů (Cukrárna, Lahůdky, …)', adminOnly: true },
     { key: 'udrzba',     label: '🛠️ Údržba',            popis: 'Bezpečnost, zálohy DB, diagnostika' },
@@ -15038,7 +15052,7 @@ async function renderNastaveni() {
   // 🐛 fix v2.9.182 — pokud user měl uložený state._nastaveniTab='vyroba' (smazaný
   // tab od v2.9.181), fallback do 'firma'. Bez explicitního checku by se zobrazila
   // prázdná Nastavení stránka (aktivniBlok = undefined → text "undefined").
-  const validTabKeys = TABS.map(t => t.key);
+  const validTabKeys = [...TABS.map(t => t.key), 'integrace']; // integrace = skrytý tab, otevírá se z Nástrojů
   let aktTab = state._nastaveniTab || 'firma';
   // 🆕 v3.0.29 — Migrace starých stavů: tiskarny → standalone, ucetni → integrace
   if (aktTab === 'tiskarny') {
@@ -30379,6 +30393,13 @@ async function renderNastroje() {
         <div class="nastroje-card-desc">Naimportuj produkty z CSV (Shoptet, WooCommerce, Excel). Mapování sloupců + aktualizace existujících.</div>
         <div class="nastroje-card-cta">Importovat →</div>
       </button>
+
+      ${adminOnly(`<button class="nastroje-card" onclick="state._nastaveniTab='integrace';navigate('nastaveni')" aria-label="Integrace a platby">
+        <div class="nastroje-card-icon">🔌</div>
+        <div class="nastroje-card-title">Integrace</div>
+        <div class="nastroje-card-desc">Platby (Stripe, GoPay, PayPal), přepravci (Zásilkovna, DPD, PPL, ČP) a účetní (POHODA, FlexiBee).</div>
+        <div class="nastroje-card-cta">Otevřít →</div>
+      </button>`)}
 
       <button class="nastroje-card" onclick="navigate('katalog')" aria-label="Otevřít PDF nabídku">
         <div class="nastroje-card-icon">📑</div>
