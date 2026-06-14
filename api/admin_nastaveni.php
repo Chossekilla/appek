@@ -362,6 +362,8 @@ if ($method === 'PUT') {
         'uzaverka_hodina', 'uzaverka_dni_predem',
         // 🆕 v3.0.317 — sazba DPH příplatků doprava/poplatek (default 21; pro neplátce/jiné sazby)
         'dph_sazba_priplatky',
+        // 🆕 v3.0.326 — skener čárových kódů (JSON: enabled/hw_enabled/hw_prefix/hw_suffix/hw_min_len/camera_enabled/default_action/beep)
+        'scanner_config',
         // Notifikace pro odběratele
         'notif_nova_objednavka', 'notif_zmena_stavu', 'notif_stavy_pro_email',
         // Fixní náklady pro kalkulaci výrobků

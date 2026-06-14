@@ -309,6 +309,7 @@ function apply_full_schema(PDO $pdo): void {
         ],
         // suroviny (admin_suroviny.php auto-migrace)
         'suroviny' => [
+            'ean'              => "ADD COLUMN ean VARCHAR(13) DEFAULT NULL", // 🆕 v3.0.326 skener
             'cena_baleni'      => "ADD COLUMN cena_baleni DECIMAL(10,2) DEFAULT NULL",
             'obsah_baleni'     => "ADD COLUMN obsah_baleni DECIMAL(10,3) DEFAULT NULL",
             'slozeni'          => "ADD COLUMN slozeni TEXT DEFAULT NULL",
