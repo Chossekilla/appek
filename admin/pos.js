@@ -1694,13 +1694,7 @@
       if (!w) return toast('Povolte popup okna pro tisk', 'error');
       toast('📤 Účet odeslán na tisk', 'success');
     };
-    document.getElementById('pos-tbl-qr').onclick = async () => {
-      // Vygeneruj QR pay token pro otevřený účet (POST create_token na pay_qr.php)
-      // Note: pay_qr endpoint očekává `objednavka_id` z `objednavky` tabulky.
-      // Pro POS účet (restaurant_pos_ucty) musí být nejdřív uzavřený → vytvořená objednávka.
-      // Zatím jen info + tlačítko otevři v adminu
-      toast('💡 QR platba: nejdřív uzavři účet ("Zaplatit") → pak v účtence klik "📲 QR platba"', 'info');
-    };
+    document.getElementById('pos-tbl-qr').onclick = () => posQrPayStart(ucetId);
     document.getElementById('pos-tbl-reopen').onclick = () => {
       if (!confirm('Znovu otevřít zavřený účet? (pouze pro opravy)')) return;
       posTableReopen(ucetId);
@@ -1740,6 +1734,74 @@
       toast('Chyba: ' + e.message, 'error');
     }
   };
+
+  // 🆕 v3.0.325 — QR platba u stolu: token pro OTEVŘENÝ účet → QR modal → poll → po zaplacení zavři+tiskni.
+  async function posQrPayStart(ucetId) {
+    try {
+      const r = await api('admin_pos.php?action=qr_pay_init', { method: 'POST', body: JSON.stringify({ ucet_id: ucetId }) });
+      if (!r || !r.pay_url) { toast('QR se nepodařilo vytvořit', 'error'); return; }
+      posQrPayModal(ucetId, r.pay_url, r.castka, r.token);
+    } catch (e) { toast('Chyba QR: ' + (e.message || e), 'error'); }
+  }
+  function posQrEnsureLib() {
+    if (window.qrcode) return Promise.resolve(true);
+    return new Promise(res => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+      s.onload = () => res(true); s.onerror = () => res(false);
+      document.head.appendChild(s);
+    });
+  }
+  function posQrPayModal(ucetId, payUrl, castka, token) {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML =
+      '<div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:22px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.3)">' +
+        '<div style="font-size:18px;font-weight:700;margin-bottom:2px">📲 QR platba u stolu</div>' +
+        '<div style="font-size:26px;font-weight:800;color:#854F0B;margin:6px 0 12px">' + (Number(castka) || 0).toLocaleString('cs-CZ') + ' Kč</div>' +
+        '<div id="posqr-code" style="width:220px;height:220px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center"></div>' +
+        '<div style="font-size:13px;color:#555">Host naskenuje QR telefonem a zaplatí.</div>' +
+        '<div id="posqr-status" style="margin:12px 0;font-weight:600;color:#BA7517">⏳ Čekám na platbu…</div>' +
+        '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">' +
+          '<button id="posqr-cash" style="padding:10px 14px;border-radius:10px;border:1px solid #ccc;background:#fff;cursor:pointer">💵 Platí hotově</button>' +
+          '<button id="posqr-close" style="padding:10px 14px;border-radius:10px;border:none;background:#eee;cursor:pointer">Zavřít</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    let timer = null, done = false;
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const closeOv = () => { stop(); ov.remove(); };
+    ov.querySelector('#posqr-close').onclick = closeOv;
+    ov.querySelector('#posqr-cash').onclick = () => { closeOv(); if (typeof posTableCloseUcet === 'function') posTableCloseUcet(ucetId, 'hotove'); };
+    posQrEnsureLib().then(okLib => {
+      const box = ov.querySelector('#posqr-code'); if (!box) return;
+      if (okLib && window.qrcode) {
+        try {
+          const qr = qrcode(0, 'M'); qr.addData(payUrl); qr.make();
+          box.innerHTML = qr.createSvgTag({ scalable: true, margin: 0 });
+          const svg = box.querySelector('svg'); if (svg) { svg.style.width = '220px'; svg.style.height = '220px'; }
+        } catch (e) { box.innerHTML = '<a href="' + payUrl + '" target="_blank" style="word-break:break-all;font-size:12px">' + payUrl + '</a>'; }
+      } else {
+        box.innerHTML = '<a href="' + payUrl + '" target="_blank" style="word-break:break-all;font-size:12px">' + payUrl + '</a>';
+      }
+    });
+    timer = setInterval(async () => {
+      try {
+        const r = await fetch('../api/pay_qr.php?action=status&t=' + encodeURIComponent(token)).then(x => x.json());
+        if (r && r.pay_status === 'paid' && !done) {
+          done = true; stop();
+          const st = ov.querySelector('#posqr-status'); if (st) { st.innerHTML = '✅ Zaplaceno!'; st.style.color = '#2e7d32'; }
+          setTimeout(() => {
+            closeOv();
+            try { window.open('../api/admin_pos_print.php?ucet_id=' + ucetId + '&typ=ucet&autoprint=1', 'appek_ucet_print', 'width=380,height=640,toolbar=no'); } catch (e) {}
+            const panel = document.getElementById('pos-tab-content');
+            if (panel && typeof renderTablesTab === 'function') renderTablesTab(panel);
+            toast('✅ Účet zaplacen online', 'success');
+          }, 1200);
+        }
+      } catch (e) {}
+    }, 2500);
+  }
 
   async function refreshTableModal(ucetId) {
     try {

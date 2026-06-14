@@ -364,6 +364,18 @@ function pos_deduct_ingredients(PDO $pdo, array $items, string $label, string $k
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
+// 🆕 v3.0.325 — self-heal QR plateb u stolu: účet zaplacený ONLINE (pay_status='paid', ale
+//   ještě nefinalizovaný) se doúčtuje při načtení POS — odpis surovin / prodejní záznam /
+//   uvolnění stolu. Pokrývá i případ, kdy u toho číšník zrovna nekoukal. Idempotentní (no-op
+//   když nic nečeká). Jen na čtecích akcích (floorplan/účty), ať nezdržuje hot-path.
+if ($method === 'GET' && in_array($action, ['', 'ucet', 'open_ucty', 'kds', 'launcher_summary'], true)) {
+    try {
+        pos_ucet_ensure_pay_schema($pdo);
+        $qrPaid = $pdo->query("SELECT id FROM restaurant_pos_ucty WHERE pay_status='paid' AND stav IN ('open','awaiting_payment')")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($qrPaid as $uid) { try { pos_finalize_ucet_payment($pdo, (int) $uid, 'online'); } catch (Throwable $e) {} }
+    } catch (Throwable $e) {}
+}
+
 // =============================================================
 // ENDPOINTS
 // =============================================================
@@ -651,6 +663,30 @@ if ($method === 'POST' && $action === 'pay') {
         if ($pdo->inTransaction()) $pdo->rollBack();
         json_error_safe('Platba selhala', $e, 500);
     }
+}
+
+// 🆕 v3.0.325 POST ?action=qr_pay_init { ucet_id } — vygeneruj QR pay token pro OTEVŘENÝ účet.
+//   Host pak naskenuje QR → /pay/?t=TOKEN → zaplatí → účet se sám finalizuje (pos_finalize_ucet_payment).
+//   Účet → 'awaiting_payment' (zůstane viditelný, číšník může zrušit/doúčtovat).
+if ($method === 'POST' && $action === 'qr_pay_init') {
+    $d = json_input();
+    $ucetId = (int) ($d['ucet_id'] ?? 0);
+    if (!$ucetId) json_error('Chybí ucet_id', 400);
+    pos_ucet_ensure_pay_schema($pdo);
+    $u = $pdo->prepare("SELECT stav, suma_kc, pay_token, pay_status FROM restaurant_pos_ucty WHERE id = :id");
+    $u->execute(['id' => $ucetId]);
+    $row = $u->fetch(PDO::FETCH_ASSOC);
+    if (!$row) json_error('Účet neexistuje', 404);
+    if ($row['stav'] === 'paid' || $row['pay_status'] === 'paid') json_error('Účet je již zaplacený', 409);
+    if ((float) $row['suma_kc'] <= 0) json_error('Účet je prázdný (0 Kč) — přidej položky', 400);
+    $token = $row['pay_token'] ?: bin2hex(random_bytes(16));
+    // Necháváme stav='open' (účet zůstane plně viditelný na floorplanu + číšník ho může kdykoli
+    // i hotově zavřít). QR-pending sleduje jen pay_status; self-heal finalizuje po online platbě.
+    $pdo->prepare("UPDATE restaurant_pos_ucty SET pay_token=:t, pay_status='pending' WHERE id=:id")
+        ->execute(['t' => $token, 'id' => $ucetId]);
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $base   = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    json_response(['ok' => true, 'token' => $token, 'pay_url' => $base . '/pay/?t=' . $token, 'castka' => (float) $row['suma_kc']]);
 }
 
 // ✂️ POST ?action=split → rozděl účet na N pod-účtů
@@ -1640,6 +1676,73 @@ function pos_backfill_sales(PDO $pdo, string $date): void {
         $ids->execute(['d' => $date . ' 00:00:00', 'dn' => $dn . ' 00:00:00']);
         foreach ($ids->fetchAll(PDO::FETCH_COLUMN) as $uid) pos_ucet_create_sale($pdo, (int) $uid);
     } catch (Throwable $e) {}
+}
+
+// 🆕 v3.0.325 — QR platba u stolu: pay_token/pay_status na účtu (idempotentní ensure).
+function pos_ucet_ensure_pay_schema(PDO $pdo): void {
+    static $done = false;
+    if ($done) return;
+    try {
+        $cols = $pdo->query("SHOW COLUMNS FROM restaurant_pos_ucty")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('pay_token', $cols, true)) {
+            $pdo->exec("ALTER TABLE restaurant_pos_ucty ADD COLUMN pay_token VARCHAR(48) NULL");
+            try { $pdo->exec("ALTER TABLE restaurant_pos_ucty ADD UNIQUE KEY uq_pos_pay_token (pay_token)"); } catch (Throwable $e) {}
+        }
+        if (!in_array('pay_status', $cols, true)) {
+            $pdo->exec("ALTER TABLE restaurant_pos_ucty ADD COLUMN pay_status ENUM('none','pending','paid') NOT NULL DEFAULT 'none'");
+        }
+    } catch (Throwable $e) {}
+    $done = true;
+}
+
+// 🆕 v3.0.325 — finalizace POS účtu po ONLINE platbě (QR u stolu). Mirror ?action=pay, ale pro
+//   jednu online platbu na celou částku. IDEMPOTENTNÍ: už-paid účet → no-op (vrátí doklad).
+//   Záměrně samostatné od ?action=pay → nulové riziko na ruční (split) platbě.
+function pos_finalize_ucet_payment(PDO $pdo, int $ucetId, string $zpusob = 'online'): array {
+    pos_ucet_ensure_pay_schema($pdo);
+    $zMap = ['qr'=>'qr','online'=>'online','karta'=>'karta','card'=>'karta','gopay'=>'online','stripe'=>'karta'];
+    $z = $zMap[strtolower($zpusob)] ?? 'online';
+    $pdo->beginTransaction();
+    try {
+        $lock = $pdo->prepare("SELECT stav, suma_kc, cislo_dokladu FROM restaurant_pos_ucty WHERE id = :id FOR UPDATE");
+        $lock->execute(['id' => $ucetId]);
+        $row = $lock->fetch(PDO::FETCH_ASSOC);
+        if (!$row) { $pdo->rollBack(); return ['ok' => false, 'error' => 'ucet_not_found']; }
+        if ($row['stav'] === 'paid') { $pdo->commit(); return ['ok' => true, 'doklad' => $row['cislo_dokladu'], 'already' => true]; }
+        if (!in_array($row['stav'], ['open','awaiting_payment'], true)) { $pdo->rollBack(); return ['ok' => false, 'error' => 'ucet_closed_' . $row['stav']]; }
+        $sumPaid = round((float) $row['suma_kc'], 2);
+        $cislo   = pos_next_doklad($pdo);
+        $pdo->prepare("INSERT INTO restaurant_pos_platby (ucet_id, castka, zpusob, doklad_cislo, poznamka)
+                       VALUES (:u, :c, :z, :d, 'QR platba u stolu')")
+            ->execute(['u' => $ucetId, 'c' => $sumPaid, 'z' => $z, 'd' => $cislo]);
+        $pdo->prepare("UPDATE restaurant_pos_ucty SET stav='paid', zaplaceno_v=NOW(), suma_zaplaceno=:s,
+                       cislo_dokladu=:d, pay_status='paid' WHERE id=:id")
+            ->execute(['s' => $sumPaid, 'd' => $cislo, 'id' => $ucetId]);
+        $pdo->prepare("UPDATE restaurant_pos_polozky SET stav='servirovano'
+                       WHERE ucet_id=:u AND stav IN ('objednano','vari_se','hotovo')")->execute(['u' => $ucetId]);
+        $stulId = (int) $pdo->query("SELECT stul_id FROM restaurant_pos_ucty WHERE id=" . (int)$ucetId)->fetchColumn();
+        if ($stulId) {
+            $oc = $pdo->prepare("SELECT COUNT(*) FROM restaurant_pos_ucty WHERE stul_id=:s AND stav='open'");
+            $oc->execute(['s' => $stulId]);
+            if ((int) $oc->fetchColumn() === 0) {
+                $pdo->prepare("UPDATE restaurant_tables SET stav='free', stav_od=NULL, hostu_aktual=0, obsluhuje=NULL WHERE id=:id")
+                    ->execute(['id' => $stulId]);
+            }
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+    // Post-commit (ne-fatal): odpis surovin + prodejní záznam (objednávka puvod='pos')
+    try {
+        $pol = $pdo->prepare("SELECT vyrobek_id, mnozstvi FROM restaurant_pos_polozky WHERE ucet_id=:u AND stav!='storno' AND vyrobek_id IS NOT NULL");
+        $pol->execute(['u' => $ucetId]);
+        $sold = $pol->fetchAll(PDO::FETCH_ASSOC);
+        if ($sold) pos_deduct_ingredients($pdo, $sold, 'QR účet #' . $ucetId, 'QR platba');
+    } catch (Throwable $e) {}
+    try { pos_ucet_create_sale($pdo, $ucetId); } catch (Throwable $e) {}
+    return ['ok' => true, 'doklad' => $cislo, 'sum_paid' => $sumPaid];
 }
 
 function pos_uzaverka_data(PDO $pdo, string $date): array {
