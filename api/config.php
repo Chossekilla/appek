@@ -55,7 +55,7 @@ if (!defined('APP_URL')) {
     define('APP_URL', $__host ? ($__sch . '://' . $__host) : '');
 }
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.333'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.334'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -773,13 +773,23 @@ function cenik_pro_odberatele(PDO $pdo, int $odberatel_id): array {
         }
     }
 
+    // 🆕 v3.0.334 — mapa subkategorie → hlavní kategorie (kaskáda slev: sub zdědí pravidlo hlavní)
+    $katParent = [];
+    try {
+        foreach ($pdo->query("SELECT id, parent_id FROM kategorie_vyrobku WHERE parent_id IS NOT NULL") as $kr) {
+            $katParent[(int) $kr['id']] = (int) $kr['parent_id'];
+        }
+    } catch (Throwable $e) {}
+
     // Aplikuj na každý výrobek
-    // Priorita: per-vyrobek > per-kategorie > sortiment rule > globalni_sleva_pct na ceníku > základní cena
+    // Priorita: per-vyrobek > per-kategorie > parent-kategorie (kaskáda) > sortiment rule > globalni_sleva_pct > základní cena
     foreach ($vyrobky as &$v) {
         $vid    = (int) $v['id'];
         $katid  = (int) $v['kategorie_id'];
         $base   = (float) $v['cena_zakladni'];
-        $rule   = $idx_vyrobek[$vid] ?? $idx_kategorie[$katid] ?? $idx_sortiment ?? null;
+        $rule   = $idx_vyrobek[$vid] ?? $idx_kategorie[$katid]
+                  ?? (isset($katParent[$katid]) ? ($idx_kategorie[$katParent[$katid]] ?? null) : null)
+                  ?? $idx_sortiment ?? null;
 
         if ($rule) {
             if ($rule['pevna_cena'] !== null) {

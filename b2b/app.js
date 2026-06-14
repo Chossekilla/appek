@@ -952,7 +952,10 @@ function renderCatalog() {
   if (state.filterKategorie === 'oblibene') {
     vyrobky = vyrobky.filter((v) => state.oblibene.has(parseInt(v.id)));
   } else if (state.filterKategorie) {
-    vyrobky = vyrobky.filter((v) => v.kategorie_id == state.filterKategorie);
+    // 🆕 v3.0.334 — hlavní kategorie zahrne i své subkategorie; sub zobrazí jen sebe
+    const fk = state.filterKategorie;
+    const subIds = (state.kategorie || []).filter(k => k.parent_id == fk).map(k => parseInt(k.id));
+    vyrobky = vyrobky.filter((v) => v.kategorie_id == fk || subIds.includes(parseInt(v.kategorie_id)));
   }
 
   // Filter: search query (case-insensitive, název + kategorie + obsah)
@@ -1075,15 +1078,33 @@ function renderCatalog() {
             Oblíbené (${state.oblibene.size})
           </button>
         ` : ''}
-        ${state.kategorie.map((k) => `
-          <button class="cat ${state.filterKategorie == k.id ? 'active' : ''}" onclick="setKategorie(${k.id})">
-            ${k.obrazek_url
-              ? `<img class="cat-img" src="${esc(k.obrazek_url)}" alt="">`
-              : `<span class="cat-icon">${k.ikona}</span>`}
-            ${esc(k.nazev)}
-          </button>
-        `).join('')}
+        ${(() => {
+          // 🆕 v3.0.334 — v hlavní liště jen hlavní kategorie; aktivní i když je vybraná její subkategorie
+          const cats = state.kategorie || [];
+          const f = cats.find(c => c.id == state.filterKategorie);
+          const activeMainId = f ? (f.parent_id || f.id) : null;
+          return cats.filter(k => !k.parent_id).map((k) => `
+            <button class="cat ${activeMainId == k.id ? 'active' : ''}" onclick="setKategorie(${k.id})">
+              ${k.obrazek_url
+                ? `<img class="cat-img" src="${esc(k.obrazek_url)}" alt="">`
+                : `<span class="cat-icon">${k.ikona}</span>`}
+              ${esc(k.nazev)}
+            </button>`).join('');
+        })()}
       </div>
+      ${(() => {
+        // 🆕 v3.0.334 — řádek subkategorií pod aktivní hlavní kategorií
+        const cats = state.kategorie || [];
+        const f = cats.find(c => c.id == state.filterKategorie);
+        if (!f) return '';
+        const mainId = f.parent_id || f.id;
+        const subs = cats.filter(k => k.parent_id == mainId);
+        if (!subs.length) return '';
+        return `<div class="subcategories" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          <button class="cat ${state.filterKategorie == mainId ? 'active' : ''}" onclick="setKategorie(${mainId})" style="font-size:13px;padding:6px 12px">Vše</button>
+          ${subs.map(s => `<button class="cat ${state.filterKategorie == s.id ? 'active' : ''}" onclick="setKategorie(${s.id})" style="font-size:13px;padding:6px 12px">${s.ikona ? esc(s.ikona) + ' ' : ''}${esc(s.nazev)}</button>`).join('')}
+        </div>`;
+      })()}
     </div>
 
     ${vyrobky.length === 0 ? `
@@ -1114,7 +1135,7 @@ function renderCatalogGrid(vyrobky) {
     return `<div class="catalog-grid"${colsAttr}>${vyrobky.map(renderCard).join('')}</div>`;
   }
 
-  // Bez filtru → grupovat podle kategorie, s hezkými oddělovači
+  // Bez filtru → grupovat: hlavní kategorie → přímé produkty → subkategorie (v3.0.334)
   const skupiny = new Map();
   vyrobky.forEach(v => {
     const kid = parseInt(v.kategorie_id || 0);
@@ -1122,32 +1143,56 @@ function renderCatalogGrid(vyrobky) {
     skupiny.get(kid).push(v);
   });
 
-  // Pořadí kategorií podle state.kategorie (zachová admin-defined řazení)
-  const kategorieOrder = (state.kategorie || []).map(k => parseInt(k.id));
-  // Doplň "Bez kategorie" (id 0) pokud existuje
-  if (skupiny.has(0) && !kategorieOrder.includes(0)) kategorieOrder.push(0);
+  const cats = state.kategorie || [];
+  const mains = cats.filter(k => !k.parent_id);
+  const gridHtml = (items) => `<div class="catalog-grid"${colsAttr}>${items.map(renderCard).join('')}</div>`;
+  const rendered = new Set();
+  let html = '';
 
-  return kategorieOrder
-    .filter(kid => skupiny.has(kid) && skupiny.get(kid).length > 0)
-    .map(kid => {
-      const items = skupiny.get(kid);
-      const kat = (state.kategorie || []).find(k => parseInt(k.id) === kid);
-      const ikona = kat?.ikona || (kid === 0 ? '📦' : '🥖');
-      const nazev = kat?.nazev || (kid === 0 ? 'Bez kategorie' : 'Kategorie');
-      const accent = (kid * 47) % 360;
-      return `
-        <section class="catalog-section" style="--sec-hue:${accent}">
-          <h2 class="catalog-section-head">
-            <span class="catalog-section-icon">${esc(ikona)}</span>
-            <span class="catalog-section-name">${esc(nazev)}</span>
-            <span class="catalog-section-count">${items.length}</span>
-          </h2>
-          <div class="catalog-grid"${colsAttr}>
-            ${items.map(renderCard).join('')}
-          </div>
-        </section>
-      `;
-    }).join('');
+  mains.forEach(m => {
+    const mid = parseInt(m.id);
+    const direct = skupiny.get(mid) || [];
+    const subs = cats.filter(k => parseInt(k.parent_id) === mid);
+    const subItems = subs.map(s => ({ s, items: skupiny.get(parseInt(s.id)) || [] })).filter(x => x.items.length);
+    const total = direct.length + subItems.reduce((a, x) => a + x.items.length, 0);
+    if (total === 0) return;
+    rendered.add(mid); subItems.forEach(x => rendered.add(parseInt(x.s.id)));
+    html += `
+      <section class="catalog-section" style="--sec-hue:${(mid * 47) % 360}">
+        <h2 class="catalog-section-head">
+          <span class="catalog-section-icon">${esc(m.ikona || '🥖')}</span>
+          <span class="catalog-section-name">${esc(m.nazev)}</span>
+          <span class="catalog-section-count">${total}</span>
+        </h2>
+        ${direct.length ? gridHtml(direct) : ''}
+        ${subItems.map(x => `
+          <h3 class="catalog-subsection-head" style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;font-size:15px;font-weight:700;opacity:.85">
+            <span>${x.s.ikona ? esc(x.s.ikona) + ' ' : '↳ '}${esc(x.s.nazev)}</span>
+            <span class="catalog-section-count">${x.items.length}</span>
+          </h3>
+          ${gridHtml(x.items)}
+        `).join('')}
+      </section>`;
+  });
+
+  // Bez kategorie (id 0) + osiřelé skupiny (kategorie chybí / neaktivní rodič) — plochý fallback
+  [...skupiny.keys()].filter(kid => !rendered.has(kid) && skupiny.get(kid).length).forEach(kid => {
+    const items = skupiny.get(kid);
+    const kat = cats.find(k => parseInt(k.id) === kid);
+    const ikona = kat?.ikona || (kid === 0 ? '📦' : '🥖');
+    const nazev = kat?.nazev || (kid === 0 ? 'Bez kategorie' : 'Ostatní');
+    html += `
+      <section class="catalog-section" style="--sec-hue:${(kid * 47) % 360}">
+        <h2 class="catalog-section-head">
+          <span class="catalog-section-icon">${esc(ikona)}</span>
+          <span class="catalog-section-name">${esc(nazev)}</span>
+          <span class="catalog-section-count">${items.length}</span>
+        </h2>
+        ${gridHtml(items)}
+      </section>`;
+  });
+
+  return html;
 }
 
 // Search input handler (debounced)

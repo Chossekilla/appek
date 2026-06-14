@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.333';
+const APPEK_ADMIN_JS_VERSION = '3.0.334';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -13268,7 +13268,17 @@ window.editVyrobek = async function(id = null) {
           <label class="form-label">Kategorie</label>
           <select class="form-select" id="vy-kat">
             <option value="">—</option>
-            ${data.kategorie.map((k) => `<option value="${k.id}" ${v.kategorie_id == k.id ? 'selected' : ''}>${esc(k.ikona)} ${esc(k.nazev)}</option>`).join('')}
+            ${(() => {
+              const cats = data.kategorie || [];
+              const subs = {};
+              cats.filter(c => c.parent_id).forEach(c => { (subs[c.parent_id] = subs[c.parent_id] || []).push(c); });
+              const opt = (k, sub) => `<option value="${k.id}" ${v.kategorie_id == k.id ? 'selected' : ''}>${sub ? '&nbsp;&nbsp;↳ ' : (esc(k.ikona || '🥖') + ' ')}${esc(k.nazev)}</option>`;
+              let html = '';
+              cats.filter(c => !c.parent_id).forEach(m => { html += opt(m, false); (subs[m.id] || []).forEach(s => { html += opt(s, true); }); });
+              // osiřelé subkategorie (rodič smazán) — plochý fallback
+              cats.filter(c => c.parent_id && !cats.find(m => m.id == c.parent_id)).forEach(s => { html += opt(s, false); });
+              return html;
+            })()}
           </select>
         </div>
         <div>
@@ -29890,14 +29900,17 @@ async function renderKategorie() {
           </thead>
           <tbody>
             ${list.map(k => `
-              <tr>
+              <tr ${k.parent_id ? 'style="background:var(--surface-2)"' : ''}>
                 <td class="num">${k.poradi}</td>
                 <td>
                   ${k.obrazek_url
                     ? `<img src="${esc(k.obrazek_url)}" style="width:36px;height:36px;border-radius:6px;object-fit:cover;display:block">`
                     : `<span style="font-size:24px">${esc(k.ikona || '🥖')}</span>`}
                 </td>
-                <td><strong>${esc(k.nazev)}</strong></td>
+                <td style="${k.parent_id ? 'padding-left:30px' : ''}">
+                  ${k.parent_id ? '<span style="color:var(--text-3)">↳ </span>' : ''}<strong>${esc(k.nazev)}</strong>
+                  ${k.pocet_subkategorii > 0 ? `<span class="muted" style="font-size:11px;margin-left:6px">(${k.pocet_subkategorii} subkat.)</span>` : ''}
+                </td>
                 <td class="num">${k.pocet_vyrobku}</td>
                 <td>
                   ${k.aktivni == 1
@@ -29930,8 +29943,8 @@ async function renderKategorie() {
             ${k.aktivni != 1 ? '<span class="kategorie-card-skryt">Skrytá</span>' : ''}
           </div>
           <div class="kategorie-card-body">
-            <div class="kategorie-card-nazev">${esc(k.nazev)}</div>
-            <div class="kategorie-card-pocet">${k.pocet_vyrobku} ${k.pocet_vyrobku === 1 ? 'výrobek' : (k.pocet_vyrobku < 5 ? 'výrobky' : 'výrobků')}</div>
+            <div class="kategorie-card-nazev">${k.parent_id ? '↳ ' : ''}${esc(k.nazev)}</div>
+            <div class="kategorie-card-pocet">${k.pocet_vyrobku} ${k.pocet_vyrobku === 1 ? 'výrobek' : (k.pocet_vyrobku < 5 ? 'výrobky' : 'výrobků')}${k.pocet_subkategorii > 0 ? ` · ${k.pocet_subkategorii} subkat.` : ''}</div>
           </div>
         </div>
       `).join('')}
@@ -29940,11 +29953,14 @@ async function renderKategorie() {
 }
 
 window.editKategorie = async function(id = null) {
-  let k = { nazev: '', ikona: '🥖', obrazek_url: null, poradi: 999, aktivni: 1, pocet_vyrobku: 0 };
-  if (id) {
-    const list = await api('admin_kategorie.php');
-    k = list.find(x => x.id == id) || k;
-  }
+  let k = { nazev: '', ikona: '🥖', obrazek_url: null, poradi: 999, aktivni: 1, pocet_vyrobku: 0, parent_id: null, pocet_subkategorii: 0 };
+  let list = [];
+  try { list = await api('admin_kategorie.php'); } catch (e) {}
+  if (!Array.isArray(list)) list = [];
+  if (id) { k = list.find(x => x.id == id) || k; }
+  // 🆕 v3.0.334 — hlavní kategorie pro výběr nadřazené (jen 1 úroveň, ne sebe)
+  const mainCats = list.filter(c => !c.parent_id && c.id != id);
+  const maSubkategorie = (k.pocet_subkategorii || 0) > 0;
 
   // Doporučené ikony pro pekařskou kategorii
   const ikonyDoporucene = ['🥖', '🍞', '🥐', '🥨', '🧁', '🍰', '🥧', '🎃', '🥪', '🥯', '🌰', '🍪'];
@@ -29955,6 +29971,17 @@ window.editKategorie = async function(id = null) {
       <div class="full">
         <label class="form-label">Název *</label>
         <input class="form-input" id="kat-nazev" value="${esc(k.nazev)}" required>
+      </div>
+
+      <div class="full">
+        <label class="form-label">Nadřazená kategorie</label>
+        <select class="form-input" id="kat-parent" ${maSubkategorie ? 'disabled' : ''}>
+          <option value="">— Žádná (hlavní kategorie) —</option>
+          ${mainCats.map(c => `<option value="${c.id}" ${k.parent_id == c.id ? 'selected' : ''}>${esc(c.ikona || '🥖')} ${esc(c.nazev)}</option>`).join('')}
+        </select>
+        <p class="muted" style="font-size:12px;margin-top:4px">${maSubkategorie
+          ? '🔒 Tato kategorie má vlastní subkategorie, takže nemůže být subkategorií (max 1 úroveň).'
+          : 'Vyber hlavní kategorii → tahle se stane subkategorií (např. Mléčné výrobky → Máslo).'}</p>
       </div>
 
       <div class="full">
@@ -30094,6 +30121,7 @@ window.ulozitKategorii = async function(id) {
     obrazek_url: obrazek_url || null,
     poradi:  parseInt(document.getElementById('kat-poradi').value) || 999,
     aktivni: document.getElementById('kat-aktivni').checked ? 1 : 0,
+    parent_id: parseInt(document.getElementById('kat-parent')?.value) || null,
   };
   if (!data.nazev) return alert('Vyplňte název kategorie');
 

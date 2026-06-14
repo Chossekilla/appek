@@ -15,6 +15,23 @@ cors_headers();
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+// 🆕 v3.0.334 — validace nadřazené kategorie (subkategorie = max 1 úroveň, hybrid model).
+function kat_validate_parent(PDO $pdo, ?int $parentId, int $selfId = 0): ?int {
+    if (!$parentId) return null;
+    if ($parentId === $selfId) json_error('Kategorie nemůže být svým rodičem', 400);
+    $row = $pdo->prepare("SELECT parent_id FROM kategorie_vyrobku WHERE id = :id");
+    $row->execute(['id' => $parentId]);
+    $p = $row->fetch(PDO::FETCH_ASSOC);
+    if (!$p) json_error('Nadřazená kategorie neexistuje', 400);
+    if ($p['parent_id'] !== null) json_error('Subkategorie může být jen pod hlavní kategorií (max 1 úroveň)', 400);
+    if ($selfId) { // tato kategorie nesmí mít vlastní děti (bránit „vnukům")
+        $kids = $pdo->prepare("SELECT COUNT(*) FROM kategorie_vyrobku WHERE parent_id = :id");
+        $kids->execute(['id' => $selfId]);
+        if ((int) $kids->fetchColumn() > 0) json_error('Tato kategorie má vlastní subkategorie — nemůže se stát subkategorií', 400);
+    }
+    return $parentId;
+}
+
 // =============================================================
 // UPLOAD obrázku kategorie - re-enkóduje přes GD (strip EXIF/payload).
 // =============================================================
@@ -91,10 +108,11 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'upload') {
 if ($method === 'GET') {
     require_admin();
     $stmt = db()->query("
-        SELECT k.id, k.nazev, k.ikona, k.obrazek_url, k.poradi, k.aktivni,
-               (SELECT COUNT(*) FROM vyrobky v WHERE v.kategorie_id = k.id) AS pocet_vyrobku
+        SELECT k.id, k.nazev, k.ikona, k.obrazek_url, k.poradi, k.aktivni, k.parent_id,
+               (SELECT COUNT(*) FROM vyrobky v WHERE v.kategorie_id = k.id) AS pocet_vyrobku,
+               (SELECT COUNT(*) FROM kategorie_vyrobku c WHERE c.parent_id = k.id) AS pocet_subkategorii
         FROM kategorie_vyrobku k
-        ORDER BY k.poradi, k.nazev
+        ORDER BY COALESCE(k.parent_id, k.id), k.parent_id IS NOT NULL, k.poradi, k.nazev
     ");
     json_response($stmt->fetchAll());
 }
@@ -109,10 +127,11 @@ if ($method === 'POST') {
     $poradi  = (int) ($d['poradi'] ?? 999);
     $aktiv   = !empty($d['aktivni']) ? 1 : 0;
     $obrazek = !empty($d['obrazek_url']) ? trim($d['obrazek_url']) : null;
+    $parent  = kat_validate_parent(db(), isset($d['parent_id']) && $d['parent_id'] ? (int) $d['parent_id'] : null);
 
     $stmt = db()->prepare("
-        INSERT INTO kategorie_vyrobku (nazev, ikona, obrazek_url, poradi, aktivni)
-        VALUES (:n, :i, :o, :p, :a)
+        INSERT INTO kategorie_vyrobku (nazev, ikona, obrazek_url, poradi, aktivni, parent_id)
+        VALUES (:n, :i, :o, :p, :a, :par)
     ");
     $stmt->execute([
         'n' => $nazev,
@@ -120,6 +139,7 @@ if ($method === 'POST') {
         'o' => $obrazek,
         'p' => $poradi,
         'a' => $aktiv,
+        'par' => $parent,
     ]);
 
     json_response(['ok' => true, 'id' => (int) db()->lastInsertId()]);
@@ -154,9 +174,11 @@ if ($method === 'PUT') {
         ? trim($d['obrazek_url'])
         : null;
 
+    $parent = kat_validate_parent(db(), array_key_exists('parent_id', $d) && $d['parent_id'] ? (int) $d['parent_id'] : null, $id);
+
     $stmt = db()->prepare("
         UPDATE kategorie_vyrobku
-        SET nazev = :n, ikona = :i, obrazek_url = :o, poradi = :p, aktivni = :a
+        SET nazev = :n, ikona = :i, obrazek_url = :o, poradi = :p, aktivni = :a, parent_id = :par
         WHERE id = :id
     ");
     $stmt->execute([
@@ -166,6 +188,7 @@ if ($method === 'PUT') {
         'o'  => $obrazek_save,
         'p'  => (int) ($d['poradi'] ?? 999),
         'a'  => !empty($d['aktivni']) ? 1 : 0,
+        'par' => $parent,
     ]);
 
     json_response(['ok' => true]);
@@ -181,6 +204,13 @@ if ($method === 'DELETE') {
     $cnt->execute(['id' => $id]);
     if ((int) $cnt->fetchColumn() > 0) {
         json_error('Kategorie obsahuje výrobky. Nejdřív přesuňte výrobky jinam nebo je smažte.', 409);
+    }
+
+    // 🆕 v3.0.334 — hlavní kategorie nesmí mít subkategorie
+    $sub = db()->prepare("SELECT COUNT(*) FROM kategorie_vyrobku WHERE parent_id = :id");
+    $sub->execute(['id' => $id]);
+    if ((int) $sub->fetchColumn() > 0) {
+        json_error('Kategorie má subkategorie. Nejdřív smažte nebo přesuňte subkategorie.', 409);
     }
 
     // Smaž i fyzický soubor obrázku, pokud je

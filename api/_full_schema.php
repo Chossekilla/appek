@@ -343,10 +343,11 @@ function apply_full_schema(PDO $pdo): void {
             'sklad_min'        => "ADD COLUMN sklad_min DECIMAL(12,3) DEFAULT NULL",
             'sklad_cil'        => "ADD COLUMN sklad_cil DECIMAL(12,3) DEFAULT NULL",
         ],
-        // kategorie_vyrobku — obrazek_url pro vizuál v katalogu
+        // kategorie_vyrobku — obrazek_url pro vizuál v katalogu; parent_id = subkategorie (v3.0.334, 1 úroveň)
         'kategorie_vyrobku' => [
             'obrazek_url' => "ADD COLUMN obrazek_url VARCHAR(500) DEFAULT NULL",
             'barva'       => "ADD COLUMN barva VARCHAR(20) DEFAULT NULL",
+            'parent_id'   => "ADD COLUMN parent_id INT DEFAULT NULL",
         ],
         // odberatele (admin_odberatele.php auto-migrace)
         'odberatele' => [
