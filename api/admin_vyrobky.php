@@ -341,7 +341,7 @@ if ($method === 'GET') {
         $ean = trim((string) $_GET['ean']);
         if ($ean === '') json_response(['vyrobky' => []]);
         try {
-            $st = $pdo->prepare("SELECT id, cislo, ean, nazev, cena, jednotka, kategorie_id, obrazek_url
+            $st = $pdo->prepare("SELECT id, cislo, ean, nazev, cena_bez_dph, jednotka_id, kategorie_id, obrazek_url
                                  FROM vyrobky WHERE ean = :e LIMIT 20");
             $st->execute(['e' => $ean]);
             json_response(['vyrobky' => $st->fetchAll(PDO::FETCH_ASSOC)]);

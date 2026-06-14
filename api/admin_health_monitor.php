@@ -54,7 +54,8 @@ $got = $_GET['token'] ?? '';
 $adminAuthed = false;
 try {
     require_once __DIR__ . '/_admin_auth.php';
-    if (function_exists('is_admin') && is_admin()) $adminAuthed = true;
+    session_secure_start(); // 🆕 v3.0.323 — health_monitor nevolá require_admin → session musí nastartovat sám (jinak $_SESSION prázdné → vždy 401)
+    if (!empty($_SESSION['admin_id'])) $adminAuthed = true;
 } catch (\Throwable $e) { /* admin auth nedostupný — wpadne na token check */ }
 
 if (!$adminAuthed && !hash_equals($expected, (string) $got)) {
