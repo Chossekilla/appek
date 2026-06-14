@@ -12598,6 +12598,17 @@ async function renderVyrobky(filters = {}) {
       skupinyVyrobku[kid].push(v);
     });
   }
+  // 🆕 v3.0.335 — pořadí grupování: hlavní kategorie → její subkategorie (↳), pak osiřelé
+  const katHierarchy = (() => {
+    const mains = kategorie.filter(k => !k.parent_id);
+    const out = [];
+    mains.forEach(m => {
+      out.push({ k: m, isSub: false });
+      kategorie.filter(s => s.parent_id == m.id).forEach(s => out.push({ k: s, isSub: true }));
+    });
+    kategorie.filter(k => k.parent_id && !mains.find(m => m.id == k.parent_id)).forEach(s => out.push({ k: s, isSub: true }));
+    return out;
+  })();
 
   // 🆕 v3.0.267 — stránkování výrobků (dosud jediný hlavní seznam BEZ stránkování — 1400+
   //   řádků v DOM). Klientské nad `filtered` (kategorie badge/řazení/grupování potřebují plný
@@ -12729,16 +12740,17 @@ async function renderVyrobky(filters = {}) {
         }
         // 🔀 Group view — sekce podle kategorie
         const rendered = [];
-        kategorie.forEach(k => {
+        katHierarchy.forEach(({ k, isSub }) => {
           const items = skupinyVyrobku[k.id] || [];
-          if (items.length === 0) return;
+          const subHasItems = !isSub && kategorie.some(s => s.parent_id == k.id && (skupinyVyrobku[s.id] || []).length);
+          if (items.length === 0 && !subHasItems) return; // hlavní se subkat. produkty se ukáže i bez přímých
           rendered.push(`
-            <h3 style="margin:24px 0 10px;font-size:18px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--border-2);padding-bottom:8px">
-              <span style="font-size:32px;line-height:1">${esc(k.ikona || '🥖')}</span>
+            <h3 style="margin:${isSub ? '12px 0 8px 28px' : '24px 0 10px'};font-size:${isSub ? '15px' : '18px'};font-weight:700;color:var(--text);display:flex;align-items:center;gap:${isSub ? '8px' : '12px'};border-bottom:${isSub ? '1px' : '2px'} solid var(--border-2);padding-bottom:${isSub ? '5px' : '8px'}">
+              <span style="font-size:${isSub ? '20px' : '32px'};line-height:1">${isSub ? '↳ ' : ''}${esc(k.ikona || '🥖')}</span>
               <span>${esc(k.nazev)}</span>
               <span style="font-size:13px;font-weight:600;color:var(--text-3);background:var(--surface-2);padding:4px 12px;border-radius:12px">${items.length}</span>
             </h3>
-            <table class="table" style="margin-bottom:12px">${head}<tbody>${items.map(radek).join('')}</tbody></table>
+            ${items.length ? `<table class="table" style="margin-bottom:12px${isSub ? ';margin-left:28px' : ''}">${head}<tbody>${items.map(radek).join('')}</tbody></table>` : ''}
           `);
         });
         if (skupinyVyrobku[0] && skupinyVyrobku[0].length > 0) {
@@ -12785,16 +12797,17 @@ async function renderVyrobky(filters = {}) {
       }
       // 🔀 Group view (mobile) — nadpisy + grid pro každou kategorii
       const out = ['<div class="mobile-only-block">'];
-      kategorie.forEach(k => {
+      katHierarchy.forEach(({ k, isSub }) => {
         const items = skupinyVyrobku[k.id] || [];
-        if (items.length === 0) return;
+        const subHasItems = !isSub && kategorie.some(s => s.parent_id == k.id && (skupinyVyrobku[s.id] || []).length);
+        if (items.length === 0 && !subHasItems) return;
         out.push(`
-          <h3 style="margin:18px 0 8px;font-size:16px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:10px;padding-bottom:6px;border-bottom:2px solid var(--border-2)">
-            <span style="font-size:28px;line-height:1">${esc(k.ikona || '🥖')}</span>
+          <h3 style="margin:${isSub ? '10px 0 6px 18px' : '18px 0 8px'};font-size:${isSub ? '14px' : '16px'};font-weight:700;color:var(--text);display:flex;align-items:center;gap:${isSub ? '8px' : '10px'};padding-bottom:6px;border-bottom:${isSub ? '1px' : '2px'} solid var(--border-2)">
+            <span style="font-size:${isSub ? '20px' : '28px'};line-height:1">${isSub ? '↳ ' : ''}${esc(k.ikona || '🥖')}</span>
             <span>${esc(k.nazev)}</span>
             <span style="font-size:12px;font-weight:600;color:var(--text-3);background:var(--surface-2);padding:2px 10px;border-radius:10px">${items.length}</span>
           </h3>
-          <div class="vyrobky-grid">${items.map(karta).join('')}</div>
+          ${items.length ? `<div class="vyrobky-grid"${isSub ? ' style="margin-left:18px"' : ''}>${items.map(karta).join('')}</div>` : ''}
         `);
       });
       if (skupinyVyrobku[0] && skupinyVyrobku[0].length > 0) {

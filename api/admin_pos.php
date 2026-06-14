@@ -1039,12 +1039,14 @@ if ($method === 'GET' && $action === 'catalog') {
         $barvaCol   = $hasBarva   ? 'k.barva'       : 'NULL AS barva';
         $obrazekCol = $hasObrazek ? 'k.obrazek_url' : 'NULL AS obrazek_url';
 
+        // 🆕 v3.0.335 — parent_id (subkategorie) + počet vč. produktů v subkategoriích (jinak by se hlavní kat. skryla)
         $cats = $pdo->query("
-            SELECT k.id, k.nazev,
+            SELECT k.id, k.nazev, k.parent_id,
                    COALESCE(NULLIF(k.ikona, ''), '📦') AS ikona,
                    {$barvaCol}, {$obrazekCol},
                    COALESCE(k.poradi, 999) AS poradi,
-                   (SELECT COUNT(*) FROM vyrobky v WHERE v.kategorie_id = k.id AND v.aktivni = 1) AS pocet
+                   (SELECT COUNT(*) FROM vyrobky v WHERE v.aktivni = 1
+                      AND (v.kategorie_id = k.id OR v.kategorie_id IN (SELECT s.id FROM kategorie_vyrobku s WHERE s.parent_id = k.id))) AS pocet
             FROM kategorie_vyrobku k
             WHERE COALESCE(k.aktivni, 1) = 1
             ORDER BY poradi ASC, k.nazev ASC

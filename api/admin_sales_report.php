@@ -81,19 +81,22 @@ $denni = $pdo->prepare("
 $denni->execute(['od' => $od, 'do' => $do]);
 $denni_trzby = $denni->fetchAll(PDO::FETCH_ASSOC);
 
-// Top kategorie
+// Top kategorie — 🆕 v3.0.335 tržby subkategorií se rollup-ují pod HLAVNÍ kategorii
 $topKat = $pdo->prepare("
-    SELECT k.id, k.nazev, k.ikona,
+    SELECT COALESCE(k.parent_id, k.id) AS id,
+           COALESCE(pk.nazev, k.nazev) AS nazev,
+           COALESCE(pk.ikona, k.ikona) AS ikona,
            SUM(op.mnozstvi * op.cena_bez_dph * (1 + op.sazba_dph/100)) AS celkem_kc,
            SUM(op.mnozstvi) AS celkem_ks
     FROM objednavky o
     JOIN objednavky_polozky op ON op.objednavka_id = o.id
     LEFT JOIN vyrobky v ON v.id = op.vyrobek_id
     LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
+    LEFT JOIN kategorie_vyrobku pk ON pk.id = k.parent_id
     WHERE o.datum_dodani BETWEEN :od AND :do
       AND o.stav NOT IN ('zrusena')
       AND k.id IS NOT NULL
-    GROUP BY k.id, k.nazev, k.ikona
+    GROUP BY COALESCE(k.parent_id, k.id), COALESCE(pk.nazev, k.nazev), COALESCE(pk.ikona, k.ikona)
     ORDER BY celkem_kc DESC
 ");
 $topKat->execute(['od' => $od, 'do' => $do]);
