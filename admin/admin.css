@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.319";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.320";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -12977,10 +12977,15 @@ html.density-extreme .card-block.desktop-only-block {
     background: rgba(28, 28, 30, 0.92);
     border-top-color: rgba(255, 255, 255, 0.08);
   }
-  /* Hlavní obsah dostane spodní padding aby fixed nav nepřekrýval content */
-  body.has-bottom-nav .content,
-  body.has-bottom-nav #content {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+  /* Spodní clearance obsahu pod fixed nav (72px) I plovoucí FAB (bottom:88px + 56px výška
+     = sahá do 144px). v3.0.320 — selektor MUSÍ být main#content (spec 1,0,1) + !important,
+     protože tak vyhrává nad floorplan `main#content{padding:var(--fl)}` (20258); slabší
+     #content (1,0,0) prohrával → padding zůstával malý a FAB překrýval karty. Tenhle blok
+     (≤768) pokrývá pásmo 701-768 kde FAB svítí ale ≤700 blok (ř.~20637) ještě ne. Obě
+     pravidla = 150px. + safe-area iOS. Viz sesterské pravidlo v @media(max-width:700px). */
+  main#content,
+  .main-content {
+    padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
   }
   /* Notification badge na nav item (např. pending objednávek) */
   .bottom-nav-item {
@@ -20627,9 +20632,12 @@ main#content { padding: var(--fl-content-py) var(--fl-content-px); }
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-y: auto !important;
   }
-  /* Padding-bottom na main-content aby content nebyl zakryt bottom-nav (72px) */
+  /* Padding-bottom na main-content aby content nebyl zakryt bottom-nav (72px) ANI plovoucím
+     FABem (bottom:88px + 56px = do 144px). v3.0.320: 88px → 150px, jinak poslední karty
+     (např. "Akce vyžadující pozornost") mizely pod FABem. Sesterské pravidlo v
+     @media(max-width:768px) pokrývá pásmo 701-768. + safe-area iOS. */
   .main-content, main#content {
-    padding-bottom: 88px !important;
+    padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
@@ -21028,4 +21036,22 @@ body.perf-lite *:focus-visible { box-shadow: 0 0 0 2px var(--primary, #BA7517) !
   .table td::before { content: attr(data-label); display: block; font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 500; margin-bottom: 2px; }
   .table td.td-action::before { display: none; }
   .table td.td-action { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   📌 v3.0.320 — Pinned mód: clearance pod plovoucím FABem
+   ───────────────────────────────────────────────────────────────────
+   V sidebar-pinned módu (rail + špendlík) je bottom-nav skrytý, takže
+   pravidlo na ř.~20400 nuluje content padding-bottom (`...0 !important`,
+   spec 1,1,1). JENŽE plovoucí FAB "Nová objednávka" (.app-fab, bottom:88px
+   + 56px výška = sahá do 144px) svítí na VŠECH šířkách ≤768 i v pinned módu
+   → bez clearance překrýval spodní karty ("Akce vyžadující pozornost" atd.).
+   Tenhle override má STEJNOU specificitu (1,1,1) + !important a je POZDĚJI
+   ve zdroji → vyhraje nad nulujícím pravidlem, ale jen ≤768 (kde FAB svítí).
+   Na 769-1100 pinned (FAB skrytý) zůstává 0. Viz [[appek-mobile-ios-bugs]]. */
+@media (max-width: 768px) {
+  body.sidebar-pinned main#content,
+  body.sidebar-pinned .main-content {
+    padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+  }
 }
