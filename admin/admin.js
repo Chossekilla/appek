@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.337';
+const APPEK_ADMIN_JS_VERSION = '3.0.338';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -30232,6 +30232,81 @@ window.smazatKategorii = async function(id) {
 // Sloučení 'PDF nabídka' (katalog) a 'Štítky a cenovky' (stitky)
 // do jednoho menu item kvůli lepšímu mobile UX (méně sidebar items).
 // =============================================================
+// 🆕 v3.0.338 — Import produktů z CSV (Shoptet / WooCommerce / Excel)
+window.appekImportProdukty = function() {
+  openModal('📥 Import produktů z CSV', `
+    <div id="imp-body">
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Nahraj CSV export z <strong>Shoptetu</strong>, <strong>WooCommerce</strong> nebo Excelu. V dalším kroku namapuješ sloupce na pole produktu.</p>
+      <input type="file" id="imp-file" accept=".csv,text/csv,text/plain" style="display:none" onchange="appekImportPreview()">
+      <button class="btn-primary btn-green" onclick="document.getElementById('imp-file').click()" style="font-weight:700;padding:12px 22px;border:none;border-radius:10px;cursor:pointer">📤 Vybrat CSV soubor</button>
+      <p class="muted" style="font-size:12px;margin-top:12px;line-height:1.5">Oddělovač (<code>;</code> <code>,</code> Tab <code>|</code>) i kódování (UTF-8 / Windows-1250) se detekují automaticky. Max 8 MB.</p>
+    </div>
+  `);
+};
+
+window.appekImportPreview = async function() {
+  const f = document.getElementById('imp-file');
+  if (!f || !f.files || !f.files[0]) return;
+  const body = document.getElementById('imp-body');
+  body.innerHTML = '⏳ Načítám a analyzuji soubor…';
+  const fd = new FormData(); fd.append('file', f.files[0]);
+  let d;
+  try {
+    const res = await fetch('../api/admin_import.php?action=preview', { method: 'POST', credentials: 'include', headers: csrfHeaders(), body: fd });
+    d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Chyba načtení');
+  } catch (e) { body.innerHTML = `<div class="alert err" style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ ${esc(e.message)}</div><button class="btn-secondary" style="margin-top:10px" onclick="appekImportProdukty()">← Zpět</button>`; return; }
+  window._impData = d;
+  const colOpts = (sel) => `<option value="">—</option>` + d.columns.map((c, i) => `<option value="${i}" ${sel == i ? 'selected' : ''}>${esc(c || ('Sloupec ' + (i + 1)))}</option>`).join('');
+  body.innerHTML = `
+    <p style="font-size:13px;margin:0 0 10px">Soubor: <strong>${d.total}</strong> řádků${d.capped ? ' (zpracuje se prvních 3000)' : ''}. Namapuj sloupce:</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px">
+      ${Object.entries(d.fields).map(([field, label]) => `
+        <label style="display:block"><span style="font-size:12px;color:var(--text-2);font-weight:600">${esc(label)}</span>
+          <select class="form-input imp-map" data-field="${field}" style="font-size:13px;padding:6px">${colOpts(d.suggested[field])}</select>
+        </label>`).join('')}
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:13px;align-items:center">
+      <label>Párovat podle: <select id="imp-matchkey" class="form-input" style="width:auto;display:inline-block;padding:5px"><option value="cislo">Kód / číslo</option><option value="ean">EAN</option></select></label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="imp-update" checked> Aktualizovat existující</label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="imp-createcat" checked> Zakládat chybějící kategorie</label>
+    </div>
+    <div style="margin-top:10px;max-height:130px;overflow:auto;border:1px solid var(--border);border-radius:6px">
+      <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>${d.columns.map(c => `<th style="text-align:left;padding:3px 6px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface-2);white-space:nowrap">${esc(c || '')}</th>`).join('')}</tr></thead>
+      <tbody>${d.rows.slice(0, 5).map(r => `<tr>${d.columns.map((_, i) => `<td style="padding:3px 6px;border-bottom:1px solid var(--border);white-space:nowrap">${esc(String(r[i] ?? '').slice(0, 40))}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn-secondary" onclick="appekImportProdukty()">← Zpět</button>
+      <button class="btn-primary btn-green" onclick="appekImportCommit()" style="font-weight:700">📥 Importovat ${d.total}</button>
+    </div>`;
+};
+
+window.appekImportCommit = async function() {
+  const d = window._impData; if (!d) return;
+  const mapping = {};
+  document.querySelectorAll('.imp-map').forEach(s => { if (s.value !== '') mapping[s.dataset.field] = parseInt(s.value); });
+  if (mapping.nazev === undefined) { alert('Namapuj alespoň pole „Název *".'); return; }
+  const payload = {
+    rows: d.rows, mapping,
+    match_key: document.getElementById('imp-matchkey').value,
+    update_existing: document.getElementById('imp-update').checked,
+    create_categories: document.getElementById('imp-createcat').checked,
+  };
+  const body = document.getElementById('imp-body');
+  body.innerHTML = '⏳ Importuji produkty…';
+  try {
+    const r = await api('admin_import.php?action=commit', { method: 'POST', body: JSON.stringify(payload) });
+    body.innerHTML = `
+      <div style="text-align:center;padding:18px">
+        <div style="font-size:42px">✅</div>
+        <h3 style="margin:8px 0">Import dokončen</h3>
+        <p style="font-size:14px;line-height:1.7">Nových: <strong>${r.inserted}</strong> · Aktualizováno: <strong>${r.updated}</strong> · Přeskočeno: <strong>${r.skipped}</strong>${r.categories_created ? ` · Nových kategorií: <strong>${r.categories_created}</strong>` : ''}</p>
+        <button class="btn-primary btn-green" onclick="closeModal();navigate('vyrobky')" style="margin-top:10px;font-weight:700">Zobrazit produkty →</button>
+      </div>`;
+    try { toastSuccess(`Import: +${r.inserted} / ~${r.updated}`); } catch (e) {}
+  } catch (e) { body.innerHTML = `<div class="alert err" style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ ${esc(e.message)}</div><button class="btn-secondary" style="margin-top:10px" onclick="appekImportPreview()">← Zpět</button>`; }
+};
+
 async function renderNastroje() {
   const c = document.getElementById('content');
   c.innerHTML = `
@@ -30248,6 +30323,13 @@ async function renderNastroje() {
         <div class="nastroje-card-title">Skener kódů</div>
         <div class="nastroje-card-desc">Čtečka čárových kódů (USB/BT), kamera, akce po skenu a kódování váhových štítků.</div>
         <div class="nastroje-card-cta">Nastavit →</div>
+      </button>
+
+      <button class="nastroje-card" onclick="appekImportProdukty()" aria-label="Import produktů z CSV">
+        <div class="nastroje-card-icon">📥</div>
+        <div class="nastroje-card-title">Import produktů</div>
+        <div class="nastroje-card-desc">Naimportuj produkty z CSV (Shoptet, WooCommerce, Excel). Mapování sloupců + aktualizace existujících.</div>
+        <div class="nastroje-card-cta">Importovat →</div>
       </button>
 
       <button class="nastroje-card" onclick="navigate('katalog')" aria-label="Otevřít PDF nabídku">
