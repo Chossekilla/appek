@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.328';
+const APPEK_ADMIN_JS_VERSION = '3.0.329';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -6791,6 +6791,7 @@ window.openObjednavkaDetail = async function(id) {
         ` : `
           <a href="../api/faktura.php?id=${o.faktury[0].id}" target="_blank" class="doc-action doc-action-done"><span class="doc-action-ic">💰</span><span>Faktura ${esc(o.faktury[0].cislo || '')}</span></a>
         `}
+          <button class="doc-action" onclick="appekShipmentDialog(${o.id})"><span class="doc-action-ic">📦</span><span>Vytvořit zásilku</span></button>
       </div>
     </div>
 
@@ -42521,4 +42522,58 @@ document.addEventListener('keydown', function(e) {
   };
 
   setTimeout(injectBtn, 1500); setTimeout(injectBtn, 3500);
+})();
+
+/* 🆕 v3.0.329 — Expediční zásilka: dialog z detailu objednávky (přepravce + tisk štítku). */
+(function () {
+  window.appekShipmentDialog = async function (orderId) {
+    var carriers = [], existing = [];
+    try { var c = await api('admin_shipment.php?action=carriers'); carriers = (c && c.carriers) || []; } catch (e) {}
+    try { var l = await api('admin_shipment.php?action=list&objednavka_id=' + orderId); existing = (l && l.zasilky) || []; } catch (e) {}
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+    var opts = carriers.map(function (c) { return '<option value="' + c.key + '"' + (c.enabled ? '' : ' disabled') + '>' + c.label + (c.enabled ? '' : ' — nenastaveno') + '</option>'; }).join('');
+    var exHtml = existing.length ? '<div style="margin-top:12px;font-size:13px"><b>Zásilky objednávky:</b>' + existing.map(function (z) {
+      return '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid #eee"><span>' + z.carrier + ' · ' + (z.tracking_number || (z.chyba ? '⚠️ ' + z.chyba : z.stav)) + '</span>' + (z.tracking_number ? '<a href="../api/admin_shipment.php?action=label&id=' + z.id + '" target="_blank">🏷️ Štítek</a>' : '') + '</div>';
+    }).join('') + '</div>' : '';
+    ov.innerHTML =
+      '<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3)">' +
+        '<div style="font-size:17px;font-weight:700;margin-bottom:12px">📦 Vytvořit zásilku</div>' +
+        '<label style="font-size:13px">Přepravce<br><select id="ship-carrier" class="form-input" style="width:100%;margin-top:4px">' + opts + '</select></label>' +
+        '<div style="display:flex;gap:8px;margin-top:10px">' +
+          '<label style="flex:1;font-size:13px">Hmotnost (kg)<br><input id="ship-w" class="form-input" type="number" step="0.1" value="1" style="width:100%"></label>' +
+          '<label style="flex:1;font-size:13px">Dobírka (Kč)<br><input id="ship-cod" class="form-input" type="number" value="0" style="width:100%"></label>' +
+        '</div>' +
+        '<label style="font-size:13px;display:block;margin-top:10px">Výdejní místo ID (Zásilkovna)<br><input id="ship-pp" class="form-input" placeholder="volitelné" style="width:100%"></label>' +
+        '<div id="ship-msg" style="margin-top:10px;font-size:13px;color:#a00"></div>' + exHtml +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">' +
+          '<button id="ship-cancel" class="btn-secondary">Zavřít</button>' +
+          '<button id="ship-go" class="btn-primary btn-green" style="border:none;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer">Vytvořit</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    var close = function () { ov.remove(); };
+    ov.querySelector('#ship-cancel').onclick = close;
+    ov.onclick = function (e) { if (e.target === ov) close(); };
+    ov.querySelector('#ship-go').onclick = async function () {
+      var carrier = ov.querySelector('#ship-carrier').value;
+      var msg = ov.querySelector('#ship-msg');
+      if (!carrier) { msg.textContent = 'Vyber přepravce'; return; }
+      ov.querySelector('#ship-go').disabled = true; msg.style.color = '#666'; msg.textContent = 'Vytvářím…';
+      try {
+        var r = await api('admin_shipment.php?action=create', { method: 'POST', body: JSON.stringify({
+          objednavka_id: orderId, carrier: carrier,
+          weight_kg: parseFloat(ov.querySelector('#ship-w').value) || 1,
+          cod_kc: parseFloat(ov.querySelector('#ship-cod').value) || 0,
+          pickup_point_id: parseInt(ov.querySelector('#ship-pp').value) || 0
+        }) });
+        try { toast('📦 Zásilka vytvořena: ' + (r.tracking || ''), 'success'); } catch (e) {}
+        close();
+        if (r.zasilka_id) window.open('../api/admin_shipment.php?action=label&id=' + r.zasilka_id, 'appek_label', 'width=720,height=820');
+      } catch (e) {
+        ov.querySelector('#ship-go').disabled = false; msg.style.color = '#a00';
+        msg.textContent = (e && e.message) || 'Chyba — zkontroluj klíče přepravce v Nastavení → Integrace.';
+      }
+    };
+  };
 })();

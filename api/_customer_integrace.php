@@ -534,6 +534,27 @@ function customer_int_zas_test(): array {
     return ['ok' => true, 'message' => 'Spojení OK — API heslo prošlo.'];
 }
 
+// 🆕 v3.0.329 — Zásilkovna štítek (PDF) přes packetLabelPdf. Vrací { ok, pdf_base64 }.
+function customer_int_zas_label(string $packetId): array {
+    if (!customer_int_enabled('zas')) return ['ok' => false, 'error' => 'zasilkovna_disabled'];
+    $cfg = customer_int_settings('zas');
+    $apiPassword = $cfg['int_zas_api_password'] ?? '';
+    if (!$apiPassword) return ['ok' => false, 'error' => 'missing_api_password'];
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>' .
+           '<packetLabelPdf><apiPassword>' . htmlspecialchars($apiPassword) . '</apiPassword>' .
+           '<packetId>' . htmlspecialchars($packetId) . '</packetId>' .
+           '<format>A7 on A4</format><offset>0</offset></packetLabelPdf>';
+    $r = customer_int_zas_xml_request($xml);
+    if (($r['http'] ?? 500) >= 400 || empty($r['response'])) return ['ok' => false, 'error' => 'http_' . ($r['http'] ?? '?')];
+    libxml_use_internal_errors(true);
+    $sx = @simplexml_load_string($r['response']);
+    if (!$sx) return ['ok' => false, 'error' => 'invalid_response'];
+    if ((string) ($sx->status ?? '') === 'fault') return ['ok' => false, 'error' => (string) ($sx->fault ?? 'unknown')];
+    $pdf = (string) ($sx->result ?? '');
+    if ($pdf === '') return ['ok' => false, 'error' => 'no_label'];
+    return ['ok' => true, 'pdf_base64' => $pdf];
+}
+
 // ════════════════════════════════════════════════════════════════════
 // 📦 DPD CZ — customer-side
 // ════════════════════════════════════════════════════════════════════
