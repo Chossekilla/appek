@@ -96,7 +96,7 @@ EXCLUDES=(
   "api/config.local.php" "api/.installed" "api/zalohy"
   "vendor" "sales"   # NEZAHRNOUJ — vendor jen lokálně, sales je na appek.cz, ne na customer
   "scripts"
-  "*.zip" "*.log" "*.bak"
+  "*.zip" "*.log" "*.bak" "*.bak-*" "download.php" "docs"
 )
 
 # Vytvoř files/ s relevantními soubory

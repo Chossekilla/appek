@@ -44,9 +44,18 @@ if (DB_NAME === '' || DB_USER === '') {
 }
 
 // Aplikace
-if (!defined('APP_URL'))     define('APP_URL',     'https://white-badger-130749.hostingersite.com');
+// 🆕 v3.0.314 — default APP_URL se ODVOZUJE z domény instalace (dřív natvrdo dev staging
+//   doména → leakovala do QR/e-mailů/redirectů u každé čisté instalace). Produkce ho
+//   stejně přepisuje v config.local.php; tohle je jen bezpečný fallback.
+if (!defined('APP_URL')) {
+    $__sch = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'
+        || ((int) ($_SERVER['SERVER_PORT'] ?? 0)) === 443) ? 'https' : 'http';
+    $__host = $_SERVER['HTTP_HOST'] ?? '';
+    define('APP_URL', $__host ? ($__sch . '://' . $__host) : '');
+}
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.313'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.314'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');

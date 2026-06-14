@@ -257,6 +257,8 @@ zip -r "$CUSTOMER_OUT" . \
   -x "index.html" \
   -x "checkout.html" \
   -x "sitemap.xml" \
+  -x "download.php" \
+  -x "docs/*" \
   -x "CLAUDE.md" -x "SYNC_ARCHITECTURE.md" \
   > /dev/null
 

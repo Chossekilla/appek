@@ -2124,6 +2124,7 @@ function rychleChipy(minDate) {
 }
 
 window.submitOrder = async function() {
+  if (window._b2bSubmitting) return;   // 🆕 v3.0.314 — ochrana proti dvojímu odeslání (duplicitní objednávka/platba)
   const polozky = Object.entries(state.cart).map(([id, q]) => ({
     vyrobek_id: parseInt(id), mnozstvi: q,
   }));
@@ -2160,6 +2161,9 @@ window.submitOrder = async function() {
 
   if (!data.datum_dodani) return alert('Vyplňte datum dodání');
 
+  window._b2bSubmitting = true;
+  const _subBtns = [...document.querySelectorAll('button')].filter(b => /submitOrder/.test(b.getAttribute('onclick') || ''));
+  _subBtns.forEach(b => { b.disabled = true; b.dataset._txt = b.textContent; b.textContent = 'Odesílám…'; });
   try {
     const res = await api('objednavky.php', {
       method: 'POST',
@@ -2180,6 +2184,9 @@ window.submitOrder = async function() {
     switchTab('history');
   } catch (e) {
     alert('Chyba: ' + e.message);
+  } finally {
+    window._b2bSubmitting = false;
+    _subBtns.forEach(b => { b.disabled = false; if (b.dataset._txt) b.textContent = b.dataset._txt; });
   }
 };
 
