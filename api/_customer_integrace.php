@@ -43,7 +43,7 @@
 require_once __DIR__ . '/config.php';
 
 // 🆕 v3.0.31 — POHODA + FlexiBee přidány (full implementace, ne jen na oko)
-const CUSTOMER_INT_SERVICES = ['stripe', 'gopay', 'paypal', 'zas', 'dpd', 'pohoda', 'flexibee'];
+const CUSTOMER_INT_SERVICES = ['stripe', 'gopay', 'paypal', 'zas', 'dpd', 'ppl', 'cp', 'pohoda', 'flexibee'];
 
 /**
  * Načte settings pro konkrétní službu.
@@ -641,6 +641,187 @@ function customer_int_dpd_test(): array {
     $token = customer_int_dpd_token();
     if (!$token) return ['ok' => false, 'error' => 'Login selhal — zkontroluj username/password.'];
     return ['ok' => true, 'message' => 'Login OK, token získán.'];
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 📦 PPL — myAPI2 (CPL) REST, OAuth2 client_credentials. (v3.0.337, díl 2/2)
+//   Settings 'int_ppl_*': enabled, client_id, client_secret, environment(test|production),
+//                         product (BUSCMN/…), sender_name. ⚠️ klíče = TVŮJ účet PPL.
+// ════════════════════════════════════════════════════════════════════
+function customer_int_ppl_base(): string {
+    $cfg = customer_int_settings('ppl');
+    $env = $cfg['int_ppl_environment'] ?? 'production';
+    return $env === 'test' ? 'https://api-dev.dhl.com/ecs/ppl/myapi2' : 'https://api.dhl.com/ecs/ppl/myapi2';
+}
+
+function customer_int_ppl_token(): ?string {
+    static $t = null;
+    if ($t !== null) return $t ?: null;
+    $cfg = customer_int_settings('ppl');
+    $id = $cfg['int_ppl_client_id'] ?? '';
+    $secret = $cfg['int_ppl_client_secret'] ?? '';
+    if (!$id || !$secret) { $t = ''; return null; }
+    $ch = curl_init(customer_int_ppl_base() . '/login/getAccessToken');
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => http_build_query(['grant_type' => 'client_credentials', 'client_id' => $id, 'client_secret' => $secret, 'scope' => 'myapi2']),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded', 'Accept: application/json'],
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($code !== 200) { $t = ''; return null; }
+    $d = json_decode($resp, true);
+    $t = $d['access_token'] ?? '';
+    return $t ?: null;
+}
+
+function customer_int_ppl_create_shipment(array $payload): array {
+    if (!customer_int_enabled('ppl')) return ['ok' => false, 'error' => 'ppl_disabled'];
+    $token = customer_int_ppl_token();
+    if (!$token) return ['ok' => false, 'error' => 'ppl_auth_failed', 'hint' => 'Zkontroluj client_id / client_secret (PPL myAPI2).'];
+    $cfg = customer_int_settings('ppl');
+    $cod = (float) ($payload['cod_kc'] ?? 0);
+    $shipment = [
+        'referenceId'         => (string) ($payload['reference'] ?? ''),
+        'productType'         => $cfg['int_ppl_product'] ?? 'BUSCMN',
+        'note'                => (string) ($payload['reference'] ?? ''),
+        'weighedShipmentInfo' => ['weight' => (float) ($payload['weight_kg'] ?? 1)],
+        'shipmentSet'         => ['numberOfShipments' => 1],
+        'sender'              => ['name' => $cfg['int_ppl_sender_name'] ?? ''],
+        'recipient'           => [
+            'name'    => $payload['recipient_name'] ?? '',
+            'street'  => $payload['recipient_street'] ?? '',
+            'city'    => $payload['recipient_city'] ?? '',
+            'zipCode' => $payload['recipient_zip'] ?? '',
+            'country' => $payload['recipient_country'] ?? 'CZ',
+            'email'   => $payload['recipient_email'] ?? '',
+            'phone'   => $payload['recipient_phone'] ?? '',
+        ],
+    ];
+    if ($cod > 0) {
+        $shipment['cashOnDelivery'] = ['codPrice' => $cod, 'codCurrency' => 'CZK', 'codVarSym' => preg_replace('/\D/', '', (string) ($payload['reference'] ?? ''))];
+    }
+    $ch = curl_init(customer_int_ppl_base() . '/shipment/batch');
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => json_encode(['shipments' => [$shipment]]),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $token, 'Content-Type: application/json', 'Accept: application/json'],
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    $d = json_decode($resp, true);
+    if ($code < 200 || $code >= 300) {
+        return ['ok' => false, 'error' => $d['detail'] ?? $d['message'] ?? "http_$code", 'detail' => $d];
+    }
+    // PPL batch je asynchronní — číslo zásilky přijde přes import status; vrátíme co je k dispozici.
+    $tracking = $d['shipmentNumbers'][0] ?? $d['batchId'] ?? ($d['importState'] ?? null);
+    return ['ok' => true, 'tracking' => $tracking !== null ? (string) $tracking : null, 'raw' => $d];
+}
+
+function customer_int_ppl_label(string $tracking): array {
+    if (!customer_int_enabled('ppl')) return ['ok' => false, 'error' => 'ppl_disabled'];
+    $token = customer_int_ppl_token();
+    if (!$token) return ['ok' => false, 'error' => 'ppl_auth_failed'];
+    $ch = curl_init(customer_int_ppl_base() . '/shipment/' . rawurlencode($tracking) . '/label?fields=Pdf');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 20,
+        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $token, 'Accept: application/pdf'],
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($code !== 200 || !$resp) return ['ok' => false, 'error' => "label_http_$code"];
+    return ['ok' => true, 'pdf_base64' => base64_encode($resp)];
+}
+
+function customer_int_ppl_test(): array {
+    if (!customer_int_enabled('ppl')) return ['ok' => false, 'error' => 'PPL není zapnutý.'];
+    return customer_int_ppl_token() ? ['ok' => true, 'message' => 'PPL token OK.'] : ['ok' => false, 'error' => 'Login selhal — client_id / client_secret.'];
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 🟡 Česká pošta — REST (Podání Online / B2B). (v3.0.337, díl 2/2)
+//   Settings 'int_cp_*': enabled, api_url (dle smlouvy), api_key/token, customer_id,
+//                        sender_name. ⚠️ ČP API je smluvně specifické — endpoint = TVŮJ.
+// ════════════════════════════════════════════════════════════════════
+function customer_int_cp_create_shipment(array $payload): array {
+    if (!customer_int_enabled('cp')) return ['ok' => false, 'error' => 'cp_disabled'];
+    $cfg = customer_int_settings('cp');
+    $url = rtrim($cfg['int_cp_api_url'] ?? '', '/');
+    $key = $cfg['int_cp_api_key'] ?? ($cfg['int_cp_token'] ?? '');
+    if (!$url || !$key) {
+        return ['ok' => false, 'error' => 'cp_not_configured', 'hint' => 'Doplň int_cp_api_url + int_cp_api_key (dle smlouvy ČP Podání Online).'];
+    }
+    $body = [
+        'customerId' => $cfg['int_cp_customer_id'] ?? '',
+        'reference'  => $payload['reference'] ?? '',
+        'service'    => $cfg['int_cp_service'] ?? 'BA', // BA = Balík Do ruky
+        'sender'     => ['name' => $cfg['int_cp_sender_name'] ?? ''],
+        'recipient'  => [
+            'name'    => $payload['recipient_name'] ?? '',
+            'street'  => $payload['recipient_street'] ?? '',
+            'city'    => $payload['recipient_city'] ?? '',
+            'zip'     => $payload['recipient_zip'] ?? '',
+            'country' => $payload['recipient_country'] ?? 'CZ',
+            'email'   => $payload['recipient_email'] ?? '',
+            'phone'   => $payload['recipient_phone'] ?? '',
+        ],
+        'weightKg'   => (float) ($payload['weight_kg'] ?? 1),
+        'codAmount'  => (float) ($payload['cod_kc'] ?? 0),
+        'codCurrency' => 'CZK',
+    ];
+    $ch = curl_init($url . '/shipments');
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => json_encode($body),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $key, 'Content-Type: application/json', 'Accept: application/json'],
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    $d = json_decode($resp, true);
+    if ($code < 200 || $code >= 300) {
+        return ['ok' => false, 'error' => $d['message'] ?? "http_$code", 'detail' => $d];
+    }
+    $tracking = $d['trackingNumber'] ?? $d['parcelId'] ?? $d['id'] ?? null;
+    return ['ok' => true, 'tracking' => $tracking !== null ? (string) $tracking : null, 'label_url' => $d['labelUrl'] ?? null, 'raw' => $d];
+}
+
+function customer_int_cp_label(string $tracking): array {
+    if (!customer_int_enabled('cp')) return ['ok' => false, 'error' => 'cp_disabled'];
+    $cfg = customer_int_settings('cp');
+    $url = rtrim($cfg['int_cp_api_url'] ?? '', '/');
+    $key = $cfg['int_cp_api_key'] ?? ($cfg['int_cp_token'] ?? '');
+    if (!$url || !$key) return ['ok' => false, 'error' => 'cp_not_configured'];
+    $ch = curl_init($url . '/shipments/' . rawurlencode($tracking) . '/label');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 20,
+        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $key, 'Accept: application/pdf'],
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($code !== 200 || !$resp) return ['ok' => false, 'error' => "label_http_$code"];
+    return ['ok' => true, 'pdf_base64' => base64_encode($resp)];
+}
+
+function customer_int_cp_test(): array {
+    if (!customer_int_enabled('cp')) return ['ok' => false, 'error' => 'Česká pošta není zapnutá.'];
+    $cfg = customer_int_settings('cp');
+    if (empty($cfg['int_cp_api_url']) || empty($cfg['int_cp_api_key'] ?? $cfg['int_cp_token'] ?? '')) {
+        return ['ok' => false, 'error' => 'Doplň API URL + klíč (dle smlouvy ČP).'];
+    }
+    return ['ok' => true, 'message' => 'Konfigurace ČP vyplněna (ověření proběhne při 1. zásilce).'];
 }
 
 // ════════════════════════════════════════════════════════════════════

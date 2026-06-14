@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.336';
+const APPEK_ADMIN_JS_VERSION = '3.0.337';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -16321,6 +16321,30 @@ async function renderNastaveni() {
         <div id="ns-int-dpd" style="display:flex;flex-direction:column;gap:8px">⏳</div>
       </div>
 
+      <div class="card-block int-card" style="padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+          <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
+            <span style="background:#005a9b;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">📦 PPL</span>
+          </h3>
+          <div id="ns-int-ppl-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
+        </div>
+        <div style="font-size:11.5px;color:#15803d;font-weight:600;margin-bottom:6px">✓ Balíky po ČR · myAPI2 (OAuth) · auto-štítky</div>
+        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Hustá síť výdejních míst (ParcelShop). Klíče z PPL myAPI2 (client_id/secret).</p>
+        <div id="ns-int-ppl" style="display:flex;flex-direction:column;gap:8px">⏳</div>
+      </div>
+
+      <div class="card-block int-card" style="padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+          <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
+            <span style="background:#ffd400;color:#1a1a1a;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">🟡 Česká pošta</span>
+          </h3>
+          <div id="ns-int-cp-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
+        </div>
+        <div style="font-size:11.5px;color:#15803d;font-weight:600;margin-bottom:6px">✓ Balík Do ruky / Na poštu · největší pokrytí</div>
+        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Podání Online (B2B). API URL + klíč podle tvé smlouvy s ČP.</p>
+        <div id="ns-int-cp" style="display:flex;flex-direction:column;gap:8px">⏳</div>
+      </div>
+
     </div>
   `;
 
@@ -17017,6 +17041,36 @@ const INT_CARDS = {
     ],
     docs: 'https://docs.dpd.cz',
     docsLabel: '📖 DPD CZ API docs',
+  },
+  ppl: {
+    label: 'PPL',
+    color: '#005a9b',
+    statusEl: 'ns-int-ppl-status',
+    formEl: 'ns-int-ppl',
+    fields: [
+      { key: 'environment',   label: 'Režim', type: 'select', options: [['test','🧪 Test'],['production','🟢 Production']], col: 'full' },
+      { key: 'client_id',     label: 'Client ID',     type: 'text',     placeholder: 'PPL myAPI2 client_id' },
+      { key: 'client_secret', label: 'Client Secret', type: 'password', placeholder: 'PPL myAPI2 secret' },
+      { key: 'sender_name',   label: 'Název odesílatele', type: 'text',  placeholder: 'Moje pekařství' },
+      { key: 'product',       label: 'Produkt (kód)', type: 'text',     placeholder: 'BUSCMN' },
+    ],
+    docs: 'https://github.com/ppl-cpl/myapi2',
+    docsLabel: '📖 PPL myAPI2 docs',
+  },
+  cp: {
+    label: 'Česká pošta',
+    color: '#caa800',
+    statusEl: 'ns-int-cp-status',
+    formEl: 'ns-int-cp',
+    fields: [
+      { key: 'api_url',     label: 'API URL',  type: 'text',     placeholder: 'https://… (dle smlouvy ČP)' },
+      { key: 'api_key',     label: 'API klíč / token', type: 'password', placeholder: 'token Podání Online' },
+      { key: 'customer_id', label: 'Zákaznické číslo', type: 'text', placeholder: 'PSČ podání / ID' },
+      { key: 'sender_name', label: 'Název odesílatele', type: 'text', placeholder: 'Moje pekařství' },
+      { key: 'service',     label: 'Služba (kód)', type: 'text', placeholder: 'BA = Balík Do ruky' },
+    ],
+    docs: 'https://www.postaonline.cz/dokumentace',
+    docsLabel: '📖 ČP Podání Online docs',
   },
 };
 
