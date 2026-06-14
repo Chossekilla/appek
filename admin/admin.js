@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.309';
+const APPEK_ADMIN_JS_VERSION = '3.0.310';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5740,15 +5740,18 @@ window.ulozitGaId = async function() {
   const rxOk = (v) => !v || /^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(v);
   const b2b = (document.getElementById('ns-ga-id').value || '').trim();
   const pos = ((document.getElementById('ns-ga-id-pos') || {}).value || '').trim();
-  if (!rxOk(b2b) || !rxOk(pos)) { toast('❌ Neplatné ID — čekám formát G-XXXXXXXXXX', 'error'); return; }
+  const core = ((document.getElementById('ns-ga-id-core') || {}).value || '').trim();
+  if (!rxOk(b2b) || !rxOk(pos) || !rxOk(core)) { toast('❌ Neplatné ID — čekám formát G-XXXXXXXXXX', 'error'); return; }
   try {
-    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ ga_measurement_id: b2b, ga_measurement_id_pos: pos }) });
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ ga_measurement_id: b2b, ga_measurement_id_pos: pos, ga_measurement_id_core: core }) });
     const stavy = [];
     if (b2b) stavy.push(`B2B ${b2b}`);
     if (pos) stavy.push(`POS ${pos}`);
+    if (core) stavy.push(`Admin ${core}`);
     toast(stavy.length ? '✅ Google Analytics uloženo' : '✅ Google Analytics vypnuto', 'success');
     const info = document.getElementById('ns-ga-info');
     if (info) info.textContent = stavy.length ? `Měří se: ${stavy.join(' · ')}` : 'Vypnuto';
+    if (core) aplikovatGaCore(core);   // okamžitě aktivuj na adminu (bez reloadu)
   } catch (e) { toast('❌ ' + (e.message || 'Uložení selhalo'), 'error'); }
 };
 
@@ -13823,13 +13826,30 @@ window.aplikovatLogo = function(url) {
   });
 };
 
-// Auto-load logo + favicon při startu aplikace
+// 📊 v3.0.310 — Google Analytics na admin core (hlavní aplikaci). Per-install ID
+// (ga_measurement_id_core), client-side injekce gtag — vzor jako b2b/app.js + POS.
+window.aplikovatGaCore = function(id) {
+  id = (id || '').trim();
+  if (!id || window._gaCoreLoaded || !/^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(id)) return;
+  window._gaCoreLoaded = true;
+  const gs = document.createElement('script');
+  gs.async = true;
+  gs.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(id);
+  document.head.appendChild(gs);
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+  window.gtag('js', new Date());
+  window.gtag('config', id, { anonymize_ip: true });
+};
+
+// Auto-load logo + favicon (+ GA core) při startu aplikace
 (async function _initBranding() {
   try {
     // Cached endpoint — rychlé
     const n = await api('admin_nastaveni.php');
     if (n.firma_favicon_url) aplikovatFavicon(n.firma_favicon_url);
     if (n.firma_logo_url)    aplikovatLogo(n.firma_logo_url);
+    if (n.ga_measurement_id_core) aplikovatGaCore(n.ga_measurement_id_core);
   } catch (e) { /* neauth nebo network — ignore */ }
 })();
 
@@ -16042,7 +16062,7 @@ async function renderNastaveni() {
     <div class="card-block" id="ns-ga-block" style="margin-bottom:14px;padding:14px 16px">
       <h3 style="margin:0 0 6px;font-size:15px">📊 Google Analytics</h3>
       <p class="page-sub" style="font-size:12px;margin:0 0 10px">
-        Measurement ID (např. <code>G-XXXXXXXXXX</code>) — <strong>zvlášť pro B2B portál a zvlášť pro pokladnu</strong>, ať se data nemíchají. Admin se neměří. Prázdné pole = vypnuto.
+        Measurement ID (např. <code>G-XXXXXXXXXX</code>) — <strong>zvlášť pro B2B portál, pokladnu a admin</strong>, ať se data nemíchají. Každá instalace svoje ID (vlastní data, GDPR čisté). Prázdné pole = vypnuto.
       </p>
       <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
         <div>
@@ -16052,6 +16072,10 @@ async function renderNastaveni() {
         <div>
           <label class="form-label" style="font-size:12px">🧾 POS pokladna</label>
           <input class="form-input" id="ns-ga-id-pos" placeholder="G-YYYYYYYYYY" style="width:200px;font-family:monospace" value="">
+        </div>
+        <div>
+          <label class="form-label" style="font-size:12px">🛠️ Admin (core aplikace)</label>
+          <input class="form-input" id="ns-ga-id-core" placeholder="G-ZZZZZZZZZZ" style="width:200px;font-family:monospace" value="">
         </div>
         <button class="btn-primary btn-green" onclick="ulozitGaId()">💾 Uložit</button>
         <span id="ns-ga-info" style="font-size:12px;color:var(--text-3)"></span>
@@ -16305,6 +16329,8 @@ async function renderNastaveni() {
       if (inp && n && n.ga_measurement_id) inp.value = n.ga_measurement_id;
       const inpPos = document.getElementById('ns-ga-id-pos');
       if (inpPos && n && n.ga_measurement_id_pos) inpPos.value = n.ga_measurement_id_pos;
+      const inpCore = document.getElementById('ns-ga-id-core');
+      if (inpCore && n && n.ga_measurement_id_core) inpCore.value = n.ga_measurement_id_core;
     }).catch(() => {});
   }
   if (aktTab === 'platby') {
