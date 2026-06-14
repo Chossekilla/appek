@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.341';
+const APPEK_ADMIN_JS_VERSION = '3.0.342';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -24874,6 +24874,35 @@ window.saveDefaultSleva = async function(key) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
+// 🆕 v3.0.342 — pohyblivé svátky (Velikonoce, Den matek) → letošní datum do výchozí sezóny
+function appekEasterSunday(year) {
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+window.seasonalNastavLetos = function(key) {
+  const y = new Date().getFullYear();
+  const fmt = dt => String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+  let start, end;
+  if (key === 'velikonoce') {
+    const easter = appekEasterSunday(y);
+    end = new Date(easter); end.setDate(end.getDate() + 1);     // Velikonoční pondělí
+    start = new Date(easter); start.setDate(start.getDate() - 28); // ~4 týdny prodejní okno před
+  } else if (key === 'denmatek') {
+    const may1 = new Date(y, 4, 1); const firstSun = (7 - may1.getDay()) % 7;
+    const den = new Date(y, 4, 1 + firstSun + 7);                // 2. neděle května
+    end = den; start = new Date(den); start.setDate(start.getDate() - 12);
+  } else return;
+  const se = document.getElementById('cs-start'), en = document.getElementById('cs-end');
+  if (se) se.value = fmt(start);
+  if (en) en.value = fmt(end);
+  try { toast('📅 Nastaveno na ' + y + ': ' + fmt(start) + ' → ' + fmt(end), 'info'); } catch (e) {}
+};
+
 window.editCustomSeason = async function(id, preset) {
   let s = { id: 0, key: '', label: '', start_md: '06-01', end_md: '08-31', color: '#3B82F6', sleva_pct: 0 };
   const isDefault = !!(preset && preset.is_default); // 🆕 v3.0.339 — editace výchozí sezóny (přes override)
@@ -24904,6 +24933,11 @@ window.editCustomSeason = async function(id, preset) {
       <div><label class="form-label">Konec (MM-DD)</label>
         <input class="form-input" id="cs-end" value="${esc(s.end_md)}" pattern="\\d{2}-\\d{2}" placeholder="08-31">
       </div>
+      ${(isDefault && (s.key === 'velikonoce' || s.key === 'denmatek')) ? `
+      <div class="full" style="background:#FFFBEB;border:1px solid #F0D9B8;border-radius:8px;padding:8px 12px">
+        <div style="font-size:12px;color:#854F0B;margin-bottom:6px">📅 ${s.key === 'velikonoce' ? 'Velikonoce' : 'Den matek'} se každý rok posouvají — datum nastav na aktuální rok jedním klikem:</div>
+        <button type="button" class="btn-secondary" onclick="seasonalNastavLetos('${s.key}')" style="font-size:12px">📅 Nastavit na letošní rok (${new Date().getFullYear()})</button>
+      </div>` : ''}
       <div class="full"><label class="form-label">💰 Sezónní úprava ceny (%)</label>
         <input class="form-input" id="cs-sleva" type="number" step="0.5" min="-90" max="90" value="${s.sleva_pct || 0}" placeholder="0">
         <div style="font-size:11px;color:var(--text-3);margin-top:2px">Kladné = sleva (např. 20 = −20 %), záporné = přirážka. Platí jen v aktivním okně sezóny.</div>
@@ -42935,6 +42969,11 @@ document.addEventListener('keydown', function(e) {
     var carriers = [], existing = [];
     try { var c = await api('admin_shipment.php?action=carriers'); carriers = (c && c.carriers) || []; } catch (e) {}
     try { var l = await api('admin_shipment.php?action=list&objednavka_id=' + orderId); existing = (l && l.zasilky) || []; } catch (e) {}
+    // 🆕 v3.0.342 — předvyplň hmotnost ze součtu produktů objednávky + ukaž rozměry
+    var meta = {}; try { meta = await api('admin_shipment.php?action=order_meta&objednavka_id=' + orderId) || {}; } catch (e) {}
+    var defW = (meta.weight_kg && meta.weight_kg > 0) ? meta.weight_kg : 1;
+    var dimHint = (meta.rozmery && (meta.rozmery.d || meta.rozmery.s || meta.rozmery.v))
+      ? '<div style="font-size:11px;color:#888;margin-top:4px">📐 Max rozměr produktu: ' + [meta.rozmery.d, meta.rozmery.s, meta.rozmery.v].filter(Boolean).join(' × ') + ' cm</div>' : '';
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
     var opts = carriers.map(function (c) { return '<option value="' + c.key + '"' + (c.enabled ? '' : ' disabled') + '>' + c.label + (c.enabled ? '' : ' — nenastaveno') + '</option>'; }).join('');
@@ -42946,9 +42985,9 @@ document.addEventListener('keydown', function(e) {
         '<div style="font-size:17px;font-weight:700;margin-bottom:12px">📦 Vytvořit zásilku</div>' +
         '<label style="font-size:13px">Přepravce<br><select id="ship-carrier" class="form-input" style="width:100%;margin-top:4px">' + opts + '</select></label>' +
         '<div style="display:flex;gap:8px;margin-top:10px">' +
-          '<label style="flex:1;font-size:13px">Hmotnost (kg)<br><input id="ship-w" class="form-input" type="number" step="0.1" value="1" style="width:100%"></label>' +
+          '<label style="flex:1;font-size:13px">Hmotnost (kg)<br><input id="ship-w" class="form-input" type="number" step="0.1" value="' + defW + '" style="width:100%"></label>' +
           '<label style="flex:1;font-size:13px">Dobírka (Kč)<br><input id="ship-cod" class="form-input" type="number" value="0" style="width:100%"></label>' +
-        '</div>' +
+        '</div>' + dimHint +
         '<label style="font-size:13px;display:block;margin-top:10px">Výdejní místo ID (Zásilkovna)<br><input id="ship-pp" class="form-input" placeholder="volitelné" style="width:100%"></label>' +
         '<div id="ship-msg" style="margin-top:10px;font-size:13px;color:#a00"></div>' + exHtml +
         '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">' +

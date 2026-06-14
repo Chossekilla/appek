@@ -22,6 +22,30 @@ if ($method === 'GET' && $action === 'carriers') {
     json_response(['ok' => true, 'carriers' => $out]);
 }
 
+// 🆕 v3.0.342 — meta pro předvyplnění expedičního dialogu (hmotnost = Σ produktů × množství)
+if ($method === 'GET' && $action === 'order_meta') {
+    $oid = (int) ($_GET['objednavka_id'] ?? 0);
+    if (!$oid) json_error('Chybí objednavka_id', 400);
+    $grams = 0.0; $maxDim = null;
+    try {
+        $w = $pdo->prepare("SELECT COALESCE(SUM(op.mnozstvi * COALESCE(v.hmotnost_g, 0)), 0) AS g
+                            FROM objednavky_polozky op LEFT JOIN vyrobky v ON v.id = op.vyrobek_id
+                            WHERE op.objednavka_id = :o");
+        $w->execute(['o' => $oid]);
+        $grams = (float) $w->fetchColumn();
+        // největší rozměr napříč položkami (orientační — pro nadrozměr)
+        $colsVy = $pdo->query("SHOW COLUMNS FROM vyrobky")->fetchAll(PDO::FETCH_COLUMN);
+        if (in_array('rozmer_d', $colsVy, true)) {
+            $dm = $pdo->prepare("SELECT MAX(v.rozmer_d) d, MAX(v.rozmer_s) s, MAX(v.rozmer_v) vv
+                                 FROM objednavky_polozky op JOIN vyrobky v ON v.id = op.vyrobek_id WHERE op.objednavka_id = :o");
+            $dm->execute(['o' => $oid]);
+            $r = $dm->fetch(PDO::FETCH_ASSOC);
+            if ($r && ($r['d'] || $r['s'] || $r['vv'])) $maxDim = ['d' => $r['d'], 's' => $r['s'], 'v' => $r['vv']];
+        }
+    } catch (Throwable $e) {}
+    json_response(['ok' => true, 'weight_kg' => $grams > 0 ? round($grams / 1000, 2) : 0, 'rozmery' => $maxDim]);
+}
+
 if ($method === 'GET' && ($action === 'list' || $action === '')) {
     $where = ''; $params = [];
     if (!empty($_GET['objednavka_id'])) { $where = 'WHERE objednavka_id = :o'; $params['o'] = (int) $_GET['objednavka_id']; }
