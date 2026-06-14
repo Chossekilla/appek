@@ -141,7 +141,7 @@ if ($odb_id) {
 }
 
 $kategorie = $pdo->query("
-    SELECT id, nazev, ikona, obrazek_url, poradi FROM kategorie_vyrobku
+    SELECT id, nazev, ikona, obrazek_url, poradi, parent_id FROM kategorie_vyrobku
     WHERE aktivni = 1 ORDER BY poradi
 ")->fetchAll();
 
