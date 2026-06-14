@@ -226,23 +226,37 @@
     if (!wrap) return;
     const cats = State.catalog?.kategorie || [];
     const total = (State.catalog?.vyrobky || []).length;
+    // 🆕 v3.0.335 — v hlavní liště jen hlavní kategorie; subkategorie jako druhý řádek pod aktivní
+    const mains = cats.filter(k => !k.parent_id);
+    const active = cats.find(k => String(k.id) === String(State.activeCat));
+    const activeMainId = active ? String(active.parent_id || active.id) : null;
     let html = `
       <button class="pos-cat ${State.activeCat==='all'?'is-active':''}" data-cat="all">
         <span class="pos-cat-icon">🍱</span>
         <span class="pos-cat-name">Vše</span>
         <span class="pos-cat-count">${total}</span>
       </button>`;
-    for (const k of cats) {
+    for (const k of mains) {
       if (!k.pocet || k.pocet === 0) continue;
       const ic = k.obrazek_url
         ? `<img class="pos-cat-img" src="${esc(k.obrazek_url)}" alt="">`
         : `<span class="pos-cat-icon">${esc(k.ikona || '📦')}</span>`;
       html += `
-        <button class="pos-cat ${State.activeCat===String(k.id)?'is-active':''}" data-cat="${k.id}">
+        <button class="pos-cat ${activeMainId===String(k.id)?'is-active':''}" data-cat="${k.id}">
           ${ic}
           <span class="pos-cat-name">${esc(k.nazev)}</span>
           <span class="pos-cat-count">${k.pocet}</span>
         </button>`;
+    }
+    if (activeMainId) {
+      const subs = cats.filter(k => String(k.parent_id) === activeMainId && k.pocet > 0);
+      if (subs.length) {
+        html += `<div class="pos-subcats" style="flex-basis:100%;width:100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          <button class="pos-cat pos-cat-sub ${String(State.activeCat)===activeMainId?'is-active':''}" data-cat="${activeMainId}"><span class="pos-cat-name">↳ Vše</span></button>
+          ${subs.map(s => `<button class="pos-cat pos-cat-sub ${String(s.id)===String(State.activeCat)?'is-active':''}" data-cat="${s.id}">
+            <span class="pos-cat-name">${s.ikona ? esc(s.ikona)+' ' : ''}${esc(s.nazev)}</span><span class="pos-cat-count">${s.pocet}</span></button>`).join('')}
+        </div>`;
+      }
     }
     wrap.innerHTML = html;
     wrap.querySelectorAll('.pos-cat').forEach(b => {
@@ -287,7 +301,11 @@
     if (!wrap) return;
     let items = (State.catalog?.vyrobky || []).slice();
 
-    if (State.activeCat !== 'all')      items = items.filter(v => String(v.kategorie_id) === State.activeCat);
+    if (State.activeCat !== 'all') {
+      // 🆕 v3.0.335 — hlavní kategorie zahrne i produkty ve svých subkategoriích
+      const subIds = (State.catalog?.kategorie || []).filter(k => String(k.parent_id) === String(State.activeCat)).map(k => String(k.id));
+      items = items.filter(v => String(v.kategorie_id) === State.activeCat || subIds.includes(String(v.kategorie_id)));
+    }
     if (State.activeFilter === 'akce')      items = items.filter(v => v.je_akce);
     if (State.activeFilter === 'novinka')   items = items.filter(v => v.je_novinka);
     if (State.activeFilter === 'doprodej')  items = items.filter(v => v.je_doprodej);
@@ -1827,10 +1845,14 @@
     if (!c) return;
     const cats = window.__posTableKategorie || [];
     const active = window.__posTableActiveCat || 0;
+    // 🆕 v3.0.335 — jen hlavní kategorie; tap na hlavní zobrazí i její subkategorie
+    const mains = cats.filter(k => !k.parent_id);
+    const activeObj = cats.find(k => k.id === active);
+    const activeMainId = activeObj ? (activeObj.parent_id || activeObj.id) : active;
     c.innerHTML = `
       <button class="pos-tm-cat ${active === 0 ? 'is-active' : ''}" onclick="posTableSetCat(0)">⭐ Vše</button>
-      ${cats.map(k => `
-        <button class="pos-tm-cat ${active === k.id ? 'is-active' : ''}" onclick="posTableSetCat(${k.id})">
+      ${mains.map(k => `
+        <button class="pos-tm-cat ${activeMainId === k.id ? 'is-active' : ''}" onclick="posTableSetCat(${k.id})">
           ${esc(k.ikona || '📦')} ${esc(k.nazev)}
         </button>
       `).join('')}
@@ -1839,7 +1861,9 @@
   window.posTableSetCat = function(catId) {
     window.__posTableActiveCat = catId;
     renderTableCategories();
-    const items = (window.__posTableMenu || []).filter(v => !catId || v.kategorie_id === catId);
+    const _cats = window.__posTableKategorie || [];
+    const subIds = catId ? _cats.filter(k => k.parent_id == catId).map(k => Number(k.id)) : [];
+    const items = (window.__posTableMenu || []).filter(v => !catId || v.kategorie_id === catId || subIds.includes(Number(v.kategorie_id)));
     renderTableMenu(items);
     // Clear search
     const s = document.getElementById('pos-table-search');

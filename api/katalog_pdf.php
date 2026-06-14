@@ -32,14 +32,26 @@ if (is_array($poznamky_raw)) {
 
 try {
     // --- Výrobky (s aktuálními sloupci) ---
+    // 🆕 v3.0.335 — subkategorie: vyber hlavní kat. zahrne i produkty v jejích subkategoriích
+    if ($kategorie_ids) {
+        $in = implode(',', array_map('intval', $kategorie_ids));
+        try {
+            $subs = $pdo->query("SELECT id FROM kategorie_vyrobku WHERE parent_id IN ($in)")->fetchAll(PDO::FETCH_COLUMN);
+            if ($subs) $kategorie_ids = array_values(array_unique(array_merge($kategorie_ids, array_map('intval', $subs))));
+        } catch (Throwable $e) {}
+    }
+
     $sql = "
         SELECT v.id, v.cislo, v.nazev, v.popis, v.alergeny, v.hmotnost_g,
                v.cena_bez_dph, v.kategorie_id, v.obrazek_url, v.poradi,
-               k.nazev AS kategorie_nazev, k.poradi AS kategorie_poradi,
+               k.nazev AS kategorie_nazev, k.poradi AS kategorie_poradi, k.parent_id AS kategorie_parent_id,
+               p.nazev AS hlavni_nazev, COALESCE(k.parent_id, k.id) AS hlavni_id,
+               COALESCE(p.poradi, k.poradi) AS hlavni_poradi,
                j.kod AS jednotka,
                s.sazba AS dph
         FROM vyrobky v
         LEFT JOIN kategorie_vyrobku k ON v.kategorie_id = k.id
+        LEFT JOIN kategorie_vyrobku p ON p.id = k.parent_id
         LEFT JOIN jednotky j ON v.jednotka_id = j.id
         LEFT JOIN sazby_dph s ON v.sazba_dph_id = s.id
         WHERE v.aktivni = 1
@@ -55,7 +67,8 @@ try {
         $sql .= " AND v.kategorie_id IN ($ph)";
         $params = array_merge($params, $kategorie_ids);
     }
-    $sql .= " ORDER BY k.poradi, v.poradi, v.nazev";
+    // hlavní kategorie → uvnitř přímé produkty (parent NULL) před subkategoriemi
+    $sql .= " ORDER BY hlavni_poradi, k.parent_id IS NOT NULL, k.poradi, v.poradi, v.nazev";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -119,12 +132,71 @@ try {
     }
     unset($v);
 
-    // Seskupit podle kategorií
-    $grouped = [];
+    // 🆕 v3.0.335 — vnořené seskupení: hlavní kategorie → přímé produkty → subkategorie
+    $grouped = []; // hlavni_id => ['nazev', 'direct'=>[], 'subs'=>[subId=>['nazev','items'=>[]]], 'total']
     foreach ($vyrobky as $v) {
-        $key = $v['kategorie_nazev'] ?: 'Bez kategorie';
-        $grouped[$key][] = $v;
+        $hid = (int) ($v['hlavni_id'] ?: 0);
+        if (!isset($grouped[$hid])) {
+            $grouped[$hid] = ['nazev' => $v['hlavni_nazev'] ?: ($v['kategorie_nazev'] ?: 'Bez kategorie'), 'direct' => [], 'subs' => [], 'total' => 0];
+        }
+        if (!empty($v['kategorie_parent_id'])) {
+            $sid = (int) $v['kategorie_id'];
+            if (!isset($grouped[$hid]['subs'][$sid])) $grouped[$hid]['subs'][$sid] = ['nazev' => $v['kategorie_nazev'], 'items' => []];
+            $grouped[$hid]['subs'][$sid]['items'][] = $v;
+        } else {
+            $grouped[$hid]['direct'][] = $v;
+        }
+        $grouped[$hid]['total']++;
     }
+
+    // Sdílený renderer produktové karty (přímé i subkategorie)
+    $renderCard = function ($v) use ($poznamky) {
+        $sl_zobrazit = $v['sleva_pct'] !== null && $v['cena_finalni'] < $v['cena_zakl'];
+        $img = '';
+        if (!empty($v['obrazek_url'])) {
+            $url = $v['obrazek_url'];
+            $disk = __DIR__ . '/..' . (str_starts_with($url, '/') ? $url : '/' . $url);
+            if (file_exists($disk)) $img = $url;
+        }
+        if (!$img) {
+            $cand = __DIR__ . '/../uploads/vyrobky/' . $v['id'] . '.jpg';
+            if (file_exists($cand)) $img = '/uploads/vyrobky/' . $v['id'] . '.jpg';
+        }
+        ob_start(); ?>
+        <div class="pc">
+          <?php if ($img): ?><img src="<?= esc($img) ?>" alt=""><?php endif; ?>
+          <div class="name"><?= esc($v['nazev']) ?></div>
+          <?php if (!empty($v['cislo'])): ?><div class="cislo">č. <?= esc($v['cislo']) ?></div><?php endif; ?>
+          <div class="meta">
+            <?php
+              $bits = [];
+              if (!empty($v['hmotnost_g'])) $bits[] = (int)$v['hmotnost_g'] . ' g';
+              if (!empty($v['jednotka']))   $bits[] = esc($v['jednotka']);
+              echo implode(' · ', $bits);
+            ?>
+          </div>
+          <?php if (!empty($poznamky[(int)$v['id']])): ?>
+            <div class="badge-pozn">⭐ <?= esc($poznamky[(int)$v['id']]) ?></div>
+          <?php endif; ?>
+          <?php if (!empty($v['popis'])): ?>
+            <div class="popis"><?= esc(mb_substr($v['popis'], 0, 140)) ?><?= mb_strlen($v['popis']) > 140 ? '…' : '' ?></div>
+          <?php endif; ?>
+          <?php if (!empty($v['alergeny'])): ?>
+            <div class="alergeny">Alergeny: <?= esc($v['alergeny']) ?></div>
+          <?php endif; ?>
+          <div class="price-row">
+            <div>
+              <span class="price"><?= number_format($v['cena_s_dph'], 2, ',', ' ') ?> Kč</span>
+              <?php if ($sl_zobrazit): ?>
+                <span class="price-old"><?= number_format($v['cena_zakl'] * (1 + ((float)$v['dph']) / 100), 2, ',', ' ') ?> Kč</span>
+                <span class="badge-sleva">−<?= round($v['sleva_pct']) ?>%</span>
+              <?php endif; ?>
+              <div class="price-dph">bez DPH <?= number_format($v['cena_finalni'], 2, ',', ' ') ?> Kč · DPH <?= round((float)$v['dph']) ?>%</div>
+            </div>
+          </div>
+        </div>
+        <?php return ob_get_clean();
+    };
 
     // Údaje firmy z nastavení
     $firma_nazev   = nastaveni_get($pdo, 'firma_nazev', 'APPEK B2B');
@@ -208,57 +280,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 <?php if (empty($vyrobky)): ?>
   <div class="empty">Žádné výrobky odpovídající zadaným filtrům.</div>
 <?php else: ?>
-  <?php foreach ($grouped as $kn => $pp): ?>
+  <?php foreach ($grouped as $g): ?>
     <div class="kat-section">
-    <div class="kat-title"><?= esc($kn) ?> <span class="kat-pocet">(<?= count($pp) ?>)</span></div>
-    <div class="products">
-      <?php foreach ($pp as $v):
-        $sl_zobrazit = $v['sleva_pct'] !== null && $v['cena_finalni'] < $v['cena_zakl'];
-        $img = '';
-        if (!empty($v['obrazek_url'])) {
-          $url = $v['obrazek_url'];
-          $disk = __DIR__ . '/..' . (str_starts_with($url, '/') ? $url : '/' . $url);
-          if (file_exists($disk)) $img = $url;
-        }
-        if (!$img) {
-          $cand = __DIR__ . '/../uploads/vyrobky/' . $v['id'] . '.jpg';
-          if (file_exists($cand)) $img = '/uploads/vyrobky/' . $v['id'] . '.jpg';
-        }
-      ?>
-        <div class="pc">
-          <?php if ($img): ?><img src="<?= esc($img) ?>" alt=""><?php endif; ?>
-          <div class="name"><?= esc($v['nazev']) ?></div>
-          <?php if (!empty($v['cislo'])): ?><div class="cislo">č. <?= esc($v['cislo']) ?></div><?php endif; ?>
-          <div class="meta">
-            <?php
-              $bits = [];
-              if (!empty($v['hmotnost_g'])) $bits[] = (int)$v['hmotnost_g'] . ' g';
-              if (!empty($v['jednotka']))   $bits[] = esc($v['jednotka']);
-              echo implode(' · ', $bits);
-            ?>
-          </div>
-          <?php if (!empty($poznamky[(int)$v['id']])): ?>
-            <div class="badge-pozn">⭐ <?= esc($poznamky[(int)$v['id']]) ?></div>
-          <?php endif; ?>
-          <?php if (!empty($v['popis'])): ?>
-            <div class="popis"><?= esc(mb_substr($v['popis'], 0, 140)) ?><?= mb_strlen($v['popis']) > 140 ? '…' : '' ?></div>
-          <?php endif; ?>
-          <?php if (!empty($v['alergeny'])): ?>
-            <div class="alergeny">Alergeny: <?= esc($v['alergeny']) ?></div>
-          <?php endif; ?>
-          <div class="price-row">
-            <div>
-              <span class="price"><?= number_format($v['cena_s_dph'], 2, ',', ' ') ?> Kč</span>
-              <?php if ($sl_zobrazit): ?>
-                <span class="price-old"><?= number_format($v['cena_zakl'] * (1 + ((float)$v['dph']) / 100), 2, ',', ' ') ?> Kč</span>
-                <span class="badge-sleva">−<?= round($v['sleva_pct']) ?>%</span>
-              <?php endif; ?>
-              <div class="price-dph">bez DPH <?= number_format($v['cena_finalni'], 2, ',', ' ') ?> Kč · DPH <?= round((float)$v['dph']) ?>%</div>
-            </div>
-          </div>
-        </div>
-      <?php endforeach; ?>
-    </div>
+    <div class="kat-title"><?= esc($g['nazev']) ?> <span class="kat-pocet">(<?= (int)$g['total'] ?>)</span></div>
+    <?php if (!empty($g['direct'])): ?>
+      <div class="products"><?php foreach ($g['direct'] as $v) echo $renderCard($v); ?></div>
+    <?php endif; ?>
+    <?php foreach ($g['subs'] as $sub): ?>
+      <div class="kat-subtitle" style="font-size:13px;font-weight:700;margin:10px 0 4px;opacity:.82">↳ <?= esc($sub['nazev']) ?> <span class="kat-pocet">(<?= count($sub['items']) ?>)</span></div>
+      <div class="products"><?php foreach ($sub['items'] as $v) echo $renderCard($v); ?></div>
+    <?php endforeach; ?>
     </div>
   <?php endforeach; ?>
 <?php endif; ?>
