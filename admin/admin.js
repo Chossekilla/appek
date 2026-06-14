@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.340';
+const APPEK_ADMIN_JS_VERSION = '3.0.341';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5314,8 +5314,8 @@ async function loadProvozWidget() {
   // 🆕 v2.9.277 — Setup hint: pokud uživatel nemá nastavené stoly/kuchyně/kurýrky → ukáže onboarding banner místo widgetu
   const setupChybi = [];
   if (totalMist === 0 && (!tables || !tables.error)) setupChybi.push({ icon: '🪑', label: 'Stoly', action: 'window.openFloorplanWindow?.()', hint: 'Vytvořit floor plan (stoly + zóny)' });
-  if ((!kitchen?.stanice || kitchen.stanice.length === 0) && (!kitchen || !kitchen.error)) setupChybi.push({ icon: '👨‍🍳', label: 'Kuchyně stanice', action: "navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='pkg_restaurace';renderNastaveni()},100)", hint: 'Pec, gril, studená kuchyně, bar…' });
-  if ((cStats.kuryru_aktivnich || 0) === 0 && (!couriers || !couriers.error)) setupChybi.push({ icon: '🛵', label: 'Kurýrky', action: "navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='pkg_restaurace';renderNastaveni()},100)", hint: 'Vlastní řidiči nebo Wolt/Bolt' });
+  if ((!kitchen?.stanice || kitchen.stanice.length === 0) && (!kitchen || !kitchen.error)) setupChybi.push({ icon: '👨‍🍳', label: 'Kuchyně stanice', action: "navigate('pkg_restaurace');setTimeout(()=>{state._restTab='kitchen';renderRestaurantPage()},120)", hint: 'Pec, gril, studená kuchyně, bar…' });
+  if ((cStats.kuryru_aktivnich || 0) === 0 && (!couriers || !couriers.error)) setupChybi.push({ icon: '🛵', label: 'Kurýrky', action: "navigate('pkg_restaurace');setTimeout(()=>{state._restTab='couriers';renderRestaurantPage()},120)", hint: 'Vlastní řidiči nebo Wolt/Bolt' });
 
   if (setupChybi.length === setupChybi.length && setupChybi.length >= 2) {
     // Zobraz onboarding hint místo widgetu (pokud chybí 2+ věci → ještě se nezačalo)
@@ -5415,7 +5415,7 @@ async function loadProvozWidget() {
         </div>
 
         <!-- Kuchyň -->
-        <div class="provoz-tile" onclick="navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='pkg_restaurace';renderNastaveni();},100)" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-left:4px solid ${loadColor(kitchenLoad)};border-radius:10px;padding:12px 14px;cursor:pointer;transition:background 0.15s ease">
+        <div class="provoz-tile" onclick="navigate('pkg_restaurace');setTimeout(()=>{state._restTab='kitchen';renderRestaurantPage();},120)" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-left:4px solid ${loadColor(kitchenLoad)};border-radius:10px;padding:12px 14px;cursor:pointer;transition:background 0.15s ease">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
             <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.7">👨‍🍳 Kuchyně</span>
             ${kIsFull ? '<span style="background:#DC2626;font-size:9px;padding:1px 6px;border-radius:6px;font-weight:700">PLNÁ</span>' : ''}
