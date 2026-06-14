@@ -215,7 +215,7 @@ function apply_full_schema(PDO $pdo): void {
         'zalohy' => "
             CREATE TABLE IF NOT EXISTS zalohy (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                nazev_souboru VARCHAR(255) NOT NULL,
+                nazev_souboru VARCHAR(255) NOT NULL DEFAULT '',
                 velikost_bytes BIGINT NOT NULL DEFAULT 0,
                 typ ENUM('manual','auto','snapshot') NOT NULL DEFAULT 'manual',
                 poznamka VARCHAR(500) DEFAULT NULL,
@@ -299,6 +299,13 @@ function apply_full_schema(PDO $pdo): void {
             'poradi'           => "ADD COLUMN poradi INT DEFAULT 0",
             'sklad_stav'       => "ADD COLUMN sklad_stav DECIMAL(12,3) DEFAULT NULL",
             'sklad_min'        => "ADD COLUMN sklad_min DECIMAL(12,3) DEFAULT NULL",
+            // 🆕 v3.0.323 — fresh-install díry: priprava_min/kitchen_station_id (admin_kitchen.php
+            //   GET je čte bez guardu → 500) + obor (konfigurátor dort/catering → jinak „žádné dorty"
+            //   dokud se neotevře Výrobky). Dřív jen v admin_vyrobky.php migraci → sem = univerzálně
+            //   na každém připojení (idempotentní check-before-ADD).
+            'priprava_min'       => "ADD COLUMN priprava_min INT NOT NULL DEFAULT 10",
+            'kitchen_station_id' => "ADD COLUMN kitchen_station_id INT NULL",
+            'obor'               => "ADD COLUMN obor VARCHAR(20) NULL, ADD INDEX idx_obor (obor)",
         ],
         // suroviny (admin_suroviny.php auto-migrace)
         'suroviny' => [
@@ -328,10 +335,17 @@ function apply_full_schema(PDO $pdo): void {
             'minimum_obj_kc'     => "ADD COLUMN minimum_obj_kc DECIMAL(10,2) DEFAULT NULL",
             'splatnost_dni'      => "ADD COLUMN splatnost_dni INT DEFAULT NULL",
         ],
-        // objednavky_polozky (admin_objednavky.php — vyrobek_id NULL + nazev snapshot)
+        // objednavky — vratky/refund. 🆕 v3.0.323: dřív jen `ADD COLUMN IF NOT EXISTS refund_of`
+        //   (MariaDB-only syntax) uvnitř akcí → na MySQL selhal → POS vratka „Unknown column
+        //   'refund_of'" (potvrzeno v error logu). Tady check-before-ADD = funguje na MySQL i MariaDB.
+        'objednavky' => [
+            'refund_of' => "ADD COLUMN refund_of INT NULL",
+        ],
+        // objednavky_polozky (admin_objednavky.php — vyrobek_id NULL + nazev snapshot; vraci_polozku_id = vratka)
         'objednavky_polozky' => [
-            'vyrobek_nazev' => "ADD COLUMN vyrobek_nazev VARCHAR(255) NULL AFTER vyrobek_id",
-            'jednotka'      => "ADD COLUMN jednotka VARCHAR(20) NULL AFTER vyrobek_nazev",
+            'vyrobek_nazev'    => "ADD COLUMN vyrobek_nazev VARCHAR(255) NULL AFTER vyrobek_id",
+            'jednotka'         => "ADD COLUMN jednotka VARCHAR(20) NULL AFTER vyrobek_nazev",
+            'vraci_polozku_id' => "ADD COLUMN vraci_polozku_id INT NULL",
         ],
         // moje_stitky (admin_moje_stitky.php — možná legacy bez sloupců)
         'moje_stitky' => [

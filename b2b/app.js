@@ -1305,14 +1305,14 @@ window.zobrazPolozkiObjednavky = async function(id) {
         🔁 Znovu objednat
       </button>
       ${maDL ? `
-        <a class="oc-btn oc-btn-ghost" href="api/dodaci_list.php?id=${obj.id}" target="_blank">
+        <a class="oc-btn oc-btn-ghost" href="../api/dodaci_list.php?id=${obj.id}" target="_blank">
           📃 DL
         </a>
       ` : `
         <span class="oc-btn oc-btn-ghost oc-btn-disabled" title="DL zatím neexistuje">📃 DL</span>
       `}
       ${maFA ? `
-        <a class="oc-btn oc-btn-ghost" href="api/faktura.php?id=${obj.prvni_faktura_id}" target="_blank">
+        <a class="oc-btn oc-btn-ghost" href="../api/faktura.php?id=${obj.prvni_faktura_id}" target="_blank">
           💰 FA
         </a>
       ` : `
@@ -1355,7 +1355,7 @@ function renderOrderMiniCard(o) {
           📋 Detail
         </button>
         ${maDL ? `
-          <a class="oc-btn oc-btn-ghost oc-btn-sm" href="api/dodaci_list.php?id=${o.id}" target="_blank" title="Dodací list">
+          <a class="oc-btn oc-btn-ghost oc-btn-sm" href="../api/dodaci_list.php?id=${o.id}" target="_blank" title="Dodací list">
             📃 DL
           </a>
         ` : `
@@ -1364,7 +1364,7 @@ function renderOrderMiniCard(o) {
           </span>
         `}
         ${maFA ? `
-          <a class="oc-btn oc-btn-ghost oc-btn-sm" href="api/faktura.php?id=${o.prvni_faktura_id}" target="_blank" title="Faktura">
+          <a class="oc-btn oc-btn-ghost oc-btn-sm" href="../api/faktura.php?id=${o.prvni_faktura_id}" target="_blank" title="Faktura">
             💰 FA
           </a>
         ` : `

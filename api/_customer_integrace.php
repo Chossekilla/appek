@@ -230,7 +230,7 @@ function customer_int_gopay_token(): ?string {
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => 'grant_type=client_credentials&scope=payment-create',
+        CURLOPT_POSTFIELDS     => 'grant_type=client_credentials&scope=payment-all',
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 15,
         CURLOPT_USERPWD        => $clientId . ':' . $clientSecret,
@@ -292,6 +292,26 @@ function customer_int_gopay_create_payment(array $payload): array {
     if ($code < 200 || $code >= 300) {
         return ['ok' => false, 'error' => $d['errors'][0]['message'] ?? "http_$code", 'detail' => $d];
     }
+    return ['ok' => true] + ($d ?: []);
+}
+
+// 🆕 v3.0.323 — načti stav platby z GoPay (pro async notifikaci ?action=gopay_callback).
+//   GET {base}/payments/payment/{id} → { state: 'PAID'|'CREATED'|..., order_number, ... }
+function customer_int_gopay_get_payment(int $id): array {
+    if (!customer_int_enabled('gopay')) return ['ok' => false, 'error' => 'gopay_disabled'];
+    $token = customer_int_gopay_token();
+    if (!$token) return ['ok' => false, 'error' => 'gopay_auth_failed'];
+    $ch = curl_init(customer_int_gopay_base() . '/payments/payment/' . $id);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $token, 'Accept: application/json'],
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    $d = json_decode($resp, true);
+    if ($code < 200 || $code >= 300) return ['ok' => false, 'error' => "http_$code", 'detail' => $d];
     return ['ok' => true] + ($d ?: []);
 }
 

@@ -22,7 +22,23 @@ if ($_email_token !== '') {
     }
 }
 if (!$_token_auth) {
-    require_admin();
+    // 🆕 v3.0.323 — přihlášený B2B odběratel smí otevřít VLASTNÍ DL/objednávku z portálu.
+    $_odb_id = (int) ($_SESSION['odberatel_id'] ?? 0);
+    $_odb_ok = false;
+    if ($_odb_id) {
+        $_dlid = (int) ($_GET['dl_id'] ?? 0);
+        $_oid  = (int) ($_GET['id'] ?? 0);
+        if ($_dlid) {
+            $chk = db()->prepare("SELECT 1 FROM dodaci_listy WHERE id = :d AND odberatel_id = :o LIMIT 1");
+            $chk->execute(['d' => $_dlid, 'o' => $_odb_id]);
+            $_odb_ok = (bool) $chk->fetchColumn();
+        } elseif ($_oid) {
+            $chk = db()->prepare("SELECT 1 FROM objednavky WHERE id = :i AND odberatel_id = :o LIMIT 1");
+            $chk->execute(['i' => $_oid, 'o' => $_odb_id]);
+            $_odb_ok = (bool) $chk->fetchColumn();
+        }
+    }
+    if (!$_odb_ok) require_admin();
 }
 
 $pdo = db();

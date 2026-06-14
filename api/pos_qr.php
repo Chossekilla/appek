@@ -65,7 +65,7 @@ if ($action === 'menu') {
         FROM vyrobky v
         LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
         WHERE v.aktivni = 1
-        ORDER BY k.sort_order, k.nazev, v.nazev
+        ORDER BY k.poradi, k.nazev, v.nazev
     ")->fetchAll();
 
     // Filter alergeny pokud existují

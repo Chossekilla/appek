@@ -220,11 +220,14 @@ if ($method === 'POST' && $action === 'gopay_init') {
 
     $base = pay_base_url();
     $r = customer_int_gopay_create_payment([
-        'amount_kc'  => (float)$o['castka_celkem'],
-        'order_no'   => 'PAY-' . $o['id'] . '-' . $token,
-        'description'=> 'Účtenka ' . $o['cislo'],
-        'return_url' => $base . '/pay/?t=' . $token . '&paid=1',
-        'notify_url' => $base . '/api/pay_qr.php?action=gopay_callback',
+        'amount_kc'        => (float)$o['castka_celkem'],
+        // 🐛 v3.0.323 — klíče musí sedět na customer_int_gopay_create_payment (čte 'reference'
+        //   + 'notification_url'). Dřív 'order_no'/'notify_url' → notification_url PRÁZDNÁ →
+        //   GoPay nikdy neposlal notifikaci → platba navždy 'pending'.
+        'reference'        => 'PAY-' . $o['id'] . '-' . $token,
+        'description'      => 'Účtenka ' . $o['cislo'],
+        'return_url'       => $base . '/pay/?t=' . $token . '&paid=1',
+        'notification_url' => $base . '/api/pay_qr.php?action=gopay_callback',
     ]);
     if (!($r['ok'] ?? false) || empty($r['gw_url'])) {
         json_error('GoPay init selhal: ' . ($r['error'] ?? 'neznámá chyba'), 500);
@@ -294,6 +297,28 @@ if ($method === 'POST' && $action === 'stripe_webhook') {
         }
     }
     json_response(['ok' => true]);
+}
+
+// ─────────────────────────────────────────────────────────────
+// GET/POST ?action=gopay_callback — GoPay async notifikace → ověř stav → potvrď platbu
+//   (🆕 v3.0.323 — dřív handler chyběl → 400. GoPay pošle ?id=<payment_id>; stav OVĚŘÍME
+//   dotazem na GoPay API, ne slepou důvěrou. order_number = PAY-<id>-<token> jako u Stripe.)
+// ─────────────────────────────────────────────────────────────
+if ($action === 'gopay_callback') {
+    $gpId = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+    if (!$gpId) json_error('Chybí id', 400);
+    $pay = customer_int_gopay_get_payment($gpId);
+    if (($pay['ok'] ?? false) && ($pay['state'] ?? '') === 'PAID') {
+        $ref = (string)($pay['order_number'] ?? '');
+        if (preg_match('/^PAY-(\d+)-([a-f0-9]{32})$/', $ref, $m)) {
+            $oid = (int)$m[1]; $token = $m[2];
+            $o = pay_get_order_by_token($pdo, $token);
+            if ($o && (int)$o['id'] === $oid) {
+                pay_set_status($pdo, $oid, 'paid', 'gopay', json_encode(['gopay_id' => $gpId]));
+            }
+        }
+    }
+    json_response(['ok' => true]); // GoPay očekává 200
 }
 
 json_error('Neznámá akce: ' . $action, 400);

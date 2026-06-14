@@ -140,23 +140,31 @@ try {
                 je_novinka = 1
         ");
 
-        // Check existing cisla to count truly inserted vs updated
+        // 🆕 v3.0.323 — vyrobky.cislo nemá UNIQUE → ON DUPLICATE KEY UPDATE se nikdy nespustí
+        //   a opětovné „Vložit sezónní sortiment" by duplikovalo výrobky. Explicitně:
+        //   existující cislo → UPDATE, nové → INSERT.
         $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM vyrobky WHERE cislo = :c");
+        $updStmt   = $pdo->prepare("UPDATE vyrobky SET nazev = :nazev, cena_bez_dph = :cena, aktivni = 1, je_novinka = 1 WHERE cislo = :cislo");
         foreach ($tpl['items'] as $it) {
             $checkStmt->execute(['c' => $it['cislo']]);
             $existing = (int)$checkStmt->fetchColumn();
-            $stmt->execute([
-                'cislo' => $it['cislo'],
-                'nazev' => $it['nazev'],
-                'popis' => $it['popis'] ?? '',
-                'kat'   => $kategorieId,
-                'jed'   => $jednotkaId,
-                'sazba' => $sazbaId,
-                'cena'  => $it['cena'],
-                'hmot'  => $it['hmotnost_g'] ?? null,
-                'al'    => $it['alergeny'] ?? '',
-            ]);
-            if ($existing) $skipped++; else $inserted++;
+            if ($existing) {
+                $updStmt->execute(['nazev' => $it['nazev'], 'cena' => $it['cena'], 'cislo' => $it['cislo']]);
+                $skipped++;
+            } else {
+                $stmt->execute([
+                    'cislo' => $it['cislo'],
+                    'nazev' => $it['nazev'],
+                    'popis' => $it['popis'] ?? '',
+                    'kat'   => $kategorieId,
+                    'jed'   => $jednotkaId,
+                    'sazba' => $sazbaId,
+                    'cena'  => $it['cena'],
+                    'hmot'  => $it['hmotnost_g'] ?? null,
+                    'al'    => $it['alergeny'] ?? '',
+                ]);
+                $inserted++;
+            }
         }
 
         echo json_encode([
