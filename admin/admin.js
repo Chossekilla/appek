@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.342';
+const APPEK_ADMIN_JS_VERSION = '3.0.343';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -13238,6 +13238,7 @@ window.editVyrobek = async function(id = null) {
     </div>
 
     <div class="form-grid">
+      <div class="full vy-sec-head">📋 Základ & balení</div>
       <div class="full vy-id-row">
         <div>
           <label class="form-label">Číslo <span style="color:var(--text-3);font-weight:400;font-size:11px">(auto = další volné)</span></label>
@@ -13299,6 +13300,7 @@ window.editVyrobek = async function(id = null) {
       </div>
 
       <!-- Řádek: Název | Kategorie | Jednotka | Min. obj. -->
+      <div class="full vy-sec-head">📝 Název & zařazení</div>
       <div class="full vy-nazev-row">
         <div>
           <label class="form-label">Název *</label>
@@ -13356,6 +13358,7 @@ window.editVyrobek = async function(id = null) {
         <textarea class="form-input" id="vy-postup" rows="3" placeholder="Vyšlehat máslo s cukrem&#10;Přidat vejce po jednom&#10;Péct 180 °C / 35 min" style="font-size:13px;resize:vertical">${esc((function(){try{return (JSON.parse(v.postup_json||'[]')||[]).join('\n');}catch(e){return '';}})())}</textarea>
       </div>
       <!-- Popis | Složení (vedle sebe) -->
+      <div class="full vy-sec-head">📝 Texty (popis · složení · alergeny)</div>
       <div class="full vy-popis-sloz-row">
         <div>
           <label class="form-label">Popis</label>
@@ -30332,8 +30335,8 @@ window.smazatKategorii = async function(id) {
 window.appekImportProdukty = function() {
   openModal('📥 Import produktů z CSV', `
     <div id="imp-body">
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Nahraj CSV export z <strong>Shoptetu</strong>, <strong>WooCommerce</strong> nebo Excelu. V dalším kroku namapuješ sloupce na pole produktu.</p>
-      <input type="file" id="imp-file" accept=".csv,text/csv,text/plain" style="display:none" onchange="appekImportPreview()">
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Nahraj <strong>CSV</strong> nebo <strong>XML feed</strong> z <strong>Shoptetu</strong>, <strong>WooCommerce</strong> nebo Excelu. V dalším kroku namapuješ sloupce na pole produktu.</p>
+      <input type="file" id="imp-file" accept=".csv,.xml,text/csv,text/xml,application/xml,text/plain" style="display:none" onchange="appekImportPreview()">
       <button class="btn-primary btn-green" onclick="document.getElementById('imp-file').click()" style="font-weight:700;padding:12px 22px;border:none;border-radius:10px;cursor:pointer">📤 Vybrat CSV soubor</button>
       <p class="muted" style="font-size:12px;margin-top:12px;line-height:1.5">Oddělovač (<code>;</code> <code>,</code> Tab <code>|</code>) i kódování (UTF-8 / Windows-1250) se detekují automaticky. Max 8 MB.</p>
     </div>

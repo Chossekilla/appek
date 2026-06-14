@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.342";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.343";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -6280,6 +6280,17 @@ a.doc-badge.obj:hover { border-color: #1E3A8A; }
   margin-bottom: 10px;
   letter-spacing: 0.2px;
 }
+/* 🆕 v3.0.343 — titulek sekce ve vršku editoru (sjednocení s boxovanými sekcemi níž) */
+.vy-sec-head {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-2);
+  letter-spacing: 0.2px;
+  margin: 12px 0 -2px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--border);
+}
+.vy-sec-head:first-child { margin-top: 0; }
 /* Cena s DPH input — vypadá jako Cena bez DPH */
 .vy-cena-sdph { /* dědí styling z .vy-cena-input */ }
 
