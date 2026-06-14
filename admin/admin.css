@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.318";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.319";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -356,6 +356,12 @@ body.sidebar-pinned .sidebar-pin .sidebar-pin-icon {
 }
 body.sidebar-pinned .sidebar-pin .sidebar-pin-label-on  { display: inline; }
 body.sidebar-pinned .sidebar-pin .sidebar-pin-label-off { display: none; }
+
+/* 🆕 v3.0.319 — na mobilu zvednout 📌 špendlík (sidebar-utils) o ~1 cm nad spodní URL lištu
+   prohlížeče / iOS home-bar (dřív se schovával pod spodní lištu). + safe-area pro iPhone. */
+@media (max-width: 700px) {
+  .sidebar-utils { margin-bottom: calc(1cm + env(safe-area-inset-bottom, 0px)); }
+}
 
 /* ↔️ COLLAPSE button — vedle Pin */
 .sidebar-collapse {
