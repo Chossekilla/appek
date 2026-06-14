@@ -4673,3 +4673,12 @@ body.pos-mode .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(16
 }
 .cols-switch button.active { background: var(--card-bg, #fff); color: var(--primary, #BA7517); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 @media (max-width: 760px) { .cols-switch { display: none; } }  /* mobil = vždy 2, přepínač skrytý */
+
+/* 🆕 v3.0.316 — responsive audit: dotykové cíle košíku na pokladně ≥40px na mobilu
+   (.checkout-ci-controls .qty-btn měl vyšší specificitu → přebíjel mobilní .qty-btn{40px}) */
+@media (max-width: 700px) {
+  .checkout-ci-controls .qty-btn,
+  .checkout-ci-controls .qty-btn-del { width: 40px; height: 40px; }
+  .checkout-ci-controls .qty-input,
+  .checkout-ci-controls .qty-quick-wide { height: 40px; }
+}
