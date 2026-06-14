@@ -306,6 +306,10 @@ function apply_full_schema(PDO $pdo): void {
             'priprava_min'       => "ADD COLUMN priprava_min INT NOT NULL DEFAULT 10",
             'kitchen_station_id' => "ADD COLUMN kitchen_station_id INT NULL",
             'obor'               => "ADD COLUMN obor VARCHAR(20) NULL, ADD INDEX idx_obor (obor)",
+            // 🆕 v3.0.328 — prodej na váhu: cena_bez_dph = za vaha_jednotka (typicky kg); plu = kód pro váhové čárové kódy
+            'na_vahu'            => "ADD COLUMN na_vahu TINYINT(1) NOT NULL DEFAULT 0",
+            'vaha_jednotka'      => "ADD COLUMN vaha_jednotka VARCHAR(8) DEFAULT 'kg'",
+            'plu'                => "ADD COLUMN plu INT NULL, ADD INDEX idx_plu (plu)",
         ],
         // suroviny (admin_suroviny.php auto-migrace)
         'suroviny' => [

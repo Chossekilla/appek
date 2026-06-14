@@ -622,8 +622,8 @@ if ($method === 'POST') {
                              kategorie_id, jednotka_id, cena_bez_dph, sazba_dph_id,
                              hmotnost_g, obsah, obsah_jednotka, obrazek_url, min_objednavka,
                              aktivni, oblibeny, je_akce, je_novinka, je_doprodej, je_vyprodano, zobrazit_na_pos, poradi,
-                             priprava_min, kitchen_station_id, obor)
-        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:zpos,:por,:prip,:station,:obor)
+                             priprava_min, kitchen_station_id, obor, na_vahu, plu, vaha_jednotka)
+        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:zpos,:por,:prip,:station,:obor,:navahu,:plu,:vjed)
     ");
     $stmt->execute([
         'cislo' => $d['cislo'] ?? null,
@@ -656,6 +656,10 @@ if ($method === 'POST') {
         'prip' => max(0, (int) ($d['priprava_min'] ?? 10)),
         'station' => empty($d['kitchen_station_id']) ? null : (int) $d['kitchen_station_id'],
         'obor' => !empty($d['obor']) ? substr((string) $d['obor'], 0, 20) : null,
+        // 🆕 v3.0.328 — prodej na váhu
+        'navahu' => isset($d['na_vahu']) ? (int) $d['na_vahu'] : 0,
+        'plu' => !empty($d['plu']) ? (int) $d['plu'] : null,
+        'vjed' => !empty($d['vaha_jednotka']) ? substr((string) $d['vaha_jednotka'], 0, 8) : 'kg',
     ]);
     $new_id = (int) $pdo->lastInsertId();
 
@@ -704,6 +708,7 @@ if ($method === 'PUT') {
         'priprava_min' => 'priprava_min', 'kitchen_station_id' => 'kitchen_station_id',
         'obor' => 'obor', // 🆕 v3.0.295 — obor výrobku (provázání s balíčky)
         'je_polotovar' => 'je_polotovar', 'sleduje_sklad' => 'sleduje_sklad', 'postup_json' => 'postup_json', // 🆕 v3.0.303 BOM/sestavy
+        'na_vahu' => 'na_vahu', 'plu' => 'plu', 'vaha_jednotka' => 'vaha_jednotka', // 🆕 v3.0.328 prodej na váhu
     ];
 
     $sets = []; $params = ['id' => (int) $d['id']];
@@ -713,7 +718,7 @@ if ($method === 'PUT') {
             // Cast pro číselné sloupce
             if (in_array($jk, ['cena_bez_dph'])) {
                 $params[$dbk] = (float) $d[$jk];
-            } elseif (in_array($jk, ['aktivni','oblibeny','je_akce','je_novinka','je_doprodej','je_vyprodano','zobrazit_na_pos','je_polotovar','sleduje_sklad'])) {
+            } elseif (in_array($jk, ['aktivni','oblibeny','je_akce','je_novinka','je_doprodej','je_vyprodano','zobrazit_na_pos','je_polotovar','sleduje_sklad','na_vahu'])) {
                 $params[$dbk] = (int) $d[$jk];
             } elseif ($jk === 'nutricni_hodnoty' || $jk === 'kalkulace_data' || $jk === 'haccp_data' || $jk === 'postup_json') {
                 // Přijmi pole nebo JSON string
@@ -730,6 +735,8 @@ if ($method === 'PUT') {
                 $params[$dbk] = ($d[$jk] === null || $d[$jk] === '' || (int) $d[$jk] === 0) ? null : (int) $d[$jk];
             } elseif ($jk === 'obor') {
                 $params[$dbk] = !empty($d[$jk]) ? substr((string) $d[$jk], 0, 20) : null;
+            } elseif ($jk === 'plu') {
+                $params[$dbk] = !empty($d[$jk]) ? (int) $d[$jk] : null;
             } else {
                 $params[$dbk] = $d[$jk];
             }
