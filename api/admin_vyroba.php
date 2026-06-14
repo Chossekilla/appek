@@ -353,6 +353,16 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
     if (!$datum || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum)) json_error('Chybí/neplatný datum');
     $pozn = trim($d['poznamka'] ?? '') ?: ('Výroba ' . $datum);
 
+    // 🔒 v3.0.315 — IDEMPOTENCY: zabraň dvojímu odpisu stejného dne (jinak drift skladu do mínusu).
+    //   Bez force → pokud už byl den odepsán, odmítni 409.
+    $odpisKey = 'odpis_vyroba_' . $datum;
+    if (!$force) {
+        try {
+            $prev = $pdo->query("SELECT hodnota FROM nastaveni WHERE klic = " . $pdo->quote($odpisKey) . " LIMIT 1")->fetchColumn();
+            if ($prev) json_error('Výroba pro ' . $datum . ' už byla odepsána (' . $prev . '). Pro opětovný odpis použij „force".', 409);
+        } catch (Throwable $e) {}
+    }
+
     // Sečti spotřebu (stejně jako v ?action=spotreba)
     $src = vyroba_potreba_src($pdo, $datum);
     $stmt = $pdo->prepare("
@@ -447,6 +457,10 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
                 ->execute(['s' => $sklad, 'i' => $pvid, 'mn' => $pq, 'pr' => $po + $pq, 'po' => $po, 'pz' => $pozn . ' (polotovar)', 'kdo' => $kdo]);
             $odepsanoPol++;
         }
+        // 🔒 v3.0.315 — zaznamenej odpis dne (idempotency guard) atomicky s odpisem
+        $stampVal = date('Y-m-d H:i') . ' · ' . $kdo;
+        $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES (:k, :v) ON DUPLICATE KEY UPDATE hodnota = :v2")
+            ->execute(['k' => $odpisKey, 'v' => $stampVal, 'v2' => $stampVal]);
         $pdo->commit();
         json_response([
             'ok' => true, 'odepsano' => $odepsano, 'odepsano_polotovary' => $odepsanoPol, 'datum' => $datum,

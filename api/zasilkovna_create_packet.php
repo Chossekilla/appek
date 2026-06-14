@@ -12,7 +12,13 @@
  */
 
 header('Content-Type: application/json; charset=UTF-8');
-header('Access-Control-Allow-Origin: *');
+
+// 🔒 v3.0.315 — vyžaduj admin session (dřív BEZ auth + CORS:* → kdokoli mohl vytvořit
+//   placený packet/dobírku). admin/shipping.html volá same-origin s cookie; bez CSRF tokenu → SKIP_CSRF.
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_admin_auth.php';
+if (!defined('SKIP_CSRF')) define('SKIP_CSRF', true);
+require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

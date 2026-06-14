@@ -17,6 +17,18 @@ function require_admin(): array {
     if (empty($_SESSION['admin_id'])) {
         json_error('Vyžadováno admin přihlášení', 401);
     }
+    // 🔒 v3.0.315 SECURITY: POS-only účet (přihlášený PINem) smí JEN POS endpointy.
+    //   Dřív PIN login obešel blokádu z heslo-loginu a dostal se na všechny require_admin
+    //   endpointy (privilege escalation). pos_only=0 účty (plný admin) jsou bez omezení.
+    if (!empty($_SESSION['pos_only_user'])) {
+        $posAllowed = ['admin_pos.php', 'admin_pos_presets.php', 'admin_pos_print.php',
+            'admin_tables.php', 'admin_vouchers.php', 'admin_klient_chyby.php', 'admin_kitchen.php',
+            'pay_qr.php', 'payment_methods.php', 'pos_auth.php', 'version.php', 'firma_branding.php', 'whoami.php'];
+        $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '')));
+        if (!in_array($script, $posAllowed, true)) {
+            json_error('POS účet nemá přístup k této části administrace', 403);
+        }
+    }
     // 🔒 v2.6.0 SECURITY: CSRF check pro POST/PUT/DELETE.
     //    GET jsou idempotentní → bez CSRF.
     //    Lze deaktivovat per-endpoint definicí konstanty SKIP_CSRF před require.
