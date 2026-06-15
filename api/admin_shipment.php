@@ -91,6 +91,9 @@ if ($method === 'POST' && $action === 'create') {
         if (!empty($d[$k])) $payload[$k] = $d[$k];
     }
 
+    $w = (float) $payload['weight_kg'];
+    if ($w <= 0 || $w > 1000) json_error('Neplatná hmotnost zásilky — zadej 0–1000 kg', 400);
+
     $r = shipping_create($carrier, $payload);
     $ins = $pdo->prepare("INSERT INTO zasilky (objednavka_id, carrier, tracking_number, label_url, pickup_point, cod_kc, vaha_kg, stav, ext_id, chyba)
                           VALUES (:o,:c,:t,:l,:pp,:cod,:w,:s,:e,:err)");
