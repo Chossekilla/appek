@@ -9,14 +9,15 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 ## FÁZE 0 — Blokery (před PRVNÍM placeným prodejem)
 
 ### Bezpečnost
-- 🔄 **Systematický IDOR/auth audit VŠECH endpointů** — každý zákaznický (B2B) scoped na `odberatel_id` ze session (ne z body/URL). *(B2B faktura/DL/payment opraveno ve v349; teď dořešit zbytek.)*
-- ⬜ Public/token plocha (faktura/dodaci_list token, katalog, qr/pay, webhooky, install, version) — žádný leak bez/s minimálním auth
-- ⬜ POS `pos_only` session — allowlist těsný, žádný endpoint mimo POS dosažitelný PINem
-- ⬜ File upload (logo, předlohy, import CSV/XML) — kontrola typu/velikosti, path-traversal, GD re-encode *(kategorie ✅ dle auditu)*
-- ⬜ SQL injection sweep — grep string-interpolace user inputu do dotazů
-- ✅ Webhooky fail-closed (v315) · ✅ payment_methods IBAN za auth (v349) · ✅ odpis idempotentní (v316)
-- ⚠️ Měna `?action=prepocet` NENÍ idempotentní (zmírněno zálohou+potvrzením) — doplnit token guard
-- ⬜ Žádné secrety v zákaznickém bundlu (klíče/hesla/IBAN) + `config.local.php`/`.env` mimo zip
+- ✅ **Systematický IDOR/auth audit VŠECH endpointů** (v349–353, 4 paralelní audity). Nalezeno+opraveno **5 kritických**: B2B IDOR faktury/DL, version.php leak licenčního klíče, updates_apply zip-slip RCE, paypal order-swap, payment_methods IBAN — + mediumy.
+- ✅ Public/token plocha — webhooky jídlo fail-closed, pos_qr/cron/check_install/admin_reset_demo/diag gated; version.php klíč maskovaný (anon), diag_apps gated, healthcheck throttled (30s cache)
+- ✅ POS `pos_only` — allowlist + updates_apply pos_only reject (v353)
+- ✅ File upload — GD re-encode + uploads/ zákaz spuštění php (.htaccess v352)
+- ✅ SQL injection sweep — nenalezeno (bound params napříč)
+- ✅ Webhooky fail-closed (v315) · payment_methods IBAN za auth (v349) · odpis idempotentní (v316) · gopay callback kontrola částky (v353)
+- ✅ Secrety v bundlu — version.php klíč maskovaný (anon); `config.local.php`/`vendor/` mimo zip (build-zip)
+- ⬜ **ARCHITEKTURA (samostatný projekt):** podpis bundlu + asymetrické podpisy licencí (bundle integrity + klient-side unlock balíčků); updates_apply CSRF (koordinovat s updater.html); license_enforce hard-lock core (business rozhodnutí — lockout risk)
+- ⚠️ Měna `?action=prepocet` idempotence (token guard) — zmírněno zálohou+potvrzením
 
 ### Data integrita / peníze
 - ✅ Ceny server-authoritative (B2B ověřeno — klient cenu neurčuje)
@@ -34,7 +35,7 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 ## FÁZE 1 — Kvalita & udržitelnost (před ŠKÁLOVÁNÍM prodeje)
 - ⬜ **Automatické testy na peněžní cesty** (objednávka→DL→faktura, sklad odpis, ceník/sleva/sezóna) — teď 0 testů
 - ⬜ Smoke test všech endpointů (status/auth) — harness z auditů zformalizovat
-- ⬜ JS build/lint gate (`node --check`/esbuild) — `admin.js` 42,5k ř. nemá syntax pojistku
+- 🔄 JS build/lint gate — `node --check` přidán do build-update.sh (admin/+b2b/ .js); aktivuje se po instalaci node (zatím ⚠️ skip). **TODO: `brew install node`.**
 - ⬜ Rozbít `admin.js` monolit do modulů — bus factor
 - ⬜ CI publish spolehlivý (teď flaky → publikuju ručně na vendor)
 
