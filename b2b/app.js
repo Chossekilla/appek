@@ -28,7 +28,7 @@ const API = '../api';
     if (now - lastReportTs < 1000) return;
     lastReportTs = now;
     try {
-      fetch('api/admin_klient_chyby.php', {
+      fetch(`${API}/admin_klient_chyby.php`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

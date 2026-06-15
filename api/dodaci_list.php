@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+session_secure_start(); // 🔒 v3.0.349 — start session PŘED B2B gate (jinak $_SESSION prázdné → i vlastník DL 401)
 
 // 🆕 v2.9.164 — public access přes signed token z e-mailu (alternativa k admin login).
 // Endpoint slouží pro DL (?dl_id=N) i pro objednávku (?id=N), token typ rozliší.
@@ -178,15 +179,28 @@ function pripravit_dl_render(array $data): array {
 // =============================================================
 $dl_render = [];
 
+// 🔒 v3.0.349 — IDOR fix: bulk ?ids=/?dl_ids= dřív obešlo single-id scoping z v323.
+// B2B odběratel smí jen VLASTNÍ doklady; e-mail token jen svůj jediný (bulk zakázán); admin = plný přístup.
+$_dl_scope = (!empty($_token_auth)) ? -1 : ((!empty($_odb_id) && !empty($_odb_ok)) ? (int) $_odb_id : 0);
+$_dl_filter = function (array $ids, string $tabulka) use ($pdo, $_dl_scope) {
+    $ids = array_values(array_filter(array_unique(array_map('intval', $ids))));
+    if (empty($ids) || $_dl_scope === 0) return $ids;       // admin → bez omezení
+    if ($_dl_scope === -1) return [];                        // token → bulk zakázán (jen single doklad z tokenu)
+    $ph = implode(',', array_fill(0, count($ids), '?'));
+    $q = $pdo->prepare("SELECT id FROM $tabulka WHERE id IN ($ph) AND odberatel_id = ?");
+    $q->execute([...$ids, $_dl_scope]);
+    return array_map('intval', $q->fetchAll(PDO::FETCH_COLUMN));
+};
+
 // Bulk přes ?ids= (objednávky) i ?dl_ids= (přímé DL) — lze kombinovat
 if (!empty($_GET['ids'])) {
-    foreach (array_filter(array_map('intval', explode(',', (string) $_GET['ids']))) as $i) {
+    foreach ($_dl_filter(explode(',', (string) $_GET['ids']), 'objednavky') as $i) {
         $d = nacti_dl_z_objednavky($pdo, $i);
         if ($d) $dl_render[] = pripravit_dl_render($d);
     }
 }
 if (!empty($_GET['dl_ids'])) {
-    foreach (array_filter(array_map('intval', explode(',', (string) $_GET['dl_ids']))) as $i) {
+    foreach ($_dl_filter(explode(',', (string) $_GET['dl_ids']), 'dodaci_listy') as $i) {
         $d = nacti_dl_primo($pdo, $i);
         if ($d) $dl_render[] = pripravit_dl_render($d);
     }

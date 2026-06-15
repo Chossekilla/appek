@@ -115,6 +115,7 @@ if ($method === 'GET') {
         json_response(['methods' => $filtered, 'doprava' => ['zdarma_od' => $cfg['doprava']['zdarma_od'], 'metody' => $dopravaPub]]);
     }
     // No context → all (pro admin UI) — vč. plného configu (s IBAN) a dopravy
+    require_admin(); // 🔒 v3.0.349 — plný config (IBAN) jen přihlášenému adminovi, ne anonymně
     json_response([
         'methods' => array_values(array_map($attachCfg, $all)),
         'config'  => $cfg['methods_config'],
