@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.345';
+const APPEK_ADMIN_JS_VERSION = '3.0.346';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5317,7 +5317,7 @@ async function loadProvozWidget() {
   if ((!kitchen?.stanice || kitchen.stanice.length === 0) && (!kitchen || !kitchen.error)) setupChybi.push({ icon: '👨‍🍳', label: 'Kuchyně stanice', action: "navigate('pkg_restaurace');setTimeout(()=>{state._restTab='kitchen';renderRestaurantPage()},120)", hint: 'Pec, gril, studená kuchyně, bar…' });
   if ((cStats.kuryru_aktivnich || 0) === 0 && (!couriers || !couriers.error)) setupChybi.push({ icon: '🛵', label: 'Kurýrky', action: "navigate('pkg_restaurace');setTimeout(()=>{state._restTab='couriers';renderRestaurantPage()},120)", hint: 'Vlastní řidiči nebo Wolt/Bolt' });
 
-  if (setupChybi.length === setupChybi.length && setupChybi.length >= 2) {
+  if (setupChybi.length >= 2) {
     // Zobraz onboarding hint místo widgetu (pokud chybí 2+ věci → ještě se nezačalo)
     host.innerHTML = `
       <div class="card-block" style="padding:18px 22px;background:linear-gradient(135deg,#FFFBEB,#FFF8F0);border:1px solid #F0D9B8">
@@ -14112,7 +14112,7 @@ window.ulozitVyrobek = async function(id) {
     jednotka_id: parseInt(document.getElementById('vy-jed').value),
     cena_bez_dph: parseFloat(document.getElementById('vy-cena').value),
     sazba_dph_id: parseInt(document.getElementById('vy-dph').value),
-    hmotnost_g: parseInt((document.getElementById('vy-hmotnost') || {}).value) || parseInt(document.getElementById('vy-hm').value) || null,
+    hmotnost_g: (() => { const el = document.getElementById('vy-hmotnost') || document.getElementById('vy-hm'); const raw = ((el && el.value) || '').trim(); return raw === '' ? null : (parseInt(raw) || null); })(),
     rozmer_d: parseFloat((document.getElementById('vy-rozmer-d') || {}).value) || null,
     rozmer_s: parseFloat((document.getElementById('vy-rozmer-s') || {}).value) || null,
     rozmer_v: parseFloat((document.getElementById('vy-rozmer-v') || {}).value) || null,
