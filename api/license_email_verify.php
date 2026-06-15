@@ -393,5 +393,5 @@ try {
 } catch (Throwable $e) {
     error_log('license_email_verify: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['ok'=>false, 'error'=>'server_error', 'detail'=>$e->getMessage()]);
+    echo json_encode(['ok'=>false, 'error'=>'server_error']); // 🔒 v3.0.353 — detail jen do logu, ne klientovi
 }

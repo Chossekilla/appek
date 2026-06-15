@@ -27,6 +27,20 @@ header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('X-Robots-Tag: noindex, nofollow');
 
+// 🔒 v3.0.353 — throttle: anonymní flood neexekuuje DB-write/FS check pokaždé (DoS amplifikace).
+//   Výsledek cachujeme 30 s; cron/monitor (á 5 min) stejně dostane čerstvý.
+$_hcCache = (defined('UPLOAD_DIR') && @is_dir(UPLOAD_DIR) && @is_writable(UPLOAD_DIR) ? rtrim(UPLOAD_DIR, '/') : sys_get_temp_dir()) . '/.appek-hc-cache.json';
+if (is_file($_hcCache) && (time() - @filemtime($_hcCache)) < 30) {
+    $_c = @file_get_contents($_hcCache);
+    if ($_c !== false && $_c !== '') {
+        $_cj = json_decode($_c, true);
+        http_response_code((is_array($_cj) && ($_cj['ok'] ?? true)) ? 200 : 503);
+        header('X-Healthcheck-Cache: hit');
+        echo $_c;
+        exit;
+    }
+}
+
 $t0 = microtime(true);
 $checks = [];
 $overall = true;
@@ -185,4 +199,6 @@ $response = [
 ];
 
 http_response_code($overall ? 200 : 503);
-echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+$_hcJson = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+@file_put_contents($_hcCache, $_hcJson); // 🔒 v3.0.353 — cache pro 30s throttle
+echo $_hcJson;

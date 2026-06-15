@@ -58,6 +58,16 @@ if (!$order) {
 $pdo->prepare("UPDATE vendor_shop_orders SET payment_id = :pid WHERE id = :id")
     ->execute(['pid' => $paymentId, 'id' => $order['id']]);
 
+// 🔒 v3.0.353 — ověř ČÁSTKU (jinak: zaplatit míň, dostat licenci na drahý balíček)
+$_paidKc = (float) ($status['amount_kc'] ?? 0);
+$_dueKc  = (float) ($order['total_kc'] ?? 0);
+if ($status['state'] === 'PAID' && $_paidKc > 0 && abs($_paidKc - $_dueKc) > 0.01) {
+    error_log("gopay_callback: amount mismatch order=$orderNo paid=$_paidKc due=$_dueKc — NEoznačeno paid");
+    http_response_code(409);
+    echo "amount mismatch\n";
+    exit;
+}
+
 // Stav PAID → označit zaplaceno + vygenerovat licenci + odeslat e-mail
 if ($status['state'] === 'PAID' && $order['payment_status'] !== 'paid') {
     $pdo->prepare("UPDATE vendor_shop_orders SET payment_status = 'paid', paid_at = NOW() WHERE id = :id")

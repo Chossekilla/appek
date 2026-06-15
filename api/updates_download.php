@@ -70,7 +70,7 @@ try {
     } catch (Throwable $e) {}
 
     $storageDir = realpath(__DIR__ . '/..') . '/vendor/updates_storage';
-    $filePath = $storageDir . '/' . $update['file_path'];
+    $filePath = $storageDir . '/' . basename((string) $update['file_path']); // 🔒 v3.0.353 — basename proti path traversal
 
     if (!file_exists($filePath)) {
         // Log failure
