@@ -391,7 +391,7 @@ if ($action === 'quote' && $method === 'POST') {
     $materialKc = round($materialKc, 2);
 
     $bezDPH = round(array_sum(array_column($polozky, 'cena_kc')), 2);
-    $dph    = $f['sazba_dph'] ?: $cfg['sazba_dph'];
+    $dph    = ($f['sazba_dph'] !== null && $f['sazba_dph'] !== '') ? (float) $f['sazba_dph'] : (float) $cfg['sazba_dph']; // 0% je platná sazba — nenahrazuj defaultem
     $sDPH   = round($bezDPH * (1 + $dph / 100), 2);
 
     json_response([
@@ -432,7 +432,7 @@ if ($action === 'create_order' && $method === 'POST') {
 
     $r = cake_compute($pdo, $cfg, $d, $flavors);
     $f = $r['flavor']; $nas = $r['nasobic'];
-    $dph = (float) ($f['sazba_dph'] ?: $cfg['sazba_dph']);
+    $dph = ($f['sazba_dph'] !== null && $f['sazba_dph'] !== '') ? (float) $f['sazba_dph'] : (float) $cfg['sazba_dph']; // 0% je platná sazba
 
     // řádky: [vyrobek_id, surovina_id, nazev, mnozstvi, cena_per_jed]
     $radky = [];

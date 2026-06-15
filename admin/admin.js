@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.346';
+const APPEK_ADMIN_JS_VERSION = '3.0.347';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -2385,6 +2385,12 @@ function openModal(title, body, size = '') {
   // Aplikuj data-label na tabulky uvnitř modalu (pro mobilní kartové zobrazení)
   if (typeof labelizeTables === 'function') {
     setTimeout(labelizeTables, 0);
+  }
+  // 🆕 v3.0.347 — autofocus prvního pole + Esc zavře modal (parita s confirmDialog)
+  setTimeout(() => { const fe = card && card.querySelector('input:not([type=hidden]):not([disabled]),select,textarea'); if (fe) { try { fe.focus(); } catch (e) {} } }, 60);
+  if (!modal._escBound) {
+    modal._escBound = true;
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display === 'flex') closeModal(); });
   }
 }
 window.closeModal = function() {
@@ -5802,7 +5808,7 @@ async function renderVouchers() {
         <div id="vch-pct-wrap" style="display:none"><label class="form-label" style="font-size:12px">Sleva (%)</label><input class="form-input" id="vch-pct" type="number" min="1" max="100" step="1" value="10" style="width:90px"></div>
         <div id="vch-max-wrap" style="display:none"><label class="form-label" style="font-size:12px">Max sleva (Kč, volit.)</label><input class="form-input" id="vch-max" type="number" min="0" step="1" placeholder="bez stropu" style="width:120px"></div>
         <div id="vch-pocet-wrap"><label class="form-label" style="font-size:12px">Počet</label><input class="form-input" id="vch-pocet" type="number" min="1" max="500" value="1" style="width:80px"></div>
-        <div><label class="form-label" style="font-size:12px">Platnost do (volitelné)</label><input class="form-input" id="vch-platnost" type="date" style="width:160px"></div>
+        <div><label class="form-label" style="font-size:12px">Platnost do (volitelné)</label><input class="form-input" id="vch-platnost" type="date" min="${new Date().toISOString().slice(0,10)}" style="width:160px"></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
         <div style="min-width:240px"><label class="form-label" style="font-size:12px">Pro odběratele (volitelné)</label><select class="form-input" id="vch-odberatel" style="min-width:240px" onchange="voucherOdbChange()">${odbOpts}</select></div>
@@ -14112,10 +14118,10 @@ window.ulozitVyrobek = async function(id) {
     jednotka_id: parseInt(document.getElementById('vy-jed').value),
     cena_bez_dph: parseFloat(document.getElementById('vy-cena').value),
     sazba_dph_id: parseInt(document.getElementById('vy-dph').value),
-    hmotnost_g: (() => { const el = document.getElementById('vy-hmotnost') || document.getElementById('vy-hm'); const raw = ((el && el.value) || '').trim(); return raw === '' ? null : (parseInt(raw) || null); })(),
-    rozmer_d: parseFloat((document.getElementById('vy-rozmer-d') || {}).value) || null,
-    rozmer_s: parseFloat((document.getElementById('vy-rozmer-s') || {}).value) || null,
-    rozmer_v: parseFloat((document.getElementById('vy-rozmer-v') || {}).value) || null,
+    hmotnost_g: (() => { const el = document.getElementById('vy-hmotnost') || document.getElementById('vy-hm'); const raw = ((el && el.value) || '').trim(); if (raw === '') return null; const v = parseInt(raw); return v > 0 ? v : null; })(),
+    rozmer_d: (() => { const v = parseFloat((document.getElementById('vy-rozmer-d') || {}).value); return v > 0 ? v : null; })(),
+    rozmer_s: (() => { const v = parseFloat((document.getElementById('vy-rozmer-s') || {}).value); return v > 0 ? v : null; })(),
+    rozmer_v: (() => { const v = parseFloat((document.getElementById('vy-rozmer-v') || {}).value); return v > 0 ? v : null; })(),
     obsah: parseFloat(document.getElementById('vy-obsah')?.value) || null,
     obsah_jednotka: document.getElementById('vy-obsah-jed')?.value || null,
     nutricni_hodnoty: (() => {
@@ -14179,6 +14185,8 @@ window.ulozitVyrobek = async function(id) {
     return alert('Vyberte sazbu DPH.');
   }
 
+  if (window._savingVyrobek) return;            // 🆕 v3.0.347 — zábrana dvojího odeslání (dupl. produkt)
+  window._savingVyrobek = true;
   try {
     await api('admin_vyrobky.php', {
       method: id ? 'PUT' : 'POST',
@@ -14187,6 +14195,7 @@ window.ulozitVyrobek = async function(id) {
     closeModal();
     navigate('vyrobky');
   } catch (e) { alert('Chyba: ' + e.message); }
+  finally { window._savingVyrobek = false; }
 };
 
 window.smazatVyrobek = async function(id) {
@@ -24970,7 +24979,8 @@ window.saveCustomSeason = async function(id) {
     sleva_pct: parseFloat(document.getElementById('cs-sleva').value) || 0,
   };
   if (!data.key || !data.label) { alert('Vyplň klíč a název.'); return; }
-  if (!/^\d{2}-\d{2}$/.test(data.start_md) || !/^\d{2}-\d{2}$/.test(data.end_md)) { alert('Datum ve formátu MM-DD'); return; }
+  const validMd = s => { const m = /^(\d{2})-(\d{2})$/.exec(s); if (!m) return false; const mo = +m[1], da = +m[2]; return mo >= 1 && mo <= 12 && da >= 1 && da <= 31; };
+  if (!validMd(data.start_md) || !validMd(data.end_md)) { alert('Datum ve formátu MM-DD (měsíc 01–12, den 01–31)'); return; }
   try {
     await api('admin_seasonal.php?action=save_season', { method: 'POST', body: JSON.stringify(data) });
     closeModal();
@@ -30309,6 +30319,8 @@ window.ulozitKategorii = async function(id) {
   };
   if (!data.nazev) return alert('Vyplňte název kategorie');
 
+  if (window._savingKat) return;                // 🆕 v3.0.347 — zábrana dvojího odeslání
+  window._savingKat = true;
   try {
     await api('admin_kategorie.php', {
       method: id ? 'PUT' : 'POST',
@@ -30318,7 +30330,7 @@ window.ulozitKategorii = async function(id) {
     navigate('kategorie');
   } catch (e) {
     alert('Chyba: ' + e.message);
-  }
+  } finally { window._savingKat = false; }
 };
 
 window.smazatKategorii = async function(id) {
@@ -30343,7 +30355,7 @@ window.appekImportProdukty = function() {
     <div id="imp-body">
       <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Nahraj <strong>CSV</strong> nebo <strong>XML feed</strong> z <strong>Shoptetu</strong>, <strong>WooCommerce</strong> nebo Excelu. V dalším kroku namapuješ sloupce na pole produktu.</p>
       <input type="file" id="imp-file" accept=".csv,.xml,text/csv,text/xml,application/xml,text/plain" style="display:none" onchange="appekImportPreview()">
-      <button class="btn-primary btn-green" onclick="document.getElementById('imp-file').click()" style="font-weight:700;padding:12px 22px;border:none;border-radius:10px;cursor:pointer">📤 Vybrat CSV soubor</button>
+      <button class="btn-primary btn-green" onclick="document.getElementById('imp-file').click()" style="font-weight:700;padding:12px 22px;border:none;border-radius:10px;cursor:pointer">📤 Vybrat soubor (CSV / XML)</button>
       <p class="muted" style="font-size:12px;margin-top:12px;line-height:1.5">Oddělovač (<code>;</code> <code>,</code> Tab <code>|</code>) i kódování (UTF-8 / Windows-1250) se detekují automaticky. Max 8 MB.</p>
     </div>
   `);
@@ -30353,6 +30365,7 @@ window.appekImportPreview = async function() {
   const f = document.getElementById('imp-file');
   if (!f || !f.files || !f.files[0]) return;
   const body = document.getElementById('imp-body');
+  if (f.files[0].size > 8 * 1024 * 1024) { body.innerHTML = `<div class="alert err" style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ Soubor je větší než 8 MB</div><button class="btn-secondary" style="margin-top:10px" onclick="appekImportProdukty()">← Zpět</button>`; return; }
   body.innerHTML = '⏳ Načítám a analyzuji soubor…';
   const fd = new FormData(); fd.append('file', f.files[0]);
   let d;
@@ -30368,7 +30381,7 @@ window.appekImportPreview = async function() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px">
       ${Object.entries(d.fields).map(([field, label]) => `
         <label style="display:block"><span style="font-size:12px;color:var(--text-2);font-weight:600">${esc(label)}</span>
-          <select class="form-input imp-map" data-field="${field}" style="font-size:13px;padding:6px">${colOpts(d.suggested[field])}</select>
+          <select class="form-input imp-map" data-field="${field}" onchange="appekImportMapChange(this)" style="font-size:13px;padding:6px">${colOpts(d.suggested[field])}</select>
         </label>`).join('')}
     </div>
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:13px;align-items:center">
@@ -30382,8 +30395,14 @@ window.appekImportPreview = async function() {
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
       <button class="btn-secondary" onclick="appekImportProdukty()">← Zpět</button>
-      <button class="btn-primary btn-green" onclick="appekImportCommit()" style="font-weight:700">📥 Importovat ${d.total}</button>
+      <button class="btn-primary btn-green" onclick="appekImportCommit()" style="font-weight:700">📥 Importovat ${d.capped ? 3000 : d.total}</button>
     </div>`;
+};
+
+// Jeden sloupec smí být namapovaný max na 1 pole — při výběru ho zruš u ostatních (parita s auto-mapováním).
+window.appekImportMapChange = function(sel) {
+  if (!sel || sel.value === '') return;
+  document.querySelectorAll('.imp-map').forEach(s => { if (s !== sel && s.value === sel.value) s.value = ''; });
 };
 
 window.appekImportCommit = async function() {
@@ -30406,6 +30425,7 @@ window.appekImportCommit = async function() {
         <div style="font-size:42px">✅</div>
         <h3 style="margin:8px 0">Import dokončen</h3>
         <p style="font-size:14px;line-height:1.7">Nových: <strong>${r.inserted}</strong> · Aktualizováno: <strong>${r.updated}</strong> · Přeskočeno: <strong>${r.skipped}</strong>${r.categories_created ? ` · Nových kategorií: <strong>${r.categories_created}</strong>` : ''}</p>
+        ${r.priced_zero ? `<p style="font-size:13px;color:#a8232f;background:#fde7e9;border-radius:8px;padding:8px 12px;margin:6px auto;max-width:420px">⚠️ ${r.priced_zero} produktů importováno za <strong>0 Kč</strong> — zkontroluj mapování ceny.</p>` : ''}
         <button class="btn-primary btn-green" onclick="closeModal();navigate('vyrobky')" style="margin-top:10px;font-weight:700">Zobrazit produkty →</button>
       </div>`;
     try { toastSuccess(`Import: +${r.inserted} / ~${r.updated}`); } catch (e) {}

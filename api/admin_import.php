@@ -22,7 +22,8 @@ function import_field_defs(): array {
         'cislo'          => ['label' => 'Kód / číslo',       'kw' => ['cislo', 'kód', 'kod', 'code', 'sku', 'katalog', 'product code']],
         'ean'            => ['label' => 'EAN / čárový kód',   'kw' => ['ean', 'barcode', 'čárový', 'carovy', 'gtin']],
         'nazev'          => ['label' => 'Název *',            'kw' => ['nazev', 'název', 'name', 'title', 'produkt', 'product', 'zboží', 'zbozi']],
-        'cena_bez_dph'   => ['label' => 'Cena bez DPH',       'kw' => ['cena bez', 'cena_bez', 'price', 'cena', 'bez dph']],
+        'cena_s_dph'     => ['label' => 'Cena s DPH',         'kw' => ['price_vat', 'price vat', 'pricevat', 'cena s dph', 'cena_s_dph', 'vč. dph', 'vč dph', 'vc dph', 'včetně dph', 'vcetne dph', 's dph', 'brutto', 'gross']],
+        'cena_bez_dph'   => ['label' => 'Cena bez DPH',       'kw' => ['cena bez', 'cena_bez', 'bez dph', 'netto', 'price', 'cena']],
         'kategorie'      => ['label' => 'Kategorie (název)',  'kw' => ['kategorie', 'categor', 'sekce', 'skupina']],
         'hmotnost_g'     => ['label' => 'Hmotnost (g)',       'kw' => ['hmotnost', 'weight', 'váha', 'vaha', 'gram']],
         'popis'          => ['label' => 'Popis',              'kw' => ['popis', 'description', 'desc', 'anotace']],
@@ -163,10 +164,12 @@ if ($method === 'POST' && $action === 'commit') {
     if (!$rows || !isset($mapping['nazev']) || $mapping['nazev'] === '' || $mapping['nazev'] === null) {
         json_error('Chybí data nebo mapování pole „Název"', 400);
     }
+    if (count($rows) > 5000) json_error('Příliš mnoho řádků (max 5000 na jeden import)', 400);
 
     $defJed   = (int) ($pdo->query("SELECT id FROM jednotky ORDER BY id LIMIT 1")->fetchColumn() ?: 0);
     $jedByKod = $pdo->query("SELECT LOWER(kod), id FROM jednotky")->fetchAll(PDO::FETCH_KEY_PAIR);
     $defSazba = (int) ($pdo->query("SELECT id FROM sazby_dph ORDER BY sazba DESC LIMIT 1")->fetchColumn() ?: 0);
+    $defSazbaPct = (float) ($pdo->query("SELECT sazba FROM sazby_dph ORDER BY sazba DESC LIMIT 1")->fetchColumn() ?: 0);
     $sazbaByVal = $pdo->query("SELECT CAST(sazba AS UNSIGNED), id FROM sazby_dph")->fetchAll(PDO::FETCH_KEY_PAIR);
     $catByName = [];
     foreach ($pdo->query("SELECT id, LOWER(nazev) AS n FROM kategorie_vyrobku") as $kr) $catByName[$kr['n']] = (int) $kr['id'];
@@ -183,7 +186,7 @@ if ($method === 'POST' && $action === 'commit') {
         return is_numeric($v) ? (float) $v : null;
     };
 
-    $inserted = 0; $updated = 0; $skipped = 0; $catsCreated = 0;
+    $inserted = 0; $updated = 0; $skipped = 0; $catsCreated = 0; $pricedZero = 0;
     $pdo->beginTransaction();
     try {
         $insCat = $pdo->prepare("INSERT INTO kategorie_vyrobku (nazev, ikona, poradi, aktivni) VALUES (:n, '📦', 999, 1)");
@@ -192,7 +195,16 @@ if ($method === 'POST' && $action === 'commit') {
             if (!$nazev) { $skipped++; continue; }
             $cislo = $get($row, 'cislo');
             $ean   = $get($row, 'ean');
-            $cena  = $num($get($row, 'cena_bez_dph')) ?? 0;
+            $dphVal = $num($get($row, 'dph'));
+            $cena = $num($get($row, 'cena_bez_dph'));
+            if ($cena === null) {                                   // jen „cena s DPH" → dopočti základ dle DPH (řádek/default)
+                $gross = $num($get($row, 'cena_s_dph'));
+                if ($gross !== null) {
+                    $pct = $dphVal !== null ? $dphVal : $defSazbaPct;
+                    $cena = ($pct > 0) ? round($gross / (1 + $pct / 100), 2) : $gross;
+                }
+            }
+            $cena = $cena ?? 0;
             $hm    = $num($get($row, 'hmotnost_g'));
             $popis = $get($row, 'popis');
             $minObj = $num($get($row, 'min_objednavka'));
@@ -206,7 +218,6 @@ if ($method === 'POST' && $action === 'commit') {
             }
             $jedKod = $get($row, 'jednotka');
             $jedId = ($jedKod && isset($jedByKod[mb_strtolower($jedKod)])) ? (int) $jedByKod[mb_strtolower($jedKod)] : $defJed;
-            $dphVal = $num($get($row, 'dph'));
             $sazbaId = ($dphVal !== null && isset($sazbaByVal[(string) (int) $dphVal])) ? (int) $sazbaByVal[(string) (int) $dphVal] : $defSazba;
 
             $existId = null;
@@ -227,6 +238,7 @@ if ($method === 'POST' && $action === 'commit') {
                 if ($minObj !== null)                { $sets[] = 'min_objednavka = :min'; $params['min'] = $minObj; }
                 $pdo->prepare("UPDATE vyrobky SET " . implode(', ', $sets) . " WHERE id = :id")->execute($params);
                 $updated++;
+                if ($cena == 0) $pricedZero++;
             } else {
                 $pdo->prepare("
                     INSERT INTO vyrobky (cislo, ean, nazev, popis, kategorie_id, jednotka_id, cena_bez_dph, sazba_dph_id, hmotnost_g, min_objednavka, aktivni)
@@ -237,6 +249,7 @@ if ($method === 'POST' && $action === 'commit') {
                     'hm' => $hm, 'min' => $minObj ?? 1,
                 ]);
                 $inserted++;
+                if ($cena == 0) $pricedZero++;
             }
         }
         $pdo->commit();
@@ -244,7 +257,7 @@ if ($method === 'POST' && $action === 'commit') {
         if ($pdo->inTransaction()) $pdo->rollBack();
         json_error_safe('Import selhal: ' . $e->getMessage(), $e, 500);
     }
-    json_response(['ok' => true, 'inserted' => $inserted, 'updated' => $updated, 'skipped' => $skipped, 'categories_created' => $catsCreated]);
+    json_response(['ok' => true, 'inserted' => $inserted, 'updated' => $updated, 'skipped' => $skipped, 'categories_created' => $catsCreated, 'priced_zero' => $pricedZero]);
 }
 
 json_error('Neznámá akce', 400);

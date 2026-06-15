@@ -225,7 +225,6 @@ if ($method === 'POST') {
     if ($itemId <= 0) json_error('Chybí item_id');
 
     // Ověř že sklad existuje
-    $skladOK = (int) $pdo->prepare("SELECT id FROM sklady WHERE id = :id LIMIT 1")->execute(['id' => $skladId]);
     if (!$pdo->query("SELECT id FROM sklady WHERE id = $skladId LIMIT 1")->fetchColumn()) {
         json_error('Sklad nenalezen', 404);
     }
