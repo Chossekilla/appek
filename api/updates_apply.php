@@ -46,7 +46,8 @@ require_once __DIR__ . '/_license.php';
 // → $_SESSION['admin_user'] prázdný → 403 "admin_session_required" i pro logged-in admina.
 session_secure_start();
 $adminUser = aktualni_uzivatel_z_session();
-if (!$adminUser || ($adminUser['role'] ?? '') !== 'admin') {
+// 🔒 v3.0.353 — POS-PIN (pos_only) session NESMÍ spustit update (parita s require_admin allowlistem)
+if (!$adminUser || ($adminUser['role'] ?? '') !== 'admin' || !empty($_SESSION['pos_only_user'])) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'admin_session_required']);
     exit;
