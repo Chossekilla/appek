@@ -61,7 +61,7 @@ if ($method === 'POST' && $action === 'create') {
     if (!$carrier) json_error('Chybí přepravce', 400);
 
     $payload = [
-        'reference' => '', 'recipient_name' => '', 'recipient_last_name' => '', 'recipient_street' => '',
+        'reference' => '', 'recipient_name' => '', 'recipient_first_name' => '', 'recipient_last_name' => '', 'recipient_street' => '',
         'recipient_city' => '', 'recipient_zip' => '', 'recipient_country' => 'CZ', 'recipient_email' => '',
         'recipient_phone' => '', 'weight_kg' => (float) ($d['weight_kg'] ?? 1), 'value_kc' => 0,
         'cod_kc' => (float) ($d['cod_kc'] ?? 0), 'pickup_point_id' => (int) ($d['pickup_point_id'] ?? 0),
@@ -72,8 +72,12 @@ if ($method === 'POST' && $action === 'create') {
         $o->execute(['id' => $oid]);
         if ($row = $o->fetch(PDO::FETCH_ASSOC)) {
             $payload['reference']       = $row['cislo'] ?: (string) $oid;
-            $payload['recipient_name']  = $row['odb_nazev'] ?? '';
-            $payload['recipient_last_name'] = $row['odb_nazev'] ?? '';
+            $nazev = trim($row['odb_nazev'] ?? '');
+            $payload['recipient_name']  = $nazev;
+            // Zásilkovna vyžaduje jméno i příjmení zvlášť → rozdělíme název (B2B = firma → 1. slovo / zbytek)
+            $jmParts = preg_split('/\s+/', $nazev, 2);
+            $payload['recipient_first_name'] = $jmParts[0] ?? '';
+            $payload['recipient_last_name']  = (isset($jmParts[1]) && $jmParts[1] !== '') ? $jmParts[1] : ($jmParts[0] ?? '');
             $payload['recipient_street'] = $row['ulice'] ?? '';
             $payload['recipient_city']  = $row['mesto'] ?? '';
             $payload['recipient_zip']   = $row['psc'] ?? '';
@@ -83,7 +87,7 @@ if ($method === 'POST' && $action === 'create') {
         }
     }
     // ruční override z requestu
-    foreach (['reference','recipient_name','recipient_last_name','recipient_street','recipient_city','recipient_zip','recipient_email','recipient_phone'] as $k) {
+    foreach (['reference','recipient_name','recipient_first_name','recipient_last_name','recipient_street','recipient_city','recipient_zip','recipient_email','recipient_phone'] as $k) {
         if (!empty($d[$k])) $payload[$k] = $d[$k];
     }
 
