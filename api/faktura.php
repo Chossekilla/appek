@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+session_secure_start(); // 🔒 v3.0.349 — start session PŘED B2B gate (jinak $_SESSION prázdné → i vlastník faktury 401)
 
 // 🆕 v2.9.164 — public access přes signed token z e-mailu (alternativa k admin login).
 // Token je vázaný na konkrétní fakturu, takže leak nepustí útočníka jinam.
@@ -300,6 +301,18 @@ if (!empty($_GET['ids'])) {
     $ids = [(int) $_GET['id']];
 }
 if (empty($ids)) { http_response_code(400); die('Chybí ID'); }
+
+// 🔒 v3.0.349 — IDOR fix: bulk ?ids= dřív obešlo single-id scoping z v323.
+// B2B odběratel i e-mail token smí jen VLASTNÍ faktury; admin (prošel require_admin) má plný přístup.
+if (!empty($_token_auth)) {
+    $ids = array_values(array_intersect($ids, [(int) ($_GET['id'] ?? 0)])); // token = jen jeho doklad
+} elseif (!empty($_odb_id) && !empty($_odb_ok)) {
+    $ph = implode(',', array_fill(0, count($ids), '?'));
+    $q = $pdo->prepare("SELECT id FROM faktury WHERE id IN ($ph) AND odberatel_id = ?");
+    $q->execute([...array_map('intval', $ids), (int) $_odb_id]);
+    $ids = array_map('intval', $q->fetchAll(PDO::FETCH_COLUMN));
+}
+if (empty($ids)) { http_response_code(403); die('Přístup k faktuře zamítnut'); }
 
 $faktury_render = [];
 foreach ($ids as $i) {
