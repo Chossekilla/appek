@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.343';
+const APPEK_ADMIN_JS_VERSION = '3.0.344';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -13238,8 +13238,9 @@ window.editVyrobek = async function(id = null) {
     </div>
 
     <div class="form-grid">
-      <div class="full vy-sec-head">📋 Základ & balení</div>
-      <div class="full vy-id-row">
+      <div class="full vy-section-box">
+      <div class="vy-section-title">📋 Základ & balení</div>
+      <div class="vy-id-row">
         <div>
           <label class="form-label">Číslo <span style="color:var(--text-3);font-weight:400;font-size:11px">(auto = další volné)</span></label>
           <div style="display:flex;gap:4px">
@@ -13286,6 +13287,7 @@ window.editVyrobek = async function(id = null) {
           <div id="vy-prepocet" style="margin-top:4px;font-size:11px;color:#854F0B;font-weight:600;display:none"></div>
         </div>
       </div>
+      </div>
       <input type="hidden" id="vy-hm" value="${v.hmotnost_g || ''}">
 
       <!-- 📦 Hmotnost & rozměry — pro výpočet dopravy / přepravce (v3.0.340) -->
@@ -13300,8 +13302,9 @@ window.editVyrobek = async function(id = null) {
       </div>
 
       <!-- Řádek: Název | Kategorie | Jednotka | Min. obj. -->
-      <div class="full vy-sec-head">📝 Název & zařazení</div>
-      <div class="full vy-nazev-row">
+      <div class="full vy-section-box">
+      <div class="vy-section-title">📝 Název & zařazení</div>
+      <div class="vy-nazev-row">
         <div>
           <label class="form-label">Název *</label>
           <input class="form-input" id="vy-nazev" value="${esc(v.nazev || '')}" required>
@@ -13334,6 +13337,7 @@ window.editVyrobek = async function(id = null) {
           <input class="form-input" id="vy-min" type="number" min="1" value="${v.min_objednavka || 1}">
         </div>
       </div>
+      </div>
       <!-- 🆕 v3.0.295 — Obor (provázání s balíčky): kapacita pečení + dort konfigurátor -->
       <div class="full" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;background:var(--surface-2);border-radius:10px;padding:10px 14px;margin-top:4px">
         <div>
@@ -13358,8 +13362,9 @@ window.editVyrobek = async function(id = null) {
         <textarea class="form-input" id="vy-postup" rows="3" placeholder="Vyšlehat máslo s cukrem&#10;Přidat vejce po jednom&#10;Péct 180 °C / 35 min" style="font-size:13px;resize:vertical">${esc((function(){try{return (JSON.parse(v.postup_json||'[]')||[]).join('\n');}catch(e){return '';}})())}</textarea>
       </div>
       <!-- Popis | Složení (vedle sebe) -->
-      <div class="full vy-sec-head">📝 Texty (popis · složení · alergeny)</div>
-      <div class="full vy-popis-sloz-row">
+      <div class="full vy-section-box">
+      <div class="vy-section-title">📝 Texty (popis · složení · alergeny)</div>
+      <div class="vy-popis-sloz-row">
         <div>
           <label class="form-label">Popis</label>
           <textarea class="form-textarea" id="vy-popis" rows="3">${esc(v.popis || '')}</textarea>
@@ -13380,6 +13385,7 @@ window.editVyrobek = async function(id = null) {
           <button type="button" class="btn-secondary" onclick="vyOdvoditAlergeny()" style="font-size:11px;padding:3px 10px" title="Sečte alergeny ze všech surovin v receptu — vč. detekovaných ze složení (Diasauer → lepek)">🧬 Doplnit ze surovin</button>
         </label>
         <input class="form-input" id="vy-aler" value="${esc(v.alergeny || '')}" placeholder="lepek, mléko, vejce...">
+      </div>
       </div>
 
       <!-- 💰 CENA — oddělená sekce -->
