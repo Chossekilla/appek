@@ -478,6 +478,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         $mn  = (float) ($p['mnozstvi'] ?? 0);
         if (!$vid || $mn <= 0) continue;
         if (!isset($cenikIdx[$vid])) continue;
+        $min = (float) ($cenikIdx[$vid]['min_objednavka'] ?? 1); // 🆕 v3.0.351 — MOQ i při editaci (parita s create)
+        if ($mn < $min) json_error('Minimální objednávka výrobku ' . ($cenikIdx[$vid]['nazev'] ?? $vid) . ' je ' . $min, 400);
         $polozky_clean[] = [
             'vyrobek_id' => $vid,
             'mnozstvi'   => $mn,

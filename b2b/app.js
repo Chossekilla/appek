@@ -2214,6 +2214,7 @@ window.submitOrder = async function() {
   }
 
   if (!data.datum_dodani) return alert('Vyplňte datum dodání');
+  if (data.datum_dodani < new Date().toISOString().slice(0, 10)) return alert('Datum dodání nemůže být v minulosti.'); // 🆕 v3.0.351 — friendly hláška (mobilní picker občas ignoruje min)
 
   window._b2bSubmitting = true;
   const _subBtns = [...document.querySelectorAll('button')].filter(b => /submitOrder/.test(b.getAttribute('onclick') || ''));
@@ -2361,10 +2362,9 @@ window.b2bSetStatsPeriod = function(p) { state._statsPeriod = p; renderStats(); 
 // =============================================================
 (async function () {
   try {
-    // Zkusíme statistiky.php — pokud projde, jsme přihlášení
-    await api('statistiky.php');
-    // Bohužel nemáme endpoint pro "kdo jsem" — login stav stačí
-    state.user = { id: 0, nazev: 'Odběratel' };
+    // 🆕 v3.0.351 — skutečná identita (název firmy) místo fake "Odběratel"; zároveň ověří přihlášení (401 → login screen)
+    const me = await api('login.php?action=me');
+    state.user = (me && me.odberatel) ? me.odberatel : { id: 0, nazev: 'Odběratel' };
     await loadCatalog();
     await loadMista();
     showApp();

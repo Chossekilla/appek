@@ -3,6 +3,13 @@ require_once __DIR__ . '/config.php';
 cors_headers();
 session_secure_start();
 
+// 🆕 v3.0.351 — "kdo jsem" pro session-resume (PWA znovuotevření): vrátí název firmy,
+// ať header neukazuje generické "Odběratel" a telemetrie chyb nemá id 0.
+if (($_GET['action'] ?? '') === 'me') {
+    if (empty($_SESSION['odberatel_id'])) json_error('Nepřihlášeno', 401);
+    json_response(['odberatel' => ['id' => (int) $_SESSION['odberatel_id'], 'nazev' => $_SESSION['odberatel_nazev'] ?? 'Odběratel']]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_error('Pouze POST', 405);
 
 $data  = json_input();
