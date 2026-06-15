@@ -13,11 +13,21 @@ header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-cache');
 
 @require_once __DIR__ . '/config.php';
+// 🔒 v3.0.352 — admin session? (plný klíč jen pro updater auto-fill; anonym dostane masku)
+if (function_exists('session_secure_start')) session_secure_start();
+$_isAdmin = !empty($_SESSION['admin_id']) && empty($_SESSION['pos_only_user']);
 
 $out = [
     'ok'           => true,
     'version'      => defined('APP_VERSION')      ? APP_VERSION      : '0.0.0',
-    'license_key'  => defined('APP_LICENSE_KEY')  ? APP_LICENSE_KEY  : null,
+    // 🔒 v3.0.352 — plný klíč JEN přihlášenému adminovi (updater auto-fill); anonymně maskovaný (secret)
+    'license_key'  => (function () use ($_isAdmin) {
+        if (!defined('APP_LICENSE_KEY') || !APP_LICENSE_KEY) return null;
+        if ($_isAdmin) return APP_LICENSE_KEY;
+        $p = explode('-', (string) APP_LICENSE_KEY);
+        if (count($p) < 3) return substr((string) APP_LICENSE_KEY, 0, 3) . '…';
+        return $p[0] . '-' . implode('-', array_fill(0, count($p) - 2, '••••')) . '-' . end($p);
+    })(),
     'install_date' => null,
 ];
 

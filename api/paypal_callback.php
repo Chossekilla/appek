@@ -38,6 +38,17 @@ try {
     $r = customer_int_paypal_capture_order($paypalOrderId);
     $captureOk = ($r['ok'] ?? false) && (($r['status'] ?? '') === 'COMPLETED');
 
+    // 🔒 v3.0.352 — capture MUSÍ patřit k NAŠÍ objednávce: reference_id se nastavuje při create
+    //   na naše číslo objednávky. Bez kontroly šlo zaplatit vlastní levný PayPal order
+    //   a potvrdit cizí drahou objednávku (order-swap). reference_id útočník nepodvrhne.
+    if ($captureOk) {
+        $refId = $r['purchase_units'][0]['reference_id'] ?? '';
+        if ($refId !== $ourOrderNo) {
+            error_log("paypal_callback: reference_id '$refId' != objednávka '$ourOrderNo' — odmítnuto");
+            $captureOk = false;
+        }
+    }
+
     if ($captureOk) {
         // Mark paid v objednavky (sloupec uhrazena_kc / stav)
         try {

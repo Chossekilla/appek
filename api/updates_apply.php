@@ -172,6 +172,14 @@ try {
     @mkdir($stagingDir, 0755, true);
     $zip = new ZipArchive();
     if ($zip->open($bundlePath) !== true) throw new Exception('Bundle není validní ZIP.');
+    // 🔒 v3.0.352 — zip-slip guard: odmítni bundle s cestou ven z cíle (../, absolutní, null) PŘED extrakcí
+    for ($zi = 0; $zi < $zip->numFiles; $zi++) {
+        $en = str_replace('\\', '/', (string) $zip->getNameIndex($zi));
+        if ($en === '' || $en[0] === '/' || $en === '..' || strpos($en, '../') !== false || strpos($en, "\0") !== false) {
+            $zip->close();
+            throw new Exception('Bundle obsahuje nebezpečnou cestu (zip-slip): ' . $en);
+        }
+    }
     if ($zip->extractTo($stagingDir) === false) {
         $zip->close();
         throw new Exception('Extract selhal — kontrola oprávnění temp dir.');
@@ -308,9 +316,21 @@ try {
     $failed = [];
     $appliedFiles = []; // [relPath => sha256] pro post-verifikaci
     $opcacheAvailable = function_exists('opcache_invalidate') && (bool) @ini_get('opcache.enable');
+    $realRoot = realpath($root);
     foreach ($fileList as $relPath => $src) {
+        // 🔒 v3.0.352 — defense-in-depth proti path traversal: relPath nesmí utéct z $root
+        $relNorm = str_replace('\\', '/', (string) $relPath);
+        if ($relNorm === '' || $relNorm[0] === '/' || strpos($relNorm, '../') !== false || strpos($relNorm, "\0") !== false) {
+            $failed[] = $relPath . ' (odmítnuto: nebezpečná cesta)';
+            continue;
+        }
         $dst = $root . '/' . $relPath;
         @mkdir(dirname($dst), 0755, true);
+        $realDstDir = realpath(dirname($dst));
+        if ($realRoot === false || $realDstDir === false || strpos($realDstDir . '/', $realRoot . '/') !== 0) {
+            $failed[] = $relPath . ' (odmítnuto: mimo root)';
+            continue;
+        }
         if (@copy($src, $dst)) {
             $applied++;
             $appliedFiles[$relPath] = hash_file('sha256', $src);
