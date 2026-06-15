@@ -58,6 +58,8 @@ DirectoryIndex index.html index.php install.php
   RewriteRule ^build-zip\.sh$ - [F,L]
   RewriteRule ^\.env$ - [F,L]
   RewriteRule ^\.git/ - [F,L]
+  # 🔒 v3.0.352 — zákaz spuštění skriptů v uploads/ (defense-in-depth; uploads/ není v bundlu, tohle pravidlo je)
+  RewriteRule ^uploads/.*\.(php|php3|php4|php5|php7|phtml|phar|pl|py|cgi|sh)$ - [F,L]
 </IfModule>
 
 # ────────────────────────────────────────────────────────────
