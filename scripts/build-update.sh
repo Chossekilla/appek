@@ -66,6 +66,21 @@ if [[ -x "$PHPBIN" ]]; then
   echo "✅ php -l: všechny PHP v api/ + admin/ bez parse chyb"
 fi
 
+# 🆕 v3.0.353 — JS syntax gate: admin.js (~42k ř.) + b2b/app.js + i18n nemají jinak
+# ŽÁDNOU pojistku proti parse chybě → jediný špatný edit rozbije celou admin/B2B
+# appku u zákazníků (php -l je nepokryje). Aktivuje se, jakmile je node v PATH.
+NODEBIN="$(command -v node || true)"
+if [[ -n "$NODEBIN" ]]; then
+  JS_ERR=0
+  while IFS= read -r jf; do
+    "$NODEBIN" --check "$jf" 2>/dev/null || { echo "❌ JS parse error: $jf"; "$NODEBIN" --check "$jf" 2>&1 | head -3; JS_ERR=1; }
+  done < <(find "$SROOT/admin" "$SROOT/b2b" -name '*.js' 2>/dev/null)
+  [[ "$JS_ERR" == "1" ]] && { echo "❌ Build zastaven — oprav JS parse chyby výše."; exit 1; }
+  echo "✅ node --check: admin/ + b2b/ JS bez parse chyb"
+else
+  echo "⚠️  node není v PATH → JS syntax gate PŘESKOČEN (nainstaluj node: pojistka proti rozbití admin.js)"
+fi
+
 OUTPUT="appek-update-${VERSION}.zip"
 TMPDIR="/tmp/appek-update-${VERSION}-$$"
 mkdir -p "$TMPDIR/files"
