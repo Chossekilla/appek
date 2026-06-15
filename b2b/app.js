@@ -1751,7 +1751,12 @@ function renderCheckout() {
             ${state.mistaDodani[0].ulice ? '<br><span style="color:var(--text-3);font-size:13px">' + esc(state.mistaDodani[0].ulice) + (state.mistaDodani[0].mesto ? ', ' + esc(state.mistaDodani[0].mesto) : '') + '</span>' : ''}
           </div>
         </div>
-      ` : '')}
+      ` : `
+        <div class="form-row">
+          <label class="form-label" style="font-weight:500">📍 Místo dodání</label>
+          <div style="padding:10px 14px;background:#fde7e9;color:#a8232f;border-radius:8px;font-size:13px;line-height:1.5">⚠️ Nemáš nastavené žádné místo dodání. Kontaktuj dodavatele, aby ti ho přidal — bez něj nelze objednávku odeslat.</div>
+        </div>
+      `)}
 
       ${state.checkoutData.typ === 'jednorazova' ? `
         <div class="form-row">
@@ -2037,8 +2042,9 @@ async function updateSurchargeDisplay() {
   try {
     sur = await api(`payment_methods.php?action=surcharges&payment=${encodeURIComponent(platba)}&shipping=${encodeURIComponent(doprava)}&subtotal=${subtotal}`);
   } catch (e) {
-    rowsEl.innerHTML = '';
-    totalEl.textContent = fmt(subtotal);
+    // 🆕 v3.0.350 — fees se nepodařilo spočítat: NEukazuj klamně nižší total bez poplatků
+    rowsEl.innerHTML = '<div class="cart-summary-row" style="color:#a8232f;font-size:13px"><span>⚠️ Dopravu/poplatek nelze teď spočítat</span><span>přičte se při odeslání</span></div>';
+    totalEl.textContent = fmt(subtotal) + ' +';
     return;
   }
   let html = '';
@@ -2170,10 +2176,13 @@ function rychleChipy(minDate) {
 
 window.submitOrder = async function() {
   if (window._b2bSubmitting) return;   // 🆕 v3.0.314 — ochrana proti dvojímu odeslání (duplicitní objednávka/platba)
-  const polozky = Object.entries(state.cart).map(([id, q]) => ({
-    vyrobek_id: parseInt(id), mnozstvi: q,
-  }));
-  if (polozky.length === 0) return alert('Košík je prázdný');
+  const polozky = cartItems().map((i) => ({ vyrobek_id: parseInt(i.id), mnozstvi: i.mnozstvi })); // 🆕 v3.0.350 — jen dostupné (ne ghost ids ze stale košíku)
+  if (polozky.length === 0) {
+    return alert(Object.keys(state.cart).length ? 'Košík nelze načíst — katalog se nenačetl. Obnov stránku a zkus to znovu.' : 'Košík je prázdný');
+  }
+  if (!state.checkoutData.misto_dodani_id) { // 🆕 v3.0.350 — bez místa dodání neodesílat (jasná hláška místo opaque 403)
+    return alert('Vyber místo dodání. Pokud žádné nemáš nastavené, kontaktuj dodavatele, aby ti ho přidal.');
+  }
 
   // Backend rozpoznává jen 3 typy: jednorazova / pravidelna_denni / tydenni_plan.
   // 'naplanovana' je UX-only varianta, na backend ji posíláme jako 'jednorazova'.
