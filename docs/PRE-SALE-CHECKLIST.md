@@ -34,7 +34,7 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 
 ## FÁZE 1 — Kvalita & udržitelnost (před ŠKÁLOVÁNÍM prodeje)
 - ⬜ **Automatické testy na peněžní cesty** (objednávka→DL→faktura, sklad odpis, ceník/sleva/sezóna) — teď 0 testů
-- ⬜ Smoke test všech endpointů (status/auth) — harness z auditů zformalizovat
+- ✅ Smoke test všech endpointů — `scripts/smoke.sh` (no-500 sweep + auth-required→401/403 + public→200); hned našel+opravil 2 webhook 500 (gopay/stripe). Spusť: `bash scripts/smoke.sh [base]`
 - 🔄 JS build/lint gate — `node --check` přidán do build-update.sh (admin/+b2b/ .js); aktivuje se po instalaci node (zatím ⚠️ skip). **TODO: `brew install node`.**
 - ⬜ Rozbít `admin.js` monolit do modulů — bus factor
 - ⬜ CI publish spolehlivý (teď flaky → publikuju ručně na vendor)
