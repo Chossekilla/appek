@@ -12,6 +12,14 @@ header('Content-Type: text/plain; charset=UTF-8');
 
 require_once __DIR__ . '/_license.php';
 
+// 🆕 v3.0.355 — bez payment id neloaduj vendor knihovny (na not-configured instalaci fatalují) → čistý 400 místo 500
+$paymentId = trim($_GET['id'] ?? $_POST['id'] ?? '');
+if ($paymentId === '') {
+    http_response_code(400);
+    echo "missing payment id\n";
+    exit;
+}
+
 // Načti vendor knihovny
 $vendorRoot = realpath(__DIR__ . '/..') . '/vendor';
 if (!is_dir($vendorRoot)) {
@@ -22,13 +30,6 @@ if (!is_dir($vendorRoot)) {
 require_once $vendorRoot . '/_lib.php';
 require_once $vendorRoot . '/_mail.php';
 require_once $vendorRoot . '/_gopay.php';
-
-$paymentId = trim($_GET['id'] ?? $_POST['id'] ?? '');
-if (!$paymentId) {
-    http_response_code(400);
-    echo "missing payment id\n";
-    exit;
-}
 
 // ─── Ověř stav přes GoPay API ───────────────────────────────────
 $status = gopay_verify_status($paymentId);

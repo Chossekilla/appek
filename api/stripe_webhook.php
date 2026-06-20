@@ -10,6 +10,12 @@
 
 require_once __DIR__ . '/_license.php';
 
+// 🆕 v3.0.355 — webhook je POST-only; jiná metoda neloaduj vendor (na not-configured instalaci fataluje) → čistý 405 místo 500
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    http_response_code(405);
+    exit('method not allowed');
+}
+
 $vendorRoot = realpath(__DIR__ . '/..') . '/vendor';
 if (!is_dir($vendorRoot)) {
     http_response_code(503);
