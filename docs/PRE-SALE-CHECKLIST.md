@@ -33,7 +33,7 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 ---
 
 ## FÁZE 1 — Kvalita & udržitelnost (před ŠKÁLOVÁNÍM prodeje)
-- ⬜ **Automatické testy na peněžní cesty** (objednávka→DL→faktura, sklad odpis, ceník/sleva/sezóna) — teď 0 testů
+- 🔄 **Automatické testy peněžních cest** — `scripts/test-money-paths.php` (read-only, 0 side-effects): ceník chokepoint, sleva skupiny, BOM odpis, sezónní úprava — **418 asserts PASS**. Spusť: `php scripts/test-money-paths.php`. ⬜ Zbývá: HTTP write-chain E2E (vytvoř obj→DL→faktura→assert částky→cleanup) + amount-consistency hlídá i runtime integrity audit
 - ✅ Smoke test všech endpointů — `scripts/smoke.sh` (no-500 sweep + auth-required→401/403 + public→200); hned našel+opravil 2 webhook 500 (gopay/stripe). Spusť: `bash scripts/smoke.sh [base]`
 - 🔄 JS build/lint gate — `node --check` přidán do build-update.sh (admin/+b2b/ .js); aktivuje se po instalaci node (zatím ⚠️ skip). **TODO: `brew install node`.**
 - ⬜ Rozbít `admin.js` monolit do modulů — bus factor
