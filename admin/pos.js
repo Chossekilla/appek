@@ -1616,7 +1616,7 @@
     m.id = 'pos-table-modal';
     m.className = 'pos-tm';
     // Detekce mobile (pro tab state)
-    const isMobile = window.innerWidth < 800;
+    const isMobile = window.innerWidth <= 800; // 🔒 v3.0.354 — zarovnáno s CSS @media max-width:800 (na hraně 800 jinak data-mob="" → prázdný modal)
     m.innerHTML = `
       <div class="pos-tm-box">
         <header class="pos-tm-head">

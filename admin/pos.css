@@ -2450,7 +2450,10 @@ html, body {
     grid-template-columns: 1fr;
   }
   .pos-tm-cart, .pos-tm-menu { display: none; }
-  .pos-tm-body[data-mob="cart"] .pos-tm-cart { display: flex; }
+  /* 🔒 v3.0.354 — cart je DEFAULT panel: zobraz vždy KROMĚ aktivního menu tabu.
+     Řeší prázdný modal, když data-mob="" (hrana 800px: JS isMobile<800 vs CSS
+     max-width:800; nebo po resize/rotaci desktop→mobile bez přepočtu). */
+  .pos-tm-body:not([data-mob="menu"]) .pos-tm-cart { display: flex; }
   .pos-tm-body[data-mob="menu"] .pos-tm-menu { display: flex; }
   .pos-tm-cart { border-right: none; }
   .pos-tm-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 10px; }
