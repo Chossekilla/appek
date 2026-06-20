@@ -78,5 +78,36 @@ echo "── T4 sezónní úprava ceny ──\n";
 $adj = seasonal_adjust_price($pdo, 100.0, null);
 ok(abs($adj['cena'] - 100.0) < 0.001 && (float) $adj['pct'] == 0.0, "bez sezóny cena beze změny (100→{$adj['cena']})");
 
+// ── T5 — řetězec částek objednávka→DL→faktura (read-only) ──────
+echo "── T5 řetězec částek (faktura header math + faktura==ΣDL) ──\n";
+$faktury = $pdo->query("SELECT id, castka_bez_dph, castka_dph, castka_celkem, je_dobropis FROM faktury LIMIT 60")->fetchAll(PDO::FETCH_ASSOC);
+foreach ($faktury as $f) {
+    $expected = round((float) $f['castka_bez_dph'] + (float) $f['castka_dph'], 2);
+    ok(abs((float) $f['castka_celkem'] - $expected) < 0.02, "faktura #{$f['id']} celkem==bez+dph ({$f['castka_celkem']} ~ $expected)");
+    // dobropis = záporná částka (správně); běžná faktura nezáporná
+    if ((int) $f['je_dobropis'] === 1) {
+        ok((float) $f['castka_celkem'] <= 0.01, "dobropis #{$f['id']} celkem<=0 ({$f['castka_celkem']})");
+    } else {
+        ok((float) $f['castka_celkem'] >= -0.01, "faktura #{$f['id']} celkem>=0 ({$f['castka_celkem']})");
+    }
+}
+echo "  (faktur ověřeno: " . count($faktury) . ")\n";
+// faktura.castka_celkem == suma jejích DL (auto faktury z DL)
+$linked = $pdo->query("
+    SELECT f.id, f.castka_celkem, COALESCE(SUM(dl.castka_celkem),0) AS dl_sum, COUNT(dl.id) AS n
+    FROM faktury f
+    JOIN faktury_dodaci_listy fdl ON fdl.faktura_id = f.id
+    JOIN dodaci_listy dl ON dl.id = fdl.dodaci_list_id
+    WHERE f.rucni = 0 AND f.je_dobropis = 0
+    GROUP BY f.id, f.castka_celkem LIMIT 30
+")->fetchAll(PDO::FETCH_ASSOC);
+foreach ($linked as $l) {
+    ok(abs((float) $l['castka_celkem'] - (float) $l['dl_sum']) < 0.05, "faktura #{$l['id']} == Σ {$l['n']} DL ({$l['castka_celkem']} ~ {$l['dl_sum']})");
+}
+echo "  (faktura↔DL párů ověřeno: " . count($linked) . ")\n";
+// referenční integrita: DL.objednavka_id buď NULL, nebo objednávka existuje
+$orphanDl = (int) $pdo->query("SELECT COUNT(*) FROM dodaci_listy dl WHERE dl.objednavka_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM objednavky o WHERE o.id = dl.objednavka_id)")->fetchColumn();
+ok($orphanDl === 0, "žádný DL s neexistující objednávkou (orphans: $orphanDl)");
+
 echo "\n✅ PASS=$pass  ❌ FAIL=$fail\n";
 exit($fail > 0 ? 1 : 0);
