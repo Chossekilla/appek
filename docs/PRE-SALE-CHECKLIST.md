@@ -33,11 +33,11 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 ---
 
 ## FÁZE 1 — Kvalita & udržitelnost (před ŠKÁLOVÁNÍM prodeje)
-- 🔄 **Automatické testy peněžních cest** — `scripts/test-money-paths.php` (read-only, 0 side-effects): ceník chokepoint, sleva skupiny, BOM odpis, sezónní úprava — **418 asserts PASS**. Spusť: `php scripts/test-money-paths.php`. ⬜ Zbývá: HTTP write-chain E2E (vytvoř obj→DL→faktura→assert částky→cleanup) + amount-consistency hlídá i runtime integrity audit
+- ✅ **Automatické testy peněžních cest** — `scripts/test-money-paths.php` (read-only, 0 side-effects, **475 asserts PASS**): ceník chokepoint, sleva skupiny, BOM odpis, sezónní úprava + řetězec **objednávka→DL→faktura** (header math celkem==bez+dph, dobropis≤0, faktura==ΣDL, referenční integrita). Spusť: `php scripts/test-money-paths.php`. ⬜ Volitelně: HTTP create-cleanup E2E (amount-konzistenci jinak hlídá runtime integrity audit)
 - ✅ Smoke test všech endpointů — `scripts/smoke.sh` (no-500 sweep + auth-required→401/403 + public→200); hned našel+opravil 2 webhook 500 (gopay/stripe). Spusť: `bash scripts/smoke.sh [base]`
 - 🔄 JS build/lint gate — `node --check` přidán do build-update.sh (admin/+b2b/ .js); aktivuje se po instalaci node (zatím ⚠️ skip). **TODO: `brew install node`.**
 - ⬜ Rozbít `admin.js` monolit do modulů — bus factor
-- ⬜ CI publish spolehlivý (teď flaky → publikuju ručně na vendor)
+- ⚠️ CI publish — `release.yml` build ZIP + GitHub Release **fungují**; deploy-hook na vendor failuje **HTTP 403 „Neplatný token"** (GitHub Secret `DEPLOY_TOKEN` ≠ `vendor/config.local.php` na appek.cz). **BLOKOVÁNO na user akci:** sjednotit token (GitHub → Settings → Secrets → `DEPLOY_TOKEN` = hodnota na serveru). Do té doby publikuju ručně přes vendor updates.php. (Nelze opravit z kódu — credentials mismatch.)
 
 ---
 
