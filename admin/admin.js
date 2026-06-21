@@ -1,12 +1,16 @@
 /**
  * APPEK B2B - administrace
+ *
+ * ⚠️ admin/admin.js je GENEROVANÝ z admin/src/*.js (concat ve scripts/build-update.sh).
+ *    NEEDITUJ admin/admin.js přímo — při buildu se přepíše! Edituj admin/src/<NNNN-sekce>.js.
+ *    Viz admin/src/README.md.
  */
 
 // 🆕 v2.0.83 — SELF-HEALING STALE CODE DETECTION
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.360';
+const APPEK_ADMIN_JS_VERSION = '3.0.361';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
