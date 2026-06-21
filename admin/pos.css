@@ -549,10 +549,14 @@ button { font-family: inherit; cursor: pointer; }
 .pos-line-name {
   font-weight: 700;
   font-size: 13px;
+  /* 🆕 v3.0.369 — celý název produktu, max 2 řádky (user: „musí být vidět název celý, klidně 2 řádky") */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 160px;
+  line-height: 1.22;
 }
 .pos-line-meta {
   font-size: 11px;
@@ -2139,7 +2143,7 @@ html, body {
 .pos-tm-body {
   flex: 1; min-height: 0; overflow: hidden;
   display: grid;
-  grid-template-columns: 1.4fr minmax(340px, 0.9fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);  /* 🐛 v3.0.369 — minmax(0,..) ať menu nepřeteče na min-content produktů a NEvytlačí košík mimo obrazovku */
   gap: 0;
 }
 
@@ -2427,7 +2431,7 @@ html, body {
 
 /* Tablet (under 1100px) — širší cart sloupec */
 @media (max-width: 1100px) {
-  .pos-tm-body { grid-template-columns: minmax(280px, 0.9fr) 1.2fr; }
+  .pos-tm-body { grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.2fr); }  /* 🐛 v3.0.369 — minmax(0,..) ať menu nepřeteče */
   .pos-tm-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   .pos-tm-prod-price { font-size: 20px; }
 }
@@ -3202,3 +3206,15 @@ html, body {
   color: var(--pos-text-2, #9097a3); padding: 9px 12px 4px; border-top: 1px solid var(--pos-border, #ECECEC); margin-top: 3px;
 }
 .pos-cart-menu .pos-pay-opt[data-mcart] { white-space: pre; }
+
+/* 🆕 v3.0.369 — KOŠÍK: celý název produktu na max 2 řádky.
+   Přebíjí starší !important max-width / nowrap z breakpointů (1158/1391/1480/2943).
+   User: „musí být vidět název produktu celý, klidně ať má položka 2 řádky." */
+.pos-line-name {
+  max-width: none !important;
+  white-space: normal !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  text-overflow: clip !important;
+}
