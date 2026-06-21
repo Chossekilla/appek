@@ -366,9 +366,12 @@ if ($method === 'PUT') {
 // =============================================================
 // 🆕 v3.0.268 — VRATKY: DOBROPIS (opravný daňový doklad) k faktuře
 // POST ?action=dobropis { faktura_id, duvod? } → nová faktura řady DOB- se
-// zápornými částkami + položkami a vazbou puvodni_faktura_id. Souhrny/statistiky
-// ji započtou záporně automaticky; stav_uhrady vyjde 'uhrazena' (0 ≥ záporné
-// celkem) → nešpiní „po splatnosti".
+// zápornými částkami + položkami a vazbou puvodni_faktura_id; stav_uhrady vyjde
+// 'uhrazena' (0 ≥ záporné celkem) → nešpiní „po splatnosti".
+// ⚠️ v3.0.356 oprava komentáře: tržby/statistiky se počítají z OBJEDNÁVEK (ne z faktur),
+// takže dobropis SÁM tržbu NESNIŽUJE — snížení zajistí storno původní objednávky
+// (gated: vyfakturovaná obj. → nejdřív dobropis, pak storno). Dřív tu stálo „statistiky
+// započtou záporně automaticky" = nepravda.
 // =============================================================
 if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
     $d = json_input();
