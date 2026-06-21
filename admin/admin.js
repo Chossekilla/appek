@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.366';
+const APPEK_ADMIN_JS_VERSION = '3.0.367';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5962,6 +5962,8 @@ window.menaLoad = async function() {
         <button class="btn-secondary" id="mena-cnb-btn" style="${cizi ? '' : 'display:none'}" onclick="menaCnb()">🔄 Aktualizovat z ČNB</button>
         <span id="mena-cnb-info" style="font-size:12px;color:var(--text-3);padding-bottom:9px"></span>
       </div>
+      <!-- 🆕 v3.0.367 — hint když je CZK (kurz skrytý) → user „nevidím nastavení kurzu" -->
+      <div id="mena-cils-hint" ${cizi ? 'hidden' : ''} style="margin-top:10px;font-size:12px;color:var(--text-2);background:var(--info-bg,#EFF6FF);border:1px dashed var(--border);border-radius:8px;padding:9px 12px">💡 Výchozí měna je <strong>Kč</strong>. Pro <strong>vlastní kurz</strong> nebo přepočet vyber výše cizí měnu (EUR, USD…) — objeví se volba zdroje kurzu (✍️ Vlastní / 🏦 ČNB) i pole pro kurz.</div>
       <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:12px" id="mena-volby" ${cizi ? '' : 'hidden'}>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
           <input type="radio" name="mena-zobr" value="kc" ${c.zobrazeni !== 'mena' ? 'checked' : ''}> Zobrazovat v Kč (základ)</label>
@@ -5992,6 +5994,7 @@ window.menaKodChange = function() {
   document.getElementById('mena-cnb-btn').style.display = cizi ? '' : 'none';
   document.getElementById('mena-volby').hidden = !cizi;
   document.getElementById('mena-prepocet-sekce').hidden = !cizi;
+  const ch = document.getElementById('mena-cils-hint'); if (ch) ch.hidden = cizi;  // 🆕 v3.0.367
   const kk = document.getElementById('mena-kurz-kod'); if (kk) kk.textContent = kod;
 };
 // 🆕 v3.0.339 — přepínač zdroje kurzu: vlastní (editovatelný) vs ČNB (zamčený + auto-fetch)
@@ -15074,8 +15077,10 @@ async function renderNastaveni() {
     { key: 'notifikace', label: '📧 Notifikace',        popis: 'E-maily a uzávěrka úprav objednávek' },
     // 🆕 v3.0.271 — Kanály sloučeny pod Platby (souvisí: jak platí × odkud přišla objednávka).
     { key: 'platby',     label: '💳 Platby & kanály',   popis: 'Platební metody (jak zákazník zaplatí) + prodejní kanály (odkud objednávka přišla).' },
-    // 🆕 v3.0.340 — Integrace přesunuty do Nástroje (karta → state._nastaveniTab='integrace'); blok zůstává renderovatelný.
-    { key: 'pristupy',   label: '👥 Přístupy & ceny',   popis: 'Uživatelé a slevové skupiny', adminOnly: true },
+    // 🆕 v3.0.367 — Integrace ZPĚT jako viditelný tab. Předtím (v3.0.340) jen skrytý → klik z Nástrojů
+    //   působil „skočil jsi do Nastavení, ale bez tabu" (ghost). Karta v Nástrojích zůstává jako zkratka.
+    { key: 'integrace',  label: '🔌 Integrace',         popis: 'Platby (Stripe, GoPay, PayPal), přepravci (Zásilkovna, DPD, PPL, ČP) a účetní (POHODA, FlexiBee).', adminOnly: true },
+    { key: 'pristupy',   label: '👥 Přístupy, ceny & měna', popis: 'Uživatelé, slevové skupiny a měna/kurz (cílová měna + vlastní nebo ČNB kurz).', adminOnly: true },
     { key: 'balicky',    label: '🎁 Balíčky',           popis: 'Aktivace doplňkových modulů (Cukrárna, Lahůdky, …)', adminOnly: true },
     { key: 'udrzba',     label: '🛠️ Údržba',            popis: 'Bezpečnost, zálohy DB, diagnostika' },
     { key: 'napoveda',   label: '❓ Nápověda & FAQ',     popis: 'Jak na to — návody a časté dotazy' },
@@ -15547,41 +15552,7 @@ async function renderNastaveni() {
       </div>
     </div>
 
-    <!-- 📃 STRÁNKOVÁNÍ DLOUHÝCH SEZNAMŮ (v3.0.218) -->
-    <div class="card-block" style="margin-top:14px">
-      <h3 style="margin-bottom:6px;">📃 Dlouhé seznamy</h3>
-      <p class="page-sub" style="margin-bottom:14px;">Jak načítat dlouhé seznamy (Objednávky, Faktury, Dodací listy, POS Účtenky) při velkém počtu záznamů. <span style="color:var(--text-3)">Počet řádků platí všude; styl načítání pro admin seznamy (POS vždy „Načíst další").</span></p>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
-        <div>
-          <label class="form-label" style="font-size:12px">Styl načítání</label>
-          <select class="form-select" id="ns-pagination" style="max-width:340px">
-            <option value="load_more" ${(n.pagination_styl || 'load_more') === 'load_more' ? 'selected' : ''}>▾ Načíst další (tlačítko)</option>
-            <option value="stranky" ${n.pagination_styl === 'stranky' ? 'selected' : ''}># Stránkování (čísla stránek)</option>
-            <option value="infinite" ${n.pagination_styl === 'infinite' ? 'selected' : ''}>∞ Nekonečné scrollování</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label" style="font-size:12px">Řádků na stránku</label>
-          <select class="form-select" id="ns-pag-pocet" style="max-width:160px">
-            ${[10, 25, 50, 100, 200].map(p => `<option value="${p}" ${(parseInt(n.pagination_pocet) || 10) === p ? 'selected' : ''}>${p} řádků</option>`).join('')}
-          </select>
-        </div>
-      </div>
-      <p style="font-size:11px;color:var(--text-3);margin-top:10px">Uloží se tlačítkem „💾 Uložit nastavení" dole. Platí pro všechna zařízení.</p>
-    </div>
-
-    <!-- ⚡ VÝKON (v3.0.252) -->
-    <div class="card-block" style="margin-top:14px">
-      <h3 style="margin-bottom:6px;">⚡ Výkon</h3>
-      <p class="page-sub" style="margin-bottom:14px;">Odlehčený režim vypne animace, stíny a rozostření — aplikace je svižnější na slabších zařízeních a starších mobilech. Vzhled je plošší, funkce zůstávají stejné.</p>
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600">
-        <input type="checkbox" id="ns-perf-lite" ${n.vykon_lite === '1' ? 'checked' : ''}
-          onchange="document.body.classList.toggle('perf-lite', this.checked); try{localStorage.setItem('appek_perf_lite', this.checked?'1':'0')}catch(e){}"
-          style="width:18px;height:18px;cursor:pointer">
-        Odlehčený režim <span style="color:var(--text-3);font-weight:400">(rychlejší na slabších zařízeních)</span>
-      </label>
-      <p style="font-size:11px;color:var(--text-3);margin-top:10px">Projeví se hned (toto zařízení) · „💾 Uložit nastavení" dole uloží pro všechna zařízení.</p>
-    </div>
+    <!-- 📃 Dlouhé seznamy + ⚡ Výkon — přesunuto níž (za Hromadný tisk), vedle sebe. v3.0.367 -->
 
     <!-- 🎨 VZHLED APLIKACE -->
     <div class="card-block" style="margin-top:14px">
@@ -15703,6 +15674,44 @@ async function renderNastaveni() {
     </div>
 
     </div>
+
+    <!-- 📃 Dlouhé seznamy + ⚡ Výkon — vedle sebe, přesunuto sem (v3.0.367: „dolů, ale ne úplně") -->
+    <div class="nastaveni-row" style="margin-top:14px">
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">📃 Dlouhé seznamy</h3>
+        <p class="page-sub" style="margin-bottom:14px;">Jak načítat dlouhé seznamy (Objednávky, Faktury, Dodací listy, POS Účtenky) při velkém počtu záznamů. <span style="color:var(--text-3)">Počet řádků platí všude; styl načítání pro admin seznamy (POS vždy „Načíst další").</span></p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+          <div>
+            <label class="form-label" style="font-size:12px">Styl načítání</label>
+            <select class="form-select" id="ns-pagination" style="max-width:340px">
+              <option value="load_more" ${(n.pagination_styl || 'load_more') === 'load_more' ? 'selected' : ''}>▾ Načíst další (tlačítko)</option>
+              <option value="stranky" ${n.pagination_styl === 'stranky' ? 'selected' : ''}># Stránkování (čísla stránek)</option>
+              <option value="infinite" ${n.pagination_styl === 'infinite' ? 'selected' : ''}>∞ Nekonečné scrollování</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-size:12px">Řádků na stránku</label>
+            <select class="form-select" id="ns-pag-pocet" style="max-width:160px">
+              ${[10, 25, 50, 100, 200].map(p => `<option value="${p}" ${(parseInt(n.pagination_pocet) || 10) === p ? 'selected' : ''}>${p} řádků</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--text-3);margin-top:10px">Uloží se tlačítkem „💾 Uložit nastavení" dole. Platí pro všechna zařízení.</p>
+      </div>
+
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">⚡ Výkon</h3>
+        <p class="page-sub" style="margin-bottom:14px;">Odlehčený režim vypne animace, stíny a rozostření — aplikace je svižnější na slabších zařízeních a starších mobilech. Vzhled je plošší, funkce zůstávají stejné.</p>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600">
+          <input type="checkbox" id="ns-perf-lite" ${n.vykon_lite === '1' ? 'checked' : ''}
+            onchange="document.body.classList.toggle('perf-lite', this.checked); try{localStorage.setItem('appek_perf_lite', this.checked?'1':'0')}catch(e){}"
+            style="width:18px;height:18px;cursor:pointer">
+          Odlehčený režim <span style="color:var(--text-3);font-weight:400">(rychlejší na slabších zařízeních)</span>
+        </label>
+        <p style="font-size:11px;color:var(--text-3);margin-top:10px">Projeví se hned (toto zařízení) · „💾 Uložit nastavení" dole uloží pro všechna zařízení.</p>
+      </div>
+    </div>
+
     <!-- 🆕 v3.0.139 — 2 sloupce: API | Chyby aplikace -->
     <div class="nastaveni-row" style="margin-top:14px">
     <!-- 🔌 API TOKENY pro účetní systémy -->
