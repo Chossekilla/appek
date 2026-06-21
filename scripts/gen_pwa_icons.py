@@ -52,24 +52,35 @@ def square_opaque(img, bg):
                            ((s - w) // 2, (s - h) // 2))
     return canvas
 
+def detect_bg(src):
+    """Reprezentativní NEPRŮHLEDNÉ pozadí (pro výplň průhledných rohů u apple/maskable):
+    průměr středů 4 okrajů. Pro ikonu se zaoblenými rohy = barva okraje (ne roh, ten je průhledný)."""
+    w, h = src.size
+    cols = []
+    for p in [(w // 2, 4), (w // 2, h - 5), (4, h // 2), (w - 5, h // 2)]:
+        px = src.getpixel(p)
+        if len(px) < 4 or px[3] > 200:
+            cols.append(px[:3])
+    if not cols:
+        return C1
+    n = len(cols)
+    return tuple(sum(c[i] for c in cols) // n for i in range(3))
+
 def build_from_source(src_path):
     src = Image.open(src_path).convert('RGBA')
-    # bg = roh zdroje, pokud je neprůhledný; jinak brand barva
-    corner = src.getpixel((0, 0))
-    bg = corner[:3] if (len(corner) < 4 or corner[3] > 250) else C1
-    sq = square_opaque(src, bg)
+    if src.width != src.height:  # doplň na čtverec (průhledně)
+        s = max(src.size)
+        sq0 = Image.new('RGBA', (s, s), (0, 0, 0, 0))
+        sq0.alpha_composite(src, ((s - src.width) // 2, (s - src.height) // 2))
+        src = sq0
     R = Image.Resampling.LANCZOS
-    icons = {
-        'icon-192.png': sq.resize((192, 192), R),
-        'icon-512.png': sq.resize((512, 512), R),
-        'icon-apple.png': sq.resize((180, 180), R),
+    opaque = square_opaque(src, detect_bg(src))  # rohy vyplněné barvou okraje
+    return {
+        'icon-192.png': src.resize((192, 192), R),          # zachová zaoblení + průhlednost
+        'icon-512.png': src.resize((512, 512), R),
+        'icon-apple.png': opaque.resize((180, 180), R),     # neprůhledný čtverec — iOS si zaobluje
+        'icon-maskable.png': opaque.resize((512, 512), R),  # full-bleed — Android maskuje (obsah je centrovaný)
     }
-    # maskable: full-bleed bg + obsah na 80 % (safe-zone)
-    mk = Image.new('RGBA', (512, 512), bg + (255,))
-    inner = sq.resize((410, 410), R)
-    mk.alpha_composite(inner, (51, 51))
-    icons['icon-maskable.png'] = mk
-    return icons
 
 def build_placeholder():
     def make(size, radius_frac, letter_frac, opaque):
