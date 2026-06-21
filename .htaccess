@@ -84,8 +84,9 @@ DirectoryIndex index.html index.php install.php
   # XSS protection (legacy ale stále uznávaný staršími prohlížeči)
   Header always set X-XSS-Protection "1; mode=block"
 
-  # HSTS — pouze pokud máš HTTPS (jinak zakomentováno)
-  # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  # 🆕 v3.0.359 — HSTS jen na HTTPS (env=HTTPS) → na HTTP instalacích se NEEMIT (nerozbije je).
+  # 6 měsíců, bez includeSubDomains/preload = recoverable, pokud by SSL vypadlo.
+  Header always set Strict-Transport-Security "max-age=15768000" env=HTTPS
 
   # CSP — povol inline pro PWA a externí ARES/RPO + Heureka feeds
   # POZN.: Pokud chceš stahovat externí fonty (Google Fonts), přidej je do font-src
