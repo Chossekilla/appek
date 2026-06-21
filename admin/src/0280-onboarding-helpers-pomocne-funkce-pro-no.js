@@ -682,6 +682,7 @@ async function navigate(page, args) {
     else if (page === 'export_vyroby') await renderExportVyroby();
     else if (page === 'vyrobni_kalkulace') await renderVyrobniKalkulace();
     else if (page === 'nastaveni') await renderNastaveni();
+    else if (page === 'integrace') { state._nastaveniTab = 'integrace'; await renderNastaveni(); } // 🆕 v3.0.370 — Integrace = samostatná stránka z Nástrojů (standalone shell v renderNastaveni)
     else if (page && page.startsWith('pkg_')) await renderPackagePage(page);
     else if (page === 'diagnostika') await renderDiagnostika();
     // Po renderu doplň data-label do <td> aby se na mobilu transformovaly v karty

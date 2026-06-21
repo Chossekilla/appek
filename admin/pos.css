@@ -3218,3 +3218,17 @@ html, body {
   -webkit-box-orient: vertical !important;
   text-overflow: clip !important;
 }
+
+/* 🆕 v3.0.370 — HUSTOTA UI: +/− v hlavičce mění velikost dlaždic produktů (víc/míň na řádek)
+   místo dřívějšího zoomu celé stránky (user: „chtěl jsem hustotu UI"). JS (applyPosZoom) nastaví
+   --pos-density-mult; --pos-card-min je responsivní základ. #pos-grid (id specificita) přebíjí
+   breakpoint !important grid pravidla → hustota funguje na všech šířkách, text zůstává čitelný. */
+:root { --pos-card-min: 176px; --pos-density-mult: 1; }
+@media (max-width: 1400px) { :root { --pos-card-min: 160px; } }
+@media (max-width: 1100px) { :root { --pos-card-min: 148px; } }
+@media (max-width: 900px)  { :root { --pos-card-min: 134px; } }
+@media (max-width: 700px)  { :root { --pos-card-min: 120px; } }
+@media (max-width: 500px)  { :root { --pos-card-min: 108px; } }
+#pos-grid {
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--pos-card-min, 160px) * var(--pos-density-mult, 1)), 1fr)) !important;
+}

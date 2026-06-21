@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.369';
+const APPEK_ADMIN_JS_VERSION = '3.0.370';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -4473,6 +4473,7 @@ async function navigate(page, args) {
     else if (page === 'export_vyroby') await renderExportVyroby();
     else if (page === 'vyrobni_kalkulace') await renderVyrobniKalkulace();
     else if (page === 'nastaveni') await renderNastaveni();
+    else if (page === 'integrace') { state._nastaveniTab = 'integrace'; await renderNastaveni(); } // 🆕 v3.0.370 — Integrace = samostatná stránka z Nástrojů (standalone shell v renderNastaveni)
     else if (page && page.startsWith('pkg_')) await renderPackagePage(page);
     else if (page === 'diagnostika') await renderDiagnostika();
     // Po renderu doplň data-label do <td> aby se na mobilu transformovaly v karty
@@ -15077,9 +15078,9 @@ async function renderNastaveni() {
     { key: 'notifikace', label: '📧 Notifikace',        popis: 'E-maily a uzávěrka úprav objednávek' },
     // 🆕 v3.0.271 — Kanály sloučeny pod Platby (souvisí: jak platí × odkud přišla objednávka).
     { key: 'platby',     label: '💳 Platby & kanály',   popis: 'Platební metody (jak zákazník zaplatí) + prodejní kanály (odkud objednávka přišla).' },
-    // 🆕 v3.0.367 — Integrace ZPĚT jako viditelný tab. Předtím (v3.0.340) jen skrytý → klik z Nástrojů
-    //   působil „skočil jsi do Nastavení, ale bez tabu" (ghost). Karta v Nástrojích zůstává jako zkratka.
-    { key: 'integrace',  label: '🔌 Integrace',         popis: 'Platby (Stripe, GoPay, PayPal), přepravci (Zásilkovna, DPD, PPL, ČP) a účetní (POHODA, FlexiBee).', adminOnly: true },
+    // 🆕 v3.0.370 — Integrace NENÍ tab v Nastavení (user: „integrace pryč z nastavení, nechat v nástrojích").
+    //   Otevírá se jako SAMOSTATNÁ stránka z Nástrojů: navigate('integrace') → renderNastaveni standalone shell
+    //   (titulek „🔌 Integrace" + ← Nástroje, bez settings tab baru). Blok zůstává v blokyTabu['integrace'].
     { key: 'pristupy',   label: '👥 Přístupy, ceny & měna', popis: 'Uživatelé, slevové skupiny a měna/kurz (cílová měna + vlastní nebo ČNB kurz).', adminOnly: true },
     { key: 'balicky',    label: '🎁 Balíčky',           popis: 'Aktivace doplňkových modulů (Cukrárna, Lahůdky, …)', adminOnly: true },
     { key: 'udrzba',     label: '🛠️ Údržba',            popis: 'Bezpečnost, zálohy DB, diagnostika' },
@@ -16506,7 +16507,29 @@ async function renderNastaveni() {
   // 🐛 v3.0.247 — Údržba taky potřebuje Uložit (sekce „Dlouhé seznamy" tam byla bez tlačítka → nešlo uložit)
   const ukazatUlozit = (aktTab === 'firma' || aktTab === 'notifikace' || aktTab === 'udrzba');
 
+  const standalone = (aktTab === 'integrace');  // 🆕 v3.0.370 — integrace = samostatná stránka z Nástrojů (bez settings tab baru)
+  const segTabsHtml = TABS.map(t => {
+    // Rozdělit "🏢 Firma & doklady" na ikona + text (Unicode emoji regex)
+    const m = (t.label || '').match(/^(\p{Emoji}+|\p{Extended_Pictographic}+|[^\s]+)\s+(.+)$/u);
+    const icon = m ? m[1] : '';
+    const text = m ? m[2] : t.label;
+    return `
+        <button type="button" role="tab" class="seg-tab ${aktTab === t.key ? 'active' : ''} ${t.adminOnly ? 'admin-only' : ''}"
+                onclick="nastaveniSetTab('${t.key}')" aria-selected="${aktTab === t.key}">
+          <span class="seg-tab-icon">${icon}</span>
+          <span class="seg-tab-text">${esc(text)}</span>
+        </button>`;
+  }).join('');
   c.innerHTML = `
+    ${standalone ? `
+    <div class="page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div>
+        <h1 class="page-title">🔌 Integrace</h1>
+        <p class="page-sub">Platby (Stripe, GoPay, PayPal), přepravci (Zásilkovna, DPD, PPL, ČP) a účetní (POHODA, FlexiBee, ISDOC).</p>
+      </div>
+      <button class="btn-secondary" onclick="navigate('nastroje')" style="white-space:nowrap">← Nástroje</button>
+    </div>
+    ` : `
     <div class="page-head">
       <div>
         <h1 class="page-title">⚙️ Nastavení</h1>
@@ -16515,21 +16538,8 @@ async function renderNastaveni() {
     </div>
 
     <!-- 🗂️ ZÁLOŽKY — v2.9.229 segmented control (icon nahoře, label dole) -->
-    <div class="seg-tabs" role="tablist">
-      ${TABS.map(t => {
-        // Rozdělit "🏢 Firma & doklady" na ikona + text (Unicode emoji regex)
-        const m = (t.label || '').match(/^(\p{Emoji}+|\p{Extended_Pictographic}+|[^\s]+)\s+(.+)$/u);
-        const icon = m ? m[1] : '';
-        const text = m ? m[2] : t.label;
-        return `
-        <button type="button" role="tab" class="seg-tab ${aktTab === t.key ? 'active' : ''} ${t.adminOnly ? 'admin-only' : ''}"
-                onclick="nastaveniSetTab('${t.key}')" aria-selected="${aktTab === t.key}">
-          <span class="seg-tab-icon">${icon}</span>
-          <span class="seg-tab-text">${esc(text)}</span>
-        </button>
-      `;
-      }).join('')}
-    </div>
+    <div class="seg-tabs" role="tablist">${segTabsHtml}</div>
+    `}
 
     <div class="nastaveni-page nastaveni-tab-content">
       ${aktivniBlok}
@@ -30491,7 +30501,7 @@ async function renderNastroje() {
         <div class="nastroje-card-cta">Importovat →</div>
       </button>
 
-      ${adminOnly(`<button class="nastroje-card" onclick="state._nastaveniTab='integrace';navigate('nastaveni')" aria-label="Integrace a platby">
+      ${adminOnly(`<button class="nastroje-card" onclick="navigate('integrace')" aria-label="Integrace a platby">
         <div class="nastroje-card-icon">🔌</div>
         <div class="nastroje-card-title">Integrace</div>
         <div class="nastroje-card-desc">Platby (Stripe, GoPay, PayPal), přepravci (Zásilkovna, DPD, PPL, ČP) a účetní (POHODA, FlexiBee).</div>
