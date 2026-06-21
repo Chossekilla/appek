@@ -88,10 +88,13 @@ $csrfToken  = csrf_token();
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="APPEK POS">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="robots" content="noindex, nofollow">
 <title>APPEK POS — Kasa</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-apple.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/svg+xml" href="/admin/icons/icon-192.svg">
-<link rel="apple-touch-icon" href="/admin/icons/icon-apple.svg">
 <link rel="stylesheet" href="pos.css?v=<?= htmlspecialchars($appVersion) ?>">
 <!-- 🆕 v3.0.253 — KRITICKÉ CSS tabů přímo v HTML (pos/index.php je no-store = vždy čerstvé,
      vyhrává nad CDN-zacachovanou pos.css). border-radius 5px + 1.5px obrys, sjednoceno s admin/pos.php. -->
@@ -267,5 +270,13 @@ $csrfToken  = csrf_token();
 </footer>
 
 <script src="pos.js?v=<?= htmlspecialchars($appVersion) ?>"></script>
+<script>
+  /* 🆕 v3.0.362 — registrace SW kvůli PWA installability (Android Chrome). Bez interceptu = žádný stale-POS. */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
 </body>
 </html>

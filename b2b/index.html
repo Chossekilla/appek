@@ -10,11 +10,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Appek B2B">
+<meta name="mobile-web-app-capable" content="yes">
 <!-- 🔒 B2B aplikace = neindexovat veřejnými vyhledávači -->
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
 <meta name="googlebot" content="noindex, nofollow">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-apple.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <title>APPEK B2B – B2B objednávky</title>
 <!-- 🛡️ Detekce starých prohlížečů (Banner pokud chybí fetch / Promise / CSS vars) -->
 <script>
@@ -39,7 +42,7 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="style.css?v=3.0.361">
+<link rel="stylesheet" href="style.css?v=3.0.362">
 </head>
 <body>
 
@@ -196,8 +199,8 @@
 </button>
 
 <script src="../admin/_barcode_scanner.js"></script>
-<script src="i18n.js?v=3.0.361"></script>
-<script src="app.js?v=3.0.361"></script>
+<script src="i18n.js?v=3.0.362"></script>
+<script src="app.js?v=3.0.362"></script>
 <script>
 // 📷 USB barcode scanner — automaticky naslouchá rychlému keyboard inputu
 if (window.appekScanner) {
