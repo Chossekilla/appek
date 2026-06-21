@@ -45,7 +45,7 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 ## FÁZE 2 — Distribuce & support (aby zákazník nevolal naštvaný)
 - 🔄 Install robustní — design OK (`install.php` recreates config; `config.local.php` není v bundlu → update ho nepřepíše), fresh-install schema hardened. Ztráta `config.local.php` = externí (hosting/FTP), ne chyba appky.
 - ✅ Self-update spolehlivý — **ověřeno** (assessment v357): záloha před apply (`api/zalohy/`) + **auto-rollback** při selhání critical souboru (`restore_from_backup`, v2.9.325) + inode-aware retence (jen poslední záloha) + UA fix.
-- ⬜ HTTPS/HSTS po SSL zákazníka (teď zakomentováno)
+- ✅ HTTPS/HSTS (v359) — HSTS hlavička jen na HTTPS (`env=HTTPS` v .htaccess) → HTTP instalace nerozbije; 6 měsíců, bez includeSubDomains/preload (recoverable). Bundle+manifest+self-update ho aplikují (ověřeno). Force-HTTPS redirect = volitelný hosting-level. ⚠️ HTTPS-emit live neověřen (localhost=HTTP; demo zaseklé na v294).
 - ✅ Dokumentace — [INSTALL.md](../INSTALL.md) (instalace/licence/onboarding) + **[docs/PROVOZNI-PRIRUCKA.md](PROVOZNI-PRIRUCKA.md)** (update/zálohy/troubleshooting/FAQ/migrace) napsána (v357)
 - ⬜ Support proces (kanál, SLA, vzdálená diagnostika — chce SSH na instalace) — *business rozhodnutí*
 - ✅ Onboarding pro KUPUJÍCÍHO — wizard + provozní příručka (PROVOZNI-PRIRUCKA.md)
