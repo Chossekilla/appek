@@ -38,7 +38,15 @@ fi
 # config.php → admin.js/admin.css zůstávaly pozadu a footer ukazoval starou verzi.
 SROOT="$(cd "$(dirname "$0")/.." && pwd)"
 perl -i -pe "s/(APP_VERSION'\\s*,\\s*')\\d+\\.\\d+\\.\\d+(')/\${1}${VERSION}\${2}/"          "$SROOT/api/config.php"
-perl -i -pe "s/(APPEK_ADMIN_JS_VERSION\\s*=\\s*')\\d+\\.\\d+\\.\\d+(')/\${1}${VERSION}\${2}/" "$SROOT/admin/admin.js"
+# 🆕 v3.0.361 — admin.js je GENEROVANÝ z admin/src/*.js (modularizace). Bumpni marker ve SRC + regeneruj.
+#   EDITUJ admin/src/, NE admin/admin.js (concat ho přepíše). Viz admin/src/README.md.
+if [ -d "$SROOT/admin/src" ]; then
+  perl -i -pe "s/(APPEK_ADMIN_JS_VERSION\\s*=\\s*')\\d+\\.\\d+\\.\\d+(')/\${1}${VERSION}\${2}/" "$SROOT/admin/src/0000-preamble.js"
+  cat "$SROOT"/admin/src/*.js > "$SROOT/admin/admin.js"
+  echo "🧩 admin.js regenerován z admin/src/ ($(ls "$SROOT"/admin/src/*.js | wc -l | tr -d ' ') souborů)"
+else
+  perl -i -pe "s/(APPEK_ADMIN_JS_VERSION\\s*=\\s*')\\d+\\.\\d+\\.\\d+(')/\${1}${VERSION}\${2}/" "$SROOT/admin/admin.js"
+fi
 perl -i -pe "s/(--appek-css-version:\\s*\")\\d+\\.\\d+\\.\\d+(\")/\${1}${VERSION}\${2}/"       "$SROOT/admin/admin.css"
 # 🆕 v3.0.183/184 — cache-bust: bumpni ?v=X.Y.Z na VŠECH assetech v admin/index.html I b2b/index.html
 #   (admin.js/css, i18n, app.js, style.css). Dřív zamrzlé na 3.0.162 → prohlížeč nestáhl nový
