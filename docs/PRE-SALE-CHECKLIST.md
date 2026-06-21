@@ -55,7 +55,8 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 ## FÁZE 3 — Produkt & business
 - ⬜ Pricing/licence (balíčky ✅) + trial + refund policy
 - ✅ Demo prostředí (self-update funguje, pomalejší cron)
-- ⬜ Mobil/iOS ověřeno na REÁLNÉM zařízení (Chrome MCP neumí <desktop viewport)
+- 🔄 Mobil/iOS — ✅ **PWA installability hotová** (v362, admin+b2b+pos): manifesty + PNG ikony (192/512/maskable/apple-180, `scripts/gen_pwa_icons.py`) + apple-touch-icon PNG + SW (vč. nového POS SW). Android Chrome install + iOS Add-to-Home připraveno. ⬜ Zbývá test na REÁLNÉM zařízení (Chrome MCP neumí mobilní install flow ani <desktop viewport)
+- ✅ Podklad pro účetního — `docs/FAKTURACE-PODKLAD-UCETNI.md` (DPH/rozpis/náležitosti/dobropis/ISDOC + co ověřit) → zrychlí právní/daňové posouzení
 - ⬜ Výkon pod zátěží (kombinovaný provoz 5 kanálů)
 - ✅ i18n (v360) — genuine zbytek přeložen (EN/ES/SK/DE); ostatní „missing" z auditu = non-translatable junk (placeholdery/jednotky/technické labely/příklady/URL) + emoji-only (flexible lookup OK)
 
