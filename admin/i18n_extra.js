@@ -6,7 +6,7 @@
 // =============================================================
 
 const I18N_EXTRA = {
-  // 🇸🇰 Slovenčina — 19248 frází
+  // 🇸🇰 Slovenčina — 19251 frází
   sk: {
     '"✓ Vše hotovo" = označí celou objednávku': '"✓ Všetko hotové" = označí celú objednávku',
     '"📤 Vše odneseno" + "🖨️ Tisk bonu" tlačítka per účet': '"📤 Všetko odnesené" + "🖨️ Tlač bonu" tlačidlá per účet',
@@ -126,6 +126,7 @@ const I18N_EXTRA = {
     '+ Přidat platbu': '+ Pridať platbu',
     '+ Přidat pobočku': '+ Pridať pobočku',
     '+ Přidat pole': '+ Pridať pole',
+    '+ Přidat polotovar': '+ Pridať polotovar',
     '+ Přidat položku': '+ Pridať položku',
     '+ Přidat preset': '+ Pridať preset',
     '+ Přidat první stůl': '+ Pridať prvý stôl',
@@ -135,6 +136,7 @@ const I18N_EXTRA = {
     '+ Přidat stojan': '+ Pridať stojan',
     '+ Přidat stůl ▾': '+ Pridať stôl ▾',
     '+ Přidat surovinu': '+ Pridať surovinu',
+    '+ Přidat typ': '+ Pridať typ',
     '+ Přidat vstup': '+ Pridať vstup',
     '+ Přidat výrobek': '+ Pridať výrobok',
     '+ Přidat z katalogu': '+ Pridať z katalógu',
@@ -18377,6 +18379,7 @@ const I18N_EXTRA = {
     '— odběratel zatím nemá žádné předchozí objednávky': '— odberateľ zatiaľ nemá žiadne predchádzajúce objednávky',
     '— pro kuchaře.': '— pre kuchárov.',
     '— volitelné': '— voliteľné',
+    '— vyber nefakturovanou objednávku / DL —': '— vyber nefakturovanú objednávku / DL —',
     '— vyber položku —': '— vyber položku —',
     '— vyplň cenu a obsah balení —': '— vyplň cenu a obsah balenia —',
     '— z toho cukry': '— z toho cukry',
@@ -19258,7 +19261,7 @@ const I18N_EXTRA = {
     '🫀 Test zdraví': '🫀 Test zdravia',
   },
 
-  // 🇩🇪 Deutsch — 19248 frází
+  // 🇩🇪 Deutsch — 19251 frází
   de: {
     '"✓ Vše hotovo" = označí celou objednávku': '"✓ Alles fertig" = markiert die ganze Bestellung',
     '"📤 Vše odneseno" + "🖨️ Tisk bonu" tlačítka per účet': '"📤 Alles geliefert" + "🖨️ Bon drucken" Schaltflächen pro Rechnung',
@@ -19378,6 +19381,7 @@ const I18N_EXTRA = {
     '+ Přidat platbu': '+ Zahlung hinzufügen',
     '+ Přidat pobočku': '+ Filiale hinzufügen',
     '+ Přidat pole': '+ Feld hinzufügen',
+    '+ Přidat polotovar': '+ Halbfabrikat hinzufügen',
     '+ Přidat položku': '+ Position hinzufügen',
     '+ Přidat preset': '+ Vorlage hinzufügen',
     '+ Přidat první stůl': '+ Ersten Tisch hinzufügen',
@@ -19387,6 +19391,7 @@ const I18N_EXTRA = {
     '+ Přidat stojan': '+ Ständer hinzufügen',
     '+ Přidat stůl ▾': '+ Tisch hinzufügen ▾',
     '+ Přidat surovinu': '+ Zutat hinzufügen',
+    '+ Přidat typ': '+ Typ hinzufügen',
     '+ Přidat vstup': '+ Eingabe hinzufügen',
     '+ Přidat výrobek': '+ Produkt hinzufügen',
     '+ Přidat z katalogu': '+ Aus Katalog hinzufügen',
@@ -37629,6 +37634,7 @@ const I18N_EXTRA = {
     '— odběratel zatím nemá žádné předchozí objednávky': '— Kunde hat noch keine vorherigen Bestellungen',
     '— pro kuchaře.': '— für Köche.',
     '— volitelné': '— optional',
+    '— vyber nefakturovanou objednávku / DL —': '— unfakturierte Bestellung / Lieferschein wählen —',
     '— vyber položku —': '— Position auswählen —',
     '— vyplň cenu a obsah balení —': '— Preis und Verpackungsinhalt eingeben —',
     '— z toho cukry': '— davon Zucker',

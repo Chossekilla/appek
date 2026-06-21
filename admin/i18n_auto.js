@@ -25595,6 +25595,10 @@ const I18N_PHRASES = [
   ['Žádná (hlavní kategorie) —', 'None (main category) —', 'Ninguna (categoría principal) —'],
   ['Žádné vouchery — vytvoř první nahoře', 'No vouchers — create the first one above', 'Sin cupones — crea el primero arriba'],
   ['Žádné vratky', 'No returns', 'Sin devoluciones'],
+  // v3.0.360 dopreklady UI (zbytek auditu: polotovar/typ/pobocka/hledat odberatele/nefakturovana) (+3)
+  ['+ Přidat polotovar', '+ Add semi-product', '+ Añadir semielaborado'],
+  ['+ Přidat typ', '+ Add type', '+ Añadir tipo'],
+  ['— vyber nefakturovanou objednávku / DL —', '— select uninvoiced order / delivery note —', '— elige pedido / albarán sin facturar —'],
 ];
 
 // Build lookup index pro O(1) access
