@@ -38,7 +38,7 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 - ✅ Smoke test všech endpointů — `scripts/smoke.sh` (no-500 sweep + auth-required→401/403 + public→200); hned našel+opravil 2 webhook 500 (gopay/stripe). Spusť: `bash scripts/smoke.sh [base]`
 - 🔄 JS build/lint gate — `node --check` přidán do build-update.sh (admin/+b2b/ .js); aktivuje se po instalaci node (zatím ⚠️ skip). **TODO: `brew install node`.**
 - ⬜ Rozbít `admin.js` monolit do modulů — bus factor
-- ⚠️ CI publish — `release.yml` build ZIP + GitHub Release **fungují**; deploy-hook na vendor failuje **HTTP 403 „Neplatný token"** (GitHub Secret `DEPLOY_TOKEN` ≠ `vendor/config.local.php` na appek.cz). **BLOKOVÁNO na user akci:** sjednotit token (GitHub → Settings → Secrets → `DEPLOY_TOKEN` = hodnota na serveru). Do té doby publikuju ručně přes vendor updates.php. (Nelze opravit z kódu — credentials mismatch.)
+- ✅ CI publish **FUNGUJE** — celý `release.yml` (build ZIP + GitHub Release + **deploy-hook auto-publish**): u v3.0.360 deploy step vrátil **HTTP 200 `{"status":"ok","published":true,"health":{"ok":true}}`** (DEPLOY_TOKEN opraven 31.5.). **`git push origin main --tags` STAČÍ** — vendor feed + appek.cz master se publikují/aktualizují samy. Ruční curl publish byl redundantní. (Pozn.: runs „zelené" i při deploy failu kvůli `continue-on-error` → pravdu řekne deploy step log.)
 
 ---
 
