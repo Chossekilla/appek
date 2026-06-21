@@ -156,6 +156,7 @@ function generuj_isdoc(PDO $pdo, array $f): string {
     $xml .= '  <DocumentType>1</DocumentType>' . "\n";
     $xml .= '  <ID>' . isdoc_xml($f['cislo']) . '</ID>' . "\n";
     $xml .= '  <UUID>' . $uuid . '</UUID>' . "\n";
+    $xml .= '  <IssuingSystem>APPEK</IssuingSystem>' . "\n"; // 🆕 v3.0.356 — povinný element ISDOC (chyběl)
     $xml .= '  <IssueDate>' . $datum_vys . '</IssueDate>' . "\n";
     $xml .= '  <TaxPointDate>' . $datum_dph . '</TaxPointDate>' . "\n";
     $xml .= '  <VATApplicable>true</VATApplicable>' . "\n";

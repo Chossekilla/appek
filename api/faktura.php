@@ -290,6 +290,22 @@ function nacti_fakturu(PDO $pdo, int $id): ?array {
         $dph_rozpis[$sazba]['bez'] += $bez;
         $dph_rozpis[$sazba]['dph'] += $dph;
     }
+    // 🆕 v3.0.356 — zaokrouhli rozpis per sazba a haléřový zbytek vlož do sazby s největším
+    // základem → Σ rozpisu sedí PŘESNĚ na hlavičkové castka_* (rozpis == „K úhradě") i u
+    // vícesazbových faktur. Bez toho mohl Σ(zaokrouhlených sazeb) ≠ uložená castka_* o haléř
+    // = vnitřně nekonzistentní daňový doklad.
+    if ($dph_rozpis) {
+        foreach ($dph_rozpis as $s => &$r) { $r['bez'] = round($r['bez'], 2); $r['dph'] = round($r['dph'], 2); }
+        unset($r);
+        $maxKey = null; $maxBez = -INF;
+        foreach ($dph_rozpis as $s => $r) { if (abs($r['bez']) > $maxBez) { $maxBez = abs($r['bez']); $maxKey = $s; } }
+        if ($maxKey !== null) {
+            $resBez = round((float) $f['castka_bez_dph'], 2) - array_sum(array_column($dph_rozpis, 'bez'));
+            $resDph = round((float) $f['castka_dph'], 2)    - array_sum(array_column($dph_rozpis, 'dph'));
+            $dph_rozpis[$maxKey]['bez'] = round($dph_rozpis[$maxKey]['bez'] + $resBez, 2);
+            $dph_rozpis[$maxKey]['dph'] = round($dph_rozpis[$maxKey]['dph'] + $resDph, 2);
+        }
+    }
     return ['f' => $f, 'polozky' => $polozky, 'dph_rozpis' => $dph_rozpis];
 }
 
