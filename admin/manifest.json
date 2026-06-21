@@ -12,28 +12,28 @@
   "dir": "ltr",
   "categories": ["business", "productivity", "food"],
   "icons": [
-    { "src": "icons/icon-192.png",      "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png",      "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/uploads/logo/pwa/icon-192.png",      "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/uploads/logo/pwa/icon-512.png",      "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/uploads/logo/pwa/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
     {
       "name": "Objednávky",
       "short_name": "Objednávky",
       "url": "/admin/#objednavky",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/uploads/logo/pwa/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Výroba",
       "short_name": "Výroba",
       "url": "/admin/#vyroba",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/uploads/logo/pwa/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Updates",
       "short_name": "Aktualizace",
       "url": "/admin/updater.html",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/uploads/logo/pwa/icon-192.png", "sizes": "192x192" }]
     }
   ],
   "prefer_related_applications": false

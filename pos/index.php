@@ -92,7 +92,7 @@ $csrfToken  = csrf_token();
 <meta name="robots" content="noindex, nofollow">
 <title>APPEK POS — Kasa</title>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-apple.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/uploads/logo/pwa/icon-apple.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/svg+xml" href="/admin/icons/icon-192.svg">
 <link rel="stylesheet" href="pos.css?v=<?= htmlspecialchars($appVersion) ?>">
