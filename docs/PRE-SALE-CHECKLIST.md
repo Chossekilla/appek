@@ -22,7 +22,7 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 ### Data integrita / peníze
 - ✅ Ceny server-authoritative (B2B ověřeno — klient cenu neurčuje)
 - 🔄 Fakturace **početně** správná (audit v356): ✅ DPH rozpis reconciliace (sedí na haléř i u vícesazbových), ✅ dobropis `datum_dph`, ✅ náležitosti dokladu (dodavatel/odběratel/IČO/DIČ/3 data/VS), ✅ číselné řady race-safe (atomický čítač + UNIQUE). ⬜ ISDOC plná XSD-konformita (`IssuingSystem` doplněn; zbytek ověřit proti reálnému XSD + import do Pohody). **PRÁVNÍ** správnost = odborník.
-- ⚠️ **Rozhodnutí majitele/účetní (fakturace):** (a) dobropis nevrací zboží na sklad; (b) dobropis nesnižuje tržby (statistiky čtou z `objednavky`, ne `faktury`); (c) vydaný doklad lze tvrdě smazat → díra v číselné řadě (zákon žádá souvislost). Vše vědomě neopraveno — čeká na rozhodnutí.
+- ⚠️ **Rozhodnutí majitele/účetní (fakturace):** (a) dobropis nevrací zboží na sklad (z větší části by-design — výrobky neskladované); (b) dobropis nesnižuje tržby (statistiky čtou z `objednavky`, ne `faktury`) = účetní model. ✅ (c) **VYŘEŠENO v358** — mazání vydaných dokladů zamykatelné přepínačem (Nastavení → Údržba → 📄 Doklady, **default zamknuto**).
 - ✅ Sklad A=B konzistence (integrity audit nástroj) · ✅ fresh-install schema (hardened, sweep clean)
 
 ### Compliance ⚠️ (kvalifikovaná osoba, ne já)
