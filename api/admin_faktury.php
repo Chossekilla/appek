@@ -638,6 +638,12 @@ if ($method === 'DELETE') {
     $id = (int) ($_GET['id'] ?? 0);
     if (!$id) json_error('Chybí ID');
 
+    // 🆕 v3.0.358 — zamknutí mazání vydaných dokladů (Nastavení → Údržba → Doklady).
+    // Default zamknuto kvůli souvislosti číselné řady (zákon). Vypnutí = vědomé.
+    if (nastaveni_get($pdo, 'faktura_zamknout_mazani', '1') === '1') {
+        json_error('Mazání vydaných dokladů je zamčené (Nastavení → Údržba → Doklady). Pro opravu použijte storno / dobropis — číselná řada musí být souvislá.', 409);
+    }
+
     // === AUTO-SNAPSHOT před destruktivní akcí ===
     require_once __DIR__ . '/_zaloha_helper.php';
     zaloha_snapshot($pdo, 'Před smazáním faktury ID ' . $id);

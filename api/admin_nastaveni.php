@@ -351,6 +351,8 @@ if ($method === 'PUT') {
         'firma_logo_url', 'firma_favicon_url', 'firma_logo_na_dokladech',
         // Patička dokladů (faktura, dodací list)
         'firma_paticka_dokladu',
+        // 🆕 v3.0.358 — zamknout mazání vydaných dokladů (faktura/DL) kvůli souvislosti číselné řady: '1'|'0'
+        'faktura_zamknout_mazani',
         // 🌍 Lokalizace — jazyk UI, měna, formát data, země pro doklady
         'firma_jazyk',        // 'cs' | 'en' | 'es' — UI jazyk
         'firma_locale',       // 'cs-CZ' | 'en-US' | 'en-GB' | 'es-ES' | 'es-MX' — Intl locale

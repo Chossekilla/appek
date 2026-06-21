@@ -6,7 +6,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.357';
+const APPEK_ADMIN_JS_VERSION = '3.0.358';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -15048,6 +15048,14 @@ window.smazatPobocku = async function(pobocka_id, odberatel_id) {
 // =============================================================
 // NASTAVENÍ - údaje firmy pro fakturu
 // =============================================================
+// 🆕 v3.0.358 — toggle zámku mazání vydaných dokladů (Nastavení → Údržba → Doklady)
+window.toggleZamknoutMazani = async function (cb) {
+  try {
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ faktura_zamknout_mazani: cb.checked ? '1' : '0' }) });
+    toastSuccess(cb.checked ? 'Mazání vydaných dokladů zamčeno 🔒' : 'Mazání vydaných dokladů povoleno');
+  } catch (e) { cb.checked = !cb.checked; toastError('Nepodařilo se uložit: ' + (e.message || e)); }
+};
+
 async function renderNastaveni() {
   const n = await api('admin_nastaveni.php');
   const c = document.getElementById('content');
@@ -15775,6 +15783,18 @@ async function renderNastaveni() {
     </div>
 
     <!-- 🐛 Chyby aplikace — PŘESUNUTO nahoru do páru s API (v3.0.139) -->
+
+    <!-- 🆕 v3.0.358 — Doklady: zámek mazání vydaných dokladů -->
+    <div class="nastaveni-row" style="margin-top:14px">
+      <div class="card-block" id="ns-doklady-block">
+        <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px">📄 Doklady</h3>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px">
+          <input type="checkbox" ${n.faktura_zamknout_mazani === '0' ? '' : 'checked'} onchange="toggleZamknoutMazani(this)" style="width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:var(--primary)">
+          <span><strong>Zamknout mazání vydaných dokladů</strong> (faktury, dodací listy)<br>
+          <span style="color:var(--text-3)">Doporučeno zapnuto — číselná řada dokladů musí být souvislá (zákon). Opravy řešte storno/dobropisem. Vypnutím umožníte trvalé smazání = díra v řadě.</span></span>
+        </label>
+      </div>
+    </div>
 
     <!-- 🆕 v3.0.160 — Licence & aktualizace + Activity log vedle sebe (2 sloupce) -->
     <div class="nastaveni-row" style="margin-top:14px">
