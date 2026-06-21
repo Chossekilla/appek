@@ -109,5 +109,33 @@ echo "  (faktura↔DL párů ověřeno: " . count($linked) . ")\n";
 $orphanDl = (int) $pdo->query("SELECT COUNT(*) FROM dodaci_listy dl WHERE dl.objednavka_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM objednavky o WHERE o.id = dl.objednavka_id)")->fetchColumn();
 ok($orphanDl === 0, "žádný DL s neexistující objednávkou (orphans: $orphanDl)");
 
+// ── T6 — DPH rozpis reconciliuje na hlavičku (faktura.php v3.0.356 fix) ─────────
+// Stored castka_* MUSÍ být = Σ položek na haléřové úrovni, aby rozpis (zaokrouhlený
+// per sazba + absorbovaný zbytek) seděl PŘESNĚ na „K úhradě". Velký zbytek = reálný bug.
+echo "── T6 DPH rozpis ↔ hlavička ──\n";
+$t6 = 0;
+foreach ($pdo->query("SELECT id, castka_bez_dph, castka_dph FROM faktury LIMIT 60")->fetchAll(PDO::FETCH_ASSOC) as $f6) {
+    $pq = $pdo->prepare("SELECT mnozstvi, cena_bez_dph, sazba_dph FROM faktura_polozky WHERE faktura_id = ?");
+    $pq->execute([$f6['id']]); $rows = $pq->fetchAll(PDO::FETCH_ASSOC);
+    if (!$rows) {
+        $dq = $pdo->prepare("SELECT dlp.mnozstvi, dlp.cena_bez_dph, dlp.sazba_dph FROM dodaci_list_polozky dlp JOIN faktury_dodaci_listy fdl ON fdl.dodaci_list_id = dlp.dodaci_list_id WHERE fdl.faktura_id = ?");
+        $dq->execute([$f6['id']]); $rows = $dq->fetchAll(PDO::FETCH_ASSOC);
+    }
+    if (!$rows) continue;
+    $t6++;
+    $rz = [];
+    foreach ($rows as $r) {
+        $bez = $r['cena_bez_dph'] * $r['mnozstvi']; $s = (string) (float) $r['sazba_dph'];
+        if (!isset($rz[$s])) $rz[$s] = ['bez' => 0, 'dph' => 0];
+        $rz[$s]['bez'] += $bez; $rz[$s]['dph'] += $bez * (float) $r['sazba_dph'] / 100;
+    }
+    $sumBez = 0; $sumDph = 0;
+    foreach ($rz as $r) { $sumBez += round($r['bez'], 2); $sumDph += round($r['dph'], 2); }
+    $resBez = abs(round((float) $f6['castka_bez_dph'], 2) - $sumBez);
+    $resDph = abs(round((float) $f6['castka_dph'], 2) - $sumDph);
+    ok($resBez <= 0.05 && $resDph <= 0.05, "faktura #{$f6['id']} rozpis↔hlavička zbytek absorbovatelný (bez $resBez, dph $resDph)");
+}
+echo "  (rozpisů ověřeno: $t6)\n";
+
 echo "\n✅ PASS=$pass  ❌ FAIL=$fail\n";
 exit($fail > 0 ? 1 : 0);

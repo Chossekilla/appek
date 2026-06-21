@@ -444,12 +444,12 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
         $cislo = dalsi_cislo($pdo, 'DOB', (int) date('Y'));
         $pozn  = 'Dobropis k faktuře ' . $f['cislo'] . ($reqPolozky !== null ? ' (částečný)' : '') . ($duvod !== '' ? ' — důvod: ' . $duvod : '');
         $pdo->prepare("
-            INSERT INTO faktury (cislo, odberatel_id, misto_dodani_id, datum_vystaveni, datum_splatnosti,
+            INSERT INTO faktury (cislo, odberatel_id, misto_dodani_id, datum_vystaveni, datum_dph, datum_splatnosti,
                                  castka_bez_dph, castka_dph, castka_celkem, castka_uhrazeno,
                                  variabilni_symbol, poznamka, rucni, je_dobropis, puvodni_faktura_id,
                                  odb_nazev_snapshot, odb_ico_snapshot, odb_dic_snapshot,
                                  odb_ulice_snapshot, odb_mesto_snapshot, odb_psc_snapshot)
-            VALUES (:c, :o, :m, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 14 DAY),
+            VALUES (:c, :o, :m, CURDATE(), CURDATE(), DATE_ADD(CURDATE(), INTERVAL 14 DAY),
                     :bez, :dph, :cel, 0,
                     :vs, :p, 1, 1, :puv,
                     :sn, :si, :sd, :su, :sm, :sp)
