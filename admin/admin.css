@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.365";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.366";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -21075,3 +21075,15 @@ body.perf-lite *:focus-visible { box-shadow: 0 0 0 2px var(--primary, #BA7517) !
     padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* 🆕 v3.0.366 — Sidebar logo (A APPEK B2B) = JEN logo, NE tlačítko.
+   User feedback: „ten appek button pod nápisem udělat neviditelný i po najetí myší;
+   při hoveru na Dashboard mizí okraj." Příčina: .sidebar-logo měl :hover krémové pozadí
+   (vyplnilo prázdný padding pod textem → vypadalo jak prázdné tlačítko) + border-bottom čáru.
+   Řešení: žádné hover pozadí, žádný okraj, kompaktní. Klik na logo → Přehled ZŮSTÁVÁ funkční. */
+body:not(.sidebar-collapsed):not(.sidebar-pinned) .sidebar-logo {
+  border-bottom: none !important;
+  padding-bottom: 6px !important;
+}
+.sidebar-logo:hover { background: transparent !important; }
+.sidebar-logo:active { transform: none !important; }
