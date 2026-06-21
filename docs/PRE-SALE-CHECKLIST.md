@@ -37,7 +37,7 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 - ✅ **Automatické testy peněžních cest** — `scripts/test-money-paths.php` (read-only, 0 side-effects, **475 asserts PASS**): ceník chokepoint, sleva skupiny, BOM odpis, sezónní úprava + řetězec **objednávka→DL→faktura** (header math celkem==bez+dph, dobropis≤0, faktura==ΣDL, referenční integrita). Spusť: `php scripts/test-money-paths.php`. ⬜ Volitelně: HTTP create-cleanup E2E (amount-konzistenci jinak hlídá runtime integrity audit)
 - ✅ Smoke test všech endpointů — `scripts/smoke.sh` (no-500 sweep + auth-required→401/403 + public→200); hned našel+opravil 2 webhook 500 (gopay/stripe). Spusť: `bash scripts/smoke.sh [base]`
 - 🔄 JS build/lint gate — `node --check` přidán do build-update.sh (admin/+b2b/ .js); aktivuje se po instalaci node (zatím ⚠️ skip). **TODO: `brew install node`.**
-- ⬜ Rozbít `admin.js` monolit do modulů — bus factor
+- ✅ Rozbití `admin.js` monolitu (v361) — 43k ř. → 135 souborů `admin/src/*.js`, build je spojí zpět do bajtově identického admin.js (runtime nezměněn). Footgun ošetřen (header + README + `admin_modularize.py` recovery). node --check gate aktivní.
 - ✅ CI publish **FUNGUJE** — celý `release.yml` (build ZIP + GitHub Release + **deploy-hook auto-publish**): u v3.0.360 deploy step vrátil **HTTP 200 `{"status":"ok","published":true,"health":{"ok":true}}`** (DEPLOY_TOKEN opraven 31.5.). **`git push origin main --tags` STAČÍ** — vendor feed + appek.cz master se publikují/aktualizují samy. Ruční curl publish byl redundantní. (Pozn.: runs „zelené" i při deploy failu kvůli `continue-on-error` → pravdu řekne deploy step log.)
 
 ---
