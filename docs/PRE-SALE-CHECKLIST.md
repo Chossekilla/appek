@@ -57,7 +57,7 @@ Model nasazení: **self-hosted, 1 instalace = 1 zákazník = vlastní DB** → c
 - ✅ Demo prostředí (self-update funguje, pomalejší cron)
 - ⬜ Mobil/iOS ověřeno na REÁLNÉM zařízení (Chrome MCP neumí <desktop viewport)
 - ⬜ Výkon pod zátěží (kombinovaný provoz 5 kanálů)
-- ⬜ i18n dokončení (112 zbývá; emoji-only OK)
+- ✅ i18n (v360) — genuine zbytek přeložen (EN/ES/SK/DE); ostatní „missing" z auditu = non-translatable junk (placeholdery/jednotky/technické labely/příklady/URL) + emoji-only (flexible lookup OK)
 
 ---
 
