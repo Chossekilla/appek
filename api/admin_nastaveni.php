@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_pwa_lib.php';
 require_once __DIR__ . '/_admin_auth.php';
 cors_headers();
 require_admin();
@@ -7,6 +8,7 @@ require_admin();
 $method = $_SERVER['REQUEST_METHOD'];
 $pdo = db();
 $action = $_GET['action'] ?? '';
+appek_ensure_pwa_icons();  // 🆕 v3.0.364 — naseeduj PWA install ikony (default APPEK), pokud chybí
 
 // =============================================================
 // 🖼️ UPLOAD LOGA + AUTO-FAVICON — POST ?action=upload_logo (multipart)
@@ -88,6 +90,9 @@ if ($method === 'POST' && $action === 'upload_logo') {
     $favPath = $upload_dir . '/favicon.png';
     imagepng($fav, $favPath, 6);
 
+    // 🆕 v3.0.364 — PWA install ikony (192/512/maskable/apple) ze zákazníkova loga (white-label, bílé pozadí)
+    appek_gen_pwa_icons_from_gd($logoImg);
+
     imagedestroy($logoImg);
     imagedestroy($fav);
     if ($logoImg !== $img) imagedestroy($img);
@@ -115,6 +120,7 @@ if ($method === 'POST' && $action === 'remove_logo') {
         foreach (glob($upload_dir . '/logo.*') as $f) @unlink($f);
         foreach (glob($upload_dir . '/favicon.*') as $f) @unlink($f);
     }
+    appek_reset_pwa_icons();  // 🆕 v3.0.364 — smaž custom PWA ikony → zpět APPEK default
     $pdo->prepare("DELETE FROM nastaveni WHERE klic IN ('firma_logo_url','firma_favicon_url')")->execute();
     json_response(['ok' => true]);
 }

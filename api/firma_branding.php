@@ -5,11 +5,13 @@
  * Použito v B2B frontendu (app.js) pro nahrazení defaultního "R" loga / favicony.
  */
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_pwa_lib.php';
 cors_headers();
 
 $pdo = db();
 $method = $_SERVER['REQUEST_METHOD'];
 if ($method !== 'GET') json_error('Method not allowed', 405);
+appek_ensure_pwa_icons();  // 🆕 v3.0.364 — naseeduj PWA install ikony (default APPEK), pokud chybí
 
 try {
     $rows = $pdo->query("
