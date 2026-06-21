@@ -27,6 +27,15 @@ function isdoc_xml(string $s): string {
 /**
  * Načte fakturu i s položkami a stranami (dodavatel = firma, odběratel = zákazník).
  */
+/** 🆕 v3.0.357 — CZ účet (prefix-číslo/kód) → IBAN (mod-97). '' když nejde rozparsovat. */
+function isdoc_iban_cz(string $acct): string {
+    if (!preg_match('~(?:(\d+)-)?(\d+)/(\d{4})~', $acct, $m)) return '';
+    $bban = $m[3] . str_pad($m[1] ?? '', 6, '0', STR_PAD_LEFT) . str_pad($m[2], 10, '0', STR_PAD_LEFT);
+    $mod = 0;
+    foreach (str_split($bban . '123500') as $d) $mod = ($mod * 10 + (int) $d) % 97; // CZ00 → C=12 Z=35 0 0
+    return 'CZ' . str_pad((string) (98 - $mod), 2, '0', STR_PAD_LEFT) . $bban;
+}
+
 function isdoc_nacti_fakturu(PDO $pdo, int $fa_id): ?array {
     $stmt = $pdo->prepare("
         SELECT f.*, od.nazev AS odb_nazev_aktualni,
@@ -127,6 +136,9 @@ function generuj_isdoc(PDO $pdo, array $f): string {
         $bankaCislo = $m[1];
         $bankaKod = $m[2];
     }
+    // 🆕 v3.0.357 — IBAN (mod-97 z CZ účtu) + BIC (mapa hl. CZ bank); oba povinné v ISDOC BankAccount group
+    $iban = $bankaCislo ? isdoc_iban_cz($firma_banka) : '';
+    $bic  = ['0100'=>'KOMBCZPP','0300'=>'CEKOCZPP','0600'=>'AGBACZPP','0710'=>'CNBACZPP','0800'=>'GIBACZPX','2010'=>'FIOBCZPP','2250'=>'CTASCZ22','2700'=>'BACXCZPP','3030'=>'AIRACZPP','5500'=>'RZBCCZPP','6210'=>'BREXCZPP'][$bankaKod] ?? '';
 
     $datum_vys = $f['datum_vystaveni'];
     $datum_dph = $f['datum_dph'] ?: $datum_vys;
@@ -153,7 +165,7 @@ function generuj_isdoc(PDO $pdo, array $f): string {
     // Build XML
     $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     $xml .= '<Invoice xmlns="http://isdoc.cz/namespace/2013" version="6.0.1">' . "\n";
-    $xml .= '  <DocumentType>1</DocumentType>' . "\n";
+    $xml .= '  <DocumentType>' . (!empty($f['je_dobropis']) ? '2' : '1') . '</DocumentType>' . "\n"; // 🆕 v3.0.357 — 2 = opravný daňový doklad (dobropis)
     $xml .= '  <ID>' . isdoc_xml($f['cislo']) . '</ID>' . "\n";
     $xml .= '  <UUID>' . $uuid . '</UUID>' . "\n";
     $xml .= '  <IssuingSystem>APPEK</IssuingSystem>' . "\n"; // 🆕 v3.0.356 — povinný element ISDOC (chyběl)
@@ -169,9 +181,8 @@ function generuj_isdoc(PDO $pdo, array $f): string {
     // Dodavatel (Seller)
     $xml .= '  <AccountingSupplierParty>' . "\n";
     $xml .= '    <Party>' . "\n";
-    if ($firma_ico) {
-        $xml .= '      <PartyIdentification><ID>' . isdoc_xml($firma_ico) . '</ID></PartyIdentification>' . "\n";
-    }
+    // 🆕 v3.0.357 — PartyIdentification je v XSD povinný (prázdné ID je validní string)
+    $xml .= '      <PartyIdentification><ID>' . isdoc_xml($firma_ico) . '</ID></PartyIdentification>' . "\n";
     $xml .= '      <PartyName><Name>' . isdoc_xml($firma_nazev) . '</Name></PartyName>' . "\n";
     $xml .= '      <PostalAddress>' . "\n";
     $xml .= '        <StreetName>' . isdoc_xml($firma_ulice) . '</StreetName>' . "\n";
@@ -198,9 +209,8 @@ function generuj_isdoc(PDO $pdo, array $f): string {
     // Odběratel (Buyer)
     $xml .= '  <AccountingCustomerParty>' . "\n";
     $xml .= '    <Party>' . "\n";
-    if ($f['odb_ico']) {
-        $xml .= '      <PartyIdentification><ID>' . isdoc_xml($f['odb_ico']) . '</ID></PartyIdentification>' . "\n";
-    }
+    // 🆕 v3.0.357 — PartyIdentification povinný i u odběratele
+    $xml .= '      <PartyIdentification><ID>' . isdoc_xml($f['odb_ico'] ?? '') . '</ID></PartyIdentification>' . "\n";
     $xml .= '      <PartyName><Name>' . isdoc_xml($f['odb_nazev']) . '</Name></PartyName>' . "\n";
     $xml .= '      <PostalAddress>' . "\n";
     $xml .= '        <StreetName>' . isdoc_xml($f['odb_ulice']) . '</StreetName>' . "\n";
@@ -296,6 +306,8 @@ function generuj_isdoc(PDO $pdo, array $f): string {
         $xml .= '        <ID>' . isdoc_xml($bankaCislo) . '</ID>' . "\n";
         $xml .= '        <BankCode>' . isdoc_xml($bankaKod) . '</BankCode>' . "\n";
         $xml .= '        <Name>' . isdoc_xml($firma_nazev) . '</Name>' . "\n";
+        $xml .= '        <IBAN>' . isdoc_xml($iban) . '</IBAN>' . "\n"; // 🆕 v3.0.357 — pořadí BankAccount: …Name,IBAN,BIC,VariableSymbol
+        $xml .= '        <BIC>' . isdoc_xml($bic) . '</BIC>' . "\n";
         $xml .= '        <VariableSymbol>' . isdoc_xml($vs) . '</VariableSymbol>' . "\n";
         $xml .= '      </Details>' . "\n";
         $xml .= '    </Payment>' . "\n";
