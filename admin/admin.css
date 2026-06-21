@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.367";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.368";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -8781,17 +8781,17 @@ body.has-bulk-bar .main-content {
   .zalohy-table td:nth-of-type(5) { display: none; }   /* Tabulek, Záznamů */
 }
 
-/* 🆕 v3.0.367 — Desktop: zálohy panel je půl-šířky (vedle Diagnostiky), takže viewport media
-   queries nestačily a 8 sloupců přetékalo (horizontální scroll). Skryj detailové sloupce
-   (Tabulek/Záznamů/Uploads — jsou v „ℹ️ Info & CRON") + akce jen ikony (mají title tooltip)
-   → tabulka se vejde „do okna" panelu. */
+/* 🆕 v3.0.368 — Desktop: zálohy panel je půl-šířky (~410px vedle Diagnostiky) → 8 sloupců
+   přetékalo (horizontální scroll). Kompaktní layout: zůstane Datum (+ typ/velikost v meta pod ním)
+   | Popis | Akce jako úzký sloupec ikon (title tooltip). Detaily (tabulek/záznamů) jsou v „ℹ️ Info & CRON". */
 @media (min-width: 701px) {
   #ns-zalohy-list { overflow-x: auto; }
-  .zalohy-table th:nth-of-type(4), .zalohy-table td:nth-of-type(4),
-  .zalohy-table th:nth-of-type(5), .zalohy-table td:nth-of-type(5),
-  .zalohy-table th:nth-of-type(7), .zalohy-table td:nth-of-type(7) { display: none; }
-  .zalohy-table .zaloha-actions .zaloha-btn { font-size: 0; padding: 4px 7px; }
-  .zalohy-table .zaloha-actions .zaloha-btn::before { content: attr(data-icon); font-size: 14px; }
+  .zalohy-table .zaloha-col-hide { display: none; }              /* Typ/Tabulek/Záznamů/Velikost/Uploads sloupce → do meta */
+  .zalohy-table .zaloha-meta { display: block; font-size: 10px; color: var(--text-3); margin-top: 2px; }
+  .zalohy-table .zaloha-cell-when { min-width: 92px; }
+  .zalohy-table .zaloha-actions { flex-direction: column; gap: 3px; align-items: stretch; }
+  .zalohy-table .zaloha-btn { font-size: 0; padding: 4px 6px; }
+  .zalohy-table .zaloha-btn::before { content: attr(data-icon); font-size: 14px; }
 }
 
 @media (max-width: 700px) {
