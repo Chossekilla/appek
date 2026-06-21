@@ -46936,3 +46936,15 @@ DE_EXTRA.update({
     'Žádné vouchery — vytvoř první nahoře': 'Keine Gutscheine — erstelle oben den ersten',
     'Žádné vratky': 'Keine Retouren',
 })
+
+# v3.0.360 dopreklady UI (zbytek auditu: polotovar/typ/pobocka/hledat odberatele/nefakturovana) (+3)
+SK_EXTRA.update({
+    '+ Přidat polotovar': '+ Pridať polotovar',
+    '+ Přidat typ': '+ Pridať typ',
+    '— vyber nefakturovanou objednávku / DL —': '— vyber nefakturovanú objednávku / DL —',
+})
+DE_EXTRA.update({
+    '+ Přidat polotovar': '+ Halbfabrikat hinzufügen',
+    '+ Přidat typ': '+ Typ hinzufügen',
+    '— vyber nefakturovanou objednávku / DL —': '— unfakturierte Bestellung / Lieferschein wählen —',
+})

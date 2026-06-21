@@ -1,0 +1,8 @@
+[
+ {"cs":"+ Přidat polotovar","en":"+ Add semi-product","es":"+ Añadir semielaborado","sk":"+ Pridať polotovar","de":"+ Halbfabrikat hinzufügen"},
+ {"cs":"+ Přidat typ","en":"+ Add type","es":"+ Añadir tipo","sk":"+ Pridať typ","de":"+ Typ hinzufügen"},
+ {"cs":"Volitelná…","en":"Optional…","es":"Opcional…","sk":"Voliteľná…","de":"Optional…"},
+ {"cs":"Vytvořit pobočku","en":"Create branch","es":"Crear sucursal","sk":"Vytvoriť pobočku","de":"Filiale erstellen"},
+ {"cs":"Hledat odběratele (název / IČO)…","en":"Search customer (name / reg. no.)…","es":"Buscar cliente (nombre / NIF)…","sk":"Hľadať odberateľa (názov / IČO)…","de":"Kunde suchen (Name / USt-IdNr.)…"},
+ {"cs":"— vyber nefakturovanou objednávku / DL —","en":"— select uninvoiced order / delivery note —","es":"— elige pedido / albarán sin facturar —","sk":"— vyber nefakturovanú objednávku / DL —","de":"— unfakturierte Bestellung / Lieferschein wählen —"}
+]
