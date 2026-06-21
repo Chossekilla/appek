@@ -417,6 +417,11 @@ try {
         $id = (int) ($_GET['id'] ?? 0);
         if (!$id) json_error('Chybí ID');
 
+        // 🆕 v3.0.358 — zamknutí mazání vydaných dokladů (Nastavení → Údržba → Doklady); default zamknuto
+        if (nastaveni_get($pdo, 'faktura_zamknout_mazani', '1') === '1') {
+            json_error('Mazání vydaných dokladů je zamčené (Nastavení → Údržba → Doklady). Pro opravu použijte storno / dobropis — číselná řada musí být souvislá.', 409);
+        }
+
         // Zkontrolovat, jestli DL existuje
         $dl = $pdo->prepare("SELECT id, cislo, objednavka_id FROM dodaci_listy WHERE id = :id LIMIT 1");
         $dl->execute(['id' => $id]);
