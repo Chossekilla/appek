@@ -23,9 +23,9 @@ async function renderNastaveni() {
     { key: 'notifikace', label: '📧 Notifikace',        popis: 'E-maily a uzávěrka úprav objednávek' },
     // 🆕 v3.0.271 — Kanály sloučeny pod Platby (souvisí: jak platí × odkud přišla objednávka).
     { key: 'platby',     label: '💳 Platby & kanály',   popis: 'Platební metody (jak zákazník zaplatí) + prodejní kanály (odkud objednávka přišla).' },
-    // 🆕 v3.0.367 — Integrace ZPĚT jako viditelný tab. Předtím (v3.0.340) jen skrytý → klik z Nástrojů
-    //   působil „skočil jsi do Nastavení, ale bez tabu" (ghost). Karta v Nástrojích zůstává jako zkratka.
-    { key: 'integrace',  label: '🔌 Integrace',         popis: 'Platby (Stripe, GoPay, PayPal), přepravci (Zásilkovna, DPD, PPL, ČP) a účetní (POHODA, FlexiBee).', adminOnly: true },
+    // 🆕 v3.0.370 — Integrace NENÍ tab v Nastavení (user: „integrace pryč z nastavení, nechat v nástrojích").
+    //   Otevírá se jako SAMOSTATNÁ stránka z Nástrojů: navigate('integrace') → renderNastaveni standalone shell
+    //   (titulek „🔌 Integrace" + ← Nástroje, bez settings tab baru). Blok zůstává v blokyTabu['integrace'].
     { key: 'pristupy',   label: '👥 Přístupy, ceny & měna', popis: 'Uživatelé, slevové skupiny a měna/kurz (cílová měna + vlastní nebo ČNB kurz).', adminOnly: true },
     { key: 'balicky',    label: '🎁 Balíčky',           popis: 'Aktivace doplňkových modulů (Cukrárna, Lahůdky, …)', adminOnly: true },
     { key: 'udrzba',     label: '🛠️ Údržba',            popis: 'Bezpečnost, zálohy DB, diagnostika' },
@@ -1452,7 +1452,29 @@ async function renderNastaveni() {
   // 🐛 v3.0.247 — Údržba taky potřebuje Uložit (sekce „Dlouhé seznamy" tam byla bez tlačítka → nešlo uložit)
   const ukazatUlozit = (aktTab === 'firma' || aktTab === 'notifikace' || aktTab === 'udrzba');
 
+  const standalone = (aktTab === 'integrace');  // 🆕 v3.0.370 — integrace = samostatná stránka z Nástrojů (bez settings tab baru)
+  const segTabsHtml = TABS.map(t => {
+    // Rozdělit "🏢 Firma & doklady" na ikona + text (Unicode emoji regex)
+    const m = (t.label || '').match(/^(\p{Emoji}+|\p{Extended_Pictographic}+|[^\s]+)\s+(.+)$/u);
+    const icon = m ? m[1] : '';
+    const text = m ? m[2] : t.label;
+    return `
+        <button type="button" role="tab" class="seg-tab ${aktTab === t.key ? 'active' : ''} ${t.adminOnly ? 'admin-only' : ''}"
+                onclick="nastaveniSetTab('${t.key}')" aria-selected="${aktTab === t.key}">
+          <span class="seg-tab-icon">${icon}</span>
+          <span class="seg-tab-text">${esc(text)}</span>
+        </button>`;
+  }).join('');
   c.innerHTML = `
+    ${standalone ? `
+    <div class="page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div>
+        <h1 class="page-title">🔌 Integrace</h1>
+        <p class="page-sub">Platby (Stripe, GoPay, PayPal), přepravci (Zásilkovna, DPD, PPL, ČP) a účetní (POHODA, FlexiBee, ISDOC).</p>
+      </div>
+      <button class="btn-secondary" onclick="navigate('nastroje')" style="white-space:nowrap">← Nástroje</button>
+    </div>
+    ` : `
     <div class="page-head">
       <div>
         <h1 class="page-title">⚙️ Nastavení</h1>
@@ -1461,21 +1483,8 @@ async function renderNastaveni() {
     </div>
 
     <!-- 🗂️ ZÁLOŽKY — v2.9.229 segmented control (icon nahoře, label dole) -->
-    <div class="seg-tabs" role="tablist">
-      ${TABS.map(t => {
-        // Rozdělit "🏢 Firma & doklady" na ikona + text (Unicode emoji regex)
-        const m = (t.label || '').match(/^(\p{Emoji}+|\p{Extended_Pictographic}+|[^\s]+)\s+(.+)$/u);
-        const icon = m ? m[1] : '';
-        const text = m ? m[2] : t.label;
-        return `
-        <button type="button" role="tab" class="seg-tab ${aktTab === t.key ? 'active' : ''} ${t.adminOnly ? 'admin-only' : ''}"
-                onclick="nastaveniSetTab('${t.key}')" aria-selected="${aktTab === t.key}">
-          <span class="seg-tab-icon">${icon}</span>
-          <span class="seg-tab-text">${esc(text)}</span>
-        </button>
-      `;
-      }).join('')}
-    </div>
+    <div class="seg-tabs" role="tablist">${segTabsHtml}</div>
+    `}
 
     <div class="nastaveni-page nastaveni-tab-content">
       ${aktivniBlok}

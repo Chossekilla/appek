@@ -180,29 +180,34 @@
     }
   };
 
-  // ─── Zoom (velikost kasy) ────────────────────────────────────
-  // 🆕 v3.0.193 — +/- zvětšení/zmenšení celé kasy (user: „pos na mobilu je velké…
-  //   kasa musí být přehledná na všech zařízeních"). CSS zoom = reflow, persist.
-  const POS_ZOOM_STEPS = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.4, 1.6];
-  function getPosZoom() {
-    const v = parseFloat(localStorage.getItem('pos_zoom'));
-    return POS_ZOOM_STEPS.includes(v) ? v : 1.0;
+  // ─── Hustota UI (velikost dlaždic produktů) ──────────────────
+  // 🆕 v3.0.370 — +/− mění HUSTOTU (velikost dlaždic → víc/míň produktů na řádek), NE zoom celé
+  //   stránky (user: „pos +- … chtěl jsem jako hustotu UI přidávat"). Text zůstává čitelný.
+  //   Přes --pos-density-mult (JS) × responsivní --pos-card-min (pos.css); grid #pos-grid override.
+  const POS_DENSITY = [
+    { mult: 1.30, pct: 75 },   // nejvolnější (velké dlaždice, nejmíň na řádek)
+    { mult: 1.15, pct: 87 },
+    { mult: 1.00, pct: 100 },  // default
+    { mult: 0.87, pct: 115 },
+    { mult: 0.76, pct: 132 },
+    { mult: 0.66, pct: 152 },  // nejhustší (malé dlaždice, nejvíc na řádek)
+  ];
+  function getPosDensityIdx() {
+    const v = parseInt(localStorage.getItem('pos_density'), 10);
+    return (Number.isInteger(v) && v >= 0 && v < POS_DENSITY.length) ? v : 2;
   }
-  function applyPosZoom() {
-    const z = getPosZoom();
-    document.body.style.zoom = z;
+  function applyPosZoom() {   // jméno zachováno (volá se z initu + pos.php) — chování = HUSTOTA
+    const step = POS_DENSITY[getPosDensityIdx()];
+    document.documentElement.style.setProperty('--pos-density-mult', String(step.mult));
+    try { document.body.style.zoom = ''; } catch (e) {}   // úklid po starém zoomu (kdyby zbyl)
     const el = $('#pos-zoom-val');
-    if (el) el.textContent = Math.round(z * 100) + '%';
+    if (el) el.textContent = step.pct + '%';
   }
-  window.posZoom = function (dir) {
-    const cur = getPosZoom();
-    let i = POS_ZOOM_STEPS.indexOf(cur);
-    if (i < 0) i = POS_ZOOM_STEPS.indexOf(1.0);
-    i = Math.max(0, Math.min(POS_ZOOM_STEPS.length - 1, i + dir));
-    const z = POS_ZOOM_STEPS[i];
-    try { localStorage.setItem('pos_zoom', String(z)); } catch (e) {}
+  window.posZoom = function (dir) {   // jméno zachováno (pos.php onclick); + = hustěji, − = volněji
+    const i = Math.max(0, Math.min(POS_DENSITY.length - 1, getPosDensityIdx() + dir));
+    try { localStorage.setItem('pos_density', String(i)); } catch (e) {}
     applyPosZoom();
-    try { toast((dir > 0 ? 'Zvětšeno · ' : 'Zmenšeno · ') + Math.round(z * 100) + '%', ''); } catch (e) {}
+    try { toast('Hustota · ' + POS_DENSITY[i].pct + '%', ''); } catch (e) {}
   };
 
   // ─── Catalog loading ─────────────────────────────────────────

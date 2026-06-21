@@ -431,7 +431,7 @@ async function renderNastroje() {
         <div class="nastroje-card-cta">Importovat →</div>
       </button>
 
-      ${adminOnly(`<button class="nastroje-card" onclick="state._nastaveniTab='integrace';navigate('nastaveni')" aria-label="Integrace a platby">
+      ${adminOnly(`<button class="nastroje-card" onclick="navigate('integrace')" aria-label="Integrace a platby">
         <div class="nastroje-card-icon">🔌</div>
         <div class="nastroje-card-title">Integrace</div>
         <div class="nastroje-card-desc">Platby (Stripe, GoPay, PayPal), přepravci (Zásilkovna, DPD, PPL, ČP) a účetní (POHODA, FlexiBee).</div>

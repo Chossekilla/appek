@@ -393,11 +393,11 @@ $csrfToken  = csrf_token();
   </div>
   <div class="pos-header-right">
     <span class="pos-time" id="pos-clock">--:--</span>
-    <!-- 🆕 v3.0.193 — zoom kasy +/- (přehlednost na všech zařízeních) -->
-    <div class="pos-zoom-ctrl" role="group" aria-label="Velikost kasy">
-      <button class="pos-zoom-btn" onclick="posZoom(-1)" title="Zmenšit" aria-label="Zmenšit">−</button>
-      <span class="pos-zoom-val" id="pos-zoom-val">100%</span>
-      <button class="pos-zoom-btn" onclick="posZoom(1)" title="Zvětšit" aria-label="Zvětšit">+</button>
+    <!-- 🆕 v3.0.370 — HUSTOTA dlaždic +/- (víc/míň produktů na řádek; dřív zoom celé stránky) -->
+    <div class="pos-zoom-ctrl" role="group" aria-label="Hustota dlaždic">
+      <button class="pos-zoom-btn" onclick="posZoom(-1)" title="Volněji — méně, větší dlaždice" aria-label="Volněji">−</button>
+      <span class="pos-zoom-val" id="pos-zoom-val" title="Hustota dlaždic">100%</span>
+      <button class="pos-zoom-btn" onclick="posZoom(1)" title="Hustěji — víc produktů na řádek" aria-label="Hustěji">+</button>
     </div>
     <span class="pos-user" onclick="POS.switchUser()" title="Přepnout prodavače (PIN login)" tabindex="0" onkeydown="if(event.key==='Enter'){POS.switchUser()}">
       <span class="pos-user-avatar"><?= htmlspecialchars(mb_substr($adminJmeno ?: 'A', 0, 1)) ?></span>
