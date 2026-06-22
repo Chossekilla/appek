@@ -491,19 +491,16 @@ if ($method === 'POST') {
         try {
             $cislo = dalsi_cislo($pdo, 'OBJ', (int) date('Y'));
 
-            // Načti ceník jen pro řádky s vyrobek_id
-            $vyrobek_ids = array_values(array_unique(array_filter(array_map('intval',
-                                                  array_column($d['polozky'], 'vyrobek_id')))));
+            // 🐛 v3.0.376 — ceny z ceníku ODBĚRATELE (cenová skupina/slevy/pevná cena/sezóna),
+            //   NE základní vyrobky.cena_bez_dph. Dřív admin „Nová objednávka" účtovala plnou cenu
+            //   → rozpor s B2B (objednavky.php:217) i editem; odběratel ve slevové skupině přeplácel.
+            //   Sjednoceno (server-authoritative), stejný chokepoint jako B2B.
             $cenik = [];
-            if (!empty($vyrobek_ids)) {
-                $placeholders = implode(',', array_fill(0, count($vyrobek_ids), '?'));
-                $stmt = $pdo->prepare("
-                    SELECT v.id, v.cena_bez_dph, s.sazba
-                    FROM vyrobky v JOIN sazby_dph s ON s.id = v.sazba_dph_id
-                    WHERE v.aktivni = 1 AND v.id IN ($placeholders)
-                ");
-                $stmt->execute($vyrobek_ids);
-                foreach ($stmt->fetchAll() as $row) $cenik[$row['id']] = $row;
+            foreach (cenik_pro_odberatele($pdo, $odb_id) as $row) {
+                $cenik[(int) $row['id']] = [
+                    'cena_bez_dph' => (float) $row['cena_bez_dph'],
+                    'sazba'        => (float) ($row['dph'] ?? 0),
+                ];
             }
 
             $bez = 0; $dph = 0;

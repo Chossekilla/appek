@@ -146,36 +146,55 @@ function import_suggest_mapping(array $header): array {
 }
 
 // 🆕 v3.0.371 — stažení feedu z URL (User-Agent kvůli hcdn/CDN 403; SSRF guard; timeout; cap 24 MB).
+// 🔒 v3.0.376 — host povolen jen pokud NENÍ loopback/interní ANI textově, ANI po resolvu na IP
+//   (DNS rebinding: evil.com → 169.254.x.x). Odmítá privátní + rezervované rozsahy.
+function import_host_allowed(string $host): bool {
+    $host = strtolower(trim($host, " []"));
+    if ($host === '') return false;
+    if (preg_match('~^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.|0\.|::1)~', $host)) return false;
+    $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : (@gethostbynamel($host) ?: []);
+    if (empty($ips)) return false; // nevyresolvovatelný host = odmítnout
+    foreach ($ips as $ip) {
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) return false;
+    }
+    return true;
+}
+
 function import_fetch_url(string $url): string {
     $url = trim($url);
-    if (!preg_match('~^https?://~i', $url)) throw new Exception('URL musí začínat http:// nebo https://');
-    $host = strtolower((string) (parse_url($url, PHP_URL_HOST) ?: ''));
-    if ($host === '' || preg_match('~^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.|0\.|::1|\[)~', $host)) {
-        throw new Exception('Interní / loopback adresy nejsou povolené');
-    }
     $ua = 'APPEK-FeedImport/1.0 (+https://appek.cz)';
-    $raw = false;
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS      => 3,
-            CURLOPT_TIMEOUT        => 40,
-            CURLOPT_CONNECTTIMEOUT => 12,
-            CURLOPT_USERAGENT      => $ua,
-            CURLOPT_ENCODING       => '', // gzip/deflate
-        ]);
-        $raw  = curl_exec($ch);
-        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err  = curl_error($ch);
-        curl_close($ch);
-        if ($raw === false) throw new Exception('Stažení selhalo: ' . ($err ?: 'neznámá chyba'));
-        if ($code >= 400) throw new Exception("Server feedu vrátil HTTP $code");
-    } else {
-        $ctx = stream_context_create(['http' => ['header' => "User-Agent: $ua\r\n", 'timeout' => 40, 'follow_location' => 1, 'max_redirects' => 3]]);
-        $raw = @file_get_contents($url, false, $ctx);
-        if ($raw === false) throw new Exception('Stažení selhalo (file_get_contents)');
+    $current = $url;
+    $raw = false; $code = 0;
+    // Manuální následování redirectů s re-validací KAŽDÉHO hostu (SSRF guard přežije redirect).
+    for ($hop = 0; $hop <= 3; $hop++) {
+        if (!preg_match('~^https?://~i', $current)) throw new Exception('Povolené je jen http:// / https://');
+        $host = strtolower((string) (parse_url($current, PHP_URL_HOST) ?: ''));
+        if (!import_host_allowed($host)) throw new Exception('Interní / loopback adresy nejsou povolené');
+        if (function_exists('curl_init')) {
+            $ch = curl_init($current);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => false,                       // 🔒 sami, s re-validací (jinak redirect obejde guard)
+                CURLOPT_TIMEOUT        => 40,
+                CURLOPT_CONNECTTIMEOUT => 12,
+                CURLOPT_USERAGENT      => $ua,
+                CURLOPT_ENCODING       => '',
+                CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            ]);
+            $raw  = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $loc  = (string) curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+            $err  = curl_error($ch);
+            curl_close($ch);
+            if ($raw === false) throw new Exception('Stažení selhalo: ' . ($err ?: 'neznámá chyba'));
+            if ($code >= 300 && $code < 400 && $loc !== '') { $current = $loc; continue; } // re-validace v dalším kole
+            if ($code >= 400) throw new Exception("Server feedu vrátil HTTP $code");
+        } else {
+            $ctx = stream_context_create(['http' => ['header' => "User-Agent: $ua\r\n", 'timeout' => 40, 'follow_location' => 0]]);
+            $raw = @file_get_contents($current, false, $ctx);
+            if ($raw === false) throw new Exception('Stažení selhalo (file_get_contents)');
+        }
+        break;
     }
     if ($raw === '') throw new Exception('Feed je prázdný');
     if (strlen($raw) > 24 * 1024 * 1024) throw new Exception('Feed je větší než 24 MB');

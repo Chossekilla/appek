@@ -14,6 +14,17 @@ cors_headers();
 $pdo = db();
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') json_error('POST only', 405);
 
+// 🔒 v3.0.376 rate-limit (anti-DoS / anti-enumerace admin e-mailů): max 30 / 10 min / IP
+$ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS push_register_hits (id INT AUTO_INCREMENT PRIMARY KEY, ip VARCHAR(64) NOT NULL, ts DATETIME NOT NULL, INDEX idx_ip_ts (ip, ts)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $pdo->prepare("INSERT INTO push_register_hits (ip, ts) VALUES (:ip, NOW())")->execute(['ip' => $ip]);
+    $pdo->exec("DELETE FROM push_register_hits WHERE ts < DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+    $c = $pdo->prepare("SELECT COUNT(*) FROM push_register_hits WHERE ip = :ip AND ts > DATE_SUB(NOW(), INTERVAL 10 MINUTE)");
+    $c->execute(['ip' => $ip]);
+    if ((int) $c->fetchColumn() > 30) json_error('Příliš mnoho pokusů — zkus za chvíli', 429);
+} catch (Throwable $e) { /* rate-limit infra selhala → fail-open */ }
+
 $d = json_input();
 $token = trim($d['token'] ?? '');
 $platform = in_array(($d['platform'] ?? ''), ['ios', 'android'], true) ? $d['platform'] : 'unknown';

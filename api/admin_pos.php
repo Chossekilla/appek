@@ -323,26 +323,26 @@ function pos_fire_ucet_to_kitchen(PDO $pdo, int $ucetId): int {
  * Idempotence: voláno 1× per uzavřený účet / vytvořenou quick objednávku.
  */
 function pos_deduct_ingredients(PDO $pdo, array $items, string $label, string $kdo = 'POS'): array {
-    // Agreguj potřebu surovin: SUM(recept.mnozstvi * prodané_mnozstvi) per surovina
-    $need = [];   // surovina_id => mnozstvi
-    $recStmt = $pdo->prepare("SELECT surovina_id, mnozstvi FROM vyrobek_suroviny WHERE vyrobek_id = :v");
+    // 🐛 v3.0.336 — VÍCEÚROVŇOVÝ BOM: dřív se četl recept přímo z vyrobek_suroviny a braly
+    //   se jen řádky se surovina_id → výrobek z polotovarů (slozka_vyrobek_id) neodepsal NIC.
+    //   Teď přes bom_explode (stejně jako výroba): $sur = suroviny (sklad_polozky 'surovina'),
+    //   $pol = stockované polotovary (sleduje_sklad=1 → item_typ='vyrobek').
+    require_once __DIR__ . '/_bom_lib.php';
+    $sur = [];  // surovina_id => mnozstvi
+    $pol = [];  // vyrobek_id (polotovar) => mnozstvi
     foreach ($items as $it) {
         $vid = (int) ($it['vyrobek_id'] ?? 0);
         $qty = (float) ($it['mnozstvi'] ?? 0);
         if ($vid <= 0 || $qty <= 0) continue;
-        $recStmt->execute(['v' => $vid]);
-        foreach ($recStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-            $sid = (int) $r['surovina_id'];
-            $need[$sid] = ($need[$sid] ?? 0) + (float) $r['mnozstvi'] * $qty;
-        }
+        bom_explode($pdo, $vid, $qty, $sur, $pol);
     }
-    if (!$need) return ['deducted' => 0, 'items' => []];
+    if (!$sur && !$pol) return ['deducted' => 0, 'items' => []];
 
     // 🐛 v3.0.168 — odpis ze systému B (sklad_polozky domovského skladu) + log sklad_pohyby_v2.
-    // Běží post-commit (soft-fail per surovina). Atomický odečet `stav = stav - :mn`
+    // Běží post-commit (soft-fail per položka). Atomický odečet `stav = stav - :mn`
     // (žádný read-then-write race) → stav_pred/po dopočítáme po odečtu.
     $done = 0;
-    foreach ($need as $sid => $mn) {
+    foreach ($sur as $sid => $mn) {
         if ($mn <= 0) continue;
         try {
             $sid   = (int) $sid;
@@ -358,7 +358,24 @@ function pos_deduct_ingredients(PDO $pdo, array $items, string $label, string $k
             $done++;
         } catch (Throwable $e) { /* soft-fail per surovina — prodej nesmí spadnout */ }
     }
-    return ['deducted' => $done, 'items' => $need];
+    // 🆕 v3.0.336 — odpis STOCKOVANÝCH polotovarů (sleduje_sklad=1) ze skladu výrobku (item_typ='vyrobek'),
+    //   vzor admin_vyroba.php (sklad_default_id). Soft-fail per polotovar.
+    foreach ($pol as $pvid => $mn) {
+        if ($mn <= 0) continue;
+        try {
+            $pvid  = (int) $pvid;
+            $sklad = sklad_default_id($pdo);
+            $rowId = sklad_polozky_ensure($pdo, $sklad, 'vyrobek', $pvid);
+            $pdo->prepare("UPDATE sklad_polozky SET stav = stav - :mn WHERE id = :r")->execute(['mn' => $mn, 'r' => $rowId]);
+            $po   = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id = " . $rowId)->fetchColumn();
+            $pred = $po + $mn;
+            $pdo->prepare("INSERT INTO sklad_pohyby_v2 (sklad_id,item_typ,item_id,typ,mnozstvi,stav_pred,stav_po,poznamka,kdo,kdy)
+                           VALUES (:s,'vyrobek',:i,'vydej',:mn,:pr,:po,:pz,:kdo,NOW())")
+                ->execute(['s' => $sklad, 'i' => $pvid, 'mn' => $mn, 'pr' => $pred, 'po' => $po, 'pz' => 'POS prodej — ' . $label . ' (polotovar)', 'kdo' => $kdo]);
+            $done++;
+        } catch (Throwable $e) { /* soft-fail per polotovar — prodej nesmí spadnout */ }
+    }
+    return ['deducted' => $done, 'items' => $sur + $pol];
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -1374,12 +1391,14 @@ if ($method === 'POST' && $action === 'quick_order') {
         // Pre-discount totals (před aplikací slevy) — pro výpočet sleva polozky
         $bezDph_orig = 0.0;
         $dphSum_orig = 0.0;
+        $zaklad_dle_sazby = [];  // 🆕 v3.0.336 — sazba_dph => SUM(základ) → sazba s největším základem pro slevový řádek
         foreach ($polozky as $p) {
             $mn   = (float)($p['mnozstvi']     ?? 1);
             $cena = (float)($p['cena_bez_dph'] ?? 0);
             $saz  = (float)($p['sazba_dph']    ?? 21);
             $bezDph_orig += $mn * $cena;
             $dphSum_orig += $mn * $cena * ($saz / 100);
+            $zaklad_dle_sazby[(string)$saz] = ($zaklad_dle_sazby[(string)$saz] ?? 0) + $mn * $cena;
             $stItem->execute([
                 'o'   => $objId,
                 'vid' => isset($p['vyrobek_id']) ? (int)$p['vyrobek_id'] : null,
@@ -1398,6 +1417,10 @@ if ($method === 'POST' && $action === 'quick_order') {
         // Teď je vložíme jako pseudo-polozky s vyrobek_id=NULL a popisným názvem.
         if ($sleva_pct > 0 && $sleva_pct <= 100) {
             $sleva_celkem = round(($bezDph_orig + $dphSum_orig) * ($sleva_pct / 100), 2);
+            // 🆕 v3.0.336 — sazba slevového řádku = sazba s NEJVĚTŠÍM základem (dřív vždy 0 →
+            //   latentní riziko při smíšených sazbách). Hlavičkové součty se NEMĚNÍ (škálované poměrně).
+            $sleva_saz = 21.0;
+            if ($zaklad_dle_sazby) { arsort($zaklad_dle_sazby); $sleva_saz = (float) array_key_first($zaklad_dle_sazby); }
             $stItem->execute([
                 'o'   => $objId,
                 'vid' => null,
@@ -1405,7 +1428,7 @@ if ($method === 'POST' && $action === 'quick_order') {
                 'j'   => 'ks',
                 'm'   => 1,
                 'c'   => -$sleva_celkem, // záporná cena
-                's'   => 0,              // sleva v plné výši (bez DPH split)
+                's'   => $sleva_saz,     // sazba s největším základem (NEMĚNÍ hlavičkové součty)
             ]);
         }
         if ($pos_tip > 0) {
@@ -1657,7 +1680,20 @@ function pos_ucet_create_sale(PDO $pdo, int $ucetId): ?int {
                 $ins->execute(['c'=>$cislo,'ob'=>(int)$walkin,'dt'=>$datum,'dd'=>date('Y-m-d', strtotime($datum)),'bd'=>$bez,'d'=>$dph,'cel'=>$celkem,'pp'=>$pos_payment,'uz'=>($ucet['otevrel_jmeno'] ?: 'POS'),'poz'=>$poz]);
                 $objId = (int) $pdo->lastInsertId(); break;
             } catch (PDOException $e) {
-                if ((int)($e->errorInfo[1] ?? 0) === 1062 && $a < 4) { $cislo .= '-' . ($a + 2); continue; }
+                if ((int)($e->errorInfo[1] ?? 0) === 1062 && $a < 4) {
+                    // 🐛 v3.0.336 — ROOT CAUSE „Duplicate entry 'POS-…'": check-then-insert race.
+                    //   pos_ucet_create_sale běží z víc cest (?action=pay + GET self-heal finalize +
+                    //   backfill); marker-guard nahoře NENÍ atomický → souběh INSERTne stejné cislo
+                    //   (= cislo_dokladu účtu) 2×. Dřív se slepě připojovala přípona → DUPLICITNÍ
+                    //   prodejní záznam. Teď: na kolizi znovu ověř marker — jiný proces už řádek
+                    //   vložil → vrať JEHO id (idempotence), jinak až poté zkus jiné číslo.
+                    $ex2 = $pdo->prepare("SELECT id FROM objednavky WHERE puvod='pos' AND poznamka LIKE :m LIMIT 1");
+                    $ex2->execute(['m' => '%' . $marker . '%']);
+                    $dup = $ex2->fetchColumn();
+                    if ($dup) return (int) $dup;
+                    $cislo = pos_next_doklad($pdo, date('Ymd', strtotime($datum)));
+                    continue;
+                }
                 throw $e;
             }
         }

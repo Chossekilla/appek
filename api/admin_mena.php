@@ -127,7 +127,14 @@ if ($action === 'prepocet') {
     $pdo->beginTransaction();
     try {
         $pocet = (int) $pdo->query("SELECT COUNT(*) FROM vyrobky WHERE cena_bez_dph > 0")->fetchColumn();
-        $pdo->exec("UPDATE vyrobky SET cena_bez_dph = ROUND(cena_bez_dph / $kurz, 2)");
+        $pdo->prepare("UPDATE vyrobky SET cena_bez_dph = ROUND(cena_bez_dph / :k, 2)")->execute(['k' => $kurz]);
+        // 🐛 v3.0.376 — přepočítej i ABSOLUTNÍ pevné ceny skupin. cenik_pro_odberatele jim dává
+        //   NEJVYŠŠÍ prioritu → bez přepočtu by odběratel s pevnou cenou dostal starou Kč hodnotu
+        //   v cílové měně (~25× přeplatek). % slevy jsou relativní → přepočet nepotřebují.
+        try {
+            $pdo->prepare("UPDATE cenove_skupiny_slevy SET pevna_cena = ROUND(pevna_cena / :k, 2) WHERE pevna_cena IS NOT NULL AND pevna_cena > 0")
+                ->execute(['k' => $kurz]);
+        } catch (Throwable $e) { /* tabulka/sloupec nemusí být na staré instalaci */ }
         // audit do activity logu (best-effort, tabulka nemusí existovat na staré instalaci)
         try {
             $pdo->prepare("INSERT INTO activity_log (kdo, akce, detail) VALUES (:kdo, 'mena_prepocet', :det)")
