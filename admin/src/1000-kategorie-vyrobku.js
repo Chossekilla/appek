@@ -325,12 +325,22 @@ window.smazatKategorii = async function(id) {
 // =============================================================
 // 🆕 v3.0.338 — Import produktů z CSV (Shoptet / WooCommerce / Excel)
 window.appekImportProdukty = function() {
-  openModal('📥 Import produktů z CSV', `
+  openModal('📥 Import produktů', `
     <div id="imp-body">
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Nahraj <strong>CSV</strong> nebo <strong>XML feed</strong> z <strong>Shoptetu</strong>, <strong>WooCommerce</strong> nebo Excelu. V dalším kroku namapuješ sloupce na pole produktu.</p>
+      <div style="text-align:right;margin-bottom:10px"><button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="appekImportFeeds()">🔗 Uložené feedy & automatika →</button></div>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 12px">Nahraj <strong>CSV / XML</strong> soubor (Shoptet, WooCommerce, Excel) <em>nebo</em> načti <strong>feed z URL dodavatele</strong>. V dalším kroku namapuješ sloupce na pole produktu.</p>
       <input type="file" id="imp-file" accept=".csv,.xml,text/csv,text/xml,application/xml,text/plain" style="display:none" onchange="appekImportPreview()">
       <button class="btn-primary btn-green" onclick="document.getElementById('imp-file').click()" style="font-weight:700;padding:12px 22px;border:none;border-radius:10px;cursor:pointer">📤 Vybrat soubor (CSV / XML)</button>
-      <p class="muted" style="font-size:12px;margin-top:12px;line-height:1.5">Oddělovač (<code>;</code> <code>,</code> Tab <code>|</code>) i kódování (UTF-8 / Windows-1250) se detekují automaticky. Max 8 MB.</p>
+
+      <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border)">
+        <label style="font-size:12px;font-weight:700;color:var(--text-2);display:block;margin-bottom:6px">🔗 …nebo URL feedu dodavatele (XML / CSV)</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="url" id="imp-url" class="form-input" placeholder="https://dodavatel.cz/export/feed.xml" style="flex:1;min-width:240px;font-size:13px">
+          <button class="btn-primary" style="font-weight:700" onclick="appekImportPreviewUrl()">Načíst z URL →</button>
+        </div>
+        <p class="muted" style="font-size:12px;margin-top:8px">Po namapování můžeš feed <strong>uložit</strong> → poběží <strong>automaticky přes cron</strong>.</p>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:12px;line-height:1.5">Oddělovač (<code>;</code> <code>,</code> Tab <code>|</code>) i kódování (UTF-8 / Windows-1250) se detekují automaticky. Max 24 MB.</p>
     </div>
   `);
 };
@@ -349,10 +359,19 @@ window.appekImportPreview = async function() {
     if (!res.ok) throw new Error(d.error || 'Chyba načtení');
   } catch (e) { body.innerHTML = `<div class="alert err" style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ ${esc(e.message)}</div><button class="btn-secondary" style="margin-top:10px" onclick="appekImportProdukty()">← Zpět</button>`; return; }
   window._impData = d;
+  window._impSource = { type: 'file' };
+  appekImportRenderMapping(d, window._impSource);
+};
+
+// 🆕 v3.0.371 — sdílený render mapování (soubor i URL feed). Pro URL přidá „Uložit feed".
+window.appekImportRenderMapping = function(d, src) {
+  const body = document.getElementById('imp-body');
+  if (!body) return;
+  const isUrl = src && src.type === 'url';
   const colOpts = (sel) => `<option value="">—</option>` + d.columns.map((c, i) => `<option value="${i}" ${sel == i ? 'selected' : ''}>${esc(c || ('Sloupec ' + (i + 1)))}</option>`).join('');
   body.innerHTML = `
-    <p style="font-size:13px;margin:0 0 10px">Soubor: <strong>${d.total}</strong> řádků${d.capped ? ' (zpracuje se prvních 3000)' : ''}. Namapuj sloupce:</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px">
+    <p style="font-size:13px;margin:0 0 10px">${isUrl ? '🔗 Feed' : 'Soubor'}: <strong>${d.total}</strong> řádků${d.capped ? ' (náhled prvních 3000)' : ''}. Namapuj sloupce:</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px">
       ${Object.entries(d.fields).map(([field, label]) => `
         <label style="display:block"><span style="font-size:12px;color:var(--text-2);font-weight:600">${esc(label)}</span>
           <select class="form-input imp-map" data-field="${field}" onchange="appekImportMapChange(this)" style="font-size:13px;padding:6px">${colOpts(d.suggested[field])}</select>
@@ -363,12 +382,14 @@ window.appekImportPreview = async function() {
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="imp-update" checked> Aktualizovat existující</label>
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="imp-createcat" checked> Zakládat chybějící kategorie</label>
     </div>
+    ${isUrl ? `<div style="margin-top:10px"><label style="font-size:12px;font-weight:600;color:var(--text-2)">Název feedu (pro přehled)</label><input id="imp-feedname" class="form-input" placeholder="např. Dodavatel ABC – nápoje" style="font-size:13px;margin-top:4px"></div>` : ''}
     <div style="margin-top:10px;max-height:130px;overflow:auto;border:1px solid var(--border);border-radius:6px">
       <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>${d.columns.map(c => `<th style="text-align:left;padding:3px 6px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface-2);white-space:nowrap">${esc(c || '')}</th>`).join('')}</tr></thead>
       <tbody>${d.rows.slice(0, 5).map(r => `<tr>${d.columns.map((_, i) => `<td style="padding:3px 6px;border-bottom:1px solid var(--border);white-space:nowrap">${esc(String(r[i] ?? '').slice(0, 40))}</td>`).join('')}</tr>`).join('')}</tbody></table>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
       <button class="btn-secondary" onclick="appekImportProdukty()">← Zpět</button>
+      ${isUrl ? `<button class="btn-secondary" onclick="appekImportFeedSave()" title="Uloží feed pro automatický import přes cron">💾 Uložit feed (automatika)</button>` : ''}
       <button class="btn-primary btn-green" onclick="appekImportCommit()" style="font-weight:700">📥 Importovat ${d.capped ? 3000 : d.total}</button>
     </div>`;
 };
@@ -404,6 +425,99 @@ window.appekImportCommit = async function() {
       </div>`;
     try { toastSuccess(`Import: +${r.inserted} / ~${r.updated}`); } catch (e) {}
   } catch (e) { body.innerHTML = `<div class="alert err" style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ ${esc(e.message)}</div><button class="btn-secondary" style="margin-top:10px" onclick="appekImportPreview()">← Zpět</button>`; }
+};
+
+// 🆕 v3.0.371 — náhled feedu z URL dodavatele (stejné mapování jako soubor)
+window.appekImportPreviewUrl = async function() {
+  const url = (document.getElementById('imp-url')?.value || '').trim();
+  if (!url) { alert('Zadej URL feedu (http(s)://…).'); return; }
+  const body = document.getElementById('imp-body');
+  body.innerHTML = '⏳ Stahuji a analyzuji feed z URL…';
+  try {
+    const d = await api('admin_import.php?action=preview_url', { method: 'POST', body: JSON.stringify({ url }) });
+    window._impData = d;
+    window._impSource = { type: 'url', url };
+    appekImportRenderMapping(d, window._impSource);
+  } catch (e) {
+    body.innerHTML = `<div class="alert err" style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ ${esc(e.message)}</div><button class="btn-secondary" style="margin-top:10px" onclick="appekImportProdukty()">← Zpět</button>`;
+  }
+};
+
+// 🆕 v3.0.371 — uložit URL feed pro automatický (cron) import
+window.appekImportFeedSave = async function() {
+  const d = window._impData, src = window._impSource;
+  if (!d || !src || src.type !== 'url') { alert('Uložit lze jen feed načtený z URL.'); return; }
+  const mapping = {};
+  document.querySelectorAll('.imp-map').forEach(s => { if (s.value !== '') mapping[s.dataset.field] = parseInt(s.value); });
+  if (mapping.nazev === undefined) { alert('Namapuj alespoň pole „Název *".'); return; }
+  const payload = {
+    nazev: (document.getElementById('imp-feedname')?.value || '').trim(),
+    url: src.url,
+    columns: d.columns,
+    mapping,
+    match_key: document.getElementById('imp-matchkey').value,
+    update_existing: document.getElementById('imp-update').checked,
+    create_categories: document.getElementById('imp-createcat').checked,
+    enabled: 1,
+  };
+  try {
+    await api('admin_import.php?action=feed_save', { method: 'POST', body: JSON.stringify(payload) });
+    try { toastSuccess('Feed uložen — poběží automaticky přes cron'); } catch (e) {}
+    appekImportFeeds();
+  } catch (e) { alert('Uložení feedu selhalo: ' + e.message); }
+};
+
+// 🆕 v3.0.371 — uložené feedy + cron URL + spustit/smazat
+window.appekImportFeeds = async function() {
+  const body = document.getElementById('imp-body');
+  if (body) body.innerHTML = '⏳ Načítám feedy…';
+  let d;
+  try { d = await api('admin_import.php?action=feed_list'); }
+  catch (e) { if (body) body.innerHTML = `<div class="alert err" style="background:#fde7e9;color:#a8232f;padding:12px;border-radius:8px">❌ ${esc(e.message)}</div><button class="btn-secondary" style="margin-top:10px" onclick="appekImportProdukty()">← Zpět</button>`; return; }
+  const feeds = d.feeds || [];
+  const cron = esc(d.cron_url || '');
+  body.innerHTML = `
+    <div style="margin-bottom:12px"><button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="appekImportProdukty()">← Nový import</button></div>
+    <h3 style="margin:0 0 8px;font-size:15px">🔗 Uložené feedy dodavatelů</h3>
+    ${feeds.length === 0 ? `<p class="muted" style="font-size:13px">Zatím žádný uložený feed. Načti feed z URL a po namapování klikni „💾 Uložit feed".</p>` : `
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${feeds.map(f => `
+          <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap">
+              <div style="min-width:0;flex:1">
+                <strong style="font-size:14px">${esc(f.nazev || 'Feed')}</strong>
+                ${String(f.enabled) === '1' ? '<span style="font-size:11px;color:#166534;background:#DCFCE7;padding:1px 7px;border-radius:6px;margin-left:4px">auto</span>' : '<span style="font-size:11px;color:#92400e;background:#FEF3C7;padding:1px 7px;border-radius:6px;margin-left:4px">vypnuto</span>'}
+                <div style="font-size:11px;color:var(--text-3);word-break:break-all;margin-top:2px">${esc(f.url)}</div>
+                <div style="font-size:11px;color:var(--text-3);margin-top:2px">${f.last_run ? 'Naposledy: ' + esc(String(f.last_run).replace('T', ' ')) + ' · ' + esc(f.last_result || '') : 'Zatím nespuštěno'}</div>
+              </div>
+              <div style="display:flex;gap:6px;flex-shrink:0">
+                <button class="btn-primary btn-green" style="font-size:12px;padding:6px 10px" onclick="appekImportFeedRun(${f.id})">▶ Spustit teď</button>
+                <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="appekImportFeedDelete(${f.id})" title="Smazat feed">🗑️</button>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>`}
+    <div style="margin-top:14px;padding:12px;background:var(--surface-2,#F7F8FA);border:1px solid var(--border);border-radius:8px">
+      <h4 style="margin:0 0 6px;font-size:13px">🕐 Automatická aktualizace (CRON)</h4>
+      <p style="font-size:12px;color:var(--text-2);line-height:1.6;margin:0 0 8px">Na Hostingeru vytvoř CRON úlohu (např. denně ve 4:00), která zavolá tuto URL — projede všechny zapnuté feedy:</p>
+      <input class="form-input" readonly value="${cron}" onclick="this.select()" style="font-family:monospace;font-size:11px">
+      <button class="btn-secondary" style="margin-top:6px;font-size:12px;padding:6px 10px" onclick="navigator.clipboard.writeText('${cron}').then(()=>{try{toastSuccess('Zkopírováno')}catch(e){}})">📋 Kopírovat URL</button>
+      <p style="font-size:11px;color:var(--text-3);margin-top:8px">Hostinger panel → Pokročilé → Cron úlohy → Příkaz: <code>wget -q -O /dev/null "URL výše"</code> · Spouštět: denně.</p>
+    </div>`;
+};
+
+window.appekImportFeedRun = async function(id) {
+  try {
+    const r = await api('admin_import.php?action=feed_run', { method: 'POST', body: JSON.stringify({ id }) });
+    try { toastSuccess(`Feed: +${r.inserted} nových / ${r.updated} aktualiz. / ${r.skipped} přeskoč.`); } catch (e) {}
+    appekImportFeeds();
+  } catch (e) { alert('Spuštění feedu selhalo: ' + e.message); }
+};
+
+window.appekImportFeedDelete = async function(id) {
+  if (!confirm('Smazat tento uložený feed?')) return;
+  try { await api('admin_import.php?action=feed_delete', { method: 'POST', body: JSON.stringify({ id }) }); appekImportFeeds(); }
+  catch (e) { alert('Smazání selhalo: ' + e.message); }
 };
 
 async function renderNastroje() {

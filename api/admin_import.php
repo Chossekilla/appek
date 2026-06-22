@@ -1,17 +1,25 @@
 <?php
 /**
  * 🆕 v3.0.338 — Import produktů z CSV (Shoptet / WooCommerce / Excel / generický CSV).
- *   POST ?action=preview  (multipart: file)  → { columns, rows, suggested, total, delimiter, fields }
- *   POST ?action=commit   (JSON: { rows, mapping{field:colIdx}, match_key, update_existing, create_categories })
- *        → { inserted, updated, skipped, categories_created }
+ * 🆕 v3.0.343 — XML produktový feed (Shoptet <SHOPITEM> apod.).
+ * 🆕 v3.0.371 — Import z URL feedu dodavatele (XML/CSV) + uložené feedy + automatický CRON.
  *
- * Match key: cislo (kód) NEBO ean → update existující / jinak insert. Kategorie dle názvu
- * (volitelně založí novou). Jednotka/DPH dle kódu/sazby, jinak default instalace.
+ *   POST ?action=preview      (multipart: file)  → { columns, rows, suggested, total, delimiter, fields }
+ *   POST ?action=preview_url  (JSON: { url })     → totéž (stáhne feed z URL dodavatele)
+ *   POST ?action=commit       (JSON: { rows, mapping{field:colIdx}, match_key, update_existing, create_categories })
+ *   GET  ?action=feed_list                        → { feeds[], cron_url }
+ *   POST ?action=feed_save    (JSON: { id?, nazev, url, columns[], mapping{field:colIdx}, match_key, update_existing, create_categories, enabled })
+ *   POST ?action=feed_delete  (JSON: { id })
+ *   POST ?action=feed_run     (JSON: { id })      → stáhne + naimportuje 1 uložený feed hned
+ *   GET  ?action=cron&token=  (bez admin session — volá wget z Hostinger CRONu) → spustí všechny enabled feedy
+ *
+ * Match key: cislo (kód) NEBO ean → update existující / jinak insert. Kategorie dle názvu.
+ * Mapping uloženého feedu se ukládá jako field→NÁZEV sloupce (odolné vůči změně pořadí sloupců
+ * ve feedu); při běhu se název přemapuje na aktuální index.
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 cors_headers();
-require_admin();
 
 $pdo = db();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -103,68 +111,112 @@ function import_parse_xml(string $raw): ?array {
     return ['columns' => $cols, 'rows' => $out];
 }
 
-if ($method === 'POST' && $action === 'preview') {
-    if (empty($_FILES['file']) || ($_FILES['file']['error'] ?? 1) !== UPLOAD_ERR_OK) json_error('Chybí soubor (CSV)', 400);
-    if ($_FILES['file']['size'] > 8 * 1024 * 1024) json_error('Soubor je větší než 8 MB', 400);
-    $raw = file_get_contents($_FILES['file']['tmp_name']);
-    if ($raw === false || $raw === '') json_error('Prázdný soubor', 400);
-
-    // 🆕 v3.0.343 — XML feed (Shoptet apod.) vs CSV — detekce dle prvního znaku
+// 🆕 v3.0.371 — sjednocený parse (XML vs CSV dle prvního znaku) → {columns, rows, delimiter}. Hází Exception.
+function import_parse_raw(string $raw): array {
     if (strpos(ltrim($raw), '<') === 0) {
         $xr = import_parse_xml($raw);
-        if (!$xr || empty($xr['rows'])) json_error('XML se nepodařilo načíst — očekávám produktový feed (např. Shoptet <SHOPITEM>)', 400);
-        $header = $xr['columns'];
-        $rows = $xr['rows'];
-        $delim = 'xml';
-    } else {
-        if (!mb_check_encoding($raw, 'UTF-8')) {
-            $conv = @mb_convert_encoding($raw, 'UTF-8', 'Windows-1250, ISO-8859-2, Windows-1252');
-            if ($conv) $raw = $conv;
-        }
-        $p = import_parse_csv($raw);
-        $rows = $p['rows'];
-        if (count($rows) < 2) json_error('CSV musí mít hlavičku + alespoň 1 řádek dat', 400);
-        $header = array_map(fn($h) => trim((string) $h), array_shift($rows));
-        $delim = $p['delim'];
+        if (!$xr || empty($xr['rows'])) throw new Exception('XML se nepodařilo načíst — očekávám produktový feed (např. Shoptet <SHOPITEM>)');
+        return ['columns' => $xr['columns'], 'rows' => $xr['rows'], 'delimiter' => 'xml'];
     }
+    if (!mb_check_encoding($raw, 'UTF-8')) {
+        $conv = @mb_convert_encoding($raw, 'UTF-8', 'Windows-1250, ISO-8859-2, Windows-1252');
+        if ($conv) $raw = $conv;
+    }
+    $p = import_parse_csv($raw);
+    $rows = $p['rows'];
+    if (count($rows) < 2) throw new Exception('CSV musí mít hlavičku + alespoň 1 řádek dat');
+    $header = array_map(fn($h) => trim((string) $h), array_shift($rows));
+    return ['columns' => $header, 'rows' => $rows, 'delimiter' => $p['delim']];
+}
 
-    $suggested = [];
-    $usedCols = [];
+// 🆕 v3.0.371 — auto-mapování (název sloupce → pole) — sdílené preview + preview_url.
+function import_suggest_mapping(array $header): array {
+    $suggested = []; $usedCols = [];
     foreach (import_field_defs() as $field => $def) {
         foreach ($header as $i => $col) {
-            if (in_array($i, $usedCols, true)) continue; // sloupec použij max 1× (ať „Cena bez DPH" nesedí i na DPH)
-            $colN = mb_strtolower(trim($col));
+            if (in_array($i, $usedCols, true)) continue; // sloupec použij max 1×
+            $colN = mb_strtolower(trim((string) $col));
             if ($colN === '') continue;
             foreach ($def['kw'] as $kw) {
                 if ($colN === $kw || mb_strpos($colN, $kw) !== false) { $suggested[$field] = $i; $usedCols[] = $i; break 2; }
             }
         }
     }
-    $cap = 3000;
-    json_response([
-        'ok' => true,
-        'columns' => $header,
-        'rows' => array_slice($rows, 0, $cap),
-        'total' => count($rows),
-        'capped' => count($rows) > $cap,
-        'suggested' => $suggested,
-        'delimiter' => $delim,
-        'fields' => array_map(fn($d) => $d['label'], import_field_defs()),
-    ]);
+    return $suggested;
 }
 
-if ($method === 'POST' && $action === 'commit') {
-    require_super_admin();
-    $d = json_input();
-    $rows = $d['rows'] ?? [];
-    $mapping = $d['mapping'] ?? [];
-    $matchKey = in_array($d['match_key'] ?? 'cislo', ['cislo', 'ean'], true) ? $d['match_key'] : 'cislo';
-    $updateExisting = !empty($d['update_existing']);
-    $createCats = !empty($d['create_categories']);
-    if (!$rows || !isset($mapping['nazev']) || $mapping['nazev'] === '' || $mapping['nazev'] === null) {
-        json_error('Chybí data nebo mapování pole „Název"', 400);
+// 🆕 v3.0.371 — stažení feedu z URL (User-Agent kvůli hcdn/CDN 403; SSRF guard; timeout; cap 24 MB).
+function import_fetch_url(string $url): string {
+    $url = trim($url);
+    if (!preg_match('~^https?://~i', $url)) throw new Exception('URL musí začínat http:// nebo https://');
+    $host = strtolower((string) (parse_url($url, PHP_URL_HOST) ?: ''));
+    if ($host === '' || preg_match('~^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.|0\.|::1|\[)~', $host)) {
+        throw new Exception('Interní / loopback adresy nejsou povolené');
     }
-    if (count($rows) > 5000) json_error('Příliš mnoho řádků (max 5000 na jeden import)', 400);
+    $ua = 'APPEK-FeedImport/1.0 (+https://appek.cz)';
+    $raw = false;
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 3,
+            CURLOPT_TIMEOUT        => 40,
+            CURLOPT_CONNECTTIMEOUT => 12,
+            CURLOPT_USERAGENT      => $ua,
+            CURLOPT_ENCODING       => '', // gzip/deflate
+        ]);
+        $raw  = curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+        if ($raw === false) throw new Exception('Stažení selhalo: ' . ($err ?: 'neznámá chyba'));
+        if ($code >= 400) throw new Exception("Server feedu vrátil HTTP $code");
+    } else {
+        $ctx = stream_context_create(['http' => ['header' => "User-Agent: $ua\r\n", 'timeout' => 40, 'follow_location' => 1, 'max_redirects' => 3]]);
+        $raw = @file_get_contents($url, false, $ctx);
+        if ($raw === false) throw new Exception('Stažení selhalo (file_get_contents)');
+    }
+    if ($raw === '') throw new Exception('Feed je prázdný');
+    if (strlen($raw) > 24 * 1024 * 1024) throw new Exception('Feed je větší než 24 MB');
+    return $raw;
+}
+
+// 🆕 v3.0.371 — tabulka uložených feedů (lazy migrace).
+function import_feeds_table(PDO $pdo): void {
+    static $done = false;
+    if ($done) return;
+    $pdo->exec("CREATE TABLE IF NOT EXISTS supplier_feeds (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nazev VARCHAR(190) NOT NULL DEFAULT '',
+        url TEXT NOT NULL,
+        format VARCHAR(10) NOT NULL DEFAULT 'auto',
+        mapping TEXT NOT NULL,
+        match_key VARCHAR(10) NOT NULL DEFAULT 'cislo',
+        update_existing TINYINT(1) NOT NULL DEFAULT 1,
+        create_categories TINYINT(1) NOT NULL DEFAULT 0,
+        enabled TINYINT(1) NOT NULL DEFAULT 1,
+        last_run DATETIME NULL,
+        last_result TEXT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $done = true;
+}
+
+// 🆕 v3.0.371 — CRON token (uložený v nastaveni; vytvoří se při prvním čtení).
+function import_cron_token(PDO $pdo): string {
+    $t = (string) (nastaveni_get($pdo, 'import_cron_token', '') ?? '');
+    if ($t === '') {
+        $t = bin2hex(random_bytes(16));
+        $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('import_cron_token', :t) ON DUPLICATE KEY UPDATE hodnota = VALUES(hodnota)")->execute(['t' => $t]);
+    }
+    return $t;
+}
+
+// 🆕 v3.0.371 — commit řádků do vyrobky (vytaženo z action=commit; sdílí cron / feed_run / commit).
+//   mapping = field→colIndex. Vrací statistiky. Při chybě rollback + rethrow (řeší volající).
+function import_commit_rows(PDO $pdo, array $rows, array $mapping, string $matchKey, bool $updateExisting, bool $createCats): array {
+    $matchKey = in_array($matchKey, ['cislo', 'ean'], true) ? $matchKey : 'cislo';
 
     $defJed   = (int) ($pdo->query("SELECT id FROM jednotky ORDER BY id LIMIT 1")->fetchColumn() ?: 0);
     $jedByKod = $pdo->query("SELECT LOWER(kod), id FROM jednotky")->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -255,9 +307,208 @@ if ($method === 'POST' && $action === 'commit') {
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+    return ['inserted' => $inserted, 'updated' => $updated, 'skipped' => $skipped, 'categories_created' => $catsCreated, 'priced_zero' => $pricedZero];
+}
+
+// 🆕 v3.0.371 — spuštění 1 uloženého feedu: stáhni → parsuj → přemapuj NÁZVY sloupců na indexy → commit.
+function import_run_feed(PDO $pdo, array $feed): array {
+    $raw    = import_fetch_url((string) $feed['url']);
+    $parsed = import_parse_raw($raw);
+    $cols   = $parsed['columns'];
+    $savedMap = json_decode((string) ($feed['mapping'] ?: '{}'), true) ?: []; // field → colName
+    $mapping  = [];
+    foreach ($savedMap as $field => $colName) {
+        $idx = array_search($colName, $cols, true);
+        if ($idx !== false) $mapping[$field] = $idx;
+    }
+    if (!isset($mapping['nazev'])) {
+        throw new Exception('Sloupec pro „Název" (' . (string) ($savedMap['nazev'] ?? '?') . ') se ve feedu nenašel — zkontroluj mapování.');
+    }
+    $rows = array_slice($parsed['rows'], 0, 20000);
+    return import_commit_rows($pdo, $rows, $mapping, (string) $feed['match_key'], (bool) $feed['update_existing'], (bool) $feed['create_categories']);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CRON — token-based, BEZ admin session (volá wget z Hostinger CRONu). MUSÍ být před require_admin().
+// ─────────────────────────────────────────────────────────────────────────
+if ($action === 'cron') {
+    import_feeds_table($pdo);
+    $token = (string) ($_GET['token'] ?? '');
+    if (!hash_equals(import_cron_token($pdo), $token)) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => 'Neplatný token']);
+        exit;
+    }
+    $feeds = $pdo->query("SELECT * FROM supplier_feeds WHERE enabled = 1")->fetchAll(PDO::FETCH_ASSOC);
+    $results = [];
+    foreach ($feeds as $f) {
+        try {
+            $st  = import_run_feed($pdo, $f);
+            $msg = "OK: +{$st['inserted']} nových / {$st['updated']} aktualizováno / {$st['skipped']} přeskočeno";
+            $results[] = ['id' => (int) $f['id'], 'nazev' => $f['nazev'], 'ok' => true] + $st;
+        } catch (Throwable $e) {
+            $msg = 'CHYBA: ' . $e->getMessage();
+            $results[] = ['id' => (int) $f['id'], 'nazev' => $f['nazev'], 'ok' => false, 'error' => $e->getMessage()];
+        }
+        try { $pdo->prepare("UPDATE supplier_feeds SET last_run = NOW(), last_result = :r WHERE id = :id")->execute(['r' => $msg, 'id' => $f['id']]); } catch (Throwable $e) {}
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => true, 'ran' => count($feeds), 'results' => $results], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+require_admin();
+
+// ─── preview (nahraný soubor) ───
+if ($method === 'POST' && $action === 'preview') {
+    if (empty($_FILES['file']) || ($_FILES['file']['error'] ?? 1) !== UPLOAD_ERR_OK) json_error('Chybí soubor (CSV / XML)', 400);
+    if ($_FILES['file']['size'] > 24 * 1024 * 1024) json_error('Soubor je větší než 24 MB', 400);
+    $raw = file_get_contents($_FILES['file']['tmp_name']);
+    if ($raw === false || $raw === '') json_error('Prázdný soubor', 400);
+    try { $parsed = import_parse_raw($raw); } catch (Throwable $e) { json_error($e->getMessage(), 400); }
+    $header = $parsed['columns'];
+    $rows = $parsed['rows'];
+    $cap = 3000;
+    json_response([
+        'ok' => true,
+        'columns' => $header,
+        'rows' => array_slice($rows, 0, $cap),
+        'total' => count($rows),
+        'capped' => count($rows) > $cap,
+        'suggested' => import_suggest_mapping($header),
+        'delimiter' => $parsed['delimiter'],
+        'fields' => array_map(fn($d) => $d['label'], import_field_defs()),
+    ]);
+}
+
+// ─── preview_url (stáhne feed z URL dodavatele) ───
+if ($method === 'POST' && $action === 'preview_url') {
+    $d = json_input();
+    $url = trim((string) ($d['url'] ?? ''));
+    if ($url === '') json_error('Chybí URL feedu', 400);
+    try {
+        $raw = import_fetch_url($url);
+        $parsed = import_parse_raw($raw);
+    } catch (Throwable $e) {
+        json_error($e->getMessage(), 400);
+    }
+    $header = $parsed['columns'];
+    $rows = $parsed['rows'];
+    $cap = 3000;
+    json_response([
+        'ok' => true,
+        'columns' => $header,
+        'rows' => array_slice($rows, 0, $cap),
+        'total' => count($rows),
+        'capped' => count($rows) > $cap,
+        'suggested' => import_suggest_mapping($header),
+        'delimiter' => $parsed['delimiter'],
+        'fields' => array_map(fn($d) => $d['label'], import_field_defs()),
+    ]);
+}
+
+// ─── commit (jednorázový import z preview) ───
+if ($method === 'POST' && $action === 'commit') {
+    require_super_admin();
+    $d = json_input();
+    $rows = $d['rows'] ?? [];
+    $mapping = $d['mapping'] ?? [];
+    $matchKey = $d['match_key'] ?? 'cislo';
+    $updateExisting = !empty($d['update_existing']);
+    $createCats = !empty($d['create_categories']);
+    if (!$rows || !isset($mapping['nazev']) || $mapping['nazev'] === '' || $mapping['nazev'] === null) {
+        json_error('Chybí data nebo mapování pole „Název"', 400);
+    }
+    if (count($rows) > 5000) json_error('Příliš mnoho řádků (max 5000 na jeden import)', 400);
+    try {
+        $st = import_commit_rows($pdo, $rows, $mapping, $matchKey, $updateExisting, $createCats);
+    } catch (Throwable $e) {
         json_error_safe('Import selhal: ' . $e->getMessage(), $e, 500);
     }
-    json_response(['ok' => true, 'inserted' => $inserted, 'updated' => $updated, 'skipped' => $skipped, 'categories_created' => $catsCreated, 'priced_zero' => $pricedZero]);
+    json_response(['ok' => true] + $st);
+}
+
+// ─── feed_list (uložené feedy + cron URL) ───
+if ($method === 'GET' && $action === 'feed_list') {
+    require_super_admin();
+    import_feeds_table($pdo);
+    $feeds = $pdo->query("SELECT id, nazev, url, format, match_key, update_existing, create_categories, enabled, last_run, last_result, created_at FROM supplier_feeds ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
+    $token = import_cron_token($pdo);
+    json_response([
+        'ok' => true,
+        'feeds' => $feeds,
+        'cron_url' => rtrim(APP_URL, '/') . '/api/admin_import.php?action=cron&token=' . $token,
+    ]);
+}
+
+// ─── feed_save (nový / úprava uloženého feedu) ───
+if ($method === 'POST' && $action === 'feed_save') {
+    require_super_admin();
+    import_feeds_table($pdo);
+    $d = json_input();
+    $nazev   = trim((string) ($d['nazev'] ?? ''));
+    $url     = trim((string) ($d['url'] ?? ''));
+    $columns = $d['columns'] ?? [];      // hlavička z preview (pro převod index→název)
+    $mapIdx  = $d['mapping'] ?? [];       // field → colIndex (z UI)
+    if ($url === '') json_error('Chybí URL feedu', 400);
+    if (!preg_match('~^https?://~i', $url)) json_error('URL musí začínat http:// nebo https://', 400);
+    if (!isset($mapIdx['nazev']) || $mapIdx['nazev'] === '' || $mapIdx['nazev'] === null) json_error('Chybí mapování pole „Název"', 400);
+    // field→index → field→NÁZEV sloupce (odolné vůči změně pořadí ve feedu)
+    $mapName = [];
+    foreach ($mapIdx as $field => $i) {
+        if ($i === '' || $i === null) continue;
+        $i = (int) $i;
+        if (isset($columns[$i]) && $columns[$i] !== '') $mapName[$field] = (string) $columns[$i];
+    }
+    if (!isset($mapName['nazev'])) json_error('Sloupec „Název" je mimo rozsah hlavičky', 400);
+    $matchKey = in_array($d['match_key'] ?? 'cislo', ['cislo', 'ean'], true) ? $d['match_key'] : 'cislo';
+    $upd = !empty($d['update_existing']) ? 1 : 0;
+    $cc  = !empty($d['create_categories']) ? 1 : 0;
+    $en  = array_key_exists('enabled', $d) ? (!empty($d['enabled']) ? 1 : 0) : 1;
+    $mapJson = json_encode($mapName, JSON_UNESCAPED_UNICODE);
+
+    if (!empty($d['id'])) {
+        $pdo->prepare("UPDATE supplier_feeds SET nazev = :n, url = :u, mapping = :m, match_key = :mk, update_existing = :ue, create_categories = :cc, enabled = :en WHERE id = :id")
+            ->execute(['n' => $nazev ?: ('Feed ' . (int) $d['id']), 'u' => $url, 'm' => $mapJson, 'mk' => $matchKey, 'ue' => $upd, 'cc' => $cc, 'en' => $en, 'id' => (int) $d['id']]);
+        $id = (int) $d['id'];
+    } else {
+        $pdo->prepare("INSERT INTO supplier_feeds (nazev, url, format, mapping, match_key, update_existing, create_categories, enabled) VALUES (:n, :u, 'auto', :m, :mk, :ue, :cc, :en)")
+            ->execute(['n' => $nazev ?: 'Feed dodavatele', 'u' => $url, 'm' => $mapJson, 'mk' => $matchKey, 'ue' => $upd, 'cc' => $cc, 'en' => $en]);
+        $id = (int) $pdo->lastInsertId();
+    }
+    json_response(['ok' => true, 'id' => $id]);
+}
+
+// ─── feed_delete ───
+if ($method === 'POST' && $action === 'feed_delete') {
+    require_super_admin();
+    import_feeds_table($pdo);
+    $d = json_input();
+    $pdo->prepare("DELETE FROM supplier_feeds WHERE id = :id")->execute(['id' => (int) ($d['id'] ?? 0)]);
+    json_response(['ok' => true]);
+}
+
+// ─── feed_run (spustit 1 uložený feed teď) ───
+if ($method === 'POST' && $action === 'feed_run') {
+    require_super_admin();
+    import_feeds_table($pdo);
+    $d = json_input();
+    $st = $pdo->prepare("SELECT * FROM supplier_feeds WHERE id = :id");
+    $st->execute(['id' => (int) ($d['id'] ?? 0)]);
+    $feed = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$feed) json_error('Feed nenalezen', 404);
+    try {
+        $res = import_run_feed($pdo, $feed);
+        $msg = "OK: +{$res['inserted']} nových / {$res['updated']} aktualizováno / {$res['skipped']} přeskočeno";
+        $pdo->prepare("UPDATE supplier_feeds SET last_run = NOW(), last_result = :r WHERE id = :id")->execute(['r' => $msg, 'id' => $feed['id']]);
+        json_response(['ok' => true] + $res);
+    } catch (Throwable $e) {
+        try { $pdo->prepare("UPDATE supplier_feeds SET last_run = NOW(), last_result = :r WHERE id = :id")->execute(['r' => 'CHYBA: ' . $e->getMessage(), 'id' => $feed['id']]); } catch (Throwable $e2) {}
+        json_error_safe('Spuštění feedu selhalo: ' . $e->getMessage(), $e, 500);
+    }
 }
 
 json_error('Neznámá akce', 400);
