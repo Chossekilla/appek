@@ -1,0 +1,10 @@
+{
+  "appId": "cz.appek.app",
+  "appName": "APPEK",
+  "webDir": "www",
+  "server": { "androidScheme": "https", "iosScheme": "https" },
+  "plugins": {
+    "SplashScreen": { "launchAutoHide": true, "backgroundColor": "#1d1d1f", "showSpinner": false },
+    "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] }
+  }
+}
