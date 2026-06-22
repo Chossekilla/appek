@@ -23,7 +23,7 @@ $pdo = db();
 if (!$jsem_cli) {
     $token_v_db = nastaveni_get($pdo, 'cron_token', '');
     $token_req = $_GET['token'] ?? '';
-    if (empty($token_v_db) || $token_req !== $token_v_db) {
+    if (empty($token_v_db) || !hash_equals((string) $token_v_db, (string) $token_req)) { // 🔒 v3.0.376 constant-time (timing attack)
         http_response_code(403);
         echo "Forbidden — invalid token";
         exit;

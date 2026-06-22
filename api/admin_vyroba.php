@@ -129,7 +129,7 @@ if ($method === 'GET') {
         $n   = max(0.0001, (float) ($_GET['mnozstvi'] ?? 1));
         if ($vid <= 0) json_error('Chybí vyrobek_id');
         $sur1 = []; $pol1 = [];
-        bom_explode($pdo, $vid, 1, $sur1, $pol1);   // potřeba na 1 ks
+        bom_explode($pdo, $vid, 1, $sur1, $pol1);   // potřeba na 1 ks (suroviny + stockované polotovary)
         $polozky = []; $vyrobitelne = null;
         foreach ($sur1 as $sid => $per) {
             if ($per <= 0) continue;
@@ -138,6 +138,19 @@ if ($method === 'GET') {
             $s = $st->fetch(PDO::FETCH_ASSOC) ?: [];
             $sk = (float) ($s['sk'] ?? 0);
             $polozky[] = ['nazev' => $s['nazev'] ?? ('#' . $sid), 'jednotka' => $s['jednotka'] ?? 'g', 'per_kus' => round($per, 4), 'potreba' => round($per * $n, 3), 'skladem' => $sk, 'staci' => $sk >= $per * $n];
+            $mozne = floor($sk / $per);
+            $vyrobitelne = ($vyrobitelne === null) ? $mozne : min($vyrobitelne, $mozne);
+        }
+        // 🐛 v3.0.323 — recept z STOCKOVANÝCH polotovarů: bom_explode plní i $pol1, nezahazuj je
+        //   (jinak 'vyrobitelne_ze_skladu' ignoruje dostupnost polotovaru). Zdroj = sklad_polozky item_typ='vyrobek'.
+        foreach ($pol1 as $pvid => $per) {
+            if ($per <= 0) continue;
+            $pvid = (int) $pvid;
+            $pst = $pdo->prepare("SELECT v.nazev, COALESCE(j.kod,'ks') AS jednotka FROM vyrobky v LEFT JOIN jednotky j ON j.id = v.jednotka_id WHERE v.id = :i");
+            $pst->execute(['i' => $pvid]);
+            $pr = $pst->fetch(PDO::FETCH_ASSOC) ?: [];
+            $sk = (float) $pdo->query("SELECT COALESCE(SUM(stav),0) FROM sklad_polozky WHERE item_typ='vyrobek' AND item_id=" . $pvid)->fetchColumn();
+            $polozky[] = ['nazev' => ($pr['nazev'] ?? ('#' . $pvid)) . ' (polotovar)', 'jednotka' => $pr['jednotka'] ?? 'ks', 'per_kus' => round($per, 4), 'potreba' => round($per * $n, 3), 'skladem' => $sk, 'staci' => $sk >= $per * $n];
             $mozne = floor($sk / $per);
             $vyrobitelne = ($vyrobitelne === null) ? $mozne : min($vyrobitelne, $mozne);
         }
@@ -306,11 +319,57 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'vyrobit_polotovar') {
     $vid = (int) ($d['vyrobek_id'] ?? 0);
     $qty = (float) ($d['mnozstvi'] ?? 0);
     if ($vid <= 0 || $qty <= 0) json_error('Chybí výrobek nebo množství');
+    $force = !empty($d['force']);
     $kdo = $admin['email'] ?? $admin['jmeno'] ?? 'system';
     $sur = []; $pol = [];
     bom_explode($pdo, $vid, $qty, $sur, $pol);   // suroviny (+ vnořené stockované polotovary) potřebné na dávku
+    // 🔒 IDEMPOTENCY: dvojklik/retry stejné dávky ve stejné minutě = 1 odpis. Klíč nese minutu
+    //   → druhé identické volání během minuty koliduje (INSERT IGNORE → 409), pozdější dostane nový klíč.
+    $guardKey = 'vyrobit_pol_' . md5($vid . '|' . sprintf('%.4f', $qty) . '|' . date('Y-m-d H:i') . '|' . $kdo);
     try {
         $pdo->beginTransaction();
+        // 🔒 atomický dedup: INSERT IGNORE; když řádek už existuje (affected=0), je to duplicitní volání
+        if (!$force) {
+            $guardStamp = date('Y-m-d H:i:s') . ' · ' . $kdo;
+            $gs = $pdo->prepare("INSERT IGNORE INTO nastaveni (klic, hodnota) VALUES (:k, :v)");
+            $gs->execute(['k' => $guardKey, 'v' => $guardStamp]);
+            if ($gs->rowCount() === 0) {
+                $pdo->rollBack();
+                json_error('Stejná dávka polotovaru už byla právě vyrobena (dvojklik?). Pro opětovnou výrobu zopakuj za chvíli nebo použij „force".', 409);
+            }
+        }
+        // 🔒 deficit pre-check (mimo force): suroviny + vnořené stockované polotovary
+        if (!$force) {
+            $deficity = [];
+            foreach ($sur as $sid => $mn) {
+                $sid = (int) $sid; $mn = (float) $mn;
+                if ($mn <= 0) continue;
+                $stD = $pdo->prepare("SELECT nazev, jednotka, COALESCE(stock_aktualni,0) AS sk FROM suroviny WHERE id = :i");
+                $stD->execute(['i' => $sid]);
+                $sD = $stD->fetch(PDO::FETCH_ASSOC) ?: [];
+                $skD = (float) ($sD['sk'] ?? 0);
+                if ($skD < $mn) $deficity[] = ['nazev' => $sD['nazev'] ?? ('#' . $sid), 'potreba' => $mn, 'na_skladu' => $skD, 'chybi' => round($mn - $skD, 3), 'jednotka' => $sD['jednotka'] ?? ''];
+            }
+            foreach ($pol as $pvidD => $pqD) {
+                $pvidD = (int) $pvidD; $pqD = (float) $pqD;
+                if ($pvidD <= 0 || $pqD <= 0) continue;
+                $skP = (float) $pdo->query("SELECT COALESCE(SUM(stav),0) FROM sklad_polozky WHERE item_typ='vyrobek' AND item_id=" . $pvidD)->fetchColumn();
+                if ($skP < $pqD) {
+                    $pn = (string) $pdo->query("SELECT nazev FROM vyrobky WHERE id=" . $pvidD)->fetchColumn();
+                    $deficity[] = ['nazev' => ($pn !== '' ? $pn : ('#' . $pvidD)) . ' (polotovar)', 'potreba' => $pqD, 'na_skladu' => $skP, 'chybi' => round($pqD - $skP, 3), 'jednotka' => 'ks'];
+                }
+            }
+            if (!empty($deficity)) {
+                $pdo->rollBack();
+                $names = array_slice(array_map(fn($x) => $x['nazev'], $deficity), 0, 5);
+                json_response([
+                    'error'    => 'Nedostatek surovin/polotovarů na výrobu dávky (' . count($deficity) . ')',
+                    'deficity' => $deficity,
+                    'tip'      => 'Doplň zásoby, nebo opakuj s force=true (povolí odpis do mínusu).',
+                    'priklady' => implode(', ', $names),
+                ], 409);
+            }
+        }
         // 1) odepiš suroviny ze skladu (systém B)
         foreach ($sur as $sid => $mn) {
             $sid = (int) $sid; $mn = (float) $mn;
@@ -329,6 +388,10 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'vyrobit_polotovar') {
             $pvid2 = (int) $pvid2; $pq2 = (float) $pq2; if ($pvid2 <= 0 || $pq2 <= 0) continue;
             $sk2 = sklad_default_id($pdo); $r2 = sklad_polozky_ensure($pdo, $sk2, 'vyrobek', $pvid2);
             $pdo->prepare("UPDATE sklad_polozky SET stav = stav - :m WHERE id = :r")->execute(['m' => $pq2, 'r' => $r2]);
+            $po2 = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id = " . $r2)->fetchColumn();
+            $pdo->prepare("INSERT INTO sklad_pohyby_v2 (sklad_id,item_typ,item_id,typ,mnozstvi,stav_pred,stav_po,poznamka,kdo,kdy)
+                           VALUES (:s,'vyrobek',:i,'vydej',:m,:pr,:po,:pz,:kdo,NOW())")
+                ->execute(['s' => $sk2, 'i' => $pvid2, 'm' => $pq2, 'pr' => $po2 + $pq2, 'po' => $po2, 'pz' => 'Výroba polotovaru (vnořený polotovar)', 'kdo' => $kdo]);
         }
         // 3) naskladni vyrobenou dávku polotovaru
         $sklad = sklad_default_id($pdo);
@@ -435,6 +498,17 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
             $rowId = sklad_polozky_ensure($pdo, $home, 'surovina', $sid);
             $pdo->prepare("UPDATE sklad_polozky SET stav = stav - :mn WHERE id = :r")->execute(['mn' => $potreba, 'r' => $rowId]);
             $po   = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id = " . $rowId)->fetchColumn();
+            // 🔒 v3.0.323 — re-check NA TABULCE, KAM ZAPISUJEME (sklad_polozky = systém B).
+            //   FOR UPDATE výše zamyká `suroviny` (systém A cache); souběžný POS odpis A nezamyká →
+            //   deficit-guard obejitelný. Skutečný stav po odečtu < 0 (bez force) ⇒ rollback.
+            if ($po < 0 && !$force) {
+                $pdo->rollBack();
+                json_response([
+                    'error'    => 'Nedostatek suroviny „' . ($r['nazev'] ?? ('#' . $sid)) . '" na skladu (souběžný odběr?)',
+                    'deficity' => [['nazev' => $r['nazev'] ?? ('#' . $sid), 'potreba' => $potreba, 'na_skladu' => round($po + $potreba, 3), 'chybi' => round(-$po, 3), 'jednotka' => $r['jednotka'] ?? '']],
+                    'tip'      => 'Někdo mezitím odebral ze skladu. Obnov a opakuj, nebo použij force=true.',
+                ], 409);
+            }
             $pred = $po + $potreba;
             $pdo->prepare("INSERT INTO sklad_pohyby_v2 (sklad_id,item_typ,item_id,typ,mnozstvi,stav_pred,stav_po,poznamka,kdo,kdy)
                            VALUES (:s,'surovina',:i,'vydej',:mn,:pr,:po,:pz,:kdo,NOW())")

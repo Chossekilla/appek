@@ -277,6 +277,39 @@ function apply_full_schema(PDO $pdo): void {
                 vytvoreno DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ",
+
+        // 🍽️ v3.0.376 FRESH-INSTALL FIX — restaurant_tables (půdorys stolů). admin_pos.php vytváří
+        //   restaurant_pos_ucty/qr_sessions/qr_orders s FK NA restaurant_tables, ale tu tvoří jen
+        //   admin_tables.php → na čisté instalaci s balíčkem Restaurace = 500 na KAŽDÉM POS requestu
+        //   (FK na neexistující parent). + pos_qr.php SELECT na qr_token. Doplněno sem (idempotentní).
+        'restaurant_tables' => "
+            CREATE TABLE IF NOT EXISTS restaurant_tables (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nazev VARCHAR(60) NOT NULL,
+                mist INT NOT NULL DEFAULT 2,
+                sekce VARCHAR(40) DEFAULT NULL,
+                x INT DEFAULT 0,
+                y INT DEFAULT 0,
+                tvar ENUM('round','square','rect') DEFAULT 'square',
+                aktivni TINYINT(1) NOT NULL DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                width INT NOT NULL DEFAULT 80,
+                height INT NOT NULL DEFAULT 80,
+                rotace INT NOT NULL DEFAULT 0,
+                barva VARCHAR(12) DEFAULT NULL,
+                zone_id INT DEFAULT NULL,
+                stav ENUM('free','reserved','occupied','cleaning','attention','disabled') NOT NULL DEFAULT 'free',
+                stav_od DATETIME DEFAULT NULL,
+                hostu_aktual INT DEFAULT 0,
+                cislista INT DEFAULT 0,
+                obsluhuje VARCHAR(80) DEFAULT NULL,
+                qr_token VARCHAR(64) DEFAULT NULL,
+                UNIQUE KEY uq_qr_token (qr_token),
+                KEY idx_sekce (sekce),
+                KEY idx_zone_id (zone_id),
+                KEY idx_stav (stav)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ",
     ];
 
     foreach ($tables as $name => $sql) {
@@ -289,6 +322,12 @@ function apply_full_schema(PDO $pdo): void {
     // ════════════════════════════════════════════════════════════
 
     $columnPatches = [
+        // 🧾 v3.0.376 — faktura_polozky: vyrobek_cislo + poznamka (jinak je přidává jen ensure_faktury_schema;
+        //   ISDOC import na čisté instalaci tiše selhal „DB chyba", než se poprvé otevřely Faktury).
+        'faktura_polozky' => [
+            'vyrobek_cislo' => "ADD COLUMN vyrobek_cislo VARCHAR(50) DEFAULT NULL",
+            'poznamka'      => "ADD COLUMN poznamka VARCHAR(255) DEFAULT NULL",
+        ],
         // admin_users — kolega `posledni_login` (z _schema.sql)
         'admin_users' => [
             'posledni_login' => "ADD COLUMN posledni_login DATETIME NULL",

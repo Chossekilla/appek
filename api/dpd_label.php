@@ -5,6 +5,12 @@
  * GET /api/dpd_label.php?shipment_id=12345&format=A6
  */
 
+// 🔒 v3.0.376 SECURITY — auth required (dřív veřejné: kdokoli se shipment_id stáhl štítek
+//   se jménem+adresou příjemce = GDPR únik). GET → stačí session cookie (CSRF jen POST/PUT/DELETE).
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_admin_auth.php';
+require_admin();
+
 $vendorRoot = realpath(__DIR__ . '/..') . '/vendor';
 if (!is_dir($vendorRoot)) {
     http_response_code(503);
