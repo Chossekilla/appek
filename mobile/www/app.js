@@ -62,4 +62,34 @@ $('manual').addEventListener('click', async () => {
   openInstall(url, ($('email').value || '').trim().toLowerCase());
 });
 
+// 🔔 Push notifikace — best-effort registrace (Fáze 1B scaffold).
+// Požádá o povolení, získá nativní token (APNs/FCM), uloží + pošle instalaci.
+// Pozn.: skutečné DORUČOVÁNÍ push zpráv potřebuje APNs/FCM klíče (build-time, Fáze 2).
+async function initPush() {
+  const PN = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
+  if (!PN) return; // jen v nativní appce
+  try {
+    let perm = await PN.checkPermissions();
+    if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') perm = await PN.requestPermissions();
+    if (perm.receive !== 'granted') return;
+    PN.addListener('registration', async (t) => {
+      await prefSet('push_token', t.value);
+      const url = await prefGet('install_url');
+      if (!url) return;
+      try {
+        await fetch(url.replace(/\/+$/, '') + '/api/push_register.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: t.value,
+            platform: (window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || 'ios',
+            email: (await prefGet('email')) || ''
+          })
+        });
+      } catch (e) {}
+    });
+    await PN.register();
+  } catch (e) {}
+}
+
+initPush();
 boot();
