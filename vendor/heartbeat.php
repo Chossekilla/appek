@@ -260,6 +260,27 @@ try {
         'ip'     => $ip,
     ]);
 
+    // 🆕 Fáze 1A — ulož admin e-maily → instalace (pro vendor/resolve.php = centrální login mobilní appky)
+    $emails = $data['admin_emails'] ?? [];
+    if (!is_array($emails)) $emails = [];
+    if ($adminEmail !== '' && !in_array($adminEmail, $emails, true)) $emails[] = $adminEmail; // back-compat
+    $nazevInst = preg_replace('/^https?:\/\//', '', (string) $installUrl);
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS vendor_install_emails (
+            email VARCHAR(190) NOT NULL, install_url VARCHAR(255) NOT NULL, license_id INT NULL,
+            nazev VARCHAR(190) NULL, updated_at DATETIME NOT NULL,
+            PRIMARY KEY (email, install_url), INDEX idx_email (email)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $insEm = $pdo->prepare("INSERT INTO vendor_install_emails (email, install_url, license_id, nazev, updated_at)
+            VALUES (:e, :u, :lid, :n, NOW())
+            ON DUPLICATE KEY UPDATE license_id = VALUES(license_id), nazev = VALUES(nazev), updated_at = NOW()");
+        foreach ($emails as $em) {
+            $em = strtolower(trim((string) $em));
+            if ($em === '' || !filter_var($em, FILTER_VALIDATE_EMAIL)) continue;
+            $insEm->execute(['e' => $em, 'u' => $installUrl, 'lid' => $licenseRow['id'], 'n' => $nazevInst]);
+        }
+    } catch (Throwable $e) { /* heartbeat nesmí spadnout kvůli tomuhle */ }
+
     // Cleanup: heartbeats starší 30 dnů smaž (rolling window)
     try {
         $pdo->exec("DELETE FROM vendor_license_heartbeats WHERE seen_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");

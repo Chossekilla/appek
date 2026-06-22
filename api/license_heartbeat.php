@@ -70,6 +70,13 @@ try {
         'orders_count'       => $ordersCount,
         'days_since_install' => $daysSince,
         'admin_email'        => $ctx['email'] ?? '',
+        'admin_emails'       => (function () {
+            // 🆕 Fáze 1A — všechny admin e-maily (pro centrální login mobilní appky / vendor resolve)
+            try {
+                $rows = db()->query("SELECT email FROM admin_users WHERE email IS NOT NULL AND email != ''")->fetchAll(PDO::FETCH_COLUMN);
+                return array_values(array_unique(array_map('strtolower', array_map('trim', $rows))));
+            } catch (Throwable $e) { return []; }
+        })(),
         // 🆕 v2.6.1 — Anti-piracy install fingerprint (HMAC unikátní per install)
         'install_fingerprint' => license_install_fingerprint(),
     ];
