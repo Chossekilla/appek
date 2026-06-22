@@ -22,10 +22,23 @@ function openInstall(url, email) {
 }
 function showErr(m) { const e = $('err'); e.textContent = m; e.hidden = false; }
 
-// Při startu: pokud už známe instalaci, jdi rovnou tam (session na instalaci rozhodne login).
+// Při startu: pokud už známe instalaci, otevři ji — ale přes mezi-obrazovku s ÚNIKEM,
+// aby se uživatel „neztratil" na špatné/nedostupné instalaci (může změnit účet/instalaci).
 async function boot() {
   const url = await prefGet('install_url');
-  if (url) openInstall(url, (await prefGet('email')) || '');
+  if (!url) return; // žádná uložená instalace → zůstaň na e-mail formuláři
+  const email = (await prefGet('email')) || '';
+  const host = String(url).replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const card = $('login');
+  card.innerHTML = '<div class="logo">A</div><h1>APPEK</h1><p class="sub"></p><button id="reset" class="link">Změnit účet / instalaci</button>';
+  card.querySelector('.sub').textContent = 'Otevírám ' + host + ' …';
+  let go = true;
+  $('reset').addEventListener('click', async () => {
+    go = false;
+    await prefSet('install_url', ''); await prefSet('email', '');
+    location.reload();
+  });
+  setTimeout(() => { if (go) openInstall(url, email); }, 1500);
 }
 
 $('go').addEventListener('click', async () => {
