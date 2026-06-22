@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.376";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.377";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -1414,9 +1414,9 @@ html.dark .dashboard-recent-row > .recent-card .recent-table tbody tr:hover {
 .dashboard-recent-row > .recent-card .recent-table tbody tr td:nth-child(1) {
   grid-column: 1; grid-row: 1;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;        /* 🆕 v3.0.377 — celé číslo dokladu (dřív ellipsis „FA… · …"); číslo + splatnost se zalomí na 2 řádky */
+  word-break: break-word;
+  min-width: 0;
 }
 /* (2) Odběratel + místo — přes obě sloupce, druhý řádek */
 .dashboard-recent-row > .recent-card .recent-table tbody tr td:nth-child(2) {
