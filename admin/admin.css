@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.377";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.378";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -21101,3 +21101,26 @@ body:not(.sidebar-collapsed) .sidebar-logo {
 }
 .sidebar-logo:hover { background: transparent !important; }
 .sidebar-logo:active { transform: none !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   🆕 v3.0.378 — Mobilní UX dotažení (z UX auditu): tap targety ≥40px
+   + truncation. Override mobilních pravidel (mobile-only, !important).
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 700px) {
+  /* #1 bulk-select checkbox — z 16px na ≥40px terč (blokovalo hromadné označení pro tisk/export/e-mail) */
+  .table-selectable td.col-check,
+  .table-selectable th.col-check { padding: 10px !important; }
+  .table-selectable td.col-check input,
+  .table-selectable th.col-check input { width: 24px !important; height: 24px !important; }
+  /* #2 ± množstevní tlačítka v modálech (objednávka / ruční FA / DL) — z 26px na 40px */
+  .obj-polozka-qty .qty-btn { width: 40px !important; height: 40px !important; }
+  /* #3 mazací × u položek — z 26px na 40px (destruktivní akce, mis-tap při scrollu) */
+  .polozky-table tbody tr td:last-child button.btn-danger,
+  .polozky-table tbody tr td:last-child:not(.num) button { width: 40px !important; height: 40px !important; min-height: 40px !important; }
+  /* #4 modal vodorovný scroll (jinak globální overflow-x:hidden ořízne široký obsah) */
+  .modal-body { overflow-x: auto !important; }
+  /* #5 názvy výrobků v dashboard recent kartách — zalomit místo ellipsis ořezu */
+  .dashboard-recent-row > .recent-card .recent-pol-item { white-space: normal !important; max-width: 100% !important; }
+  /* #8 zvoneček notifikací — z 34px na 40px */
+  .btn-notif { width: 40px !important; height: 40px !important; }
+}

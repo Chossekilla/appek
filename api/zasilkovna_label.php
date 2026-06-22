@@ -24,7 +24,7 @@ require_once $vendorRoot . '/_mail.php';
 require_once $vendorRoot . '/_zasilkovna.php';
 
 $packetId = trim($_GET['packet_id'] ?? '');
-$format   = $_GET['format'] ?? 'A6 on A4';
+$format   = preg_replace('/[^A-Za-z0-9 ()._-]/', '', (string) ($_GET['format'] ?? 'A6 on A4')); // 🔒 v3.0.378 sanitace (header injection do vendor API)
 if (!$packetId) {
     http_response_code(400);
     echo "missing packet_id";
