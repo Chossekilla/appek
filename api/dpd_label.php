@@ -22,7 +22,7 @@ require_once $vendorRoot . '/_mail.php';
 require_once $vendorRoot . '/_dpd.php';
 
 $shipmentId = trim($_GET['shipment_id'] ?? '');
-$format     = $_GET['format'] ?? 'A6';
+$format     = preg_replace('/[^A-Za-z0-9 ()._-]/', '', (string) ($_GET['format'] ?? 'A6')); // 🔒 v3.0.378 sanitace
 if (!$shipmentId) {
     http_response_code(400);
     echo "missing shipment_id";

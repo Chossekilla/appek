@@ -166,7 +166,13 @@ echo json_encode([
     'ok' => $hcOk && empty($alerts),
     'healthcheck' => $healthcheck,
     'new_errors_15min' => $spikeCount,
-    'sample_errors' => array_slice($newErrors, 0, 5),
+    // 🔒 v3.0.378 — redakce: jen bezpečná pole (zpráva+status+zdroj+čas), NE exception_trace/cesty/SQL fragmenty
+    'sample_errors' => array_map(fn($e) => [
+        'http_status' => $e['http_status'] ?? null,
+        'source'      => $e['source'] ?? null,
+        'message'     => mb_substr((string) ($e['message'] ?? $e['exception_msg'] ?? ''), 0, 140),
+        'created_at'  => $e['created_at'] ?? null,
+    ], array_slice($newErrors, 0, 5)),
     'alerts' => $alerts,
     'alerts_emitted' => $emittedCount,
     'monitor_token' => $adminAuthed ? $expected : null, // admin uvidí token, anonymous ne
