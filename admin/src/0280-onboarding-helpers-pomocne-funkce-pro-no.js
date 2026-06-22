@@ -647,7 +647,9 @@ async function navigate(page, args) {
   //   seznamy (faktury/DL/objednávky/výrobky/suroviny) → tabulky vyplní šířku
   //   monitoru („flex"). Formulářové/dashboard stránky zůstanou centrované.
   try { const _c = document.getElementById('content'); if (_c) _c.dataset.page = page; } catch (e) {}
-  document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.page === page));
+  // 🆕 v3.0.375 — Nástroje pod-stránky (integrace/tiskárny/štítky) zvýrazní v menu rodiče „Nástroje" (jinak nic = uživatel „ztracený")
+  const _navActive = (page === 'integrace' || page === 'tiskarny' || page === 'stitky') ? 'nastroje' : page;
+  document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.page === _navActive));
   // 📱 Synchronizace bottom nav (mobile) — aktivní položka
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
   // 🎁 Re-render package badges v topbaru — aby se zvýraznil aktivní balíček
@@ -681,7 +683,7 @@ async function navigate(page, args) {
     else if (page === 'sklad') await renderSklad();
     else if (page === 'export_vyroby') await renderExportVyroby();
     else if (page === 'vyrobni_kalkulace') await renderVyrobniKalkulace();
-    else if (page === 'nastaveni') await renderNastaveni();
+    else if (page === 'nastaveni') { if (state._nastaveniTab === 'integrace') state._nastaveniTab = 'firma'; await renderNastaveni(); } // 🆕 v3.0.375 — neděď skrytý 'integrace' tab (jinak „Nastavení" ukáže Integrace)
     else if (page === 'integrace') { state._nastaveniTab = 'integrace'; await renderNastaveni(); } // 🆕 v3.0.370 — Integrace = samostatná stránka z Nástrojů (standalone shell v renderNastaveni)
     else if (page && page.startsWith('pkg_')) await renderPackagePage(page);
     else if (page === 'diagnostika') await renderDiagnostika();
