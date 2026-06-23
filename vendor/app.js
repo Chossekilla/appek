@@ -138,7 +138,7 @@ function renderTable(rows) {
   }
   tbody.innerHTML = rows.map(r => `
     <tr data-id="${r.id}">
-      <td>${statusBadge(r.status, r.days_to_expiry)}</td>
+      <td>${statusBadge(r.status, r.days_to_expiry)}${r.lock_state === 'locked' ? ` <span class="status-pill st-revoked" title="🔒 Anti-piracy lock — fingerprint instalace nesedí (reinstal/migrace serveru NEBO reuse klíče). Pokud legit, odemkni 🔓.">🔒 Locked</span>` : ''}</td>
       <td><code class="lic-key" onclick="copyKey('${esc(r.license_key)}')" title="Klik = kopírovat">${esc(r.license_key)}</code></td>
       <td>
         <div class="cust-name">${esc(r.customer_name)}</div>
@@ -159,6 +159,7 @@ function renderTable(rows) {
           ? `<button class="btn-icon" onclick="unrevokeLicense(${r.id})" title="Vrátit zpět">♻️</button>`
           : `<button class="btn-icon" onclick="openRevokeModal(${r.id})" title="Revoke">🚫</button>`
         }
+        ${r.lock_state === 'locked' ? `<button class="btn-icon" onclick="unlockLicense(${r.id})" title="🔓 Odemknout anti-piracy lock (re-bind na příští heartbeat)">🔓</button>` : ''}
       </td>
     </tr>
   `).join('');
@@ -433,6 +434,16 @@ async function unrevokeLicense(id) {
   try {
     await api('unrevoke', { method: 'POST', body: { id } });
     toast('✅ Vráceno zpět');
+    loadStats(); loadLicenses();
+  } catch (e) { alert('Chyba: ' + e.message); }
+}
+
+// 🆕 v3.0.386 — odemkni anti-piracy lock (false-positive po legit reinstalu/migraci serveru)
+async function unlockLicense(id) {
+  if (!confirm('Odemknout anti-piracy lock?\n\nVynuluje fingerprint → licence se re-nabinduje na aktuální instalaci při příštím heartbeatu. Použij když jde o legitimní reinstal/migraci serveru, ne o reuse klíče.')) return;
+  try {
+    await api('unlock', { method: 'POST', body: { id } });
+    toast('🔓 Odemčeno (re-bind na příští heartbeat)');
     loadStats(); loadLicenses();
   } catch (e) { alert('Chyba: ' + e.message); }
 }
