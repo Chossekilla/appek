@@ -505,4 +505,19 @@ function apply_full_schema(PDO $pdo): void {
         try { $pdo->exec($sql); }
         catch (Throwable $e) { /* duplicate key name = OK, ignoruj */ }
     }
+
+    // ════════════════════════════════════════════════════════════
+    // 4. 🆕 v3.0.380 — SYSTÉM B SKLADU + suroviny.domovsky_sklad_id (fresh-install fix)
+    //    Dřív jen runtime ensure (_schema_lib/_sklad_lib) volané jen z některých endpointů
+    //    → admin_vyroba (odepsat_suroviny/vyrobit_polotovar) + admin_suroviny (sklad_pohyby/restock)
+    //    spadly na ČISTÉ instalaci 500 (Unknown column domovsky_sklad_id / chybějící tabulka),
+    //    když je user spustil dřív než poprvé otevřel Sklad. Garantujeme univerzálně (idempotentní).
+    // ════════════════════════════════════════════════════════════
+    try {
+        require_once __DIR__ . '/_schema_lib.php';
+        if (function_exists('ensure_sklady_schema'))        ensure_sklady_schema($pdo);        // sklady (+ default SK01)
+        if (function_exists('ensure_sklad_polozky_schema')) ensure_sklad_polozky_schema($pdo); // sklad_polozky (systém B)
+        if (function_exists('ensure_sklad_pohyby_schema'))  ensure_sklad_pohyby_schema($pdo);  // sklad_pohyby_v2
+        $pdo->exec("ALTER TABLE suroviny ADD COLUMN IF NOT EXISTS domovsky_sklad_id INT NULL"); // čte surovina_home_sklad()
+    } catch (Throwable $e) { error_log('apply_full_schema systemB: ' . $e->getMessage()); }
 }
