@@ -179,7 +179,13 @@ if ($action === 'reissue' && $method === 'POST') {
     if ($c->fetchColumn()) vendor_json_error('Nový klíč by konfliktoval — zkus znovu', 500);
 
     try {
-        $pdo->prepare("UPDATE vendor_licenses SET license_key = :k WHERE id = :id")
+        // 🆕 v3.0.384 — reissue dá ČISTÝ klíč: vynuluj fingerprint binding + anti-piracy lock
+        //   (jinak nový klíč zdědí starý fingerprint/lock → zůstal by zamčený). Re-nabinduje se na příští heartbeat.
+        $pdo->prepare("UPDATE vendor_licenses
+                SET license_key = :k,
+                    install_fingerprint = NULL, fingerprint_first_seen = NULL,
+                    lock_state = 'active', lock_reason = NULL, lock_until = NULL, mismatch_count = 0
+                WHERE id = :id")
             ->execute(['k' => $newKey, 'id' => $id]);
         $updated = $pdo->prepare("SELECT * FROM vendor_licenses WHERE id = :id");
         $updated->execute(['id' => $id]);
@@ -228,13 +234,38 @@ if ($action === 'unrevoke' && $method === 'POST') {
                 WHEN expires_at IS NOT NULL AND expires_at < CURDATE() THEN 'expired'
                 ELSE 'active'
             END,
-            revoked_at = NULL, revoke_reason = NULL
+            revoked_at = NULL, revoke_reason = NULL,
+            lock_state = 'active', lock_reason = NULL, lock_until = NULL, mismatch_count = 0
             WHERE id = :id
         ")->execute(['id' => $id]);
         $row = $pdo->prepare("SELECT * FROM vendor_licenses WHERE id = :id");
         $row->execute(['id' => $id]);
         $r = $row->fetch();
         vendor_audit($pdo, $user, 'unrevoke', $r, null);
+        vendor_json(['ok' => true, 'license' => $r]);
+    } catch (Throwable $e) {
+        vendor_json_error('DB chyba: ' . $e->getMessage(), 500);
+    }
+}
+
+// ── UNLOCK (🆕 v3.0.384 — zruš anti-piracy lock; pro false-positive po legit migraci serveru) ──
+if ($action === 'unlock' && $method === 'POST') {
+    $d = vendor_json_input();
+    $id = (int) ($d['id'] ?? 0);
+    if (!$id) vendor_json_error('Chybí ID');
+    try {
+        // Vynuluj lock + fingerprint → klíč se re-nabinduje na aktuální (legit) instalaci při příštím
+        //   heartbeatu (jinak by se po unlocku hned zase zamkl, protože fingerprint pořád nesedí).
+        $pdo->prepare("
+            UPDATE vendor_licenses
+            SET lock_state = 'active', lock_reason = NULL, lock_until = NULL, mismatch_count = 0,
+                install_fingerprint = NULL, fingerprint_first_seen = NULL
+            WHERE id = :id
+        ")->execute(['id' => $id]);
+        $row = $pdo->prepare("SELECT * FROM vendor_licenses WHERE id = :id");
+        $row->execute(['id' => $id]);
+        $r = $row->fetch();
+        vendor_audit($pdo, $user, 'unlock', $r, 'Anti-piracy lock zrušen (re-bind na příští heartbeat)');
         vendor_json(['ok' => true, 'license' => $r]);
     } catch (Throwable $e) {
         vendor_json_error('DB chyba: ' . $e->getMessage(), 500);
