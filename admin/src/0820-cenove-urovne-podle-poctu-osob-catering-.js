@@ -85,7 +85,7 @@ async function renderTierSetDetail(setId) {
             Žádné úrovně. Přidej první rozsah a cenu.
           </div>
         ` : `
-          <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <table class="table" style="width:100%;border-collapse:collapse;font-size:13px">
             <thead style="background:var(--surface-2);font-size:11px;text-transform:uppercase;color:var(--text-3);font-weight:700">
               <tr>
                 <th style="text-align:left;padding:8px 10px">Rozsah osob</th>

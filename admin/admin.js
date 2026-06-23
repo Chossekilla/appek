@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.378';
+const APPEK_ADMIN_JS_VERSION = '3.0.379';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5842,7 +5842,7 @@ async function renderVouchers() {
                 <td style="white-space:nowrap">${typLabel}</td>
                 <td style="white-space:nowrap">${esc(v.hodnota_text || fmt(v.hodnota))}</td>
                 <td class="num" style="font-weight:700;${v.typ === 'sleva' ? 'color:var(--text-3)' : (parseFloat(v.zustatek) > 0 ? 'color:#16a34a' : 'color:var(--text-3)')}">${v.typ === 'sleva' ? '—' : fmt(v.zustatek)}</td>
-                <td style="white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis">${v.odberatel_nazev ? `${esc(v.odberatel_nazev)}${odeslano ? ` <span title="Odesláno emailem ${esc(v.odeslano_kdy || '')}" style="color:#16a34a">📧</span>` : ''}` : '<span style="color:var(--text-3)">—</span>'}</td>
+                <td style="word-break:break-word">${v.odberatel_nazev ? `${esc(v.odberatel_nazev)}${odeslano ? ` <span title="Odesláno emailem ${esc(v.odeslano_kdy || '')}" style="color:#16a34a">📧</span>` : ''}` : '<span style="color:var(--text-3)">—</span>'}</td>
                 <td style="white-space:nowrap">${v.platnost_do ? fmtDate(v.platnost_do) : '<span style="color:var(--text-3)">bez omezení</span>'}</td>
                 <td>${stavBadge(v)}</td>
                 <td style="white-space:nowrap;text-align:right">
@@ -24262,7 +24262,7 @@ async function renderTierSetDetail(setId) {
             Žádné úrovně. Přidej první rozsah a cenu.
           </div>
         ` : `
-          <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <table class="table" style="width:100%;border-collapse:collapse;font-size:13px">
             <thead style="background:var(--surface-2);font-size:11px;text-transform:uppercase;color:var(--text-3);font-weight:700">
               <tr>
                 <th style="text-align:left;padding:8px 10px">Rozsah osob</th>
