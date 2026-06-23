@@ -422,27 +422,22 @@ function copyText(id, btn) {
 // Init
 setLang(lang);
 
-// ─── 📊 Demo tracking ───
+// ─── 📊 Demo tracking → vendor (master všeho, centrální záznam přístupů) ───
 (function() {
-  const apiBases = [
-    'https://appek.cz/api/demo_track.php',
-    '/api/demo_track.php',
-    '../api/demo_track.php',
-  ];
+  // 🆕 v3.0.385 — vendor je master a hlídá veškeré přístupy → posíláme přímo na
+  //   vendor/demo-track.php (CORS *, zápis do vendor DB; čte demo-log.php).
+  //   Dřív appek.cz/api/demo_track.php = app DB, jenže appek.cz není plná app instalace
+  //   (db()→302) → fetch uspěl na 1. URL, .catch fallback nezkusil → přístupy se ztrácely.
+  const TRACK_URL = 'https://vendor.appek.cz/demo-track.php';
   function sendTracking(akce) {
-    const payload = JSON.stringify({ akce, jazyk: lang });
-    let attempted = 0;
-    function tryNext() {
-      if (attempted >= apiBases.length) return;
-      const url = apiBases[attempted++];
-      fetch(url, {
+    try {
+      fetch(TRACK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: payload,
+        body: JSON.stringify({ akce, jazyk: (typeof lang !== 'undefined' ? lang : 'cs') }),
         keepalive: true,
-      }).catch(() => tryNext());
-    }
-    tryNext();
+      }).catch(() => {});
+    } catch (e) {}
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => sendTracking('enter'));
