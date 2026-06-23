@@ -20,8 +20,12 @@
 
 session_start();
 
-// Blok po dokončení (vendor/.installed)
-if (file_exists(__DIR__ . '/.installed') && !isset($_GET['force'])) {
+// 🔒 v3.0.384 SECURITY — Blok po dokončení BEZ ?force bypassu.
+//   Dřív: ?force obešel guard → neautentizovaný re-run přepsal config.local.php (DB credentials)
+//   ve step 2 + admin heslo (ON DUPLICATE KEY UPDATE) ve step 3 = takeover vendoru.
+//   Teď: pokud je nainstalováno (.installed NEBO config.local.php existuje), zablokuj úplně.
+//   Re-instalace = smazat config.local.php (+ .installed) na serveru (admin má SSH/FM přístup).
+if (file_exists(__DIR__ . '/.installed') || file_exists(__DIR__ . '/config.local.php')) {
     header('Location: index.php');
     exit;
 }
