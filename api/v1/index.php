@@ -140,7 +140,7 @@ if ($parts[0] === 'faktury' && count($parts) === 1 && $method === 'GET') {
     }
 
     $sql = "
-        SELECT f.id, f.cislo, f.datum_vystaveni, f.datum_splatnosti, f.datum_zdanitelneho_plneni,
+        SELECT f.id, f.cislo, f.datum_vystaveni, f.datum_splatnosti, f.datum_dph AS datum_zdanitelneho_plneni,
                f.castka_bez_dph, f.castka_dph, f.castka_celkem, f.castka_uhrazeno,
                $stavCase AS stav,
                od.id AS odberatel_id, od.nazev AS odberatel_nazev, od.ico AS odberatel_ico, od.dic AS odberatel_dic
