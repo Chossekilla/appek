@@ -120,6 +120,7 @@ $T = [
     // Errors
     'err_fill'     => ['cs' => 'Vyplň název DB a uživatele.', 'en' => 'Fill in DB name and user.', 'es' => 'Rellena nombre BD y usuario.'],
     'err_db'       => ['cs' => 'DB chyba: ', 'en' => 'DB error: ', 'es' => 'Error BD: '],
+    'err_db_generic' => ['cs' => 'zkontrolujte údaje a server log.', 'en' => 'check the details and server log.', 'es' => 'compruebe los datos y el registro del servidor.'],
     'err_write'    => ['cs' => 'Nelze zapsat vendor/config.local.php — zkontroluj oprávnění složky.', 'en' => 'Cannot write vendor/config.local.php — check folder permissions.', 'es' => 'No se puede escribir vendor/config.local.php — revisa permisos.'],
     'err_user'     => ['cs' => 'Username: 3-32 znaků, jen a-z/0-9/_.', 'en' => 'Username: 3-32 chars, a-z/0-9/_ only.', 'es' => 'Usuario: 3-32 caracteres, sólo a-z/0-9/_.'],
     'err_pw_len'   => ['cs' => 'Heslo: min 10 znaků (jsi dodavatel — měj silné).', 'en' => 'Password: min 10 chars (you are the vendor — make it strong).', 'es' => 'Contraseña: mín 10 caracteres (eres el vendor — que sea fuerte).'],
@@ -168,7 +169,8 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: install.php?step=3'); exit;
             }
         } catch (Throwable $e) {
-            $err = t('err_db') . $e->getMessage();
+            error_log('vendor install DB: ' . $e->getMessage());  // 🔒 v3.0.387 P3-D — nelekuj PDO výjimku na frontend (recon)
+            $err = t('err_db') . t('err_db_generic');
         }
     }
 }
@@ -201,7 +203,8 @@ if ($step === 3 && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_SESSION['ve
             $_SESSION['vendor_install_done'] = true;
             header('Location: install.php?step=4'); exit;
         } catch (Throwable $e) {
-            $err = t('err_db') . $e->getMessage();
+            error_log('vendor install DB: ' . $e->getMessage());  // 🔒 v3.0.387 P3-D — nelekuj PDO výjimku na frontend (recon)
+            $err = t('err_db') . t('err_db_generic');
         }
     }
 }
@@ -241,7 +244,8 @@ if ($step === 4 && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_SESSION['ve
             foreach ($setVals as $k => $v) { vendor_mail_set($k, $v); }
             header('Location: install.php?step=5'); exit;
         } catch (Throwable $e) {
-            $err = t('err_db') . $e->getMessage();
+            error_log('vendor install DB: ' . $e->getMessage());  // 🔒 v3.0.387 P3-D — nelekuj PDO výjimku na frontend (recon)
+            $err = t('err_db') . t('err_db_generic');
         }
     }
 }

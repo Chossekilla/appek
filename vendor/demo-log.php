@@ -203,6 +203,8 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
       <option value="enter" <?= $filterAction === 'enter' ? 'selected' : '' ?>>Vstup do demo</option>
       <option value="login" <?= $filterAction === 'login' ? 'selected' : '' ?>>Auto-login</option>
       <option value="page_view" <?= $filterAction === 'page_view' ? 'selected' : '' ?>>Page view</option>
+      <option value="logout" <?= $filterAction === 'logout' ? 'selected' : '' ?>>Odhlášení</option>
+      <option value="auto_reset" <?= $filterAction === 'auto_reset' ? 'selected' : '' ?>>Auto-reset demo</option>
     </select>
     <input type="text" name="ip" placeholder="IP prefix..." value="<?= htmlspecialchars($filterIp ?? '') ?>" style="width:160px">
     <button type="submit" class="btn-master primary">Filtrovat</button>
@@ -231,6 +233,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             <?php
               $actionColors = [
                 'enter' => 'green', 'login' => 'blue', 'page_view' => 'purple', 'logout' => 'orange',
+                'auto_reset' => 'orange',  // 🆕 v3.0.387 P2-C — admin_reset_demo zapisuje auto_reset
               ];
               $color = $actionColors[$l['akce']] ?? 'blue';
             ?>
