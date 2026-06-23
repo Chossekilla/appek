@@ -112,6 +112,17 @@ function self_update_apply(string $zipPath, array &$log, ?string $webroot = null
         // ─── 5. EXTRAKCE ZIPu ────────────────────────────────────
         $extractDir = sys_get_temp_dir() . '/appek-self-update-extract-' . date('Ymd-His');
         @mkdir($extractDir, 0755, true);
+        // 🔒 v3.0.387 P3-C — zip-slip ochrana: odmítni entry s ../ nebo absolutní cestou PŘED extrakcí
+        //   (jinak extractTo zapíše mimo $extractDir, klidně do webrootu = RCE přes podvržený bundle).
+        for ($zi = 0; $zi < $zip->numFiles; $zi++) {
+            $entry = str_replace('\\', '/', (string) $zip->getNameIndex($zi));
+            if ($entry === '') continue;
+            if (strpos($entry, '../') !== false || strpos($entry, '/..') !== false
+                || $entry[0] === '/' || preg_match('#^[A-Za-z]:#', $entry)) {
+                $zip->close();
+                throw new Exception('Bundle obsahuje nebezpečnou cestu (zip-slip): ' . $entry);
+            }
+        }
         if (!$zip->extractTo($extractDir)) {
             $zip->close();
             throw new Exception('Extrakce selhala. Zkontroluj práva /tmp.');

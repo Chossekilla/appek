@@ -223,6 +223,9 @@ try {
                 'expired_used'   => 'Tato licence vypršela — obnovte ji.',
                 default          => 'Pirate install.',
             },
+            // 🆕 v3.0.387 P1-C — pošli expires_at i v pirate větvi (když licence existuje), ať si klient
+            //   nepřepíše datum na null fallbackem (locked = i legit migrace serveru, viz P1-A/P1-B unlock).
+            'expires_at'     => (isset($licenseRow['expires_at']) ? $licenseRow['expires_at'] : null),
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }

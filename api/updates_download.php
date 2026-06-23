@@ -50,6 +50,38 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 
+    // 🔒 v3.0.387 P3-E — rate-limit per IP proti brute-force download klíče (best-effort, nezablokuje legit)
+    $ipRaw = (string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+    $dlIp = substr(trim(explode(',', $ipRaw)[0]), 0, 64);
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS vendor_download_hits (id INT AUTO_INCREMENT PRIMARY KEY, ip VARCHAR(64) NOT NULL, ts DATETIME NOT NULL, INDEX idx_ip_ts (ip, ts)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $pdo->prepare("INSERT INTO vendor_download_hits (ip, ts) VALUES (:ip, NOW())")->execute(['ip' => $dlIp]);
+        $pdo->exec("DELETE FROM vendor_download_hits WHERE ts < DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+        $c = $pdo->prepare("SELECT COUNT(*) FROM vendor_download_hits WHERE ip = :ip AND ts > DATE_SUB(NOW(), INTERVAL 10 MINUTE)");
+        $c->execute(['ip' => $dlIp]);
+        if ((int) $c->fetchColumn() > 30) {   // > 30 / 10 min / IP
+            http_response_code(429);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'rate_limited']);
+            exit;
+        }
+    } catch (Throwable $e) { /* best-effort */ }
+
+    // 🔒 v3.0.387 P3-E — ověř klíč proti vendor_licenses, ne JEN offline HMAC.
+    //   Offline HMAC (krátký checksum) je guessovatelný → klíč co projde HMAC, ale NENÍ vydaný,
+    //   NESMÍ stáhnout placený bundle. Blokuj neexistující (brute-force) + revoked. Expired NECHÁN
+    //   (smí si stáhnout/přeinstalovat core — placené balíčky stejně gatuje runtime přes valid_until).
+    $licStmt = $pdo->prepare("SELECT id, status FROM vendor_licenses WHERE license_key = :k LIMIT 1");
+    $licStmt->execute(['k' => $licenseKey]);
+    $lic = $licStmt->fetch();
+    if (!$lic || ($lic['status'] ?? '') === 'revoked') {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'license_revoked_or_unknown']);
+        exit;
+    }
+    $licenseId = $lic['id'];
+
     $stmt = $pdo->prepare("SELECT * FROM vendor_updates WHERE version = :v AND status = 'published' LIMIT 1");
     $stmt->execute(['v' => $version]);
     $update = $stmt->fetch();
@@ -60,14 +92,6 @@ try {
         echo json_encode(['error' => 'version_not_found_or_not_published']);
         exit;
     }
-
-    // Najdi license id (nejlepší match)
-    $licenseId = null;
-    try {
-        $stmt2 = $pdo->prepare("SELECT id FROM vendor_licenses WHERE license_key = :k LIMIT 1");
-        $stmt2->execute(['k' => $licenseKey]);
-        $licenseId = $stmt2->fetchColumn() ?: null;
-    } catch (Throwable $e) {}
 
     $storageDir = realpath(__DIR__ . '/..') . '/vendor/updates_storage';
     $filePath = $storageDir . '/' . basename((string) $update['file_path']); // 🔒 v3.0.353 — basename proti path traversal
