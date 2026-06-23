@@ -34,9 +34,12 @@ if (!$id) {
     json_response(['error' => 'Chybí id']);
 }
 
-$stmt = $pdo->prepare("SELECT * FROM catering_orders WHERE id=:id");
-$stmt->execute(['id'=>$id]);
-$akce = $stmt->fetch();
+$akce = null;
+try {
+    $stmt = $pdo->prepare("SELECT * FROM catering_orders WHERE id=:id");
+    $stmt->execute(['id'=>$id]);
+    $akce = $stmt->fetch();
+} catch (Throwable $e) { /* 🆕 v3.0.381 — catering_orders ještě neexistuje (fresh install bez catering akcí) → 404, ne 500 */ }
 if (!$akce) {
     http_response_code(404);
     header('Content-Type: application/json; charset=UTF-8');
