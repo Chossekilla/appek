@@ -10,8 +10,12 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
-cors_headers();
-require_admin();
+// 🆕 v3.0.383 — v1/index.php includuje tento soubor JEN kvůli ISDOC funkcím (token-auth, ne admin session).
+//   Flag ISDOC_INCLUDE → přeskoč admin-endpoint logiku (auth + akce), nech jen definice funkcí.
+if (!defined('ISDOC_INCLUDE')) {
+    cors_headers();
+    require_admin();
+}
 
 $pdo = db();
 $action = $_GET['action'] ?? '';
@@ -20,7 +24,7 @@ $action = $_GET['action'] ?? '';
 // Pomocné funkce
 // =============================================================
 
-function isdoc_xml(string $s): string {
+function isdoc_xml(?string $s): string { // 🆕 v3.0.383 — ?string: null pole (volitelné DIČ/pozn./IBAN…) → '' místo TypeError 500
     return htmlspecialchars((string) $s, ENT_XML1 | ENT_QUOTES, 'UTF-8');
 }
 
@@ -546,4 +550,4 @@ if ($action === 'email') {
     ]);
 }
 
-json_error('Neznámá akce. Použij action=isdoc | zip | csv | email');
+if (!defined('ISDOC_INCLUDE')) json_error('Neznámá akce. Použij action=isdoc | zip | csv | email'); // ISDOC_INCLUDE: jen načíst funkce, nevyhazovat

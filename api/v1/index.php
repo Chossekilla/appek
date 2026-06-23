@@ -174,14 +174,18 @@ if ($parts[0] === 'faktury' && isset($parts[1]) && $method === 'GET') {
     $fa = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$fa) api_error('Faktura nenalezena', 404);
 
-    // ISDOC export
+    // ISDOC export — 🆕 v3.0.383 reálné XML (sdílené funkce z admin_export_isdoc.php přes ISDOC_INCLUDE)
     if (isset($parts[2]) && $parts[2] === 'isdoc') {
+        if (!defined('ISDOC_INCLUDE')) define('ISDOC_INCLUDE', true);
+        require_once __DIR__ . '/../admin_export_isdoc.php';
+        if (!function_exists('generuj_isdoc') || !function_exists('isdoc_nacti_fakturu')) {
+            api_error('ISDOC generátor nedostupný', 500);
+        }
+        $fa_full = isdoc_nacti_fakturu($pdo, $id);
+        if (!$fa_full) api_error('Faktura nenalezena', 404);
         header('Content-Type: application/xml; charset=utf-8');
-        // Použij existing ISDOC export endpoint
-        $url = "../admin_export_isdoc.php?action=isdoc&id=" . $id;
-        // Místo HTTP roundtrip nahraje přímo - používá session, takže jen předáme tu funkci
-        // Pro jednoduchost vrátíme link kde to získat:
-        api_response(['error' => 'ISDOC XML — použij /api/admin_export_isdoc.php?action=isdoc&id=' . $id . ' s admin auth, nebo importuj přes admin UI']);
+        echo generuj_isdoc($pdo, $fa_full);
+        exit;
     }
 
     // Položky
