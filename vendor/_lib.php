@@ -49,6 +49,7 @@ function vendor_db(): PDO {
         vendor_ensure_schema($pdo);
         vendor_ensure_2fa_columns($pdo);
         vendor_ensure_pirate_columns($pdo);
+        vendor_ensure_update_signature_column($pdo);
         vendor_apply_status_expiry($pdo);
     }
     return $pdo;
@@ -134,6 +135,22 @@ function vendor_ensure_2fa_columns(PDO $pdo): void {
         }
         if (!in_array('totp_enabled', $cols, true)) {
             $pdo->exec("ALTER TABLE vendor_users ADD COLUMN totp_enabled TINYINT(1) NOT NULL DEFAULT 0");
+        }
+    } catch (Throwable $e) { /* ignore */ }
+}
+
+/**
+ * Idempotentní migrace — sloupec `signature` ve vendor_updates (kryptopodpis bundlu).
+ * 🔐 v3.0.388 — supply-chain ochrana self-update.
+ */
+function vendor_ensure_update_signature_column(PDO $pdo): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $cols = $pdo->query("SHOW COLUMNS FROM vendor_updates")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('signature', $cols, true)) {
+            $pdo->exec("ALTER TABLE vendor_updates ADD COLUMN signature TEXT NULL");
         }
     } catch (Throwable $e) { /* ignore */ }
 }
@@ -291,4 +308,52 @@ function vendor_json_input(): array {
     $raw = file_get_contents('php://input');
     $d = json_decode($raw, true);
     return is_array($d) ? $d : [];
+}
+
+// ════════════════════════════════════════════════════════════
+// CSRF PROTECTION (synchronizer token pattern)
+// ════════════════════════════════════════════════════════════
+//
+// Obrana do hloubky nad SameSite=Lax. Token vázaný na session, ověřuje
+// se na VŠECH state-changing POST requestech (api.php hlavička X-CSRF-Token
+// + HTML formuláře hidden pole _csrf). Strojové endpointy (heartbeat,
+// resolve, deploy-hook) NEPOUŽÍVAJÍ session → CSRF se na ně NEAPLIKUJE.
+
+/**
+ * Vrátí (a při prvním volání vygeneruje) CSRF token vázaný na session.
+ */
+function vendor_csrf_token(): string {
+    vendor_session_start();
+    if (empty($_SESSION['_csrf']) || !is_string($_SESSION['_csrf'])) {
+        $_SESSION['_csrf'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['_csrf'];
+}
+
+/**
+ * Vytiskne hidden input s CSRF tokenem — vlož do každého <form method="POST">.
+ */
+function vendor_csrf_field(): void {
+    echo '<input type="hidden" name="_csrf" value="' . htmlspecialchars(vendor_csrf_token(), ENT_QUOTES) . '">';
+}
+
+/**
+ * Ověří CSRF token (z POST pole _csrf nebo hlavičky X-CSRF-Token).
+ * Při selhání ukončí request 403. Volej na začátku POST větve.
+ *
+ * @param bool $json  true → odpověď JSONem (api.php), false → plain 403 (formuláře)
+ */
+function vendor_csrf_check(bool $json = false): void {
+    vendor_session_start();
+    $sent = $_POST['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+    $real = $_SESSION['_csrf'] ?? '';
+    if (!is_string($real) || $real === '' || !is_string($sent) || $sent === '' || !hash_equals($real, $sent)) {
+        if ($json) {
+            vendor_json_error('CSRF token neplatný — obnov stránku (F5) a zkus znovu.', 403);
+        }
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo "403 — CSRF token neplatný.\nObnov stránku (F5) a zkus znovu.";
+        exit;
+    }
 }

@@ -66,6 +66,14 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 
+    // 🔐 v3.0.388 — signature sloupec nemusí existovat na starší vendor DB
+    $sigCol = '';
+    try {
+        if ($pdo->query("SHOW COLUMNS FROM vendor_updates LIKE 'signature'")->fetch()) {
+            $sigCol = 'signature, ';
+        }
+    } catch (Throwable $e) { /* ignore */ }
+
     // Channel filter: beta zahrnuje i stable (beta channel = stable + beta)
     $channelClause = $channel === 'stable'
         ? "channel = 'stable'"
@@ -73,7 +81,7 @@ try {
 
     $stmt = $pdo->query("
         SELECT version, channel, file_size, checksum_sha256, min_version,
-               packages_required, changelog_md, published_at, file_path
+               {$sigCol}packages_required, changelog_md, published_at, file_path
         FROM vendor_updates
         WHERE status = 'published' AND $channelClause
     ");
@@ -107,6 +115,7 @@ try {
         'changelog'        => $latest['changelog_md'] ?? '',
         'released_at'      => $latest['published_at'] ?? null,
         'checksum_sha256'  => $latest['checksum_sha256'] ?? null,
+        'signature'        => $latest['signature'] ?? '',
         'size_bytes'       => (int) ($latest['file_size'] ?? 0),
         'min_version'      => $latest['min_version'] ?? null,
         'channel'          => $latest['channel'] ?? 'stable',

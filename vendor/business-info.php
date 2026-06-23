@@ -19,6 +19,8 @@ $pdo  = vendor_db();
 vendor_ensure_settings_table($pdo);
 $currentPage = 'business-info';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
+
 $flash_ok = null;
 $flash_err = null;
 
@@ -159,6 +161,7 @@ $current = $pdo->query("SELECT `key`, `value` FROM vendor_settings WHERE `key` L
   <?php if ($flash_err): ?><div class="flash err">❌ <?= htmlspecialchars($flash_err) ?></div><?php endif; ?>
 
   <form method="POST" class="bi-grid">
+    <?php vendor_csrf_field(); ?>
 
     <!-- IDENTIFIKACE -->
     <div class="bi-card">

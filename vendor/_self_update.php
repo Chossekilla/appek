@@ -4,6 +4,8 @@
  * Volá ji vendor/self-update.php (UI) i vendor/deploy-hook.php (CI).
  */
 
+require_once __DIR__ . '/_update_sign.php';  // 🔐 v3.0.388 — podepisování manifestu bundlu
+
 /**
  * Nasadí MASTER zip do webrootu. Vrací strukturovaný výsledek.
  * @param string  $zipPath  cesta k MASTER zipu
@@ -377,6 +379,11 @@ function self_update_build_customer_zip(string $webroot, array &$log): ?array {
 
         $size = filesize($zipFile) ?: 0;
         $sha  = hash_file('sha256', $zipFile);
+        // 🔐 v3.0.388 — podepiš manifest bundlu (supply-chain). null = klíč nenastaven.
+        $sig  = vendor_sign_update_bundle($zipFile);
+        logStep($sig
+            ? '🔐 Manifest bundlu podepsán (RSA-2048/SHA-256)'
+            : '⚠️ Bundle NEPODEPSÁN — APPEK_UPDATE_PRIVATE_KEY chybí ve vendor/config.local.php → klienti update ODMÍTNOU!', $log);
 
         // INSERT/UPDATE záznam ve vendor_updates
         try {
@@ -389,27 +396,30 @@ function self_update_build_customer_zip(string $webroot, array &$log): ?array {
                 $pdo->prepare("
                     UPDATE vendor_updates SET
                         file_path = :fp, file_size = :fs, checksum_sha256 = :cs,
+                        signature = :sig,
                         status = 'published', published_at = COALESCE(published_at, NOW())
                     WHERE id = :id
                 ")->execute([
                     'fp' => 'appek-update-' . $version . '.zip',
                     'fs' => $size,
                     'cs' => $sha,
+                    'sig' => $sig,
                     'id' => $existId,
                 ]);
                 logStep("vendor_updates updated · id={$existId}", $log);
             } else {
                 $pdo->prepare("
                     INSERT INTO vendor_updates (version, channel, file_path, file_size, checksum_sha256,
-                                                manifest_json, changelog_md, min_version, packages_required,
+                                                manifest_json, signature, changelog_md, min_version, packages_required,
                                                 status, published_at)
-                    VALUES (:v, 'stable', :fp, :fs, :cs, :mj, :cl, NULL, NULL, 'published', NOW())
+                    VALUES (:v, 'stable', :fp, :fs, :cs, :mj, :sig, :cl, NULL, NULL, 'published', NOW())
                 ")->execute([
                     'v'  => $version,
                     'fp' => 'appek-update-' . $version . '.zip',
                     'fs' => $size,
                     'cs' => $sha,
                     'mj' => json_encode(['version' => $version, 'type' => 'customer-update']),
+                    'sig' => $sig,
                     'cl' => "Verze {$version} — auto-publikováno self-update modulem.\n\nObsahuje: api/ + admin/ + b2b/ + install.php",
                 ]);
                 logStep("vendor_updates záznam vytvořen (id={$pdo->lastInsertId()})", $log);

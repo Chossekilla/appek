@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.387';
+const APPEK_ADMIN_JS_VERSION = '3.0.388';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -25430,7 +25430,7 @@ window.licenseLoadStatus = async function() {
             <li>Stránka se obnoví, hotovo</li>
           </ol>
         </div>
-        <button id="ns-self-update-btn" onclick="runSelfUpdate('${esc(ver.latest || '')}', '${esc(ver.download_url || '')}', '${esc(ver.checksum_sha256 || '')}')" class="btn-primary btn-green" style="font-weight:700;padding:12px 22px;font-size:14px;border:none;border-radius:10px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px">
+        <button id="ns-self-update-btn" onclick="runSelfUpdate('${esc(ver.latest || '')}', '${esc(ver.download_url || '')}', '${esc(ver.checksum_sha256 || '')}', '${esc(ver.signature || '')}')" class="btn-primary btn-green" style="font-weight:700;padding:12px 22px;font-size:14px;border:none;border-radius:10px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px">
           ⚡ Aktualizovat na ${esc(ver.latest || '?')}
         </button>
         <div id="ns-self-update-log" style="display:none;margin-top:12px;background:#1d1d1f;color:#fff;padding:12px 14px;border-radius:8px;font-family:'SF Mono',Menlo,monospace;font-size:11.5px;line-height:1.7;max-height:280px;overflow-y:auto;white-space:pre-wrap"></div>
@@ -25470,7 +25470,7 @@ window.checkForUpdates = async function() {
 };
 
 // 🆕 v2.0.71 — One-click self-update z Nastavení (jako vendor master)
-window.runSelfUpdate = async function(version, downloadUrl, expectedChecksum) {
+window.runSelfUpdate = async function(version, downloadUrl, expectedChecksum, signature) {
   if (!version || !downloadUrl) {
     alert('Chyba: chybí verze nebo download URL');
     return;
@@ -25522,6 +25522,7 @@ window.runSelfUpdate = async function(version, downloadUrl, expectedChecksum) {
           version:           version,
           download_url:      downloadUrl,
           expected_checksum: expectedChecksum || null,
+          signature:         signature || null,
         }),
       });
       if (res?.ok) break;

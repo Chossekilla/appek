@@ -17,6 +17,8 @@ $user = vendor_require_login();
 $pdo  = vendor_db();
 $currentPage = 'packages';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
+
 $flash_ok = null;
 $flash_err = null;
 
@@ -264,6 +266,7 @@ $isNew = isset($_GET['new']);
     <div class="pkg-form">
       <h2><?= $editing ? 'Upravit balíček: ' . htmlspecialchars($p['name_cs']) : 'Nový balíček' ?></h2>
       <form method="POST">
+        <?php vendor_csrf_field(); ?>
         <input type="hidden" name="action" value="save">
         <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
 
@@ -394,11 +397,13 @@ $isNew = isset($_GET['new']);
         <div class="actions">
           <a href="packages.php?edit=<?= (int) $p['id'] ?>" class="btn-master primary">✏️ Edit</a>
           <form method="POST" style="display:inline">
+            <?php vendor_csrf_field(); ?>
             <input type="hidden" name="action" value="toggle">
             <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
             <button type="submit" class="btn-master secondary"><?= $p['is_active'] ? '🚫 Skrýt' : '✅ Aktivovat' ?></button>
           </form>
           <form method="POST" style="display:inline" onsubmit="return confirm('Opravdu smazat balíček &quot;<?= htmlspecialchars($p['name_cs']) ?>&quot;?')">
+            <?php vendor_csrf_field(); ?>
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
             <button type="submit" class="btn-master secondary" style="background:#fde7e9;color:#a8232f" title="Smazat balíček">🗑️</button>

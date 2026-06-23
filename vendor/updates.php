@@ -20,10 +20,13 @@
  */
 require_once __DIR__ . '/_lib.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_update_sign.php';  // 🔐 v3.0.388 — podpis manifestu při uploadu
 
 $user = vendor_require_login();
 $pdo  = vendor_db();
 $currentPage = 'updates';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
 
 $flash_ok = null;
 $flash_err = null;
@@ -83,6 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $checksum = hash_file('sha256', $dest);
             $size = filesize($dest);
+            // 🔐 v3.0.388 — podepiš manifest (z uploadnutého ZIPu). null = bez manifestu/klíče.
+            $signature = $manifestRaw ? vendor_sign_update_manifest($manifestRaw) : null;
 
             $packagesReqJson = null;
             if ($packagesReq) {
@@ -94,8 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("
                 INSERT INTO vendor_updates
                   (version, channel, file_path, file_size, checksum_sha256,
-                   manifest_json, changelog_md, min_version, packages_required, status)
-                VALUES (:v, :c, :fp, :fs, :sum, :mf, :cl, :mv, :pr, 'draft')
+                   manifest_json, signature, changelog_md, min_version, packages_required, status)
+                VALUES (:v, :c, :fp, :fs, :sum, :mf, :sig, :cl, :mv, :pr, 'draft')
             ")->execute([
                 'v'   => $version,
                 'c'   => $channel,
@@ -103,6 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'fs'  => $size,
                 'sum' => $checksum,
                 'mf'  => $manifest ? json_encode($manifest, JSON_UNESCAPED_UNICODE) : null,
+                'sig' => $signature,
                 'cl'  => $changelog ?: null,
                 'mv'  => $minVersion ?: null,
                 'pr'  => $packagesReqJson,
@@ -308,6 +314,7 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
     <div class="upload-card">
       <h2>⬆️ Nahrát novou verzi</h2>
       <form method="POST" enctype="multipart/form-data" class="upload-form">
+        <?php vendor_csrf_field(); ?>
         <input type="hidden" name="action" value="upload">
 
         <div class="file-zone">
@@ -368,6 +375,7 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
   <?php else: ?>
     <!-- 🆕 v3.0.13 — Bulk delete form (mimo tabulku, vstupy přes form="bulk-form") -->
     <form method="POST" id="bulk-form" onsubmit="return confirmBulkDelete(event)" style="display:contents">
+      <?php vendor_csrf_field(); ?>
       <input type="hidden" name="action" value="bulk_delete">
     </form>
 
@@ -425,12 +433,14 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
                 <span class="act-slot">
                   <?php if ($u['status'] === 'draft'): ?>
                     <form method="POST">
+                      <?php vendor_csrf_field(); ?>
                       <input type="hidden" name="action" value="publish">
                       <input type="hidden" name="id" value="<?= (int) $u['id'] ?>">
                       <button type="submit" class="btn-master primary" style="padding:5px 12px;font-size:12px" title="Publikovat verzi → zákazníci ji uvidí">✅ Publikovat</button>
                     </form>
                   <?php elseif ($u['status'] === 'published'): ?>
                     <form method="POST" onsubmit="return confirm('Označit jako zastaralé?')">
+                      <?php vendor_csrf_field(); ?>
                       <input type="hidden" name="action" value="deprecate">
                       <input type="hidden" name="id" value="<?= (int) $u['id'] ?>">
                       <button type="submit" class="btn-master secondary" style="padding:5px 12px;font-size:12px" title="Označit jako zastaralou — zákazníci ji už nebudou stahovat">🚫 Deprec.</button>
@@ -440,6 +450,7 @@ $showUpload = !empty($_GET['upload']) || empty($updates);
                   <?php endif; ?>
                 </span>
                 <form method="POST" onsubmit="return confirm('Opravdu smazat verzi <?= htmlspecialchars($u['version']) ?>?')">
+                  <?php vendor_csrf_field(); ?>
                   <input type="hidden" name="action" value="delete">
                   <input type="hidden" name="id" value="<?= (int) $u['id'] ?>">
                   <button type="submit" class="btn-master secondary" style="padding:5px 10px;font-size:12px;background:#fde7e9;color:#a8232f" title="Smazat">🗑️</button>

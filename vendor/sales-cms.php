@@ -11,6 +11,8 @@ require_once __DIR__ . '/_layout.php';
 $user = vendor_require_login();
 $currentPage = 'sales-cms';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
+
 $contentFile = realpath(__DIR__ . '/..') . '/sales-content.json';
 $content = file_exists($contentFile) ? file_get_contents($contentFile) : '{}';
 $flash_ok = null;
@@ -76,6 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['json'])) {
   <div class="panel-master">
     <h2>JSON editor</h2>
     <form method="POST" class="editor">
+      <?php vendor_csrf_field(); ?>
       <textarea name="json" spellcheck="false"><?= htmlspecialchars($content) ?></textarea>
       <div style="display:flex;gap:10px;margin-top:12px">
         <button type="submit" class="btn-master primary">💾 Uložit</button>

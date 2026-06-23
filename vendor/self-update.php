@@ -35,6 +35,8 @@ $flash_ok = null;
 $flash_err = null;
 $progressLog = [];
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['master_zip'])) {
     if ($_FILES['master_zip']['error'] !== UPLOAD_ERR_OK) {
         $flash_err = 'Upload chyba: kód ' . $_FILES['master_zip']['error'];
@@ -147,6 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['master_zip'])) {
         </p>
 
         <form method="POST" enctype="multipart/form-data" onsubmit="return confirmDeploy()">
+          <?php vendor_csrf_field(); ?>
           <div class="upload-zone" id="dz">
             <div class="ico">📦</div>
             <strong>appek-MASTER-vX.Y.Z.zip</strong>

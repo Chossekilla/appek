@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS vendor_updates (
     file_size BIGINT NOT NULL DEFAULT 0,
     checksum_sha256 VARCHAR(64) NOT NULL,
     manifest_json TEXT NULL,                            -- {files: {path: sha256}, packages_required: [...]}
+    signature TEXT NULL,                                -- 🔐 base64 RSA-2048/SHA-256 podpis manifest.json (supply-chain)
     changelog_md TEXT NULL,
     min_version VARCHAR(32) NULL,                       -- vyžaduje minimálně tuto verzi
     packages_required TEXT NULL,                        -- JSON: ['core'] nebo ['cukrarna']
