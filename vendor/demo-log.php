@@ -7,7 +7,7 @@
  *   - IP, User Agent, Referer
  *   - Akce (entered, logged_in, viewed_admin)
  *
- * Data se zapisují do tabulky `demo_pristupy` v hlavní DB.
+ * Data se zapisují i čtou z tabulky `demo_pristupy` ve VENDOR DB (zápis: vendor/demo-track.php).
  */
 require_once __DIR__ . '/_lib.php';
 require_once __DIR__ . '/_layout.php';
@@ -20,14 +20,11 @@ $logs = [];
 $stats = ['total' => 0, 'unique_ips' => 0, 'today' => 0, 'week' => 0];
 
 try {
-    $mainConfig = realpath(__DIR__ . '/..') . '/api/config.local.php';
-    if (file_exists($mainConfig)) {
-        require_once $mainConfig;
-        $mainPdo = new PDO(
-            "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
-            DB_USER, DB_PASS,
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-        );
+    // 🆕 v3.0.385 — vendor je master všeho a hlídá VEŠKERÉ přístupy → demo přístupy čteme z
+    //   VENDOR DB (kam je píše vendor/demo-track.php). Dřív přes ../api/config.local.php = app DB
+    //   vedle vendoru → na samostatné subdoméně prázdné (config tam není) = „nezaznamenává se".
+    $mainPdo = vendor_db();
+    if ($mainPdo) {
 
         // Auto-create tabulku pokud chybí
         $mainPdo->exec("
