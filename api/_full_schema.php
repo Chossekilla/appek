@@ -519,5 +519,6 @@ function apply_full_schema(PDO $pdo): void {
         if (function_exists('ensure_sklad_polozky_schema')) ensure_sklad_polozky_schema($pdo); // sklad_polozky (systém B)
         if (function_exists('ensure_sklad_pohyby_schema'))  ensure_sklad_pohyby_schema($pdo);  // sklad_pohyby_v2
         $pdo->exec("ALTER TABLE suroviny ADD COLUMN IF NOT EXISTS domovsky_sklad_id INT NULL"); // čte surovina_home_sklad()
+        $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN IF NOT EXISTS surovina_id INT NULL"); // 🆕 v3.0.381 — cake/catering odpis (dřív jen runtime ensure = křehké)
     } catch (Throwable $e) { error_log('apply_full_schema systemB: ' . $e->getMessage()); }
 }
