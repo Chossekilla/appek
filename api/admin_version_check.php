@@ -51,6 +51,7 @@ $verOut = [
     'latest'           => null,
     'update_available' => false,
     'download_url'     => null,
+    'signature'        => null,
     'changelog'        => null,
     'released_at'      => null,
     'checked_at'       => null,
@@ -147,6 +148,7 @@ if ($useCached) {
         $verOut['update_available'] = !empty($data['update_available']);
         $verOut['latest']           = $data['latest']['version'] ?? $data['latest_version'] ?? null;
         $verOut['download_url']     = $data['latest']['download_url'] ?? null;
+        $verOut['signature']        = $data['latest']['signature'] ?? null;  // 🔐 v3.0.388
         $verOut['changelog']        = $data['latest']['changelog'] ?? '';
         $verOut['released_at']      = $data['latest']['published_at'] ?? null;
         // 🐛 v3.0.2 — zapomenutý unpack checksum z vendor response.

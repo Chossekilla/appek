@@ -16,6 +16,8 @@ $user = vendor_require_login();
 $pdo  = vendor_db();
 $currentPage = 'pirate';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
+
 $flash_ok = null;
 $flash_err = null;
 
@@ -171,6 +173,7 @@ function fmt_datetime(?string $s): string {
     </div>
     <?php if ($stats['new'] > 0): ?>
       <form method="POST" onsubmit="return confirm('Označit všech <?= $stats['new'] ?> nových jako kontaktované?')">
+        <?php vendor_csrf_field(); ?>
         <input type="hidden" name="action" value="mark_all_seen">
         <button class="btn-master" type="submit">📧 Označit nové jako kontaktované</button>
       </form>
@@ -284,6 +287,7 @@ function fmt_datetime(?string $s): string {
           </td>
           <td>
             <form method="POST" style="margin:0">
+              <?php vendor_csrf_field(); ?>
               <input type="hidden" name="action" value="update">
               <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
               <select name="status" onchange="this.form.submit()" style="border:1px solid <?= $sColor ?>;background:<?= $sColor ?>22;color:<?= $sColor ?>;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700">
@@ -296,6 +300,7 @@ function fmt_datetime(?string $s): string {
           </td>
           <td class="note-cell">
             <form method="POST" style="margin:0">
+              <?php vendor_csrf_field(); ?>
               <input type="hidden" name="action" value="update">
               <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
               <input type="hidden" name="status" value="<?= htmlspecialchars($p['status']) ?>">
@@ -306,6 +311,7 @@ function fmt_datetime(?string $s): string {
             <a href="licenses.php?new=1&prefill_url=<?= urlencode($p['install_url']) ?>&prefill_host=<?= urlencode($p['install_host']) ?>" title="Vystavit licenci"
                style="display:inline-block;padding:4px 8px;font-size:11px;border-radius:6px;background:linear-gradient(180deg,#16a34a,#15803d);color:#fff;text-decoration:none;font-weight:700">+ Licence</a>
             <form method="POST" onsubmit="return confirm('Smazat záznam #<?= (int)$p['id'] ?>?');" style="display:inline;margin-left:4px">
+              <?php vendor_csrf_field(); ?>
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
               <button class="danger" type="submit" title="Smazat">🗑</button>

@@ -22,6 +22,15 @@ $pdo    = vendor_db();
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
 
+// 🔐 CSRF — frontend bootstrap: vrať token (GET, bez ochrany; čte ho app.js)
+if ($action === 'csrf') {
+    vendor_json(['token' => vendor_csrf_token()]);
+}
+// 🔐 CSRF ochrana — všechny POST akce vyžadují platný token (X-CSRF-Token hlavička)
+if ($method === 'POST') {
+    vendor_csrf_check(true);
+}
+
 // ── LIST ────────────────────────────────────────────────────────
 if ($action === 'list' && $method === 'GET') {
     $status = $_GET['status'] ?? '';

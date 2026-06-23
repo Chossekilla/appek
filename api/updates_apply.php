@@ -37,6 +37,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_authz.php';  // 🐛 fix v2.9.186 — chybělo, aktualni_uzivatel_z_session() volaná níže
 require_once __DIR__ . '/_license.php';
+require_once __DIR__ . '/_update_sign.php';  // 🔐 v3.0.388 — ověření kryptopodpisu bundlu
 
 // 🔒 v2.6.0 CSRF/auth: musí být admin přihlášený s validní session.
 //    Neumožní anonymní spuštění update flow přes RCE.
@@ -58,6 +59,7 @@ $licenseKey = strtoupper(trim($d['license_key'] ?? license_get_current() ?? ''))
 $version    = trim($d['version'] ?? '');
 $url        = trim($d['download_url'] ?? '');
 $expected   = trim($d['expected_checksum'] ?? '');
+$signature  = trim($d['signature'] ?? '');  // 🔐 v3.0.388 — base64 RSA podpis manifestu (z updates_check)
 
 if (!license_valid($licenseKey)) {
     http_response_code(403);
@@ -201,18 +203,39 @@ try {
     $manifest     = null;
 
     if ($hasBundle) {
-        // BUNDLE format
-        $manifest = json_decode(file_get_contents($manifestPath), true);
+        // BUNDLE format — čti RAW byty manifestu (podpis se ověřuje nad nimi)
+        $manifestRaw = file_get_contents($manifestPath);
+        $manifest = json_decode($manifestRaw, true);
         if (!is_array($manifest) || empty($manifest['version'])) {
             throw new Exception('manifest.json je neplatný (chybí version).');
         }
         if ($manifest['version'] !== $version) {
             throw new Exception("Manifest verze ({$manifest['version']}) nesedí s požadovanou ($version).");
         }
+        // 🔐 v3.0.388 — KRYPTOPODPIS manifestu (supply-chain ochrana). PŘED apply do live.
+        //    Fail-closed: public key je zapečený → každý OTA update MUSÍ nést platný podpis.
+        //    Mirror smí ZIP přebalit, ale obsah manifest.json (a tím podpis) zůstává.
+        if (appek_update_signing_enforced()) {
+            if ($signature === '' || !appek_verify_update_signature($manifestRaw, $signature)) {
+                throw new Exception(
+                    'PODPIS NEPLATNÝ — manifest update bundlu není podepsaný důvěryhodným vendor klíčem. '
+                    . 'Update zamítnut (ochrana proti podvrženému/upravenému balíčku). '
+                    . 'Pokud problém přetrvává, kontaktuj podpora@appek.cz.'
+                );
+            }
+            $result['steps'][] = '🔐 Podpis manifestu ověřen (RSA-2048/SHA-256) — bundle je autentický';
+        }
         $fileCount = !empty($manifest['files']) ? count($manifest['files']) : 0;
         $result['steps'][] = "✅ Bundle format detekován · {$manifest['version']} · {$fileCount} souborů v manifestu";
     } else {
-        // RAW CUSTOMER ZIP — žádný manifest.json + files/ folder
+        // RAW CUSTOMER ZIP — bez manifestu nelze ověřit podpis.
+        // 🔐 v3.0.388 — fail-closed: pod enforcementem OTA nepřijme nepodepsaný balíček.
+        if (appek_update_signing_enforced()) {
+            throw new Exception(
+                'NEPODEPSANÝ BALÍČEK — bundle nemá manifest.json, nelze ověřit kryptopodpis. '
+                . 'OTA update přijímá jen podepsané bundle (manifest.json + podpis). Zamítnuto.'
+            );
+        }
         $result['steps'][] = "✅ Raw customer ZIP detekován (bez manifest.json/files folderu)";
         $result['steps'][] = "ℹ️ Skip SHA-256 validace (bundle manifest chybí) — fallback na unzip-all";
     }

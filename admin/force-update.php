@@ -32,6 +32,7 @@ session_start();
 require_once __DIR__ . '/../api/config.php';
 require_once __DIR__ . '/../api/_admin_auth.php';
 require_once __DIR__ . '/../api/_authz.php';  // 🐛 fix v2.9.186 — aktualni_uzivatel_z_session() volaná níže
+require_once __DIR__ . '/../api/_update_sign.php';  // 🔐 v3.0.388 — ověření kryptopodpisu bundlu
 
 $forceUpdateUser = aktualni_uzivatel_z_session();
 if (!$forceUpdateUser || ($forceUpdateUser['role'] ?? '') !== 'admin') {
@@ -121,6 +122,7 @@ if (($_REQUEST['action'] ?? '') === 'run') {
 
         $targetVersion = $manifest['latest_version'];
         $expectedSha = $manifest['checksum_sha256'] ?? null;
+        $expectedSig = $manifest['signature'] ?? '';  // 🔐 v3.0.388 — podpis manifestu
         $downloadUrl = $manifest['download_url'] ?? null;
         if (!$downloadUrl) throw new Exception('Manifest neobsahuje download_url');
 
@@ -184,6 +186,16 @@ if (($_REQUEST['action'] ?? '') === 'run') {
         }
         $zip->close();
         $logAdd('✅ Rozbaleno do staging');
+
+        // 🔐 v3.0.388 — ověř kryptopodpis manifestu PŘED apply (supply-chain ochrana). Fail-closed.
+        if (appek_update_signing_enforced()) {
+            $manifestFile = $stagingDir . '/manifest.json';
+            $manifestBytes = is_file($manifestFile) ? (string) file_get_contents($manifestFile) : '';
+            if ($manifestBytes === '' || $expectedSig === '' || !appek_verify_update_signature($manifestBytes, $expectedSig)) {
+                throw new Exception('PODPIS NEPLATNÝ — bundle není podepsaný důvěryhodným vendor klíčem. Force-update zamítnut (supply-chain ochrana proti podvrženému balíčku).');
+            }
+            $logAdd('🔐 Podpis manifestu ověřen (RSA-2048/SHA-256) — bundle autentický');
+        }
 
         // Skutečný staging dir má soubory s prefixem (bundle) nebo přímo (raw)
         $sourceRoot = $prefix ? rtrim($stagingDir . '/' . trim($prefix, '/'), '/') : $stagingDir;

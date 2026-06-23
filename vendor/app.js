@@ -1,10 +1,30 @@
 // 🏢 VENDOR PANEL — frontend logic
 
+// 🔐 CSRF token — lazy fetch + cache (session synchronizer token z api.php?action=csrf)
+let _csrfToken = null;
+async function csrfToken() {
+  if (_csrfToken) return _csrfToken;
+  const meta = document.querySelector('meta[name="csrf-token"]')?.content;
+  if (meta) { _csrfToken = meta; return _csrfToken; }
+  try {
+    const r = await fetch('api.php?action=csrf', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    });
+    const d = await r.json();
+    _csrfToken = d.token || '';
+  } catch (e) { _csrfToken = ''; }
+  return _csrfToken;
+}
+
 async function api(action, opts = {}) {
   const url = 'api.php?action=' + encodeURIComponent(action) + (opts.query ? '&' + opts.query : '');
+  const method = opts.method || 'GET';
+  const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
+  if (method !== 'GET') headers['X-CSRF-Token'] = await csrfToken();  // 🔐 CSRF na všech POST
   const r = await fetch(url, {
-    method: opts.method || 'GET',
-    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    method,
+    headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
     credentials: 'same-origin',
   });

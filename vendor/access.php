@@ -17,6 +17,8 @@ require_once __DIR__ . '/_layout.php';
 $user = vendor_require_login();
 $currentPage = 'access';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
+
 $tab = $_GET['tab'] ?? 'admins';
 
 // ─── Akce: deaktivace/aktivace uživatele ───
@@ -325,6 +327,7 @@ unset($_SESSION['_flash_ok'], $_SESSION['_flash_err']);
             <td style="color:#6e6e73"><?= $a['posledni_login'] ? htmlspecialchars(date('d.m.Y H:i', strtotime($a['posledni_login']))) : '—' ?></td>
             <td>
               <form method="POST" style="display:inline">
+                <?php vendor_csrf_field(); ?>
                 <input type="hidden" name="target_type" value="admin">
                 <input type="hidden" name="target_id" value="<?= $a['id'] ?>">
                 <?php if ($a['aktivni']): ?>
@@ -359,6 +362,7 @@ unset($_SESSION['_flash_ok'], $_SESSION['_flash_err']);
             <td style="color:#6e6e73"><?= $b['posledni_login'] ? htmlspecialchars(date('d.m.Y H:i', strtotime($b['posledni_login']))) : '—' ?></td>
             <td>
               <form method="POST" style="display:inline">
+                <?php vendor_csrf_field(); ?>
                 <input type="hidden" name="target_type" value="b2b">
                 <input type="hidden" name="target_id" value="<?= $b['id'] ?>">
                 <?php if ($b['aktivni']): ?>
@@ -394,6 +398,7 @@ unset($_SESSION['_flash_ok'], $_SESSION['_flash_err']);
             <td style="color:#6e6e73"><?= $v['last_login'] ? htmlspecialchars(date('d.m.Y H:i', strtotime($v['last_login']))) : '—' ?></td>
             <td>
               <form method="POST" style="display:inline">
+                <?php vendor_csrf_field(); ?>
                 <input type="hidden" name="target_type" value="vendor">
                 <input type="hidden" name="target_id" value="<?= $v['id'] ?>">
                 <?php if ($v['id'] != $user['id']): ?>

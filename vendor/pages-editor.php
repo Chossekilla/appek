@@ -16,6 +16,8 @@ require_once __DIR__ . '/_layout.php';
 $user = vendor_require_login();
 $currentPage = 'pages-editor';
 $root = realpath(__DIR__ . '/..');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
 $contentFile = $root . '/sales-content.json';
 
 $flash_ok = null;
@@ -167,6 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
   <?php if ($flash_err): ?><div class="flash err">❌ <?= htmlspecialchars($flash_err) ?></div><?php endif; ?>
 
   <form method="POST">
+    <?php vendor_csrf_field(); ?>
     <input type="hidden" name="action" value="save">
 
     <?php foreach ($schema as $sectionKey => $section): ?>

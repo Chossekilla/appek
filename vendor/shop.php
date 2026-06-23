@@ -16,6 +16,8 @@ require_once __DIR__ . '/_mail.php';
 $user = vendor_require_login();
 $pdo  = vendor_db();
 $currentPage = 'shop';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
 $flash_ok = null;
 $flash_err = null;
 
@@ -292,12 +294,14 @@ if ($detailId > 0) {
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;padding-top:18px;border-top:1px solid #e5e5e7">
         <?php if ($detail['payment_status'] === 'pending'): ?>
           <form method="POST" style="display:inline">
+            <?php vendor_csrf_field(); ?>
             <input type="hidden" name="action" value="mark_paid">
             <input type="hidden" name="id" value="<?= (int) $detail['id'] ?>">
             <input type="hidden" name="detail" value="1">
             <button type="submit" class="btn-master primary">✅ Označit jako zaplaceno</button>
           </form>
           <form method="POST" style="display:inline" onsubmit="return confirm('Zrušit objednávku?')">
+            <?php vendor_csrf_field(); ?>
             <input type="hidden" name="action" value="mark_cancelled">
             <input type="hidden" name="id" value="<?= (int) $detail['id'] ?>">
             <input type="hidden" name="detail" value="1">
@@ -306,6 +310,7 @@ if ($detailId > 0) {
         <?php endif; ?>
         <?php if ($detail['payment_status'] === 'paid' && empty($detail['license_id'])): ?>
           <form method="POST" style="display:inline">
+            <?php vendor_csrf_field(); ?>
             <input type="hidden" name="action" value="generate_license">
             <input type="hidden" name="id" value="<?= (int) $detail['id'] ?>">
             <input type="hidden" name="detail" value="1">

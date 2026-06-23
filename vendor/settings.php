@@ -16,6 +16,8 @@ $pdo  = vendor_db();
 vendor_ensure_settings_table($pdo);
 $currentPage = 'settings';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
+
 $flash_ok = null;
 $flash_err = null;
 
@@ -384,6 +386,7 @@ if (!$totpEnabled) {
     <div class="settings-card">
       <h2>🔒 Změna hesla</h2>
       <form method="POST">
+        <?php vendor_csrf_field(); ?>
         <input type="hidden" name="action" value="change_password">
         <div class="form-row">
           <label>Současné heslo</label>
@@ -409,6 +412,7 @@ if (!$totpEnabled) {
           <strong>✅ Aktivní</strong> — při příštím přihlášení budeš potřebovat 6-místný kód
         </div>
         <form method="POST" style="margin-top:14px" onsubmit="return confirm('Opravdu deaktivovat 2FA? Účet bude méně chráněn.')">
+          <?php vendor_csrf_field(); ?>
           <input type="hidden" name="action" value="disable_2fa">
           <button type="submit" class="btn-master secondary">Deaktivovat 2FA</button>
         </form>
@@ -417,6 +421,7 @@ if (!$totpEnabled) {
           <strong>⚠️ Není aktivní</strong> — doporučujeme zapnout pro produkci
         </div>
         <form method="POST" style="margin-top:14px">
+          <?php vendor_csrf_field(); ?>
           <input type="hidden" name="action" value="enable_2fa">
           <input type="hidden" name="secret" value="<?= htmlspecialchars($newSecret) ?>">
           <p style="font-size:13px;color:#3a3a3c;margin:0 0 10px">1. Naskenuj QR v Google Authenticator / Authy / 1Password:</p>
@@ -452,6 +457,7 @@ if (!$totpEnabled) {
       </p>
 
       <form method="POST">
+        <?php vendor_csrf_field(); ?>
         <input type="hidden" name="action" value="save_mail">
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
@@ -515,6 +521,7 @@ if (!$totpEnabled) {
       <div style="margin-top:18px;padding-top:18px;border-top:1px solid #e5e5e7">
         <strong style="font-size:13px">🧪 Test odeslání</strong>
         <form method="POST" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <?php vendor_csrf_field(); ?>
           <input type="hidden" name="action" value="test_mail">
           <input type="email" name="test_to" placeholder="tvuj@email.cz" required style="flex:1;min-width:200px;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font-family:inherit;font-size:13px">
           <button type="submit" class="btn-master secondary">📤 Odeslat test</button>
@@ -534,6 +541,7 @@ if (!$totpEnabled) {
         $whMask = $hasWh ? substr($strCfg['stripe_webhook_secret'], 0, 6) . '••••' . substr($strCfg['stripe_webhook_secret'], -4) : '';
       ?>
       <form method="POST">
+        <?php vendor_csrf_field(); ?>
         <input type="hidden" name="action" value="save_stripe" id="stripe-action">
 
         <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:12px">
@@ -599,6 +607,7 @@ if (!$totpEnabled) {
       </p>
 
       <form method="POST">
+        <?php vendor_csrf_field(); ?>
         <input type="hidden" name="action" value="save_gopay">
 
         <label style="display:flex;align-items:center;gap:8px;margin:8px 0 14px;font-weight:600;font-size:13px">
@@ -648,6 +657,7 @@ if (!$totpEnabled) {
       </p>
 
       <form method="POST">
+        <?php vendor_csrf_field(); ?>
         <input type="hidden" name="action" value="save_dpd">
 
         <label style="display:flex;align-items:center;gap:8px;margin:8px 0 14px;font-weight:600;font-size:13px">
@@ -698,6 +708,7 @@ if (!$totpEnabled) {
       </p>
 
       <form method="POST">
+        <?php vendor_csrf_field(); ?>
         <input type="hidden" name="action" value="save_packeta">
 
         <label style="display:flex;align-items:center;gap:8px;margin:8px 0 14px;font-weight:600;font-size:13px">
