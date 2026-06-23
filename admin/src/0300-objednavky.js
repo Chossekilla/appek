@@ -246,7 +246,7 @@ async function renderVouchers() {
                 <td style="white-space:nowrap">${typLabel}</td>
                 <td style="white-space:nowrap">${esc(v.hodnota_text || fmt(v.hodnota))}</td>
                 <td class="num" style="font-weight:700;${v.typ === 'sleva' ? 'color:var(--text-3)' : (parseFloat(v.zustatek) > 0 ? 'color:#16a34a' : 'color:var(--text-3)')}">${v.typ === 'sleva' ? '—' : fmt(v.zustatek)}</td>
-                <td style="white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis">${v.odberatel_nazev ? `${esc(v.odberatel_nazev)}${odeslano ? ` <span title="Odesláno emailem ${esc(v.odeslano_kdy || '')}" style="color:#16a34a">📧</span>` : ''}` : '<span style="color:var(--text-3)">—</span>'}</td>
+                <td style="word-break:break-word">${v.odberatel_nazev ? `${esc(v.odberatel_nazev)}${odeslano ? ` <span title="Odesláno emailem ${esc(v.odeslano_kdy || '')}" style="color:#16a34a">📧</span>` : ''}` : '<span style="color:var(--text-3)">—</span>'}</td>
                 <td style="white-space:nowrap">${v.platnost_do ? fmtDate(v.platnost_do) : '<span style="color:var(--text-3)">bez omezení</span>'}</td>
                 <td>${stavBadge(v)}</td>
                 <td style="white-space:nowrap;text-align:right">
