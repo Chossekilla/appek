@@ -10,10 +10,15 @@
  *   if (!feat.cake_configurator) document.getElementById('cake-btn').style.display = 'none';
  */
 
+// 🔧 v3.0.389 FIX: bez config.php není definovaná APP_LICENSE_KEY (z config.local.php),
+//   takže license_has_package() vracelo core-only → tento endpoint hlásil VLASTNĚNÉ
+//   balíčky jako nedostupné → admin UI je schovávalo. feature_*.php config.php includují,
+//   proto gate fungoval správně (rozpor odhalil „gating gap" false-positive 2026-06).
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_features.php';
+
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-cache, must-revalidate');
-
-require_once __DIR__ . '/_features.php';
 
 echo json_encode([
     'license_packages' => function_exists('license_status') ? license_status()['packages'] ?? ['core'] : ['core'],
