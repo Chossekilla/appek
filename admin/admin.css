@@ -21124,3 +21124,22 @@ body:not(.sidebar-collapsed) .sidebar-logo {
   /* #8 zvoneček notifikací — z 34px na 40px */
   .btn-notif { width: 40px !important; height: 40px !important; }
 }
+
+/* =========================================================
+   📱 v3.0.390 — MODAL OKNA na úzkých telefonech (≤480px, iPhone SE 375px)
+   Inline grid-template-columns v obsahu modalu se na desktopu nedaly přebít
+   media-query třídou → modaly (faktura, objednávka…) přetékaly vpravo
+   (částky/data/chipy uříznuté). Tady je srazíme na 1 sloupec s !important.
+   ========================================================= */
+@media (max-width: 480px) {
+  #modal-body [style*="grid-template-columns"],
+  #modal-body .form-grid,
+  #modal-body .form-grid-tight,
+  #modal-body [class*="form-grid"] {
+    grid-template-columns: 1fr !important;
+  }
+  #modal-body .form-input,
+  #modal-body input,
+  #modal-body select { max-width: 100% !important; box-sizing: border-box !important; }
+  #modal-body { overflow-wrap: anywhere; }
+}
