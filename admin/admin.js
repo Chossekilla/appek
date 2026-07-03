@@ -7530,7 +7530,8 @@ window.noPridatZKatalogu = function() {
       je_z_katalogu: true,
     });
   }
-  sel.value = '';
+  const _inp = document.getElementById('no-pridat-vyrobek'); if (_inp) _inp.value = '';
+  const _hid = document.getElementById('no-pridat-vyrobek-id'); if (_hid) _hid.value = '';
   vykreslitNovouObjednavku();
 };
 
@@ -30020,7 +30021,8 @@ window.rdlPridatZKatalogu = function() {
     sazba_dph: parseFloat(v.dph || 12),
     je_z_katalogu: true,
   });
-  sel.value = '';
+  const _inp = document.getElementById('rdl-pridat-vyrobek'); if (_inp) _inp.value = '';
+  const _hid = document.getElementById('rdl-pridat-vyrobek-id'); if (_hid) _hid.value = '';
   vykreslitRucniDl();
 };
 
