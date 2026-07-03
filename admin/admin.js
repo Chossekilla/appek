@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.398';
+const APPEK_ADMIN_JS_VERSION = '3.0.399';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -14044,9 +14044,13 @@ window.aplikovatLogo = function(url) {
 
 // 📊 v3.0.310 — Google Analytics na admin core (hlavní aplikaci). Per-install ID
 // (ga_measurement_id_core), client-side injekce gtag — vzor jako b2b/app.js + POS.
-window.aplikovatGaCore = function(id) {
-  id = (id || '').trim();
-  if (!id || window._gaCoreLoaded || !/^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(id)) return;
+// 🍪 v3.0.399 — GDPR/ePrivacy: gtag se načte AŽ po souhlasu (stejný localStorage klíč
+//   jako B2B portál appek_cookie_consent_v1 → jedna volba na prohlížeč platí všude).
+function _ccAdminGet() { try { const r = JSON.parse(localStorage.getItem('appek_cookie_consent_v1') || 'null'); return (r && typeof r.analytics === 'boolean') ? r : null; } catch (e) { return null; } }
+function _ccAdminSave(a) { try { localStorage.setItem('appek_cookie_consent_v1', JSON.stringify({ v: 1, analytics: !!a, ts: new Date().toISOString() })); } catch (e) {} }
+function _gaCoreLoad() {
+  const id = window._ccGaCoreId;
+  if (!id || window._gaCoreLoaded) return;
   window._gaCoreLoaded = true;
   const gs = document.createElement('script');
   gs.async = true;
@@ -14056,6 +14060,33 @@ window.aplikovatGaCore = function(id) {
   window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
   window.gtag('js', new Date());
   window.gtag('config', id, { anonymize_ip: true });
+}
+window.ccAdminApply = function(analytics) {
+  _ccAdminSave(analytics);
+  if (analytics) _gaCoreLoad();
+  const e = document.getElementById('cc-banner'); if (e) e.remove();
+};
+function _ccAdminBanner() {
+  if (document.getElementById('cc-banner')) return;
+  const d = document.createElement('div');
+  d.id = 'cc-banner'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Souhlas s cookies');
+  d.style.cssText = 'position:fixed;right:14px;bottom:14px;z-index:99999;background:#fff;border:1px solid #e2e2e2;border-radius:12px;box-shadow:0 6px 22px rgba(0,0,0,0.16);padding:12px 13px;width:290px;max-width:calc(100vw - 28px);font-size:12.5px;line-height:1.45;color:#222';
+  d.innerHTML =
+    '<div style="font-weight:700;margin-bottom:4px">🍪 Cookies</div>' +
+    '<div style="color:#555;margin-bottom:10px">Nezbytné pro provoz, se souhlasem i <strong>analytické</strong> (Google Analytics, anonymizovaná IP). Volbu lze kdykoli změnit smazáním cookies.</div>' +
+    '<div style="display:flex;gap:6px">' +
+      '<button onclick="ccAdminApply(true)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;background:#166534;color:#fff;font-weight:700;cursor:pointer;font-size:12.5px">Přijmout</button>' +
+      '<button onclick="ccAdminApply(false)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;background:#374151;color:#fff;font-weight:700;cursor:pointer;font-size:12.5px">Odmítnout</button>' +
+    '</div>';
+  document.body.appendChild(d);
+}
+window.aplikovatGaCore = function(id) {
+  id = (id || '').trim();
+  if (!id || !/^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(id)) return;
+  window._ccGaCoreId = id;
+  const c = _ccAdminGet();
+  if (c) { if (c.analytics) _gaCoreLoad(); }   // volba uložena → respektuj
+  else _ccAdminBanner();                        // bez volby → banner, GA se NEnačte
 };
 
 // Auto-load logo + favicon (+ GA core) při startu aplikace
