@@ -774,8 +774,9 @@
   async function refundReceipt(id, cislo) {
     const duvod = prompt('Vrátit účtenku ' + cislo + '?\n\nVznikne záporná účtenka — tržby i uzávěrka se sníží.\nDůvod (volitelný):', '');
     if (duvod === null) return;
+    const vratitNaSklad = confirm('Vrátit vrácené zboží zpět na sklad?\n\nOK = ano (naskladní vrácené kusy)\nZrušit = ne (jen peníze).');
     try {
-      const r = await api('admin_pos.php?action=refund_order', { method: 'POST', body: JSON.stringify({ objednavka_id: id, duvod: duvod || '' }) });
+      const r = await api('admin_pos.php?action=refund_order', { method: 'POST', body: JSON.stringify({ objednavka_id: id, duvod: duvod || '', vratit_na_sklad: vratitNaSklad }) });
       closeModal();
       toast('✅ Vratka ' + r.cislo + ' (' + fmt(r.castka_celkem) + ' Kč)', 'success');
       if (typeof renderOrders === 'function') renderOrders();

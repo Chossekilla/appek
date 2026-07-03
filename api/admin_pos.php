@@ -2035,8 +2035,18 @@ if ($method === 'POST' && $action === 'refund_order') {
             ]);
         }
         $pdo->commit();
+        // 🆕 v3.0.395 — volitelný restock vrácených HOTOVÝCH výrobků na sklad (post-commit, soft-fail).
+        $restocked = 0;
+        if (!empty($d['vratit_na_sklad'])) {
+            try {
+                require_once __DIR__ . '/_sklad_lib.php';
+                $rl = [];
+                foreach ($refundLines as $x) if (!empty($x['orig']['vyrobek_id'])) $rl[] = ['vyrobek_id' => (int) $x['orig']['vyrobek_id'], 'mnozstvi' => $x['qty']];
+                if ($rl) $restocked = stock_restock_products($pdo, $rl, 'vratka ' . $cislo . ' k ' . $o['cislo'], $admin['jmeno'] ?? 'POS');
+            } catch (Throwable $e) { /* restock ne-fatal */ }
+        }
         json_response(['ok' => true, 'id' => $rid, 'cislo' => $cislo,
-                       'castka_celkem' => -$cel, 'puvodni' => $o['cislo'],
+                       'castka_celkem' => -$cel, 'puvodni' => $o['cislo'], 'restocked' => $restocked,
                        'castecna' => ($reqPolozky !== null), 'polozek' => count($refundLines)]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();

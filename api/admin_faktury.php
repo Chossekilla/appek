@@ -481,8 +481,18 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
             ]);
         }
         $pdo->commit();
+        // 🆕 v3.0.395 — volitelný restock dobropisovaných HOTOVÝCH výrobků na sklad (post-commit, soft-fail).
+        $restocked = 0;
+        if (!empty($d['vratit_na_sklad'])) {
+            try {
+                require_once __DIR__ . '/_sklad_lib.php';
+                $rl = [];
+                foreach ($credLines as $x) if (!empty($x['orig']['vyrobek_id'])) $rl[] = ['vyrobek_id' => (int) $x['orig']['vyrobek_id'], 'mnozstvi' => $x['qty']];
+                if ($rl) $restocked = stock_restock_products($pdo, $rl, 'dobropis ' . $cislo . ' k ' . $f['cislo'], 'dobropis');
+            } catch (Throwable $e) { /* restock ne-fatal */ }
+        }
         json_response(['ok' => true, 'id' => $dobId, 'cislo' => $cislo,
-                       'castka_celkem' => -$cel, 'puvodni' => $f['cislo'],
+                       'castka_celkem' => -$cel, 'puvodni' => $f['cislo'], 'restocked' => $restocked,
                        'castecny' => ($reqPolozky !== null), 'polozek' => count($credLines)], 201);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
