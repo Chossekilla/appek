@@ -2403,7 +2403,9 @@
         <strong>Vrátit celkem (s DPH):</strong><strong id="pref-sum" style="color:#DC2626;font-size:17px">0 Kč</strong>
       </div>
       <label style="display:block;margin-top:10px;font-size:13px">Důvod (volitelný)
-        <input id="pref-duvod" type="text" style="width:100%;margin-top:4px" placeholder="např. reklamace"></label>`;
+        <input id="pref-duvod" type="text" style="width:100%;margin-top:4px" placeholder="např. reklamace"></label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="pref-restock" style="width:auto;margin:0"> ↩️ Vrátit vrácené zboží zpět na sklad</label>`;
     const foot = `
       <button class="btn-secondary" onclick="POS._closeModal()">Zrušit</button>
       <button class="btn-primary" id="pref-submit" style="background:#DC2626;border-color:#DC2626" onclick="posRefundSubmit(${objId})">↩️ Vrátit vybrané</button>`;
@@ -2440,9 +2442,10 @@
     if (!polozky.length) { (typeof toast === 'function' ? toast : alert)('Vyber alespoň jednu položku'); return; }
     const btn = document.getElementById('pref-submit'); if (btn) btn.disabled = true;
     const duvod = (document.getElementById('pref-duvod') || {}).value || '';
+    const vratitNaSklad = !!(document.getElementById('pref-restock') || {}).checked;
     const doPost = (vynutit) => api('admin_pos.php?action=refund_order', {
       method: 'POST',
-      body: JSON.stringify({ objednavka_id: objId, duvod, polozky, vynutit }),
+      body: JSON.stringify({ objednavka_id: objId, duvod, polozky, vynutit, vratit_na_sklad: vratitNaSklad }),
     });
     try {
       let r;

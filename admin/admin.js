@@ -12074,6 +12074,8 @@ window.vystavitDobropis = async function(id, cislo) {
     <label style="display:block;margin-top:12px;font-size:13px">Důvod (volitelný)
       <input id="dob-duvod" type="text" style="width:100%;margin-top:4px" placeholder="např. reklamace, vrácené zboží">
     </label>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer">
+      <input type="checkbox" id="dob-restock" style="width:auto;margin:0"> ↩️ Vrátit zboží zpět na sklad</label>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
       <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
       <button class="btn-primary" id="dob-submit" style="background:#DC2626;border-color:#DC2626" onclick="dobSubmit(${id})">↩️ Vystavit dobropis</button>
@@ -12111,9 +12113,10 @@ window.dobSubmit = async function(id) {
   if (!polozky.length) { toast('Vyber alespoň jednu položku k vrácení', 'error'); return; }
   const btn = document.getElementById('dob-submit'); if (btn) btn.disabled = true;
   const duvod = (document.getElementById('dob-duvod') || {}).value || '';
+  const vratitNaSklad = !!(document.getElementById('dob-restock') || {}).checked;
   const doPost = (vynutit) => api('admin_faktury.php?action=dobropis', {
     method: 'POST',
-    body: JSON.stringify({ faktura_id: id, duvod, polozky, vynutit }),
+    body: JSON.stringify({ faktura_id: id, duvod, polozky, vynutit, vratit_na_sklad: vratitNaSklad }),
   });
   try {
     let r;

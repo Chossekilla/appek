@@ -58,4 +58,32 @@ function sklad_unify_migrate(PDO $pdo): void {
     }
 }
 
+/** 🆕 v3.0.395 — VRATKA NA SKLAD: vrácené HOTOVÉ výrobky zpět na sklad (+stav),
+ *  auditovaný pohyb typu 'vratka' (item_typ='vyrobek'). Zrcadlo POS odpisu polotovarů,
+ *  ale s +qty. Suroviny NEřeší (výrobek je hotový, ingredience zůstávají spotřebované).
+ *  Soft-fail per řádek — vratka peněz se nikdy nesmí rozbít kvůli skladu.
+ *  $lines: [{vyrobek_id, mnozstvi}] — mnozstvi = kladné množství k naskladnění.
+ *  Vrací počet úspěšně naskladněných řádků. */
+function stock_restock_products(PDO $pdo, array $lines, string $label, string $kdo = 'systém'): int {
+    $sklad = sklad_default_id($pdo);
+    if ($sklad <= 0) return 0;
+    $done = 0;
+    foreach ($lines as $l) {
+        $vid = (int) ($l['vyrobek_id'] ?? 0);
+        $qty = abs((float) ($l['mnozstvi'] ?? 0));
+        if ($vid <= 0 || $qty <= 0) continue;
+        try {
+            $rowId = sklad_polozky_ensure($pdo, $sklad, 'vyrobek', $vid);
+            $pdo->prepare("UPDATE sklad_polozky SET stav = stav + :mn WHERE id = :r")->execute(['mn' => $qty, 'r' => $rowId]);
+            $po   = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id = " . (int) $rowId)->fetchColumn();
+            $pred = $po - $qty;
+            $pdo->prepare("INSERT INTO sklad_pohyby_v2 (sklad_id,item_typ,item_id,typ,mnozstvi,stav_pred,stav_po,poznamka,kdo,kdy)
+                           VALUES (:s,'vyrobek',:i,'vratka',:mn,:pr,:po,:pz,:kdo,NOW())")
+                ->execute(['s' => $sklad, 'i' => $vid, 'mn' => $qty, 'pr' => $pred, 'po' => $po, 'pz' => 'Vratka na sklad — ' . $label, 'kdo' => $kdo]);
+            $done++;
+        } catch (Throwable $e) { /* soft-fail per řádek */ }
+    }
+    return $done;
+}
+
 } // function_exists
