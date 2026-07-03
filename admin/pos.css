@@ -996,7 +996,10 @@ button { font-family: inherit; cursor: pointer; }
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
   }
-  .pos-products { border-right: none; border-bottom: 1px solid var(--pos-border); }
+  /* 🐛 v3.0.399 — overflow-y:auto: fixní obsah nad mřížkou (kategorie+search+tlačítka+chipy)
+     je vyšší než 1fr řádek → bez scrollu VŠE přeteklo pod panel účtu (tlačítka účtu
+     ležela přes produktové karty v pásmu 769–900 px). */
+  .pos-products { border-right: none; border-bottom: 1px solid var(--pos-border); overflow-y: auto; }
   .pos-cart { max-height: 50vh; border-top: 2px solid var(--pos-primary); }
   .pos-header { grid-template-columns: 1fr auto; }
   .pos-header-center { display: none; }
