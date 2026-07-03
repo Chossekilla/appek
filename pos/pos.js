@@ -778,7 +778,7 @@
     try {
       const r = await api('admin_pos.php?action=refund_order', { method: 'POST', body: JSON.stringify({ objednavka_id: id, duvod: duvod || '', vratit_na_sklad: vratitNaSklad }) });
       closeModal();
-      toast('✅ Vratka ' + r.cislo + ' (' + fmt(r.castka_celkem) + ' Kč)', 'success');
+      toast('✅ Vratka ' + r.cislo + ' (' + fmt(r.castka_celkem) + ' Kč)' + (vratitNaSklad ? (r.restocked > 0 ? ' · 📦 ' + r.restocked + '× na sklad' : ' · sklad beze změny') : ''), 'success');
       if (typeof renderOrders === 'function') renderOrders();
     } catch (e) { toast('❌ ' + e.message, 'error'); }
   }

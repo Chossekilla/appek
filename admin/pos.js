@@ -2456,8 +2456,9 @@
         else throw e1;
       }
       POS._closeModal();
-      if (typeof toast === 'function') toast(`✅ Vratka ${r.cislo} (${fmt(r.castka_celkem)} Kč)`, 'success');
-      else alert(`✅ Vratka ${r.cislo} vytvořena (${fmt(r.castka_celkem)} Kč)`);
+      const sklMsg = vratitNaSklad ? (r.restocked > 0 ? ` · 📦 ${r.restocked}× na sklad` : ' · sklad beze změny (zboží na zakázku)') : '';
+      if (typeof toast === 'function') toast(`✅ Vratka ${r.cislo} (${fmt(r.castka_celkem)} Kč)${sklMsg}`, 'success');
+      else alert(`✅ Vratka ${r.cislo} vytvořena (${fmt(r.castka_celkem)} Kč)${sklMsg}`);
       if (typeof posLoadOrders === 'function') posLoadOrders();
     } catch (e) {
       if (btn) btn.disabled = false;
