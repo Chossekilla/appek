@@ -477,7 +477,7 @@ async function renderDashboard(filters = {}) {
             const failedNames = ((r.healthcheck && r.healthcheck.checks) || []).filter(c => !c.ok).map(c => c.name).join(', ');
             banner.style.display = 'block';
             banner.innerHTML = \`
-              <div style="background:linear-gradient(135deg,#FEE2E2,#FECACA);border:2px solid #DC2626;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;cursor:pointer" onclick="navigate('nastaveni');setTimeout(()=>{const el=document.getElementById('ns-errors-block');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},300)" title="Klikni pro Diagnostiku → Chyby aplikace">
+              <div style="background:linear-gradient(135deg,#FEE2E2,#FECACA);border:2px solid #DC2626;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;cursor:pointer" onclick="gotoNastaveniBlok('udrzba','ns-errors-block')" title="Klikni pro Diagnostiku → Chyby aplikace">
                 <div style="font-size:32px;line-height:1">🚨</div>
                 <div style="flex:1;min-width:200px">
                   <div style="font-weight:800;font-size:16px;color:#7F1D1D">Detekovány problémy v aplikaci</div>

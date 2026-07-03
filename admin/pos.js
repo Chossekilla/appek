@@ -2856,8 +2856,20 @@
       const r = await fetch(CFG.apiBase + 'version.php?t=' + Date.now(), { cache: 'no-store' });
       if (!r.ok) return;
       const j = await r.json();
-      const live = String(j.build_version || j.version || '').replace(/[^0-9.\-a-z]/gi, '');
-      if (live && CFG.version && live !== CFG.version) posShowUpdateBanner(live);
+      // 🐛 v3.0.398 — srovnávej j.version (=APP_VERSION, stejné pole jako CFG.version),
+      //   NE build_version (build metadata může být starší → věčný „downgrade" banner).
+      //   + směrový guard: banner jen když je live OPRAVDU novější (jako admin SPA detektor).
+      const live = String(j.version || j.build_version || '').replace(/[^0-9.\-a-z]/gi, '');
+      const cmp = (a, b) => {
+        const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+        const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+        for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+          if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+          if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+        }
+        return 0;
+      };
+      if (live && CFG.version && cmp(CFG.version, live) < 0) posShowUpdateBanner(live);
     } catch (e) { /* offline → ignoruj */ }
   }
   function posShowUpdateBanner(live) {

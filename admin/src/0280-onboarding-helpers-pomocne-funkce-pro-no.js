@@ -709,6 +709,29 @@ async function navigate(page, args) {
   }
 }
 
+// 🆕 v3.0.398 — deep-link na konkrétní kartu v Nastavení: nastaví tab, vyrenderuje
+//   a odscrolluje na blok. Scroll se opakuje i po ~1,5 s — async karty (chyby, zálohy,
+//   diagnostika) se donačítají PO prvním scrollu a posunuly cíl o stovky px mimo.
+//   Používá dashboard error-banner i notifikační deep-link #/nastaveni/update.
+window.gotoNastaveniBlok = function(tab, blokId) {
+  navigate('nastaveni');
+  setTimeout(() => {
+    state._nastaveniTab = tab;
+    renderNastaveni();
+    const scrollNaBlok = (zvyrazni) => {
+      const blk = document.getElementById(blokId);
+      if (!blk) return;
+      blk.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (zvyrazni) {
+        blk.style.outline = '2px solid #16a34a';
+        setTimeout(() => { blk.style.outline = ''; }, 2500);
+      }
+    };
+    setTimeout(() => scrollNaBlok(true), 400);
+    setTimeout(() => scrollNaBlok(false), 1600); // re-scroll po donačtení async karet
+  }, 150);
+};
+
 /**
  * Pro každou .table doplní `data-label` na každý <td> podle textu odpovídajícího <th>.
  * Mobilní CSS používá data-label aby zobrazil název sloupce nad hodnotou (tabulka → karta).

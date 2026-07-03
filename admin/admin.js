@@ -1162,21 +1162,20 @@ window.onNotifClick = async function(id, link) {
   if (link && link.startsWith('#/')) {
     const parts = link.slice(2).split('/');
     closeNotifPanel();
-    if (parts[0]) navigate(parts[0]);
     // 🆕 v3.0.283 — #/nastaveni/<tab|update> otevře konkrétní sekci nastavení;
     // 'update' = tab Údržba + scroll na kartu Licence & aktualizace (self-update).
+    // ♻️ v3.0.398 — přes gotoNastaveniBlok (re-scroll po donačtení async karet,
+    //   dřív cíl ujel o výšku donačtených bloků mimo viewport).
     if (parts[0] === 'nastaveni' && parts[1]) {
       const tab = parts[1] === 'update' ? 'udrzba' : parts[1];
-      setTimeout(() => {
-        state._nastaveniTab = tab;
-        renderNastaveni();
-        if (parts[1] === 'update') {
-          setTimeout(() => {
-            const blk = document.getElementById('ns-license-block');
-            if (blk) { blk.scrollIntoView({ behavior: 'smooth', block: 'start' }); blk.style.outline = '2px solid #16a34a'; setTimeout(() => { blk.style.outline = ''; }, 2500); }
-          }, 400);
-        }
-      }, 150);
+      if (parts[1] === 'update') {
+        gotoNastaveniBlok('udrzba', 'ns-license-block');
+      } else {
+        navigate('nastaveni');
+        setTimeout(() => { state._nastaveniTab = tab; renderNastaveni(); }, 150);
+      }
+    } else if (parts[0]) {
+      navigate(parts[0]);
     }
   }
   refreshNotifBadge();
@@ -4500,6 +4499,29 @@ async function navigate(page, args) {
   }
 }
 
+// 🆕 v3.0.398 — deep-link na konkrétní kartu v Nastavení: nastaví tab, vyrenderuje
+//   a odscrolluje na blok. Scroll se opakuje i po ~1,5 s — async karty (chyby, zálohy,
+//   diagnostika) se donačítají PO prvním scrollu a posunuly cíl o stovky px mimo.
+//   Používá dashboard error-banner i notifikační deep-link #/nastaveni/update.
+window.gotoNastaveniBlok = function(tab, blokId) {
+  navigate('nastaveni');
+  setTimeout(() => {
+    state._nastaveniTab = tab;
+    renderNastaveni();
+    const scrollNaBlok = (zvyrazni) => {
+      const blk = document.getElementById(blokId);
+      if (!blk) return;
+      blk.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (zvyrazni) {
+        blk.style.outline = '2px solid #16a34a';
+        setTimeout(() => { blk.style.outline = ''; }, 2500);
+      }
+    };
+    setTimeout(() => scrollNaBlok(true), 400);
+    setTimeout(() => scrollNaBlok(false), 1600); // re-scroll po donačtení async karet
+  }, 150);
+};
+
 /**
  * Pro každou .table doplní `data-label` na každý <td> podle textu odpovídajícího <th>.
  * Mobilní CSS používá data-label aby zobrazil název sloupce nad hodnotou (tabulka → karta).
@@ -5004,7 +5026,7 @@ async function renderDashboard(filters = {}) {
             const failedNames = ((r.healthcheck && r.healthcheck.checks) || []).filter(c => !c.ok).map(c => c.name).join(', ');
             banner.style.display = 'block';
             banner.innerHTML = \`
-              <div style="background:linear-gradient(135deg,#FEE2E2,#FECACA);border:2px solid #DC2626;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;cursor:pointer" onclick="navigate('nastaveni');setTimeout(()=>{const el=document.getElementById('ns-errors-block');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},300)" title="Klikni pro Diagnostiku → Chyby aplikace">
+              <div style="background:linear-gradient(135deg,#FEE2E2,#FECACA);border:2px solid #DC2626;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;cursor:pointer" onclick="gotoNastaveniBlok('udrzba','ns-errors-block')" title="Klikni pro Diagnostiku → Chyby aplikace">
                 <div style="font-size:32px;line-height:1">🚨</div>
                 <div style="flex:1;min-width:200px">
                   <div style="font-weight:800;font-size:16px;color:#7F1D1D">Detekovány problémy v aplikaci</div>

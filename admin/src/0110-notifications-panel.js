@@ -218,21 +218,20 @@ window.onNotifClick = async function(id, link) {
   if (link && link.startsWith('#/')) {
     const parts = link.slice(2).split('/');
     closeNotifPanel();
-    if (parts[0]) navigate(parts[0]);
     // 🆕 v3.0.283 — #/nastaveni/<tab|update> otevře konkrétní sekci nastavení;
     // 'update' = tab Údržba + scroll na kartu Licence & aktualizace (self-update).
+    // ♻️ v3.0.398 — přes gotoNastaveniBlok (re-scroll po donačtení async karet,
+    //   dřív cíl ujel o výšku donačtených bloků mimo viewport).
     if (parts[0] === 'nastaveni' && parts[1]) {
       const tab = parts[1] === 'update' ? 'udrzba' : parts[1];
-      setTimeout(() => {
-        state._nastaveniTab = tab;
-        renderNastaveni();
-        if (parts[1] === 'update') {
-          setTimeout(() => {
-            const blk = document.getElementById('ns-license-block');
-            if (blk) { blk.scrollIntoView({ behavior: 'smooth', block: 'start' }); blk.style.outline = '2px solid #16a34a'; setTimeout(() => { blk.style.outline = ''; }, 2500); }
-          }, 400);
-        }
-      }, 150);
+      if (parts[1] === 'update') {
+        gotoNastaveniBlok('udrzba', 'ns-license-block');
+      } else {
+        navigate('nastaveni');
+        setTimeout(() => { state._nastaveniTab = tab; renderNastaveni(); }, 150);
+      }
+    } else if (parts[0]) {
+      navigate(parts[0]);
     }
   }
   refreshNotifBadge();
