@@ -323,12 +323,21 @@ $csrfToken  = csrf_token();
 </style>
 <?php
   // 📊 v3.0.286 — Google Analytics pro POS (vlastní measurement ID, odděleně od B2B)
+  // 🍪 v3.0.399 — GDPR/ePrivacy: gtag se načte AŽ po souhlasu. Stejný localStorage klíč
+  //   appek_cookie_consent_v1 jako B2B/admin → jedna volba na prohlížeč platí všude.
   try {
       $gaPos = trim((string) (function_exists('nastaveni') ? (nastaveni()['ga_measurement_id_pos'] ?? '') : ''));
       if ($gaPos !== '' && preg_match('/^(G|AW|UA)-[A-Z0-9-]{4,}$/i', $gaPos)) {
           $gaPosEsc = htmlspecialchars($gaPos, ENT_QUOTES);
-          echo "<script async src=\"https://www.googletagmanager.com/gtag/js?id={$gaPosEsc}\"></script>\n";
-          echo "<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','{$gaPosEsc}',{anonymize_ip:true});</script>\n";
+          echo "<script>window._ccGaId='{$gaPosEsc}';(function(){var K='appek_cookie_consent_v1';"
+             . "function cg(){try{var r=JSON.parse(localStorage.getItem(K)||'null');return(r&&typeof r.analytics==='boolean')?r:null}catch(e){return null}}"
+             . "function cs(a){try{localStorage.setItem(K,JSON.stringify({v:1,analytics:!!a,ts:new Date().toISOString()}))}catch(e){}}"
+             . "function ld(){if(window._gaLoaded)return;window._gaLoaded=true;var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(window._ccGaId);document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config',window._ccGaId,{anonymize_ip:true})}"
+             . "window._ccApply=function(a){cs(a);if(a)ld();var e=document.getElementById('cc-banner');if(e)e.remove()};"
+             . "function bn(){if(document.getElementById('cc-banner'))return;var d=document.createElement('div');d.id='cc-banner';d.setAttribute('role','dialog');d.setAttribute('aria-label','Souhlas s cookies');"
+             . "d.style.cssText='position:fixed;right:14px;bottom:14px;z-index:99999;background:#fff;border:1px solid #e2e2e2;border-radius:12px;box-shadow:0 6px 22px rgba(0,0,0,0.16);padding:12px 13px;width:290px;max-width:calc(100vw - 28px);font-size:12.5px;line-height:1.45;color:#222';"
+             . "d.innerHTML='<div style=\\\"font-weight:700;margin-bottom:4px\\\">🍪 Cookies</div><div style=\\\"color:#555;margin-bottom:10px\\\">Nezbytné pro provoz, se souhlasem i <strong>analytické</strong> (Google Analytics, anonymizovaná IP).</div><div style=\\\"display:flex;gap:6px\\\"><button onclick=\\\"_ccApply(true)\\\" style=\\\"flex:1;padding:8px 4px;border:none;border-radius:8px;background:#166534;color:#fff;font-weight:700;cursor:pointer;font-size:12.5px\\\">Přijmout</button><button onclick=\\\"_ccApply(false)\\\" style=\\\"flex:1;padding:8px 4px;border:none;border-radius:8px;background:#374151;color:#fff;font-weight:700;cursor:pointer;font-size:12.5px\\\">Odmítnout</button></div>';document.body.appendChild(d)}"
+             . "var c=cg();if(c){if(c.analytics)ld()}else{if(document.body)bn();else document.addEventListener('DOMContentLoaded',bn)}})();</script>\n";
       }
   } catch (Throwable $e) { /* bez GA */ }
 ?>
