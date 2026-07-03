@@ -365,6 +365,6 @@ async function renderRestaurantTables() {
   // Default: floor plan view (drag-and-drop canvas)
   state._rtData = data;
   document.getElementById('rt-body').innerHTML = statsBar + renderFloorPlan(data, today);
-  setTimeout(() => rtAttachDragHandlers(), 50);
+  setTimeout(() => { rtAttachDragHandlers(); if (typeof rtScaleCanvas === 'function') rtScaleCanvas(); }, 50);
 }
 
