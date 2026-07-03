@@ -65,6 +65,11 @@ function sklad_unify_migrate(PDO $pdo): void {
  *  $lines: [{vyrobek_id, mnozstvi}] — mnozstvi = kladné množství k naskladnění.
  *  Vrací počet úspěšně naskladněných řádků. */
 function stock_restock_products(PDO $pdo, array $lines, string $label, string $kdo = 'systém'): int {
+    // 🆕 v3.0.397 — zajisti 'vratka' ENUM v sklad_pohyby_v2 (upgrade z <v268 bez otevřené sklad
+    //   obrazovky → ENUM bez 'vratka' → INSERT by tiše spadl v soft-failu). Idempotentní, 1×/request.
+    static $ensured = false;
+    if (!$ensured) { $ensured = true; require_once __DIR__ . '/_schema_lib.php';
+        if (function_exists('ensure_sklad_pohyby_schema')) { try { ensure_sklad_pohyby_schema($pdo); } catch (Throwable $e) {} } }
     $sklad = sklad_default_id($pdo);
     if ($sklad <= 0) return 0;
     $done = 0;
