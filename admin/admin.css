@@ -21143,3 +21143,15 @@ body:not(.sidebar-collapsed) .sidebar-logo {
   #modal-body select { max-width: 100% !important; box-sizing: border-box !important; }
   #modal-body { overflow-wrap: anywhere; }
 }
+
+/* =========================================================
+   📱 v3.0.391 — čísla dokladů v přehledech = JEDNA ŘÁDKA (no-wrap)
+   Dlouhá POS-/OBJ- čísla se dřív lámala přes víc řádků (zděděný
+   word-break:break-word z rodičovské karty). nowrap to přebije všude.
+   ========================================================= */
+.obj-card-cislo, .faktura-card-cislo, .dl-card-cislo,
+.vyrobek-card-cislo, .odberatel-card-cislo,
+.dashboard-recent-row .recent-table td:first-child > strong:first-child {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
