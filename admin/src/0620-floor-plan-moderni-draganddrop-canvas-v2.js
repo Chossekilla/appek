@@ -295,6 +295,24 @@ function renderFloorPlan(data, today) {
   `;
 }
 
+// 📱 v3.0.393 — Engine-agnostic scale floor-plan canvasu (JS místo CSS `cqi`).
+//   Safari (iOS) neškáluje spolehlivě `transform: scale(calc(100cqi / ...))` →
+//   canvas zůstal v plné velikosti a přetékal (stůl vpravo uříznutý). Tady scale
+//   spočítáme v JS (šířka wrapu / canvas_w) a nastavíme inline → funguje na všech enginech.
+function rtScaleCanvas() {
+  document.querySelectorAll('.rt-canvas-wrap').forEach(wrap => {
+    const canvas = wrap.querySelector('.rt-canvas');
+    if (!canvas) return;
+    const cw = parseFloat(wrap.style.getPropertyValue('--canvas-w-num')) || 800;
+    const avail = wrap.clientWidth;
+    if (avail > 0 && cw > 0) canvas.style.transform = 'scale(' + (avail / cw) + ')';
+  });
+}
+if (typeof window !== 'undefined' && !window._rtScaleResizeBound) {
+  window._rtScaleResizeBound = true;
+  window.addEventListener('resize', () => requestAnimationFrame(rtScaleCanvas));
+}
+
 function renderTableTile(t, editMode) {
   // 🆕 v3.0.40 — Modern 2026 floor plan tile: category-aware colors,
   // soft gradients, inset shadow (carved-in feel), premium typography,
