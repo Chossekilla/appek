@@ -21131,12 +21131,14 @@ body:not(.sidebar-collapsed) .sidebar-logo {
    media-query třídou → modaly (faktura, objednávka…) přetékaly vpravo
    (částky/data/chipy uříznuté). Tady je srazíme na 1 sloupec s !important.
    ========================================================= */
-@media (max-width: 480px) {
+@media (max-width: 900px) {
+  /* FLUIDNĚ: sloupce se samy zalomí dle dostupné šířky (žádný pevný device breakpoint).
+     minmax(min(100%,200px),1fr) → na úzkém telefonu 1 sloupec, na širším 2–3, kdekoliv. */
   #modal-body [style*="grid-template-columns"],
   #modal-body .form-grid,
   #modal-body .form-grid-tight,
   #modal-body [class*="form-grid"] {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)) !important;
   }
   #modal-body .form-input,
   #modal-body input,
