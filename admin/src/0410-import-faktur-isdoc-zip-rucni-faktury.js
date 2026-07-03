@@ -389,7 +389,7 @@ window.dobSubmit = async function(id) {
       if (/lhůt|vynutit/i.test(e1.message || '') && confirm((e1.message || '') + '\n\nVystavit dobropis i přesto?')) r = await doPost(true);
       else throw e1;
     }
-    toast(`✅ Dobropis ${r.cislo} vystaven (${fmt(r.castka_celkem)})`, 'success');
+    toast(`✅ Dobropis ${r.cislo} vystaven (${fmt(r.castka_celkem)})${vratitNaSklad ? (r.restocked > 0 ? ` · 📦 ${r.restocked}× na sklad` : ' · sklad beze změny (zboží na zakázku)') : ''}`, 'success');
     closeModal();
     if (state.current === 'faktury') renderFaktury(state._faPag && state._faPag.filters || {});
     setTimeout(() => openFakturaDetail(r.id), 250);

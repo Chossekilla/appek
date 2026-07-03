@@ -72,6 +72,12 @@ function stock_restock_products(PDO $pdo, array $lines, string $label, string $k
         $vid = (int) ($l['vyrobek_id'] ?? 0);
         $qty = abs((float) ($l['mnozstvi'] ?? 0));
         if ($vid <= 0 || $qty <= 0) continue;
+        // 🆕 v3.0.396 — GATE: naskladni JEN stockovaný výrobek (sleduje_sklad=1). Made-to-order
+        //   (sleduje_sklad=0) nemá integrovaný sklad hotových kusů → +stav = fantom, který nic
+        //   nespotřebuje (prodej rozpadá na suroviny; výroba SKLADEM čte jen sleduje_sklad=1).
+        try { $sled = (int) $pdo->query("SELECT COALESCE(sleduje_sklad,0) FROM vyrobky WHERE id=" . $vid)->fetchColumn(); }
+        catch (Throwable $e) { $sled = 0; }
+        if ($sled !== 1) continue;
         try {
             $rowId = sklad_polozky_ensure($pdo, $sklad, 'vyrobek', $vid);
             $pdo->prepare("UPDATE sklad_polozky SET stav = stav + :mn WHERE id = :r")->execute(['mn' => $qty, 'r' => $rowId]);
