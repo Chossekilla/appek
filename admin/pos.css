@@ -998,16 +998,20 @@ button { font-family: inherit; cursor: pointer; }
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
   }
-  /* 🐛 v3.0.399 — overflow-y:auto: fixní obsah nad mřížkou (kategorie+search+tlačítka+chipy)
-     je vyšší než 1fr řádek → bez scrollu VŠE přeteklo pod panel účtu (tlačítka účtu
-     ležela přes produktové karty v pásmu 769–900 px). */
-  .pos-products { border-right: none; border-bottom: 1px solid var(--pos-border); overflow-y: auto; }
+  .pos-products { border-right: none; border-bottom: 1px solid var(--pos-border); }
   .pos-cart { max-height: 50vh; border-top: 2px solid var(--pos-primary); }
   /* 🐛 v3.0.399 — taby (Stoly/Účtenky/Statistiky/Uzávěrka) NEskrývat! Dřív
      display:none → na mobilu se nešlo dostat na stoly ani historii.
      Header zůstává 3-sloupcový (jako standalone POS), ≤700 px jen ikony. */
   .pos-user-name { display: none; }
   .pos-loc { display: none; }
+}
+
+/* 🐛 v3.0.400 — overflow-y:auto JEN pro stacked pásmo 769–900 px (obsah kasy jinak
+   přetékal pod panel účtu). ≤768 px NESMÍ mít vnořený scroll — mobil scrolluje
+   stránku přirozeně (v399 tu byl overflow v celém max-900 → „nepřirozený pohyb"). */
+@media (min-width: 769px) and (max-width: 900px) {
+  .pos-products { overflow-y: auto; }
 }
 
 /* 📱 v3.0.399 — telefon: taby jen ikony (text skryt), vzor pos/pos.css v3.0.191 */
