@@ -922,14 +922,18 @@ button { font-family: inherit; cursor: pointer; }
      Bez toho měl košík min-content ~536px → track 536px → uřezání vpravo
      (Kartou / Na místě / CELKEM částka / FINISH mizely za okrajem). */
   .pos-products, .pos-cart { min-width: 0; max-width: 100%; }
-  /* 🐛 v3.0.399 — overflow-y:auto: fixní obsah nad mřížkou (kategorie+search+tlačítka+chipy)
-     je vyšší než 1fr řádek → bez scrollu VŠE přeteklo pod panel účtu (tlačítka účtu
-     ležela přes produktové karty v pásmu 769–900 px). */
-  .pos-products { border-right: none; border-bottom: 1px solid var(--pos-border); overflow-y: auto; }
+  .pos-products { border-right: none; border-bottom: 1px solid var(--pos-border); }
   .pos-cart { max-height: 50vh; border-top: 2px solid var(--pos-primary); }
   /* header zůstává 3-sloupcový (1fr auto 1fr), aby měl střed (taby) místo */
   .pos-user-name { display: none; }
   .pos-loc { display: none; }
+}
+
+/* 🐛 v3.0.400 — overflow-y:auto JEN pro stacked pásmo 769–900 px (obsah kasy jinak
+   přetékal pod panel účtu). ≤768 px NESMÍ mít vnořený scroll — mobil scrolluje
+   stránku přirozeně (v399 tu byl overflow v celém max-900 → „nepřirozený pohyb"). */
+@media (min-width: 769px) and (max-width: 900px) {
+  .pos-products { overflow-y: auto; }
 }
 
 /* 🆕 v3.0.191 — telefon: taby jen ikony (text skryt), ať se vejdou do hlavičky */
