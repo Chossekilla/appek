@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.400';
+const APPEK_ADMIN_JS_VERSION = '3.0.401';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5778,8 +5778,10 @@ window.ulozitGaId = async function() {
   const pos = ((document.getElementById('ns-ga-id-pos') || {}).value || '').trim();
   const core = ((document.getElementById('ns-ga-id-core') || {}).value || '').trim();
   if (!rxOk(b2b) || !rxOk(pos) || !rxOk(core)) { toast('❌ Neplatné ID — čekám formát G-XXXXXXXXXX', 'error'); return; }
+  // 🍪 v3.0.401 — vlastní sledovací kód pro B2B portál (vkládá se až po souhlasu s cookies)
+  const trk = ((document.getElementById('ns-tracking-code') || {}).value || '').trim();
   try {
-    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ ga_measurement_id: b2b, ga_measurement_id_pos: pos, ga_measurement_id_core: core }) });
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ ga_measurement_id: b2b, ga_measurement_id_pos: pos, ga_measurement_id_core: core, tracking_custom_code: trk }) });
     const stavy = [];
     if (b2b) stavy.push(`B2B ${b2b}`);
     if (pos) stavy.push(`POS ${pos}`);
@@ -14089,6 +14091,46 @@ window.aplikovatGaCore = function(id) {
   else _ccAdminBanner();                        // bez volby → banner, GA se NEnačte
 };
 
+// 🍪 v3.0.401 — karta Soukromí/GDPR v Nastavení → Integrace (stav souhlasu, změna volby, zásady)
+window.gdprRefreshStav = function(n) {
+  const el = document.getElementById('ns-gdpr-stav');
+  if (!el) return;
+  const c = _ccAdminGet();
+  const stav = !c ? '⚪ Bez volby (lišta se zobrazí)' : (c.analytics ? '🟢 Souhlas udělen' : '🔴 Odmítnuto');
+  const mereni = [];
+  if (n) {
+    if (n.ga_measurement_id)      mereni.push('B2B');
+    if (n.ga_measurement_id_pos)  mereni.push('POS');
+    if (n.ga_measurement_id_core) mereni.push('Admin');
+    if (n.tracking_custom_code)   mereni.push('vlastní kód');
+  }
+  el.textContent = 'Tento prohlížeč: ' + stav + (mereni.length ? ' · Měření zapnuto: ' + mereni.join(', ') : ' · Měření vypnuto');
+};
+window.gdprZmenitVolbu = function() {
+  try { localStorage.removeItem('appek_cookie_consent_v1'); } catch (e) {}
+  _ccAdminBanner();
+  gdprRefreshStav(null);
+  toast('Volba smazána — lišta se znovu zobrazí (i na POS/B2B v tomto prohlížeči)', 'info');
+};
+window.gdprZasady = function() {
+  const ex = document.getElementById('gdpr-modal'); if (ex) ex.remove();
+  const firma = (state.nastaveni && state.nastaveni.firma_nazev) || 'provozovatel';
+  const ov = document.createElement('div'); ov.id = 'gdpr-modal';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML =
+    '<div role="dialog" aria-label="Zásady cookies" style="background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:88vh;overflow:auto;padding:24px;font-size:13.5px;line-height:1.6;color:#222">' +
+      '<div style="font-size:18px;font-weight:800;margin-bottom:12px">🍪 Zásady používání cookies</div>' +
+      '<p>Aplikaci provozuje <strong>' + esc(firma) + '</strong>. Cookies jsou malé soubory ukládané ve vašem prohlížeči.</p>' +
+      '<p><strong>Nezbytné cookies</strong> (vždy aktivní): udržení přihlášení (session), bezpečnost (CSRF), stav košíku. Bez nich aplikace nefunguje, proto nevyžadují souhlas.</p>' +
+      '<p><strong>Analytické cookies</strong> (jen s vaším souhlasem): Google Analytics 4 (anonymizovaná IP) a případný vlastní měřicí kód provozovatele — načítají se až po udělení souhlasu.</p>' +
+      '<p><strong>Odvolání souhlasu:</strong> kdykoli tlačítkem „↺ Změnit volbu" v Nastavení → Integrace → Soukromí/GDPR, nebo smazáním cookies v prohlížeči.</p>' +
+      '<p><strong>Vaše práva (GDPR):</strong> přístup, oprava, výmaz, omezení zpracování, námitka a stížnost u ÚOOÚ (uoou.cz).</p>' +
+      '<div style="margin-top:16px"><button onclick="document.getElementById(\'gdpr-modal\').remove()" style="padding:9px 16px;border:1px solid #ccc;border-radius:9px;background:#fff;cursor:pointer">Zavřít</button></div>' +
+    '</div>';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+};
+
 // Auto-load logo + favicon (+ GA core) při startu aplikace
 (async function _initBranding() {
   try {
@@ -16363,6 +16405,28 @@ async function renderNastaveni() {
         <button class="btn-primary btn-green" onclick="ulozitGaId()">💾 Uložit</button>
         <span id="ns-ga-info" style="font-size:12px;color:var(--text-3)"></span>
       </div>
+      <!-- 🍪 v3.0.401 — vlastní sledovací kód (Meta Pixel, Sklik, LinkedIn…) pro B2B portál -->
+      <div style="margin-top:14px">
+        <label class="form-label" style="font-size:12px">🧩 Vlastní sledovací kód — B2B portál (HTML/JS, např. Meta Pixel, Sklik)</label>
+        <textarea class="form-input" id="ns-tracking-code" rows="4" spellcheck="false"
+          placeholder="&lt;script&gt;…&lt;/script&gt; — vloží se návštěvníkům B2B portálu AŽ po souhlasu s cookies"
+          style="width:100%;max-width:720px;font-family:monospace;font-size:12px"></textarea>
+        <div class="page-sub" style="font-size:11.5px;margin-top:4px">Kód se návštěvníkům vkládá <strong>až po souhlasu</strong> s analytickými cookies (GDPR). Ukládá se tlačítkem 💾 Uložit výše.</div>
+      </div>
+    </div>
+
+    <!-- 🍪 v3.0.401 — Soukromí / GDPR — stav souhlasu + zásady cookies -->
+    <div class="card-block" id="ns-gdpr-block" style="margin-bottom:14px;padding:14px 16px">
+      <h3 style="margin:0 0 6px;font-size:15px">🍪 Soukromí / GDPR</h3>
+      <p class="page-sub" style="font-size:12px;margin:0 0 10px">
+        Cookie lišta se zobrazuje jen tam, kde je zapnuté měření (GA / vlastní kód). Souhlas se ukládá per prohlížeč
+        a platí napříč admin / POS / B2B. Bez měření se používají jen nezbytné cookies (přihlášení, košík) — souhlas není potřeba.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <span id="ns-gdpr-stav" style="font-size:13px;font-weight:600"></span>
+        <button class="btn-secondary" onclick="gdprZmenitVolbu()">↺ Změnit volbu v tomto prohlížeči</button>
+        <button class="btn-secondary" onclick="gdprZasady()">📋 Zásady cookies</button>
+      </div>
     </div>
 
     <!-- 🆕 v2.9.243 — sales-pitch header (proč to chtít, value proposition) -->
@@ -16649,6 +16713,10 @@ async function renderNastaveni() {
       if (inpPos && n && n.ga_measurement_id_pos) inpPos.value = n.ga_measurement_id_pos;
       const inpCore = document.getElementById('ns-ga-id-core');
       if (inpCore && n && n.ga_measurement_id_core) inpCore.value = n.ga_measurement_id_core;
+      // 🍪 v3.0.401 — vlastní sledovací kód + stav GDPR souhlasu
+      const inpTrk = document.getElementById('ns-tracking-code');
+      if (inpTrk && n && n.tracking_custom_code) inpTrk.value = n.tracking_custom_code;
+      if (typeof gdprRefreshStav === 'function') gdprRefreshStav(n);
     }).catch(() => {});
   }
   if (aktTab === 'platby') {

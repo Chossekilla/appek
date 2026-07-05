@@ -107,6 +107,46 @@ window.aplikovatGaCore = function(id) {
   else _ccAdminBanner();                        // bez volby → banner, GA se NEnačte
 };
 
+// 🍪 v3.0.401 — karta Soukromí/GDPR v Nastavení → Integrace (stav souhlasu, změna volby, zásady)
+window.gdprRefreshStav = function(n) {
+  const el = document.getElementById('ns-gdpr-stav');
+  if (!el) return;
+  const c = _ccAdminGet();
+  const stav = !c ? '⚪ Bez volby (lišta se zobrazí)' : (c.analytics ? '🟢 Souhlas udělen' : '🔴 Odmítnuto');
+  const mereni = [];
+  if (n) {
+    if (n.ga_measurement_id)      mereni.push('B2B');
+    if (n.ga_measurement_id_pos)  mereni.push('POS');
+    if (n.ga_measurement_id_core) mereni.push('Admin');
+    if (n.tracking_custom_code)   mereni.push('vlastní kód');
+  }
+  el.textContent = 'Tento prohlížeč: ' + stav + (mereni.length ? ' · Měření zapnuto: ' + mereni.join(', ') : ' · Měření vypnuto');
+};
+window.gdprZmenitVolbu = function() {
+  try { localStorage.removeItem('appek_cookie_consent_v1'); } catch (e) {}
+  _ccAdminBanner();
+  gdprRefreshStav(null);
+  toast('Volba smazána — lišta se znovu zobrazí (i na POS/B2B v tomto prohlížeči)', 'info');
+};
+window.gdprZasady = function() {
+  const ex = document.getElementById('gdpr-modal'); if (ex) ex.remove();
+  const firma = (state.nastaveni && state.nastaveni.firma_nazev) || 'provozovatel';
+  const ov = document.createElement('div'); ov.id = 'gdpr-modal';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML =
+    '<div role="dialog" aria-label="Zásady cookies" style="background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:88vh;overflow:auto;padding:24px;font-size:13.5px;line-height:1.6;color:#222">' +
+      '<div style="font-size:18px;font-weight:800;margin-bottom:12px">🍪 Zásady používání cookies</div>' +
+      '<p>Aplikaci provozuje <strong>' + esc(firma) + '</strong>. Cookies jsou malé soubory ukládané ve vašem prohlížeči.</p>' +
+      '<p><strong>Nezbytné cookies</strong> (vždy aktivní): udržení přihlášení (session), bezpečnost (CSRF), stav košíku. Bez nich aplikace nefunguje, proto nevyžadují souhlas.</p>' +
+      '<p><strong>Analytické cookies</strong> (jen s vaším souhlasem): Google Analytics 4 (anonymizovaná IP) a případný vlastní měřicí kód provozovatele — načítají se až po udělení souhlasu.</p>' +
+      '<p><strong>Odvolání souhlasu:</strong> kdykoli tlačítkem „↺ Změnit volbu" v Nastavení → Integrace → Soukromí/GDPR, nebo smazáním cookies v prohlížeči.</p>' +
+      '<p><strong>Vaše práva (GDPR):</strong> přístup, oprava, výmaz, omezení zpracování, námitka a stížnost u ÚOOÚ (uoou.cz).</p>' +
+      '<div style="margin-top:16px"><button onclick="document.getElementById(\'gdpr-modal\').remove()" style="padding:9px 16px;border:1px solid #ccc;border-radius:9px;background:#fff;cursor:pointer">Zavřít</button></div>' +
+    '</div>';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+};
+
 // Auto-load logo + favicon (+ GA core) při startu aplikace
 (async function _initBranding() {
   try {

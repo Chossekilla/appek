@@ -16,7 +16,7 @@ appek_ensure_pwa_icons();  // 🆕 v3.0.364 — naseeduj PWA install ikony (defa
 try {
     $rows = $pdo->query("
         SELECT klic, hodnota FROM nastaveni
-        WHERE klic IN ('firma_logo_url', 'firma_favicon_url', 'firma_nazev', 'mena_config_json', 'ga_measurement_id')
+        WHERE klic IN ('firma_logo_url', 'firma_favicon_url', 'firma_nazev', 'mena_config_json', 'ga_measurement_id', 'tracking_custom_code')
     ")->fetchAll(PDO::FETCH_KEY_PAIR);
     // v3.0.283 — měna pro B2B fmt() (display konverze; necitlivé, DB zůstává v Kč)
     $mena = ['kod' => 'CZK', 'kurz' => 1, 'zobrazeni' => 'kc'];
@@ -33,6 +33,8 @@ try {
         'firma_nazev' => $rows['firma_nazev']       ?? null,
         'mena'        => $mena,
         'ga_id'       => $gaId !== '' ? $gaId : null,
+        // 🍪 v3.0.401 — vlastní sledovací kód (HTML/JS); b2b/app.js ho vloží AŽ po souhlasu s cookies
+        'custom_tracking' => ($ct = trim((string) ($rows['tracking_custom_code'] ?? ''))) !== '' ? $ct : null,
     ]);
 } catch (Throwable $e) {
     json_response(['logo_url' => null, 'favicon_url' => null]);

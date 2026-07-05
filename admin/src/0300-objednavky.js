@@ -160,8 +160,10 @@ window.ulozitGaId = async function() {
   const pos = ((document.getElementById('ns-ga-id-pos') || {}).value || '').trim();
   const core = ((document.getElementById('ns-ga-id-core') || {}).value || '').trim();
   if (!rxOk(b2b) || !rxOk(pos) || !rxOk(core)) { toast('❌ Neplatné ID — čekám formát G-XXXXXXXXXX', 'error'); return; }
+  // 🍪 v3.0.401 — vlastní sledovací kód pro B2B portál (vkládá se až po souhlasu s cookies)
+  const trk = ((document.getElementById('ns-tracking-code') || {}).value || '').trim();
   try {
-    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ ga_measurement_id: b2b, ga_measurement_id_pos: pos, ga_measurement_id_core: core }) });
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ ga_measurement_id: b2b, ga_measurement_id_pos: pos, ga_measurement_id_core: core, tracking_custom_code: trk }) });
     const stavy = [];
     if (b2b) stavy.push(`B2B ${b2b}`);
     if (pos) stavy.push(`POS ${pos}`);

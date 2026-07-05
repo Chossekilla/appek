@@ -393,6 +393,9 @@ if ($method === 'PUT') {
         'ga_measurement_id',
         'ga_measurement_id_pos',
         'ga_measurement_id_core',
+        // 🍪 v3.0.401 — vlastní sledovací kód (HTML/JS, např. Meta Pixel/Sklik) pro B2B portál;
+        //   vkládá se návštěvníkům AŽ po souhlasu s analytickými cookies (viz b2b/app.js consent)
+        'tracking_custom_code',
         // 📧 v3.0.289 — SMTP odesílání
         'smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass',
         'smtp_secure', 'smtp_from', 'smtp_from_name',
