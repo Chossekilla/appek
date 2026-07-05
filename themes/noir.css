@@ -199,3 +199,83 @@ html body ::selection { background: rgba(217,164,65,.3); }
 
 /* kontrast trust položek v hero (✓ 5 minut / Vaše data) */
 html body .hero strong, html body .hero-trust strong { color: var(--nr-text) !important; }
+
+/* ═══ v3.0.405 — ČITELNOST: sekce bez vlastní bg třídy (Obory, Jak to
+   funguje, Reference, FAQ, Kontakt) zůstávaly BÍLÉ → světlý text nečitelný.
+   Globální dark + re-assert gradientů (pořadí = tento blok vyhrává). ═══ */
+html body section { background: var(--nr-bg) !important; }
+html body .features-bg, html body .pricing-bg,
+html body .delivery-section, html body .screenshots-section,
+html body .integrations-section, html body .compare-section,
+html body section#how, html body section#testimonials {
+  background: var(--nr-bg-2) !important;
+}
+html body .hero {
+  background:
+    radial-gradient(1000px 520px at 75% -15%, rgba(217,164,65,.16), transparent 60%),
+    radial-gradient(800px 500px at 10% 110%, rgba(217,164,65,.06), transparent 55%),
+    linear-gradient(var(--nr-bg), var(--nr-bg)) !important;
+}
+html body .cta-section {
+  background: radial-gradient(900px 340px at 80% -20%, rgba(217,164,65,.28), transparent 60%),
+              linear-gradient(180deg, #141018, #0C0E13) !important;
+}
+
+/* Compare tabulka — bílé buňky → tmavé */
+html body .compare-section table { background: transparent !important; border-color: var(--nr-line) !important; }
+html body .compare-section th, html body .compare-section td {
+  background: var(--nr-panel) !important;
+  color: var(--nr-text-2) !important;
+  border-color: var(--nr-line) !important;
+}
+html body .compare-section th { color: var(--nr-text) !important; }
+html body .compare-us-cell { background: var(--nr-gold-bg) !important; color: var(--nr-gold-2) !important; }
+html body .compare-section .x { color: #E0705A !important; }
+
+/* Obecný text v sekcích (li, td, span bez vlastní barvy) */
+html body section li { color: var(--nr-text-2); }
+html body .faq-item p, html body .faq-item div { color: var(--nr-text-2) !important; }
+
+/* Kontakt + obecné odkazy na tmavé — zlatá světlejší */
+html body section a:not(.btn):not(.btn-primary):not(.btn-secondary) { color: var(--nr-gold-2); }
+
+/* Zvednutý kontrast mutovaného textu (byl moc tmavý) */
+html body .hero p, html body .section-sub, html body .feature p, html body .uc-card p { color: #B3ADA2 !important; }
+
+/* Kroky „Jak to funguje" (.step) — bílé karty → glass; čísla zlatě */
+html body .step {
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)) !important;
+  border: 1px solid var(--nr-line) !important;
+  border-radius: var(--nr-radius) !important;
+  box-shadow: var(--nr-shadow) !important;
+}
+html body .step h3 { color: var(--nr-text) !important; }
+html body .step p { color: #B3ADA2 !important; }
+html body .step-num {
+  background: var(--nr-gold-bg) !important;
+  color: var(--nr-gold-2) !important;
+  border: 1px solid var(--nr-line-2) !important;
+}
+
+/* Chipy integrací (lc-chip = <a>) — zlatý link na světlém chipu byl nečitelný → dark glass */
+html body .lc-chip {
+  background: rgba(255,255,255,.05) !important;
+  color: var(--nr-text-2) !important;
+  border: 1px solid var(--nr-line) !important;
+  box-shadow: none !important;
+}
+html body .lc-chip:hover { border-color: var(--nr-line-2) !important; color: var(--nr-gold-2) !important; }
+
+/* FAQ vnitřní obsah — jistota průhlednosti (žádné bílé pod-divy) */
+html body .faq-item, html body .faq-item > div { background-color: transparent; }
+
+/* Poslední kontrastní dočištění: ceny doplňků + kontaktní karty */
+html body .ea-price { color: var(--nr-gold-2) !important; }
+html body .contact-info, html body .contact-form, html body .contact-grid > div {
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)) !important;
+  border: 1px solid var(--nr-line) !important;
+  border-radius: var(--nr-radius) !important;
+  color: var(--nr-text-2);
+}
+html body .contact-info p, html body .contact-info li { color: var(--nr-text-2) !important; }
+html body .contact-info h3, html body .contact-grid h3 { color: var(--nr-text) !important; }
