@@ -210,6 +210,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_
     }
 }
 
+// ─── 🎨 v3.0.404 — Téma frontpage (appek.cz vzhled, čte theme.css.php) ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_site_theme') {
+    try {
+        $t = preg_replace('/[^a-z0-9_-]/', '', strtolower((string) ($_POST['site_theme'] ?? 'classic')));
+        if (!in_array($t, ['classic', 'studio', 'noir'], true)) $t = 'classic';
+        vendor_mail_set('site_theme', $t);
+        vendor_audit($pdo, $user, 'site_theme_save', null, 'theme=' . $t);
+        $flash_ok = 'Téma frontpage přepnuto na „' . $t . '“ — změna je na appek.cz vidět okamžitě.';
+    } catch (Throwable $e) { $flash_err = $e->getMessage(); }
+}
+
 $mailCfg = vendor_mail_settings();
 
 // Načti GoPay + Packeta config přes settings table
@@ -381,6 +392,31 @@ if (!$totpEnabled) {
   <?php if ($flash_err): ?><div class="flash err">❌ <?= htmlspecialchars($flash_err) ?></div><?php endif; ?>
 
   <div class="settings-grid">
+
+    <!-- 🎨 v3.0.404 — TÉMA FRONTPAGE (appek.cz) -->
+    <div class="settings-card">
+      <h2>🎨 Téma frontpage <small>appek.cz vzhled — přepnutí okamžité (bez deploye)</small></h2>
+      <form method="POST">
+        <?php vendor_csrf_field(); ?>
+        <input type="hidden" name="action" value="save_site_theme">
+        <?php $curTheme = $allSettings['site_theme'] ?? 'classic'; ?>
+        <div class="form-row">
+          <label>Aktivní téma</label>
+          <select name="site_theme">
+            <option value="classic" <?= $curTheme === 'classic' ? 'selected' : '' ?>>🥖 Classic — původní teplý vzhled</option>
+            <option value="studio"  <?= $curTheme === 'studio'  ? 'selected' : '' ?>>◻️ Studio — čistý profi SaaS (světlý)</option>
+            <option value="noir"    <?= $curTheme === 'noir'    ? 'selected' : '' ?>>◼️ Noir — tmavý prémiový (zlatá)</option>
+          </select>
+        </div>
+        <div class="form-row" style="font-size:12px;color:#888;line-height:1.6">
+          Náhledy (nepřepnou nic pro návštěvníky):
+          <a href="https://appek.cz/?theme=classic" target="_blank" rel="noopener">Classic ↗</a> ·
+          <a href="https://appek.cz/?theme=studio" target="_blank" rel="noopener">Studio ↗</a> ·
+          <a href="https://appek.cz/?theme=noir" target="_blank" rel="noopener">Noir ↗</a>
+        </div>
+        <button type="submit" class="btn">💾 Uložit téma</button>
+      </form>
+    </div>
 
     <!-- ZMĚNA HESLA -->
     <div class="settings-card">

@@ -1742,6 +1742,13 @@ img[loading="lazy"].loaded {
   section { padding: 20px 0 !important; page-break-inside: avoid; }
 }
 </style>
+<!-- 🎨 v3.0.404 — přepínatelná témata frontpage (řídí vendor: vendor_settings.site_theme).
+     theme.css.php = PHP schválně (mimo CDN cache → přepnutí okamžité). Preview: /?theme=studio -->
+<link rel="stylesheet" href="theme.css.php" id="site-theme">
+<script>
+(function(){try{var t=new URLSearchParams(location.search).get('theme');
+if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURIComponent(t);}catch(e){}})();
+</script>
 </head>
 <body>
 
