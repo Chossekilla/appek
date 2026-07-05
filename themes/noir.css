@@ -1,0 +1,201 @@
+/* ═══════════════════════════════════════════════════════════════════
+   🎨 APPEK FRONTPAGE THEME — „NOIR"
+   Tmavý prémiový vzhled: téměř černé pozadí, teplá zlatá (řemeslo/pečivo),
+   sklo-karty s tenkou zlatou linkou, vinětový hero. Override vrstva nad
+   index.html (Classic). Specificita `html body .x` přebíjí inline bloky.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  --nr-bg:        #0C0E13;
+  --nr-bg-2:      #11141B;
+  --nr-panel:     #151923;
+  --nr-line:      rgba(255,255,255,.09);
+  --nr-line-2:    rgba(217,164,65,.35);
+  --nr-text:      #EDE9E0;
+  --nr-text-2:    #C7C2B8;
+  --nr-muted:     #8E897E;
+  --nr-gold:      #D9A441;
+  --nr-gold-2:    #F0BE5E;
+  --nr-gold-bg:   rgba(217,164,65,.10);
+  --nr-green:     #6EE7A0;
+  --nr-radius:    16px;
+  --nr-shadow:    0 1px 0 rgba(255,255,255,.04) inset, 0 16px 40px -18px rgba(0,0,0,.7);
+}
+
+/* ── Základ ─────────────────────────────────────────────────────── */
+html body {
+  background: var(--nr-bg) !important;
+  color: var(--nr-text-2);
+  -webkit-font-smoothing: antialiased;
+}
+html body h1, html body h2, html body h3, html body h4 { color: var(--nr-text); letter-spacing: -0.02em; }
+html body a { color: var(--nr-gold-2); }
+html body p { color: var(--nr-text-2); }
+
+/* ── Topbar ─────────────────────────────────────────────────────── */
+html body .topbar {
+  background: rgba(12,14,19,.82) !important;
+  backdrop-filter: saturate(140%) blur(14px);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  border-bottom: 1px solid var(--nr-line);
+  box-shadow: none !important;
+}
+html body .topbar nav a { color: var(--nr-text-2) !important; font-weight: 600; border-radius: 8px; }
+html body .topbar nav a:hover { color: var(--nr-gold-2) !important; background: rgba(255,255,255,.04); }
+html body .logo { color: var(--nr-text) !important; font-weight: 800; }
+html body .logo-icon {
+  background: linear-gradient(160deg, var(--nr-gold-2), var(--nr-gold)) !important;
+  color: #17130A !important;
+  border-radius: 9px !important;
+  box-shadow: 0 0 0 1px rgba(217,164,65,.4), 0 6px 18px -6px rgba(217,164,65,.5) !important;
+}
+
+/* ── Tlačítka ───────────────────────────────────────────────────── */
+html body .btn, html body .btn-primary, html body .btn-secondary, html body .btn-large {
+  border-radius: 11px !important;
+  font-weight: 750;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+html body .btn-primary, html body .btn.btn-primary {
+  background: linear-gradient(160deg, var(--nr-gold-2), var(--nr-gold)) !important;
+  color: #17130A !important;
+  border: 1px solid rgba(217,164,65,.6) !important;
+  box-shadow: 0 10px 28px -10px rgba(217,164,65,.55) !important;
+  text-shadow: none;
+}
+html body .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 36px -10px rgba(217,164,65,.65) !important; }
+html body .btn-secondary, html body .btn.btn-secondary {
+  background: rgba(255,255,255,.03) !important;
+  color: var(--nr-text) !important;
+  border: 1px solid var(--nr-line) !important;
+  box-shadow: none !important;
+}
+html body .btn-secondary:hover { border-color: var(--nr-line-2) !important; background: rgba(255,255,255,.06) !important; }
+html body .btn-top { background: var(--nr-gold) !important; color: #17130A !important; border-radius: 10px !important; }
+
+/* ── Hero ───────────────────────────────────────────────────────── */
+html body .hero {
+  background:
+    radial-gradient(1000px 520px at 75% -15%, rgba(217,164,65,.16), transparent 60%),
+    radial-gradient(800px 500px at 10% 110%, rgba(217,164,65,.06), transparent 55%),
+    linear-gradient(var(--nr-bg), var(--nr-bg)) !important;
+  color: var(--nr-text);
+}
+html body .hero::before, html body .hero::after { display: none !important; }
+html body .hero h1 { color: var(--nr-text) !important; font-weight: 830; }
+html body .hero h1 em, html body .hero h1 strong, html body .hero h1 span {
+  color: var(--nr-gold-2) !important; -webkit-text-fill-color: currentColor; background: none !important;
+}
+html body .hero p { color: var(--nr-muted) !important; }
+html body .hero-badge {
+  background: var(--nr-gold-bg) !important;
+  color: var(--nr-gold-2) !important;
+  border: 1px solid var(--nr-line-2) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+html body .hero-trust { color: var(--nr-muted) !important; }
+html body .hero-mockup, html body .hero-mockup-screen {
+  border-radius: var(--nr-radius) !important;
+  border: 1px solid var(--nr-line) !important;
+  box-shadow: 0 0 0 1px rgba(217,164,65,.15), 0 30px 70px -20px rgba(0,0,0,.8) !important;
+}
+
+/* ── Sekce ──────────────────────────────────────────────────────── */
+html body .features-bg, html body .pricing-bg,
+html body .delivery-section, html body .screenshots-section,
+html body .integrations-section, html body .compare-section {
+  background: var(--nr-bg-2) !important;
+  background-image: none !important;
+}
+html body .section-eyebrow {
+  color: var(--nr-gold) !important;
+  background: transparent !important;
+  border: 0 !important;
+  font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: 12px;
+}
+html body .section-title { color: var(--nr-text) !important; }
+html body .section-sub { color: var(--nr-muted) !important; }
+
+/* ── Karty ──────────────────────────────────────────────────────── */
+html body .feature, html body .uc-card, html body .faq-item,
+html body .testimonial, html body .trust-badge, html body .int-card {
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)) !important;
+  border: 1px solid var(--nr-line) !important;
+  border-radius: var(--nr-radius) !important;
+  box-shadow: var(--nr-shadow) !important;
+  color: var(--nr-text-2);
+  transition: transform .14s ease, border-color .14s ease;
+}
+html body .feature:hover, html body .uc-card:hover, html body .int-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--nr-line-2) !important;
+}
+html body .feature h3, html body .uc-card h3, html body .int-card h3 { color: var(--nr-text) !important; }
+html body .feature p, html body .uc-card p { color: var(--nr-muted) !important; }
+html body .feature-icon {
+  background: var(--nr-gold-bg) !important;
+  border: 1px solid var(--nr-line-2);
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+html body .uc-tag {
+  background: rgba(255,255,255,.04) !important;
+  color: var(--nr-text-2) !important;
+  border: 1px solid var(--nr-line) !important;
+  border-radius: 999px !important;
+}
+
+/* ── Pricing ────────────────────────────────────────────────────── */
+html body .pricing-card {
+  background: var(--nr-panel) !important;
+  border: 1px solid var(--nr-line) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--nr-shadow) !important;
+}
+html body .pricing-card.featured, html body .pricing-card.highlight, html body .pricing-card[data-featured] {
+  border: 1.5px solid var(--nr-gold) !important;
+  box-shadow: 0 0 0 1px rgba(217,164,65,.2), 0 24px 60px -20px rgba(217,164,65,.35) !important;
+}
+html body .pricing-name { color: var(--nr-text) !important; }
+html body .pricing-amount { color: var(--nr-gold-2) !important; letter-spacing: -0.03em; }
+html body .pricing-tagline { color: var(--nr-muted) !important; }
+html body .pricing-features li { color: var(--nr-text-2); }
+html body .check-yes { color: var(--nr-green) !important; }
+
+/* ── Compare ────────────────────────────────────────────────────── */
+html body .compare-us-cell { background: var(--nr-gold-bg) !important; color: var(--nr-gold-2) !important; }
+
+/* ── CTA ────────────────────────────────────────────────────────── */
+html body .cta-section {
+  background: linear-gradient(180deg, #141018, #0C0E13) !important;
+  background-image: radial-gradient(900px 340px at 80% -20%, rgba(217,164,65,.28), transparent 60%) !important;
+  border-top: 1px solid var(--nr-line);
+  border-bottom: 1px solid var(--nr-line);
+}
+html body .cta-section h2, html body .cta-section p { color: var(--nr-text) !important; }
+
+/* ── FAQ ────────────────────────────────────────────────────────── */
+html body .faq-item summary, html body .faq-item h3 { color: var(--nr-text) !important; }
+
+/* ── Footer ─────────────────────────────────────────────────────── */
+html body footer, html body .footer-bottom {
+  background: #090B0F !important;
+  color: var(--nr-muted) !important;
+  border-top: 1px solid var(--nr-line);
+}
+html body footer a { color: var(--nr-text-2) !important; }
+html body footer a:hover { color: var(--nr-gold-2) !important; }
+
+/* ── Screenshots ────────────────────────────────────────────────── */
+html body .ss-frame {
+  border: 1px solid var(--nr-line) !important;
+  border-radius: var(--nr-radius) !important;
+  box-shadow: 0 0 0 1px rgba(217,164,65,.12), 0 30px 70px -24px rgba(0,0,0,.85) !important;
+}
+
+/* ── Jemnosti ───────────────────────────────────────────────────── */
+html body ::selection { background: rgba(217,164,65,.3); }
+
+/* kontrast trust položek v hero (✓ 5 minut / Vaše data) */
+html body .hero strong, html body .hero-trust strong { color: var(--nr-text) !important; }
