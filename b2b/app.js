@@ -695,6 +695,8 @@ async function showApp() {
     //   se uloží pro cookie banner; samotné gtag vkládá cookieConsentInit() jen při souhlasu.
     window._ccFirma = f || {};
     if (f && f.ga_id && /^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(f.ga_id)) window._ccGaId = f.ga_id;
+    // 🍪 v3.0.401 — vlastní sledovací kód (Meta Pixel, Sklik…); vloží se AŽ po souhlasu
+    if (f && f.custom_tracking) window._ccCustomCode = f.custom_tracking;
     cookieConsentInit();
     const cEl = document.getElementById('app-footer-contact');
     if (cEl && f) {
@@ -2755,16 +2757,37 @@ function ccLoadGa() {
   window.gtag('js', new Date());
   window.gtag('config', id, { anonymize_ip: true });
 }
+// 🍪 v3.0.401 — vlastní sledovací kód (Meta Pixel, Sklik, …) z Nastavení → Integrace.
+//   Vloží se AŽ po opt-in; <script> tagy se musí znovu vytvořit (innerHTML je nespouští).
+function ccLoadCustom() {
+  var code = window._ccCustomCode;
+  if (!code || window._customLoaded) return;
+  window._customLoaded = true;
+  try {
+    var host = document.createElement('div');
+    host.style.display = 'none';
+    host.innerHTML = code;
+    document.body.appendChild(host);
+    var olds = host.querySelectorAll('script');
+    for (var i = 0; i < olds.length; i++) {
+      var old = olds[i];
+      var s = document.createElement('script');
+      for (var j = 0; j < old.attributes.length; j++) s.setAttribute(old.attributes[j].name, old.attributes[j].value);
+      s.text = old.text || '';
+      old.parentNode.replaceChild(s, old);
+    }
+  } catch (e) { /* rozbitý kód nesmí shodit portál */ }
+}
 function cookieConsentInit() {
-  if (!window._ccGaId) return;            // jen nezbytné cookies → banner GDPR nevyžaduje
+  if (!window._ccGaId && !window._ccCustomCode) return;  // jen nezbytné cookies → banner GDPR nevyžaduje
   ccEnsureFooterLink();
   var c = ccGet();
-  if (c) { if (c.analytics) ccLoadGa(); } // souhlas uložen → respektuj (GA jen při opt-in)
-  else ccShowBanner();                    // 1. návštěva → banner, GA se NEnačte
+  if (c) { if (c.analytics) { ccLoadGa(); ccLoadCustom(); } } // souhlas uložen → respektuj (jen při opt-in)
+  else ccShowBanner();                    // 1. návštěva → banner, nic se NEnačte
 }
 function ccApply(analytics) {
   ccSave(analytics);
-  if (analytics) ccLoadGa();
+  if (analytics) { ccLoadGa(); ccLoadCustom(); }
   ['cc-banner', 'cc-modal'].forEach(function (id) { var e = document.getElementById(id); if (e) e.remove(); });
 }
 function ccShowBanner() {

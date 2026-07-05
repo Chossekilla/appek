@@ -1249,6 +1249,28 @@ async function renderNastaveni() {
         <button class="btn-primary btn-green" onclick="ulozitGaId()">💾 Uložit</button>
         <span id="ns-ga-info" style="font-size:12px;color:var(--text-3)"></span>
       </div>
+      <!-- 🍪 v3.0.401 — vlastní sledovací kód (Meta Pixel, Sklik, LinkedIn…) pro B2B portál -->
+      <div style="margin-top:14px">
+        <label class="form-label" style="font-size:12px">🧩 Vlastní sledovací kód — B2B portál (HTML/JS, např. Meta Pixel, Sklik)</label>
+        <textarea class="form-input" id="ns-tracking-code" rows="4" spellcheck="false"
+          placeholder="&lt;script&gt;…&lt;/script&gt; — vloží se návštěvníkům B2B portálu AŽ po souhlasu s cookies"
+          style="width:100%;max-width:720px;font-family:monospace;font-size:12px"></textarea>
+        <div class="page-sub" style="font-size:11.5px;margin-top:4px">Kód se návštěvníkům vkládá <strong>až po souhlasu</strong> s analytickými cookies (GDPR). Ukládá se tlačítkem 💾 Uložit výše.</div>
+      </div>
+    </div>
+
+    <!-- 🍪 v3.0.401 — Soukromí / GDPR — stav souhlasu + zásady cookies -->
+    <div class="card-block" id="ns-gdpr-block" style="margin-bottom:14px;padding:14px 16px">
+      <h3 style="margin:0 0 6px;font-size:15px">🍪 Soukromí / GDPR</h3>
+      <p class="page-sub" style="font-size:12px;margin:0 0 10px">
+        Cookie lišta se zobrazuje jen tam, kde je zapnuté měření (GA / vlastní kód). Souhlas se ukládá per prohlížeč
+        a platí napříč admin / POS / B2B. Bez měření se používají jen nezbytné cookies (přihlášení, košík) — souhlas není potřeba.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <span id="ns-gdpr-stav" style="font-size:13px;font-weight:600"></span>
+        <button class="btn-secondary" onclick="gdprZmenitVolbu()">↺ Změnit volbu v tomto prohlížeči</button>
+        <button class="btn-secondary" onclick="gdprZasady()">📋 Zásady cookies</button>
+      </div>
     </div>
 
     <!-- 🆕 v2.9.243 — sales-pitch header (proč to chtít, value proposition) -->
@@ -1535,6 +1557,10 @@ async function renderNastaveni() {
       if (inpPos && n && n.ga_measurement_id_pos) inpPos.value = n.ga_measurement_id_pos;
       const inpCore = document.getElementById('ns-ga-id-core');
       if (inpCore && n && n.ga_measurement_id_core) inpCore.value = n.ga_measurement_id_core;
+      // 🍪 v3.0.401 — vlastní sledovací kód + stav GDPR souhlasu
+      const inpTrk = document.getElementById('ns-tracking-code');
+      if (inpTrk && n && n.tracking_custom_code) inpTrk.value = n.tracking_custom_code;
+      if (typeof gdprRefreshStav === 'function') gdprRefreshStav(n);
     }).catch(() => {});
   }
   if (aktTab === 'platby') {
