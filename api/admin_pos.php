@@ -1104,7 +1104,7 @@ if ($method === 'GET' && $action === 'catalog') {
                    v.cena_bez_dph, {$sazbaSelect},
                    {$col('obrazek_url')},
                    {$col('je_akce', '0')}, {$col('je_novinka', '0')}, {$col('je_doprodej', '0')}, {$col('oblibeny', '0')},
-                   {$col('alergeny')},
+                   {$col('alergeny')}, {$col('sezona')},
                    k.nazev AS kategorie_nazev
             FROM vyrobky v
             LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
@@ -1113,6 +1113,25 @@ if ($method === 'GET' && $action === 'catalog') {
             ORDER BY " . (in_array('oblibeny', $vyrCols, true) ? 'v.oblibeny DESC, ' : '') . "v.nazev ASC
             LIMIT 500
         ")->fetchAll(PDO::FETCH_ASSOC);
+
+        // 🍰 v3.0.406 — SEZÓNY v POS (dřív MEZERA: sezónní výrobek byl v POS celoročně
+        //   a za základní cenu, zatímco B2B ho filtroval/zlevňoval). Filtr jen AKTIVNÍ
+        //   sezóny (POS prodává TEĎ — předobjednávky sem nepatří) + sezónní cena PŘED
+        //   výpočtem cena_s_dph níže + flag sezona_aktivni pro chip „🎄 Sezóna" v UI.
+        try {
+            require_once __DIR__ . '/_seasonal_lib.php';
+            $posSeasonActive = seasonal_active_keys($pdo);
+            $vyrobky = array_values(array_filter($vyrobky, fn($v) => seasonal_visible($v['sezona'] ?? null, $posSeasonActive)));
+            foreach ($vyrobky as &$v) {
+                if (!empty($v['sezona'])) {
+                    $adj = seasonal_adjust_price($pdo, (float) $v['cena_bez_dph'], $v['sezona']);
+                    $v['cena_bez_dph']     = $adj['cena'];
+                    $v['sezona_sleva_pct'] = $adj['pct'];
+                    $v['sezona_aktivni']   = 1;
+                }
+            }
+            unset($v);
+        } catch (Throwable $e) { /* starší instalace bez lib — bez sezónní logiky */ }
 
         foreach ($vyrobky as &$v) {
             $v['cena_bez_dph']  = (float)$v['cena_bez_dph'];

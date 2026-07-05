@@ -1585,6 +1585,17 @@ function renderCard(v) {
       <div class="card-img-wrap">
         ${img}
         ${renderStatusBadges({ isNovinka, isAkce, isDoprodej, isVyprodano })}
+        ${(() => { /* 🍰 v3.0.406 — sezónní badge: předobjednávka / countdown konce sezóny */
+          if (v.sezona_predobjednavka) {
+            const od = v.sezona_dodani_od ? v.sezona_dodani_od.split('-').reverse().join('. ') : '';
+            return `<div style="position:absolute;left:8px;bottom:8px;z-index:2"><span class="card-badge" style="background:#7C3AED;color:#fff" title="Objednávejte teď — dodání od ${od}">📅 <span class="b2b-i18n">Předobjednávka</span></span></div>`;
+          }
+          const kz = v.sezona_konci_za;
+          if (kz !== null && kz !== undefined && kz <= 14) {
+            return `<div style="position:absolute;left:8px;bottom:8px;z-index:2"><span class="card-badge" style="background:#DC2626;color:#fff">⏳ ${kz == 0 ? 'poslední den' : 'končí za ' + kz + ' d'}</span></div>`;
+          }
+          return '';
+        })()}
         ${maSlevu ? `<div class="card-badges card-badges-right-top"><span class="card-badge card-badge-sale">−${slevaPct}%</span></div>` : ''}
         ${v.oblibeny == 1 ? `<div class="card-badges card-badges-right-top2"><span class="card-badge card-badge-top">★ <span class="b2b-i18n">Top</span></span></div>` : ''}
         ${isVyprodano ? '<div class="card-vyprodano-overlay">VYPRODÁNO</div>' : ''}
@@ -1665,7 +1676,18 @@ function renderCheckout() {
 
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split('T')[0];
+  let minDate = tomorrow.toISOString().split('T')[0];
+  // 🍰 v3.0.406 — PŘEDOBJEDNÁVKY: košík s předobjednávkovým sezónním výrobkem
+  //   posune minimální datum dodání na start sezóny (backend to stejně vynucuje).
+  let preorderMin = null, preorderNazvy = [];
+  for (const id of Object.keys(state.cart)) {
+    const v = (state.vyrobky || []).find((x) => x.id == id);
+    if (v && v.sezona_predobjednavka && v.sezona_dodani_od) {
+      if (!preorderMin || v.sezona_dodani_od > preorderMin) preorderMin = v.sezona_dodani_od;
+      preorderNazvy.push(v.nazev);
+    }
+  }
+  if (preorderMin && preorderMin > minDate) minDate = preorderMin;
 
   const t = cartTotals();
 
@@ -1766,6 +1788,7 @@ function renderCheckout() {
         <div class="form-row">
           <label class="form-label" for="dt-dodani" style="font-weight:500">📅 Datum dodání <span class="form-hint">— defaultně zítra</span></label>
           <input class="input" type="date" id="dt-dodani" min="${minDate}" value="${minDate}">
+          ${preorderMin ? `<p class="form-hint" style="color:#7C3AED;margin-top:6px">📅 Košík obsahuje předobjednávku (${esc(preorderNazvy[0])}${preorderNazvy.length > 1 ? ' +' + (preorderNazvy.length - 1) : ''}) — dodání možné od ${preorderMin.split('-').reverse().join('. ')}.</p>` : ''}
         </div>
       ` : state.checkoutData.typ === 'naplanovana' ? `
         <div class="form-row">

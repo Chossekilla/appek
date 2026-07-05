@@ -243,9 +243,12 @@ async function renderSeasonalManage() {
 
   body.innerHTML = `
     <div class="card-block" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
         <h3 style="margin:0">⚙️ Vlastní sezóny</h3>
-        <button class="btn-primary btn-green" onclick="editCustomSeason()">+ Nová sezóna</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="renderSeasonalReport()">📊 Report prodejů</button>
+          <button class="btn-primary btn-green" onclick="editCustomSeason()">+ Nová sezóna</button>
+        </div>
       </div>
       <p style="font-size:12px;color:var(--text-3);margin:0 0 14px">Vytvoř vlastní sezónní okna (např. „Letní speciály", „Adventní cukroví", …).</p>
       ${customSeasons.length === 0 ? emptyState({
@@ -259,6 +262,7 @@ async function renderSeasonalManage() {
               <div style="display:flex;justify-content:space-between;align-items:start;gap:6px">
                 <strong style="font-size:14px;flex:1;min-width:0">${esc(s.label)}</strong>
                 <div style="display:flex;gap:4px">
+                  <button class="btn-icon" onclick="seasonalVyrobaPredikce('${esc(s.key)}')" title="🏭 Suroviny na sezónu (dle loňska)" style="font-size:12px">🏭</button>
                   <button class="btn-icon" onclick="editCustomSeason(${s.id})" style="font-size:12px">✏️</button>
                   <button class="btn-icon" onclick="deleteCustomSeason(${s.id})" style="font-size:12px">🗑️</button>
                 </div>
@@ -281,6 +285,7 @@ async function renderSeasonalManage() {
             <div style="display:flex;justify-content:space-between;align-items:start;gap:6px">
               <strong style="font-size:14px;flex:1;min-width:0">${esc(s.label)}</strong>
               <div style="display:flex;gap:4px">
+                <button class="btn-icon" onclick="seasonalVyrobaPredikce('${esc(s.key)}')" title="🏭 Suroviny na sezónu (dle loňska)" style="font-size:12px">🏭</button>
                 <button class="btn-icon" onclick='editCustomSeason(0, ${JSON.stringify(s).replace(/'/g, "&#39;")})' title="Upravit" style="font-size:12px">✏️</button>
                 ${s.has_override ? `<button class="btn-icon" onclick="resetDefaultSeason('${esc(s.key)}')" title="Vrátit na původní" style="font-size:12px">↩️</button>` : ''}
               </div>
@@ -382,6 +387,24 @@ window.editCustomSeason = async function(id, preset) {
         <input class="form-input" id="cs-sleva" type="number" step="0.5" min="-90" max="90" value="${s.sleva_pct || 0}" placeholder="0">
         <div style="font-size:11px;color:var(--text-3);margin-top:2px">Kladné = sleva (např. 20 = −20 %), záporné = přirážka. Platí jen v aktivním okně sezóny.</div>
       </div>
+      <div class="full"><label class="form-label">⏰ Předobjednávky — předstih (dní)</label>
+        <input class="form-input" id="cs-predstih" type="number" min="0" max="120" value="${s.predstih_dni || 0}" placeholder="0" style="max-width:140px">
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">Výrobky sezóny se v B2B katalogu objeví už X dní PŘED startem jako 📅 předobjednávka (dodání až od startu sezóny). 0 = vypnuto.</div>
+      </div>
+      ${!isDefault ? `
+      <div class="full" style="background:var(--bg-2, #F8FAFC);border:1px dashed var(--border);border-radius:8px;padding:10px 12px">
+        <label class="form-label" style="margin-bottom:6px">🗓️ Jednorázová akce s konkrétním datem <span style="font-weight:400;color:var(--text-3)">(volitelné)</span></label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <input class="form-input" id="cs-start-full" type="date" value="${esc(s.start_full || '')}" style="max-width:170px">
+          <input class="form-input" id="cs-end-full" type="date" value="${esc(s.end_full || '')}" style="max-width:170px">
+        </div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:4px">Vyplněním obou dat se sezóna stane JEDNORÁZOVOU (např. „Letní výprodej 2026") — MM-DD výše se ignoruje a akce se neopakuje.</div>
+      </div>` : ''}
+      ${(isDefault && (s.key === 'velikonoce' || s.key === 'denmatek')) ? `
+      <div class="full"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="cs-auto-letos" ${s.auto_letos ? 'checked' : ''} style="width:18px;height:18px">
+        🔄 Automaticky přepočítat na každý rok (${s.key === 'velikonoce' ? 'velikonoční computus' : '2. neděle v květnu'}) — datum výše se pak dopočítává samo
+      </label></div>` : ''}
     </div>
     <div class="form-actions">
       <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
@@ -399,7 +422,15 @@ window.saveCustomSeason = async function(id) {
     end_md:   document.getElementById('cs-end').value.trim(),
     color: document.getElementById('cs-color').value,
     sleva_pct: parseFloat(document.getElementById('cs-sleva').value) || 0,
+    // 🆕 v3.0.406
+    predstih_dni: parseInt((document.getElementById('cs-predstih') || {}).value, 10) || 0,
+    start_full: ((document.getElementById('cs-start-full') || {}).value || '').trim(),
+    end_full:   ((document.getElementById('cs-end-full') || {}).value || '').trim(),
+    auto_letos: (document.getElementById('cs-auto-letos') || {}).checked ? 1 : 0,
   };
+  const sf = data.start_full, ef = data.end_full;
+  if ((sf && !ef) || (!sf && ef)) { alert('Jednorázová akce: vyplň OBĚ data (od i do), nebo obě smaž.'); return; }
+  if (sf && ef && ef < sf) { alert('Jednorázová akce: konec musí být ≥ začátek.'); return; }
   if (!data.key || !data.label) { alert('Vyplň klíč a název.'); return; }
   const validMd = s => { const m = /^(\d{2})-(\d{2})$/.exec(s); if (!m) return false; const mo = +m[1], da = +m[2]; return mo >= 1 && mo <= 12 && da >= 1 && da <= 31; };
   if (!validMd(data.start_md) || !validMd(data.end_md)) { alert('Datum ve formátu MM-DD (měsíc 01–12, den 01–31)'); return; }
@@ -425,5 +456,66 @@ window.assignSeason = async function(productId, sezona) {
     await api('admin_seasonal.php?action=assign', { method: 'POST', body: JSON.stringify({ product_id: productId, sezona }) });
     toastSuccess(sezona ? 'Přiřazeno k sezóně' : 'Sezóna odebrána');
   } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v3.0.406 — 📊 SEZÓNNÍ REPORT: prodeje per sezóna, aktuální cyklus vs. loni
+window.renderSeasonalReport = async function() {
+  let d;
+  try { d = await api('admin_seasonal.php?action=report'); }
+  catch (e) { return alert('Chyba: ' + e.message); }
+  const rows = (d.report || []).map(r => {
+    const stav = r.active ? `🟢 aktivní${r.days_left != null ? ` · končí za ${r.days_left} d` : ''}`
+               : r.preorder ? `📅 předobjednávky${r.starts_in != null ? ` · start za ${r.starts_in} d` : ''}`
+               : (r.starts_in != null ? `⏳ za ${r.starts_in} d` : '⏸️ mimo');
+    const diff = r.loni.trzba > 0 ? Math.round((r.letos.trzba - r.loni.trzba) / r.loni.trzba * 100) : null;
+    return `<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${r.color};margin-right:6px"></span>${esc(r.label)}</td>
+      <td style="font-size:11px;color:var(--text-3);white-space:nowrap">${esc(r.okno.od)} → ${esc(r.okno.do)}</td>
+      <td style="font-size:12px">${stav}</td>
+      <td style="text-align:right">${(+r.letos.ks).toLocaleString('cs-CZ')} ks<br><strong>${fmt(r.letos.trzba)}</strong><br><span style="font-size:11px;color:var(--text-3)">${r.letos.objednavek} obj.</span></td>
+      <td style="text-align:right">${(+r.loni.ks).toLocaleString('cs-CZ')} ks<br>${fmt(r.loni.trzba)}<br><span style="font-size:11px;color:var(--text-3)">${r.loni.objednavek} obj.</span></td>
+      <td style="text-align:right;font-weight:700;color:${diff == null ? 'var(--text-3)' : diff >= 0 ? '#16A34A' : '#DC2626'}">${diff == null ? '—' : (diff >= 0 ? '+' : '') + diff + ' %'}</td>
+    </tr>`;
+  }).join('');
+  openModal('📊 Sezónní report — aktuální cyklus vs. loni', `
+    <div style="max-height:65vh;overflow:auto">
+      <table class="table" style="font-size:13px">
+        <thead><tr><th>Sezóna</th><th>Okno</th><th>Stav</th><th style="text-align:right">Letošní cyklus</th><th style="text-align:right">Loni (stejné okno)</th><th style="text-align:right">Δ tržba</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:var(--text-3)">Žádné sezóny</td></tr>'}</tbody>
+      </table>
+      <div style="font-size:11px;color:var(--text-3);margin-top:8px">Tržby bez DPH z objednávek (mimo storna) výrobků přiřazených k sezóně, v okně sezóny. „Letošní cyklus" = aktuální/nejbližší okno.</div>
+    </div>
+    <div class="form-actions"><button class="btn-secondary" onclick="closeModal()">Zavřít</button></div>
+  `);
+};
+
+// 🆕 v3.0.406 — 🏭 PREDIKCE VÝROBY: suroviny na sezónu = BOM × loňský prodej
+window.seasonalVyrobaPredikce = async function(key) {
+  let d;
+  try { d = await api('admin_seasonal.php?action=vyroba_predikce&key=' + encodeURIComponent(key)); }
+  catch (e) { return alert('Chyba: ' + e.message); }
+  const sz = d.sezona || {};
+  const prods = (d.produkty || []).filter(p => +p.loni_ks > 0);
+  const sur = d.suroviny || [];
+  const hlava = sz.active ? '🟢 sezóna právě běží' : (sz.starts_in != null ? `⏳ start za ${sz.starts_in} dní (${sz.start})` : '');
+  openModal(`🏭 Suroviny na sezónu — ${esc(sz.label || key)}`, `
+    <div style="max-height:65vh;overflow:auto">
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:10px">${hlava} · predikce = <strong>loňský prodej</strong> (${esc(d.zdroj?.od || '')} → ${esc(d.zdroj?.do || '')}) rozpadlý přes receptury (BOM).</div>
+      ${prods.length === 0 ? `<div class="alert" style="background:var(--warn-bg,#FEF3C7);padding:10px;border-radius:8px;font-size:13px">Loni se v tomto okně nic neprodalo (nebo výrobky nemají loňská data) — predikce nemá z čeho vyjít. Přiřaď výrobky sezóně a po první sezóně to tu ožije.</div>` : `
+      <h4 style="margin:8px 0 6px">📦 Výrobky (loňský prodej)</h4>
+      <table class="table" style="font-size:12.5px"><thead><tr><th>Výrobek</th><th style="text-align:right">Loni prodáno</th></tr></thead>
+        <tbody>${prods.map(p => `<tr><td>${esc(p.nazev)}</td><td style="text-align:right">${(+p.loni_ks).toLocaleString('cs-CZ')} ks</td></tr>`).join('')}</tbody></table>
+      <h4 style="margin:14px 0 6px">🧂 Potřeba surovin vs. sklad</h4>
+      ${sur.length === 0 ? '<div style="font-size:12px;color:var(--text-3)">Výrobky nemají receptury — není co rozpadnout.</div>' : `
+      <table class="table" style="font-size:12.5px"><thead><tr><th>Surovina</th><th style="text-align:right">Potřeba</th><th style="text-align:right">Skladem</th><th style="text-align:right">Chybí</th></tr></thead>
+        <tbody>${sur.map(x => `<tr${x.chybi > 0 ? ' style="background:var(--danger-bg,#FEE2E2)"' : ''}>
+          <td>${esc(x.nazev)}</td>
+          <td style="text-align:right">${(+x.potreba).toLocaleString('cs-CZ')} ${esc(x.jednotka || '')}</td>
+          <td style="text-align:right">${(+x.skladem).toLocaleString('cs-CZ')}</td>
+          <td style="text-align:right;font-weight:700;color:${x.chybi > 0 ? '#DC2626' : '#16A34A'}">${x.chybi > 0 ? (+x.chybi).toLocaleString('cs-CZ') : '✓'}</td>
+        </tr>`).join('')}</tbody></table>`}`}
+    </div>
+    <div class="form-actions"><button class="btn-secondary" onclick="closeModal()">Zavřít</button></div>
+  `);
 };
 

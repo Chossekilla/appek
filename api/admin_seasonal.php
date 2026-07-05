@@ -29,8 +29,15 @@ $pdo = db();
 try {
     $cols = $pdo->query("SHOW COLUMNS FROM vyrobky")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('sezona', $cols, true)) {
-        $pdo->exec("ALTER TABLE vyrobky ADD COLUMN sezona VARCHAR(40) NULL");
+        $pdo->exec("ALTER TABLE vyrobky ADD COLUMN sezona VARCHAR(120) NULL");
         $pdo->exec("ALTER TABLE vyrobky ADD INDEX idx_sezona (sezona)");
+    } else {
+        // 🆕 v3.0.406 — CSV více sezón ("vanoce,mikulas") potřebuje víc místa než VARCHAR(40)
+        $type = $pdo->query("SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+                             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vyrobky' AND COLUMN_NAME = 'sezona'")->fetchColumn();
+        if ($type && preg_match('/varchar\((\d+)\)/i', $type, $m) && (int) $m[1] < 120) {
+            $pdo->exec("ALTER TABLE vyrobky MODIFY COLUMN sezona VARCHAR(120) NULL");
+        }
     }
 } catch (Throwable $e) { /* ignore */ }
 
@@ -71,7 +78,14 @@ if ($action === 'assign' && $method === 'POST') {
     $sezona = trim($d['sezona'] ?? '');
     if (!$id) json_error('Chybí product_id', 400);
     $valid = array_map(fn($s) => $s['key'], seasonal_all($pdo));
-    if ($sezona && !in_array($sezona, $valid, true)) json_error('Neplatná sezóna', 400);
+    // 🆕 v3.0.406 — CSV: výrobek může být ve VÍCE sezónách ("vanoce,mikulas")
+    if ($sezona !== '') {
+        $keys = seasonal_split($sezona);
+        foreach ($keys as $k) {
+            if (!in_array($k, $valid, true)) json_error("Neplatná sezóna: $k", 400);
+        }
+        $sezona = implode(',', array_values(array_unique($keys)));
+    }
     try {
         $pdo->prepare("UPDATE vyrobky SET sezona = :s WHERE id = :id")->execute(['s' => $sezona ?: null, 'id' => $id]);
         json_response(['ok' => true]);
@@ -95,6 +109,15 @@ if ($action === 'save_season' && $method === 'POST') {
     $color = trim($d['color'] ?? '#888888');
     $id    = (int) ($d['id']    ?? 0);
     $sleva = max(-90, min(90, (float) ($d['sleva_pct'] ?? 0))); // kladné=sleva, záporné=přirážka (cap ±90 %)
+    // 🆕 v3.0.406 — předobjednávky + jednorázová akce s konkrétním rokem + auto-letos
+    $predstih  = max(0, min(120, (int) ($d['predstih_dni'] ?? 0)));
+    $startFull = trim($d['start_full'] ?? '');
+    $endFull   = trim($d['end_full'] ?? '');
+    $autoLetos = !empty($d['auto_letos']) ? 1 : 0;
+    $isDate = fn($x) => preg_match('/^\d{4}-\d{2}-\d{2}$/', $x);
+    if (($startFull !== '' || $endFull !== '') && (!$isDate($startFull) || !$isDate($endFull) || $endFull < $startFull)) {
+        json_error('Jednorázová akce: obě data ve formátu RRRR-MM-DD, konec ≥ začátek', 400);
+    }
 
     if (!$key || !$label) json_error('Vyplň klíč a název', 400);
     if (!preg_match('/^\d{2}-\d{2}$/', $start) || !preg_match('/^\d{2}-\d{2}$/', $end)) {
@@ -108,7 +131,8 @@ if ($action === 'save_season' && $method === 'POST') {
             $st = $pdo->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'seasonal_default_overrides' LIMIT 1");
             $st->execute();
             if ($raw = $st->fetchColumn()) { $j = json_decode($raw, true); if (is_array($j)) $ovr = $j; }
-            $ovr[$key] = ['label' => $label, 'start_md' => $start, 'end_md' => $end, 'color' => $color, 'sleva_pct' => $sleva];
+            $ovr[$key] = ['label' => $label, 'start_md' => $start, 'end_md' => $end, 'color' => $color, 'sleva_pct' => $sleva,
+                          'predstih_dni' => $predstih, 'auto_letos' => $autoLetos];
             $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('seasonal_default_overrides', :v) ON DUPLICATE KEY UPDATE hodnota = :v2")
                 ->execute(['v' => json_encode($ovr, JSON_UNESCAPED_UNICODE), 'v2' => json_encode($ovr, JSON_UNESCAPED_UNICODE)]);
             json_response(['ok' => true, 'override' => true]);
@@ -116,15 +140,110 @@ if ($action === 'save_season' && $method === 'POST') {
     }
 
     try {
+        $sf = $startFull !== '' ? $startFull : null;
+        $ef = $endFull !== '' ? $endFull : null;
         if ($id > 0) {
-            $pdo->prepare("UPDATE seasons_custom SET label = :l, start_md = :s, end_md = :e, color = :c, sleva_pct = :sp WHERE id = :id")
-                ->execute(['l' => $label, 's' => $start, 'e' => $end, 'c' => $color, 'sp' => $sleva, 'id' => $id]);
+            $pdo->prepare("UPDATE seasons_custom SET label = :l, start_md = :s, end_md = :e, color = :c, sleva_pct = :sp,
+                           predstih_dni = :pd, start_full = :sf, end_full = :ef WHERE id = :id")
+                ->execute(['l' => $label, 's' => $start, 'e' => $end, 'c' => $color, 'sp' => $sleva,
+                           'pd' => $predstih, 'sf' => $sf, 'ef' => $ef, 'id' => $id]);
         } else {
-            $pdo->prepare("INSERT INTO seasons_custom (sezona_key, label, start_md, end_md, color, sleva_pct) VALUES (:k, :l, :s, :e, :c, :sp)")
-                ->execute(['k' => $key, 'l' => $label, 's' => $start, 'e' => $end, 'c' => $color, 'sp' => $sleva]);
+            $pdo->prepare("INSERT INTO seasons_custom (sezona_key, label, start_md, end_md, color, sleva_pct, predstih_dni, start_full, end_full)
+                           VALUES (:k, :l, :s, :e, :c, :sp, :pd, :sf, :ef)")
+                ->execute(['k' => $key, 'l' => $label, 's' => $start, 'e' => $end, 'c' => $color, 'sp' => $sleva,
+                           'pd' => $predstih, 'sf' => $sf, 'ef' => $ef]);
         }
         json_response(['ok' => true]);
     } catch (Throwable $e) { json_error_safe('DB', $e, 500); }
+}
+
+// 🆕 v3.0.406 — 📊 SEZÓNNÍ REPORT: prodeje per sezóna, aktuální cyklus vs. loni (stejné okno −1 rok).
+if ($action === 'report' && $method === 'GET') {
+    $out = [];
+    $sum = function (string $key, string $od, string $do) use ($pdo): array {
+        $st = $pdo->prepare("
+            SELECT COALESCE(SUM(op.mnozstvi), 0) AS ks,
+                   COALESCE(SUM(op.mnozstvi * op.cena_bez_dph), 0) AS trzba,
+                   COUNT(DISTINCT o.id) AS objednavek
+            FROM objednavky_polozky op
+            JOIN objednavky o ON o.id = op.objednavka_id
+            JOIN vyrobky v ON v.id = op.vyrobek_id
+            WHERE FIND_IN_SET(:k, REPLACE(COALESCE(v.sezona, ''), ' ', ''))
+              AND o.datum_objednani >= :od AND o.datum_objednani < DATE_ADD(:do2, INTERVAL 1 DAY)
+              AND COALESCE(o.stav, '') NOT IN ('stornovana', 'storno', 'zrusena')
+        ");
+        $st->execute(['k' => $key, 'od' => $od, 'do2' => $do]);
+        $r = $st->fetch();
+        return ['ks' => (float) $r['ks'], 'trzba' => round((float) $r['trzba'], 2), 'objednavek' => (int) $r['objednavek']];
+    };
+    foreach (seasonal_meta($pdo) as $k => $m) {
+        if (empty($m['start']) || empty($m['end'])) continue;
+        $lonyOd = date('Y-m-d', strtotime($m['start'] . ' -1 year'));
+        $lonyDo = date('Y-m-d', strtotime($m['end'] . ' -1 year'));
+        $out[] = [
+            'key' => $k, 'label' => $m['label'], 'color' => $m['color'],
+            'active' => $m['active'], 'preorder' => $m['preorder'],
+            'days_left' => $m['days_left'], 'starts_in' => $m['starts_in'],
+            'okno' => ['od' => $m['start'], 'do' => $m['end']],
+            'letos' => $sum($k, $m['start'], $m['end']),
+            'loni'  => $sum($k, $lonyOd, $lonyDo),
+        ];
+    }
+    json_response(['report' => $out, 'today' => date('Y-m-d')]);
+}
+
+// 🆕 v3.0.406 — 🏭 PREDIKCE VÝROBY: suroviny na sezónu = BOM rozpad výrobků sezóny × loňský prodej.
+if ($action === 'vyroba_predikce' && $method === 'GET') {
+    $key = trim($_GET['key'] ?? '');
+    $meta = seasonal_meta($pdo);
+    if (!$key || !isset($meta[$key])) json_error('Neznámá sezóna', 400);
+    $m = $meta[$key];
+    require_once __DIR__ . '/_bom_lib.php';
+
+    // Výrobky sezóny + loňský prodej ve stejném okně
+    $lonyOd = date('Y-m-d', strtotime($m['start'] . ' -1 year'));
+    $lonyDo = date('Y-m-d', strtotime($m['end'] . ' -1 year'));
+    $st = $pdo->prepare("
+        SELECT v.id, v.nazev, v.cislo,
+               COALESCE((SELECT SUM(op.mnozstvi) FROM objednavky_polozky op
+                         JOIN objednavky o ON o.id = op.objednavka_id
+                         WHERE op.vyrobek_id = v.id
+                           AND o.datum_objednani >= :od AND o.datum_objednani < DATE_ADD(:do2, INTERVAL 1 DAY)
+                           AND COALESCE(o.stav, '') NOT IN ('stornovana', 'storno', 'zrusena')), 0) AS loni_ks
+        FROM vyrobky v
+        WHERE v.aktivni = 1 AND FIND_IN_SET(:k, REPLACE(COALESCE(v.sezona, ''), ' ', ''))
+        ORDER BY loni_ks DESC, v.nazev
+    ");
+    $st->execute(['k' => $key, 'od' => $lonyOd, 'do2' => $lonyDo]);
+    $produkty = $st->fetchAll();
+
+    // BOM rozpad × loňské množství → agregované suroviny
+    $sur = []; $pol = [];
+    foreach ($produkty as $p) {
+        $ks = (float) $p['loni_ks'];
+        if ($ks > 0) bom_explode($pdo, (int) $p['id'], $ks, $sur, $pol);
+    }
+    $suroviny = [];
+    if ($sur) {
+        $ids = implode(',', array_map('intval', array_keys($sur)));
+        foreach ($pdo->query("SELECT id, nazev, jednotka, COALESCE(stock_aktualni, 0) AS skladem FROM suroviny WHERE id IN ($ids)") as $r) {
+            $need = round((float) $sur[(int) $r['id']], 3);
+            $suroviny[] = [
+                'id' => (int) $r['id'], 'nazev' => $r['nazev'], 'jednotka' => $r['jednotka'],
+                'potreba' => $need, 'skladem' => (float) $r['skladem'],
+                'chybi' => max(0, round($need - (float) $r['skladem'], 3)),
+            ];
+        }
+        usort($suroviny, fn($a, $b) => $b['chybi'] <=> $a['chybi']);
+    }
+    json_response([
+        'sezona' => ['key' => $key, 'label' => $m['label'], 'start' => $m['start'], 'end' => $m['end'],
+                     'starts_in' => $m['starts_in'], 'active' => $m['active']],
+        'zdroj' => ['od' => $lonyOd, 'do' => $lonyDo, 'pozn' => 'loňský prodej ve stejném okně'],
+        'produkty' => $produkty,
+        'suroviny' => $suroviny,
+        'polotovary' => $pol ? array_map(fn($id, $q) => ['vyrobek_id' => (int) $id, 'potreba' => round((float) $q, 3)], array_keys($pol), $pol) : [],
+    ]);
 }
 
 // 🆕 v3.0.339 — reset výchozí sezóny na původní (smaž override + sleva map)
@@ -184,20 +303,32 @@ if ($action === 'delete_season' && $method === 'DELETE') {
 
 // Default: full list with stats + currently active
 $seasons = seasonal_all($pdo);
+// 🆕 v3.0.406 — CSV počty (výrobek může být ve více sezónách)
 $counts = [];
 try {
-    $rows = $pdo->query("SELECT sezona, COUNT(*) AS cnt FROM vyrobky WHERE sezona IS NOT NULL GROUP BY sezona")->fetchAll();
-    foreach ($rows as $r) $counts[$r['sezona']] = (int) $r['cnt'];
+    foreach ($pdo->query("SELECT sezona FROM vyrobky WHERE sezona IS NOT NULL AND sezona != ''") as $r) {
+        foreach (seasonal_split($r['sezona']) as $k) $counts[$k] = ($counts[$k] ?? 0) + 1;
+    }
 } catch (Throwable $e) {}
 
 $selectedDate = $_GET['date'] ?? date('Y-m-d');
 $selectedMd = substr($selectedDate, 5);
+$metaAll = seasonal_meta($pdo);
 
 $out = [];
 foreach ($seasons as $s) {
-    $s['active_today'] = seasonal_is_active($s, date('m-d'));
+    $m = $metaAll[$s['key']] ?? null;
+    $s['active_today'] = $m ? $m['active'] : seasonal_is_active($s, date('m-d'));
     $s['active_on_selected'] = seasonal_is_active($s, $selectedMd);
     $s['count'] = $counts[$s['key']] ?? 0;
+    // 🆕 v3.0.406 — resolved okno + countdown + preorder pro UI
+    if ($m) {
+        $s['okno_od']    = $m['start'];
+        $s['okno_do']    = $m['end'];
+        $s['preorder']   = $m['preorder'];
+        $s['days_left']  = $m['days_left'];
+        $s['starts_in']  = $m['starts_in'];
+    }
     $out[] = $s;
 }
 json_response([

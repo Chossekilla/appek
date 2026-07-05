@@ -241,6 +241,16 @@
         <span class="pos-cat-name">Vše</span>
         <span class="pos-cat-count">${total}</span>
       </button>`;
+    // 🍰 v3.0.406 — virtuální kategorie „Sezóna" (výrobky aktivních sezón, server-filtrované)
+    const sezCount = (State.catalog?.vyrobky || []).filter(v => v.sezona_aktivni).length;
+    if (sezCount > 0) {
+      html += `
+      <button class="pos-cat ${State.activeCat==='sezona'?'is-active':''}" data-cat="sezona" style="border-color:#D9A441">
+        <span class="pos-cat-icon">🎄</span>
+        <span class="pos-cat-name">Sezóna</span>
+        <span class="pos-cat-count">${sezCount}</span>
+      </button>`;
+    }
     for (const k of mains) {
       if (!k.pocet || k.pocet === 0) continue;
       const ic = k.obrazek_url
@@ -306,7 +316,10 @@
     if (!wrap) return;
     let items = (State.catalog?.vyrobky || []).slice();
 
-    if (State.activeCat !== 'all') {
+    if (State.activeCat === 'sezona') {
+      // 🍰 v3.0.406 — virtuální kategorie: výrobky aktivních sezón
+      items = items.filter(v => v.sezona_aktivni);
+    } else if (State.activeCat !== 'all') {
       // 🆕 v3.0.335 — hlavní kategorie zahrne i produkty ve svých subkategoriích
       const subIds = (State.catalog?.kategorie || []).filter(k => String(k.parent_id) === String(State.activeCat)).map(k => String(k.id));
       items = items.filter(v => String(v.kategorie_id) === State.activeCat || subIds.includes(String(v.kategorie_id)));

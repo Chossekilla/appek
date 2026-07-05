@@ -11,6 +11,9 @@ $pdo = db();
 //   Výrobek se sezónou se zobrazí jen v aktivním okně; sezónní cenu řeší cenik/PHP níže.
 require_once __DIR__ . '/_seasonal_lib.php';
 $seasonActiveSet = array_flip(seasonal_active_keys($pdo));
+// 🆕 v3.0.406 — viditelné = aktivní ∪ PŘEDOBJEDNÁVKOVÉ okno (predstih_dni před startem);
+//   CSV podpora (výrobek ve více sezónách: "vanoce,mikulas")
+$seasonVisibleKeys = seasonal_visible_keys($pdo);
 
 // Pokud je přihlášený odběratel, použij ceník s aplikovanými slevami
 session_secure_start();
@@ -21,11 +24,11 @@ if ($odb_id) {
     $vyrobky_full = cenik_pro_odberatele($pdo, (int) $odb_id);
 
     // Filtrování podle kategorie / hledání / aktivní sezóny
-    $vyrobky = array_values(array_filter($vyrobky_full, function ($v) use ($kategorie_id, $hledat, $seasonActiveSet) {
+    $vyrobky = array_values(array_filter($vyrobky_full, function ($v) use ($kategorie_id, $hledat, $seasonVisibleKeys) {
         if ($kategorie_id && (int) $v['kategorie_id'] !== $kategorie_id) return false;
         if ($hledat !== '' && stripos($v['nazev'], $hledat) === false) return false;
-        $sez = $v['sezona'] ?? '';
-        if ($sez !== '' && $sez !== null && !isset($seasonActiveSet[$sez])) return false; // sezónní výrobek mimo okno
+        // 🆕 v3.0.406 — CSV sezóny + předobjednávkové okno
+        if (!seasonal_visible($v['sezona'] ?? null, $seasonVisibleKeys)) return false;
         return true;
     }));
 
@@ -105,17 +108,9 @@ if ($odb_id) {
         LEFT JOIN sazby_dph s ON v.sazba_dph_id = s.id
         WHERE v.aktivni = 1
     ";
-    // 🍰 v3.0.331 — Seasonal filter dynamicky (vlastní i výchozí sezóny, wrap přes Nový rok).
-    //   Aktivní klíče spočítané v PHP ($seasonActiveSet) — viditelnost i pro custom sezóny.
+    // 🍰 v3.0.331 → 🆕 v3.0.406 — seasonal filtr přesunut do PHP po fetchi (CSV sezóny
+    //   „vanoce,mikulas" + předobjednávkové okno; SQL IN to neumělo).
     $params = [];
-    $activeKeys = array_keys($seasonActiveSet);
-    if ($activeKeys) {
-        $ph = [];
-        foreach ($activeKeys as $i => $k) { $ph[] = ":sez$i"; $params["sez$i"] = $k; }
-        $sql .= " AND (v.sezona IS NULL OR v.sezona = '' OR v.sezona IN (" . implode(',', $ph) . "))";
-    } else {
-        $sql .= " AND (v.sezona IS NULL OR v.sezona = '')";
-    }
     if ($kategorie_id) {
         $sql .= " AND v.kategorie_id = :kat";
         $params['kat'] = $kategorie_id;
@@ -131,6 +126,9 @@ if ($odb_id) {
     $stmt->execute($params);
     $vyrobky = $stmt->fetchAll();
 
+    // 🆕 v3.0.406 — viditelnost (CSV + předobjednávky) v PHP
+    $vyrobky = array_values(array_filter($vyrobky, fn($v) => seasonal_visible($v['sezona'] ?? null, $seasonVisibleKeys)));
+
     // 🍰 v3.0.331 — sezónní cena: cena_bez_dph dle aktivní sezóny, cena_zakladni zůstává původní (web ukáže „bylo → teď").
     foreach ($vyrobky as &$v) {
         $adj = seasonal_adjust_price($pdo, (float) $v['cena_bez_dph'], $v['sezona'] ?? null);
@@ -140,9 +138,24 @@ if ($odb_id) {
     unset($v);
 }
 
+// 🆕 v3.0.406 — per-výrobek sezónní meta pro B2B/web UI: countdown „končí za X dní",
+//   badge předobjednávky + nejbližší možné datum dodání (start sezóny).
+foreach ($vyrobky as &$v) {
+    if (!empty($v['sezona'])) {
+        $pm = seasonal_product_meta($pdo, $v['sezona']);
+        $v['sezona_konci_za']       = $pm['konci_za'];
+        $v['sezona_predobjednavka'] = $pm['predobjednavka'];
+        $v['sezona_dodani_od']      = $pm['dodani_od'];
+    }
+}
+unset($v);
+
 $kategorie = $pdo->query("
     SELECT id, nazev, ikona, obrazek_url, poradi, parent_id FROM kategorie_vyrobku
     WHERE aktivni = 1 ORDER BY poradi
 ")->fetchAll();
 
-json_response(['vyrobky' => $vyrobky, 'kategorie' => $kategorie]);
+// 🆕 v3.0.406 — meta aktivních/předobjednávkových sezón (B2B banner/countdown)
+$sezonyMeta = array_values(array_filter(seasonal_meta($pdo), fn($m) => $m['active'] || $m['preorder']));
+
+json_response(['vyrobky' => $vyrobky, 'kategorie' => $kategorie, 'sezony_meta' => $sezonyMeta]);

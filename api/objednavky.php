@@ -221,6 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'cena_bez_dph'   => (float) $row['cena_bez_dph'],
                 'sazba'          => (float) ($row['dph'] ?? 0),
                 'min_objednavka' => $row['min_objednavka'] ?? 1,
+                'sezona'         => $row['sezona'] ?? null, // 🍰 v3.0.406 — pro guard předobjednávek
             ];
         }
 
@@ -236,6 +237,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($mn <= 0) throw new Exception("Neplatné množství u výrobku $vid");
             $min = (float) ($c['min_objednavka'] ?? 1);
             if ($mn < $min) throw new Exception("Minimální objednávka výrobku $vid je $min");
+
+            // 🍰 v3.0.406 — PŘEDOBJEDNÁVKA: sezónní výrobek viditelný v předstihu
+            //   (predstih_dni před startem) lze objednat jen s dodáním OD startu sezóny.
+            if (!empty($c['sezona'])) {
+                require_once __DIR__ . '/_seasonal_lib.php';
+                $spm = seasonal_product_meta($pdo, $c['sezona']);
+                if ($spm['predobjednavka'] && $spm['dodani_od'] && ($data['datum_dodani'] ?? '') < $spm['dodani_od']) {
+                    $odKdy = date('j. n. Y', strtotime($spm['dodani_od']));
+                    throw new Exception('„' . ($c['nazev'] ?? "výrobek $vid") . "“ je předobjednávka — dodání možné od {$odKdy}. Posuňte datum dodání.");
+                }
+            }
 
             $bez += $c['cena_bez_dph'] * $mn;
             $dph += $c['cena_bez_dph'] * $mn * ($c['sazba'] / 100);

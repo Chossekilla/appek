@@ -463,37 +463,8 @@ async function renderDashboard(filters = {}) {
 
     <!-- 🆕 v2.9.322 — Health monitor banner (proaktivní detekce errors spike + failed checks) -->
     <div id="dash-health-banner" style="display:none"></div>
-    <script>
-      // Async — neblokuje render dashboardu. Pokud >5 errors / 15min nebo healthcheck fail → zobraz red banner.
-      (async function() {
-        try {
-          const r = await api('admin_health_monitor.php');
-          if (!r) return;
-          const banner = document.getElementById('dash-health-banner');
-          if (!banner) return;
-          const errs = parseInt(r.new_errors_15min || 0);
-          const hcOk = r.healthcheck && r.healthcheck.ok;
-          if (errs > 5 || !hcOk) {
-            const failedNames = ((r.healthcheck && r.healthcheck.checks) || []).filter(c => !c.ok).map(c => c.name).join(', ');
-            banner.style.display = 'block';
-            banner.innerHTML = \`
-              <div style="background:linear-gradient(135deg,#FEE2E2,#FECACA);border:2px solid #DC2626;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;cursor:pointer" onclick="gotoNastaveniBlok('udrzba','ns-errors-block')" title="Klikni pro Diagnostiku → Chyby aplikace">
-                <div style="font-size:32px;line-height:1">🚨</div>
-                <div style="flex:1;min-width:200px">
-                  <div style="font-weight:800;font-size:16px;color:#7F1D1D">Detekovány problémy v aplikaci</div>
-                  <div style="font-size:13px;color:#991B1B;margin-top:4px;line-height:1.4">
-                    \${errs > 5 ? '⚠️ ' + errs + ' chyb v posledních 15 min. ' : ''}
-                    \${!hcOk && failedNames ? '🩺 Healthcheck selhal: ' + esc(failedNames) + '. ' : ''}
-                    Klikni pro detail v Diagnostice.
-                  </div>
-                </div>
-                <span style="color:#7F1D1D;font-size:20px;font-weight:700">→</span>
-              </div>
-            \`;
-          }
-        } catch (e) { /* monitor unavailable — silent */ }
-      })();
-    </script>
+    <!-- 🍰 v3.0.406 — proužek aktivních/nadcházejících sezón (plní dashSeasonalStrip() po renderu) -->
+    <div id="dash-seasonal-strip" style="display:none"></div>
 
     <!-- TABY OBDOBÍ — v2.9.287 — period-tabs (Skupina A → 1 řádek nowrap), JS short labels mobile -->
     <div class="period-tabs" role="tablist" style="margin-bottom:14px">
@@ -756,12 +727,69 @@ async function renderDashboard(filters = {}) {
     setTimeout(() => renderDashboardRevenueChart(d.casovy_graf), 50);
   }
 
+  // 🐛 v3.0.406 — health banner (v2.9.322) byl v template jako <script> → přes
+  //   innerHTML se NIKDY nespustil (stejná past jako u grafu ↑) → banner „Detekovány
+  //   problémy" se na dashboardu nikdy neukázal. Teď normální funkce po renderu.
+  setTimeout(dashHealthBanner, 80);
+  // 🍰 v3.0.406 — proužek aktivních/nadcházejících sezón
+  setTimeout(dashSeasonalStrip, 100);
+
   // 🗑️ v3.0.1 — Provoz widget přesunut do Restaurace tab "Provoz".
   // Cleanup timer pro případ že byl spuštěn na jiné stránce.
   if (window._provozRefreshTimer) {
     clearInterval(window._provozRefreshTimer);
     window._provozRefreshTimer = null;
   }
+}
+
+// 🐛 v3.0.406 — Health monitor banner (dřív mrtvý inline <script> v template).
+async function dashHealthBanner() {
+  try {
+    const r = await api('admin_health_monitor.php');
+    const banner = document.getElementById('dash-health-banner');
+    if (!r || !banner) return;
+    const errs = parseInt(r.new_errors_15min || 0);
+    const hcOk = r.healthcheck && r.healthcheck.ok;
+    if (errs > 5 || !hcOk) {
+      const failedNames = ((r.healthcheck && r.healthcheck.checks) || []).filter(c => !c.ok).map(c => c.name).join(', ');
+      banner.style.display = 'block';
+      banner.innerHTML = `
+        <div style="background:linear-gradient(135deg,#FEE2E2,#FECACA);border:2px solid #DC2626;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;cursor:pointer" onclick="gotoNastaveniBlok('udrzba','ns-errors-block')" title="Klikni pro Diagnostiku → Chyby aplikace">
+          <div style="font-size:32px;line-height:1">🚨</div>
+          <div style="flex:1;min-width:200px">
+            <div style="font-weight:800;font-size:16px;color:#7F1D1D">Detekovány problémy v aplikaci</div>
+            <div style="font-size:13px;color:#991B1B;margin-top:4px;line-height:1.4">
+              ${errs > 5 ? '⚠️ ' + errs + ' chyb v posledních 15 min. ' : ''}
+              ${!hcOk && failedNames ? '🩺 Healthcheck selhal: ' + esc(failedNames) + '. ' : ''}
+              Klikni pro detail v Diagnostice.
+            </div>
+          </div>
+          <span style="color:#7F1D1D;font-size:20px;font-weight:700">→</span>
+        </div>`;
+    }
+  } catch (e) { /* monitor unavailable — silent */ }
+}
+
+// 🍰 v3.0.406 — proužek aktivních/nadcházejících sezón (Sezónní balíček; 402 → skryto)
+async function dashSeasonalStrip() {
+  try {
+    const d = await api('admin_seasonal.php');
+    const el = document.getElementById('dash-seasonal-strip');
+    if (!el || !d || !Array.isArray(d.seasons)) return;
+    const zajimave = d.seasons.filter(s => s.active_today || s.preorder || (s.starts_in != null && s.starts_in <= 14 && s.count > 0));
+    if (!zajimave.length) return;
+    el.style.display = 'block';
+    el.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--card-bg,#fff);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:14px;cursor:pointer" onclick="navigate('pkg_sezona')" title="Otevřít Sezónní katalog">
+      <span style="font-weight:800;font-size:13px">🍰 Sezóny:</span>
+      ${zajimave.map(s => {
+        const stav = s.active_today
+          ? '🟢 ' + (s.days_left != null ? 'končí za ' + s.days_left + ' d' : 'aktivní')
+          : s.preorder ? '📅 předobjednávky' + (s.starts_in != null ? ' · start za ' + s.starts_in + ' d' : '')
+          : '⏳ za ' + s.starts_in + ' d';
+        return `<span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:${s.color}22;border:1px solid ${s.color}">${esc(s.label)} · ${stav}${s.count ? ' · ' + s.count + ' výr.' : ''}</span>`;
+      }).join('')}
+    </div>`;
+  } catch (e) { /* bez balíčku (402) / chyba → nic */ }
 }
 
 // 🆕 v2.9.270 — PROVOZ widget — propojuje 4 moduly Restaurace balíčku

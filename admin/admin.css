@@ -2,7 +2,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --appek-css-version: "3.0.405";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
+  --appek-css-version: "3.0.406";   /* MUSÍ sedět s APPEK_ADMIN_JS_VERSION — jinak footer varuje. Auto-bumped release.sh od v2.9.224 ([[:space:]] fix) */
   --primary: #BA7517;
   --primary-dark: #854F0B;
   --primary-light: #FAEEDA;
@@ -691,7 +691,7 @@ body.sidebar-pinned .main-wrap {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.95) inset,
     0 2px 6px rgba(186, 117, 23, 0.10);
-  transform: translateY(-1px);
+  transform: translateY(-2px); /* v3.0.406 — -2px: okraj polozky nahore mizel (user) */
 }
 .nav-item:active {
   transform: translateY(1px);
@@ -11753,7 +11753,7 @@ html.theme-apple .nav-item:hover {
   background: var(--surface-2);
   border-color: var(--primary-border);
   color: var(--text);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 html.theme-apple .nav-item.active {
