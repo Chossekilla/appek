@@ -45,7 +45,8 @@ function vendor_db(): PDO {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
-        $pdo->exec("SET time_zone = '+01:00'");
+        // 🐛 v3.0.402 — date('P') místo fixního '+01:00' (v létě CEST +02:00 → NOW() o hodinu vedle)
+        $pdo->exec("SET time_zone = '" . date('P') . "'");
         vendor_ensure_schema($pdo);
         vendor_ensure_2fa_columns($pdo);
         vendor_ensure_pirate_columns($pdo);
