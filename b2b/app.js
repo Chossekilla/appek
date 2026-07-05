@@ -433,7 +433,9 @@ let _pushSwReg = null;
 async function _initPushB2B() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   try {
-    _pushSwReg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    // 🐛 v3.0.403 — dřív '/sw.js' scope '/' → root sw.js NEEXISTUJE (404) → B2B push
+    //   tiše mrtvý. Push handlery žijí v b2b/sw.js — registruj přes sw.php (mimo CDN cache).
+    _pushSwReg = await navigator.serviceWorker.register('sw.php');
     // Načti existing subscription — pokud uživatel už souhlasil, je už zapsaný
     const sub = await _pushSwReg.pushManager.getSubscription();
     if (sub) {

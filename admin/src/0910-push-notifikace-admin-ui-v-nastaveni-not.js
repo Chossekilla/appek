@@ -6,7 +6,10 @@ let _pushSwAdmin = null;
 async function _initPushAdmin() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   try {
-    _pushSwAdmin = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    // 🐛 v3.0.403 — dřív '/sw.js' scope '/' → root sw.js NEEXISTUJE (404) → push
+    //   notifikace byly od nasazení tiše mrtvé. Push handlery žijí v admin/sw.js
+    //   (registrovaný přes sw.php kvůli CDN, viz v3.0.402) — použij TEN.
+    _pushSwAdmin = await navigator.serviceWorker.register('sw.php', { scope: '/admin/' });
   } catch (e) { console.warn('Admin push SW init failed:', e); }
 }
 _initPushAdmin();
