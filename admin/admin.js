@@ -32,13 +32,16 @@ const APPEK_ADMIN_JS_VERSION = '3.0.402';
     if (APPEK_ADMIN_JS_VERSION.startsWith('__APPEK_')) return;
 
     // Načti manifest (no-cache) — říká co je SKUTEČNĚ na disku.
-    // 🆕 v3.0.236 — non-dotfile první (dotfile .update-manifest.json je na Hostingeru 403),
-    //   fallback na dotfile kvůli starým instalacím co ho ještě nemají.
+    // 🐛 v3.0.402 — PRIMÁRNĚ api/version.php (PHP, vždy 200, no-cache, CDN necachuje).
+    //   OBA manifest .json na Hostingeru/LiteSpeed vrací 403 (blokuje statické .json)
+    //   → detektor byl na produkci slepý a klienti se starým SW trčeli na staré verzi
+    //   (footer ukazoval jinou verzi než backend). Manifesty = fallback pro instalace,
+    //   kde by version.php nebyl dostupný.
     let manifestVersion = null;
-    for (const mf of ['../api/update-manifest.json', '../api/.update-manifest.json']) {
+    for (const mf of ['../api/version.php', '../api/update-manifest.json', '../api/.update-manifest.json']) {
       try {
         const r = await fetch(mf + '?t=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' });
-        if (r.ok) { const j = await r.json(); manifestVersion = j.version; break; }
+        if (r.ok) { const j = await r.json(); if (j && j.version) { manifestVersion = j.version; break; } }
       } catch (e) { /* zkus další */ }
     }
 

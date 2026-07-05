@@ -425,7 +425,9 @@
   // Registrace service workeru
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js', { scope: '/admin/' })
+      // 🐛 v3.0.402 — sw.php místo sw.js: hcdn CDN cachuje statické .js 7 dní
+      //   (ignoruje origin no-cache) → klienti drželi starý SW/admin.js/footer.
+      navigator.serviceWorker.register('sw.php', { scope: '/admin/' })
         .then((reg) => {
           console.log('[PWA] SW registered, scope:', reg.scope);
           // Detekce nové verze

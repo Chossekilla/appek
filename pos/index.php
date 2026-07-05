@@ -283,7 +283,7 @@ $csrfToken  = csrf_token();
   /* 🆕 v3.0.362 — registrace SW kvůli PWA installability (Android Chrome). Bez interceptu = žádný stale-POS. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      navigator.serviceWorker.register('sw.php').catch(function () {}); /* 🐛 v3.0.402 — .php = mimo 7denní hcdn CDN cache */
     });
   }
 </script>
