@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.402';
+const APPEK_ADMIN_JS_VERSION = '3.0.403';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -26953,7 +26953,10 @@ let _pushSwAdmin = null;
 async function _initPushAdmin() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   try {
-    _pushSwAdmin = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    // 🐛 v3.0.403 — dřív '/sw.js' scope '/' → root sw.js NEEXISTUJE (404) → push
+    //   notifikace byly od nasazení tiše mrtvé. Push handlery žijí v admin/sw.js
+    //   (registrovaný přes sw.php kvůli CDN, viz v3.0.402) — použij TEN.
+    _pushSwAdmin = await navigator.serviceWorker.register('sw.php', { scope: '/admin/' });
   } catch (e) { console.warn('Admin push SW init failed:', e); }
 }
 _initPushAdmin();
