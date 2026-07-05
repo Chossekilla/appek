@@ -55,7 +55,7 @@ if (!defined('APP_URL')) {
     define('APP_URL', $__host ? ($__sch . '://' . $__host) : '');
 }
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.401'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.402'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -83,7 +83,11 @@ function db(): PDO {
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
         // Sjednoceni timezone mezi PHP a MySQL
-        $pdo->exec("SET time_zone = '+01:00'"); // CET; v létě se připočítá DST přes PHP
+        // 🐛 v3.0.402 — dřív fixní '+01:00' → v létě (CEST +02:00) se SQL NOW()/CURDATE()
+        //   rozjelo o hodinu proti PHP date() → doklad v 00:00–00:59 nesl číslo nového dne,
+        //   ale datum_objednani spadlo do včerejška (uzávěrka/denní řady mimo). date('P')
+        //   vrací aktuální offset Europe/Prague vč. DST; nezávisí na tz tabulkách v MySQL.
+        $pdo->exec("SET time_zone = '" . date('P') . "'");
 
         // 🔄 SYNC FOUNDATION — Phase 1: schéma sync tabulek (idempotentní, OFF by default)
         if (file_exists(__DIR__ . '/_sync_schema.php')) {
