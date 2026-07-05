@@ -1,0 +1,390 @@
+# 📜 Historie v2.x — shrnutí sloučených commitů
+
+Éra v2.x (382 commitů, od začátku projektu po v2.9.327) byla 2026-07-05 sloučena do jednoho základního commitu, aby byla historie na `main` přehledná.
+
+**Plná původní historie je zachována ve větvi [`backup/plna-historie`](https://github.com/Chossekilla/appek/commits/backup/plna-historie).** Nic nebylo smazáno.
+
+## Seznam sloučených commitů (nejstarší → nejnovější)
+
+- `0cceb66` 2026-05-19 — i18n: batch 1 — +169 SK + +169 DE (buttons + country codes + holidays + A/B common)
+- `ca6452b` 2026-05-19 — i18n: batch 2 — +349 SK + +349 DE (C/Č cluster — Cena, Cenovka, Ctrl+*, Customer*, Číselník*)
+- `ce03300` 2026-05-19 — i18n: batch 3 — +447 SK + +447 DE (D-cluster — Datum*, Doba*, Dokument*, Dodací list*, Doručit*, Doporuč*, Doprava*)
+- `685bf1e` 2026-05-19 — i18n: batch 4 — +595 SK + +595 DE (E + F + G + H clusters)
+- `34a27d4` 2026-05-19 — i18n: batch 5 — +505 SK + +505 DE (I + J + K clusters)
+- `7472a6e` 2026-05-19 — i18n: batch 6 — +479 SK + +479 DE (L + M clusters)
+- `3ef942e` 2026-05-19 — i18n: batch 7 — +461 SK + +461 DE (N cluster)
+- `d02c463` 2026-05-19 — i18n: batch 8 — +345 SK + +345 DE (O cluster)
+- `62cc4d8` 2026-05-19 — i18n: batch 9 — +515 SK + +515 DE (P part 1)
+- `8475ef3` 2026-05-19 — i18n: batch 10 — +516 SK + +516 DE (P part 2)
+- `7f382ad` 2026-05-19 — i18n: batch 11 — +599 SK + +599 DE (R + T clusters)
+- `934ae89` 2026-05-19 — i18n: batch 12 — +974 SK + +974 DE (S cluster)
+- `ff78442` 2026-05-19 — i18n: batch 13 — +691 SK + +691 DE (V cluster) — 🎯 92% target reached!
+- `1513748` 2026-05-19 — i18n: batch 14+15 — modal audit fixes (~149 entries SK+DE)
+- `6e3bac0` 2026-05-19 — i18n: batch 16 — +88 SK + +88 DE (HACCP module)
+- `d205e8d` 2026-05-22 — app: přidán kompletní zdrojový kód APPEK B2B v2.9.117
+- `b4d8b42` 2026-05-22 — build: v2.9.118 — period-filtr wrap fix, pin bez rámečku, regen i18n
+- `a83bd9b` 2026-05-22 — i18n: SK+DE 100% pokrytí (0 nepřeloženo) + oprava přepínače jazyků
+- `9a3dda9` 2026-05-22 — feat: červená tečka u upravených dokladů (obj/fa/dl)
+- `812e8f6` 2026-05-22 — frontpage: header menu odsazení + větší, FAQ 2 sloupce, pryč newsletter
+- `ffdd7f5` 2026-05-22 — frontpage: FAQ pevně 2 sloupce, vyšší header, vlajka bez kódu/šipky
+- `d43a178` 2026-05-22 — frontpage: plovoucí header + zrušen 1200px strop (oprava ořezu „Funkce")
+- `c7ed63c` 2026-05-22 — frontpage: header zpět do normálu + prázdný horní pruh
+- `172a4ad` 2026-05-22 — i18n: +1514 UI frází (EN/ES/SK/DE) + auto-regenerace v build-zip
+- `9d37870` 2026-05-22 — i18n: další UI fráze (dávky 07-18) + r3 audit/merge skripty
+- `7ccbad3` 2026-05-22 — fix: rozdělaná práce z minulých sezení + build v2.9.141
+- `4e5e34c` 2026-05-22 — docs: spec Fáze 1 — deploy pipeline
+- `248fd94` 2026-05-22 — docs: návrh A/B landing page (Apple/Klasik) + přepínač ve vendoru
+- `1f94e37` 2026-05-22 — docs: implementační plán Fáze 1 — deploy pipeline
+- `0271030` 2026-05-22 — feat: scripts/release.sh — jednopříkazové vydání verze
+- `477db16` 2026-05-22 — docs: implementační plán — fáze 1 (infrastruktura A/B přepínače)
+- `0d9cc8f` 2026-05-22 — refactor: apply rutina do knihovny vendor/_self_update.php
+- `3fe8858` 2026-05-22 — feat: auto-rollback + rozšířená záloha (admin/b2b/demo/pos/floorplan)
+- `d11c9fb` 2026-05-22 — feat: post-deploy health check (verze + kritické soubory)
+- `26f3039` 2026-05-22 — feat: vendor/deploy-hook.php — token endpoint pro CI deploy
+- `c95807b` 2026-05-22 — ci: release.yml staví MASTER zip + krok deploy na server
+- `16db32f` 2026-05-22 — docs: ruční kroky F1 (deploy token, GitHub Secrets, první release)
+- `a7ed3ec` 2026-05-22 — Merge pull request #1 from Chossekilla/f1-deploy-pipeline
+- `14ff034` 2026-05-23 — docs: sekce o deploy pipeline v CLAUDE.md
+- `21fcebe` 2026-05-23 — fix: opravy chyb na frontpage
+- `df56efd` 2026-05-23 — chore: release v2.9.145
+- `4a5f700` 2026-05-23 — feat: vendor topbar — chip styl pro ikonu zeměkoule
+- `2debb6d` 2026-05-23 — chore: release v2.9.146
+- `211671e` 2026-05-23 — ci: fix APP_VERSION verify — sed místo grep -oP s fixní mezerou
+- `5f5a3a4` 2026-05-23 — chore: release v2.9.147
+- `9415c49` 2026-05-23 — feat: odstranění CTA "Chybí ti něco? Napiš nám →" ze sekce Integrace
+- `d37b1ab` 2026-05-23 — chore: release v2.9.148
+- `246799c` 2026-05-23 — i18n: B2B portál EN/ES doplnění (+149) + opravený mechanismus, gen re-fix
+- `0997e9a` 2026-05-23 — feat: mobilní hamburger menu v topbaru
+- `dc20389` 2026-05-23 — feat: zjednodušený mobilní topbar — Objednat pryč, hamburger doprava
+- `c7db470` 2026-05-23 — i18n: 7 nových SK frází z batch pipeline (17874 → 17881)
+- `1c5fba5` 2026-05-23 — chore: gitignore i18n batch I/O souborů
+- `d62a759` 2026-05-23 — chore: release v2.9.149
+- `471421a` 2026-05-23 — feat: mobilní hamburger menu — poloviční šířka, pravé zarovnání
+- `3f1ab9c` 2026-05-23 — chore: release v2.9.150
+- `9e67f64` 2026-05-23 — ci: GitHub Release entry non-blocking — deploy pokračuje i při fail
+- `b2d69fb` 2026-05-23 — chore: release v2.9.151
+- `7625792` 2026-05-23 — feat: vyšší mobilní topbar — finger-ready tap area
+- `925ac02` 2026-05-23 — chore: release v2.9.152
+- `b5eb837` 2026-05-23 — feat: checkout 3-sloupcový layout na PC (≥1080 px)
+- `4ff4395` 2026-05-23 — chore: release v2.9.153
+- `450a942` 2026-05-23 — i18n: B2B 100% pokrytí — refaktor runtime konkatenací + zesílený audit
+- `8169c94` 2026-05-23 — chore: release v2.9.154
+- `b7df208` 2026-05-23 — copy: odstranění slevy z poznámky u cen + "Install" → "Instaluj jako appku"
+- `51291de` 2026-05-23 — chore: release v2.9.155
+- `5dfd46b` 2026-05-23 — seo: og-image + favicon + Twitter Card + sitemap pages
+- `6388d96` 2026-05-23 — chore: release v2.9.156
+- `62b201f` 2026-05-23 — ui: admin Nastavení taby — modernizace stylu
+- `0cc83f7` 2026-05-23 — chore: release v2.9.157
+- `d76ec36` 2026-05-23 — fix: back-to-top tlačítko se na frontpage nezobrazovalo (lazy lookup)
+- `69a5596` 2026-05-23 — chore: release v2.9.158
+- `815771e` 2026-05-23 — fix: demo B2B login credentials + nowrap přihlašovacích údajů
+- `c50dc9f` 2026-05-23 — chore: release v2.9.159
+- `0af9588` 2026-05-23 — fix: sjednotit demo B2B login na 'odberatel@demo.cz' (seed + hint)
+- `b76e418` 2026-05-23 — chore: release v2.9.160
+- `7dfce7b` 2026-05-23 — fix(admin): empty-state banner zůstával viditelný po seedu
+- `5a1ed70` 2026-05-23 — chore: release v2.9.161
+- `e4fac8c` 2026-05-23 — fix(email): doklad e-mail body se přizpůsobí podle stavu přílohy
+- `1431d13` 2026-05-23 — chore: release v2.9.162
+- `477f301` 2026-05-23 — chore: release v2.9.163
+- `f581734` 2026-05-23 — feat(email): signed URL tokens for public doklad access from email
+- `d9eeb6b` 2026-05-23 — chore: release v2.9.164
+- `677db1d` 2026-05-23 — fix(email): drop HTML masquerading as PDF, send tokenized link instead
+- `0262d6f` 2026-05-23 — chore: release v2.9.165
+- `29a8669` 2026-05-23 — fix(objednavky): lazy DDL pro chybějící sloupec interni_pozn
+- `82433f6` 2026-05-23 — chore: release v2.9.166
+- `64cbddb` 2026-05-23 — fix(dl): lazy DDL pro chybějící snapshot sloupce v dodaci_list_polozky
+- `bda9c9b` 2026-05-23 — chore: release v2.9.167
+- `5100d41` 2026-05-23 — chore: release v2.9.168
+- `40e9534` 2026-05-23 — fix(faktury): named placeholder reuse padá v PDO native prepared mode
+- `08b9c1e` 2026-05-23 — chore: release v2.9.169
+- `21ce183` 2026-05-23 — fix(pdo): 3× další placeholder reuse bug v native prepared mode
+- `f94d69f` 2026-05-23 — chore: release v2.9.170
+- `b204f58` 2026-05-23 — fix(dl): lazy DDL + token typ='obj' změní titulek na 'Objednávka'
+- `fd94222` 2026-05-23 — chore: release v2.9.171
+- `6af06b1` 2026-05-23 — fix(cislovani): 4-digit padding + upgrade legacy predcisli
+- `264cb6b` 2026-05-23 — chore: release v2.9.172
+- `a52e249` 2026-05-23 — fix(cislovani): LIKE collation mismatch z v2.9.172
+- `3e39f8e` 2026-05-23 — chore: release v2.9.173
+- `25c480d` 2026-05-23 — fix(cislovani): priste UI taky s 4-digit padding
+- `0581996` 2026-05-23 — chore: release v2.9.174
+- `6e859a8` 2026-05-23 — refactor: extract _schema_lib.php — 4 endpointy přestaly duplikovat DDL
+- `4dda4cc` 2026-05-23 — chore: release v2.9.175
+- `e186f98` 2026-05-23 — fix(dl): popisky toolbar + signature line přizpůsobit pro objednávku
+- `32e2166` 2026-05-23 — chore: release v2.9.176
+- `cf1d46b` 2026-05-23 — fix(users): SELECT posledni_prihlaseni → posledni_login AS alias
+- `18541e9` 2026-05-23 — chore: release v2.9.177
+- `7b8beb6` 2026-05-23 — fix(auth): vytvořit chybějící _authz.php + aktualni_uzivatel_z_session()
+- `fdb0672` 2026-05-23 — chore: release v2.9.178
+- `d9c1b12` 2026-05-23 — fix(users): SELECT created_at → vytvoreno AS alias
+- `f07a626` 2026-05-23 — chore: release v2.9.179
+- `c7f3dcb` 2026-05-23 — fix(users): PUT přijme ID z query stringu i body (REST styl)
+- `32713ee` 2026-05-23 — chore: release v2.9.180
+- `58c4aa1` 2026-05-23 — docs(spec): multi-warehouse (sklady) design
+- `5c5fb3a` 2026-05-23 — refactor(nav): top-level 'Výroba' jako hub, HACCP přesunut pod něj
+- `dacdd7a` 2026-05-23 — chore: release v2.9.181
+- `e3d45bb` 2026-05-23 — chore(cleanup): dead code + demo seed hardcoded čísla
+- `e01e56f` 2026-05-23 — chore: release v2.9.182
+- `6595caf` 2026-05-23 — chore(cleanup): smazat 36 batch pipeline artefaktů z scripts/
+- `1722fb3` 2026-05-23 — chore: release v2.9.183
+- `b87ba4f` 2026-05-23 — fix(export): VS fallback z čísla faktury — rok + 4-pad sekvence
+- `147da22` 2026-05-23 — chore: release v2.9.184
+- `883ff10` 2026-05-23 — fix(objednavky): LEFT JOIN vyrobky + COALESCE snapshot — položky se zobrazí
+- `ad834c4` 2026-05-23 — chore: release v2.9.185
+- `47565ab` 2026-05-23 — fix(auth): chybějící _authz.php require ve 3 souborech
+- `022df51` 2026-05-23 — chore: release v2.9.186
+- `f0e387e` 2026-05-23 — fix+refactor(nav): defenzivní fallback + reorganizace menu
+- `9b381dc` 2026-05-23 — chore: release v2.9.187
+- `4dcd2de` 2026-05-23 — refactor(nav): Výrobní list je sub-tab v Výroba (ne samostatný button)
+- `25f43a2` 2026-05-23 — chore: release v2.9.188
+- `2733e0e` 2026-05-23 — refactor(nav): Výroba je default landing + první v menu + Suroviny v sub-tabech
+- `48878ab` 2026-05-23 — chore: release v2.9.189
+- `d0ecc81` 2026-05-23 — feat(vendor): Stripe test connection button + masked secret keys
+- `1bd50f8` 2026-05-23 — chore: release v2.9.190
+- `a30c715` 2026-05-23 — ui(vyroba): sub-tab '📋 Výrobní list' → '🥖 Výroba'
+- `70cea49` 2026-05-23 — chore: release v2.9.191
+- `9aa0110` 2026-05-23 — fix(vendor stripe): regrese z v2.9.190 — __KEEP__ ulozený jako klíč + test 500
+- `0b767a3` 2026-05-23 — chore: release v2.9.192
+- `c05170f` 2026-05-23 — ui(vendor settings + admin nav): kompaktnější layout + Výroba label
+- `42307c6` 2026-05-23 — chore: release v2.9.193
+- `d52aff0` 2026-05-23 — fix(stripe test): test mode disabled charges = OK + skutečná test platba
+- `730195f` 2026-05-23 — chore: release v2.9.194
+- `cd4645d` 2026-05-23 — fix(stripe test): Stripe min CZK je 15 Kč, ne 1 Kč
+- `44b1cef` 2026-05-23 — chore: release v2.9.195
+- `825d9cc` 2026-05-23 — legal(checkout): odstranit srovnání s konkurencí + sjednotit cenu 9990
+- `8eae44b` 2026-05-23 — chore: release v2.9.196
+- `49af635` 2026-05-23 — feat(checkout+vendor): produktové karty + clean payment UX + ToS update
+- `1209613` 2026-05-23 — chore: release v2.9.197
+- `6adf896` 2026-05-23 — legal+email(license): limit liability v ToS + serial nr v licence mailu
+- `73d5e76` 2026-05-23 — chore: release v2.9.198
+- `c56e80d` 2026-05-23 — fix(nav): 'Výrobní list' v Cmd+K palette + dashboard quick-action → 'Výroba'
+- `7a47549` 2026-05-23 — chore: release v2.9.199
+- `c57e793` 2026-05-23 — feat(checkout): platba v checkout formu + bohatší payment-done + validace stripe key
+- `308876c` 2026-05-23 — chore: release v2.9.200
+- `d1186ce` 2026-05-23 — fix(deploy): cache-bust auto-bump v release.sh + manuální 2.9.141→2.9.201
+- `58457da` 2026-05-23 — chore: release v2.9.201
+- `4d59d4a` 2026-05-23 — feat(payment): Stripe-only + session_verify endpoint (nezávisí na webhook)
+- `40ba8d4` 2026-05-23 — chore: release v2.9.202
+- `392ecbf` 2026-05-23 — feat(b2b payment): online platba pro koncové zákazníky (Stripe + GoPay)
+- `ff7b229` 2026-05-23 — chore: release v2.9.203
+- `f4932f9` 2026-05-23 — fix(i18n): frontpage SK/DE fallback chain — SK→CS, DE→EN
+- `9652702` 2026-05-23 — chore: release v2.9.204
+- `22779b8` 2026-05-23 — feat(platby): centrální správa platebních metod (POS + B2B + checkout)
+- `612d894` 2026-05-23 — chore: release v2.9.205
+- `688c889` 2026-05-23 — ui(checkout): odstranit '14denní lhůta / ztrácím právo odstoupit' checkbox
+- `bdd3fe8` 2026-05-23 — chore: release v2.9.206
+- `ce1f673` 2026-05-23 — fix(tos): odstranit odkazy na neexistující checkbox + lepší formulace
+- `b5ff881` 2026-05-23 — chore: release v2.9.207
+- `815188b` 2026-05-23 — feat(notif): vlastní vendor notifikace o nové platbě
+- `c532ce7` 2026-05-23 — chore: release v2.9.208
+- `eefc5eb` 2026-05-23 — feat(paypal): PayPal integrace pro koncové zákazníky (B2B portal)
+- `5e91d2c` 2026-05-23 — chore: release v2.9.209
+- `e1b5b4e` 2026-05-24 — ui(checkout): profi vzhled + telefon povinný
+- `4dd96f7` 2026-05-24 — chore: release v2.9.210
+- `d5d5ca0` 2026-05-24 — ui+legal(frontpage): odebrat Storyous + Dotykačka z chips, přejmenovat na vlastní POS
+- `cac582c` 2026-05-24 — chore: bump APPEK_ADMIN_JS_VERSION 2.9.141 → 2.9.210 (build artifacts)
+- `eac7b69` 2026-05-24 — chore: release v2.9.211
+- `f0f0f60` 2026-05-24 — ui(checkout): redesign hero — clean modern (Stripe/Linear inspired)
+- `3ee4906` 2026-05-24 — chore: release v2.9.212
+- `46e1c57` 2026-05-24 — fix(nav+i18n): sidebar 'Výrobní list' → 'Výroba' + frontpage SK/DE překlady
+- `b38552a` 2026-05-24 — chore: release v2.9.213
+- `4b68635` 2026-05-24 — ui(checkout): clean radio labels + info popovers (i ikonka pod každou platbou)
+- `8322a44` 2026-05-24 — chore: release v2.9.214
+- `7ebdd07` 2026-05-24 — feat(sklady): PR1 — Sklady CRUD (multi-warehouse z 2026-05-23 spec)
+- `63754f3` 2026-05-24 — chore: release v2.9.215
+- `345fecd` 2026-05-24 — feat(sklady): PR2 — sklad_polozky pivot (suroviny + výrobky per sklad)
+- `7326dfe` 2026-05-24 — chore: release v2.9.216
+- `3154f47` 2026-05-24 — feat(sklady): PR3 — pohyby (příjem/výdej/inventura/korekce/přesun)
+- `b966c4b` 2026-05-24 — chore: release v2.9.217
+- `c9c4a11` 2026-05-24 — fix(nav): správné 'Zpět' odkazy podle nové navigace (Výroba hub)
+- `b886789` 2026-05-24 — chore: release v2.9.218
+- `c4b10e6` 2026-05-24 — feat(sklady): PR4 — historie pohybů tab + Fixní náklady přesun do Kalkulace
+- `b02fcc2` 2026-05-24 — chore: release v2.9.219
+- `bb8ed7b` 2026-05-24 — ui(udrzba): 3-sloupcový grid pro Nastavení → Údržba
+- `b495cbb` 2026-05-24 — chore: release v2.9.220
+- `a5adfa8` 2026-05-24 — fix(udrzba): revert UI grid — rozsypaný layout, návrat na stabilní 1-col
+- `386ab4c` 2026-05-24 — chore: release v2.9.221
+- `343ba6a` 2026-05-24 — fix(nav+modal+i18n): navigate('vyroba') loop + Fixní náklady opacity + SK/DE fallback
+- `08035b6` 2026-05-24 — chore: release v2.9.222
+- `0b32d30` 2026-05-24 — ui(instalace): přidán '← Zpět na APPEK' button do toolbaru
+- `fc1346e` 2026-05-24 — fix(css+js): undefined CSS vars + cyrilic 'а' v identifier
+- `fabdedf` 2026-05-24 — fix(critical): chybějící CSS vars + release.sh version bump + sidebar rozvozy
+- `5e0b074` 2026-05-24 — chore: backfill APPEK_ADMIN_JS_VERSION + --appek-css-version → 2.9.222
+- `c460261` 2026-05-24 — feat(i18n): dopřeklad SALES_I18N do SK + DE (319 klíčů)
+- `a0e8caa` 2026-05-24 — chore: release v2.9.223
+- `1bf19e5` 2026-05-24 — fix(release): BSD sed kompatibilita — [[:space:]] místo \s
+- `5e752ea` 2026-05-24 — chore: release v2.9.224
+- `913eafd` 2026-05-24 — feat(nav): Rozvozy pod Objednávky + sloučit PDF nabídka + Štítky do 'Nástroje'
+- `9e45839` 2026-05-24 — chore: release v2.9.225
+- `62f446a` 2026-05-24 — fix(nav): odstranit 'Rozvozové trasy' button z hlavního sidebar menu
+- `b20772e` 2026-05-24 — chore: release v2.9.226
+- `53596c6` 2026-05-24 — ui(vyroba): hezčí sub-taby — segmented control s icon nad textem
+- `9287a36` 2026-05-24 — chore: release v2.9.227
+- `ed873bb` 2026-05-24 — ui(mobile+vyroba): bottom-nav daily workflow + Výroba subtab emoji rozlišení
+- `d5c2ec4` 2026-05-24 — chore: release v2.9.228
+- `090292f` 2026-05-24 — ui(nastaveni+vyroba): sjednocený segmented .seg-tabs styling pro všechny sub-taby
+- `4881d53` 2026-05-24 — chore: release v2.9.229
+- `edb7e57` 2026-05-24 — fix(routing): 100% audit — back tlačítka na všech sub-pages
+- `29c1713` 2026-05-24 — chore: release v2.9.230
+- `c6a5c77` 2026-05-24 — fix(sklady): odstranit zastaralou 'Pohyby přijdou v dalším update' info
+- `06dfefa` 2026-05-24 — chore: release v2.9.231
+- `260ae00` 2026-05-24 — feat(sklady): per-sklad exporty — PDF / CSV / XML / JSON (+ historie pohybů)
+- `8d33cb1` 2026-05-24 — chore: release v2.9.232
+- `17703a7` 2026-05-24 — docs+tool: SETUP-IMAC.md + sync-local.sh pro multi-device + local XAMPP
+- `a8edfcc` 2026-05-24 — ui(dashboard): refresh — hero stat (Tržby), segmented period tabs, greeting
+- `3a9ee8a` 2026-05-24 — chore: release v2.9.233
+- `5086993` 2026-05-24 — ui(dashboard): revert gradient hero — 4 stejné karty + decentní spark + filter persist
+- `b93190a` 2026-05-24 — chore: release v2.9.234
+- `6f99219` 2026-05-24 — ui(dashboard+all): Tržby širší card + .period-tabs unified segmented styling
+- `a4d46a7` 2026-05-24 — chore: release v2.9.235
+- `6b5d6ed` 2026-05-24 — ui(mobile+pages): page-title emoji + globální mobile fit-to-screen safety net
+- `f33c795` 2026-05-24 — chore: release v2.9.236
+- `9355bdf` 2026-05-24 — ui(filters): sjednoceno všude — period-tabs = column layout (icon nahoře, label dole)
+- `808816a` 2026-05-24 — chore: release v2.9.237
+- `44411a2` 2026-05-24 — ui(dashboard): Tržby přesunuto na PRAVÝ KRAJ na PC (visual KPI hierarchy)
+- `85508c9` 2026-05-24 — chore: release v2.9.238
+- `7c24c80` 2026-05-24 — feat(sklady): Správa exportů & inventur — hub modal s 2 taby
+- `095676e` 2026-05-24 — chore: release v2.9.239
+- `1ee37bb` 2026-05-24 — ui(dashboard): nový layout — Tržby 75% + Dnes 25%, spodní řádek 50/50
+- `39d83e6` 2026-05-24 — chore: release v2.9.240
+- `760a6dd` 2026-05-24 — fix(default): landing po loginu zpět na Dashboard (předtím Výroba hub)
+- `887d562` 2026-05-24 — chore: release v2.9.241
+- `593936d` 2026-05-24 — feat(dashboard+platby): Alerts widget + Nastavení Platby 2-sloupcový grid
+- `c6cadd0` 2026-05-24 — chore: release v2.9.242
+- `49c1316` 2026-05-24 — fix+ui: dashboard 75/25+50/50 i mobile (NE stack) + Integrace sales pitch
+- `c06c3ce` 2026-05-24 — chore: release v2.9.243
+- `c777d9f` 2026-05-24 — refactor(css): DRY filter tabs — CSS tokens + nowrap + clamp scale
+- `75895f3` 2026-05-24 — chore: release v2.9.244
+- `5974e8f` 2026-05-24 — fix(filters): mobile period-tabs NIKDY nezalamovat — unified design
+- `124ae25` 2026-05-24 — chore: release v2.9.245
+- `a8e5053` 2026-05-24 — ui(mobile): filter tabs → 2-sloupcový grid (ne scroll) — všechny themes
+- `75a8ec6` 2026-05-24 — chore: release v2.9.246
+- `3dd15c1` 2026-05-24 — fix(mobile): filter tabs zpět na 1 řádek nowrap + plynulý shrink (jako Dashboard)
+- `4b6040d` 2026-05-24 — chore: release v2.9.247
+- `715c80b` 2026-05-24 — fix(filters+sparkline): definitivně bez oválů + lepší grafy + CLAUDE.md rules
+- `60e6fca` 2026-05-24 — chore: release v2.9.248
+- `394eb65` 2026-05-24 — fix(filters): Nastavení 3-col mobile + Apple theme cleanup + CLAUDE rules
+- `dd70139` 2026-05-24 — chore: release v2.9.249
+- `fa08048` 2026-05-24 — ui(mobile): Výroba sub-taby → 3-sloupcový grid (jako Nastavení)
+- `cf92f62` 2026-05-24 — chore: release v2.9.250
+- `6e9bd0b` 2026-05-24 — ui(vyroba): ikona 'Výrobní list' 🥖 → 📋 (clipboard, neopakovat s Výroba hub)
+- `e7e75eb` 2026-05-24 — chore: release v2.9.251
+- `f0747ad` 2026-05-24 — ui(filters): 3-col grid až do TABLET (1024px) — Skupina B (Výroba/Nastavení)
+- `8687eb5` 2026-05-24 — chore: release v2.9.252
+- `1ff5a56` 2026-05-24 — fix(filters+obj): odstraněn span 3 (lichý poslední) + bulk email objednávek
+- `3475027` 2026-05-24 — chore: release v2.9.253
+- `d627043` 2026-05-24 — ui(density): compact density — filter tabs text vždy celý (žádný ellipsis)
+- `2596c5c` 2026-05-24 — chore: release v2.9.254
+- `cd258dd` 2026-05-24 — ui(density+audit): seg-tab/vyroba-subtab density rules + themes čisté
+- `6979e7b` 2026-05-24 — chore: release v2.9.255
+- `0e601b8` 2026-05-24 — ui(vyroba): ikona Výrobní list 📋 → 📝 (odlišení od 📃 Dodací listy)
+- `c53c40e` 2026-05-24 — chore: release v2.9.256
+- `f9d61db` 2026-05-24 — ui(vyroba): ikona Přehled 📊 → 📈 (trend up — odlišení od Dashboard 📊 Přehled)
+- `9e7689c` 2026-05-24 — chore: release v2.9.257
+- `2cea662` 2026-05-24 — ui(vyroba): 'Přehled' → 'Vyrobeno' (odlišit od Dashboard Přehled)
+- `325ce28` 2026-05-24 — chore: release v2.9.258
+- `b4b9cb0` 2026-05-24 — ui(mobile): page-head sekundární tlačítka → 3-col grid (Tisk/Export/Import)
+- `3a0dfb5` 2026-05-24 — chore: release v2.9.259
+- `237b8ab` 2026-05-24 — feat(users): role 'pos' (POS kasa) — backend + UI editovatelné
+- `0b46e44` 2026-05-24 — chore: release v2.9.260
+- `d0a3f4b` 2026-05-24 — ui(modal): mobile padding — kompaktní (max obsah, sticky head)
+- `0a107bf` 2026-05-24 — chore: release v2.9.261
+- `a070ad9` 2026-05-24 — a11y(mobile): touch targets WCAG 2.1 AA (44×44 min)
+- `7786178` 2026-05-24 — chore: release v2.9.262
+- `5770f09` 2026-05-24 — ui(login): Apple/Linear inspired refresh — gradient bg, rounded square logo, glow shadows
+- `c5ba043` 2026-05-24 — chore: release v2.9.263
+- `7a21e52` 2026-05-24 — ui(notif): notifikace panel refresh — Dashboard alerts style
+- `dc4cb80` 2026-05-24 — chore: release v2.9.264
+- `0d1a1de` 2026-05-24 — ui(sklad): Stav skladu stat cards konzistence s Dashboard
+- `09fd82a` 2026-05-24 — chore: release v2.9.265
+- `0e1c1ef` 2026-05-24 — ui(vyrobeno): stat cards refresh — kompaktnější, ikony, sub line, primary tint
+- `11071c5` 2026-05-24 — chore: release v2.9.266
+- `9ca5f31` 2026-05-24 — ui(dashboard): sparkliny jako PODKRES (watermark) pod částkou — Stripe/Linear style
+- `86a6b54` 2026-05-24 — chore: release v2.9.267
+- `5065347` 2026-05-24 — fix(paths): absolutní /admin/ → relative — funguje v root i subfolder install
+- `f2fc013` 2026-05-24 — chore: release v2.9.268
+- `7ce02bc` 2026-05-24 — fix(b2b): demo session expired redirect '/b2b/' → reload (subfolder compat)
+- `7e388f7` 2026-05-24 — chore: release v2.9.269
+- `9898e53` 2026-05-24 — v2.9.270 — POS PIN login + restaurace integrace + robustnost
+- `5d8ce9a` 2026-05-24 — v2.9.271 — WOW demo: recepty, naskladnění, kalkulace, fixní náklady
+- `3d0ae72` 2026-05-24 — v2.9.272 — Inventura: porovnání skladů (pivot) + přesun mezi sklady (UI)
+- `bd3c267` 2026-05-24 — v2.9.273 — Demo seed merge mode (doplnit chybějící data)
+- `98dae99` 2026-05-24 — v2.9.274 — Sklady karty klikací (celá karta = detail skladu)
+- `7779751` 2026-05-24 — v2.9.275 — Fix demo seed: alias matching surovin + fallback výrobků
+- `34b80f0` 2026-05-24 — v2.9.276 — Demo historie objednávek (grafy) + empty state grafu
+- `7d01435` 2026-05-24 — v2.9.277 — Batch oprav: mobile, timer, kalkulace shortcut, reset demo, multi-warehouse sync
+- `a88523c` 2026-05-24 — v2.9.278 — Round 2: POS onboarding, Restaurace setup hint, idempotency rate-limit
+- `b4dc63a` 2026-05-24 — v2.9.279 — Round 3: Provoz refresh + Composite + Sklad safety + Menu eng + POS drafty
+- `14727e4` 2026-05-24 — v2.9.280 — Diskrétní support tel 733 700 808
+- `093498d` 2026-05-24 — v2.9.281 — i18n překlady nových features (CS/EN/ES + SK/DE)
+- `da9693d` 2026-05-24 — v2.9.282 — Mobile period tabs zkrácené (Týden místo Tento týden)
+- `55c6b63` 2026-05-24 — v2.9.283 — Sazby DPH mobile fit + demo seed alias merge
+- `f314669` 2026-05-24 — v2.9.284 — FULL DEMO seed (kompletní funkční ukázka)
+- `d49a05a` 2026-05-24 — v2.9.285 — Mobile period tabs JS-based fix + update funkčnost
+- `4d3727d` 2026-05-24 — v2.9.286 — Audit fixy: výroba odpis, sklad lock, scale clamp, alergeny regex
+- `ef459e7` 2026-05-24 — v2.9.287 — Period tabs: 1 řádek + krátké labely sjednoceno všude
+- `ffc4681` 2026-05-24 — v2.9.288 — Defenzivní fallbacks: data.faktury undefined + reduce errors
+- `beb001d` 2026-05-24 — v2.9.289 — Fix list.map + deploy local XAMPP
+- `36828f4` 2026-05-24 — v2.9.290 — Per-výrobek demo recept (tlačítko v editoru)
+- `e57a162` 2026-05-24 — v2.9.291 — Landing page kontaktní telefon: 733 700 808
+- `f16dd1c` 2026-05-24 — v2.9.292 — Demo seed AUTOMATICKY při onboardingu (žádný klik)
+- `2e1c3ac` 2026-05-24 — v2.9.293 — Landing kontakt z vendor business info (single source of truth)
+- `c230ded` 2026-05-24 — v2.9.294 — Reset demo data přesunut do Nastavení → Údržba
+- `efaf287` 2026-05-24 — v2.9.295 — Fix demo seed 500: DDL implicit commit + aktivni column check
+- `f9d190e` 2026-05-24 — v2.9.296 — Dashboard defenzivní fallback (d.obdobi_stats undefined)
+- `558e224` 2026-05-24 — v2.9.297 — Demo seed clear rozšíření (Restaurace + POS users)
+- `15f3bd5` 2026-05-24 — v2.9.298 — Klonek výpočet UI clarity + nutri data v demo surovinách
+- `d851e45` 2026-05-24 — v2.9.299 — POS MacBook 13 kompaktní + finish + přepínač prodavačů
+- `ea30e2b` 2026-05-24 — v2.9.300 — POS back btn + force schema migrace v demo seed
+- `cce0b8d` 2026-05-24 — v2.9.301 — POS FINISH button OBROVSKÝ + 2-row layout
+- `89c0b0a` 2026-05-24 — v2.9.302 nutri data do štítků — 7 nových prvků katalogu + EU tabulka
+- `e47a37c` 2026-05-24 — chore: release v2.9.302
+- `4b14996` 2026-05-24 — v2.9.303 POS Kasa launcher kompaktní + dnešní prodeje
+- `abe8978` 2026-05-24 — chore: release v2.9.303
+- `844c9dd` 2026-05-24 — v2.9.304 fix sidebar broken — flex:1 expand pro single nav-item
+- `a6d6c1f` 2026-05-24 — chore: release v2.9.304
+- `3c510fe` 2026-05-24 — v2.9.305 fix Akce vyžadující pozornost + notifikační bublina click
+- `74be860` 2026-05-24 — chore: release v2.9.305
+- `dd01348` 2026-05-24 — v2.9.306 expand pos role + auto-migrace existující Prodavač 1
+- `fc2ebb4` 2026-05-24 — chore: release v2.9.306
+- `e91d4fd` 2026-05-24 — v2.9.307 POS cart row visible + grouped notif click + menu fix
+- `bf1cd10` 2026-05-24 — chore: release v2.9.307
+- `42d9374` 2026-05-24 — v2.9.308 POS účtenky klikatelné řádky + receipt detail modal
+- `d700ea3` 2026-05-24 — chore: release v2.9.308
+- `f76549b` 2026-05-24 — v2.9.309 POS sleva+tip do polozky + pos role plný menu + Prodavač=admin
+- `5db10ab` 2026-05-24 — chore: release v2.9.309
+- `b427444` 2026-05-24 — v2.9.310 editovatelné rychlé volby pro POS volný řádek
+- `3775404` 2026-05-24 — chore: release v2.9.310
+- `e8d0a4a` 2026-05-24 — v2.9.311 odstranit otevírací dobu z landing page
+- `3b02c0e` 2026-05-24 — chore: release v2.9.311
+- `a18174a` 2026-05-24 — v2.9.312 dopřeklady SK/DE pro v2.9.302-311 změny
+- `0465365` 2026-05-24 — chore: release v2.9.312
+- `9601857` 2026-05-25 — v2.9.313 security batch (audit findings)
+- `d777bc3` 2026-05-25 — chore: release v2.9.313
+- `12493f7` 2026-05-25 — v2.9.314 performance batch — lazy i18n + SQL range scan
+- `bb52ffd` 2026-05-25 — chore: release v2.9.314
+- `103b34d` 2026-05-25 — v2.9.315 defense-in-depth (audit batch 3)
+- `3b08e58` 2026-05-25 — chore: release v2.9.315
+- `004834b` 2026-05-25 — v2.9.316 dopřeklady SK/DE pro v2.9.313-315 error messages
+- `e255fa5` 2026-05-25 — chore: release v2.9.316
+- `216f88e` 2026-05-25 — v2.9.317 fix GH Actions release deploy step — retry + timeouts
+- `ad4c95e` 2026-05-25 — chore: release v2.9.317
+- `99ac11a` 2026-05-25 — v2.9.318 deploy step continue-on-error + job summary
+- `d0e5457` 2026-05-25 — chore: release v2.9.318
+- `08c0749` 2026-05-25 — v2.9.319 landing PWA install tip i18n (5 jazyků)
+- `e94df5a` 2026-05-25 — chore: release v2.9.319
+- `05590f8` 2026-05-25 — v2.9.320 Demo data panel přesunut dolů + skryto v <details>
+- `8912265` 2026-05-25 — chore: release v2.9.320
+- `0540740` 2026-05-25 — v2.9.321 robust error infrastructure — app_errors DB + Logs viewer + POS capture
+- `898276a` 2026-05-25 — chore: release v2.9.321
+- `2e63eba` 2026-05-25 — v2.9.322 proaktivní monitoring — healthcheck + auto-notif + dashboard banner
+- `d825c96` 2026-05-25 — chore: release v2.9.322
+- `1816680` 2026-05-25 — v2.9.323 healthcheck fix — size_human() declaration order
+- `9c9277d` 2026-05-25 — chore: release v2.9.323
+- `ccbe259` 2026-05-25 — v2.9.324 ship-readiness sprint — CRITICAL FIX + cron_run + DL undefined + smoke-test
+- `9774dab` 2026-05-25 — chore: release v2.9.324
+- `7ba8e4c` 2026-05-25 — v2.9.325 SHIP-READY — download.php + install self-delete + auto-rollback
+- `86c37de` 2026-05-25 — chore: release v2.9.325
+- `941ac72` 2026-05-25 — v2.9.326 onboarding demo data toggle — výběr ano/ne (předtím auto)
+- `ed2c9ce` 2026-05-25 — chore: release v2.9.326
+- `c72b3b4` 2026-05-25 — v2.9.327 fix self-update — session_secure_start místo bare session_start
+- `c70ade3` 2026-05-25 — chore: release v2.9.327
