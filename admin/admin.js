@@ -18897,8 +18897,10 @@ async function renderCateringCalculator() {
   }
 
   state._catering = state._catering || {
-    osob: 30, typ: 'standard', jidlo: ['chlebicky', 'jednohubky', 'mini_kolacky'], napoje: ['voda', 'kafa']
+    osob: 30, typ: 'standard', jidlo: ['chlebicky', 'jednohubky', 'mini_kolacky'], napoje: ['voda', 'kafa'], menu: []
   };
+  state._catering.menu = state._catering.menu || [];
+  state._cateringVyrobky = opts.vyrobky || [];   // 🆕 v3.0.407 — katalog pro Menu z výrobků
 
   const renderCheckList = (items, picked, key) => Object.entries(items).map(([k, it]) => `
     <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;background:${picked.includes(k) ? 'var(--surface-2)' : 'transparent'};border:1px solid ${picked.includes(k) ? 'var(--primary)' : 'transparent'}">
@@ -18945,6 +18947,39 @@ async function renderCateringCalculator() {
             ${renderCheckList(opts.napoje, state._catering.napoje, 'napoje')}
           </div>
         </div>
+
+        <!-- 🆕 v3.0.407 — MENU Z VÝROBKŮ (cena z výrobku, receptura → odpis surovin) -->
+        <div class="card-block">
+          <h3 style="margin:0 0 4px">🧩 Menu z výrobků</h3>
+          <p style="font-size:12px;color:var(--text-3);margin:0 0 10px">Sestav menu přímo z katalogu výrobků — <strong>cena se bere z výrobku</strong>, množství = ks/osobu × počet osob × koeficient. Výrobek s recepturou se při výrobě odečte ze surovin.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
+            <div style="flex:1;min-width:220px">
+              <label class="form-label" style="font-size:12px">Výrobek</label>
+              <select class="form-input" id="cat-menu-vyb" style="font-size:13px">
+                ${(state._cateringVyrobky || []).map(v => `<option value="${v.id}">${esc(v.nazev)} · ${fmt(v.cena)}/${esc(v.jednotka)}${v.ma_recept ? ' · 🧮' : ''}</option>`).join('')}
+              </select>
+            </div>
+            <div style="width:110px">
+              <label class="form-label" style="font-size:12px">ks / osobu</label>
+              <input type="number" class="form-input" id="cat-menu-per" value="1" min="0.01" max="50" step="0.1" style="text-align:center">
+            </div>
+            <button class="btn-primary btn-green" onclick="cateringMenuAdd()">➕ Přidat</button>
+          </div>
+          <div id="cat-menu-list">
+            ${(state._catering.menu || []).length === 0 ? '<div style="font-size:12px;color:var(--text-3);padding:6px 0">Zatím nic — přidej výrobky do menu ↑</div>' :
+              (state._catering.menu || []).map((m, i) => {
+                const v = (state._cateringVyrobky || []).find(x => String(x.id) === String(m.vyrobek_id)) || {};
+                return `<div style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-bottom:1px solid var(--border);font-size:13px">
+                  <div style="flex:1;min-width:0"><strong>${esc(v.nazev || ('#' + m.vyrobek_id))}</strong>
+                    <span style="font-size:11px;color:var(--text-3)"> · ${fmt(v.cena || 0)}/${esc(v.jednotka || 'ks')}${v.ma_recept ? ' · <span title="Má recepturu — odečte suroviny">🧮 sklad</span>' : ' · odhad bez odpisu'}</span>
+                  </div>
+                  <input type="number" value="${m.per_osobu}" min="0.01" max="50" step="0.1" style="width:76px;text-align:center;padding:5px;border:1px solid var(--border);border-radius:6px" onchange="cateringMenuSetPer(${i}, this.value)" title="ks / osobu">
+                  <span style="font-size:11px;color:var(--text-3)">/os</span>
+                  <button class="btn-icon" onclick="cateringMenuDel(${i})" title="Odebrat">✕</button>
+                </div>`;
+              }).join('')}
+          </div>
+        </div>
       </div>
 
       <!-- SUMMARY -->
@@ -18966,6 +19001,25 @@ window.cateringTogglePick = function(key, val, checked) {
   cateringRecalc();
 };
 
+// 🆕 v3.0.407 — Menu z výrobků: přidat / odebrat / změnit ks-na-osobu
+window.cateringMenuAdd = function() {
+  const vid = parseInt((document.getElementById('cat-menu-vyb') || {}).value, 10);
+  const per = parseFloat((document.getElementById('cat-menu-per') || {}).value) || 1;
+  if (!vid) return;
+  state._catering.menu = state._catering.menu || [];
+  const ex = state._catering.menu.find(m => m.vyrobek_id === vid);
+  if (ex) ex.per_osobu = per; else state._catering.menu.push({ vyrobek_id: vid, per_osobu: per });
+  renderCateringCalculator();
+};
+window.cateringMenuDel = function(i) {
+  (state._catering.menu || []).splice(i, 1);
+  renderCateringCalculator();
+};
+window.cateringMenuSetPer = function(i, val) {
+  const m = (state._catering.menu || [])[i];
+  if (m) { m.per_osobu = Math.max(0.01, Math.min(50, parseFloat(val) || 1)); cateringRecalc(); }
+};
+
 window.cateringRecalc = async function() {
   const host = document.getElementById('catering-quote');
   if (!host) return;
@@ -18975,6 +19029,7 @@ window.cateringRecalc = async function() {
       body: JSON.stringify({
         osob: state._catering.osob, typ_udalosti: state._catering.typ,
         prilohy: state._catering.jidlo || [], napoje: state._catering.napoje || [],
+        menu: state._catering.menu || [],   // 🆕 v3.0.407 — menu z výrobků
       }),
     });
     host.innerHTML = `
@@ -19077,6 +19132,7 @@ window.cateringSubmitOrder = async function() {
       body: JSON.stringify({
         osob: state._catering.osob, typ_udalosti: state._catering.typ,
         prilohy: state._catering.jidlo || [], napoje: state._catering.napoje || [],
+        menu: state._catering.menu || [],   // 🆕 v3.0.407 — menu z výrobků
         odberatel_id: odberatelId, datum_dodani: datum,
         foto: (state._cateringFoto || '').trim(),
         poznamka: (document.getElementById('cat-pozn')?.value || '').trim(),
@@ -19141,7 +19197,7 @@ function cateringCfgRender() {
     <tr>
       <td><input class="form-input" style="font-size:12px;min-width:140px" value="${esc(it.nazev || '')}" oninput="cateringCfgSet('${skupina}','${esc(key)}','nazev',this.value)"></td>
       <td><input type="number" step="0.01" min="0" class="form-input" style="font-size:12px;width:78px" value="${it.per_osobu || 0}" oninput="cateringCfgSet('${skupina}','${esc(key)}','per_osobu',this.value)"></td>
-      <td><input type="number" step="0.5" min="0" class="form-input" style="font-size:12px;width:78px" value="${it.cena_kc || 0}" oninput="cateringCfgSet('${skupina}','${esc(key)}','cena_kc',this.value)"></td>
+      <td><input type="number" step="0.5" min="0" class="form-input" style="font-size:12px;width:78px${it.vyrobek_id ? ';opacity:0.5' : ''}" value="${it.cena_kc || 0}" ${it.vyrobek_id ? 'disabled title="Cena se bere z napárovaného výrobku — ruční cena se nepoužije"' : ''} oninput="cateringCfgSet('${skupina}','${esc(key)}','cena_kc',this.value)"></td>
       <td><select class="form-input" style="font-size:12px;width:72px" onchange="cateringCfgSet('${skupina}','${esc(key)}','jednotka',this.value)">${jedOpts(it.jednotka || 'ks')}</select></td>
       <td><select class="form-input" style="font-size:12px;min-width:170px" onchange="cateringCfgSet('${skupina}','${esc(key)}','vyrobek_id',this.value)">${vyrOpts(it.vyrobek_id)}</select></td>
       <td style="text-align:center"><button class="btn-icon" title="Smazat položku" onclick="cateringCfgDel('${skupina}','${esc(key)}')" style="border:none;background:none;cursor:pointer;color:var(--danger-text,#DC2626);font-size:15px">🗑</button></td>

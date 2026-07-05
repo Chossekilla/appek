@@ -298,6 +298,52 @@ function catering_compute(PDO $pdo, array $d): array {
             'odecte_sklad' => (bool) $vyr,
         ];
     }
+
+    // 🆕 v3.0.407 — MENU Z VÝROBKŮ (vzor catering SW: menu builder z produktů).
+    //   d['menu'] = [{vyrobek_id, per_osobu}] — cena/DPH/název VŽDY z výrobku,
+    //   množství = per_osobu × osob × koef, odpis surovin standardně přes
+    //   vyrobek_id řádek → výroba → BOM (když má výrobek recepturu).
+    $menu = (array) ($d['menu'] ?? []);
+    if ($menu) {
+        $ids = array_values(array_unique(array_filter(array_map(fn($m) => (int) ($m['vyrobek_id'] ?? 0), $menu))));
+        if ($ids) {
+            $ph = implode(',', array_fill(0, count($ids), '?'));
+            $st = $pdo->prepare("
+                SELECT v.id, v.nazev, v.cena_bez_dph, COALESCE(sd.sazba, 12) AS dph,
+                       COALESCE(j.kod, 'ks') AS jednotka,
+                       (SELECT COUNT(*) FROM vyrobek_suroviny WHERE vyrobek_id = v.id) AS recept
+                FROM vyrobky v
+                LEFT JOIN sazby_dph sd ON sd.id = v.sazba_dph_id
+                LEFT JOIN jednotky j ON j.id = v.jednotka_id
+                WHERE v.aktivni = 1 AND v.id IN ($ph)
+            ");
+            $st->execute($ids);
+            $vmap = [];
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $v) $vmap[(int) $v['id']] = $v;
+            foreach ($menu as $m) {
+                $vid = (int) ($m['vyrobek_id'] ?? 0);
+                $per = max(0.01, min(50, (float) ($m['per_osobu'] ?? 1)));
+                $v = $vmap[$vid] ?? null;
+                if (!$v) continue; // smazaný/neaktivní výrobek přeskoč
+                $mnozstvi = round($per * $osob * $koef, 2);
+                if ($mnozstvi <= 0) continue;
+                $cenaJed = round((float) $v['cena_bez_dph'], 2);
+                $maRecept = (int) $v['recept'] > 0;
+                $polozky[] = [
+                    'klic'      => 'menu_' . $vid,
+                    'nazev'     => $v['nazev'],
+                    'mnozstvi'  => $mnozstvi,
+                    'jednotka'  => $v['jednotka'],
+                    'cena_per_jednotku' => $cenaJed,
+                    'cena_kc'   => round($mnozstvi * $cenaJed, 2),
+                    'vyrobek_id'=> $vid,
+                    'material_kc' => $maRecept ? round(catering_material_cost($pdo, $vid) * $mnozstvi, 2) : null,
+                    'dph'       => (float) $v['dph'],
+                    'odecte_sklad' => $maRecept,
+                ];
+            }
+        }
+    }
     return ['osob' => $osob, 'typ' => $typ, 'koef' => $koef, 'polozky' => $polozky];
 }
 
@@ -315,11 +361,27 @@ if ($action === 'options') {
         }
         return $out;
     };
+    // 🆕 v3.0.407 — katalog výrobků pro „Menu z výrobků" picker (cena z výrobku, recept → odpis)
+    $vyrobkyKatalog = [];
+    try {
+        $vyrobkyKatalog = $pdo->query("
+            SELECT v.id, v.nazev, ROUND(v.cena_bez_dph, 2) AS cena, COALESCE(j.kod, 'ks') AS jednotka,
+                   (SELECT COUNT(*) FROM vyrobek_suroviny WHERE vyrobek_id = v.id) > 0 AS ma_recept,
+                   COALESCE(k.nazev, '') AS kategorie
+            FROM vyrobky v
+            LEFT JOIN jednotky j ON j.id = v.jednotka_id
+            LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
+            WHERE v.aktivni = 1
+            ORDER BY k.nazev, v.nazev
+            LIMIT 500
+        ")->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {}
     json_response([
         'typy_udalosti' => array_values(catering_cfg_typy($pdo)),
         'doporuceni'    => $deco(catering_cfg_jidlo($pdo)),
         'napoje'        => $deco(catering_cfg_napoje($pdo)),
         'sazba_dph'     => catering_cfg_dph($pdo),
+        'vyrobky'       => $vyrobkyKatalog,
     ]);
 }
 
