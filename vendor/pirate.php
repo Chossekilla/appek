@@ -62,13 +62,16 @@ $reasonFilter = $_GET['reason'] ?? '';
 $where = [];
 $params = [];
 
+// 🐛 v3.0.403 — kvalifikace p.* : JOIN na vendor_licenses (reuse_customer) přinesl
+//   druhý sloupec `status` → "Column 'status' ambiguous" → celá stránka 500 (default
+//   filtr 'open' padal VŽDY). Regrese ze střetu P1-A JOINu a P1-B status sloupce licencí.
 if ($filter === 'open') {
-    $where[] = "status IN ('new', 'contacted', 'warned')";
+    $where[] = "p.status IN ('new', 'contacted', 'warned')";
 } elseif ($filter === 'closed') {
-    $where[] = "status IN ('licensed', 'closed', 'ignored')";
+    $where[] = "p.status IN ('licensed', 'closed', 'ignored')";
 }
 if ($reasonFilter !== '') {
-    $where[] = "reason = :r";
+    $where[] = "p.reason = :r";
     $params[':r'] = $reasonFilter;
 }
 
