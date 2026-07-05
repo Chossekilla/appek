@@ -17079,6 +17079,28 @@ SK_EXTRA = {
     'Povolte popup okna': 'Povoľte popup okná',
     'Chybí ID': 'Chýba ID',
     'Nenalezeno': 'Nenájdené',
+
+    # v3.0.407 dopreklady catering kalkulacka (audit 0560)
+    '← Dashboard': '← Dashboard',
+    '⚙️ Nastavení kalkulačky': '⚙️ Nastavenia kalkulačky',
+    '🧮 sklad': '🧮 sklad',
+    '🧮 Z kalkulace (receptury)': '🧮 Z kalkulácie (receptúry)',
+    'Materiál (suroviny)': 'Materiál (suroviny)',
+    '📸 Fotka předlohy': '📸 Fotka predlohy',
+    '(volitelné — aranžmá / vzor mís)': '(voliteľné — aranžmán / vzor mís)',
+    '⬆️ Nahrát fotku': '⬆️ Nahrať fotku',
+    '(volitelné — alergie, čas, speciální požadavky)': '(voliteľné — alergie, čas, špeciálne požiadavky)',
+    '✓ Vytvořit objednávku': '✓ Vytvoriť objednávku',
+    '— bez napárování (odhad) —': '— bez napárovania (odhad) —',
+    'Žádné položky — přidej tlačítkem výše': 'Žiadne položky — pridaj tlačidlom vyššie',
+    '⚙️ Uprav položky, ceny a množství na osobu.': '⚙️ Uprav položky, ceny a množstvá na osobu.',
+    'Napáruj na výrobek': 'Napáruj na výrobok',
+    '🎉 Typy událostí': '🎉 Typy udalostí',
+    '(koeficient množství × na osobu)': '(koeficient množstva × na osobu)',
+    'Žádné typy': 'Žiadne typy',
+    'DPH %:': 'DPH %:',
+    '↺ Načíst výchozí': '↺ Načítať predvolené',
+    '💾 Uložit konfiguraci': '💾 Uložiť konfiguráciu',
 }
 
 DE_EXTRA = {
@@ -34103,6 +34125,28 @@ DE_EXTRA = {
     '✓ V pořádku': '✓ In Ordnung',
     '⚠ S připomínkami': '⚠ Mit Anmerkungen',
     '✗ Nevyhovuje': '✗ Nicht bestanden',
+
+    # v3.0.407 dopreklady catering kalkulacka (audit 0560)
+    '← Dashboard': '← Dashboard',
+    '⚙️ Nastavení kalkulačky': '⚙️ Rechner-Einstellungen',
+    '🧮 sklad': '🧮 Lager',
+    '🧮 Z kalkulace (receptury)': '🧮 Aus der Kalkulation (Rezepturen)',
+    'Materiál (suroviny)': 'Material (Zutaten)',
+    '📸 Fotka předlohy': '📸 Referenzfoto',
+    '(volitelné — aranžmá / vzor mís)': '(optional — Anrichtung / Platten-Vorlage)',
+    '⬆️ Nahrát fotku': '⬆️ Foto hochladen',
+    '(volitelné — alergie, čas, speciální požadavky)': '(optional — Allergien, Uhrzeit, Sonderwünsche)',
+    '✓ Vytvořit objednávku': '✓ Bestellung erstellen',
+    '— bez napárování (odhad) —': '— nicht verknüpft (Schätzung) —',
+    'Žádné položky — přidej tlačítkem výše': 'Keine Positionen — oben hinzufügen',
+    '⚙️ Uprav položky, ceny a množství na osobu.': '⚙️ Positionen, Preise und Mengen pro Person bearbeiten.',
+    'Napáruj na výrobek': 'Mit Produkt verknüpfen',
+    '🎉 Typy událostí': '🎉 Veranstaltungstypen',
+    '(koeficient množství × na osobu)': '(Mengenkoeffizient × pro Person)',
+    'Žádné typy': 'Keine Typen',
+    'DPH %:': 'MwSt. %:',
+    '↺ Načíst výchozí': '↺ Standard laden',
+    '💾 Uložit konfiguraci': '💾 Konfiguration speichern',
 }
 
 # ═════════════════════════════════════════════════════════════════════

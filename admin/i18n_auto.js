@@ -25599,6 +25599,28 @@ const I18N_PHRASES = [
   ['+ Přidat polotovar', '+ Add semi-product', '+ Añadir semielaborado'],
   ['+ Přidat typ', '+ Add type', '+ Añadir tipo'],
   ['— vyber nefakturovanou objednávku / DL —', '— select uninvoiced order / delivery note —', '— elige pedido / albarán sin facturar —'],
+  // v3.0.407 dopreklady catering kalkulacka (audit 0560) (+20)
+  ['← Dashboard', '← Dashboard', '← Panel'],
+  ['⚙️ Nastavení kalkulačky', '⚙️ Calculator settings', '⚙️ Ajustes de la calculadora'],
+  ['🧮 sklad', '🧮 stock', '🧮 almacén'],
+  ['🧮 Z kalkulace (receptury)', '🧮 From costing (recipes)', '🧮 Del cálculo (recetas)'],
+  ['Materiál (suroviny)', 'Materials (ingredients)', 'Material (ingredientes)'],
+  ['📸 Fotka předlohy', '📸 Reference photo', '📸 Foto de referencia'],
+  ['(volitelné — aranžmá / vzor mís)', '(optional — arrangement / platter template)', '(opcional — presentación / modelo de bandejas)'],
+  ['⬆️ Nahrát fotku', '⬆️ Upload photo', '⬆️ Subir foto'],
+  ['(volitelné — alergie, čas, speciální požadavky)', '(optional — allergies, time, special requests)', '(opcional — alergias, hora, peticiones especiales)'],
+  ['✓ Vytvořit objednávku', '✓ Create order', '✓ Crear pedido'],
+  ['— bez napárování (odhad) —', '— not linked (estimate) —', '— sin vincular (estimación) —'],
+  ['Žádné položky — přidej tlačítkem výše', 'No items — add one with the button above', 'Sin artículos — añádelos con el botón de arriba'],
+  ['⚙️ Uprav položky, ceny a množství na osobu.', '⚙️ Edit items, prices and per-person amounts.', '⚙️ Edita artículos, precios y cantidades por persona.'],
+  ['Napáruj na výrobek', 'Link to a product', 'Vincular a un producto'],
+  ['🎉 Typy událostí', '🎉 Event types', '🎉 Tipos de eventos'],
+  ['(koeficient množství × na osobu)', '(quantity coefficient × per person)', '(coeficiente de cantidad × por persona)'],
+  ['Žádné typy', 'No types', 'Sin tipos'],
+  ['DPH %:', 'VAT %:', 'IVA %:'],
+  ['↺ Načíst výchozí', '↺ Load defaults', '↺ Cargar predeterminados'],
+  ['💾 Uložit konfiguraci', '💾 Save configuration', '💾 Guardar configuración'],
+
 ];
 
 // Build lookup index pro O(1) access
