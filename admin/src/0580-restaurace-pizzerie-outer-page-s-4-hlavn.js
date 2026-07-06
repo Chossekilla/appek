@@ -41,6 +41,7 @@ async function renderRestaurantPage() {
         { k:'kitchen',  icon:'👨‍🍳', label:'Kapacita kuchyně', sub:'Stanice · max paral.', grad:'135deg,#EF4444,#991B1B', light:'#FEE2E2', dark:'#7F1D1D' },
         { k:'prep',     icon:'⏱️', label:'Doba přípravy',   sub:'Min. per výrobek',       grad:'135deg,#A78BFA,#5B21B6', light:'#EDE9FE', dark:'#4C1D95' },
         { k:'couriers', icon:'🛵', label:'Rozvoz / Kurýři', sub:'Wolt · Bolt · vlastní',  grad:'135deg,#F97316,#9A3412', light:'#FFEDD5', dark:'#7C2D12' },
+        { k:'menu',     icon:'🗓️', label:'Týdenní menu',    sub:'Z výrobků · rozesílka · sdílení', grad:'135deg,#14B8A6,#0F766E', light:'#CCFBF1', dark:'#134E4A' },
       ].map(b => {
         const active = tab === b.k || (b.k === 'provoz' && !tab);
         return `
@@ -69,6 +70,7 @@ async function renderRestaurantPage() {
   if (tab === 'kitchen')  return renderKitchenCapacity();
   if (tab === 'prep')     return renderPrepTimes();
   if (tab === 'couriers') return renderCouriers();
+  if (tab === 'menu')     return renderTydenniMenu();   // 🗓️ v3.0.409 — týdenní menu
   return renderRestaurantTables();
 }
 

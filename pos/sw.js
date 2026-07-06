@@ -4,7 +4,7 @@
  * POS vždy bere čerstvý kód z network (žádný stale-POS risk). Listener existuje jen proto,
  * aby Chrome nabídl instalaci. CACHE_NAME bumpuje build-update.sh (úklid starých verzí v activate).
  */
-const CACHE_NAME = 'appek-pos-v3.0.408';
+const CACHE_NAME = 'appek-pos-v3.0.409';
 const PRECACHE_URLS = ['/pos/', '/pos/manifest.json'];
 
 self.addEventListener('install', (event) => {
