@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.407';
+const APPEK_ADMIN_JS_VERSION = '3.0.408';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -18901,6 +18901,9 @@ async function renderCateringCalculator() {
   };
   state._catering.menu = state._catering.menu || [];
   state._cateringVyrobky = opts.vyrobky || [];   // 🆕 v3.0.407 — katalog pro Menu z výrobků
+  // 🆕 v3.0.408 — uložené šablony menu
+  try { state._cateringSablony = (await api('admin_catering_calc.php?action=sablony')).sablony || []; }
+  catch (e) { state._cateringSablony = []; }
 
   const renderCheckList = (items, picked, key) => Object.entries(items).map(([k, it]) => `
     <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;background:${picked.includes(k) ? 'var(--surface-2)' : 'transparent'};border:1px solid ${picked.includes(k) ? 'var(--primary)' : 'transparent'}">
@@ -18950,8 +18953,19 @@ async function renderCateringCalculator() {
 
         <!-- 🆕 v3.0.407 — MENU Z VÝROBKŮ (cena z výrobku, receptura → odpis surovin) -->
         <div class="card-block">
-          <h3 style="margin:0 0 4px">🧩 Menu z výrobků</h3>
-          <p style="font-size:12px;color:var(--text-3);margin:0 0 10px">Sestav menu přímo z katalogu výrobků — <strong>cena se bere z výrobku</strong>, množství = ks/osobu × počet osob × koeficient. Výrobek s recepturou se při výrobě odečte ze surovin.</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <h3 style="margin:0">🧩 Menu z výrobků</h3>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              ${(state._cateringSablony || []).length ? `
+              <select class="form-input" id="cat-sab-sel" style="font-size:12px;max-width:190px">
+                ${state._cateringSablony.map(s => `<option value="${s.id}">📋 ${esc(s.nazev)} (${(s.menu || []).length})</option>`).join('')}
+              </select>
+              <button class="btn-secondary" style="font-size:12px" onclick="cateringSablonaNacti()" title="Načíst šablonu do menu">⤵️ Načíst</button>
+              <button class="btn-icon" onclick="cateringSablonaSmaz()" title="Smazat vybranou šablonu">🗑️</button>` : ''}
+              <button class="btn-secondary" style="font-size:12px" onclick="cateringSablonaUloz()" title="Uložit aktuální menu jako pojmenovanou šablonu">📌 Uložit jako šablonu</button>
+            </div>
+          </div>
+          <p style="font-size:12px;color:var(--text-3);margin:0 0 10px">Sestav menu přímo z katalogu výrobků — <strong>cena se bere z výrobku</strong> (v šabloně se ceny berou vždy aktuální), množství = ks/osobu × počet osob × koeficient. Výrobek s recepturou se při výrobě odečte ze surovin.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
             <div style="flex:1;min-width:220px">
               <label class="form-label" style="font-size:12px">Výrobek</label>
@@ -19020,6 +19034,59 @@ window.cateringMenuSetPer = function(i, val) {
   if (m) { m.per_osobu = Math.max(0.01, Math.min(50, parseFloat(val) || 1)); cateringRecalc(); }
 };
 
+// 🆕 v3.0.408 — ŠABLONY MENU (pojmenované balíčky; ceny se berou vždy živě z výrobků)
+window.cateringSablonaUloz = async function() {
+  const menu = state._catering.menu || [];
+  if (!menu.length) return alert('Menu je prázdné — nejdřív přidej výrobky.');
+  const nazev = prompt('Název šablony (např. „Svatební menu A"):');
+  if (!nazev || !nazev.trim()) return;
+  try {
+    const r = await api('admin_catering_calc.php?action=save_sablona', { method: 'POST', body: JSON.stringify({ nazev: nazev.trim(), menu }) });
+    state._cateringSablony = r.sablony || [];
+    toastSuccess(r.prepsano ? 'Šablona přepsána' : 'Šablona uložena');
+    renderCateringCalculator();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+window.cateringSablonaNacti = function() {
+  const id = parseInt((document.getElementById('cat-sab-sel') || {}).value, 10);
+  const s = (state._cateringSablony || []).find(x => (x.id | 0) === id);
+  if (!s) return;
+  state._catering.menu = (s.menu || []).map(m => ({ vyrobek_id: m.vyrobek_id, per_osobu: m.per_osobu }));
+  toastSuccess('Šablona „' + s.nazev + '“ načtena');
+  renderCateringCalculator();
+};
+window.cateringSablonaSmaz = async function() {
+  const id = parseInt((document.getElementById('cat-sab-sel') || {}).value, 10);
+  const s = (state._cateringSablony || []).find(x => (x.id | 0) === id);
+  if (!s) return;
+  if (!(await confirmDialog({ title: 'Smazat šablonu?', msg: '„' + s.nazev + '“ — nevratné.', danger: true, okText: 'Smazat' }))) return;
+  try {
+    const r = await api('admin_catering_calc.php?action=delete_sablona', { method: 'POST', body: JSON.stringify({ id }) });
+    state._cateringSablony = r.sablony || [];
+    toastSuccess('Šablona smazána');
+    renderCateringCalculator();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v3.0.408 — 🖨️ tisk nabídky pro klienta: hidden form POST → nové okno (print-friendly HTML)
+window.cateringTiskNabidky = function() {
+  const c = state._catering || {};
+  const f = document.createElement('form');
+  f.method = 'POST';
+  f.action = '../api/admin_catering_calc.php?action=nabidka_tisk';
+  f.target = '_blank';
+  const add = (n, v) => { const i = document.createElement('input'); i.type = 'hidden'; i.name = n; i.value = v; f.appendChild(i); };
+  add('osob', c.osob || 20);
+  add('typ_udalosti', c.typ || 'standard');
+  add('prilohy', JSON.stringify(c.jidlo || []));
+  add('napoje', JSON.stringify(c.napoje || []));
+  add('menu', JSON.stringify(c.menu || []));
+  add('csrf_token', (typeof state !== 'undefined' && state.csrfToken) || localStorage.getItem('appek_csrf_token') || '');
+  document.body.appendChild(f);
+  f.submit();
+  setTimeout(() => f.remove(), 500);
+};
+
 window.cateringRecalc = async function() {
   const host = document.getElementById('catering-quote');
   if (!host) return;
@@ -19068,7 +19135,8 @@ window.cateringRecalc = async function() {
         <div style="font-size:10px;color:var(--text-3);margin-top:3px">📦 ${r.kalkulace.polozek_se_skladem}/${r.kalkulace.polozek_celkem} položek se odečte ze skladu při výrobě</div>
       </div>` : ''}
 
-      ${r.polozky.length > 0 ? `<button class="btn-primary btn-green btn-big-action" style="width:100%;margin-top:12px;padding:13px;font-size:14px;font-weight:700" onclick="cateringCreateOrder(${JSON.stringify(r).replace(/"/g, '&quot;')})">📋 Vytvořit objednávku</button>` : ''}
+      ${r.polozky.length > 0 ? `<button class="btn-primary btn-green btn-big-action" style="width:100%;margin-top:12px;padding:13px;font-size:14px;font-weight:700" onclick="cateringCreateOrder(${JSON.stringify(r).replace(/"/g, '&quot;')})">📋 Vytvořit objednávku</button>
+      <button class="btn-secondary" style="width:100%;margin-top:8px;padding:10px;font-size:13px" onclick="cateringTiskNabidky()" title="Print-friendly nabídka pro klienta (ceny, menu, na osobu)">🖨️ Tisk nabídky pro klienta</button>` : ''}
     `;
   } catch (e) {
     host.innerHTML = `<div style="color:var(--danger-text)">Chyba: ${esc(e.message)}</div>`;

@@ -574,4 +574,126 @@ if ($action === 'create_order' && $method === 'POST') {
     }
 }
 
-json_error('Neznámá akce (options|quote|create_order)', 404);
+// ════════════════════════════════════════════════════════════
+// 🆕 v3.0.408 — ŠABLONY MENU (pojmenované balíčky, ceny vždy živě z výrobků)
+// ════════════════════════════════════════════════════════════
+function catering_sablony_load(PDO $pdo): array {
+    try {
+        $raw = $pdo->query("SELECT hodnota FROM nastaveni WHERE klic = 'catering_menu_sablony'")->fetchColumn();
+        $j = $raw ? json_decode($raw, true) : [];
+        return is_array($j) ? $j : [];
+    } catch (Throwable $e) { return []; }
+}
+function catering_sablony_save(PDO $pdo, array $s): void {
+    $v = json_encode(array_values($s), JSON_UNESCAPED_UNICODE);
+    $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('catering_menu_sablony', :v)
+                   ON DUPLICATE KEY UPDATE hodnota = :v2")->execute(['v' => $v, 'v2' => $v]);
+}
+
+if ($action === 'sablony' && $method === 'GET') {
+    json_response(['sablony' => catering_sablony_load(db())]);
+}
+
+if ($action === 'save_sablona' && $method === 'POST') {
+    $pdo = db();
+    $d = json_input();
+    $nazev = trim(mb_substr((string) ($d['nazev'] ?? ''), 0, 80));
+    $menu = [];
+    foreach ((array) ($d['menu'] ?? []) as $m) {
+        $vid = (int) ($m['vyrobek_id'] ?? 0);
+        $per = max(0.01, min(50, (float) ($m['per_osobu'] ?? 1)));
+        if ($vid > 0) $menu[] = ['vyrobek_id' => $vid, 'per_osobu' => $per];
+    }
+    if ($nazev === '' || !$menu) json_error('Vyplň název a alespoň jednu položku menu', 400);
+    $sab = catering_sablony_load($pdo);
+    $maxId = 0; foreach ($sab as $s) $maxId = max($maxId, (int) ($s['id'] ?? 0));
+    // stejný název → přepiš (update šablony)
+    $found = false;
+    foreach ($sab as &$s) {
+        if (mb_strtolower($s['nazev'] ?? '') === mb_strtolower($nazev)) { $s['menu'] = $menu; $found = true; break; }
+    }
+    unset($s);
+    if (!$found) $sab[] = ['id' => $maxId + 1, 'nazev' => $nazev, 'menu' => $menu];
+    catering_sablony_save($pdo, $sab);
+    json_response(['ok' => true, 'prepsano' => $found, 'sablony' => $sab]);
+}
+
+if ($action === 'delete_sablona' && $method === 'POST') {
+    $pdo = db();
+    $id = (int) (json_input()['id'] ?? 0);
+    $sab = array_values(array_filter(catering_sablony_load($pdo), fn($s) => (int) ($s['id'] ?? 0) !== $id));
+    catering_sablony_save($pdo, $sab);
+    json_response(['ok' => true, 'sablony' => $sab]);
+}
+
+// ════════════════════════════════════════════════════════════
+// 🆕 v3.0.408 — 🖨️ TISK NABÍDKY z kalkulace (print-friendly HTML, klient-facing).
+//   POST (hidden form → nové okno): payload jako quote (osob/typ/prilohy/napoje/menu JSON).
+// ════════════════════════════════════════════════════════════
+if ($action === 'nabidka_tisk' && $method === 'POST') {
+    $pdo = db();
+    catering_ensure_demo_lahudky($pdo);
+    // form-encoded (hidden form) NEBO JSON
+    $d = $_POST;
+    if (!$d) $d = json_input();
+    foreach (['prilohy', 'napoje', 'menu'] as $k) {
+        if (isset($d[$k]) && is_string($d[$k])) { $j = json_decode($d[$k], true); $d[$k] = is_array($j) ? $j : []; }
+    }
+    $c = catering_compute($pdo, $d);
+    $dph = catering_cfg_dph($pdo);
+    $bezDPH = round(array_sum(array_column($c['polozky'], 'cena_kc')), 2);
+    $sDPH = round($bezDPH * (1 + $dph / 100), 2);
+    $perOs = round($sDPH / max(1, $c['osob']), 2);
+    $platnost = date('j. n. Y', strtotime('+14 days'));
+
+    $firma = [];
+    try {
+        foreach ($pdo->query("SELECT klic, hodnota FROM nastaveni WHERE klic LIKE 'firma_%'") as $r) $firma[$r['klic']] = $r['hodnota'];
+    } catch (Throwable $e) {}
+    $fN = htmlspecialchars($firma['firma_nazev'] ?? 'APPEK B2B');
+    $kc = fn($x) => number_format((float) $x, 2, ',', ' ') . ' Kč';
+
+    header('Content-Type: text/html; charset=UTF-8');
+    echo "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>Nabídka cateringu — {$fN}</title><style>
+      @page { size: A4; margin: 18mm; }
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, 'Segoe UI', sans-serif; color: #1d1d1f; font-size: 11pt; line-height: 1.5; max-width: 800px; margin: 0 auto; padding: 24px; }
+      .hd { display: flex; justify-content: space-between; align-items: start; border-bottom: 3px solid #BA7517; padding-bottom: 14px; margin-bottom: 20px; }
+      h1 { font-size: 20pt; margin: 0 0 2px; } .sub { color: #777; font-size: 10pt; }
+      .firma { text-align: right; font-size: 9.5pt; color: #555; } .firma strong { color: #1d1d1f; font-size: 11pt; display: block; }
+      h2 { font-size: 12pt; margin: 18px 0 6px; color: #854F0B; border-bottom: 1px solid #eee; padding-bottom: 3px; }
+      table { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+      td, th { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; }
+      th { font-size: 9pt; text-transform: uppercase; letter-spacing: .04em; color: #888; }
+      td.r, th.r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .sum { margin-top: 16px; border-top: 2px solid #BA7517; padding-top: 10px; }
+      .sum .big { font-size: 15pt; font-weight: 800; }
+      .peros { background: #FFF8E7; border: 1px solid #F0D9B8; border-radius: 8px; padding: 10px 14px; margin-top: 12px; font-size: 12pt; font-weight: 700; color: #854F0B; text-align: center; }
+      .ft { margin-top: 26px; font-size: 9pt; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
+      @media print { .noprint { display: none; } body { padding: 0; } }
+    </style></head><body>
+    <div class=\"hd\">
+      <div><h1>🥗 Nabídka cateringu</h1><div class=\"sub\">{$c['typ']['ikona']} " . htmlspecialchars($c['typ']['nazev']) . " · <strong>{$c['osob']} osob</strong> · vystaveno " . date('j. n. Y') . "</div></div>
+      <div class=\"firma\"><strong>{$fN}</strong>" . htmlspecialchars($firma['firma_ulice'] ?? '') . "<br>" . htmlspecialchars(($firma['firma_psc'] ?? '') . ' ' . ($firma['firma_mesto'] ?? '')) . "<br>" . (($firma['firma_telefon'] ?? '') !== '' ? '📞 ' . htmlspecialchars($firma['firma_telefon']) : '') . "</div>
+    </div>
+    <h2>🍽️ Menu</h2>
+    <table><thead><tr><th>Položka</th><th class=\"r\">Množství</th><th class=\"r\">Cena/jedn.</th><th class=\"r\">Celkem</th></tr></thead><tbody>";
+    foreach ($c['polozky'] as $p) {
+        echo '<tr><td>' . htmlspecialchars($p['nazev']) . '</td><td class="r">' . $p['mnozstvi'] . ' ' . htmlspecialchars($p['jednotka']) . '</td><td class="r">' . $kc($p['cena_per_jednotku']) . '</td><td class="r">' . $kc($p['cena_kc']) . '</td></tr>';
+    }
+    echo "</tbody></table>
+    <div class=\"sum\">
+      <table style=\"width:auto;margin-left:auto\">
+        <tr><td>Celkem bez DPH</td><td class=\"r\">" . $kc($bezDPH) . "</td></tr>
+        <tr><td>DPH {$dph} %</td><td class=\"r\">" . $kc($sDPH - $bezDPH) . "</td></tr>
+        <tr><td class=\"big\">Celkem s DPH</td><td class=\"r big\">" . $kc($sDPH) . "</td></tr>
+      </table>
+      <div class=\"peros\">≈ " . $kc($perOs) . " na osobu</div>
+    </div>
+    <div class=\"ft\">Nabídka platí do <strong>{$platnost}</strong>. Ceny vč. uvedené DPH. Konečná cena dle skutečného počtu osob a upřesnění menu.<br>{$fN}" . (($firma['firma_email'] ?? '') !== '' ? ' · ✉️ ' . htmlspecialchars($firma['firma_email']) : '') . (($firma['firma_web'] ?? '') !== '' ? ' · 🌐 ' . htmlspecialchars($firma['firma_web']) : '') . "</div>
+    <script class=\"noprint\">window.print();</script>
+    </body></html>";
+    exit;
+}
+
+json_error('Neznámá akce (options|quote|create_order|sablony|save_sablona|delete_sablona|nabidka_tisk)', 404);
