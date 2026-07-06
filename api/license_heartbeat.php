@@ -19,7 +19,10 @@ require_once __DIR__ . '/_authz.php';
 require_once __DIR__ . '/_license.php';
 require_once __DIR__ . '/_license_enforce.php';
 
-session_start();
+// 🐛 v3.0.411 — session_start() otevíral DEFAULT (PHPSESSID) session, ale admin login
+//   žije v APPEKSID (session_secure_start) → ctx vždy prázdný → 403 „admin only" na
+//   KAŽDÉM loadu adminu = denní klientský heartbeat nikdy neproběhl.
+session_secure_start();
 header('Content-Type: application/json; charset=UTF-8');
 
 // Admin-only — nesmí volat anonym
@@ -36,7 +39,8 @@ $vendorUrl = defined('APPEK_VENDOR_HEARTBEAT_URL')
     : 'https://vendor.appek.cz/heartbeat.php';
 
 try {
-    $pdo = db_connect();
+    $pdo = db(); // 🐛 v3.0.411 — db_connect() NEEXISTUJE (Call to undefined) → 500;
+                 //   bug byl skrytý za session-403 (endpoint se za auth nikdy nedostal).
 
     // ─── Sbírej technické statistiky (ne zákaznická data) ─────────
     $licenseKey = defined('APP_LICENSE_KEY') ? APP_LICENSE_KEY : '';

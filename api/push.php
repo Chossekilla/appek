@@ -36,7 +36,10 @@ if ($action === 'subscribe' && $method === 'POST') {
     }
 
     // Zjistíme kdo — odběratel nebo admin
-    session_start();
+    // 🐛 v3.0.411 — session_secure_start (APPEKSID), NE bare session_start (PHPSESSID) →
+    //   jinak admin i odběratel čtou prázdnou default session → subscribe vždy 401
+    //   (push notifikace se po oživení v403 nedaly ani zapnout).
+    if (function_exists('session_secure_start')) session_secure_start(); else session_start();
     $odb_id = $_SESSION['odberatel_id'] ?? null;
     $admin_id = $_SESSION['admin_id'] ?? null;
     if (!$odb_id && !$admin_id) json_error('Nepřihlášený', 401);

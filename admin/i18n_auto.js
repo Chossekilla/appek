@@ -25621,6 +25621,37 @@ const I18N_PHRASES = [
   ['↺ Načíst výchozí', '↺ Load defaults', '↺ Cargar predeterminados'],
   ['💾 Uložit konfiguraci', '💾 Save configuration', '💾 Guardar configuración'],
 
+  // v3.0.411 dopreklady tydenni menu + catering menu z vyrobku (+29)
+  ['smazaný výrobek!', 'deleted product!', 'producto eliminado!'],
+  ['smazaný výrobek', 'deleted product', 'producto eliminado'],
+  ['Týden od (pondělí)', 'Week from (Monday)', 'Semana desde (lunes)'],
+  ['⤵️ Načíst', '⤵️ Load', '⤵️ Cargar'],
+  ['📌 Uložit jako šablonu', '📌 Save as template', '📌 Guardar como plantilla'],
+  ['💾 Uložit týden', '💾 Save week', '💾 Guardar semana'],
+  ['🖨️ Tisk (A4 k vyvěšení)', '🖨️ Print (A4 to post)', '🖨️ Imprimir (A4 para colgar)'],
+  ['📧 Rozeslat odběratelům', '📧 Send to customers', '📧 Enviar a clientes'],
+  ['🔗 Sdílet (web / sociální sítě)', '🔗 Share (web / social)', '🔗 Compartir (web / redes)'],
+  ['Po uložení týdne se objeví rozesílka a sdílení.', 'Sending and sharing appear after you save the week.', 'El envío y la compartición aparecen tras guardar la semana.'],
+  ['🕘 Historie týdnů', '🕘 Week history', '🕘 Historial de semanas'],
+  ['Šablona je prázdná.', 'Template is empty.', 'La plantilla está vacía.'],
+  ['⤵️ Načíst do týdne', '⤵️ Load into week', '⤵️ Cargar en la semana'],
+  ['Týden uložen', 'Week saved', 'Semana guardada'],
+  ['Týden smazán', 'Week deleted', 'Semana eliminada'],
+  ['Menu je prázdné.', 'Menu is empty.', 'El menú está vacío.'],
+  ['Nejdřív týden ulož.', 'Save the week first.', 'Guarda la semana primero.'],
+  ['📘 Facebook', '📘 Facebook', '📘 Facebook'],
+  ['💬 WhatsApp', '💬 WhatsApp', '💬 WhatsApp'],
+  ['🔗 Sdílet týdenní menu', '🔗 Share weekly menu', '🔗 Compartir menú semanal'],
+  ['🧩 Menu z výrobků', '🧩 Menu from products', '🧩 Menú desde productos'],
+  ['cena se bere z výrobku', 'price is taken from the product', 'el precio se toma del producto'],
+  ['ks / osobu', 'pcs / person', 'uds / persona'],
+  ['Zatím nic — přidej výrobky do menu ↑', 'Nothing yet — add products to the menu ↑', 'Nada aún — añade productos al menú ↑'],
+  ['🖨️ Tisk nabídky pro klienta', '🖨️ Print quote for client', '🖨️ Imprimir presupuesto para el cliente'],
+  ['Menu je prázdné — nejdřív přidej výrobky.', 'Menu is empty — add products first.', 'El menú está vacío — añade productos primero.'],
+  ['🥗 Vytvořit catering objednávku', '🥗 Create catering order', '🥗 Crear pedido de catering'],
+  ['Nejprve nastav kalkulaci.', 'Set up the calculation first.', 'Configura primero el cálculo.'],
+  ['Konfigurace kalkulačky uložena', 'Calculator configuration saved', 'Configuración de la calculadora guardada'],
+
 ];
 
 // Build lookup index pro O(1) access
