@@ -45,6 +45,13 @@ $pdo->exec("
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ");
+// 🆕 v3.0.412 — vzhledový styl + vlastní text (idempotentní migrace)
+require_once __DIR__ . '/_menu_styly.php';
+try {
+    $tmCols = $pdo->query("SHOW COLUMNS FROM tydenni_menu")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('styl', $tmCols, true))        $pdo->exec("ALTER TABLE tydenni_menu ADD COLUMN styl VARCHAR(20) NOT NULL DEFAULT 'restaurace'");
+    if (!in_array('custom_text', $tmCols, true)) $pdo->exec("ALTER TABLE tydenni_menu ADD COLUMN custom_text VARCHAR(500) NULL");
+} catch (Throwable $e) {}
 
 const TM_DNY = ['po', 'ut', 'st', 'ct', 'pa', 'so', 'ne'];
 
@@ -114,6 +121,7 @@ function tm_resolve(PDO $pdo, array $row): array {
         'tyden_do' => date('Y-m-d', strtotime($row['tyden_od'] . ' +6 days')),
         'poznamka' => $row['poznamka'], 'dny' => $out,
         'public_token' => $row['public_token'], 'rozeslano_at' => $row['rozeslano_at'],
+        'styl' => $row['styl'] ?? 'restaurace', 'custom_text' => $row['custom_text'] ?? null,
     ];
 }
 
@@ -143,10 +151,14 @@ if ($action === 'list' && $method === 'GET') {
         LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
         WHERE v.aktivni = 1 ORDER BY k.nazev, v.nazev LIMIT 500
     ")->fetchAll(PDO::FETCH_ASSOC);
+    // 🆕 v3.0.412 — dostupné vzhledové styly pro picker
+    $styly = [];
+    foreach (menu_styly_defs() as $k => $s) $styly[] = ['key' => $k, 'label' => $s['label'], 'popis' => $s['popis'], 'grad_a' => $s['grad_a'], 'grad_b' => $s['grad_b']];
     json_response([
         'weeks'   => array_map(fn($w) => tm_resolve($pdo, $w), $weeks),
         'sablony' => tm_sablony_load($pdo),
         'vyrobky' => $vyrobky,
+        'styly'   => $styly,
         'tento_tyden' => tm_monday(date('Y-m-d')),
     ]);
 }
@@ -156,10 +168,13 @@ if ($action === 'save' && $method === 'POST') {
     $od = tm_monday((string) ($d['tyden_od'] ?? date('Y-m-d')));
     $dny = tm_clean_dny((array) ($d['dny'] ?? []));
     $pozn = trim(mb_substr((string) ($d['poznamka'] ?? ''), 0, 300));
+    $styl = menu_styl_key($d['styl'] ?? 'restaurace');                     // 🆕 v3.0.412
+    $ctext = trim(mb_substr((string) ($d['custom_text'] ?? ''), 0, 500));  // 🆕 v3.0.412
     $j = json_encode($dny, JSON_UNESCAPED_UNICODE);
-    $pdo->prepare("INSERT INTO tydenni_menu (tyden_od, dny, poznamka) VALUES (:o, :d, :p)
-                   ON DUPLICATE KEY UPDATE dny = :d2, poznamka = :p2")
-        ->execute(['o' => $od, 'd' => $j, 'p' => $pozn, 'd2' => $j, 'p2' => $pozn]);
+    $pdo->prepare("INSERT INTO tydenni_menu (tyden_od, dny, poznamka, styl, custom_text) VALUES (:o, :d, :p, :s, :ct)
+                   ON DUPLICATE KEY UPDATE dny = :d2, poznamka = :p2, styl = :s2, custom_text = :ct2")
+        ->execute(['o' => $od, 'd' => $j, 'p' => $pozn, 's' => $styl, 'ct' => $ctext ?: null,
+                   'd2' => $j, 'p2' => $pozn, 's2' => $styl, 'ct2' => $ctext ?: null]);
     $row = $pdo->prepare("SELECT * FROM tydenni_menu WHERE tyden_od = :o");
     $row->execute(['o' => $od]);
     json_response(['ok' => true, 'week' => tm_resolve($pdo, $row->fetch(PDO::FETCH_ASSOC))]);
@@ -241,14 +256,16 @@ if ($action === 'rozeslat' && $method === 'POST') {
     $labels = ['po' => 'Pondělí', 'ut' => 'Úterý', 'st' => 'Středa', 'ct' => 'Čtvrtek', 'pa' => 'Pátek', 'so' => 'Sobota', 'ne' => 'Neděle'];
     $odS = date('j. n.', strtotime($res['tyden_od']));
     $doS = date('j. n. Y', strtotime($res['tyden_do']));
-    $html = '<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:640px;margin:0 auto;color:#1d1d1f">'
-          . '<h1 style="font-size:20px;border-bottom:3px solid #BA7517;padding-bottom:8px">🗓️ Týdenní menu ' . $odS . ' – ' . $doS . '</h1>'
-          . '<p style="color:#666;font-size:13px">' . htmlspecialchars($fN) . ($res['poznamka'] ? ' · ' . htmlspecialchars($res['poznamka']) : '') . '</p>';
+    $st = menu_styl($res['styl']); // 🆕 v3.0.412 — paleta dle stylu
+    $html = '<div style="font-family:' . $st['font'] . ';max-width:640px;margin:0 auto;color:' . $st['text'] . '">'
+          . '<h1 style="font-size:20px;border-bottom:3px solid ' . $st['grad_a'] . ';padding-bottom:8px">' . $st['nadpis'] . ' Týdenní menu ' . $odS . ' – ' . $doS . '</h1>'
+          . ($res['custom_text'] ? '<p style="color:' . $st['accent'] . ';font-size:14px;font-weight:600">' . nl2br(htmlspecialchars($res['custom_text'])) . '</p>' : '')
+          . '<p style="color:' . $st['muted'] . ';font-size:13px">' . htmlspecialchars($fN) . ($res['poznamka'] ? ' · ' . htmlspecialchars($res['poznamka']) : '') . '</p>';
     foreach (TM_DNY as $d) {
         $items = $res['dny'][$d] ?? [];
         if (!$items) continue;
         $den = date('j. n.', strtotime($res['tyden_od'] . ' +' . array_search($d, TM_DNY) . ' days'));
-        $html .= '<h3 style="font-size:14px;color:#854F0B;margin:16px 0 4px">' . $labels[$d] . ' ' . $den . '</h3><table style="width:100%;border-collapse:collapse;font-size:13px">';
+        $html .= '<h3 style="font-size:14px;color:' . $st['accent'] . ';margin:16px 0 4px">' . $labels[$d] . ' ' . $den . '</h3><table style="width:100%;border-collapse:collapse;font-size:13px">';
         foreach ($items as $it) {
             $html .= '<tr><td style="padding:4px 0;border-bottom:1px solid #eee">' . htmlspecialchars($it['nazev'])
                    . ($it['pozn'] ? ' <span style="color:#888;font-size:11px">(' . htmlspecialchars($it['pozn']) . ')</span>' : '')
@@ -297,23 +314,26 @@ if ($action === 'tisk' && $method === 'GET') {
     $labels = ['po' => 'Pondělí', 'ut' => 'Úterý', 'st' => 'Středa', 'ct' => 'Čtvrtek', 'pa' => 'Pátek', 'so' => 'Sobota', 'ne' => 'Neděle'];
     $odS = date('j. n.', strtotime($res['tyden_od']));
     $doS = date('j. n. Y', strtotime($res['tyden_do']));
+    $st = menu_styl($res['styl']); // 🆕 v3.0.412 — paleta dle stylu
 
     header('Content-Type: text/html; charset=UTF-8');
     echo "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>Týdenní menu {$odS} – {$doS} · {$fN}</title><style>
       @page { size: A4; margin: 16mm; }
-      body { font-family: -apple-system, 'Segoe UI', sans-serif; color: #1d1d1f; max-width: 760px; margin: 0 auto; padding: 20px; }
-      .hd { text-align: center; border-bottom: 3px solid #BA7517; padding-bottom: 12px; margin-bottom: 16px; }
+      body { font-family: {$st['font']}; color: {$st['text']}; max-width: 760px; margin: 0 auto; padding: 20px; }
+      .hd { text-align: center; border-bottom: 3px solid {$st['grad_a']}; padding-bottom: 12px; margin-bottom: 16px; }
       h1 { font-size: 24pt; margin: 0; letter-spacing: -0.01em; }
-      .sub { color: #854F0B; font-size: 12pt; font-weight: 600; margin-top: 2px; }
-      .note { text-align: center; font-style: italic; color: #777; font-size: 10.5pt; margin-bottom: 10px; }
-      h2 { font-size: 13pt; color: #854F0B; border-bottom: 1.5px solid #F0D9B8; padding-bottom: 3px; margin: 14px 0 4px; text-transform: uppercase; letter-spacing: .06em; }
+      .sub { color: {$st['accent']}; font-size: 12pt; font-weight: 600; margin-top: 2px; }
+      .ct { text-align: center; font-size: 11.5pt; color: {$st['accent']}; margin: 8px 0; font-weight: 600; }
+      .note { text-align: center; font-style: italic; color: {$st['muted']}; font-size: 10.5pt; margin-bottom: 10px; }
+      h2 { font-size: 13pt; color: {$st['accent']}; border-bottom: 1.5px solid {$st['accent_soft']}; padding-bottom: 3px; margin: 14px 0 4px; text-transform: uppercase; letter-spacing: .06em; }
       .it { display: flex; justify-content: space-between; gap: 14px; padding: 5px 0; border-bottom: 1px dashed #e5e5e5; font-size: 12pt; }
-      .it small { color: #999; font-size: 9pt; }
+      .it small { color: {$st['muted']}; font-size: 9pt; }
       .c { white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
-      .ft { margin-top: 22px; text-align: center; font-size: 9.5pt; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+      .ft { margin-top: 22px; text-align: center; font-size: 9.5pt; color: {$st['muted']}; border-top: 1px solid #eee; padding-top: 10px; }
       @media print { body { padding: 0; } }
     </style></head><body>
-    <div class=\"hd\"><h1>🗓️ Týdenní menu</h1><div class=\"sub\">{$odS} – {$doS} · {$fN}</div></div>";
+    <div class=\"hd\"><h1>{$st['nadpis']} Týdenní menu</h1><div class=\"sub\">{$odS} – {$doS} · {$fN}</div></div>";
+    if (!empty($res['custom_text'])) echo '<div class="ct">' . nl2br(htmlspecialchars($res['custom_text'])) . '</div>';
     if (!empty($res['poznamka'])) echo '<div class="note">📝 ' . htmlspecialchars($res['poznamka']) . '</div>';
     foreach (TM_DNY as $i => $d) {
         $items = $res['dny'][$d] ?? [];

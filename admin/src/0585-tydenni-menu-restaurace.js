@@ -32,6 +32,8 @@ async function renderTydenniMenu() {
       id: cur ? cur.id : 0,
       tyden_od: data.tento_tyden,
       poznamka: cur ? (cur.poznamka || '') : '',
+      styl: cur ? (cur.styl || 'restaurace') : 'restaurace',
+      custom_text: cur ? (cur.custom_text || '') : '',
       dny: cur ? JSON.parse(JSON.stringify(cur.dny)) : tmEmptyDny(),
     };
   }
@@ -76,7 +78,13 @@ function tmRenderBody() {
             <input type="date" class="form-input" value="${esc(tm.tyden_od)}" onchange="tmSetWeek(this.value)"></div>
           <div style="min-width:220px;flex:1"><label class="form-label" style="font-size:12px">Poznámka (např. „Polévka v ceně")</label>
             <input class="form-input" value="${esc(tm.poznamka || '')}" onchange="state._tm.poznamka=this.value" maxlength="300"></div>
+          <div><label class="form-label" style="font-size:12px">🎨 Vzhled</label>
+            <select class="form-input" onchange="state._tm.styl=this.value" style="font-size:13px">
+              ${(d.styly || []).map(s => `<option value="${s.key}" ${tm.styl === s.key ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}
+            </select></div>
         </div>
+        <div style="margin-top:8px"><label class="form-label" style="font-size:12px">✍️ Vlastní text <span style="font-weight:400;color:var(--text-3)">(nadpis pod hlavičkou — pozvánka, slogan; zobrazí se ve všech výstupech)</span></label>
+          <textarea class="form-input" rows="2" onchange="state._tm.custom_text=this.value" maxlength="500" placeholder="Např. „Vítejte na víkendovém brunchi — rezervace na 777 123 456"">${esc(tm.custom_text || '')}</textarea></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${(d.sablony || []).length ? `
             <select id="tm-sab-sel" class="form-input" style="font-size:12px;max-width:170px">
@@ -134,23 +142,23 @@ window.tmSetWeek = function(date) {
   const monday = (() => { const t = new Date(date); const day = (t.getDay() + 6) % 7; t.setDate(t.getDate() - day); return t.toISOString().slice(0, 10); })();
   const ex = (state._tmData.weeks || []).find(w => w.tyden_od === monday);
   state._tm = ex
-    ? { id: ex.id, tyden_od: ex.tyden_od, poznamka: ex.poznamka || '', dny: JSON.parse(JSON.stringify(ex.dny)) }
-    : { id: 0, tyden_od: monday, poznamka: '', dny: tmEmptyDny() };
+    ? { id: ex.id, tyden_od: ex.tyden_od, poznamka: ex.poznamka || '', styl: ex.styl || 'restaurace', custom_text: ex.custom_text || '', dny: JSON.parse(JSON.stringify(ex.dny)) }
+    : { id: 0, tyden_od: monday, poznamka: '', styl: 'restaurace', custom_text: '', dny: tmEmptyDny() };
   tmRenderBody();
 };
 window.tmOtevri = function(id) {
   const w = (state._tmData.weeks || []).find(x => x.id === id);
   if (!w) return;
-  state._tm = { id: w.id, tyden_od: w.tyden_od, poznamka: w.poznamka || '', dny: JSON.parse(JSON.stringify(w.dny)) };
+  state._tm = { id: w.id, tyden_od: w.tyden_od, poznamka: w.poznamka || '', styl: w.styl || 'restaurace', custom_text: w.custom_text || '', dny: JSON.parse(JSON.stringify(w.dny)) };
   tmRenderBody();
 };
 
 // ── Uložení / historie ────────────────────────────────────────
 window.tmSave = async function() {
   try {
-    const r = await api('admin_tydenni_menu.php?action=save', { method: 'POST', body: JSON.stringify({ tyden_od: state._tm.tyden_od, dny: state._tm.dny, poznamka: state._tm.poznamka || '' }) });
+    const r = await api('admin_tydenni_menu.php?action=save', { method: 'POST', body: JSON.stringify({ tyden_od: state._tm.tyden_od, dny: state._tm.dny, poznamka: state._tm.poznamka || '', styl: state._tm.styl || 'restaurace', custom_text: state._tm.custom_text || '' }) });
     toastSuccess('Týden uložen');
-    state._tm = { id: r.week.id, tyden_od: r.week.tyden_od, poznamka: r.week.poznamka || '', dny: JSON.parse(JSON.stringify(r.week.dny)) };
+    state._tm = { id: r.week.id, tyden_od: r.week.tyden_od, poznamka: r.week.poznamka || '', styl: r.week.styl || 'restaurace', custom_text: r.week.custom_text || '', dny: JSON.parse(JSON.stringify(r.week.dny)) };
     const keep = state._tm;
     state._tm = keep;
     // refresh dat (historie/šablony) při zachování rozpracovaného stavu
