@@ -51,6 +51,7 @@ try {
     $tmCols = $pdo->query("SHOW COLUMNS FROM tydenni_menu")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('styl', $tmCols, true))        $pdo->exec("ALTER TABLE tydenni_menu ADD COLUMN styl VARCHAR(20) NOT NULL DEFAULT 'restaurace'");
     if (!in_array('custom_text', $tmCols, true)) $pdo->exec("ALTER TABLE tydenni_menu ADD COLUMN custom_text VARCHAR(500) NULL");
+    if (!in_array('layout', $tmCols, true))      $pdo->exec("ALTER TABLE tydenni_menu ADD COLUMN layout VARCHAR(20) NOT NULL DEFAULT 'karta'"); // 🆕 v3.0.413
 } catch (Throwable $e) {}
 
 const TM_DNY = ['po', 'ut', 'st', 'ct', 'pa', 'so', 'ne'];
@@ -122,6 +123,7 @@ function tm_resolve(PDO $pdo, array $row): array {
         'poznamka' => $row['poznamka'], 'dny' => $out,
         'public_token' => $row['public_token'], 'rozeslano_at' => $row['rozeslano_at'],
         'styl' => $row['styl'] ?? 'restaurace', 'custom_text' => $row['custom_text'] ?? null,
+        'layout' => $row['layout'] ?? 'karta',
     ];
 }
 
@@ -154,11 +156,15 @@ if ($action === 'list' && $method === 'GET') {
     // 🆕 v3.0.412 — dostupné vzhledové styly pro picker
     $styly = [];
     foreach (menu_styly_defs() as $k => $s) $styly[] = ['key' => $k, 'label' => $s['label'], 'popis' => $s['popis'], 'grad_a' => $s['grad_a'], 'grad_b' => $s['grad_b']];
+    // 🆕 v3.0.413 — dostupná rozložení
+    $layouty = [];
+    foreach (menu_layouty_defs() as $k => $s) $layouty[] = ['key' => $k, 'label' => $s['label'], 'popis' => $s['popis']];
     json_response([
         'weeks'   => array_map(fn($w) => tm_resolve($pdo, $w), $weeks),
         'sablony' => tm_sablony_load($pdo),
         'vyrobky' => $vyrobky,
         'styly'   => $styly,
+        'layouty' => $layouty,
         'tento_tyden' => tm_monday(date('Y-m-d')),
     ]);
 }
@@ -170,11 +176,12 @@ if ($action === 'save' && $method === 'POST') {
     $pozn = trim(mb_substr((string) ($d['poznamka'] ?? ''), 0, 300));
     $styl = menu_styl_key($d['styl'] ?? 'restaurace');                     // 🆕 v3.0.412
     $ctext = trim(mb_substr((string) ($d['custom_text'] ?? ''), 0, 500));  // 🆕 v3.0.412
+    $layout = menu_layout_key($d['layout'] ?? 'karta');                    // 🆕 v3.0.413
     $j = json_encode($dny, JSON_UNESCAPED_UNICODE);
-    $pdo->prepare("INSERT INTO tydenni_menu (tyden_od, dny, poznamka, styl, custom_text) VALUES (:o, :d, :p, :s, :ct)
-                   ON DUPLICATE KEY UPDATE dny = :d2, poznamka = :p2, styl = :s2, custom_text = :ct2")
-        ->execute(['o' => $od, 'd' => $j, 'p' => $pozn, 's' => $styl, 'ct' => $ctext ?: null,
-                   'd2' => $j, 'p2' => $pozn, 's2' => $styl, 'ct2' => $ctext ?: null]);
+    $pdo->prepare("INSERT INTO tydenni_menu (tyden_od, dny, poznamka, styl, custom_text, layout) VALUES (:o, :d, :p, :s, :ct, :ly)
+                   ON DUPLICATE KEY UPDATE dny = :d2, poznamka = :p2, styl = :s2, custom_text = :ct2, layout = :ly2")
+        ->execute(['o' => $od, 'd' => $j, 'p' => $pozn, 's' => $styl, 'ct' => $ctext ?: null, 'ly' => $layout,
+                   'd2' => $j, 'p2' => $pozn, 's2' => $styl, 'ct2' => $ctext ?: null, 'ly2' => $layout]);
     $row = $pdo->prepare("SELECT * FROM tydenni_menu WHERE tyden_od = :o");
     $row->execute(['o' => $od]);
     json_response(['ok' => true, 'week' => tm_resolve($pdo, $row->fetch(PDO::FETCH_ASSOC))]);
@@ -311,46 +318,15 @@ if ($action === 'tisk' && $method === 'GET') {
     $firma = [];
     try { foreach ($pdo->query("SELECT klic, hodnota FROM nastaveni WHERE klic LIKE 'firma_%'") as $r) $firma[$r['klic']] = $r['hodnota']; } catch (Throwable $e) {}
     $fN = htmlspecialchars($firma['firma_nazev'] ?? 'Restaurace');
-    $labels = ['po' => 'Pondělí', 'ut' => 'Úterý', 'st' => 'Středa', 'ct' => 'Čtvrtek', 'pa' => 'Pátek', 'so' => 'Sobota', 'ne' => 'Neděle'];
     $odS = date('j. n.', strtotime($res['tyden_od']));
     $doS = date('j. n. Y', strtotime($res['tyden_do']));
-    $st = menu_styl($res['styl']); // 🆕 v3.0.412 — paleta dle stylu
 
+    // 🆕 v3.0.413 — sdílený renderer (5 rozložení × palety), tisk = přidá @page + auto-print
+    require_once __DIR__ . '/_menu_render.php';
+    $r = menu_render($res, $firma, 'print');
     header('Content-Type: text/html; charset=UTF-8');
-    echo "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>Týdenní menu {$odS} – {$doS} · {$fN}</title><style>
-      @page { size: A4; margin: 16mm; }
-      body { font-family: {$st['font']}; color: {$st['text']}; max-width: 760px; margin: 0 auto; padding: 20px; }
-      .hd { text-align: center; border-bottom: 3px solid {$st['grad_a']}; padding-bottom: 12px; margin-bottom: 16px; }
-      h1 { font-size: 24pt; margin: 0; letter-spacing: -0.01em; }
-      .sub { color: {$st['accent']}; font-size: 12pt; font-weight: 600; margin-top: 2px; }
-      .ct { text-align: center; font-size: 11.5pt; color: {$st['accent']}; margin: 8px 0; font-weight: 600; }
-      .note { text-align: center; font-style: italic; color: {$st['muted']}; font-size: 10.5pt; margin-bottom: 10px; }
-      h2 { font-size: 13pt; color: {$st['accent']}; border-bottom: 1.5px solid {$st['accent_soft']}; padding-bottom: 3px; margin: 14px 0 4px; text-transform: uppercase; letter-spacing: .06em; }
-      .it { display: flex; justify-content: space-between; gap: 14px; padding: 5px 0; border-bottom: 1px dashed #e5e5e5; font-size: 12pt; }
-      .it small { color: {$st['muted']}; font-size: 9pt; }
-      .c { white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
-      .ft { margin-top: 22px; text-align: center; font-size: 9.5pt; color: {$st['muted']}; border-top: 1px solid #eee; padding-top: 10px; }
-      @media print { body { padding: 0; } }
-    </style></head><body>
-    <div class=\"hd\"><h1>{$st['nadpis']} Týdenní menu</h1><div class=\"sub\">{$odS} – {$doS} · {$fN}</div></div>";
-    if (!empty($res['custom_text'])) echo '<div class="ct">' . nl2br(htmlspecialchars($res['custom_text'])) . '</div>';
-    if (!empty($res['poznamka'])) echo '<div class="note">📝 ' . htmlspecialchars($res['poznamka']) . '</div>';
-    foreach (TM_DNY as $i => $d) {
-        $items = $res['dny'][$d] ?? [];
-        if (!$items) continue;
-        echo '<h2>' . $labels[$d] . ' ' . date('j. n.', strtotime($res['tyden_od'] . " +{$i} days")) . '</h2>';
-        foreach ($items as $it) {
-            if (!$it['existuje']) continue;
-            echo '<div class="it"><div>' . htmlspecialchars($it['nazev'])
-               . ($it['pozn'] !== '' ? ' <small>(' . htmlspecialchars($it['pozn']) . ')</small>' : '')
-               . ($it['alergeny'] !== '' ? ' <small>al. ' . htmlspecialchars($it['alergeny']) . '</small>' : '')
-               . '</div><div class="c">' . number_format((float) $it['cena_s_dph'], 0, ',', ' ') . ' Kč</div></div>';
-        }
-    }
-    echo '<div class="ft">' . $fN
-       . (($firma['firma_telefon'] ?? '') !== '' ? ' · 📞 ' . htmlspecialchars($firma['firma_telefon']) : '')
-       . (($firma['firma_ulice'] ?? '') !== '' ? ' · 📍 ' . htmlspecialchars($firma['firma_ulice'] . ', ' . ($firma['firma_mesto'] ?? '')) : '')
-       . '</div><script>window.print();</script></body></html>';
+    echo "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>Týdenní menu {$odS} – {$doS} · {$fN}</title><style>@page{size:A4;margin:14mm;}@media print{body{padding:0!important;}}"
+       . $r['css'] . "</style></head><body>" . $r['body'] . "<script>window.print();</script></body></html>";
     exit;
 }
 

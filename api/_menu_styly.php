@@ -43,6 +43,21 @@ function menu_styly_defs(): array {
     ];
 }
 
+/** 🆕 v3.0.413 — ROZLOŽENÍ (layout, nezávislé na barevné paletě). */
+function menu_layouty_defs(): array {
+    return [
+        'karta'   => ['label' => '🃏 Karta',       'popis' => 'Mobilní karta s gradientem (výchozí)'],
+        'klasik'  => ['label' => '📋 Klasik bistro','popis' => 'Denní menu — dny pod sebou, alergeny, cena dole'],
+        'elegant' => ['label' => '✨ Elegant',      'popis' => 'Fine-dining — serif, tečkované vodítko, vzdušné'],
+        'sloupce' => ['label' => '🗞️ Editorial',    'popis' => 'Specialita týdne + dvousloupcové sekce'],
+        'tabule'  => ['label' => '🖤 Tabule',       'popis' => 'Tmavá tabule / křídový vzhled'],
+    ];
+}
+function menu_layout_key(?string $key): string {
+    $key = strtolower(trim((string) $key));
+    return isset(menu_layouty_defs()[$key]) ? $key : 'karta';
+}
+
 /** Sanitizace klíče stylu → vždy platný klíč (default restaurace). */
 function menu_styl_key(?string $key): string {
     $key = strtolower(trim((string) $key));
