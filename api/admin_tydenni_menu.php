@@ -282,4 +282,56 @@ if ($action === 'rozeslat' && $method === 'POST') {
     json_response(['ok' => true, 'odeslano' => $ok, 'selhalo' => $fail, 'celkem' => count($prijemci)]);
 }
 
+// 🆕 v3.0.410 — 🖨️ TISK týdenního menu (A4 k vyvěšení / uložení do PDF)
+if ($action === 'tisk' && $method === 'GET') {
+    $id = (int) ($_GET['id'] ?? 0);
+    $row = $pdo->prepare("SELECT * FROM tydenni_menu WHERE id = :id");
+    $row->execute(['id' => $id]);
+    $w = $row->fetch(PDO::FETCH_ASSOC);
+    if (!$w) json_error('Týden nenalezen', 404);
+    $res = tm_resolve($pdo, $w);
+
+    $firma = [];
+    try { foreach ($pdo->query("SELECT klic, hodnota FROM nastaveni WHERE klic LIKE 'firma_%'") as $r) $firma[$r['klic']] = $r['hodnota']; } catch (Throwable $e) {}
+    $fN = htmlspecialchars($firma['firma_nazev'] ?? 'Restaurace');
+    $labels = ['po' => 'Pondělí', 'ut' => 'Úterý', 'st' => 'Středa', 'ct' => 'Čtvrtek', 'pa' => 'Pátek', 'so' => 'Sobota', 'ne' => 'Neděle'];
+    $odS = date('j. n.', strtotime($res['tyden_od']));
+    $doS = date('j. n. Y', strtotime($res['tyden_do']));
+
+    header('Content-Type: text/html; charset=UTF-8');
+    echo "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>Týdenní menu {$odS} – {$doS} · {$fN}</title><style>
+      @page { size: A4; margin: 16mm; }
+      body { font-family: -apple-system, 'Segoe UI', sans-serif; color: #1d1d1f; max-width: 760px; margin: 0 auto; padding: 20px; }
+      .hd { text-align: center; border-bottom: 3px solid #BA7517; padding-bottom: 12px; margin-bottom: 16px; }
+      h1 { font-size: 24pt; margin: 0; letter-spacing: -0.01em; }
+      .sub { color: #854F0B; font-size: 12pt; font-weight: 600; margin-top: 2px; }
+      .note { text-align: center; font-style: italic; color: #777; font-size: 10.5pt; margin-bottom: 10px; }
+      h2 { font-size: 13pt; color: #854F0B; border-bottom: 1.5px solid #F0D9B8; padding-bottom: 3px; margin: 14px 0 4px; text-transform: uppercase; letter-spacing: .06em; }
+      .it { display: flex; justify-content: space-between; gap: 14px; padding: 5px 0; border-bottom: 1px dashed #e5e5e5; font-size: 12pt; }
+      .it small { color: #999; font-size: 9pt; }
+      .c { white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
+      .ft { margin-top: 22px; text-align: center; font-size: 9.5pt; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+    <div class=\"hd\"><h1>🗓️ Týdenní menu</h1><div class=\"sub\">{$odS} – {$doS} · {$fN}</div></div>";
+    if (!empty($res['poznamka'])) echo '<div class="note">📝 ' . htmlspecialchars($res['poznamka']) . '</div>';
+    foreach (TM_DNY as $i => $d) {
+        $items = $res['dny'][$d] ?? [];
+        if (!$items) continue;
+        echo '<h2>' . $labels[$d] . ' ' . date('j. n.', strtotime($res['tyden_od'] . " +{$i} days")) . '</h2>';
+        foreach ($items as $it) {
+            if (!$it['existuje']) continue;
+            echo '<div class="it"><div>' . htmlspecialchars($it['nazev'])
+               . ($it['pozn'] !== '' ? ' <small>(' . htmlspecialchars($it['pozn']) . ')</small>' : '')
+               . ($it['alergeny'] !== '' ? ' <small>al. ' . htmlspecialchars($it['alergeny']) . '</small>' : '')
+               . '</div><div class="c">' . number_format((float) $it['cena_s_dph'], 0, ',', ' ') . ' Kč</div></div>';
+        }
+    }
+    echo '<div class="ft">' . $fN
+       . (($firma['firma_telefon'] ?? '') !== '' ? ' · 📞 ' . htmlspecialchars($firma['firma_telefon']) : '')
+       . (($firma['firma_ulice'] ?? '') !== '' ? ' · 📍 ' . htmlspecialchars($firma['firma_ulice'] . ', ' . ($firma['firma_mesto'] ?? '')) : '')
+       . '</div><script>window.print();</script></body></html>';
+    exit;
+}
+
 json_error('Neznámá akce', 404);

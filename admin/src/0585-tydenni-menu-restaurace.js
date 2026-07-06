@@ -82,6 +82,7 @@ function tmRenderBody() {
             <select id="tm-sab-sel" class="form-input" style="font-size:12px;max-width:170px">
               ${d.sablony.map(s => `<option value="${s.id}">📋 ${esc(s.nazev)}</option>`).join('')}
             </select>
+            <button class="btn-icon" onclick="tmSablonaNahled()" title="👁️ Náhled šablony">👁️</button>
             <button class="btn-secondary" style="font-size:12px" onclick="tmSablonaNacti()">⤵️ Načíst</button>
             <button class="btn-icon" onclick="tmSablonaSmaz()" title="Smazat šablonu">🗑️</button>` : ''}
           <button class="btn-secondary" style="font-size:12px" onclick="tmSablonaUloz()">📌 Uložit jako šablonu</button>
@@ -90,6 +91,7 @@ function tmRenderBody() {
       </div>
       ${tm.id ? `
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <button class="btn-secondary" onclick="tmTisk()">🖨️ Tisk (A4 k vyvěšení)</button>
         <button class="btn-secondary" onclick="tmRozeslat()">📧 Rozeslat odběratelům</button>
         <button class="btn-secondary" onclick="tmSdilet()">🔗 Sdílet (web / sociální sítě)</button>
         ${curWeek && curWeek.rozeslano_at ? `<span style="font-size:11.5px;color:var(--success-text);align-self:center">✓ rozesláno ${esc(curWeek.rozeslano_at)}</span>` : ''}
@@ -205,6 +207,40 @@ window.tmSablonaNacti = function() {
   toastSuccess('Šablona „' + s.nazev + '“ načtena');
   tmRenderBody();
 };
+// 🆕 v3.0.410 — 🖨️ tisk uloženého týdne (A4, window.print v novém okně)
+window.tmTisk = function() {
+  if (!state._tm.id) return alert('Nejdřív týden ulož.');
+  window.open('../api/admin_tydenni_menu.php?action=tisk&id=' + state._tm.id, '_blank');
+};
+
+// 🆕 v3.0.410 — 👁️ náhled šablony (dny + jídla + aktuální ceny z katalogu, bez načtení)
+window.tmSablonaNahled = function() {
+  const sel = document.getElementById('tm-sab-sel');
+  const id = parseInt(sel && sel.value, 10);
+  const s = (state._tmData.sablony || []).find(x => (x.id | 0) === id);
+  if (!s) return;
+  const dnyHtml = TM_DNY_UI.map(([k, label]) => {
+    const items = s.dny[k] || [];
+    if (!items.length) return '';
+    return `<h4 style="margin:10px 0 4px;font-size:13px;color:#854F0B">${label}</h4>` + items.map(r => {
+      const v = (state._tmData.vyrobky || []).find(x => String(x.id) === String(r.vyrobek_id));
+      return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px dashed var(--border)">
+        <span>${v ? esc(v.nazev) : '#' + r.vyrobek_id + ' <span style="color:var(--danger-text);font-size:10px">smazaný výrobek</span>'}${r.pozn ? ` <span style="color:var(--text-3);font-size:11px">(${esc(r.pozn)})</span>` : ''}</span>
+        <strong>${v ? fmt(v.cena_s_dph) : '—'}</strong>
+      </div>`;
+    }).join('');
+  }).join('');
+  const celkem = Object.values(s.dny).reduce((a, x) => a + x.length, 0);
+  openModal(`👁️ Náhled šablony — ${esc(s.nazev)}`, `
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:6px">${celkem} jídel · ceny aktuální z katalogu (v šabloně se neukládají)</div>
+    <div style="max-height:60vh;overflow:auto">${dnyHtml || '<div style="color:var(--text-3)">Šablona je prázdná.</div>'}</div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal()">Zavřít</button>
+      <button class="btn-primary btn-green" onclick="closeModal();tmSablonaNacti()">⤵️ Načíst do týdne</button>
+    </div>
+  `);
+};
+
 window.tmSablonaSmaz = async function() {
   const sel = document.getElementById('tm-sab-sel');
   const id = parseInt(sel && sel.value, 10);
