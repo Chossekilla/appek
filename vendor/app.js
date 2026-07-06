@@ -295,7 +295,10 @@ window.updatePkgPrice = function() {
   }
 };
 
-function openGenerateModal() {
+function openGenerateModal(prefill) {
+  // 🐛 v3.0.414 — prefill z pirátské stránky (licenses.php?new=1&prefill_url=…&prefill_host=…);
+  //   dřív se odkaz „Vystavit licenci" ignoroval → vendor nemohl přímo vydat klíč piratovi.
+  prefill = prefill || {};
   openModal('🔑 Vygenerovat licenční klíč', `
     <form id="gen-form" onsubmit="event.preventDefault();submitGenerate();">
       <label><span class="lbl">Jméno zákazníka *</span>
@@ -344,6 +347,17 @@ function openGenerateModal() {
       </div>
     </form>
   `);
+  // 🐛 v3.0.414 — dopň prefill do formuláře (install URL + poznámka s hostem)
+  try {
+    const f = document.getElementById('gen-form');
+    if (f && prefill.url) { const el = f.querySelector('[name="install_url"]'); if (el) el.value = prefill.url; }
+    if (f && (prefill.host || prefill.url)) {
+      const nt = f.querySelector('[name="note"]');
+      if (nt) nt.value = '🏴‍☠️ Legalizace pirátské instalace' + (prefill.host ? ' — ' + prefill.host : '');
+      const nm = f.querySelector('[name="customer_name"]');
+      if (nm && !nm.value) nm.focus();
+    }
+  } catch (e) {}
 }
 
 async function submitGenerate() {
@@ -612,3 +626,13 @@ function debounce(fn, ms) {
 
 loadStats();
 loadLicenses();
+
+// 🐛 v3.0.414 — auto-otevři generátor s prefillem, když přijdeš z pirátské stránky
+//   (licenses.php?new=1&prefill_url=…&prefill_host=…). Dřív byl odkaz slepý.
+try {
+  const qp = new URLSearchParams(location.search);
+  if (qp.get('new') === '1') {
+    openGenerateModal({ url: qp.get('prefill_url') || '', host: qp.get('prefill_host') || '' });
+    history.replaceState(null, '', location.pathname); // ať reload znovu neotvírá
+  }
+} catch (e) {}
