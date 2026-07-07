@@ -18,6 +18,26 @@
 // .gitignore: api/config.local.php
 if (file_exists(__DIR__ . '/config.local.php')) {
     require_once __DIR__ . '/config.local.php';
+} else {
+    // 🚑 v3.0.415 SELF-HEAL (incident 2026-07-07): po master deployi v3.0.414 zmizel
+    //   api/config.local.php (deploy-hook preserve ho vůbec neviděl — CI log bez
+    //   „Preserving: api/config.local.php") → celé API 302 na install.php.
+    //   Self-update si před extrakcí VŽDY zálohuje celý api/ do /tmp — pokud tam
+    //   config je, obnovíme ho (a k němu i .installed) a jedeme dál bez výpadku.
+    $__bk = glob(sys_get_temp_dir() . '/appek-self-update-backup-*/api/config.local.php') ?: [];
+    if ($__bk) {
+        usort($__bk, fn($a, $b) => (int) @filemtime($b) <=> (int) @filemtime($a));
+        if (@copy($__bk[0], __DIR__ . '/config.local.php')) {
+            $__instBk = dirname($__bk[0]) . '/.installed';
+            if (!file_exists(__DIR__ . '/.installed') && file_exists($__instBk)) {
+                @copy($__instBk, __DIR__ . '/.installed');
+            }
+            @file_put_contents(__DIR__ . '/.selfheal.log',
+                date('c') . ' config.local.php obnoven z ' . $__bk[0] . "\n", FILE_APPEND);
+            require_once __DIR__ . '/config.local.php';
+        }
+    }
+    unset($__bk);
 }
 
 // 🔒 v2.6.0 SECURITY FIX (C6): odstraněno hardcoded production heslo z fallbacku!
@@ -55,7 +75,7 @@ if (!defined('APP_URL')) {
     define('APP_URL', $__host ? ($__sch . '://' . $__host) : '');
 }
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.414'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.415'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');

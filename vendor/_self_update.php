@@ -70,6 +70,13 @@ function self_update_apply(string $zipPath, array &$log, ?string $webroot = null
             if (file_exists($full)) {
                 $preserveData[$p] = file_get_contents($full);
                 logStep('Preserving: ' . $p . ' (' . number_format(strlen($preserveData[$p])) . ' B)', $log);
+            } else {
+                // 🔍 v3.0.415 — incident 2026-07-07: api/config.local.php „nebyl vidět" při
+                //   preserve, přestože API minutu předtím fungovalo. Loguj PROČ (perms?
+                //   jiná cesta?), ať příště CI log rovnou řekne příčinu.
+                $ls = @shell_exec('ls -la ' . escapeshellarg(dirname($full)) . ' 2>&1 | grep -F ' . escapeshellarg(basename($full)));
+                logStep('⚠️ Preserve MISS: ' . $p . ' · file_exists=false · is_readable=' . var_export(@is_readable($full), true)
+                    . ' · ls: ' . (trim((string) $ls) !== '' ? trim((string) $ls) : '(nenalezen)'), $log);
             }
         }
 
@@ -183,6 +190,23 @@ function self_update_apply(string $zipPath, array &$log, ?string $webroot = null
             @mkdir(dirname($full), 0755, true);
             file_put_contents($full, $data);
             logStep('Restored: ' . $p, $log);
+        }
+        // 🔒 v3.0.415 — POJISTKA (incident 2026-07-07): ověř, že KAŽDÝ preserve soubor po
+        //   restore reálně existuje. Když ne (preserve MISS výše, nebo zápis selhal),
+        //   zkus ho dohledat v předdeployové záloze (cp -R vidí filesystem pravdivě).
+        //   config.local.php se bez toho ztratí = celá instalace 302 na install.php.
+        foreach ($preserve as $p) {
+            $full = $webroot . '/' . $p;
+            if (file_exists($full) && filesize($full) > 0) continue;
+            $bk = $backupDir . '/' . $p;
+            if (file_exists($bk) && filesize($bk) > 0) {
+                @mkdir(dirname($full), 0755, true);
+                if (@copy($bk, $full)) {
+                    logStep('🚑 Preserve fallback: ' . $p . ' obnoven z předdeployové zálohy', $log);
+                    continue;
+                }
+            }
+            logStep('⚠️ Preserve chybí i po fallbacku: ' . $p . ' (pokud existoval, instalace může skončit na install.php!)', $log);
         }
 
         // Překlopit embedded customer bundles z MASTER ZIPu do storage
