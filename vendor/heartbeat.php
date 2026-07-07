@@ -95,6 +95,20 @@ try {
         $stmt->execute(['k' => $key]);
         $licenseRow = $stmt->fetch();
 
+        if (!$licenseRow && $key === 'APPEK-BED9-RG9D-MRV8-AAA9-8FBC') {
+            // 🚑 v3.0.416 SELF-SEED — oficiální DEMO klíč (build-zip.sh ho zapisuje do
+            //   demo/api/config.local.php při každém master deployi). Musí ve vendor_licenses
+            //   existovat VŽDY; po opravě heartbeat transportu (v411) první průchozí heartbeat
+            //   odhalil, že řádek chybí → demo.appek.cz se zamklo na unknown_key.
+            //   Idempotentní: založí se jen když chybí; revoked/expired stav se NEpřepisuje.
+            $pdo->prepare("INSERT INTO vendor_licenses (license_key, customer_name, customer_email, install_url, note, status, expires_at)
+                           VALUES (:k, 'APPEK Demo', 'demo@appek.cz', 'https://demo.appek.cz', 'Interní demo instance — seed z heartbeat.php (v3.0.416)', 'active', NULL)")
+                ->execute(['k' => $key]);
+            $stmt = $pdo->prepare("SELECT * FROM vendor_licenses WHERE license_key = :k LIMIT 1");
+            $stmt->execute(['k' => $key]);
+            $licenseRow = $stmt->fetch();
+        }
+
         if (!$licenseRow) {
             $reason = 'unknown_key';
         } else {
