@@ -437,6 +437,7 @@ function cateringCfgRender() {
       </div>
       ${itemTable('jidlo', 'Jídlo', '🍽️')}
       ${itemTable('napoje', 'Nápoje', '🥤')}
+      ${cateringProduktySekceHtml()}
       <div class="card-block">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <h3 style="margin:0;font-size:15px">🎉 Typy událostí <span style="font-weight:400;color:var(--text-3);font-size:12px">(koeficient množství × na osobu)</span></h3>
@@ -508,5 +509,170 @@ window.cateringCfgResetDefault = async function() {
     state._catCfg = c.default;
     cateringCfgRender();
   } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// ════════════════════════════════════════════════════════════
+// 🆕 v3.0.423 — PRODUKTY Z KATALOGU (trvalý číselník v catering_config)
+//   Přidávání výrobků z katalogu do cateringu s per-produkt nastavením
+//   (porce/aktivní/povinné). Picker = hledání + filtr kategorie + stránkování.
+// ════════════════════════════════════════════════════════════
+function cateringProduktySekceHtml() {
+  const prod = (state._catCfg && Array.isArray(state._catCfg.produkty)) ? state._catCfg.produkty : [];
+  // grupuj dle kategorie, zachovej reálný index pro editaci
+  const groups = {};
+  prod.forEach((p, i) => {
+    const g = p.smazany ? '⚠️ Smazané výrobky' : (p.kategorie || '(bez kategorie)');
+    (groups[g] = groups[g] || []).push({ p, i });
+  });
+  const groupKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'cs'));
+
+  const row = ({ p, i }) => `
+    <tr${p.smazany ? ' style="background:#FEF2F2"' : ''}>
+      <td style="min-width:150px">
+        <strong style="font-size:12.5px">${esc(p.nazev || '?')}</strong>
+        ${p.smazany ? '<span style="color:var(--danger-text,#DC2626);font-size:11px"> — výrobek neexistuje</span>'
+          : `<span style="color:var(--text-3);font-size:11px"> · ${fmt(p.cena || 0)}/ks${p.material != null ? ' · mat. ' + fmt(p.material) : ''}</span>`}
+      </td>
+      <td><input type="number" step="0.1" min="0" class="form-input" style="font-size:12px;width:78px" value="${p.porce_na_osobu != null ? p.porce_na_osobu : 1}" oninput="cateringCfgProdSet(${i},'porce_na_osobu',this.value)" ${p.smazany ? 'disabled' : ''}></td>
+      <td style="text-align:center"><input type="checkbox" ${p.aktivni ? 'checked' : ''} onchange="cateringCfgProdSet(${i},'aktivni',this.checked)" ${p.smazany ? 'disabled' : ''}></td>
+      <td style="text-align:center">
+        <select class="form-input" style="font-size:12px;width:112px" onchange="cateringCfgProdSet(${i},'povinne',this.value)" ${p.smazany ? 'disabled' : ''}>
+          <option value="1" ${p.povinne ? 'selected' : ''}>Povinné</option>
+          <option value="0" ${!p.povinne ? 'selected' : ''}>Volitelné</option>
+        </select>
+      </td>
+      <td style="text-align:center"><button class="btn-icon" title="Odebrat produkt" onclick="cateringCfgProdDel(${i})" style="border:none;background:none;cursor:pointer;color:var(--danger-text,#DC2626);font-size:15px">🗑</button></td>
+    </tr>`;
+
+  const groupHtml = groupKeys.map(g => `
+    <tr><td colspan="5" style="background:var(--bg-2,#F3F4F6);font-weight:700;font-size:11.5px;color:var(--text-2);padding:5px 8px">${esc(g)}</td></tr>
+    ${groups[g].map(row).join('')}`).join('');
+
+  return `
+    <div class="card-block">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap">
+        <h3 style="margin:0;font-size:15px">🧺 Produkty z katalogu <span style="font-weight:400;color:var(--text-3);font-size:12px">(cena/název/odpis z výrobku)</span></h3>
+        <button class="btn-secondary" onclick="openProduktPicker()" style="font-size:12px">+ Přidat produkt</button>
+      </div>
+      <div style="background:#EFF6FF;border-left:3px solid #2563EB;padding:8px 12px;border-radius:6px;font-size:12px;color:#1e40af;margin-bottom:8px">
+        Nastav <strong>porce na osobu</strong> (množství = osob × porce). <strong>Povinné</strong> = vždy v kalkulaci; <strong>volitelné</strong> = přičte se jen když ho klient zvolí. Odpis surovin běží přes výrobek.
+      </div>
+      <div style="overflow-x:auto">
+      <table class="table" style="font-size:12px;margin:0">
+        <thead><tr><th>Produkt</th><th>Porce/os.</th><th>Aktivní</th><th>Režim</th><th></th></tr></thead>
+        <tbody>${groupHtml || `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:14px">Zatím žádné produkty — přidej tlačítkem „+ Přidat produkt"</td></tr>`}</tbody>
+      </table>
+      </div>
+    </div>`;
+}
+
+window.cateringCfgProdSet = function(i, field, val) {
+  const arr = state._catCfg && state._catCfg.produkty;
+  if (!arr || !arr[i]) return;
+  if (field === 'porce_na_osobu') val = Math.max(0, parseFloat(String(val).replace(',', '.')) || 0);
+  if (field === 'povinne') val = (val === '1' || val === 1 || val === true);
+  arr[i][field] = val;   // bez re-renderu → inputy neztratí fokus
+};
+window.cateringCfgProdDel = function(i) {
+  const arr = state._catCfg && state._catCfg.produkty;
+  if (!arr || !arr[i]) return;
+  arr.splice(i, 1);
+  cateringCfgRender();
+};
+
+// ── Picker modal: hledání + filtr kategorie + server-side stránkování ──
+window.openProduktPicker = function(onPick) {
+  state._catPick = { page: 1, q: '', kat: 0, timer: null, seq: 0, onPick: onPick || null, katLoaded: false };
+  openModal('🧺 Přidat produkt z katalogu', `
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+      <input id="catprod-pick-q" class="form-input" placeholder="🔍 Hledat výrobek…" style="flex:1;min-width:160px" oninput="catPickSearch(this.value)">
+      <select id="catprod-pick-kat" class="form-input" style="min-width:150px" onchange="catPickKat(this.value)"><option value="0">Všechny kategorie</option></select>
+    </div>
+    <div id="catprod-pick-body" style="min-height:180px"></div>
+    <div id="catprod-pick-foot" style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--text-3)"></div>
+  `, 'wide');
+  catPickLoad();
+};
+window.catPickSearch = function(v) {
+  const s = state._catPick; if (!s) return;
+  s.q = v; clearTimeout(s.timer);
+  s.timer = setTimeout(() => { s.page = 1; catPickLoad(); }, 300);
+};
+window.catPickKat = function(v) {
+  const s = state._catPick; if (!s) return;
+  s.kat = parseInt(v) || 0; s.page = 1; catPickLoad();
+};
+window.catPickGo = function(p) {
+  const s = state._catPick; if (!s) return;
+  s.page = Math.max(1, p); catPickLoad();
+};
+async function catPickLoad() {
+  const s = state._catPick; if (!s) return;
+  const body = document.getElementById('catprod-pick-body'); if (!body) return;
+  const mySeq = ++s.seq;
+  body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-3)">Načítám…</div>';
+  let r;
+  try { r = await api(`admin_catering_calc.php?action=produkty_pick&page=${s.page}&q=${encodeURIComponent(s.q)}&kategorie=${s.kat}`); }
+  catch (e) { if (mySeq === s.seq) body.innerHTML = `<div class="alert err">${esc(e.message)}</div>`; return; }
+  if (mySeq !== s.seq) return;   // starší odpověď — ignoruj (race guard)
+  // naplň dropdown kategorií jednou
+  if (!s.katLoaded && Array.isArray(r.kategorie)) {
+    const sel = document.getElementById('catprod-pick-kat');
+    if (sel) { sel.innerHTML = '<option value="0">Všechny kategorie</option>' + r.kategorie.map(k => `<option value="${k.id}">${esc(k.nazev)}</option>`).join(''); sel.value = String(s.kat); }
+    s.katLoaded = true;
+  }
+  catPickRender(r);
+}
+function catPickRender(r) {
+  const s = state._catPick;
+  const body = document.getElementById('catprod-pick-body');
+  const foot = document.getElementById('catprod-pick-foot');
+  if (!body) return;
+  const added = new Set(((state._catCfg && state._catCfg.produkty) || []).map(p => parseInt(p.vyrobek_id)));
+  const items = r.items || [];
+  if (!items.length) {
+    body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-3)">Nic nenalezeno.</div>';
+  } else {
+    body.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">` + items.map(it => {
+      const isAdded = added.has(parseInt(it.id));
+      return `<button type="button" ${isAdded ? 'disabled' : `onclick="catPickAdd(${it.id})"`} style="text-align:left;border:1px solid var(--border,#E5E7EB);border-radius:8px;padding:9px 10px;background:${isAdded ? 'var(--bg-2,#F3F4F6)' : 'var(--bg-1,#fff)'};cursor:${isAdded ? 'default' : 'pointer'};opacity:${isAdded ? 0.6 : 1}">
+        <div style="font-weight:600;font-size:12.5px;line-height:1.25">${esc(it.nazev)}${isAdded ? ' ✓' : ''}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${fmt(it.cena)}/ks · ${esc(it.kategorie || '—')}${it.ma_recept ? ' · recept' : ''}</div>
+      </button>`;
+    }).join('') + `</div>`;
+  }
+  if (foot) {
+    const pages = r.pages || 1, page = r.page || 1;
+    foot.innerHTML = `<span>Celkem ${r.total || 0} výrobků</span>
+      <span style="display:flex;gap:6px;align-items:center">
+        <button class="btn-secondary" style="font-size:12px;padding:3px 9px" ${page <= 1 ? 'disabled' : ''} onclick="catPickGo(${page - 1})">← Předchozí</button>
+        <span>${page} / ${pages}</span>
+        <button class="btn-secondary" style="font-size:12px;padding:3px 9px" ${page >= pages ? 'disabled' : ''} onclick="catPickGo(${page + 1})">Další →</button>
+      </span>`;
+  }
+  // cache poslední odpovědi pro catPickAdd refresh
+  s._items = items;
+  s._lastR = r;
+}
+window.catPickAdd = function(id) {
+  const s = state._catPick; if (!s) return;
+  const it = (s._items || []).find(x => parseInt(x.id) === parseInt(id));
+  if (!it) return;
+  const produkt = {
+    vyrobek_id: parseInt(it.id), porce_na_osobu: 1, aktivni: true, povinne: true,
+    poradi: ((state._catCfg && state._catCfg.produkty) || []).length,
+    nazev: it.nazev, cena: it.cena, kategorie_id: it.kategorie_id, kategorie: it.kategorie, smazany: false,
+  };
+  if (typeof s.onPick === 'function') { s.onPick(produkt); }
+  else {
+    // default = přidat do číselníku v Nastavení kalkulačky
+    state._catCfg = state._catCfg || {};
+    state._catCfg.produkty = state._catCfg.produkty || [];
+    if (state._catCfg.produkty.some(p => parseInt(p.vyrobek_id) === produkt.vyrobek_id)) return;
+    state._catCfg.produkty.push(produkt);
+    cateringCfgRender();
+  }
+  if (s._lastR) catPickRender(s._lastR); // refresh ✓ příznaky (zachová paginaci)
+  if (typeof toastSuccess === 'function') toastSuccess(`Přidáno: ${it.nazev}`);
 };
 

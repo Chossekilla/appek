@@ -416,8 +416,11 @@ if ($action === 'config') {
             FROM vyrobky v WHERE v.aktivni = 1 ORDER BY (v.obor='lahudka') DESC, v.nazev
         ")->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable $e) {}
+    // produkty dekorované pro editor (název/cena/kategorie/smazany); save je zase stripne
+    $cfgForEditor = catering_config($pdo);
+    $cfgForEditor['produkty'] = catering_decorate_produkty($pdo, $cfgForEditor['produkty'] ?? []);
     json_response([
-        'config'   => catering_config($pdo),
+        'config'   => $cfgForEditor,
         'default'  => catering_default_config(),
         'vyrobky'  => array_map(fn($v) => [
             'id' => (int) $v['id'], 'nazev' => $v['nazev'], 'obor' => $v['obor'],
