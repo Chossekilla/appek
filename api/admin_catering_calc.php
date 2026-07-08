@@ -18,6 +18,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_packages_lib.php';
+require_once __DIR__ . '/_catering_lib.php';  // 🆕 v3.0.423 — pure helpery (catering_material_cost + produkty[])
 
 cors_headers();
 require_admin();
@@ -83,6 +84,7 @@ function catering_default_config(): array {
         'jidlo'         => catering_jidlo(),
         'napoje'        => catering_napoje(),
         'dph'           => CATERING_DPH,
+        'produkty'      => [],
     ];
 }
 function catering_config(PDO $pdo): array {
@@ -98,6 +100,7 @@ function catering_config(PDO $pdo): array {
                 if (isset($saved['jidlo'])  && is_array($saved['jidlo']))  $cfg['jidlo']  = $saved['jidlo'];
                 if (isset($saved['napoje']) && is_array($saved['napoje'])) $cfg['napoje'] = $saved['napoje'];
                 if (isset($saved['dph']))   $cfg['dph'] = (float) $saved['dph'];
+                if (isset($saved['produkty']) && is_array($saved['produkty'])) $cfg['produkty'] = catering_clean_produkty($saved['produkty']);
             }
         }
     } catch (Throwable $e) {}
@@ -108,18 +111,7 @@ function catering_cfg_jidlo(PDO $pdo): array  { return catering_config($pdo)['ji
 function catering_cfg_napoje(PDO $pdo): array { return catering_config($pdo)['napoje'] ?? catering_napoje(); }
 function catering_cfg_dph(PDO $pdo): float    { return (float) (catering_config($pdo)['dph'] ?? CATERING_DPH); }
 
-// Materiálové náklady výrobku z receptury (Σ mnozstvi × jednotková cena suroviny).
-function catering_material_cost(PDO $pdo, int $vyrobek_id): float {
-    try {
-        $st = $pdo->prepare("
-            SELECT COALESCE(SUM(vs.mnozstvi * (s.cena_baleni / NULLIF(s.obsah_baleni, 0))), 0)
-            FROM vyrobek_suroviny vs JOIN suroviny s ON s.id = vs.surovina_id
-            WHERE vs.vyrobek_id = :v
-        ");
-        $st->execute(['v' => $vyrobek_id]);
-        return round((float) $st->fetchColumn(), 2);
-    } catch (Throwable $e) { return 0.0; }
-}
+// catering_material_cost() → vyčleněno do _catering_lib.php (v3.0.423)
 
 // Napáruje klíče položek na reálné výrobky (preferuje obor='lahudka', jinak shoda názvu).
 //   Vrací: klic => ['vyrobek_id','nazev','cena','material','dph','recept_polozek']
@@ -450,8 +442,9 @@ if ($action === 'save_config' && $method === 'POST') {
         'jidlo'         => $cleanItems($cfg['jidlo'] ?? []),
         'napoje'        => $cleanItems($cfg['napoje'] ?? []),
         'dph'           => max(0, min(30, round((float) ($cfg['dph'] ?? CATERING_DPH), 2))),
+        'produkty'      => catering_clean_produkty($cfg['produkty'] ?? []),
     ];
-    if (empty($save['jidlo']) && empty($save['napoje'])) json_error('Musí zůstat aspoň jedna položka (jídlo nebo nápoj)', 400);
+    if (empty($save['jidlo']) && empty($save['napoje']) && empty($save['produkty'])) json_error('Musí zůstat aspoň jedna položka (jídlo, nápoj nebo produkt)', 400);
     try {
         $json = json_encode($save, JSON_UNESCAPED_UNICODE);
         $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('catering_config', :v) ON DUPLICATE KEY UPDATE hodnota = :v2")

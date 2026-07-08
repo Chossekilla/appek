@@ -13,6 +13,7 @@ $_SERVER['REQUEST_METHOD'] = 'GET';
 ob_start(); require $ROOT . '/api/config.php'; @ob_end_clean();
 require_once $ROOT . '/api/_bom_lib.php';
 require_once $ROOT . '/api/_seasonal_lib.php';
+require_once $ROOT . '/api/_catering_lib.php';
 
 $pass = 0; $fail = 0;
 function ok($cond, $msg) { global $pass, $fail; if ($cond) { $pass++; } else { $fail++; fwrite(STDOUT, "  ❌ $msg\n"); } }
@@ -136,6 +137,38 @@ foreach ($pdo->query("SELECT id, castka_bez_dph, castka_dph FROM faktury LIMIT 6
     ok($resBez <= 0.05 && $resDph <= 0.05, "faktura #{$f6['id']} rozpis↔hlavička zbytek absorbovatelný (bez $resBez, dph $resDph)");
 }
 echo "  (rozpisů ověřeno: $t6)\n";
+
+// ── T7 — catering produkty[] (přístup A) ───────────────────────
+echo "── T7 catering produkty z katalogu ──\n";
+$clean = catering_clean_produkty([
+    ['vyrobek_id' => 5, 'porce_na_osobu' => 1.5, 'aktivni' => true,  'povinne' => true,  'poradi' => 0],
+    ['vyrobek_id' => 0, 'porce_na_osobu' => 2,   'aktivni' => true,  'povinne' => true],   // vyrobek_id=0 → vyřazeno
+    ['vyrobek_id' => 9, 'porce_na_osobu' => -3,  'aktivni' => 'x',   'povinne' => 0],       // porce<0 → 0, bool coerce
+]);
+ok(count($clean) === 2, "produkty: vyrobek_id=0 vyřazen (mám " . count($clean) . ")");
+ok(($clean[0]['porce_na_osobu'] ?? null) === 1.5, "porce 1.5 zachována");
+ok(($clean[1]['porce_na_osobu'] ?? null) === 0.0, "porce<0 → 0.0");
+ok(($clean[1]['aktivni'] ?? null) === true, "aktivni 'x' → true");
+ok(($clean[1]['povinne'] ?? null) === false, "povinne 0 → false");
+ok(!is_array(catering_clean_produkty('nonsense')) === false && catering_clean_produkty('nonsense') === [], "nepole → []");
+
+// decorate + škálování osob×porce (jen když existuje aspoň 1 aktivní výrobek)
+$someVyrobekId = (int) $pdo->query("SELECT id FROM vyrobky WHERE aktivni=1 LIMIT 1")->fetchColumn();
+if ($someVyrobekId > 0) {
+    $dec = catering_decorate_produkty($pdo, [
+        ['vyrobek_id' => $someVyrobekId, 'porce_na_osobu' => 2, 'aktivni' => true, 'povinne' => true, 'poradi' => 0],
+    ]);
+    ok(count($dec) === 1, "decorate vrací 1 produkt");
+    ok(isset($dec[0]['nazev'], $dec[0]['cena'], $dec[0]['kategorie'], $dec[0]['material']), "produkt dekorován z katalogu (nazev/cena/kategorie/material)");
+    ok(empty($dec[0]['smazany']), "existující výrobek: smazany=false");
+    $osob = 10; $mn = $osob * 2;
+    ok(round($dec[0]['cena'] * $mn, 2) === round($dec[0]['cena'] * $osob * 2, 2), "množství = osob × porce ($mn)");
+} else {
+    echo "  (přeskočeno decorate — v DB není žádný aktivní výrobek)\n";
+}
+// smazaný/neexistující výrobek → smazany:true
+$decDel = catering_decorate_produkty($pdo, [['vyrobek_id' => 999999999, 'porce_na_osobu' => 1, 'aktivni' => true, 'povinne' => true, 'poradi' => 0]]);
+ok(!empty($decDel[0]['smazany']), "neexistující výrobek → smazany:true");
 
 echo "\n✅ PASS=$pass  ❌ FAIL=$fail\n";
 exit($fail > 0 ? 1 : 0);
