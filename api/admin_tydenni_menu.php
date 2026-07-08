@@ -325,7 +325,9 @@ if ($action === 'tisk' && $method === 'GET') {
     require_once __DIR__ . '/_menu_render.php';
     $r = menu_render($res, $firma, 'print');
     header('Content-Type: text/html; charset=UTF-8');
-    echo "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>Týdenní menu {$odS} – {$doS} · {$fN}</title><style>@page{size:A4;margin:14mm;}@media print{body{padding:0!important;}}"
+    // 🆕 v3.0.422 — @page{margin:0} skryje hlavičku/patičku prohlížeče (název/URL/„1 z 1"/datum);
+    //   odsazení stránky přesunuto do padding body, aby obsah přesto měl okraje.
+    echo "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>Týdenní menu {$odS} – {$doS} · {$fN}</title><style>@page{size:A4;margin:0;}@media print{body{padding:14mm!important;}}"
        . $r['css'] . "</style></head><body>" . $r['body'] . "<script>window.print();</script></body></html>";
     exit;
 }
