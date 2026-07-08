@@ -4,6 +4,11 @@ Options -Indexes
 # Zakázat directory traversal pokus
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  # 🏠 v3.0.417 — "landing-only" režim (viz api/.htaccess): apex appek.cz má marker
+  #   .landing-only → /admin nevede na installer, ale na landing. Zákazníci beze změny.
+  RewriteCond %{DOCUMENT_ROOT}/.landing-only -f
+  RewriteRule .* /? [R=302,L]
+
   RewriteRule "(^|/)\." - [F]
 </IfModule>
 

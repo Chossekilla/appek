@@ -1,6 +1,16 @@
 # 🔒 v2.6.0 SECURITY: api/ ochrana
 Options -Indexes
 
+# 🏠 v3.0.417 — "landing-only" režim: instalace, která NENÍ app-shop (jen prodejní
+#   landing — apex appek.cz), má v docrootu marker .landing-only. Pak /api NEpřesměrovává
+#   na install.php (ošklivá „chyba"), ale čistě na landing. Zákazníci marker nemají →
+#   beze změny. Marker je preservovaný v self-update, takže přežije deploye.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{DOCUMENT_ROOT}/.landing-only -f
+  RewriteRule .* /? [R=302,L]
+</IfModule>
+
 # Skrýt dotfiles
 <FilesMatch "^\.">
   <IfModule mod_authz_core.c>

@@ -63,6 +63,10 @@ function self_update_apply(string $zipPath, array &$log, ?string $webroot = null
             'vendor/.installed',
             'api/config.local.php',
             'api/.installed',
+            // 🏠 v3.0.417 — marker "landing-only" (apex appek.cz: jen prodejní landing,
+            //   root /api,/admin,/b2b se přesměruje na landing místo install.php). Musí
+            //   přežít každý deploy, jinak by se apex znovu začal chovat jako rozbitý shop.
+            '.landing-only',
         ];
         $preserveData = [];
         foreach ($preserve as $p) {
