@@ -399,6 +399,64 @@ if ($action === 'config') {
     ]);
 }
 
+// 🆕 v3.0.423 — paginovaný + filtrovaný picker výrobků (nahrazuje LIMIT 500 dump v options)
+if ($action === 'produkty_pick') {
+    $pdo  = db();
+    $q    = trim((string) ($_GET['q'] ?? ''));
+    $kat  = (int) ($_GET['kategorie'] ?? 0);
+    $page = max(1, (int) ($_GET['page'] ?? 1));
+    $per  = 24;
+    $off  = ($page - 1) * $per;
+
+    $where = ['v.aktivni = 1'];
+    $args  = [];
+    if ($q !== '')  { $where[] = 'v.nazev LIKE :q';       $args['q']   = '%' . $q . '%'; }
+    if ($kat > 0)   { $where[] = 'v.kategorie_id = :kat'; $args['kat'] = $kat; }
+    $whereSql = implode(' AND ', $where);
+
+    // produkty už v číselníku (pro UI příznak pridano)
+    $vConf = array_map(fn($p) => (int) $p['vyrobek_id'], catering_config($pdo)['produkty'] ?? []);
+
+    $total = 0;
+    try {
+        $stc = $pdo->prepare("SELECT COUNT(*) FROM vyrobky v WHERE $whereSql");
+        $stc->execute($args);
+        $total = (int) $stc->fetchColumn();
+    } catch (Throwable $e) {}
+
+    $items = [];
+    try {
+        $st = $pdo->prepare("
+            SELECT v.id, v.nazev, ROUND(v.cena_bez_dph, 2) AS cena, v.kategorie_id,
+                   COALESCE(k.nazev, '') AS kategorie,
+                   (SELECT COUNT(*) FROM vyrobek_suroviny WHERE vyrobek_id = v.id) > 0 AS ma_recept
+            FROM vyrobky v LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
+            WHERE $whereSql
+            ORDER BY v.nazev
+            LIMIT $per OFFSET $off
+        ");
+        $st->execute($args);
+        $items = $st->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {}
+
+    $kategorie = [];
+    try {
+        $kategorie = $pdo->query("SELECT id, nazev FROM kategorie_vyrobku ORDER BY poradi, nazev")->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {}
+
+    json_response([
+        'items'     => array_map(fn($r) => [
+            'id' => (int) $r['id'], 'nazev' => $r['nazev'], 'cena' => (float) $r['cena'],
+            'kategorie_id' => (int) $r['kategorie_id'], 'kategorie' => $r['kategorie'],
+            'ma_recept' => (bool) $r['ma_recept'], 'pridano' => in_array((int) $r['id'], $vConf, true),
+        ], $items),
+        'total'     => $total,
+        'page'      => $page,
+        'pages'     => (int) ceil($total / max(1, $per)),
+        'kategorie' => array_map(fn($k) => ['id' => (int) $k['id'], 'nazev' => $k['nazev']], $kategorie),
+    ]);
+}
+
 // 🆕 v3.0.306 — uložení konfigurace (jen super_admin)
 if ($action === 'save_config' && $method === 'POST') {
     $pdo = db();
@@ -689,4 +747,4 @@ if ($action === 'nabidka_tisk' && $method === 'POST') {
     exit;
 }
 
-json_error('Neznámá akce (options|quote|create_order|sablony|save_sablona|delete_sablona|nabidka_tisk)', 404);
+json_error('Neznámá akce (options|quote|create_order|produkty_pick|sablony|save_sablona|delete_sablona|nabidka_tisk)', 404);
