@@ -336,6 +336,32 @@ function catering_compute(PDO $pdo, array $d): array {
             }
         }
     }
+
+    // 🆕 v3.0.423 — PRODUKTY Z KATALOGU (přístup A, trvalý číselník v catering_config).
+    //   Množství = osob × porce_na_osobu (bez koef — porce je už „na hlavu"). Cena/DPH/název
+    //   z výrobku, odpis přes vyrobek_id řádek. Povinné vždy; volitelné jen když v produkty_zvolene.
+    $zvolene = array_map('intval', (array) ($d['produkty_zvolene'] ?? []));
+    foreach (catering_decorate_produkty($pdo, catering_config($pdo)['produkty'] ?? []) as $pp) {
+        if (!empty($pp['smazany']) || empty($pp['aktivni'])) continue;
+        if (empty($pp['povinne']) && !in_array((int) $pp['vyrobek_id'], $zvolene, true)) continue;
+        $mn = round($osob * (float) $pp['porce_na_osobu'], 3);
+        if ($mn <= 0) continue;
+        $polozky[] = [
+            'klic'      => 'prod_' . (int) $pp['vyrobek_id'],
+            'nazev'     => $pp['nazev'],
+            'mnozstvi'  => $mn,
+            'jednotka'  => 'ks',
+            'cena_per_jednotku' => (float) $pp['cena'],
+            'cena_kc'   => round($mn * (float) $pp['cena'], 2),
+            'vyrobek_id'=> (int) $pp['vyrobek_id'],
+            'material_kc' => round($mn * (float) ($pp['material'] ?? 0), 2),
+            'dph'       => (float) ($pp['dph'] ?? $dphDef),
+            'odecte_sklad' => true,
+            'sekce'     => $pp['kategorie'] ?? '',
+            'povinne'   => (bool) $pp['povinne'],
+        ];
+    }
+
     return ['osob' => $osob, 'typ' => $typ, 'koef' => $koef, 'polozky' => $polozky];
 }
 
@@ -374,6 +400,7 @@ if ($action === 'options') {
         'napoje'        => $deco(catering_cfg_napoje($pdo)),
         'sazba_dph'     => catering_cfg_dph($pdo),
         'vyrobky'       => $vyrobkyKatalog,
+        'produkty'      => catering_decorate_produkty($pdo, catering_config($pdo)['produkty'] ?? []),
     ]);
 }
 
