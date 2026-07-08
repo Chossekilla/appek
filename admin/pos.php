@@ -286,6 +286,8 @@ if (empty($_SESSION['admin_id'])) {
         loadUsers();
       })();
       </script>
+      <!-- 🌍 v3.0.421 — i18n i na PIN login obrazovce (jinak zůstávala česky) -->
+      <script src="pos-i18n.js?v=<?= htmlspecialchars($appVersion) ?>"></script>
     </body>
     </html><?php
     exit;
