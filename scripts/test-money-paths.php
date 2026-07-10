@@ -170,5 +170,14 @@ if ($someVyrobekId > 0) {
 $decDel = catering_decorate_produkty($pdo, [['vyrobek_id' => 999999999, 'porce_na_osobu' => 1, 'aktivni' => true, 'povinne' => true, 'poradi' => 0]]);
 ok(!empty($decDel[0]['smazany']), "neexistující výrobek → smazany:true");
 
+// ── T8 — catering header DPH z per-line sazeb (mix 12/21 %) ─────
+echo "── T8 catering_totals per-line DPH ──\n";
+$tt = catering_totals([['cena_kc' => 2000, 'dph' => 12], ['cena_kc' => 1000, 'dph' => 21]]);
+ok(abs($tt['bez'] - 3000) < 0.001, "bez = 3000 (mám {$tt['bez']})");
+ok(abs($tt['dph'] - 450) < 0.001, "DPH = 450 per-line, ne flat (mám {$tt['dph']})");
+ok(abs($tt['celkem'] - 3450) < 0.001, "celkem = 3450, ne 3360 flat (mám {$tt['celkem']})");
+$tt0 = catering_totals([]);
+ok($tt0['celkem'] === 0.0, "prázdné → 0");
+
 echo "\n✅ PASS=$pass  ❌ FAIL=$fail\n";
 exit($fail > 0 ? 1 : 0);

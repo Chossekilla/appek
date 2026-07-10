@@ -22,6 +22,24 @@ if (!function_exists('catering_material_cost')) {
     }
 }
 
+if (!function_exists('catering_totals')) {
+    // 🆕 v3.0.424 — součty dokladu z PER-LINE DPH (ne flat sazba).
+    //   Dřív se header počítal jako bez × (1 + flat_dph/100) → u cateringu s mixem sazeb
+    //   (12 % jídlo + 21 % pití/produkty) header ≠ Σ řádků a uzávěrka podhlásila DPH.
+    //   Každý řádek nese vlastní 'dph' (z výrobku); sčítáme DPH po řádcích jako faktura.
+    function catering_totals(array $polozky): array {
+        $bez = 0.0; $dphSum = 0.0;
+        foreach ($polozky as $p) {
+            $lineBez = (float) ($p['cena_kc'] ?? 0);
+            $rate    = (float) ($p['dph'] ?? 0);
+            $bez    += $lineBez;
+            $dphSum += $lineBez * $rate / 100;
+        }
+        $bez = round($bez, 2); $dphSum = round($dphSum, 2);
+        return ['bez' => $bez, 'dph' => $dphSum, 'celkem' => round($bez + $dphSum, 2)];
+    }
+}
+
 if (!function_exists('catering_clean_produkty')) {
     // 🆕 v3.0.423 — sanitizace produktů z katalogu (přístup A, viz spec).
     //   Zahodí položky bez napojení na výrobek, ořeže porce na >=0, coerce boolů.
@@ -55,10 +73,12 @@ if (!function_exists('catering_decorate_produkty')) {
         try {
             $st = $pdo->prepare("
                 SELECT v.id, v.nazev, ROUND(v.cena_bez_dph,2) AS cena, v.kategorie_id,
-                       COALESCE(k.nazev,'') AS kategorie, COALESCE(sd.sazba,12) AS dph
+                       COALESCE(k.nazev,'') AS kategorie, COALESCE(sd.sazba,12) AS dph,
+                       COALESCE(j.kod,'ks') AS jednotka
                 FROM vyrobky v
                 LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
                 LEFT JOIN sazby_dph sd ON sd.id = v.sazba_dph_id
+                LEFT JOIN jednotky j ON j.id = v.jednotka_id
                 WHERE v.aktivni = 1 AND v.id IN ($in)
             ");
             $st->execute($ids);
@@ -77,6 +97,7 @@ if (!function_exists('catering_decorate_produkty')) {
                 'kategorie_id' => (int) $v['kategorie_id'],
                 'kategorie'    => $v['kategorie'],
                 'dph'          => (float) $v['dph'],
+                'jednotka'     => $v['jednotka'],
                 'smazany'      => false,
             ];
         }

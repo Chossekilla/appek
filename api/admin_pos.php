@@ -1981,6 +1981,12 @@ if ($method === 'POST' && $action === 'refund_order') {
     $origById = [];
     foreach ($origLines as $l) $origById[(int) $l['id']] = $l;
 
+    // 🆕 v3.0.424 — SERIALIZUJ souběžné vratky téže účtenky: zamkni objednávku FOR UPDATE
+    //   a čti „už vráceno" + validuj + zapiš v JEDNÉ transakci. Bez toho dva paralelní
+    //   refund_order requesty oba přečtou stejné $already a oba projdou capem → vratka > prodej.
+    $pdo->beginTransaction();
+    $pdo->prepare("SELECT id FROM objednavky WHERE id = :id FOR UPDATE")->execute(['id' => $oid]);
+
     // Kolik z každého řádku už vráceno (napříč předchozími VRA- této účtenky)
     $rf = $pdo->prepare("
         SELECT op.vraci_polozku_id AS pid, COALESCE(SUM(-op.mnozstvi), 0) AS qty
@@ -2023,7 +2029,7 @@ if ($method === 'POST' && $action === 'refund_order') {
     if (!$refundLines) json_error('Účtenka už byla celá vrácena', 409);
     $bez = round($bez, 2); $dph = round($dph, 2); $cel = round($bez + $dph, 2);
 
-    $pdo->beginTransaction();
+    // transakce už běží (viz FOR UPDATE lock výše) — zápis vratky pod stejným zámkem
     try {
         $cislo = 'VRA-' . pos_next_doklad($pdo);
         $admin = aktualni_admin($pdo);

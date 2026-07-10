@@ -350,7 +350,7 @@ function catering_compute(PDO $pdo, array $d): array {
             'klic'      => 'prod_' . (int) $pp['vyrobek_id'],
             'nazev'     => $pp['nazev'],
             'mnozstvi'  => $mn,
-            'jednotka'  => 'ks',
+            'jednotka'  => $pp['jednotka'] ?? 'ks',   // 🆕 v3.0.424 — skutečná jednotka výrobku (ne natvrdo ks)
             'cena_per_jednotku' => (float) $pp['cena'],
             'cena_kc'   => round($mn * (float) $pp['cena'], 2),
             'vyrobek_id'=> (int) $pp['vyrobek_id'],
@@ -554,10 +554,11 @@ if ($action === 'quote' && $method === 'POST') {
     $pdo = db();
     catering_ensure_demo_lahudky($pdo);
     $c = catering_compute($pdo, json_input());
-    $dph = catering_cfg_dph($pdo);
-    $bezDPH = round(array_sum(array_column($c['polozky'], 'cena_kc')), 2);
+    $dph = catering_cfg_dph($pdo);   // jen informativní výchozí sazba do odpovědi
+    $tot = catering_totals($c['polozky']);   // 🆕 v3.0.424 — header z per-line DPH
+    $bezDPH = $tot['bez'];
     $material = round(array_sum(array_map(fn($p) => (float) ($p['material_kc'] ?? 0), $c['polozky'])), 2);
-    $sDPH = round($bezDPH * (1 + $dph / 100), 2);
+    $sDPH = $tot['celkem'];
     $odecitanych = count(array_filter($c['polozky'], fn($p) => $p['odecte_sklad']));
     json_response([
         'osob'        => $c['osob'],
@@ -593,9 +594,9 @@ if ($action === 'create_order' && $method === 'POST') {
     $c = catering_compute($pdo, $d);
     if (empty($c['polozky'])) json_error('Nevybral jsi žádné položky', 400);
 
-    $dph = catering_cfg_dph($pdo);
-    $bezDPH = round(array_sum(array_column($c['polozky'], 'cena_kc')), 2);
-    $sDPH   = round($bezDPH * (1 + $dph / 100), 2);
+    $tot = catering_totals($c['polozky']);   // 🆕 v3.0.424 — header z per-line DPH (mix sazeb)
+    $bezDPH = $tot['bez'];
+    $sDPH   = $tot['celkem'];
     // 🆕 v3.0.306 — volitelná fotka předlohy + poznámka (jako u dortů) → do poznámky objednávky
     $pozn = "🥗 Catering z kalkulačky: {$c['osob']} osob · {$c['typ']['nazev']}";
     $textPozn = trim((string) ($d['poznamka'] ?? ''));
@@ -721,9 +722,9 @@ if ($action === 'nabidka_tisk' && $method === 'POST') {
         if (isset($d[$k]) && is_string($d[$k])) { $j = json_decode($d[$k], true); $d[$k] = is_array($j) ? $j : []; }
     }
     $c = catering_compute($pdo, $d);
-    $dph = catering_cfg_dph($pdo);
-    $bezDPH = round(array_sum(array_column($c['polozky'], 'cena_kc')), 2);
-    $sDPH = round($bezDPH * (1 + $dph / 100), 2);
+    $tot = catering_totals($c['polozky']);   // 🆕 v3.0.424 — header z per-line DPH (mix sazeb)
+    $bezDPH = $tot['bez'];
+    $sDPH = $tot['celkem'];
     $perOs = round($sDPH / max(1, $c['osob']), 2);
     $platnost = date('j. n. Y', strtotime('+14 days'));
 
@@ -766,7 +767,7 @@ if ($action === 'nabidka_tisk' && $method === 'POST') {
     <div class=\"sum\">
       <table style=\"width:auto;margin-left:auto\">
         <tr><td>Celkem bez DPH</td><td class=\"r\">" . $kc($bezDPH) . "</td></tr>
-        <tr><td>DPH {$dph} %</td><td class=\"r\">" . $kc($sDPH - $bezDPH) . "</td></tr>
+        <tr><td>DPH</td><td class=\"r\">" . $kc($sDPH - $bezDPH) . "</td></tr>
         <tr><td class=\"big\">Celkem s DPH</td><td class=\"r big\">" . $kc($sDPH) . "</td></tr>
       </table>
       <div class=\"peros\">≈ " . $kc($perOs) . " na osobu</div>
