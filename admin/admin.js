@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.424';
+const APPEK_ADMIN_JS_VERSION = '3.0.425';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -16460,6 +16460,38 @@ async function renderNastaveni() {
       </div>
     </div>
 
+    <!-- 🔒 v3.0.425 — Zásady zpracování osobních údajů (GDPR dokument) -->
+    <div class="card-block" id="ns-gdpr-zasady-block" style="margin-bottom:14px;padding:14px 16px">
+      <h3 style="margin:0 0 6px;font-size:15px">🔒 Zásady zpracování osobních údajů (GDPR)</h3>
+      <p class="page-sub" style="font-size:12px;margin:0 0 10px">
+        Obecné GDPR ustanovení, které uvidí zákazníci v B2B portálu. Předvyplněnou obecnou šablonu si vlož tlačítkem
+        a uprav podle svého provozu. <strong>Doporučujeme kontrolu právníkem.</strong>
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn-secondary" onclick="gdprZasadyVlozitSablonu()">📄 Vložit obecnou šablonu</button>
+        <button class="btn-secondary" onclick="gdprZasadyNahled()">👁️ Náhled</button>
+        <span id="ns-gdpr-zasady-info" style="font-size:12px;color:var(--text-3);align-self:center"></span>
+      </div>
+      <textarea id="ns-gdpr-zasady-text" class="form-input" rows="10" style="width:100%;font-family:monospace;font-size:12px;line-height:1.5" placeholder="⏳ Načítám…"></textarea>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button class="btn-primary btn-green" onclick="gdprZasadySave()">💾 Uložit zásady</button>
+        <span id="ns-gdpr-zasady-save" style="font-size:12px;color:var(--text-3)"></span>
+      </div>
+    </div>
+
+    <!-- 🔐 v3.0.425 — Práva subjektu (export / anonymizace osobních údajů) -->
+    <div class="card-block admin-only" id="ns-gdpr-prava-block" style="margin-bottom:14px;padding:14px 16px">
+      <h3 style="margin:0 0 6px;font-size:15px">🔐 Práva subjektu údajů</h3>
+      <p class="page-sub" style="font-size:12px;margin:0 0 10px">
+        Na žádost zákazníka: <strong>export</strong> jeho osobních údajů (právo na přístup) nebo <strong>anonymizace</strong>
+        (právo být zapomenut). Účetní doklady zůstávají kvůli zákonné době uchování.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input class="form-input" id="ns-gdpr-hledej" placeholder="Hledat zákazníka (jméno / e-mail / IČO)…" style="flex:1;min-width:220px" oninput="gdprPravaHledat()">
+      </div>
+      <div id="ns-gdpr-vysledky" style="margin-top:10px;font-size:13px"></div>
+    </div>
+
     <!-- 🆕 v2.9.243 — sales-pitch header (proč to chtít, value proposition) -->
     <div class="card-block int-hero" style="padding:20px 22px;margin-bottom:14px;background:linear-gradient(135deg, #FFF8E7 0%, #FEF3C7 100%);border:1.5px solid #FBBF24">
       <div style="display:flex;gap:14px;align-items:start;flex-wrap:wrap">
@@ -16749,6 +16781,8 @@ async function renderNastaveni() {
       if (inpTrk && n && n.tracking_custom_code) inpTrk.value = n.tracking_custom_code;
       if (typeof gdprRefreshStav === 'function') gdprRefreshStav(n);
     }).catch(() => {});
+    // 🔒 v3.0.425 — načti GDPR zásady zpracování osobních údajů do editoru
+    if (typeof gdprZasadyLoad === 'function') gdprZasadyLoad();
   }
   if (aktTab === 'platby') {
     loadPaymentMethodsPanel();
@@ -16769,6 +16803,135 @@ async function renderNastaveni() {
   }
 }
 
+// =====================================================================
+// 🔒 v3.0.425 — GDPR modul (zásady zpracování os. údajů + práva subjektu)
+// =====================================================================
+// HTML karty jsou v 0490 (integrace blok): #ns-gdpr-zasady-block,
+// #ns-gdpr-prava-block. Backend: api/admin_gdpr.php. Veřejné čtení
+// (B2B): api/gdpr_verejne.php.
+
+// ── Editor zásad ─────────────────────────────────────────────────────
+window.gdprZasadyLoad = async function() {
+  const ta = document.getElementById('ns-gdpr-zasady-text');
+  if (!ta) return;
+  try {
+    const r = await api('admin_gdpr.php');
+    ta.value = r.text || '';
+    const info = document.getElementById('ns-gdpr-zasady-info');
+    if (info) {
+      info.textContent = r.is_default
+        ? '⚪ Zatím neuloženo — zobrazuje se obecná šablona. Uprav a ulož.'
+        : (r.updated ? '🟢 Uloženo ' + r.updated : '🟢 Uloženo');
+    }
+  } catch (e) {
+    ta.placeholder = '❌ ' + (e.message || 'Načtení selhalo');
+  }
+};
+
+window.gdprZasadyVlozitSablonu = async function() {
+  const ta = document.getElementById('ns-gdpr-zasady-text');
+  if (!ta) return;
+  if (ta.value.trim() && !confirm('Přepsat aktuální text obecnou šablonou?')) return;
+  try {
+    const r = await api('admin_gdpr.php?action=template');
+    ta.value = r.text || '';
+    const info = document.getElementById('ns-gdpr-zasady-info');
+    if (info) info.textContent = '📄 Šablona vložena — zkontroluj a ulož.';
+  } catch (e) { alert('❌ ' + (e.message || 'Chyba')); }
+};
+
+window.gdprZasadyNahled = function() {
+  const ta = document.getElementById('ns-gdpr-zasady-text');
+  if (!ta) return;
+  gdprModal('👁️ Náhled zásad', `<div style="font-size:13px;line-height:1.55">${ta.value || '<em>Prázdné</em>'}</div>`);
+};
+
+window.gdprZasadySave = async function() {
+  const ta = document.getElementById('ns-gdpr-zasady-text');
+  const out = document.getElementById('ns-gdpr-zasady-save');
+  if (!ta) return;
+  if (out) out.textContent = '⏳ Ukládám…';
+  try {
+    const r = await api('admin_gdpr.php?action=save', { method: 'POST', body: JSON.stringify({ text: ta.value }) });
+    if (out) out.textContent = '✅ Uloženo ' + (r.updated || '');
+    const info = document.getElementById('ns-gdpr-zasady-info');
+    if (info) info.textContent = '🟢 Uloženo ' + (r.updated || '');
+  } catch (e) {
+    if (out) out.textContent = '❌ ' + (e.message || 'Uložení selhalo');
+  }
+};
+
+// ── Práva subjektu (export / anonymizace) ────────────────────────────
+window._gdprHledejTimer = null;
+window.gdprPravaHledat = function() {
+  clearTimeout(window._gdprHledejTimer);
+  window._gdprHledejTimer = setTimeout(gdprPravaHledatNow, 300);
+};
+
+window.gdprPravaHledatNow = async function() {
+  const q = (document.getElementById('ns-gdpr-hledej') || {}).value || '';
+  const box = document.getElementById('ns-gdpr-vysledky');
+  if (!box) return;
+  if (q.trim().length < 2) { box.innerHTML = '<span style="color:var(--text-3)">Zadej alespoň 2 znaky…</span>'; return; }
+  box.innerHTML = '⏳ Hledám…';
+  try {
+    const r = await api('admin_gdpr.php?action=customers&q=' + encodeURIComponent(q));
+    const list = r.customers || [];
+    if (!list.length) { box.innerHTML = '<span style="color:var(--text-3)">Nic nenalezeno.</span>'; return; }
+    box.innerHTML = list.map(c => `
+      <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;flex-wrap:wrap">
+        <div><strong>${esc(c.nazev || '—')}</strong> <span style="color:var(--text-3);font-size:12px">${esc(c.email || '')}</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-secondary" onclick="gdprExport(${c.id})">📤 Export údajů</button>
+          <button class="btn-secondary" style="color:var(--danger-text,#B91C1C)" onclick="gdprAnonymizovat(${c.id}, ${JSON.stringify(c.nazev || '').replace(/"/g, '&quot;')})">🗑️ Anonymizovat</button>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    box.innerHTML = '<span style="color:var(--danger-text,#B91C1C)">❌ ' + esc(e.message || 'Chyba') + '</span>';
+  }
+};
+
+window.gdprExport = async function(id) {
+  try {
+    const r = await api('admin_gdpr.php?action=export&id=' + encodeURIComponent(id));
+    const blob = new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gdpr-export-odberatel-' + id + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (e) { alert('❌ ' + (e.message || 'Export selhal')); }
+};
+
+window.gdprAnonymizovat = async function(id, nazev) {
+  if (!confirm('Anonymizovat osobní údaje zákazníka „' + (nazev || ('#' + id)) + '"?\n\nOsobní údaje (jméno, e-mail, telefon, adresa) se NEVRATNĚ přepíší. Účetní doklady zůstanou zachovány kvůli zákonné době uchování.')) return;
+  if (!confirm('Opravdu? Tato akce je nevratná.')) return;
+  try {
+    await api('admin_gdpr.php?action=anonymize', { method: 'POST', body: JSON.stringify({ id: id }) });
+    alert('✅ Osobní údaje byly anonymizovány.');
+    gdprPravaHledatNow();
+  } catch (e) { alert('❌ ' + (e.message || 'Anonymizace selhala')); }
+};
+
+// ── Jednoduchý modal (sdílený pro náhled) ────────────────────────────
+window.gdprModal = function(titulek, htmlObsah) {
+  let m = document.getElementById('gdpr-zasady-modal');
+  if (m) m.remove();
+  m = document.createElement('div');
+  m.id = 'gdpr-zasady-modal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  m.innerHTML = `
+    <div style="background:var(--card-bg,#fff);color:var(--text-1,#111);border-radius:12px;max-width:720px;width:100%;max-height:85vh;overflow:auto;padding:22px 24px;box-shadow:0 12px 40px rgba(0,0,0,.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="margin:0;font-size:16px">${esc(titulek)}</h3>
+        <button class="btn-secondary" onclick="document.getElementById('gdpr-zasady-modal').remove()">✕ Zavřít</button>
+      </div>
+      ${htmlObsah}
+    </div>`;
+  m.onclick = (ev) => { if (ev.target === m) m.remove(); };
+  document.body.appendChild(m);
+};
 // =============================================================
 // 🖨️ TISKÁRNY (v3.0.5) — ESC/POS termo + auto-split + settings
 // =============================================================

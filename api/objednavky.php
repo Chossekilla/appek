@@ -290,8 +290,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             INSERT INTO objednavky (cislo, odberatel_id, misto_dodani_id, typ, datum_objednani, datum_dodani,
                                     plati_od, plati_do, dny_v_tydnu,
                                     castka_bez_dph, castka_dph, castka_celkem, poznamka,
-                                    zpusob_doruceni, zpusob_platby, puvod)
-            VALUES (:c,:o,:m,:t,CURDATE(),:d,:po,:pdo_,:dny,:b,:dph,:cel,:pozn,:dor,:plt,'b2b')
+                                    zpusob_doruceni, zpusob_platby, puvod,
+                                    gdpr_souhlas, gdpr_souhlas_at)
+            VALUES (:c,:o,:m,:t,CURDATE(),:d,:po,:pdo_,:dny,:b,:dph,:cel,:pozn,:dor,:plt,'b2b',
+                    :gs, :gsat)
         ");
         $stmt->execute([
             'c' => $cislo, 'o' => $odberatel_id, 'm' => $misto_id,
@@ -305,6 +307,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'cel' => round($bez + $dph, 2), 'pozn' => $data['poznamka'] ?? null,
             'dor' => (substr(trim((string)($data['doprava'] ?? '')), 0, 30) ?: null),
             'plt' => (substr(trim((string)($data['platba'] ?? '')), 0, 30) ?: null),
+            // 🔒 v3.0.425 — evidence GDPR souhlasu (server-authoritative čas)
+            'gs' => !empty($data['gdpr_souhlas']) ? 1 : 0,
+            'gsat' => !empty($data['gdpr_souhlas']) ? date('Y-m-d H:i:s') : null,
         ]);
         $obj_id = (int) $pdo->lastInsertId();
 

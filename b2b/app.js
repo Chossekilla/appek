@@ -705,7 +705,9 @@ async function showApp() {
       const tel  = f.firma_telefon ? `<a href="tel:${esc(f.firma_telefon).replace(/\s+/g,'')}">📞 ${esc(f.firma_telefon)}</a>` : '';
       const mail = f.firma_email   ? `<a href="mailto:${esc(f.firma_email)}">✉️ ${esc(f.firma_email)}</a>` : '';
       const adr  = (f.firma_ulice || f.firma_mesto) ? `<span>📍 ${esc([f.firma_ulice, f.firma_mesto].filter(Boolean).join(', '))}</span>` : '';
-      cEl.innerHTML = tel + mail + adr;
+      // 🔒 v3.0.425 — odkaz na zásady zpracování osobních údajů (GDPR)
+      const gdpr = `<a href="#" onclick="gdprZobrazitZasady();return false">🔒 Zásady zpracování osobních údajů</a>`;
+      cEl.innerHTML = tel + mail + adr + gdpr;
     }
     // Brand v patičce
     const brandEl = document.querySelector('.app-footer-brand strong');
@@ -1831,6 +1833,15 @@ function renderCheckout() {
         <label class="form-label" for="poznamka" style="font-weight:500">📝 Poznámka <span class="form-hint">— volitelné</span></label>
         <textarea class="input" id="poznamka" rows="3" placeholder="Speciální požadavky..."></textarea>
       </div>
+
+      <!-- 🔒 v3.0.425 — GDPR souhlas se zpracováním osobních údajů -->
+      <div class="form-row" style="align-items:start;margin-top:10px">
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;line-height:1.5">
+          <input type="checkbox" id="gdpr-souhlas-obj" style="margin-top:2px">
+          <span>Souhlasím se zpracováním osobních údajů pro vyřízení této objednávky
+            (<a href="#" onclick="gdprZobrazitZasady();return false" style="color:#BA7517;text-decoration:underline">zásady zpracování osobních údajů</a>).</span>
+        </label>
+      </div>
     </div>
 
     <!-- 🆕 v2.5 — 3️⃣ DOPRAVA -->
@@ -2210,6 +2221,11 @@ window.submitOrder = async function() {
   if (!state.checkoutData.misto_dodani_id) { // 🆕 v3.0.350 — bez místa dodání neodesílat (jasná hláška místo opaque 403)
     return alert('Vyber místo dodání. Pokud žádné nemáš nastavené, kontaktuj dodavatele, aby ti ho přidal.');
   }
+  // 🔒 v3.0.425 — GDPR souhlas je povinný před odesláním objednávky
+  const gdprCb = document.getElementById('gdpr-souhlas-obj');
+  if (gdprCb && !gdprCb.checked) {
+    return alert('Pro odeslání objednávky je potřeba souhlas se zpracováním osobních údajů.');
+  }
 
   // Backend rozpoznává jen 3 typy: jednorazova / pravidelna_denni / tydenni_plan.
   // 'naplanovana' je UX-only varianta, na backend ji posíláme jako 'jednorazova'.
@@ -2225,6 +2241,9 @@ window.submitOrder = async function() {
     // 🆕 v2.5 — doprava + platba selection
     doprava: state.checkoutData.doprava || 'vlastni',
     platba:  state.checkoutData.platba  || 'prevod',
+    // 🔒 v3.0.425 — evidence GDPR souhlasu (kdy odsouhlasil)
+    gdpr_souhlas: gdprCb ? !!gdprCb.checked : null,
+    gdpr_souhlas_at: (gdprCb && gdprCb.checked) ? new Date().toISOString() : null,
   };
 
   if (typBackend === 'jednorazova') {
@@ -2878,3 +2897,21 @@ function ccEnsureFooterLink() {
 }
 window.cookieConsentInit = cookieConsentInit; window.ccApply = ccApply;
 window.ccShowSettings = ccShowSettings; window.ccShowPolicy = ccShowPolicy;
+
+// 🔒 v3.0.425 — zobrazí zásady zpracování osobních údajů (GDPR) z gdpr_verejne.php
+window.gdprZobrazitZasady = async function() {
+  var m = document.getElementById('gdpr-zasady-modal'); if (m) m.remove();
+  var ov = document.createElement('div'); ov.id = 'gdpr-zasady-modal';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = '<div role="dialog" aria-label="Zásady zpracování osobních údajů" style="background:#fff;border-radius:16px;max-width:680px;width:100%;max-height:88vh;overflow:auto;padding:24px;font-size:13.5px;line-height:1.6;color:#222"><div id="gdpr-zasady-obsah">⏳ Načítám…</div><div style="margin-top:16px;text-align:right"><button onclick="var e=document.getElementById(\'gdpr-zasady-modal\');if(e)e.remove()" style="padding:9px 16px;border:1px solid #ccc;border-radius:9px;background:#fff;cursor:pointer">Zavřít</button></div></div>';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+  try {
+    var r = await api('gdpr_verejne.php');
+    var el = document.getElementById('gdpr-zasady-obsah');
+    if (el) el.innerHTML = (r && r.text) ? r.text : '<em>Zásady zatím nejsou k dispozici.</em>';
+  } catch (e2) {
+    var el2 = document.getElementById('gdpr-zasady-obsah');
+    if (el2) el2.innerHTML = '<em>Zásady se nepodařilo načíst.</em>';
+  }
+};

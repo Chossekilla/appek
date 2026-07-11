@@ -409,6 +409,9 @@ function apply_full_schema(PDO $pdo): void {
         //   'refund_of'" (potvrzeno v error logu). Tady check-before-ADD = funguje na MySQL i MariaDB.
         'objednavky' => [
             'refund_of' => "ADD COLUMN refund_of INT NULL",
+            // 🔒 v3.0.425 — GDPR souhlas u B2B objednávky (objednavky.php)
+            'gdpr_souhlas'    => "ADD COLUMN gdpr_souhlas TINYINT(1) NOT NULL DEFAULT 0",
+            'gdpr_souhlas_at' => "ADD COLUMN gdpr_souhlas_at DATETIME NULL",
         ],
         // objednavky_polozky (admin_objednavky.php — vyrobek_id NULL + nazev snapshot; vraci_polozku_id = vratka)
         'objednavky_polozky' => [

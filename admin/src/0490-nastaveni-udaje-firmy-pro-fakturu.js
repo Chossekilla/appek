@@ -1273,6 +1273,38 @@ async function renderNastaveni() {
       </div>
     </div>
 
+    <!-- 🔒 v3.0.425 — Zásady zpracování osobních údajů (GDPR dokument) -->
+    <div class="card-block" id="ns-gdpr-zasady-block" style="margin-bottom:14px;padding:14px 16px">
+      <h3 style="margin:0 0 6px;font-size:15px">🔒 Zásady zpracování osobních údajů (GDPR)</h3>
+      <p class="page-sub" style="font-size:12px;margin:0 0 10px">
+        Obecné GDPR ustanovení, které uvidí zákazníci v B2B portálu. Předvyplněnou obecnou šablonu si vlož tlačítkem
+        a uprav podle svého provozu. <strong>Doporučujeme kontrolu právníkem.</strong>
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn-secondary" onclick="gdprZasadyVlozitSablonu()">📄 Vložit obecnou šablonu</button>
+        <button class="btn-secondary" onclick="gdprZasadyNahled()">👁️ Náhled</button>
+        <span id="ns-gdpr-zasady-info" style="font-size:12px;color:var(--text-3);align-self:center"></span>
+      </div>
+      <textarea id="ns-gdpr-zasady-text" class="form-input" rows="10" style="width:100%;font-family:monospace;font-size:12px;line-height:1.5" placeholder="⏳ Načítám…"></textarea>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button class="btn-primary btn-green" onclick="gdprZasadySave()">💾 Uložit zásady</button>
+        <span id="ns-gdpr-zasady-save" style="font-size:12px;color:var(--text-3)"></span>
+      </div>
+    </div>
+
+    <!-- 🔐 v3.0.425 — Práva subjektu (export / anonymizace osobních údajů) -->
+    <div class="card-block admin-only" id="ns-gdpr-prava-block" style="margin-bottom:14px;padding:14px 16px">
+      <h3 style="margin:0 0 6px;font-size:15px">🔐 Práva subjektu údajů</h3>
+      <p class="page-sub" style="font-size:12px;margin:0 0 10px">
+        Na žádost zákazníka: <strong>export</strong> jeho osobních údajů (právo na přístup) nebo <strong>anonymizace</strong>
+        (právo být zapomenut). Účetní doklady zůstávají kvůli zákonné době uchování.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input class="form-input" id="ns-gdpr-hledej" placeholder="Hledat zákazníka (jméno / e-mail / IČO)…" style="flex:1;min-width:220px" oninput="gdprPravaHledat()">
+      </div>
+      <div id="ns-gdpr-vysledky" style="margin-top:10px;font-size:13px"></div>
+    </div>
+
     <!-- 🆕 v2.9.243 — sales-pitch header (proč to chtít, value proposition) -->
     <div class="card-block int-hero" style="padding:20px 22px;margin-bottom:14px;background:linear-gradient(135deg, #FFF8E7 0%, #FEF3C7 100%);border:1.5px solid #FBBF24">
       <div style="display:flex;gap:14px;align-items:start;flex-wrap:wrap">
@@ -1562,6 +1594,8 @@ async function renderNastaveni() {
       if (inpTrk && n && n.tracking_custom_code) inpTrk.value = n.tracking_custom_code;
       if (typeof gdprRefreshStav === 'function') gdprRefreshStav(n);
     }).catch(() => {});
+    // 🔒 v3.0.425 — načti GDPR zásady zpracování osobních údajů do editoru
+    if (typeof gdprZasadyLoad === 'function') gdprZasadyLoad();
   }
   if (aktTab === 'platby') {
     loadPaymentMethodsPanel();
