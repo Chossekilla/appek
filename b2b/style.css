@@ -4642,7 +4642,7 @@ main, .layout { padding: var(--fl-py) var(--fl-px) !important; gap: var(--fl-gap
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 14px;
-  align-items: start;
+  align-items: stretch;            /* v3.0.427 — karty v řádku stejně vysoké → ovládání (margin-top:auto) se srovná dolů */
   justify-content: start;          /* karty zarovnané doleva, ne roztažené */
 }
 /* AUTO na hodně širokém: větší karty = míň, ale plnějších sloupců (méně prázdna) */
@@ -4664,6 +4664,21 @@ main, .layout { padding: var(--fl-py) var(--fl-px) !important; gap: var(--fl-gap
 }
 /* POS mód: hustší dlaždice */
 body.pos-mode .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+
+/* 🖐️ v3.0.427 — DOTYKOVÉ / TABLETOVÉ ovládání: větší prvky karet katalogu
+   (finger-friendly). Cílí (pointer: coarse) = dotyk → zvětší tap-cíle bez vlivu
+   na myš/desktop. Scoped na .catalog-grid, ať nerozhodí pokladnu/checkout. */
+@media (pointer: coarse) {
+  .catalog-grid .qty-btn-add       { height: 48px; font-size: 15px; border-radius: 10px; }
+  .catalog-grid .qty-quick-wide    { height: 40px; font-size: 14px; border-radius: 8px; }
+  .catalog-grid .card-qty-row .qty-btn   { height: 50px !important; min-width: 30px !important; font-size: 22px !important; }
+  .catalog-grid .card-qty-row .qty-input { height: 56px !important; font-size: 22px !important; }
+  .catalog-grid .card-name  { font-size: 16px; }
+  .catalog-grid .card-price { font-size: 17px; }
+  .catalog-grid .card-body  { padding: 14px 16px 16px; }
+  .catalog-grid .card-fav,
+  .catalog-grid .qty-btn-del { min-width: 40px; min-height: 40px; }
+}
 
 /* Přepínač sloupců v katalogu */
 .cols-switch { display: inline-flex; gap: 2px; background: var(--surface-2, #f1f1f4); border-radius: 8px; padding: 3px; }
