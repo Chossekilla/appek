@@ -158,7 +158,7 @@ if [[ -f admin/admin.css ]]; then
     _CSS_MIN_BYTES=$(wc -c < admin/admin.css.min.tmp | tr -d ' ')
     if [[ "$_CSS_MIN_BYTES" -gt 100000 && "$_CSS_MIN_BYTES" -lt "$_CSS_SRC_BYTES" ]] \
        && grep -q "appek-css-version" admin/admin.css.min.tmp \
-       && grep -q "catalog-grid" admin/admin.css.min.tmp \
+       && grep -q "theme-apple" admin/admin.css.min.tmp \
        && grep -q "nav-item" admin/admin.css.min.tmp; then
       mv admin/admin.css.min.tmp admin/admin.css
       echo "🗜️  admin.css minifikován: $((_CSS_SRC_BYTES/1024)) kB → $((_CSS_MIN_BYTES/1024)) kB (komentáře stripnuty)"
