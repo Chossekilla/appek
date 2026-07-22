@@ -1296,8 +1296,8 @@ async function renderNastaveni() {
     <div class="card-block admin-only" id="ns-gdpr-prava-block" style="margin-bottom:14px;padding:14px 16px">
       <h3 style="margin:0 0 6px;font-size:15px">🔐 Práva subjektu údajů</h3>
       <p class="page-sub" style="font-size:12px;margin:0 0 10px">
-        Na žádost zákazníka: <strong>export</strong> jeho osobních údajů (právo na přístup) nebo <strong>anonymizace</strong>
-        (právo být zapomenut). Účetní doklady zůstávají kvůli zákonné době uchování.
+        Na žádost zákazníka: <strong>export</strong> jeho osobních údajů (právo na přístup) nebo <strong>smazání kontaktních údajů</strong>
+        (právo být zapomenut). Jméno, IČO a adresa zůstávají — jsou na už vystavených účetních dokladech, které zákon káže uchovat (~10 let).
       </p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <input class="form-input" id="ns-gdpr-hledej" placeholder="Hledat zákazníka (jméno / e-mail / IČO)…" style="flex:1;min-width:220px" oninput="gdprPravaHledat()">

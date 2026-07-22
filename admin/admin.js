@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.425';
+const APPEK_ADMIN_JS_VERSION = '3.0.426';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -16483,8 +16483,8 @@ async function renderNastaveni() {
     <div class="card-block admin-only" id="ns-gdpr-prava-block" style="margin-bottom:14px;padding:14px 16px">
       <h3 style="margin:0 0 6px;font-size:15px">🔐 Práva subjektu údajů</h3>
       <p class="page-sub" style="font-size:12px;margin:0 0 10px">
-        Na žádost zákazníka: <strong>export</strong> jeho osobních údajů (právo na přístup) nebo <strong>anonymizace</strong>
-        (právo být zapomenut). Účetní doklady zůstávají kvůli zákonné době uchování.
+        Na žádost zákazníka: <strong>export</strong> jeho osobních údajů (právo na přístup) nebo <strong>smazání kontaktních údajů</strong>
+        (právo být zapomenut). Jméno, IČO a adresa zůstávají — jsou na už vystavených účetních dokladech, které zákon káže uchovat (~10 let).
       </p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <input class="form-input" id="ns-gdpr-hledej" placeholder="Hledat zákazníka (jméno / e-mail / IČO)…" style="flex:1;min-width:220px" oninput="gdprPravaHledat()">
@@ -16883,7 +16883,7 @@ window.gdprPravaHledatNow = async function() {
         <div><strong>${esc(c.nazev || '—')}</strong> <span style="color:var(--text-3);font-size:12px">${esc(c.email || '')}</span></div>
         <div style="display:flex;gap:6px">
           <button class="btn-secondary" onclick="gdprExport(${c.id})">📤 Export údajů</button>
-          <button class="btn-secondary" style="color:var(--danger-text,#B91C1C)" onclick="gdprAnonymizovat(${c.id}, ${JSON.stringify(c.nazev || '').replace(/"/g, '&quot;')})">🗑️ Anonymizovat</button>
+          <button class="btn-secondary" style="color:var(--danger-text,#B91C1C)" onclick="gdprAnonymizovat(${c.id}, ${JSON.stringify(c.nazev || '').replace(/"/g, '&quot;')})">🗑️ Smazat kontaktní údaje</button>
         </div>
       </div>`).join('');
   } catch (e) {
@@ -16905,7 +16905,7 @@ window.gdprExport = async function(id) {
 };
 
 window.gdprAnonymizovat = async function(id, nazev) {
-  if (!confirm('Anonymizovat osobní údaje zákazníka „' + (nazev || ('#' + id)) + '"?\n\nOsobní údaje (jméno, e-mail, telefon, adresa) se NEVRATNĚ přepíší. Účetní doklady zůstanou zachovány kvůli zákonné době uchování.')) return;
+  if (!confirm('Smazat kontaktní údaje zákazníka „' + (nazev || ('#' + id)) + '"?\n\nNEVRATNĚ se smaže: e-mail, telefon, web, kontaktní osoba, poznámka, přihlášení + zablokuje účet.\n\nZŮSTANE: jméno, IČO, DIČ a adresa — jsou součástí už vystavených účetních dokladů a zákon je káže uchovat (~10 let).')) return;
   if (!confirm('Opravdu? Tato akce je nevratná.')) return;
   try {
     await api('admin_gdpr.php?action=anonymize', { method: 'POST', body: JSON.stringify({ id: id }) });

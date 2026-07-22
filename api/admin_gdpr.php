@@ -136,26 +136,22 @@ if ($method === 'POST' && $action === 'anonymize') {
         $nazev = $st->fetchColumn();
         if ($nazev === false) json_error('Odběratel nenalezen', 404);
 
-        $anon = 'Anonymizováno #' . $id;
         // sestav UPDATE jen ze sloupců, které reálně existují (kompatibilita se staršími instalacemi)
         $cols = [];
         try {
             foreach ($pdo->query("SHOW COLUMNS FROM odberatele") as $c) $cols[strtolower($c['Field'])] = true;
         } catch (Throwable $e) { /* ignore */ }
         $set = [];
-        $params = ['id' => $id, 'anon' => $anon];
+        $params = ['id' => $id];
+        // ⚠️ ÚČETNÍ RETENCE: nazev/ico/dic/ulice/mesto/psc jsou identita na už vystavených
+        //   fakturách a dodacích listech (čtou se živě přes JOIN) — zákon káže je uchovat
+        //   ~10 let (GDPR čl. 17(3)(b)). Mažeme JEN kontaktní/marketingové PII.
         $map = [
-            'nazev'           => ':anon',
             'email'           => "''",
             'telefon'         => "''",
-            'ulice'           => "''",
-            'mesto'           => "''",
-            'psc'             => "''",
             'web'             => "''",
             'kontaktni_osoba' => "''",
             'poznamka'        => "''",
-            'ico'             => "''",
-            'dic'             => "''",
             'login_email'     => 'NULL',
             'heslo_hash'      => 'NULL',
             'notif_emaily'    => "''",

@@ -78,7 +78,7 @@ window.gdprPravaHledatNow = async function() {
         <div><strong>${esc(c.nazev || '—')}</strong> <span style="color:var(--text-3);font-size:12px">${esc(c.email || '')}</span></div>
         <div style="display:flex;gap:6px">
           <button class="btn-secondary" onclick="gdprExport(${c.id})">📤 Export údajů</button>
-          <button class="btn-secondary" style="color:var(--danger-text,#B91C1C)" onclick="gdprAnonymizovat(${c.id}, ${JSON.stringify(c.nazev || '').replace(/"/g, '&quot;')})">🗑️ Anonymizovat</button>
+          <button class="btn-secondary" style="color:var(--danger-text,#B91C1C)" onclick="gdprAnonymizovat(${c.id}, ${JSON.stringify(c.nazev || '').replace(/"/g, '&quot;')})">🗑️ Smazat kontaktní údaje</button>
         </div>
       </div>`).join('');
   } catch (e) {
@@ -100,7 +100,7 @@ window.gdprExport = async function(id) {
 };
 
 window.gdprAnonymizovat = async function(id, nazev) {
-  if (!confirm('Anonymizovat osobní údaje zákazníka „' + (nazev || ('#' + id)) + '"?\n\nOsobní údaje (jméno, e-mail, telefon, adresa) se NEVRATNĚ přepíší. Účetní doklady zůstanou zachovány kvůli zákonné době uchování.')) return;
+  if (!confirm('Smazat kontaktní údaje zákazníka „' + (nazev || ('#' + id)) + '"?\n\nNEVRATNĚ se smaže: e-mail, telefon, web, kontaktní osoba, poznámka, přihlášení + zablokuje účet.\n\nZŮSTANE: jméno, IČO, DIČ a adresa — jsou součástí už vystavených účetních dokladů a zákon je káže uchovat (~10 let).')) return;
   if (!confirm('Opravdu? Tato akce je nevratná.')) return;
   try {
     await api('admin_gdpr.php?action=anonymize', { method: 'POST', body: JSON.stringify({ id: id }) });
