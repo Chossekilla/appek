@@ -188,6 +188,16 @@ function self_update_apply(string $zipPath, array &$log, ?string $webroot = null
             logStep("Fallback copy: $copied souborů zkopírováno, $skipped přeskočeno (preserve)", $log);
         }
 
+        // ─── 7b. 🆕 v3.0.430 — INVALIDACE OPCACHE (incident stavy stolu 2026-07-22) ──
+        //   rsync -a zachovává mtime → OPcache (validate_timestamps dle mtime) nepozná
+        //   změnu → PHP běží ze STARÉHO bytecodu i po deployi („změny se nepropisují";
+        //   set_state padal collation fatálem i po opraveném souboru na disku).
+        //   touch *.php = mtime na teď → OPcache revaliduje do revalidate_freq (2s) ve
+        //   VŠECH FPM poolech (demo i vendor); opcache_reset navíc pročistí tento pool hned.
+        @exec('find ' . escapeshellarg($webroot) . " -name '*.php' -exec touch {} + 2>/dev/null");
+        if (function_exists('opcache_reset')) @opcache_reset();
+        logStep('OPcache invalidován (touch *.php + opcache_reset)', $log);
+
         // ─── 8. RESTORE preserved files ──────────────────────────
         foreach ($preserveData as $p => $data) {
             $full = $webroot . '/' . $p;
