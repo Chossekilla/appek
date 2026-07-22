@@ -822,16 +822,20 @@ if ($method === 'POST' && $action === 'set_state') {
     $stav = $d['stav'] ?? '';
     $allowed = ['free','reserved','occupied','cleaning','attention','disabled'];
     if (!$tid || !in_array($stav, $allowed, true)) json_error('Neplatný stav/ID', 400);
+    // 🐛 v3.0.428 — stav_od počítáme v PHP. Dřív `CASE WHEN :s2 IN ('occupied','reserved')`:
+    //   PDO naváže param v collation spojení (utf8mb4_general_ci), literály jsou unicode_ci
+    //   → MySQL „1270 Illegal mix of collations" → set_state padal fatálem (= „stavy stolu error").
+    $stavOd = in_array($stav, ['occupied', 'reserved'], true) ? date('Y-m-d H:i:s') : null;
     $stmt = $pdo->prepare("
         UPDATE restaurant_tables
         SET stav = :s,
-            stav_od = CASE WHEN :s2 IN ('occupied','reserved') THEN NOW() ELSE NULL END,
+            stav_od = :stavod,
             hostu_aktual = :h,
             obsluhuje = :ob
         WHERE id = :id
     ");
     $stmt->execute([
-        's'  => $stav, 's2' => $stav,
+        's'  => $stav, 'stavod' => $stavOd,
         'h'  => (int) ($d['hostu_aktual'] ?? 0),
         'ob' => $d['obsluhuje'] ?? null,
         'id' => $tid,

@@ -145,6 +145,34 @@ if [[ -f admin/admin.js ]]; then
   fi
 fi
 
+# ─── 🗜️ CSS MINIFIKACE — strip komentářů z admin.css ────────────
+# 🆕 v3.0.428 — nasazená admin.css nemá vystavovat dev-komentáře ve view-source
+#   (user: „nemyslím, že by všichni museli vidět komentáře ke kódu"). esbuild CSS
+#   minify strippuje komentáře i whitespace bezpečně (zachová --appek-css-version).
+#   Zdroj v repu si komentáře NECHÁ — build-zip edituje working copy jen pro zip.
+#   FAIL-SAFE: když esbuild chybí / sanity check selže → ponechá plný admin.css.
+#   MUSÍ běžet PŘED .build-manifest.json (aby SHA-256 seděl s nasazeným souborem).
+if [[ -f admin/admin.css ]]; then
+  _CSS_SRC_BYTES=$(wc -c < admin/admin.css | tr -d ' ')
+  if npx --yes esbuild admin/admin.css --minify --charset=utf8 --outfile=admin/admin.css.min.tmp 2>/tmp/appek-esbuild-css.log; then
+    _CSS_MIN_BYTES=$(wc -c < admin/admin.css.min.tmp | tr -d ' ')
+    if [[ "$_CSS_MIN_BYTES" -gt 100000 && "$_CSS_MIN_BYTES" -lt "$_CSS_SRC_BYTES" ]] \
+       && grep -q "appek-css-version" admin/admin.css.min.tmp \
+       && grep -q "catalog-grid" admin/admin.css.min.tmp \
+       && grep -q "nav-item" admin/admin.css.min.tmp; then
+      mv admin/admin.css.min.tmp admin/admin.css
+      echo "🗜️  admin.css minifikován: $((_CSS_SRC_BYTES/1024)) kB → $((_CSS_MIN_BYTES/1024)) kB (komentáře stripnuty)"
+    else
+      rm -f admin/admin.css.min.tmp
+      echo "⚠️  CSS minifikace přeskočena (sanity check selhal) — ponechán plný admin.css"
+    fi
+  else
+    rm -f admin/admin.css.min.tmp
+    echo "⚠️  esbuild CSS nedostupný/selhal — ponechán plný admin.css (build pokračuje)"
+    head -3 /tmp/appek-esbuild-css.log 2>/dev/null || true
+  fi
+fi
+
 # ─── 🔐 DEPLOY MANIFEST — SHA-256 každého klientského souboru ────
 # 🆕 v2.9.65 — api/.build-manifest.json říká "co MÁ být na serveru po tomto buildu".
 # admin/deploy-check.php to po deployi porovná s realitou na disku → pozná STALE
