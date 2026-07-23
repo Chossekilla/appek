@@ -11,7 +11,7 @@ Options -Indexes
   #   které prodejní stránka + checkout na apexu reálně potřebují (jinak „Nelze
   #   načíst balíčky"). Ostatní /api (install/admin/b2b/...) zůstává skryté.
   RewriteCond %{DOCUMENT_ROOT}/.landing-only -f
-  RewriteCond %{REQUEST_URI} !/(shop_packages|shop_buy|shop_status|stripe_init|stripe_payment_intent|gopay_init|business_info|contact|css|updates_check)\.php$
+  RewriteCond %{REQUEST_URI} !/(shop_packages|shop_buy|shop_status|stripe_init|stripe_payment_intent|gopay_init|business_info|contact|css|updates_check|updates_download)\.php$
   RewriteRule .* /? [R=302,L]
 </IfModule>
 
