@@ -40,7 +40,15 @@ if ($method === 'GET' && $action === '') {
     } catch (Throwable $e) { /* ignore */ }
     $isDefault = trim($text) === '';
     if ($isDefault) $text = gdpr_default_template(gdpr_firma($pdo));
-    json_response(['text' => $text, 'updated' => $updated, 'is_default' => $isDefault]);
+    // 🆕 v3.0.432 — vypínač povinného souhlasu u objednávky (default zapnuto)
+    $povinny = 1;
+    try {
+        $st = $pdo->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'gdpr_souhlas_povinny'");
+        $st->execute();
+        $v = $st->fetchColumn();
+        if ($v !== false && $v !== null) $povinny = (int) $v;
+    } catch (Throwable $e) { /* ignore */ }
+    json_response(['text' => $text, 'updated' => $updated, 'is_default' => $isDefault, 'souhlas_povinny' => $povinny]);
 }
 
 // ── GET: čerstvá obecná šablona ──────────────────────────────────────────
@@ -53,11 +61,14 @@ if ($method === 'POST' && $action === 'save') {
     $text = trim((string) ($d['text'] ?? ''));
     if (mb_strlen($text) > 200000) json_error('Text je příliš dlouhý', 400);
     $now = date('Y-m-d H:i:s');
+    // 🆕 v3.0.432 — vypínač povinného souhlasu u objednávky
+    $povinny = array_key_exists('souhlas_povinny', $d) ? (!empty($d['souhlas_povinny']) ? '1' : '0') : null;
     try {
         $up = $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES (:k, :v)
                              ON DUPLICATE KEY UPDATE hodnota = VALUES(hodnota)");
         $up->execute(['k' => 'gdpr_zasady_text', 'v' => $text]);
         $up->execute(['k' => 'gdpr_zasady_updated', 'v' => $now]);
+        if ($povinny !== null) $up->execute(['k' => 'gdpr_souhlas_povinny', 'v' => $povinny]);
         json_response(['ok' => true, 'updated' => $now]);
     } catch (Throwable $e) {
         json_error_safe('Uložení selhalo', $e, 500);

@@ -1286,6 +1286,11 @@ async function renderNastaveni() {
         <span id="ns-gdpr-zasady-info" style="font-size:12px;color:var(--text-3);align-self:center"></span>
       </div>
       <textarea id="ns-gdpr-zasady-text" class="form-input" rows="10" style="width:100%;font-family:monospace;font-size:12px;line-height:1.5" placeholder="⏳ Načítám…"></textarea>
+      <!-- 🆕 v3.0.432 — vypínač povinného souhlasu u objednávky -->
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="ns-gdpr-povinny" checked>
+        <span>Vyžadovat <strong>souhlas u objednávky</strong> (B2B) — po vypnutí se zaškrtávací políčko u objednávky skryje a souhlas není povinný</span>
+      </label>
       <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
         <button class="btn-primary btn-green" onclick="gdprZasadySave()">💾 Uložit zásady</button>
         <span id="ns-gdpr-zasady-save" style="font-size:12px;color:var(--text-3)"></span>

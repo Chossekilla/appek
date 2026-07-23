@@ -696,6 +696,8 @@ async function showApp() {
     // 📊 v3.0.312 — Google Analytics se načte AŽ PO SOUHLASU (GDPR/ePrivacy). GA ID + firma
     //   se uloží pro cookie banner; samotné gtag vkládá cookieConsentInit() jen při souhlasu.
     window._ccFirma = f || {};
+    // 🔒 v3.0.432 — povinný GDPR souhlas u objednávky (vypínatelné v adminu; default zapnuto)
+    window._gdprPovinny = !(f && f.gdpr_souhlas_povinny === false);
     if (f && f.ga_id && /^(G|AW|UA)-[A-Z0-9-]{4,}$/i.test(f.ga_id)) window._ccGaId = f.ga_id;
     // 🍪 v3.0.401 — vlastní sledovací kód (Meta Pixel, Sklik…); vloží se AŽ po souhlasu
     if (f && f.custom_tracking) window._ccCustomCode = f.custom_tracking;
@@ -1700,10 +1702,10 @@ function renderCheckout() {
       <button class="checkout-actions-save" onclick="sablonaUlozitZKosiku()" title="Ulož aktuální košík jako šablonu pro příště">
         📌 Uložit jako šablonu
       </button>
-      <label class="gdpr-souhlas-lbl" style="display:flex;gap:6px;align-items:center;font-size:12px;line-height:1.25;cursor:pointer;max-width:220px">
+      ${window._gdprPovinny === false ? '' : `<label class="gdpr-souhlas-lbl" style="display:flex;gap:6px;align-items:center;font-size:12px;line-height:1.25;cursor:pointer;max-width:220px">
         <input type="checkbox" class="gdpr-souhlas-cb" onchange="gdprSyncSouhlas(this)">
         <span>Souhlasím se zpracováním <a href="#" onclick="gdprZobrazitZasady();return false" style="color:#BA7517;text-decoration:underline">osobních údajů</a></span>
-      </label>
+      </label>`}
       <button class="checkout-actions-submit" onclick="submitOrder()">
         ✅ Odeslat objednávku
       </button>
@@ -2217,9 +2219,10 @@ window.submitOrder = async function() {
   if (!state.checkoutData.misto_dodani_id) { // 🆕 v3.0.350 — bez místa dodání neodesílat (jasná hláška místo opaque 403)
     return alert('Vyber místo dodání. Pokud žádné nemáš nastavené, kontaktuj dodavatele, aby ti ho přidal.');
   }
-  // 🔒 v3.0.431 — GDPR souhlas (checkbox vedle Odeslat, renderuje se 2× → třída, ne id)
+  // 🔒 v3.0.431/432 — GDPR souhlas (checkbox vedle Odeslat; třída, ne id — renderuje se 2×).
+  //   Povinnost je vypínatelná v adminu (window._gdprPovinny; default zapnuto).
   const gdprOk = !!document.querySelector('.gdpr-souhlas-cb:checked');
-  if (!gdprOk) {
+  if (window._gdprPovinny !== false && !gdprOk) {
     return alert('Pro odeslání objednávky je potřeba souhlas se zpracováním osobních údajů.');
   }
 

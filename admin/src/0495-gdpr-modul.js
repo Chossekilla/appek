@@ -12,6 +12,8 @@ window.gdprZasadyLoad = async function() {
   try {
     const r = await api('admin_gdpr.php');
     ta.value = r.text || '';
+    const pv = document.getElementById('ns-gdpr-povinny');   // 🆕 v3.0.432 — vypínač souhlasu
+    if (pv) pv.checked = (r.souhlas_povinny !== 0);
     const info = document.getElementById('ns-gdpr-zasady-info');
     if (info) {
       info.textContent = r.is_default
@@ -47,7 +49,8 @@ window.gdprZasadySave = async function() {
   if (!ta) return;
   if (out) out.textContent = '⏳ Ukládám…';
   try {
-    const r = await api('admin_gdpr.php?action=save', { method: 'POST', body: JSON.stringify({ text: ta.value }) });
+    const pv = document.getElementById('ns-gdpr-povinny');   // 🆕 v3.0.432 — vypínač souhlasu
+    const r = await api('admin_gdpr.php?action=save', { method: 'POST', body: JSON.stringify({ text: ta.value, souhlas_povinny: pv ? (pv.checked ? 1 : 0) : 1 }) });
     if (out) out.textContent = '✅ Uloženo ' + (r.updated || '');
     const info = document.getElementById('ns-gdpr-zasady-info');
     if (info) info.textContent = '🟢 Uloženo ' + (r.updated || '');

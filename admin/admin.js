@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.431';
+const APPEK_ADMIN_JS_VERSION = '3.0.432';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -16473,6 +16473,11 @@ async function renderNastaveni() {
         <span id="ns-gdpr-zasady-info" style="font-size:12px;color:var(--text-3);align-self:center"></span>
       </div>
       <textarea id="ns-gdpr-zasady-text" class="form-input" rows="10" style="width:100%;font-family:monospace;font-size:12px;line-height:1.5" placeholder="⏳ Načítám…"></textarea>
+      <!-- 🆕 v3.0.432 — vypínač povinného souhlasu u objednávky -->
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="ns-gdpr-povinny" checked>
+        <span>Vyžadovat <strong>souhlas u objednávky</strong> (B2B) — po vypnutí se zaškrtávací políčko u objednávky skryje a souhlas není povinný</span>
+      </label>
       <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
         <button class="btn-primary btn-green" onclick="gdprZasadySave()">💾 Uložit zásady</button>
         <span id="ns-gdpr-zasady-save" style="font-size:12px;color:var(--text-3)"></span>
@@ -16817,6 +16822,8 @@ window.gdprZasadyLoad = async function() {
   try {
     const r = await api('admin_gdpr.php');
     ta.value = r.text || '';
+    const pv = document.getElementById('ns-gdpr-povinny');   // 🆕 v3.0.432 — vypínač souhlasu
+    if (pv) pv.checked = (r.souhlas_povinny !== 0);
     const info = document.getElementById('ns-gdpr-zasady-info');
     if (info) {
       info.textContent = r.is_default
@@ -16852,7 +16859,8 @@ window.gdprZasadySave = async function() {
   if (!ta) return;
   if (out) out.textContent = '⏳ Ukládám…';
   try {
-    const r = await api('admin_gdpr.php?action=save', { method: 'POST', body: JSON.stringify({ text: ta.value }) });
+    const pv = document.getElementById('ns-gdpr-povinny');   // 🆕 v3.0.432 — vypínač souhlasu
+    const r = await api('admin_gdpr.php?action=save', { method: 'POST', body: JSON.stringify({ text: ta.value, souhlas_povinny: pv ? (pv.checked ? 1 : 0) : 1 }) });
     if (out) out.textContent = '✅ Uloženo ' + (r.updated || '');
     const info = document.getElementById('ns-gdpr-zasady-info');
     if (info) info.textContent = '🟢 Uloženo ' + (r.updated || '');
