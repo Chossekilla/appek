@@ -1700,6 +1700,10 @@ function renderCheckout() {
       <button class="checkout-actions-save" onclick="sablonaUlozitZKosiku()" title="Ulož aktuální košík jako šablonu pro příště">
         📌 Uložit jako šablonu
       </button>
+      <label class="gdpr-souhlas-lbl" style="display:flex;gap:6px;align-items:center;font-size:12px;line-height:1.25;cursor:pointer;max-width:220px">
+        <input type="checkbox" class="gdpr-souhlas-cb" onchange="gdprSyncSouhlas(this)">
+        <span>Souhlasím se zpracováním <a href="#" onclick="gdprZobrazitZasady();return false" style="color:#BA7517;text-decoration:underline">osobních údajů</a></span>
+      </label>
       <button class="checkout-actions-submit" onclick="submitOrder()">
         ✅ Odeslat objednávku
       </button>
@@ -1833,15 +1837,7 @@ function renderCheckout() {
         <label class="form-label" for="poznamka" style="font-weight:500">📝 Poznámka <span class="form-hint">— volitelné</span></label>
         <textarea class="input" id="poznamka" rows="3" placeholder="Speciální požadavky..."></textarea>
       </div>
-
-      <!-- 🔒 v3.0.425 — GDPR souhlas se zpracováním osobních údajů -->
-      <div class="form-row" style="align-items:start;margin-top:10px">
-        <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;line-height:1.5">
-          <input type="checkbox" id="gdpr-souhlas-obj" style="margin-top:2px">
-          <span>Souhlasím se zpracováním osobních údajů pro vyřízení této objednávky
-            (<a href="#" onclick="gdprZobrazitZasady();return false" style="color:#BA7517;text-decoration:underline">zásady zpracování osobních údajů</a>).</span>
-        </label>
-      </div>
+      <!-- 🔒 v3.0.431 — GDPR souhlas přesunut vedle tlačítka Odeslat (viz actionsBlock) -->
     </div>
 
     <!-- 🆕 v2.5 — 3️⃣ DOPRAVA -->
@@ -2221,9 +2217,9 @@ window.submitOrder = async function() {
   if (!state.checkoutData.misto_dodani_id) { // 🆕 v3.0.350 — bez místa dodání neodesílat (jasná hláška místo opaque 403)
     return alert('Vyber místo dodání. Pokud žádné nemáš nastavené, kontaktuj dodavatele, aby ti ho přidal.');
   }
-  // 🔒 v3.0.425 — GDPR souhlas je povinný před odesláním objednávky
-  const gdprCb = document.getElementById('gdpr-souhlas-obj');
-  if (gdprCb && !gdprCb.checked) {
+  // 🔒 v3.0.431 — GDPR souhlas (checkbox vedle Odeslat, renderuje se 2× → třída, ne id)
+  const gdprOk = !!document.querySelector('.gdpr-souhlas-cb:checked');
+  if (!gdprOk) {
     return alert('Pro odeslání objednávky je potřeba souhlas se zpracováním osobních údajů.');
   }
 
@@ -2242,8 +2238,8 @@ window.submitOrder = async function() {
     doprava: state.checkoutData.doprava || 'vlastni',
     platba:  state.checkoutData.platba  || 'prevod',
     // 🔒 v3.0.425 — evidence GDPR souhlasu (kdy odsouhlasil)
-    gdpr_souhlas: gdprCb ? !!gdprCb.checked : null,
-    gdpr_souhlas_at: (gdprCb && gdprCb.checked) ? new Date().toISOString() : null,
+    gdpr_souhlas: gdprOk,
+    gdpr_souhlas_at: gdprOk ? new Date().toISOString() : null,
   };
 
   if (typBackend === 'jednorazova') {
@@ -2899,6 +2895,11 @@ window.cookieConsentInit = cookieConsentInit; window.ccApply = ccApply;
 window.ccShowSettings = ccShowSettings; window.ccShowPolicy = ccShowPolicy;
 
 // 🔒 v3.0.425 — zobrazí zásady zpracování osobních údajů (GDPR) z gdpr_verejne.php
+// 🔒 v3.0.431 — souhlas je vedle Odeslat a renderuje se 2× (nahoře+dole) → sync obou
+window.gdprSyncSouhlas = function(el) {
+  document.querySelectorAll('.gdpr-souhlas-cb').forEach(c => { c.checked = el.checked; });
+};
+
 window.gdprZobrazitZasady = async function() {
   var m = document.getElementById('gdpr-zasady-modal'); if (m) m.remove();
   var ov = document.createElement('div'); ov.id = 'gdpr-zasady-modal';
