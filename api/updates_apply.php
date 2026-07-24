@@ -157,6 +157,22 @@ try {
     $size = filesize($bundlePath);
     $result['steps'][] = "✅ Staženo $size bajtů";
 
+    // ─── 1b. 🛡️ v3.0.433 POJISTKA: je stažené vůbec ZIP? (PK magic) ──────
+    //   Incident 2026-07-23: landing-only .htaccess přesměrovával updates_download
+    //   → klient stáhl 302 landing HTML (771 B) a spadl na MATOUCÍM „Checksum nesedí",
+    //   což zamaskovalo skutečnou příčinu (blokovaný endpoint) a lámalo update VŠEM
+    //   zákazníkům. Checksum už NIKDY nesmí zakrýt HTML/302/JSON odpověď — tady padne
+    //   jasná diagnóza s náhledem toho, co server reálně vrátil.
+    $magic = substr($bundle, 0, 4);
+    if ($magic !== "PK\x03\x04" && $magic !== "PK\x05\x06" && $magic !== "PK\x07\x08") {
+        $nahled = trim(preg_replace('/\s+/', ' ', strip_tags(substr($bundle, 0, 300))));
+        throw new Exception(
+            'Stažený soubor NENÍ ZIP balíček (' . $size . ' B). Server vrátil HTML / přesměrování / chybu '
+            . 'místo balíčku — updates_download.php je nejspíš blokovaný nebo nedostupný. '
+            . 'Odpověď začíná: ' . mb_substr($nahled, 0, 160)
+        );
+    }
+
     // ─── 2. Ověř checksum ───────────────────────────────────────
     if ($expected) {
         $actual = hash_file('sha256', $bundlePath);

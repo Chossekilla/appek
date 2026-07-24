@@ -655,6 +655,22 @@ function self_update_health_check(string $webroot, string $expectedVersion): arr
         $checks['file:' . $f] = ['ok' => is_file($p) && filesize($p) > 100];
     }
 
+    // 🛡️ v3.0.433 — landing-only instalace MUSÍ mít veřejné update/sales endpointy ve výjimce
+    //   v api/.htaccess. Jinak je 302 přesměruje na landing → zákazníkům se self-update
+    //   rozbije (incident 2026-07-23: chyběl updates_download → klient stáhl 302 HTML místo
+    //   bundle → „checksum nesedí" → update selhal VŠEM zákazníkům). Deploy to teď chytí sám.
+    if (is_file($webroot . '/.landing-only')) {
+        $ht = @file_get_contents($webroot . '/api/.htaccess') ?: '';
+        $chybi = [];
+        foreach (['updates_check', 'updates_download', 'shop_packages'] as $ep) {
+            if (strpos($ht, $ep) === false) $chybi[] = $ep;
+        }
+        $checks['landing_only_whitelist'] = [
+            'ok'    => empty($chybi),
+            'value' => $chybi ? 'CHYBÍ ve výjimce: ' . implode(', ', $chybi) : 'ok',
+        ];
+    }
+
     $allOk = true;
     foreach ($checks as $c) { if (!$c['ok']) { $allOk = false; break; } }
     return ['ok' => $allOk, 'checks' => $checks];
