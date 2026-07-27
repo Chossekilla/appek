@@ -72,6 +72,9 @@ try {
     ob_start();
     $checks_global = [];
     // Spustíme jako include (sdílí PHP context, $pdo); healthcheck dělá echo na konci
+    // 🛠️ v3.0.438 — flag: healthcheck.php při cache-hitu NESMÍ `exit` (jinak ukončí tento monitor
+    //   → vrátí healthcheck JSON místo monitorového → dashboard false-positive banner).
+    $_hc_included = true;
     include __DIR__ . '/healthcheck.php';
     $hcRaw = ob_get_clean();
     $healthcheck = json_decode($hcRaw, true) ?: ['ok' => false, 'error' => 'invalid_hc_json'];

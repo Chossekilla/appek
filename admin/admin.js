@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.437';
+const APPEK_ADMIN_JS_VERSION = '3.0.438';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -5301,7 +5301,9 @@ async function dashHealthBanner() {
     const banner = document.getElementById('dash-health-banner');
     if (!r || !banner) return;
     const errs = parseInt(r.new_errors_15min || 0);
-    const hcOk = r.healthcheck && r.healthcheck.ok;
+    // 🛠️ v3.0.438 — chybějící healthcheck ≠ selhání (nezakládej falešný alarm z pomalu/malformed
+    //   odpovědi). Alarm jen když je healthcheck PŘÍTOMEN a selhal, nebo chyb > 5.
+    const hcOk = !r.healthcheck || r.healthcheck.ok;
     if (errs > 5 || !hcOk) {
       const failedNames = ((r.healthcheck && r.healthcheck.checks) || []).filter(c => !c.ok).map(c => c.name).join(', ');
       banner.style.display = 'block';

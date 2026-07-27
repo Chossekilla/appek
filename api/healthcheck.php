@@ -37,6 +37,10 @@ if (is_file($_hcCache) && (time() - @filemtime($_hcCache)) < 30) {
         http_response_code((is_array($_cj) && ($_cj['ok'] ?? true)) ? 200 : 503);
         header('X-Healthcheck-Cache: hit');
         echo $_c;
+        // 🛠️ v3.0.438 — když nás includuje admin_health_monitor.php, NESMÍME `exit` (ukončil by
+        //   celý parent skript → monitor by vrátil healthcheck JSON místo svého → dashboard čte
+        //   r.healthcheck=undefined → FALSE-POSITIVE banner „Detekovány problémy"). Vrať řízení.
+        if (!empty($_hc_included)) return;
         exit;
     }
 }

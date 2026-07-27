@@ -749,7 +749,9 @@ async function dashHealthBanner() {
     const banner = document.getElementById('dash-health-banner');
     if (!r || !banner) return;
     const errs = parseInt(r.new_errors_15min || 0);
-    const hcOk = r.healthcheck && r.healthcheck.ok;
+    // 🛠️ v3.0.438 — chybějící healthcheck ≠ selhání (nezakládej falešný alarm z pomalu/malformed
+    //   odpovědi). Alarm jen když je healthcheck PŘÍTOMEN a selhal, nebo chyb > 5.
+    const hcOk = !r.healthcheck || r.healthcheck.ok;
     if (errs > 5 || !hcOk) {
       const failedNames = ((r.healthcheck && r.healthcheck.checks) || []).filter(c => !c.ok).map(c => c.name).join(', ');
       banner.style.display = 'block';
