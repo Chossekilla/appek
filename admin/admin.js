@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.439';
+const APPEK_ADMIN_JS_VERSION = '3.0.440';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -15389,9 +15389,9 @@ async function renderNastaveni() {
                   ? `<img src="${esc(n.firma_logo_url)}" style="max-width:100%;max-height:100%;object-fit:contain" alt="Logo">`
                   : `<span style="font-size:20px;color:var(--text-3)">🖼️</span>`}
               </div>
-              <button type="button" class="btn-secondary" style="font-size:12px" onclick="document.getElementById('ns-logo-file')?.click()">${n.firma_logo_url ? '📤 Změnit' : '📤 Nahrát'}</button>
+              <span style="font-size:12px;color:var(--text-3)">${n.firma_logo_url ? '✓ Nahráno' : 'Zatím nenahráno'}</span>
             </div>
-            <small style="color:var(--text-3);font-size:11px;display:block;margin-top:4px">Spravuje se jednotně v kartě „🖼️ Logo a favicon" výše — favicon se z něj vygeneruje sám.</small>
+            <small style="color:var(--text-3);font-size:11px;display:block;margin-top:4px">Nahraj / změň logo v kartě „🖼️ Logo a favicon" výše — favicon se z něj vygeneruje sám. Zde jen náhled.</small>
           </div>
           <div class="full" style="background:var(--surface-2);padding:14px;border-radius:8px;margin-top:6px">
             <strong style="font-size:12.5px">📺 Náhled</strong>
