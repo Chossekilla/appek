@@ -21,6 +21,14 @@ if (!$ctx || ($ctx['role'] ?? '') !== 'admin') {
     exit;
 }
 
+// 🛠️ v3.0.437 — DEV/localhost: nikdy nehlásit pirát (i kdyby zbyl starý .pirate-flag).
+require_once __DIR__ . '/_license_enforce.php';
+if (function_exists('license_is_dev_host') && license_is_dev_host()) {
+    echo json_encode(['pirate_flag' => false, 'last_heartbeat' => null, 'reason' => null,
+        'message' => null, 'license_status' => 'active', 'dev' => true], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 $pirateFlagFile = __DIR__ . '/.pirate-flag';
 $lastHbFile     = __DIR__ . '/.heartbeat-last';
 

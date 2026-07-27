@@ -33,6 +33,14 @@ if (!$ctx || ($ctx['role'] ?? '') !== 'admin') {
     exit;
 }
 
+// 🛠️ v3.0.437 — DEV/localhost: NEPOSÍLEJ heartbeat na vendor. Jinak vendor flagne dev stroj
+// jako pirát (host mismatch demo klíče ↔ localhost) a znečistí pirate detekci reálného klíče.
+if (license_is_dev_host()) {
+    echo json_encode(['ok' => true, 'dev' => true, 'state' => 'active',
+        'message' => 'Dev/localhost — heartbeat přeskočen (bez anti-pirát kontroly).']);
+    exit;
+}
+
 // Vendor URL (kam posíláme heartbeat) — konfigurabilní pro test, default production
 $vendorUrl = defined('APPEK_VENDOR_HEARTBEAT_URL')
     ? APPEK_VENDOR_HEARTBEAT_URL

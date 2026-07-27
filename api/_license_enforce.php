@@ -106,7 +106,28 @@ function license_state_save(array $state): void {
  * Grace period: pokud lock_until > NOW, ale je v grace (např. 7 dnů), admin uvidí warning
  * ale ještě funguje.
  */
+/**
+ * 🛠️ v3.0.437 — Je aktuální host vývojový (localhost / privátní síť)?
+ * Dev stroj NIKDY není reálný zákazník → nemá smysl ho anti-pirát gate-ovat.
+ * Bezpečné: produkce běží na veřejné doméně; útočník servírující reálným uživatelům
+ * nemůže být na localhostu. Používá se pro výjimku ze zámku i heartbeatu.
+ */
+function license_is_dev_host(): bool {
+    $host = strtolower($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '');
+    $host = preg_replace('/:\d+$/', '', $host);            // strip port
+    $host = trim($host, '[]');                             // strip IPv6 brackets
+    if ($host === '' || $host === 'localhost' || $host === '127.0.0.1' || $host === '::1') return true;
+    if (preg_match('/(\.local|\.test|\.localhost|\.lan)$/', $host)) return true;   // dev TLD
+    if (preg_match('/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/', $host)) return true; // privátní IP
+    return false;
+}
+
 function license_enforce_check(): array {
+    // 🛠️ v3.0.437 — DEV/localhost výjimka: lokální vývoj se NIKDY nezamyká.
+    if (license_is_dev_host()) {
+        return ['ok' => true, 'state' => 'active', 'dev' => true];
+    }
+
     $state = license_state_load();
     $now = time();
 
