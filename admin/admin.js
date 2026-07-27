@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.438';
+const APPEK_ADMIN_JS_VERSION = '3.0.439';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -15371,7 +15371,7 @@ async function renderNastaveni() {
       <!-- 🎨 BRANDING -->
       <div class="card-block">
         <h3 style="margin-bottom:12px;">🎨 Branding (vlastní barva + logo)</h3>
-        <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">Přizpůsob vzhled aplikace tvé firmě. Barva ovlivňuje akcenty (tlačítka, badge, nav). Logo nahraj v sekci Údržba → Logo.</p>
+        <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">Přizpůsob vzhled aplikace tvé firmě. Barva ovlivňuje akcenty (tlačítka, badge, nav). Logo a favicon spravuješ v kartě „🖼️ Logo a favicon" výše.</p>
         <div class="form-grid form-grid-tight">
           <div>
             <label class="form-label">🎨 Primární barva</label>
@@ -15382,14 +15382,21 @@ async function renderNastaveni() {
             <small style="color:var(--text-3);font-size:11px;display:block;margin-top:4px">Hex barva (#RRGGBB). Light/dark varianty se vypočítají automaticky.</small>
           </div>
           <div>
-            <label class="form-label">🖼️ URL loga</label>
-            <input class="form-input" id="ns-logo-url" value="${esc(n.firma_logo_url || '')}" placeholder="/uploads/logo/logo.png">
-            <small style="color:var(--text-3);font-size:11px;display:block;margin-top:4px">Nahraj v Údržba → 🖼️ Logo, nebo zadej URL.</small>
+            <label class="form-label">🖼️ Logo</label>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:44px;height:44px;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);overflow:hidden;flex-shrink:0">
+                ${n.firma_logo_url
+                  ? `<img src="${esc(n.firma_logo_url)}" style="max-width:100%;max-height:100%;object-fit:contain" alt="Logo">`
+                  : `<span style="font-size:20px;color:var(--text-3)">🖼️</span>`}
+              </div>
+              <button type="button" class="btn-secondary" style="font-size:12px" onclick="document.getElementById('ns-logo-file')?.click()">${n.firma_logo_url ? '📤 Změnit' : '📤 Nahrát'}</button>
+            </div>
+            <small style="color:var(--text-3);font-size:11px;display:block;margin-top:4px">Spravuje se jednotně v kartě „🖼️ Logo a favicon" výše — favicon se z něj vygeneruje sám.</small>
           </div>
           <div class="full" style="background:var(--surface-2);padding:14px;border-radius:8px;margin-top:6px">
             <strong style="font-size:12.5px">📺 Náhled</strong>
             <div id="brand-preview" style="display:flex;gap:10px;align-items:center;margin-top:8px;padding:10px;background:var(--surface);border-radius:6px">
-              <div id="brand-prev-logo" style="width:32px;height:32px;border-radius:8px;background:var(--primary);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:18px">A</div>
+              <div id="brand-prev-logo" style="width:32px;height:32px;border-radius:8px;background:${n.firma_logo_url ? 'var(--surface-2)' : 'var(--primary)'};color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden">${n.firma_logo_url ? `<img src="${esc(n.firma_logo_url)}" style="width:100%;height:100%;object-fit:contain" alt="Logo">` : 'A'}</div>
               <button class="btn-primary btn-green" style="font-size:13px;padding:8px 16px" onclick="event.preventDefault()">Ukázkové tlačítko</button>
               <span style="background:var(--primary);color:#fff;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600">Badge</span>
             </div>
@@ -28693,7 +28700,9 @@ window.ulozitNastaveni = async function() {
   setIf('firma_paticka_dokladu', v('ns-paticka'));
   // 🎨 Branding
   setIf('firma_brand_color', v('ns-brand-color') || v('ns-brand-color-text'));
-  setIf('firma_logo_url', v('ns-logo-url'));
+  // 🖼️ v3.0.439 — logo NEukládáme přes obecný save: firma_logo_url řídí výhradně upload/remove
+  //   (admin_nastaveni.php upload_logo/remove_logo). Dřív duplicitní pole ns-logo-url mohlo
+  //   přepsat čerstvě nahrané logo stale hodnotou. Sjednoceno do jediného uploadu v kartě Logo.
   // 📄 Logo na dokladech (checkbox)
   if (document.getElementById('ns-logo-doklady')) data.firma_logo_na_dokladech = cb('ns-logo-doklady') ? '1' : '0';
   setIf('admin_email_pro_objednavky', v('ns-admin-email'));

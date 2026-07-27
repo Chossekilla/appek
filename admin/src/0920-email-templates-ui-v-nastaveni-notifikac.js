@@ -672,7 +672,9 @@ window.ulozitNastaveni = async function() {
   setIf('firma_paticka_dokladu', v('ns-paticka'));
   // 🎨 Branding
   setIf('firma_brand_color', v('ns-brand-color') || v('ns-brand-color-text'));
-  setIf('firma_logo_url', v('ns-logo-url'));
+  // 🖼️ v3.0.439 — logo NEukládáme přes obecný save: firma_logo_url řídí výhradně upload/remove
+  //   (admin_nastaveni.php upload_logo/remove_logo). Dřív duplicitní pole ns-logo-url mohlo
+  //   přepsat čerstvě nahrané logo stale hodnotou. Sjednoceno do jediného uploadu v kartě Logo.
   // 📄 Logo na dokladech (checkbox)
   if (document.getElementById('ns-logo-doklady')) data.firma_logo_na_dokladech = cb('ns-logo-doklady') ? '1' : '0';
   setIf('admin_email_pro_objednavky', v('ns-admin-email'));
