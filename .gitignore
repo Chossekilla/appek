@@ -41,3 +41,7 @@ scripts/b2b_batch_*.json
 scripts/b2b_missing.json
 scripts/i18n_batch_*.json
 scripts/i18n_missing.json
+api/.pirate-flag
+api/.license-state.json
+api/.heartbeat-last
+api/.check-install-key

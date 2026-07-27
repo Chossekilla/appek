@@ -47248,3 +47248,14 @@ DE_EXTRA.update({
     'Účtenka už je celá vrácená': 'Der Beleg ist bereits vollständig zurückgegeben',
     'Žádné rozpracované objednávky': 'Keine geparkten Bestellungen',
 })
+
+
+# ─────────── v3.0.436 — 2 chybejici help-texty registru kanalu (SK+DE) ───────────
+SK_EXTRA.update({
+    'Každý balíček (POS, B2B portál, dort konfigurátor, rozvozové platformy, opakované…) zapisuje objednávky s vlastním označením a číselnou řadou, takže se navzájem nepřebíjejí. Přejmenuj kanály, vypni nepoužívané a označ, které se počítají jako pokladní prodej (teče do POS Účtenek a uzávěrky).': 'Každý balík (POS, B2B portál, konfigurátor tort, rozvozové platformy, opakované…) zapisuje objednávky s vlastným označením a číselným radom, takže sa navzájom neprebíjajú. Premenuj kanály, vypni nepoužívané a označ, ktoré sa počítajú ako pokladničný predaj (tečie do POS Účteniek a uzávierky).',
+    'Pokladní = objednávky kanálu se započítají do POS Účtenek a denní uzávěrky. Řada (např. POS-, B2B-, DORT-) je pevná a zajišťuje, že se čísla dokladů nepřebíjejí.': 'Pokladničné = objednávky kanála sa započítajú do POS Účteniek a dennej uzávierky. Rad (napr. POS-, B2B-, DORT-) je pevný a zaisťuje, že sa čísla dokladov neprebíjajú.',
+})
+DE_EXTRA.update({
+    'Každý balíček (POS, B2B portál, dort konfigurátor, rozvozové platformy, opakované…) zapisuje objednávky s vlastním označením a číselnou řadou, takže se navzájem nepřebíjejí. Přejmenuj kanály, vypni nepoužívané a označ, které se počítají jako pokladní prodej (teče do POS Účtenek a uzávěrky).': 'Jedes Paket (POS, B2B-Portal, Torten-Konfigurator, Lieferplattformen, wiederkehrende…) erfasst Bestellungen mit eigener Kennzeichnung und eigenem Nummernkreis, sodass sie sich nicht gegenseitig überschneiden. Benenne die Kanäle um, deaktiviere ungenutzte und markiere, welche als Kassenverkauf zählen (fließt in POS-Belege und den Tagesabschluss).',
+    'Pokladní = objednávky kanálu se započítají do POS Účtenek a denní uzávěrky. Řada (např. POS-, B2B-, DORT-) je pevná a zajišťuje, že se čísla dokladů nepřebíjejí.': 'Kasse = Bestellungen des Kanals fließen in die POS-Belege und den Tagesabschluss ein. Der Nummernkreis (z. B. POS-, B2B-, DORT-) ist fest und stellt sicher, dass sich die Belegnummern nicht überschneiden.',
+})

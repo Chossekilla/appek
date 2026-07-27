@@ -6,7 +6,7 @@
 // =============================================================
 
 const I18N_EXTRA = {
-  // 🇸🇰 Slovenčina — 19391 frází
+  // 🇸🇰 Slovenčina — 19393 frází
   sk: {
     '"✓ Vše hotovo" = označí celou objednávku': '"✓ Všetko hotové" = označí celú objednávku',
     '"📤 Vše odneseno" + "🖨️ Tisk bonu" tlačítka per účet': '"📤 Všetko odnesené" + "🖨️ Tlač bonu" tlačidlá per účet',
@@ -4764,6 +4764,7 @@ const I18N_EXTRA = {
     'Každé dva týdny': 'Každé dva týždne',
     'Každé tři měsíce': 'Každé tri mesiace',
     'Každé čtvrtletí': 'Každý štvrťrok',
+    'Každý balíček (POS, B2B portál, dort konfigurátor, rozvozové platformy, opakované…) zapisuje objednávky s vlastním označením a číselnou řadou, takže se navzájem nepřebíjejí. Přejmenuj kanály, vypni nepoužívané a označ, které se počítají jako pokladní prodej (teče do POS Účtenek a uzávěrky).': 'Každý balík (POS, B2B portál, konfigurátor tort, rozvozové platformy, opakované…) zapisuje objednávky s vlastným označením a číselným radom, takže sa navzájom neprebíjajú. Premenuj kanály, vypni nepoužívané a označ, ktoré sa počítajú ako pokladničný predaj (tečie do POS Účteniek a uzávierky).',
     'Každý den': 'Každý deň',
     'Každý druhý den': 'Každý druhý deň',
     'Každý druhý týden': 'Každý druhý týždeň',
@@ -9002,6 +9003,7 @@ const I18N_EXTRA = {
     'Pojmenuj nabídku': 'Pomenujte ponuku',
     'Pokladna': 'Pokladňa',
     'Pokladní': 'Pokladník',
+    'Pokladní = objednávky kanálu se započítají do POS Účtenek a denní uzávěrky. Řada (např. POS-, B2B-, DORT-) je pevná a zajišťuje, že se čísla dokladů nepřebíjejí.': 'Pokladničné = objednávky kanála sa započítajú do POS Účteniek a dennej uzávierky. Rad (napr. POS-, B2B-, DORT-) je pevný a zaisťuje, že sa čísla dokladov neprebíjajú.',
     'Pokladní deník': 'Pokladničný denník',
     'Pokladní doklad': 'Pokladničný doklad',
     'Pokladní kniha': 'Pokladničná kniha',
@@ -19401,7 +19403,7 @@ const I18N_EXTRA = {
     '🫀 Test zdraví': '🫀 Test zdravia',
   },
 
-  // 🇩🇪 Deutsch — 19391 frází
+  // 🇩🇪 Deutsch — 19393 frází
   de: {
     '"✓ Vše hotovo" = označí celou objednávku': '"✓ Alles fertig" = markiert die ganze Bestellung',
     '"📤 Vše odneseno" + "🖨️ Tisk bonu" tlačítka per účet': '"📤 Alles geliefert" + "🖨️ Bon drucken" Schaltflächen pro Rechnung',
@@ -24159,6 +24161,7 @@ const I18N_EXTRA = {
     'Každé dva týdny': 'Alle zwei Wochen',
     'Každé tři měsíce': 'Alle drei Monate',
     'Každé čtvrtletí': 'Jedes Quartal',
+    'Každý balíček (POS, B2B portál, dort konfigurátor, rozvozové platformy, opakované…) zapisuje objednávky s vlastním označením a číselnou řadou, takže se navzájem nepřebíjejí. Přejmenuj kanály, vypni nepoužívané a označ, které se počítají jako pokladní prodej (teče do POS Účtenek a uzávěrky).': 'Jedes Paket (POS, B2B-Portal, Torten-Konfigurator, Lieferplattformen, wiederkehrende…) erfasst Bestellungen mit eigener Kennzeichnung und eigenem Nummernkreis, sodass sie sich nicht gegenseitig überschneiden. Benenne die Kanäle um, deaktiviere ungenutzte und markiere, welche als Kassenverkauf zählen (fließt in POS-Belege und den Tagesabschluss).',
     'Každý den': 'Täglich',
     'Každý druhý den': 'Jeden zweiten Tag',
     'Každý druhý týden': 'Jede zweite Woche',
@@ -28397,6 +28400,7 @@ const I18N_EXTRA = {
     'Pojmenuj nabídku': 'Benennen Sie das Angebot',
     'Pokladna': 'Kasse',
     'Pokladní': 'Kassierer',
+    'Pokladní = objednávky kanálu se započítají do POS Účtenek a denní uzávěrky. Řada (např. POS-, B2B-, DORT-) je pevná a zajišťuje, že se čísla dokladů nepřebíjejí.': 'Kasse = Bestellungen des Kanals fließen in die POS-Belege und den Tagesabschluss ein. Der Nummernkreis (z. B. POS-, B2B-, DORT-) ist fest und stellt sicher, dass sich die Belegnummern nicht überschneiden.',
     'Pokladní deník': 'Kassenbuch',
     'Pokladní doklad': 'Kassenbeleg',
     'Pokladní kniha': 'Kassenbuch',

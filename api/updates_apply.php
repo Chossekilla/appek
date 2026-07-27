@@ -299,6 +299,21 @@ try {
         }
     }
 
+    // 🔒 v3.0.436 — CHRAŇ runtime licenční/heartbeat stav v OBOU formátech (bundle i raw ZIP).
+    // Protected filtr výše byl JEN pro raw-ZIP větev; feed používá manifest bundle → runtime
+    // soubory z manifestu by se zapsaly a PŘEPSALY stav zákazníka. .license-state.json (locked)
+    // nebo .pirate-flag omylem přibalené do bundlu = kritické zamčení/pirát flag cizí instalace.
+    $protectedRuntime = [
+        'api/config.local.php', 'api/.installed', 'vendor/config.local.php', 'vendor/.installed',
+        'api/.license-state.json', 'api/.pirate-flag', 'api/.heartbeat-last', 'api/.check-install-key',
+    ];
+    foreach ($protectedRuntime as $pp) {
+        if (isset($fileList[$pp])) {
+            unset($fileList[$pp]);
+            $result['steps'][] = "🔒 Zachován lokální runtime soubor (přeskočen z bundlu): $pp";
+        }
+    }
+
     // 🆕 v2.0.84 — PRE-FLIGHT BUNDLE INTEGRITY CHECK
     // Pokud bundle nemá admin/admin.js nebo admin/index.html, ABORT.
     // Tohle je root cause "config.php updated ale admin.js zůstává starý" bugu —

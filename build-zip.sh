@@ -262,6 +262,7 @@ COMMON_EXCLUDES=(
   -x "api/zalohy/*"
   -x "vendor/config.local.php"
   -x "vendor/.installed"
+  -x "api/.license-state.json" -x "api/.pirate-flag" -x "api/.heartbeat-last" -x "api/.check-install-key"
   -x "vendor/updates_storage/appek-update-*.zip"
   -x "vendor/updates_storage/.gitkeep"
   -x "*.log" -x "*.bak" -x "*.bak-*" -x "*STABLE-MENU*"

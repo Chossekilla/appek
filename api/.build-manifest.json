@@ -1,15 +1,15 @@
 {
- "version": "3.0.153",
- "built_at": "2026-06-03T15:58:27Z",
- "file_count": 244,
+ "version": "3.0.435",
+ "built_at": "2026-07-26T17:57:20Z",
+ "file_count": 432,
  "files": {
   ".htaccess": {
-   "sha256": "ab953dc436afc2c6af3e824811fadee8add75ea02b200ccd13941b03ef7b6ad1",
-   "size": 15767
+   "sha256": "ca57cd625c072595aaa47b8e16addc1a2009ab55084f771e88763814ee1beee8",
+   "size": 16093
   },
   "admin/.htaccess": {
-   "sha256": "f4dcc410ad849c0ec906db272b95d121fc32b006667bf9c06a7d3f7454a18e04",
-   "size": 592
+   "sha256": "ef6211c9b40f9d933b12365ec6cea7e33f4316c96eb8c8ad3e392bd4bce76652",
+   "size": 854
   },
   "admin/_barcode_scanner.js": {
    "sha256": "c6472cc6e72dd8ef1181429396e1de56eb76412a9e8fa338f311da6966604dbd",
@@ -20,12 +20,12 @@
    "size": 4583
   },
   "admin/admin.css": {
-   "sha256": "80480856f39e3368e5ae77ac0680cb2789a1e3958dcc21742e9e4f5f03511305",
-   "size": 645599
+   "sha256": "1eafcc20f90bb27f8b739e75e69b3cbb36a19a9d5c73ac099ea26c481d148c9f",
+   "size": 412722
   },
   "admin/admin.js": {
-   "sha256": "0ac9900ab4f1c9c8ed78232fc8caed9a7b2eb0685d65cdfe603bbfd415a3792d",
-   "size": 2080098
+   "sha256": "bcf4e2fa134e2972a9723bedfdb19eda45c8f55b72204597c28b944ec8175450",
+   "size": 1956399
   },
   "admin/clear-cache.html": {
    "sha256": "3f3d549fdcad9b1094ddca2e0c96e96570c73039450cff2ce18a4b31ff0cff03",
@@ -34,30 +34,6 @@
   "admin/deploy-check.php": {
    "sha256": "4ca7090b8292eae280275433ccdf247c98d5b4cfaaa394fa1ded9c2b4c110508",
    "size": 19898
-  },
-  "admin/feature-allergen-matrix.html": {
-   "sha256": "71949bfb586297b4e5fcd6b31bbabec6a6fb484dda3fafcc550d6fb4b8bc4cbd",
-   "size": 20902
-  },
-  "admin/feature-cake-configurator.html": {
-   "sha256": "fec5cc1f9ff640c4a93c9552e1bd07306c1ea4f09823bcdba1f4e136032f3ea9",
-   "size": 18294
-  },
-  "admin/feature-event-planner.html": {
-   "sha256": "147f02996b684148ad145dbce97bb8dcd1947ed993c43e90fbb13732fac0aecf",
-   "size": 19963
-  },
-  "admin/feature-menu-engineering.html": {
-   "sha256": "155125932f9dd8eb0c0c7dc253f50a5742bd859edd92f01c46142a6f9b687dee",
-   "size": 25618
-  },
-  "admin/feature-migration.html": {
-   "sha256": "9daa5a59a689e1b915786273660dcfd6ac33ca4f7d91bc60fdd0d6abf3b75735",
-   "size": 16181
-  },
-  "admin/feature-mobile-waiter.html": {
-   "sha256": "e1f15af98075eb834670f9871db795323dffa2290fd1dea12b45293a026af0a7",
-   "size": 16139
   },
   "admin/feature-seasonal-catalog.html": {
    "sha256": "ad70a8442db5c43fbfdd971fbc028229d29cac59a66c6d96797d739e3acd0eb4",
@@ -72,72 +48,104 @@
    "size": 27552
   },
   "admin/floorplan.js": {
-   "sha256": "c61cabc5b19e1c57fcc4aaacaa1966afef226283e132446b2140e38e02581ad0",
-   "size": 42470
+   "sha256": "6391f2a03553e47c2343034a4d436231abd302fa3d46ed961e7f09369545839f",
+   "size": 45833
   },
   "admin/floorplan.php": {
    "sha256": "8032995a045ff6e36a41967ec0a4e346003399a362f65995daa132f692584464",
    "size": 12612
   },
   "admin/force-update.php": {
-   "sha256": "667be568203716d1d3f96d3faeacc58a410104f17bc548786cae79c85a7c73ec",
-   "size": 21841
+   "sha256": "b9e85290c8cd974a3e5aeb86658bfbf777c54217d7439014b5c2b6711571e86c",
+   "size": 22800
   },
   "admin/i18n.js": {
-   "sha256": "57a7c6c63360ef41da39d79a598975adff38b6cd3c27b0bf66900000eca1a514",
-   "size": 89208
+   "sha256": "eb7ed07dd10e55e91589c6eeea4e2cc6dd5b54bf4be2d836b08be7630045d7b0",
+   "size": 90314
   },
   "admin/i18n_auto.js": {
-   "sha256": "87a796abf9e9b2a5e8ce5ae71fb5abdd8c82055c7c13c81834aca149289430fc",
-   "size": 2510046
+   "sha256": "b153388dfafd2b754fed1afec09bff8412a66731e7e8f1c6fc0ae13eeda8f5c9",
+   "size": 2544521
   },
   "admin/i18n_extra.js": {
-   "sha256": "3da1bfe8b0b559754057c8955018c30719325e270b2b624ddc84d4a1261adf8a",
-   "size": 1871496
+   "sha256": "246a89baf10981ced3ed852aa7626e8d0f43ae93bf43a994b20ce8cdd0a896fb",
+   "size": 2127317
+  },
+  "admin/icons/icon-192.png": {
+   "sha256": "b6425acc7e0f2c993f7ca4440ed8430ae393b9afac338e5dbab250952104f1f4",
+   "size": 26245
   },
   "admin/icons/icon-192.svg": {
    "sha256": "cf39bf220abfc0e45c399fb4ef85d559ab9418b2032f64fcab5f19731119d553",
    "size": 499
   },
+  "admin/icons/icon-512.png": {
+   "sha256": "85fdbf610d19c8d2f053a7c0d18d41a03bfe87e7e3fba75fee856ba8aa6f55a8",
+   "size": 97659
+  },
   "admin/icons/icon-512.svg": {
    "sha256": "b401750ff1917e0927ea9586c7fba33f53d72bb3e678c73b8afd238c0ef1935b",
    "size": 500
   },
+  "admin/icons/icon-apple.png": {
+   "sha256": "c6e5d07afc0038dd3f0a96da4e1de681ca962948b0a2272fe7c2acaf0f12d240",
+   "size": 21851
+  },
   "admin/icons/icon-apple.svg": {
    "sha256": "6dd096442e8959fa425317c2be30792350de3df4f0b7e69f5d17a527a8727452",
    "size": 491
+  },
+  "admin/icons/icon-maskable.png": {
+   "sha256": "c6f5ac626db5cf9bd88f3545a564249c008908eee439556200824e10074b7d05",
+   "size": 90693
   },
   "admin/icons/icon-maskable.svg": {
    "sha256": "2c35d8ad2681a7d76569bdf51552685cd5feb65a11fa59aa818366b33723c7cc",
    "size": 573
   },
   "admin/index.html": {
-   "sha256": "5030350d9434d1295f14910e8bb90f7eb9e33be38d4e53aca6a004a424d52a08",
-   "size": 33143
+   "sha256": "2fd4dd85012ecc19898c10795f7100d7da74db2ea07beb3492df6f4a6a07cad8",
+   "size": 33331
   },
   "admin/kds.php": {
    "sha256": "9938036b3fc617434bffd761d90de2febbc50fa25091368a709ec04a58978c6d",
    "size": 23512
   },
+  "admin/lib/chart.umd.js": {
+   "sha256": "2812cb8825fdc57469eb2f7bb055e9429244e599920511ee477e828499b632cb",
+   "size": 205615
+  },
+  "admin/lib/qrcode.min.js": {
+   "sha256": "c541ef06327885a8415bca8df6071e14189b4855336def4f36db54bde8484f36",
+   "size": 19927
+  },
   "admin/manifest.json": {
-   "sha256": "177d5d0571f543acafd6f01ed42d367ac52bad9d627c364ad78ec2fbf1024ab1",
-   "size": 1409
+   "sha256": "3ee9c3ab34ccca067e7d0a39345cbca4f9d24a48e858430533aa024c7c26e29c",
+   "size": 1364
+  },
+  "admin/manifest.php": {
+   "sha256": "51fae3ea78a8c4c971c0d91a605182100c8c9dfd944cfd83199d83fddf9e27a8",
+   "size": 599
   },
   "admin/offline.html": {
    "sha256": "3f5619b9009572f318749121482dcbb8e8582933566f911ede316551286a930a",
    "size": 4624
   },
+  "admin/pos-i18n.js": {
+   "sha256": "21fac5011cea552f2704945294e9dae64210ed1e445d3c8e26545cb5e329a87d",
+   "size": 2580
+  },
   "admin/pos.css": {
-   "sha256": "d7e7bc2e4a9bd8259cbd738fc4d2752f0f4025443cf320864cfc80f7b9a5017e",
-   "size": 94189
+   "sha256": "38397dce8cd753699a82f6081dc5fbc892daade21addd510bb71894a8b349aa5",
+   "size": 109919
   },
   "admin/pos.js": {
-   "sha256": "92c54aa2cd31f591aa0e73de51702647255bc1f9b44fbb2b82dd839446dd9767",
-   "size": 104531
+   "sha256": "149fcd95180e8c375bb65a1cb51e94faac556531be614682116bb7b0a4a6097e",
+   "size": 151378
   },
   "admin/pos.php": {
-   "sha256": "42e7f7c96472e5cc91de3ace3483bb111bc7a4f3989fc6e3a3ae1839112f7d18",
-   "size": 20598
+   "sha256": "1071a3ab0d91abca2ac09c3c83d78d84fc89f5707191320769843ca1f3a57b81",
+   "size": 28349
   },
   "admin/provoz.php": {
    "sha256": "7d7b20a0071c28771c268d0370cb6bcd097bd93b23795bf07f0e5bfb134194a4",
@@ -147,9 +155,565 @@
    "sha256": "363fb83aff4c44594c87187d47d6a88f67ba2f0267ba658abc7b8ec78ac16651",
    "size": 15026
   },
+  "admin/src/0000-preamble.js": {
+   "sha256": "603e54602a01111c37c724a69b8281b829c439f79ffe1d9def6a9dfe579de209",
+   "size": 8596
+  },
+  "admin/src/0010-zachytavani-js-chyb-posle-na-backend-pro.js": {
+   "sha256": "22cb8f4017a69424177e267de802ebf17dd33433cad7333f8878708b4ab8bcad",
+   "size": 1268
+  },
+  "admin/src/0020-helpers.js": {
+   "sha256": "1a99e41bb798b50dee9b3674a93e79948fc262ca4d2450fc843c00809014102f",
+   "size": 280
+  },
+  "admin/src/0030-toast-notifications-pro-ux-nahradi-alert.js": {
+   "sha256": "36447de020f3b46cd8adcea6009c97e45d2b1a9119700ec7019a9dda7475c6cc",
+   "size": 1938
+  },
+  "admin/src/0040-inline-editing-generic-helper.js": {
+   "sha256": "4cde45da50f7ccd639619a98544c62cb7e9aa48b1aff10d4ebec95f22713356c",
+   "size": 2485
+  },
+  "admin/src/0050-print-queue-collect-docs-print-all-at-on.js": {
+   "sha256": "39269d147c83ef5f0f58ededaa7524e523ec921a0bc30996a07f876e170d8710",
+   "size": 5144
+  },
+  "admin/src/0060-keyboard-shortcuts-cheatsheet-otevre-pre.js": {
+   "sha256": "193b047a555ff5c076e766bb7c17085bfee47f18beffb4ea3542fbc42b219ec4",
+   "size": 4500
+  },
+  "admin/src/0070-chartjs-poradne-grafy-v-dashboardu.js": {
+   "sha256": "4d6990bb291eb4ef67ad5b9746a08439cf69d126fab56e58e9a2fd29b6968b6a",
+   "size": 3228
+  },
+  "admin/src/0080-brand-customization-primary-color-logo-z.js": {
+   "sha256": "088de1c451b22cf839b94162c5588e3e26e2c5bbb51925dd9a6ad0f99a81dd33",
+   "size": 2782
+  },
+  "admin/src/0090-webhooks-ui.js": {
+   "sha256": "043c8d5e7464d93f2002bd854e6c943e57ce97fee0e9b5baf472d493781623fd",
+   "size": 8880
+  },
+  "admin/src/0100-activity-log-v-udrzbe.js": {
+   "sha256": "a5997c4ef7a557798b3df596bb574e0385cdec589c341e0c5c81d3c178859a4b",
+   "size": 2325
+  },
+  "admin/src/0110-notifications-panel.js": {
+   "sha256": "377e4092110f5a7a44a6ced55cc5fee7cbab6270196b33b027cd49fc96c3265c",
+   "size": 11590
+  },
+  "admin/src/0120-license-heartbeat-1-denne-posli-vendorov.js": {
+   "sha256": "dc964369bee34eb067c0ed36b4bd4b5ba2af90ac5e9f7187691fae4fa2c8914e",
+   "size": 8652
+  },
+  "admin/src/0130-svg-sparkline-bar-charts-zerodep.js": {
+   "sha256": "d31a4db21d4d16225415a5bef7c95b185cf530a76eeae15e1702a225d66bc6e9",
+   "size": 3375
+  },
+  "admin/src/0140-demo-data-seeder-oneclick-naplnit-ukazko.js": {
+   "sha256": "7ac1f370d50b01a14a8e83fb49780848d166127eae97b387fd22223b23933a47",
+   "size": 5396
+  },
+  "admin/src/0150-smart-alert-intercept-kratke-alerty-toas.js": {
+   "sha256": "71dc9a43771ea921c18cfb20049196bc8dbbf810523d7636084a6556cce78ee7",
+   "size": 1120
+  },
+  "admin/src/0160-empty-state-helper.js": {
+   "sha256": "294d34d72e7e7a6c997bc14f193639313a2316852c7425381c22007c085298df",
+   "size": 502
+  },
+  "admin/src/0170-confirm-dialog-applestyle-promisebased-c.js": {
+   "sha256": "ddcfac966a778e5f0107dc9c7176dab2050cca341695f73273cf078d6b5567c6",
+   "size": 3770
+  },
+  "admin/src/0180-skeleton-loaders-boneshape-placeholders.js": {
+   "sha256": "66ecc551779fdedbc2536800fd2fba644b9bc775d107efc5793a5043559e6edf",
+   "size": 1078
+  },
+  "admin/src/0190-k-command-palette-linearnotionstyle-univ.js": {
+   "sha256": "2421c61f9a107518211c9503b855f8c3d0b61517bf33fd9b358e40da4fee7fe3",
+   "size": 12013
+  },
+  "admin/src/0200-top-loading-bar-linearyoutube-style.js": {
+   "sha256": "195c2aceee8fc6c9557add7aa6adc362cd4c63a096408a9eefbe62e4bfb13b24",
+   "size": 4066
+  },
+  "admin/src/0210-api-helper-s-kratkodobou-get-cache-snizu.js": {
+   "sha256": "f8db668784f130afdfaf867725e6c818e7202a5cc8604c070e20dec485f98a5c",
+   "size": 7523
+  },
+  "admin/src/0220-debounce-pro-vyhledavaci-inputy-nehledat.js": {
+   "sha256": "69f74b4ddda341dd52786aad47384a5eced730d2a613e9ae49f103634731ef8e",
+   "size": 2811
+  },
+  "admin/src/0230-pin-sidebar-fixuje-bocni-menu-ulozeno-do.js": {
+   "sha256": "92b4e6f4587eff95b1a7fe15d7e205d2031d4b76ed2b3a5418d54155232ce852",
+   "size": 2552
+  },
+  "admin/src/0240-fullscreen-pro-male-monitory-v-provoze-f.js": {
+   "sha256": "011b59a62cdac6882bd8871f9dd63a6c34490375f4a702952a5cbef489125f48",
+   "size": 4003
+  },
+  "admin/src/0250-login.js": {
+   "sha256": "65a2dd63edd3db3a190cc24fef6af097c04932b5651498a8b2459532c320eff2",
+   "size": 9702
+  },
+  "admin/src/0260-prava-v-menu-podle-role-defaults-custom-.js": {
+   "sha256": "05fa002a66ed2426c0ad07cf52c4dc284924e24671136d0cedeab936f8016470",
+   "size": 35617
+  },
+  "admin/src/0270-onboarding-wizard-firstrun-experience.js": {
+   "sha256": "285cea28ccbc6a88af022a290eb899ce7a52233f475113f1b4b498067adb0355",
+   "size": 25093
+  },
+  "admin/src/0280-onboarding-helpers-pomocne-funkce-pro-no.js": {
+   "sha256": "ebb18edc32a22c393d8afcc330ce90bdf886f3823a37ab980e256371e6a84c22",
+   "size": 44512
+  },
+  "admin/src/0290-dashboard.js": {
+   "sha256": "cbde1181c10e11a8ba80327d3e85a46340b03fe1e1b476090e68529b0b580c4e",
+   "size": 58589
+  },
+  "admin/src/0300-objednavky.js": {
+   "sha256": "e873fe9b30b31895d4ebf7889a1f42ce8ba68e15037c06d1471457d3d356d5ee",
+   "size": 96244
+  },
+  "admin/src/0310-nova-objednavka-stateful-modal-stejny-la.js": {
+   "sha256": "c6baac306e6ef479d971beef61c6f3c9f331202bc22e4e74b0893b3aaf867a01",
+   "size": 24194
+  },
+  "admin/src/0320-vyrobni-list-auto-rucne-sestavene.js": {
+   "sha256": "4c926e83e4258e79c86dc9887793b8a90ac1c9a7f4f5ae96d8c3edfb763abc04",
+   "size": 91770
+  },
+  "admin/src/0330-spotreba-surovin-planovac-do-vyrobniho-l.js": {
+   "sha256": "4c0e07ec752d6a4b665113e0b820625b48eb10bcd755be49113cfd51ba4892b0",
+   "size": 26567
+  },
+  "admin/src/0340-dodaci-listy.js": {
+   "sha256": "1912b54bbbe23cc85e60a51fbaaa883da0895f99ca5a54a2b66b5a3b4f0b23a4",
+   "size": 147
+  },
+  "admin/src/0350-rozvozove-trasy-seskupeni-dl-podle-mesta.js": {
+   "sha256": "823443899a40c9469a457cbe3b36a9bbbc36c3fce41f12f76f31e598618c64e9",
+   "size": 6117
+  },
+  "admin/src/0360-opakujici-se-objednavky-pravidla-pro-aut.js": {
+   "sha256": "201fbc7794a817ebe77a35a967729a6614a908267bdb9d712db7b671f15b6e0c",
+   "size": 13318
+  },
+  "admin/src/0370-sales-report-agregovana-statistika-za-ob.js": {
+   "sha256": "515393d0e4ecf8fb90f98ddc96e262169159499f76966eaa5a9473526cebd747",
+   "size": 19571
+  },
+  "admin/src/0380-dl-hromadny-vyber-a-export.js": {
+   "sha256": "9367f92c3f483fa3d5317c7099d850784c704653001ea1b1a707c16ca6647f4c",
+   "size": 17927
+  },
+  "admin/src/0390-quick-period-chips-rychle-obdobi-pro-fil.js": {
+   "sha256": "c6a6cb8c78554d2c9b50c55a488b2d76f5c79a4fd3b7fb983b24868c9da75303",
+   "size": 31192
+  },
+  "admin/src/0400-hromadny-vyber-export-faktur.js": {
+   "sha256": "c95464db0be6a2f68d90c894c8bc3c340a011e2de5d101fcdc776d0521dd61fb",
+   "size": 9437
+  },
+  "admin/src/0410-import-faktur-isdoc-zip-rucni-faktury.js": {
+   "sha256": "e781dbe80673a465daa853015d46bd7a28edba76bb87c98486f187b536b3420e",
+   "size": 33798
+  },
+  "admin/src/0420-odeslat-doklad-emailem-fa-dl-obj-s-pdf-p.js": {
+   "sha256": "4ad71267fed72275e7f067c2730e85afa0ffbe75dde10a0c8a7b0134736170a5",
+   "size": 9302
+  },
+  "admin/src/0430-vyrobky-s-podporou-nahravani-obrazku.js": {
+   "sha256": "fc89bc657901a366f4dca0a0f8a5851bba010b5a6736ea79027971a901c2050d",
+   "size": 20458
+  },
+  "admin/src/0440-drag-drop-reorder-universalni-helper-pro.js": {
+   "sha256": "402f435c05828fee680d5bfb5e560c3feeb65afa24ef799f25cc0d883e4889ea",
+   "size": 48085
+  },
+  "admin/src/0450-kalkulace-nakladu-na-vyrobek.js": {
+   "sha256": "9aadad0f08d01c2b6993ffe174bfc02ca8d22f5b6603a456ebab502f0e1b1e1c",
+   "size": 8624
+  },
+  "admin/src/0460-upload-loga-favicon-s-automatickou-aplik.js": {
+   "sha256": "9b45d7058de25b9498721726d29d089430bab2421a931e55360485895022e5bd",
+   "size": 18279
+  },
+  "admin/src/0470-odberatele-sprava-pobocek.js": {
+   "sha256": "70b5b97609b7e1a9f973a799dc77a2c053fbff165af5905c264ac4cd89487f3b",
+   "size": 35806
+  },
+  "admin/src/0480-pobocky.js": {
+   "sha256": "8fa68e424dc14292e104e99b0e0bd5981e5d294c90d7ef860a60ead938cf9d42",
+   "size": 5075
+  },
+  "admin/src/0490-nastaveni-udaje-firmy-pro-fakturu.js": {
+   "sha256": "534e6f5266847c9baa40ad416f3c5ca6a247d7ec5a4db692a9301f815f5c6e3b",
+   "size": 113770
+  },
+  "admin/src/0495-gdpr-modul.js": {
+   "sha256": "ce5e63b40aeb8b2443eee028867ebf3641cebd0c48d1c6056a0dbd501687035d",
+   "size": 7157
+  },
+  "admin/src/0500-tiskarny-v305-escpos-termo-autosplit-set.js": {
+   "sha256": "a89b040ae634107b4cab48d2a7c02e937dcbb0e18d268209034a85e4077530bc",
+   "size": 17141
+  },
+  "admin/src/0510-payment-methods-v29205-centralni-onoff.js": {
+   "sha256": "12999ecbdab0c9327bfc6a1b686b6503b5d8d8fe283fdf1ca53b33497c2a6a25",
+   "size": 10192
+  },
+  "admin/src/0520-customer-integrace-stripe-gopay-zasilkov.js": {
+   "sha256": "3eb4960b74b970bb5ab2e69e807e50ef676c8e7a839497294e6afe98aa1f9276",
+   "size": 18973
+  },
+  "admin/src/0530-balicky-funkci-cukrarna-lahudky-restaura.js": {
+   "sha256": "407f6177bf66d74d38943803aba41e9ee28b116ab97519e0da951313a1b22c15",
+   "size": 14420
+  },
+  "admin/src/0540-package-placeholder-pages.js": {
+   "sha256": "52ad4f5fe45fe51ae4cc098a0a12c0484f762fbbdc7a951ac13f8af3641ed690",
+   "size": 7492
+  },
+  "admin/src/0550-cukrarna-hub-konfigurator-kapacita-galer.js": {
+   "sha256": "2d12c5b941d6ac380498218abfd241e2a6e3abc2455f923dedcd2ff7c144ce1b",
+   "size": 53292
+  },
+  "admin/src/0560-catering-kalkulator-lahudky-balicek.js": {
+   "sha256": "33e6c82adeeeab67562e9733fbf81c2c97a05aa479f48df07ccda8aa02fa06a6",
+   "size": 43562
+  },
+  "admin/src/0570-restaurace-stolova-sprava-restaurace-bal.js": {
+   "sha256": "3f9cd6b47799a3b24632ba654b98eaf6aa6ec75f38f3aa0cf13791b71ac14005",
+   "size": 193
+  },
+  "admin/src/0580-restaurace-pizzerie-outer-page-s-4-hlavn.js": {
+   "sha256": "3d2deeb920083ea4df66e141df722a56b4e00357629c16333087d023779bde8c",
+   "size": 23912
+  },
+  "admin/src/0585-tydenni-menu-restaurace.js": {
+   "sha256": "e139262e87d0666daa8f34558b3f7acd6b7f64fc8d1585de55724103f1e7254f",
+   "size": 18961
+  },
+  "admin/src/0590-kds-kitchen-display-system-v23.js": {
+   "sha256": "ce69048e61f703539c1976772f57bce67738769dd16645970bed76ec0199940f",
+   "size": 5759
+  },
+  "admin/src/0600-otevrene-ucty-overview-vsech-aktivnich-u.js": {
+   "sha256": "1c58d87cfeffed9686eb78663020f2fe5cab76e585230c193fdb275cf7e97273",
+   "size": 2502
+  },
+  "admin/src/0610-qr-pending-fronta-objednavek-od-hostu-qr.js": {
+   "sha256": "80228c8934f849dbccbcb92bbeb97067bb1ded6eab2279918dc18d14eee444b2",
+   "size": 4931
+  },
+  "admin/src/0620-floor-plan-moderni-draganddrop-canvas-v2.js": {
+   "sha256": "a40a14fbd7ea3e0d5e5d26ba9e51370981eddfc78ffaa6748d4a4f929f8f2784",
+   "size": 33537
+  },
+  "admin/src/0630-drag-drop-handlers.js": {
+   "sha256": "b664b6df0de193b76bf8edb08c1d2c3f38bd97b1f012bf1b36658a49e0be4b6e",
+   "size": 3427
+  },
+  "admin/src/0640-actions.js": {
+   "sha256": "0b65d477ffed4189a76109dcd0923997ea58aa8e3df2817b8a90053f94abf51c",
+   "size": 12851
+  },
+  "admin/src/0650-pos-ucty-per-stul-split-merge-qr-v23.js": {
+   "sha256": "476a73a69710941e07e6ef1049dcc2e9f38c5f5cdf571209607d893c35468985",
+   "size": 16259
+  },
+  "admin/src/0660-platba.js": {
+   "sha256": "08bc7c6c759dd6287bab95aa05cd07d66c6d9958650dab6c43aab8b7106fb34c",
+   "size": 6853
+  },
+  "admin/src/0670-split-bill.js": {
+   "sha256": "153a636264da8fa4f3e124724efe3d3ceb9edf63c56b4ac1b5df1963418f8921",
+   "size": 2667
+  },
+  "admin/src/0680-merge.js": {
+   "sha256": "a68f6e6b6f955531932ef5e20bf7b6fb8446127af409672a7d95321bb81dd0c9",
+   "size": 2342
+  },
+  "admin/src/0690-move.js": {
+   "sha256": "e82a1acc77e85390e8d08ffa3879c562e35cb2166e4ec9671a0e9e29da5b2c35",
+   "size": 1393
+  },
+  "admin/src/0700-qr.js": {
+   "sha256": "329b1f1917423ea1f50c410544318791ee5b3bbb904402b6e0965d39175e7e2f",
+   "size": 5091
+  },
+  "admin/src/0710-sablonovy-picker.js": {
+   "sha256": "7dcd20fcfc4c40713545d834e86fa3b10e990b1e097d75bb292b13cbdb90baa2",
+   "size": 8174
+  },
+  "admin/src/0720-zone-manager.js": {
+   "sha256": "68c8b478e02a0c60f8072c6958e339de7d27713ea40fc4b95d270e0ae3afb31b",
+   "size": 40234
+  },
+  "admin/src/0730-pos-register-launcher-otevira-samostatno.js": {
+   "sha256": "c1e77a0826bf5d66abdb172726894991f74125eb3ac625f5b91827c2bf6db3fc",
+   "size": 19069
+  },
+  "admin/src/0740-kapacita-kuchyne-restaurace-balicek.js": {
+   "sha256": "86f3925af6f2676611fdec4d66b651798e2bed902dcbed3cbfdf8bb4cbeb54c4",
+   "size": 14994
+  },
+  "admin/src/0750-doba-pripravy-per-vyrobek-restaurace-bal.js": {
+   "sha256": "09a079470d5c814e2fcedaf0c3a8cf2d1285c376b4e198ba4b29bb449c3c8464",
+   "size": 6093
+  },
+  "admin/src/0760-rozvoz-kuryry-restaurace-balicek.js": {
+   "sha256": "1a5416ef8e1572b07e18795adbbff1cb3a2e4217f09f7fd0cd956f211d5c4357",
+   "size": 27991
+  },
+  "admin/src/0770-sarzova-haccp-evidence-lahudky-balicek.js": {
+   "sha256": "583532bc4eb517fd29d035159369c3bbded039644597800ac42594278387d268",
+   "size": 14548
+  },
+  "admin/src/0780-mixandmatch-lahudky-balicek.js": {
+   "sha256": "04ceed0ac85a288e827729d9619affe6762cd991718a49bf4ba893fd049892c9",
+   "size": 17451
+  },
+  "admin/src/0790-lahudky-catering-s-casem-compact-list-sd.js": {
+   "sha256": "fa6b8303783cb9eed875fb817166aa4c7000280bb32870e374f5ca312604b461",
+   "size": 3540
+  },
+  "admin/src/0800-catering-firemni-objednavky-catering-bal.js": {
+   "sha256": "b172195015bcd8ca2128892d80400f5cc8114def55ec0e477e8772190641f5f0",
+   "size": 193
+  },
+  "admin/src/0810-catering-outer-page-s-4-tabs.js": {
+   "sha256": "dcb36149e49d34a60ca68e3d4a4421c8c29f4917daba7e3c82f8a2310681fbd7",
+   "size": 19726
+  },
+  "admin/src/0820-cenove-urovne-podle-poctu-osob-catering-.js": {
+   "sha256": "ddae3371959296d162dc0517937870dfb05dc55f0102b565cd361acf28b02968",
+   "size": 13719
+  },
+  "admin/src/0830-smlouvy-a-nabidky-catering-balicek.js": {
+   "sha256": "5087a80b5e73a4425c626abf34d74bd7ac166eabd452c44c45c27db7f3da936e",
+   "size": 3645
+  },
+  "admin/src/0840-zalohy-50-workflow-catering-balicek.js": {
+   "sha256": "18a8838d04f483bab17d22971853ddc56f414aefd619bd04d62874a40db18f04",
+   "size": 7026
+  },
+  "admin/src/0850-sezonni-katalog-manager-sezonni-balicek-.js": {
+   "sha256": "339ffa3824ced4d7cf6cabb2c9bd944744d8fb3c2ee8f9d8225bf50637c1a281",
+   "size": 34259
+  },
+  "admin/src/0860-api-tokeny-pro-ucetni-systemy.js": {
+   "sha256": "374d1551c83fa979bb14cfaef34a2643434a959bf310da5488fba977da3f7784",
+   "size": 5838
+  },
+  "admin/src/0870-diagnostika-rychly-souhrn-v-nastaveni-tl.js": {
+   "sha256": "dc6cf1ceedeed616aa85ef8ecabb0beeab0de36a5ec3677eab269b3cdf414c3e",
+   "size": 54437
+  },
+  "admin/src/0880-zalohy-ui-v-nastaveni.js": {
+   "sha256": "eaf49855b5ce374ae6b8ad0a9926580f4b499c9c0d5958442cfea743a6fb33b6",
+   "size": 11730
+  },
+  "admin/src/0890-diagnostika-system-info-db-schema-endpoi.js": {
+   "sha256": "20574b4c2f1f5b0ba9d6da0fad6ce9b6bd0d07fe6e3fae3aebb8abdf8b2fd892",
+   "size": 28397
+  },
+  "admin/src/0900-sazby-dph.js": {
+   "sha256": "5b248e773a740f38286856a384cbb9809e6ba13cd6ef5ab8c5749a24da947d56",
+   "size": 143
+  },
+  "admin/src/0910-push-notifikace-admin-ui-v-nastaveni-not.js": {
+   "sha256": "98e4f44ccf6707360ce72af73b52feb1dcc3063b26774670692e09eca5ec2eef",
+   "size": 10005
+  },
+  "admin/src/0920-email-templates-ui-v-nastaveni-notifikac.js": {
+   "sha256": "037d30c3cbe5c6f03d0d2778b0a7af7871a1e31efa50bcdea059f3eb389714fd",
+   "size": 38538
+  },
+  "admin/src/0930-uzivatele-admini-prodavaci-jen-pro-super.js": {
+   "sha256": "de9d878206173cfc533aa19669315de86314dcec0235134acf4d791c068abe4c",
+   "size": 9152
+  },
+  "admin/src/0940-prava-v-menu-editor-pro-role.js": {
+   "sha256": "3f905530e284996688b46f8d0d22098943b5c8bfae9cff604be96d525fbe8dbe",
+   "size": 14677
+  },
+  "admin/src/0950-slevove-skupiny-jen-super-admin.js": {
+   "sha256": "5ff4935058a4c152d10208ce3e38194a92caa4128a08e3962fdad39c904a4ef1",
+   "size": 19037
+  },
+  "admin/src/0960-slevy-ve-skupine-editace-pravidel.js": {
+   "sha256": "676b110b3c135f46edc832d3ce79280598bc9de3116f832bf7d025d1c66ff567",
+   "size": 19141
+  },
+  "admin/src/0970-rucni-faktura-vytvoreni-nove-faktury-bez.js": {
+   "sha256": "99a1cf89b3b902b1b5640011c02bfa9e575540d060a4b09fd7d90919fac166b9",
+   "size": 24193
+  },
+  "admin/src/0980-odberatel-picker-sdileny-searchable-drop.js": {
+   "sha256": "2b2d049776af4b5b995a63905a000d803c2030c2f3d4358bafc2bb26ed5129f5",
+   "size": 11537
+  },
+  "admin/src/0990-rucni-dodaci-list-analogie-rucni-faktury.js": {
+   "sha256": "41cd26d9e0d74f750d5b69fd7730bca51a37fe2e1ec3580941040cad418f7c88",
+   "size": 21087
+  },
+  "admin/src/1000-kategorie-vyrobku.js": {
+   "sha256": "8057cfd7399870c5bbe3e3a219767cbdbd59094beeb09a4c3adf4ea80caac1ca",
+   "size": 59968
+  },
+  "admin/src/1010-pdf-nabidka-odeslani-emailem-skupine-zak.js": {
+   "sha256": "5f8bdd0391ad7a4a35a05d87727368faa7a49e3e16c83df40e57aea5557c5350",
+   "size": 13438
+  },
+  "admin/src/1020-suroviny-sprava-databaze-surovin-a-alerg.js": {
+   "sha256": "40d604ab6279c86c5a3beb5c48517fa61ab67e86e54800a7a0a565e67b0a43b7",
+   "size": 5673
+  },
+  "admin/src/1030-v29270-kategorie-surovin-editor-3col-gri.js": {
+   "sha256": "8550c5e3622bc8a3875ab0a1177cd4146422e67ed633879cb5fd2d1475592e7e",
+   "size": 6862
+  },
+  "admin/src/1040-sklad-samostatny-prehled-skladu-s-rychly.js": {
+   "sha256": "f47d564de39ae0e1ab4e2247a33ebf9ed8af5ac6bc5b18e2a6d9f1335d451ddd",
+   "size": 24755
+  },
+  "admin/src/1050-export-surovin-csv-seskupene-dle-kategor.js": {
+   "sha256": "6bc23ff291714fb6a1fb7e863569335fc70bf81463d869c3cb2c4ae01fd574e9",
+   "size": 2202
+  },
+  "admin/src/1060-import-surovin-zakladni-balicek-csv.js": {
+   "sha256": "7568f6fb20fd3744299b07cbc267edaaf02dfd38ecdbcff792b7c551b0bfe89f",
+   "size": 16358
+  },
+  "admin/src/1070-csv-parovacka-sloupce-z-csv-pole-surovin.js": {
+   "sha256": "913a660bb8857856961fdaf5106872b01ad192f0e10dbf9febc72bf8d71d2ad9",
+   "size": 14112
+  },
+  "admin/src/1080-autodoplneni-cen-surovin-prumerne-velkoo.js": {
+   "sha256": "3096403b71a0c7b8651bc81802f977349880f2f9312639fec9aab548c2827037",
+   "size": 33863
+  },
+  "admin/src/1090-slozeni-v-modalu-vyrobku-helpery.js": {
+   "sha256": "ba6245d76d39bf20890403bbfe6c1f9b65a5d8070e96ee1ec3647ee08f188330",
+   "size": 3506
+  },
+  "admin/src/1100-hmotnost-testa-vypocet-z-surovin-prepoce.js": {
+   "sha256": "792c776cfedbe90e4e5e41daf1151385c914de264c977943fb270adc19292b99",
+   "size": 6383
+  },
+  "admin/src/1110-import-ceniku-xlsxcsvtsv-s-automatchinge.js": {
+   "sha256": "a67fa08a3797cd6ae5d9990e552338d9625f6ca59d5416515457615fcb86b916",
+   "size": 16683
+  },
+  "admin/src/1120-import-vyrobku-json.js": {
+   "sha256": "4fdab3af25edfb83c1e295d196788f93c112e082afba88869779947852beaecc",
+   "size": 7622
+  },
+  "admin/src/1130-import-odberatelu-json.js": {
+   "sha256": "825adddcaf1d39f1db5747aa5dcfbe73099272c50a93d12447f345db960c5cc6",
+   "size": 14613
+  },
+  "admin/src/1140-stitky-a-cenovky-tisk-na-a4-samolepici-a.js": {
+   "sha256": "c648c1ad20fb9d6eafd4e8adf141a7de38fd58ca834689aba5064007329f9f6d",
+   "size": 146502
+  },
+  "admin/src/1150-editor-sablon-dragdrop-builder.js": {
+   "sha256": "3a0b75332d3bec4c34cca0b49ddc3f2187451e15438671c3b247fcc08805f6ae",
+   "size": 21433
+  },
+  "admin/src/1160-zoom-editoru-plynule-priblizovani-pro-ma.js": {
+   "sha256": "bb8527f71cdb6d62504059ab60a862466682923736d9c10e5efd1b2fc602f504",
+   "size": 7423
+  },
+  "admin/src/1170-editor-welcome-overlay-kdyz-je-canvas-pr.js": {
+   "sha256": "99d1968a571cd589c3e7a0863e7accfa02e7bf4db7c52d5021cfb6300ece56ac",
+   "size": 11717
+  },
+  "admin/src/1180-editor-vyber-vyrobku-pro-nahled-realna-d.js": {
+   "sha256": "88cde1b8255eea210955120aab0dbccabc5f74c1e1c41c8768a7bf385783dc39",
+   "size": 6782
+  },
+  "admin/src/1190-10-prednastavenych-sablon-fits-a4-archu-.js": {
+   "sha256": "09cd6462d934383cb257d03c363b7e08d60484e85074436c24262615620a98b4",
+   "size": 41306
+  },
+  "admin/src/1200-render-sablony-pro-tisk-aplikuje-saved-l.js": {
+   "sha256": "c1b73f651c381fd6c3e901118528103c8506764b15f7773e52c8653b40329d51",
+   "size": 15495
+  },
+  "admin/src/1210-prehled-vyroby-za-obdobi-export-do-csv-t.js": {
+   "sha256": "bb46c4f3da24306fb6372c3d9b9718f23cb08ca1531663d1492a7aaab46fc083",
+   "size": 13438
+  },
+  "admin/src/1220-bootstrap.js": {
+   "sha256": "638349923d816ffd1b98a9b968de049231d077180628ec8bd365476a194a3787",
+   "size": 491
+  },
+  "admin/src/1230-haccp-produktove-listy-a-dalsi-samostatn.js": {
+   "sha256": "6fdc60739b152adbec29f0c4bc0574574bf02f5848bd14d5d1f6bbe7943f6269",
+   "size": 14582
+  },
+  "admin/src/1240-haccp-karty-hromadny-vyber-a-akce.js": {
+   "sha256": "8bf732ed317777425e695c209622f9eebc2dd8ca7f8dfcc07c3eb468c8758b01",
+   "size": 3807
+  },
+  "admin/src/1250-autofill-automaticky-vyplni-haccp-data-p.js": {
+   "sha256": "31cfe7577bac39dda5c2395402429b0f5657e123915d9b0093280f3067c2eae8",
+   "size": 6279
+  },
+  "admin/src/1260-haccp-dokumentace-firmy-sidebar-list-edi.js": {
+   "sha256": "827c7dec83ddfdbff5bcebd22ff65a77335faf90c752eef36a1b790fa976d30b",
+   "size": 20566
+  },
+  "admin/src/1270-panel-audit-pod-dokumentem-vnitrniho-aud.js": {
+   "sha256": "b662565c6a85035f43075ec0a3dc802ca4a36fcf7c60a83c36b99ce6762f54c0",
+   "size": 14515
+  },
+  "admin/src/1280-haccp-grafy-sablony-technologickeho-post.js": {
+   "sha256": "9d20033c5cb65c47f8a1ce0da6aee157fcd0c8b4f7cb1a65c17abd6a27a33289",
+   "size": 17907
+  },
+  "admin/src/1290-prirazovani-sablony-k-vyrobkum-modal.js": {
+   "sha256": "db15693e6a1e83461217a03a22c12218994a97b26bc871cf5979af513de8b0ac",
+   "size": 30070
+  },
+  "admin/src/1300-vyrobni-kalkulace-varka-presy-klonky-cen.js": {
+   "sha256": "5779dbe9add0882a0974c4ca6486ae3364579a9d654f17eb544f24e222a379db",
+   "size": 50119
+  },
+  "admin/src/1310-historie-kalkulaci-snimky-s-tehdejsimi-c.js": {
+   "sha256": "7df9704f2a31be18d23416492e1360dd3263776e68ac27b9b2d049ff2a2695bf",
+   "size": 252
+  },
+  "admin/src/1320-edit-suroviny-z-kalkulace-po-ulozeni-se-.js": {
+   "sha256": "34cabf1378be9d4f0750184aaacc1c0362483ea2073b5963b1f372615b019098",
+   "size": 328
+  },
+  "admin/src/1330-planovac-varky-skalovani-receptury-na-ci.js": {
+   "sha256": "05bad10fd4ade0d828ddb03d60c00fbb25381f179e4c235df1fbd34add4a18a9",
+   "size": 30893
+  },
+  "admin/src/1340-v2953-aplikace-dropdown-v-topbaru-b2b-po.js": {
+   "sha256": "6184cbb3abd118c837330c1260a74c24e02e82a6afe4a32c2f25a6679351176d",
+   "size": 24733
+  },
+  "admin/src/README.md": {
+   "sha256": "f95cc1dd197a29b84b64328de16c54bced7f7ee3f7544cec8180dd6060cf94f1",
+   "size": 1143
+  },
   "admin/sw.js": {
-   "sha256": "436251099615fc08a77d5e0c6416ea63599bb465dd0da1bb5495d83a4ae4b277",
+   "sha256": "23815c014f732bbf117a87eab4f5d8fabd9fb74d348e0b5857ff8666b4284f3d",
    "size": 5617
+  },
+  "admin/sw.php": {
+   "sha256": "71a1a8e8571087cee256c16430088beabe5beb5a1a40bd8a3831149da1d4d741",
+   "size": 660
   },
   "admin/updater.html": {
    "sha256": "d9bbf9353832bb233fc1efff8633c921568f18638253551b79bb825a34afcebd",
@@ -163,29 +727,53 @@
    "sha256": "f38aac2869a56c266d9abef8309ef58f04630650eee6b3404ce9e9d0e14c18b8",
    "size": 22595
   },
+  "api/.check-install-key": {
+   "sha256": "cc34b307971efd280353b3d860610bfd6d6d52c05105921a65b739c658040fe9",
+   "size": 32
+  },
+  "api/.heartbeat-last": {
+   "sha256": "cdd0f684a5f025b4b4b7c871d4fbc2909b6ac615c7d45e1697795c6ccb26c8d5",
+   "size": 25
+  },
   "api/.htaccess": {
-   "sha256": "f2c242e9888a1538e4b6cb888eaaffd27786d843700634cb17f73df2d826139e",
-   "size": 940
+   "sha256": "02576b77942e39dc47725e81669de481bdf3174f502fbce2ceb9669a081a1cc9",
+   "size": 1884
+  },
+  "api/.license-state.json": {
+   "sha256": "2a9e74e0267888266aa0cd20a77c92d0e3685a77e80db53413ac553e1e08465c",
+   "size": 255
+  },
+  "api/.pirate-flag": {
+   "sha256": "c7970b86da872594ebf8601b88fba9125189e6284570e8200903fe8844b76b6a",
+   "size": 191
   },
   "api/_admin_auth.php": {
-   "sha256": "d292dead680ae70e5ce51bd77952eaba4d65176616b997db8370547e4bd03c48",
-   "size": 2261
+   "sha256": "4a92f47c44d9fb19121a4720b13659cccf9d512684058f054d8f31cb83643014",
+   "size": 3104
   },
   "api/_authz.php": {
    "sha256": "61b946f6a3663c782cfe9e6ea4062930fe8708c16d16239c4f975e05050b3ffa",
    "size": 1441
+  },
+  "api/_bom_lib.php": {
+   "sha256": "c015a317b8ed422f7b83750001eaca7a58dfb0f255f809abab08eab5446cff5e",
+   "size": 6874
+  },
+  "api/_catering_lib.php": {
+   "sha256": "8306d191e7c9106d2dee50cbf88ac3070155e6d1381f4bd03b34064fe9d16da4",
+   "size": 4818
   },
   "api/_csrf.php": {
    "sha256": "538095af3c17c557e9232c72ff0d2467af5919e9984c886734f320a929e274b5",
    "size": 3047
   },
   "api/_customer_integrace.php": {
-   "sha256": "5c45660a8f629cbf8852bc508858fda31611c9cb13223d10b2abbf541ba3c236",
-   "size": 33652
+   "sha256": "3bac3c1388995700dfa8eb67dc128f36bbaadf2d172da04617c0cddd2f882f04",
+   "size": 47176
   },
   "api/_delivery_aggregators.php": {
-   "sha256": "319ad01fe1130cf3efb53df4d4d051ffd8b791c87f19060e7134fbd477d444c1",
-   "size": 44364
+   "sha256": "1affb3948aae4b786db574c0252bce6cc63fe3428ba3bea9afab85447fc22c55",
+   "size": 44802
   },
   "api/_email_html_designs.php": {
    "sha256": "65a5a37f34c1ca94c208afcb907ca96c61091429cb2b42e820bc96ae34720bfd",
@@ -204,8 +792,12 @@
    "size": 8573
   },
   "api/_full_schema.php": {
-   "sha256": "15641f37f3dc73e715e193f790520616da335dda801aaeba99219f3427150361",
-   "size": 21326
+   "sha256": "26533808ad805b153d6d4432c7b8a1ea96949be60a0ebe649785a2805fdc6fc5",
+   "size": 28559
+  },
+  "api/_gdpr_lib.php": {
+   "sha256": "73bcdea89e3957e11713d268919864814b6ccc1ed78f538a86427b8366ce042a",
+   "size": 4795
   },
   "api/_i18n.php": {
    "sha256": "01a93f906e10dd28a0628d090a288f310cda4f5df79770975444902f05bce998",
@@ -216,44 +808,84 @@
    "size": 9669
   },
   "api/_license_enforce.php": {
-   "sha256": "7407bc2c30a4337c3567103307abc19b2d0a660b7571660e0c55f0c400c3dd6b",
-   "size": 4483
+   "sha256": "f03d167082fa5ce76a73cabed5ffe700d33d3f40af35c15dbcfc3696b8ea2a06",
+   "size": 7124
+  },
+  "api/_menu_render.php": {
+   "sha256": "063bcf577f8352ab20705748bda866b0c5f93f1c695d8dd0df84eb9d2546cd75",
+   "size": 19441
+  },
+  "api/_menu_styly.php": {
+   "sha256": "7dad46f0cb7a6d0bec24eeb70ed15495b405594315e18bfe60fe7d10be39fdec",
+   "size": 3112
   },
   "api/_migration_lib.php": {
    "sha256": "bcb44249dc27567bce70ff97392caafe1720a9ec89f05568d27cc1653e058c5d",
    "size": 31384
   },
   "api/_packages_lib.php": {
-   "sha256": "5d29ba4337972f73b846b639846336451b2748ee4f567c177528e921c2668f96",
-   "size": 1852
+   "sha256": "f18818e3a51184cc0f63875fddf731646222610cddac6139ee28ffe8d57fc0a3",
+   "size": 2329
   },
   "api/_ping_katalog.php": {
    "sha256": "194f19dfcdc4f9c12b8c5a274c23e3b199981f974285a070bbc062f0b7cb5b95",
    "size": 1390
+  },
+  "api/_platby_lib.php": {
+   "sha256": "84387817a8373ac90d85d9cb20cedb5d1398accccab677d597ddddaaafb555b8",
+   "size": 5903
   },
   "api/_pohoda.php": {
    "sha256": "37b9921ca51c8cdb6d06d2ba68df35d1f162aeded110dbd5ce4b6473551975c1",
    "size": 12654
   },
   "api/_printer_lib.php": {
-   "sha256": "038febd33ae61917ecc7036d5e36166370a50080e47a4ba21b98edfe04d1d68d",
-   "size": 26909
+   "sha256": "3076108dbefbcdadd8eb8a6e2a860993cd28281a3270cf494008f665613646ef",
+   "size": 32066
   },
   "api/_push_lib.php": {
    "sha256": "ac41907536a564ff5c50b86341ed07122828d0b62acd19bc573a414cbd48b0bd",
    "size": 13118
   },
+  "api/_pwa_lib.php": {
+   "sha256": "b65cc8885a0753c2338f11e091b82cc7daaf6424c3234acb2367c488b64fb076",
+   "size": 3549
+  },
   "api/_recurring_lib.php": {
-   "sha256": "b090de93b595da72f964b1f8fe6845406c318119101656a40f1b5355be89cf5e",
-   "size": 6260
+   "sha256": "15feaa60ac38ca4b729c282e02b6766cccc08c0a557fd13b0717f0adaab1ad50",
+   "size": 6330
   },
   "api/_schema_lib.php": {
-   "sha256": "690908739f68d013c94fcd2d2aa94cb6408e40a60a5b5876177b709311e114e8",
-   "size": 16459
+   "sha256": "8e22646037ab864b4b64a475e99f908b88f65291a54c07ed23b23cca32a924f8",
+   "size": 19165
+  },
+  "api/_seasonal_lib.php": {
+   "sha256": "ea4f4acca77ad011a90eb05146a97b6a69b7fb7b037fc22db8ec92bb5265f369",
+   "size": 15802
+  },
+  "api/_shipping_lib.php": {
+   "sha256": "6d05fdd184b52b59661baedf4b839fdfedf566ec500dafdd25725f9996a19177",
+   "size": 3222
+  },
+  "api/_sklad_lib.php": {
+   "sha256": "91cbf4bd05b71803ede5548bf09c54ea405fe5047eab4ec9ddcb05d023b5ba5e",
+   "size": 6177
+  },
+  "api/_smtp_lib.php": {
+   "sha256": "a7a47bb617efd34c1c06e8274144758671f34b12549a4d8cd5710a1ccfc0611e",
+   "size": 6844
   },
   "api/_sync_schema.php": {
    "sha256": "295c0503c4629a561be41beaa907a6c2cd5e2a8c2261bde013148f3b632287b6",
    "size": 10393
+  },
+  "api/_update_sign.php": {
+   "sha256": "b590d7d73336e44cb78c4256eced71a95207e2a578509fcacfa48ac196113c75",
+   "size": 2700
+  },
+  "api/_upload_lib.php": {
+   "sha256": "582442ff581d291e6b6764e30ef7b0fff0af16b8d59f3efdc1902011e3f7859b",
+   "size": 3157
   },
   "api/_webhooks.php": {
    "sha256": "8a844a12dd9a715376ae9a45989a227d98863e05ed59db1f36fd6907ea9c68a7",
@@ -264,8 +896,8 @@
    "size": 11809
   },
   "api/_zaloha_helper.php": {
-   "sha256": "5139b6a11d177fc4bfc5979c148641f37939b0a56abb63477a9ae31855720adb",
-   "size": 16196
+   "sha256": "b0c9c4abcdee1e0ba2d13eec902bf93c1a43d2b8f10f61a4a7a5f3deaf562d70",
+   "size": 16651
   },
   "api/admin_activity_log.php": {
    "sha256": "bc87318f0189601241a7bb92dbeb9a1385af4e3fa77d9dc349dfb040704c5272",
@@ -280,8 +912,8 @@
    "size": 8062
   },
   "api/admin_cake_configurator.php": {
-   "sha256": "a5b150e8d6331c8cd5104e654e33118db59c8573aa294767f7fda454eafc8f48",
-   "size": 10629
+   "sha256": "d59a0b4acf695ba30641c19332d8c3ac1a52fe31c8d9f67b10704093fe4bd531",
+   "size": 30384
   },
   "api/admin_cake_gallery.php": {
    "sha256": "98f2e4e55a67f44cc2c80b78a0acd2428de149d33857fa82c761394648b72043",
@@ -292,16 +924,16 @@
    "size": 10588
   },
   "api/admin_catering_calc.php": {
-   "sha256": "79a6c6f5cc45e5461ea1eaa9503f20cd2e5956ede43ea0d61c9f020c237d7dae",
-   "size": 6007
+   "sha256": "2cfeed02faca2658a94d3a4183d0a3e1b4a7a1432f9a3cab64e1b3991ae48496",
+   "size": 43176
   },
   "api/admin_catering_orders.php": {
    "sha256": "b0858d9048a8bf939372a2f37259c59d49881e58057a00416051f2925c81b591",
    "size": 4871
   },
   "api/admin_catering_pdf.php": {
-   "sha256": "6346c41c6c6b9d1ea091dc6298d2c9194a39514647523cba30da979e2ebbf146",
-   "size": 13808
+   "sha256": "8dae5d5d9b3704ab03f18f4de82cdc1242780a4143867e3029ae6b06908e1a35",
+   "size": 13977
   },
   "api/admin_cenove_skupiny.php": {
    "sha256": "a650d9364ae397c00a7c9b5b2377f3ee4bd66282ab759e9b7c673b3265a84450",
@@ -316,40 +948,44 @@
    "size": 14691
   },
   "api/admin_daily_capacity.php": {
-   "sha256": "b88fbfe93d804447a5ec2bfeb07f7fdef416657da61ac567e0bff7dd4cf2274a",
-   "size": 7613
+   "sha256": "f09c3126bead47a16b12c8599e2cb2014a4ad828cd1a56e738ea92258aa9320c",
+   "size": 8762
   },
   "api/admin_dashboard.php": {
-   "sha256": "922659e4b2d0566e2b47e8bbc643d2bc31a09dba927992d2f0d5ef1133e72cc0",
-   "size": 12521
+   "sha256": "0c25a659a60aa47f66ab2e08271d6e81dd6c4722e8085f6c01617bf74fa3fc17",
+   "size": 14443
   },
   "api/admin_demo_seed.php": {
-   "sha256": "3d5d1da4f046aacdb37c10281ce4d2bd0478d1ba7866dcb4986de4a73076b4ce",
-   "size": 143123
+   "sha256": "d23963b09a840c5da9232bce4250e4d8305115eedf973534d1110dfe534fb39a",
+   "size": 143629
   },
   "api/admin_diagnostika.php": {
    "sha256": "ddd17f807d777a702196e062ac0e14bfa7b42d7c75035366d31e0f3344971a36",
    "size": 22022
   },
   "api/admin_dodaci_listy.php": {
-   "sha256": "52f0a8ad35880e2f29b63637dc0e35170d3492fa7e3ae93ff4035094a042c4d5",
-   "size": 19113
+   "sha256": "e3fc7acdd7a77ffd61156cb16ce7361cd6fb750f954f84c641042b34ec0a4d65",
+   "size": 20621
   },
   "api/admin_doklad_email.php": {
-   "sha256": "8d5a0ba530f2d7d097e4a746c8470c3bb9c208c89bf4e8d4815abe89f8e90678",
-   "size": 9934
+   "sha256": "5198cf95d909aef2e0a4590ea0f52f9c3e9ccc2b71e4ff9f99d686189e57bc3e",
+   "size": 9943
+  },
+  "api/admin_ean_labels.php": {
+   "sha256": "65711281eeefcc3aac62231990009d9eb946c1729d889a45016beeeb474aea3a",
+   "size": 3024
   },
   "api/admin_error_log.php": {
-   "sha256": "15fb907d1883670376cbb7d0238e85b764d0bb09e8ebc00b5984e8a6a38d4ec6",
-   "size": 7130
+   "sha256": "b5e7c56441e49800116b385b0f6d6095e1c29b13af627abcead5f46b0589a1f2",
+   "size": 7312
   },
   "api/admin_export_dl.php": {
    "sha256": "40fb32e21cee1035fb89f32aa403b3ad2e3140dd655508bf90fd98b14d0ea656",
    "size": 10076
   },
   "api/admin_export_isdoc.php": {
-   "sha256": "ce7ca3b989748c6c676b0a4d5938bbc9ce16c55db55bcef938d16afb16033522",
-   "size": 24788
+   "sha256": "a6b0021d24501f95440f62a27c3701ed0b63b2791e53031334b4d61464275480",
+   "size": 26735
   },
   "api/admin_export_vyroby.php": {
    "sha256": "9ef38722e84eb8830b4bb226c7f19dd1925dd7ee28b8168c478321c677d09b52",
@@ -360,16 +996,20 @@
    "size": 5491
   },
   "api/admin_faktury.php": {
-   "sha256": "0322e88e7c2762072e3f9da2de12bfe21e47cf40f15eb46305340c925e4d89c7",
-   "size": 18014
+   "sha256": "89219ce88f71e131c60836d971972c8e93ccf3a1fee6798b3592afc58649b063",
+   "size": 33123
   },
   "api/admin_flexibee.php": {
    "sha256": "7c0ebbda8ff49ec5056cca78d60d6df7ee4ce542ce4dc4e746fd252455aa8636",
    "size": 8103
   },
+  "api/admin_gdpr.php": {
+   "sha256": "9dd808fd073d19ecfc253c4dbeba7692436e23852ab58a4a7333ffd3f1d64069",
+   "size": 9091
+  },
   "api/admin_haccp_autofill.php": {
-   "sha256": "e24b9138fd976630a75fa0126c2bc0d2b73cfdaada42ab6de5c898b66638c1c2",
-   "size": 19442
+   "sha256": "79f6a9d362ed1347c9875c5cf56265c1401444481990881d4929a1f6c790a9c7",
+   "size": 22166
   },
   "api/admin_haccp_dokumenty.php": {
    "sha256": "84a6f580efe3832e9393d087995d769a97691ca0d0f62a022ed7e40296a6e00d",
@@ -384,8 +1024,12 @@
    "size": 31359
   },
   "api/admin_health_monitor.php": {
-   "sha256": "d5b506116743ee7d2c3fd5d831edff749600996f878eec2c9647eaa879f360d4",
-   "size": 7051
+   "sha256": "d9faf5c7f15657a24b628e83aaf43e95bf695774f5c1d4fe72caeaf86d55ed55",
+   "size": 7603
+  },
+  "api/admin_import.php": {
+   "sha256": "c740580c78a446094b7ddfb0ae06d98de0869a2c11c97f19113571012f987910",
+   "size": 28423
   },
   "api/admin_import_cenik.php": {
    "sha256": "652e7b6038a84fc4330353aded1ba13d92e52309fe0017ca84fcc184c7313018",
@@ -403,6 +1047,10 @@
    "sha256": "1bfd0b6a69b2f1bcfcabbd4fffa42f11c6e3de7c07ef409da4a34a39815270d7",
    "size": 4031
   },
+  "api/admin_integrity.php": {
+   "sha256": "820e43c50b94d37c7bed366abec02e9cc0ee751eaf15996dac5f72a02b0fd388",
+   "size": 9503
+  },
   "api/admin_kalkulace_historie.php": {
    "sha256": "51520d11d2a19731ea94511d6d678f35025c389d5e2c8e4e62a05fcaadacf48e",
    "size": 10559
@@ -412,16 +1060,16 @@
    "size": 441
   },
   "api/admin_katalog_email.php": {
-   "sha256": "5fdf0e16730f1c61460861036c68b47ad6494b7b3d69e403765e083b35b26b42",
-   "size": 14715
+   "sha256": "2ce2eb1f799bd2caef43f17ad5bfdc09a8fbb3e54a95a32b81fe8f699e85afd2",
+   "size": 14724
   },
   "api/admin_kategorie.php": {
-   "sha256": "7617b19741dfeb3ab6afd78b1c7261db4f3fc6924d89ccfde8c2191e0df80b3e",
-   "size": 6900
+   "sha256": "6342d8ed2384c252b5a926d30c0f17ce0dc0bdb0f2cb2aab4a198af03ab830c0",
+   "size": 9286
   },
   "api/admin_kitchen.php": {
-   "sha256": "9b7e0e8204a1f9c24d5f1689a811a81c7cb256221dda4ecd5b4b723efe9facea",
-   "size": 8550
+   "sha256": "c9e7803f4ba9f32759973b60e5d2ac09e250e369b14b0314bb4d90d810a60d09",
+   "size": 11887
   },
   "api/admin_klient_chyby.php": {
    "sha256": "35ca0cb7c5dac9287b211a65c6507bc6bb18547f1c728d18918fbf29b466ed69",
@@ -439,6 +1087,10 @@
    "sha256": "abe247570cb68ba91bc12cef47e23595316b9f764a7672c82f1332cd3d1c1c78",
    "size": 14362
   },
+  "api/admin_mena.php": {
+   "sha256": "f4bd779e844a72341462e35e6236b1d000a309014d0213c084543b8a7bafdfa2",
+   "size": 8541
+  },
   "api/admin_migration.php": {
    "sha256": "1ec97963b4d07a5664eebb6ba94636c2c7881638f054bce143d2afe79037e393",
    "size": 11979
@@ -452,36 +1104,36 @@
    "size": 5604
   },
   "api/admin_nastaveni.php": {
-   "sha256": "5ca3d8417a4fef73946edb5553c013e5f79a0519bc4c2061a12cedd355474a57",
-   "size": 15028
+   "sha256": "b0a3015617953499d2954d0f1626a64c0dff372fd4143fcf36a8a5337ce78405",
+   "size": 19257
   },
   "api/admin_notifications.php": {
-   "sha256": "891e110d3da1f32367b786ee5c652f4726031a6c33a07a5d785ae423266f7148",
-   "size": 12633
+   "sha256": "6464854bec0d28c15d28150422b80f7a5bdf2ca0dac743017ee5fa38d5c6e997",
+   "size": 13157
   },
   "api/admin_objednavky.php": {
-   "sha256": "a5eec8e62a87cc8fbef6074cc6af8d657c682ad119e42c5f2fe58bf83f79e9f5",
-   "size": 33070
+   "sha256": "d6bbec4ef13ec3ad27dc6dde8fba5e7538df04e1af029e49b36277b328b0d0b7",
+   "size": 37487
   },
   "api/admin_objednavky_hromadne.php": {
-   "sha256": "f08cf2837f54aaabc6135db579b1ca7df79099684ecc3bdc1e81205416d204d6",
-   "size": 13692
+   "sha256": "afe9fb8b79f173dc7d53333bca8836adcdc10a58aedfe3559d2af5ab29201937",
+   "size": 14749
   },
   "api/admin_odberatele.php": {
-   "sha256": "1d92e7685ab6110dd1fdad28421d09c9bc2b0d468ddc0e05e405f05fd699c4f3",
-   "size": 14076
+   "sha256": "f1067f18f5c1fc5b69f5c544aa3743b66d297b7fdb513a3cfb00e4f6be5fd6f5",
+   "size": 14256
   },
   "api/admin_odberatele_import.php": {
    "sha256": "97529fcb70e3514980f969b9977b6343fd59d4e65432cf7a6ffbc9aacf8ec5fc",
    "size": 8653
   },
   "api/admin_onboarding.php": {
-   "sha256": "7255e324254c5b85025d166e612ec0612e27b8f121de6d3972bd9b8e3d9a0aad",
-   "size": 12409
+   "sha256": "adebbb062806e0df0832a8e2e403961616f06ca8fc60e6f19ce30c00f808b706",
+   "size": 13255
   },
   "api/admin_packages.php": {
-   "sha256": "3544d87b0caf722f7732ad59ff4be7592d062c86cb40f1f42e9b19cabfc45203",
-   "size": 7908
+   "sha256": "214cb376455f0db4dc1bb65225f000dba360229b4e5bd68ebc96548059551580",
+   "size": 8299
   },
   "api/admin_pirate_status.php": {
    "sha256": "28b12a111f08a79f73eac188fd790671b429b15e4ad1be4dcbd412082f185da4",
@@ -496,8 +1148,8 @@
    "size": 10844
   },
   "api/admin_pos.php": {
-   "sha256": "b2db99861860ad2a4697cd47a6a1982a966b153e71d972aa0dee91cd5aa85a0c",
-   "size": 65968
+   "sha256": "56ca608de6b279c7225da9aa28cfda736b1029375e0b3c7d373d8fa53cbfa700",
+   "size": 115115
   },
   "api/admin_pos_presets.php": {
    "sha256": "9b1e46a87ee18847a88ce73323075035c607319c7d08d2d6cb758040b29ff60b",
@@ -508,24 +1160,24 @@
    "size": 8508
   },
   "api/admin_prep_times.php": {
-   "sha256": "5a682959ade4f2eecdf82e3a9dace64de4b8763f394d4a0679069d87a96b98a6",
-   "size": 8223
+   "sha256": "79ac8181749702a3f91e419640aed61335d947423969cde83066a75de7bd20b7",
+   "size": 7638
   },
   "api/admin_price_tiers.php": {
    "sha256": "452b41a14bbdddd54703403e18c25f49bb74fa629ae29d201e4f365ca26360cb",
    "size": 8653
   },
   "api/admin_printers.php": {
-   "sha256": "77a29657b847f6336747745c4c62461edf3c576956d92ab2aa00f93e7bb0094c",
-   "size": 7111
+   "sha256": "eec98dc08f3926968f3db894e7b4de38f6067ccfaac7f4e313de70d220b28126",
+   "size": 8370
   },
   "api/admin_recurring.php": {
    "sha256": "8f0d1da6381c9f4dda470c4b35a16a4e651c3aa12f65aea0eb8578855ff8b53a",
    "size": 5621
   },
   "api/admin_reset_demo.php": {
-   "sha256": "ee4de2e4bdcd2eb19d32170dfb28f62368d6335d135d5e8e0348a7e2ac29a50f",
-   "size": 3632
+   "sha256": "61f94646e95b309a7fc260fb193ae45f5b0d492f9d005e63945f9fe22b739ce2",
+   "size": 4540
   },
   "api/admin_role_prava.php": {
    "sha256": "137f3898fa1da62f653d3502487fdea527f80f5aca05df170dc7d43b4cc4ea16",
@@ -536,40 +1188,52 @@
    "size": 2880
   },
   "api/admin_sales_report.php": {
-   "sha256": "ad793ad087a23315ce41a0538a740118af8bbfe2371b93bcd1294e5032cd8f7d",
-   "size": 3876
+   "sha256": "35e306a29e7f4318680ddef5b328734bd6244782f47fbc31504f7ca7581dba0c",
+   "size": 4182
   },
   "api/admin_sazby_dph.php": {
    "sha256": "573d6d5a5f3e169f06e445612776c745a571427df497854c97924d4df9410efa",
    "size": 3005
   },
+  "api/admin_scan.php": {
+   "sha256": "1e5ac0340af8e0bd364d7c6137d727bbb26e4bdc746eea3951685ef7ae8d5347",
+   "size": 6565
+  },
   "api/admin_seasonal.php": {
-   "sha256": "e0f51938888c9a55a40096063c2b81705639fe116a4f479c97b1035e2506a8c6",
-   "size": 7848
+   "sha256": "339e76427f7f27e7037a1088256e41038052fbe86e1e1bd688a2984f7bec4ed0",
+   "size": 16751
+  },
+  "api/admin_shipment.php": {
+   "sha256": "f16b764e58dd17980c4c0691e17514776e383ee898f74f3164f9f5169803b384",
+   "size": 7369
   },
   "api/admin_sklad_export.php": {
    "sha256": "c93919c4620bf5bd05b2829d007b0aa56ba1fc13f8c0d163e133e6b674564a36",
    "size": 17793
   },
   "api/admin_sklad_pohyby.php": {
-   "sha256": "a6c27f5691402f0998da868289edca6ab01a5acedacc568c9c298d2c24606311",
-   "size": 10852
+   "sha256": "0ed9dea2f001b3020f2e53851584f6c08606c4437522328e7fde71ca79f73575",
+   "size": 12341
   },
   "api/admin_sklad_polozky.php": {
-   "sha256": "ce549d2f223e5f4b29940da9a3a98b8f9c2feaa971bc2e7a4f5fbbf49df7798e",
-   "size": 13742
+   "sha256": "9a711033ae9a3577b278013e5af671867b38e5f51fe92c9d23cf86b5f15f9fd5",
+   "size": 14678
   },
   "api/admin_sklady.php": {
    "sha256": "50d13efa1c1710d7b55c4661c79001c56c4a4f8aac87376296bb05d0feae2497",
    "size": 8586
+  },
+  "api/admin_smtp_test.php": {
+   "sha256": "214ddcdf6bfc460f5f4390e93992a818b10c0b0161cda2ca46d6c65533358418",
+   "size": 2984
   },
   "api/admin_stitky_sablony.php": {
    "sha256": "4335de4f4f5e70c7a638767db0c85f819755cd89e66d58a72d81454e6893dcaf",
    "size": 3779
   },
   "api/admin_suroviny.php": {
-   "sha256": "b183317763a5d143ee93bae1bff5392ded80e92c9a712a2213ee650134bd19e7",
-   "size": 28915
+   "sha256": "a29c6fc07781f99cb81675f692ed17fd90102034ffc76dd74f4c3bb445a0265e",
+   "size": 36470
   },
   "api/admin_suroviny_autofill_ceny.php": {
    "sha256": "ca8ef35083328f3cdbcb62737ddae7f8f7f69f2993d899ec91c639806a8c410b",
@@ -580,24 +1244,36 @@
    "size": 4045
   },
   "api/admin_tables.php": {
-   "sha256": "749802b1968925d3ea3bda3fd014973f6ca7539f0ba0c8f3d9d944e93b78a6ff",
-   "size": 72410
+   "sha256": "68f169b692c8d1bfff0f1c146401a02d1ebb7252db04bc9944b1b1815b7501a4",
+   "size": 91182
+  },
+  "api/admin_tydenni_menu.php": {
+   "sha256": "b9584f0605324d460eecd5ae425fb895e0520f392c9dee20f9ec7efeeefaddfa",
+   "size": 17399
   },
   "api/admin_users.php": {
    "sha256": "fdaf7afa8b94cd2b94041272581d43a70f09b26dc044407f053b12c61d3e4544",
    "size": 8606
   },
   "api/admin_version_check.php": {
-   "sha256": "45953b51a96811e8f93c47d39c1ab3297defc1fa21ba530bb20b7a35f29ac2a0",
-   "size": 7273
+   "sha256": "4a65fe654ad0af2f3392fe6610b1eccd6dfee6c43fdd3e08f62ba486bd46284d",
+   "size": 7399
+  },
+  "api/admin_vouchers.php": {
+   "sha256": "b8e9af8098e3d6704b26403afceed992559ffed604e06baefb201828073cf77d",
+   "size": 23365
+  },
+  "api/admin_vratky.php": {
+   "sha256": "3b35044a3c11d4dd2756f302c3bccf818ba3e3440da4d1aea09f3824150a44d4",
+   "size": 6266
   },
   "api/admin_vyroba.php": {
-   "sha256": "8e892665ddcf092f0a5e94ec32972fb5ed2ab4ba75fa6ea850941414c6897f35",
-   "size": 19409
+   "sha256": "6d52460d3603d2e9bc4f7a2a67ae2de30dc8ba42ff099254f339369fb04861d5",
+   "size": 33654
   },
   "api/admin_vyrobky.php": {
-   "sha256": "ef0adcdc17ae4d406682bb7f2bce9780b20cf2ba6be73124c23dc53c1f158053",
-   "size": 26416
+   "sha256": "b6700085e78dac4977a1a7d95f20027ab07617e7875d606ef98f5a643b60f2e4",
+   "size": 40031
   },
   "api/admin_vyrobky_export.php": {
    "sha256": "50b04019aacd287832d8268609e85c353496d994a36012a5bc4f5c0938b0adda",
@@ -616,8 +1292,8 @@
    "size": 6182
   },
   "api/bolt_food_webhook.php": {
-   "sha256": "827e83faf114a95f1cbb8f6df452c2ffd13d1c1a53fa73fffb362c0780d45b58",
-   "size": 3711
+   "sha256": "4cf5e07f942e9914ae8b54deb258bf6213fc9144148f34d4bf056de86aea7244",
+   "size": 4013
   },
   "api/business_info.php": {
    "sha256": "7e5336b9a7f0c65e7677399af5b33505419a22d9c299b270761e9db2aa281373",
@@ -628,52 +1304,56 @@
    "size": 1415
   },
   "api/check_install.php": {
-   "sha256": "46c15a8b19200248d65fef3b8307bf5b4c4a44a83f8b069f99076e6cbf7ddbec",
-   "size": 10051
+   "sha256": "e29c08df3de6a26ea976c3794ffb2862aa41c105820526e2811b867326a67952",
+   "size": 10169
   },
   "api/config.php": {
-   "sha256": "6084f6aedccacccc7d1cd18205090023b158c9ee392656066129bf8dc9812cd9",
-   "size": 55414
+   "sha256": "dfa9274253bf4435d13a72fe4c24d0ae64588a49acbdfd90284e6dd92123d96f",
+   "size": 65985
   },
   "api/cron_recurring.php": {
-   "sha256": "fa677d877e0c6dbfa3fcd91558d7e9b9382d6589345ec2c91b2617114f2ff6cd",
-   "size": 2519
+   "sha256": "411a151cd792ce2201dad7251aa53604f3d22667dcbc4a76cd8bd247922e493e",
+   "size": 2595
   },
   "api/damejidlo_webhook.php": {
-   "sha256": "1d67521e19fc50212c7f454d245835eaeef7101f318206290e2953be3dba0cf5",
-   "size": 3928
+   "sha256": "8f672da1a28edfec47fe3287bd03771b74dce8a79a85317b61f4cc72bd61b4d4",
+   "size": 4186
   },
   "api/demo_status.php": {
-   "sha256": "777f1163ce0a5556b2d1272d7f3a946525cd8b1b8406fea01fe1dc8865ee2c4c",
-   "size": 1664
+   "sha256": "7e49a18c2535651a51bd8fc636f16cee20878b5ce7b4d1b5785b1808097042ef",
+   "size": 1861
   },
   "api/demo_track.php": {
-   "sha256": "a242e31abedb58d11332846bc7470b173014a96f6f98466da7f01b40e5e48984",
-   "size": 2698
+   "sha256": "5b44542f01e568842776f4bfda61601e2665aa2dd19f7a5aef45fd103dd6daf8",
+   "size": 3560
   },
   "api/diag.php": {
    "sha256": "6af9f701fc7c4b541d7df446938284c0b3734274050b04d7d49c020bf17d2e6d",
    "size": 8173
   },
   "api/diag_apps.php": {
-   "sha256": "2c87e58211b06631cadefdb0b8b84d2d7519df649948f7e56919b5034ddafb80",
-   "size": 6505
+   "sha256": "ca98ba334ef7eb9a580ea317812cc38dd45ba76e7893420e6a1846a3fb875d15",
+   "size": 6947
   },
   "api/dodaci_list.php": {
-   "sha256": "df38d0624514f0ffa2031d81b8e341d8bc78de9a59800f8c8a0511aa624e130c",
-   "size": 19423
+   "sha256": "9f73b4b52ea5c0a74a9068b3c805b8eacbe8e4f7a996763eed1bec50687e756a",
+   "size": 21928
   },
   "api/dpd_create_shipment.php": {
-   "sha256": "353bd21a4111d40124edd31da1327a6ecd1042cefaa0ef8295719b704905d19e",
-   "size": 2086
+   "sha256": "65413dbb8744e410b64adbcfb37094726d7a0d84de990f60d04ca8498ba2fe9e",
+   "size": 2478
   },
   "api/dpd_label.php": {
-   "sha256": "f253568eb453f53dde5e90e6cbd659aaaaa4d1aac28ff1140550e71f1d46d365",
-   "size": 884
+   "sha256": "7f3a345544a916b760659862705f6241935733b8745eed26d9ec87961fcd9a58",
+   "size": 1273
   },
   "api/faktura.php": {
-   "sha256": "19655bde16ff6a1ef82b83bb37a30964eec93de7e85ffc66ada9a53ce338a3e8",
-   "size": 23117
+   "sha256": "d0736281386dab33d12761138cc49decaf37665f8c63a1ceba17fde54cf9c7db",
+   "size": 34630
+  },
+  "api/faktury_odberatele.php": {
+   "sha256": "76facd4541b766d91a199757d83db239db48a64a59a8f69f472ec43eeda60087",
+   "size": 1968
   },
   "api/feature_allergen_matrix.php": {
    "sha256": "70c32e6bcf34c80b55f9371ef83dcb27b4a45d1effff25f989bb7c0e203b05fe",
@@ -692,104 +1372,116 @@
    "size": 6532
   },
   "api/feature_seasonal_catalog.php": {
-   "sha256": "c8898daffec7fe87c654ead77c8685456c380dbc004cc018b51088261c46023d",
-   "size": 15824
+   "sha256": "bc91b1dea94af38f2a70e37950d46c1bfc597d3bd82a52e2da0f839083e414de",
+   "size": 15833
   },
   "api/feature_seasonal_templates.php": {
-   "sha256": "bc4c188d873e4f7a83700777cd116788daa8ecf3b6d005068ce490ad357fe614",
-   "size": 11172
+   "sha256": "6decabf72dcdef9f307dc90c1d832f398ce69f756917d8d67653982c972f98bf",
+   "size": 11729
   },
   "api/features_status.php": {
-   "sha256": "8d4b669242833243a6257d8e7cb76eaaab754bac654cb381a4db89c160a22d05",
-   "size": 786
+   "sha256": "2f9b12cf8ba0eee39fbcf12ef9b988dc19f5bcb6a5f7bd830e8d484c78610779",
+   "size": 1197
   },
   "api/firemni_haccp.php": {
    "sha256": "6cd0bdffdcc939a029fe2d4b9420de77c7c067142fea5360600d399c500a3e29",
    "size": 9108
   },
   "api/firma_branding.php": {
-   "sha256": "63c504f944f9e637924d06a23191771dee6e26d85be2645f8421801a22198f36",
-   "size": 927
+   "sha256": "cb3ae65af7d92d0dc33f173820af8e99df7d112e1b6085b67991e72d5cbbfea1",
+   "size": 2373
   },
   "api/foodora_webhook.php": {
-   "sha256": "45dbca12adaf9d3bf071069ba1505a2421b7bb631278ffce72dca783b7ae720c",
-   "size": 4402
+   "sha256": "8dbda66bc58f1e30355fbd4f372862686829fae39549cd00d18f2c456dc86ca5",
+   "size": 4657
+  },
+  "api/gdpr_verejne.php": {
+   "sha256": "194003b06f841b2da074a86ed252affea2b917ba641c4ab5e412f90274301644",
+   "size": 1089
   },
   "api/gopay_callback.php": {
-   "sha256": "4354a92c117a461fe3460118af22530e34d99d852d294d0a0d5cfa77fe33101b",
-   "size": 4607
+   "sha256": "4446fc7354ba5c03af9b78260e9a385e1be537c95b992e6ad9aa52764badc5c5",
+   "size": 5201
   },
   "api/gopay_init.php": {
    "sha256": "a7d6aa79bd685459a74be7a7005b15008dc5203e0465497f3d0c1201bebac09e",
    "size": 2886
   },
   "api/healthcheck.php": {
-   "sha256": "08ac67450879f64e5f8fe0894c5719546d09567d02bb2d84cce69df3a47f59a0",
-   "size": 9691
+   "sha256": "0234aa8a4396770f5e129509f2deaa8b96577cb29ba05f2fc61aa743e737e6a7",
+   "size": 10497
   },
   "api/katalog.php": {
-   "sha256": "b194ce8064921139b281ce76a7400bf9459a676cdc4bc0a997b33b40168fafc9",
-   "size": 6255
+   "sha256": "1433041e4e5f98801aa3098cab712dfc9fee0fe3e6b3d765cf03b6c6eae02886",
+   "size": 7500
   },
   "api/katalog_pdf.php": {
-   "sha256": "e282c90e3b633c6822d961affb5c8eb78e72629e147c6f9d9c5d43fedcf7eb6c",
-   "size": 12819
+   "sha256": "22524073588aec898afef9f8e178fe7a575eebe0756e2b9477de119c797306c4",
+   "size": 15009
   },
   "api/license_email_verify.php": {
-   "sha256": "8bef723f83638ded2144c8f32ab7e3b8ecad79e10e52bd51425364b4dc700f2e",
-   "size": 16391
+   "sha256": "acae4b3ba58312f380e4b9307575882432ba6263d2869a8ee3283628cf5d1699",
+   "size": 16426
   },
   "api/license_heartbeat.php": {
-   "sha256": "d80f9f0421c8374c83068761c4b98b656cb841e36285d641c042ac412c7af474",
-   "size": 6893
+   "sha256": "2c18059d7c48186134801cd3f0acc7fb893e60f4af3709c0ed2126693ce74cb9",
+   "size": 8290
   },
   "api/license_verify.php": {
-   "sha256": "7cd0b538a38d5c1ca00743d76349661a155337e027b6ae5724e06e70ccda6632",
-   "size": 8947
+   "sha256": "007a535dde78c6729f2e0c8930816171ee7201f0a912aacc71b8246f2d7a744a",
+   "size": 8973
   },
   "api/login.php": {
-   "sha256": "6389f8da88e14d77d22ac39b894bfa3f0ee2a215fc5b04b71d3a303e77c4cdac",
-   "size": 1212
+   "sha256": "5ed663d3925b367fb9d7c50f37e4a292bcd3b3f04c902d0b6c2c76aba70f7de3",
+   "size": 1643
   },
   "api/logout.php": {
    "sha256": "6b0a2eb35a27c94e72cfc30b3bfa46438108e41844aa85ed7f0d35c129772250",
    "size": 349
   },
+  "api/menu_public.php": {
+   "sha256": "0d0d8608263ac44b770ba2ff53b2429cdbd0011f3a9b2a026d97b74be9aec57f",
+   "size": 4199
+  },
   "api/mista_dodani.php": {
-   "sha256": "0eaacb2fab1d4a5078272cac66bb31b5fca2922ecdb0458f4f613a9173723216",
-   "size": 396
+   "sha256": "543d41c9d2c5a1089a432519873ef23e8bf1b4751c920522d707717ca041bd4a",
+   "size": 1045
   },
   "api/objednavky.php": {
-   "sha256": "85715f0dda87e45867839b6c6e5e533e2c2bb91b340f9737c0dbe9215beef88d",
-   "size": 22058
+   "sha256": "d620b52bd13031f6e75b5c3929c52b8fac8d769e596a5aa8827e50dc22f470b2",
+   "size": 34877
   },
   "api/pay_qr.php": {
-   "sha256": "e8f232de7c57b443c7b7a9b22440ad292f163e05b816b8c0ea0948e520642bdc",
-   "size": 15451
+   "sha256": "dfde61ded461e04e262e404ddad51b43e8a99d599a0c7192574c9522beb1e8a0",
+   "size": 20918
   },
   "api/payment_methods.php": {
-   "sha256": "a352419ae69ec1e09caace302c1353c467bdbefd9db766d048588b1486e28e62",
-   "size": 5157
+   "sha256": "6e374f6fd1ef6f5d745913f0413f9af9eb8c39c817ac96f51338d3077a95905d",
+   "size": 7207
   },
   "api/payment_refund.php": {
    "sha256": "53be953890fa883e711aefd353dbb3605f6b6fdf1659129f7a3d613dc4121b41",
    "size": 4404
   },
   "api/paypal_callback.php": {
-   "sha256": "95b7ec0d3441a3047696376fe8e8fca45bbae2823e733cf55ce73cc27ce83732",
-   "size": 2367
+   "sha256": "e46db89bcf1b8482d22f005a645074848b361b1a0a852aee603a8d502df965c9",
+   "size": 2946
   },
   "api/pos_auth.php": {
    "sha256": "3a8fe4e9b053d460eb0a0a6bb804de530c80e05b2632a5c5fb148d060075d732",
    "size": 7683
   },
   "api/pos_qr.php": {
-   "sha256": "74da01e1c9de9150281054f2147073c2a0cdeeea8835ebbd01db42b22505fb35",
-   "size": 7742
+   "sha256": "3d90adde651290ee05ef74a6d82ee4c27356eeeedb8456692249adc9355d22a4",
+   "size": 7738
   },
   "api/push.php": {
-   "sha256": "645d5b820e0e8a90f95a0b441125821f4cc9e004150ab2926db266dd34b6dc6a",
-   "size": 6789
+   "sha256": "6c68ef1abcbcecffa6aff1d7650b9cdf9636fa1a87009031be7fe49c52ed2499",
+   "size": 7117
+  },
+  "api/push_register.php": {
+   "sha256": "c91be6b9fb87c600a746003ee2c05da90ef09e085ee154807ce4fd98c04e1105",
+   "size": 3141
   },
   "api/rozvoz_print.php": {
    "sha256": "ca5eb95df9066aab460cbfd1aa6089b6ee8df1a7f0c071ffcc1322919b237b26",
@@ -812,8 +1504,8 @@
    "size": 1429
   },
   "api/statistiky.php": {
-   "sha256": "2311d6657791bd8323bb0e5817d3af9a49bc531b939f25be00b7387579110a21",
-   "size": 1088
+   "sha256": "12fdcdc3c8696943a10d7fdc9c053cf9c74f1eb6bdcec911415b67f1e2a85f77",
+   "size": 1996
   },
   "api/stripe_init.php": {
    "sha256": "44c2dd92f6e096974e3030157072af321618ac7b15193df8d2d003249f80fc98",
@@ -828,8 +1520,8 @@
    "size": 6613
   },
   "api/stripe_webhook.php": {
-   "sha256": "5fa209f73123f6e3f75b3b19ff2b90b55b3dc88d91a6dc5e94e3560da7c0e8c1",
-   "size": 4456
+   "sha256": "d52b024827f1b426ddff7cb8122c83da86d276968c825b92bb020af2c5c7b525",
+   "size": 4714
   },
   "api/sync/_engine.php": {
    "sha256": "5a2d4198070b48d9bc9aef2ef54c9a928289e9dcab5457969513f3127d13426d",
@@ -852,24 +1544,24 @@
    "size": 6760
   },
   "api/updates_apply.php": {
-   "sha256": "d3835eb07a3456500ddd8603627887facc595956b1fc1b58259b31b18e3437eb",
-   "size": 24467
+   "sha256": "ec92e897e792c66b5560936f8b9d4dbc6d0442549e4bf389cb64d65c0ca7c252",
+   "size": 31084
   },
   "api/updates_check.php": {
-   "sha256": "e1d87c092fb0def311cad2efc66f774b022f69a60821ca0ca8ec15de702ac132",
-   "size": 6151
+   "sha256": "8410a6aa97b579d6755b99526280cc98cf777e8a82901b2125ff267d69152687",
+   "size": 6537
   },
   "api/updates_download.php": {
-   "sha256": "3138b231c90725b9fa30274168e5b20f962872f5fa5a2587ec47278acacb16b0",
-   "size": 4561
+   "sha256": "9bacdde5cf11b74186237f88ec0fa93303b07c53c4043e3fc05af10d8294fd2d",
+   "size": 6360
   },
   "api/v1/index.php": {
-   "sha256": "72c6356c3d6450ab7a371464b2383728fb3becd058dfa39f778792f1aba90f6e",
-   "size": 11195
+   "sha256": "2769fd5deb27cf801b0d4252f543a7affd7d3fba254d97c59dca754b5ed3cebb",
+   "size": 11329
   },
   "api/version.php": {
-   "sha256": "73f81b331fbb042af75e5c29fb5cdab288ffd0684744a2523a966cd1a221353d",
-   "size": 1554
+   "sha256": "5466a03b43b09fe0ddb54db9ef80803f3011f3255f8635d4835dc01cbc8583e9",
+   "size": 2268
   },
   "api/vyrobek_haccp.php": {
    "sha256": "6bd9e077707246ced058f346e939b13e84b5847d1a6d04c8fb9bd07036e3f72b",
@@ -880,48 +1572,76 @@
    "size": 12263
   },
   "api/vyrobni_list_print.php": {
-   "sha256": "5d15cb959c68e53d0c39abb6f851fe304e72474630836255dfbbdc3fde00a16f",
-   "size": 11331
+   "sha256": "f173d9a876fd94f3cbcde118649ef8bfee60eee7d599d961f11d21f586640bb4",
+   "size": 13925
   },
   "api/whoami.php": {
-   "sha256": "df66df3f9f133fb86ff0aeb171c4e83ccf846f1910beb2eb79247ba430dc67d1",
-   "size": 275
+   "sha256": "a1665c9cd0975eda678c5f51fecc1310bf34d8f4e7780b9d2a4545713966ce84",
+   "size": 504
   },
   "api/wolt_webhook.php": {
-   "sha256": "97745f5113acd9886683d22ec48d4253c1a7b685109b14199c13251e19374c4d",
-   "size": 4159
+   "sha256": "1439b04786827773719e75769fc65232abaffa73f8ed06afdfe5720fbf9938b5",
+   "size": 4411
   },
   "api/zasilkovna_create_packet.php": {
-   "sha256": "d3ecbf422f2e22ecf46695420f236fd5cd8bb214a6b31a7fd12d7c25beffb74a",
-   "size": 1900
+   "sha256": "ad84f1f0953a8b17a9c6c98a088730de829bfea748c38ca9da0afa8bc09c939c",
+   "size": 2219
   },
   "api/zasilkovna_label.php": {
-   "sha256": "d7cfaf50d3f9e74cba03fcd9d8c493d54a23ed8e33d4400db527848347af10ef",
-   "size": 983
+   "sha256": "d547161b5d9af21165bff1f0491eeb05232021983869ab3913ec3f05b097bf54",
+   "size": 1402
+  },
+  "b2b/.htaccess": {
+   "sha256": "c78efcdb3b4623db66936902ba8541f3e3821de86ca76e22b2a62daea6758680",
+   "size": 552
   },
   "b2b/app.js": {
-   "sha256": "5a7af7d823ea969705cf417d9c898b47e9c742c1510a4df005fd4c7a2d9d69d1",
-   "size": 103431
+   "sha256": "7d886ea48d677aedfe7695ba85dfa55740b3a5653f76d796719d0910432fe675",
+   "size": 136286
   },
   "b2b/i18n.js": {
-   "sha256": "1fe96a29f1c2357d04625f9ccf316890ce5ff7b2794750d1e0642b733b8a9800",
-   "size": 105295
+   "sha256": "a9b902f4603fc5d67db74809a89890c32142bdf1eaf9d2c690a58458d206f5df",
+   "size": 110033
+  },
+  "b2b/icons/icon-192.png": {
+   "sha256": "b6425acc7e0f2c993f7ca4440ed8430ae393b9afac338e5dbab250952104f1f4",
+   "size": 26245
+  },
+  "b2b/icons/icon-512.png": {
+   "sha256": "85fdbf610d19c8d2f053a7c0d18d41a03bfe87e7e3fba75fee856ba8aa6f55a8",
+   "size": 97659
+  },
+  "b2b/icons/icon-apple.png": {
+   "sha256": "c6e5d07afc0038dd3f0a96da4e1de681ca962948b0a2272fe7c2acaf0f12d240",
+   "size": 21851
+  },
+  "b2b/icons/icon-maskable.png": {
+   "sha256": "c6f5ac626db5cf9bd88f3545a564249c008908eee439556200824e10074b7d05",
+   "size": 90693
   },
   "b2b/index.html": {
-   "sha256": "b43c4d2730d142494cb59fa21e277789616c6de608ec3cf3dbb1291d380d0efa",
-   "size": 11980
+   "sha256": "256a83a1147f3483208355ada627eadb1cf78a7ea173fc0fd5b0c46cdd194d77",
+   "size": 11120
   },
   "b2b/manifest.json": {
-   "sha256": "38d8353f5ee52e469c3e99a88a6d6b0f705fcb5b586d24f565ecbd5a988bdbdb",
-   "size": 3521
+   "sha256": "f34ea7544be1839e441a66e5ad4802f1ffb1f527fddf2995873632f08b48cdb0",
+   "size": 2926
+  },
+  "b2b/manifest.php": {
+   "sha256": "51fae3ea78a8c4c971c0d91a605182100c8c9dfd944cfd83199d83fddf9e27a8",
+   "size": 599
   },
   "b2b/style.css": {
-   "sha256": "78ea13b1f39c0aab681e251ea12c4e6ac6862442b97c3f334c27938ed6e8a471",
-   "size": 138116
+   "sha256": "480f0eb916abdc0d6c95ce5d04ee8b6ca282c133fe0f818bd3e35576c66e00bd",
+   "size": 145752
   },
   "b2b/sw.js": {
-   "sha256": "4e2afddf3bf9f7196ac6ff6432539a1180f07f8223894a4d9a589d9df4888b93",
-   "size": 2292
+   "sha256": "046423e9a4dc87493c79a05cf98a03b70d88235f0678bbff17629a3f2690894c",
+   "size": 2298
+  },
+  "b2b/sw.php": {
+   "sha256": "1cb35799bdbf161e81f130e1222debb8adbccb8c66def0469dae3c1720c746a4",
+   "size": 528
   },
   "floorplan/.htaccess": {
    "sha256": "39c8b37160329f2c7b406c3d6a5d3b5cd3d564a0e07406098da84c49e3834564",
@@ -963,17 +1683,49 @@
    "sha256": "ef067584c847921bb057cc1bd25d723ce9b3cf8d4c809a9fd1f6a579f171a6c9",
    "size": 37
   },
+  "pos/icons/icon-192.png": {
+   "sha256": "b6425acc7e0f2c993f7ca4440ed8430ae393b9afac338e5dbab250952104f1f4",
+   "size": 26245
+  },
+  "pos/icons/icon-512.png": {
+   "sha256": "85fdbf610d19c8d2f053a7c0d18d41a03bfe87e7e3fba75fee856ba8aa6f55a8",
+   "size": 97659
+  },
+  "pos/icons/icon-apple.png": {
+   "sha256": "c6e5d07afc0038dd3f0a96da4e1de681ca962948b0a2272fe7c2acaf0f12d240",
+   "size": 21851
+  },
+  "pos/icons/icon-maskable.png": {
+   "sha256": "c6f5ac626db5cf9bd88f3545a564249c008908eee439556200824e10074b7d05",
+   "size": 90693
+  },
   "pos/index.php": {
-   "sha256": "e64aab7dc8884f9d1a8e5d05c68cf3f7984cee5d46b8d7dc3152a0f331c5d70d",
-   "size": 10181
+   "sha256": "546f09958505a4aed3f1967c405431d0487cf6c46520c9d346da1714e703b82c",
+   "size": 15148
+  },
+  "pos/manifest.json": {
+   "sha256": "2a9897ede82b334c5de8992b409a54f680aba8b228a99c6268974f25ece73b8f",
+   "size": 839
+  },
+  "pos/manifest.php": {
+   "sha256": "51fae3ea78a8c4c971c0d91a605182100c8c9dfd944cfd83199d83fddf9e27a8",
+   "size": 599
   },
   "pos/pos.css": {
-   "sha256": "d05fbc392c4fcf1a553e3b877ed7234265fad2048dd1f465e533bb2be18be2dd",
-   "size": 25309
+   "sha256": "32bd9325e63fd4fbd3333a74ca4f791b15f9f9c71e1ad34a2d6366710b183175",
+   "size": 34716
   },
   "pos/pos.js": {
-   "sha256": "0777036563d682f73c214d05e4c94d3d124be5b80cee632536e596176ff7cc4c",
-   "size": 25665
+   "sha256": "857c15334a4df7fab44c82dd59774d8af28859157a05d76de794107b2c927e3d",
+   "size": 42269
+  },
+  "pos/sw.js": {
+   "sha256": "aa4d4a4eb06713dd8fa57670039efc48d04a89e9b0c33e772793238a00b9621d",
+   "size": 1122
+  },
+  "pos/sw.php": {
+   "sha256": "97d673f21af8cb8294322db20c634bf62336ec4b086825898cf907fccbb9e75a",
+   "size": 444
   },
   "robots.txt": {
    "sha256": "6d1dc7deadf7ae2283d16d6754392eb2be7fbc39dd83e0508a85872aedd9ceb5",

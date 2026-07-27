@@ -121,6 +121,7 @@ EXCLUDES=(
   ".git" ".github" ".claude" ".vscode" ".idea"
   "node_modules" "uploads"
   "api/config.local.php" "api/.installed" "api/zalohy"
+  "api/.license-state.json" "api/.pirate-flag" "api/.heartbeat-last" "api/.check-install-key"  # 🔒 v3.0.436 runtime stav — NIKDY do customer bundlu
   "vendor" "sales"   # NEZAHRNOUJ — vendor jen lokálně, sales je na appek.cz, ne na customer
   "scripts"
   "*.zip" "*.log" "*.bak" "*.bak-*" "download.php" "docs"
