@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.440';
+const APPEK_ADMIN_JS_VERSION = '3.0.441';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -15331,16 +15331,16 @@ async function renderNastaveni() {
             </span>
           </label>
         </div>
+      </div>
 
-        <!-- 💸 SAZBY DPH (přesunuto pod logo — využití prostoru) -->
-        <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
-          <h4 style="margin:0 0 4px;font-size:14px;display:flex;align-items:center;gap:6px">💸 Sazby DPH</h4>
-          <p style="font-size:11px;color:var(--text-3);margin:0 0 10px;line-height:1.5">
-            Sazby DPH používané u výrobků. Změna sazby ovlivní jen <strong>nově vystavené</strong> doklady — existující FA/DL/objednávky zůstávají s původním DPH (snapshot).
-          </p>
-          <div id="dph-container">
-            <div style="text-align:center;padding:14px;color:var(--text-3);font-size:12px">Načítám…</div>
-          </div>
+      <!-- 💸 SAZBY DPH — vlastní karta (v3.0.441; dřív natlačené uvnitř Logo karty) -->
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:6px">💸 Sazby DPH</h3>
+        <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.5">
+          Sazby DPH používané u výrobků. Změna sazby ovlivní jen <strong>nově vystavené</strong> doklady — existující FA/DL/objednávky zůstávají s původním DPH (snapshot).
+        </p>
+        <div id="dph-container">
+          <div style="text-align:center;padding:14px;color:var(--text-3);font-size:12px">Načítám…</div>
         </div>
       </div>
 
