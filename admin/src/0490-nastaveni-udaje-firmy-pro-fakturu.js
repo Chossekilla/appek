@@ -91,9 +91,33 @@ async function renderNastaveni() {
         </div>
       </div>
 
-      <!-- 🖼️ LOGO + FAVICON -->
       <div class="card-block">
-        <h3 style="margin-bottom:6px;">🖼️ Logo a favicon</h3>
+        <h3 style="margin-bottom:12px;">📞 Kontaktní údaje</h3>
+        <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">Volitelné — zobrazí se v patičce dokladů.</p>
+        <div class="form-grid form-grid-tight">
+          <div>
+            <label class="form-label">E-mail firmy</label>
+            <input class="form-input" id="ns-email" type="email" value="${esc(n.firma_email || '')}" placeholder="info@appek.cz">
+          </div>
+          <div>
+            <label class="form-label">Telefon</label>
+            <input class="form-input" id="ns-tel" value="${esc(n.firma_telefon || '')}" placeholder="+420 777 123 456">
+          </div>
+          <div class="full">
+            <label class="form-label">Web</label>
+            <input class="form-input" id="ns-web" value="${esc(n.firma_web || '')}" placeholder="www.appek.cz">
+          </div>
+          <div class="full">
+            <label class="form-label">Patička dokladů</label>
+            <textarea class="form-input" id="ns-paticka" rows="3" placeholder="APPEK B2B s.r.o. · tel: ... · web: ...">${esc(n.firma_paticka_dokladu || '')}</textarea>
+            <small style="color:var(--text-3);font-size:12px;display:block;margin-top:4px;">Zobrazí se na konci faktury a dodacího listu. Více řádků = Enter.</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🖼️ LOGO + FAVICON + BRANDING (sloučeno, full-width — v3.0.442) -->
+      <div class="card-block" style="grid-column:1 / -1">
+        <h3 style="margin-bottom:6px;">🖼️ Logo, favicon a vzhled</h3>
         <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">
           Nahrajte logo firmy — automaticky se z něj vygeneruje i favicon (ikona v záložce prohlížeče).
           Podporováno PNG / JPG / WEBP, max 5 MB.
@@ -142,10 +166,29 @@ async function renderNastaveni() {
             </span>
           </label>
         </div>
+
+        <!-- 🎨 Barva + náhled (sloučeno z karty Branding — v3.0.442) -->
+        <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
+          <label class="form-label">🎨 Primární barva</label>
+          <div style="display:flex;gap:8px;align-items:center;max-width:300px">
+            <input type="color" id="ns-brand-color" value="${esc(n.firma_brand_color || '#BA7517')}" style="width:54px;height:40px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:transparent">
+            <input class="form-input" id="ns-brand-color-text" value="${esc(n.firma_brand_color || '#BA7517')}" placeholder="#BA7517" style="font-family:'SF Mono',Menlo,monospace" oninput="document.getElementById('ns-brand-color').value=this.value">
+          </div>
+          <small style="color:var(--text-3);font-size:11px;display:block;margin-top:4px">Hex barva (#RRGGBB) — ovlivňuje akcenty (tlačítka, badge, nav). Light/dark varianty se vypočítají automaticky.</small>
+          <div style="background:var(--surface-2);padding:14px;border-radius:8px;margin-top:12px">
+            <strong style="font-size:12.5px">📺 Náhled</strong>
+            <div id="brand-preview" style="display:flex;gap:10px;align-items:center;margin-top:8px;padding:10px;background:var(--surface);border-radius:6px;flex-wrap:wrap">
+              <div id="brand-prev-logo" style="width:32px;height:32px;border-radius:8px;background:${n.firma_logo_url ? 'var(--surface-2)' : 'var(--primary)'};color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden">${n.firma_logo_url ? `<img src="${esc(n.firma_logo_url)}" style="width:100%;height:100%;object-fit:contain" alt="Logo">` : 'A'}</div>
+              <button class="btn-primary btn-green" style="font-size:13px;padding:8px 16px" onclick="event.preventDefault()">Ukázkové tlačítko</button>
+              <span style="background:var(--primary);color:#fff;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600">Badge</span>
+            </div>
+            <button class="btn-secondary" onclick="applyBrandPreview()" style="margin-top:8px;font-size:12px">🔄 Vyzkoušet barvu hned</button>
+          </div>
+        </div>
       </div>
 
-      <!-- 💸 SAZBY DPH — vlastní karta (v3.0.441; dřív natlačené uvnitř Logo karty) -->
-      <div class="card-block">
+      <!-- 💸 SAZBY DPH — vlastní karta, full-width (v3.0.442) -->
+      <div class="card-block" style="grid-column:1 / -1">
         <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:6px">💸 Sazby DPH</h3>
         <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.5">
           Sazby DPH používané u výrobků. Změna sazby ovlivní jen <strong>nově vystavené</strong> doklady — existující FA/DL/objednávky zůstávají s původním DPH (snapshot).
@@ -155,66 +198,6 @@ async function renderNastaveni() {
         </div>
       </div>
 
-      <div class="card-block">
-        <h3 style="margin-bottom:12px;">📞 Kontaktní údaje</h3>
-        <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">Volitelné — zobrazí se v patičce dokladů.</p>
-        <div class="form-grid form-grid-tight">
-          <div>
-            <label class="form-label">E-mail firmy</label>
-            <input class="form-input" id="ns-email" type="email" value="${esc(n.firma_email || '')}" placeholder="info@appek.cz">
-          </div>
-          <div>
-            <label class="form-label">Telefon</label>
-            <input class="form-input" id="ns-tel" value="${esc(n.firma_telefon || '')}" placeholder="+420 777 123 456">
-          </div>
-          <div class="full">
-            <label class="form-label">Web</label>
-            <input class="form-input" id="ns-web" value="${esc(n.firma_web || '')}" placeholder="www.appek.cz">
-          </div>
-          <div class="full">
-            <label class="form-label">Patička dokladů</label>
-            <textarea class="form-input" id="ns-paticka" rows="3" placeholder="APPEK B2B s.r.o. · tel: ... · web: ...">${esc(n.firma_paticka_dokladu || '')}</textarea>
-            <small style="color:var(--text-3);font-size:12px;display:block;margin-top:4px;">Zobrazí se na konci faktury a dodacího listu. Více řádků = Enter.</small>
-          </div>
-        </div>
-      </div>
-
-      <!-- 🎨 BRANDING -->
-      <div class="card-block">
-        <h3 style="margin-bottom:12px;">🎨 Branding (vlastní barva + logo)</h3>
-        <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">Přizpůsob vzhled aplikace tvé firmě. Barva ovlivňuje akcenty (tlačítka, badge, nav). Logo a favicon spravuješ v kartě „🖼️ Logo a favicon" výše.</p>
-        <div class="form-grid form-grid-tight">
-          <div>
-            <label class="form-label">🎨 Primární barva</label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input type="color" id="ns-brand-color" value="${esc(n.firma_brand_color || '#BA7517')}" style="width:54px;height:40px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:transparent">
-              <input class="form-input" id="ns-brand-color-text" value="${esc(n.firma_brand_color || '#BA7517')}" placeholder="#BA7517" style="font-family:'SF Mono',Menlo,monospace" oninput="document.getElementById('ns-brand-color').value=this.value">
-            </div>
-            <small style="color:var(--text-3);font-size:11px;display:block;margin-top:4px">Hex barva (#RRGGBB). Light/dark varianty se vypočítají automaticky.</small>
-          </div>
-          <div>
-            <label class="form-label">🖼️ Logo</label>
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="width:44px;height:44px;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);overflow:hidden;flex-shrink:0">
-                ${n.firma_logo_url
-                  ? `<img src="${esc(n.firma_logo_url)}" style="max-width:100%;max-height:100%;object-fit:contain" alt="Logo">`
-                  : `<span style="font-size:20px;color:var(--text-3)">🖼️</span>`}
-              </div>
-              <span style="font-size:12px;color:var(--text-3)">${n.firma_logo_url ? '✓ Nahráno' : 'Zatím nenahráno'}</span>
-            </div>
-            <small style="color:var(--text-3);font-size:11px;display:block;margin-top:4px">Nahraj / změň logo v kartě „🖼️ Logo a favicon" výše — favicon se z něj vygeneruje sám. Zde jen náhled.</small>
-          </div>
-          <div class="full" style="background:var(--surface-2);padding:14px;border-radius:8px;margin-top:6px">
-            <strong style="font-size:12.5px">📺 Náhled</strong>
-            <div id="brand-preview" style="display:flex;gap:10px;align-items:center;margin-top:8px;padding:10px;background:var(--surface);border-radius:6px">
-              <div id="brand-prev-logo" style="width:32px;height:32px;border-radius:8px;background:${n.firma_logo_url ? 'var(--surface-2)' : 'var(--primary)'};color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden">${n.firma_logo_url ? `<img src="${esc(n.firma_logo_url)}" style="width:100%;height:100%;object-fit:contain" alt="Logo">` : 'A'}</div>
-              <button class="btn-primary btn-green" style="font-size:13px;padding:8px 16px" onclick="event.preventDefault()">Ukázkové tlačítko</button>
-              <span style="background:var(--primary);color:#fff;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600">Badge</span>
-            </div>
-            <button class="btn-secondary" onclick="applyBrandPreview()" style="margin-top:8px;font-size:12px">🔄 Vyzkoušet barvu hned</button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <script>
