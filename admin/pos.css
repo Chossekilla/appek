@@ -160,7 +160,7 @@ button { font-family: inherit; cursor: pointer; }
 .pos-main {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr 460px;
   gap: 0;
   min-height: 0;
   background: var(--pos-bg);
@@ -531,7 +531,7 @@ button { font-family: inherit; cursor: pointer; }
 
 .pos-cart-item {
   display: grid;
-  grid-template-columns: 24px 1fr auto auto auto;
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
@@ -987,7 +987,7 @@ button { font-family: inherit; cursor: pointer; }
    RESPONSIVE — tablet / mobile
    ═════════════════════════════════════════════════════════════════ */
 @media (max-width: 1100px) {
-  .pos-main { grid-template-columns: 1fr 360px; }
+  .pos-main { grid-template-columns: 1fr 420px; }
   /* 🐛 v3.0.399 — .pos-header-center display:none ODSTRANĚNO — schovávalo taby
      (Stoly/Účtenky/Statistiky/Uzávěrka) už od 1100 px → na mobilu/tabletu se nešlo
      dostat na stoly ani historii. Taby zůstávají, ≤700 px jen ikony (.pth-txt). */
@@ -1406,7 +1406,7 @@ html, body {
   .pos-cart-item {
     padding: 10px 14px !important;
     gap: 10px !important;
-    grid-template-columns: 24px 1fr auto auto auto !important;
+    grid-template-columns: 1fr auto auto auto !important;
     font-size: 14px !important;
   }
   .pos-line-name { font-size: 14px !important; max-width: 160px !important; }
@@ -3249,3 +3249,6 @@ html, body {
 #pos-grid {
   grid-template-columns: repeat(auto-fill, minmax(calc(var(--pos-card-min, 160px) * var(--pos-density-mult, 1)), 1fr)) !important;
 }
+
+/* 🛒 v3.0.443 — název položky košíku plně viditelný (bez max-width capu, 2 řádky); pořadové číslo odebráno + košík širší */
+.pos-line-name{max-width:none!important;white-space:normal!important;line-height:1.22!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important;text-overflow:ellipsis!important}

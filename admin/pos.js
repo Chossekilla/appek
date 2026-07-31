@@ -414,7 +414,6 @@
         const lineCelkem = cenaJ * it.mnozstvi;
         return `
           <div class="pos-cart-item">
-            <div class="pos-line-num">${idx + 1}</div>
             <div class="pos-line-body">
               <div class="pos-line-name">${esc(it.nazev)}</div>
               <div class="pos-line-meta">${fmt(cenaJ)} × ${it.mnozstvi} ${esc(it.jednotka || 'ks')}</div>

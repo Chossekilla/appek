@@ -122,6 +122,9 @@ async function renderNastaveni() {
           Nahrajte logo firmy — automaticky se z něj vygeneruje i favicon (ikona v záložce prohlížeče).
           Podporováno PNG / JPG / WEBP, max 5 MB.
         </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;align-items:start">
+        <!-- 🖼️ LEVÝ SLOUPEC: logo + favicon + akce + na dokladech -->
+        <div style="display:flex;flex-direction:column;gap:14px">
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
           <!-- Náhled loga -->
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
@@ -166,9 +169,10 @@ async function renderNastaveni() {
             </span>
           </label>
         </div>
+        </div><!-- /levý sloupec -->
 
-        <!-- 🎨 Barva + náhled (sloučeno z karty Branding — v3.0.442) -->
-        <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
+        <!-- 🎨 PRAVÝ SLOUPEC: barva + náhled -->
+        <div style="display:flex;flex-direction:column">
           <label class="form-label">🎨 Primární barva</label>
           <div style="display:flex;gap:8px;align-items:center;max-width:300px">
             <input type="color" id="ns-brand-color" value="${esc(n.firma_brand_color || '#BA7517')}" style="width:54px;height:40px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:transparent">
@@ -184,7 +188,8 @@ async function renderNastaveni() {
             </div>
             <button class="btn-secondary" onclick="applyBrandPreview()" style="margin-top:8px;font-size:12px">🔄 Vyzkoušet barvu hned</button>
           </div>
-        </div>
+        </div><!-- /pravý sloupec -->
+        </div><!-- /2-sloupcový grid -->
       </div>
 
       <!-- 💸 SAZBY DPH — vlastní karta, full-width (v3.0.442) -->
