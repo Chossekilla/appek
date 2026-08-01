@@ -270,6 +270,17 @@ async function renderNastaveni() {
           </div>
         </div>
 
+        <!-- 🔔 v3.0.446 — Dashboard panel „Akce vyžadující pozornost" (přesunuto sem z Údržby) -->
+        <div style="margin-top:14px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px">
+          <label class="checkbox-row" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <input type="checkbox" id="ns-dash-alerts" ${(n.dashboard_alerts_off ?? '0') !== '1' ? 'checked' : ''} onchange="setDashAlertsEnabled(this.checked)" style="width:18px;height:18px;cursor:pointer">
+            <span style="flex:1">
+              <strong style="font-size:13px">🔔 Panel „Akce vyžadující pozornost" na dashboardu</strong>
+              <div style="font-size:12px;color:var(--text-3);margin-top:2px">Upozornění na nefakturované DL, suroviny pod minimem apod. Vypnutím panel zmizí a neupozorňuje (data zůstávají v příslušných sekcích).</div>
+            </span>
+          </label>
+        </div>
+
         <div style="margin-top:14px;padding:12px;background:#EFF6FF;border:1px solid #B5D4F4;border-radius:8px">
           <h4 style="font-size:13px;margin-bottom:8px;color:#0C447C">📨 Notifikace pro odběratele</h4>
           <div class="checkbox-row" style="margin-bottom:6px">
@@ -591,23 +602,6 @@ async function renderNastaveni() {
               </div>
             </span>
             <span id="ns-confirm-2x-status" style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:12px;${getConfirmDelete2xEnabled() ? 'background:var(--success-bg);color:var(--success-text)' : 'background:#FEE2E2;color:#7F1D1D'}">${getConfirmDelete2xEnabled() ? '✓ Zapnuto' : '✕ Vypnuto'}</span>
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <!-- 🔔 v3.0.446 — Dashboard upozornění (zapnout/vypnout panel „Akce vyžadující pozornost") -->
-    <div class="card-block">
-      <h3 style="margin-bottom:6px;">🔔 Dashboard — upozornění</h3>
-      <p class="page-sub" style="margin-bottom:14px;">Panel „Akce vyžadující pozornost" na úvodní stránce (nefakturované dodací listy, suroviny pod minimem…).</p>
-      <div class="form-grid">
-        <div class="full">
-          <label class="checkbox-row" style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface-2);border-radius:8px;cursor:pointer">
-            <input type="checkbox" id="ns-dash-alerts" ${(n.dashboard_alerts_off ?? '0') !== '1' ? 'checked' : ''} onchange="setDashAlertsEnabled(this.checked)" style="width:20px;height:20px;cursor:pointer">
-            <span style="flex:1">
-              <strong style="font-size:14px">🔔 Zobrazovat „Akce vyžadující pozornost"</strong>
-              <div style="font-size:12px;color:var(--text-3);margin-top:2px">Vypnutím panel na dashboardu zmizí a nebude upozorňovat. Data (nefakturované DL apod.) najdeš dál v příslušných sekcích.</div>
-            </span>
           </label>
         </div>
       </div>

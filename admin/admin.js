@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.446';
+const APPEK_ADMIN_JS_VERSION = '3.0.447';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -4713,7 +4713,7 @@ window.tiskNaTermo = async function(docType, docId, cislo) {
 // 🆕 v2.9.305 — Skryje se i pro role bez práva na cílové stránky (POS user nemůže
 // otevřít DL/objednávky/sklad → ukazovat alert nemá smysl, jen frustruje)
 function renderDashAlerts(alerts) {
-  // 🆕 v3.0.446 — trvalé vypnutí panelu (Nastavení → Údržba); ať to neupozorňuje, kdo nechce
+  // 🆕 v3.0.446 — trvalé vypnutí panelu (Nastavení → Notifikace); ať to neupozorňuje, kdo nechce
   if (state.nastaveni && state.nastaveni.dashboard_alerts_off === '1') return '';
   const role = state.admin?.role || 'admin';
   const allowed = role === 'admin'
@@ -4771,7 +4771,7 @@ function renderDashAlerts(alerts) {
         <strong>Akce vyžadující pozornost</strong>
         <span class="dash-alerts-count">${items.length}</span>
         <!-- 🆕 v3.0.55 — Dismiss button: schová widget na 1h -->
-        <button class="dash-alerts-dismiss" onclick="dashAlertsVypnout()" title="Vypnout tento panel natrvalo (znovu zapneš v Nastavení → Údržba)" aria-label="Vypnout natrvalo" style="width:auto;padding:0 9px;font-size:11px;font-weight:600">vypnout</button>
+        <button class="dash-alerts-dismiss" onclick="dashAlertsVypnout()" title="Vypnout tento panel natrvalo (znovu zapneš v Nastavení → Notifikace)" aria-label="Vypnout natrvalo" style="width:auto;padding:0 9px;font-size:11px;font-weight:600">vypnout</button>
         <button class="dash-alerts-dismiss" onclick="dismissDashAlerts()" title="Skrýt na 1 hodinu" aria-label="Skrýt upozornění">✕</button>
       </div>
       <div class="dash-alerts-list">
@@ -4804,18 +4804,18 @@ window.dismissDashAlerts = function() {
   try { window.haptic && window.haptic('light'); } catch (e) {}
 };
 
-// 🆕 v3.0.446 — Vypnout panel „Akce vyžadující pozornost" NATRVALO (uloží nastavení; znovu zapneš v Nastavení → Údržba)
+// 🆕 v3.0.446 — Vypnout panel „Akce vyžadující pozornost" NATRVALO (uloží nastavení; znovu zapneš v Nastavení → Notifikace)
 window.dashAlertsVypnout = async function() {
   try {
     await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ dashboard_alerts_off: '1' }) });
     if (!state.nastaveni) state.nastaveni = {};
     state.nastaveni.dashboard_alerts_off = '1';
     const w = document.querySelector('.dash-alerts'); if (w) w.remove();
-    if (typeof toast === 'function') toast('Upozornění vypnuto — znovu zapneš v Nastavení → Údržba', 'info');
+    if (typeof toast === 'function') toast('Upozornění vypnuto — znovu zapneš v Nastavení → Notifikace', 'info');
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
-// 🆕 v3.0.446 — přepínač panelu z Nastavení → Údržba (on = zobrazovat)
+// 🆕 v3.0.446 — přepínač panelu z Nastavení → Notifikace (on = zobrazovat)
 window.setDashAlertsEnabled = async function(on) {
   try {
     await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ dashboard_alerts_off: on ? '0' : '1' }) });
@@ -4978,10 +4978,10 @@ async function renderDashboard(filters = {}) {
       <div style="flex:1;min-width:260px">
         <div style="font-weight:800;font-size:16px;color:#1d1d1f;margin-bottom:4px">Začni s ukázkovými daty</div>
         <div style="font-size:13px;color:#854F0B;line-height:1.5">
-          Tvá databáze je prázdná. Klikni níže a vytvoří se <strong>John Doe s.r.o.</strong> + 4 varianty odběratelů, 10 výrobků, 1 objednávka, dodací list a faktura. Vše jedním klikem. Smažeš později v Nastavení → Údržba.
+          Tvá databáze je prázdná. Klikni níže a vytvoří se <strong>John Doe s.r.o.</strong> + 4 varianty odběratelů, 10 výrobků, 1 objednávka, dodací list a faktura. Vše jedním klikem. Smažeš později v Nastavení → Notifikace.
         </div>
       </div>
-      <!-- 🆕 v3.0.177 — seed/reset má JEDNO místo (Nastavení → Údržba). Banner sem jen naviguje. -->
+      <!-- 🆕 v3.0.177 — seed/reset má JEDNO místo (Nastavení → Notifikace). Banner sem jen naviguje. -->
       <button class="btn-primary btn-green" onclick="navigate('nastaveni');setTimeout(()=>{state._nastaveniTab='udrzba';renderNastaveni();},120)" style="font-weight:700;padding:10px 20px;font-size:14px;border:none;border-radius:10px;cursor:pointer;white-space:nowrap;flex-shrink:0">
         🛠️ Naplnit v Údržbě →
       </button>
@@ -5257,7 +5257,7 @@ async function renderDashboard(filters = {}) {
           <p style="font-size:12px;color:var(--text-3);margin:0 0 14px;max-width:280px;line-height:1.5">
             Zatím málo dat (${d.casovy_graf.length === 0 ? 'žádné' : '1'} den objednávek). Graf se vyrenderuje po 2+ dnech aktivity.
           </p>
-          <!-- 🆕 v3.0.177 — demo seed/reset sjednocen do Nastavení → Údržba (jediné místo) -->
+          <!-- 🆕 v3.0.177 — demo seed/reset sjednocen do Nastavení → Notifikace (jediné místo) -->
         </div>
       `}
 
@@ -15483,6 +15483,17 @@ async function renderNastaveni() {
           </div>
         </div>
 
+        <!-- 🔔 v3.0.446 — Dashboard panel „Akce vyžadující pozornost" (přesunuto sem z Údržby) -->
+        <div style="margin-top:14px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px">
+          <label class="checkbox-row" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <input type="checkbox" id="ns-dash-alerts" ${(n.dashboard_alerts_off ?? '0') !== '1' ? 'checked' : ''} onchange="setDashAlertsEnabled(this.checked)" style="width:18px;height:18px;cursor:pointer">
+            <span style="flex:1">
+              <strong style="font-size:13px">🔔 Panel „Akce vyžadující pozornost" na dashboardu</strong>
+              <div style="font-size:12px;color:var(--text-3);margin-top:2px">Upozornění na nefakturované DL, suroviny pod minimem apod. Vypnutím panel zmizí a neupozorňuje (data zůstávají v příslušných sekcích).</div>
+            </span>
+          </label>
+        </div>
+
         <div style="margin-top:14px;padding:12px;background:#EFF6FF;border:1px solid #B5D4F4;border-radius:8px">
           <h4 style="font-size:13px;margin-bottom:8px;color:#0C447C">📨 Notifikace pro odběratele</h4>
           <div class="checkbox-row" style="margin-bottom:6px">
@@ -15804,23 +15815,6 @@ async function renderNastaveni() {
               </div>
             </span>
             <span id="ns-confirm-2x-status" style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:12px;${getConfirmDelete2xEnabled() ? 'background:var(--success-bg);color:var(--success-text)' : 'background:#FEE2E2;color:#7F1D1D'}">${getConfirmDelete2xEnabled() ? '✓ Zapnuto' : '✕ Vypnuto'}</span>
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <!-- 🔔 v3.0.446 — Dashboard upozornění (zapnout/vypnout panel „Akce vyžadující pozornost") -->
-    <div class="card-block">
-      <h3 style="margin-bottom:6px;">🔔 Dashboard — upozornění</h3>
-      <p class="page-sub" style="margin-bottom:14px;">Panel „Akce vyžadující pozornost" na úvodní stránce (nefakturované dodací listy, suroviny pod minimem…).</p>
-      <div class="form-grid">
-        <div class="full">
-          <label class="checkbox-row" style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface-2);border-radius:8px;cursor:pointer">
-            <input type="checkbox" id="ns-dash-alerts" ${(n.dashboard_alerts_off ?? '0') !== '1' ? 'checked' : ''} onchange="setDashAlertsEnabled(this.checked)" style="width:20px;height:20px;cursor:pointer">
-            <span style="flex:1">
-              <strong style="font-size:14px">🔔 Zobrazovat „Akce vyžadující pozornost"</strong>
-              <div style="font-size:12px;color:var(--text-3);margin-top:2px">Vypnutím panel na dashboardu zmizí a nebude upozorňovat. Data (nefakturované DL apod.) najdeš dál v příslušných sekcích.</div>
-            </span>
           </label>
         </div>
       </div>
