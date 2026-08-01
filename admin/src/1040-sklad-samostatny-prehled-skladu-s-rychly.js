@@ -168,6 +168,17 @@ async function renderSklad() {
   `;
 }
 
+// 🆕 v3.0.446 — přepínač HACCP hlídání šarží/expirace (uloží nastavení + re-render)
+window.skladSledovatelnostToggle = async function(on) {
+  try {
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ sklad_sledovatelnost: on ? '1' : '0' }) });
+    if (!state.nastaveni) state.nastaveni = {};
+    state.nastaveni.sklad_sledovatelnost = on ? '1' : '0';
+    if (typeof toast === 'function') toast(on ? '✓ Hlídání šarží zapnuto' : 'Hlídání šarží vypnuto', 'info');
+    renderSuroviny();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
 async function renderSuroviny() {
   // 🚀 PERFORMANCE: cachuj výsledek (invalidate po editaci) — pro 1000+ surovin
   // ušetří 200-500 ms na každý re-render filtrů.
@@ -176,6 +187,10 @@ async function renderSuroviny() {
     list = await api('admin_suroviny.php');
     state._suroviny_full_cache = list;
   }
+  // 🆕 v3.0.446 — HACCP sledovatelnost (volitelné hlídání): když zapnuto, načti šarže + expiraci
+  const sledOn = !!(state.nastaveni && state.nastaveni.sklad_sledovatelnost === '1');
+  let sledData = null;
+  if (sledOn) { try { sledData = await api('admin_suroviny.php?action=sarze_prehled&dny=30'); } catch (e) {} }
   const c = document.getElementById('content');
 
   // Filtry
@@ -374,6 +389,50 @@ async function renderSuroviny() {
         <button class="btn-secondary" onclick="otevritImportSurovin()" title="Hromadný import — základní balíček nebo CSV">📥 JSON / vzorky</button>
         <button class="btn-primary btn-green btn-big-action" onclick="editSurovina()" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nová surovina</button>
       </div>
+    </div>
+
+    <!-- 🔎 v3.0.446 — HACCP sledovatelnost šarží & expirace (volitelné hlídání) -->
+    <div class="card-block" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <h3 style="margin:0;font-size:16px">🔎 Sledovatelnost šarží &amp; expirace <small style="font-weight:400;color:var(--text-3);font-size:12px">— HACCP, volitelné</small></h3>
+        <label style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;padding:6px 12px;border-radius:8px;background:var(--surface-2)">
+          <input type="checkbox" ${sledOn ? 'checked' : ''} onchange="skladSledovatelnostToggle(this.checked)" style="width:18px;height:18px;cursor:pointer">
+          ${sledOn ? 'Hlídání zapnuto' : 'Hlídání vypnuto'}
+        </label>
+      </div>
+      ${!sledOn ? `
+        <p style="font-size:12.5px;color:var(--text-3);margin:10px 0 0;line-height:1.6">Vypnuto — u příjmu se nezobrazuje šarže / datum spotřeby a nechodí žádná upozornění. Zapni pro HACCP sledovatelnost (nařízení 178/2002 „krok zpět"): u příjmu zadáš šarži (LOT) + datum spotřeby, systém upozorní na blížící se expiraci a umožní šarži dohledat.</p>
+      ` : `
+        <div style="margin-top:12px">
+          ${sledData && sledData.expirujici > 0 ? `
+            <div style="background:#FBEDDC;border:1px solid #EBC79A;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#7A4A00">
+              📅 <strong>${sledData.expirujici}</strong> ${sledData.expirujici === 1 ? 'šarže má' : 'šarží má'} datum spotřeby do ${sledData.dny} dní nebo už prošlé — zkontroluj.
+            </div>` : (sledData ? `<div style="font-size:12.5px;color:var(--text-3);margin-bottom:10px">✓ Žádná šarže se neblíží expiraci (do ${sledData.dny} dní).</div>` : '')}
+          ${sledData && sledData.polozky && sledData.polozky.length ? `
+            <div style="max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:8px">
+              <table class="table" style="margin:0;font-size:12.5px">
+                <thead><tr><th>Surovina</th><th>Šarže / LOT</th><th>Datum spotřeby</th><th class="num">Do expirace</th><th class="num">Přijato</th><th>Kdy</th></tr></thead>
+                <tbody>
+                  ${sledData.polozky.map(r => {
+                    const d = r.dni_do_expirace;
+                    const barva = (r.datum_spotreby === null) ? 'var(--text-3)' : (d < 0 ? '#B91C1C' : (d <= sledData.dny ? '#B25E00' : 'var(--text-2)'));
+                    const txt = (r.datum_spotreby === null) ? '—' : (d < 0 ? `prošlo ${-d} d` : `za ${d} d`);
+                    return `<tr>
+                      <td>${esc(r.surovina_nazev)}</td>
+                      <td>${r.sarze ? esc(r.sarze) : '<span style="color:var(--text-3)">—</span>'}</td>
+                      <td>${r.datum_spotreby ? esc(String(r.datum_spotreby).split('-').reverse().join('.')) : '<span style="color:var(--text-3)">—</span>'}</td>
+                      <td class="num" style="color:${barva};font-weight:600">${txt}</td>
+                      <td class="num">${parseFloat(r.mnozstvi)} ${esc(r.jednotka || '')}</td>
+                      <td style="font-size:11px;color:var(--text-3)">${fmtDate(r.kdy)}${r.typ === 'vratka' ? ' ↩️' : ''}</td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+            <p style="font-size:11px;color:var(--text-3);margin:8px 0 0">Rejstřík přijatých šarží (posl. 300). „Krok zpět" = dohledání dodávky suroviny. Šarži / expiraci zadáváš u 📦 Pohyb → Příjem.</p>
+          ` : (sledData ? `<div class="empty-state" style="padding:16px;font-size:13px">Zatím žádné šarže — zadej je u příjmu suroviny (📦 Pohyb → Příjem).</div>` : '')}
+        </div>
+      `}
     </div>
 
     <!-- Filtry -->

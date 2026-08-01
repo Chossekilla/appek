@@ -202,9 +202,19 @@ function _skladForm(typ, s) {
         <small style="color:var(--text-3);font-size:12px;display:block;margin-top:4px">Pro evidenci, neaktualizuje cena_baleni</small>
       </div>
       ` : '<div></div>'}
+      ${(typ === 'prijem' || typ === 'vratka') && (typeof state !== 'undefined' && state.nastaveni && state.nastaveni.sklad_sledovatelnost === '1') ? `
+      <div>
+        <label class="form-label">🏷️ Šarže / LOT <small style="color:var(--text-3)">— volitelné</small></label>
+        <input class="form-input" id="sk-sarze" maxlength="80" placeholder="např. 2026/031">
+      </div>
+      <div>
+        <label class="form-label">📅 Datum spotřeby <small style="color:var(--text-3)">— volitelné</small></label>
+        <input class="form-input" id="sk-expirace" type="date">
+      </div>
+      ` : ''}
       <div class="full">
         <label class="form-label">Poznámka</label>
-        <input class="form-input" id="sk-poznamka" placeholder="${typ === 'prijem' ? 'např. dodavatel Penam, šarže 2026/3' : 'např. spotřebováno při výrobě'}">
+        <input class="form-input" id="sk-poznamka" placeholder="${typ === 'prijem' ? 'např. dodavatel Penam' : 'např. spotřebováno při výrobě'}">
       </div>
     </div>
     <div class="form-actions">
@@ -243,10 +253,12 @@ window.surSkladPotvrdit = async function(typ, surovina_id) {
   if (typ !== 'inventura' && mnozstvi <= 0) return alert('Množství musí být > 0');
   const poznamka = document.getElementById('sk-poznamka')?.value || '';
   const cena = document.getElementById('sk-cena')?.value || '';
+  const sarze = document.getElementById('sk-sarze')?.value || '';
+  const datum_spotreby = document.getElementById('sk-expirace')?.value || '';
   try {
     await api(`admin_suroviny.php?action=sklad_${typ}`, {
       method: 'POST',
-      body: JSON.stringify({ surovina_id, mnozstvi, poznamka, cena_za_jed: cena || undefined }),
+      body: JSON.stringify({ surovina_id, mnozstvi, poznamka, cena_za_jed: cena || undefined, sarze: sarze || undefined, datum_spotreby: datum_spotreby || undefined }),
     });
     state._suroviny_full_cache = null;
     state._suroviny_cache = null;

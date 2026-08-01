@@ -364,6 +364,31 @@ if ($action === 'sklad_pohyby' && $method === 'GET') {
     json_response($stmt->fetchAll(PDO::FETCH_ASSOC));
 }
 
+// 🆕 v3.0.446 — HACCP sledovatelnost: rejstřík šarží + hlídání expirace (krok zpět dle 178/2002)
+if ($action === 'sarze_prehled' && $method === 'GET') {
+    ensure_sklad_pohyby_schema($pdo);
+    $enabled = (($pdo->query("SELECT hodnota FROM nastaveni WHERE klic='sklad_sledovatelnost'")->fetchColumn() ?: '0') === '1');
+    $dnyPred = max(1, min(180, (int) ($_GET['dny'] ?? 30)));
+    $q = trim($_GET['q'] ?? '');
+    $sql = "
+        SELECT p.id, p.item_id AS surovina_id, s.nazev AS surovina_nazev, s.jednotka,
+               p.sarze, p.datum_spotreby, p.mnozstvi, p.typ, p.kdy,
+               DATEDIFF(p.datum_spotreby, CURDATE()) AS dni_do_expirace
+        FROM sklad_pohyby_v2 p
+        JOIN suroviny s ON s.id = p.item_id
+        WHERE p.item_typ='surovina' AND p.typ IN ('prijem','vratka')
+          AND (p.sarze IS NOT NULL OR p.datum_spotreby IS NOT NULL)
+    ";
+    $params = [];
+    if ($q !== '') { $sql .= " AND (p.sarze LIKE :q OR s.nazev LIKE :q)"; $params['q'] = "%$q%"; }
+    $sql .= " ORDER BY (p.datum_spotreby IS NULL), p.datum_spotreby ASC, p.kdy DESC LIMIT 300";
+    $stmt = $pdo->prepare($sql); $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $expirujici = 0;
+    foreach ($rows as $r) { if ($r['datum_spotreby'] !== null && (int) $r['dni_do_expirace'] <= $dnyPred) $expirujici++; }
+    json_response(['ok' => true, 'enabled' => $enabled, 'dny' => $dnyPred, 'expirujici' => $expirujici, 'polozky' => $rows]);
+}
+
 // POST pohyb — přijem / výdej / inventura / korekce
 //   { surovina_id, typ, mnozstvi, cena_za_jed?, poznamka? }
 if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_korekce','sklad_vratka'], true) && $method === 'POST') {
@@ -399,19 +424,24 @@ if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_kor
         $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :r")
             ->execute(['s' => $stockPo, 'r' => $rowId]);
         // Zaznamenat pohyb (audit) do systému B
+        // 🆕 v3.0.446 — HACCP sledovatelnost: šarže (LOT) + datum spotřeby (jen u příjmu/vratky)
+        $sarze = (in_array($typ, ['prijem','vratka'], true) && isset($d['sarze']) && trim($d['sarze']) !== '') ? mb_substr(trim($d['sarze']), 0, 80) : null;
+        $expir = (in_array($typ, ['prijem','vratka'], true) && !empty($d['datum_spotreby']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d['datum_spotreby'])) ? $d['datum_spotreby'] : null;
         $pdo->prepare("
-            INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, cena_za_jed, poznamka, kdo)
-            VALUES (:s, 'surovina', :i, :typ, :mn, :pred, :po, :cz, :pz, :kdo)
+            INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, cena_za_jed, sarze, datum_spotreby, poznamka, kdo)
+            VALUES (:s, 'surovina', :i, :typ, :mn, :pred, :po, :cz, :sarze, :expir, :pz, :kdo)
         ")->execute([
-            's'    => $home,
-            'i'    => $sid,
-            'typ'  => $typ,
-            'mn'   => $delta,
-            'pred' => $stockPred,
-            'po'   => $stockPo,
-            'cz'   => isset($d['cena_za_jed']) && $d['cena_za_jed'] !== '' ? (float) $d['cena_za_jed'] : null,
-            'pz'   => isset($d['poznamka']) && trim($d['poznamka']) !== '' ? trim($d['poznamka']) : null,
-            'kdo'  => _aktualni_uzivatel(),
+            's'     => $home,
+            'i'     => $sid,
+            'typ'   => $typ,
+            'mn'    => $delta,
+            'pred'  => $stockPred,
+            'po'    => $stockPo,
+            'cz'    => isset($d['cena_za_jed']) && $d['cena_za_jed'] !== '' ? (float) $d['cena_za_jed'] : null,
+            'sarze' => $sarze,
+            'expir' => $expir,
+            'pz'    => isset($d['poznamka']) && trim($d['poznamka']) !== '' ? trim($d['poznamka']) : null,
+            'kdo'   => _aktualni_uzivatel(),
         ]);
         $pdo->commit();
         surovina_recompute_total($pdo, $sid); // systém A (stock_aktualni) = SUM(B)

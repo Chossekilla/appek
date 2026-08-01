@@ -161,6 +161,8 @@ window.tiskNaTermo = async function(docType, docId, cislo) {
 // 🆕 v2.9.305 — Skryje se i pro role bez práva na cílové stránky (POS user nemůže
 // otevřít DL/objednávky/sklad → ukazovat alert nemá smysl, jen frustruje)
 function renderDashAlerts(alerts) {
+  // 🆕 v3.0.446 — trvalé vypnutí panelu (Nastavení → Údržba); ať to neupozorňuje, kdo nechce
+  if (state.nastaveni && state.nastaveni.dashboard_alerts_off === '1') return '';
   const role = state.admin?.role || 'admin';
   const allowed = role === 'admin'
     ? null // admin vidí vždy
@@ -217,6 +219,7 @@ function renderDashAlerts(alerts) {
         <strong>Akce vyžadující pozornost</strong>
         <span class="dash-alerts-count">${items.length}</span>
         <!-- 🆕 v3.0.55 — Dismiss button: schová widget na 1h -->
+        <button class="dash-alerts-dismiss" onclick="dashAlertsVypnout()" title="Vypnout tento panel natrvalo (znovu zapneš v Nastavení → Údržba)" aria-label="Vypnout natrvalo" style="width:auto;padding:0 9px;font-size:11px;font-weight:600">vypnout</button>
         <button class="dash-alerts-dismiss" onclick="dismissDashAlerts()" title="Skrýt na 1 hodinu" aria-label="Skrýt upozornění">✕</button>
       </div>
       <div class="dash-alerts-list">
@@ -247,6 +250,27 @@ window.dismissDashAlerts = function() {
     setTimeout(() => w.remove(), 240);
   }
   try { window.haptic && window.haptic('light'); } catch (e) {}
+};
+
+// 🆕 v3.0.446 — Vypnout panel „Akce vyžadující pozornost" NATRVALO (uloží nastavení; znovu zapneš v Nastavení → Údržba)
+window.dashAlertsVypnout = async function() {
+  try {
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ dashboard_alerts_off: '1' }) });
+    if (!state.nastaveni) state.nastaveni = {};
+    state.nastaveni.dashboard_alerts_off = '1';
+    const w = document.querySelector('.dash-alerts'); if (w) w.remove();
+    if (typeof toast === 'function') toast('Upozornění vypnuto — znovu zapneš v Nastavení → Údržba', 'info');
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🆕 v3.0.446 — přepínač panelu z Nastavení → Údržba (on = zobrazovat)
+window.setDashAlertsEnabled = async function(on) {
+  try {
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ dashboard_alerts_off: on ? '0' : '1' }) });
+    if (!state.nastaveni) state.nastaveni = {};
+    state.nastaveni.dashboard_alerts_off = on ? '0' : '1';
+    if (typeof toast === 'function') toast(on ? '✓ Upozornění zapnuto' : 'Upozornění vypnuto', 'info');
+  } catch (e) { alert('Chyba: ' + e.message); }
 };
 
 // 🆕 v3.0.60 — Swipe-to-dismiss pro .dash-alerts widget (user: "to nova
