@@ -339,6 +339,34 @@ window.exportVyrobkuHeureka = async function() {
   return _stahniSoubor(url, 'heureka');
 };
 
+// 🔗 v3.0.448 — trvalé feed URL pro Google Merchant / Heuréku (crawler stahuje sám, bez loginu přes token)
+window.zobrazFeedUrl = async function() {
+  const box = document.getElementById('feed-url-box');
+  if (box) box.innerHTML = '<div style="font-size:12px;color:var(--text-3)">Načítám…</div>';
+  try {
+    const r = await api('admin_vyrobky_export.php?action=feed_info');
+    const row = (label, url) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;min-width:72px">${label}</span>
+        <input class="form-input" readonly value="${esc(url)}" onclick="this.select()" style="flex:1;min-width:200px;font-family:'SF Mono',Menlo,monospace;font-size:11px">
+        <button class="btn-secondary" style="font-size:12px" onclick="navigator.clipboard.writeText('${esc(url)}').then(()=>toast('Zkopírováno do schránky','info'))">📋 Kopírovat</button>
+        <a class="btn-secondary" href="${esc(url)}" target="_blank" rel="noopener" style="font-size:12px;text-decoration:none">↗ Otevřít</a>
+      </div>`;
+    if (box) box.innerHTML =
+      row('Google', r.google) +
+      row('Heuréka', r.heureka) +
+      row('Zboží.cz', r.zbozi) +
+      `<small style="display:block;color:var(--text-3);font-size:11px;margin-top:4px;line-height:1.5">Vlož tyto URL do <strong>Google Merchant Center</strong> / <strong>Heuréky</strong> — feed se aktualizuje sám (jen aktivní výrobky). Odkaz je tajný (token). Při úniku přegeneruj: <button class="btn-secondary" style="font-size:11px;padding:2px 8px" onclick="regenerovatFeedUrl()">🔄 Nový token</button></small>`;
+  } catch (e) {
+    if (box) box.innerHTML = `<div style="color:var(--danger-text);font-size:12px">Chyba: ${esc(e.message)}</div>`;
+  }
+};
+window.regenerovatFeedUrl = async function() {
+  if (!confirm('Přegenerovat token? Staré feed URL přestanou fungovat — budeš je muset znovu vložit do Google / Heuréky.')) return;
+  try { await api('admin_vyrobky_export.php?action=feed_regenerate'); if (typeof toast === 'function') toast('Nový token vygenerován', 'info'); zobrazFeedUrl(); }
+  catch (e) { alert('Chyba: ' + e.message); }
+};
+
 // Helper — stáhne soubor pomocí fetch + blob, s detailem chyby pokud něco selže.
 async function _stahniSoubor(url, format) {
   try {

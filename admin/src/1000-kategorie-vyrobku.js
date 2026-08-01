@@ -323,6 +323,26 @@ window.smazatKategorii = async function(id) {
 // Sloučení 'PDF nabídka' (katalog) a 'Štítky a cenovky' (stitky)
 // do jednoho menu item kvůli lepšímu mobile UX (méně sidebar items).
 // =============================================================
+// 🆕 v3.0.448 — Export katalogu (přesunuto z Nastavení do Nástrojů) — všechny formáty + trvalé feed URL
+window.appekExportKatalog = function() {
+  openModal('📤 Export katalogu výrobků', `
+    <p style="font-size:12.5px;color:var(--text-3);margin-bottom:14px;line-height:1.6">Stáhni celý katalog (pouze <strong>aktivní</strong> výrobky) pro účetní systémy, e-shop, Heureku/Zboží.cz/Google, nebo použij <strong>trvalé feed URL</strong>. Obsahuje: název, cenu, DPH, EAN, hmotnost, kategorii, popis, alergeny, obrázek. Hesla a interní pole se neexportují.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-primary btn-green" onclick="exportVyrobku('xml')" title="Univerzální XML — e-shop, Money S3, Pohoda">📄 XML</button>
+      <button class="btn-primary" onclick="exportVyrobku('csv')" title="CSV — Excel, Google Sheets, Pohoda">📊 CSV</button>
+      <button class="btn-secondary" onclick="exportVyrobku('json')" title="JSON — API integrace">{ } JSON</button>
+      <button class="btn-secondary" onclick="exportVyrobku('heureka')" title="Heureka XML feed (download)">🛒 Heureka XML</button>
+      <button class="btn-secondary" onclick="exportVyrobku('google')" title="Google Shopping feed (download)">🛒 Google XML</button>
+    </div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border)">
+      <strong style="font-size:13px">🔗 Trvalé feed URL <small style="font-weight:400;color:var(--text-3)">— vlož do Google Merchant / Heuréky, feed se aktualizuje sám</small></strong>
+      <div id="feed-url-box" style="margin-top:10px">
+        <button class="btn-secondary" onclick="zobrazFeedUrl()" style="font-size:13px">🔗 Zobrazit feed odkazy</button>
+      </div>
+    </div>
+  `);
+};
+
 // 🆕 v3.0.338 — Import produktů z CSV (Shoptet / WooCommerce / Excel)
 window.appekImportProdukty = function() {
   openModal('📥 Import produktů', `
@@ -543,6 +563,13 @@ async function renderNastroje() {
         <div class="nastroje-card-title">Import produktů</div>
         <div class="nastroje-card-desc">Naimportuj produkty z CSV (Shoptet, WooCommerce, Excel). Mapování sloupců + aktualizace existujících.</div>
         <div class="nastroje-card-cta">Importovat →</div>
+      </button>
+
+      <button class="nastroje-card" onclick="appekExportKatalog()" aria-label="Export katalogu výrobků">
+        <div class="nastroje-card-icon">📤</div>
+        <div class="nastroje-card-title">Export katalogu</div>
+        <div class="nastroje-card-desc">Stáhni katalog (XML / CSV / JSON / Heureka / Google) nebo získej trvalé feed URL pro Google Merchant a Heuréku.</div>
+        <div class="nastroje-card-cta">Exportovat →</div>
       </button>
 
       ${adminOnly(`<button class="nastroje-card" onclick="navigate('integrace')" aria-label="Integrace a platby">

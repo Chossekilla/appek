@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.447';
+const APPEK_ADMIN_JS_VERSION = '3.0.448';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -10963,6 +10963,34 @@ window.exportVyrobkuHeureka = async function() {
   return _stahniSoubor(url, 'heureka');
 };
 
+// 🔗 v3.0.448 — trvalé feed URL pro Google Merchant / Heuréku (crawler stahuje sám, bez loginu přes token)
+window.zobrazFeedUrl = async function() {
+  const box = document.getElementById('feed-url-box');
+  if (box) box.innerHTML = '<div style="font-size:12px;color:var(--text-3)">Načítám…</div>';
+  try {
+    const r = await api('admin_vyrobky_export.php?action=feed_info');
+    const row = (label, url) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;min-width:72px">${label}</span>
+        <input class="form-input" readonly value="${esc(url)}" onclick="this.select()" style="flex:1;min-width:200px;font-family:'SF Mono',Menlo,monospace;font-size:11px">
+        <button class="btn-secondary" style="font-size:12px" onclick="navigator.clipboard.writeText('${esc(url)}').then(()=>toast('Zkopírováno do schránky','info'))">📋 Kopírovat</button>
+        <a class="btn-secondary" href="${esc(url)}" target="_blank" rel="noopener" style="font-size:12px;text-decoration:none">↗ Otevřít</a>
+      </div>`;
+    if (box) box.innerHTML =
+      row('Google', r.google) +
+      row('Heuréka', r.heureka) +
+      row('Zboží.cz', r.zbozi) +
+      `<small style="display:block;color:var(--text-3);font-size:11px;margin-top:4px;line-height:1.5">Vlož tyto URL do <strong>Google Merchant Center</strong> / <strong>Heuréky</strong> — feed se aktualizuje sám (jen aktivní výrobky). Odkaz je tajný (token). Při úniku přegeneruj: <button class="btn-secondary" style="font-size:11px;padding:2px 8px" onclick="regenerovatFeedUrl()">🔄 Nový token</button></small>`;
+  } catch (e) {
+    if (box) box.innerHTML = `<div style="color:var(--danger-text);font-size:12px">Chyba: ${esc(e.message)}</div>`;
+  }
+};
+window.regenerovatFeedUrl = async function() {
+  if (!confirm('Přegenerovat token? Staré feed URL přestanou fungovat — budeš je muset znovu vložit do Google / Heuréky.')) return;
+  try { await api('admin_vyrobky_export.php?action=feed_regenerate'); if (typeof toast === 'function') toast('Nový token vygenerován', 'info'); zobrazFeedUrl(); }
+  catch (e) { alert('Chyba: ' + e.message); }
+};
+
 // Helper — stáhne soubor pomocí fetch + blob, s detailem chyby pokud něco selže.
 async function _stahniSoubor(url, format) {
   try {
@@ -15637,36 +15665,11 @@ async function renderNastaveni() {
       </div>
     </div>
 
-    <!-- 📤 EXPORT KATALOGU VÝROBKŮ -->
-    <div class="nastaveni-row" style="margin-top:14px">
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">📤 Export katalogu výrobků</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Stáhněte celý katalog výrobků pro <strong>účetní systémy</strong>, <strong>e-shop</strong>, <strong>Heureku/Zboží.cz</strong> nebo zálohu. Obsahuje: název, cenu, DPH, EAN, hmotnost, kategorii, popis, alergeny, obrázek.
-        </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn-primary btn-green" onclick="exportVyrobku('xml')" title="Univerzální XML — pro e-shop, Heureku, Zboží.cz, Money S3">📄 XML</button>
-          <button class="btn-primary" onclick="exportVyrobku('csv')" title="CSV — pro Excel, Google Sheets, Pohoda">📊 CSV</button>
-          <button class="btn-secondary" onclick="exportVyrobku('json')" title="JSON — pro API integraci">{ } JSON</button>
-          <button class="btn-secondary" onclick="exportVyrobkuHeureka()" title="XML feed pro Heureku.cz">🛒 Heureka XML</button>
-        </div>
-        <small style="display:block;margin-top:8px;color:var(--text-3);font-size:11px">
-          💡 Stažený soubor obsahuje pouze <strong>aktivní</strong> výrobky. Hesla, vnitřní kódy a interní pole se neexportují.
-        </small>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">📥 Hromadný import výrobků</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Naimportujte hromadně výrobky z CSV nebo XML — užitečné pro <strong>migraci z jiného systému</strong> nebo <strong>roční aktualizaci</strong>.
-        </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('vyrobky');setTimeout(()=>{const b=document.querySelector('button[onclick*=\\'otevritImportVyrobku\\']');if(b)b.click();},200)" title="Otevře hromadný import v sekci Výrobky">📥 Importovat</button>
-        </div>
-        <small style="display:block;margin-top:8px;color:var(--text-3);font-size:11px">
-          Otevře dialog v sekci Výrobky. Podporuje CSV i JSON formát.
-        </small>
-      </div>
+    <!-- 📤 Export & import katalogu — přesunuto do Nástrojů (v3.0.448), ať to není 2× -->
+    <div class="card-block" style="margin-top:14px;background:var(--surface-2)">
+      <h3 style="margin-bottom:6px;">📤 Export &amp; import katalogu</h3>
+      <p class="page-sub" style="margin:0 0 12px;font-size:12px">Přesunuto do <strong>Nástrojů</strong> — stažení (XML / CSV / JSON / Heureka / Google), <strong>trvalé feed URL</strong> pro Google Merchant a Heuréku i hromadný import produktů najdeš na jednom místě.</p>
+      <button class="btn-secondary" onclick="navigate('nastroje')">🛠️ Otevřít Nástroje →</button>
     </div>
   `;
 
@@ -31525,6 +31528,26 @@ window.smazatKategorii = async function(id) {
 // Sloučení 'PDF nabídka' (katalog) a 'Štítky a cenovky' (stitky)
 // do jednoho menu item kvůli lepšímu mobile UX (méně sidebar items).
 // =============================================================
+// 🆕 v3.0.448 — Export katalogu (přesunuto z Nastavení do Nástrojů) — všechny formáty + trvalé feed URL
+window.appekExportKatalog = function() {
+  openModal('📤 Export katalogu výrobků', `
+    <p style="font-size:12.5px;color:var(--text-3);margin-bottom:14px;line-height:1.6">Stáhni celý katalog (pouze <strong>aktivní</strong> výrobky) pro účetní systémy, e-shop, Heureku/Zboží.cz/Google, nebo použij <strong>trvalé feed URL</strong>. Obsahuje: název, cenu, DPH, EAN, hmotnost, kategorii, popis, alergeny, obrázek. Hesla a interní pole se neexportují.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-primary btn-green" onclick="exportVyrobku('xml')" title="Univerzální XML — e-shop, Money S3, Pohoda">📄 XML</button>
+      <button class="btn-primary" onclick="exportVyrobku('csv')" title="CSV — Excel, Google Sheets, Pohoda">📊 CSV</button>
+      <button class="btn-secondary" onclick="exportVyrobku('json')" title="JSON — API integrace">{ } JSON</button>
+      <button class="btn-secondary" onclick="exportVyrobku('heureka')" title="Heureka XML feed (download)">🛒 Heureka XML</button>
+      <button class="btn-secondary" onclick="exportVyrobku('google')" title="Google Shopping feed (download)">🛒 Google XML</button>
+    </div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border)">
+      <strong style="font-size:13px">🔗 Trvalé feed URL <small style="font-weight:400;color:var(--text-3)">— vlož do Google Merchant / Heuréky, feed se aktualizuje sám</small></strong>
+      <div id="feed-url-box" style="margin-top:10px">
+        <button class="btn-secondary" onclick="zobrazFeedUrl()" style="font-size:13px">🔗 Zobrazit feed odkazy</button>
+      </div>
+    </div>
+  `);
+};
+
 // 🆕 v3.0.338 — Import produktů z CSV (Shoptet / WooCommerce / Excel)
 window.appekImportProdukty = function() {
   openModal('📥 Import produktů', `
@@ -31745,6 +31768,13 @@ async function renderNastroje() {
         <div class="nastroje-card-title">Import produktů</div>
         <div class="nastroje-card-desc">Naimportuj produkty z CSV (Shoptet, WooCommerce, Excel). Mapování sloupců + aktualizace existujících.</div>
         <div class="nastroje-card-cta">Importovat →</div>
+      </button>
+
+      <button class="nastroje-card" onclick="appekExportKatalog()" aria-label="Export katalogu výrobků">
+        <div class="nastroje-card-icon">📤</div>
+        <div class="nastroje-card-title">Export katalogu</div>
+        <div class="nastroje-card-desc">Stáhni katalog (XML / CSV / JSON / Heureka / Google) nebo získej trvalé feed URL pro Google Merchant a Heuréku.</div>
+        <div class="nastroje-card-cta">Exportovat →</div>
       </button>
 
       ${adminOnly(`<button class="nastroje-card" onclick="navigate('integrace')" aria-label="Integrace a platby">

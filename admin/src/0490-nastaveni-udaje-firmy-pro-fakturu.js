@@ -424,36 +424,11 @@ async function renderNastaveni() {
       </div>
     </div>
 
-    <!-- 📤 EXPORT KATALOGU VÝROBKŮ -->
-    <div class="nastaveni-row" style="margin-top:14px">
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">📤 Export katalogu výrobků</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Stáhněte celý katalog výrobků pro <strong>účetní systémy</strong>, <strong>e-shop</strong>, <strong>Heureku/Zboží.cz</strong> nebo zálohu. Obsahuje: název, cenu, DPH, EAN, hmotnost, kategorii, popis, alergeny, obrázek.
-        </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn-primary btn-green" onclick="exportVyrobku('xml')" title="Univerzální XML — pro e-shop, Heureku, Zboží.cz, Money S3">📄 XML</button>
-          <button class="btn-primary" onclick="exportVyrobku('csv')" title="CSV — pro Excel, Google Sheets, Pohoda">📊 CSV</button>
-          <button class="btn-secondary" onclick="exportVyrobku('json')" title="JSON — pro API integraci">{ } JSON</button>
-          <button class="btn-secondary" onclick="exportVyrobkuHeureka()" title="XML feed pro Heureku.cz">🛒 Heureka XML</button>
-        </div>
-        <small style="display:block;margin-top:8px;color:var(--text-3);font-size:11px">
-          💡 Stažený soubor obsahuje pouze <strong>aktivní</strong> výrobky. Hesla, vnitřní kódy a interní pole se neexportují.
-        </small>
-      </div>
-
-      <div class="card-block">
-        <h3 style="margin-bottom:6px;">📥 Hromadný import výrobků</h3>
-        <p class="page-sub" style="margin-bottom:14px;font-size:12px">
-          Naimportujte hromadně výrobky z CSV nebo XML — užitečné pro <strong>migraci z jiného systému</strong> nebo <strong>roční aktualizaci</strong>.
-        </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:auto">
-          <button class="btn-primary" onclick="navigate('vyrobky');setTimeout(()=>{const b=document.querySelector('button[onclick*=\\'otevritImportVyrobku\\']');if(b)b.click();},200)" title="Otevře hromadný import v sekci Výrobky">📥 Importovat</button>
-        </div>
-        <small style="display:block;margin-top:8px;color:var(--text-3);font-size:11px">
-          Otevře dialog v sekci Výrobky. Podporuje CSV i JSON formát.
-        </small>
-      </div>
+    <!-- 📤 Export & import katalogu — přesunuto do Nástrojů (v3.0.448), ať to není 2× -->
+    <div class="card-block" style="margin-top:14px;background:var(--surface-2)">
+      <h3 style="margin-bottom:6px;">📤 Export &amp; import katalogu</h3>
+      <p class="page-sub" style="margin:0 0 12px;font-size:12px">Přesunuto do <strong>Nástrojů</strong> — stažení (XML / CSV / JSON / Heureka / Google), <strong>trvalé feed URL</strong> pro Google Merchant a Heuréku i hromadný import produktů najdeš na jednom místě.</p>
+      <button class="btn-secondary" onclick="navigate('nastroje')">🛠️ Otevřít Nástroje →</button>
     </div>
   `;
 

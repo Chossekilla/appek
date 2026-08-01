@@ -18,10 +18,40 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 cors_headers();
-require_admin();
 
 $pdo = db();
 $format = strtolower(trim($_GET['format'] ?? 'csv'));
+
+// 🆕 v3.0.448 — Veřejné feed URL pro Google Merchant / Heuréka / Zboží.cz (crawler bez loginu, inline).
+//   Feed se servíruje přes token (nastaveni.katalog_feed_token). CSV/JSON/XML zůstávají admin-only download.
+$FEED_FORMATS = ['google', 'heureka', 'zbozi'];
+function _feed_set_token(PDO $pdo, string $t): void {
+    $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('katalog_feed_token', :v) ON DUPLICATE KEY UPDATE hodnota = :v2")
+        ->execute(['v' => $t, 'v2' => $t]);
+}
+
+// Akce feed_info / feed_regenerate (admin) — vrátí veřejné URL feedů (vygeneruje token pokud chybí)
+$action = $_GET['action'] ?? '';
+if ($action === 'feed_info' || $action === 'feed_regenerate') {
+    require_admin();
+    $t = (string) nastaveni_get($pdo, 'katalog_feed_token', '');
+    if ($action === 'feed_regenerate' || strlen($t) < 24) { $t = bin2hex(random_bytes(20)); _feed_set_token($pdo, $t); }
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $origin = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $mk = function ($f) use ($origin, $t) { return "$origin/api/admin_vyrobky_export.php?format=$f&token=$t"; };
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode(['ok' => true, 'token' => $t, 'google' => $mk('google'), 'heureka' => $mk('heureka'), 'zbozi' => $mk('zbozi')], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// Feed URL přes token → bez loginu + inline (ne download). Jinak admin download.
+$reqToken  = trim($_GET['token'] ?? '');
+$feedToken = (string) nastaveni_get($pdo, 'katalog_feed_token', '');
+$IS_FEED_URL = ($reqToken !== '' && strlen($feedToken) >= 24 && hash_equals($feedToken, $reqToken) && in_array($format, $FEED_FORMATS, true));
+$GLOBALS['_feed_inline'] = $IS_FEED_URL;
+if (!$IS_FEED_URL) {
+    require_admin();
+}
 $jenAktivni = !isset($_GET['aktivni']) || $_GET['aktivni'] !== '0';
 $katFilter = isset($_GET['kategorie']) ? (int) $_GET['kategorie'] : null;
 
@@ -131,8 +161,11 @@ switch ($format) {
     case 'zbozi':
         export_zbozi($vyrobky, $cenaSDph, $firmaNazev, $firmaWeb);
         break;
+    case 'google':
+        export_google($vyrobky, $cenaSDph, $firmaNazev, $firmaWeb);
+        break;
     default:
-        json_error('Neznámý formát. Použij: xml | csv | json | heureka | zbozi', 400);
+        json_error('Neznámý formát. Použij: xml | csv | json | google | heureka | zbozi', 400);
 }
 
 // ────────────────────────────────────────────────────────────
@@ -271,12 +304,71 @@ function export_xml(array $vyrobky, callable $cenaSDph, string $firma, string $i
 }
 
 /**
+ * Google Shopping feed — RSS 2.0 + g: namespace — https://support.google.com/merchants/answer/7052112
+ */
+function export_google(array $vyrobky, callable $cenaSDph, string $firma, string $web): void {
+    $datum = date('Y-m-d');
+    header('Content-Type: application/xml; charset=UTF-8');
+    if (empty($GLOBALS['_feed_inline'])) header("Content-Disposition: attachment; filename=\"google-feed-$datum.xml\"");
+
+    $base = $web ? rtrim($web, '/') : '';
+    if ($base && !preg_match('#^https?://#', $base)) $base = 'https://' . $base;
+    $link = $base ?: 'https://appek.cz';
+
+    $xml = new XMLWriter();
+    $xml->openMemory();
+    $xml->startDocument('1.0', 'UTF-8');
+    $xml->setIndent(true);
+    $xml->startElement('rss');
+    $xml->writeAttribute('version', '2.0');
+    $xml->writeAttribute('xmlns:g', 'http://base.google.com/ns/1.0');
+    $xml->startElement('channel');
+    $xml->writeElement('title', $firma . ' — katalog');
+    $xml->writeElement('link', $link);
+    $xml->writeElement('description', 'Produktový feed ' . $firma);
+
+    foreach ($vyrobky as $v) {
+        $xml->startElement('item');
+        $xml->writeElement('g:id', (string) ($v['cislo'] ?: $v['id']));
+        $xml->writeElement('g:title', (string) $v['nazev']);
+        $desc = trim(strip_tags((string) ($v['popis'] ?? ''))) ?: (string) $v['nazev'];
+        $xml->startElement('g:description'); $xml->writeCData($desc); $xml->endElement();
+        // Produkt nemá vlastní veřejnou stránku (B2B systém) → odkaz na web firmy s kotvou na produkt
+        $xml->writeElement('g:link', $link . '#produkt-' . (int) $v['id']);
+        if (!empty($v['obrazek_url'])) {
+            $imgUrl = (string) $v['obrazek_url'];
+            if ($base && !preg_match('#^https?://#', $imgUrl)) $imgUrl = $base . '/' . ltrim($imgUrl, '/');
+            $xml->writeElement('g:image_link', $imgUrl);
+        }
+        $xml->writeElement('g:availability', $v['aktivni'] ? 'in_stock' : 'out_of_stock');
+        $xml->writeElement('g:price', number_format($cenaSDph($v), 2, '.', '') . ' CZK');
+        $xml->writeElement('g:condition', 'new');
+        $xml->writeElement('g:brand', $firma !== '' ? $firma : 'APPEK');
+        if (!empty($v['ean'])) {
+            $xml->writeElement('g:gtin', (string) $v['ean']);
+            $xml->writeElement('g:identifier_exists', 'yes');
+        } else {
+            $xml->writeElement('g:mpn', (string) ($v['cislo'] ?: $v['id']));
+            $xml->writeElement('g:identifier_exists', 'no');
+        }
+        if (!empty($v['kategorie'])) $xml->writeElement('g:product_type', (string) $v['kategorie']);
+        $xml->endElement(); // item
+    }
+    $xml->endElement(); // channel
+    $xml->endElement(); // rss
+    $xml->endDocument();
+
+    echo $xml->outputMemory();
+    exit;
+}
+
+/**
  * Heureka XML feed — https://sluzby.heureka.cz/napoveda/xml-feed/
  */
 function export_heureka(array $vyrobky, callable $cenaSDph, string $firma, string $web): void {
     $datum = date('Y-m-d');
     header('Content-Type: application/xml; charset=UTF-8');
-    header("Content-Disposition: attachment; filename=\"heureka-feed-$datum.xml\"");
+    if (empty($GLOBALS['_feed_inline'])) header("Content-Disposition: attachment; filename=\"heureka-feed-$datum.xml\"");
 
     $base = $web ? rtrim($web, '/') : '';
     if ($base && !preg_match('#^https?://#', $base)) $base = 'https://' . $base;
@@ -324,7 +416,7 @@ function export_heureka(array $vyrobky, callable $cenaSDph, string $firma, strin
 function export_zbozi(array $vyrobky, callable $cenaSDph, string $firma, string $web): void {
     $datum = date('Y-m-d');
     header('Content-Type: application/xml; charset=UTF-8');
-    header("Content-Disposition: attachment; filename=\"zbozi-feed-$datum.xml\"");
+    if (empty($GLOBALS['_feed_inline'])) header("Content-Disposition: attachment; filename=\"zbozi-feed-$datum.xml\"");
 
     $base = $web ? rtrim($web, '/') : '';
     if ($base && !preg_match('#^https?://#', $base)) $base = 'https://' . $base;
