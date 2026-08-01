@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.444';
+const APPEK_ADMIN_JS_VERSION = '3.0.445';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -16314,6 +16314,65 @@ async function renderNastaveni() {
           <p><strong>Auto-záloha cronem:</strong> Pokud hosting umí cron → <code>0 3 * * * curl https://tvoje-domena.cz/api/cron_backup.php?token=...</code> (denně ve 3:00 ráno).</p>
           <p><strong>Off-site záloha:</strong> Stažený SQL nahraj na Google Drive / Dropbox / iCloud — neztratíš při havárii hostingu.</p>
           <p><strong>Restore:</strong> Údržba → "📥 Obnovit ze zálohy" → vyber SQL soubor → potvrď. <strong>POZOR:</strong> přepíše aktuální data!</p>`
+      },
+      { q: '🎁 Balíčky (rozšiřující moduly) — co to je a jak je aktivovat?', a: `
+          <p>APPEK má rozšiřující moduly placené <strong>roční licencí</strong>. Aktivuje je dodavatel ve vašem licenčním klíči — po aktivaci se objeví v liště <strong>„🎁 Tvé balíčky"</strong> nahoře a v Nastavení → 🎁 Balíčky.</p>
+          <ul style="line-height:1.8">
+            <li><strong>🎂 Cukrárna</strong> — konfigurátor dortů (velikost / příchuť / dekorace, foto předlohy), počítá se do denní kapacity pečení</li>
+            <li><strong>🥗 Lahůdky &amp; Catering</strong> — kalkulačka nabídek (položky, nápoje, zálohy 50 %), cenové úrovně dle počtu osob, PDF smlouvy</li>
+            <li><strong>🍽️ Restaurace</strong> — POS Kasa, KDS, Výdej, stoly, QR objednávky, uzávěrka</li>
+            <li><strong>🍂 Sezónní</strong> — vlastní sezóny + sezónní katalog / hromadný email (Vánoce, Velikonoce…)</li>
+          </ul>
+          <p>Bez příslušného balíčku jsou funkce skryté nebo vrátí „Vyžaduje balíček". Cenu řídí dodavatel, v appce vidíte jen „🗓️ Roční licence".</p>`
+      },
+      { q: '↩️ Vratky, dobropisy a storna — jak vrátit zboží nebo opravit doklad?', a: `
+          <p><strong>Storno</strong> (dokud není vystavený dodací list): Objednávky → detail → 🗑️ Stornovat.</p>
+          <p><strong>Vratka / dobropis</strong> (po fakturaci): Objednávky → detail → ↩️ Vratka → vyber položky a množství (podporuje i <strong>částečnou</strong> vratku). Vytvoří se <strong>dobropis (DOB-)</strong> se zápornou částkou a zboží se vrátí na sklad (pohyb „vratka").</p>
+          <p><strong>POS vratka:</strong> POS → Účtenky → klik na účtenku → Vratka → vybrané položky (VRA-).</p>
+          <p>Hranice storno vs. vratka je vystavení dokladu — po vystavení DL/FA použij vždy vratku (kvůli návaznosti dokladů).</p>`
+      },
+      { q: '🔐 GDPR — zásady zpracování, souhlas a práva zákazníka', a: `
+          <p>Nastavení → 🏢 Firma &amp; doklady → sekce GDPR:</p>
+          <ul style="line-height:1.8">
+            <li><strong>Editor zásad</strong> zpracování osobních údajů (obecná šablona s údaji firmy) + veřejné čtení pro B2B portál (patička)</li>
+            <li><strong>Souhlas u objednávky</strong> — volitelně povinné zaškrtnutí; ukládá se čas souhlasu</li>
+            <li><strong>Práva subjektu</strong> — v detailu odběratele: export dat (JSON) a anonymizace (smaže kontaktní údaje, zachová účetně povinné doklady)</li>
+          </ul>
+          <p>⚠️ <strong>Právní znění</strong> zásad a zpracovatelské smlouvy konzultuj s právníkem — appka poskytuje nástroj, ne právní obsah.</p>`
+      },
+      { q: '💱 Cizí měna a přepočet — jak fakturovat v EUR?', a: `
+          <p>Nastavení → 💱 Měna &amp; přepočet:</p>
+          <ul style="line-height:1.8">
+            <li>Přidej měnu (kód + kurz), zvol zobrazení: <strong>jen přepočet</strong> nebo <strong>dual</strong> (obě měny na faktuře/účtence)</li>
+            <li>Kurz zadej ručně nebo načti z <strong>ČNB</strong></li>
+            <li><strong>Trvalý přepočet</strong> celého systému do jiné měny — s automatickou zálohou před přepočtem</li>
+          </ul>`
+      },
+      { q: '📦 Přepravci — expediční štítky (Zásilkovna, DPD, PPL, Česká pošta)', a: `
+          <p>Nastavení → 🔌 Integrace → přepravci → zadej účet / API klíč u zvoleného přepravce (Zásilkovna, DPD, PPL, ČP).</p>
+          <p>Pak v <strong>detailu objednávky → 📦 Vytvořit zásilku</strong> → vygeneruje se podací štítek k tisku a číslo zásilky.</p>
+          <p>⚠️ Vyžaduje aktivní účet u přepravce (podobně jako platební brány).</p>`
+      },
+      { q: '🎟️ Vouchery a dárkové poukazy', a: `
+          <p>Vytvoř voucher jako <strong>slevu v Kč nebo v %</strong>, volitelně vázaný na konkrétního odběratele / e-mail.</p>
+          <p>Uplatnění: v <strong>B2B košíku</strong> (zákazník zadá kód) i na <strong>POS</strong> (tlačítko 🎟️ Voucher). Systém hlídá platnost a jednorázové použití.</p>`
+      },
+      { q: '📷 Skener čárových kódů + EAN štítky', a: `
+          <p>Nástroje → 📷 Skener kódů:</p>
+          <ul style="line-height:1.8">
+            <li><strong>HW čtečka</strong> (keyboard-wedge) i <strong>kamera</strong> mobilu/tabletu</li>
+            <li><strong>EAN-13 generování</strong> + tisk štítků (Nástroje → EAN štítky)</li>
+            <li><strong>Prodej na váhu</strong> — váhový čárový kód (PLU + hmotnost)</li>
+            <li><strong>Pozice ve skladu</strong> — sken „kde leží" (regál / police per surovina)</li>
+          </ul>`
+      },
+      { q: '📥 Import produktů z e-shopu (CSV)', a: `
+          <p>Nástroje → 📥 Import produktů: nahraj <strong>CSV</strong> ze Shoptetu / WooCommerce / Excelu.</p>
+          <p>Náhled auto-detekuje oddělovač a kódování + automaticky <strong>namapuje sloupce</strong> (název, cena, EAN, kategorie…). Commit vloží nové nebo aktualizuje existující dle <strong>čísla / EAN</strong>, kategorie se vytvoří dle názvu.</p>`
+      },
+      { q: '🧩 Receptury a polotovary (víceúrovňové recepty / BOM)', a: `
+          <p>U výrobku (Výrobky → upravit → Složení) sestav recept ze <strong>surovin i polotovarů</strong>. Systém spočítá <strong>náklady</strong> a <strong>alergeny</strong> rollupem přes všechny úrovně.</p>
+          <p><strong>Polotovar</strong> (např. těsto, náplň) = výrobek se sledováním skladu: tlačítko <strong>„Vyrobit dávku"</strong> odepíše suroviny a naskladní polotovar; při výrobě finálního výrobku se pak odepisuje polotovar.</p>`
       },
     ].map((item, i) => `
       <details class="card-block" style="padding:14px 18px">
