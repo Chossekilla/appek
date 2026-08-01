@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.443';
+const APPEK_ADMIN_JS_VERSION = '3.0.444';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -33059,18 +33059,18 @@ async function renderSuroviny() {
         </div>
       ` : ''}
 
-      <!-- Kategorie pillsy -->
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px">
-        <button class="period-tab ${kat === 'vse' ? 'active' : ''}" onclick="state._suroviny_kat='vse';renderSuroviny()" style="font-size:16px;padding:12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;overflow:visible">
-          <span style="font-size:28px;line-height:1">📚</span>
+      <!-- Kategorie — uniformní grid (stejně velká tlačítka; 2 řádky na širokém, responzivně se zúží) -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px;margin-top:18px">
+        <button class="sur-cat-btn ${kat === 'vse' ? 'is-active' : ''}" onclick="state._suroviny_kat='vse';renderSuroviny()">
+          <span class="sur-cat-emoji">📚</span>
           <span>Vše</span>
-          <span style="opacity:0.7;margin-left:4px">${list.length}</span>
+          <span class="sur-cat-count">${list.length}</span>
         </button>
         ${SUROVINA_KATEGORIE.filter(k => (pocty[k.key] || 0) > 0).map(k => `
-          <button class="period-tab ${kat === k.key ? 'active' : ''}" onclick="state._suroviny_kat='${k.key}';renderSuroviny()" style="font-size:16px;padding:12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;overflow:visible">
-            <span style="font-size:28px;line-height:1">${k.icon}</span>
-            <span>${k.label}</span>
-            <span style="opacity:0.7;margin-left:4px">${pocty[k.key]}</span>
+          <button class="sur-cat-btn ${kat === k.key ? 'is-active' : ''}" onclick="state._suroviny_kat='${k.key}';renderSuroviny()">
+            <span class="sur-cat-emoji">${k.icon}</span>
+            <span>${esc(k.label)}</span>
+            <span class="sur-cat-count">${pocty[k.key]}</span>
           </button>
         `).join('')}
       </div>
