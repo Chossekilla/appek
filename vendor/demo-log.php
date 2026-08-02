@@ -11,9 +11,40 @@
  */
 require_once __DIR__ . '/_lib.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_mail.php';        // vendor_send_mail() pro notifikaci leadů
+require_once __DIR__ . '/_demo_maint.php';  // 🔧 údržba dema (marker + leady)
 
 $user = vendor_require_login();
 $currentPage = 'demo-log';
+
+// ─── 🔧 ÚDRŽBA DEMA — přepínač + notifikace leadů ──────────────────────
+$maint_flash = null;
+$maint_err = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['action'] ?? ''), ['maint_on', 'maint_off'], true)) {
+    vendor_csrf_check();
+    if ($_POST['action'] === 'maint_on') {
+        $r = demo_maint_on();
+        if ($r['ok']) {
+            $maint_flash = '🔧 Údržba dema ZAPNUTA — návštěvníci vidí údržbovou stránku.';
+            if (!empty($r['warnings'])) $maint_err = implode(' ', $r['warnings']);
+        } else {
+            $maint_err = $r['error'] ?: 'Zapnutí selhalo.';
+        }
+    } else {
+        $r = demo_maint_off(true);
+        if ($r['ok']) {
+            $maint_flash = '✅ Údržba dema VYPNUTA — demo je zase online.';
+            if ($r['notified'] > 0) $maint_flash .= ' Rozesláno ' . $r['notified'] . ' leadům „už jsme zpět".';
+            if ($r['notify_errors'] > 0) $maint_err = 'Nepodařilo se odeslat ' . $r['notify_errors'] . ' e-mailů (zkontroluj SMTP v Nastavení).';
+        } else {
+            $maint_err = $r['error'] ?: 'Vypnutí selhalo.';
+        }
+    }
+}
+$maint_on = demo_maint_is_on();
+$maint_leads = demo_leads_read(50);
+$maint_leads_pending = 0;
+foreach ($maint_leads as $__l) { if (($__l['notified'] ?? 0) == 0) $maint_leads_pending++; }
 
 // Načti demo log
 $logs = [];
@@ -167,6 +198,65 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
   <?php if (!empty($error)): ?>
     <div style="background:#f8d7da;color:#721c24;padding:14px 18px;border-radius:10px;margin-bottom:14px">❌ <?= htmlspecialchars($error) ?></div>
   <?php endif; ?>
+
+  <!-- 🔧 ÚDRŽBA DEMA -->
+  <div style="background:#fff;border:1px solid <?= $maint_on ? '#F5C77A' : '#e5e5e7' ?>;border-left:5px solid <?= $maint_on ? '#c66800' : '#34c759' ?>;border-radius:12px;padding:18px 20px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin:0 0 4px;font-size:17px">🔧 Údržba dema
+          <?php if ($maint_on): ?>
+            <span class="badge orange" style="vertical-align:middle;margin-left:6px">ZAPNUTA</span>
+          <?php else: ?>
+            <span class="badge green" style="vertical-align:middle;margin-left:6px">ONLINE</span>
+          <?php endif; ?>
+        </h2>
+        <div style="font-size:13px;color:#6e6e73;max-width:560px">
+          <?php if ($maint_on): ?>
+            Návštěvníci demo.appek.cz teď vidí údržbovou stránku (503) s možností nechat e-mail. Vypnutím rozešleš čekajícím leadům „už jsme zpět".
+          <?php else: ?>
+            Zapnutím se na demo.appek.cz (admin, B2B, API i POS) místo appky zobrazí brandovaná stránka „Demo je v údržbě" s políčkem na e-mail. Vhodné před ručním zásahem do dema.
+          <?php endif; ?>
+        </div>
+      </div>
+      <form method="post" style="margin:0">
+        <?php vendor_csrf_field(); ?>
+        <?php if ($maint_on): ?>
+          <input type="hidden" name="action" value="maint_off">
+          <button type="submit" class="btn-master" style="background:#34c759;border-color:#34c759">✅ Vypnout údržbu<?php if ($maint_leads_pending > 0): ?> &amp; notifikovat (<?= (int)$maint_leads_pending ?>)<?php endif; ?></button>
+        <?php else: ?>
+          <input type="hidden" name="action" value="maint_on">
+          <button type="submit" class="btn-master" style="background:#c66800;border-color:#c66800" onclick="return confirm('Zapnout údržbu dema? Návštěvníci uvidí místo appky údržbovou stránku.')">🔧 Zapnout údržbu</button>
+        <?php endif; ?>
+      </form>
+    </div>
+
+    <?php if ($maint_flash): ?>
+      <div style="background:#e6f4ea;color:#1e7d34;padding:10px 14px;border-radius:8px;margin-top:12px;font-size:13px;font-weight:600"><?= htmlspecialchars($maint_flash) ?></div>
+    <?php endif; ?>
+    <?php if ($maint_err): ?>
+      <div style="background:#fff3cd;color:#856404;padding:10px 14px;border-radius:8px;margin-top:12px;font-size:13px">⚠️ <?= htmlspecialchars($maint_err) ?></div>
+    <?php endif; ?>
+
+    <?php if (!empty($maint_leads)): ?>
+      <details style="margin-top:14px">
+        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:#6e6e73">
+          📧 Zachycené e-maily z údržby: <?= count($maint_leads) ?><?php if ($maint_leads_pending > 0): ?> <span class="badge orange"><?= (int)$maint_leads_pending ?> nenotifikováno</span><?php endif; ?>
+        </summary>
+        <table class="access-table" style="margin-top:10px">
+          <thead><tr><th>E-mail</th><th>Kdy</th><th>Stav</th></tr></thead>
+          <tbody>
+          <?php foreach ($maint_leads as $l): ?>
+            <tr>
+              <td><code><?= htmlspecialchars($l['email'] ?? '') ?></code></td>
+              <td style="white-space:nowrap"><?= htmlspecialchars($l['ts'] ?? '') ?></td>
+              <td><?= (($l['notified'] ?? 0) == 1) ? '<span class="badge green">notifikován</span>' : '<span class="badge orange">čeká</span>' ?></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </details>
+    <?php endif; ?>
+  </div>
 
   <!-- STATS -->
   <div class="stats-row">
