@@ -25745,6 +25745,16 @@ const I18N_PHRASES = [
   ['Účtenka OK, ale voucher se nepodařilo odečíst:', 'Receipt OK, but the voucher couldn\'t be deducted:', 'Recibo OK, pero no se pudo descontar el vale:'],
   ['Účtenka už je celá vrácená', 'The receipt is already fully returned', 'El recibo ya está totalmente devuelto'],
   ['Žádné rozpracované objednávky', 'No saved orders', 'No hay pedidos guardados'],
+  // 🆕 v3.0.449 — nové UI (sledovatelnost šarží, feed URL)
+  ['Sledovatelnost šarží & expirace', 'Batch & expiry traceability', 'Trazabilidad de lotes y caducidad'],
+  ['HACCP, volitelné', 'HACCP, optional', 'APPCC, opcional'],
+  ['Hlídání zapnuto', 'Monitoring on', 'Seguimiento activado'],
+  ['Hlídání vypnuto', 'Monitoring off', 'Seguimiento desactivado'],
+  ['Šarže / LOT', 'Batch / LOT', 'Lote / LOT'],
+  ['Datum spotřeby', 'Best before date', 'Fecha de caducidad'],
+  ['Trvalé feed URL', 'Permanent feed URL', 'URL de feed permanente'],
+  ['Zobrazit feed odkazy', 'Show feed links', 'Mostrar enlaces del feed'],
+  ['Nový token', 'New token', 'Nuevo token'],
 ];
 
 // Build lookup index pro O(1) access
