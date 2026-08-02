@@ -756,7 +756,8 @@ function pagControlHtml(key, pg, gotoFn, moreFn) {
   const styl = state._pagStyl || 'load_more';
   const shown = pg.items.length, total = pg.total || 0;
   if (total <= shown && pg.offset === 0) return ''; // vše se vešlo, žádné ovládání netřeba
-  const info = `<span style="font-size:12px;color:var(--text-3)">Zobrazeno <strong>${shown}</strong> / <strong>${total}</strong></span>`;
+  const info = `<span style="font-size:12px;color:var(--text-3)">Zobrazeno <strong>${shown}</strong> / <strong>${total}</strong></span>` +
+    `<span class="pag-help" role="button" tabindex="0" aria-label="Nápověda ke stránkování" title="Počet zobrazených řádků a styl načítání seznamů (tlačítko / stránky / donekonečna) změníš v Nastavení → Firma &amp; doklady → Stránkování." onclick="pagNapoveda()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pagNapoveda()}" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:6px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);color:var(--text-3);font-size:10.5px;font-weight:800;cursor:help;user-select:none;vertical-align:middle">?</span>`;
   if (styl === 'stranky') {
     const limit = pg.limit || 50, pages = Math.max(1, Math.ceil(total / limit)), cur = Math.floor(pg.offset / limit);
     let btns = '';
@@ -785,6 +786,12 @@ function pagControlHtml(key, pg, gotoFn, moreFn) {
     ${hasMore ? `<button onclick="${moreFn}()" class="btn-secondary" style="padding:10px 22px;font-weight:700;border-radius:10px">▾ <span>Načíst další</span> (${Math.min(pg.limit||10, total-shown)})</button>` : ''}
     ${info}</div>`;
 }
+// Nápověda ke stránkování — vyvolá se z „?" ikonky u „Zobrazeno X / Y" ve všech seznamech.
+window.pagNapoveda = function() {
+  const msg = 'Počet zobrazených řádků i způsob načítání (tlačítko „Načíst další" / číslované stránky / nekonečné scrollování) si nastavíš v Nastavení → Firma & doklady → sekce „Jak načítat dlouhé seznamy".';
+  if (typeof toast === 'function') toast({ title: '📄 Stránkování seznamů', msg, type: 'info', duration: 7000 });
+  else alert(msg);
+};
 window.objLoadMore = function() { renderObjednavky(state._objPag.filters, { append: true }); };
 window.objGoToPage = function(p) { renderObjednavky(state._objPag.filters, { offset: p * (state._objPag.limit || 50) }); };
 // Nekonečné scrollování: napojí IntersectionObserver na sentinel (jen styl=infinite).
