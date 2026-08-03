@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.452';
+const APPEK_ADMIN_JS_VERSION = '3.0.453';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -32950,6 +32950,95 @@ window.skladSledovatelnostToggle = async function(on) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
+// 🔎 v3.0.453 — TRASOVATELNOST / RECALL: vyber surovinu (+ šarži, okno) → koho obvolat + které objednávky.
+window.skladRecall = async function(surovinaId, sarze) {
+  const dcz = (s) => (s ? String(s).split('-').reverse().join('.') : '');
+  // seznam surovin do selectu (z cache nebo dotáhni)
+  let list = state._suroviny_full_cache;
+  if (!list) { try { list = await api('admin_suroviny.php'); state._suroviny_full_cache = list; } catch (e) { list = []; } }
+  const opts = (list || []).map(s => `<option value="${s.id}" ${(+s.id === +surovinaId) ? 'selected' : ''}>${esc(s.nazev)}</option>`).join('');
+  const body = `
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:end">
+      <label style="font-size:12px;font-weight:600;color:var(--text-2)">Surovina
+        <select id="rc-sur" class="form-input" style="margin-top:4px">${opts}</select></label>
+      <label style="font-size:12px;font-weight:600;color:var(--text-2)">Šarže / LOT <span style="font-weight:400;color:var(--text-3)">(volitelné)</span>
+        <input id="rc-sz" class="form-input" style="margin-top:4px" value="${esc(sarze || '')}" placeholder="např. L2026-14"></label>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end;margin-top:10px">
+      <label style="font-size:12px;font-weight:600;color:var(--text-2)">Od
+        <input id="rc-from" type="date" class="form-input" style="margin-top:4px"></label>
+      <label style="font-size:12px;font-weight:600;color:var(--text-2)">Do
+        <input id="rc-to" type="date" class="form-input" style="margin-top:4px"></label>
+      <label style="font-size:12px;font-weight:600;color:var(--text-2)">Datum podle
+        <select id="rc-df" class="form-input" style="margin-top:4px">
+          <option value="datum_dodani">dodání</option>
+          <option value="datum_objednani">objednání</option></select></label>
+      <button class="btn-primary" onclick="_recallRun()">🔎 Dohledat</button>
+    </div>
+    <p style="font-size:11px;color:var(--text-3);margin:8px 0 0">Prázdné okno = automaticky dle šarže (příjem → expirace), jinak posledních 90 dní.</p>
+    <div id="rc-results" style="margin-top:16px"></div>`;
+  openModal('🔎 Trasovatelnost / Recall', body, 'wide');
+  if (surovinaId && +surovinaId > 0) setTimeout(_recallRun, 80); // prefill → rovnou spusť
+};
+
+window._recallRun = async function() {
+  const sid = document.getElementById('rc-sur')?.value;
+  const sz = (document.getElementById('rc-sz')?.value || '').trim();
+  const from = document.getElementById('rc-from')?.value || '';
+  const to = document.getElementById('rc-to')?.value || '';
+  const df = document.getElementById('rc-df')?.value || 'datum_dodani';
+  const box = document.getElementById('rc-results');
+  if (!sid) { if (box) box.innerHTML = '<div style="color:#B91C1C">Vyber surovinu.</div>'; return; }
+  if (box) box.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3)">Hledám…</div>';
+  let d;
+  const qs = new URLSearchParams({ action: 'recall', surovina_id: sid, sarze: sz, from, to, date_field: df });
+  try { d = await api('admin_suroviny.php?' + qs.toString()); }
+  catch (e) { if (box) box.innerHTML = '<div style="color:#B91C1C">Chyba: ' + esc(e.message) + '</div>'; return; }
+  state._recallLast = d;
+  const dcz = (s) => (s ? String(s).split('-').reverse().join('.') : '—');
+  const win = d.window || {};
+  const custs = d.customers || [];
+  const head = `
+    <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px">
+      <div><strong>${esc(d.surovina?.nazev || '')}</strong>${d.sarze ? ' · šarže <strong>' + esc(d.sarze) + '</strong>' : ''}</div>
+      <div style="color:var(--text-2);margin-top:4px">Okno (${esc(win.date_field === 'datum_objednani' ? 'objednání' : 'dodání')}): <strong>${dcz(win.from)}</strong> – <strong>${dcz(win.to)}</strong>
+        ${win.source === 'default' ? '<span style="color:#B25E00"> (výchozích 90 dní — zadej okno pro přesnost)</span>' : ''}</div>
+      <div style="color:var(--text-2);margin-top:4px">Výrobků obsahujících surovinu: <strong>${d.products_count}</strong> · zasažených objednávek: <strong>${d.total_orders}</strong> · zákazníků: <strong>${d.total_customers}</strong>${d.truncated ? ' <span style="color:#B91C1C">(oříznuto na 5000 řádků)</span>' : ''}</div>
+    </div>
+    <div style="background:#FBEDDC;border:1px solid #EBC79A;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11.5px;color:#7A4A00">⚠️ ${esc(d.note || '')}</div>`;
+  if (!custs.length) { box.innerHTML = head + '<div class="empty-state" style="padding:16px">Žádné objednávky v tomto okně neobsahovaly výrobky s touto surovinou.</div>'; return; }
+  const callList = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 8px">
+      <h4 style="margin:0;font-size:14px">📞 Koho obvolat (${custs.length})</h4>
+      <button class="btn-mini btn-secondary" onclick="_recallCsv()">📤 Export CSV</button>
+    </div>
+    <div style="max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:8px">
+      <table class="table" style="margin:0;font-size:12.5px">
+        <thead><tr><th>Zákazník</th><th>Kontakt</th><th class="num">Obj.</th><th>Výrobky</th></tr></thead>
+        <tbody>${custs.map(c => `<tr>
+          <td><strong>${esc(c.nazev)}</strong>${c.kontakt ? '<br><span style="color:var(--text-3);font-size:11px">' + esc(c.kontakt) + '</span>' : ''}</td>
+          <td style="font-size:11.5px">${c.telefon ? '📞 ' + esc(c.telefon) + '<br>' : ''}${c.email ? '✉️ ' + esc(c.email) : (c.telefon ? '' : '<span style="color:var(--text-3)">—</span>')}</td>
+          <td class="num">${c.order_count}<br><span style="color:var(--text-3);font-size:11px">${c.objednavky.map(o => esc(o.cislo)).join(', ')}</span></td>
+          <td style="font-size:11.5px">${c.vyrobky.map(esc).join(', ')}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  box.innerHTML = head + callList;
+};
+
+// Export call-listu recallu do CSV (klient-side z posledního výsledku)
+window._recallCsv = function() {
+  const d = state._recallLast; if (!d || !d.customers) return;
+  const rows = [['Zákazník', 'Kontaktní osoba', 'Telefon', 'Email', 'Počet objednávek', 'Čísla objednávek', 'Výrobky']];
+  d.customers.forEach(c => rows.push([c.nazev, c.kontakt || '', c.telefon || '', c.email || '', c.order_count, c.objednavky.map(o => o.cislo).join(' '), c.vyrobky.join(' ')]));
+  const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'recall-' + (d.surovina?.nazev || 'surovina').replace(/[^a-z0-9]+/gi, '_') + (d.sarze ? '-' + d.sarze.replace(/[^a-z0-9]+/gi, '_') : '') + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
 async function renderSuroviny() {
   // 🚀 PERFORMANCE: cachuj výsledek (invalidate po editaci) — pro 1000+ surovin
   // ušetří 200-500 ms na každý re-render filtrů.
@@ -33175,6 +33264,7 @@ async function renderSuroviny() {
         <p style="font-size:12.5px;color:var(--text-3);margin:10px 0 0;line-height:1.6">Vypnuto — u příjmu se nezobrazuje šarže / datum spotřeby a nechodí žádná upozornění. Zapni pro HACCP sledovatelnost (nařízení 178/2002 „krok zpět"): u příjmu zadáš šarži (LOT) + datum spotřeby, systém upozorní na blížící se expiraci a umožní šarži dohledat.</p>
       ` : `
         <div style="margin-top:12px">
+          <div style="margin-bottom:12px"><button class="btn-secondary btn-mini" onclick="skladRecall(0, '')" title="Recall: vyber surovinu (a šarži) a zjisti, které objednávky/zákazníci ji dostali">🔎 Dohledat zasažené objednávky (recall)</button></div>
           ${sledData && sledData.expirujici > 0 ? `
             <div style="background:#FBEDDC;border:1px solid #EBC79A;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#7A4A00">
               📅 <strong>${sledData.expirujici}</strong> ${sledData.expirujici === 1 ? 'šarže má' : 'šarží má'} datum spotřeby do ${sledData.dny} dní nebo už prošlé — zkontroluj.
@@ -33182,7 +33272,7 @@ async function renderSuroviny() {
           ${sledData && sledData.polozky && sledData.polozky.length ? `
             <div style="max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:8px">
               <table class="table" style="margin:0;font-size:12.5px">
-                <thead><tr><th>Surovina</th><th>Šarže / LOT</th><th>Datum spotřeby</th><th class="num">Do expirace</th><th class="num">Přijato</th><th>Kdy</th></tr></thead>
+                <thead><tr><th>Surovina</th><th>Šarže / LOT</th><th>Datum spotřeby</th><th class="num">Do expirace</th><th class="num">Přijato</th><th>Kdy</th><th></th></tr></thead>
                 <tbody>
                   ${sledData.polozky.map(r => {
                     const d = r.dni_do_expirace;
@@ -33195,6 +33285,7 @@ async function renderSuroviny() {
                       <td class="num" style="color:${barva};font-weight:600">${txt}</td>
                       <td class="num">${parseFloat(r.mnozstvi)} ${esc(r.jednotka || '')}</td>
                       <td style="font-size:11px;color:var(--text-3)">${fmtDate(r.kdy)}${r.typ === 'vratka' ? ' ↩️' : ''}</td>
+                      <td><button class="btn-mini" data-sz="${esc(r.sarze || '')}" onclick="skladRecall(${r.surovina_id}, this.dataset.sz)" title="Dohledat, které objednávky/zákazníci dostali výrobky s touto šarží (recall)">🔎 Dohledat</button></td>
                     </tr>`;
                   }).join('')}
                 </tbody>

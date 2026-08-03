@@ -148,3 +148,34 @@ function bom_would_cycle(PDO $pdo, int $vid, int $slozka, int $depth = 0, array 
     }
     return false;
 }
+
+/**
+ * 🔎 REVERZNÍ BOM — které výrobky (přímo i přes polotovary) obsahují surovinu $sid.
+ * Vrací pole vyrobek_id (uzávěr). Pro recall/trasovatelnost šarže.
+ *
+ * Krok 1: přímí uživatelé (vyrobek_suroviny.surovina_id = $sid).
+ * Krok 2: kdokoli, kdo některý z těch výrobků používá jako polotovar
+ *         (slozka_vyrobek_id), ho také obsahuje → propaguj nahoru do uzávěru.
+ */
+function bom_products_using_surovina(PDO $pdo, int $sid): array {
+    if ($sid <= 0) return [];
+    $direct = $pdo->prepare("SELECT DISTINCT vyrobek_id FROM vyrobek_suroviny WHERE surovina_id = ?");
+    $direct->execute([$sid]);
+    $result = [];   // vyrobek_id => true (uzávěr)
+    $queue = [];
+    foreach ($direct->fetchAll(PDO::FETCH_COLUMN) as $v) {
+        $v = (int) $v;
+        if ($v > 0 && !isset($result[$v])) { $result[$v] = true; $queue[] = $v; }
+    }
+    $up = $pdo->prepare("SELECT DISTINCT vyrobek_id FROM vyrobek_suroviny WHERE slozka_vyrobek_id = ?");
+    $guard = 0;
+    while ($queue && $guard++ < 100000) {
+        $cur = array_pop($queue);
+        $up->execute([$cur]);
+        foreach ($up->fetchAll(PDO::FETCH_COLUMN) as $v) {
+            $v = (int) $v;
+            if ($v > 0 && !isset($result[$v])) { $result[$v] = true; $queue[] = $v; }
+        }
+    }
+    return array_map('intval', array_keys($result));
+}

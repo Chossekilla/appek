@@ -16,6 +16,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_sklad_lib.php';
+require_once __DIR__ . '/_bom_lib.php';   // 🔎 bom_products_using_surovina() pro recall/trasovatelnost
 cors_headers();
 require_admin();
 
@@ -387,6 +388,119 @@ if ($action === 'sarze_prehled' && $method === 'GET') {
     $expirujici = 0;
     foreach ($rows as $r) { if ($r['datum_spotreby'] !== null && (int) $r['dni_do_expirace'] <= $dnyPred) $expirujici++; }
     json_response(['ok' => true, 'enabled' => $enabled, 'dny' => $dnyPred, 'expirujici' => $expirujici, 'polozky' => $rows]);
+}
+
+// 🆕 v3.0.453 — TRASOVATELNOST / RECALL: která objednávky/zákazníci dostali výrobky s danou surovinou (šarží).
+//   Časově-okenní odhad přes reverzní BOM (data nevážou konkrétní šarži na spotřebu — jen příjem).
+//   GET ?action=recall&surovina_id=N [&sarze=ABC] [&from=YYYY-MM-DD] [&to=YYYY-MM-DD] [&date_field=datum_dodani|datum_objednani]
+if ($action === 'recall' && $method === 'GET') {
+    ensure_sklad_pohyby_schema($pdo);
+    $sid = (int) ($_GET['surovina_id'] ?? 0);
+    if ($sid <= 0) json_error('Chybí surovina_id');
+    $sarze = trim((string) ($_GET['sarze'] ?? ''));
+
+    $sur = $pdo->prepare("SELECT id, nazev, jednotka FROM suroviny WHERE id = ?");
+    $sur->execute([$sid]);
+    $surRow = $sur->fetch(PDO::FETCH_ASSOC);
+    if (!$surRow) json_error('Surovina nenalezena');
+
+    // ── okno životnosti: z příjmů dané šarže (nebo suroviny), nebo z manuálních from/to ──
+    $intake = null; $expiry = null;
+    $ps = "SELECT MIN(kdy) mn, MAX(datum_spotreby) mx FROM sklad_pohyby_v2
+           WHERE item_typ='surovina' AND item_id = :i AND typ IN ('prijem','vratka')";
+    $pp = ['i' => $sid];
+    if ($sarze !== '') { $ps .= " AND sarze = :sz"; $pp['sz'] = $sarze; }
+    $st = $pdo->prepare($ps); $st->execute($pp);
+    if ($r = $st->fetch(PDO::FETCH_ASSOC)) { $intake = $r['mn']; $expiry = $r['mx']; }
+
+    $reDate = fn($s) => (is_string($s) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) ? $s : null;
+    $from = $reDate($_GET['from'] ?? null);
+    $to   = $reDate($_GET['to'] ?? null);
+    $source = 'manual';
+    if ($from === null) {
+        if ($intake) { $from = substr($intake, 0, 10); $source = ($sarze !== '' ? 'sarze' : 'surovina'); }
+        else { $from = date('Y-m-d', strtotime('-90 days')); $source = 'default'; }
+    }
+    if ($to === null) {
+        $to = $expiry ?: date('Y-m-d');
+    }
+    if ($from > $to) { $tmp = $from; $from = $to; $to = $tmp; }
+
+    $dateField = (($_GET['date_field'] ?? '') === 'datum_objednani') ? 'datum_objednani' : 'datum_dodani';
+
+    // ── reverzní BOM: výrobky obsahující surovinu (přímo i přes polotovary) ──
+    $products = bom_products_using_surovina($pdo, $sid);
+
+    // ── podmínka na položky: výrobek v uzávěru NEBO přímá surovina na položce ──
+    $params = ['sid' => $sid, 'dfrom' => $from, 'dto' => $to];
+    $clauses = ['op.surovina_id = :sid'];
+    if (!empty($products)) {
+        $in = [];
+        foreach ($products as $k => $pv) { $ph = ':p' . $k; $in[] = $ph; $params[$ph] = $pv; }
+        $clauses[] = 'op.vyrobek_id IN (' . implode(',', $in) . ')';
+    }
+    $prodClause = '(' . implode(' OR ', $clauses) . ')';
+
+    $LIMIT = 5000;
+    $sql = "SELECT o.id AS oid, o.cislo, o.$dateField AS dat, o.stav, o.puvod,
+                   od.id AS odb_id, od.nazev AS odb_nazev, od.kontaktni_osoba, od.email, od.telefon,
+                   op.vyrobek_id, op.surovina_id AS op_sur,
+                   COALESCE(NULLIF(op.vyrobek_nazev, ''), v.nazev, s2.nazev) AS vyrobek_nazev,
+                   op.mnozstvi, op.jednotka
+            FROM objednavky o
+            JOIN objednavky_polozky op ON op.objednavka_id = o.id
+            JOIN odberatele od ON od.id = o.odberatel_id
+            LEFT JOIN vyrobky v ON v.id = op.vyrobek_id
+            LEFT JOIN suroviny s2 ON s2.id = op.surovina_id
+            WHERE o.$dateField BETWEEN :dfrom AND :dto AND $prodClause
+            ORDER BY o.$dateField DESC, o.id DESC
+            LIMIT " . ($LIMIT + 1);
+    $stmt = $pdo->prepare($sql); $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $truncated = count($rows) > $LIMIT;
+    if ($truncated) array_pop($rows);
+
+    // ── seskup na objednávky + zákazníky (call list) ──
+    $orders = []; $customers = [];
+    foreach ($rows as $r) {
+        $oid = (int) $r['oid'];
+        $polozka = ['nazev' => ($r['vyrobek_nazev'] ?: ('#' . (int) $r['vyrobek_id'])), 'mnozstvi' => (float) $r['mnozstvi'], 'jednotka' => $r['jednotka'], 'primo_surovina' => ($r['op_sur'] !== null)];
+        if (!isset($orders[$oid])) {
+            $orders[$oid] = ['id' => $oid, 'cislo' => $r['cislo'], 'datum' => $r['dat'], 'stav' => $r['stav'], 'puvod' => $r['puvod'],
+                             'odberatel' => $r['odb_nazev'], 'odberatel_id' => (int) $r['odb_id'], 'polozky' => []];
+        }
+        $orders[$oid]['polozky'][] = $polozka;
+
+        $cid = (int) $r['odb_id'];
+        if (!isset($customers[$cid])) {
+            $customers[$cid] = ['id' => $cid, 'nazev' => $r['odb_nazev'], 'kontakt' => $r['kontaktni_osoba'],
+                                'email' => $r['email'], 'telefon' => $r['telefon'], 'order_count' => 0, 'objednavky' => [], 'vyrobky' => []];
+        }
+        if (!in_array($oid, array_column($customers[$cid]['objednavky'], 'id'), true)) {
+            $customers[$cid]['objednavky'][] = ['id' => $oid, 'cislo' => $r['cislo'], 'datum' => $r['dat']];
+            $customers[$cid]['order_count']++;
+        }
+        $pn = $polozka['nazev'];
+        if (!in_array($pn, $customers[$cid]['vyrobky'], true)) $customers[$cid]['vyrobky'][] = $pn;
+    }
+    // seřaď zákazníky dle počtu objednávek desc
+    $customers = array_values($customers);
+    usort($customers, fn($a, $b) => $b['order_count'] <=> $a['order_count']);
+    $orders = array_values($orders);
+
+    json_response([
+        'ok' => true,
+        'surovina' => ['id' => (int) $surRow['id'], 'nazev' => $surRow['nazev'], 'jednotka' => $surRow['jednotka']],
+        'sarze' => $sarze !== '' ? $sarze : null,
+        'window' => ['from' => $from, 'to' => $to, 'source' => $source, 'date_field' => $dateField, 'intake' => $intake, 'expiry' => $expiry],
+        'products_count' => count($products),
+        'total_orders' => count($orders),
+        'total_customers' => count($customers),
+        'truncated' => $truncated,
+        'customers' => $customers,
+        'orders' => $orders,
+        'note' => 'Časově-okenní odhad: zahrnuje objednávky, které v daném období obsahovaly výrobky s touto surovinou. Není to důkaz spotřeby konkrétní fyzické šarže (data vážou šarži jen na příjem, ne na výrobu).',
+    ]);
 }
 
 // POST pohyb — přijem / výdej / inventura / korekce
