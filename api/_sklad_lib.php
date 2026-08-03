@@ -97,4 +97,56 @@ function stock_restock_products(PDO $pdo, array $lines, string $label, string $k
     return $done;
 }
 
+/** 🔒 v3.0.454 — schema pro karanténu/blokaci šarží (hold). Idempotentní. */
+function ensure_sarze_stav_schema(PDO $pdo): void {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS sklad_sarze_stav (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        surovina_id INT NOT NULL,
+        sarze VARCHAR(80) NOT NULL,
+        stav ENUM('hold','ok') NOT NULL DEFAULT 'hold',
+        poznamka VARCHAR(255) NULL,
+        kdo VARCHAR(120) NULL,
+        kdy DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_sur_sarze (surovina_id, sarze),
+        INDEX idx_sur (surovina_id),
+        INDEX idx_stav (stav)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+}
+
+/**
+ * 🔎 v3.0.454 — detekuj problémové šarže mezi zadanými surovinami:
+ *   - prošlé (příjem s datum_spotreby < dnes)
+ *   - držené v karanténě (sklad_sarze_stav.stav='hold')
+ * Vrací pole ['surovina_id','nazev','sarze','datum_spotreby'|null,'poznamka'?,'duvod'=>'expirace'|'karantena'].
+ * Read-only. Používá výrobní precheck i sledovatelnost.
+ */
+function sarze_problem_batches(PDO $pdo, array $surIds): array {
+    $surIds = array_values(array_unique(array_filter(array_map('intval', $surIds), fn($x) => $x > 0)));
+    if (empty($surIds)) return [];
+    ensure_sarze_stav_schema($pdo);
+    $in = implode(',', array_fill(0, count($surIds), '?'));
+    $out = [];
+    // prošlé šarže (příjem/vratka s datum_spotreby v minulosti)
+    $q1 = $pdo->prepare("SELECT p.item_id surovina_id, s.nazev, p.sarze, p.datum_spotreby
+                         FROM sklad_pohyby_v2 p JOIN suroviny s ON s.id = p.item_id
+                         WHERE p.item_typ='surovina' AND p.typ IN ('prijem','vratka')
+                           AND p.item_id IN ($in) AND p.datum_spotreby IS NOT NULL AND p.datum_spotreby < CURDATE()
+                         ORDER BY p.datum_spotreby ASC");
+    $q1->execute($surIds);
+    foreach ($q1->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $out[] = ['surovina_id' => (int) $r['surovina_id'], 'nazev' => $r['nazev'], 'sarze' => $r['sarze'],
+                  'datum_spotreby' => $r['datum_spotreby'], 'duvod' => 'expirace'];
+    }
+    // držené šarže (karanténa)
+    $q2 = $pdo->prepare("SELECT st.surovina_id, s.nazev, st.sarze, st.poznamka
+                         FROM sklad_sarze_stav st JOIN suroviny s ON s.id = st.surovina_id
+                         WHERE st.stav='hold' AND st.surovina_id IN ($in)");
+    $q2->execute($surIds);
+    foreach ($q2->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $out[] = ['surovina_id' => (int) $r['surovina_id'], 'nazev' => $r['nazev'], 'sarze' => $r['sarze'],
+                  'datum_spotreby' => null, 'poznamka' => $r['poznamka'], 'duvod' => 'karantena'];
+    }
+    return $out;
+}
+
 } // function_exists

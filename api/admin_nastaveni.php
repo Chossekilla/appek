@@ -382,6 +382,11 @@ if ($method === 'PUT') {
         'haccp_defaults',
         // 🆕 v2.9.270 — Custom kategorie surovin (JSON array)
         'suroviny_kategorie',
+        // 🔎 v3.0.446/454 — HACCP sledovatelnost šarží: master přepínač + úroveň kontroly ve výrobě
+        //   (dřív chybělo ve whitelistu → toggly se neukládaly). enforce: 'off'|'warn'|'block'
+        'sklad_sledovatelnost', 'sklad_sled_enforce',
+        // 🔔 v3.0.447 — vypnutí dashboard panelu „Akce vyžadující pozornost": '1'|'0'
+        'dashboard_alerts_off',
         // 🆕 v3.0.218 — styl stránkování dlouhých seznamů: 'load_more' | 'stranky' | 'infinite'
         'pagination_styl',
         // 🆕 v3.0.247 — počet řádků na stránku (25/50/100/200)

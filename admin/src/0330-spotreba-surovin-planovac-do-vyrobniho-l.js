@@ -131,6 +131,22 @@ window.vyOdepsatSuroviny = async function(datum) {
     co: `odepsat suroviny ze skladu za datum ${fmtDate(datum)}`,
     detail: 'Odečte se VŠE podle aktuálních objednávek a receptur. Pohyb se zapíše do historie skladu. Doporučujeme odepisovat až po skutečné výrobě.'
   })) return;
+  // 🔎 v3.0.454 — kontrola prošlých / držených šarží PŘED odpisem. Gated settingem sklad_sled_enforce
+  //   (off = přeskočí úplně). Chyba precheku výrobu NIKDY nezablokuje. „Blokovat" má vždy override.
+  const _enf = state.nastaveni && state.nastaveni.sklad_sled_enforce;
+  if (_enf && _enf !== 'off') {
+    try {
+      const chk = await api(`admin_vyroba.php?action=sarze_check&datum=${encodeURIComponent(datum)}`);
+      if (chk && chk.pocet > 0) {
+        const lines = chk.problemy.map(p => `• ${p.nazev} — šarže ${p.sarze || '—'}${p.duvod === 'expirace' ? ' (prošlá' + (p.datum_spotreby ? ' ' + p.datum_spotreby : '') + ')' : ' (karanténa)'}`).join('\n');
+        const head = `⚠️ Kontrola šarží: ${chk.pocet} problém(ů) u surovin pro tento den:\n\n${lines}\n\n`;
+        const tail = (chk.enforce === 'block')
+          ? 'Režim BLOKOVAT — přesto pokračovat v odpisu?\n(kontrolu lze změnit/vypnout ve Skladu → Sledovatelnost)'
+          : 'Pokračovat v odpisu?';
+        if (!confirm(head + tail)) return;
+      }
+    } catch (e) { /* precheck selhal → výrobu neblokuj, pokračuj */ }
+  }
   try {
     const r = await api(`admin_vyroba.php?action=odepsat_suroviny`, {
       method: 'POST',

@@ -48,6 +48,24 @@ function vyroba_potreba_src(PDO $pdo, string $datum): array {
     return ['sql' => $sql, 'params' => [], 'sur' => $sur, 'pol' => $pol];
 }
 
+// 🔎 v3.0.454 — SARZE_CHECK: read-only precheck problémových šarží (prošlé / v karanténě) pro
+//   suroviny spotřebované daný den. NIC nezapisuje. Gated settingem sklad_sled_enforce (off = prázdné).
+//   MUSÍ být PŘED obecným GET blokem (ten by ho jinak zachytil). Frontend volá před odpisem.
+if (($_GET['action'] ?? '') === 'sarze_check') {
+    $datum = $_GET['datum'] ?? '';
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum)) json_error('Chybí/neplatné datum');
+    $enforce = $pdo->query("SELECT hodnota FROM nastaveni WHERE klic='sklad_sled_enforce'")->fetchColumn() ?: 'off';
+    $problemy = [];
+    if ($enforce !== 'off') {
+        $src = vyroba_potreba_src($pdo, $datum);
+        $stmt = $pdo->prepare("SELECT DISTINCT x.sid FROM ({$src['sql']}) x");
+        $stmt->execute($src['params']);
+        $surIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        $problemy = sarze_problem_batches($pdo, $surIds);
+    }
+    json_response(['ok' => true, 'enforce' => $enforce, 'datum' => $datum, 'pocet' => count($problemy), 'problemy' => $problemy]);
+}
+
 // =============================================================
 // GET ?datum=2026-05-06  → automaticky sestavený list z objednávek
 // GET ?id=123  → uložený výrobní list

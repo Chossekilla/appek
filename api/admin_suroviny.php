@@ -368,15 +368,19 @@ if ($action === 'sklad_pohyby' && $method === 'GET') {
 // 🆕 v3.0.446 — HACCP sledovatelnost: rejstřík šarží + hlídání expirace (krok zpět dle 178/2002)
 if ($action === 'sarze_prehled' && $method === 'GET') {
     ensure_sklad_pohyby_schema($pdo);
+    ensure_sarze_stav_schema($pdo);
     $enabled = (($pdo->query("SELECT hodnota FROM nastaveni WHERE klic='sklad_sledovatelnost'")->fetchColumn() ?: '0') === '1');
+    $enforce = $pdo->query("SELECT hodnota FROM nastaveni WHERE klic='sklad_sled_enforce'")->fetchColumn() ?: 'off';
     $dnyPred = max(1, min(180, (int) ($_GET['dny'] ?? 30)));
     $q = trim($_GET['q'] ?? '');
     $sql = "
         SELECT p.id, p.item_id AS surovina_id, s.nazev AS surovina_nazev, s.jednotka,
                p.sarze, p.datum_spotreby, p.mnozstvi, p.typ, p.kdy,
-               DATEDIFF(p.datum_spotreby, CURDATE()) AS dni_do_expirace
+               DATEDIFF(p.datum_spotreby, CURDATE()) AS dni_do_expirace,
+               (ss.id IS NOT NULL) AS hold, ss.poznamka AS hold_poznamka
         FROM sklad_pohyby_v2 p
         JOIN suroviny s ON s.id = p.item_id
+        LEFT JOIN sklad_sarze_stav ss ON ss.surovina_id = p.item_id AND ss.sarze = p.sarze COLLATE utf8mb4_unicode_ci AND ss.stav = 'hold'
         WHERE p.item_typ='surovina' AND p.typ IN ('prijem','vratka')
           AND (p.sarze IS NOT NULL OR p.datum_spotreby IS NOT NULL)
     ";
@@ -385,9 +389,34 @@ if ($action === 'sarze_prehled' && $method === 'GET') {
     $sql .= " ORDER BY (p.datum_spotreby IS NULL), p.datum_spotreby ASC, p.kdy DESC LIMIT 300";
     $stmt = $pdo->prepare($sql); $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $expirujici = 0;
-    foreach ($rows as $r) { if ($r['datum_spotreby'] !== null && (int) $r['dni_do_expirace'] <= $dnyPred) $expirujici++; }
-    json_response(['ok' => true, 'enabled' => $enabled, 'dny' => $dnyPred, 'expirujici' => $expirujici, 'polozky' => $rows]);
+    $expirujici = 0; $drzenych = 0;
+    foreach ($rows as $r) {
+        if ($r['datum_spotreby'] !== null && (int) $r['dni_do_expirace'] <= $dnyPred) $expirujici++;
+        if (!empty($r['hold'])) $drzenych++;
+    }
+    json_response(['ok' => true, 'enabled' => $enabled, 'enforce' => $enforce, 'dny' => $dnyPred, 'expirujici' => $expirujici, 'drzenych' => $drzenych, 'polozky' => $rows]);
+}
+
+// 🔒 v3.0.454 — SARZE_STAV: karanténa/uvolnění šarže (hold). { surovina_id, sarze, hold:bool, poznamka? }
+if ($action === 'sarze_stav' && $method === 'POST') {
+    ensure_sarze_stav_schema($pdo);
+    $d = json_input();
+    $sid = (int) ($d['surovina_id'] ?? 0);
+    $sarze = trim((string) ($d['sarze'] ?? ''));
+    if ($sid <= 0 || $sarze === '') json_error('Chybí surovina_id nebo šarže');
+    $hold = !empty($d['hold']);
+    $kdo = $GLOBALS['admin']['email'] ?? ($GLOBALS['admin']['jmeno'] ?? 'admin');
+    if ($hold) {
+        $pozn = mb_substr(trim((string) ($d['poznamka'] ?? '')), 0, 255);
+        $pdo->prepare("INSERT INTO sklad_sarze_stav (surovina_id, sarze, stav, poznamka, kdo)
+                       VALUES (:s, :z, 'hold', :p, :k)
+                       ON DUPLICATE KEY UPDATE stav='hold', poznamka=:p2, kdo=:k2, kdy=NOW()")
+            ->execute(['s' => $sid, 'z' => $sarze, 'p' => $pozn, 'k' => $kdo, 'p2' => $pozn, 'k2' => $kdo]);
+        json_response(['ok' => true, 'hold' => true]);
+    } else {
+        $pdo->prepare("DELETE FROM sklad_sarze_stav WHERE surovina_id = :s AND sarze = :z")->execute(['s' => $sid, 'z' => $sarze]);
+        json_response(['ok' => true, 'hold' => false]);
+    }
 }
 
 // 🆕 v3.0.453 — TRASOVATELNOST / RECALL: která objednávky/zákazníci dostali výrobky s danou surovinou (šarží).

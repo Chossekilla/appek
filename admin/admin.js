@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.453';
+const APPEK_ADMIN_JS_VERSION = '3.0.455';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -9494,6 +9494,22 @@ window.vyOdepsatSuroviny = async function(datum) {
     co: `odepsat suroviny ze skladu za datum ${fmtDate(datum)}`,
     detail: 'Odečte se VŠE podle aktuálních objednávek a receptur. Pohyb se zapíše do historie skladu. Doporučujeme odepisovat až po skutečné výrobě.'
   })) return;
+  // 🔎 v3.0.454 — kontrola prošlých / držených šarží PŘED odpisem. Gated settingem sklad_sled_enforce
+  //   (off = přeskočí úplně). Chyba precheku výrobu NIKDY nezablokuje. „Blokovat" má vždy override.
+  const _enf = state.nastaveni && state.nastaveni.sklad_sled_enforce;
+  if (_enf && _enf !== 'off') {
+    try {
+      const chk = await api(`admin_vyroba.php?action=sarze_check&datum=${encodeURIComponent(datum)}`);
+      if (chk && chk.pocet > 0) {
+        const lines = chk.problemy.map(p => `• ${p.nazev} — šarže ${p.sarze || '—'}${p.duvod === 'expirace' ? ' (prošlá' + (p.datum_spotreby ? ' ' + p.datum_spotreby : '') + ')' : ' (karanténa)'}`).join('\n');
+        const head = `⚠️ Kontrola šarží: ${chk.pocet} problém(ů) u surovin pro tento den:\n\n${lines}\n\n`;
+        const tail = (chk.enforce === 'block')
+          ? 'Režim BLOKOVAT — přesto pokračovat v odpisu?\n(kontrolu lze změnit/vypnout ve Skladu → Sledovatelnost)'
+          : 'Pokračovat v odpisu?';
+        if (!confirm(head + tail)) return;
+      }
+    } catch (e) { /* precheck selhal → výrobu neblokuj, pokračuj */ }
+  }
   try {
     const r = await api(`admin_vyroba.php?action=odepsat_suroviny`, {
       method: 'POST',
@@ -32950,6 +32966,32 @@ window.skladSledovatelnostToggle = async function(on) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
+// 🔒 v3.0.454 — úroveň kontroly šarží ve výrobě (off/warn/block). Off = nikdy neobtěžuje.
+window.skladEnforceSet = async function(val) {
+  try {
+    await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify({ sklad_sled_enforce: val }) });
+    if (!state.nastaveni) state.nastaveni = {};
+    state.nastaveni.sklad_sled_enforce = val;
+    if (typeof toast === 'function') toast(val === 'off' ? 'Kontrola šarží ve výrobě vypnuta' : (val === 'warn' ? 'Kontrola: jen upozornit' : 'Kontrola: blokovat (s možností přeskočit)'), 'info');
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 🔒 v3.0.454 — karanténa / uvolnění šarže. hold=1 blokovat, hold=0 uvolnit.
+window.skladSarzeHold = async function(surovinaId, sarze, hold) {
+  let poznamka = '';
+  if (hold) {
+    poznamka = prompt('🔒 Blokovat šarži „' + sarze + '" (karanténa)\n\nDůvod / poznámka (volitelné):', '');
+    if (poznamka === null) return; // zrušeno
+  } else {
+    if (!confirm('Uvolnit šarži „' + sarze + '" z karantény?')) return;
+  }
+  try {
+    await api('admin_suroviny.php?action=sarze_stav', { method: 'POST', body: JSON.stringify({ surovina_id: surovinaId, sarze, hold: !!hold, poznamka }) });
+    if (typeof toast === 'function') toast(hold ? '🔒 Šarže v karanténě' : '✅ Šarže uvolněna', 'info');
+    renderSuroviny();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
 // 🔎 v3.0.453 — TRASOVATELNOST / RECALL: vyber surovinu (+ šarži, okno) → koho obvolat + které objednávky.
 window.skladRecall = async function(surovinaId, sarze) {
   const dcz = (s) => (s ? String(s).split('-').reverse().join('.') : '');
@@ -33264,7 +33306,21 @@ async function renderSuroviny() {
         <p style="font-size:12.5px;color:var(--text-3);margin:10px 0 0;line-height:1.6">Vypnuto — u příjmu se nezobrazuje šarže / datum spotřeby a nechodí žádná upozornění. Zapni pro HACCP sledovatelnost (nařízení 178/2002 „krok zpět"): u příjmu zadáš šarži (LOT) + datum spotřeby, systém upozorní na blížící se expiraci a umožní šarži dohledat.</p>
       ` : `
         <div style="margin-top:12px">
-          <div style="margin-bottom:12px"><button class="btn-secondary btn-mini" onclick="skladRecall(0, '')" title="Recall: vyber surovinu (a šarži) a zjisti, které objednávky/zákazníci ji dostali">🔎 Dohledat zasažené objednávky (recall)</button></div>
+          ${sledData && sledData.drzenych > 0 ? `
+            <div style="background:#FCEBEB;border:1px solid #F0B4B4;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#8A1F1F">
+              🔒 <strong>${sledData.drzenych}</strong> ${sledData.drzenych === 1 ? 'šarže je' : 'šarží je'} v karanténě (blokováno). ${sledData.enforce === 'off' ? 'Kontrola ve výrobě je vypnutá — při odpisu se neupozorní.' : ''}
+            </div>` : ''}
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            <button class="btn-secondary btn-mini" onclick="skladRecall(0, '')" title="Recall: vyber surovinu (a šarži) a zjisti, které objednávky/zákazníci ji dostali">🔎 Dohledat zasažené objednávky (recall)</button>
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2)" title="Kontrola prošlých / držených šarží při denním odpisu výroby. Vypnuto = nikdy neobtěžuje. Upozornit = jen varuje. Blokovat = vyžádá potvrzení (jde přeskočit).">
+              Kontrola ve výrobě:
+              <select class="form-input" style="width:auto;padding:5px 8px;font-size:12px" onchange="skladEnforceSet(this.value)">
+                <option value="off" ${!sledData || !sledData.enforce || sledData.enforce === 'off' ? 'selected' : ''}>⚪ Vypnuto</option>
+                <option value="warn" ${sledData && sledData.enforce === 'warn' ? 'selected' : ''}>🟡 Upozornit</option>
+                <option value="block" ${sledData && sledData.enforce === 'block' ? 'selected' : ''}>🔴 Blokovat</option>
+              </select>
+            </label>
+          </div>
           ${sledData && sledData.expirujici > 0 ? `
             <div style="background:#FBEDDC;border:1px solid #EBC79A;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#7A4A00">
               📅 <strong>${sledData.expirujici}</strong> ${sledData.expirujici === 1 ? 'šarže má' : 'šarží má'} datum spotřeby do ${sledData.dny} dní nebo už prošlé — zkontroluj.
@@ -33280,12 +33336,12 @@ async function renderSuroviny() {
                     const txt = (r.datum_spotreby === null) ? '—' : (d < 0 ? `prošlo ${-d} d` : `za ${d} d`);
                     return `<tr>
                       <td>${esc(r.surovina_nazev)}</td>
-                      <td>${r.sarze ? esc(r.sarze) : '<span style="color:var(--text-3)">—</span>'}</td>
+                      <td>${r.sarze ? esc(r.sarze) : '<span style="color:var(--text-3)">—</span>'}${(+r.hold) ? ` <span title="Šarže je v karanténě${r.hold_poznamka ? ': ' + esc(r.hold_poznamka) : ''}" style="background:#FCEBEB;color:#A32D2D;border-radius:6px;padding:1px 6px;font-size:10px;font-weight:700">🔒 KARANTÉNA</span>` : ''}</td>
                       <td>${r.datum_spotreby ? esc(String(r.datum_spotreby).split('-').reverse().join('.')) : '<span style="color:var(--text-3)">—</span>'}</td>
                       <td class="num" style="color:${barva};font-weight:600">${txt}</td>
                       <td class="num">${parseFloat(r.mnozstvi)} ${esc(r.jednotka || '')}</td>
                       <td style="font-size:11px;color:var(--text-3)">${fmtDate(r.kdy)}${r.typ === 'vratka' ? ' ↩️' : ''}</td>
-                      <td><button class="btn-mini" data-sz="${esc(r.sarze || '')}" onclick="skladRecall(${r.surovina_id}, this.dataset.sz)" title="Dohledat, které objednávky/zákazníci dostali výrobky s touto šarží (recall)">🔎 Dohledat</button></td>
+                      <td style="white-space:nowrap">${r.sarze ? `<button class="btn-mini" data-sz="${esc(r.sarze)}" onclick="skladSarzeHold(${r.surovina_id}, this.dataset.sz, ${(+r.hold) ? 0 : 1})" title="${(+r.hold) ? 'Uvolnit šarži z karantény' : 'Dát šarži do karantény — označí ji jako blokovanou'}">${(+r.hold) ? '✅ Uvolnit' : '🔒 Blokovat'}</button> ` : ''}<button class="btn-mini" data-sz="${esc(r.sarze || '')}" onclick="skladRecall(${r.surovina_id}, this.dataset.sz)" title="Dohledat, které objednávky/zákazníci dostali výrobky s touto šarží (recall)">🔎 Dohledat</button></td>
                     </tr>`;
                   }).join('')}
                 </tbody>
