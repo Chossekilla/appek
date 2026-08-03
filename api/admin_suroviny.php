@@ -532,6 +532,58 @@ if ($action === 'recall' && $method === 'GET') {
     ]);
 }
 
+// 🔙 v3.0.456 — TRACE_BACK: z výrobku (reklamace) → kandidátní šarže surovin na skladě k datu výroby.
+//   Reverzní směr recallu. Časově-okenní odhad (spotřeba konkrétní šarže se neeviduje).
+//   GET ?action=trace_back&vyrobek_id=N&datum=YYYY-MM-DD
+if ($action === 'trace_back' && $method === 'GET') {
+    ensure_sklad_pohyby_schema($pdo);
+    ensure_sarze_stav_schema($pdo);
+    $vid = (int) ($_GET['vyrobek_id'] ?? 0);
+    $datum = $_GET['datum'] ?? date('Y-m-d');
+    if ($vid <= 0) json_error('Chybí vyrobek_id');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum)) json_error('Neplatné datum');
+    $vinfo = $pdo->prepare("SELECT id, nazev FROM vyrobky WHERE id = ?");
+    $vinfo->execute([$vid]);
+    $v = $vinfo->fetch(PDO::FETCH_ASSOC);
+    if (!$v) json_error('Výrobek nenalezen');
+
+    $sur = []; $pol = [];
+    bom_explode($pdo, $vid, 1, $sur, $pol);   // $sur = [surovina_id => qty] napříč BOM (i polotovary)
+
+    $bq = $pdo->prepare("
+        SELECT p.sarze, p.datum_spotreby, p.mnozstvi, p.kdy,
+               (p.datum_spotreby IS NOT NULL AND p.datum_spotreby < :d) AS expired,
+               (ss.id IS NOT NULL) AS hold
+        FROM sklad_pohyby_v2 p
+        LEFT JOIN sklad_sarze_stav ss ON ss.surovina_id = p.item_id AND ss.sarze = p.sarze COLLATE utf8mb4_unicode_ci AND ss.stav = 'hold'
+        WHERE p.item_typ='surovina' AND p.item_id = :sid AND p.typ IN ('prijem','vratka')
+          AND p.sarze IS NOT NULL AND DATE(p.kdy) <= :d2
+        ORDER BY p.kdy DESC LIMIT 15");
+    $nameStmt = $pdo->prepare("SELECT nazev, jednotka FROM suroviny WHERE id = ?");
+
+    $ingredients = []; $sBatches = 0;
+    foreach (array_keys($sur) as $sid) {
+        $sid = (int) $sid; if ($sid <= 0) continue;
+        $nameStmt->execute([$sid]); $sn = $nameStmt->fetch(PDO::FETCH_ASSOC);
+        $bq->execute(['sid' => $sid, 'd' => $datum, 'd2' => $datum]);
+        $batches = $bq->fetchAll(PDO::FETCH_ASSOC);
+        $sBatches += count($batches);
+        $ingredients[] = ['surovina_id' => $sid, 'nazev' => $sn['nazev'] ?? ('#' . $sid), 'jednotka' => $sn['jednotka'] ?? '', 'batches' => $batches];
+    }
+    // suroviny s nějakou šarží první
+    usort($ingredients, fn($a, $b) => (count($b['batches']) <=> count($a['batches'])) ?: strcmp($a['nazev'], $b['nazev']));
+
+    json_response([
+        'ok' => true,
+        'vyrobek' => ['id' => (int) $v['id'], 'nazev' => $v['nazev']],
+        'datum' => $datum,
+        'ingredient_count' => count($ingredients),
+        'batch_count' => $sBatches,
+        'ingredients' => $ingredients,
+        'note' => 'Kandidátní šarže surovin, které byly na skladě k datu výroby/dodání (příjem ≤ datum). Časově-okenní odhad — spotřeba konkrétní fyzické šarže se neeviduje. 🔒 = karanténa, ⏰ = prošlá k datu.',
+    ]);
+}
+
 // POST pohyb — přijem / výdej / inventura / korekce
 //   { surovina_id, typ, mnozstvi, cena_za_jed?, poznamka? }
 if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_korekce','sklad_vratka'], true) && $method === 'POST') {

@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.455';
+const APPEK_ADMIN_JS_VERSION = '3.0.456';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -33081,6 +33081,56 @@ window._recallCsv = function() {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 };
 
+// 🔙 v3.0.456 — ZPĚTNÉ DOHLEDÁNÍ: výrobek (reklamace) + datum → kandidátní šarže surovin na skladě.
+window.skladTraceBack = async function(vyrobekId, datum) {
+  let prods = state._vyrobky_pick_cache;
+  if (!prods) { try { const r = await api('admin_vyrobky.php'); prods = Array.isArray(r) ? r : (r.polozky || r.vyrobky || r.data || []); state._vyrobky_pick_cache = prods; } catch (e) { prods = []; } }
+  const opts = (prods || []).map(p => `<option value="${p.id}" ${(+p.id === +vyrobekId) ? 'selected' : ''}>${esc(p.nazev)}</option>`).join('');
+  const today = datum || new Date().toISOString().slice(0, 10);
+  const body = `
+    <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:12px;align-items:end">
+      <label style="font-size:12px;font-weight:600;color:var(--text-2)">Výrobek (reklamace)
+        <select id="tb-v" class="form-input" style="margin-top:4px">${opts}</select></label>
+      <label style="font-size:12px;font-weight:600;color:var(--text-2)">Datum výroby / dodání
+        <input id="tb-d" type="date" class="form-input" style="margin-top:4px" value="${today}"></label>
+      <button class="btn-primary" onclick="_traceBackRun()">🔙 Dohledat šarže</button>
+    </div>
+    <p style="font-size:11px;color:var(--text-3);margin:8px 0 0">Ukáže, které šarže surovin výrobku byly k datu na skladě (příjem ≤ datum) — kandidáti pro dohledání příčiny reklamace.</p>
+    <div id="tb-res" style="margin-top:16px"></div>`;
+  openModal('🔙 Zpětné dohledání šarží', body, 'wide');
+  if (vyrobekId && +vyrobekId > 0) setTimeout(_traceBackRun, 80);
+};
+
+window._traceBackRun = async function() {
+  const vid = document.getElementById('tb-v')?.value;
+  const d = document.getElementById('tb-d')?.value;
+  const box = document.getElementById('tb-res');
+  if (!vid || !d) { if (box) box.innerHTML = '<div style="color:#B91C1C">Vyber výrobek i datum.</div>'; return; }
+  if (box) box.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3)">Hledám…</div>';
+  let r;
+  try { r = await api(`admin_suroviny.php?action=trace_back&vyrobek_id=${encodeURIComponent(vid)}&datum=${encodeURIComponent(d)}`); }
+  catch (e) { if (box) box.innerHTML = '<div style="color:#B91C1C">Chyba: ' + esc(e.message) + '</div>'; return; }
+  const dcz = (s) => (s ? String(s).split('-').reverse().join('.') : '—');
+  const head = `
+    <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px">
+      <strong>${esc(r.vyrobek.nazev)}</strong> · datum <strong>${dcz(r.datum)}</strong> · surovin: <strong>${r.ingredient_count}</strong> · nalezených šarží: <strong>${r.batch_count}</strong></div>
+    <div style="background:#FBEDDC;border:1px solid #EBC79A;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11.5px;color:#7A4A00">⚠️ ${esc(r.note)}</div>`;
+  const ing = (r.ingredients || []).map(i => `
+    <div style="margin-bottom:12px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:4px">${esc(i.nazev)} ${i.batches.length ? `<span style="color:var(--text-3);font-weight:400">(${i.batches.length})</span>` : ''}</div>
+      ${i.batches.length ? `<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden"><table class="table" style="margin:0;font-size:12px">
+        <thead><tr><th>Šarže</th><th>Spotřeba do</th><th>Přijato</th><th>Stav</th></tr></thead><tbody>
+        ${i.batches.map(b => `<tr>
+          <td><code>${esc(b.sarze)}</code></td>
+          <td>${b.datum_spotreby ? dcz(b.datum_spotreby) : '<span style="color:var(--text-3)">—</span>'}</td>
+          <td>${b.kdy ? dcz(String(b.kdy).slice(0, 10)) : '—'}</td>
+          <td>${(+b.hold) ? '<span style="background:#FCEBEB;color:#A32D2D;border-radius:6px;padding:1px 6px;font-size:10px;font-weight:700">🔒 karanténa</span> ' : ''}${(+b.expired) ? '<span style="background:#FDECEA;color:#B25E00;border-radius:6px;padding:1px 6px;font-size:10px;font-weight:700">⏰ prošlá</span>' : ((+b.hold) ? '' : '<span style="color:#208438">ok</span>')}</td>
+        </tr>`).join('')}</tbody></table></div>`
+        : '<div style="font-size:12px;color:var(--text-3)">Žádná evidovaná šarže k datu (surovina bez šarží nebo přijatá až po datu).</div>'}
+    </div>`).join('');
+  box.innerHTML = head + ing;
+};
+
 async function renderSuroviny() {
   // 🚀 PERFORMANCE: cachuj výsledek (invalidate po editaci) — pro 1000+ surovin
   // ušetří 200-500 ms na každý re-render filtrů.
@@ -33312,6 +33362,7 @@ async function renderSuroviny() {
             </div>` : ''}
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
             <button class="btn-secondary btn-mini" onclick="skladRecall(0, '')" title="Recall: vyber surovinu (a šarži) a zjisti, které objednávky/zákazníci ji dostali">🔎 Dohledat zasažené objednávky (recall)</button>
+            <button class="btn-secondary btn-mini" onclick="skladTraceBack(0, '')" title="Zpětně: vyber výrobek (reklamace) a datum → které šarže surovin byly k tomu datu na skladě">🔙 Zpětně: výrobek → šarže surovin</button>
             <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2)" title="Kontrola prošlých / držených šarží při denním odpisu výroby. Vypnuto = nikdy neobtěžuje. Upozornit = jen varuje. Blokovat = vyžádá potvrzení (jde přeskočit).">
               Kontrola ve výrobě:
               <select class="form-input" style="width:auto;padding:5px 8px;font-size:12px" onchange="skladEnforceSet(this.value)">
