@@ -55,6 +55,31 @@ async function renderOdberatele() {
   if (!Array.isArray(stats)) stats = [];
   const c = document.getElementById('content');
 
+  // 🆕 v3.0.458 — stránkování seznamu odběratelů dle nastavení (pagination_styl/pocet), klientské nad `list`.
+  if (state._pagStyl == null || state._pagLimit == null) {
+    const n = state.nastaveni || {};
+    state._pagStyl = n.pagination_styl || 'load_more';
+    const poc = parseInt(n.pagination_pocet) || 10;
+    state._pagLimit = [10, 25, 50, 100, 200].includes(poc) ? poc : 10;
+  }
+  const _op = state._odbPag || (state._odbPag = { offset: 0, shown: 0 });
+  if (typeof applyPagLimit === 'function') applyPagLimit(_op); else _op.limit = state._pagLimit || 10;
+  const _opSig = JSON.stringify([filtrTyp, filtrQ]);
+  if (_op.sig !== _opSig) { _op.sig = _opSig; _op.offset = 0; _op.shown = 0; }
+  let odbPageItems = list;
+  {
+    const lim = _op.limit || 10;
+    if ((state._pagStyl || 'load_more') === 'stranky') {
+      if (_op.offset >= list.length) _op.offset = 0;
+      odbPageItems = list.slice(_op.offset, _op.offset + lim);
+    } else {
+      _op.offset = 0;
+      if (!_op.shown) _op.shown = lim;
+      odbPageItems = list.slice(0, _op.shown);
+    }
+  }
+  _op.items = odbPageItems; _op.total = list.length;
+
   // Spočítej celkový počet (suma ze stats) pro pillsy "Vše"
   const totalAll = stats.reduce((s, r) => s + parseInt(r.pocet || 0, 10), 0);
 
@@ -120,7 +145,7 @@ async function renderOdberatele() {
           </tr>
         </thead>
         <tbody>
-          ${list.map((o) => `
+          ${odbPageItems.map((o) => `
             <tr class="row-clickable" onclick="editOdberatel(${o.id})">
               <td>${esc(o.cislo || '')}</td>
               <td class="odberatel-row-name">
@@ -171,7 +196,7 @@ async function renderOdberatele() {
             })
           : '<div class="card-block"><div class="empty-state">Žádný odběratel neodpovídá filtru</div></div>'
       ) :
-        list.map((o) => `
+        odbPageItems.map((o) => `
           <div class="odberatel-card" onclick="editOdberatel(${o.id})">
             <div class="odberatel-card-head">
               <div class="odberatel-card-title">
@@ -222,8 +247,21 @@ async function renderOdberatele() {
         `).join('')
       }
     </div>
+
+    ${typeof pagControlHtml === 'function' ? pagControlHtml('odb', _op, 'odbGoToPage', 'odbLoadMore') : ''}
   `;
+  if (typeof pagSetupInfinite === 'function') pagSetupInfinite('odb', _op, 'odbLoadMore');
 }
+
+// 🆕 v3.0.458 — stránkování seznamu odběratelů (klientské, dle nastavení pagination_styl/pocet).
+window.odbLoadMore = function() {
+  const op = state._odbPag; if (op) op.shown = (op.shown || op.limit || 10) + (op.limit || 10);
+  renderOdberatele();
+};
+window.odbGoToPage = function(p) {
+  const op = state._odbPag; if (op) { op.offset = p * (op.limit || 10); op.shown = 0; }
+  renderOdberatele();
+};
 
 window.applyOdbFilter = function() {
   window.odbFilterQ = document.getElementById('odb-q')?.value || '';

@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.457';
+const APPEK_ADMIN_JS_VERSION = '3.0.458';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -14480,6 +14480,31 @@ async function renderOdberatele() {
   if (!Array.isArray(stats)) stats = [];
   const c = document.getElementById('content');
 
+  // 🆕 v3.0.458 — stránkování seznamu odběratelů dle nastavení (pagination_styl/pocet), klientské nad `list`.
+  if (state._pagStyl == null || state._pagLimit == null) {
+    const n = state.nastaveni || {};
+    state._pagStyl = n.pagination_styl || 'load_more';
+    const poc = parseInt(n.pagination_pocet) || 10;
+    state._pagLimit = [10, 25, 50, 100, 200].includes(poc) ? poc : 10;
+  }
+  const _op = state._odbPag || (state._odbPag = { offset: 0, shown: 0 });
+  if (typeof applyPagLimit === 'function') applyPagLimit(_op); else _op.limit = state._pagLimit || 10;
+  const _opSig = JSON.stringify([filtrTyp, filtrQ]);
+  if (_op.sig !== _opSig) { _op.sig = _opSig; _op.offset = 0; _op.shown = 0; }
+  let odbPageItems = list;
+  {
+    const lim = _op.limit || 10;
+    if ((state._pagStyl || 'load_more') === 'stranky') {
+      if (_op.offset >= list.length) _op.offset = 0;
+      odbPageItems = list.slice(_op.offset, _op.offset + lim);
+    } else {
+      _op.offset = 0;
+      if (!_op.shown) _op.shown = lim;
+      odbPageItems = list.slice(0, _op.shown);
+    }
+  }
+  _op.items = odbPageItems; _op.total = list.length;
+
   // Spočítej celkový počet (suma ze stats) pro pillsy "Vše"
   const totalAll = stats.reduce((s, r) => s + parseInt(r.pocet || 0, 10), 0);
 
@@ -14545,7 +14570,7 @@ async function renderOdberatele() {
           </tr>
         </thead>
         <tbody>
-          ${list.map((o) => `
+          ${odbPageItems.map((o) => `
             <tr class="row-clickable" onclick="editOdberatel(${o.id})">
               <td>${esc(o.cislo || '')}</td>
               <td class="odberatel-row-name">
@@ -14596,7 +14621,7 @@ async function renderOdberatele() {
             })
           : '<div class="card-block"><div class="empty-state">Žádný odběratel neodpovídá filtru</div></div>'
       ) :
-        list.map((o) => `
+        odbPageItems.map((o) => `
           <div class="odberatel-card" onclick="editOdberatel(${o.id})">
             <div class="odberatel-card-head">
               <div class="odberatel-card-title">
@@ -14647,8 +14672,21 @@ async function renderOdberatele() {
         `).join('')
       }
     </div>
+
+    ${typeof pagControlHtml === 'function' ? pagControlHtml('odb', _op, 'odbGoToPage', 'odbLoadMore') : ''}
   `;
+  if (typeof pagSetupInfinite === 'function') pagSetupInfinite('odb', _op, 'odbLoadMore');
 }
+
+// 🆕 v3.0.458 — stránkování seznamu odběratelů (klientské, dle nastavení pagination_styl/pocet).
+window.odbLoadMore = function() {
+  const op = state._odbPag; if (op) op.shown = (op.shown || op.limit || 10) + (op.limit || 10);
+  renderOdberatele();
+};
+window.odbGoToPage = function(p) {
+  const op = state._odbPag; if (op) { op.offset = p * (op.limit || 10); op.shown = 0; }
+  renderOdberatele();
+};
 
 window.applyOdbFilter = function() {
   window.odbFilterQ = document.getElementById('odb-q')?.value || '';
@@ -32966,6 +33004,16 @@ window.skladSledovatelnostToggle = async function(on) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
+// 🆕 v3.0.458 — stránkování seznamu surovin (klientské, dle nastavení pagination_styl/pocet).
+window.surLoadMore = function() {
+  const sp = state._surPag; if (sp) sp.shown = (sp.shown || sp.limit || 10) + (sp.limit || 10);
+  renderSuroviny();
+};
+window.surGoToPage = function(p) {
+  const sp = state._surPag; if (sp) { sp.offset = p * (sp.limit || 10); sp.shown = 0; }
+  renderSuroviny();
+};
+
 // 🔒 v3.0.454 — úroveň kontroly šarží ve výrobě (off/warn/block). Off = nikdy neobtěžuje.
 window.skladEnforceSet = async function(val) {
   try {
@@ -33343,6 +33391,33 @@ async function renderSuroviny() {
   };
 
   // Vykreslení tabulky — buď s kategoriemi nebo bez
+  // 🆕 v3.0.458 — stránkování seznamu surovin dle nastavení (pagination_styl/pocet), klientské nad `filtered`.
+  //   Grupovaný pohled (dle kategorie) je z paginace vyňatý (potřebuje plný dataset), stejně jako u Výrobků.
+  if (state._pagStyl == null || state._pagLimit == null) {
+    const n = state.nastaveni || {};
+    state._pagStyl = n.pagination_styl || 'load_more';
+    const poc = parseInt(n.pagination_pocet) || 10;
+    state._pagLimit = [10, 25, 50, 100, 200].includes(poc) ? poc : 10;
+  }
+  const surPaginated = (!groupBy || kat !== 'vse');
+  const sp = state._surPag || (state._surPag = { offset: 0, shown: 0 });
+  if (typeof applyPagLimit === 'function') applyPagLimit(sp); else sp.limit = state._pagLimit || 10;
+  const spSig = JSON.stringify([q, kat, aktivni, alergen, groupBy]);
+  if (sp.sig !== spSig) { sp.sig = spSig; sp.offset = 0; sp.shown = 0; }
+  let surPageItems = filtered;
+  if (surPaginated) {
+    const lim = sp.limit || 10;
+    if ((state._pagStyl || 'load_more') === 'stranky') {
+      if (sp.offset >= filtered.length) sp.offset = 0;
+      surPageItems = filtered.slice(sp.offset, sp.offset + lim);
+    } else {
+      sp.offset = 0;
+      if (!sp.shown) sp.shown = lim;
+      surPageItems = filtered.slice(0, sp.shown);
+    }
+  }
+  sp.items = surPageItems; sp.total = filtered.length;
+
   const tabulkaDesktop = () => {
     if (filtered.length === 0) return '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
     const head = `
@@ -33360,7 +33435,7 @@ async function renderSuroviny() {
       </thead>
     `;
     if (!groupBy || kat !== 'vse') {
-      return `<table class="table sur-table">${head}<tbody>${filtered.map(radekDesktop).join('')}</tbody></table>`;
+      return `<table class="table sur-table">${head}<tbody>${surPageItems.map(radekDesktop).join('')}</tbody></table>`;
     }
     // Groupovaný view — pro každou neprázdnou kategorii nadpis + řádky
     return SUROVINA_KATEGORIE.map(k => {
@@ -33395,7 +33470,7 @@ async function renderSuroviny() {
 
   const seznamMobile = () => {
     if (filtered.length === 0) return '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
-    if (!groupBy || kat !== 'vse') return filtered.map(kartaMobile).join('');
+    if (!groupBy || kat !== 'vse') return surPageItems.map(kartaMobile).join('');
     return SUROVINA_KATEGORIE.map(k => {
       const items = skupiny[k.key];
       if (items.length === 0) return '';
@@ -33557,7 +33632,10 @@ async function renderSuroviny() {
     <div class="mobile-only-block">
       ${seznamMobile()}
     </div>
+
+    ${surPaginated && typeof pagControlHtml === 'function' ? pagControlHtml('sur', sp, 'surGoToPage', 'surLoadMore') : ''}
   `;
+  if (surPaginated && typeof pagSetupInfinite === 'function') pagSetupInfinite('sur', sp, 'surLoadMore');
 }
 
 // =============================================================

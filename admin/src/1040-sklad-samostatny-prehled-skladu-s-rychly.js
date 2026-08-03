@@ -179,6 +179,16 @@ window.skladSledovatelnostToggle = async function(on) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
+// 🆕 v3.0.458 — stránkování seznamu surovin (klientské, dle nastavení pagination_styl/pocet).
+window.surLoadMore = function() {
+  const sp = state._surPag; if (sp) sp.shown = (sp.shown || sp.limit || 10) + (sp.limit || 10);
+  renderSuroviny();
+};
+window.surGoToPage = function(p) {
+  const sp = state._surPag; if (sp) { sp.offset = p * (sp.limit || 10); sp.shown = 0; }
+  renderSuroviny();
+};
+
 // 🔒 v3.0.454 — úroveň kontroly šarží ve výrobě (off/warn/block). Off = nikdy neobtěžuje.
 window.skladEnforceSet = async function(val) {
   try {
@@ -556,6 +566,33 @@ async function renderSuroviny() {
   };
 
   // Vykreslení tabulky — buď s kategoriemi nebo bez
+  // 🆕 v3.0.458 — stránkování seznamu surovin dle nastavení (pagination_styl/pocet), klientské nad `filtered`.
+  //   Grupovaný pohled (dle kategorie) je z paginace vyňatý (potřebuje plný dataset), stejně jako u Výrobků.
+  if (state._pagStyl == null || state._pagLimit == null) {
+    const n = state.nastaveni || {};
+    state._pagStyl = n.pagination_styl || 'load_more';
+    const poc = parseInt(n.pagination_pocet) || 10;
+    state._pagLimit = [10, 25, 50, 100, 200].includes(poc) ? poc : 10;
+  }
+  const surPaginated = (!groupBy || kat !== 'vse');
+  const sp = state._surPag || (state._surPag = { offset: 0, shown: 0 });
+  if (typeof applyPagLimit === 'function') applyPagLimit(sp); else sp.limit = state._pagLimit || 10;
+  const spSig = JSON.stringify([q, kat, aktivni, alergen, groupBy]);
+  if (sp.sig !== spSig) { sp.sig = spSig; sp.offset = 0; sp.shown = 0; }
+  let surPageItems = filtered;
+  if (surPaginated) {
+    const lim = sp.limit || 10;
+    if ((state._pagStyl || 'load_more') === 'stranky') {
+      if (sp.offset >= filtered.length) sp.offset = 0;
+      surPageItems = filtered.slice(sp.offset, sp.offset + lim);
+    } else {
+      sp.offset = 0;
+      if (!sp.shown) sp.shown = lim;
+      surPageItems = filtered.slice(0, sp.shown);
+    }
+  }
+  sp.items = surPageItems; sp.total = filtered.length;
+
   const tabulkaDesktop = () => {
     if (filtered.length === 0) return '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
     const head = `
@@ -573,7 +610,7 @@ async function renderSuroviny() {
       </thead>
     `;
     if (!groupBy || kat !== 'vse') {
-      return `<table class="table sur-table">${head}<tbody>${filtered.map(radekDesktop).join('')}</tbody></table>`;
+      return `<table class="table sur-table">${head}<tbody>${surPageItems.map(radekDesktop).join('')}</tbody></table>`;
     }
     // Groupovaný view — pro každou neprázdnou kategorii nadpis + řádky
     return SUROVINA_KATEGORIE.map(k => {
@@ -608,7 +645,7 @@ async function renderSuroviny() {
 
   const seznamMobile = () => {
     if (filtered.length === 0) return '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
-    if (!groupBy || kat !== 'vse') return filtered.map(kartaMobile).join('');
+    if (!groupBy || kat !== 'vse') return surPageItems.map(kartaMobile).join('');
     return SUROVINA_KATEGORIE.map(k => {
       const items = skupiny[k.key];
       if (items.length === 0) return '';
@@ -770,6 +807,9 @@ async function renderSuroviny() {
     <div class="mobile-only-block">
       ${seznamMobile()}
     </div>
+
+    ${surPaginated && typeof pagControlHtml === 'function' ? pagControlHtml('sur', sp, 'surGoToPage', 'surLoadMore') : ''}
   `;
+  if (surPaginated && typeof pagSetupInfinite === 'function') pagSetupInfinite('sur', sp, 'surLoadMore');
 }
 
