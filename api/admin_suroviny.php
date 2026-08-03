@@ -584,6 +584,82 @@ if ($action === 'trace_back' && $method === 'GET') {
     ]);
 }
 
+// 🗑️ v3.0.457 — ODPIS ZTRÁTY: výdej suroviny s KATEGORIÍ důvodu + hodnota (z ceny suroviny).
+//   Volitelné — kdo nechce kategorizovat, používá běžný sklad_vydej. Napojení na šarže (expirace/karanténa).
+//   POST ?action=sklad_ztrata { surovina_id, mnozstvi, duvod: expirace|poskozeni|manko|jine, sarze?, poznamka? }
+if ($action === 'sklad_ztrata' && $method === 'POST') {
+    ensure_sklad_pohyby_schema($pdo);
+    $d = json_input();
+    $sid = (int) ($d['surovina_id'] ?? 0);
+    $mnozstvi = (float) ($d['mnozstvi'] ?? 0);
+    $duvod = in_array(($d['duvod'] ?? ''), ['expirace', 'poskozeni', 'manko', 'jine'], true) ? $d['duvod'] : 'jine';
+    if (!$sid) json_error('Chybí surovina_id');
+    if ($mnozstvi <= 0) json_error('Množství musí být > 0');
+    $sur = $pdo->prepare("SELECT id, nazev, jednotka FROM suroviny WHERE id = :id");
+    $sur->execute(['id' => $sid]);
+    $surData = $sur->fetch(PDO::FETCH_ASSOC);
+    if (!$surData) json_error('Surovina nenalezena', 404);
+    $sarze = (isset($d['sarze']) && trim((string) $d['sarze']) !== '') ? mb_substr(trim((string) $d['sarze']), 0, 80) : null;
+    $cena = function_exists('bom_surovina_unit_cost') ? bom_surovina_unit_cost($pdo, $sid) : null;
+    try {
+        $home  = surovina_home_sklad($pdo, $sid);
+        $rowId = sklad_polozky_ensure($pdo, $home, 'surovina', $sid);
+        $pdo->beginTransaction();
+        $stockPred = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id=" . (int) $rowId . " FOR UPDATE")->fetchColumn();
+        $stockPo   = max(0, $stockPred - $mnozstvi);
+        $delta     = $stockPo - $stockPred;
+        $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :r")->execute(['s' => $stockPo, 'r' => $rowId]);
+        $lbl = ['expirace' => 'expirace', 'poskozeni' => 'poškození', 'manko' => 'manko', 'jine' => 'jiné'][$duvod];
+        $pozn = 'Ztráta (' . $lbl . ')' . (isset($d['poznamka']) && trim((string) $d['poznamka']) !== '' ? ' — ' . trim((string) $d['poznamka']) : '') . ($sarze ? ' [šarže ' . $sarze . ']' : '');
+        $pdo->prepare("
+            INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, cena_za_jed, sarze, duvod, poznamka, kdo)
+            VALUES (:s, 'surovina', :i, 'vydej', :mn, :pred, :po, :cz, :sarze, :duvod, :pz, :kdo)
+        ")->execute([
+            's' => $home, 'i' => $sid, 'mn' => $delta, 'pred' => $stockPred, 'po' => $stockPo,
+            'cz' => $cena, 'sarze' => $sarze, 'duvod' => $duvod, 'pz' => mb_substr($pozn, 0, 300), 'kdo' => _aktualni_uzivatel(),
+        ]);
+        $pdo->commit();
+        surovina_recompute_total($pdo, $sid);
+        json_response(['ok' => true, 'stock_pred' => $stockPred, 'stock_po' => $stockPo, 'odepsano' => $mnozstvi,
+                       'hodnota' => $cena !== null ? round($mnozstvi * $cena, 2) : null, 'duvod' => $duvod]);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error_safe('Chyba odpisu ztráty', $e, 500);
+    }
+}
+
+// 📉 v3.0.457 — REPORT ZTRÁT za období: rozpad dle důvodu + hodnota (Kč) + seznam.
+//   GET ?action=ztraty_report&from=YYYY-MM-DD&to=YYYY-MM-DD
+if ($action === 'ztraty_report' && $method === 'GET') {
+    ensure_sklad_pohyby_schema($pdo);
+    $reDate = fn($s) => (is_string($s) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) ? $s : null;
+    $from = $reDate($_GET['from'] ?? null) ?: date('Y-m-d', strtotime('-30 days'));
+    $to   = $reDate($_GET['to'] ?? null) ?: date('Y-m-d');
+    if ($from > $to) { $t = $from; $from = $to; $to = $t; }
+    $bd = $pdo->prepare("
+        SELECT duvod, COUNT(*) pocet, SUM(ABS(mnozstvi)) mnozstvi_celkem,
+               SUM(ABS(mnozstvi) * COALESCE(cena_za_jed, 0)) hodnota
+        FROM sklad_pohyby_v2
+        WHERE item_typ='surovina' AND typ='vydej' AND duvod IS NOT NULL
+          AND DATE(kdy) BETWEEN :f AND :t
+        GROUP BY duvod");
+    $bd->execute(['f' => $from, 't' => $to]);
+    $breakdown = $bd->fetchAll(PDO::FETCH_ASSOC);
+    $ls = $pdo->prepare("
+        SELECT p.kdy, p.item_id surovina_id, s.nazev, s.jednotka, ABS(p.mnozstvi) mnozstvi, p.sarze, p.duvod,
+               (ABS(p.mnozstvi) * COALESCE(p.cena_za_jed, 0)) hodnota, p.poznamka
+        FROM sklad_pohyby_v2 p JOIN suroviny s ON s.id = p.item_id
+        WHERE p.item_typ='surovina' AND p.typ='vydej' AND p.duvod IS NOT NULL
+          AND DATE(p.kdy) BETWEEN :f AND :t
+        ORDER BY p.kdy DESC LIMIT 500");
+    $ls->execute(['f' => $from, 't' => $to]);
+    $polozky = $ls->fetchAll(PDO::FETCH_ASSOC);
+    $totalHodnota = 0.0; $totalPocet = 0;
+    foreach ($breakdown as $b) { $totalHodnota += (float) $b['hodnota']; $totalPocet += (int) $b['pocet']; }
+    json_response(['ok' => true, 'from' => $from, 'to' => $to, 'breakdown' => $breakdown,
+                   'total_hodnota' => round($totalHodnota, 2), 'total_pocet' => $totalPocet, 'polozky' => $polozky]);
+}
+
 // POST pohyb — přijem / výdej / inventura / korekce
 //   { surovina_id, typ, mnozstvi, cena_za_jed?, poznamka? }
 if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_korekce','sklad_vratka'], true) && $method === 'POST') {

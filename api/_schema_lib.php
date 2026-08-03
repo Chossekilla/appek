@@ -292,6 +292,7 @@ function ensure_sklad_pohyby_schema(PDO $pdo): void {
                 cena_za_jed DECIMAL(10,4) NULL,
                 sarze VARCHAR(80) NULL,
                 datum_spotreby DATE NULL,
+                duvod VARCHAR(20) NULL,
                 poznamka VARCHAR(300) NULL,
                 kdo VARCHAR(120) NULL,
                 kdy DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -300,7 +301,8 @@ function ensure_sklad_pohyby_schema(PDO $pdo): void {
                 INDEX idx_item (item_typ, item_id),
                 INDEX idx_typ (typ),
                 INDEX idx_expirace (datum_spotreby),
-                INDEX idx_sarze (sarze)
+                INDEX idx_sarze (sarze),
+                INDEX idx_duvod (duvod)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
         // Pozn.: nová tabulka 'sklad_pohyby_v2' aby koexistovala s legacy
@@ -315,7 +317,7 @@ function ensure_sklad_pohyby_schema(PDO $pdo): void {
             $pdo->exec("ALTER TABLE sklad_pohyby_v2 MODIFY typ ENUM('prijem','vydej','inventura','korekce','presun','vratka') NOT NULL");
         }
         // 🆕 v3.0.446 — HACCP sledovatelnost: šarže (LOT) + datum spotřeby na příjmu (existující instalace)
-        foreach (['sarze' => "VARCHAR(80) NULL AFTER cena_za_jed", 'datum_spotreby' => "DATE NULL AFTER sarze"] as $col => $def) {
+        foreach (['sarze' => "VARCHAR(80) NULL AFTER cena_za_jed", 'datum_spotreby' => "DATE NULL AFTER sarze", 'duvod' => "VARCHAR(20) NULL AFTER datum_spotreby"] as $col => $def) {
             $has = (int) $pdo->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='sklad_pohyby_v2' AND COLUMN_NAME='$col'")->fetchColumn();
             if (!$has) {
                 $pdo->exec("ALTER TABLE sklad_pohyby_v2 ADD COLUMN $col $def");

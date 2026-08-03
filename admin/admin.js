@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.456';
+const APPEK_ADMIN_JS_VERSION = '3.0.457';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -33131,6 +33131,90 @@ window._traceBackRun = async function() {
   box.innerHTML = head + ing;
 };
 
+// 🗑️ v3.0.457 — ODPIS ZTRÁTY (výdej s kategorií důvodu). Volitelné; kdo nechce, používá běžný výdej.
+window.skladZtrata = async function(surovinaId, sarze, reasonHint) {
+  let list = state._suroviny_full_cache;
+  if (!list) { try { list = await api('admin_suroviny.php'); state._suroviny_full_cache = list; } catch (e) { list = []; } }
+  const opts = (list || []).map(s => `<option value="${s.id}" ${(+s.id === +surovinaId) ? 'selected' : ''}>${esc(s.nazev)}</option>`).join('');
+  const reasons = [['expirace', '⏰ Expirace'], ['poskozeni', '💥 Poškození'], ['manko', '📉 Manko'], ['jine', '• Jiné']];
+  const ropts = reasons.map(r => `<option value="${r[0]}" ${r[0] === (reasonHint || 'expirace') ? 'selected' : ''}>${r[1]}</option>`).join('');
+  const L = 'font-size:12px;font-weight:600;color:var(--text-2)';
+  const body = `
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:end">
+      <label style="${L}">Surovina<select id="zt-sur" class="form-input" style="margin-top:4px">${opts}</select></label>
+      <label style="${L}">Množství (odepsat)<input id="zt-mn" type="number" step="0.001" min="0" class="form-input" style="margin-top:4px" placeholder="0"></label>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+      <label style="${L}">Důvod<select id="zt-duvod" class="form-input" style="margin-top:4px">${ropts}</select></label>
+      <label style="${L}">Šarže <span style="font-weight:400;color:var(--text-3)">(volitelné)</span><input id="zt-sz" class="form-input" style="margin-top:4px" value="${esc(sarze || '')}"></label>
+    </div>
+    <label style="display:block;margin-top:10px;${L}">Poznámka<input id="zt-pozn" class="form-input" style="margin-top:4px" placeholder="volitelné"></label>
+    <div id="zt-msg" style="margin-top:10px"></div>
+    <div style="margin-top:14px;text-align:right"><button class="btn-primary" onclick="_ztataSave()">🗑️ Odepsat jako ztrátu</button></div>`;
+  openModal('🗑️ Odpis / ztráta suroviny', body);
+};
+window._ztataSave = async function() {
+  const sid = document.getElementById('zt-sur')?.value;
+  const mn = parseFloat(String(document.getElementById('zt-mn')?.value || '').replace(',', '.'));
+  const duvod = document.getElementById('zt-duvod')?.value;
+  const sarze = document.getElementById('zt-sz')?.value || '';
+  const poznamka = document.getElementById('zt-pozn')?.value || '';
+  const msg = document.getElementById('zt-msg');
+  if (!sid || !(mn > 0)) { if (msg) msg.innerHTML = '<div style="color:#B91C1C;font-size:13px">Vyber surovinu a zadej množství > 0.</div>'; return; }
+  try {
+    const r = await api('admin_suroviny.php?action=sklad_ztrata', { method: 'POST', body: JSON.stringify({ surovina_id: +sid, mnozstvi: mn, duvod, sarze, poznamka }) });
+    if (typeof toast === 'function') toast('🗑️ Odepsáno jako ztráta' + (r.hodnota != null ? ' (' + r.hodnota + ' Kč)' : ''), 'info');
+    state._suroviny_cache = null; state._suroviny_full_cache = null;
+    closeModal(); renderSuroviny();
+  } catch (e) { if (msg) msg.innerHTML = '<div style="color:#B91C1C;font-size:13px">Chyba: ' + esc(e.message) + '</div>'; }
+};
+
+// 📉 v3.0.457 — REPORT ZTRÁT za období (rozpad dle důvodu + hodnota Kč).
+window.skladZtratyReport = async function() {
+  const to = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+  const L = 'font-size:12px;font-weight:600;color:var(--text-2)';
+  const body = `
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end">
+      <label style="${L}">Od<input id="zr-from" type="date" class="form-input" style="margin-top:4px" value="${from}"></label>
+      <label style="${L}">Do<input id="zr-to" type="date" class="form-input" style="margin-top:4px" value="${to}"></label>
+      <button class="btn-primary" onclick="_ztratyReportRun()">📉 Zobrazit</button>
+    </div>
+    <div id="zr-res" style="margin-top:16px"></div>`;
+  openModal('📉 Report ztrát', body, 'wide');
+  setTimeout(_ztratyReportRun, 80);
+};
+window._ztratyReportRun = async function() {
+  const from = document.getElementById('zr-from')?.value, to = document.getElementById('zr-to')?.value;
+  const box = document.getElementById('zr-res');
+  if (box) box.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3)">Načítám…</div>';
+  let r;
+  try { r = await api(`admin_suroviny.php?action=ztraty_report&from=${from}&to=${to}`); }
+  catch (e) { if (box) box.innerHTML = '<div style="color:#B91C1C">Chyba: ' + esc(e.message) + '</div>'; return; }
+  const lbl = { expirace: '⏰ Expirace', poskozeni: '💥 Poškození', manko: '📉 Manko', jine: '• Jiné' };
+  const dcz = (s) => (s ? String(s).split('-').reverse().join('.') : '');
+  const kc = (n) => (Math.round((+n || 0) * 100) / 100).toLocaleString('cs-CZ');
+  if (!r.polozky.length) { box.innerHTML = `<div class="empty-state" style="padding:16px">Za období ${dcz(r.from)}–${dcz(r.to)} žádné evidované ztráty (s kategorií důvodu).</div>`; return; }
+  const cards = r.breakdown.map(b => `<div style="background:var(--surface-2);border-radius:10px;padding:12px 14px">
+      <div style="font-size:12px;color:var(--text-3)">${lbl[b.duvod] || b.duvod}</div>
+      <div style="font-size:18px;font-weight:800">${kc(b.hodnota)} Kč</div>
+      <div style="font-size:11px;color:var(--text-3)">${b.pocet}× · ${parseFloat(b.mnozstvi_celkem)} j.</div></div>`).join('');
+  const list = r.polozky.map(p => `<tr>
+      <td style="white-space:nowrap">${dcz(String(p.kdy).slice(0, 10))}</td>
+      <td>${esc(p.nazev)}${p.sarze ? ` <code style="font-size:10px">${esc(p.sarze)}</code>` : ''}</td>
+      <td class="num">${parseFloat(p.mnozstvi)} ${esc(p.jednotka || '')}</td>
+      <td>${lbl[p.duvod] || p.duvod}</td>
+      <td class="num">${kc(p.hodnota)} Kč</td></tr>`).join('');
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:13px;color:var(--text-2)">Období <strong>${dcz(r.from)} – ${dcz(r.to)}</strong></div>
+      <div style="font-size:16px;font-weight:800">Ztráty celkem: ${kc(r.total_hodnota)} Kč</div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">${cards}</div>
+    <div style="max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:8px"><table class="table" style="margin:0;font-size:12.5px">
+      <thead><tr><th>Datum</th><th>Surovina</th><th class="num">Množství</th><th>Důvod</th><th class="num">Hodnota</th></tr></thead>
+      <tbody>${list}</tbody></table></div>`;
+};
+
 async function renderSuroviny() {
   // 🚀 PERFORMANCE: cachuj výsledek (invalidate po editaci) — pro 1000+ surovin
   // ušetří 200-500 ms na každý re-render filtrů.
@@ -33363,6 +33447,7 @@ async function renderSuroviny() {
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
             <button class="btn-secondary btn-mini" onclick="skladRecall(0, '')" title="Recall: vyber surovinu (a šarži) a zjisti, které objednávky/zákazníci ji dostali">🔎 Dohledat zasažené objednávky (recall)</button>
             <button class="btn-secondary btn-mini" onclick="skladTraceBack(0, '')" title="Zpětně: vyber výrobek (reklamace) a datum → které šarže surovin byly k tomu datu na skladě">🔙 Zpětně: výrobek → šarže surovin</button>
+            <button class="btn-secondary btn-mini" onclick="skladZtratyReport()" title="Přehled odepsaných ztrát za období (expirace/poškození/manko) + hodnota v Kč">📉 Report ztrát</button>
             <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2)" title="Kontrola prošlých / držených šarží při denním odpisu výroby. Vypnuto = nikdy neobtěžuje. Upozornit = jen varuje. Blokovat = vyžádá potvrzení (jde přeskočit).">
               Kontrola ve výrobě:
               <select class="form-input" style="width:auto;padding:5px 8px;font-size:12px" onchange="skladEnforceSet(this.value)">
@@ -33392,7 +33477,7 @@ async function renderSuroviny() {
                       <td class="num" style="color:${barva};font-weight:600">${txt}</td>
                       <td class="num">${parseFloat(r.mnozstvi)} ${esc(r.jednotka || '')}</td>
                       <td style="font-size:11px;color:var(--text-3)">${fmtDate(r.kdy)}${r.typ === 'vratka' ? ' ↩️' : ''}</td>
-                      <td style="white-space:nowrap">${r.sarze ? `<button class="btn-mini" data-sz="${esc(r.sarze)}" onclick="skladSarzeHold(${r.surovina_id}, this.dataset.sz, ${(+r.hold) ? 0 : 1})" title="${(+r.hold) ? 'Uvolnit šarži z karantény' : 'Dát šarži do karantény — označí ji jako blokovanou'}">${(+r.hold) ? '✅ Uvolnit' : '🔒 Blokovat'}</button> ` : ''}<button class="btn-mini" data-sz="${esc(r.sarze || '')}" onclick="skladRecall(${r.surovina_id}, this.dataset.sz)" title="Dohledat, které objednávky/zákazníci dostali výrobky s touto šarží (recall)">🔎 Dohledat</button></td>
+                      <td style="white-space:nowrap">${r.sarze ? `<button class="btn-mini" data-sz="${esc(r.sarze)}" onclick="skladSarzeHold(${r.surovina_id}, this.dataset.sz, ${(+r.hold) ? 0 : 1})" title="${(+r.hold) ? 'Uvolnit šarži z karantény' : 'Dát šarži do karantény — označí ji jako blokovanou'}">${(+r.hold) ? '✅ Uvolnit' : '🔒 Blokovat'}</button> ` : ''}<button class="btn-mini" data-sz="${esc(r.sarze || '')}" onclick="skladZtrata(${r.surovina_id}, this.dataset.sz, '${d < 0 ? 'expirace' : 'jine'}')" title="Odepsat tuto surovinu / šarži jako ztrátu (expirace, poškození…)">🗑️ Ztráta</button> <button class="btn-mini" data-sz="${esc(r.sarze || '')}" onclick="skladRecall(${r.surovina_id}, this.dataset.sz)" title="Dohledat, které objednávky/zákazníci dostali výrobky s touto šarží (recall)">🔎 Dohledat</button></td>
                     </tr>`;
                   }).join('')}
                 </tbody>
