@@ -548,7 +548,7 @@ button { font-family: inherit; cursor: pointer; }
 .pos-line-body { min-width: 0; }
 .pos-line-name {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   /* 🆕 v3.0.369 — celý název produktu, max 2 řádky (user: „musí být vidět název celý, klidně 2 řádky") */
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -569,25 +569,25 @@ button { font-family: inherit; cursor: pointer; }
   gap: 4px;
 }
 .pos-qty-btn {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   border: 1px solid var(--pos-border);
   background: #fff;
   border-radius: 6px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--pos-text-2);
   line-height: 1;
 }
 .pos-qty-btn:hover { background: #FFF5DC; border-color: var(--pos-primary-2); }
-.pos-qty-val { min-width: 26px; text-align: center; font-weight: 800; font-size: 13px; }
-.pos-line-sum { font-weight: 800; min-width: 64px; text-align: right; font-size: 13px; }
+.pos-qty-val { min-width: 28px; text-align: center; font-weight: 800; font-size: 15px; }
+.pos-line-sum { font-weight: 800; min-width: 66px; text-align: right; font-size: 15px; }
 .pos-line-x {
   background: transparent;
   border: none;
-  padding: 4px;
-  font-size: 14px;
-  opacity: 0.5;
+  padding: 5px;
+  font-size: 15px;
+  opacity: 0.6;
   border-radius: 4px;
 }
 .pos-line-x:hover { background: #fde3e3; opacity: 1; }
@@ -1491,18 +1491,26 @@ html, body {
   .pos-cust-row { padding: 8px 12px !important; }
   .pos-cust-info { font-size: 13px !important; }
 
-  /* Cart line — ještě užší */
+  /* 🆕 v3.0.461 — Cart line: 2-řádkový layout (název na celou šířku = čitelný, ovládání pod ním).
+     Předtím grid '20px 1fr auto auto 24px' počítal s číslem řádku, které se nerenderuje →
+     název spadl do 20px sloupce a ořízl se na „P.. Q..". */
   .pos-cart-item {
-    padding: 8px 10px !important;
-    gap: 7px !important;
-    grid-template-columns: 20px 1fr auto auto 24px !important;
-    font-size: 12px !important;
+    padding: 9px 12px !important;
+    column-gap: 8px !important;
+    row-gap: 6px !important;
+    grid-template-columns: auto 1fr auto auto !important;
+    grid-template-areas: "name name name name" "qty . sum x" !important;
+    align-items: center !important;
+    font-size: 13px !important;
   }
-  .pos-line-name { font-size: 13px !important; max-width: 130px !important; }
-  .pos-line-meta { font-size: 10px !important; }
-  .pos-qty-btn { width: 28px !important; height: 28px !important; font-size: 15px !important; }
-  .pos-line-sum { font-size: 13px !important; min-width: 60px !important; }
-  .pos-line-x { font-size: 16px !important; padding: 4px !important; }
+  .pos-line-body { grid-area: name !important; min-width: 0 !important; }
+  .pos-line-name { grid-area: name; font-size: 15px !important; max-width: none !important; }
+  .pos-line-meta { font-size: 11px !important; }
+  .pos-qty { grid-area: qty !important; }
+  .pos-qty-btn { width: 34px !important; height: 34px !important; font-size: 18px !important; }
+  .pos-qty-val { min-width: 34px !important; font-size: 16px !important; }
+  .pos-line-sum { grid-area: sum !important; font-size: 16px !important; min-width: 68px !important; }
+  .pos-line-x { grid-area: x !important; font-size: 18px !important; padding: 6px !important; opacity: 0.7 !important; }
 
   /* Total + finish */
   .pos-summary { padding: 10px 12px !important; }
