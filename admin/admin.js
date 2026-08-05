@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.459';
+const APPEK_ADMIN_JS_VERSION = '3.0.460';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -35829,7 +35829,7 @@ const STITKY_FORMATY = [
   { id: 'a4-64x34-24',   popis: 'A4 · 63.5×33.9 mm (24/arch, 3×8) — Avery L7159a',                 cols: 3, rows: 8,  w: 63.5, h: 33.9, mTop: 13.5, mLeft: 7,    gapX: 2.5, gapY: 0 },
 
   // ───────── 🏷️ Malé formáty (30+ / arch) — EAN, kódy, malé štítky ─────────
-  { id: 'av-70x25-33',   popis: 'A4 · 70×25.4 mm (33/arch, 3×11) — Avery L7156',                   cols: 3, rows: 11, w: 70,   h: 25.4, mTop: 21.5, mLeft: 0,    gapX: 0,   gapY: 0 },
+  { id: 'av-70x25-33',   popis: 'A4 · 70×25.4 mm (33/arch, 3×11) — Avery L7156',                   cols: 3, rows: 11, w: 70,   h: 25.4, mTop: 8.5,  mLeft: 0,    gapX: 0,   gapY: 0 },
   { id: 'se-52x29-40',   popis: 'A4 · 52.5×29.7 mm (40/arch, 4×10) — SEVT',                        cols: 4, rows: 10, w: 52.5, h: 29.7, mTop: 0,    mLeft: 0,    gapX: 0, gapY: 0 },
   { id: 'pk-66x21-42',   popis: 'A4 · 66×21 mm (42/arch, 3×14) — Printky',                         cols: 3, rows: 14, w: 66,   h: 21,   mTop: 1.5,  mLeft: 6,    gapX: 0, gapY: 0 },
   { id: 'pk-52x25-44',   popis: 'A4 · 52×25.4 mm (44/arch, 4×11) — Printky',                       cols: 4, rows: 11, w: 52,   h: 25.4, mTop: 8.8,  mLeft: 1,    gapX: 0, gapY: 0 },

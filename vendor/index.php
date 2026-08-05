@@ -588,36 +588,6 @@ function fmtKc(float $v): string {
       </div>
     </div>
 
-    <!-- CUSTOMER DISTRIBUCE -->
-    <div class="hub-card upd" style="border-left-color:#208438">
-      <a href="updates.php" class="card-link" aria-label="Customer distribuce"></a>
-      <div class="head">
-        <span class="ico" style="color:#208438">📥</span>
-        <div>
-          <div class="name">Customer distribuce</div>
-          <div class="url">Co dostane zákazník po zaplacení</div>
-        </div>
-      </div>
-      <div class="desc">Customer ZIP (api + admin + b2b + install.php). Build lokálně, customers stahují přes update modul.</div>
-      <div class="row-stats">
-        <?php
-          $customerZip = realpath(__DIR__ . '/..') . '/appek-v' . ($kpi['latest_version'] ?? '*') . '.zip';
-          $customerZipFiles = glob(realpath(__DIR__ . '/..') . '/appek-v*.zip');
-          $latestCustomerZip = $customerZipFiles ? end($customerZipFiles) : null;
-        ?>
-        <?php if ($latestCustomerZip): ?>
-          <div><strong><?= htmlspecialchars(basename($latestCustomerZip)) ?></strong></div>
-          <div><strong><?= number_format(filesize($latestCustomerZip) / 1024 / 1024, 1, ',', ' ') ?> MB</strong>velikost</div>
-        <?php else: ?>
-          <div style="color:#86868b">Žádný customer ZIP zatím</div>
-        <?php endif; ?>
-      </div>
-      <div class="actions">
-        <a href="updates.php" class="primary">🔄 Spravovat updates</a>
-        <a href="https://github.com/appek/" target="_blank">📖 Docs</a>
-      </div>
-    </div>
-
   </div>
 
   <!-- INFO FOOTER -->

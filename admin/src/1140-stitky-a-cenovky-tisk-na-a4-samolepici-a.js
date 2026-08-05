@@ -40,7 +40,7 @@ const STITKY_FORMATY = [
   { id: 'a4-64x34-24',   popis: 'A4 · 63.5×33.9 mm (24/arch, 3×8) — Avery L7159a',                 cols: 3, rows: 8,  w: 63.5, h: 33.9, mTop: 13.5, mLeft: 7,    gapX: 2.5, gapY: 0 },
 
   // ───────── 🏷️ Malé formáty (30+ / arch) — EAN, kódy, malé štítky ─────────
-  { id: 'av-70x25-33',   popis: 'A4 · 70×25.4 mm (33/arch, 3×11) — Avery L7156',                   cols: 3, rows: 11, w: 70,   h: 25.4, mTop: 21.5, mLeft: 0,    gapX: 0,   gapY: 0 },
+  { id: 'av-70x25-33',   popis: 'A4 · 70×25.4 mm (33/arch, 3×11) — Avery L7156',                   cols: 3, rows: 11, w: 70,   h: 25.4, mTop: 8.5,  mLeft: 0,    gapX: 0,   gapY: 0 },
   { id: 'se-52x29-40',   popis: 'A4 · 52.5×29.7 mm (40/arch, 4×10) — SEVT',                        cols: 4, rows: 10, w: 52.5, h: 29.7, mTop: 0,    mLeft: 0,    gapX: 0, gapY: 0 },
   { id: 'pk-66x21-42',   popis: 'A4 · 66×21 mm (42/arch, 3×14) — Printky',                         cols: 3, rows: 14, w: 66,   h: 21,   mTop: 1.5,  mLeft: 6,    gapX: 0, gapY: 0 },
   { id: 'pk-52x25-44',   popis: 'A4 · 52×25.4 mm (44/arch, 4×11) — Printky',                       cols: 4, rows: 11, w: 52,   h: 25.4, mTop: 8.8,  mLeft: 1,    gapX: 0, gapY: 0 },
