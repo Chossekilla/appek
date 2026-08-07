@@ -93,6 +93,7 @@ function vendor_nav_primary(): array {
         ['key' => 'shop',          'label' => '🛒 Eshop',        'url' => 'shop.php'],
         ['key' => 'packages',      'label' => '🎁 Balíčky',      'url' => 'packages.php'],
         ['key' => 'licenses',      'label' => '🔑 Licence',      'url' => 'licenses.php'],
+        ['key' => 'faktury',       'label' => '🧾 Faktury',      'url' => 'faktury.php'],
         ['key' => 'pages-editor',  'label' => '✏️ Web',           'url' => 'pages-editor.php'],
         ['key' => 'business-info', 'label' => '🏢 Firma',        'url' => 'business-info.php'],
         ['key' => 'updates',       'label' => '🔄 Updates',      'url' => 'updates.php'],
