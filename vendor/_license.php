@@ -34,7 +34,10 @@ const LICENSE_PACKAGE_BITS = [
 // ════════════════════════════════════════════════════════════
 
 function license_format_valid(string $key): bool {
-    return (bool) preg_match('/^APPEK-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}(-[A-Z2-9]{4})?$/', $key);
+    // 🐛 v3.0.466 — checksum skupina (poslední) je HEX (SHA-256 → 0-9A-F), takže smí
+    //   obsahovat 0/1. Dřívější [A-Z2-9] u ní odmítal ~1/8 platných klíčů. Sjednoceno
+    //   s api/_license.php: random skupiny [A-Z2-9], checksum skupina [A-Z0-9].
+    return (bool) preg_match('/^APPEK-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}(-[A-Z2-9]{4})?-[A-Z0-9]{4}$/', $key);
 }
 
 function license_checksum(string $body): string {

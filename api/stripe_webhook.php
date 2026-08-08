@@ -8,7 +8,10 @@
  * Při checkout.session.completed → označit zaplaceno + vygenerovat licenci + e-mail.
  */
 
-require_once __DIR__ . '/_license.php';
+// 🐛 v3.0.466 — NEnačítat api/_license.php: běží jen na master serveru (kde je vendor/),
+//   a vendor/_lib.php níže natáhne vendor/_license.php se stejnými funkcemi. Načíst obě =
+//   „Cannot redeclare" fatal (500 → zákazník zaplatí, licence se nevystaví).
+//   license_generate_with_packages() bereme z vendor/_license.php.
 
 // 🆕 v3.0.355 — webhook je POST-only; jiná metoda neloaduj vendor (na not-configured instalaci fataluje) → čistý 405 místo 500
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {

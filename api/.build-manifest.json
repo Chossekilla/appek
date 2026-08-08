@@ -1,6 +1,6 @@
 {
- "version": "3.0.465",
- "built_at": "2026-08-08T08:29:44Z",
+ "version": "3.0.466",
+ "built_at": "2026-08-08T17:34:50Z",
  "file_count": 430,
  "files": {
   ".htaccess": {
@@ -20,11 +20,11 @@
    "size": 4583
   },
   "admin/admin.css": {
-   "sha256": "5e2e641a71416df3d5fb9d761836917f94445cdc06240941cc09f1cf96365aba",
+   "sha256": "b1b01823ede0474bfd637f05531c871ff252f9b17ed2a3ef2c79027fc5b80c1b",
    "size": 413760
   },
   "admin/admin.js": {
-   "sha256": "b9a8e141a55d26a246f65c93ef64c58fd5cf452689a6079c053296e0ab041176",
+   "sha256": "cbced3127595762ee02da06c71de5287fb8f74830b203218362eda987ddcd176",
    "size": 1995004
   },
   "admin/clear-cache.html": {
@@ -104,7 +104,7 @@
    "size": 573
   },
   "admin/index.html": {
-   "sha256": "b000008cd35fd9c4a00c703c3915a5dd6718c2e8c6d94a552e72c1c5db62fffa",
+   "sha256": "5342e4b5b41cf7d64a5e1c22b6efc628d41c265ae0734bd548882239a4f2140e",
    "size": 33331
   },
   "admin/kds.php": {
@@ -156,7 +156,7 @@
    "size": 15026
   },
   "admin/src/0000-preamble.js": {
-   "sha256": "f6c5e191a377f051e9cbf66656b0eb3da84f21f8580c380539aaf20992a82b76",
+   "sha256": "5f849d9291e444bdf44bb6645e7e656c21d43e6383b19f19786190d44a2123c5",
    "size": 8596
   },
   "admin/src/0010-zachytavani-js-chyb-posle-na-backend-pro.js": {
@@ -708,7 +708,7 @@
    "size": 1143
   },
   "admin/sw.js": {
-   "sha256": "c269ada5be008db3a8ea26741694c6fc3ba60b0c5899e878adcd1ed6b962e34f",
+   "sha256": "fa746eedf0035941056aa627fb82d85e5d3b4765ba7be6f914f4ec9b7b46252f",
    "size": 5617
   },
   "admin/sw.php": {
@@ -1300,7 +1300,7 @@
    "size": 10169
   },
   "api/config.php": {
-   "sha256": "f093239cf90bd550d350654c7c303711ae6959a71e5954b3150d4cd54df2bc51",
+   "sha256": "1729218839179751493d282f4af0804c8c9cf30db90614adaed08ddc46227873",
    "size": 65985
   },
   "api/cron_recurring.php": {
@@ -1392,8 +1392,8 @@
    "size": 1089
   },
   "api/gopay_callback.php": {
-   "sha256": "4446fc7354ba5c03af9b78260e9a385e1be537c95b992e6ad9aa52764badc5c5",
-   "size": 5201
+   "sha256": "3802bff5f6ed8d1aa17e5b63af3c00f80f946a05e1e78c76479eee6ac0a72485",
+   "size": 5614
   },
   "api/gopay_init.php": {
    "sha256": "a7d6aa79bd685459a74be7a7005b15008dc5203e0465497f3d0c1201bebac09e",
@@ -1512,8 +1512,8 @@
    "size": 6613
   },
   "api/stripe_webhook.php": {
-   "sha256": "d52b024827f1b426ddff7cb8122c83da86d276968c825b92bb020af2c5c7b525",
-   "size": 4714
+   "sha256": "be867f568e8ed714f6f16ba3ae4a484d7f1a390445f6370fdd37b444d9acc12c",
+   "size": 5025
   },
   "api/sync/_engine.php": {
    "sha256": "5a2d4198070b48d9bc9aef2ef54c9a928289e9dcab5457969513f3127d13426d",
@@ -1612,7 +1612,7 @@
    "size": 90693
   },
   "b2b/index.html": {
-   "sha256": "dd3cf6879c18529a0365810c361159958942e95aac4c78d7dc060d7a9e2c4817",
+   "sha256": "32bbb352754f691db96aae01a4f4e7530fa6dd8402ff8c4fc6588c34b456c88d",
    "size": 11120
   },
   "b2b/manifest.json": {
@@ -1628,7 +1628,7 @@
    "size": 145752
   },
   "b2b/sw.js": {
-   "sha256": "72e34610188af397678bf9b0f0a339f0c82e5d723c2911db349fab2d76ea9931",
+   "sha256": "8db4090e521d64350a7675c1bb5a1672d9bc7f395f32079f8764468a955a9653",
    "size": 2298
   },
   "b2b/sw.php": {
@@ -1712,7 +1712,7 @@
    "size": 42214
   },
   "pos/sw.js": {
-   "sha256": "71cb6eceaf7d817b015017f74d33d5cc5d29fb90a6f02a3063687c045632d968",
+   "sha256": "3491390647daffadb72c02912b652d4f26ff86466fbb83333d1a3379d7d4a5c8",
    "size": 1122
   },
   "pos/sw.php": {

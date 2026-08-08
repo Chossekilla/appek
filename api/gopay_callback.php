@@ -10,7 +10,11 @@
 
 header('Content-Type: text/plain; charset=UTF-8');
 
-require_once __DIR__ . '/_license.php';
+// 🐛 v3.0.466 — NEnačítat api/_license.php: tento endpoint běží jen na master serveru
+//   (kde existuje vendor/), a vendor/_lib.php níže natáhne vendor/_license.php se
+//   stejnými (identickými) funkcemi. Načíst obě = „Cannot redeclare" fatal (500 →
+//   zákazník zaplatí, licence se nevystaví). license_generate_with_packages() bereme
+//   z vendor/_license.php. Bez vendor/ endpoint stejně 503 dřív, než ji potřebuje.
 
 // 🆕 v3.0.355 — bez payment id neloaduj vendor knihovny (na not-configured instalaci fatalují) → čistý 400 místo 500
 $paymentId = trim($_GET['id'] ?? $_POST['id'] ?? '');
