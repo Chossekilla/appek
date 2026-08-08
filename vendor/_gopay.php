@@ -96,9 +96,9 @@ function gopay_get_token(): ?string {
  *
  * @return array ['ok' => bool, 'gateway_url' => string|null, 'payment_id' => string|null, 'error' => string|null]
  */
-function gopay_create_payment(array $order): array {
+function gopay_create_payment(array $order, bool $allowDisabled = false): array {
     $cfg = gopay_settings();
-    if ($cfg['gopay_enabled'] !== '1') {
+    if (!$allowDisabled && $cfg['gopay_enabled'] !== '1') {
         return ['ok' => false, 'error' => 'gopay_disabled'];
     }
     $token = gopay_get_token();

@@ -180,6 +180,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_
     }
 }
 
+// ─── GoPay testovací platba (v3.0.464) — 1 Kč sandbox, i při vypnutém checkoutu ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_gopay_payment') {
+    try {
+        require_once __DIR__ . '/_gopay.php';
+        $cfg = gopay_settings();
+        if (empty($cfg['gopay_client_id']) || empty($cfg['gopay_goid'])) {
+            $flash_err = '⚠️ Nejdřív ulož GoPay klíče (GoID + Client ID/Secret).';
+        } else {
+            $res = gopay_create_payment([
+                'amount_kc'        => 1.0,
+                'order_no'         => 'TEST-' . date('YmdHis'),
+                'currency'         => 'CZK',
+                'customer_name'    => 'Test Platba',
+                'customer_email'   => ($user['email'] ?? 'test@appek.cz'),
+                'description'      => 'APPEK — testovací platba',
+                'return_url'       => 'https://appek.cz/payment-done.html?order=TEST',
+                'notification_url' => 'https://appek.cz/api/gopay_callback.php',
+            ], true); // allowDisabled = testovací platba i při vypnutém checkoutu
+            if (!empty($res['ok'])) {
+                $flash_ok = "🧪 Testovací platba (1 Kč) vytvořena · payment_id <strong>" . htmlspecialchars($res['payment_id']) . "</strong>.<br>"
+                    . "<a href='" . htmlspecialchars($res['gateway_url']) . "' target='_blank' style='color:#fff;text-decoration:underline;font-weight:700'>→ Otevřít platební bránu a zaplatit testovací kartou</a> (sandbox — žádné reálné peníze).";
+                vendor_audit($pdo, $user, 'gopay_test_payment', null, json_encode(['payment_id' => $res['payment_id']]));
+            } else {
+                $flash_err = "❌ Testovací platba selhala: " . htmlspecialchars($res['error'] ?? '?') . ' ' . htmlspecialchars(substr((string) ($res['detail'] ?? ''), 0, 200));
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('vendor gopay test payment exception: ' . $e->getMessage());
+        $flash_err = '❌ Test exception: ' . htmlspecialchars($e->getMessage());
+    }
+}
+
 // ─── Zásilkovna uložení ─────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_packeta') {
     try {
@@ -712,6 +744,12 @@ if (!$totpEnabled) {
         <input type="hidden" name="action" value="test_gopay">
         <button type="submit" class="btn-master secondary">🔌 Ověřit připojení (OAuth token)</button>
         <span style="font-size:12px;color:#6e6e73;margin-left:8px">Nejdřív ulož klíče, pak ověř — bez reálné platby.</span>
+      </form>
+      <form method="POST" style="margin-top:6px">
+        <?php vendor_csrf_field(); ?>
+        <input type="hidden" name="action" value="test_gopay_payment">
+        <button type="submit" class="btn-master secondary">🧪 Testovací platba 1 Kč</button>
+        <span style="font-size:12px;color:#6e6e73;margin-left:8px">Vytvoří sandbox platbu + odkaz na bránu (i když je checkout vypnutý).</span>
       </form>
     </div>
 
