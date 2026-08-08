@@ -156,6 +156,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     } catch (Throwable $e) { $flash_err = $e->getMessage(); }
 }
 
+// ─── GoPay test connection (v3.0.463) — ověří OAuth token (bez reálné platby) ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_gopay') {
+    try {
+        require_once __DIR__ . '/_gopay.php';
+        $cfg = gopay_settings();
+        if (empty($cfg['gopay_client_id']) || empty($cfg['gopay_client_secret']) || empty($cfg['gopay_goid'])) {
+            $flash_err = '⚠️ Nejdřív vyplň a ulož GoID, Client ID a Client Secret.';
+        } else {
+            $token = gopay_get_token();
+            $envLabel = ($cfg['gopay_environment'] === 'production') ? '🟢 PRODUCTION (ostré)' : '🧪 SANDBOX (testovací)';
+            if ($token) {
+                $flash_ok = "✅ GoPay připojeno: GoID <strong>" . htmlspecialchars($cfg['gopay_goid']) . "</strong> · {$envLabel} · OAuth token získán. Můžeš dělat testovací platby na e-shopu.";
+                vendor_audit($pdo, $user, 'gopay_test', null, json_encode(['ok' => true, 'env' => $cfg['gopay_environment']]));
+            } else {
+                $flash_err = "❌ GoPay test selhal — OAuth token se nepodařilo získat. Zkontroluj Client ID / Client Secret a zvolené prostředí ({$envLabel}). Testovací klíče fungují jen v <strong>Sandbox</strong>.";
+                vendor_audit($pdo, $user, 'gopay_test_fail', null, null);
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('vendor gopay test exception: ' . $e->getMessage());
+        $flash_err = '❌ Test exception: ' . htmlspecialchars($e->getMessage());
+    }
+}
+
 // ─── Zásilkovna uložení ─────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_packeta') {
     try {
@@ -677,10 +701,17 @@ if (!$totpEnabled) {
         </div>
 
         <div style="background:rgba(0,122,255,0.06);border-left:3px solid #0058b8;padding:10px 14px;border-radius:6px;font-size:12px;color:#0058b8;margin-top:8px">
-          ℹ️ Callback URL nastav v GoPay administraci: <code><?= htmlspecialchars(($_SERVER['REQUEST_SCHEME'] ?? 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? 'appek.cz')) ?>/api/gopay_callback.php</code>
+          ℹ️ <strong>Notifikační URL</strong> (pro GoPay): <code>https://appek.cz/api/gopay_callback.php</code><br>
+          Systém ji posílá GoPay automaticky u každé platby (REST API) — tuto veřejnou adresu případně nahlas i GoPay podpoře.
         </div>
 
         <button type="submit" class="btn-master primary" style="margin-top:14px">💾 Uložit GoPay</button>
+      </form>
+      <form method="POST" style="margin-top:8px">
+        <?php vendor_csrf_field(); ?>
+        <input type="hidden" name="action" value="test_gopay">
+        <button type="submit" class="btn-master secondary">🔌 Ověřit připojení (OAuth token)</button>
+        <span style="font-size:12px;color:#6e6e73;margin-left:8px">Nejdřív ulož klíče, pak ověř — bez reálné platby.</span>
       </form>
     </div>
 
