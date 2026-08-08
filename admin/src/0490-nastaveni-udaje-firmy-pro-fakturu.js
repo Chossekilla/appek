@@ -119,7 +119,7 @@ async function renderNastaveni() {
       <div class="card-block" style="grid-column:1 / -1">
         <h3 style="margin-bottom:6px;">🖼️ Logo, favicon a vzhled</h3>
         <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">
-          Nahrajte logo firmy — automaticky se z něj vygeneruje i favicon (ikona v záložce prohlížeče).
+          Nahraj logo firmy — automaticky se z něj vygeneruje i favicon (ikona v záložce prohlížeče).
           Podporováno PNG / JPG / WEBP, max 5 MB.
         </p>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;align-items:start">

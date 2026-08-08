@@ -6,7 +6,7 @@
  *
  * Cache pro PWA: zatím minimální (jen aby šlo „add to home screen").
  */
-const CACHE_NAME = 'appek-b2b-v3.0.466';
+const CACHE_NAME = 'appek-b2b-v3.0.467';
 const PRECACHE_URLS = [
   '/',
   '/manifest.json',

@@ -302,7 +302,7 @@ function _onboardDemoDataStep() {
       ` : err ? `
         <div style="font-size:42px;margin-bottom:10px">⚠️</div>
         <div style="font-weight:700;font-size:15px;color:#991B1B">${esc(err)}</div>
-        <div style="font-size:12px;color:#7F1D1D;margin-top:6px">Můžete pokračovat — data doplníte později v Nastavení.</div>
+        <div style="font-size:12px;color:#7F1D1D;margin-top:6px">Můžeš pokračovat — data doplníš později v Nastavení.</div>
         <button class="btn-secondary" onclick="state._onboard.data.demo_seed_running=false; state._onboard.data.demo_seed_error=null; renderOnboardingStep()" style="margin-top:10px;font-size:12px;padding:6px 14px">🔄 Zkusit znova</button>
       ` : `
         <div style="font-size:42px;margin-bottom:10px">✅</div>
@@ -457,7 +457,7 @@ window.onboardBack = function() { state._onboard.step = Math.max(0, state._onboa
 window.onboardSkipStep = function() { state._onboard.step++; renderOnboardingStep(); };
 
 window.onboardSkip = async function() {
-  if (!(await confirmDialog({ msg: 'Opravdu přeskočit onboarding? Všechno najdete v Nastavení a můžete dokončit kdykoliv.', danger: false }))) return;
+  if (!(await confirmDialog({ msg: 'Opravdu přeskočit onboarding? Všechno najdeš v Nastavení a můžeš dokončit kdykoliv.', danger: false }))) return;
   try { await api('admin_onboarding.php?action=dismiss', { method: 'POST' }); } catch {}
   closeModal();
 };
@@ -539,7 +539,7 @@ window.nastaveniAresLookup = async function() {
 
 window.onboardAresLookup = async function() {
   const ico = document.getElementById('ob-ico').value.trim();
-  if (!ico) return alert('Zadejte IČO');
+  if (!ico) return alert('Zadej IČO');
   try {
     const d = await api(`admin_onboarding.php?action=ares&ico=${ico}`);
     if (d.nazev) document.getElementById('ob-nazev').value = d.nazev;

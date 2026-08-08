@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.466';
+const APPEK_ADMIN_JS_VERSION = '3.0.467';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -3555,8 +3555,8 @@ async function _onboardingStepHtml(step) {
           <div style="font-size:64px;margin-bottom:14px">🥖</div>
           <h2 style="margin:0 0 12px;font-size:24px">Vítejte v Appek!</h2>
           <p style="font-size:15px;color:var(--text-2);line-height:1.7;max-width:480px;margin:0 auto">
-            Pomůžeme vám rozjet váš objednávkový systém za <strong>~5 minut</strong>.
-            Můžete kdykoliv přeskočit a doplnit později — všechno najdete v Nastavení.
+            Pomůžeme ti rozjet tvůj objednávkový systém za <strong>~5 minut</strong>.
+            Můžeš kdykoliv přeskočit a doplnit později — všechno najdeš v Nastavení.
           </p>
         </div>
         <div class="form-actions">
@@ -3572,7 +3572,7 @@ async function _onboardingStepHtml(step) {
         <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">Aplikace plně přeložená do češtiny, angličtiny a španělštiny. Můžeš kdykoliv změnit v Nastavení.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px">
           ${[
-            {code:'cs', flag:'🇨🇿', label:'Čeština', sub:'CZ — výchozí (ARES, DPH, EET)'},
+            {code:'cs', flag:'🇨🇿', label:'Čeština', sub:'CZ — výchozí (ARES, DPH, IČO)'},
             {code:'en', flag:'🇬🇧', label:'English', sub:'EU/UK/US (USD/EUR, VAT)'},
             {code:'es', flag:'🇪🇸', label:'Español', sub:'ES/MX/LATAM (IVA)'},
           ].map(l => {
@@ -3681,8 +3681,8 @@ async function _onboardingStepHtml(step) {
 
     case 3: // Údaje firmy + ARES (původní krok 1)
       return progress + `
-        <h3 style="margin:0 0 8px">🏢 O vaší firmě</h3>
-        <p style="font-size:13px;color:var(--text-3);margin:0 0 16px">Zadejte IČO — automaticky načteme název, adresu a DIČ z veřejného registru. Podporujeme <strong>🇨🇿 CZ ARES</strong> i <strong>🇸🇰 SK RPO</strong> (auto-detekce, zdarma, bez klíče).</p>
+        <h3 style="margin:0 0 8px">🏢 O tvé firmě</h3>
+        <p style="font-size:13px;color:var(--text-3);margin:0 0 16px">Zadej IČO — automaticky načteme název, adresu a DIČ z veřejného registru. Podporujeme <strong>🇨🇿 CZ ARES</strong> i <strong>🇸🇰 SK RPO</strong> (auto-detekce, zdarma, bez klíče).</p>
         <div class="form-grid form-grid-tight">
           <div>
             <label class="form-label">IČO</label>
@@ -3723,7 +3723,7 @@ async function _onboardingStepHtml(step) {
     case 4: // Logo + theme (původní krok 2)
       return progress + `
         <h3 style="margin:0 0 8px">🎨 Logo a vzhled</h3>
-        <p style="font-size:13px;color:var(--text-3);margin:0 0 16px">Nahrajte logo — automaticky vygenerujeme favicon. Volitelně si vyberte téma (můžete změnit kdykoliv).</p>
+        <p style="font-size:13px;color:var(--text-3);margin:0 0 16px">Nahraj logo — automaticky vygenerujeme favicon. Volitelně si vyber téma (můžeš změnit kdykoliv).</p>
         <div style="display:flex;gap:14px;align-items:center;margin-bottom:18px">
           <div style="width:120px;height:120px;border:2px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);overflow:hidden" id="ob-logo-prev">
             ${n.firma_logo_url
@@ -3733,7 +3733,7 @@ async function _onboardingStepHtml(step) {
           <div style="flex:1">
             <input type="file" id="ob-logo-file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="onboardUploadLogo()">
             <button class="btn-primary btn-green" onclick="document.getElementById('ob-logo-file').click()">📤 Nahrát logo</button>
-            <p style="font-size:11px;color:var(--text-3);margin-top:6px">PNG / JPG / WEBP — doporučuji čtvercové 400×400 s průhledným pozadím.</p>
+            <p style="font-size:11px;color:var(--text-3);margin-top:6px">PNG / JPG / WEBP — doporučujeme čtvercové 400×400 s průhledným pozadím.</p>
           </div>
         </div>
         <h4 style="margin:14px 0 8px;font-size:13px">Téma aplikace</h4>
@@ -3768,9 +3768,9 @@ async function _onboardingStepHtml(step) {
       return progress + `
         <div style="text-align:center;padding:30px 20px">
           <div style="font-size:64px;margin-bottom:14px">🎉</div>
-          <h2 style="margin:0 0 12px;font-size:24px">Skvělé, máte hotovo!</h2>
+          <h2 style="margin:0 0 12px;font-size:24px">Skvělé, máš hotovo!</h2>
           <p style="font-size:14px;color:var(--text-2);line-height:1.7;max-width:480px;margin:0 auto 24px">
-            Systém je připravený. Můžete začít přidávat odběratele, vystavovat objednávky a tisknout cenovky.
+            Systém je připravený. Můžeš začít přidávat odběratele, vystavovat objednávky a tisknout cenovky.
           </p>
           <div style="text-align:left;max-width:420px;margin:0 auto;background:var(--surface-2);padding:16px 20px;border-radius:10px">
             <div style="font-size:13px;font-weight:600;margin-bottom:8px">💡 Doporučujeme dál:</div>
@@ -4095,7 +4095,7 @@ function _onboardDemoDataStep() {
       ` : err ? `
         <div style="font-size:42px;margin-bottom:10px">⚠️</div>
         <div style="font-weight:700;font-size:15px;color:#991B1B">${esc(err)}</div>
-        <div style="font-size:12px;color:#7F1D1D;margin-top:6px">Můžete pokračovat — data doplníte později v Nastavení.</div>
+        <div style="font-size:12px;color:#7F1D1D;margin-top:6px">Můžeš pokračovat — data doplníš později v Nastavení.</div>
         <button class="btn-secondary" onclick="state._onboard.data.demo_seed_running=false; state._onboard.data.demo_seed_error=null; renderOnboardingStep()" style="margin-top:10px;font-size:12px;padding:6px 14px">🔄 Zkusit znova</button>
       ` : `
         <div style="font-size:42px;margin-bottom:10px">✅</div>
@@ -4250,7 +4250,7 @@ window.onboardBack = function() { state._onboard.step = Math.max(0, state._onboa
 window.onboardSkipStep = function() { state._onboard.step++; renderOnboardingStep(); };
 
 window.onboardSkip = async function() {
-  if (!(await confirmDialog({ msg: 'Opravdu přeskočit onboarding? Všechno najdete v Nastavení a můžete dokončit kdykoliv.', danger: false }))) return;
+  if (!(await confirmDialog({ msg: 'Opravdu přeskočit onboarding? Všechno najdeš v Nastavení a můžeš dokončit kdykoliv.', danger: false }))) return;
   try { await api('admin_onboarding.php?action=dismiss', { method: 'POST' }); } catch {}
   closeModal();
 };
@@ -4332,7 +4332,7 @@ window.nastaveniAresLookup = async function() {
 
 window.onboardAresLookup = async function() {
   const ico = document.getElementById('ob-ico').value.trim();
-  if (!ico) return alert('Zadejte IČO');
+  if (!ico) return alert('Zadej IČO');
   try {
     const d = await api(`admin_onboarding.php?action=ares&ico=${ico}`);
     if (d.nazev) document.getElementById('ob-nazev').value = d.nazev;
@@ -15421,7 +15421,7 @@ async function renderNastaveni() {
       <div class="card-block" style="grid-column:1 / -1">
         <h3 style="margin-bottom:6px;">🖼️ Logo, favicon a vzhled</h3>
         <p style="font-size:12px;color:var(--text-3);margin-bottom:14px;">
-          Nahrajte logo firmy — automaticky se z něj vygeneruje i favicon (ikona v záložce prohlížeče).
+          Nahraj logo firmy — automaticky se z něj vygeneruje i favicon (ikona v záložce prohlížeče).
           Podporováno PNG / JPG / WEBP, max 5 MB.
         </p>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;align-items:start">
