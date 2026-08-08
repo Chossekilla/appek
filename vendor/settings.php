@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         }
         vendor_audit($pdo, $user, 'stripe_settings_save', null, null);
         $flash_ok = 'Stripe nastavení uloženo.';
-    } catch (Throwable $e) { $flash_err = $e->getMessage(); }
+    } catch (Throwable $e) { $flash_err = htmlspecialchars($e->getMessage()); }
 }
 
 // ─── Stripe test connection (v2.9.190/192/194) ──────────────────
@@ -139,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         }
         vendor_audit($pdo, $user, 'dpd_settings_save', null, null);
         $flash_ok = 'DPD nastavení uloženo.';
-    } catch (Throwable $e) { $flash_err = $e->getMessage(); }
+    } catch (Throwable $e) { $flash_err = htmlspecialchars($e->getMessage()); }
 }
 
 // ─── GoPay uložení ──────────────────────────────────────────────
@@ -153,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         }
         vendor_audit($pdo, $user, 'gopay_settings_save', null, null);
         $flash_ok = 'GoPay nastavení uloženo.';
-    } catch (Throwable $e) { $flash_err = $e->getMessage(); }
+    } catch (Throwable $e) { $flash_err = htmlspecialchars($e->getMessage()); }
 }
 
 // ─── GoPay test connection (v3.0.463) — ověří OAuth token (bez reálné platby) ──
@@ -223,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         }
         vendor_audit($pdo, $user, 'packeta_settings_save', null, null);
         $flash_ok = 'Zásilkovna nastavení uloženo.';
-    } catch (Throwable $e) { $flash_err = $e->getMessage(); }
+    } catch (Throwable $e) { $flash_err = htmlspecialchars($e->getMessage()); }
 }
 
 // ─── SMTP / Mail uložení ────────────────────────────────────────
@@ -239,7 +239,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         vendor_audit($pdo, $user, 'mail_settings_save', null, null);
         $flash_ok = 'E-mail nastavení uloženo.';
     } catch (Throwable $e) {
-        $flash_err = 'Uložení selhalo: ' . $e->getMessage();
+        $flash_err = 'Uložení selhalo: ' . htmlspecialchars($e->getMessage());
     }
 }
 
@@ -261,7 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_
         if ($ok) {
             $flash_ok = "Test e-mail odeslán na $target. Zkontroluj inbox + spam.";
         } else {
-            $flash_err = "Odeslání selhalo: " . ($err ?: 'unknown');
+            $flash_err = "Odeslání selhalo: " . htmlspecialchars($err ?: 'unknown');
         }
     }
 }
@@ -274,7 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         vendor_mail_set('site_theme', $t);
         vendor_audit($pdo, $user, 'site_theme_save', null, 'theme=' . $t);
         $flash_ok = 'Téma frontpage přepnuto na „' . $t . '“ — změna je na appek.cz vidět okamžitě.';
-    } catch (Throwable $e) { $flash_err = $e->getMessage(); }
+    } catch (Throwable $e) { $flash_err = htmlspecialchars($e->getMessage()); }
 }
 
 $mailCfg = vendor_mail_settings();
@@ -315,7 +315,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'chang
         vendor_audit($pdo, $user, 'password_change', null, null);
         $flash_ok = 'Heslo změněno.';
     } catch (Throwable $e) {
-        $flash_err = $e->getMessage();
+        $flash_err = htmlspecialchars($e->getMessage());
     }
 }
 
@@ -444,8 +444,9 @@ if (!$totpEnabled) {
     <div style="font-size:13px;color:#86868b">Přihlášen: <strong><?= htmlspecialchars($user['display_name'] ?: $user['username']) ?></strong></div>
   </div>
 
-  <?php if ($flash_ok): ?><div class="flash ok">✅ <?= htmlspecialchars($flash_ok) ?></div><?php endif; ?>
-  <?php if ($flash_err): ?><div class="flash err">❌ <?= htmlspecialchars($flash_err) ?></div><?php endif; ?>
+  <?php // Flash zprávy jsou důvěryhodné šablony; dynamické části jsou escapované už při vkládání (htmlspecialchars výše), takže je tu renderujeme jako HTML (jinak se <strong>/<a>/<br> zobrazí jako text). ?>
+  <?php if ($flash_ok): ?><div class="flash ok">✅ <?= $flash_ok ?></div><?php endif; ?>
+  <?php if ($flash_err): ?><div class="flash err">❌ <?= $flash_err ?></div><?php endif; ?>
 
   <div class="settings-grid">
 
