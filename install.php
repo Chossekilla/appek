@@ -120,7 +120,7 @@ $T = [
     'sync_save'       => ['cs' => '✅ Uložit konfiguraci', 'en' => '✅ Save configuration', 'es' => '✅ Guardar configuración'],
 
     // ─── Done ───
-    'done_title'      => ['cs' => '🎉 Instalace dokončena!', 'en' => '🎉 Installation complete!', 'es' => '🎉 ¡Instalación completada!'],
+    'done_title'      => ['cs' => 'Instalace dokončena', 'en' => 'Installation complete', 'es' => 'Instalación completada'],
     'done_ready'      => ['cs' => 'Systém je připravený k použití.', 'en' => 'System is ready to use.', 'es' => 'El sistema está listo para usar.'],
     'done_secret_t'   => ['cs' => '🔐 Sync shared secret', 'en' => '🔐 Sync shared secret', 'es' => '🔐 Secreto compartido sync'],
     'done_secret_d'   => ['cs' => 'Zkopíruj a nastav i na druhé straně. <strong>Uvidíš ho JEN TEĎ.</strong>', 'en' => 'Copy and set on the other side too. <strong>You\'ll see it ONLY NOW.</strong>', 'es' => 'Copia y configúralo en el otro lado. <strong>Solo lo verás AHORA.</strong>'],
@@ -963,43 +963,44 @@ small { color: #888; font-size: 12px; }
         'catering'   => ['ic'=>'🎉', 'name'=>'Catering'],
         'sezona'     => ['ic'=>'🍰', 'name'=>'Sezónní akce'],
       ];
-      $appVersion = defined('APP_VERSION') ? APP_VERSION : '0.0.0';
+      if (defined('APP_VERSION')) {
+        $appVersion = APP_VERSION;
+      } else {
+        // config.php ještě nemusí být načtený → vytáhni verzi z jeho zdroje (bez side-efektů)
+        $cfgTxt = @file_get_contents(__DIR__ . '/api/config.php');
+        $appVersion = ($cfgTxt && preg_match("/define\\('APP_VERSION',\\s*'([^']+)'/", $cfgTxt, $mV)) ? $mV[1] : '';
+      }
       $host = $_SERVER['HTTP_HOST'] ?? 'tvojefirma.cz';
     ?>
 
-      <!-- ═══ HERO success ═══ -->
-      <div style="background:linear-gradient(135deg,#22c55e,#15803d);color:#fff;border-radius:14px;padding:28px 30px;margin-bottom:18px;text-align:center;box-shadow:0 8px 24px rgba(34,197,94,0.25)">
-        <div style="font-size:48px;margin-bottom:6px">🎉</div>
-        <h2 style="margin:0 0 6px;color:#fff;font-size:22px"><?= t('done_title') ?></h2>
-        <div style="opacity:0.92;font-size:14px"><?= t('done_ready') ?> · APPEK v<?= htmlspecialchars($appVersion) ?></div>
-        <?php if ($customerName): ?>
-          <div style="margin-top:10px;background:rgba(255,255,255,0.18);display:inline-block;padding:6px 14px;border-radius:999px;font-size:13px">
-            👤 Licence registrována na: <strong><?= htmlspecialchars($customerName) ?></strong>
-          </div>
-        <?php endif; ?>
-        <?php if ($sessAdmin): ?>
-          <div style="margin-top:10px;background:rgba(0,0,0,0.18);display:inline-block;padding:6px 14px;border-radius:999px;font-size:13px">
-            🔐 Přihlašovací email admina: <strong><?= htmlspecialchars($sessAdmin) ?></strong>
+      <!-- ═══ Success header ═══ -->
+      <div style="border:1px solid #cfe8d6;background:#f6fbf8;border-radius:12px;padding:22px 26px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:30px;height:30px;border-radius:50%;background:#208438;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex-shrink:0">✓</div>
+          <h2 style="margin:0;font-size:20px;color:#1d1d1f"><?= t('done_title') ?></h2>
+        </div>
+        <div style="color:#6e6e73;font-size:13px;margin:6px 0 0 42px"><?= t('done_ready') ?><?= $appVersion ? ' · APPEK ' . htmlspecialchars($appVersion) : '' ?></div>
+        <?php if ($customerName || $sessAdmin): ?>
+          <div style="margin:12px 0 0 42px;font-size:13px;color:#1d1d1f;line-height:1.8">
+            <?php if ($customerName): ?><div>Licence registrována na <strong><?= htmlspecialchars($customerName) ?></strong></div><?php endif; ?>
+            <?php if ($sessAdmin): ?><div>Přihlašovací e-mail administrátora <strong><?= htmlspecialchars($sessAdmin) ?></strong></div><?php endif; ?>
           </div>
         <?php endif; ?>
       </div>
 
-      <!-- ═══ 3 velké akční karty ═══ -->
+      <!-- ═══ Rozcestník ═══ -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:18px">
-        <a href="admin/" style="background:linear-gradient(135deg,#BA7517,#854F0B);color:#fff;padding:18px 14px;border-radius:12px;text-decoration:none;text-align:center;display:block">
-          <div style="font-size:32px;line-height:1">🖥️</div>
-          <div style="font-weight:700;margin-top:6px">Admin panel</div>
-          <div style="font-size:11px;opacity:0.85;margin-top:2px"><?= htmlspecialchars($host) ?>/admin/</div>
+        <a href="admin/" style="background:#BA7517;color:#fff;padding:16px 18px;border-radius:12px;text-decoration:none;display:block">
+          <div style="font-weight:700;font-size:15px">Admin panel</div>
+          <div style="font-size:11.5px;opacity:0.85;margin-top:3px"><?= htmlspecialchars($host) ?>/admin/</div>
         </a>
-        <a href="b2b/" target="_blank" style="background:#fff;color:#1d1d1f;padding:18px 14px;border-radius:12px;text-decoration:none;text-align:center;border:2px solid #208438;display:block">
-          <div style="font-size:32px;line-height:1">🛒</div>
-          <div style="font-weight:700;margin-top:6px;color:#208438">B2B portál</div>
-          <div style="font-size:11px;color:#6e6e73;margin-top:2px">Pro tvé odběratele</div>
+        <a href="b2b/" target="_blank" style="background:#fff;color:#1d1d1f;padding:16px 18px;border-radius:12px;text-decoration:none;border:1px solid #e5e5e7;display:block">
+          <div style="font-weight:700;font-size:15px">B2B portál</div>
+          <div style="font-size:11.5px;color:#6e6e73;margin-top:3px">Pro tvé odběratele</div>
         </a>
-        <a href="api/version.php" target="_blank" style="background:#fff;color:#1d1d1f;padding:18px 14px;border-radius:12px;text-decoration:none;text-align:center;border:2px solid #d2d2d7;display:block">
-          <div style="font-size:32px;line-height:1">🔌</div>
-          <div style="font-weight:700;margin-top:6px">REST API</div>
-          <div style="font-size:11px;color:#6e6e73;margin-top:2px">Verze + integrace</div>
+        <a href="api/version.php" target="_blank" style="background:#fff;color:#1d1d1f;padding:16px 18px;border-radius:12px;text-decoration:none;border:1px solid #e5e5e7;display:block">
+          <div style="font-weight:700;font-size:15px">REST API</div>
+          <div style="font-size:11.5px;color:#6e6e73;margin-top:3px">Verze + integrace</div>
         </a>
       </div>
 
@@ -1029,18 +1030,18 @@ small { color: #888; font-size: 12px; }
       </div>
 
       <!-- ═══ Onboarding (admin wizard) ═══ -->
-      <div style="background:#eff6ff;border-left:3px solid #0058b8;padding:14px 16px;border-radius:8px;margin-bottom:14px">
-        <strong style="color:#0058b8">🚀 Při prvním přihlášení tě onboarding wizard provede:</strong>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:10px;font-size:12.5px;color:#1d1d1f">
-          <div>🌍 <strong>Jazyk</strong> · CZ / EN / ES</div>
-          <div>🏢 <strong>Údaje firmy</strong> · IČO, DIČ, adresa</div>
-          <div>🎨 <strong>Logo + barvy</strong></div>
-          <div>📦 <strong>První výrobky</strong> · ručně nebo z CSV</div>
-          <div>👥 <strong>Odběratelé</strong> · import z ARES</div>
-          <div>💰 <strong>DPH sazby</strong> · 12 % / 21 %</div>
-          <div>📧 <strong>SMTP / e-maily</strong></div>
-          <div>🛒 <strong>Balíčky</strong> · zapnout funkce</div>
-          <div>🧪 <strong>Demo data</strong> · vyplnit ukázkovou DB (volitelně)</div>
+      <div style="background:#fff;border:1px solid #e5e5e7;border-radius:12px;padding:16px 18px;margin-bottom:14px">
+        <div style="font-size:11px;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:10px">Při prvním přihlášení tě provede průvodce</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px 18px;font-size:12.5px;color:#1d1d1f;line-height:1.5">
+          <div><strong>Jazyk</strong> · CZ / EN / ES</div>
+          <div><strong>Údaje firmy</strong> · IČO, DIČ, adresa</div>
+          <div><strong>Logo a barvy</strong></div>
+          <div><strong>První výrobky</strong> · ručně nebo z CSV</div>
+          <div><strong>Odběratelé</strong> · import z ARES</div>
+          <div><strong>DPH sazby</strong> · 12 % / 21 %</div>
+          <div><strong>SMTP / e-maily</strong></div>
+          <div><strong>Balíčky</strong> · zapnout funkce</div>
+          <div><strong>Demo data</strong> · ukázková DB (volitelně)</div>
         </div>
       </div>
 
@@ -1075,13 +1076,10 @@ small { color: #888; font-size: 12px; }
       <?php endif; ?>
 
       <!-- ═══ Aktualizace — info ═══ -->
-      <div style="background:#f0fdf4;border-left:3px solid #208438;padding:14px 16px;border-radius:8px;margin-bottom:14px">
-        <strong style="color:#208438">🔄 Aktualizace systému</strong>
-        <div style="font-size:12.5px;line-height:1.7;color:#1d1d1f;margin-top:6px">
-          APPEK se aktualizuje sám.<br>
-          → Admin se podívá na vendor server a pokud je dostupná novější verze, ukáže zelený pulsující pill <em>🆕 Nová verze X.Y.Z</em> v topbaru.<br>
-          → Klik → updater stáhne ZIP a aplikuje. Konfigurace zůstane.<br>
-          → Manuální spuštění: <a href="admin/updater.html" style="color:#208438;font-weight:600">/admin/updater.html</a>
+      <div style="background:#fff;border:1px solid #e5e5e7;border-radius:12px;padding:16px 18px;margin-bottom:14px">
+        <div style="font-size:11px;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:8px">Aktualizace systému</div>
+        <div style="font-size:12.5px;line-height:1.7;color:#1d1d1f">
+          APPEK se aktualizuje sám. Když je dostupná novější verze, admin ji ohlásí v horní liště jako <strong>„Nová verze"</strong> — jedním klikem se stáhne a aplikuje, konfigurace zůstane zachována. Ruční spuštění: <a href="admin/updater.html" style="color:#BA7517;font-weight:600">/admin/updater.html</a>.
         </div>
       </div>
 

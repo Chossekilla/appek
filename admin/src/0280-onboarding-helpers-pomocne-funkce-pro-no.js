@@ -155,41 +155,30 @@ function _onboardHybridInstallGuide() {
 }
 
 function _onboardPackagesStep() {
-  const data = state._onboard.data;
-  if (!data.balicky) data.balicky = [];
+  // Informativní přehled — bez výběru. Balíčky se aktivují dokoupením roční licence.
   const balicky = [
-    { id: 'cukrarna',   ikona: '🧁', label: 'Cukrárna',          popis: 'Konfigurátor dortů, kapacita pečení, galerie', cena: '+5 000 Kč' },
-    { id: 'lahudky',    ikona: '🥗', label: 'Lahůdkárna',        popis: 'Catering kalkulátor, šarže HACCP, mix-and-match', cena: '+3 000 Kč' },
-    { id: 'restaurace', ikona: '🍕', label: 'Restaurace',        popis: 'Stoly, kapacita kuchyně, doba přípravy, rozvoz', cena: '+4 000 Kč' },
-    { id: 'catering',   ikona: '🎉', label: 'Velký catering',    popis: 'Firemní objednávky, cenové úrovně, smlouvy', cena: '+2 500 Kč' },
-    { id: 'sezona',     ikona: '🍰', label: 'Sezónní',           popis: 'Auto on/off výrobků dle data, předobjednávky', cena: '+1 500 Kč/rok' },
+    { ikona: '🧁', label: 'Cukrárna',       popis: 'Konfigurátor dortů, kapacita pečení, galerie' },
+    { ikona: '🥗', label: 'Lahůdkárna',     popis: 'Catering kalkulačka, šarže HACCP, mix-and-match' },
+    { ikona: '🍕', label: 'Restaurace',     popis: 'Stoly, kapacita kuchyně, doba přípravy, rozvoz' },
+    { ikona: '🎉', label: 'Velký catering', popis: 'Firemní objednávky, cenové úrovně, smlouvy' },
+    { ikona: '🍰', label: 'Sezónní',        popis: 'Automatické on/off výrobků dle data, předobjednávky' },
   ];
   return `
-    <h3 style="margin:0 0 8px">🎁 Specializované balíčky (roční licence)</h3>
-    <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">Rozšiřují systém o funkce pro tvůj obor. Jsou součástí <strong>roční licence</strong> — označ které tě zajímají a dodavatel ti připraví licenční klíč, který je odemkne. Core (objednávky / faktury / výroba / HACCP) je v základu zdarma.</p>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-      ${balicky.map(b => {
-        const aktiv = data.balicky.includes(b.id);
-        return `<label style="display:flex;align-items:center;gap:14px;padding:14px 18px;border:2px solid ${aktiv ? 'var(--primary)' : 'var(--border)'};border-radius:10px;background:${aktiv ? 'var(--surface-2)' : 'var(--surface)'};cursor:pointer;transition:all 0.15s">
-          <input type="checkbox" ${aktiv ? 'checked' : ''} onchange="window._onboardTogglePkg('${b.id}', this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:var(--primary)">
-          <span style="font-size:32px;line-height:1">${b.ikona}</span>
+    <h3 style="margin:0 0 8px">Specializované balíčky</h3>
+    <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">Volitelná rozšíření pro tvůj obor, dostupná jako <strong>roční licence</strong>. Jádro systému — objednávky, faktury, výroba a HACCP — máš v základu zdarma. Balíčky lze aktivovat kdykoliv později; stačí se ozvat dodavateli a připraví ti nový klíč.</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+      ${balicky.map(b => `
+        <div style="display:flex;align-items:center;gap:14px;padding:13px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface)">
+          <span style="font-size:24px;line-height:1;flex-shrink:0;opacity:0.9">${b.ikona}</span>
           <div style="flex:1;min-width:0">
-            <div style="font-weight:700;font-size:15px;margin-bottom:2px">${b.label}</div>
+            <div style="font-weight:600;font-size:14.5px;margin-bottom:2px">${b.label}</div>
             <div style="font-size:12.5px;color:var(--text-3);line-height:1.4">${b.popis}</div>
           </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-weight:700;color:var(--primary-dark);font-size:13px">🗓️ Roční licence</div>
-            <div style="font-size:11px;color:var(--text-3)">aktivní po zakoupení</div>
-          </div>
-        </label>`;
-      }).join('')}
-    </div>
-    <div style="padding:12px;background:var(--info-bg);color:var(--info-text);border-radius:8px;font-size:12.5px">
-      💡 Tady jen <strong>nezávazně označíš</strong>, co tě zajímá. Balíčky jsou <strong>roční licence</strong> a aktivují se <strong>po zakoupení</strong> — kdykoliv později.
+          <span style="font-size:11.5px;color:var(--text-3);font-weight:600;flex-shrink:0;white-space:nowrap;padding-left:8px">Roční licence</span>
+        </div>`).join('')}
     </div>
     <div class="form-actions">
       <button class="btn-secondary" onclick="onboardBack()">← Zpět</button>
-      <button class="btn-secondary" onclick="onboardSkipStep()">Žádné, díky</button>
       <div style="flex:1"></div>
       <button class="btn-primary btn-green" onclick="onboardNext()" style="font-weight:700;padding:12px 24px">➜ Dál</button>
     </div>
