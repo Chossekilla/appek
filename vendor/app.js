@@ -180,6 +180,7 @@ function renderTable(rows) {
           : `<button class="btn-icon" onclick="openRevokeModal(${r.id})" title="Revoke">🚫</button>`
         }
         ${r.lock_state === 'locked' ? `<button class="btn-icon" onclick="unlockLicense(${r.id})" title="🔓 Odemknout anti-piracy lock (re-bind na příští heartbeat)">🔓</button>` : ''}
+        ${Number(r.download_allowed) === 0 ? `<button class="btn-icon" onclick="reenableDownload(${r.id})" title="📥 Stažení bylo využito (jednorázový odkaz). Klik = povolit stažení znovu (na vyžádání zákazníka).">📥</button>` : ''}
       </td>
     </tr>
   `).join('');
@@ -479,6 +480,15 @@ async function unlockLicense(id) {
     await api('unlock', { method: 'POST', body: { id } });
     toast('🔓 Odemčeno (re-bind na příští heartbeat)');
     loadStats(); loadLicenses();
+  } catch (e) { alert('Chyba: ' + e.message); }
+}
+
+async function reenableDownload(id) {
+  if (!confirm('Povolit stažení znovu?\n\nJednorázový download odkaz už byl u této licence využit. Tímto povolíš zákazníkovi jedno další stažení instalačního balíčku (na jeho vyžádání).')) return;
+  try {
+    await api('reenable_download', { method: 'POST', body: { id } });
+    toast('📥 Stažení znovu povoleno');
+    loadLicenses();
   } catch (e) { alert('Chyba: ' + e.message); }
 }
 

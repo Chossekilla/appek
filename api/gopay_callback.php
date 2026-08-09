@@ -114,7 +114,7 @@ if ($status['state'] === 'PAID' && $order['payment_status'] !== 'paid') {
             ], $order);
             vendor_send_mail(
                 $order['customer_email'],
-                '🔑 Vaše APPEK licence — ' . $key,
+                '🔑 Vaše APPEK licence je připravená',
                 $tpl['html'], $tpl['text']
             );
         } catch (Throwable $e) { error_log('gopay_callback mail: ' . $e->getMessage()); }

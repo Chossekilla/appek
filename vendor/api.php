@@ -257,6 +257,24 @@ if ($action === 'unrevoke' && $method === 'POST') {
     }
 }
 
+// ── RE-ENABLE DOWNLOAD (🆕 v3.0.469 — znovu povol jednorázové stažení „na vyžádání") ──
+if ($action === 'reenable_download' && $method === 'POST') {
+    $d = vendor_json_input();
+    $id = (int) ($d['id'] ?? 0);
+    if (!$id) vendor_json_error('Chybí ID');
+    try {
+        try { $pdo->exec("ALTER TABLE vendor_licenses ADD COLUMN download_allowed TINYINT NOT NULL DEFAULT 1"); } catch (Throwable $e2) {}
+        $pdo->prepare("UPDATE vendor_licenses SET download_allowed = 1 WHERE id = :id")->execute(['id' => $id]);
+        $row = $pdo->prepare("SELECT * FROM vendor_licenses WHERE id = :id");
+        $row->execute(['id' => $id]);
+        $r = $row->fetch();
+        vendor_audit($pdo, $user, 'reenable_download', $r, null);
+        vendor_json(['ok' => true, 'license' => $r]);
+    } catch (Throwable $e) {
+        vendor_json_error('DB chyba: ' . $e->getMessage(), 500);
+    }
+}
+
 // ── UNLOCK (🆕 v3.0.384 — zruš anti-piracy lock; pro false-positive po legit migraci serveru) ──
 if ($action === 'unlock' && $method === 'POST') {
     $d = vendor_json_input();

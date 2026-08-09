@@ -86,9 +86,16 @@ try {
     exit;
 }
 
-// 1) Validace klíče
-$stmt = $pdo->prepare("SELECT id, status, expires_at, revoked_at FROM vendor_licenses WHERE license_key = :k LIMIT 1");
-$stmt->execute(['k' => $key]);
+// 1) Validace klíče (+ download_allowed; sloupec lazy-doplníme na starších vendor DB)
+$licSql = "SELECT id, status, expires_at, revoked_at, download_allowed FROM vendor_licenses WHERE license_key = :k LIMIT 1";
+try {
+    $stmt = $pdo->prepare($licSql);
+    $stmt->execute(['k' => $key]);
+} catch (PDOException $e) {
+    try { $pdo->exec("ALTER TABLE vendor_licenses ADD COLUMN download_allowed TINYINT NOT NULL DEFAULT 1"); } catch (Throwable $e2) {}
+    $stmt = $pdo->prepare($licSql);
+    $stmt->execute(['k' => $key]);
+}
 $license = $stmt->fetch();
 
 if (!$license) {
@@ -103,17 +110,32 @@ if (!empty($license['expires_at']) && strtotime($license['expires_at']) < time()
     showError(403, 'Licence vypršela', 'Licence vypršela ' . htmlspecialchars($license['expires_at']) . '. Pro prodloužení kontaktuj <a href="mailto:info@appek.cz">info@appek.cz</a>.');
     exit;
 }
+// 🆕 v3.0.469 — JEDNORÁZOVÉ STAŽENÍ: odkaz je použitelný jen jednou. Po prvním
+//   stažení download_allowed=0 → další stažení pouze na vyžádání (vendor znovu
+//   povolí v Licence → „Povolit stažení"). Chrání proti sdílení install balíčku.
+if ((int) ($license['download_allowed'] ?? 1) === 0) {
+    showError(403, 'Stažení již využito', 'Tento licenční klíč už byl použit ke stažení instalačního balíčku — odkaz je z bezpečnostních důvodů <strong>jednorázový</strong>. Potřebuješ stáhnout znovu? Napiš na <a href="mailto:info@appek.cz">info@appek.cz</a> a stažení ti obratem znovu povolíme.');
+    exit;
+}
 
 // 2) Najdi nejnovější published verzi
-$st2 = $pdo->prepare("
-    SELECT version, file_path
-    FROM vendor_updates
-    WHERE status = 'published'
-    ORDER BY released_at DESC, id DESC
-    LIMIT 1
-");
-$st2->execute();
-$latest = $st2->fetch();
+// 🐛 v3.0.469 — sloupec je `published_at` (ne `released_at`, ten v vendor_updates
+//   neexistuje → dřív 500 na KAŽDÉM stažení). Try/catch → při jakékoli chybě schématu
+//   spadneme na MASTER zip fallback místo fatalu.
+$latest = null;
+try {
+    $st2 = $pdo->prepare("
+        SELECT version, file_path
+        FROM vendor_updates
+        WHERE status = 'published'
+        ORDER BY published_at DESC, id DESC
+        LIMIT 1
+    ");
+    $st2->execute();
+    $latest = $st2->fetch();
+} catch (Throwable $e) {
+    error_log('[download.php] vendor_updates lookup failed: ' . $e->getMessage());
+}
 
 if (!$latest) {
     // Žádná verze v vendor_updates → fallback na local MASTER ZIP
@@ -134,7 +156,10 @@ try {
     ]);
 } catch (Throwable $e) { /* audit tabulka může chybět, neblokuj */ }
 
-// 4) Redirect na existující updates_download.php (reuse stream + per-install logging logic)
+// 4) Spotřebuj jednorázové stažení (před servírováním)
+markDownloadUsed($pdo, (int) $license['id']);
+
+// 5) Redirect na existující updates_download.php (reuse stream + per-install logging logic)
 $redirect = '/api/updates_download.php?version=' . urlencode($latest['version']) . '&key=' . urlencode($key);
 header('Location: ' . $redirect, true, 302);
 exit;
@@ -178,6 +203,9 @@ function serveFallbackMasterZip(string $key, ?PDO $pdo = null, ?int $licenseId =
         } catch (Throwable $e) {}
     }
 
+    // Spotřebuj jednorázové stažení (fallback větev)
+    if ($pdo && $licenseId) markDownloadUsed($pdo, $licenseId);
+
     // Stream
     header('Content-Type: application/zip');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -186,6 +214,13 @@ function serveFallbackMasterZip(string $key, ?PDO $pdo = null, ?int $licenseId =
     header('X-Robots-Tag: noindex, nofollow');
     readfile($latest);
     exit;
+}
+
+function markDownloadUsed(PDO $pdo, int $id): void {
+    // Jednorázové stažení: po servírování zamkni další stažení (download_allowed=0).
+    try {
+        $pdo->prepare("UPDATE vendor_licenses SET download_allowed = 0 WHERE id = :id")->execute(['id' => $id]);
+    } catch (Throwable $e) { /* sloupec může chybět / DB výpadek — neblokuj samotné stažení */ }
 }
 
 function showError(int $code, string $title, string $msg): void {
