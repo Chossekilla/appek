@@ -192,7 +192,7 @@ if (isset($_GET['send_code']) && !empty($_SESSION['install_license_challenge']))
         $ctx = stream_context_create([
             'http' => [
                 'method' => 'POST',
-                'header' => "Content-Type: application/json\r\n",
+                'header' => "Content-Type: application/json\r\nUser-Agent: APPEK-Installer/1.0\r\n",
                 'content' => json_encode([
                     'license_key' => $ch['license'],
                     'email'       => $ch['email'],
@@ -244,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['license_key']) && emp
             $ctx = stream_context_create([
                 'http' => [
                     'method'  => 'POST',
-                    'header'  => "Content-Type: application/json\r\n",
+                    'header'  => "Content-Type: application/json\r\nUser-Agent: APPEK-Installer/1.0\r\n",
                     'content' => json_encode([
                         'license_key' => $candidate,
                         'email'       => $candidateEmail,
@@ -305,7 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['license_key']) && emp
             $ctx = stream_context_create([
                 'http' => [
                     'method'  => 'POST',
-                    'header'  => "Content-Type: application/json\r\n",
+                    'header'  => "Content-Type: application/json\r\nUser-Agent: APPEK-Installer/1.0\r\n",
                     'content' => json_encode([
                         'license_key'    => $candidate,
                         'install_url'    => $installUrl,
