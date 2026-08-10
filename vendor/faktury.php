@@ -52,6 +52,12 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS vendor_invoice_clients (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+// 🆕 Per-klient / per-faktura jméno dodavatele (přebije globální business_name — např.
+//   fakturuji-li konkrétnímu klientovi jako „Josef Mašek" místo brandu „APPEK").
+foreach (['vendor_invoices', 'vendor_invoice_clients'] as $t) {
+    try { $pdo->exec("ALTER TABLE $t ADD COLUMN dodavatel_nazev VARCHAR(200) NULL"); } catch (Throwable $e) {}
+}
+
 /** Firemní identita prodávajícího z vendor_settings. */
 function faktury_biz(PDO $pdo): array {
     $b = [];
@@ -112,11 +118,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save') {
                     'dv'=>$dv,'ds'=>$ds,'pz'=>trim($d['poznamka']??''),'id'=>$id]);
         } else {
             $cislo = faktury_next_cislo($pdo);
-            $pdo->prepare("INSERT INTO vendor_invoices (cislo,klient_nazev,klient_ico,klient_dic,klient_adresa,klient_email,polozky,celkem,datum_vystaveni,datum_splatnosti,vs,poznamka)
-                           VALUES (:cs,:kn,:ki,:kd,:ka,:ke,:po,:c,:dv,:ds,:vs,:pz)")
+            // per-klient jméno dodavatele (přebije globální business_name na faktuře) — dle IČO/názvu
+            $cIco0 = trim($d['klient_ico'] ?? '');
+            $dq = $pdo->prepare($cIco0 !== '' ? "SELECT dodavatel_nazev FROM vendor_invoice_clients WHERE ico=:v LIMIT 1"
+                                              : "SELECT dodavatel_nazev FROM vendor_invoice_clients WHERE nazev=:v LIMIT 1");
+            $dq->execute(['v' => $cIco0 !== '' ? $cIco0 : $klient]);
+            $dodNazev = $dq->fetchColumn() ?: null;
+            $pdo->prepare("INSERT INTO vendor_invoices (cislo,klient_nazev,klient_ico,klient_dic,klient_adresa,klient_email,polozky,celkem,datum_vystaveni,datum_splatnosti,vs,poznamka,dodavatel_nazev)
+                           VALUES (:cs,:kn,:ki,:kd,:ka,:ke,:po,:c,:dv,:ds,:vs,:pz,:dn)")
                 ->execute(['cs'=>$cislo,'kn'=>$klient,'ki'=>trim($d['klient_ico']??''),'kd'=>trim($d['klient_dic']??''),
                     'ka'=>trim($d['klient_adresa']??''),'ke'=>trim($d['klient_email']??''),'po'=>$pj,'c'=>$celkem,
-                    'dv'=>$dv,'ds'=>$ds,'vs'=>$cislo,'pz'=>trim($d['poznamka']??'')]);
+                    'dv'=>$dv,'ds'=>$ds,'vs'=>$cislo,'pz'=>trim($d['poznamka']??''),'dn'=>$dodNazev]);
             $id = (int) $pdo->lastInsertId();
         }
         // 🆕 upsert klienta do registru (aby šel příště jen vybrat) — dle IČO, jinak dle názvu
@@ -149,6 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'send') {
     $inv = $f->fetch(PDO::FETCH_ASSOC);
     if ($inv && filter_var($inv['klient_email'], FILTER_VALIDATE_EMAIL)) {
         $biz = faktury_biz($pdo);
+        $dodav = ($inv['dodavatel_nazev'] ?? '') !== '' ? $inv['dodavatel_nazev'] : ($biz['business_name'] ?? 'APPEK');
         $link = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/faktury.php?view=' . $id;
         $html = '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto">'
             . '<h2 style="color:#BA7517">Faktura ' . htmlspecialchars($inv['cislo']) . '</h2>'
@@ -157,9 +170,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'send') {
             . date('d.m.Y', strtotime($inv['datum_splatnosti'])) . '.</p>'
             . '<p><a href="' . htmlspecialchars($link) . '" style="display:inline-block;padding:12px 24px;background:#BA7517;color:#fff;text-decoration:none;border-radius:10px;font-weight:600">→ Otevřít fakturu</a></p>'
             . '<p style="color:#888;font-size:13px">Účet: ' . htmlspecialchars($biz['business_bank_account'] ?? '') . ' · VS: ' . htmlspecialchars($inv['vs']) . '</p>'
-            . '<hr style="border:none;border-top:1px solid #eee;margin:20px 0"><p style="color:#aaa;font-size:12px">' . htmlspecialchars($biz['business_name'] ?? 'APPEK') . ' · IČO ' . htmlspecialchars($biz['business_ico'] ?? '') . ' · Neplátce DPH</p></div>';
+            . '<hr style="border:none;border-top:1px solid #eee;margin:20px 0"><p style="color:#aaa;font-size:12px">' . htmlspecialchars($dodav) . ' · IČO ' . htmlspecialchars($biz['business_ico'] ?? '') . ' · Neplátce DPH</p></div>';
         $err = null;
-        $ok = vendor_send_mail($inv['klient_email'], 'Faktura ' . $inv['cislo'] . ' — ' . ($biz['business_name'] ?? 'APPEK'), $html, null, null, $err);
+        $ok = vendor_send_mail($inv['klient_email'], 'Faktura ' . $inv['cislo'] . ' — ' . $dodav, $html, null, null, $err);
         header('Location: faktury.php?view=' . $id . ($ok ? '&ok=sent' : '&err=mail')); exit;
     }
     header('Location: faktury.php?view=' . $id . '&err=noemail'); exit;
@@ -238,7 +251,7 @@ if (isset($_GET['view'])) {
       <div class="parties">
         <div class="party">
           <h3>Dodavatel</h3>
-          <div class="nm"><?= $esc($biz['business_name'] ?? 'APPEK') ?></div>
+          <div class="nm"><?= $esc(($inv['dodavatel_nazev'] ?? '') !== '' ? $inv['dodavatel_nazev'] : ($biz['business_name'] ?? 'APPEK')) ?></div>
           <?php if ($sidlo): ?><div><?= $esc($sidlo) ?></div><?php endif; ?>
           <?php if (!empty($biz['business_ico'])): ?><div>IČO: <?= $esc($biz['business_ico']) ?></div><?php endif; ?>
           <div>Neplátce DPH</div>
