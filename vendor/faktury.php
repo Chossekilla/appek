@@ -237,6 +237,7 @@ if (isset($_GET['view'])) {
     <div class="toolbar">
       <a href="faktury.php">← Seznam</a>
       <a href="faktury.php?edit=<?= (int)$inv['id'] ?>">✏️ Upravit</a>
+      <button type="button" class="prim" onclick="window.print()">🖨️ Tisk / uložit PDF</button>
       <?php if ($inv['stav'] !== 'storno'): ?>
         <?php if ($inv['stav'] !== 'zaplaceno'): ?><form method="post" action="faktury.php?action=mark_paid" style="display:inline"><?php vendor_csrf_field(); ?><input type="hidden" name="id" value="<?= (int)$inv['id'] ?>"><button type="submit">✅ Zaplaceno</button></form><?php endif; ?>
         <?php if ($inv['klient_email']): ?><form method="post" action="faktury.php?action=send" style="display:inline"><?php vendor_csrf_field(); ?><input type="hidden" name="id" value="<?= (int)$inv['id'] ?>"><button type="submit">✉️ Odeslat</button></form><?php endif; ?>
