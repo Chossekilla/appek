@@ -188,8 +188,11 @@ if (isset($_GET['view'])) {
     $polozky = json_decode($inv['polozky'], true) ?: [];
     $esc = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
     $kc  = fn($n) => number_format((float) $n, 2, ',', ' ');
+    // PSČ „36001" → „360 01"; zemi na tuzemské faktuře vynecháme (ať je adresa dodavatele
+    // stejně úhledná/zarovnaná jako odběratel — jeden krátký řádek).
+    $_psc = preg_replace('/^(\d{3})(\d{2})$/', '$1 $2', preg_replace('/\s+/', '', (string) ($biz['business_zip'] ?? '')));
     $sidlo = trim(implode(', ', array_filter([
-        $biz['business_street'] ?? '', trim(($biz['business_zip'] ?? '') . ' ' . ($biz['business_city'] ?? '')), $biz['business_country'] ?? ''
+        $biz['business_street'] ?? '', trim($_psc . ' ' . ($biz['business_city'] ?? ''))
     ], fn($x) => trim($x) !== '')));
     // SPAYD (QR Platba) — jen když je IBAN a faktura je vystavená
     $spd = '';
