@@ -169,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'send') {
             . number_format((float) $inv['celkem'], 2, ',', ' ') . ' ' . htmlspecialchars($inv['mena']) . '</strong>, splatnost '
             . date('d.m.Y', strtotime($inv['datum_splatnosti'])) . '.</p>'
             . '<p><a href="' . htmlspecialchars($link) . '" style="display:inline-block;padding:12px 24px;background:#BA7517;color:#fff;text-decoration:none;border-radius:10px;font-weight:600">→ Otevřít fakturu</a></p>'
-            . '<p style="color:#888;font-size:13px">Účet: ' . htmlspecialchars($biz['business_bank_account'] ?? '') . ' · VS: ' . htmlspecialchars($inv['vs']) . '</p>'
+            . '<p style="color:#888;font-size:13px">Účet: ' . htmlspecialchars($biz['business_bank_account'] ?? '') . '</p>'
             . '<hr style="border:none;border-top:1px solid #eee;margin:20px 0"><p style="color:#aaa;font-size:12px">' . htmlspecialchars($dodav) . ' · IČO ' . htmlspecialchars($biz['business_ico'] ?? '') . ' · Neplátce DPH</p></div>';
         $err = null;
         $ok = vendor_send_mail($inv['klient_email'], 'Faktura ' . $inv['cislo'] . ' — ' . $dodav, $html, null, null, $err);
@@ -225,8 +225,8 @@ if (isset($_GET['view'])) {
       td{padding:9px 6px;border-bottom:1px solid #f0f0f3}
       .num{text-align:right;white-space:nowrap}
       .total{display:flex;justify-content:flex-end;margin-bottom:8px}
-      .total .box{min-width:240px}
-      .total .row{display:flex;justify-content:space-between;padding:6px 0}
+      .total .box{min-width:320px}
+      .total .row{display:flex;justify-content:space-between;gap:32px;padding:6px 0}
       .total .grand{font-size:22px;font-weight:800;border-top:2px solid #1d1d1f;padding-top:10px;margin-top:6px}
       .pay{display:flex;gap:24px;flex-wrap:wrap;align-items:center;background:#FAF7F1;border:1px solid #EBDFC9;border-radius:12px;padding:18px;margin-top:16px}
       .pay .info{flex:1;min-width:220px;font-size:14px}.pay .info .k{color:#8e8e93;font-size:12px}
@@ -256,7 +256,6 @@ if (isset($_GET['view'])) {
           <?php if ($sidlo): ?><div><?= $esc($sidlo) ?></div><?php endif; ?>
           <?php if (!empty($biz['business_ico'])): ?><div>IČO: <?= $esc($biz['business_ico']) ?></div><?php endif; ?>
           <div>Neplátce DPH</div>
-          <?php if (!empty($biz['business_email'])): ?><div><?= $esc($biz['business_email']) ?></div><?php endif; ?>
         </div>
         <div class="party">
           <h3>Odběratel</h3>
@@ -269,7 +268,6 @@ if (isset($_GET['view'])) {
       <div class="meta">
         <div><b>Vystaveno</b><?= date('d.m.Y', strtotime($inv['datum_vystaveni'])) ?></div>
         <div><b>Splatnost</b><?= date('d.m.Y', strtotime($inv['datum_splatnosti'])) ?></div>
-        <div><b>Variabilní symbol</b><?= $esc($inv['vs']) ?></div>
         <?php if ($inv['datum_uhrady']): ?><div><b>Uhrazeno</b><?= date('d.m.Y', strtotime($inv['datum_uhrady'])) ?></div><?php endif; ?>
       </div>
       <table>
@@ -295,12 +293,12 @@ if (isset($_GET['view'])) {
           <div style="font-weight:700;margin-bottom:6px">💸 QR Platba</div>
           <div><span class="k">Účet:</span> <?= $esc($biz['business_bank_account'] ?? '') ?></div>
           <?php if (!empty($biz['business_bank_iban'])): ?><div><span class="k">IBAN:</span> <?= $esc($biz['business_bank_iban']) ?></div><?php endif; ?>
-          <div><span class="k">Částka:</span> <?= $kc($inv['celkem']) ?> Kč · <span class="k">VS:</span> <?= $esc($inv['vs']) ?></div>
+          <div><span class="k">Částka:</span> <?= $kc($inv['celkem']) ?> Kč</div>
         </div>
       </div>
       <?php elseif (!empty($biz['business_bank_account'])): ?>
       <div class="pay"><div class="info"><div style="font-weight:700;margin-bottom:6px">Platba převodem</div>
-        <div><span class="k">Účet:</span> <?= $esc($biz['business_bank_account']) ?> · <span class="k">VS:</span> <?= $esc($inv['vs']) ?></div></div></div>
+        <div><span class="k">Účet:</span> <?= $esc($biz['business_bank_account']) ?></div></div></div>
       <?php endif; ?>
       <?php if ($inv['poznamka']): ?><div class="note"><strong>Poznámka:</strong> <?= nl2br($esc($inv['poznamka'])) ?></div><?php endif; ?>
       <div class="note">Dodavatel není plátcem DPH. Fyzická osoba zapsaná v živnostenském rejstříku.</div>
