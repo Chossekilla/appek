@@ -310,9 +310,12 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
   @media(max-width:600px){.form-grid2{grid-template-columns:1fr}}
   .fld label{display:block;font-size:12px;font-weight:600;color:#3a3a3c;margin-bottom:4px}
   .fld input,.fld textarea{width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font:inherit;font-size:14px}
-  .pol-row{display:grid;grid-template-columns:1fr 90px 70px 110px 34px;gap:8px;margin-bottom:8px;align-items:center}
+  .pol-row{display:grid;grid-template-columns:1fr 78px 58px 104px 104px 34px;gap:8px;margin-bottom:8px;align-items:center}
   @media(max-width:600px){.pol-row{grid-template-columns:1fr 1fr;gap:6px}}
   .pol-row .rm{background:#fde3e3;border:none;border-radius:8px;height:38px;cursor:pointer;font-size:15px}
+  .pol-row .pol-sum{text-align:right;font-weight:700;font-size:14px;color:#1d1d1f;padding-right:2px;white-space:nowrap}
+  @media(max-width:600px){.pol-row .pol-sum{grid-column:1/-1;text-align:left;color:#6e6e73;font-size:12.5px}}
+  .pol-head{font-size:11px;text-transform:uppercase;color:#8e8e93;letter-spacing:.3px}
 </style>
 </head>
 <body>
@@ -349,7 +352,7 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
     </div>
     <div class="panel-master" style="margin-bottom:16px">
       <h2 style="font-size:14px;margin-bottom:12px">Položky (IT služby)</h2>
-      <div class="pol-row" style="font-size:11px;text-transform:uppercase;color:#8e8e93"><div>Popis</div><div>Množství</div><div>Jedn.</div><div>Cena/j. (Kč)</div><div></div></div>
+      <div class="pol-row pol-head"><div>Popis</div><div>Množství</div><div>Jedn.</div><div>Cena/j. (Kč)</div><div style="text-align:right">Celkem</div><div></div></div>
       <div id="pol-list">
         <?php foreach ($p0 as $p): ?>
         <div class="pol-row">
@@ -357,12 +360,17 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
           <input name="p_mn[]" value="<?= htmlspecialchars((string)($p['mnozstvi'] ?? 1)) ?>" inputmode="decimal">
           <input name="p_jed[]" value="<?= htmlspecialchars($p['jednotka'] ?? 'hod') ?>">
           <input name="p_cena[]" value="<?= htmlspecialchars((string)($p['cena'] ?? '')) ?>" inputmode="decimal" placeholder="0">
+          <div class="pol-sum">0,00</div>
           <button type="button" class="rm" onclick="this.closest('.pol-row').remove();fRecalc()">🗑️</button>
         </div>
         <?php endforeach; ?>
       </div>
       <button type="button" class="btn-master secondary" onclick="fAddRow()">＋ Přidat položku</button>
-      <div style="text-align:right;margin-top:12px;font-size:20px;font-weight:800">Celkem: <span id="f-celkem">0,00</span> Kč</div>
+      <div style="display:flex;justify-content:flex-end;align-items:baseline;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid #eee">
+        <span style="font-size:13px;color:#6e6e73">Celkem k úhradě</span>
+        <span style="font-size:22px;font-weight:800"><span id="f-celkem">0,00</span> Kč</span>
+      </div>
+      <div style="text-align:right;font-size:11.5px;color:#8e8e93;margin-top:3px">Neplátce DPH — částka je konečná</div>
     </div>
     <div class="panel-master" style="margin-bottom:16px">
       <div class="form-grid2">
@@ -377,19 +385,24 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
     </div>
   </form>
   <script>
+    function fMoney(n){return (isFinite(n)?n:0).toLocaleString('cs-CZ',{minimumFractionDigits:2,maximumFractionDigits:2});}
+    function fNum(v){return parseFloat(String(v==null?'':v).replace(/\s/g,'').replace(',','.'))||0;}
     function fAddRow(){
       var w=document.getElementById('pol-list'); var d=document.createElement('div'); d.className='pol-row';
-      d.innerHTML='<input name="p_popis[]" placeholder="Popis"><input name="p_mn[]" value="1" inputmode="decimal"><input name="p_jed[]" value="hod"><input name="p_cena[]" inputmode="decimal" placeholder="0"><button type="button" class="rm" onclick="this.closest(\'.pol-row\').remove();fRecalc()">🗑️</button>';
-      w.appendChild(d); d.querySelectorAll('input').forEach(function(i){i.addEventListener('input',fRecalc)});
+      d.innerHTML='<input name="p_popis[]" placeholder="Popis"><input name="p_mn[]" value="1" inputmode="decimal"><input name="p_jed[]" value="hod"><input name="p_cena[]" inputmode="decimal" placeholder="0"><div class="pol-sum">0,00</div><button type="button" class="rm" onclick="this.closest(\'.pol-row\').remove();fRecalc()">🗑️</button>';
+      w.appendChild(d); fRecalc(); var fi=d.querySelector('input'); if(fi) fi.focus();
     }
     function fRecalc(){
-      var t=0; document.querySelectorAll('#pol-list .pol-row').forEach(function(r){
-        var mn=parseFloat((r.querySelector('[name="p_mn[]"]').value||'0').replace(',','.'))||0;
-        var ce=parseFloat((r.querySelector('[name="p_cena[]"]').value||'0').replace(',','.'))||0; t+=mn*ce;
+      var t=0;
+      document.querySelectorAll('#pol-list .pol-row').forEach(function(r){
+        var s=fNum(r.querySelector('[name="p_mn[]"]').value)*fNum(r.querySelector('[name="p_cena[]"]').value);
+        t+=s; var sc=r.querySelector('.pol-sum'); if(sc) sc.textContent=fMoney(s);
       });
-      document.getElementById('f-celkem').textContent=t.toLocaleString('cs-CZ',{minimumFractionDigits:2,maximumFractionDigits:2});
+      document.getElementById('f-celkem').textContent=fMoney(t);
     }
-    document.querySelectorAll('#pol-list input').forEach(function(i){i.addEventListener('input',fRecalc)}); fRecalc();
+    // Event delegation — jeden listener chytí i dynamicky přidané řádky (spolehlivější než per-input)
+    document.getElementById('pol-list').addEventListener('input', fRecalc);
+    fRecalc();
   </script>
 
 <?php else: ?>
