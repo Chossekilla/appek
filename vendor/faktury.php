@@ -42,6 +42,16 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS vendor_invoices (
     INDEX idx_stav (stav), INDEX idx_datum (datum_vystaveni)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+// 🆕 Registr klientů — pro opakovanou (měsíční) fakturaci: klienta stačí vybrat a předvyplní se.
+$pdo->exec("CREATE TABLE IF NOT EXISTS vendor_invoice_clients (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nazev VARCHAR(200) NOT NULL,
+    ico VARCHAR(20) NULL, dic VARCHAR(20) NULL,
+    adresa VARCHAR(300) NULL, email VARCHAR(150) NULL,
+    sazba_hod DECIMAL(10,2) NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
 /** Firemní identita prodávajícího z vendor_settings. */
 function faktury_biz(PDO $pdo): array {
     $b = [];
@@ -108,6 +118,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save') {
                     'ka'=>trim($d['klient_adresa']??''),'ke'=>trim($d['klient_email']??''),'po'=>$pj,'c'=>$celkem,
                     'dv'=>$dv,'ds'=>$ds,'vs'=>$cislo,'pz'=>trim($d['poznamka']??'')]);
             $id = (int) $pdo->lastInsertId();
+        }
+        // 🆕 upsert klienta do registru (aby šel příště jen vybrat) — dle IČO, jinak dle názvu
+        $cIco = trim($d['klient_ico'] ?? '');
+        $chk = $pdo->prepare($cIco !== '' ? "SELECT id FROM vendor_invoice_clients WHERE ico=:v LIMIT 1"
+                                          : "SELECT id FROM vendor_invoice_clients WHERE nazev=:v LIMIT 1");
+        $chk->execute(['v' => $cIco !== '' ? $cIco : $klient]);
+        if (!$chk->fetchColumn()) {
+            $pdo->prepare("INSERT INTO vendor_invoice_clients (nazev,ico,dic,adresa,email) VALUES (:n,:i,:d,:a,:e)")
+                ->execute(['n'=>$klient,'i'=>$cIco ?: null,'d'=>trim($d['klient_dic']??'') ?: null,
+                           'a'=>trim($d['klient_adresa']??'') ?: null,'e'=>trim($d['klient_email']??'') ?: null]);
         }
         header('Location: faktury.php?view=' . $id . '&saved=1'); exit;
     }
@@ -289,6 +309,7 @@ if (isset($_GET['edit'])) {
     $editInv = $f->fetch(PDO::FETCH_ASSOC);
 }
 $isForm = isset($_GET['new']) || $editInv;
+$clients = $isForm ? $pdo->query("SELECT * FROM vendor_invoice_clients ORDER BY nazev")->fetchAll(PDO::FETCH_ASSOC) : [];
 
 $biz = faktury_biz($pdo);
 $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_iban']);
@@ -342,6 +363,22 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
     <?php if ($editInv): ?><input type="hidden" name="id" value="<?= (int)$editInv['id'] ?>"><?php endif; ?>
     <div class="panel-master" style="margin-bottom:16px">
       <h2 style="font-size:14px;margin-bottom:12px">Odběratel</h2>
+      <?php if ($clients): ?>
+      <div class="fld" style="margin-bottom:12px">
+        <label>📇 Předvyplnit uloženého klienta</label>
+        <select id="client-picker" onchange="fPrefillClient(this)" style="width:100%;padding:9px 12px;border:1px solid #d2d2d7;border-radius:8px;font:inherit;font-size:14px">
+          <option value="">— nový klient / ručně —</option>
+          <?php foreach ($clients as $c): ?>
+            <option value="<?= (int)$c['id'] ?>"
+              data-nazev="<?= htmlspecialchars($c['nazev']) ?>" data-ico="<?= htmlspecialchars($c['ico']??'') ?>"
+              data-dic="<?= htmlspecialchars($c['dic']??'') ?>" data-adresa="<?= htmlspecialchars($c['adresa']??'') ?>"
+              data-email="<?= htmlspecialchars($c['email']??'') ?>" data-sazba="<?= htmlspecialchars((string)($c['sazba_hod']??'')) ?>">
+              <?= htmlspecialchars($c['nazev']) ?><?= $c['ico'] ? ' · IČO '.htmlspecialchars($c['ico']) : '' ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <?php endif; ?>
       <div class="form-grid2">
         <div class="fld"><label>Název / jméno *</label><input name="klient_nazev" required value="<?= htmlspecialchars($editInv['klient_nazev'] ?? '') ?>" placeholder="Firma s.r.o. / Jan Novák"></div>
         <div class="fld"><label>E-mail (pro odeslání)</label><input type="email" name="klient_email" value="<?= htmlspecialchars($editInv['klient_email'] ?? '') ?>" placeholder="klient@firma.cz"></div>
@@ -399,6 +436,18 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
         t+=s; var sc=r.querySelector('.pol-sum'); if(sc) sc.textContent=fMoney(s);
       });
       document.getElementById('f-celkem').textContent=fMoney(t);
+    }
+    function fPrefillClient(sel){
+      var o=sel.options[sel.selectedIndex]; if(!o||!o.value) return;
+      function set(n,v){var el=document.querySelector('[name="'+n+'"]'); if(el) el.value=v||'';}
+      set('klient_nazev',o.dataset.nazev); set('klient_ico',o.dataset.ico);
+      set('klient_dic',o.dataset.dic); set('klient_adresa',o.dataset.adresa); set('klient_email',o.dataset.email);
+      var sazba=fNum(o.dataset.sazba);
+      if(sazba>0){
+        var r=document.querySelector('#pol-list .pol-row');
+        if(r){ var ce=r.querySelector('[name="p_cena[]"]'); if(ce && !ce.value){ ce.value=o.dataset.sazba;
+               var po=r.querySelector('[name="p_popis[]"]'); if(po && !po.value) po.value='IT služby'; fRecalc(); } }
+      }
     }
     // Event delegation — jeden listener chytí i dynamicky přidané řádky (spolehlivější než per-input)
     document.getElementById('pol-list').addEventListener('input', fRecalc);
