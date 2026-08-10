@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.470';
+const APPEK_ADMIN_JS_VERSION = '3.0.471';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -1289,6 +1289,28 @@ function renderLicenseLockOverlay(payload) {
   `;
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
+
+  // 🛡️ v3.0.471 — anti-tamper: obnov lock po pokusu ho skrýt/odstranit (display:none,
+  //   visibility, opacity, remove z DOM). Klientský zámek = „friction not security",
+  //   ale tohle zabrání triviálnímu obejití přes DevTools (jen nastavit display:none).
+  const reassertLock = () => {
+    const o = document.getElementById('appek-license-lock');
+    if (!o) { document.body.appendChild(overlay); return; }   // znovu připoj, když byl odstraněn
+    o.style.setProperty('display', 'flex', 'important');
+    o.style.setProperty('visibility', 'visible', 'important');
+    o.style.setProperty('opacity', '1', 'important');
+    o.style.setProperty('pointer-events', 'auto', 'important');
+    o.style.setProperty('position', 'fixed', 'important');
+    o.style.setProperty('inset', '0', 'important');
+    o.style.setProperty('z-index', '2147483647', 'important');
+    document.body.style.overflow = 'hidden';
+  };
+  reassertLock();
+  try {
+    new MutationObserver(reassertLock).observe(overlay, { attributes: true, attributeFilter: ['style', 'class'] });
+    new MutationObserver(reassertLock).observe(document.body, { childList: true });
+  } catch (e) {}
+  setInterval(reassertLock, 1000);   // backstop, i kdyby observery odpojili
 }
 
 function renderPirateNagBanner(payload) {

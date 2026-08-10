@@ -12,7 +12,7 @@
  *   - CLAIM ihned po install → starý SW neslouží staré assety
  */
 
-const CACHE_VERSION = 'appek-v3.0.470';
+const CACHE_VERSION = 'appek-v3.0.471';
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 
