@@ -426,7 +426,7 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
     </div>
     <div class="panel-master" style="margin-bottom:16px">
       <div class="form-grid2">
-        <div class="fld"><label>Datum vystavení</label><input type="date" name="datum_vystaveni" value="<?= htmlspecialchars($editInv['datum_vystaveni'] ?? date('Y-m-d')) ?>"></div>
+        <div class="fld"><label>Datum vystavení</label><input type="date" name="datum_vystaveni" value="<?= htmlspecialchars($editInv['datum_vystaveni'] ?? '') ?>"></div>
         <div class="fld"><label>Datum splatnosti</label><input type="date" name="datum_splatnosti" value="<?= htmlspecialchars($editInv['datum_splatnosti'] ?? '') ?>"></div>
         <div class="fld" style="grid-column:1/-1"><label>Poznámka</label><textarea name="poznamka" rows="2"><?= htmlspecialchars($editInv['poznamka'] ?? '') ?></textarea></div>
       </div>

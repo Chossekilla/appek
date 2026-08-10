@@ -434,9 +434,27 @@
             <div style="font-size:13px;font-weight:600;color:#1d1d1f;margin-bottom:8px">💳 Způsob platby</div>
             <div class="pay-radios">
 
-              <!-- 💳 Karta (Stripe) -->
+              <!-- 💳 GoPay (CZ karty + banka) — primární pro CZ trh -->
               <label class="pay-radio-row">
-                <input type="radio" name="pay_method" value="stripe" checked>
+                <input type="radio" name="pay_method" value="gopay" checked>
+                <span class="pay-radio-text">💳 <strong>Platba kartou / bankou</strong> — GoPay (Visa, Mastercard, Apple&nbsp;Pay, Google&nbsp;Pay, bankovní tlačítka)</span>
+                <button type="button" class="pay-info-btn" aria-label="Detail GoPay platby" onclick="togglePayInfo('gopay', event)">i</button>
+              </label>
+              <div class="pay-info-box" id="pay-info-gopay">
+                <strong>⚡ Co se stane po kliknutí „Objednat"?</strong>
+                <ol>
+                  <li>Přesměrujeme tě na zabezpečenou platební bránu <strong>GoPay</strong></li>
+                  <li>Zaplatíš kartou, Apple&nbsp;Pay / Google&nbsp;Pay nebo přímým bankovním převodem</li>
+                  <li>Po úspěšné platbě se vrátíš zpět na APPEK potvrzovací stránku</li>
+                  <li>Licenční klíč dorazí na zadaný e-mail (formát <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li>
+                  <li>Stáhneš APPEK přes odkaz v e-mailu a aktivuješ klíčem v instalátoru</li>
+                </ol>
+                <p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 GoPay je licencovaná platební instituce (ČNB). APPEK nikdy nevidí číslo tvojí karty.</p>
+              </div>
+
+              <!-- 💳 Karta (Stripe) — mezinárodní alternativa -->
+              <label class="pay-radio-row">
+                <input type="radio" name="pay_method" value="stripe">
                 <span class="pay-radio-text">💳 <strong>Platba kartou</strong> — Visa, Mastercard, Apple Pay, Google Pay</span>
                 <button type="button" class="pay-info-btn" aria-label="Detail platby kartou" onclick="togglePayInfo('stripe', event)">i</button>
               </label>
@@ -962,6 +980,12 @@ async function submitOrder() {
 
   // 🆕 v2.9.200 — SUCCESS: rovnou rediregt podle vybrané platby
   window.__lastOrder = result;
+
+  if (payMethod === 'gopay') {
+    // GoPay brána redirect — žádný mezikrok
+    btn.disabled = true; btn.textContent = '⏳ Přesměrovávám na platební bránu…';
+    return payByGoPay();
+  }
 
   if (payMethod === 'stripe') {
     // Stripe Checkout redirect — žádný mezikrok
