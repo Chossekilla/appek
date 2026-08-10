@@ -304,7 +304,7 @@ if (isset($_GET['view'])) {
       <div class="note">Dodavatel není plátcem DPH. Fyzická osoba zapsaná v živnostenském rejstříku.</div>
     </div>
     <?php if ($spd): ?>
-    <script src="../admin/lib/qrcode.min.js"></script>
+    <script src="lib/qrcode.min.js"></script>
     <script>
       (function(){ var el=document.getElementById('qr'); if(el&&window.QRCode){ try{ new QRCode(el,{text:el.getAttribute('data-spd'),width:120,height:120,correctLevel:QRCode.CorrectLevel.M}); }catch(e){} } })();
     </script>
