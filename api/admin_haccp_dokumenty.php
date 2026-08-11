@@ -405,13 +405,10 @@ function personalize_haccp_obsah(string $obsah, array $f): string {
         'APPEK pekařství a cukrářství'               => $f['firma_nazev'],
         'Appek s.r.o.'                                => $f['firma_nazev'],
         'APPEK B2B'                             => $f['firma_nazev'],
-        ''      => $f['_adresa'] ?: '',
-        ''     => $f['_adresa'] ?: '',
     ];
     // Telefon nahraď, jen pokud je vyplněn
     if ($f['firma_telefon']) {
         $mapy['353 585 277'] = $f['firma_telefon'];
-        $mapy[''] = 'Tel: ' . $f['firma_telefon'];
     }
     // Jméno jednatele (jen pokud je v nastavení)
     if ($f['firma_jednatel']) {
