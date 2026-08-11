@@ -19,6 +19,12 @@ if (!file_exists(__DIR__ . '/config.local.php') || !file_exists(__DIR__ . '/.ins
     exit;
 }
 
+// 📊 Dashboard = živá data (KPI objednávek/licencí/tržeb). Nikdy necachovat, jinak
+//   po nové objednávce zůstanou staré počty (LiteSpeed/prohlížeč servíruje starou HTML).
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 // POST login (s podporou TOTP 2FA)
 $err = null;
 $needTotp = false;

@@ -501,7 +501,10 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
             <td style="<?= $overdue ? 'color:#A32D2D;font-weight:700' : '' ?>"><?= date('d.m.Y', strtotime($r['datum_splatnosti'])) ?><?= $overdue ? ' ⚠️' : '' ?></td>
             <td style="text-align:right;font-weight:700"><?= number_format((float)$r['celkem'],2,',',' ') ?> Kč</td>
             <td><span class="st" style="color:<?= $st[0] ?>;background:<?= $st[1] ?>"><?= $st[2] ?></span></td>
-            <td style="text-align:right;white-space:nowrap"><a href="faktury.php?view=<?= (int)$r['id'] ?>" class="btn-master secondary" style="padding:6px 12px;font-size:12px">Otevřít</a></td>
+            <td style="text-align:right;white-space:nowrap">
+              <a href="faktury.php?edit=<?= (int)$r['id'] ?>" class="btn-master secondary" style="padding:6px 10px;font-size:12px" title="Upravit fakturu">✏️ Upravit</a>
+              <a href="faktury.php?view=<?= (int)$r['id'] ?>" class="btn-master secondary" style="padding:6px 12px;font-size:12px">Otevřít</a>
+            </td>
           </tr>
         <?php endforeach; ?>
         </tbody>
