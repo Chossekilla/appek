@@ -637,7 +637,7 @@ async function navigate(page, args) {
   //   monitoru („flex"). Formulářové/dashboard stránky zůstanou centrované.
   try { const _c = document.getElementById('content'); if (_c) _c.dataset.page = page; } catch (e) {}
   // 🆕 v3.0.375 — Nástroje pod-stránky (integrace/tiskárny/štítky) zvýrazní v menu rodiče „Nástroje" (jinak nic = uživatel „ztracený")
-  const _navActive = (page === 'integrace' || page === 'tiskarny' || page === 'stitky') ? 'nastroje' : page;
+  const _navActive = (page === 'integrace' || page === 'tiskarny' || page === 'stitky' || page === 'stanice') ? 'nastroje' : page;
   document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.page === _navActive));
   // 📱 Synchronizace bottom nav (mobile) — aktivní položka
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
@@ -663,6 +663,7 @@ async function navigate(page, args) {
     else if (page === 'stitky') await renderStitky();
     else if (page === 'nastroje') await renderNastroje();
     else if (page === 'tiskarny') await renderTiskarny(); // 🆕 v3.0.29
+    else if (page === 'stanice') await renderStanice(); // 🆕 připojení víc zařízení (kasa/kuchyň)
     else if (page === 'haccp') await renderHaccp();
     else if (page === 'odberatele') await renderOdberatele();
     else if (page === 'users') await renderUsers();

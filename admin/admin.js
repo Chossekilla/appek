@@ -4452,7 +4452,7 @@ async function navigate(page, args) {
   //   monitoru („flex"). Formulářové/dashboard stránky zůstanou centrované.
   try { const _c = document.getElementById('content'); if (_c) _c.dataset.page = page; } catch (e) {}
   // 🆕 v3.0.375 — Nástroje pod-stránky (integrace/tiskárny/štítky) zvýrazní v menu rodiče „Nástroje" (jinak nic = uživatel „ztracený")
-  const _navActive = (page === 'integrace' || page === 'tiskarny' || page === 'stitky') ? 'nastroje' : page;
+  const _navActive = (page === 'integrace' || page === 'tiskarny' || page === 'stitky' || page === 'stanice') ? 'nastroje' : page;
   document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.page === _navActive));
   // 📱 Synchronizace bottom nav (mobile) — aktivní položka
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
@@ -4478,6 +4478,7 @@ async function navigate(page, args) {
     else if (page === 'stitky') await renderStitky();
     else if (page === 'nastroje') await renderNastroje();
     else if (page === 'tiskarny') await renderTiskarny(); // 🆕 v3.0.29
+    else if (page === 'stanice') await renderStanice(); // 🆕 připojení víc zařízení (kasa/kuchyň)
     else if (page === 'haccp') await renderHaccp();
     else if (page === 'odberatele') await renderOdberatele();
     else if (page === 'users') await renderUsers();
@@ -31877,6 +31878,14 @@ async function renderNastroje() {
         <div class="nastroje-card-desc">Síťové termo tiskárny pro kasu, kuchyň, bar, sklad a výdej. Auto-split bonů podle kategorie.</div>
         <div class="nastroje-card-cta">Otevřít →</div>
       </button>
+
+      <!-- 🆕 Stanice — připojení víc zařízení (kasa, kuchyň, kancelář) na 1 instalaci -->
+      <button class="nastroje-card" onclick="navigate('stanice')" aria-label="Připojení stanic a zařízení">
+        <div class="nastroje-card-icon">📱</div>
+        <div class="nastroje-card-title">Stanice / zařízení</div>
+        <div class="nastroje-card-desc">Připoj víc počítačů a tabletů (kasa, kuchyň, kancelář) na tuhle instalaci — adresy + QR kódy k naskenování.</div>
+        <div class="nastroje-card-cta">Otevřít →</div>
+      </button>
     </div>
 
     <style>
@@ -31942,6 +31951,98 @@ async function renderTiskarny() {
     <div id="ns-tiskarny-panel">⏳ Načítám…</div>
   `;
   if (typeof loadTiskarnyPanel === 'function') loadTiskarnyPanel();
+}
+
+// 🆕 Stanice / zařízení — připojení víc počítačů a tabletů (kasa, kuchyň, kancelář) na jednu instalaci.
+//    Adresu instalace odvodíme z aktuální URL (funguje lokálně i na hostingu). Když je admin
+//    otevřený přes síťovou IP serveru, QR kódy se vygenerují se správnou LAN adresou.
+async function renderStanice() {
+  const c = document.getElementById('content');
+
+  // Kořen instalace: origin + pathname bez souboru a bez koncového 'admin/'
+  let p = location.pathname.replace(/[^/]*$/, '');   // odřízni soubor → .../admin/
+  p = p.replace(/admin\/$/, '');                      // odřízni admin/ → kořen instalace
+  const base = location.origin + p;                   // http://192.168.1.95/appek/  (i '/')
+  const posUrl = base + 'pos/';
+  const adminUrl = base + 'admin/';
+  const isLocalhost = /^(localhost|127\.|0\.0\.0\.0|::1)/.test(location.hostname);
+
+  const stanice = [
+    { id: 'pos',   ikona: '🧾', nazev: 'Kasa (POS)',      url: posUrl,   popis: 'Pokladna — přihlášení PIN. Na tabletu přidej „na plochu" jako appku (celá obrazovka).' },
+    { id: 'admin', ikona: '🖥️', nazev: 'Admin / kuchyň',  url: adminUrl, popis: 'Plný systém — kuchyň (Výroba), objednávky, sklad, rozvozy, kancelář.' },
+  ];
+
+  c.innerHTML = `
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">📱 Stanice / zařízení</h1>
+        <p class="page-sub">Připoj víc počítačů a tabletů na jednu instalaci — kasa, kuchyň, kancelář</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-back" onclick="navigate('nastroje')" title="Zpět na Nástroje"><span class="btn-back-arrow">←</span> <span class="btn-back-lbl">Nástroje</span></button>
+      </div>
+    </div>
+
+    ${isLocalhost ? `<div class="card-block" style="padding:14px 16px;margin-bottom:14px;border-left:4px solid #E8C988;background:var(--warning-bg,#FFF7E6)">
+      <strong style="font-size:13px">⚠️ Otevřeno přes <code>localhost</code></strong>
+      <p style="font-size:12.5px;color:var(--text-2);margin:6px 0 0;line-height:1.55">Adresy níže by fungovaly jen na tomhle počítači. Aby je viděla i ostatní zařízení, otevři tento admin přes <strong>síťovou IP serveru</strong> (např. <code>http://192.168.x.x/…</code>) — QR kódy se pak vygenerují se správnou adresou pro celou síť.</p>
+    </div>` : ''}
+
+    <div class="card-block" style="padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:13px;color:var(--text-2);line-height:1.6">
+        📍 <strong>Adresa téhle instalace:</strong>
+        <code style="background:var(--surface-2);padding:2px 8px;border-radius:6px">${esc(base)}</code>
+        <button class="btn-secondary" style="font-size:12px;padding:4px 10px;margin-left:6px" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(base)}');this.textContent='✓ zkopírováno'">📋 Kopírovat</button>
+        <br><span style="font-size:12px;color:var(--text-3)">Každé zařízení musí být na <strong>stejné Wi-Fi / síti</strong> jako tento server.</span>
+      </div>
+    </div>
+
+    <div class="stanice-grid">
+      ${stanice.map(s => `
+        <div class="card-block stanice-card">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+            <span style="font-size:28px">${s.ikona}</span>
+            <div style="font-size:17px;font-weight:700">${esc(s.nazev)}</div>
+          </div>
+          <p style="font-size:12.5px;color:var(--text-2);line-height:1.5;margin:0 0 10px">${esc(s.popis)}</p>
+          <div id="qr-${s.id}" class="stanice-qr" title="Naskenuj mobilem/tabletem"></div>
+          <div style="font-size:12px;color:var(--text-3);word-break:break-all;margin:8px 0 10px">${esc(s.url)}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn-primary btn-green" href="${esc(s.url)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:13px;padding:8px 14px">Otevřít ↗</a>
+            <button class="btn-secondary" style="font-size:13px;padding:8px 14px" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(s.url)}');this.textContent='✓ zkopírováno'">📋 Kopírovat</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="card-block" style="padding:16px;margin-top:14px">
+      <h3 style="margin:0 0 8px;font-size:15px">💡 Jak připojit další zařízení</h3>
+      <ol style="font-size:13px;color:var(--text-2);line-height:1.7;padding-left:20px;margin:0">
+        <li>Zařízení (tablet / PC) připoj na <strong>stejnou Wi-Fi</strong> jako tento server.</li>
+        <li>Naskenuj QR kód dané stanice (nebo zadej adresu do prohlížeče).</li>
+        <li><strong>Kasa:</strong> v prohlížeči zvol „Přidat na plochu / nainstalovat" → appka jede celoobrazovkově. Přihlášení přes <strong>PIN</strong>.</li>
+        <li>Víc kas / kuchyní zároveň = žádný problém, sdílí jednu databázi živě.</li>
+      </ol>
+      <p style="font-size:11.5px;color:var(--text-3);margin:10px 0 0">Nejde to z jiného počítače? Zkontroluj <strong>firewall serveru</strong> (musí pustit HTTP port 80) a že jsou obě zařízení na stejné síti.</p>
+    </div>
+
+    <style>
+      .stanice-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
+      .stanice-card { padding:18px 20px; display:flex; flex-direction:column; }
+      .stanice-qr { width:148px; height:148px; background:#fff; border:1px solid var(--border); border-radius:10px; padding:8px; }
+      .stanice-qr img, .stanice-qr canvas { display:block; }
+    </style>
+  `;
+
+  // Vykresli QR kódy (admin/lib/qrcode.min.js — global QRCode)
+  if (window.QRCode) {
+    stanice.forEach(s => {
+      const el = document.getElementById('qr-' + s.id);
+      if (el) { try { new QRCode(el, { text: s.url, width: 148, height: 148, correctLevel: QRCode.CorrectLevel.M }); } catch (e) {} }
+    });
+  } else {
+    stanice.forEach(s => { const el = document.getElementById('qr-' + s.id); if (el) el.innerHTML = '<span style="font-size:11px;color:var(--text-3)">QR knihovna nenačtena</span>'; });
+  }
 }
 
 // =============================================================
