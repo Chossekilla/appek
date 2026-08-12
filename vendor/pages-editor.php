@@ -12,6 +12,7 @@
  */
 require_once __DIR__ . '/_lib.php';
 require_once __DIR__ . '/_layout.php';
+require_once __DIR__ . '/_mail.php';  // vendor_mail_set / vendor_ensure_settings_table (téma frontpage)
 
 $user = vendor_require_login();
 $currentPage = 'pages-editor';
@@ -99,6 +100,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
         $flash_err = $e->getMessage();
     }
 }
+
+// ─── 🎨 Téma frontpage (přesunuto z Nastavení) — čte theme.css.php ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_site_theme') {
+    try {
+        vendor_ensure_settings_table(vendor_db());
+        $t = preg_replace('/[^a-z0-9_-]/', '', strtolower((string) ($_POST['site_theme'] ?? 'classic')));
+        if (!in_array($t, ['classic', 'studio', 'noir'], true)) $t = 'classic';
+        vendor_mail_set('site_theme', $t);
+        vendor_audit(vendor_db(), $user, 'site_theme_save', null, 'theme=' . $t);
+        $flash_ok = 'Téma frontpage přepnuto na „' . $t . '“ — na appek.cz je změna vidět okamžitě.';
+    } catch (Throwable $e) {
+        $flash_err = $e->getMessage();
+    }
+}
+
+// Aktuální téma pro přepínač
+$curTheme = 'classic';
+try {
+    vendor_ensure_settings_table(vendor_db());
+    $v = vendor_db()->query("SELECT `value` FROM vendor_settings WHERE `key`='site_theme'")->fetchColumn();
+    if ($v) $curTheme = preg_replace('/[^a-z0-9_-]/', '', strtolower((string) $v));
+} catch (Throwable $e) { /* fail-safe → classic */ }
 ?><!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -167,6 +190,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
 
   <?php if ($flash_ok): ?><div class="flash ok">✅ <?= htmlspecialchars($flash_ok) ?></div><?php endif; ?>
   <?php if ($flash_err): ?><div class="flash err">❌ <?= htmlspecialchars($flash_err) ?></div><?php endif; ?>
+
+  <!-- 🎨 VZHLED WEBU — přesunuto z Nastavení -->
+  <div class="pe-section">
+    <h2>🎨 Vzhled webu <small style="font-weight:400;color:#86868b;font-size:12px">— téma appek.cz, přepnutí okamžité (bez deploye)</small></h2>
+    <form method="POST" style="display:flex;flex-direction:column;gap:12px;max-width:560px">
+      <?php vendor_csrf_field(); ?>
+      <input type="hidden" name="action" value="save_site_theme">
+      <div>
+        <div class="pe-label">Aktivní téma</div>
+        <select name="site_theme" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;font-family:inherit;font-size:13px">
+          <option value="classic" <?= $curTheme === 'classic' ? 'selected' : '' ?>>🥖 Classic — původní teplý vzhled</option>
+          <option value="studio"  <?= $curTheme === 'studio'  ? 'selected' : '' ?>>◻️ Studio — čistý profi SaaS (světlý)</option>
+          <option value="noir"    <?= $curTheme === 'noir'    ? 'selected' : '' ?>>◼️ Noir — tmavý prémiový (zlatá)</option>
+        </select>
+      </div>
+      <div style="font-size:12px;color:#888;line-height:1.6">
+        Náhledy (nepřepnou nic pro návštěvníky):
+        <a href="https://appek.cz/?theme=classic" target="_blank" rel="noopener">Classic ↗</a> ·
+        <a href="https://appek.cz/?theme=studio" target="_blank" rel="noopener">Studio ↗</a> ·
+        <a href="https://appek.cz/?theme=noir" target="_blank" rel="noopener">Noir ↗</a>
+      </div>
+      <div><button type="submit" class="btn-master primary">💾 Uložit téma</button></div>
+    </form>
+  </div>
 
   <form method="POST">
     <?php vendor_csrf_field(); ?>
