@@ -1357,8 +1357,9 @@ if ($method === 'POST' && $action === 'quick_order') {
         }
 
         // 🆕 Pokladna per stanice — z tokenu zařízení dohledej přiřazenou pokladnu (volitelné)
+        //   POZOR: tělo quick_order je v $data (ne $d) — $d je z jiného handleru.
         $pokladna = null;
-        $stTok = preg_replace('/[^a-zA-Z0-9]/', '', (string) ($d['station_token'] ?? ''));
+        $stTok = preg_replace('/[^a-zA-Z0-9]/', '', (string) ($data['station_token'] ?? ''));
         if ($stTok !== '') {
             try {
                 $ps = $pdo->prepare("SELECT pokladna FROM stanice WHERE token = :t LIMIT 1");
