@@ -1369,6 +1369,24 @@ if ($method === 'POST' && $action === 'quick_order') {
             } catch (Throwable $e) { /* tabulka stanice nemusí existovat */ }
         }
 
+        // 🔒 Allowlist (opt-in): když je zapnutý, jen SCHVÁLENÉ zařízení smí prodávat.
+        //   Chrání kasu před cizím zařízením na stejné síti (i s platným PINem).
+        $allowOn = false;
+        try { $allowOn = (string) nastaveni_get($pdo, 'stanice_allowlist', '0') === '1'; } catch (Throwable $e) {}
+        if ($allowOn) {
+            $appr = 0;
+            if ($stTok !== '') {
+                try {
+                    $aq = $pdo->prepare("SELECT approved FROM stanice WHERE token = :t LIMIT 1");
+                    $aq->execute([':t' => $stTok]);
+                    $appr = (int) $aq->fetchColumn();
+                } catch (Throwable $e) { $appr = 0; }
+            }
+            if ($appr !== 1) {
+                json_error('Zařízení není schválené pro prodej. Schval ho v Admin → Nástroje → Stanice (nebo vypni vyžadování schválení).', 403);
+            }
+        }
+
         // Hlavička
         $st = $pdo->prepare("
             INSERT INTO objednavky (

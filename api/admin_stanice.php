@@ -34,12 +34,13 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS stanice (
   pokladna VARCHAR(40) NULL DEFAULT NULL,
   cmd VARCHAR(20) NULL DEFAULT NULL,
   home VARCHAR(30) NULL DEFAULT NULL,
+  approved TINYINT(1) NULL DEFAULT NULL,
   first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
   last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
 // idempotentní přidání sloupců pro starší instalace (tabulka už mohla vzniknout dřív)
-foreach (['watch' => 'TINYINT(1) NOT NULL DEFAULT 0', 'printer_id' => 'INT NULL DEFAULT NULL', 'pokladna' => 'VARCHAR(40) NULL DEFAULT NULL', 'cmd' => 'VARCHAR(20) NULL DEFAULT NULL', 'home' => 'VARCHAR(30) NULL DEFAULT NULL'] as $col => $def) {
+foreach (['watch' => 'TINYINT(1) NOT NULL DEFAULT 0', 'printer_id' => 'INT NULL DEFAULT NULL', 'pokladna' => 'VARCHAR(40) NULL DEFAULT NULL', 'cmd' => 'VARCHAR(20) NULL DEFAULT NULL', 'home' => 'VARCHAR(30) NULL DEFAULT NULL', 'approved' => 'TINYINT(1) NULL DEFAULT NULL'] as $col => $def) {
     try {
         if (!$pdo->query("SHOW COLUMNS FROM stanice LIKE " . $pdo->quote($col))->fetchColumn()) {
             $pdo->exec("ALTER TABLE stanice ADD COLUMN $col $def");
@@ -105,7 +106,7 @@ if ($isPos) {
 // ─── LIST — přehled stanic + online flag ─────────────────────────────────────
 if ($action === '' || $action === 'list') {
     $threshold = 90; // s — do kolika sekund od heartbeatu je zařízení „online"
-    $rows = $pdo->query("SELECT id, nazev, role, ip, user_agent, watch, printer_id, pokladna, home, first_seen, last_seen,
+    $rows = $pdo->query("SELECT id, nazev, role, ip, user_agent, watch, printer_id, pokladna, home, approved, first_seen, last_seen,
         TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS sec_ago
         FROM stanice ORDER BY (TIMESTAMPDIFF(SECOND, last_seen, NOW()) <= $threshold) DESC, last_seen DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -114,6 +115,7 @@ if ($action === '' || $action === 'list') {
         $r['online']     = ($r['sec_ago'] <= $threshold);
         $r['watch']      = ((int) $r['watch'] === 1);
         $r['printer_id'] = ($r['printer_id'] !== null) ? (int) $r['printer_id'] : null;
+        $r['approved']   = ($r['approved'] === null) ? null : (int) $r['approved']; // null=čeká, 1=schváleno, 0=blokováno
     }
     unset($r);
     // Dostupné tiskárny pro přiřazení (tabulka nemusí existovat, když balíček/tisk není zapnutý)
@@ -122,7 +124,10 @@ if ($action === '' || $action === 'list') {
         $printers = $pdo->query("SELECT id, nazev, typ FROM restaurant_printers WHERE aktivni = 1 ORDER BY typ, nazev")
             ->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable $e) { /* bez tiskáren */ }
-    json_response(['stanice' => $rows, 'online_threshold' => $threshold, 'printers' => $printers]);
+    // Globální přepínač allowlistu (opt-in): vyžadovat schválení zařízení pro POS prodej
+    $allowlist = false;
+    try { $allowlist = (string) nastaveni_get($pdo, 'stanice_allowlist', '0') === '1'; } catch (Throwable $e) {}
+    json_response(['stanice' => $rows, 'online_threshold' => $threshold, 'printers' => $printers, 'allowlist' => $allowlist]);
 }
 
 // ─── RENAME ──────────────────────────────────────────────────────────────────
@@ -190,6 +195,25 @@ if ($action === 'set_home') {
     $pdo->prepare("UPDATE stanice SET home = :h WHERE id = :id")
         ->execute([':h' => ($h !== '' ? $h : null), ':id' => $id]);
     json_response(['ok' => true, 'home' => ($h !== '' ? $h : null)]);
+}
+
+// ─── APPROVE / BLOCK — allowlist zařízení (schválit prodej / zablokovat) ──────
+if ($action === 'approve' || $action === 'block') {
+    $in = _stanice_body();
+    $id = (int) ($in['id'] ?? 0);
+    if ($id <= 0) json_error('Chybí id', 400);
+    $val = ($action === 'approve') ? 1 : 0;
+    $pdo->prepare("UPDATE stanice SET approved = :a WHERE id = :id")->execute([':a' => $val, ':id' => $id]);
+    json_response(['ok' => true, 'approved' => $val]);
+}
+
+// ─── SET_ALLOWLIST — globální přepínač (vyžadovat schválení pro POS prodej) ───
+if ($action === 'set_allowlist') {
+    $in = _stanice_body();
+    $on = !empty($in['on']) ? '1' : '0';
+    $pdo->prepare("INSERT INTO nastaveni (klic, hodnota, popis) VALUES ('stanice_allowlist', :v1, 'Vyžadovat schválení zařízení pro POS prodej')
+        ON DUPLICATE KEY UPDATE hodnota = :v2")->execute([':v1' => $on, ':v2' => $on]);
+    json_response(['ok' => true, 'allowlist' => ($on === '1')]);
 }
 
 // ─── DELETE (zapomenout) ─────────────────────────────────────────────────────

@@ -801,13 +801,18 @@ async function staniceLoadOnline() {
   rows.forEach(r => { window._staniceNames[r.id] = r.nazev || ''; });
   window._stanicePrinters = (d && d.printers) || [];
   window._staniceZname = [...new Set(rows.map(x => x.pokladna).filter(Boolean))]; // číselník pokladen z existujících
+  window._staniceAllowlist = !!(d && d.allowlist); // globální opt-in: vyžadovat schválení zařízení
   if (!rows.length) {
     el.innerHTML = `<div style="padding:16px;text-align:center;background:var(--surface-2);border:1px dashed var(--border);border-radius:8px;color:var(--text-3);font-size:13px">Zatím žádné zařízení. Otevři appku na kase / kuchyni (viz QR níže) a za chvíli se tu objeví.</div>`;
     return;
   }
   const roleLabel = { pos: '🧾 Kasa', admin: '🖥️ Admin', kuchyn: '🍳 Kuchyň' };
   const printers = window._stanicePrinters || [];
-  el.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px">` + rows.map(r => {
+  const allowBar = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" ${window._staniceAllowlist ? 'checked' : ''} onchange="staniceAllowlist(this.checked)"> 🔒 Vyžadovat schválení zařízení pro prodej</label>
+    <span style="font-size:11.5px;color:var(--text-3)">${window._staniceAllowlist ? '⚠️ ZAPNUTO — neschválená zařízení nemohou účtovat. Nejdřív schval svoje kasy.' : 'Vypnuto — prodávat může kterékoli přihlášené zařízení.'}</span>
+  </div>`;
+  el.innerHTML = allowBar + `<div style="display:flex;flex-direction:column;gap:8px">` + rows.map(r => {
     const dot = r.online ? '#22c55e' : '#c7c7cc';
     const ago = r.online ? 'online' : ('naposledy ' + staniceAgo(r.sec_ago));
     const printerCtrl = printers.length
@@ -821,9 +826,12 @@ async function staniceLoadOnline() {
       <div style="display:flex;align-items:center;gap:12px">
         <span style="width:10px;height:10px;border-radius:50%;background:${dot};flex:0 0 auto;box-shadow:0 0 0 3px ${r.online ? 'rgba(34,197,94,0.15)' : 'transparent'}"></span>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:14px">${esc(r.nazev || '(bez názvu)')} <span style="font-size:11px;font-weight:400;color:var(--text-3)">${roleLabel[r.role] || esc(r.role || '')}</span></div>
+          <div style="font-weight:600;font-size:14px">${esc(r.nazev || '(bez názvu)')} <span style="font-size:11px;font-weight:400;color:var(--text-3)">${roleLabel[r.role] || esc(r.role || '')}</span>${window._staniceAllowlist ? staniceApprBadge(r.approved) : ''}</div>
           <div style="font-size:11.5px;color:var(--text-3)">${esc(r.ip || '')} · ${ago}</div>
         </div>
+        ${window._staniceAllowlist ? (r.approved === 1
+          ? `<button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceBlock(${r.id})" title="Zablokovat prodej z tohoto zařízení">🚫 Blokovat</button>`
+          : `<button class="btn-secondary" style="font-size:12px;padding:6px 10px;background:#DCFCE7;color:#166534;border-color:#86efac" onclick="staniceApprove(${r.id})" title="Schválit zařízení pro prodej">✅ Schválit</button>`) : ''}
         <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceReload(${r.id})" title="Poslat zařízení obnovení (reload) — do ~40 s">🔄</button>
         <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceRename(${r.id})" title="Přejmenovat">✏️</button>
         <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceForget(${r.id})" title="Zapomenout">🗑️</button>
@@ -894,6 +902,25 @@ async function staniceReload(id) {
 async function staniceSetHome(id, el) {
   const home = (el && typeof el === 'object') ? el.value : (el || '');
   try { await api('admin_stanice.php?action=set_home', { method: 'POST', body: { id, home } }); }
+  catch (e) { alert('Chyba: ' + e.message); staniceLoadOnline(); }
+}
+function staniceApprBadge(approved) {
+  if (approved === 1) return ' <span style="font-size:10px;font-weight:700;background:#DCFCE7;color:#166534;padding:1px 7px;border-radius:6px">✅ schváleno</span>';
+  if (approved === 0) return ' <span style="font-size:10px;font-weight:700;background:#FEE2E2;color:#991B1B;padding:1px 7px;border-radius:6px">🚫 blokováno</span>';
+  return ' <span style="font-size:10px;font-weight:700;background:#FEF3C7;color:#92400e;padding:1px 7px;border-radius:6px">⏳ čeká na schválení</span>';
+}
+async function staniceApprove(id) {
+  try { await api('admin_stanice.php?action=approve', { method: 'POST', body: { id } }); staniceLoadOnline(); }
+  catch (e) { alert('Chyba: ' + e.message); }
+}
+async function staniceBlock(id) {
+  if (!confirm('Zablokovat prodej z tohoto zařízení?')) return;
+  try { await api('admin_stanice.php?action=block', { method: 'POST', body: { id } }); staniceLoadOnline(); }
+  catch (e) { alert('Chyba: ' + e.message); }
+}
+async function staniceAllowlist(on) {
+  if (on && !confirm('Zapnout vyžadování schválení?\n\nOd teď smí účtovat jen SCHVÁLENÁ zařízení. Nezapomeň schválit svoje kasy, jinak nebudou moct prodávat.')) { staniceLoadOnline(); return; }
+  try { await api('admin_stanice.php?action=set_allowlist', { method: 'POST', body: { on: on ? 1 : 0 } }); staniceLoadOnline(); }
   catch (e) { alert('Chyba: ' + e.message); staniceLoadOnline(); }
 }
 
