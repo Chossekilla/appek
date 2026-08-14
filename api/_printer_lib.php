@@ -488,10 +488,24 @@ function printer_dispatch_pos_ucet(PDO $pdo, int $ucetId, array $context = []): 
 // ─────────────────────────────────────────────────────────────
 // PRINT RECEIPT — účtenka na kasa
 // ─────────────────────────────────────────────────────────────
-function printer_print_receipt(PDO $pdo, int $objednavka_id): array {
+function printer_print_receipt(PDO $pdo, int $objednavka_id, ?string $stationToken = null): array {
     printer_ensure_schema($pdo);
 
-    $kasa = $pdo->query("SELECT * FROM restaurant_printers WHERE typ='kasa' AND aktivni=1 ORDER BY id LIMIT 1")->fetch();
+    // 🆕 Tiskárna per stanice: pokud volající zařízení (stanice) má přiřazenou tiskárnu, použij ji.
+    $kasa = null;
+    if ($stationToken) {
+        try {
+            $st = $pdo->prepare("SELECT p.* FROM stanice s
+                JOIN restaurant_printers p ON p.id = s.printer_id
+                WHERE s.token = :t AND p.aktivni = 1 LIMIT 1");
+            $st->execute([':t' => $stationToken]);
+            $kasa = $st->fetch() ?: null;
+        } catch (Throwable $e) { /* tabulka stanice nemusí existovat → fallback níže */ }
+    }
+    // Fallback: první aktivní kasa tiskárna (původní chování).
+    if (!$kasa) {
+        $kasa = $pdo->query("SELECT * FROM restaurant_printers WHERE typ='kasa' AND aktivni=1 ORDER BY id LIMIT 1")->fetch();
+    }
     if (!$kasa) return ['ok' => false, 'error' => 'Žádná aktivní kasa tiskárna'];
 
     $o = $pdo->prepare("SELECT * FROM objednavky WHERE id = :id");

@@ -1586,7 +1586,8 @@ if ($method === 'POST' && $action === 'print_receipt') {
     $d = json_decode(file_get_contents('php://input'), true) ?? [];
     $id = (int)($d['objednavka_id'] ?? $d['id'] ?? 0);
     if (!$id) json_error('Chybí objednavka_id', 400);
-    $res = printer_print_receipt($pdo, $id);
+    $stTok = preg_replace('/[^a-zA-Z0-9]/', '', (string)($d['station_token'] ?? ''));
+    $res = printer_print_receipt($pdo, $id, $stTok !== '' ? $stTok : null);
     json_response($res);
 }
 

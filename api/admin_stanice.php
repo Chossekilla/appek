@@ -29,9 +29,20 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS stanice (
   role VARCHAR(30) DEFAULT NULL,
   ip VARCHAR(45) DEFAULT NULL,
   user_agent VARCHAR(255) DEFAULT NULL,
+  watch TINYINT(1) NOT NULL DEFAULT 0,
+  printer_id INT NULL DEFAULT NULL,
   first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
   last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+// idempotentní přidání sloupců pro starší instalace (tabulka už mohla vzniknout dřív)
+foreach (['watch' => 'TINYINT(1) NOT NULL DEFAULT 0', 'printer_id' => 'INT NULL DEFAULT NULL'] as $col => $def) {
+    try {
+        if (!$pdo->query("SHOW COLUMNS FROM stanice LIKE " . $pdo->quote($col))->fetchColumn()) {
+            $pdo->exec("ALTER TABLE stanice ADD COLUMN $col $def");
+        }
+    } catch (Throwable $e) { /* ignore */ }
+}
 
 $action = $_GET['action'] ?? '';
 $isPos  = !empty($_SESSION['pos_only_user']);
@@ -79,16 +90,24 @@ if ($isPos) {
 // ─── LIST — přehled stanic + online flag ─────────────────────────────────────
 if ($action === '' || $action === 'list') {
     $threshold = 90; // s — do kolika sekund od heartbeatu je zařízení „online"
-    $rows = $pdo->query("SELECT id, nazev, role, ip, user_agent, first_seen, last_seen,
+    $rows = $pdo->query("SELECT id, nazev, role, ip, user_agent, watch, printer_id, first_seen, last_seen,
         TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS sec_ago
         FROM stanice ORDER BY (TIMESTAMPDIFF(SECOND, last_seen, NOW()) <= $threshold) DESC, last_seen DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
     foreach ($rows as &$r) {
-        $r['sec_ago'] = (int) $r['sec_ago'];
-        $r['online']  = ($r['sec_ago'] <= $threshold);
+        $r['sec_ago']    = (int) $r['sec_ago'];
+        $r['online']     = ($r['sec_ago'] <= $threshold);
+        $r['watch']      = ((int) $r['watch'] === 1);
+        $r['printer_id'] = ($r['printer_id'] !== null) ? (int) $r['printer_id'] : null;
     }
     unset($r);
-    json_response(['stanice' => $rows, 'online_threshold' => $threshold]);
+    // Dostupné tiskárny pro přiřazení (tabulka nemusí existovat, když balíček/tisk není zapnutý)
+    $printers = [];
+    try {
+        $printers = $pdo->query("SELECT id, nazev, typ FROM restaurant_printers WHERE aktivni = 1 ORDER BY typ, nazev")
+            ->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) { /* bez tiskáren */ }
+    json_response(['stanice' => $rows, 'online_threshold' => $threshold, 'printers' => $printers]);
 }
 
 // ─── RENAME ──────────────────────────────────────────────────────────────────
@@ -101,6 +120,27 @@ if ($action === 'rename') {
     $pdo->prepare("UPDATE stanice SET nazev = :n WHERE id = :id")
         ->execute([':n' => ($nazev !== '' ? $nazev : null), ':id' => $id]);
     json_response(['ok' => true]);
+}
+
+// ─── WATCH — hlídat/nehlídat (alarm při offline) ─────────────────────────────
+if ($action === 'watch') {
+    $in = _stanice_body();
+    $id = (int) ($in['id'] ?? 0);
+    $w  = !empty($in['watch']) ? 1 : 0;
+    if ($id <= 0) json_error('Chybí id', 400);
+    $pdo->prepare("UPDATE stanice SET watch = :w WHERE id = :id")->execute([':w' => $w, ':id' => $id]);
+    json_response(['ok' => true, 'watch' => (bool) $w]);
+}
+
+// ─── SET_PRINTER — přiřaď tiskárnu zařízení (účtenka půjde na ni) ─────────────
+if ($action === 'set_printer') {
+    $in  = _stanice_body();
+    $id  = (int) ($in['id'] ?? 0);
+    $pid = (isset($in['printer_id']) && $in['printer_id'] !== '' && $in['printer_id'] !== null)
+        ? (int) $in['printer_id'] : null;
+    if ($id <= 0) json_error('Chybí id', 400);
+    $pdo->prepare("UPDATE stanice SET printer_id = :p WHERE id = :id")->execute([':p' => $pid, ':id' => $id]);
+    json_response(['ok' => true, 'printer_id' => $pid]);
 }
 
 // ─── DELETE (zapomenout) ─────────────────────────────────────────────────────

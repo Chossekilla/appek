@@ -799,22 +799,39 @@ async function staniceLoadOnline() {
   if (cnt) cnt.textContent = rows.length ? `· ${onlineN} online / ${rows.length} celkem` : '';
   window._staniceNames = {};
   rows.forEach(r => { window._staniceNames[r.id] = r.nazev || ''; });
+  window._stanicePrinters = (d && d.printers) || [];
   if (!rows.length) {
     el.innerHTML = `<div style="padding:16px;text-align:center;background:var(--surface-2);border:1px dashed var(--border);border-radius:8px;color:var(--text-3);font-size:13px">Zatím žádné zařízení. Otevři appku na kase / kuchyni (viz QR níže) a za chvíli se tu objeví.</div>`;
     return;
   }
   const roleLabel = { pos: '🧾 Kasa', admin: '🖥️ Admin', kuchyn: '🍳 Kuchyň' };
+  const printers = window._stanicePrinters || [];
   el.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px">` + rows.map(r => {
     const dot = r.online ? '#22c55e' : '#c7c7cc';
     const ago = r.online ? 'online' : ('naposledy ' + staniceAgo(r.sec_ago));
-    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)">
-      <span style="width:10px;height:10px;border-radius:50%;background:${dot};flex:0 0 auto;box-shadow:0 0 0 3px ${r.online ? 'rgba(34,197,94,0.15)' : 'transparent'}"></span>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:14px">${esc(r.nazev || '(bez názvu)')} <span style="font-size:11px;font-weight:400;color:var(--text-3)">${roleLabel[r.role] || esc(r.role || '')}</span></div>
-        <div style="font-size:11.5px;color:var(--text-3)">${esc(r.ip || '')} · ${ago}</div>
+    const printerCtrl = printers.length
+      ? `<label style="font-size:12px;color:var(--text-2);display:inline-flex;align-items:center;gap:6px">🖨️ Účtenka:
+           <select onchange="staniceSetPrinter(${r.id}, this)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit">
+             <option value="">— výchozí kasa —</option>
+             ${printers.map(p => `<option value="${p.id}" ${r.printer_id === p.id ? 'selected' : ''}>${esc(p.nazev)} (${esc(p.typ)})</option>`).join('')}
+           </select></label>`
+      : `<span style="font-size:11.5px;color:var(--text-3)">🖨️ Tiskárny nastavíš v <a href="#" onclick="navigate('tiskarny');return false" style="color:var(--primary)">Nástroje → Tiskárny</a></span>`;
+    return `<div style="border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:10px 12px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${dot};flex:0 0 auto;box-shadow:0 0 0 3px ${r.online ? 'rgba(34,197,94,0.15)' : 'transparent'}"></span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:14px">${esc(r.nazev || '(bez názvu)')} <span style="font-size:11px;font-weight:400;color:var(--text-3)">${roleLabel[r.role] || esc(r.role || '')}</span></div>
+          <div style="font-size:11.5px;color:var(--text-3)">${esc(r.ip || '')} · ${ago}</div>
+        </div>
+        <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceRename(${r.id})" title="Přejmenovat">✏️</button>
+        <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceForget(${r.id})" title="Zapomenout">🗑️</button>
       </div>
-      <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceRename(${r.id})" title="Přejmenovat">✏️</button>
-      <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceForget(${r.id})" title="Zapomenout">🗑️</button>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
+        ${printerCtrl}
+        <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="staniceWatch(${r.id}, ${r.watch ? 0 : 1})" title="Upozornění když se zařízení přestane hlásit (offline)">
+          ${r.watch ? '🔔 Hlídám offline' : '🔕 Nehlídat'}
+        </button>
+      </div>
     </div>`;
   }).join('') + `</div>`;
 }
@@ -836,6 +853,15 @@ async function staniceForget(id) {
   if (!confirm('Zapomenout tohle zařízení? Pokud je pořád připojené, za chvíli se přihlásí znovu.')) return;
   try { await api('admin_stanice.php?action=delete', { method: 'POST', body: { id } }); staniceLoadOnline(); }
   catch (e) { alert('Chyba: ' + e.message); }
+}
+async function staniceWatch(id, on) {
+  try { await api('admin_stanice.php?action=watch', { method: 'POST', body: { id, watch: on } }); staniceLoadOnline(); }
+  catch (e) { alert('Chyba: ' + e.message); }
+}
+async function staniceSetPrinter(id, selEl) {
+  const printer_id = selEl ? selEl.value : '';
+  try { await api('admin_stanice.php?action=set_printer', { method: 'POST', body: { id, printer_id } }); }
+  catch (e) { alert('Chyba: ' + e.message); staniceLoadOnline(); }
 }
 
 // =============================================================

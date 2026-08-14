@@ -90,6 +90,24 @@ function generate_fresh_notifications(PDO $pdo): void {
         } catch (Throwable $e) { /* ignore */ }
     }
 
+    // 0b. Stanice offline — hlídaná zařízení (watch=1), co se přestala hlásit (>5 min bez heartbeatu)
+    try {
+        $rs = $pdo->query("SELECT nazev, TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS sec FROM stanice WHERE watch = 1");
+        foreach ($rs as $s) {
+            if ((int) $s['sec'] > 300) {
+                $nz = $s['nazev'] ?: 'Zařízení';
+                notif_emit(
+                    $pdo, 'stanice_offline',
+                    'Stanice offline: ' . $nz,
+                    'Hlídané zařízení „' . $nz . '" se ' . floor((int) $s['sec'] / 60) . ' min neohlásilo — zkontroluj kasu/kuchyň.',
+                    '#/nastroje',
+                    'warning',
+                    'stanice_offline_' . $nz
+                );
+            }
+        }
+    } catch (Throwable $e) { /* tabulka stanice ještě nemusí existovat */ }
+
     // 1. Nové objednávky (posledních 60 minut, jen jednou per obj)
     try {
         $rs = $pdo->query("

@@ -1273,8 +1273,9 @@
   // 🆕 v3.0.5 — Posli print_receipt na backend (kasa tiskárna ESC/POS)
   async function sendPrintReceipt(objId) {
     try {
+      let _stTok = ''; try { _stTok = localStorage.getItem('appek_station_token') || ''; } catch (e) {}
       const r = await api('admin_pos.php?action=print_receipt', {
-        method: 'POST', body: JSON.stringify({ objednavka_id: objId })
+        method: 'POST', body: JSON.stringify({ objednavka_id: objId, station_token: _stTok })
       });
       if (r && r.ok) {
         if (r.dummy) toast('🖨️ Účtenka odeslána (dummy mode → /tmp/)', 'success');
