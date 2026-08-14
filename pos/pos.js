@@ -690,6 +690,7 @@
           pos_tip:      State.pos_tip || 0,
           sleva_pct:    State.sleva_pct || 0,
           poznamka:     State.poznamka || '',
+          station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })(),
         }),
       });
       toast(`✓ Účet ${r.cislo} · ${fmt(r.celkem)} Kč`, 'success');

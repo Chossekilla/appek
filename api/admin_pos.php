@@ -46,6 +46,7 @@ $pdo = db();
         if (!in_array('pos_payment', $cols, true))  try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN pos_payment VARCHAR(20) DEFAULT NULL"); } catch (Throwable $e) {}
         if (!in_array('pos_tip', $cols, true))      try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN pos_tip DECIMAL(10,2) DEFAULT 0"); } catch (Throwable $e) {}
         if (!in_array('pos_uzivatel', $cols, true)) try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN pos_uzivatel VARCHAR(100) DEFAULT NULL"); } catch (Throwable $e) {}
+        if (!in_array('pokladna', $cols, true))     try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN pokladna VARCHAR(40) DEFAULT NULL"); } catch (Throwable $e) {} // 🆕 pokladna per stanice
         // 🆕 v2.9.270 — kompozitní indexy pro hot queries (dashboard provoz, quick_history)
         try { $pdo->exec("CREATE INDEX idx_puvod_datum ON objednavky (puvod, datum_objednani)"); } catch (Throwable $e) {}
         try { $pdo->exec("CREATE INDEX idx_pos_payment ON objednavky (pos_payment, datum_objednani)"); } catch (Throwable $e) {}
@@ -1355,16 +1356,28 @@ if ($method === 'POST' && $action === 'quick_order') {
             $odberatel_id = (int)$walkin;
         }
 
+        // 🆕 Pokladna per stanice — z tokenu zařízení dohledej přiřazenou pokladnu (volitelné)
+        $pokladna = null;
+        $stTok = preg_replace('/[^a-zA-Z0-9]/', '', (string) ($d['station_token'] ?? ''));
+        if ($stTok !== '') {
+            try {
+                $ps = $pdo->prepare("SELECT pokladna FROM stanice WHERE token = :t LIMIT 1");
+                $ps->execute([':t' => $stTok]);
+                $pk = $ps->fetchColumn();
+                if ($pk !== false && $pk !== null && $pk !== '') $pokladna = mb_substr((string) $pk, 0, 40);
+            } catch (Throwable $e) { /* tabulka stanice nemusí existovat */ }
+        }
+
         // Hlavička
         $st = $pdo->prepare("
             INSERT INTO objednavky (
                 cislo, typ, odberatel_id, datum_objednani, datum_dodani,
                 castka_bez_dph, castka_dph, castka_celkem, stav, puvod,
-                pos_typ, pos_payment, pos_tip, pos_uzivatel, poznamka
+                pos_typ, pos_payment, pos_tip, pos_uzivatel, poznamka, pokladna
             ) VALUES (
                 :cislo, 'pos', :ob, NOW(), CURDATE(),
                 :bd, :d, :c, :stav, 'pos',
-                :pt, :pp, :tip, :uziv, :poz
+                :pt, :pp, :tip, :uziv, :poz, :pokladna
             )
         ");
         $admin_login = $_SESSION['admin_login'] ?? ($_SESSION['admin_user']['login'] ?? null);
@@ -1379,6 +1392,7 @@ if ($method === 'POST' && $action === 'quick_order') {
             'tip'   => $pos_tip,
             'uziv'  => $admin_login,
             'poz'   => $poznamka . ($poznamka ? "\n\n" : '') . "POS-META: " . $meta_json,
+            'pokladna' => $pokladna,
         ];
         // 🆕 v3.0.212 — číslo z atomického čítače (pos_next_doklad). Retry je už jen pojistka:
         //   na nepravděpodobnou duplicitu vezme další atomické číslo (dříve MAX+1 race ~2%).
@@ -1803,7 +1817,7 @@ function pos_finalize_ucet_payment(PDO $pdo, int $ucetId, string $zpusob = 'onli
     return ['ok' => true, 'doklad' => $cislo, 'sum_paid' => $sumPaid];
 }
 
-function pos_uzaverka_data(PDO $pdo, string $date): array {
+function pos_uzaverka_data(PDO $pdo, string $date, ?string $pokladna = null): array {
     $dNext = date('Y-m-d', strtotime($date . ' +1 day'));
     $METODY = ['hotovost','karta','qr','online','poukaz','prevod','ostatni'];
     $normZ = function ($z) {
@@ -1825,13 +1839,16 @@ function pos_uzaverka_data(PDO $pdo, string $date): array {
     //   dvojí počítání. (Volající spustí pos_backfill_sales($date) předem.)
     // POS prodeje (objednavky pokladních kanálů, datum dle datum_objednani)
     $pokIn = pos_pokladni_sql($pdo); // 🆕 v3.0.212
+    $pkFilter = ($pokladna !== null && $pokladna !== '') ? ' AND pokladna = :pk' : '';
     try {
         $tw = $pdo->prepare("
             SELECT COALESCE(NULLIF(pos_uzivatel,''),'(bez obsluhy)') AS obsluha, pos_payment, castka_celkem, COALESCE(pos_tip,0) AS tip
             FROM objednavky
-            WHERE {$pokIn} AND stav <> 'zrusena' AND datum_objednani >= :d AND datum_objednani < :dn
+            WHERE {$pokIn} AND stav <> 'zrusena' AND datum_objednani >= :d AND datum_objednani < :dn{$pkFilter}
         ");
-        $tw->execute(['d' => $date, 'dn' => $dNext]);
+        $bind = ['d' => $date, 'dn' => $dNext];
+        if ($pkFilter) $bind['pk'] = $pokladna;
+        $tw->execute($bind);
         foreach ($tw->fetchAll() as $r) {
             $j = $r['obsluha']; $touch($stanice, $j);
             $stanice[$j]['metody'][$normZ($r['pos_payment'])] += (float) $r['castka_celkem'];
@@ -1852,7 +1869,17 @@ function pos_uzaverka_data(PDO $pdo, string $date): array {
     foreach ($METODY as $m) $total['metody'][$m] = round($total['metody'][$m], 2);
     $arr = array_values($stanice);
     usort($arr, fn($a, $b) => $b['trzba'] <=> $a['trzba']);
-    return ['date' => $date, 'metody' => $METODY, 'stanice' => $arr, 'total' => $total];
+    // Seznam pokladen s prodejem v daný den (pro filtr per kasa) — nezávisle na aktuálním filtru
+    $pokladny = [];
+    try {
+        $pq = $pdo->prepare("SELECT DISTINCT pokladna FROM objednavky
+            WHERE {$pokIn} AND stav <> 'zrusena' AND datum_objednani >= :d AND datum_objednani < :dn
+              AND pokladna IS NOT NULL AND pokladna <> '' ORDER BY pokladna");
+        $pq->execute(['d' => $date, 'dn' => $dNext]);
+        $pokladny = $pq->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {}
+    return ['date' => $date, 'metody' => $METODY, 'stanice' => $arr, 'total' => $total,
+            'pokladny' => $pokladny, 'pokladna' => ($pokladna !== null && $pokladna !== '') ? $pokladna : null];
 }
 function pos_uzaverky_ensure(PDO $pdo): void {
     static $done = false; if ($done) return; $done = true;
@@ -1874,9 +1901,10 @@ function pos_uzaverky_ensure(PDO $pdo): void {
 if ($method === 'GET' && $action === 'uzaverka') {
     $date = $_GET['date'] ?? date('Y-m-d');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) json_error('Neplatné datum', 400);
+    $pokladnaF = isset($_GET['pokladna']) ? mb_substr(trim((string) $_GET['pokladna']), 0, 40) : null;
     pos_uzaverky_ensure($pdo);
     pos_backfill_sales($pdo, $date); // dine-in účty → objednávky (než spočítáme)
-    $data = pos_uzaverka_data($pdo, $date);
+    $data = pos_uzaverka_data($pdo, $date, $pokladnaF);
     $uz = $pdo->prepare("SELECT id, kdo, vytvoreno, celkem, pocet_dokladu FROM pos_uzaverky WHERE datum = :d ORDER BY id DESC LIMIT 1");
     $uz->execute(['d' => $date]);
     $data['uzavreno'] = $uz->fetch(PDO::FETCH_ASSOC) ?: null;

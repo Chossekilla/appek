@@ -1207,6 +1207,7 @@
         method: 'POST',
         body: JSON.stringify({
           idempotency_key: idempotencyKey,
+          station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })(),
           polozky: State.cart.map(it => ({
             vyrobek_id:   it.vyrobek_id,
             nazev:        it.nazev,
@@ -2709,7 +2710,7 @@
         <div id="uzav-body"><div class="pos-loading" style="padding:40px;text-align:center">⏳ Načítám…</div></div>
       </div>`;
     try {
-      const r = await api('admin_pos.php?action=uzaverka&date=' + date);
+      const r = await api('admin_pos.php?action=uzaverka&date=' + date + (State._uzavPokladna ? '&pokladna=' + encodeURIComponent(State._uzavPokladna) : ''));
       State._uzavData = r;
       const metodyRows = r.metody.filter(m => r.total.metody[m] > 0).map(m =>
         `<div class="uzav-row"><span>${UZAV_ML[m] || m}</span><strong>${fmt(r.total.metody[m])} Kč</strong></div>`).join('') || '<div class="uzav-row" style="opacity:.6"><span>Žádné platby</span></div>';
@@ -2720,7 +2721,9 @@
           <div class="uzav-st-metody">${r.metody.filter(m => s.metody[m] > 0).map(m => `${UZAV_ML[m] || m}: ${fmt(s.metody[m])}`).join(' · ') || '—'}</div>
           ${s.tip > 0 ? `<div class="uzav-st-tip">💟 dýška ${fmt(s.tip)} Kč</div>` : ''}
         </div>`).join('') : '<div class="pos-uzav-empty">🗓️ Žádné prodeje za tento den</div>';
+      const pokFilter = (r.pokladny && r.pokladny.length) ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap"><span style="font-size:13px;color:#555">🏦 Pokladna:</span><select onchange="posUzavSetPokladna(this.value)" style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px"><option value="" ${!State._uzavPokladna ? 'selected' : ''}>Všechny pokladny</option>${r.pokladny.map(p => `<option value="${esc(p)}" ${State._uzavPokladna === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>` : '';
       document.getElementById('uzav-body').innerHTML = `
+        ${pokFilter}
         ${r.uzavreno ? `<div class="uzav-closed">🔒 Den už uzavřen — <strong>${esc(r.uzavreno.kdo || '')}</strong> · ${esc(String(r.uzavreno.vytvoreno || '').slice(0, 16))} · ${fmt(r.uzavreno.celkem)} Kč</div>` : ''}
         <div class="uzav-total-box">
           <div class="uzav-total-main"><span>CELKEM</span><strong>${fmt(r.total.trzba)} Kč</strong></div>
@@ -2739,6 +2742,7 @@
     }
   }
   window.posUzavSetDate = function(d) { State._uzavDate = d; const p = document.getElementById('pos-tab-content'); if (p) renderUzaverka(p); };
+  window.posUzavSetPokladna = function(p) { State._uzavPokladna = p || ''; const el = document.getElementById('pos-tab-content'); if (el) renderUzaverka(el); };
   window.posUzavClose = async function(date) {
     if (!confirm('Uzavřít den ' + date + '?\n\nUloží se snapshot uzávěrky (tržby + rozpad na obsluhu) pro audit.')) return;
     try {

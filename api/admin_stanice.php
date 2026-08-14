@@ -31,12 +31,13 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS stanice (
   user_agent VARCHAR(255) DEFAULT NULL,
   watch TINYINT(1) NOT NULL DEFAULT 0,
   printer_id INT NULL DEFAULT NULL,
+  pokladna VARCHAR(40) NULL DEFAULT NULL,
   first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
   last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
 // idempotentní přidání sloupců pro starší instalace (tabulka už mohla vzniknout dřív)
-foreach (['watch' => 'TINYINT(1) NOT NULL DEFAULT 0', 'printer_id' => 'INT NULL DEFAULT NULL'] as $col => $def) {
+foreach (['watch' => 'TINYINT(1) NOT NULL DEFAULT 0', 'printer_id' => 'INT NULL DEFAULT NULL', 'pokladna' => 'VARCHAR(40) NULL DEFAULT NULL'] as $col => $def) {
     try {
         if (!$pdo->query("SHOW COLUMNS FROM stanice LIKE " . $pdo->quote($col))->fetchColumn()) {
             $pdo->exec("ALTER TABLE stanice ADD COLUMN $col $def");
@@ -90,7 +91,7 @@ if ($isPos) {
 // ─── LIST — přehled stanic + online flag ─────────────────────────────────────
 if ($action === '' || $action === 'list') {
     $threshold = 90; // s — do kolika sekund od heartbeatu je zařízení „online"
-    $rows = $pdo->query("SELECT id, nazev, role, ip, user_agent, watch, printer_id, first_seen, last_seen,
+    $rows = $pdo->query("SELECT id, nazev, role, ip, user_agent, watch, printer_id, pokladna, first_seen, last_seen,
         TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS sec_ago
         FROM stanice ORDER BY (TIMESTAMPDIFF(SECOND, last_seen, NOW()) <= $threshold) DESC, last_seen DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -141,6 +142,18 @@ if ($action === 'set_printer') {
     if ($id <= 0) json_error('Chybí id', 400);
     $pdo->prepare("UPDATE stanice SET printer_id = :p WHERE id = :id")->execute([':p' => $pid, ':id' => $id]);
     json_response(['ok' => true, 'printer_id' => $pid]);
+}
+
+// ─── SET_POKLADNA — přiřaď pokladnu (kasu) zařízení → uzávěrka/tržby per kasa ─
+if ($action === 'set_pokladna') {
+    $in = _stanice_body();
+    $id = (int) ($in['id'] ?? 0);
+    $pk = trim((string) ($in['pokladna'] ?? ''));
+    if (mb_strlen($pk) > 40) $pk = mb_substr($pk, 0, 40);
+    if ($id <= 0) json_error('Chybí id', 400);
+    $pdo->prepare("UPDATE stanice SET pokladna = :p WHERE id = :id")
+        ->execute([':p' => ($pk !== '' ? $pk : null), ':id' => $id]);
+    json_response(['ok' => true, 'pokladna' => ($pk !== '' ? $pk : null)]);
 }
 
 // ─── DELETE (zapomenout) ─────────────────────────────────────────────────────

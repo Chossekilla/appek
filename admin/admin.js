@@ -32153,6 +32153,9 @@ async function staniceLoadOnline() {
       </div>
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
         ${printerCtrl}
+        <label style="font-size:12px;color:var(--text-2);display:inline-flex;align-items:center;gap:6px" title="Účtenky z tohoto zařízení půjdou pod tuto pokladnu → uzávěrka a tržby per kasa">🏦 Pokladna:
+          <input type="text" value="${esc(r.pokladna || '')}" placeholder="např. Pokladna 1" onchange="staniceSetPokladna(${r.id}, this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;width:120px;font-family:inherit">
+        </label>
         <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="staniceWatch(${r.id}, ${r.watch ? 0 : 1})" title="Upozornění když se zařízení přestane hlásit (offline)">
           ${r.watch ? '🔔 Hlídám offline' : '🔕 Nehlídat'}
         </button>
@@ -32186,6 +32189,10 @@ async function staniceWatch(id, on) {
 async function staniceSetPrinter(id, selEl) {
   const printer_id = selEl ? selEl.value : '';
   try { await api('admin_stanice.php?action=set_printer', { method: 'POST', body: { id, printer_id } }); }
+  catch (e) { alert('Chyba: ' + e.message); staniceLoadOnline(); }
+}
+async function staniceSetPokladna(id, val) {
+  try { await api('admin_stanice.php?action=set_pokladna', { method: 'POST', body: { id, pokladna: (val || '').trim() } }); }
   catch (e) { alert('Chyba: ' + e.message); staniceLoadOnline(); }
 }
 
