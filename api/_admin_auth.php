@@ -23,6 +23,7 @@ function require_admin(): array {
     if (!empty($_SESSION['pos_only_user'])) {
         $posAllowed = ['admin_pos.php', 'admin_pos_presets.php', 'admin_pos_print.php',
             'admin_tables.php', 'admin_vouchers.php', 'admin_klient_chyby.php', 'admin_kitchen.php',
+            'admin_stanice.php', // 🆕 heartbeat zařízení (jen ping; správa gated na plný admin uvnitř)
             'pay_qr.php', 'payment_methods.php', 'pos_auth.php', 'version.php', 'firma_branding.php', 'whoami.php'];
         $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '')));
         if (!in_array($script, $posAllowed, true)) {

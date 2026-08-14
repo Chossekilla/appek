@@ -1387,6 +1387,53 @@ function startNotifPolling() {
 }
 
 // =============================================================
+// 📱 STANICE — heartbeat zařízení (admin/kuchyň)
+// =============================================================
+// Zaregistruje toto zařízení a drží ho „online" v přehledu Nástroje → Stanice.
+// Trvalý token v localStorage identifikuje zařízení napříč reloady.
+// Ping jde jen když je uživatel přihlášený (máme CSRF token z loginu).
+(function stationHeartbeatAdmin() {
+  function stationToken() {
+    let t = '';
+    try { t = localStorage.getItem('appek_station_token') || ''; } catch (e) {}
+    if (!/^[a-f0-9]{24,}$/.test(t)) {
+      const a = new Uint8Array(16);
+      if (self.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
+      else for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 256);
+      t = Array.from(a, b => b.toString(16).padStart(2, '0')).join('');
+      try { localStorage.setItem('appek_station_token', t); } catch (e) {}
+    }
+    return t;
+  }
+  function defaultName() {
+    const ua = navigator.userAgent || '';
+    let os = 'zařízení';
+    if (/iPad/.test(ua)) os = 'iPad';
+    else if (/iPhone/.test(ua)) os = 'iPhone';
+    else if (/Android/.test(ua)) os = 'Android';
+    else if (/Macintosh|Mac OS/.test(ua)) os = 'Mac';
+    else if (/Windows/.test(ua)) os = 'Windows';
+    else if (/Linux/.test(ua)) os = 'Linux';
+    return 'Admin · ' + os;
+  }
+  async function ping() {
+    let csrf = '';
+    try { csrf = (typeof state !== 'undefined' && state && state.csrfToken) || localStorage.getItem('appek_csrf_token') || ''; } catch (e) {}
+    if (!csrf) return; // nepřihlášen → nepinguj (jméno by stejně dostalo 401)
+    if (typeof api !== 'function') return;
+    try {
+      await api('admin_stanice.php?action=ping', {
+        method: 'POST',
+        body: { token: stationToken(), role: 'admin', nazev: defaultName() },
+      });
+    } catch (e) { /* tiše — offline/nepřihlášen */ }
+  }
+  const kick = () => setTimeout(ping, 3000);
+  if (document.readyState !== 'loading') kick();
+  else document.addEventListener('DOMContentLoaded', kick);
+  setInterval(ping, 40000); // heartbeat každých 40 s (server počítá online do 90 s)
+})();
+// =============================================================
 // 📊 SVG SPARKLINE + BAR CHARTS (zero-dep)
 // =============================================================
 // 🆕 v2.9.248 — Sparkline upgrade: smooth bezier curve, glow, peak dot
@@ -31997,6 +32044,16 @@ async function renderStanice() {
       </div>
     </div>
 
+    <div class="card-block" style="padding:16px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+        <h3 style="margin:0;font-size:15px">🟢 Připojená zařízení <span id="stanice-online-count" style="font-size:12px;font-weight:400;color:var(--text-3)"></span></h3>
+        <button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="staniceLoadOnline()">🔄 Obnovit</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-3);margin:0 0 12px">Zařízení, která se ohlásila za posledních 90 s. Přejmenuj je, ať poznáš kasu od kuchyně — seznam se sám obnovuje.</p>
+      <div id="stanice-online">⏳ Načítám…</div>
+    </div>
+
+    <h3 style="margin:18px 0 8px;font-size:15px">➕ Připojit další zařízení</h3>
     <div class="stanice-grid">
       ${stanice.map(s => `
         <div class="card-block stanice-card">
@@ -32043,6 +32100,67 @@ async function renderStanice() {
   } else {
     stanice.forEach(s => { const el = document.getElementById('qr-' + s.id); if (el) el.innerHTML = '<span style="font-size:11px;color:var(--text-3)">QR knihovna nenačtena</span>'; });
   }
+
+  // Přehled připojených zařízení + auto-refresh (dokud jsme na stránce Stanice)
+  staniceLoadOnline();
+  if (window._staniceTimer) clearInterval(window._staniceTimer);
+  window._staniceTimer = setInterval(() => {
+    if (!document.getElementById('stanice-online')) { clearInterval(window._staniceTimer); window._staniceTimer = null; return; }
+    staniceLoadOnline();
+  }, 15000);
+}
+
+// 🆕 Stanice — přehled připojených zařízení (online flag z admin_stanice.php)
+window._staniceNames = {};
+async function staniceLoadOnline() {
+  const el = document.getElementById('stanice-online');
+  if (!el) return;
+  let d;
+  try { d = await api('admin_stanice.php?action=list'); }
+  catch (e) { el.innerHTML = `<div style="color:var(--danger-text);font-size:13px">Chyba načtení: ${esc(e.message)}</div>`; return; }
+  const rows = (d && d.stanice) || [];
+  const onlineN = rows.filter(r => r.online).length;
+  const cnt = document.getElementById('stanice-online-count');
+  if (cnt) cnt.textContent = rows.length ? `· ${onlineN} online / ${rows.length} celkem` : '';
+  window._staniceNames = {};
+  rows.forEach(r => { window._staniceNames[r.id] = r.nazev || ''; });
+  if (!rows.length) {
+    el.innerHTML = `<div style="padding:16px;text-align:center;background:var(--surface-2);border:1px dashed var(--border);border-radius:8px;color:var(--text-3);font-size:13px">Zatím žádné zařízení. Otevři appku na kase / kuchyni (viz QR níže) a za chvíli se tu objeví.</div>`;
+    return;
+  }
+  const roleLabel = { pos: '🧾 Kasa', admin: '🖥️ Admin', kuchyn: '🍳 Kuchyň' };
+  el.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px">` + rows.map(r => {
+    const dot = r.online ? '#22c55e' : '#c7c7cc';
+    const ago = r.online ? 'online' : ('naposledy ' + staniceAgo(r.sec_ago));
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)">
+      <span style="width:10px;height:10px;border-radius:50%;background:${dot};flex:0 0 auto;box-shadow:0 0 0 3px ${r.online ? 'rgba(34,197,94,0.15)' : 'transparent'}"></span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:14px">${esc(r.nazev || '(bez názvu)')} <span style="font-size:11px;font-weight:400;color:var(--text-3)">${roleLabel[r.role] || esc(r.role || '')}</span></div>
+        <div style="font-size:11.5px;color:var(--text-3)">${esc(r.ip || '')} · ${ago}</div>
+      </div>
+      <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceRename(${r.id})" title="Přejmenovat">✏️</button>
+      <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceForget(${r.id})" title="Zapomenout">🗑️</button>
+    </div>`;
+  }).join('') + `</div>`;
+}
+function staniceAgo(sec) {
+  sec = Math.max(0, sec | 0);
+  if (sec < 60) return 'před ' + sec + ' s';
+  if (sec < 3600) return 'před ' + Math.floor(sec / 60) + ' min';
+  if (sec < 86400) return 'před ' + Math.floor(sec / 3600) + ' h';
+  return 'před ' + Math.floor(sec / 86400) + ' dny';
+}
+async function staniceRename(id) {
+  const cur = (window._staniceNames && window._staniceNames[id]) || '';
+  const nazev = prompt('Název zařízení (např. „Kasa vepředu", „Kuchyň gril"):', cur);
+  if (nazev === null) return;
+  try { await api('admin_stanice.php?action=rename', { method: 'POST', body: { id, nazev } }); staniceLoadOnline(); }
+  catch (e) { alert('Chyba: ' + e.message); }
+}
+async function staniceForget(id) {
+  if (!confirm('Zapomenout tohle zařízení? Pokud je pořád připojené, za chvíli se přihlásí znovu.')) return;
+  try { await api('admin_stanice.php?action=delete', { method: 'POST', body: { id } }); staniceLoadOnline(); }
+  catch (e) { alert('Chyba: ' + e.message); }
 }
 
 // =============================================================

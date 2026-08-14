@@ -909,4 +909,29 @@
     window.addEventListener('offline', updateOnline);
     updateOnline();
   });
+
+  // 📱 Heartbeat stanice — kasa se hlásí do přehledu Nástroje → Stanice
+  (function posStationHeartbeat() {
+    function tok() {
+      let t = ''; try { t = localStorage.getItem('appek_station_token') || ''; } catch (e) {}
+      if (!/^[a-f0-9]{24,}$/.test(t)) {
+        const a = new Uint8Array(16);
+        if (self.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
+        else for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 256);
+        t = Array.from(a, b => b.toString(16).padStart(2, '0')).join('');
+        try { localStorage.setItem('appek_station_token', t); } catch (e) {}
+      }
+      return t;
+    }
+    async function ping() {
+      try {
+        await api('admin_stanice.php?action=ping', {
+          method: 'POST',
+          body: JSON.stringify({ token: tok(), role: 'pos', nazev: 'Kasa' }),
+        });
+      } catch (e) { /* tiše */ }
+    }
+    setTimeout(ping, 3000);
+    setInterval(ping, 40000);
+  })();
 })();
