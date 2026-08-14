@@ -1422,10 +1422,17 @@ function startNotifPolling() {
     if (!csrf) return; // nepřihlášen → nepinguj (jméno by stejně dostalo 401)
     if (typeof api !== 'function') return;
     try {
-      await api('admin_stanice.php?action=ping', {
+      const r = await api('admin_stanice.php?action=ping', {
         method: 'POST',
         body: { token: stationToken(), role: 'admin', nazev: defaultName() },
       });
+      // Dálkový reload (one-shot ze serveru)
+      if (r && r.cmd === 'reload') { try { location.reload(); } catch (e) {} return; }
+      // Výchozí obrazovka — aplikuj jednou po startu (kuchyň → Výroba apod.)
+      if (r && r.home && !window._staniceHomeApplied && typeof navigate === 'function') {
+        window._staniceHomeApplied = true;
+        try { navigate(r.home); } catch (e) {}
+      }
     } catch (e) { /* tiše — offline/nepřihlášen */ }
   }
   const kick = () => setTimeout(ping, 3000);
@@ -32149,6 +32156,7 @@ async function staniceLoadOnline() {
           <div style="font-weight:600;font-size:14px">${esc(r.nazev || '(bez názvu)')} <span style="font-size:11px;font-weight:400;color:var(--text-3)">${roleLabel[r.role] || esc(r.role || '')}</span></div>
           <div style="font-size:11.5px;color:var(--text-3)">${esc(r.ip || '')} · ${ago}</div>
         </div>
+        <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceReload(${r.id})" title="Poslat zařízení obnovení (reload) — do ~40 s">🔄</button>
         <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceRename(${r.id})" title="Přejmenovat">✏️</button>
         <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="staniceForget(${r.id})" title="Zapomenout">🗑️</button>
       </div>
@@ -32164,6 +32172,11 @@ async function staniceLoadOnline() {
         <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="staniceWatch(${r.id}, ${r.watch ? 0 : 1})" title="Upozornění když se zařízení přestane hlásit (offline)">
           ${r.watch ? '🔔 Hlídám offline' : '🔕 Nehlídat'}
         </button>
+        <label style="font-size:12px;color:var(--text-2);display:inline-flex;align-items:center;gap:6px" title="Po otevření admin appky na tomto zařízení se rovnou přepne sem (kuchyň → Výroba). Platí pro Admin, ne pro standalone /pos/.">🚀 Otevřít:
+          <select onchange="staniceSetHome(${r.id}, this)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit">
+            ${[['', '— výchozí (Přehled) —'], ['objednavky', 'Objednávky'], ['vyroba', 'Výroba / kuchyň'], ['rozvozy', 'Rozvozy']].map(([v, t]) => `<option value="${v}"${(r.home || '') === v ? ' selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </label>
       </div>
     </div>`;
   }).join('') + `</div>`;
@@ -32203,6 +32216,16 @@ async function staniceSetPokladna(id, el) {
     if (val === null) { staniceLoadOnline(); return; } // zrušeno → obnov (vrátí select zpět)
   }
   try { await api('admin_stanice.php?action=set_pokladna', { method: 'POST', body: { id, pokladna: (val || '').trim() } }); staniceLoadOnline(); }
+  catch (e) { alert('Chyba: ' + e.message); staniceLoadOnline(); }
+}
+async function staniceReload(id) {
+  if (!confirm('Poslat tomuto zařízení příkaz k obnovení (reload)?\nProvede se do ~40 s (při dalším ohlášení zařízení).')) return;
+  try { await api('admin_stanice.php?action=cmd', { method: 'POST', body: { id, cmd: 'reload' } }); alert('✅ Reload odeslán — zařízení se obnoví do ~40 s.'); }
+  catch (e) { alert('Chyba: ' + e.message); }
+}
+async function staniceSetHome(id, el) {
+  const home = (el && typeof el === 'object') ? el.value : (el || '');
+  try { await api('admin_stanice.php?action=set_home', { method: 'POST', body: { id, home } }); }
   catch (e) { alert('Chyba: ' + e.message); staniceLoadOnline(); }
 }
 

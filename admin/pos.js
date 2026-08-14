@@ -2931,10 +2931,11 @@
     }
     async function ping() {
       try {
-        await api('admin_stanice.php?action=ping', {
+        const r = await api('admin_stanice.php?action=ping', {
           method: 'POST',
           body: JSON.stringify({ token: tok(), role: 'pos', nazev: 'Kasa' }),
         });
+        if (r && r.cmd === 'reload') { try { location.reload(); } catch (e) {} }
       } catch (e) { /* tiše */ }
     }
     setTimeout(ping, 3000);

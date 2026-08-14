@@ -32,12 +32,14 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS stanice (
   watch TINYINT(1) NOT NULL DEFAULT 0,
   printer_id INT NULL DEFAULT NULL,
   pokladna VARCHAR(40) NULL DEFAULT NULL,
+  cmd VARCHAR(20) NULL DEFAULT NULL,
+  home VARCHAR(30) NULL DEFAULT NULL,
   first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
   last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
 // idempotentní přidání sloupců pro starší instalace (tabulka už mohla vzniknout dřív)
-foreach (['watch' => 'TINYINT(1) NOT NULL DEFAULT 0', 'printer_id' => 'INT NULL DEFAULT NULL', 'pokladna' => 'VARCHAR(40) NULL DEFAULT NULL'] as $col => $def) {
+foreach (['watch' => 'TINYINT(1) NOT NULL DEFAULT 0', 'printer_id' => 'INT NULL DEFAULT NULL', 'pokladna' => 'VARCHAR(40) NULL DEFAULT NULL', 'cmd' => 'VARCHAR(20) NULL DEFAULT NULL', 'home' => 'VARCHAR(30) NULL DEFAULT NULL'] as $col => $def) {
     try {
         if (!$pdo->query("SHOW COLUMNS FROM stanice LIKE " . $pdo->quote($col))->fetchColumn()) {
             $pdo->exec("ALTER TABLE stanice ADD COLUMN $col $def");
@@ -80,7 +82,19 @@ if ($action === 'ping') {
         ':t' => $token, ':n' => ($nazev !== '' ? $nazev : null),
         ':r' => ($role !== '' ? $role : null), ':ip' => $ip, ':ua' => $ua,
     ]);
-    json_response(['ok' => true]);
+    // Doruč tomuto zařízení případný příkaz (reload, one-shot) + výchozí obrazovku (home)
+    $cmd = null; $home = null;
+    try {
+        $q = $pdo->prepare("SELECT cmd, home FROM stanice WHERE token = :t LIMIT 1");
+        $q->execute([':t' => $token]);
+        $rd = $q->fetch(PDO::FETCH_ASSOC) ?: [];
+        $cmd  = (($rd['cmd'] ?? '') !== '') ? $rd['cmd'] : null;
+        $home = (($rd['home'] ?? '') !== '') ? $rd['home'] : null;
+        if ($cmd !== null) {
+            $pdo->prepare("UPDATE stanice SET cmd = NULL WHERE token = :t")->execute([':t' => $token]); // one-shot
+        }
+    } catch (Throwable $e) { /* sloupce nemusí existovat na staré instalaci */ }
+    json_response(['ok' => true, 'cmd' => $cmd, 'home' => $home]);
 }
 
 // ─── Od tud dál jen plný admin (POS PIN účet nesmí spravovat stanice) ────────
@@ -91,7 +105,7 @@ if ($isPos) {
 // ─── LIST — přehled stanic + online flag ─────────────────────────────────────
 if ($action === '' || $action === 'list') {
     $threshold = 90; // s — do kolika sekund od heartbeatu je zařízení „online"
-    $rows = $pdo->query("SELECT id, nazev, role, ip, user_agent, watch, printer_id, pokladna, first_seen, last_seen,
+    $rows = $pdo->query("SELECT id, nazev, role, ip, user_agent, watch, printer_id, pokladna, home, first_seen, last_seen,
         TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS sec_ago
         FROM stanice ORDER BY (TIMESTAMPDIFF(SECOND, last_seen, NOW()) <= $threshold) DESC, last_seen DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -154,6 +168,28 @@ if ($action === 'set_pokladna') {
     $pdo->prepare("UPDATE stanice SET pokladna = :p WHERE id = :id")
         ->execute([':p' => ($pk !== '' ? $pk : null), ':id' => $id]);
     json_response(['ok' => true, 'pokladna' => ($pk !== '' ? $pk : null)]);
+}
+
+// ─── CMD — pošli zařízení příkaz (reload); doručí se při dalším heartbeatu ────
+if ($action === 'cmd') {
+    $in = _stanice_body();
+    $id = (int) ($in['id'] ?? 0);
+    $c  = preg_replace('/[^a-z_]/', '', strtolower((string) ($in['cmd'] ?? '')));
+    if ($id <= 0) json_error('Chybí id', 400);
+    if (!in_array($c, ['reload'], true)) json_error('Neznámý příkaz', 400);
+    $pdo->prepare("UPDATE stanice SET cmd = :c WHERE id = :id")->execute([':c' => $c, ':id' => $id]);
+    json_response(['ok' => true, 'cmd' => $c]);
+}
+
+// ─── SET_HOME — výchozí obrazovka po startu appky na tomto zařízení ──────────
+if ($action === 'set_home') {
+    $in = _stanice_body();
+    $id = (int) ($in['id'] ?? 0);
+    $h  = substr(preg_replace('/[^a-z_]/', '', strtolower((string) ($in['home'] ?? ''))), 0, 30);
+    if ($id <= 0) json_error('Chybí id', 400);
+    $pdo->prepare("UPDATE stanice SET home = :h WHERE id = :id")
+        ->execute([':h' => ($h !== '' ? $h : null), ':id' => $id]);
+    json_response(['ok' => true, 'home' => ($h !== '' ? $h : null)]);
 }
 
 // ─── DELETE (zapomenout) ─────────────────────────────────────────────────────

@@ -34,10 +34,17 @@
     if (!csrf) return; // nepřihlášen → nepinguj (jméno by stejně dostalo 401)
     if (typeof api !== 'function') return;
     try {
-      await api('admin_stanice.php?action=ping', {
+      const r = await api('admin_stanice.php?action=ping', {
         method: 'POST',
         body: { token: stationToken(), role: 'admin', nazev: defaultName() },
       });
+      // Dálkový reload (one-shot ze serveru)
+      if (r && r.cmd === 'reload') { try { location.reload(); } catch (e) {} return; }
+      // Výchozí obrazovka — aplikuj jednou po startu (kuchyň → Výroba apod.)
+      if (r && r.home && !window._staniceHomeApplied && typeof navigate === 'function') {
+        window._staniceHomeApplied = true;
+        try { navigate(r.home); } catch (e) {}
+      }
     } catch (e) { /* tiše — offline/nepřihlášen */ }
   }
   const kick = () => setTimeout(ping, 3000);
