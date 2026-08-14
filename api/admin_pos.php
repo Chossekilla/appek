@@ -1893,9 +1893,11 @@ function pos_uzaverky_ensure(PDO $pdo): void {
             snapshot_json MEDIUMTEXT NOT NULL,
             kdo VARCHAR(120) NULL,
             vytvoreno DATETIME DEFAULT CURRENT_TIMESTAMP,
+            pokladna VARCHAR(40) NULL,
             INDEX idx_datum (datum)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     } catch (Throwable $e) {}
+    try { $pdo->exec("ALTER TABLE pos_uzaverky ADD COLUMN pokladna VARCHAR(40) NULL"); } catch (Throwable $e) {} // 🆕 per-pokladna Z-uzávěrka
 }
 
 // GET ?action=uzaverka&date=YYYY-MM-DD → X-přehled (rozpad na obsluhu + platby + součty)
@@ -1906,8 +1908,8 @@ if ($method === 'GET' && $action === 'uzaverka') {
     pos_uzaverky_ensure($pdo);
     pos_backfill_sales($pdo, $date); // dine-in účty → objednávky (než spočítáme)
     $data = pos_uzaverka_data($pdo, $date, $pokladnaF);
-    $uz = $pdo->prepare("SELECT id, kdo, vytvoreno, celkem, pocet_dokladu FROM pos_uzaverky WHERE datum = :d ORDER BY id DESC LIMIT 1");
-    $uz->execute(['d' => $date]);
+    $uz = $pdo->prepare("SELECT id, kdo, vytvoreno, celkem, pocet_dokladu FROM pos_uzaverky WHERE datum = :d AND (pokladna <=> :pk) ORDER BY id DESC LIMIT 1");
+    $uz->execute(['d' => $date, 'pk' => ($pokladnaF !== null && $pokladnaF !== '') ? $pokladnaF : null]);
     $data['uzavreno'] = $uz->fetch(PDO::FETCH_ASSOC) ?: null;
     json_response($data);
 }
@@ -1917,16 +1919,18 @@ if ($method === 'POST' && $action === 'uzaverka_close') {
     $d = json_input();
     $date = $d['date'] ?? date('Y-m-d');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) json_error('Neplatné datum', 400);
+    $pokladnaC = isset($d['pokladna']) ? mb_substr(trim((string) $d['pokladna']), 0, 40) : '';
+    $pokladnaC = ($pokladnaC !== '') ? $pokladnaC : null;
     pos_uzaverky_ensure($pdo);
     pos_backfill_sales($pdo, $date); // dine-in účty → objednávky (než uložíme snapshot)
-    $data = pos_uzaverka_data($pdo, $date);
+    $data = pos_uzaverka_data($pdo, $date, $pokladnaC);
     $kdo = $_SESSION['admin_jmeno'] ?? 'admin';
-    $pdo->prepare("INSERT INTO pos_uzaverky (datum, celkem, pocet_dokladu, snapshot_json, kdo) VALUES (:d,:c,:p,:s,:k)")
+    $pdo->prepare("INSERT INTO pos_uzaverky (datum, celkem, pocet_dokladu, snapshot_json, kdo, pokladna) VALUES (:d,:c,:p,:s,:k,:pk)")
         ->execute([
             'd' => $date, 'c' => $data['total']['trzba'], 'p' => $data['total']['pocet'],
-            's' => json_encode($data, JSON_UNESCAPED_UNICODE), 'k' => $kdo,
+            's' => json_encode($data, JSON_UNESCAPED_UNICODE), 'k' => $kdo, 'pk' => $pokladnaC,
         ]);
-    json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId(), 'celkem' => $data['total']['trzba'], 'pocet' => $data['total']['pocet'], 'kdo' => $kdo]);
+    json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId(), 'celkem' => $data['total']['trzba'], 'pocet' => $data['total']['pocet'], 'kdo' => $kdo, 'pokladna' => $pokladnaC]);
 }
 
 // 🆕 v3.0.275 — GET ?action=refundovatelne&objednavka_id=X → řádky účtenky + už vráceno + zbývá (UI částečné vratky)

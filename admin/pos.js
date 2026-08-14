@@ -2734,7 +2734,7 @@
         <div class="uzav-stanice-grid">${staniceCards}</div>
         <div class="uzav-actions">
           <button class="pos-tm-btn" onclick="posUzavPrint()">🖨️ Tisk uzávěrky</button>
-          <button class="pos-tm-btn is-primary" onclick="posUzavClose('${date}')">🔒 Uzavřít den${r.uzavreno ? ' (znovu)' : ''}</button>
+          <button class="pos-tm-btn is-primary" onclick="posUzavClose('${date}')">🔒 ${State._uzavPokladna ? 'Uzavřít pokladnu' : 'Uzavřít den'}${r.uzavreno ? ' (znovu)' : ''}</button>
         </div>`;
     } catch (e) {
       const b = document.getElementById('uzav-body');
@@ -2744,10 +2744,12 @@
   window.posUzavSetDate = function(d) { State._uzavDate = d; const p = document.getElementById('pos-tab-content'); if (p) renderUzaverka(p); };
   window.posUzavSetPokladna = function(p) { State._uzavPokladna = p || ''; const el = document.getElementById('pos-tab-content'); if (el) renderUzaverka(el); };
   window.posUzavClose = async function(date) {
-    if (!confirm('Uzavřít den ' + date + '?\n\nUloží se snapshot uzávěrky (tržby + rozpad na obsluhu) pro audit.')) return;
+    const pk = State._uzavPokladna || '';
+    const co = pk ? ('pokladnu „' + pk + '" (' + date + ')') : ('den ' + date);
+    if (!confirm('Uzavřít ' + co + '?\n\nUloží se snapshot uzávěrky pro audit.')) return;
     try {
-      const r = await api('admin_pos.php?action=uzaverka_close', { method: 'POST', body: JSON.stringify({ date }) });
-      toast('🔒 Den uzavřen · ' + fmt(r.celkem) + ' Kč · ' + r.pocet + ' dokladů', 'success');
+      const r = await api('admin_pos.php?action=uzaverka_close', { method: 'POST', body: JSON.stringify({ date, pokladna: pk }) });
+      toast('🔒 Uzavřeno' + (r.pokladna ? ' · ' + r.pokladna : '') + ' · ' + fmt(r.celkem) + ' Kč · ' + r.pocet + ' dokladů', 'success');
       const p = document.getElementById('pos-tab-content'); if (p) renderUzaverka(p);
     } catch (e) { toast('Chyba: ' + e.message, 'error'); }
   };
@@ -2757,7 +2759,7 @@
     if (!w) return toast('Povol popup okna pro tisk', 'error');
     const stRows = r.stanice.map(s => `<div class="st"><div class="sth"><b>${esc(s.obsluha)}</b><span>${s.pocet} dokl.</span></div><div class="sttot">${fmt(s.trzba)} Kc</div><div class="stm">${r.metody.filter(m => s.metody[m] > 0).map(m => (UZAV_ML[m] || m).replace(/^[^ ]+ /, '') + ': ' + fmt(s.metody[m])).join(' · ') || '-'}</div></div>`).join('');
     const mRows = r.metody.filter(m => r.total.metody[m] > 0).map(m => `<div class="row"><span>${(UZAV_ML[m] || m).replace(/^[^ ]+ /, '')}</span><b>${fmt(r.total.metody[m])} Kc</b></div>`).join('');
-    w.document.write(`<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>Uzaverka ${r.date}</title><style>body{font-family:'Courier New',monospace;width:80mm;margin:0 auto;padding:8mm 6mm;color:#000}.c{text-align:center}.big{font-size:16pt;font-weight:800}hr{border:0;border-top:1px dashed #000;margin:3mm 0}.row{display:flex;justify-content:space-between;margin:1mm 0}.st{margin:2mm 0;padding-bottom:2mm;border-bottom:1px dotted #999}.sth{display:flex;justify-content:space-between}.sttot{font-size:14pt;font-weight:800}.stm{font-size:9pt;color:#444}.tot{font-size:17pt;font-weight:800;display:flex;justify-content:space-between;margin-top:3mm}@media print{@page{size:80mm auto;margin:0}}</style></head><body><div class="c big">DENNI UZAVERKA</div><div class="c">${r.date}</div><hr><div style="font-weight:700">NA STANICE (OBSLUHU)</div>${stRows || '<div class="c">zadne prodeje</div>'}<hr><div style="font-weight:700">PLATBY</div>${mRows || '<div class="row"><span>-</span></div>'}<hr><div class="tot"><span>CELKEM</span><span>${fmt(r.total.trzba)} Kc</span></div><div class="row"><span>Dokladu</span><b>${r.total.pocet}</b></div>${r.total.tip > 0 ? `<div class="row"><span>Dyska</span><b>${fmt(r.total.tip)} Kc</b></div>` : ''}<hr><div class="c" style="font-size:9pt">Vytisteno ${new Date().toLocaleString('cs-CZ')}</div><script>setTimeout(function(){window.print()},300)<\/script></body></html>`);
+    w.document.write(`<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>Uzaverka ${r.date}</title><style>body{font-family:'Courier New',monospace;width:80mm;margin:0 auto;padding:8mm 6mm;color:#000}.c{text-align:center}.big{font-size:16pt;font-weight:800}hr{border:0;border-top:1px dashed #000;margin:3mm 0}.row{display:flex;justify-content:space-between;margin:1mm 0}.st{margin:2mm 0;padding-bottom:2mm;border-bottom:1px dotted #999}.sth{display:flex;justify-content:space-between}.sttot{font-size:14pt;font-weight:800}.stm{font-size:9pt;color:#444}.tot{font-size:17pt;font-weight:800;display:flex;justify-content:space-between;margin-top:3mm}@media print{@page{size:80mm auto;margin:0}}</style></head><body><div class="c big">DENNI UZAVERKA</div><div class="c">${r.date}</div>${r.pokladna ? '<div class="c" style="font-weight:700">' + String(r.pokladna).replace(/[<>]/g, '') + '</div>' : ''}<hr><div style="font-weight:700">NA STANICE (OBSLUHU)</div>${stRows || '<div class="c">zadne prodeje</div>'}<hr><div style="font-weight:700">PLATBY</div>${mRows || '<div class="row"><span>-</span></div>'}<hr><div class="tot"><span>CELKEM</span><span>${fmt(r.total.trzba)} Kc</span></div><div class="row"><span>Dokladu</span><b>${r.total.pocet}</b></div>${r.total.tip > 0 ? `<div class="row"><span>Dyska</span><b>${fmt(r.total.tip)} Kc</b></div>` : ''}<hr><div class="c" style="font-size:9pt">Vytisteno ${new Date().toLocaleString('cs-CZ')}</div><script>setTimeout(function(){window.print()},300)<\/script></body></html>`);
     w.document.close();
   };
 

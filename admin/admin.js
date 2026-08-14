@@ -32125,6 +32125,7 @@ async function staniceLoadOnline() {
   window._staniceNames = {};
   rows.forEach(r => { window._staniceNames[r.id] = r.nazev || ''; });
   window._stanicePrinters = (d && d.printers) || [];
+  window._staniceZname = [...new Set(rows.map(x => x.pokladna).filter(Boolean))]; // číselník pokladen z existujících
   if (!rows.length) {
     el.innerHTML = `<div style="padding:16px;text-align:center;background:var(--surface-2);border:1px dashed var(--border);border-radius:8px;color:var(--text-3);font-size:13px">Zatím žádné zařízení. Otevři appku na kase / kuchyni (viz QR níže) a za chvíli se tu objeví.</div>`;
     return;
@@ -32154,7 +32155,11 @@ async function staniceLoadOnline() {
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
         ${printerCtrl}
         <label style="font-size:12px;color:var(--text-2);display:inline-flex;align-items:center;gap:6px" title="Účtenky z tohoto zařízení půjdou pod tuto pokladnu → uzávěrka a tržby per kasa">🏦 Pokladna:
-          <input type="text" value="${esc(r.pokladna || '')}" placeholder="např. Pokladna 1" onchange="staniceSetPokladna(${r.id}, this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;width:120px;font-family:inherit">
+          <select onchange="staniceSetPokladna(${r.id}, this)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit">
+            <option value="">— žádná —</option>
+            ${(window._staniceZname || []).map(pk => `<option value="${esc(pk)}"${r.pokladna === pk ? ' selected' : ''}>${esc(pk)}</option>`).join('')}
+            <option value="__new__">＋ Nová pokladna…</option>
+          </select>
         </label>
         <button class="btn-secondary" style="font-size:12px;padding:5px 10px" onclick="staniceWatch(${r.id}, ${r.watch ? 0 : 1})" title="Upozornění když se zařízení přestane hlásit (offline)">
           ${r.watch ? '🔔 Hlídám offline' : '🔕 Nehlídat'}
@@ -32191,8 +32196,13 @@ async function staniceSetPrinter(id, selEl) {
   try { await api('admin_stanice.php?action=set_printer', { method: 'POST', body: { id, printer_id } }); }
   catch (e) { alert('Chyba: ' + e.message); staniceLoadOnline(); }
 }
-async function staniceSetPokladna(id, val) {
-  try { await api('admin_stanice.php?action=set_pokladna', { method: 'POST', body: { id, pokladna: (val || '').trim() } }); }
+async function staniceSetPokladna(id, el) {
+  let val = (el && typeof el === 'object') ? el.value : el;
+  if (val === '__new__') {
+    val = prompt('Název nové pokladny (např. „Pokladna 2", „Bar"):', '');
+    if (val === null) { staniceLoadOnline(); return; } // zrušeno → obnov (vrátí select zpět)
+  }
+  try { await api('admin_stanice.php?action=set_pokladna', { method: 'POST', body: { id, pokladna: (val || '').trim() } }); staniceLoadOnline(); }
   catch (e) { alert('Chyba: ' + e.message); staniceLoadOnline(); }
 }
 
