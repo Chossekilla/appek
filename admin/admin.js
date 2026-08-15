@@ -32098,15 +32098,19 @@ async function renderStanice() {
     </style>
   `;
 
-  // Vykresli QR kódy (admin/lib/qrcode.min.js — global QRCode)
-  if (window.QRCode) {
+  // Vykresli QR kódy — knihovnu načti LÍNĚ (nezávisle na index.html; přežije i chybějící <script>)
+  staniceEnsureQRCode().then((ok) => {
     stanice.forEach(s => {
       const el = document.getElementById('qr-' + s.id);
-      if (el) { try { new QRCode(el, { text: s.url, width: 148, height: 148, correctLevel: QRCode.CorrectLevel.M }); } catch (e) {} }
+      if (!el) return;
+      el.innerHTML = '';
+      if (ok && window.QRCode) {
+        try { new QRCode(el, { text: s.url, width: 148, height: 148, correctLevel: QRCode.CorrectLevel.M }); } catch (e) {}
+      } else {
+        el.innerHTML = '<span style="font-size:11px;color:var(--text-3)">QR nedostupné — použij adresu níže</span>';
+      }
     });
-  } else {
-    stanice.forEach(s => { const el = document.getElementById('qr-' + s.id); if (el) el.innerHTML = '<span style="font-size:11px;color:var(--text-3)">QR knihovna nenačtena</span>'; });
-  }
+  });
 
   // Přehled připojených zařízení + auto-refresh (dokud jsme na stránce Stanice)
   staniceLoadOnline();
@@ -32254,6 +32258,20 @@ async function staniceAllowlist(on) {
   if (on && !confirm('Zapnout vyžadování schválení?\n\nOd teď smí účtovat jen SCHVÁLENÁ zařízení. Nezapomeň schválit svoje kasy, jinak nebudou moct prodávat.')) { staniceLoadOnline(); return; }
   try { await api('admin_stanice.php?action=set_allowlist', { method: 'POST', body: { on: on ? 1 : 0 } }); staniceLoadOnline(); }
   catch (e) { alert('Chyba: ' + e.message); staniceLoadOnline(); }
+}
+// Líné načtení QR knihovny (lib/qrcode.min.js, relativně k /admin/) — jednou, přes globální promise.
+// Nezávislé na <script> v index.html (ten se občas na lokálu ztratí revertem).
+function staniceEnsureQRCode() {
+  if (window.QRCode) return Promise.resolve(true);
+  if (window._qrLoadPromise) return window._qrLoadPromise;
+  window._qrLoadPromise = new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = 'lib/qrcode.min.js?v=' + (window.APPEK_ADMIN_JS_VERSION || '1');
+    s.onload = () => resolve(!!window.QRCode);
+    s.onerror = () => { window._qrLoadPromise = null; resolve(false); }; // dovol pozdější retry
+    document.head.appendChild(s);
+  });
+  return window._qrLoadPromise;
 }
 
 // =============================================================
