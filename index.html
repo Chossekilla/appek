@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#BA7517">
-<title>APPEK B2B — Univerzální objednávkový a evidenční systém pro gastro, pekárny, cukrárny, restaurace</title>
-<meta name="description" content="Univerzální B2B/gastro evidence: objednávky, faktury, HACCP, cenovky, kasa, KDS, sklady. PWA, lokální i cloud, 5 jazyků (CZ/SK/EN/DE/ES). Vhodné pro pekárny, cukrárny, restaurace, catering, e-shopy. Od 12 990 Kč.">
+<title>APPEK — jednoduchý systém pro pekárny, cukrárny a gastro</title>
+<meta name="description" content="Objednávky, kasa, faktury, sklady i HACCP v jednom přehledném systému. Bez měsíčních poplatků, vlastní hosting nebo cloud. Pro pekárny, cukrárny a restaurace. Od 12 990 Kč.">
 <meta name="keywords" content="B2B portál, gastro systém, objednávkový systém, fakturační systém, restaurace POS, kasa, KDS, HACCP, pekárna software, cukrárna evidence, catering software, e-shop, sklady">
 
 <!-- OG -->
@@ -1785,6 +1785,24 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
         "priceValidUntil": "2026-12-31"
       }
     }
+  ]
+}
+</script>
+
+<!-- FAQ structured data (FAQPage) — rich results z existujících otázek na stránce -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Funguje to bez internetu?", "acceptedAnswer": { "@type": "Answer", "text": "Ano — Local mode běží přímo na vašem počítači (XAMPP/MAMP) bez internetu. PWA s service workerem funguje offline i v cloudovém módu." } },
+    { "@type": "Question", "name": "Můžu mít vlastní hosting?", "acceptedAnswer": { "@type": "Answer", "text": "Ano. Postačí jakýkoliv webhosting s PHP 8+ a MySQL, nahrajete přes FTP. Návod pro Wedos, Active24, WebSupport i Hetzner." } },
+    { "@type": "Question", "name": "Jak je to s GDPR a osobními údaji?", "acceptedAnswer": { "@type": "Answer", "text": "V Local módu jsou data jen na vašem serveru. V cloud módu běží hostingy v EU s DPA smlouvou. Šifrované zálohy, audit log, právo na výmaz." } },
+    { "@type": "Question", "name": "Můžu si systém upravit?", "acceptedAnswer": { "@type": "Answer", "text": "Dostanete plný zdrojový kód (PHP + vanilla JS, žádný framework). Můžete si ho upravit sami nebo nechat upravit. Premium plán zahrnuje 10 hodin customizace." } },
+    { "@type": "Question", "name": "Co když se mi to nezalíbí?", "acceptedAnswer": { "@type": "Answer", "text": "14 dní zkušebně zdarma (Starter), 30 dní u Profi. Vrácení peněz bez otázek. Data si pak vyexportujete do Excelu, CSV nebo JSON." } },
+    { "@type": "Question", "name": "Jaké balíčky jsou navíc placené?", "acceptedAnswer": { "@type": "Answer", "text": "Cukrárna (+5 000 Kč), Lahůdkárna (+3 000), Restaurace (+4 000), Velký catering (+2 500) a Sezónní (+1 500/rok). U Premium jsou všechny v ceně." } },
+    { "@type": "Question", "name": "Můžu mít víc poboček?", "acceptedAnswer": { "@type": "Answer", "text": "Ano. Jeden admin pro centrálu a víc B2B účtů pro pobočky. Profi: 2 pobočky, Premium: neomezeně." } },
+    { "@type": "Question", "name": "Jak funguje export do účetnictví?", "acceptedAnswer": { "@type": "Answer", "text": "Faktury vyexportujete do ISDOC XML (český standard), CSV nebo JSON. Přímé napojení na Pohodu a FlexiBee, do ostatních přes ISDOC import." } }
   ]
 }
 </script>
