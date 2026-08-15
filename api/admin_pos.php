@@ -2088,10 +2088,10 @@ if ($method === 'POST' && $action === 'refund_order') {
         $pdo->prepare("
             INSERT INTO objednavky (cislo, typ, odberatel_id, datum_objednani, datum_dodani,
                                     castka_bez_dph, castka_dph, castka_celkem, stav, puvod,
-                                    pos_typ, pos_payment, pos_tip, pos_uzivatel, poznamka, refund_of)
+                                    pos_typ, pos_payment, pos_tip, pos_uzivatel, poznamka, refund_of, pokladna)
             VALUES (:c, :typ, :odb, NOW(), CURDATE(),
                     :bez, :dph, :cel, :stav, :puv,
-                    :pt, :pp, 0, :u, :pozn, :ref)
+                    :pt, :pp, 0, :u, :pozn, :ref, :pk)
         ")->execute([
             'c'   => $cislo, 'typ' => $o['typ'] ?: 'jednorazova', 'odb' => $o['odberatel_id'],
             'bez' => -$bez, 'dph' => -$dph, 'cel' => -$cel,
@@ -2099,6 +2099,7 @@ if ($method === 'POST' && $action === 'refund_order') {
             'pt'  => $o['pos_typ'], 'pp' => $o['pos_payment'], 'u' => $admin['jmeno'],
             'pozn' => 'Vratka účtenky ' . $o['cislo'] . ($reqPolozky !== null ? ' (částečná)' : '') . ($duvod !== '' ? ' — důvod: ' . $duvod : ''),
             'ref' => $oid,
+            'pk'  => $o['pokladna'] ?? null, // 🆕 vratka zdědí pokladnu původní účtenky → per-kasa uzávěrka nettuje refundy
         ]);
         $rid = (int) $pdo->lastInsertId();
         $insP = $pdo->prepare("
