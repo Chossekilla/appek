@@ -1991,7 +1991,7 @@
     try {
       const r = await api('admin_pos.php?action=pay', {
         method: 'POST',
-        body: JSON.stringify({ ucet_id: ucetId, payment: payment || 'hotove' }),
+        body: JSON.stringify({ ucet_id: ucetId, payment: payment || 'hotove', station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })() }),
       });
       toast(t('pos_bill_closed', { cislo: r.cislo || '', amount: fmt(r.celkem || 0) + ' ' + (CFG.currency || 'Kč') }), 'success');
       const m = document.getElementById('pos-table-modal');

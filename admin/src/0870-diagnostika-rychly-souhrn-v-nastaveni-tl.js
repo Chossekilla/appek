@@ -446,7 +446,7 @@ window.openCheatSheet = async function() {
       const [lic, nast, user] = await Promise.all([
         api('admin_version_check.php').catch(() => ({})),
         api('admin_nastaveni.php').catch(() => ({})),
-        api('admin_me.php').catch(() => ({})),
+        api('whoami.php').catch(() => ({})), // 🆕 admin_me.php neexistoval → whoami.php (info o přihlášeném)
       ]);
       window._cheatSheetData = { lic, nast, user };
     } catch (e) { /* ignore */ }

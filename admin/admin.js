@@ -21982,7 +21982,7 @@ window.posPaySingle = async function(amount, zpusob) {
   const u = posState.currentUcet;
   try {
     await api('admin_pos.php?action=pay', {
-      method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby: [{ castka: amount, zpusob }] }),
+      method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby: [{ castka: amount, zpusob }], station_token: (localStorage.getItem('appek_station_token') || '') }),
     });
     // 🆕 v3.0.189 — server účet uzavřel (stav=paid) + uvolnil stůl. Nabídni tisk (ne auto-tisk).
     posPaidPrintPrompt(u.id, amount);
@@ -22065,7 +22065,7 @@ window.posSubmitSplitPay = async function(total) {
   const u = posState.currentUcet;
   try {
     await api('admin_pos.php?action=pay', {
-      method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby }),
+      method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby, station_token: (localStorage.getItem('appek_station_token') || '') }),
     });
     // 🆕 v3.0.189 — sjednoceno s posPaySingle: nabídni tisk + zavři.
     posPaidPrintPrompt(u.id, sum);
@@ -26872,7 +26872,7 @@ window.openCheatSheet = async function() {
       const [lic, nast, user] = await Promise.all([
         api('admin_version_check.php').catch(() => ({})),
         api('admin_nastaveni.php').catch(() => ({})),
-        api('admin_me.php').catch(() => ({})),
+        api('whoami.php').catch(() => ({})), // 🆕 admin_me.php neexistoval → whoami.php (info o přihlášeném)
       ]);
       window._cheatSheetData = { lic, nast, user };
     } catch (e) { /* ignore */ }

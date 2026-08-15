@@ -674,7 +674,15 @@ if ($method === 'POST' && $action === 'pay') {
         } catch (Throwable $e) { /* sklad odpis ne-fatal */ }
 
         // 🆕 v3.0.211 — prodejní záznam (objednávka puvod='pos') z paid účtu → Účtenky/Statistiky/Přehledy.
-        try { pos_ucet_create_sale($pdo, $ucetId); } catch (Throwable $e) { /* reporting ne-fatal */ }
+        //   🆕 dine-in dědí pokladnu z platícího zařízení (station_token) → per-kasa uzávěrka/tržby.
+        try {
+            $stTok = preg_replace('/[^a-zA-Z0-9]/', '', (string) ($d['station_token'] ?? ''));
+            $pkDine = null;
+            if ($stTok !== '') {
+                try { $pq = $pdo->prepare("SELECT pokladna FROM stanice WHERE token = :t LIMIT 1"); $pq->execute([':t' => $stTok]); $pv = $pq->fetchColumn(); if ($pv) $pkDine = mb_substr((string) $pv, 0, 40); } catch (Throwable $e) {}
+            }
+            pos_ucet_create_sale($pdo, $ucetId, $pkDine);
+        } catch (Throwable $e) { /* reporting ne-fatal */ }
 
         json_response(['ok' => true, 'doklad' => $cislo, 'sum_paid' => $sumPaid]);
     } catch (Throwable $e) {
@@ -1694,7 +1702,7 @@ if ($method === 'GET' && $action === 'quick_history') {
 //   Účtenek / Statistik / launcheru / detailu (jednotná POS pipeline). Dřív dine-in žil
 //   jen v restaurant_pos_ucty → v Účtenkách/Historii „nic". Idempotentní (marker
 //   [POS účet #X] v poznámce). Volá pay (forward) + pos_backfill_sales (self-heal).
-function pos_ucet_create_sale(PDO $pdo, int $ucetId): ?int {
+function pos_ucet_create_sale(PDO $pdo, int $ucetId, ?string $pokladna = null): ?int {
     try {
         $u = $pdo->prepare("SELECT u.*, t.nazev AS stul_nazev FROM restaurant_pos_ucty u LEFT JOIN restaurant_tables t ON t.id = u.stul_id WHERE u.id = :id");
         $u->execute(['id' => $ucetId]);
@@ -1724,13 +1732,13 @@ function pos_ucet_create_sale(PDO $pdo, int $ucetId): ?int {
         $cislo = $ucet['cislo_dokladu'] ?: pos_next_doklad($pdo, date('Ymd', strtotime($datum)));
         $poz = '🍽️ ' . ($ucet['stul_nazev'] ?? ('Stůl #' . $ucet['stul_id'])) . ' ' . $marker;
         $ins = $pdo->prepare("
-            INSERT INTO objednavky (cislo, typ, odberatel_id, datum_objednani, datum_dodani, castka_bez_dph, castka_dph, castka_celkem, stav, puvod, pos_typ, pos_payment, pos_tip, pos_uzivatel, poznamka)
-            VALUES (:c, 'pos', :ob, :dt, :dd, :bd, :d, :cel, 'zaplaceno', 'pos', 'na_miste', :pp, 0, :uz, :poz)
+            INSERT INTO objednavky (cislo, typ, odberatel_id, datum_objednani, datum_dodani, castka_bez_dph, castka_dph, castka_celkem, stav, puvod, pos_typ, pos_payment, pos_tip, pos_uzivatel, poznamka, pokladna)
+            VALUES (:c, 'pos', :ob, :dt, :dd, :bd, :d, :cel, 'zaplaceno', 'pos', 'na_miste', :pp, 0, :uz, :poz, :pk)
         ");
         $objId = 0;
         for ($a = 0; $a < 5; $a++) {
             try {
-                $ins->execute(['c'=>$cislo,'ob'=>(int)$walkin,'dt'=>$datum,'dd'=>date('Y-m-d', strtotime($datum)),'bd'=>$bez,'d'=>$dph,'cel'=>$celkem,'pp'=>$pos_payment,'uz'=>($ucet['otevrel_jmeno'] ?: 'POS'),'poz'=>$poz]);
+                $ins->execute(['c'=>$cislo,'ob'=>(int)$walkin,'dt'=>$datum,'dd'=>date('Y-m-d', strtotime($datum)),'bd'=>$bez,'d'=>$dph,'cel'=>$celkem,'pp'=>$pos_payment,'uz'=>($ucet['otevrel_jmeno'] ?: 'POS'),'poz'=>$poz,'pk'=>$pokladna]);
                 $objId = (int) $pdo->lastInsertId(); break;
             } catch (PDOException $e) {
                 if ((int)($e->errorInfo[1] ?? 0) === 1062 && $a < 4) {
