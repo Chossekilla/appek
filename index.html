@@ -26,6 +26,10 @@
 <meta name="twitter:description" content="Vše pro váš provoz — pekárny, cukrárny, lahůdkárny, restaurace, catering. Vlastní hosting nebo náš. Bez měsíčních poplatků.">
 <meta name="twitter:image" content="https://appek.cz/assets/og-image.png">
 
+<!-- Canonical + indexace -->
+<link rel="canonical" href="https://appek.cz/">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+
 <!-- Favicon -->
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
@@ -1748,6 +1752,41 @@ img[loading="lazy"].loaded {
 <script>
 (function(){try{var t=new URLSearchParams(location.search).get('theme');
 if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURIComponent(t);}catch(e){}})();
+</script>
+
+<!-- Structured data (JSON-LD) — rich results: software + firma + cena -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://appek.cz/#org",
+      "name": "APPEK",
+      "url": "https://appek.cz/",
+      "logo": "https://appek.cz/assets/og-image.png",
+      "description": "Univerzální B2B/gastro objednávkový a evidenční systém pro pekárny, cukrárny, restaurace, lahůdkárny a catering."
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "APPEK B2B",
+      "url": "https://appek.cz/",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web, PWA (iOS, Android, Windows, macOS)",
+      "description": "Objednávky, faktury, dodací listy, kasa (POS), KDS, sklady, HACCP, cenovky a katalog v jednom systému. Vlastní hosting nebo cloud, bez měsíčních poplatků, 5 jazyků (CZ/SK/EN/DE/ES).",
+      "inLanguage": ["cs", "sk", "en", "de", "es"],
+      "publisher": { "@id": "https://appek.cz/#org" },
+      "offers": {
+        "@type": "Offer",
+        "price": "12990",
+        "priceCurrency": "CZK",
+        "url": "https://appek.cz/checkout.html",
+        "availability": "https://schema.org/InStock",
+        "priceValidUntil": "2026-12-31"
+      }
+    }
+  ]
+}
 </script>
 </head>
 <body>
