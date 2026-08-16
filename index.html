@@ -1867,23 +1867,7 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
 }
 </script>
 
-<!-- FAQ structured data (FAQPage) — rich results z existujících otázek na stránce -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    { "@type": "Question", "name": "Funguje to bez internetu?", "acceptedAnswer": { "@type": "Answer", "text": "Ano — Local mode běží přímo na vašem počítači (XAMPP/MAMP) bez internetu. PWA s service workerem funguje offline i v cloudovém módu." } },
-    { "@type": "Question", "name": "Můžu mít vlastní hosting?", "acceptedAnswer": { "@type": "Answer", "text": "Ano. Postačí jakýkoliv webhosting s PHP 8+ a MySQL, nahrajete přes FTP. Návod pro Wedos, Active24, WebSupport i Hetzner." } },
-    { "@type": "Question", "name": "Jak je to s GDPR a osobními údaji?", "acceptedAnswer": { "@type": "Answer", "text": "V Local módu jsou data jen na vašem serveru. V cloud módu běží hostingy v EU s DPA smlouvou. Šifrované zálohy, audit log, právo na výmaz." } },
-    { "@type": "Question", "name": "Můžu si systém upravit?", "acceptedAnswer": { "@type": "Answer", "text": "Dostanete plný zdrojový kód (PHP + vanilla JS, žádný framework). Můžete si ho upravit sami nebo nechat upravit. Premium plán zahrnuje 10 hodin customizace." } },
-    { "@type": "Question", "name": "Co když se mi to nezalíbí?", "acceptedAnswer": { "@type": "Answer", "text": "14 dní zkušebně zdarma (Starter), 30 dní u Profi. Vrácení peněz bez otázek. Data si pak vyexportujete do Excelu, CSV nebo JSON." } },
-    { "@type": "Question", "name": "Jaké balíčky jsou navíc placené?", "acceptedAnswer": { "@type": "Answer", "text": "Cukrárna (+5 000 Kč), Lahůdkárna (+3 000), Restaurace (+4 000), Velký catering (+2 500) a Sezónní (+1 500/rok). U Premium jsou všechny v ceně." } },
-    { "@type": "Question", "name": "Můžu mít víc poboček?", "acceptedAnswer": { "@type": "Answer", "text": "Ano. Jeden admin pro centrálu a víc B2B účtů pro pobočky. Profi: 2 pobočky, Premium: neomezeně." } },
-    { "@type": "Question", "name": "Jak funguje export do účetnictví?", "acceptedAnswer": { "@type": "Answer", "text": "Faktury vyexportujete do ISDOC XML (český standard), CSV nebo JSON. Přímé napojení na Pohodu a FlexiBee, do ostatních přes ISDOC import." } }
-  ]
-}
-</script>
+<!-- FAQPage structured data odebráno spolu s FAQ sekcí (user) -->
 </head>
 <body>
 
@@ -1901,7 +1885,6 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
       <a href="#delivery" data-i18n="nav_delivery">🚛 Rozvozy</a>
       <a href="#integrations" data-i18n="nav_integrations">🔌 Integrace</a>
       <a href="#pricing">🏷️ <span data-i18n="nav_pricing">Cena</span></a>
-      <a href="#faq">❓ <span data-i18n="nav_faq">FAQ</span></a>
     </nav>
     <div class="cta">
       <!-- 🌍 Language switcher — DROPDOWN (PC + mobile) -->
@@ -4444,48 +4427,8 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
 </section>
 
 <!-- FAQ -->
-<section id="faq">
-  <div class="container">
-    <div class="section-head">
-      <span class="section-eyebrow" data-i18n="faq_eyebrow">FAQ</span>
-      <h2 class="section-title" data-i18n="faq_title">Časté otázky</h2>
-    </div>
-    <div class="faq-list">
-      <details class="faq-item" open>
-        <summary data-i18n="faq_1_q">Funguje to bez internetu?</summary>
-        <p data-i18n="faq_1_a">Ano — Local mode běží přímo na vašem počítači (XAMPP/MAMP) bez internetu. PWA s service workerem funguje offline i v cloudovém módu.</p>
-      </details>
-      <details class="faq-item">
-        <summary data-i18n="faq_2_q">Můžu mít vlastní hosting?</summary>
-        <p data-i18n="faq_2_a">Ano. Příklad: postačí jakýkoliv webhosting s PHP 8+ a MySQL. Nahrajete přes FTP. Návod pro Wedos, Active24, WebSupport, Hetzner.</p>
-      </details>
-      <details class="faq-item">
-        <summary data-i18n="faq_3_q">Jak je to s GDPR a osobními údaji?</summary>
-        <p data-i18n="faq_3_a">Při Local módu jsou data jen na vašem serveru. V cloud módu jsou hostingy v EU s DPA smlouvou. Šifrované zálohy, audit log, právo na výmaz.</p>
-      </details>
-      <details class="faq-item">
-        <summary data-i18n="faq_4_q">Můžu si systém upravit?</summary>
-        <p data-i18n="faq_4_a">Plný zdrojový kód (PHP + vanilla JS) — žádný framework. Můžete si ho upravit nebo nechat upravit. Premium plán zahrnuje 10 hodin customizace.</p>
-      </details>
-      <details class="faq-item">
-        <summary data-i18n="faq_5_q">Co když se mi to nezalíbí?</summary>
-        <p data-i18n="faq_5_a">14 dní zkušebně zdarma (Starter), 30 dní u Profi. Vrácení peněz bez otázek. Pak vaše stávající data můžete exportovat (Excel / CSV / JSON).</p>
-      </details>
-      <details class="faq-item">
-        <summary data-i18n="faq_6_q">Jaké balíčky jsou navíc placené?</summary>
-        <p data-i18n="faq_6_a">🧁 Cukrárna (+5 000 Kč), 🥗 Lahůdkárna (+3 000), 🍕 Restaurace (+4 000), 🎉 Velký catering (+2 500), 🍰 Sezónní (+1 500/rok). U Premium jsou všechny.</p>
-      </details>
-      <details class="faq-item">
-        <summary data-i18n="faq_7_q">Můžu mít víc poboček?</summary>
-        <p data-i18n="faq_7_a">Ano. Jeden admin pro centrálu + víc B2B účtů pro pobočky. Profi: 2 pobočky, Premium: neomezeně.</p>
-      </details>
-      <details class="faq-item">
-        <summary data-i18n="faq_8_q">Jak funguje export do účetnictví?</summary>
-        <p data-i18n="faq_8_a">Faktury vyexportuješ do ISDOC XML (univerzální český standard), CSV nebo JSON. Přímé napojení na Pohodu a FlexiBee; do ostatních účetnictví přes ISDOC import.</p>
-      </details>
-    </div>
-  </div>
-</section>
+<!-- FAQ sekce odebrána (user) -->
+<!-- SEO pozn.: FAQ + FAQPage schema odebráno na přání; obsah otázek k dispozici v git historii, kdyby se hodil jinam. -->
 
 <!-- CONTACT -->
 <section id="contact">
