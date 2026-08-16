@@ -201,14 +201,14 @@ if (!defined('DEMO_MAINT_LIB')) {
                 continue;
             }
             $err = null;
-            $subject = 'APPEK demo je zase online 🎉';
+            $subject = 'Váš přístup do APPEK dema 🎉';
             $html = '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto">'
-                . '<h2 style="color:#BA7517">Demo APPEK je zpět 🎉</h2>'
-                . '<p>Údržba je hotová a demo běží. Můžeš si ho vyzkoušet tady:</p>'
+                . '<h2 style="color:#BA7517">Vaše APPEK demo je připravené 🎉</h2>'
+                . '<p>Můžete si ho vyzkoušet tady:</p>'
                 . '<p><a href="https://demo.appek.cz/admin/" style="display:inline-block;padding:12px 24px;background:#BA7517;color:#fff;text-decoration:none;border-radius:10px;font-weight:600">→ Otevřít demo</a></p>'
                 . '<p style="color:#888;font-size:13px">Přihlášení proběhne automaticky. Kdyby ne: demo@appek.cz / demo1234</p>'
                 . '<hr style="border:none;border-top:1px solid #eee;margin:22px 0">'
-                . '<p style="color:#aaa;font-size:12px">Tento e-mail jsi dostal, protože jsi během údržby dema nechal(a) svůj kontakt. Nic dalšího ti posílat nebudeme.</p>'
+                . '<p style="color:#aaa;font-size:12px">Tento e-mail jste dostali, protože jste požádali o přístup do APPEK dema. Nic dalšího vám posílat nebudeme.</p>'
                 . '</div>';
             $ok = vendor_send_mail($email, $subject, $html, null, null, $err);
             if ($ok) {
@@ -296,21 +296,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $al = strtolower(substr($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? 'cs', 0, 2));
 $en = ($al === 'en' || $al === 'es' || $al === 'de');
 $T = $en ? [
-    'title'   => 'Demo is under maintenance',
-    'lead'    => 'We are updating the APPEK demo right now. It will be back in a few minutes.',
-    'formlbl' => 'Want a ping when it is back? Leave your e-mail:',
+    'title'   => 'Try the APPEK demo',
+    'lead'    => 'Leave your e-mail and we will send you access to the live APPEK demo — orders, POS, invoicing, stock and HACCP.',
+    'formlbl' => 'Your e-mail:',
     'ph'      => 'you@company.com',
-    'btn'     => 'Notify me',
-    'thanks'  => 'Thanks! We will e-mail you as soon as the demo is back. 🎉',
-    'retry'   => 'Please try again in a few minutes.',
+    'btn'     => 'I want a demo',
+    'thanks'  => 'Thanks! We will get back to you with demo access. 🎉',
+    'retry'   => 'Please try again shortly.',
 ] : [
-    'title'   => 'Demo je v údržbě',
-    'lead'    => 'Právě aktualizujeme demo APPEK. Za pár minut bude zase online.',
-    'formlbl' => 'Chceš dát vědět, až bude zpět? Nech nám e-mail:',
-    'ph'      => 'ty@firma.cz',
-    'btn'     => 'Dej mi vědět',
-    'thanks'  => 'Díky! Jakmile bude demo zpět, pošleme ti e-mail. 🎉',
-    'retry'   => 'Zkus to prosím za pár minut.',
+    'title'   => 'Vyzkoušejte si APPEK demo',
+    'lead'    => 'Nechte nám e-mail a pošleme vám přístup do živého dema APPEK — objednávky, kasa, fakturace, sklad i HACCP.',
+    'formlbl' => 'Váš e-mail:',
+    'ph'      => 'vy@firma.cz',
+    'btn'     => 'Chci demo',
+    'thanks'  => 'Díky! Ozveme se vám s přístupem do dema. 🎉',
+    'retry'   => 'Zkuste to prosím za chvíli.',
 ];
 
 http_response_code(503);
@@ -353,7 +353,7 @@ $esc = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 </head>
 <body>
 <div class="card">
-  <div class="logo">🔧</div>
+  <div class="logo">🎬</div>
   <h1><?= $esc($T['title']) ?></h1>
   <p class="lead"><?= $esc($T['lead']) ?></p>
   <?php if ($sent): ?>
