@@ -1315,19 +1315,7 @@ img[loading="lazy"].loaded {
   }
 }
 
-/* Sticky CTA on scroll (mobile) */
-.sticky-cta {
-  display: none;
-  position: fixed; bottom: 0; left: 0; right: 0;
-  background: #fff; padding: 12px 16px;
-  box-shadow: 0 -4px 14px rgba(0,0,0,0.08);
-  z-index: 90;
-}
-@media (max-width: 768px) {
-  .sticky-cta { display: flex; gap: 8px; }
-  .sticky-cta a { flex: 1; justify-content: center; text-align: center; }
-  body { padding-bottom: 80px; }
-}
+/* Sticky CTA (mobil dole) odebrána — user si nepřeje spodní tlačítka */
 
 /* Back-to-top tlačítko */
 .btn-top {
@@ -5300,11 +5288,7 @@ document.addEventListener('keydown', (e) => {
 })();
 </script>
 
-<!-- 📱 Sticky CTA pro mobil -->
-<div class="sticky-cta">
-  <a href="https://demo.appek.cz" class="btn btn-secondary" data-i18n="btn_try_demo">Vyzkoušet demo</a>
-  <a href="checkout.html" class="btn btn-primary" data-i18n="btn_start_free_short">🛒 Objednat</a>
-</div>
+<!-- Sticky CTA pro mobil odebrána (user) -->
 
 <button id="btn-top" class="btn-top" aria-label="Nahoru na začátek" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 
