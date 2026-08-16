@@ -116,6 +116,24 @@ img { max-width: 100%; display: block; }
 }
 /* Foto v hero už ukazuje appku → skryj CSS mockup (photo-ready fallback zůstává v HTML) */
 .hero-visual { display: none; }
+/* Foto MUSÍ přebít motiv (theme.css.php: html body .hero{background:…!important}).
+   Vyšší specificita (html body section.hero) + !important vyhraje na všech motivech. */
+html body section.hero {
+  background-image:
+    linear-gradient(95deg, rgba(255,252,245,0.95) 0%, rgba(255,252,245,0.88) 30%, rgba(255,252,245,0.48) 56%, rgba(255,252,245,0.06) 78%, rgba(255,252,245,0) 100%),
+    url('assets/hero-bg.jpg') !important;
+  background-size: cover, cover !important;
+  background-position: center, center right !important;
+  background-repeat: no-repeat, no-repeat !important;
+}
+@media (max-width: 900px) {
+  html body section.hero {
+    background-image:
+      linear-gradient(180deg, rgba(255,252,245,0.96) 0%, rgba(255,252,245,0.9) 42%, rgba(255,252,245,0.55) 100%),
+      url('assets/hero-bg.jpg') !important;
+    background-position: center, center top !important;
+  }
+}
 @media (max-width: 900px) {
   .hero {
     background-image:
@@ -3262,9 +3280,10 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
   /* 🆕 4 reálné screenshoty (user) — desktop řada, mobil 2×2 */
   .ss-photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; align-items: start; }
   .ss-photo { margin: 0; }
-  .ss-photo img { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 12px 30px rgba(133,79,11,0.10); background: #fff; opacity: 1; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+  .ss-photo img { width: 100%; height: auto; aspect-ratio: 1000 / 725; object-fit: cover; display: block; border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 12px 30px rgba(133,79,11,0.10); background: #fff; opacity: 1; transition: transform 0.3s ease, box-shadow 0.3s ease; }
   .ss-photo figcaption { margin-top: 10px; font-size: 14px; font-weight: 600; color: #1d1d1f; text-align: center; }
-  @media (hover: hover) { .ss-photo img { cursor: zoom-in; } .ss-photo img:hover { transform: scale(1.05); box-shadow: 0 22px 54px rgba(133,79,11,0.22); position: relative; z-index: 2; } }
+  /* Hover na PC: přiblíží a ukáže CELOU fotku (contain) — grid drží stejné výšky (cover). */
+  @media (hover: hover) { .ss-photo img { cursor: zoom-in; } .ss-photo img:hover { object-fit: contain; transform: scale(1.06); box-shadow: 0 22px 54px rgba(133,79,11,0.22); position: relative; z-index: 2; } }
   @media (max-width: 720px) { .ss-photos { grid-template-columns: 1fr 1fr; gap: 14px; } .ss-photo figcaption { font-size: 13px; } }
   .ss-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
