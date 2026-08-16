@@ -71,6 +71,19 @@ body.sidebar-pinned .sidebar-nav .nav-item span:not(.nav-icon):not(.pkg-lock){
   word-break:break-word!important;overflow-wrap:anywhere!important;hyphens:auto;
   text-align:center;max-width:100%;overflow:hidden;
 }
+/* 📌 v3.0.472b — DESKTOP: sjednotit pinned + collapsed rail SYMETRICKY — label se vejde pod
+   ikonu s malou mezerou (ne nalepený). Zabaleno v @media (min-width:769px) → MOBIL NETKNUTÝ
+   (mobilní pinned drží pravidlo 9.5px výše; collapsed je stejně jen PC). */
+@media (min-width: 769px) {
+  body.sidebar-pinned .sidebar-nav .nav-item,
+  body.sidebar-collapsed .sidebar-nav .nav-item{ overflow:hidden!important; gap:3px!important; }
+  body.sidebar-pinned .sidebar-nav .nav-item span:not(.nav-icon):not(.pkg-lock),
+  body.sidebar-collapsed .sidebar-nav .nav-item span:not(.nav-icon):not(.pkg-lock){
+    font-size:10px!important;line-height:1.15!important;white-space:normal!important;
+    word-break:break-word!important;overflow-wrap:anywhere!important;hyphens:auto;
+    text-align:center;max-width:100%;overflow:hidden;display:block;
+  }
+}
 </style>
 </head>
 <body>
