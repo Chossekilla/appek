@@ -3262,8 +3262,9 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
   /* 🆕 4 reálné screenshoty (user) — desktop řada, mobil 2×2 */
   .ss-photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; align-items: start; }
   .ss-photo { margin: 0; }
-  .ss-photo img { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 12px 30px rgba(133,79,11,0.10); background: #fff; opacity: 1; }
+  .ss-photo img { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 12px 30px rgba(133,79,11,0.10); background: #fff; opacity: 1; transition: transform 0.3s ease, box-shadow 0.3s ease; }
   .ss-photo figcaption { margin-top: 10px; font-size: 14px; font-weight: 600; color: #1d1d1f; text-align: center; }
+  @media (hover: hover) { .ss-photo img { cursor: zoom-in; } .ss-photo img:hover { transform: scale(1.05); box-shadow: 0 22px 54px rgba(133,79,11,0.22); position: relative; z-index: 2; } }
   @media (max-width: 720px) { .ss-photos { grid-template-columns: 1fr 1fr; gap: 14px; } .ss-photo figcaption { font-size: 13px; } }
   .ss-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
