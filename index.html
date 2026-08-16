@@ -3057,7 +3057,15 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
       <p class="section-sub" data-i18n="ss_sub">Skutečné obrazovky z živé aplikace. Klik → zvětšit · vše v 5 jazycích (🇨🇿 🇸🇰 🇬🇧 🇩🇪 🇪🇸).</p>
     </div>
 
-    <div class="ss-grid">
+    <!-- 🆕 4 reálné screenshoty (user) — desktop řada, mobil 2×2 -->
+    <div class="ss-photos">
+      <figure class="ss-photo"><img src="assets/ukazky/dashboard.jpg" alt="APPEK — admin dashboard: tržby, objednávky, výroba" loading="lazy" width="1000" height="664"><figcaption>Dashboard</figcaption></figure>
+      <figure class="ss-photo"><img src="assets/ukazky/cukrarna.jpg" alt="APPEK — cukrárna: dorty a konfigurátor" loading="lazy" width="1000" height="725"><figcaption>Cukrárna</figcaption></figure>
+      <figure class="ss-photo"><img src="assets/ukazky/lahudky.jpg" alt="APPEK — lahůdky a catering" loading="lazy" width="1000" height="725"><figcaption>Lahůdky</figcaption></figure>
+      <figure class="ss-photo"><img src="assets/ukazky/provoz.jpg" alt="APPEK — provoz restaurace: kasa, kuchyň, rozvoz" loading="lazy" width="1000" height="725"><figcaption>Provoz</figcaption></figure>
+    </div>
+
+    <div class="ss-grid" style="display:none" aria-hidden="true">
 
       <!-- 1. ADMIN DASHBOARD -->
       <div class="ss-card">
@@ -3245,15 +3253,18 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
 
     </div>
 
-    <div class="ss-cta">
-      <a href="https://demo.appek.cz/" target="_blank" class="btn btn-primary" data-i18n="ss_cta_demo">🎬 Vyzkoušet živé demo</a>
-      <a href="checkout.html" class="btn btn-secondary" data-i18n="ss_cta_buy">💳 Koupit licenci</a>
-    </div>
+    <!-- ss-cta (demo + koupit) odebráno (user) -->
   </div>
 </section>
 
 <style>
   .screenshots-section { padding: 80px 0 60px; background: linear-gradient(180deg, #fff 0%, #fafafa 100%); }
+  /* 🆕 4 reálné screenshoty (user) — desktop řada, mobil 2×2 */
+  .ss-photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; align-items: start; }
+  .ss-photo { margin: 0; }
+  .ss-photo img { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 12px 30px rgba(133,79,11,0.10); background: #fff; opacity: 1; }
+  .ss-photo figcaption { margin-top: 10px; font-size: 14px; font-weight: 600; color: #1d1d1f; text-align: center; }
+  @media (max-width: 720px) { .ss-photos { grid-template-columns: 1fr 1fr; gap: 14px; } .ss-photo figcaption { font-size: 13px; } }
   .ss-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
     gap: 24px; margin-top: 36px;
