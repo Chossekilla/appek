@@ -401,7 +401,7 @@ footer {
   background: #1d1d1f; color: #d2d2d7;
   padding: 60px 0 30px;
 }
-footer .container { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; }
+footer .container { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; align-items: start; }
 footer h5 { color: #fff; font-size: 14px; font-weight: 600; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
 footer ul { list-style: none; padding: 0; }
 footer ul li { padding: 4px 0; font-size: 14px; }
@@ -440,10 +440,11 @@ footer ul li a:hover { color: #fff; }
 }
 /* Kontakt sekce — jemné světlé odlišení od FAQ */
 #contact { background: #F7F8FA; }
-/* FB ikona v patičce */
-.footer-fb { display: inline-flex; margin-top: 14px; color: #d2d2d7; transition: color 0.15s; }
-.footer-fb svg { height: 20px; width: auto; }
-.footer-fb:hover { color: #fff; }
+/* Sociální ikony v patičce (FB + Instagram) */
+.footer-social { display: flex; gap: 14px; margin-top: 16px; }
+.footer-social a { display: inline-flex; color: #d2d2d7; transition: color 0.15s, transform 0.15s; }
+.footer-social a svg { height: 20px; width: auto; }
+.footer-social a:hover { color: #fff; transform: translateY(-2px); }
 
 /* ============ RESPONSIVE ============ */
 @media (max-width: 980px) {
@@ -4498,17 +4499,21 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         <strong style="font-size:18px;color:#fff">APPEK B2B</strong>
       </div>
       <p data-i18n="footer_brand_d">Krabicový gastro objednávkový systém. Vyrábíte? Prodáváte? Vše v jednom — bez měsíčních poplatků.</p>
-      <a href="https://www.facebook.com/profile.php?id=61590201243782" target="_blank" rel="noopener" class="footer-fb" aria-label="Facebook">
-        <svg viewBox="0 0 320 512" fill="currentColor" aria-hidden="true"><path d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"/></svg>
-      </a>
+      <div class="footer-social">
+        <a href="https://www.facebook.com/profile.php?id=61590201243782" target="_blank" rel="noopener" aria-label="Facebook">
+          <svg viewBox="0 0 320 512" fill="currentColor" aria-hidden="true"><path d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"/></svg>
+        </a>
+        <!-- 👉 Instagram: až budeš mít účet, nahraď https://www.instagram.com/ svým profilem -->
+        <a href="https://www.instagram.com/" target="_blank" rel="noopener" aria-label="Instagram">
+          <svg viewBox="0 0 448 512" fill="currentColor" aria-hidden="true"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"/></svg>
+        </a>
+      </div>
     </div>
     <div>
       <h5 data-i18n="footer_product">Produkt</h5>
       <ul>
         <li><a href="#features" data-i18n="nav_features">Funkce</a></li>
         <li><a href="#pricing" data-i18n="nav_pricing">Cena</a></li>
-        <li><a href="https://demo.appek.cz" data-i18n="footer_demo">Demo</a></li>
-        <li><a href="https://b2b.appek.cz" data-i18n="footer_b2b">B2B portál</a></li>
       </ul>
     </div>
     <div>
@@ -4516,14 +4521,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
       <ul>
         <li><a href="/kontakty" data-i18n="nav_contact">Kontakt</a></li>
         <li><a href="mailto:info@appek.cz" data-i18n="footer_email" data-biz-email>E-mail</a></li>
-      </ul>
-    </div>
-    <div>
-      <h5 data-i18n="footer_support">Podpora</h5>
-      <ul>
-        <li><a href="#faq" data-i18n="footer_faq">FAQ</a></li>
         <li><a href="mailto:support@appek.cz" data-i18n="footer_support_email">Support</a></li>
-        <li><a href="https://demo.appek.cz" data-i18n="footer_demo">Demo</a></li>
       </ul>
     </div>
     <div class="footer-bottom" style="grid-column:1/-1">
