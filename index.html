@@ -143,6 +143,34 @@ img { max-width: 100%; display: block; }
 .hero-trust span { display: flex; align-items: center; gap: 6px; }
 .hero-trust strong { color: #1d1d1f; }
 
+.hero-visual { position: relative; }
+.hero-visual .hero-mockup { position: relative; z-index: 1; }
+.hero-photo {
+  position: absolute; inset: -20px; z-index: 0;
+  border-radius: 30px; overflow: hidden;
+  background: linear-gradient(135deg, #FDF3DA 0%, #FAE1AE 55%, #F4CB82 100%);
+  background-size: cover; background-position: center; /* pro pozdější reálné foto */
+  box-shadow: 0 24px 60px rgba(133, 79, 11, 0.18);
+}
+.hero-photo::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 22% 18%, rgba(255,255,255,0.55), transparent 42%),
+              radial-gradient(circle at 82% 85%, rgba(186,117,23,0.20), transparent 48%);
+}
+.hero-emoji {
+  position: absolute; font-size: 40px; z-index: 0;
+  filter: drop-shadow(0 8px 14px rgba(133, 79, 11, 0.22));
+  animation: heroFloat 6s ease-in-out infinite;
+}
+.hero-emoji.e1 { top: 3%;  left: 3%;  --r: -12deg; }
+.hero-emoji.e2 { top: 6%;  right: 4%; font-size: 34px; animation-delay: -2s; }
+.hero-emoji.e3 { bottom: 5%; left: 5%; font-size: 36px; --r: 9deg; animation-delay: -4s; }
+.hero-emoji.e4 { bottom: 8%; right: 3%; font-size: 32px; animation-delay: -1s; }
+@keyframes heroFloat { 0%,100%{ transform: translateY(0) rotate(var(--r,0deg)); } 50%{ transform: translateY(-8px) rotate(var(--r,0deg)); } }
+/* až bude reálná fotka: přidej .has-photo na .hero-photo → schová dekorace, ukáže foto */
+.hero-photo.has-photo::after, .hero-photo.has-photo .hero-emoji { display: none; }
+@media (prefers-reduced-motion: reduce) { .hero-emoji { animation: none; } }
+
 .hero-mockup {
   background: linear-gradient(180deg, #fff 0%, #FFF8E5 100%);
   border-radius: 24px;
@@ -1868,6 +1896,14 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
         </div>
       </div>
       <!-- MOCKUP -->
+      <div class="hero-visual">
+      <!-- 🖼️ photo-ready slot: reálná fotka → .hero-photo{background-image:url('...')} + třída has-photo -->
+      <div class="hero-photo" aria-hidden="true">
+        <span class="hero-emoji e1">🥐</span>
+        <span class="hero-emoji e2">🧁</span>
+        <span class="hero-emoji e3">🥖</span>
+        <span class="hero-emoji e4">☕</span>
+      </div>
       <div class="hero-mockup">
         <div class="hero-mockup-screen">
           <div class="mock-h">
@@ -1899,6 +1935,7 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -5077,11 +5114,11 @@ window.setSalesLang = async function(code) {
 
   // Dynamic page title
   const titles = {
-    cs: 'APPEK B2B — Gastro objednávkový systém pro pekárny, cukrárny, restaurace',
-    sk: 'APPEK B2B — Gastro objednávkový systém pre pekárne, cukrárne, reštaurácie',
-    en: 'APPEK B2B — Gastro ordering system for bakeries, patisseries, restaurants',
-    de: 'APPEK B2B — Gastro-Bestellsystem für Bäckereien, Konditoreien, Restaurants',
-    es: 'APPEK B2B — Sistema de pedidos gastro para panaderías, pastelerías, restaurantes',
+    cs: 'APPEK — jednoduchý systém pro pekárny, cukrárny a gastro',
+    sk: 'APPEK — jednoduchý systém pre pekárne, cukrárne a gastro',
+    en: 'APPEK — simple system for bakeries, patisseries & food business',
+    de: 'APPEK — einfaches System für Bäckereien, Konditoreien & Gastro',
+    es: 'APPEK — sistema sencillo para panaderías, pastelerías y gastro',
   };
   document.title = titles[code] || titles.cs;
 
