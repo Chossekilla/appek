@@ -4,6 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#BA7517">
+
+<!-- ═══════════ GOOGLE ANALYTICS (GA4) ═══════════
+     👉 AŽ SPUSTÍŠ REKLAMU: níže na řádku APPEK_GA_ID nahraď G-XXXXXXXXXX
+        svým Measurement ID (GA4 → Správce → Datové proudy → web → „Measurement ID", tvar G-XXXXXXXXXX).
+        Měníš JEN tenhle jeden řádek. Dokud tam je placeholder s „XXXX", GA se vůbec nenačte. -->
+<script>window.APPEK_GA_ID = 'G-XXXXXXXXXX';</script>
+<script>
+  (function () {
+    var id = window.APPEK_GA_ID || '';
+    if (!id || id.indexOf('XXXX') !== -1) return;           // placeholder → GA vypnuté
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
+    document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { dataLayer.push(arguments); };
+    gtag('js', new Date());
+    gtag('config', id);
+  })();
+</script>
+<!-- ═══════════ /GOOGLE ANALYTICS ═══════════ -->
+
 <title>APPEK — jednoduchý systém pro pekárny, cukrárny a gastro</title>
 <meta name="description" content="Objednávky, kasa, faktury, sklady i HACCP v jednom přehledném systému. Bez měsíčních poplatků, vlastní hosting nebo cloud. Pro pekárny, cukrárny a restaurace. Od 12 990 Kč.">
 <meta name="keywords" content="B2B portál, gastro systém, objednávkový systém, fakturační systém, restaurace POS, kasa, KDS, HACCP, pekárna software, cukrárna evidence, catering software, e-shop, sklady">
