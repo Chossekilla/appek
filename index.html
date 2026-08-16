@@ -3069,7 +3069,8 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
 <!-- ═══════════════════════════════════════════════════════ -->
 <!-- SCREENSHOTS — co reálně dostaneš (mockup screens)         -->
 <!-- ═══════════════════════════════════════════════════════ -->
-<section id="screenshots" class="screenshots-section">
+<!-- Samostatná sekce „ukázky" sloučena do oborových karet (fotky přesunuty do #use-cases) — skryto (user) -->
+<section id="screenshots" class="screenshots-section" style="display:none" aria-hidden="true">
   <div class="container">
     <div class="section-head">
       <span class="section-eyebrow" data-i18n="ss_eyebrow">Ukázky</span>
@@ -3974,6 +3975,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
     </div>
     <div class="uc-grid">
       <div class="uc-card">
+        <button class="uc-shot" type="button" onclick="appekZoom('assets/ukazky/dashboard.jpg','APPEK pro pekárnu — přehledový dashboard')" aria-label="Zvětšit ukázku: Pekárna">
+          <img src="assets/ukazky/dashboard.jpg" alt="APPEK pro pekárnu — dashboard: tržby, objednávky, výroba" loading="lazy" width="1000" height="682">
+        </button>
         <div class="uc-icon">🥖</div>
         <h3 data-i18n="uc_bakery_t">Pekárna</h3>
         <p data-i18n="uc_bakery_d">Denní výroba, B2B závozy, receptury, výrobní plán z objednávek. HACCP audit-ready.</p>
@@ -3984,6 +3988,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         </div>
       </div>
       <div class="uc-card">
+        <button class="uc-shot" type="button" onclick="appekZoom('assets/ukazky/cukrarna.jpg','APPEK pro cukrárnu — dorty a konfigurátor')" aria-label="Zvětšit ukázku: Cukrárna">
+          <img src="assets/ukazky/cukrarna.jpg" alt="APPEK pro cukrárnu — dorty, konfigurátor, předobjednávky" loading="lazy" width="1000" height="725">
+        </button>
         <div class="uc-icon">🧁</div>
         <h3 data-i18n="uc_patis_t">Cukrárna</h3>
         <p data-i18n="uc_patis_d">Konfigurátor dortů, předobjednávky na termín, alergeny, fotky výrobků, e-shop integrace.</p>
@@ -3994,6 +4001,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         </div>
       </div>
       <div class="uc-card">
+        <button class="uc-shot" type="button" onclick="appekZoom('assets/ukazky/lahudky.jpg','APPEK pro lahůdkárnu — catering a menu')" aria-label="Zvětšit ukázku: Lahůdkárna">
+          <img src="assets/ukazky/lahudky.jpg" alt="APPEK pro lahůdkárnu — catering, denní menu, závozy" loading="lazy" width="1000" height="725">
+        </button>
         <div class="uc-icon">🥗</div>
         <h3 data-i18n="uc_deli_t">Lahůdkárna</h3>
         <p data-i18n="uc_deli_d">Catering, denní menu, individuální ceny pro firmy, závozové trasy, fakturace měsíčně.</p>
@@ -4004,6 +4014,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         </div>
       </div>
       <div class="uc-card">
+        <button class="uc-shot" type="button" onclick="appekZoom('assets/ukazky/provoz.jpg','APPEK pro gastro provoz — kasa, kuchyň, rozvoz')" aria-label="Zvětšit ukázku: Gastro velkoobchod">
+          <img src="assets/ukazky/provoz.jpg" alt="APPEK pro gastro provoz — kasa, kuchyňský displej, rozvoz" loading="lazy" width="1000" height="725">
+        </button>
         <div class="uc-icon">🍕</div>
         <h3 data-i18n="uc_resto_t">Gastro velkoobchod</h3>
         <p data-i18n="uc_resto_d">B2B portál pro restaurace, hotely, kantýny. Cenové úrovně, splatnost, automatické faktury.</p>
@@ -5312,6 +5325,39 @@ document.addEventListener('keydown', (e) => {
     var c = read();
     if (!c) bar.classList.add('show');        // zatím nerozhodnuto → ukaž lištu
     else toggle.classList.add('show');        // rozhodnuto → jen malý 🍪 přepínač pro změnu
+  })();
+</script>
+
+<!-- 🔍 Foto v oborových kartách + lightbox (klik → zvětšit) -->
+<style>
+  .uc-shot { display:block; width:100%; padding:0; margin:0 0 16px; border:0; background:#fff; border-radius:12px; overflow:hidden; cursor:zoom-in; box-shadow:0 6px 18px rgba(133,79,11,0.10); }
+  .uc-shot img { width:100%; height:auto; aspect-ratio:3 / 2; object-fit:cover; display:block; transition:transform .35s ease; }
+  @media (hover:hover) { .uc-shot:hover img { transform:scale(1.05); } }
+  .uc-shot:focus-visible { outline:2px solid #BA7517; outline-offset:2px; }
+  .appek-lb { position:fixed; inset:0; z-index:10000; display:none; align-items:center; justify-content:center; padding:24px;
+    background:rgba(20,14,4,0.82); cursor:zoom-out; }
+  .appek-lb.open { display:flex; }
+  .appek-lb img { max-width:min(1100px,94vw); max-height:88vh; width:auto; height:auto; border-radius:12px; box-shadow:0 24px 70px rgba(0,0,0,0.5); }
+  .appek-lb-cap { position:absolute; bottom:18px; left:0; right:0; text-align:center; color:#fff; font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
+  .appek-lb-close { position:absolute; top:16px; right:18px; width:44px; height:44px; border-radius:50%; border:none;
+    background:rgba(255,255,255,0.14); color:#fff; font-size:22px; line-height:1; cursor:pointer; }
+  .appek-lb-close:hover { background:rgba(255,255,255,0.26); }
+</style>
+<div class="appek-lb" id="appek-lb" role="dialog" aria-modal="true" aria-label="Zvětšená ukázka" onclick="appekZoomClose()">
+  <button class="appek-lb-close" type="button" aria-label="Zavřít" onclick="appekZoomClose()">✕</button>
+  <img id="appek-lb-img" src="" alt="">
+  <div class="appek-lb-cap" id="appek-lb-cap"></div>
+</div>
+<script>
+  (function () {
+    var lb = document.getElementById('appek-lb'), img = document.getElementById('appek-lb-img'), cap = document.getElementById('appek-lb-cap');
+    window.appekZoom = function (src, caption) {
+      img.src = src; img.alt = caption || ''; cap.textContent = caption || '';
+      lb.classList.add('open'); document.body.style.overflow = 'hidden';
+    };
+    window.appekZoomClose = function () { lb.classList.remove('open'); document.body.style.overflow = ''; img.src = ''; };
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') window.appekZoomClose(); });
   })();
 </script>
 
