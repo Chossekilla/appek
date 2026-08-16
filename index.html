@@ -105,11 +105,24 @@ img { max-width: 100%; display: block; }
 /* ============ HERO ============ */
 .hero {
   padding: 140px 0 80px;
-  background: radial-gradient(ellipse at top left, rgba(186, 117, 23, 0.08) 0%, transparent 50%),
-              radial-gradient(ellipse at bottom right, rgba(52, 199, 89, 0.08) 0%, transparent 50%),
-              linear-gradient(180deg, #FFFCF5 0%, #FFF 100%);
+  background-image:
+    linear-gradient(95deg, rgba(255,252,245,0.95) 0%, rgba(255,252,245,0.88) 30%, rgba(255,252,245,0.48) 56%, rgba(255,252,245,0.06) 78%, rgba(255,252,245,0) 100%),
+    url('assets/hero-bg.jpg');
+  background-size: cover, cover;
+  background-position: center, center right;
+  background-repeat: no-repeat, no-repeat;
   position: relative;
   overflow: hidden;
+}
+/* Foto v hero už ukazuje appku → skryj CSS mockup (photo-ready fallback zůstává v HTML) */
+.hero-visual { display: none; }
+@media (max-width: 900px) {
+  .hero {
+    background-image:
+      linear-gradient(180deg, rgba(255,252,245,0.96) 0%, rgba(255,252,245,0.9) 42%, rgba(255,252,245,0.55) 100%),
+      url('assets/hero-bg.jpg');
+    background-position: center, center top;
+  }
 }
 .hero-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 60px; align-items: center; }
 .hero-badge {
