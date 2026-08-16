@@ -401,7 +401,11 @@ footer {
   background: #1d1d1f; color: #d2d2d7;
   padding: 60px 0 30px;
 }
-footer .container { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; align-items: start; }
+footer .container { display: grid; grid-template-columns: 1.7fr 1fr 1fr 1fr; gap: 40px; align-items: start; }
+.footer-contact { list-style: none; padding: 0; margin: 16px 0 0; }
+.footer-contact li { font-size: 14px; padding: 3px 0; color: #d2d2d7; }
+.footer-contact li a { color: #d2d2d7; }
+.footer-contact li a:hover { color: #fff; }
 footer h5 { color: #fff; font-size: 14px; font-weight: 600; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
 footer ul { list-style: none; padding: 0; }
 footer ul li { padding: 4px 0; font-size: 14px; }
@@ -4499,6 +4503,11 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         <strong style="font-size:18px;color:#fff">APPEK B2B</strong>
       </div>
       <p data-i18n="footer_brand_d">Krabicový gastro objednávkový systém. Vyrábíte? Prodáváte? Vše v jednom — bez měsíčních poplatků.</p>
+      <ul class="footer-contact">
+        <li>📧 <a href="mailto:info@appek.cz" data-biz-email>info@appek.cz</a></li>
+        <li>📞 <a href="tel:+420733700808" data-biz-phone>+420 733 700 808</a></li>
+        <li>🌍 <span data-i18n="contact_region">ČR, SK, EU, mezinárodně</span></li>
+      </ul>
       <div class="footer-social">
         <a href="https://www.facebook.com/profile.php?id=61590201243782" target="_blank" rel="noopener" aria-label="Facebook">
           <svg viewBox="0 0 320 512" fill="currentColor" aria-hidden="true"><path d="M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"/></svg>
@@ -4513,13 +4522,25 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
       <h5 data-i18n="footer_product">Produkt</h5>
       <ul>
         <li><a href="#features" data-i18n="nav_features">Funkce</a></li>
+        <li><a href="#mobile" data-i18n="nav_mobile">📱 Mobile</a></li>
+        <li><a href="#delivery" data-i18n="nav_delivery">🚛 Rozvozy</a></li>
+        <li><a href="#integrations" data-i18n="nav_integrations">🔌 Integrace</a></li>
         <li><a href="#pricing" data-i18n="nav_pricing">Cena</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5 data-i18n="uc_eyebrow">Pro koho</h5>
+      <ul>
+        <li><a href="#use-cases" data-i18n="uc_bakery_t">Pekárna</a></li>
+        <li><a href="#use-cases" data-i18n="uc_patis_t">Cukrárna</a></li>
+        <li><a href="#use-cases" data-i18n="uc_deli_t">Lahůdkárna</a></li>
+        <li><a href="#use-cases" data-i18n="uc_resto_t">Gastro velkoobchod</a></li>
       </ul>
     </div>
     <div>
       <h5 data-i18n="footer_company">Společnost</h5>
       <ul>
-        <li><a href="/kontakty" data-i18n="nav_contact">Kontakt</a></li>
+        <li><a href="#contact" data-i18n="nav_contact">Kontakt</a></li>
         <li><a href="mailto:info@appek.cz" data-i18n="footer_email" data-biz-email>E-mail</a></li>
         <li><a href="mailto:support@appek.cz" data-i18n="footer_support_email">Support</a></li>
       </ul>
