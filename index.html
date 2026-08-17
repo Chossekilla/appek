@@ -1981,7 +1981,7 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
 <!-- FEATURES -->
 <style>
 /* Odlehčení ikon (user: „přeikonovaný") — ikony karet ve Features a Pro koho pryč */
-.feature-icon, .uc-icon { display: none !important; }
+.feature-icon, .uc-icon, .ea-emoji { display: none !important; }
 </style>
 <section id="features" class="features-bg">
   <div class="container">
@@ -4287,7 +4287,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
     chosen.forEach(function (p) {
       var pr = Number(p.price_kc) || 0;
       total += pr;
-      html += '<div class="es-line"><span>' + (esc(p.icon) || '📦') + ' ' + esc(nameOf(p))
+      html += '<div class="es-line"><span>' + esc(nameOf(p))
         + '</span><span>' + fmt(pr) + ' ' + t.cur + '</span></div>';
     });
     if (linesEl) linesEl.innerHTML = html;
