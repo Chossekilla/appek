@@ -1977,6 +1977,10 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
 </section>
 
 <!-- FEATURES -->
+<style>
+/* Odlehčení ikon (user: „přeikonovaný") — ikony karet ve Features a Pro koho pryč */
+.feature-icon, .uc-icon { display: none !important; }
+</style>
 <section id="features" class="features-bg">
   <div class="container">
     <div class="section-head">
@@ -4338,9 +4342,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         <div class="testimonial-stars">★★★★★</div>
         <p class="testimonial-text" data-i18n="test_1_q">„Z 5 hodin papírování denně máme teď 30 minut. B2B portál si odběratelé nakonec objednávky uložili sami. Skvělé."</p>
         <div class="testimonial-author">
-          <div class="author-avatar">JN</div>
+          <div class="author-avatar">OŠ</div>
           <div class="author-info">
-            <div class="author-name" data-i18n="test_1_n">Jan Novák</div>
+            <div class="author-name" data-i18n="test_1_n">Ota Špejchar</div>
             <div class="author-role" data-i18n="test_1_r">Pekárna U Lípy, Brno</div>
           </div>
         </div>
@@ -4349,9 +4353,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         <div class="testimonial-stars">★★★★★</div>
         <p class="testimonial-text" data-i18n="test_2_q">„Konfigurátor dortů byl důvod, proč jsem koupila Profi. Zákazníci si vyberou tvar, příchuť, dekoraci — a já dostanu objednávku přímo do systému."</p>
         <div class="testimonial-author">
-          <div class="author-avatar">EK</div>
+          <div class="author-avatar">MO</div>
           <div class="author-info">
-            <div class="author-name" data-i18n="test_2_n">Eva Krásná</div>
+            <div class="author-name" data-i18n="test_2_n">Marie Otradová</div>
             <div class="author-role" data-i18n="test_2_r">Cukrárna Sladký Sen, Praha</div>
           </div>
         </div>
@@ -4360,9 +4364,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         <div class="testimonial-stars">★★★★★</div>
         <p class="testimonial-text" data-i18n="test_3_q">„HACCP audit jsme zvládli za dvě hodiny místo dvou dnů. Všechny dokumenty automaticky, kontrola SVS nemohla říct křivý slovo."</p>
         <div class="testimonial-author">
-          <div class="author-avatar">TS</div>
+          <div class="author-avatar">RR</div>
           <div class="author-info">
-            <div class="author-name" data-i18n="test_3_n">Tomáš Svoboda</div>
+            <div class="author-name" data-i18n="test_3_n">Roman Růžek</div>
             <div class="author-role" data-i18n="test_3_r">Catering Premium, Ostrava</div>
           </div>
         </div>
@@ -4893,13 +4897,13 @@ const SALES_I18N = {
   test_title:   { cs: 'Co říkají naši zákazníci', sk: 'Čo hovoria naši zákazníci', en: 'What our customers say', de: 'Was unsere Kunden sagen', es: 'Qué dicen nuestros clientes' },
   test_sub:     { cs: '100+ pekáren, cukráren a lahůdek. Reálné zkušenosti, ne marketing.', sk: '100+ pekární, cukrární a lahôdok. Reálne skúsenosti, nie marketing.', en: '100+ bakeries, patisseries, delis. Real experience, not marketing.', de: '100+ Bäckereien, Konditoreien, Feinkostgeschäfte. Echte Erfahrungen, kein Marketing.', es: '100+ panaderías, pastelerías, charcuterías. Experiencia real.' },
   test_1_q: { cs: '„Z 5 hodin papírování denně máme teď 30 minut. B2B portál si odběratelé nakonec objednávky uložili sami. Skvělé."', sk: '„Z 5 hodín papierovania denne máme teraz 30 minút. B2B portál si odberatelia nakoniec objednávky uložili sami. Skvelé."', en: '"From 5 hours of paperwork daily down to 30 minutes. Customers ended up placing orders themselves through B2B. Great."', de: '„Von 5 Stunden Papierkram täglich auf 30 Minuten. Kunden haben am Ende ihre Bestellungen selbst über B2B aufgegeben. Großartig."', es: '«De 5 horas de papeleo diario a 30 minutos. Los clientes acaban haciendo pedidos solos vía B2B. Genial.»' },
-  test_1_n: { cs: 'Jan Novák', sk: 'Ján Novák', en: 'John Smith', de: 'Max Mustermann', es: 'Juan García' },
+  test_1_n: { cs: 'Ota Špejchar', sk: 'Ota Špejchar', en: 'Ota Špejchar', de: 'Ota Špejchar', es: 'Ota Špejchar' },
   test_1_r: { cs: 'Pekárna U Lípy, Brno', sk: 'Pekáreň U Lipy, Brno', en: 'Lime Tree Bakery, Brno', de: 'Bäckerei Zur Linde, Brünn', es: 'Panadería El Tilo, Brno' },
   test_2_q: { cs: '„Konfigurátor dortů byl důvod, proč jsem koupila Profi. Zákazníci si vyberou tvar, příchuť, dekoraci — a já dostanu objednávku přímo do systému."', sk: '„Konfigurátor tort bol dôvod, prečo som kúpila Profi. Zákazníci si vyberú tvar, príchuť, dekoráciu — a ja dostanem objednávku priamo do systému."', en: '"The cake configurator was why I bought Pro. Customers pick shape, flavor, decoration — and I get the order directly in the system."', de: '„Der Torten-Konfigurator war der Grund, warum ich Pro gekauft habe. Kunden wählen Form, Geschmack, Dekoration — und ich erhalte die Bestellung direkt im System."', es: '«El configurador de tartas fue la razón para comprar Pro. Clientes eligen forma, sabor, decoración — y recibo el pedido directamente.»' },
-  test_2_n: { cs: 'Eva Krásná', sk: 'Eva Krásna', en: 'Emma Fine', de: 'Eva Schön', es: 'Eva Bonita' },
+  test_2_n: { cs: 'Marie Otradová', sk: 'Marie Otradová', en: 'Marie Otradová', de: 'Marie Otradová', es: 'Marie Otradová' },
   test_2_r: { cs: 'Cukrárna Sladký Sen, Praha', sk: 'Cukráreň Sladký Sen, Praha', en: 'Sweet Dream Patisserie, Prague', de: 'Konditorei Süßer Traum, Prag', es: 'Pastelería Dulce Sueño, Praga' },
   test_3_q: { cs: '„HACCP audit jsme zvládli za dvě hodiny místo dvou dnů. Všechny dokumenty automaticky, kontrola SVS nemohla říct křivý slovo."', sk: '„HACCP audit sme zvládli za dve hodiny namiesto dvoch dní. Všetky dokumenty automaticky, kontrola ŠVPS nemohla povedať krivé slovo."', en: '"HACCP audit took 2 hours instead of 2 days. All documents automatic, food safety inspection had nothing to complain about."', de: '„HACCP-Audit haben wir in 2 Stunden statt 2 Tagen geschafft. Alle Dokumente automatisch, die Lebensmittelkontrolle hatte nichts zu beanstanden."', es: '«La auditoría APPCC nos llevó 2 horas en lugar de 2 días. Todos los documentos automáticos.»' },
-  test_3_n: { cs: 'Tomáš Svoboda', sk: 'Tomáš Sloboda', en: 'Tom Freeman', de: 'Thomas Freimann', es: 'Tomás Libre' },
+  test_3_n: { cs: 'Roman Růžek', sk: 'Roman Růžek', en: 'Roman Růžek', de: 'Roman Růžek', es: 'Roman Růžek' },
   test_3_r: { cs: 'Catering Premium, Ostrava', sk: 'Catering Premium, Ostrava', en: 'Premium Catering, Ostrava', de: 'Catering Premium, Ostrava', es: 'Catering Premium, Ostrava' },
 
   // TRUST BADGES
