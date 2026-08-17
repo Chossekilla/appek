@@ -30,6 +30,21 @@ function require_admin(): array {
             json_error('POS účet nemá přístup k této části administrace', 403);
         }
     }
+    // 🆕 READ-ONLY role (náhledový účet / veřejné demo): smí JEN číst.
+    //   Blokuje všechny mutace (POST/PUT/DELETE/PATCH) v jednom centrálním bodě.
+    //   Výjimka = neškodná self-maintenance (heartbeat, JS-error log, whoami),
+    //   jinak by náhledová session házela 403 na pozadí. GET/HEAD projdou → vše se dá prohlédnout.
+    //   INERTNÍ dokud žádný účet nemá role='readonly'.
+    if (($_SESSION['admin_role'] ?? '') === 'readonly') {
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        if (in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true)) {
+            $roAllowed = ['license_heartbeat.php', 'admin_klient_chyby.php', 'whoami.php'];
+            $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '')));
+            if (!in_array($script, $roAllowed, true)) {
+                json_error('Náhledový účet — jen prohlížení. Plný přístup na vyžádání: info@appek.cz', 403);
+            }
+        }
+    }
     // 🔒 v2.6.0 SECURITY: CSRF check pro POST/PUT/DELETE.
     //    GET jsou idempotentní → bez CSRF.
     //    Lze deaktivovat per-endpoint definicí konstanty SKIP_CSRF před require.
