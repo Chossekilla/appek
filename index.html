@@ -101,8 +101,10 @@ img { max-width: 100%; display: block; }
   box-shadow: 0 4px 12px rgba(186, 117, 23, 0.3);
 }
 .topbar nav { display: flex; gap: 30px; }
-.topbar nav a { color: #424245; font-size: 15px; font-weight: 500; }
+.topbar nav a { color: #424245; font-size: 15px; font-weight: 500; position: relative; transition: color 0.15s ease; }
 .topbar nav a:hover { color: #BA7517; }
+.topbar nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: -7px; height: 2px; border-radius: 2px; background: #BA7517; transform: scaleX(0); transform-origin: left center; transition: transform 0.22s ease; }
+.topbar nav a:hover::after { transform: scaleX(1); }
 .topbar .cta { display: flex; gap: 10px; align-items: center; }
 .topbar-burger {
   display: none;
@@ -1885,11 +1887,11 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
       APPEK B2B
     </a>
     <nav>
-      <a href="#features">⚙️ <span data-i18n="nav_features">Funkce</span></a>
-      <a href="#mobile" data-i18n="nav_mobile">📱 Mobile</a>
-      <a href="#delivery" data-i18n="nav_delivery">🚛 Rozvozy</a>
-      <a href="#integrations" data-i18n="nav_integrations">🔌 Integrace</a>
-      <a href="#pricing">🏷️ <span data-i18n="nav_pricing">Cena</span></a>
+      <a href="#features"><span data-i18n="nav_features">Funkce</span></a>
+      <a href="#mobile" data-i18n="nav_mobile">Mobile</a>
+      <a href="#delivery" data-i18n="nav_delivery">Rozvozy</a>
+      <a href="#integrations" data-i18n="nav_integrations">Integrace</a>
+      <a href="#pricing"><span data-i18n="nav_pricing">Cena</span></a>
     </nav>
     <div class="cta">
       <!-- 🌍 Language switcher — DROPDOWN (PC + mobile) -->
@@ -4517,9 +4519,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
       <h5 data-i18n="footer_product">Produkt</h5>
       <ul>
         <li><a href="#features" data-i18n="nav_features">Funkce</a></li>
-        <li><a href="#mobile" data-i18n="nav_mobile">📱 Mobile</a></li>
-        <li><a href="#delivery" data-i18n="nav_delivery">🚛 Rozvozy</a></li>
-        <li><a href="#integrations" data-i18n="nav_integrations">🔌 Integrace</a></li>
+        <li><a href="#mobile" data-i18n="nav_mobile">Mobile</a></li>
+        <li><a href="#delivery" data-i18n="nav_delivery">Rozvozy</a></li>
+        <li><a href="#integrations" data-i18n="nav_integrations">Integrace</a></li>
       </ul>
     </div>
     <div>
@@ -4562,9 +4564,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
 const SALES_I18N = {
   // Topbar nav
   nav_features: { cs: 'Funkce', sk: 'Funkcie', en: 'Features', de: 'Funktionen', es: 'Funciones' },
-  nav_mobile:   { cs: '📱 Mobile', sk: '📱 Mobile', en: '📱 Mobile', de: '📱 Mobile', es: '📱 Móvil' },
-  nav_integrations: { cs: '🔌 Integrace', sk: '🔌 Integrácie', en: '🔌 Integrations', de: '🔌 Integrationen', es: '🔌 Integraciones' },
-  nav_delivery:     { cs: '🚛 Rozvozy', sk: '🚛 Rozvozy', en: '🚛 Delivery', de: '🚛 Lieferung', es: '🚛 Reparto' },
+  nav_mobile:   { cs: 'Mobile', sk: 'Mobile', en: 'Mobile', de: 'Mobile', es: 'Móvil' },
+  nav_integrations: { cs: 'Integrace', sk: 'Integrácie', en: 'Integrations', de: 'Integrationen', es: 'Integraciones' },
+  nav_delivery:     { cs: 'Rozvozy', sk: 'Rozvozy', en: 'Delivery', de: 'Lieferung', es: 'Reparto' },
 
   // ═════ DELIVERY SEKCE ═════
   dl_badge:    { cs: '🚛 Rozvozový plán · Dodací listy', sk: '🚛 Rozvozový plán · Dodacie listy', en: '🚛 Delivery plan · Delivery notes', de: '🚛 Lieferplan · Lieferscheine', es: '🚛 Plan de reparto · Albaranes' },
