@@ -7425,7 +7425,7 @@ function vykreslitNovouObjednavku() {
                  style="width:100%;font-size:16px;padding:12px 16px;height:50px;font-weight:500"
                  autocomplete="off"
                  oninput="vpOdbFilter('no', this.value)"
-                 onfocus="vpOdbFilter('no', this.value)"
+                 onfocus="if(!noState.odberatel_id) vpOdbFilter('no', this.value)"
                  onkeydown="vpOdbKey(event, 'no')">
           <input type="hidden" id="no-odberatel" value="${s.odberatel_id || ''}">
           <div class="vp-picker-dropdown" id="no-odb-dropdown" style="display:none"></div>
