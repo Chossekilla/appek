@@ -3373,10 +3373,12 @@ async function showApp() {
 // Backend blokuje mutace (require_admin) + json_error hlášku appka ukáže sama.
 (function () {
   function ensureBanner() {
-    // stav se plní async (whoami/login) → čekej než bude
-    if (!window.state || !state.admin) return false;
-    if ((state.admin.role || '') !== 'readonly') return true; // není readonly → hotovo
-    if (document.getElementById('ro-banner')) return true;     // už je
+    // stav se plní async (whoami/login) → čekej než bude.
+    // POZOR: appka používá bare `state` (const), NE window.state → čti bezpečně přes typeof.
+    var st = (typeof state !== 'undefined') ? state : null;
+    if (!st || !st.admin) return false;
+    if ((st.admin.role || '') !== 'readonly') return true;    // není readonly → hotovo
+    if (document.getElementById('ro-banner')) return true;    // už je
 
     var b = document.createElement('div');
     b.id = 'ro-banner';
@@ -7721,8 +7723,8 @@ window.noPridatZKatalogu = function() {
   const _hid = document.getElementById('no-pridat-vyrobek-id'); if (_hid) _hid.value = '';
   vykreslitNovouObjednavku();
   // 🆕 Po přidání zaostři hledání DALŠÍHO produktu (ne odběratele) — rychlé hromadné zadávání.
-  //    setTimeout(0), aby to přebilo auto-focus modalu (openModal zaostří první input).
-  setTimeout(function () { document.getElementById('no-pridat-vyrobek')?.focus(); }, 0);
+  //    90ms, aby to přebilo auto-focus modalu (openModal zaostří první input přes setTimeout 60ms).
+  setTimeout(function () { document.getElementById('no-pridat-vyrobek')?.focus(); }, 90);
 };
 
 window.noPridatVolny = function() {

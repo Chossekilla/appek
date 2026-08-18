@@ -7,10 +7,12 @@
 // Backend blokuje mutace (require_admin) + json_error hlášku appka ukáže sama.
 (function () {
   function ensureBanner() {
-    // stav se plní async (whoami/login) → čekej než bude
-    if (!window.state || !state.admin) return false;
-    if ((state.admin.role || '') !== 'readonly') return true; // není readonly → hotovo
-    if (document.getElementById('ro-banner')) return true;     // už je
+    // stav se plní async (whoami/login) → čekej než bude.
+    // POZOR: appka používá bare `state` (const), NE window.state → čti bezpečně přes typeof.
+    var st = (typeof state !== 'undefined') ? state : null;
+    if (!st || !st.admin) return false;
+    if ((st.admin.role || '') !== 'readonly') return true;    // není readonly → hotovo
+    if (document.getElementById('ro-banner')) return true;    // už je
 
     var b = document.createElement('div');
     b.id = 'ro-banner';
