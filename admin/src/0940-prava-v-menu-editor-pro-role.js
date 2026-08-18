@@ -129,6 +129,7 @@ window.otevritUzivatele = async function(id) {
     vyroba:   { label: 'Výroba',       emoji: '🥖', desc: 'Pro pekaře — výrobní list, objednávky' },
     expedice: { label: 'Expedice',     emoji: '🚚', desc: 'Pro řidiče — dodací listy, expedice' },
     pos:      { label: 'POS kasa',     emoji: '🧾', desc: 'Pro obsluhu kasy — pouze POS terminál (žádný admin)' },
+    readonly: { label: 'Náhled',       emoji: '👁', desc: 'Vidí celou appku, ale nic nemůže měnit — pro demo, účetní nebo brigádníka' },
   };
 
   openModal(isNew ? '+ Nový uživatel' : `✏️ Upravit: ${u.jmeno || u.email}`, `

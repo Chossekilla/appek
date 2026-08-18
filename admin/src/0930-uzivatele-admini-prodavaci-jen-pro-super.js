@@ -30,6 +30,7 @@ async function renderUsers() {
       vyroba:   '🥖 Výroba',
       expedice: '🚚 Expedice',
       pos:      '🧾 POS kasa',
+      readonly: '👁 Náhled',
     })[r] || r;
 
     const roleBadgeClass = (r) =>

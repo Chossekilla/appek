@@ -2623,7 +2623,7 @@ state.rolePrava = DEFAULT_ROLE_PRAVA;
 // Pro aktuálního uživatele zjistí, zda smí navigovat na danou stránku
 function muzeNavigovat(page) {
   const role = state.admin?.role || 'admin';
-  if (role === 'admin') return true;                    // super admin vše
+  if (role === 'admin' || role === 'readonly') return true; // super admin + náhled (readonly) vidí/prochází vše
   const allowed = state.rolePrava[role] || [];
   return allowed.includes(page);
 }
@@ -2631,8 +2631,8 @@ function muzeNavigovat(page) {
 // Podle role schová nav items v sidebaru
 function aplikovatPravaNaMenu() {
   const role = state.admin?.role || 'admin';
-  const allowed = role === 'admin'
-    ? ALL_NAV_PAGES.map(p => p.key)               // admin vidí všechny
+  const allowed = (role === 'admin' || role === 'readonly')
+    ? ALL_NAV_PAGES.map(p => p.key)               // admin + readonly (náhled) vidí všechny
     : (state.rolePrava[role] || DEFAULT_ROLE_PRAVA[role] || []);
   document.querySelectorAll('.nav-item').forEach((b) => {
     const ok = allowed.includes(b.dataset.page);
@@ -29051,6 +29051,7 @@ async function renderUsers() {
       vyroba:   '🥖 Výroba',
       expedice: '🚚 Expedice',
       pos:      '🧾 POS kasa',
+      readonly: '👁 Náhled',
     })[r] || r;
 
     const roleBadgeClass = (r) =>
@@ -29328,6 +29329,7 @@ window.otevritUzivatele = async function(id) {
     vyroba:   { label: 'Výroba',       emoji: '🥖', desc: 'Pro pekaře — výrobní list, objednávky' },
     expedice: { label: 'Expedice',     emoji: '🚚', desc: 'Pro řidiče — dodací listy, expedice' },
     pos:      { label: 'POS kasa',     emoji: '🧾', desc: 'Pro obsluhu kasy — pouze POS terminál (žádný admin)' },
+    readonly: { label: 'Náhled',       emoji: '👁', desc: 'Vidí celou appku, ale nic nemůže měnit — pro demo, účetní nebo brigádníka' },
   };
 
   openModal(isNew ? '+ Nový uživatel' : `✏️ Upravit: ${u.jmeno || u.email}`, `

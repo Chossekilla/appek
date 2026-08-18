@@ -39,7 +39,7 @@ state.rolePrava = DEFAULT_ROLE_PRAVA;
 // Pro aktuálního uživatele zjistí, zda smí navigovat na danou stránku
 function muzeNavigovat(page) {
   const role = state.admin?.role || 'admin';
-  if (role === 'admin') return true;                    // super admin vše
+  if (role === 'admin' || role === 'readonly') return true; // super admin + náhled (readonly) vidí/prochází vše
   const allowed = state.rolePrava[role] || [];
   return allowed.includes(page);
 }
@@ -47,8 +47,8 @@ function muzeNavigovat(page) {
 // Podle role schová nav items v sidebaru
 function aplikovatPravaNaMenu() {
   const role = state.admin?.role || 'admin';
-  const allowed = role === 'admin'
-    ? ALL_NAV_PAGES.map(p => p.key)               // admin vidí všechny
+  const allowed = (role === 'admin' || role === 'readonly')
+    ? ALL_NAV_PAGES.map(p => p.key)               // admin + readonly (náhled) vidí všechny
     : (state.rolePrava[role] || DEFAULT_ROLE_PRAVA[role] || []);
   document.querySelectorAll('.nav-item').forEach((b) => {
     const ok = allowed.includes(b.dataset.page);
