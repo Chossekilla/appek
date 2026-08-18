@@ -415,6 +415,9 @@ window.noPridatZKatalogu = function() {
   const _inp = document.getElementById('no-pridat-vyrobek'); if (_inp) _inp.value = '';
   const _hid = document.getElementById('no-pridat-vyrobek-id'); if (_hid) _hid.value = '';
   vykreslitNovouObjednavku();
+  // 🆕 Po přidání zaostři hledání DALŠÍHO produktu (ne odběratele) — rychlé hromadné zadávání.
+  //    setTimeout(0), aby to přebilo auto-focus modalu (openModal zaostří první input).
+  setTimeout(function () { document.getElementById('no-pridat-vyrobek')?.focus(); }, 0);
 };
 
 window.noPridatVolny = function() {
