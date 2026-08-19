@@ -39,10 +39,16 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 
+    // 🆕 PRONÁJEM (Fáze 2): ať SELECT price_month_kc nespadne, než packages.php migraci spustí
+    try {
+        $hasPm = $pdo->query("SHOW COLUMNS FROM vendor_packages LIKE 'price_month_kc'")->fetchAll();
+        if (!$hasPm) $pdo->exec("ALTER TABLE vendor_packages ADD COLUMN price_month_kc DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER price_kc");
+    } catch (Throwable $e) { /* ignore */ }
+
     $rows = $pdo->query("
         SELECT `key`, name_cs, name_en, name_es,
                description_cs, description_en, description_es,
-               icon, price_kc, price_eur, price_usd, is_core, bit_pos,
+               icon, price_kc, price_month_kc, price_eur, price_usd, is_core, bit_pos,
                features_json
         FROM vendor_packages
         WHERE is_active = 1
@@ -51,6 +57,7 @@ try {
 
     foreach ($rows as &$r) {
         $r['price_kc'] = (float) $r['price_kc'];
+        $r['price_month_kc'] = (float) ($r['price_month_kc'] ?? 0);  // 🆕 měsíční pronájem
         $r['price_eur'] = $r['price_eur'] !== null ? (float) $r['price_eur'] : null;
         $r['price_usd'] = $r['price_usd'] !== null ? (float) $r['price_usd'] : null;
         $r['is_core'] = (bool) $r['is_core'];

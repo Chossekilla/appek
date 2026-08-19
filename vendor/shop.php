@@ -54,14 +54,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $packages = array_filter($packages, fn($k) => $k !== 'core'); // core je default
             $key = license_generate_with_packages($packages);
 
-            // 1 rok platnost defaultně, nebo permanent dle volby (rozšířit později)
-            $expires = date('Y-m-d', strtotime('+1 year'));
+            // 🆕 PRONÁJEM (Fáze 2): rental_months>0 → rental licence (expires=+N měsíců), jinak 1 rok.
+            $rentalMonths = (int) ($order['rental_months'] ?? 0);
+            $isRental = $rentalMonths > 0;
+            $expires = date('Y-m-d', strtotime($isRental ? "+{$rentalMonths} months" : '+1 year'));
 
             $ins = $pdo->prepare("
                 INSERT INTO vendor_licenses
                   (license_key, customer_name, customer_company, customer_email, customer_phone,
-                   install_url, note, expires_at, status, price_kc, paid, issued_by_id)
-                VALUES (:k, :n, :c, :e, :p, :u, :note, :exp, 'active', :pr, 1, :uid)
+                   install_url, note, expires_at, status, price_kc, paid, issued_by_id, rental)
+                VALUES (:k, :n, :c, :e, :p, :u, :note, :exp, 'active', :pr, 1, :uid, :rt)
             ");
             $ins->execute([
                 'k' => $key,
@@ -70,10 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'e' => $order['customer_email'],
                 'p' => $order['customer_phone'],
                 'u' => $order['install_url'],
-                'note' => "Auto-generated z objednávky " . $order['order_no'],
+                'note' => ($isRental ? "Pronájem {$rentalMonths} měs. · " : "") . "Auto-generated z objednávky " . $order['order_no'],
                 'exp' => $expires,
                 'pr' => $order['total_kc'],
                 'uid' => $user['id'],
+                'rt' => $isRental ? 1 : 0,
             ]);
             $licenseId = (int) $pdo->lastInsertId();
 

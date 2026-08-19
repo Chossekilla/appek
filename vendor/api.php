@@ -109,8 +109,8 @@ if ($action === 'generate' && $method === 'POST') {
         $pdo->prepare("
             INSERT INTO vendor_licenses
                 (license_key, customer_name, customer_company, customer_email, customer_phone,
-                 install_url, note, issued_at, expires_at, status, issued_by_id, price_kc, paid)
-            VALUES (:k, :n, :co, :e, :p, :u, :nt, CURDATE(), :ex, 'active', :uid, :pr, :pd)
+                 install_url, note, issued_at, expires_at, status, issued_by_id, price_kc, paid, rental)
+            VALUES (:k, :n, :co, :e, :p, :u, :nt, CURDATE(), :ex, 'active', :uid, :pr, :pd, :rt)
         ")->execute([
             'k'   => $key,
             'n'   => $name,
@@ -124,6 +124,8 @@ if ($action === 'generate' && $method === 'POST') {
             'uid' => $user['id'],
             'pr'  => isset($d['price_kc']) ? (float) $d['price_kc'] : null,
             'pd'  => !empty($d['paid']) ? 1 : 0,
+            // 🆕 PRONÁJEM (my.appek.cz): rental=1 → měsíční nájem, po grace hard-lock celé appky
+            'rt'  => !empty($d['rental']) ? 1 : 0,
         ]);
         $id = (int) $pdo->lastInsertId();
         $license = $pdo->prepare("SELECT * FROM vendor_licenses WHERE id = :id");
@@ -150,6 +152,11 @@ if ($action === 'update' && $method === 'POST') {
             $set[] = "$f = :$f";
             $params[$f] = $d[$f] === '' ? null : $d[$f];
         }
+    }
+    // 🆕 PRONÁJEM: rental explicitně 0/1 (sloupec NOT NULL DEFAULT 0 — nesmí projít null z whitelistu)
+    if (array_key_exists('rental', $d)) {
+        $set[] = "rental = :rental";
+        $params['rental'] = !empty($d['rental']) ? 1 : 0;
     }
     if (!$set) vendor_json_error('Nic ke změně');
 

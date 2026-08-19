@@ -280,6 +280,7 @@ echo "        (api/, admin/, b2b/, pos/, demo/, install.php, index.php router)"
 zip -r "$CUSTOMER_OUT" . \
   "${COMMON_EXCLUDES[@]}" \
   -x "vendor/*" \
+  -x "my/*" \
   -x "sales/*" \
   -x "scripts/*" \
   -x "updates/*" \

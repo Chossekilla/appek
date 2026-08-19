@@ -172,6 +172,7 @@ try {
         'reason'      => $newReason,
         'lock_until'  => $vendorReply['lock_until'] ?? null,
         'valid_until' => $vendorReply['expires_at'] ?? ($prevState['valid_until'] ?? null),
+        'rental'      => $vendorReply['rental'] ?? ($prevState['rental'] ?? 0),  // 🆕 pronájem flag (my.appek.cz) — po grace hard-lock
         'last_check'  => time(),
     ]);
 

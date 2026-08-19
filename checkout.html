@@ -62,6 +62,13 @@
   .card h2 small { font-weight: 400; color: #86868b; font-size: 13px; }
 
   .pkg-list { display: flex; flex-direction: column; gap: 8px; }
+  /* 🆕 PRONÁJEM (Fáze 2) — přepínač napořád/měsíčně + periody */
+  .buy-mode { display:flex; gap:8px; margin:0 0 12px; }
+  .buy-mode .bm-btn, .rental-periods .rp-btn { flex:1; padding:11px 10px; border:1.5px solid #e5e5ea; border-radius:11px;
+    background:#fff; color:#1d1d1f; font-size:14px; font-weight:600; cursor:pointer; text-align:center; transition:.15s; }
+  .buy-mode .bm-btn.active, .rental-periods .rp-btn.active { border-color:#0071e3; background:#0071e3; color:#fff; }
+  .rental-periods { display:none; gap:8px; margin:0 0 12px; }
+  .rental-periods.show { display:flex; }
   .pkg {
     border: 1.5px solid #e5e5e7; border-radius: 12px; padding: 14px 16px;
     cursor: pointer; transition: all 0.15s ease; display: flex; gap: 12px; align-items: center;
@@ -361,8 +368,18 @@
       <!-- KROK 1: VOLBA BALÍČKŮ -->
       <div class="card pkg-card">
         <h2 data-i18n="step1">📦 Vyberte balíčky <small data-i18n="step1_sub">— Core je vždy zahrnut</small></h2>
-          <div class="info-banner" data-i18n="banner">
+          <div class="info-banner" data-i18n="banner" id="info-banner">
             Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.
+          </div>
+          <!-- 🆕 PRONÁJEM (Fáze 2): přepínač koupit napořád / pronájem měsíčně -->
+          <div class="buy-mode" id="buy-mode">
+            <button type="button" class="bm-btn active" onclick="setBuyMode(0)" data-i18n="mode_buy">Koupit napořád</button>
+            <button type="button" class="bm-btn" onclick="setBuyMode('rental')" data-i18n="mode_rent">🗓️ Pronájem měsíčně</button>
+          </div>
+          <div class="rental-periods" id="rental-periods">
+            <button type="button" class="rp-btn" onclick="setRentalMonths(1)" data-m="1">1 měsíc</button>
+            <button type="button" class="rp-btn active" onclick="setRentalMonths(3)" data-m="3">3 měsíce</button>
+            <button type="button" class="rp-btn" onclick="setRentalMonths(6)" data-m="6">6 měsíců</button>
           </div>
           <div class="pkg-list" id="pkg-list">
             <div style="text-align:center;padding:40px;color:#86868b" data-i18n="loading">Načítání balíčků…</div>
@@ -601,6 +618,8 @@ const I18N = {
     step1: '📦 Vyberte balíčky',
     step1_sub: '— Core je vždy zahrnut',
     banner: 'Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.',
+    mode_buy: 'Koupit napořád', mode_rent: '🗓️ Pronájem měsíčně',
+    banner_rent: 'Měsíční pronájem — platíte jen za využité měsíce. Po vypršení se aplikace uzamkne.',
     loading: 'Načítání balíčků…',
     step2: '👤 Kontaktní údaje',
     lbl_name: 'Jméno a příjmení *',
@@ -670,6 +689,8 @@ const I18N = {
     step1: '📦 Choose packages',
     step1_sub: '— Core is always included',
     banner: 'One-time price, no monthly fees. Key arrives by e-mail within 24 h.',
+    mode_buy: 'Buy forever', mode_rent: '🗓️ Monthly rental',
+    banner_rent: 'Monthly rental — pay only for the months you use. The app locks when it expires.',
     loading: 'Loading packages…',
     step2: '👤 Contact details',
     lbl_name: 'Full name *',
@@ -735,6 +756,8 @@ const I18N = {
     step1: '📦 Elija paquetes',
     step1_sub: '— Core siempre incluido',
     banner: 'Precio único, sin cuotas mensuales. La clave llega por correo en 24 h.',
+    mode_buy: 'Comprar para siempre', mode_rent: '🗓️ Alquiler mensual',
+    banner_rent: 'Alquiler mensual — paga solo los meses que uses. La app se bloquea al vencer.',
     loading: 'Cargando paquetes…',
     step2: '👤 Datos de contacto',
     lbl_name: 'Nombre completo *',
@@ -809,6 +832,31 @@ function applyI18n() {
 // ─── Načti balíčky ───
 let PACKAGES = [];
 let SELECTED = new Set();
+// 🆕 PRONÁJEM (Fáze 2): 0 = koupit napořád (price_kc), >0 = pronájem na N měsíců (price_month_kc × N)
+let RENTAL_MONTHS = 0;
+
+// Cena balíčku dle režimu (napořád vs. měsíční pronájem × počet měsíců)
+function pkgPrice(p) {
+  if (RENTAL_MONTHS > 0) return Math.round((parseFloat(p.price_month_kc) || 0) * RENTAL_MONTHS);
+  return parseFloat(p.price_kc) || 0;
+}
+
+function setBuyMode(mode) {
+  RENTAL_MONTHS = (mode === 'rental') ? 3 : 0;   // pronájem default 3 měsíce
+  document.querySelectorAll('#buy-mode .bm-btn').forEach((b, i) => b.classList.toggle('active', (i === 0) === (RENTAL_MONTHS === 0)));
+  document.getElementById('rental-periods').classList.toggle('show', RENTAL_MONTHS > 0);
+  const banner = document.getElementById('info-banner');
+  if (banner) banner.textContent = RENTAL_MONTHS > 0
+    ? (I18N[lang].banner_rent || 'Měsíční pronájem — platíte jen za využité měsíce. Po vypršení se aplikace uzamkne.')
+    : (I18N[lang].banner || 'Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.');
+  renderPackages(); renderSummary();
+}
+
+function setRentalMonths(m) {
+  RENTAL_MONTHS = m;
+  document.querySelectorAll('#rental-periods .rp-btn').forEach(b => b.classList.toggle('active', (+b.dataset.m) === m));
+  renderPackages(); renderSummary();
+}
 
 const apiCandidates = [
   '/api/shop_packages.php',
@@ -824,6 +872,11 @@ async function loadPackages() {
       const j = await r.json();
       if (j.ok && Array.isArray(j.packages) && j.packages.length) {
         PACKAGES = j.packages;
+        // 🆕 PRONÁJEM (Fáze 2): přepínač zobraz JEN když aspoň jeden balíček má měsíční cenu.
+        //   Než vendor ceny nastaví (price_month_kc=0 všude) → přepínač skrytý, žádné „0 Kč pronájem".
+        const rentAvailable = PACKAGES.some(p => (parseFloat(p.price_month_kc) || 0) > 0);
+        const bm = document.getElementById('buy-mode');
+        if (bm && !rentAvailable) { bm.style.display = 'none'; RENTAL_MONTHS = 0; }
         // Auto-select core
         PACKAGES.forEach(p => { if (p.is_core) SELECTED.add(p.key); });
         // 🆕 v2.9.116 — předvybrané balíčky z eshopu na úvodní stránce (?packages=key1,key2)
@@ -863,7 +916,7 @@ function renderPackages() {
         <div class="pkg-name">${escapeHtml(name)}</div>
         <div class="pkg-desc">${escapeHtml(desc)}</div>
       </div>
-      <div class="pkg-price">${formatPrice(p.price_kc)}</div>
+      <div class="pkg-price">${formatPrice(pkgPrice(p))}${RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} měs.</small>` : ''}</div>
     `;
     if (!p.is_core) {
       div.addEventListener('click', () => togglePkg(p.key));
@@ -885,16 +938,19 @@ function renderSummary() {
   const lines = [];
   PACKAGES.forEach(p => {
     if (SELECTED.has(p.key)) {
-      total += parseFloat(p.price_kc) || 0;
+      total += pkgPrice(p);
       const name = p[`name_${lang}`] || p.name_cs;
-      lines.push(`<div class="sum-row"><span>${p.icon || '📦'} ${escapeHtml(name)}</span><span>${formatPrice(p.price_kc)}</span></div>`);
+      lines.push(`<div class="sum-row"><span>${p.icon || '📦'} ${escapeHtml(name)}</span><span>${formatPrice(pkgPrice(p))}</span></div>`);
     }
   });
   if (lines.length === 0) {
     wrap.innerHTML = `<div class="sum-row" style="color:#86868b;font-style:italic">${I18N[lang].sum_empty}</div>`;
     document.getElementById('btn-buy').disabled = true;
   } else {
-    wrap.innerHTML = lines.join('');
+    const header = RENTAL_MONTHS > 0
+      ? `<div class="sum-row" style="color:#0071e3;font-weight:600">🗓️ Pronájem na ${RENTAL_MONTHS} ${RENTAL_MONTHS === 1 ? 'měsíc' : (RENTAL_MONTHS < 5 ? 'měsíce' : 'měsíců')}</div>`
+      : '';
+    wrap.innerHTML = header + lines.join('');
     document.getElementById('btn-buy').disabled = false;
   }
   document.getElementById('sum-total').textContent = formatPrice(total);
@@ -932,7 +988,7 @@ async function submitOrder() {
   // jednou-použitelná digitální dodávka a po předání není refundovatelný).
 
   const total = Array.from(SELECTED).reduce((s, k) => {
-    const p = PACKAGES.find(p => p.key === k); return s + (p ? parseFloat(p.price_kc) : 0);
+    const p = PACKAGES.find(p => p.key === k); return s + (p ? pkgPrice(p) : 0);
   }, 0);
 
   // 🆕 v2.9.200 — payment method z radio (stripe / gopay / invoice)
@@ -952,6 +1008,7 @@ async function submitOrder() {
     tier: SELECTED.has('core') ? 'custom' : 'addon',
     packages: Array.from(SELECTED),
     total_kc: total,
+    rental_months: RENTAL_MONTHS,  // 🆕 0 = koupit napořád, >0 = pronájem na N měsíců
     currency: 'CZK',
     payment_method: payMethod === 'invoice' ? 'bank' : payMethod,
     locale: lang,

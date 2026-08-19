@@ -83,13 +83,16 @@ if ($status['state'] === 'PAID' && $order['payment_status'] !== 'paid') {
         $packages = json_decode($order['packages_json'] ?? '[]', true) ?: [];
         $packages = array_filter($packages, fn($k) => $k !== 'core');
         $key = license_generate_with_packages($packages);
-        $expires = date('Y-m-d', strtotime('+1 year'));
+        // 🆕 PRONÁJEM (Fáze 2): rental_months>0 → rental licence (expires=+N měsíců), jinak roční.
+        $rentalMonths = (int) ($order['rental_months'] ?? 0);
+        $isRental = $rentalMonths > 0;
+        $expires = date('Y-m-d', strtotime($isRental ? "+{$rentalMonths} months" : '+1 year'));
 
         $pdo->prepare("
             INSERT INTO vendor_licenses
               (license_key, customer_name, customer_company, customer_email, customer_phone,
-               install_url, note, expires_at, status, price_kc, paid)
-            VALUES (:k, :n, :c, :e, :p, :u, :note, :exp, 'active', :pr, 1)
+               install_url, note, expires_at, status, price_kc, paid, rental)
+            VALUES (:k, :n, :c, :e, :p, :u, :note, :exp, 'active', :pr, 1, :rt)
         ")->execute([
             'k' => $key,
             'n' => $order['customer_name'],
@@ -97,9 +100,10 @@ if ($status['state'] === 'PAID' && $order['payment_status'] !== 'paid') {
             'e' => $order['customer_email'],
             'p' => $order['customer_phone'],
             'u' => $order['install_url'],
-            'note' => "Auto-generated z GoPay · order {$order['order_no']}",
+            'note' => ($isRental ? "Pronájem {$rentalMonths} měs. · " : "") . "Auto-generated z GoPay · order {$order['order_no']}",
             'exp' => $expires,
             'pr' => $order['total_kc'],
+            'rt' => $isRental ? 1 : 0,
         ]);
         $licenseId = (int) $pdo->lastInsertId();
         $pdo->prepare("UPDATE vendor_shop_orders SET license_id = :lid, license_key = :lk WHERE id = :id")

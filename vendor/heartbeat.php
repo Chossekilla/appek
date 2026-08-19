@@ -240,6 +240,8 @@ try {
             // 🆕 v3.0.387 P1-C — pošli expires_at i v pirate větvi (když licence existuje), ať si klient
             //   nepřepíše datum na null fallbackem (locked = i legit migrace serveru, viz P1-A/P1-B unlock).
             'expires_at'     => (isset($licenseRow['expires_at']) ? $licenseRow['expires_at'] : null),
+            // 🆕 pronájem flag i v pirate větvi (locked = i legit migrace serveru) — ať klient neztratí rental
+            'rental'         => !empty($licenseRow['rental']) ? 1 : 0,
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
@@ -308,6 +310,8 @@ try {
         'license_status' => $licenseStatus,
         'message'        => 'Heartbeat zaznamenán.',
         'expires_at'     => $licenseRow['expires_at'] ?? null,
+        // 🆕 PRONÁJEM (my.appek.cz): rental=1 → klient po grace hard-lockne CELOU appku (ne jen balíčky).
+        'rental'         => !empty($licenseRow['rental']) ? 1 : 0,
     ], JSON_UNESCAPED_UNICODE);
 
 } catch (Throwable $e) {

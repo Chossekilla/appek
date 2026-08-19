@@ -170,7 +170,7 @@ function renderTable(rows) {
         ${r.customer_phone ? `<span class="muted">${esc(r.customer_phone)}</span>` : ''}
       </td>
       <td>${fmtDate(r.issued_at)}</td>
-      <td>${r.expires_at ? fmtDate(r.expires_at) : '<span class="muted">∞</span>'}</td>
+      <td>${r.expires_at ? fmtDate(r.expires_at) : '<span class="muted">∞</span>'}${r.rental == 1 ? ' <span class="badge" title="Pronájem — my.appek.cz">🗓️ nájem</span>' : ''}</td>
       <td>${r.paid ? '✓' : '<span class="muted">nezaplaceno</span>'} ${fmtKc(r.price_kc)}</td>
       <td class="actions">
         <button class="btn-icon" onclick="openReissueModal(${r.id})" title="Změnit balíčky (nový klíč)">🎁</button>
@@ -342,6 +342,10 @@ function openGenerateModal(prefill) {
         <input type="checkbox" name="paid" checked>
         <span>💰 Zaplaceno</span>
       </label>
+      <label class="checkbox-row">
+        <input type="checkbox" name="rental">
+        <span>🗓️ Pronájem (my.appek.cz) — po vypršení + grace zamkne CELOU appku. Expirace = zaplaceno do.</span>
+      </label>
       <div class="form-actions">
         <button type="button" class="btn-secondary" onclick="closeModal()">Zrušit</button>
         <button type="submit" class="btn btn-primary">🎲 Vygenerovat klíč</button>
@@ -365,6 +369,7 @@ async function submitGenerate() {
   const form = document.getElementById('gen-form');
   const data = Object.fromEntries(new FormData(form).entries());
   data.paid = form.paid.checked;
+  data.rental = form.rental.checked ? 1 : 0;  // 🆕 pronájem (my.appek.cz)
   // Collect selected packages
   data.packages = Array.from(form.querySelectorAll('input[name="pkg"]:checked')).map(el => el.value);
   delete data.pkg;
@@ -407,6 +412,7 @@ function openEditModal(id) {
       </div>
       <label><span class="lbl">Poznámka</span><textarea name="note" rows="2">${esc(r.note ?? '')}</textarea></label>
       <label class="checkbox-row"><input type="checkbox" name="paid" ${r.paid == 1 ? 'checked' : ''}><span>💰 Zaplaceno</span></label>
+      <label class="checkbox-row"><input type="checkbox" name="rental" ${r.rental == 1 ? 'checked' : ''}><span>🗓️ Pronájem (my.appek.cz) — po vypršení + grace zamkne CELOU appku</span></label>
       <div class="form-actions">
         <button type="button" class="btn-secondary" onclick="closeModal()">Zrušit</button>
         <button type="submit" class="btn btn-primary">💾 Uložit</button>
@@ -420,6 +426,7 @@ async function submitEdit(id) {
   const data = Object.fromEntries(new FormData(form).entries());
   data.id   = id;
   data.paid = form.paid.checked ? 1 : 0;
+  data.rental = form.rental.checked ? 1 : 0;  // 🆕 pronájem (my.appek.cz)
   try {
     await api('update', { method: 'POST', body: data });
     closeModal();

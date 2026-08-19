@@ -64,6 +64,10 @@ $name  = trim($d['customer_name'] ?? '');
 $email = trim($d['customer_email'] ?? '');
 $tier  = trim($d['tier'] ?? '');
 $total = (float) ($d['total_kc'] ?? 0);
+// 🆕 PRONÁJEM (Fáze 2): rental_months > 0 → objednávka pronájmu (licence rental=1, expires=+N měsíců).
+//   0 = klasický roční/perpetual prodej (beze změny). Povolené periody: 1/3/6/12.
+$rentalMonths = (int) ($d['rental_months'] ?? 0);
+if (!in_array($rentalMonths, [0, 1, 3, 6, 12], true)) $rentalMonths = 0;
 
 if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || $tier === '' || $total <= 0) {
     http_response_code(400);
@@ -77,6 +81,12 @@ try {
     $pdo = new PDO($dsn, VENDOR_DB_USER, VENDOR_DB_PASS, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     ]);
+
+    // 🆕 PRONÁJEM (Fáze 2): idempotentní migrace sloupce rental_months
+    try {
+        $hasRm = $pdo->query("SHOW COLUMNS FROM vendor_shop_orders LIKE 'rental_months'")->fetchAll();
+        if (!$hasRm) $pdo->exec("ALTER TABLE vendor_shop_orders ADD COLUMN rental_months INT NOT NULL DEFAULT 0");
+    } catch (Throwable $e) { /* neblokuj objednávku */ }
 
     // Rate limit — max 5 objednávek z jedné IP za 10 minut
     $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
@@ -100,11 +110,11 @@ try {
           (order_no, customer_name, customer_company, customer_email, customer_phone,
            customer_country, customer_ico, customer_dic, customer_address,
            tier, packages_json, install_url, notes, total_kc, currency,
-           payment_method, payment_status, locale, ip, user_agent)
+           payment_method, payment_status, locale, ip, user_agent, rental_months)
         VALUES
           (:no, :n, :c, :e, :p, :co, :ico, :dic, :addr,
            :tier, :pkg, :url, :notes, :total, :curr,
-           :pm, 'pending', :loc, :ip, :ua)
+           :pm, 'pending', :loc, :ip, :ua, :rm)
     ");
     $stmt->execute([
         'no'   => $orderNo,
@@ -126,6 +136,7 @@ try {
         'loc'  => strtolower(substr(trim($d['locale'] ?? 'cs'), 0, 2)),
         'ip'   => $ip,
         'ua'   => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
+        'rm'   => $rentalMonths,
     ]);
 
     echo json_encode([

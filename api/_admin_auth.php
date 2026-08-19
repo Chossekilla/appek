@@ -11,11 +11,23 @@
 
 // 🔒 v2.6.0 SECURITY: auto-include CSRF helper pro všechny admin endpointy
 require_once __DIR__ . '/_csrf.php';
+// 🆕 licenční enforcement — license_full_lock() pro rental hard-lock v require_admin()
+require_once __DIR__ . '/_license_enforce.php';
 
 function require_admin(): array {
     session_secure_start();
     if (empty($_SESSION['admin_id'])) {
         json_error('Vyžadováno admin přihlášení', 401);
+    }
+    // 🆕 PRONÁJEM vypršel (po grace) → HARD-LOCK celé appky (čtení i zápis). Obnova na my.appek.cz.
+    //   Allowlist self-maintenance (heartbeat/whoami/version/js-error), aby refresh licence appku
+    //   po prodloužení SÁM odemkl (jinak by po zaplacení zůstala zamčená).
+    if (function_exists('license_full_lock') && license_full_lock()) {
+        $lockAllow = ['license_heartbeat.php', 'whoami.php', 'version.php', 'admin_klient_chyby.php'];
+        $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '')));
+        if (!in_array($script, $lockAllow, true)) {
+            json_error('Pronájem APPEK vypršel — obnov přístup na https://my.appek.cz', 402);
+        }
     }
     // 🔒 v3.0.315 SECURITY: POS-only účet (přihlášený PINem) smí JEN POS endpointy.
     //   Dřív PIN login obešel blokádu z heslo-loginu a dostal se na všechny require_admin

@@ -17,6 +17,12 @@ $user = vendor_require_login();
 $pdo  = vendor_db();
 $currentPage = 'packages';
 
+// 🆕 PRONÁJEM (Fáze 2): idempotentní migrace měsíční ceny balíčku
+try {
+    $hasPm = $pdo->query("SHOW COLUMNS FROM vendor_packages LIKE 'price_month_kc'")->fetchAll();
+    if (!$hasPm) $pdo->exec("ALTER TABLE vendor_packages ADD COLUMN price_month_kc DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER price_kc");
+} catch (Throwable $e) { /* neblokuj stránku */ }
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') vendor_csrf_check();  // 🔐 CSRF
 
 $flash_ok = null;
@@ -38,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'description_es' => trim($_POST['description_es'] ?? ''),
                 'icon'           => trim($_POST['icon'] ?? ''),
                 'price_kc'       => (float) ($_POST['price_kc'] ?? 0),
+                'price_month_kc' => (float) ($_POST['price_month_kc'] ?? 0),  // 🆕 měsíční cena pronájmu (Fáze 2)
                 'price_eur'      => $_POST['price_eur'] === '' ? null : (float) $_POST['price_eur'],
                 'price_usd'      => $_POST['price_usd'] === '' ? null : (float) $_POST['price_usd'],
                 'bit_pos'        => $_POST['bit_pos'] === '' ? null : (int) $_POST['bit_pos'],
@@ -61,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sql = "UPDATE vendor_packages SET
                     `key` = :key, name_cs = :name_cs, name_en = :name_en, name_es = :name_es,
                     description_cs = :description_cs, description_en = :description_en, description_es = :description_es,
-                    icon = :icon, price_kc = :price_kc, price_eur = :price_eur, price_usd = :price_usd,
+                    icon = :icon, price_kc = :price_kc, price_month_kc = :price_month_kc, price_eur = :price_eur, price_usd = :price_usd,
                     bit_pos = :bit_pos, is_core = :is_core, is_active = :is_active, sort_order = :sort_order,
                     features_json = :features_json
                     WHERE id = :id";
@@ -71,10 +78,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $sql = "INSERT INTO vendor_packages
                     (`key`, name_cs, name_en, name_es, description_cs, description_en, description_es,
-                     icon, price_kc, price_eur, price_usd, bit_pos, is_core, is_active, sort_order, features_json)
+                     icon, price_kc, price_month_kc, price_eur, price_usd, bit_pos, is_core, is_active, sort_order, features_json)
                     VALUES
                     (:key, :name_cs, :name_en, :name_es, :description_cs, :description_en, :description_es,
-                     :icon, :price_kc, :price_eur, :price_usd, :bit_pos, :is_core, :is_active, :sort_order, :features_json)";
+                     :icon, :price_kc, :price_month_kc, :price_eur, :price_usd, :bit_pos, :is_core, :is_active, :sort_order, :features_json)";
                 $pdo->prepare($sql)->execute($data);
                 $flash_ok = "Balíček vytvořen.";
             }
@@ -323,6 +330,10 @@ $isNew = isset($_GET['new']);
           <div>
             <label>Cena Kč *</label>
             <input type="number" name="price_kc" value="<?= (float) $p['price_kc'] ?>" min="0" step="1" required>
+          </div>
+          <div>
+            <label>Kč / měsíc <small>(🗓️ pronájem)</small></label>
+            <input type="number" name="price_month_kc" value="<?= (float) ($p['price_month_kc'] ?? 0) ?>" min="0" step="1" placeholder="0 = nenabízet měsíčně">
           </div>
           <div>
             <label>Cena EUR <small>(volitelné)</small></label>

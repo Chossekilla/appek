@@ -163,20 +163,24 @@ const LICENSE_WARN_DAYS  = 30;  // kolik dní předem začít upozorňovat
 function license_validity(): array {
     $state = license_state_load();
     $vu = $state['valid_until'] ?? null;
+    // 🆕 PRONÁJEM (my.appek.cz): rental=1 → po grace se zamkne CELÁ appka (ne jen balíčky).
+    //    Roční/perpetual licence: rental prázdné → chování beze změny.
+    $rental = !empty($state['rental']);
     if (!$vu || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $vu)) {
-        return ['expiry_state' => 'active', 'valid_until' => null, 'days_left' => null, 'packages_active' => true];
+        return ['expiry_state' => 'active', 'valid_until' => null, 'days_left' => null, 'packages_active' => true, 'rental' => $rental, 'full_lock' => false];
     }
     $now = time();
     $exp = strtotime($vu . ' 23:59:59');
     $graceEnd = $exp + LICENSE_GRACE_DAYS * 86400;
     if ($now <= $exp) {
         $daysLeft = (int) ceil(($exp - $now) / 86400);
-        return ['expiry_state' => $daysLeft <= LICENSE_WARN_DAYS ? 'expiring_soon' : 'active', 'valid_until' => $vu, 'days_left' => $daysLeft, 'packages_active' => true];
+        return ['expiry_state' => $daysLeft <= LICENSE_WARN_DAYS ? 'expiring_soon' : 'active', 'valid_until' => $vu, 'days_left' => $daysLeft, 'packages_active' => true, 'rental' => $rental, 'full_lock' => false];
     }
     if ($now <= $graceEnd) {
-        return ['expiry_state' => 'grace', 'valid_until' => $vu, 'days_left' => (int) ceil(($graceEnd - $now) / 86400), 'packages_active' => true];
+        return ['expiry_state' => 'grace', 'valid_until' => $vu, 'days_left' => (int) ceil(($graceEnd - $now) / 86400), 'packages_active' => true, 'rental' => $rental, 'full_lock' => false];
     }
-    return ['expiry_state' => 'expired', 'valid_until' => $vu, 'days_left' => 0, 'packages_active' => false];
+    // Po grace: roční → vypnou se JEN balíčky (core jede). PRONÁJEM → hard-lock celé appky.
+    return ['expiry_state' => $rental ? 'rental_expired' : 'expired', 'valid_until' => $vu, 'days_left' => 0, 'packages_active' => false, 'rental' => $rental, 'full_lock' => $rental];
 }
 
 /** Jsou add-on balíčky aktivní? (false = po grace, balíčky se vypnou; core vždy jede)
@@ -184,5 +188,13 @@ function license_validity(): array {
 function license_packages_active(): bool {
     static $c = null;
     if ($c === null) $c = license_validity()['packages_active'];
+    return $c;
+}
+
+/** 🆕 Hard-lock CELÉ appky? (true = PRONÁJEM po grace vypršel → zamknout vše, ne jen balíčky).
+ *  Roční/perpetual: vždy false. Per-request cache. */
+function license_full_lock(): bool {
+    static $c = null;
+    if ($c === null) $c = (bool) (license_validity()['full_lock'] ?? false);
     return $c;
 }

@@ -119,6 +119,10 @@ function vendor_ensure_pirate_columns(PDO $pdo): void {
         if (!in_array('mismatch_count', $cols, true)) {
             $pdo->exec("ALTER TABLE vendor_licenses ADD COLUMN mismatch_count INT NOT NULL DEFAULT 0");
         }
+        // 🆕 PRONÁJEM (my.appek.cz): rental=1 → měsíční nájem, po grace hard-lock celé appky (0=roční/perpetual)
+        if (!in_array('rental', $cols, true)) {
+            $pdo->exec("ALTER TABLE vendor_licenses ADD COLUMN rental TINYINT(1) NOT NULL DEFAULT 0");
+        }
     } catch (Throwable $e) { /* ignore */ }
 }
 
