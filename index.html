@@ -67,7 +67,9 @@
 
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+/* scroll-behavior:smooth JEN na desktopu — na mobilu (iOS) dělá trhaný/laggy scroll;
+   plynulé anchor scrollování na mobilu řeší JS scrollTo({behavior:'smooth'}). */
+@media (min-width: 769px) { html { scroll-behavior: smooth; } }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Inter, system-ui, sans-serif;
   color: #1d1d1f;
@@ -3448,8 +3450,8 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
 /* 0️⃣  Globální safety reset — pevný viewport ochranný plášť */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body {
-  overflow-x: clip !important;
-  overflow-x: hidden !important;
+  overflow-x: hidden !important;   /* fallback pro staré prohlížeče */
+  overflow-x: clip !important;     /* modern: clip NEvytváří scroll container → žádný iOS scroll-skok nahoru */
   max-width: 100vw !important;
   position: relative;
 }
@@ -3570,7 +3572,7 @@ section { padding: clamp(40px, 6vw, 100px) 0; }
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x mandatory;
+  scroll-snap-type: x proximity;  /* proximity místo mandatory — mandatory na iOS umí házet scroll */
   scroll-padding: 16px;
   border-radius: 14px;
 }
@@ -5196,14 +5198,15 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 
 // Topbar shadow + back-to-top tlačítko (lazy lookup — #btn-top je deklarováno až za tímto skriptem)
 const topbar = document.querySelector('.topbar');
+let _shadowOn = null;
 window.addEventListener('scroll', () => {
   if (topbar) {
-    if (window.scrollY > 10) topbar.style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)';
-    else topbar.style.boxShadow = 'none';
+    const on = window.scrollY > 10;               // zapiš styl JEN při změně stavu (ne každý frame)
+    if (on !== _shadowOn) { topbar.style.boxShadow = on ? '0 4px 20px rgba(0,0,0,0.06)' : 'none'; _shadowOn = on; }
   }
   const btnTop = document.getElementById('btn-top');
   if (btnTop) btnTop.classList.toggle('show', window.scrollY > 500);
-});
+}, { passive: true });
 
 // FAQ — accordion (jen jeden otevřený)
 document.querySelectorAll('.faq-item').forEach(item => {
