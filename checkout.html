@@ -409,6 +409,10 @@
               <input type="tel" id="customer_phone" required autocomplete="tel" placeholder="+420 777 123 456">
             </div>
           </div>
+          <div class="form-row">
+            <label data-i18n="lbl_email2">E-mail znovu (pro kontrolu) *</label>
+            <input type="email" id="customer_email2" required autocomplete="off" placeholder="vase@firma.cz" onpaste="return false" ondrop="return false">
+          </div>
           <div class="form-row split">
             <div>
               <label data-i18n="lbl_ico">IČO <small data-i18n="lbl_optional">(volitelné)</small></label>
@@ -625,7 +629,7 @@ const I18N = {
     step1_sub: '— Core je vždy zahrnut',
     banner: 'Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.',
     mode_buy: 'Koupit napořád', mode_rent: '🗓️ Pronájem měsíčně',
-    banner_rent: 'Měsíční pronájem — platíte jen za využité měsíce. Po vypršení se aplikace uzamkne.',
+    banner_rent: 'Měsíční pronájem — platíte jen za využité měsíce. Před koncem vás e-mailem upozorníme a vaše data zůstávají v bezpečí. Po vypršení se jen dočasně uzamkne přístup — kdykoli obnovíte prodloužením na my.appek.cz a jedete dál.',
     loading: 'Načítání balíčků…',
     step2: '👤 Kontaktní údaje',
     lbl_name: 'Jméno a příjmení *',
@@ -659,6 +663,7 @@ const I18N = {
     err_required: 'Vyplňte povinná pole (jméno, e-mail a telefon).',
     err_phone: 'Vyplňte platný telefon (min. 9 číslic).',
     err_email: 'Neplatný e-mail.',
+    lbl_email2: 'E-mail znovu (pro kontrolu) *', err_email2: 'E-maily se neshodují — zkontrolujte je (licence chodí na tento e-mail).',
     err_tos: 'Musíte souhlasit s obchodními podmínkami.',
     err_instant: 'Musíte souhlasit s okamžitým dodáním.',
     err_server: 'Server error. Zkuste znovu.',
@@ -702,7 +707,7 @@ const I18N = {
     step1_sub: '— Core is always included',
     banner: 'One-time price, no monthly fees. Key arrives by e-mail within 24 h.',
     mode_buy: 'Buy forever', mode_rent: '🗓️ Monthly rental',
-    banner_rent: 'Monthly rental — pay only for the months you use. The app locks when it expires.',
+    banner_rent: 'Monthly rental — pay only for the months you use. We e-mail you before it ends and your data stays safe. When it expires, access is only temporarily locked — restore anytime by renewing at my.appek.cz and carry on.',
     loading: 'Loading packages…',
     step2: '👤 Contact details',
     lbl_name: 'Full name *',
@@ -736,6 +741,7 @@ const I18N = {
     err_required: 'Fill required fields (name, e-mail and phone).',
     err_phone: 'Enter a valid phone number (min. 9 digits).',
     err_email: 'Invalid e-mail.',
+    lbl_email2: 'E-mail again (to confirm) *', err_email2: 'E-mails do not match — please check (the license goes to this e-mail).',
     err_server: 'Server error. Try again.',
     pay_vs: 'Variable symbol',
     pay_amount: 'Amount',
@@ -775,7 +781,7 @@ const I18N = {
     step1_sub: '— Core siempre incluido',
     banner: 'Precio único, sin cuotas mensuales. La clave llega por correo en 24 h.',
     mode_buy: 'Comprar para siempre', mode_rent: '🗓️ Alquiler mensual',
-    banner_rent: 'Alquiler mensual — paga solo los meses que uses. La app se bloquea al vencer.',
+    banner_rent: 'Alquiler mensual — paga solo los meses que uses. Le avisamos por correo antes de que termine y sus datos quedan a salvo. Al vencer, el acceso solo se bloquea temporalmente — restáurelo cuando quiera renovando en my.appek.cz y siga adelante.',
     loading: 'Cargando paquetes…',
     step2: '👤 Datos de contacto',
     lbl_name: 'Nombre completo *',
@@ -809,6 +815,7 @@ const I18N = {
     err_required: 'Rellene campos obligatorios (nombre, correo y teléfono).',
     err_phone: 'Introduzca un teléfono válido (mín. 9 dígitos).',
     err_email: 'Correo inválido.',
+    lbl_email2: 'Correo otra vez (para confirmar) *', err_email2: 'Los correos no coinciden — revíselos (la licencia llega a este correo).',
     err_server: 'Error del servidor. Inténtelo de nuevo.',
     pay_vs: 'Símbolo variable',
     pay_amount: 'Importe',
@@ -1011,6 +1018,9 @@ async function submitOrder() {
   // 🆕 v2.9.210 — telefon povinný
   if (!name || !email || !phone) { return showErr(I18N[lang].err_required); }
   if (!/^.+@.+\..+$/.test(email)) { return showErr(I18N[lang].err_email); }
+  // 🆕 kontrola 2× e-mail (aby licence/přístup nešel na překlep v adrese)
+  const email2 = (document.getElementById('customer_email2').value || '').trim();
+  if (email.toLowerCase() !== email2.toLowerCase()) { return showErr(I18N[lang].err_email2 || 'E-maily se neshodují — zkontrolujte je.'); }
   if (phone.length < 9) { return showErr(I18N[lang].err_phone || 'Telefon je příliš krátký (min. 9 číslic).'); }
 
   // Consent checks

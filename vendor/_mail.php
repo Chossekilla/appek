@@ -188,11 +188,16 @@ function vendor_smtp_send(array $cfg, string $to, string $subject, string $bodyH
  */
 // 🆕 v2.9.208 — Notifikace pro vendor admina o nové platbě.
 // Příjemce: vendor_settings.admin_notification_email → fallback mail_from_email.
-function vendor_send_admin_notification(array $order, array $license): bool {
+function vendor_send_admin_notification(array $order, array $license, string $kind = 'payment'): bool {
     $cfg = vendor_mail_settings();
     $to  = $cfg['admin_notification_email'] ?? '';
     if (!$to) $to = $cfg['mail_from_email'] ?? '';
     if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+
+    // 🆕 rozlišení: 'order' = nová objednávka (čeká na platbu), 'payment' = přijatá platba (+ licence)
+    $isOrder = ($kind === 'order');
+    $hdrTitle = $isOrder ? '🛒 Nová objednávka' : '💰 Nová platba';
+    $hdrGrad  = $isOrder ? '#0071e3,#2a9bf0' : '#208438,#34c759';
 
     $orderNo = $order['order_no']     ?? ($order['id'] ?? '—');
     $amount  = !empty($order['total_kc']) ? number_format((float) $order['total_kc'], 0, ',', ' ') . ' Kč' : '—';
@@ -210,8 +215,8 @@ function vendor_send_admin_notification(array $order, array $license): bool {
 
     $html = '<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;background:#f5f5f7;padding:24px;color:#1d1d1f">'
         . '<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,0.06)">'
-        . '<div style="background:linear-gradient(135deg,#208438,#34c759);padding:20px 24px;color:#fff">'
-        . '<div style="font-size:22px;font-weight:800">💰 Nová platba</div>'
+        . '<div style="background:linear-gradient(135deg,' . $hdrGrad . ');padding:20px 24px;color:#fff">'
+        . '<div style="font-size:22px;font-weight:800">' . $hdrTitle . '</div>'
         . '<div style="font-size:13px;opacity:0.92;margin-top:4px">' . htmlspecialchars($amount) . ' · ' . htmlspecialchars($orderNo) . '</div>'
         . '</div>'
         . '<div style="padding:24px">'
@@ -224,13 +229,13 @@ function vendor_send_admin_notification(array $order, array $license): bool {
         . ($installUrl ? '<tr><td style="color:#86868b;padding:5px 10px 5px 0">URL:</td><td style="padding:5px 0"><a href="' . htmlspecialchars($installUrl) . '" style="color:#BA7517">' . htmlspecialchars($installUrl) . '</a></td></tr>' : '')
         . ($packages ? '<tr><td style="color:#86868b;padding:5px 10px 5px 0">Balíčky:</td><td style="padding:5px 0">' . htmlspecialchars($packages) . '</td></tr>' : '')
         . '</table>'
-        . '<div style="background:#f5f5f7;border-radius:8px;padding:12px 14px;margin-top:18px;font-family:\'SF Mono\',Menlo,monospace;font-size:13px;font-weight:700;color:#1d1d1f">' . htmlspecialchars($licKey) . '</div>'
-        . '<p style="font-size:12px;color:#86868b;margin:18px 0 0">Licence byla automaticky vygenerována a odeslána zákazníkovi.</p>'
+        . ($isOrder ? '' : '<div style="background:#f5f5f7;border-radius:8px;padding:12px 14px;margin-top:18px;font-family:\'SF Mono\',Menlo,monospace;font-size:13px;font-weight:700;color:#1d1d1f">' . htmlspecialchars($licKey) . '</div>')
+        . '<p style="font-size:12px;color:#86868b;margin:18px 0 0">' . ($isOrder ? 'Objednávka čeká na platbu. Po zaplacení se licence vygeneruje a odešle automaticky.' : 'Licence byla automaticky vygenerována a odeslána zákazníkovi.') . '</p>'
         . '</div>'
         . '<div style="background:#fafafa;padding:12px 24px;font-size:11px;color:#86868b;text-align:center">APPEK vendor master · auto-notifikace</div>'
         . '</div></body></html>';
 
-    $text  = "💰 NOVÁ PLATBA — {$amount}\n";
+    $text  = ($isOrder ? "🛒 NOVÁ OBJEDNÁVKA" : "💰 NOVÁ PLATBA") . " — {$amount}\n";
     $text .= str_repeat('=', 40) . "\n\n";
     $text .= "Č. objednávky:  {$orderNo}\n";
     $text .= "Částka:          {$amount}\n";
@@ -239,10 +244,11 @@ function vendor_send_admin_notification(array $order, array $license): bool {
     if ($custP) $text .= "Telefon:         {$custP}\n";
     if ($installUrl) $text .= "URL:             {$installUrl}\n";
     if ($packages) $text .= "Balíčky:         {$packages}\n";
-    $text .= "Licenční klíč:   {$licKey}\n\n";
-    $text .= "Licence automaticky vygenerována a odeslána zákazníkovi.\n— APPEK vendor master\n";
+    if (!$isOrder) $text .= "Licenční klíč:   {$licKey}\n";
+    $text .= "\n" . ($isOrder ? "Objednávka čeká na platbu. Po zaplacení se licence vygeneruje automaticky." : "Licence automaticky vygenerována a odeslána zákazníkovi.") . "\n— APPEK vendor master\n";
 
-    return vendor_send_mail($to, "💰 Nová platba: {$amount} · {$orderNo}", $html, $text);
+    $subject = ($isOrder ? "🛒 Nová objednávka" : "💰 Nová platba") . ": {$amount} · {$orderNo}";
+    return vendor_send_mail($to, $subject, $html, $text);
 }
 
 function vendor_mail_template_license(array $license, array $order = []): array {
@@ -257,6 +263,23 @@ function vendor_mail_template_license(array $license, array $order = []): array 
         : (!empty($order['amount']) ? number_format((float) $order['amount'], 0, ',', ' ') . ' Kč' : '—');
     $vs = $order['variable_symbol'] ?? preg_replace('/\D/', '', (string) $serialNr);
     $downloadUrl = 'https://appek.cz/download.php?key=' . urlencode($license['license_key']);
+
+    // 🆕 PRONÁJEM: u měsíčního pronájmu ukaž „platí do" + portál my.appek.cz (správa/prodloužení)
+    $rentalMonths = (int) ($order['rental_months'] ?? 0);
+    $isRental = $rentalMonths > 0;
+    $validUntil = $isRental ? date('j. n. Y', strtotime("+{$rentalMonths} months")) : '';
+    $licSubtitle = $isRental
+        ? "🗓️ Měsíční pronájem · platí do <strong>{$validUntil}</strong>"
+        : "Doživotní licence pro jedno zařízení · Aktualizace zdarma 12 měsíců";
+    // Blok portálu — u pronájmu zvýrazněný (prodloužení), u trvalé licence jen jemný odkaz
+    $portalBox = $isRental
+        ? '<div style="background:rgba(0,113,227,0.06);border-left:4px solid #0071e3;padding:16px 20px;border-radius:8px;margin:20px 0">'
+          . '<div style="font-size:14px;font-weight:700;color:#1d1d1f">🗓️ Váš pronájem: správa a prodloužení</div>'
+          . '<div style="font-size:13px;color:#3a3a3c;line-height:1.6;margin-top:6px">Platí do <strong>' . $validUntil . '</strong>. Před koncem vás upozorníme e-mailem. '
+          . 'Kdykoli prodloužíte — a vaše data zůstávají v bezpečí — na zákaznickém portálu:</div>'
+          . '<div style="text-align:center;margin-top:12px"><a href="https://my.appek.cz" style="display:inline-block;background:#0071e3;color:#fff;padding:10px 22px;border-radius:999px;text-decoration:none;font-weight:600;font-size:14px">Otevřít my.appek.cz</a></div>'
+          . '</div>'
+        : '<p style="font-size:12px;color:#86868b;margin:14px 0 0">Stav licence a faktury najdete na zákaznickém portálu <a href="https://my.appek.cz" style="color:#BA7517">my.appek.cz</a> (přihlášení tímto e-mailem).</p>';
 
     $html = <<<HTML
 <!DOCTYPE html>
@@ -286,8 +309,10 @@ function vendor_mail_template_license(array $license, array $order = []): array 
       <div style="background:linear-gradient(135deg,rgba(186,117,23,0.08),rgba(186,117,23,0.02));border-left:4px solid #BA7517;padding:18px 20px;border-radius:8px;margin:20px 0">
         <div style="font-size:11px;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">🔑 Licenční klíč</div>
         <div style="font-family:'SF Mono',Menlo,monospace;font-size:18px;font-weight:700;color:#1d1d1f;margin-top:6px;word-break:break-all">{$license['license_key']}</div>
-        <div style="font-size:11px;color:#86868b;margin-top:8px">Doživotní licence pro jedno zařízení · Aktualizace zdarma 12 měsíců</div>
+        <div style="font-size:11px;color:#86868b;margin-top:8px">{$licSubtitle}</div>
       </div>
+
+      {$portalBox}
 
       <h3 style="font-size:15px;margin:24px 0 8px">📥 Co dál?</h3>
       <ol style="color:#3a3a3c;line-height:1.7;padding-left:20px;margin:0">

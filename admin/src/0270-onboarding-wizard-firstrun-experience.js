@@ -227,10 +227,10 @@ window.getCurrentLocale = function() {
 async function renderOnboardingStep() {
   const o = state._onboard;
   const step = o.step || 0;
-  const totalSteps = 9;
+  const totalSteps = 8;  // 🆕 krok „Balíčky" odebrán z onboardingu (user)
   const stepTitles = [
     'Vítejte', 'Jazyk', 'Typ instalace', 'Údaje firmy',
-    'Logo + vzhled', 'Balíčky', 'Demo data', 'Quick start', 'Hotovo!'
+    'Logo + vzhled', 'Demo data', 'Quick start', 'Hotovo!'
   ];
   const title = `🎯 Onboarding — krok ${step + 1} / ${totalSteps}: ${stepTitles[step] || ''}`;
   const stepHtml = await _onboardingStepHtml(step);
@@ -238,8 +238,8 @@ async function renderOnboardingStep() {
 }
 
 async function _onboardingStepHtml(step) {
-  // Progress bar nahoře (shared) — 9 kroků
-  const total = 9;
+  // Progress bar nahoře (shared) — 8 kroků (Balíčky odebrány)
+  const total = 8;
   const pct = Math.round(((step + 1) / total) * 100);
   const progress = `
     <div style="margin-bottom:20px">
@@ -465,16 +465,13 @@ async function _onboardingStepHtml(step) {
         </div>
       `;
 
-    case 5: // 🎁 Balíčky výběr (NEW)
-      return progress + _onboardPackagesStep();
-
-    case 6: // 🌱 Demo data (NEW)
+    case 5: // 🌱 Demo data (dřív 6 — Balíčky krok odebrán)
       return progress + _onboardDemoDataStep();
 
-    case 7: // 🚀 Quick start checklist (NEW)
+    case 6: // 🚀 Quick start checklist (dřív 7)
       return progress + _onboardQuickStartStep();
 
-    case 8: // Done
+    case 7: // Done (dřív 8)
       return progress + `
         <div style="text-align:center;padding:30px 20px">
           <div style="font-size:64px;margin-bottom:14px">🎉</div>

@@ -123,6 +123,10 @@ if ($status['state'] === 'PAID' && $order['payment_status'] !== 'paid') {
             );
         } catch (Throwable $e) { error_log('gopay_callback mail: ' . $e->getMessage()); }
 
+        // 🆕 Admin notifikace o PŘIJATÉ PLATBĚ (dřív se nikde nevolala → adminovi maily nechodily)
+        try { vendor_send_admin_notification($order, ['license_key' => $key], 'payment'); }
+        catch (Throwable $e) { error_log('gopay_callback admin-notif: ' . $e->getMessage()); }
+
         vendor_audit($pdo, ['username' => 'gopay_callback'], 'shop_auto_paid', ['id' => $licenseId, 'license_key' => $key], $order['order_no']);
     }
     echo "OK · paid · license generated\n";

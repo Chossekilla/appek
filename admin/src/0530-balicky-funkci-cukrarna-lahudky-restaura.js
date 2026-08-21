@@ -75,7 +75,22 @@ window.loadBalicky = async function() {
     const _dl = _val.days_left;
     const _dStr = (n) => `${n} ${n === 1 ? 'den' : (n < 5 ? 'dny' : 'dní')}`;
     let expiryBanner = '';
-    if (_val.expiry_state === 'expiring_soon') {
+    // 🆕 PRONÁJEM (my.appek.cz): rental licence → „platí do / zbývá" + tlačítko Prodloužit (místo roční hlášky)
+    if (_val.rental) {
+      const rExp = esc(_val.valid_until || '');
+      const rDays = _dl != null ? _dStr(_dl) : '';
+      const locked = _val.expiry_state === 'rental_expired' || _val.full_lock;
+      const bg = locked ? '#FEE2E2' : (_val.expiry_state === 'grace' ? '#FEF3C7' : '#EFF6FF');
+      const bd = locked ? '#991B1B' : (_val.expiry_state === 'grace' ? '#92400E' : '#0071e3');
+      const fg = locked ? '#991B1B' : (_val.expiry_state === 'grace' ? '#92400E' : '#1e40af');
+      const stav = locked
+        ? '<strong>Pronájem vypršel — přístup uzamčen.</strong> Vaše data zůstávají v bezpečí, obnovíte je prodloužením.'
+        : `<strong>Měsíční pronájem</strong>${rExp ? ` · zaplaceno do <strong>${rExp}</strong>` : ''}${rDays ? ` · zbývá ${rDays}` : ''}. Před koncem vás upozorníme e-mailem.`;
+      expiryBanner = `<div style="background:${bg};border-left:3px solid ${bd};padding:12px 16px;border-radius:8px;margin-bottom:14px;font-size:12.5px;color:${fg};display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <span>🗓️ ${stav}</span>
+        <a href="https://my.appek.cz" target="_blank" class="btn-primary" style="font-size:11.5px;padding:5px 12px;text-decoration:none;white-space:nowrap">Prodloužit na my.appek.cz →</a>
+      </div>`;
+    } else if (_val.expiry_state === 'expiring_soon') {
       expiryBanner = `<div style="background:#FEF3C7;border-left:3px solid #92400E;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:12.5px;color:#92400E">⏳ <strong>Licence končí ${esc(_val.valid_until || '')}</strong> (za ${_dStr(_dl)}). Obnov u dodavatele, ať se ti nevypnou balíčky.</div>`;
     } else if (_val.expiry_state === 'grace') {
       expiryBanner = `<div style="background:#FEE2E2;border-left:3px solid #991B1B;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:12.5px;color:#991B1B">🔴 <strong>Licence vypršela ${esc(_val.valid_until || '')}.</strong> Balíčky ještě jedou ${_dStr(_dl)} (grace období), pak se vypnou. Obnov u dodavatele.</div>`;

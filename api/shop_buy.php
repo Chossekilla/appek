@@ -139,6 +139,25 @@ try {
         'rm'   => $rentalMonths,
     ]);
 
+    // 🆕 Admin notifikace o NOVÉ OBJEDNÁVCE (čeká na platbu). Master-only (potřebuje vendor/_mail.php).
+    try {
+        $vendorRoot = realpath(__DIR__ . '/..') . '/vendor';
+        if (is_dir($vendorRoot) && is_file($vendorRoot . '/_mail.php')) {
+            require_once $vendorRoot . '/_lib.php';
+            require_once $vendorRoot . '/_mail.php';
+            vendor_send_admin_notification([
+                'order_no'         => $orderNo,
+                'total_kc'         => $total,
+                'customer_name'    => $name,
+                'customer_company' => $d['customer_company'] ?? '',
+                'customer_email'   => $email,
+                'customer_phone'   => $d['customer_phone'] ?? '',
+                'install_url'      => $d['install_url'] ?? '',
+                'packages_json'    => $packagesJson,
+            ], [], 'order');
+        }
+    } catch (Throwable $e) { error_log('shop_buy admin-notif: ' . $e->getMessage()); }
+
     echo json_encode([
         'ok'       => true,
         'order_no' => $orderNo,
