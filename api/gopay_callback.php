@@ -78,6 +78,39 @@ if ($status['state'] === 'PAID' && $order['payment_status'] !== 'paid') {
     $pdo->prepare("UPDATE vendor_shop_orders SET payment_status = 'paid', paid_at = NOW() WHERE id = :id")
         ->execute(['id' => $order['id']]);
 
+    // 🆕 PRONÁJEM — PRODLOUŽENÍ (my.appek.cz): objednávka s renew_license_id → posuň expiraci STÁVAJÍCÍ licence
+    //   (žádný nový klíč). Prodlouží se od pozdějšího z (dnes, stávající expirace) — nepropadne zbytek.
+    $renewId = (int) ($order['renew_license_id'] ?? 0);
+    if ($renewId > 0) {
+        $months = max(1, (int) ($order['rental_months'] ?? 1));
+        $pdo->prepare("UPDATE vendor_licenses
+            SET expires_at = DATE_ADD(GREATEST(CURDATE(), COALESCE(expires_at, CURDATE())), INTERVAL :m MONTH),
+                rental = 1, status = 'active'
+            WHERE id = :id")->execute(['m' => $months, 'id' => $renewId]);
+        $pdo->prepare("UPDATE vendor_shop_orders SET license_id = :lid WHERE id = :oid")
+            ->execute(['lid' => $renewId, 'oid' => $order['id']]);
+        $lic = $pdo->prepare("SELECT * FROM vendor_licenses WHERE id = :id LIMIT 1");
+        $lic->execute(['id' => $renewId]);
+        $licRow = $lic->fetch() ?: [];
+        $newExp = !empty($licRow['expires_at']) ? date('j. n. Y', strtotime($licRow['expires_at'])) : '';
+        try {
+            $to = $order['customer_email'] ?: ($licRow['customer_email'] ?? '');
+            if ($to) {
+                $html = '<div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1d1d1f">'
+                    . '<h2 style="margin:0 0 10px">🗓️ Pronájem prodloužen</h2>'
+                    . '<p style="color:#3a3a3c;line-height:1.6">Děkujeme, platba přijata. Váš pronájem APPEK je prodloužen o <strong>' . $months . ' měsíc(ů)</strong>.</p>'
+                    . '<p style="color:#3a3a3c">Nově platí do <strong>' . htmlspecialchars($newExp) . '</strong>. Aplikace se do pár minut sama odemkne (po dalším ověření licence).</p>'
+                    . '<p style="font-size:12px;color:#86868b">Stav kdykoli na <a href="https://my.appek.cz" style="color:#0071e3">my.appek.cz</a>.</p></div>';
+                vendor_send_mail($to, '🗓️ APPEK pronájem prodloužen do ' . $newExp, $html, "Pronájem APPEK prodloužen o {$months} měs., platí do {$newExp}. my.appek.cz");
+            }
+        } catch (Throwable $e) { error_log('gopay renew mail: ' . $e->getMessage()); }
+        try { vendor_send_admin_notification($order, ['license_key' => $licRow['license_key'] ?? '—'], 'payment'); }
+        catch (Throwable $e) { error_log('gopay renew admin-notif: ' . $e->getMessage()); }
+        vendor_audit($pdo, ['username' => 'gopay_callback'], 'shop_renew_paid', ['id' => $renewId, 'months' => $months], $order['order_no']);
+        echo "OK · paid · rental extended {$months}m\n";
+        exit;
+    }
+
     // Auto-generate licence (jen pokud ještě není)
     if (empty($order['license_id'])) {
         $packages = json_decode($order['packages_json'] ?? '[]', true) ?: [];

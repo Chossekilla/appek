@@ -14,8 +14,9 @@
  *   - session regenerace po loginu (anti-fixation)
  */
 
-require_once __DIR__ . '/../vendor/_lib.php';   // vendor_db(), VENDOR_DB_*
+require_once __DIR__ . '/../vendor/_lib.php';   // vendor_db(), VENDOR_DB_*, license_packages()
 require_once __DIR__ . '/../vendor/_mail.php';  // vendor_send_mail()
+require_once __DIR__ . '/../vendor/_gopay.php'; // gopay_create_payment() — prodloužení pronájmu
 
 session_name('APPEKMYSID');
 session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => true, 'httponly' => true, 'samesite' => 'Lax']);
@@ -40,7 +41,26 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 } catch (Throwable $e) { /* portál nesmí spadnout kvůli migraci */ }
 
+// 🆕 PRODLOUŽENÍ: sloupec pro navázání objednávky na prodlužovanou licenci (idempotentně)
+try {
+    $hasRn = $pdo->query("SHOW COLUMNS FROM vendor_shop_orders LIKE 'renew_license_id'")->fetchAll();
+    if (!$hasRn) $pdo->exec("ALTER TABLE vendor_shop_orders ADD COLUMN renew_license_id INT NULL");
+} catch (Throwable $e) { /* ignore */ }
+
 function e(?string $s): string { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); }
+
+/** Měsíční cena pronájmu licence = součet price_month_kc balíčků obsažených v klíči (vč. core). */
+function my_license_monthly_price(PDO $pdo, string $key): float {
+    $pkgs = function_exists('license_packages') ? license_packages($key) : ['core'];
+    $pkgs = array_values(array_unique(array_map('strtolower', $pkgs)));
+    if (!$pkgs) return 0.0;
+    $in = implode(',', array_fill(0, count($pkgs), '?'));
+    try {
+        $st = $pdo->prepare("SELECT COALESCE(SUM(price_month_kc),0) FROM vendor_packages WHERE LOWER(`key`) IN ($in)");
+        $st->execute($pkgs);
+        return (float) $st->fetchColumn();
+    } catch (Throwable $e) { return 0.0; }
+}
 
 /** Najdi licence patřící e-mailu (přímý customer_email nebo přes admin login instalace). */
 function my_licenses(PDO $pdo, string $email): array {
@@ -178,6 +198,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
     exit;
 }
 
+// ── PRODLOUŽENÍ: platba přes GoPay (přihlášený) → vytvoří renewal objednávku a přesměruje na bránu ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'renew_pay' && !empty($_SESSION['my_email'])) {
+    $email = $_SESSION['my_email'];
+    $licId = (int) ($_POST['license_id'] ?? 0);
+    $months = (int) ($_POST['months'] ?? 0);
+    if (!in_array($months, [1, 3, 6, 12], true)) $months = 1;
+    $lic = null;
+    foreach (my_licenses($pdo, $email) as $l) { if ((int) $l['id'] === $licId) { $lic = $l; break; } }
+    if (!$lic) { my_layout('Chyba', '<div class="card"><div class="alert bad">Licence nenalezena.</div><a class="btn ghost" href="' . e($BASE) . '">← Zpět</a></div>'); exit; }
+    $monthly = my_license_monthly_price($pdo, $lic['license_key']);
+    $total = (int) round($monthly * $months);
+    if ($total <= 0) { my_layout('Chyba', '<div class="card"><div class="alert bad">Pro tuto licenci není nastavena měsíční cena — napište na <a href="mailto:info@appek.cz">info@appek.cz</a>.</div></div>'); exit; }
+    $pkgsJson = json_encode(function_exists('license_packages') ? license_packages($lic['license_key']) : ['core']);
+    $orderNo = 'APPEK-REN-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(2)));
+    $ip = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0')[0]);
+    $pdo->prepare("INSERT INTO vendor_shop_orders
+        (order_no, customer_name, customer_company, customer_email, customer_phone, install_url,
+         tier, packages_json, total_kc, currency, payment_method, payment_status, rental_months, renew_license_id, ip, created_at)
+        VALUES (:no,:n,:co,:e,:p,:u,'renewal',:pkg,:total,'CZK','card','pending',:m,:rid,:ip,NOW())")
+        ->execute([
+            'no' => $orderNo, 'n' => $lic['customer_name'] ?: 'Zákazník', 'co' => $lic['customer_company'] ?? null,
+            'e' => $lic['customer_email'] ?: $email, 'p' => $lic['customer_phone'] ?? null, 'u' => $lic['install_url'] ?? null,
+            'pkg' => $pkgsJson, 'total' => $total, 'm' => $months, 'rid' => $licId, 'ip' => $ip,
+        ]);
+    $oid = (int) $pdo->lastInsertId();
+    try {
+        $session = gopay_create_payment([
+            'order_no'         => $orderNo,
+            'amount_kc'        => (float) $total,
+            'currency'         => 'CZK',
+            'description'      => 'APPEK pronájem — prodloužení ' . $months . ' měs.',
+            'customer_email'   => $lic['customer_email'] ?: $email,
+            'customer_name'    => $lic['customer_name'] ?: '',
+            'return_url'       => 'https://appek.cz/payment-done.html?order=' . urlencode($orderNo),
+            'notification_url' => 'https://appek.cz/api/gopay_callback.php',
+        ]);
+    } catch (Throwable $e) { $session = ['ok' => false]; error_log('my renew gopay: ' . $e->getMessage()); }
+    if (!empty($session['ok']) && !empty($session['gateway_url'])) {
+        $pdo->prepare("UPDATE vendor_shop_orders SET payment_id = :pid WHERE id = :id")
+            ->execute(['pid' => $session['payment_id'] ?? '', 'id' => $oid]);
+        header('Location: ' . $session['gateway_url']); exit;
+    }
+    my_layout('Chyba platby', '<div class="card"><div class="alert bad">Platbu se teď nepodařilo spustit. Zkuste to prosím znovu, nebo napište na <a href="mailto:info@appek.cz">info@appek.cz</a>.</div><a class="btn ghost" href="' . e($BASE) . '">← Zpět</a></div>');
+    exit;
+}
+
+// ── PRODLOUŽENÍ: výběr období (přihlášený) ──
+if (isset($_GET['renew']) && !empty($_SESSION['my_email'])) {
+    $email = $_SESSION['my_email'];
+    $licId = (int) $_GET['renew'];
+    $lic = null;
+    foreach (my_licenses($pdo, $email) as $l) { if ((int) $l['id'] === $licId) { $lic = $l; break; } }
+    if (!$lic) { my_layout('Chyba', '<div class="card"><div class="alert bad">Licence nenalezena.</div><a class="btn ghost" href="' . e($BASE) . '">← Zpět</a></div>'); exit; }
+    $monthly = my_license_monthly_price($pdo, $lic['license_key']);
+    $nazev = $lic['customer_company'] ?: ($lic['install_url'] ?: $lic['customer_name']);
+    ob_start(); ?>
+    <div class="card">
+      <h1>Prodloužit pronájem</h1>
+      <p class="lead"><?= e($nazev ?: 'APPEK licence') ?></p>
+      <?php if ($monthly <= 0): ?>
+        <div class="alert bad">Pro tuto licenci zatím není nastavena měsíční cena. Napište na <a href="mailto:info@appek.cz">info@appek.cz</a> a rádi pomůžeme.</div>
+      <?php else: foreach ([1, 3, 6] as $m): $cena = number_format($monthly * $m, 0, ',', ' '); ?>
+        <form method="post" style="margin:0 0 10px">
+          <input type="hidden" name="action" value="renew_pay">
+          <input type="hidden" name="license_id" value="<?= (int) $lic['id'] ?>">
+          <input type="hidden" name="months" value="<?= $m ?>">
+          <button class="btn wide" type="submit" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <span><?= $m ?> <?= $m === 1 ? 'měsíc' : ($m < 5 ? 'měsíce' : 'měsíců') ?></span>
+            <strong><?= $cena ?> Kč</strong>
+          </button>
+        </form>
+      <?php endforeach; endif; ?>
+      <p class="muted" style="margin-top:14px">Platba kartou · Apple Pay · Google Pay přes GoPay. Po zaplacení se pronájem prodlouží a aplikace se do pár minut sama odemkne. Vaše data zůstávají beze změny.</p>
+      <a class="btn ghost" href="<?= e($BASE) ?>">← Zpět</a>
+    </div>
+    <?php
+    my_layout('Prodloužit', ob_get_clean());
+    exit;
+}
+
 // ── Dashboard (přihlášený) ──
 if (!empty($_SESSION['my_email'])) {
     $email = $_SESSION['my_email'];
@@ -200,7 +300,7 @@ if (!empty($_SESSION['my_email'])) {
             <span class="v"><?= in_array($s['key'], ['expired','locked'], true) ? 'ano' : (e((string) $s['days']) . ' ' . ($s['days'] === 1 ? 'den' : ($s['days'] < 5 ? 'dny' : 'dní'))) ?></span></div>
           <?php endif; ?>
           <?php if ($s['rental'] || in_array($s['key'], ['expiring','grace','locked','expired'], true)): ?>
-          <div style="margin-top:14px"><a class="btn" href="<?= e($ESHOP) ?>">Prodloužit</a></div>
+          <div style="margin-top:14px"><a class="btn" href="?renew=<?= (int) $l['id'] ?>">Prodloužit</a></div>
           <?php endif; ?>
         </div>
       <?php endforeach; endif; ?>
