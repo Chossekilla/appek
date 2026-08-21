@@ -128,6 +128,10 @@ html body .section-eyebrow {
 }
 html body .section-title { color: var(--st-ink) !important; letter-spacing: -0.025em; }
 html body .section-sub { color: var(--st-muted) !important; }
+/* 📱 Mobilní sekce zůstává tmavým ostrovem i ve Studiu → nadpis a text světlý (jinak tmavý h2 na tmavém = neviditelný) */
+html body .mobile-hero .mobile-title { color: #fff !important; }
+html body .mobile-hero .mobile-title .accent { -webkit-text-fill-color: transparent !important; }
+html body .mobile-hero .mobile-lead { color: rgba(255,255,255,0.85) !important; }
 
 /* ── Karty (features, use-cases, faq, testimonials) ─────────────── */
 html body .feature, html body .uc-card, html body .faq-item,

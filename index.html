@@ -4099,21 +4099,32 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         <h3 data-i18n="eshop_title">Sestav si APPEK</h3>
         <p data-i18n="eshop_sub">Core je vždy v ceně — přidej jen specializované balíčky, které potřebuješ.</p>
       </div>
-      <!-- 🆕 PRONÁJEM — přepínač napořád / měsíčně (zobrazí se jen když jsou nastavené měsíční ceny) -->
-      <div class="es-mode-row" id="es-mode-row" style="display:none">
-        <div class="es-mode">
-          <button type="button" class="esm-btn active" onclick="eshopSetMode(0)" data-i18n="mode_buy">Koupit napořád</button>
-          <button type="button" class="esm-btn" onclick="eshopSetMode('rental')" data-i18n="mode_rent">Pronájem měsíčně</button>
-        </div>
-        <div class="es-period" id="es-period" style="display:none">
-          <button type="button" class="esp-btn" onclick="eshopSetMonths(1)" data-m="1">1 měsíc</button>
-          <button type="button" class="esp-btn active" onclick="eshopSetMonths(3)" data-m="3">3 měsíce</button>
-          <button type="button" class="esp-btn" onclick="eshopSetMonths(6)" data-m="6">6 měsíců</button>
-        </div>
-      </div>
       <div class="eshop-body">
         <div class="eshop-addons">
-          <div class="eshop-label" data-i18n="eshop_pkgs_label">Balíčky</div>
+          <!-- 🆕 DOBA — napořád / pronájem (zobrazí se jen když jsou nastavené měsíční ceny) -->
+          <div class="es-block" id="es-mode-row" style="display:none">
+            <div class="eshop-label es-label-row">
+              <span data-i18n="es_dur_label">Na jak dlouho</span>
+              <button type="button" class="es-info" onclick="esToggleInfo('dur')" aria-label="Info">i</button>
+            </div>
+            <div class="es-info-box" id="es-info-dur" data-i18n="es_dur_info" hidden>Napořád = zaplatíš jednou a máš navždy. Pronájem = platíš měsíčně; 3 dny před koncem ti přijde upozornění, prodloužíš jedním klikem na my.appek.cz a data ti zůstávají.</div>
+            <div class="es-mode">
+              <button type="button" class="esm-btn active" onclick="eshopSetMode(0)" data-i18n="mode_buy">Koupit napořád</button>
+              <button type="button" class="esm-btn" onclick="eshopSetMode('rental')" data-i18n="mode_rent">Pronájem měsíčně</button>
+            </div>
+            <div class="es-period" id="es-period" style="display:none">
+              <button type="button" class="esp-btn" onclick="eshopSetMonths(1)" data-m="1">1 měsíc</button>
+              <button type="button" class="esp-btn active" onclick="eshopSetMonths(3)" data-m="3">3 měsíce</button>
+              <button type="button" class="esp-btn" onclick="eshopSetMonths(6)" data-m="6">6 měsíců</button>
+            </div>
+          </div>
+          <div class="es-sep" id="es-sep" style="display:none"></div>
+          <!-- BALÍČKY -->
+          <div class="eshop-label es-label-row">
+            <span data-i18n="eshop_pkgs_label">Balíčky</span>
+            <button type="button" class="es-info" onclick="esToggleInfo('pkg')" aria-label="Info">i</button>
+          </div>
+          <div class="es-info-box" id="es-info-pkg" data-i18n="es_pkg_info" hidden>Core (základ) je vždy v ceně — objednávky, faktury, výroba, HACCP, B2B portál. Přidej jen specializované balíčky pro svůj obor (cukrárna, lahůdky, restaurace…).</div>
           <div class="eshop-addon-list" id="eshop-pkg-list">
             <div class="eshop-loading" data-i18n="eshop_loading">Načítám aktuální nabídku balíčků…</div>
           </div>
@@ -4200,9 +4211,16 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
   text-transform: uppercase; letter-spacing: 0.5px;
 }
 .es-row-tier strong { font-size: 17px; }
-/* 🆕 PRONÁJEM — segmentovaný přepínač napořád/měsíčně (bílá karta, decentní, grayscale) */
-.es-mode-row { padding: 0 24px 6px; }
-.es-mode, .es-period { display: flex; padding: 3px; background: #eef0f2; border-radius: 8px; margin: 0 0 8px; }
+/* 🆕 PRONÁJEM — sekce doby + balíčků s info ikonami, segmentovaný přepínač (decentní, grayscale) */
+.es-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.es-info { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 1.4px solid #c7c7cc; background: #fff;
+  color: #6e6e73; font-size: 11px; font-weight: 700; font-style: italic; line-height: 1; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; transition: .15s; }
+.es-info:hover { border-color: #1d1d1f; color: #1d1d1f; }
+.es-info-box { font-size: 12.5px; color: #4a4a4f; background: #f2f3f5; border-radius: 8px; padding: 10px 13px; margin: 8px 0 4px; line-height: 1.5; }
+.es-sep { height: 1px; background: #e5e5ea; margin: 16px 0; }
+.es-block { margin-bottom: 4px; }
+.es-mode, .es-period { display: flex; padding: 3px; background: #eef0f2; border-radius: 8px; margin: 8px 0 0; }
 .es-mode .esm-btn, .es-period .esp-btn { flex: 1; border: 0; background: transparent; color: #6e6e73;
   font-size: 13px; font-weight: 600; padding: 9px 8px; border-radius: 6px; cursor: pointer; text-align: center; transition: .15s; }
 .es-mode .esm-btn:hover, .es-period .esp-btn:hover { color: #1d1d1f; }
@@ -4287,6 +4305,10 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
     if (per) [].forEach.call(per.querySelectorAll('.esp-btn'), function (b) { b.classList.toggle('active', Number(b.getAttribute('data-m')) === m); });
     render();
   };
+  window.esToggleInfo = function (which) {
+    var box = document.getElementById('es-info-' + which);
+    if (box) box.hidden = !box.hidden;
+  };
 
   function render() {
     var t = L();
@@ -4307,10 +4329,13 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
       return;
     }
 
-    // 🆕 přepínač napořád/měsíčně jen když jsou nastavené měsíční ceny
+    // 🆕 sekce „doba" + separátor jen když jsou nastavené měsíční ceny
+    var avail = rentAvail();
     var mrow = document.getElementById('es-mode-row');
-    if (mrow) mrow.style.display = rentAvail() ? 'block' : 'none';
-    if (!rentAvail()) RM = 0;
+    var msep = document.getElementById('es-sep');
+    if (mrow) mrow.style.display = avail ? 'block' : 'none';
+    if (msep) msep.style.display = avail ? 'block' : 'none';
+    if (!avail) RM = 0;
 
     listEl.innerHTML = PKGS.map(function (p) {
       var core = !!p.is_core;
@@ -4754,6 +4779,9 @@ const SALES_I18N = {
   eshop_note:          { cs: 'Napořád jednorázově, nebo měsíční pronájem · faktura na firmu', sk: 'Navždy jednorazovo, alebo mesačný prenájom · faktúra na firmu', en: 'One-time forever, or monthly rental · company invoice', de: 'Einmalig für immer oder monatliche Miete · Firmenrechnung', es: 'Único para siempre, o alquiler mensual · factura a empresa' },
   mode_buy:            { cs: 'Koupit napořád', sk: 'Kúpiť navždy', en: 'Buy forever', de: 'Für immer kaufen', es: 'Comprar para siempre' },
   mode_rent:           { cs: 'Pronájem měsíčně', sk: 'Prenájom mesačne', en: 'Monthly rental', de: 'Monatliche Miete', es: 'Alquiler mensual' },
+  es_dur_label:        { cs: 'Na jak dlouho', sk: 'Na ako dlho', en: 'For how long', de: 'Für wie lange', es: 'Por cuánto tiempo' },
+  es_dur_info:         { cs: 'Napořád = zaplatíš jednou a máš navždy. Pronájem = platíš měsíčně; 3 dny před koncem ti přijde upozornění, prodloužíš jedním klikem na my.appek.cz a data ti zůstávají.', sk: 'Navždy = zaplatíte raz a máte navždy. Prenájom = platíte mesačne; 3 dni pred koncom príde upozornenie, predĺžite jedným klikom na my.appek.cz a dáta vám zostávajú.', en: 'Forever = pay once, yours for good. Rental = pay monthly; we remind you 3 days before it ends, you renew in one click at my.appek.cz and your data stays.', de: 'Für immer = einmal zahlen, für immer Ihres. Miete = monatlich zahlen; 3 Tage vor Ablauf erinnern wir Sie, Verlängerung mit einem Klick auf my.appek.cz, Ihre Daten bleiben.', es: 'Para siempre = paga una vez, tuyo para siempre. Alquiler = pago mensual; te avisamos 3 días antes, renuevas con un clic en my.appek.cz y tus datos permanecen.' },
+  es_pkg_info:         { cs: 'Core (základ) je vždy v ceně — objednávky, faktury, výroba, HACCP, B2B portál. Přidej jen specializované balíčky pro svůj obor (cukrárna, lahůdky, restaurace…).', sk: 'Core (základ) je vždy v cene — objednávky, faktúry, výroba, HACCP, B2B portál. Pridajte len špecializované balíčky pre svoj odbor.', en: 'Core is always included — orders, invoices, production, HACCP, B2B portal. Add only the specialized packages for your field.', de: 'Core ist immer enthalten — Bestellungen, Rechnungen, Produktion, HACCP, B2B-Portal. Fügen Sie nur die Pakete für Ihre Branche hinzu.', es: 'El Core siempre está incluido — pedidos, facturas, producción, HACCP, portal B2B. Añade solo los paquetes de tu sector.' },
   eshop_loading:       { cs: 'Načítám aktuální nabídku balíčků…', sk: 'Načítavam aktuálnu ponuku balíčkov…', en: 'Loading current packages…', de: 'Aktuelle Paketauswahl wird geladen…', es: 'Cargando paquetes actuales…' },
 
   // FAQ

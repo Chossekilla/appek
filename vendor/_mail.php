@@ -251,6 +251,33 @@ function vendor_send_admin_notification(array $order, array $license, string $ki
     return vendor_send_mail($to, $subject, $html, $text);
 }
 
+/**
+ * 🆕 Připomínka pronájmu — pár dní před vypršením. Vyzve zákazníka k prodloužení na my.appek.cz.
+ */
+function vendor_send_rental_reminder(array $lic): bool {
+    $to = $lic['customer_email'] ?? '';
+    if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+    $exp = $lic['expires_at'] ?? '';
+    if (!$exp) return false;
+    $expNice = date('j. n. Y', strtotime($exp));
+    $days = max(0, (int) ceil((strtotime(substr($exp, 0, 10) . ' 23:59:59') - time()) / 86400));
+    $dStr = $days === 1 ? '1 den' : ($days < 5 ? "$days dny" : "$days dní");
+    $name = $lic['customer_name'] ?? '';
+    $html = '<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;background:#f5f5f7;padding:24px;color:#1d1d1f">'
+        . '<div style="max-width:520px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,0.06)">'
+        . '<div style="background:linear-gradient(135deg,#BA7517,#F59E0B);padding:20px 24px;color:#fff">'
+        . '<div style="font-size:20px;font-weight:800">🗓️ Pronájem APPEK brzy končí</div>'
+        . '<div style="font-size:13px;opacity:0.92;margin-top:4px">Zbývá ' . $dStr . ' · platí do ' . htmlspecialchars($expNice) . '</div></div>'
+        . '<div style="padding:24px;color:#3a3a3c;line-height:1.6">'
+        . '<p>Dobrý den' . ($name ? ', ' . htmlspecialchars($name) : '') . ',</p>'
+        . '<p>váš měsíční pronájem APPEK vyprší <strong>' . htmlspecialchars($expNice) . '</strong> (za ' . $dStr . '). Aby vám aplikace jela dál bez přerušení, prodlužte ji jedním kliknutím — platba kartou, hotovo do minuty. <strong>Vaše data zůstávají beze změny.</strong></p>'
+        . '<div style="text-align:center;margin:22px 0"><a href="https://my.appek.cz" style="display:inline-block;background:#0071e3;color:#fff;padding:12px 26px;border-radius:10px;text-decoration:none;font-weight:600">Prodloužit na my.appek.cz</a></div>'
+        . '<p style="font-size:12px;color:#86868b">Pokud pronájem neprodloužíte, po vypršení a krátkém odkladu se přístup dočasně uzamkne — data zůstanou v bezpečí a kdykoli je odemknete prodloužením.</p>'
+        . '</div></div></body></html>';
+    $text = "Pronájem APPEK vyprší {$expNice} (za {$dStr}).\nProdlužte na https://my.appek.cz — data zůstávají beze změny.\n— APPEK";
+    return vendor_send_mail($to, "🗓️ Pronájem APPEK končí za {$dStr} — prodlužte", $html, $text);
+}
+
 function vendor_mail_template_license(array $license, array $order = []): array {
     // 🆕 v2.9.198 — rozšířený e-mail: serial nr (order ID), datum, částka, ToS link,
     // limit liability disclaimer (backup povinnost).
