@@ -63,12 +63,15 @@
 
   .pkg-list { display: flex; flex-direction: column; gap: 8px; }
   /* 🆕 PRONÁJEM (Fáze 2) — přepínač napořád/měsíčně + periody */
-  .buy-mode { display:flex; gap:8px; margin:0 0 12px; }
-  .buy-mode .bm-btn, .rental-periods .rp-btn { flex:1; padding:11px 10px; border:1.5px solid #e5e5ea; border-radius:11px;
-    background:#fff; color:#1d1d1f; font-size:14px; font-weight:600; cursor:pointer; text-align:center; transition:.15s; }
-  .buy-mode .bm-btn.active, .rental-periods .rp-btn.active { border-color:#0071e3; background:#0071e3; color:#fff; }
-  .rental-periods { display:none; gap:8px; margin:0 0 12px; }
+  /* segmentovaný přepínač napořád/měsíčně — velký, grayscale (sladěno s landingem) */
+  .buy-mode { display:flex; }
+  .rental-periods { display:none; }
   .rental-periods.show { display:flex; }
+  .buy-mode, .rental-periods { gap:6px; padding:5px; background:#eef0f2; border-radius:13px; margin:0 0 12px; }
+  .buy-mode .bm-btn, .rental-periods .rp-btn { flex:1; border:0; background:transparent; color:#6e6e73;
+    font-size:15.5px; font-weight:700; padding:15px 12px; border-radius:9px; cursor:pointer; text-align:center; transition:.15s; }
+  .buy-mode .bm-btn:hover, .rental-periods .rp-btn:hover { color:#1d1d1f; }
+  .buy-mode .bm-btn.active, .rental-periods .rp-btn.active { background:#fff; color:#1d1d1f; box-shadow:0 2px 5px rgba(0,0,0,0.10); }
   .pkg {
     border: 1.5px solid #e5e5e7; border-radius: 12px; padding: 14px 16px;
     cursor: pointer; transition: all 0.15s ease; display: flex; gap: 12px; align-items: center;
@@ -374,7 +377,7 @@
           <!-- 🆕 PRONÁJEM (Fáze 2): přepínač koupit napořád / pronájem měsíčně -->
           <div class="buy-mode" id="buy-mode">
             <button type="button" class="bm-btn active" onclick="setBuyMode(0)" data-i18n="mode_buy">Koupit napořád</button>
-            <button type="button" class="bm-btn" onclick="setBuyMode('rental')" data-i18n="mode_rent">🗓️ Pronájem měsíčně</button>
+            <button type="button" class="bm-btn" onclick="setBuyMode('rental')" data-i18n="mode_rent">Pronájem měsíčně</button>
           </div>
           <div class="rental-periods" id="rental-periods">
             <button type="button" class="rp-btn" onclick="setRentalMonths(1)" data-m="1">1 měsíc</button>
@@ -628,7 +631,7 @@ const I18N = {
     step1: '📦 Vyberte balíčky',
     step1_sub: '— Core je vždy zahrnut',
     banner: 'Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.',
-    mode_buy: 'Koupit napořád', mode_rent: '🗓️ Pronájem měsíčně',
+    mode_buy: 'Koupit napořád', mode_rent: 'Pronájem měsíčně',
     banner_rent: 'Měsíční pronájem — platíte jen za využité měsíce. Před koncem vás e-mailem upozorníme a vaše data zůstávají v bezpečí. Po vypršení se jen dočasně uzamkne přístup — kdykoli obnovíte prodloužením na my.appek.cz a jedete dál.',
     loading: 'Načítání balíčků…',
     step2: '👤 Kontaktní údaje',
@@ -706,7 +709,7 @@ const I18N = {
     step1: '📦 Choose packages',
     step1_sub: '— Core is always included',
     banner: 'One-time price, no monthly fees. Key arrives by e-mail within 24 h.',
-    mode_buy: 'Buy forever', mode_rent: '🗓️ Monthly rental',
+    mode_buy: 'Buy forever', mode_rent: 'Monthly rental',
     banner_rent: 'Monthly rental — pay only for the months you use. We e-mail you before it ends and your data stays safe. When it expires, access is only temporarily locked — restore anytime by renewing at my.appek.cz and carry on.',
     loading: 'Loading packages…',
     step2: '👤 Contact details',
@@ -780,7 +783,7 @@ const I18N = {
     step1: '📦 Elija paquetes',
     step1_sub: '— Core siempre incluido',
     banner: 'Precio único, sin cuotas mensuales. La clave llega por correo en 24 h.',
-    mode_buy: 'Comprar para siempre', mode_rent: '🗓️ Alquiler mensual',
+    mode_buy: 'Comprar para siempre', mode_rent: 'Alquiler mensual',
     banner_rent: 'Alquiler mensual — paga solo los meses que uses. Le avisamos por correo antes de que termine y sus datos quedan a salvo. Al vencer, el acceso solo se bloquea temporalmente — restáurelo cuando quiera renovando en my.appek.cz y siga adelante.',
     loading: 'Cargando paquetes…',
     step2: '👤 Datos de contacto',
