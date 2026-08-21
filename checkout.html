@@ -930,6 +930,11 @@ async function loadPackages() {
             if (k && PACKAGES.some(p => p.key === k)) SELECTED.add(k);
           });
         } catch (e) { /* ignore */ }
+        // 🆕 PRONÁJEM: předvolba z landingu (?months=N) → rovnou přepni na měsíční pronájem
+        try {
+          const mm = parseInt(new URLSearchParams(location.search).get('months') || '0', 10);
+          if (rentAvailable && [1, 3, 6, 12].includes(mm)) { setBuyMode('rental'); setRentalMonths(mm); return; }
+        } catch (e) { /* ignore */ }
         renderPackages();
         renderSummary();
         return;

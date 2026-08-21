@@ -4099,6 +4099,18 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         <h3 data-i18n="eshop_title">Sestav si APPEK</h3>
         <p data-i18n="eshop_sub">Core je vždy v ceně — přidej jen specializované balíčky, které potřebuješ.</p>
       </div>
+      <!-- 🆕 PRONÁJEM — přepínač napořád / měsíčně (zobrazí se jen když jsou nastavené měsíční ceny) -->
+      <div class="es-mode-row" id="es-mode-row" style="display:none">
+        <div class="es-mode">
+          <button type="button" class="esm-btn active" onclick="eshopSetMode(0)" data-i18n="mode_buy">Koupit napořád</button>
+          <button type="button" class="esm-btn" onclick="eshopSetMode('rental')" data-i18n="mode_rent">🗓️ Pronájem měsíčně</button>
+        </div>
+        <div class="es-period" id="es-period" style="display:none">
+          <button type="button" class="esp-btn" onclick="eshopSetMonths(1)" data-m="1">1 měsíc</button>
+          <button type="button" class="esp-btn active" onclick="eshopSetMonths(3)" data-m="3">3 měsíce</button>
+          <button type="button" class="esp-btn" onclick="eshopSetMonths(6)" data-m="6">6 měsíců</button>
+        </div>
+      </div>
       <div class="eshop-body">
         <div class="eshop-addons">
           <div class="eshop-label" data-i18n="eshop_pkgs_label">Balíčky</div>
@@ -4188,6 +4200,13 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
   text-transform: uppercase; letter-spacing: 0.5px;
 }
 .es-row-tier strong { font-size: 17px; }
+/* 🆕 PRONÁJEM — přepínač napořád/měsíčně v landing builderu */
+.es-mode-row { padding: 0 24px 4px; }
+.es-mode { display: flex; gap: 8px; margin: 0 0 10px; }
+.es-mode .esm-btn, .es-period .esp-btn { flex: 1; padding: 10px 8px; border: 1.5px solid rgba(255,255,255,0.18); border-radius: 11px;
+  background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.85); font-size: 13.5px; font-weight: 600; cursor: pointer; text-align: center; transition: .15s; }
+.es-mode .esm-btn.active, .es-period .esp-btn.active { border-color: #E0A82E; background: #E0A82E; color: #1d1d1f; }
+.es-period { display: flex; gap: 8px; margin: 0 0 8px; }
 .es-lines { display: flex; flex-direction: column; gap: 8px; }
 .es-line {
   display: flex; justify-content: space-between; align-items: center;
@@ -4251,6 +4270,24 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
   function nameOf(p) { var l = document.documentElement.lang || 'cs'; return p['name_' + l] || p.name_cs || p.key; }
   function descOf(p) { var l = document.documentElement.lang || 'cs'; return p['description_' + l] || p.description_cs || ''; }
 
+  // 🆕 PRONÁJEM: 0 = koupit napořád (price_kc), >0 = pronájem na N měsíců (price_month_kc × N)
+  var RM = 0;
+  function rentAvail() { return PKGS.some(function (p) { return (Number(p.price_month_kc) || 0) > 0; }); }
+  function priceOf(p) { return RM > 0 ? Math.round((Number(p.price_month_kc) || 0) * RM) : (Number(p.price_kc) || 0); }
+  window.eshopSetMode = function (mode) {
+    RM = (mode === 'rental') ? 3 : 0;
+    var row = document.getElementById('es-mode-row');
+    if (row) [].forEach.call(row.querySelectorAll('.esm-btn'), function (b, i) { b.classList.toggle('active', (i === 0) === (RM === 0)); });
+    var per = document.getElementById('es-period'); if (per) per.style.display = RM > 0 ? 'flex' : 'none';
+    render();
+  };
+  window.eshopSetMonths = function (m) {
+    RM = m;
+    var per = document.getElementById('es-period');
+    if (per) [].forEach.call(per.querySelectorAll('.esp-btn'), function (b) { b.classList.toggle('active', Number(b.getAttribute('data-m')) === m); });
+    render();
+  };
+
   function render() {
     var t = L();
     var listEl = document.getElementById('eshop-pkg-list');
@@ -4270,11 +4307,17 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
       return;
     }
 
+    // 🆕 přepínač napořád/měsíčně jen když jsou nastavené měsíční ceny
+    var mrow = document.getElementById('es-mode-row');
+    if (mrow) mrow.style.display = rentAvail() ? 'block' : 'none';
+    if (!rentAvail()) RM = 0;
+
     listEl.innerHTML = PKGS.map(function (p) {
       var core = !!p.is_core;
       var on = core || !!SEL[p.key];
       var cls = 'eshop-addon' + (core ? ' included' : (on ? ' on' : ''));
-      var price = core ? ('✓ ' + t.core) : ('+' + fmt(p.price_kc) + ' ' + t.cur);
+      var price = (core && RM === 0) ? ('✓ ' + t.core)
+        : ('+' + fmt(priceOf(p)) + ' ' + t.cur + (RM > 0 ? ' /' + RM + 'm' : ''));
       var click = core ? '' : ' onclick="eshopTogglePkg(\'' + esc(p.key) + '\')"';
       return '<button type="button" class="' + cls + '"' + click + '>'
         + '<span class="ea-emoji">' + (esc(p.icon) || '📦') + '</span>'
@@ -4287,17 +4330,19 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
     var chosen = PKGS.filter(function (p) { return p.is_core || SEL[p.key]; });
     var total = 0, html = '';
     chosen.forEach(function (p) {
-      var pr = Number(p.price_kc) || 0;
+      var pr = priceOf(p);
       total += pr;
       html += '<div class="es-line"><span>' + esc(nameOf(p))
         + '</span><span>' + fmt(pr) + ' ' + t.cur + '</span></div>';
     });
     if (linesEl) linesEl.innerHTML = html;
     if (countEl) countEl.textContent = t.count(chosen.length);
-    if (totalEl) totalEl.textContent = fmt(total) + ' ' + t.cur;
+    if (totalEl) totalEl.textContent = fmt(total) + ' ' + t.cur + (RM > 0 ? ' / ' + RM + ' měs.' : '');
     if (buyEl) {
       var keys = chosen.map(function (p) { return p.key; });
-      buyEl.href = 'checkout.html' + (keys.length ? '?packages=' + encodeURIComponent(keys.join(',')) : '');
+      var qs = keys.length ? '?packages=' + encodeURIComponent(keys.join(',')) : '';
+      if (RM > 0) qs += (qs ? '&' : '?') + 'months=' + RM;
+      buyEl.href = 'checkout.html' + qs;
     }
   }
 
@@ -4667,8 +4712,8 @@ const SALES_I18N = {
 
   // PRICING
   price_eyebrow: { cs: 'Cena', sk: 'Cena', en: 'Pricing', de: 'Preis', es: 'Precio' },
-  price_title:   { cs: 'Bez měsíčních poplatků', sk: 'Bez mesačných poplatkov', en: 'No monthly fees', de: 'Keine monatlichen Gebühren', es: 'Sin cuotas mensuales' },
-  price_sub:     { cs: 'Zaplatíš jednou — máš navždy. Updaty zdarma první rok.', sk: 'Zaplatíte raz — máte navždy. Aktualizácie zadarmo prvý rok.', en: 'Pay once — yours forever. Free updates for the first year.', de: 'Einmal zahlen — gehört Ihnen für immer. Kostenlose Updates im ersten Jahr.', es: 'Paga una vez — tuyo para siempre. Actualizaciones gratis el primer año.' },
+  price_title:   { cs: 'Napořád, nebo měsíčně', sk: 'Navždy, alebo mesačne', en: 'Forever, or monthly', de: 'Für immer oder monatlich', es: 'Para siempre, o mensual' },
+  price_sub:     { cs: 'Kup APPEK jednou a máš ho navždy — nebo si ho pronajmi na měsíce. Vyber si níže.', sk: 'Kúpte APPEK raz a máte ho navždy — alebo si ho prenajmite na mesiace. Vyberte si nižšie.', en: 'Buy APPEK once and own it forever — or rent it by the month. Choose below.', de: 'APPEK einmal kaufen und für immer besitzen — oder monatlich mieten. Wählen Sie unten.', es: 'Compra APPEK una vez y es tuyo para siempre — o alquílalo por meses. Elige abajo.' },
   tier_starter_n:   { cs: 'Starter', sk: 'Starter', en: 'Starter', de: 'Starter', es: 'Starter' },
   tier_starter_tag: { cs: 'Jednorázově. Pro 1 provoz.', sk: 'Jednorazovo. Pre 1 prevádzku.', en: 'One-time. For 1 business.', de: 'Einmalig. Für 1 Betrieb.', es: 'Pago único. Para 1 negocio.' },
   starter_f1: { cs: 'Core funkce (objednávky, faktury, výroba)', sk: 'Core funkcie (objednávky, faktúry, výroba)', en: 'Core features (orders, invoices, production)', de: 'Core-Funktionen (Bestellungen, Rechnungen, Produktion)', es: 'Funciones core (pedidos, facturas, producción)' },
@@ -4706,7 +4751,9 @@ const SALES_I18N = {
   eshop_summary_label: { cs: 'Souhrn objednávky', sk: 'Súhrn objednávky', en: 'Order summary', de: 'Bestellübersicht', es: 'Resumen del pedido' },
   eshop_total:         { cs: 'Celkem bez DPH', sk: 'Celkom bez DPH', en: 'Total excl. VAT', de: 'Gesamt zzgl. MwSt.', es: 'Total sin IVA' },
   eshop_buy:           { cs: 'Pokračovat k objednávce →', sk: 'Pokračovať k objednávke →', en: 'Continue to order →', de: 'Weiter zur Bestellung →', es: 'Continuar al pedido →' },
-  eshop_note:          { cs: 'Jednorázová platba · bez měsíčních poplatků · faktura na firmu', sk: 'Jednorazová platba · bez mesačných poplatkov · faktúra na firmu', en: 'One-time payment · no monthly fees · company invoice', de: 'Einmalige Zahlung · keine monatlichen Gebühren · Firmenrechnung', es: 'Pago único · sin cuotas mensuales · factura a empresa' },
+  eshop_note:          { cs: 'Napořád jednorázově, nebo měsíční pronájem · faktura na firmu', sk: 'Navždy jednorazovo, alebo mesačný prenájom · faktúra na firmu', en: 'One-time forever, or monthly rental · company invoice', de: 'Einmalig für immer oder monatliche Miete · Firmenrechnung', es: 'Único para siempre, o alquiler mensual · factura a empresa' },
+  mode_buy:            { cs: 'Koupit napořád', sk: 'Kúpiť navždy', en: 'Buy forever', de: 'Für immer kaufen', es: 'Comprar para siempre' },
+  mode_rent:           { cs: '🗓️ Pronájem měsíčně', sk: '🗓️ Prenájom mesačne', en: '🗓️ Monthly rental', de: '🗓️ Monatliche Miete', es: '🗓️ Alquiler mensual' },
   eshop_loading:       { cs: 'Načítám aktuální nabídku balíčků…', sk: 'Načítavam aktuálnu ponuku balíčkov…', en: 'Loading current packages…', de: 'Aktuelle Paketauswahl wird geladen…', es: 'Cargando paquetes actuales…' },
 
   // FAQ
