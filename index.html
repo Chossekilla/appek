@@ -4103,7 +4103,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
       <div class="es-mode-row" id="es-mode-row" style="display:none">
         <div class="es-mode">
           <button type="button" class="esm-btn active" onclick="eshopSetMode(0)" data-i18n="mode_buy">Koupit napořád</button>
-          <button type="button" class="esm-btn" onclick="eshopSetMode('rental')" data-i18n="mode_rent">🗓️ Pronájem měsíčně</button>
+          <button type="button" class="esm-btn" onclick="eshopSetMode('rental')" data-i18n="mode_rent">Pronájem měsíčně</button>
         </div>
         <div class="es-period" id="es-period" style="display:none">
           <button type="button" class="esp-btn" onclick="eshopSetMonths(1)" data-m="1">1 měsíc</button>
@@ -4200,13 +4200,13 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
   text-transform: uppercase; letter-spacing: 0.5px;
 }
 .es-row-tier strong { font-size: 17px; }
-/* 🆕 PRONÁJEM — přepínač napořád/měsíčně v landing builderu */
-.es-mode-row { padding: 0 24px 4px; }
-.es-mode { display: flex; gap: 8px; margin: 0 0 10px; }
-.es-mode .esm-btn, .es-period .esp-btn { flex: 1; padding: 10px 8px; border: 1.5px solid rgba(255,255,255,0.18); border-radius: 11px;
-  background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.85); font-size: 13.5px; font-weight: 600; cursor: pointer; text-align: center; transition: .15s; }
-.es-mode .esm-btn.active, .es-period .esp-btn.active { border-color: #E0A82E; background: #E0A82E; color: #1d1d1f; }
-.es-period { display: flex; gap: 8px; margin: 0 0 8px; }
+/* 🆕 PRONÁJEM — segmentovaný přepínač napořád/měsíčně (bílá karta, decentní, grayscale) */
+.es-mode-row { padding: 0 24px 6px; }
+.es-mode, .es-period { display: flex; padding: 3px; background: #eef0f2; border-radius: 8px; margin: 0 0 8px; }
+.es-mode .esm-btn, .es-period .esp-btn { flex: 1; border: 0; background: transparent; color: #6e6e73;
+  font-size: 13px; font-weight: 600; padding: 9px 8px; border-radius: 6px; cursor: pointer; text-align: center; transition: .15s; }
+.es-mode .esm-btn:hover, .es-period .esp-btn:hover { color: #1d1d1f; }
+.es-mode .esm-btn.active, .es-period .esp-btn.active { background: #fff; color: #1d1d1f; box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
 .es-lines { display: flex; flex-direction: column; gap: 8px; }
 .es-line {
   display: flex; justify-content: space-between; align-items: center;
@@ -4753,7 +4753,7 @@ const SALES_I18N = {
   eshop_buy:           { cs: 'Pokračovat k objednávce →', sk: 'Pokračovať k objednávke →', en: 'Continue to order →', de: 'Weiter zur Bestellung →', es: 'Continuar al pedido →' },
   eshop_note:          { cs: 'Napořád jednorázově, nebo měsíční pronájem · faktura na firmu', sk: 'Navždy jednorazovo, alebo mesačný prenájom · faktúra na firmu', en: 'One-time forever, or monthly rental · company invoice', de: 'Einmalig für immer oder monatliche Miete · Firmenrechnung', es: 'Único para siempre, o alquiler mensual · factura a empresa' },
   mode_buy:            { cs: 'Koupit napořád', sk: 'Kúpiť navždy', en: 'Buy forever', de: 'Für immer kaufen', es: 'Comprar para siempre' },
-  mode_rent:           { cs: '🗓️ Pronájem měsíčně', sk: '🗓️ Prenájom mesačne', en: '🗓️ Monthly rental', de: '🗓️ Monatliche Miete', es: '🗓️ Alquiler mensual' },
+  mode_rent:           { cs: 'Pronájem měsíčně', sk: 'Prenájom mesačne', en: 'Monthly rental', de: 'Monatliche Miete', es: 'Alquiler mensual' },
   eshop_loading:       { cs: 'Načítám aktuální nabídku balíčků…', sk: 'Načítavam aktuálnu ponuku balíčkov…', en: 'Loading current packages…', de: 'Aktuelle Paketauswahl wird geladen…', es: 'Cargando paquetes actuales…' },
 
   // FAQ
