@@ -97,22 +97,40 @@ window.applyVyrobkyFilters = function() {
   });
 };
 
-// 🆕 Zachovej pozici scrollu přes re-render (nahrazení innerHTML resetuje scroll v html-scrolleru
-//   → skok nahoru při přepnutí kategorie/filtru). DŮLEŽITÉ: dostane FUNKCI, ať přečte scrollY
-//   PŘED renderem (render sám scroll resetuje). Použij: keepScroll(() => renderFn()).
+// 🆕 Zachovej pozici scrollu přes re-render (nahrazení innerHTML resetuje scrollTop scrolleru
+//   → skok při přepnutí filtru/tabu). POZOR: skutečný scroller v adminu je <body> (ne window),
+//   proto čti/zapisuj body.scrollTop i scrollingElement. Dostane FUNKCI (scrollTop se čte PŘED renderem).
 window.keepScroll = function(fn) {
-  const y = window.scrollY || document.documentElement.scrollTop || 0;
-  if (y <= 0) return (typeof fn === 'function') ? fn() : fn;   // na vrchu = nic neřeš
-  const restore = () => window.scrollTo(0, y);
+  const se = document.scrollingElement || document.documentElement;
+  const y = se.scrollTop || document.body.scrollTop || 0;
+  const setY = (v) => { try { document.body.scrollTop = v; se.scrollTop = v; } catch (e) {} };
   const ret = (typeof fn === 'function') ? fn() : fn;
-  Promise.resolve().then(restore);   // po synchronním innerHTML, ještě před vykreslením (bez záblesku)
-  const raf = () => requestAnimationFrame(restore);
-  if (ret && typeof ret.then === 'function') ret.then(raf, raf); else raf();
+  if (y > 0) {
+    Promise.resolve().then(() => setY(y));   // po synchronním innerHTML, před vykreslením (bez záblesku)
+    const raf = () => requestAnimationFrame(() => setY(y));
+    if (ret && typeof ret.then === 'function') ret.then(raf, raf); else raf();
+  }
+  return ret;
+};
+
+// 🆕 Ukotvi element na stejný viewport-offset přes re-render (robustní i když se výška obsahu mění —
+//   filtr na menší kategorii = kratší seznam → numerický scroll by uskočil na výrobek). Vrací promise renderu.
+window.keepAnchor = function(sel, fn) {
+  const el0 = document.querySelector(sel);
+  const off = el0 ? el0.getBoundingClientRect().top : 0;
+  const ret = (typeof fn === 'function') ? fn() : fn;
+  const fix = () => requestAnimationFrame(() => {
+    const el = document.querySelector(sel); if (!el) return;
+    const d = el.getBoundingClientRect().top - off;
+    if (d) { document.body.scrollTop += d; (document.scrollingElement || document.documentElement).scrollTop += d; }
+  });
+  if (ret && typeof ret.then === 'function') ret.then(fix, fix); else fix();
   return ret;
 };
 
 window.filterVyrobkyKat = function(katId) {
-  keepScroll(() => renderVyrobky({
+  // ukotvi lištu kategorií — přepnutí neuskočí (viz keepAnchor)
+  keepAnchor('.kat-filter-wrap,.kat-filter', () => renderVyrobky({
     ...(state._vyrobkyFilters || {}),
     kategorie_id: katId,
   }));
