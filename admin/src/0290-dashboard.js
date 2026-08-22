@@ -842,10 +842,13 @@ async function loadProvozWidget() {
 
   const hasAny = (tables && !tables.error) || (kitchen && !kitchen.error) || (couriers && !couriers.error) || (posDnes && !posDnes.error);
   if (!hasAny) {
-    host.style.display = 'none';
+    // 🆕 Transientní chyba (demo bývá přetížené) → NEschovávej widget, jinak collapse výšky
+    //   při 10s auto-refreshi = skok scrollu. Nech poslední dobrý render.
+    if (!host.dataset.filled) host.style.display = 'none';
     return;
   }
   host.style.display = 'block';
+  host.dataset.filled = '1';
 
   // Vytíženost stolů (%)
   const totalMist = parseInt(cap.celkem_mist) || 0;
