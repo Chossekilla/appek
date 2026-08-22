@@ -113,9 +113,8 @@ window.apiTokenDelete = async function(id, nazev) {
 // 🗂️ Přepnutí záložky v Nastavení
 window.nastaveniSetTab = function(key) {
   state._nastaveniTab = key;
-  renderNastaveni();
-  // Skroluj nahoru (body je skutečný scroller → window.scrollTo je inertní)
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  try { document.body.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { document.body.scrollTop = 0; }
+  // 🆕 ukotvi tab-lištu na stejné místo ve viewportu (žádný skok ani smooth-scroll jank —
+  //   konzistentní s přepínáním kategorií výrobků). Platby panel se donačte async pod lištou.
+  (window.keepAnchor || function (s, f) { return f(); })('.seg-tabs', function () { return renderNastaveni(); });
 };
 

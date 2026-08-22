@@ -79,7 +79,7 @@ window.vyrobaSetSubTab = function(tabKey) {
     navigate(sub.nav);
   } else if (sub?.render) {
     state._vyrobaSubTab = tabKey;
-    renderVyrobaHub();
+    (window.keepScroll || function (f) { return f(); })(function () { return renderVyrobaHub(); });
   }
 };
 
