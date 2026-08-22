@@ -55,8 +55,8 @@ window.diagRychly = async function() {
 // Otevři detail diagnostiky — nahradí obsah stránky tabulkou ze starého renderDiagnostika
 window.diagOtevrit = async function() {
   await renderDiagnostika();
-  // Skroluj nahoru
-  window.scrollTo(0, 0);
+  // Skroluj nahoru (body je skutečný scroller → window.scrollTo je inertní)
+  window.scrollTo(0, 0); document.body.scrollTop = 0;
 };
 
 // 🆕 v2.9.322 — Test zdraví aplikace (synthetic monitor on-demand)

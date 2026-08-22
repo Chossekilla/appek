@@ -114,7 +114,8 @@ window.apiTokenDelete = async function(id, nazev) {
 window.nastaveniSetTab = function(key) {
   state._nastaveniTab = key;
   renderNastaveni();
-  // Skroluj nahoru
+  // Skroluj nahoru (body je skutečný scroller → window.scrollTo je inertní)
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  try { document.body.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { document.body.scrollTop = 0; }
 };
 

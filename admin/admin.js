@@ -2935,8 +2935,11 @@ function appekInitPullToRefresh() {
 
   target.addEventListener('touchstart', (e) => {
     if (_ptrRefreshing) return;
-    // Jen pokud jsme úplně nahoře a používáme prst (ne myš)
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    // Jen pokud jsme úplně nahoře a používáme prst (ne myš).
+    // 🐛 FIX: skutečný scroller je <body> (ne window/html) → window.scrollY byl vždy 0
+    //   → PTR byl aktivní i uprostřed stránky a swipe dolů (= scroll nahoru k menu) po 80px
+    //   spustil refresh → „scroll nahoru se kouse, na několikáté vyjede na menu". Čti max ze všech.
+    const scrollY = Math.max(window.scrollY || 0, document.body.scrollTop || 0, document.documentElement.scrollTop || 0);
     if (scrollY > 5) return;
     _ptrStart = { y: e.touches[0].clientY, t: Date.now() };
   }, { passive: true });
@@ -26506,8 +26509,9 @@ window.apiTokenDelete = async function(id, nazev) {
 window.nastaveniSetTab = function(key) {
   state._nastaveniTab = key;
   renderNastaveni();
-  // Skroluj nahoru
+  // Skroluj nahoru (body je skutečný scroller → window.scrollTo je inertní)
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  try { document.body.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { document.body.scrollTop = 0; }
 };
 
 // ===================================================================
@@ -26567,8 +26571,8 @@ window.diagRychly = async function() {
 // Otevři detail diagnostiky — nahradí obsah stránky tabulkou ze starého renderDiagnostika
 window.diagOtevrit = async function() {
   await renderDiagnostika();
-  // Skroluj nahoru
-  window.scrollTo(0, 0);
+  // Skroluj nahoru (body je skutečný scroller → window.scrollTo je inertní)
+  window.scrollTo(0, 0); document.body.scrollTop = 0;
 };
 
 // 🆕 v2.9.322 — Test zdraví aplikace (synthetic monitor on-demand)
