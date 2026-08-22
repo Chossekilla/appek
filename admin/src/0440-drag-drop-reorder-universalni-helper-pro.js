@@ -97,11 +97,25 @@ window.applyVyrobkyFilters = function() {
   });
 };
 
+// 🆕 Zachovej pozici scrollu přes re-render (nahrazení innerHTML resetuje scroll v html-scrolleru
+//   → skok nahoru při přepnutí kategorie/filtru). DŮLEŽITÉ: dostane FUNKCI, ať přečte scrollY
+//   PŘED renderem (render sám scroll resetuje). Použij: keepScroll(() => renderFn()).
+window.keepScroll = function(fn) {
+  const y = window.scrollY || document.documentElement.scrollTop || 0;
+  if (y <= 0) return (typeof fn === 'function') ? fn() : fn;   // na vrchu = nic neřeš
+  const restore = () => window.scrollTo(0, y);
+  const ret = (typeof fn === 'function') ? fn() : fn;
+  Promise.resolve().then(restore);   // po synchronním innerHTML, ještě před vykreslením (bez záblesku)
+  const raf = () => requestAnimationFrame(restore);
+  if (ret && typeof ret.then === 'function') ret.then(raf, raf); else raf();
+  return ret;
+};
+
 window.filterVyrobkyKat = function(katId) {
-  renderVyrobky({
+  keepScroll(() => renderVyrobky({
     ...(state._vyrobkyFilters || {}),
     kategorie_id: katId,
-  });
+  }));
 };
 
 window.otevritPrecislovat = async function() {

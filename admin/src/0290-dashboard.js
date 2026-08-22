@@ -1035,7 +1035,8 @@ async function loadProvozWidget() {
 }
 
 window.dashSetObdobi = function(obdobi) {
-  renderDashboard({ obdobi });
+  // 🆕 zachovej scroll (přepnutí období překresluje celý dashboard → jinak skok nahoru)
+  (window.keepScroll || (f => f()))(() => renderDashboard({ obdobi }));
 };
 
 // 🆕 v2.9.287 — Helper pro sjednocený period-tabs render (Dashboard + Faktury/Obj/DL + Vyroba prehled)
