@@ -1128,26 +1128,25 @@ window.otevritSklad = async function(skladId, nazev, kod) {
     const c = document.getElementById('sklad-detail-content');
     if (!c) return;
 
-    const renderTable = (rows, typLabel, typIcon) => rows.length === 0 ? '' : `
-      <h3 style="margin:16px 0 8px;font-size:14px;color:var(--text-2)">${typIcon} ${typLabel} <span style="color:var(--text-3);font-weight:400">(${rows.length})</span></h3>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="background:var(--surface-2);color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:0.4px">
-            <th style="padding:8px 10px;text-align:left">Kód</th>
-            <th style="padding:8px 10px;text-align:left">Název</th>
-            <th style="padding:8px 10px;text-align:right">Stav</th>
-            <th style="padding:8px 10px;text-align:right">Min</th>
-            <th style="padding:8px 10px;text-align:right">Cíl</th>
-            <th style="padding:8px 10px;text-align:left">📍 Pozice</th>
-            <th style="padding:8px 10px;text-align:right">Akce</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(p => {
-            const stav = parseFloat(p.stav) || 0;
-            const min = p.min_stav !== null ? parseFloat(p.min_stav) : null;
-            const underMin = min !== null && stav <= min;
-            return `
+    // 🆕 responzivní: desktop = tabulka, mobil (≤700px) = karty (jeden zdroj dat, akce postavené jednou)
+    const renderTable = (rows, typLabel, typIcon) => {
+      if (rows.length === 0) return '';
+      const cells = rows.map(p => {
+        const stav = parseFloat(p.stav) || 0;
+        const min = p.min_stav !== null ? parseFloat(p.min_stav) : null;
+        const underMin = min !== null && stav <= min;
+        const sid = state._currentSkladId || 0;
+        const actions = `
+                  <button class="btn-secondary" onclick="pohybSkladu(${sid}, ${p.id}, 'prijem', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px;background:#dcfce7;color:#15803d;border-color:#dcfce7" title="Příjem">+</button>
+                  <button class="btn-secondary" onclick="pohybSkladu(${sid}, ${p.id}, 'vydej', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px;background:#fef3c7;color:#854F0B;border-color:#fef3c7" title="Výdej">−</button>
+                  <button class="btn-secondary" onclick="pohybSkladu(${sid}, ${p.id}, 'inventura', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px" title="Inventura">📝</button>
+                  <button class="btn-secondary" onclick="pohybSkladu(${sid}, ${p.id}, 'presun', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px" title="Přesun do jiného skladu">↔</button>
+                  <button class="btn-secondary" onclick="editSkladPolozku(${p.id}, ${stav}, ${min ?? 'null'}, ${p.cil_stav ?? 'null'}, '${esc(p.nazev)}')" style="font-size:11px;padding:4px 8px" title="Edit min/cíl">✏️</button>
+                  <button class="btn-secondary" onclick="odebratPolozku(${p.id}, '${esc(p.nazev)}')" style="font-size:11px;padding:4px 8px;background:#fde7e9;color:#a8232f;border-color:#fde7e9" title="Odebrat ze skladu">×</button>`;
+        const posBtn = `<button class="btn-icon" onclick="skladSetPozice(${p.id})" title="Upravit pozici" style="font-size:11px;padding:2px 5px">✏️</button>`;
+        return { p, stav, min, underMin, actions, posBtn };
+      });
+      const trows = cells.map(({ p, stav, min, underMin, actions, posBtn }) => `
               <tr style="border-bottom:1px solid var(--border)">
                 <td style="padding:8px 10px;font-family:monospace;color:var(--text-3);font-size:11.5px">${esc(p.cislo || '—')}</td>
                 <td style="padding:8px 10px"><strong>${esc(p.nazev || '?')}</strong></td>
@@ -1156,22 +1155,45 @@ window.otevritSklad = async function(skladId, nazev, kod) {
                 <td style="padding:8px 10px;text-align:right;color:var(--text-3)">${p.cil_stav !== null ? parseFloat(p.cil_stav).toFixed(2) : '—'}</td>
                 <td style="padding:8px 10px;white-space:nowrap">
                   <span style="font-size:12px">${p.pozice ? esc(p.pozice) : '<span style="color:var(--text-3)">—</span>'}</span>
-                  <button class="btn-icon" onclick="skladSetPozice(${p.id})" title="Upravit pozici" style="font-size:11px;padding:2px 5px">✏️</button>
+                  ${posBtn}
                 </td>
-                <td style="padding:8px 10px;text-align:right;white-space:nowrap">
-                  <button class="btn-secondary" onclick="pohybSkladu(${state._currentSkladId || 0}, ${p.id}, 'prijem', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px;background:#dcfce7;color:#15803d;border-color:#dcfce7" title="Příjem">+</button>
-                  <button class="btn-secondary" onclick="pohybSkladu(${state._currentSkladId || 0}, ${p.id}, 'vydej', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px;background:#fef3c7;color:#854F0B;border-color:#fef3c7" title="Výdej">−</button>
-                  <button class="btn-secondary" onclick="pohybSkladu(${state._currentSkladId || 0}, ${p.id}, 'inventura', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px" title="Inventura">📝</button>
-                  <button class="btn-secondary" onclick="pohybSkladu(${state._currentSkladId || 0}, ${p.id}, 'presun', '${esc(p.nazev)}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:4px 8px" title="Přesun do jiného skladu">↔</button>
-                  <button class="btn-secondary" onclick="editSkladPolozku(${p.id}, ${stav}, ${min ?? 'null'}, ${p.cil_stav ?? 'null'}, '${esc(p.nazev)}')" style="font-size:11px;padding:4px 8px" title="Edit min/cíl">✏️</button>
-                  <button class="btn-secondary" onclick="odebratPolozku(${p.id}, '${esc(p.nazev)}')" style="font-size:11px;padding:4px 8px;background:#fde7e9;color:#a8232f;border-color:#fde7e9" title="Odebrat ze skladu">×</button>
-                </td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
+                <td style="padding:8px 10px;text-align:right;white-space:nowrap">${actions}</td>
+              </tr>`).join('');
+      const cards = cells.map(({ p, stav, min, underMin, actions, posBtn }) => `
+              <div class="skl-item-card">
+                <div class="skl-ic-top">
+                  <span class="skl-ic-name">${esc(p.nazev || '?')}</span>
+                  <span class="skl-ic-code">${esc(p.cislo || '—')}</span>
+                </div>
+                <div class="skl-ic-stats">
+                  <span class="skl-ic-stav${underMin ? ' low' : ''}">Stav ${stav.toFixed(2)} ${esc(p.jednotka || '')}${underMin ? ' ⚠️' : ''}</span>
+                  <span>Min ${min !== null ? min.toFixed(2) : '—'}</span>
+                  <span>Cíl ${p.cil_stav !== null ? parseFloat(p.cil_stav).toFixed(2) : '—'}</span>
+                  <span>📍 ${p.pozice ? esc(p.pozice) : '—'} ${posBtn}</span>
+                </div>
+                <div class="skl-ic-actions">${actions}</div>
+              </div>`).join('');
+      return `
+      <h3 style="margin:16px 0 8px;font-size:14px;color:var(--text-2)">${typIcon} ${typLabel} <span style="color:var(--text-3);font-weight:400">(${rows.length})</span></h3>
+      <div class="skl-items">
+        <table class="skl-tbl" style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:var(--surface-2);color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:0.4px">
+              <th style="padding:8px 10px;text-align:left">Kód</th>
+              <th style="padding:8px 10px;text-align:left">Název</th>
+              <th style="padding:8px 10px;text-align:right">Stav</th>
+              <th style="padding:8px 10px;text-align:right">Min</th>
+              <th style="padding:8px 10px;text-align:right">Cíl</th>
+              <th style="padding:8px 10px;text-align:left">📍 Pozice</th>
+              <th style="padding:8px 10px;text-align:right">Akce</th>
+            </tr>
+          </thead>
+          <tbody>${trows}</tbody>
+        </table>
+        <div class="skl-cards">${cards}</div>
+      </div>
     `;
+    };
 
     c.innerHTML = `
       <div style="display:flex;gap:6px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap;align-items:end">
@@ -1187,7 +1209,22 @@ window.otevritSklad = async function(skladId, nazev, kod) {
         </div>
       </div>
       <div id="sklad-detail-tab-body"></div>
-      <style>.skd-tab.is-active{background:var(--primary,#BA7517);color:#fff;border-color:var(--primary,#BA7517)}</style>
+      <style>
+        .skd-tab.is-active{background:var(--primary,#BA7517);color:#fff;border-color:var(--primary,#BA7517)}
+        .skl-cards{display:none}
+        @media(max-width:700px){
+          #sklad-detail-content .skl-tbl{display:none}
+          #sklad-detail-content .skl-cards{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+          #sklad-detail-tab-body table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+        }
+        .skl-item-card{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--surface)}
+        .skl-ic-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}
+        .skl-ic-name{font-weight:700;font-size:14px;color:var(--text-1);line-height:1.25}
+        .skl-ic-code{font-family:monospace;font-size:11px;color:var(--text-3);white-space:nowrap}
+        .skl-ic-stats{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-2);margin-bottom:9px}
+        .skl-ic-stav.low{color:#c66800;font-weight:700}
+        .skl-ic-actions{display:flex;flex-wrap:wrap;gap:6px}
+      </style>
     `;
 
     const body = document.getElementById('sklad-detail-tab-body');

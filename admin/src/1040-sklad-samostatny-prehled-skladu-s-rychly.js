@@ -786,8 +786,8 @@ async function renderSuroviny() {
         </div>
       ` : ''}
 
-      <!-- Kategorie — uniformní grid (stejně velká tlačítka; 2 řádky na širokém, responzivně se zúží) -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px;margin-top:18px">
+      <!-- Kategorie — uniformní grid (desktop auto-fit; mobil 3 sloupce, viz .sur-cat-grid v admin.css) -->
+      <div class="sur-cat-grid">
         <button class="sur-cat-btn ${kat === 'vse' ? 'is-active' : ''}" onclick="state._suroviny_kat='vse';renderSuroviny()">
           <span class="sur-cat-emoji">📚</span>
           <span>Vše</span>
