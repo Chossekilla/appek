@@ -321,7 +321,8 @@ if ($detailId > 0) {
           </form>
         <?php endif; ?>
         <?php if ($detail['license_id']): ?>
-          <a href="licenses.php#lic-<?= (int) $detail['license_id'] ?>" class="btn-master secondary">→ Otevřít licenci v Licencích</a>
+          <a href="licenses.php?edit=<?= (int) $detail['license_id'] ?>#lic-<?= (int) $detail['license_id'] ?>" class="btn-master primary">✏️ Prodloužit / upravit licenci</a>
+          <a href="licenses.php#lic-<?= (int) $detail['license_id'] ?>" class="btn-master secondary">→ Otevřít v Licencích</a>
         <?php endif; ?>
       </div>
     </div>
@@ -358,8 +359,8 @@ if ($detailId > 0) {
       </thead>
       <tbody>
       <?php foreach ($orders as $o): ?>
-        <tr class="order-row">
-          <td><code><?= htmlspecialchars($o['order_no']) ?></code></td>
+        <tr class="order-row" style="cursor:pointer" onclick="if(!event.target.closest('a,button'))location.href='shop.php?detail=<?= (int) $o['id'] ?>'">
+          <td><code><?= htmlspecialchars($o['order_no']) ?></code><?php if (!empty($o['install_url'])): ?><br><span style="font-size:11px;color:#86868b;word-break:break-all"><?= htmlspecialchars(preg_replace('#^https?://#', '', rtrim($o['install_url'], '/'))) ?></span><?php endif; ?></td>
           <td>
             <strong><?= htmlspecialchars($o['customer_name']) ?></strong>
             <?php if ($o['customer_company']): ?><br><small style="color:#86868b"><?= htmlspecialchars($o['customer_company']) ?></small><?php endif; ?>

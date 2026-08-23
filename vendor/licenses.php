@@ -106,7 +106,7 @@ $currentPage = 'licenses';
 </div>
 
 <script src="i18n.js?v=1.0"></script>
-<script src="app.js?v=1.6"></script>
+<script src="app.js?v=1.7"></script>
 
 <?php vendor_render_footer(); ?>
 </body>

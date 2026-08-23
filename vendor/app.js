@@ -157,7 +157,7 @@ function renderTable(rows) {
     return;
   }
   tbody.innerHTML = rows.map(r => `
-    <tr data-id="${r.id}" id="lic-${r.id}">
+    <tr data-id="${r.id}" id="lic-${r.id}" style="cursor:pointer" onclick="if(!event.target.closest('a,button,input,code,label'))openEditModal(${r.id})">
       <td>${statusBadge(r.status, r.days_to_expiry)}${r.lock_state === 'locked' ? ` <span class="status-pill st-revoked" title="🔒 Anti-piracy lock — fingerprint instalace nesedí (reinstal/migrace serveru NEBO reuse klíče). Pokud legit, odemkni 🔓.">🔒 Locked</span>` : ''}</td>
       <td><code class="lic-key" onclick="copyKey('${esc(r.license_key)}')" title="Klik = kopírovat">${esc(r.license_key)}</code></td>
       <td>
@@ -190,6 +190,14 @@ function renderTable(rows) {
     const el = document.getElementById(location.hash.slice(1));
     if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('lic-hl'); setTimeout(() => el.classList.remove('lic-hl'), 2800); }
   }
+  // 🆕 auto-open editace z objednávky (shop.php „Prodloužit/upravit" → licenses.php?edit=ID)
+  try {
+    var _ed = new URLSearchParams(location.search).get('edit');
+    if (_ed && !window._editOpened && document.getElementById('lic-' + _ed)) {
+      window._editOpened = true;
+      if (typeof openEditModal === 'function') openEditModal(parseInt(_ed, 10));
+    }
+  } catch (e) {}
 }
 
 // 🎁 Reissue klíče s jinými balíčky (zachová random část, customer info)
@@ -414,7 +422,7 @@ function openEditModal(id) {
       <label><span class="lbl">URL instalace</span><input type="url" name="install_url" value="${esc(r.install_url ?? '')}"></label>
       <div class="grid-2">
         <label><span class="lbl">Expirace</span><input type="date" name="expires_at" value="${esc(r.expires_at ?? '')}"></label>
-        <label><span class="lbl">Cena (Kč)</span><input type="number" name="price_kc" min="0" step="100" value="${esc(r.price_kc ?? '')}"></label>
+        <label><span class="lbl">Cena (Kč)</span><input type="number" name="price_kc" min="0" step="100" value="${esc(r.price_kc ?? '')}" data-user-edited="1"></label>
       </div>
       <div class="lic-presets" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 8px">
         <span style="font-size:11px;color:#86868b">⏱️ Prodloužit:</span>
@@ -427,6 +435,11 @@ function openEditModal(id) {
       </div>
       <div style="font-size:11px;color:#86868b;margin:0 0 10px;line-height:1.4">💡 Změna platnosti jde na <strong>stejný klíč</strong> — zákazník nic nevkládá, projeví se do pár minut (heartbeat). Balíčky měň přes 🎁 (vygeneruje nový klíč se stejnou identitou).</div>
       <label><span class="lbl">Poznámka</span><textarea name="note" rows="2">${esc(r.note ?? '')}</textarea></label>
+      <label style="margin-top:2px"><span class="lbl">🎁 Balíčky v licenci</span></label>
+      <div style="background:#f7f8fa;padding:10px 12px;border-radius:10px;border:1px dashed #d2d2d7;margin-bottom:12px">
+        <div style="font-size:11px;color:#86868b;margin-bottom:8px;line-height:1.45">Zaškrtnutí přidá/odebere balíček. Změna balíčků = <strong>nový klíč se stejnou identitou</strong> (random částí) — zákazník ho jednou vloží. Platnost a ostatní pole jdou na stejný klíč bez akce zákazníka.</div>
+        ${renderPackageCheckboxes(licensePackagesFromKey(r.license_key))}
+      </div>
       <label class="checkbox-row"><input type="checkbox" name="paid" ${r.paid == 1 ? 'checked' : ''}><span>💰 Zaplaceno</span></label>
       <label class="checkbox-row"><input type="checkbox" name="rental" ${r.rental == 1 ? 'checked' : ''}><span>🗓️ Pronájem (my.appek.cz) — po vypršení + grace zamkne CELOU appku</span></label>
       <div class="form-actions">
@@ -443,11 +456,31 @@ async function submitEdit(id) {
   data.id   = id;
   data.paid = form.paid.checked ? 1 : 0;
   data.rental = form.rental.checked ? 1 : 0;  // 🆕 pronájem (my.appek.cz)
+  delete data.pkg; // pkg checkboxy řeší reissue níže, ne update whitelist
+  // 🆕 balíčky: pokud se sada změnila oproti klíči → reissue (nový klíč se stejnou random částí)
+  const lic = allLicenses.find(x => x.id === id);
+  const orig = lic ? licensePackagesFromKey(lic.license_key).slice().sort().join(',') : '';
+  const chosen = Array.from(form.querySelectorAll('input[name="pkg"]:checked')).map(el => el.value).sort();
+  const pkgChanged = chosen.join(',') !== orig;
   try {
+    let newKey = null;
+    if (pkgChanged) {
+      const rr = await api('reissue', { method: 'POST', body: { id, packages: chosen } });
+      newKey = rr && rr.license && rr.license.license_key;
+    }
     await api('update', { method: 'POST', body: data });
     closeModal();
-    toast('✅ Uloženo');
     loadStats(); loadLicenses();
+    if (newKey) {
+      openModal('🎉 Balíčky změněny — nový klíč', `
+        <div class="alert ok">✅ Nová sada balíčků. Starý klíč přestal platit — pošli zákazníkovi <strong>nový klíč</strong> (vloží v adminu Nastavení → 🎁 Balíčky → Aktualizovat klíč).</div>
+        <div class="key-display" onclick="copyKey('${esc(newKey)}')">${esc(newKey)}</div>
+        <p class="muted" style="text-align:center;margin:10px 0">Klikni na klíč pro kopírování.</p>
+        <div class="form-actions"><button class="btn btn-primary" onclick="closeModal()">Hotovo</button></div>
+      `);
+    } else {
+      toast('✅ Uloženo');
+    }
   } catch (e) { alert('Chyba: ' + e.message); }
 }
 
