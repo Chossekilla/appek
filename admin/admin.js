@@ -38710,16 +38710,16 @@ function renderStitkyCenovky() {
 
       <!-- Kategorie pillsy -->
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-        <button class="period-tab ${aktivniKat === null || aktivniKat === undefined ? 'active' : ''}" onclick="stState.cenovkaKat=null;document.getElementById('st-vyr-list').innerHTML = stRenderVyrList();stCenovkyRerenderHead()" style="font-size:16px;padding:12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:10px">
+        <button class="period-tab ${aktivniKat === null || aktivniKat === undefined ? 'active' : ''}" onclick="stState.cenovkaKat=null;document.getElementById('st-vyr-list').innerHTML = stRenderVyrList();stCenovkyRerenderHead()" style="position:relative;font-size:16px;padding:12px 32px 12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:10px">
           <span style="font-size:28px;line-height:1">📦</span>
           <span>Vše</span>
-          <span style="opacity:0.7;margin-left:4px">${s.vyrobky?.length || 0}</span>
+          <span style="position:absolute;top:5px;right:6px;background:rgba(0,0,0,0.12);font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;line-height:1.4">${s.vyrobky?.length || 0}</span>
         </button>
         ${kategorie.map(k => `
-          <button class="period-tab ${aktivniKat === k.id ? 'active' : ''}" onclick="stState.cenovkaKat=${k.id};document.getElementById('st-vyr-list').innerHTML = stRenderVyrList();stCenovkyRerenderHead()" style="font-size:16px;padding:12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:10px">
+          <button class="period-tab ${aktivniKat === k.id ? 'active' : ''}" onclick="stState.cenovkaKat=${k.id};document.getElementById('st-vyr-list').innerHTML = stRenderVyrList();stCenovkyRerenderHead()" style="position:relative;font-size:16px;padding:12px 32px 12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:10px">
             <span style="font-size:28px;line-height:1">${esc(k.ikona)}</span>
             <span>${esc(k.nazev)}</span>
-            <span style="opacity:0.7;margin-left:4px">${k.pocet}</span>
+            <span style="position:absolute;top:5px;right:6px;background:rgba(0,0,0,0.12);font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;line-height:1.4">${k.pocet}</span>
           </button>
         `).join('')}
       </div>

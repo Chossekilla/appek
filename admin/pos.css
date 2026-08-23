@@ -401,6 +401,13 @@ button { font-family: inherit; cursor: pointer; }
   z-index: 3;
 }
 .pos-card-qty.on { display: inline-flex; }
+
+/* 🆕 POS mobil: custom tlačítka (Voucher / Volná položka) jen ikony + lišta kategorií do řádků místo horiz. scrollu */
+@media (max-width: 700px) {
+  .pos-custom-lbl { display: none !important; }
+  .pos-custom-btn { padding: 10px 12px !important; min-width: 44px; justify-content: center; }
+  .pos-cats-bar { flex-wrap: wrap !important; overflow-x: visible !important; row-gap: 8px !important; }
+}
 .pos-badge {
   font-size: 11px;
   background: rgba(0,0,0,0.55);
