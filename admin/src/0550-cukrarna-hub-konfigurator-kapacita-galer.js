@@ -17,11 +17,11 @@ async function renderCakeConfigurator() {
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'configurator' ? 'active' : ''}" onclick="state._cakeTab='configurator';renderCakeConfigurator()">🎂 Konfigurátor dortů</button>
-      <button class="nastaveni-tab ${tab === 'capacity' ? 'active' : ''}" onclick="state._cakeTab='capacity';renderCakeConfigurator()">📅 Kapacita pečení</button>
-      <button class="nastaveni-tab ${tab === 'gallery' ? 'active' : ''}" onclick="state._cakeTab='gallery';renderCakeConfigurator()">🖼️ Galerie inspirací</button>
-      <button class="nastaveni-tab ${tab === 'stands' ? 'active' : ''}" onclick="state._cakeTab='stands';renderCakeConfigurator()">♻️ Vratné stojany</button>
-      <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._cakeTab='settings';renderCakeConfigurator()">⚙️ Nastavení konfigurátoru</button>
+      <button class="nastaveni-tab ${tab === 'configurator' ? 'active' : ''}" onclick="state._cakeTab='configurator';keepScroll(()=>renderCakeConfigurator())">🎂 Konfigurátor dortů</button>
+      <button class="nastaveni-tab ${tab === 'capacity' ? 'active' : ''}" onclick="state._cakeTab='capacity';keepScroll(()=>renderCakeConfigurator())">📅 Kapacita pečení</button>
+      <button class="nastaveni-tab ${tab === 'gallery' ? 'active' : ''}" onclick="state._cakeTab='gallery';keepScroll(()=>renderCakeConfigurator())">🖼️ Galerie inspirací</button>
+      <button class="nastaveni-tab ${tab === 'stands' ? 'active' : ''}" onclick="state._cakeTab='stands';keepScroll(()=>renderCakeConfigurator())">♻️ Vratné stojany</button>
+      <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._cakeTab='settings';keepScroll(()=>renderCakeConfigurator())">⚙️ Nastavení konfigurátoru</button>
     </div>
     <div id="cake-tab-body"></div>
   `;

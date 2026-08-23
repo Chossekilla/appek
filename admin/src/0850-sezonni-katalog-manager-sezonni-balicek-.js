@@ -44,9 +44,9 @@ async function renderSeasonalCatalog() {
     </div>
 
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'calendar' ? 'active' : ''}" onclick="state._seasonalTab='calendar';renderSeasonalCatalog()">📅 Kalendář sezón</button>
-      <button class="nastaveni-tab ${tab === 'products' ? 'active' : ''}" onclick="state._seasonalTab='products';renderSeasonalCatalog()">🥖 Přiřazení výrobků</button>
-      <button class="nastaveni-tab ${tab === 'manage' ? 'active' : ''}" onclick="state._seasonalTab='manage';renderSeasonalCatalog()">⚙️ Vlastní sezóny</button>
+      <button class="nastaveni-tab ${tab === 'calendar' ? 'active' : ''}" onclick="state._seasonalTab='calendar';keepScroll(()=>renderSeasonalCatalog())">📅 Kalendář sezón</button>
+      <button class="nastaveni-tab ${tab === 'products' ? 'active' : ''}" onclick="state._seasonalTab='products';keepScroll(()=>renderSeasonalCatalog())">🥖 Přiřazení výrobků</button>
+      <button class="nastaveni-tab ${tab === 'manage' ? 'active' : ''}" onclick="state._seasonalTab='manage';keepScroll(()=>renderSeasonalCatalog())">⚙️ Vlastní sezóny</button>
     </div>
     <div id="seasonal-body">${skeletonCards(3)}</div>
   `;
@@ -92,7 +92,7 @@ async function renderSeasonalCalendar() {
         : 'transparent';
       const border = isSelected ? '2px solid var(--primary)' : (isToday ? '2px solid #0a84ff' : '1px solid transparent');
       cells.push(`
-        <button onclick="state._seasonalDate='${fullDate}';renderSeasonalCalendar()"
+        <button onclick="state._seasonalDate='${fullDate}';keepScroll(()=>renderSeasonalCalendar())"
                 style="background:${bg};border:${border};border-radius:6px;padding:4px;font-size:12px;cursor:pointer;font-family:inherit;color:inherit;position:relative;min-height:32px;display:flex;align-items:center;justify-content:center"
                 title="${activeOn.map(s => s.label).join(', ') || ''}">
           ${d}
@@ -124,10 +124,10 @@ async function renderSeasonalCalendar() {
           ${selectedDate === data.today ? '<span style="background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;margin-left:8px">DNES</span>' : ''}
         </div>
         <div style="display:flex;gap:6px">
-          <button class="btn-secondary" onclick="state._seasonalDate=new Date(state._seasonalDate || new Date()).toISOString().slice(0,10);state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() - 86400000).toISOString().slice(0,10);renderSeasonalCalendar()">← Předchozí den</button>
-          <input type="date" class="form-input" value="${selectedDate}" onchange="state._seasonalDate=this.value;renderSeasonalCalendar()" style="width:auto">
-          <button class="btn-secondary" onclick="state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() + 86400000).toISOString().slice(0,10);renderSeasonalCalendar()">Další den →</button>
-          <button class="btn-primary" onclick="state._seasonalDate='${data.today}';renderSeasonalCalendar()">Dnes</button>
+          <button class="btn-secondary" onclick="state._seasonalDate=new Date(state._seasonalDate || new Date()).toISOString().slice(0,10);state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() - 86400000).toISOString().slice(0,10);keepScroll(()=>renderSeasonalCalendar())">← Předchozí den</button>
+          <input type="date" class="form-input" value="${selectedDate}" onchange="state._seasonalDate=this.value;keepScroll(()=>renderSeasonalCalendar())" style="width:auto">
+          <button class="btn-secondary" onclick="state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() + 86400000).toISOString().slice(0,10);keepScroll(()=>renderSeasonalCalendar())">Další den →</button>
+          <button class="btn-primary" onclick="state._seasonalDate='${data.today}';keepScroll(()=>renderSeasonalCalendar())">Dnes</button>
         </div>
       </div>
       <div style="margin-top:10px">
@@ -194,7 +194,7 @@ async function renderSeasonalProducts() {
         <div>
           <strong>🥖 ${products_filtered.length} z ${(products.products || []).length} výrobků</strong>
         </div>
-        <select class="form-input" onchange="state._seasonalProductFilter=this.value;renderSeasonalProducts()" style="width:auto">
+        <select class="form-input" onchange="state._seasonalProductFilter=this.value;keepScroll(()=>renderSeasonalProducts())" style="width:auto">
           <option value="">Všechny výrobky</option>
           <option value="none" ${filterSezona === 'none' ? 'selected' : ''}>Bez sezóny</option>
           ${allSeasons.map(s => `<option value="${esc(s.key)}" ${filterSezona === s.key ? 'selected' : ''}>${esc(s.label)} (${s.count})</option>`).join('')}

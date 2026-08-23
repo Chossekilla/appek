@@ -18476,11 +18476,11 @@ async function renderCakeConfigurator() {
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'configurator' ? 'active' : ''}" onclick="state._cakeTab='configurator';renderCakeConfigurator()">🎂 Konfigurátor dortů</button>
-      <button class="nastaveni-tab ${tab === 'capacity' ? 'active' : ''}" onclick="state._cakeTab='capacity';renderCakeConfigurator()">📅 Kapacita pečení</button>
-      <button class="nastaveni-tab ${tab === 'gallery' ? 'active' : ''}" onclick="state._cakeTab='gallery';renderCakeConfigurator()">🖼️ Galerie inspirací</button>
-      <button class="nastaveni-tab ${tab === 'stands' ? 'active' : ''}" onclick="state._cakeTab='stands';renderCakeConfigurator()">♻️ Vratné stojany</button>
-      <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._cakeTab='settings';renderCakeConfigurator()">⚙️ Nastavení konfigurátoru</button>
+      <button class="nastaveni-tab ${tab === 'configurator' ? 'active' : ''}" onclick="state._cakeTab='configurator';keepScroll(()=>renderCakeConfigurator())">🎂 Konfigurátor dortů</button>
+      <button class="nastaveni-tab ${tab === 'capacity' ? 'active' : ''}" onclick="state._cakeTab='capacity';keepScroll(()=>renderCakeConfigurator())">📅 Kapacita pečení</button>
+      <button class="nastaveni-tab ${tab === 'gallery' ? 'active' : ''}" onclick="state._cakeTab='gallery';keepScroll(()=>renderCakeConfigurator())">🖼️ Galerie inspirací</button>
+      <button class="nastaveni-tab ${tab === 'stands' ? 'active' : ''}" onclick="state._cakeTab='stands';keepScroll(()=>renderCakeConfigurator())">♻️ Vratné stojany</button>
+      <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._cakeTab='settings';keepScroll(()=>renderCakeConfigurator())">⚙️ Nastavení konfigurátoru</button>
     </div>
     <div id="cake-tab-body"></div>
   `;
@@ -19351,11 +19351,11 @@ async function renderCateringCalculator() {
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'calc' ? 'active' : ''}" onclick="state._lahudkyTab='calc';renderCateringCalculator()">🍱 Catering kalkulátor</button>
-      <button class="nastaveni-tab ${tab === 'batches' ? 'active' : ''}" onclick="state._lahudkyTab='batches';renderCateringCalculator()">📋 Šaržová evidence</button>
-      <button class="nastaveni-tab ${tab === 'mix' ? 'active' : ''}" onclick="state._lahudkyTab='mix';renderCateringCalculator()">🧩 Mix-and-match</button>
-      <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._lahudkyTab='orders';renderCateringCalculator()">🚚 Catering s časem</button>
-      <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._lahudkyTab='settings';renderCateringCalculator()">⚙️ Nastavení kalkulačky</button>
+      <button class="nastaveni-tab ${tab === 'calc' ? 'active' : ''}" onclick="state._lahudkyTab='calc';keepScroll(()=>renderCateringCalculator())">🍱 Catering kalkulátor</button>
+      <button class="nastaveni-tab ${tab === 'batches' ? 'active' : ''}" onclick="state._lahudkyTab='batches';keepScroll(()=>renderCateringCalculator())">📋 Šaržová evidence</button>
+      <button class="nastaveni-tab ${tab === 'mix' ? 'active' : ''}" onclick="state._lahudkyTab='mix';keepScroll(()=>renderCateringCalculator())">🧩 Mix-and-match</button>
+      <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._lahudkyTab='orders';keepScroll(()=>renderCateringCalculator())">🚚 Catering s časem</button>
+      <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._lahudkyTab='settings';keepScroll(()=>renderCateringCalculator())">⚙️ Nastavení kalkulačky</button>
     </div>
     <div id="lahudky-tab-body"></div>
   `;
@@ -20065,7 +20065,7 @@ async function renderRestaurantPage() {
         <button class="rest-banner ${active ? 'is-active' : ''}"
                 role="tab"
                 aria-selected="${active}"
-                onclick="state._restTab='${b.k}';renderRestaurantPage()"
+                onclick="state._restTab='${b.k}';keepScroll(()=>renderRestaurantPage())"
                 style="${active
                   ? `background:linear-gradient(${b.grad});color:#fff;border:2px solid transparent;box-shadow:0 10px 28px ${b.light}80,0 4px 10px rgba(0,0,0,0.18)`
                   : `background:${b.light};color:${b.dark};border:2px solid ${b.light}`
@@ -20233,7 +20233,7 @@ async function renderRestaurantTables() {
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
       <div></div>
       <div style="display:flex;gap:8px;align-items:center">
-        ${(tab === 'timeline' || tab === 'list') ? '' : `<input type="date" class="form-input" id="rt-date" value="${today}" onchange="state._rtDate=this.value;renderRestaurantTables()" style="width:auto">`}
+        ${(tab === 'timeline' || tab === 'list') ? '' : `<input type="date" class="form-input" id="rt-date" value="${today}" onchange="state._rtDate=this.value;keepScroll(()=>renderRestaurantTables())" style="width:auto">`}
         <button class="btn-secondary" onclick="window.open('floorplan.php','appek_fp','width='+screen.availWidth+',height='+screen.availHeight+',toolbar=no,menubar=no')" title="Otevřít plnotučný Floor Plan editor v novém okně">🗺️ Editor mapy</button>
         <button class="btn-secondary" onclick="addRestaurantTable()">+ Nový stůl</button>
       </div>
@@ -20253,7 +20253,7 @@ async function renderRestaurantTables() {
         <button class="rest-subtab ${active ? 'is-active' : ''}"
                 role="tab"
                 aria-selected="${active}"
-                onclick="state._rtTab='${b.k}';renderRestaurantTables()"
+                onclick="state._rtTab='${b.k}';keepScroll(()=>renderRestaurantTables())"
                 style="${active
                   ? `background:linear-gradient(${b.grad});color:#fff;border:2px solid transparent;box-shadow:0 6px 18px ${b.light}90,0 2px 6px rgba(0,0,0,0.14)`
                   : `background:${b.light};color:${b.dark};border:2px solid ${b.light}`
@@ -20334,12 +20334,12 @@ async function renderRestaurantTables() {
     const segSwitch = `
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;justify-content:space-between">
         <div style="display:flex;gap:6px;padding:4px;background:var(--surface-2);border-radius:10px;width:fit-content">
-          <button class="${subView === 'timeline' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='timeline';state._rtTab='timeline';renderRestaurantTables()" style="padding:8px 16px;font-size:13px;border:none">⏱️ Timeline</button>
-          <button class="${subView === 'list' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='list';state._rtTab='list';renderRestaurantTables()" style="padding:8px 16px;font-size:13px;border:none">📋 Seznam</button>
+          <button class="${subView === 'timeline' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='timeline';state._rtTab='timeline';keepScroll(()=>renderRestaurantTables())" style="padding:8px 16px;font-size:13px;border:none">⏱️ Timeline</button>
+          <button class="${subView === 'list' ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtRezSubView='list';state._rtTab='list';keepScroll(()=>renderRestaurantTables())" style="padding:8px 16px;font-size:13px;border:none">📋 Seznam</button>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <div style="display:flex;gap:4px;padding:4px;background:var(--surface-2);border-radius:10px">
-            ${[['Dnes', 0], ['Zítra', 1], ['Pozítří', 2]].map(([lbl, off]) => { const ds = _qd(off); return `<button class="${today === ds ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtDate='${ds}';renderRestaurantTables()" style="padding:7px 12px;font-size:13px;border:none;white-space:nowrap">${lbl}</button>`; }).join('')}
+            ${[['Dnes', 0], ['Zítra', 1], ['Pozítří', 2]].map(([lbl, off]) => { const ds = _qd(off); return `<button class="${today === ds ? 'btn-primary' : 'btn-secondary'}" onclick="state._rtDate='${ds}';keepScroll(()=>renderRestaurantTables())" style="padding:7px 12px;font-size:13px;border:none;white-space:nowrap">${lbl}</button>`; }).join('')}
           </div>
           <input type="date" class="form-input" value="${today}" onchange="if(this.value){state._rtDate=this.value;renderRestaurantTables()}" style="width:auto;padding:6px 10px;font-size:13px" title="Vyber datum rezervací">
           <button class="btn-secondary" onclick="editOpeningHours()" style="padding:8px 14px;font-size:13px" title="Nastavit otevírací dobu po dnech v týdnu">🕐 Otevírací doba${hoursLabel ? ` · <strong>${hoursLabel}</strong>` : ''}</button>
@@ -25060,10 +25060,10 @@ async function renderCateringPage() {
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._catTab='orders';renderCateringPage()">🏢 Firemní objednávky</button>
-      <button class="nastaveni-tab ${tab === 'tiers' ? 'active' : ''}" onclick="state._catTab='tiers';renderCateringPage()">👥 Cenové úrovně</button>
-      <button class="nastaveni-tab ${tab === 'pdf' ? 'active' : ''}" onclick="state._catTab='pdf';renderCateringPage()">📑 Smlouvy a nabídky</button>
-      <button class="nastaveni-tab ${tab === 'deposits' ? 'active' : ''}" onclick="state._catTab='deposits';renderCateringPage()">🎯 Zálohy 50 %</button>
+      <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._catTab='orders';keepScroll(()=>renderCateringPage())">🏢 Firemní objednávky</button>
+      <button class="nastaveni-tab ${tab === 'tiers' ? 'active' : ''}" onclick="state._catTab='tiers';keepScroll(()=>renderCateringPage())">👥 Cenové úrovně</button>
+      <button class="nastaveni-tab ${tab === 'pdf' ? 'active' : ''}" onclick="state._catTab='pdf';keepScroll(()=>renderCateringPage())">📑 Smlouvy a nabídky</button>
+      <button class="nastaveni-tab ${tab === 'deposits' ? 'active' : ''}" onclick="state._catTab='deposits';keepScroll(()=>renderCateringPage())">🎯 Zálohy 50 %</button>
     </div>
     <div id="cat-tab-body"></div>
   `;
@@ -25918,9 +25918,9 @@ async function renderSeasonalCatalog() {
     </div>
 
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'calendar' ? 'active' : ''}" onclick="state._seasonalTab='calendar';renderSeasonalCatalog()">📅 Kalendář sezón</button>
-      <button class="nastaveni-tab ${tab === 'products' ? 'active' : ''}" onclick="state._seasonalTab='products';renderSeasonalCatalog()">🥖 Přiřazení výrobků</button>
-      <button class="nastaveni-tab ${tab === 'manage' ? 'active' : ''}" onclick="state._seasonalTab='manage';renderSeasonalCatalog()">⚙️ Vlastní sezóny</button>
+      <button class="nastaveni-tab ${tab === 'calendar' ? 'active' : ''}" onclick="state._seasonalTab='calendar';keepScroll(()=>renderSeasonalCatalog())">📅 Kalendář sezón</button>
+      <button class="nastaveni-tab ${tab === 'products' ? 'active' : ''}" onclick="state._seasonalTab='products';keepScroll(()=>renderSeasonalCatalog())">🥖 Přiřazení výrobků</button>
+      <button class="nastaveni-tab ${tab === 'manage' ? 'active' : ''}" onclick="state._seasonalTab='manage';keepScroll(()=>renderSeasonalCatalog())">⚙️ Vlastní sezóny</button>
     </div>
     <div id="seasonal-body">${skeletonCards(3)}</div>
   `;
@@ -25966,7 +25966,7 @@ async function renderSeasonalCalendar() {
         : 'transparent';
       const border = isSelected ? '2px solid var(--primary)' : (isToday ? '2px solid #0a84ff' : '1px solid transparent');
       cells.push(`
-        <button onclick="state._seasonalDate='${fullDate}';renderSeasonalCalendar()"
+        <button onclick="state._seasonalDate='${fullDate}';keepScroll(()=>renderSeasonalCalendar())"
                 style="background:${bg};border:${border};border-radius:6px;padding:4px;font-size:12px;cursor:pointer;font-family:inherit;color:inherit;position:relative;min-height:32px;display:flex;align-items:center;justify-content:center"
                 title="${activeOn.map(s => s.label).join(', ') || ''}">
           ${d}
@@ -25998,10 +25998,10 @@ async function renderSeasonalCalendar() {
           ${selectedDate === data.today ? '<span style="background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;margin-left:8px">DNES</span>' : ''}
         </div>
         <div style="display:flex;gap:6px">
-          <button class="btn-secondary" onclick="state._seasonalDate=new Date(state._seasonalDate || new Date()).toISOString().slice(0,10);state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() - 86400000).toISOString().slice(0,10);renderSeasonalCalendar()">← Předchozí den</button>
-          <input type="date" class="form-input" value="${selectedDate}" onchange="state._seasonalDate=this.value;renderSeasonalCalendar()" style="width:auto">
-          <button class="btn-secondary" onclick="state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() + 86400000).toISOString().slice(0,10);renderSeasonalCalendar()">Další den →</button>
-          <button class="btn-primary" onclick="state._seasonalDate='${data.today}';renderSeasonalCalendar()">Dnes</button>
+          <button class="btn-secondary" onclick="state._seasonalDate=new Date(state._seasonalDate || new Date()).toISOString().slice(0,10);state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() - 86400000).toISOString().slice(0,10);keepScroll(()=>renderSeasonalCalendar())">← Předchozí den</button>
+          <input type="date" class="form-input" value="${selectedDate}" onchange="state._seasonalDate=this.value;keepScroll(()=>renderSeasonalCalendar())" style="width:auto">
+          <button class="btn-secondary" onclick="state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() + 86400000).toISOString().slice(0,10);keepScroll(()=>renderSeasonalCalendar())">Další den →</button>
+          <button class="btn-primary" onclick="state._seasonalDate='${data.today}';keepScroll(()=>renderSeasonalCalendar())">Dnes</button>
         </div>
       </div>
       <div style="margin-top:10px">
@@ -26068,7 +26068,7 @@ async function renderSeasonalProducts() {
         <div>
           <strong>🥖 ${products_filtered.length} z ${(products.products || []).length} výrobků</strong>
         </div>
-        <select class="form-input" onchange="state._seasonalProductFilter=this.value;renderSeasonalProducts()" style="width:auto">
+        <select class="form-input" onchange="state._seasonalProductFilter=this.value;keepScroll(()=>renderSeasonalProducts())" style="width:auto">
           <option value="">Všechny výrobky</option>
           <option value="none" ${filterSezona === 'none' ? 'selected' : ''}>Bez sezóny</option>
           ${allSeasons.map(s => `<option value="${esc(s.key)}" ${filterSezona === s.key ? 'selected' : ''}>${esc(s.label)} (${s.count})</option>`).join('')}

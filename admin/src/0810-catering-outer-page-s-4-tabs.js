@@ -15,10 +15,10 @@ async function renderCateringPage() {
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._catTab='orders';renderCateringPage()">🏢 Firemní objednávky</button>
-      <button class="nastaveni-tab ${tab === 'tiers' ? 'active' : ''}" onclick="state._catTab='tiers';renderCateringPage()">👥 Cenové úrovně</button>
-      <button class="nastaveni-tab ${tab === 'pdf' ? 'active' : ''}" onclick="state._catTab='pdf';renderCateringPage()">📑 Smlouvy a nabídky</button>
-      <button class="nastaveni-tab ${tab === 'deposits' ? 'active' : ''}" onclick="state._catTab='deposits';renderCateringPage()">🎯 Zálohy 50 %</button>
+      <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._catTab='orders';keepScroll(()=>renderCateringPage())">🏢 Firemní objednávky</button>
+      <button class="nastaveni-tab ${tab === 'tiers' ? 'active' : ''}" onclick="state._catTab='tiers';keepScroll(()=>renderCateringPage())">👥 Cenové úrovně</button>
+      <button class="nastaveni-tab ${tab === 'pdf' ? 'active' : ''}" onclick="state._catTab='pdf';keepScroll(()=>renderCateringPage())">📑 Smlouvy a nabídky</button>
+      <button class="nastaveni-tab ${tab === 'deposits' ? 'active' : ''}" onclick="state._catTab='deposits';keepScroll(()=>renderCateringPage())">🎯 Zálohy 50 %</button>
     </div>
     <div id="cat-tab-body"></div>
   `;

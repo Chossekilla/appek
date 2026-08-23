@@ -15,11 +15,11 @@ async function renderCateringCalculator() {
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
-      <button class="nastaveni-tab ${tab === 'calc' ? 'active' : ''}" onclick="state._lahudkyTab='calc';renderCateringCalculator()">🍱 Catering kalkulátor</button>
-      <button class="nastaveni-tab ${tab === 'batches' ? 'active' : ''}" onclick="state._lahudkyTab='batches';renderCateringCalculator()">📋 Šaržová evidence</button>
-      <button class="nastaveni-tab ${tab === 'mix' ? 'active' : ''}" onclick="state._lahudkyTab='mix';renderCateringCalculator()">🧩 Mix-and-match</button>
-      <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._lahudkyTab='orders';renderCateringCalculator()">🚚 Catering s časem</button>
-      <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._lahudkyTab='settings';renderCateringCalculator()">⚙️ Nastavení kalkulačky</button>
+      <button class="nastaveni-tab ${tab === 'calc' ? 'active' : ''}" onclick="state._lahudkyTab='calc';keepScroll(()=>renderCateringCalculator())">🍱 Catering kalkulátor</button>
+      <button class="nastaveni-tab ${tab === 'batches' ? 'active' : ''}" onclick="state._lahudkyTab='batches';keepScroll(()=>renderCateringCalculator())">📋 Šaržová evidence</button>
+      <button class="nastaveni-tab ${tab === 'mix' ? 'active' : ''}" onclick="state._lahudkyTab='mix';keepScroll(()=>renderCateringCalculator())">🧩 Mix-and-match</button>
+      <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._lahudkyTab='orders';keepScroll(()=>renderCateringCalculator())">🚚 Catering s časem</button>
+      <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._lahudkyTab='settings';keepScroll(()=>renderCateringCalculator())">⚙️ Nastavení kalkulačky</button>
     </div>
     <div id="lahudky-tab-body"></div>
   `;
