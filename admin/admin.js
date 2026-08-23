@@ -4871,9 +4871,11 @@ function renderDashAlerts(alerts) {
         <span class="dash-alerts-ico">🔔</span>
         <strong>Akce vyžadující pozornost</strong>
         <span class="dash-alerts-count">${items.length}</span>
-        <!-- 🆕 v3.0.55 — Dismiss button: schová widget na 1h -->
-        <button class="dash-alerts-dismiss" onclick="dashAlertsVypnout()" title="Vypnout tento panel natrvalo (znovu zapneš v Nastavení → Notifikace)" aria-label="Vypnout natrvalo" style="width:auto;padding:0 9px;font-size:11px;font-weight:600">vypnout</button>
-        <button class="dash-alerts-dismiss" onclick="dismissDashAlerts()" title="Skrýt na 1 hodinu" aria-label="Skrýt upozornění">✕</button>
+        <!-- 🆕 akce vpravo: vypnout natrvalo + skrýt na 1h (✕) pohromadě u sebe -->
+        <span class="dash-alerts-actions">
+          <button class="dash-alerts-off" onclick="dashAlertsVypnout()" title="Vypnout tento panel natrvalo (znovu zapneš v Nastavení → Notifikace)" aria-label="Vypnout natrvalo">🔕 vypnout</button>
+          <button class="dash-alerts-dismiss" onclick="dismissDashAlerts()" title="Skrýt na 1 hodinu" aria-label="Skrýt upozornění">✕</button>
+        </span>
       </div>
       <div class="dash-alerts-list">
         ${items.map(it => `
