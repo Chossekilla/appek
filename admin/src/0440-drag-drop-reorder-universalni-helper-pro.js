@@ -411,7 +411,8 @@ window.editVyrobek = async function(id = null) {
         <div>
           <label class="form-label">EAN-13 <span style="color:var(--text-3);font-weight:400;font-size:11px">(volitelné)</span></label>
           <div style="display:flex;gap:6px;align-items:center">
-            <input class="form-input" id="vy-ean" value="${esc(v.ean || '')}" placeholder="13 číslic" maxlength="13" pattern="\\d{12,13}" style="flex:1">
+            <input class="form-input" id="vy-ean" value="${esc(v.ean || '')}" placeholder="13 číslic" maxlength="13" pattern="\\d{12,13}" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();window._appekScanFill=false;this.blur();}">
+            <button type="button" class="btn-secondary" title="Naskenovat kód (kamera nebo HW čtečka)" onclick="appekScanField('vy-ean')" style="white-space:nowrap;font-size:12px;padding:8px 10px">📷 Sken</button>
             <button type="button" class="btn-secondary" title="Vygeneruj interní EAN-13 (prefix 28)" onclick="appekGenEan(${v.id || 0}, function(e){var el=document.getElementById('vy-ean');if(el)el.value=e;})" style="white-space:nowrap;font-size:12px;padding:8px 10px">🔢 EAN</button>
             <button type="button" class="btn-secondary" title="Tisk EAN štítku (čárový kód)" onclick="appekPrintEanLabels(${v.id || 0})" style="white-space:nowrap;font-size:12px;padding:8px 10px">🏷️ Tisk</button>
           </div>

@@ -316,6 +316,13 @@ window.editSurovina = async function(id = null) {
         <label class="form-label">Alergen <span style="color:var(--text-3);font-weight:400;font-size:12px">(volitelné)</span></label>
         <input class="form-input" id="sur-aler" value="${esc(s.alergen || '')}" placeholder="lepek, mléko, vejce…">
       </div>
+      <div class="full">
+        <label class="form-label">📷 Čárový kód (EAN) <span style="color:var(--text-3);font-weight:400;font-size:12px">(volitelné — aby šla surovina najít čtečkou při příjmu)</span></label>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="sur-ean" value="${esc(s.ean || '')}" inputmode="numeric" maxlength="14" placeholder="naskenuj čtečkou/kamerou nebo zadej ručně" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();window._appekScanFill=false;this.blur();}">
+          <button type="button" class="btn-secondary" title="Naskenovat kód (kamera nebo HW čtečka)" onclick="appekScanField('sur-ean')" style="white-space:nowrap;font-size:12px;padding:8px 12px">📷 Sken</button>
+        </div>
+      </div>
 
       <div class="full vy-section-box">
         <div class="vy-section-title">💰 Nákupní cena (pro kalkulaci nákladů)</div>
@@ -520,6 +527,7 @@ window.ulozitSurovinu = async function(id) {
     nazev: document.getElementById('sur-nazev').value.trim(),
     jednotka: document.getElementById('sur-jed').value,
     alergen: document.getElementById('sur-aler').value.trim() || null,
+    ean: (document.getElementById('sur-ean')?.value || '').replace(/\D/g, '') || null,
     cena_baleni: parseFloat(document.getElementById('sur-cena')?.value) || null,
     obsah_baleni: parseFloat(document.getElementById('sur-obsah')?.value) || null,
     slozeni: document.getElementById('sur-slozeni')?.value.trim() || null,

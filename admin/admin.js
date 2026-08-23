@@ -13581,7 +13581,8 @@ window.editVyrobek = async function(id = null) {
         <div>
           <label class="form-label">EAN-13 <span style="color:var(--text-3);font-weight:400;font-size:11px">(volitelné)</span></label>
           <div style="display:flex;gap:6px;align-items:center">
-            <input class="form-input" id="vy-ean" value="${esc(v.ean || '')}" placeholder="13 číslic" maxlength="13" pattern="\\d{12,13}" style="flex:1">
+            <input class="form-input" id="vy-ean" value="${esc(v.ean || '')}" placeholder="13 číslic" maxlength="13" pattern="\\d{12,13}" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();window._appekScanFill=false;this.blur();}">
+            <button type="button" class="btn-secondary" title="Naskenovat kód (kamera nebo HW čtečka)" onclick="appekScanField('vy-ean')" style="white-space:nowrap;font-size:12px;padding:8px 10px">📷 Sken</button>
             <button type="button" class="btn-secondary" title="Vygeneruj interní EAN-13 (prefix 28)" onclick="appekGenEan(${v.id || 0}, function(e){var el=document.getElementById('vy-ean');if(el)el.value=e;})" style="white-space:nowrap;font-size:12px;padding:8px 10px">🔢 EAN</button>
             <button type="button" class="btn-secondary" title="Tisk EAN štítku (čárový kód)" onclick="appekPrintEanLabels(${v.id || 0})" style="white-space:nowrap;font-size:12px;padding:8px 10px">🏷️ Tisk</button>
           </div>
@@ -35064,6 +35065,13 @@ window.editSurovina = async function(id = null) {
         <label class="form-label">Alergen <span style="color:var(--text-3);font-weight:400;font-size:12px">(volitelné)</span></label>
         <input class="form-input" id="sur-aler" value="${esc(s.alergen || '')}" placeholder="lepek, mléko, vejce…">
       </div>
+      <div class="full">
+        <label class="form-label">📷 Čárový kód (EAN) <span style="color:var(--text-3);font-weight:400;font-size:12px">(volitelné — aby šla surovina najít čtečkou při příjmu)</span></label>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="sur-ean" value="${esc(s.ean || '')}" inputmode="numeric" maxlength="14" placeholder="naskenuj čtečkou/kamerou nebo zadej ručně" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();window._appekScanFill=false;this.blur();}">
+          <button type="button" class="btn-secondary" title="Naskenovat kód (kamera nebo HW čtečka)" onclick="appekScanField('sur-ean')" style="white-space:nowrap;font-size:12px;padding:8px 12px">📷 Sken</button>
+        </div>
+      </div>
 
       <div class="full vy-section-box">
         <div class="vy-section-title">💰 Nákupní cena (pro kalkulaci nákladů)</div>
@@ -35268,6 +35276,7 @@ window.ulozitSurovinu = async function(id) {
     nazev: document.getElementById('sur-nazev').value.trim(),
     jednotka: document.getElementById('sur-jed').value,
     alergen: document.getElementById('sur-aler').value.trim() || null,
+    ean: (document.getElementById('sur-ean')?.value || '').replace(/\D/g, '') || null,
     cena_baleni: parseFloat(document.getElementById('sur-cena')?.value) || null,
     obsah_baleni: parseFloat(document.getElementById('sur-obsah')?.value) || null,
     slozeni: document.getElementById('sur-slozeni')?.value.trim() || null,
@@ -45077,6 +45086,33 @@ document.addEventListener('keydown', function(e) {
     appekScanner.open({ onScan: function (code) { scanHandle(code); } });
   };
 
+  // 🆕 Naskenuj kód přímo DO POLE formuláře (EAN u suroviny/výrobku), ať jde položka najít čtečkou.
+  //   Kamera (pokud je) → vyplní pole; jinak HW čtečka → focus pole + potlač globální scan-lookup, ať kód nateče do inputu.
+  var _stripAffix = function (code) {
+    var c = String(code || '').trim();
+    if (CFG.hw_prefix && c.indexOf(CFG.hw_prefix) === 0) c = c.slice(CFG.hw_prefix.length);
+    if (CFG.hw_suffix && c.length >= CFG.hw_suffix.length && c.slice(-CFG.hw_suffix.length) === CFG.hw_suffix) c = c.slice(0, -CFG.hw_suffix.length);
+    return c;
+  };
+  window.appekScanField = function (inputId) {
+    var el = document.getElementById(inputId);
+    if (!el) return;
+    if (typeof appekScanner !== 'undefined' && appekScanner.open) {
+      appekScanner.open({ onScan: function (code) {
+        el.value = _stripAffix(code);
+        try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+        beep();
+        try { toast('📷 Kód ' + el.value, 'success'); } catch (e) {}
+      } });
+      return;
+    }
+    // Bez kamery → HW čtečka: focus pole + potlač globální lookup (kód nateče přímo do inputu)
+    window._appekScanFill = true;
+    el.focus(); try { el.select(); } catch (e) {}
+    try { toast('⌨️ Naskenuj kód HW čtečkou do pole (nebo zadej ručně)', 'info'); } catch (e) {}
+    el.addEventListener('blur', function () { window._appekScanFill = false; }, { once: true });
+  };
+
   // Akce 'pos' — přidej naskenovaný produkt na PRÁVĚ otevřený účet u stolu (pos.js drží __posTableUcetId).
   window.posScanAdd = async function (match) {
     if (!match || match.type !== 'vyrobek') { try { toast('Pro POS naskenuj produkt (ne surovinu)', 'warn'); } catch (e) {} return; }
@@ -45112,6 +45148,7 @@ document.addEventListener('keydown', function(e) {
   // 50ms práh → lidské psaní (>100ms/znak) buffer resetuje → žádná interference s psaním.
   var buf = '', lastT = 0;
   document.addEventListener('keydown', function (e) {
+    if (window._appekScanFill) return; // scan-do-pole režim: nech kód natéct do fokusovaného inputu (EAN), žádný globální lookup
     if (!CFG.enabled || !CFG.hw_enabled) return;
     var now = (window.performance && performance.now) ? performance.now() : Date.now();
     if (e.key === 'Enter') {

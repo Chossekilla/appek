@@ -102,6 +102,10 @@ function ensure_suroviny_tables(PDO $pdo): void {
             $pdo->exec("ALTER TABLE suroviny ADD COLUMN $col $type");
         }
     }
+    // 📷 EAN / čárový kód — aby šla surovina najít čtečkou při příjmu na sklad
+    if (!in_array('ean', $cols, true)) {
+        $pdo->exec("ALTER TABLE suroviny ADD COLUMN ean VARCHAR(13) DEFAULT NULL");
+    }
     // 📋 Pohyby skladu — kompletní audit trail
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS sklad_pohyby (
@@ -902,11 +906,11 @@ if ($method === 'POST') {
             INSERT INTO suroviny (nazev, jednotka, alergen, cena_baleni, obsah_baleni, slozeni, slozeni_alergeny,
                 nutri_energie_kj, nutri_energie_kcal, nutri_tuky, nutri_tuky_nasycene, nutri_sacharidy, nutri_cukry, nutri_bilkoviny, nutri_sul,
                 stock_aktualni, stock_minimalni, stock_cilove,
-                poznamka, aktivni)
+                poznamka, aktivni, ean)
             VALUES (:n, :j, :a, :cb, :ob, :sl, :sla,
                 :nkj, :nkcal, :nt, :ntn, :nsa, :ncu, :nb, :nsl,
                 :sa, :sm, :sc,
-                :p, :ak)
+                :p, :ak, :e)
         ");
         $stmt->execute(array_merge([
             'n'  => $nazev,
@@ -929,6 +933,7 @@ if ($method === 'POST') {
             'sc' => isset($d['stock_cilove'])    && $d['stock_cilove']    !== '' ? (float) $d['stock_cilove'] : null,
             'p'  => isset($d['poznamka']) && trim($d['poznamka']) !== '' ? trim($d['poznamka']) : null,
             'ak' => isset($d['aktivni']) ? (int) $d['aktivni'] : 1,
+            'e'  => (isset($d['ean']) && preg_replace('/\D/', '', (string) $d['ean']) !== '') ? preg_replace('/\D/', '', (string) $d['ean']) : null,
         ]));
         $newId = (int) $pdo->lastInsertId();
         // 🆕 v3.0.168 — nová surovina rovnou do systému B (domovský sklad = default)
@@ -985,6 +990,7 @@ if ($method === 'PUT') {
     if (array_key_exists('stock_cilove', $d))    $addCol('stock_cilove', $d['stock_cilove'] !== '' ? (float) $d['stock_cilove'] : null);
     if (array_key_exists('poznamka', $d))        $addCol('poznamka', trim((string) $d['poznamka']) !== '' ? trim($d['poznamka']) : null);
     if (array_key_exists('aktivni', $d))         $addCol('aktivni', (int) $d['aktivni']);
+    if (array_key_exists('ean', $d))             $addCol('ean', preg_replace('/\D/', '', (string) ($d['ean'] ?? '')) !== '' ? preg_replace('/\D/', '', (string) $d['ean']) : null);
     if (!empty($d['domovsky_sklad_id']))         $addCol('domovsky_sklad_id', (int) $d['domovsky_sklad_id']);
 
     if (empty($sets)) json_response(['ok' => true, 'nezmeneno' => true]);

@@ -188,6 +188,33 @@ document.addEventListener('keydown', function(e) {
     appekScanner.open({ onScan: function (code) { scanHandle(code); } });
   };
 
+  // 🆕 Naskenuj kód přímo DO POLE formuláře (EAN u suroviny/výrobku), ať jde položka najít čtečkou.
+  //   Kamera (pokud je) → vyplní pole; jinak HW čtečka → focus pole + potlač globální scan-lookup, ať kód nateče do inputu.
+  var _stripAffix = function (code) {
+    var c = String(code || '').trim();
+    if (CFG.hw_prefix && c.indexOf(CFG.hw_prefix) === 0) c = c.slice(CFG.hw_prefix.length);
+    if (CFG.hw_suffix && c.length >= CFG.hw_suffix.length && c.slice(-CFG.hw_suffix.length) === CFG.hw_suffix) c = c.slice(0, -CFG.hw_suffix.length);
+    return c;
+  };
+  window.appekScanField = function (inputId) {
+    var el = document.getElementById(inputId);
+    if (!el) return;
+    if (typeof appekScanner !== 'undefined' && appekScanner.open) {
+      appekScanner.open({ onScan: function (code) {
+        el.value = _stripAffix(code);
+        try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+        beep();
+        try { toast('📷 Kód ' + el.value, 'success'); } catch (e) {}
+      } });
+      return;
+    }
+    // Bez kamery → HW čtečka: focus pole + potlač globální lookup (kód nateče přímo do inputu)
+    window._appekScanFill = true;
+    el.focus(); try { el.select(); } catch (e) {}
+    try { toast('⌨️ Naskenuj kód HW čtečkou do pole (nebo zadej ručně)', 'info'); } catch (e) {}
+    el.addEventListener('blur', function () { window._appekScanFill = false; }, { once: true });
+  };
+
   // Akce 'pos' — přidej naskenovaný produkt na PRÁVĚ otevřený účet u stolu (pos.js drží __posTableUcetId).
   window.posScanAdd = async function (match) {
     if (!match || match.type !== 'vyrobek') { try { toast('Pro POS naskenuj produkt (ne surovinu)', 'warn'); } catch (e) {} return; }
@@ -223,6 +250,7 @@ document.addEventListener('keydown', function(e) {
   // 50ms práh → lidské psaní (>100ms/znak) buffer resetuje → žádná interference s psaním.
   var buf = '', lastT = 0;
   document.addEventListener('keydown', function (e) {
+    if (window._appekScanFill) return; // scan-do-pole režim: nech kód natéct do fokusovaného inputu (EAN), žádný globální lookup
     if (!CFG.enabled || !CFG.hw_enabled) return;
     var now = (window.performance && performance.now) ? performance.now() : Date.now();
     if (e.key === 'Enter') {
