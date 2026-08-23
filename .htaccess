@@ -44,6 +44,13 @@ DirectoryIndex index.html index.php install.php
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # 🎨 Landing A/B varianta — na APEXu (existuje marker .landing-only) servíruj `/` přes
+  #   landing.php (čte vendor_settings.landing_variant → aktivní vzhled). Zákaznické
+  #   instalace marker nemají → pravidlo se přeskočí, servírují index.html napřímo.
+  RewriteCond %{DOCUMENT_ROOT}/.landing-only -f
+  RewriteCond %{REQUEST_URI} ^/(index\.html)?$ [NC]
+  RewriteRule ^ landing.php [L]
+
   # Force HTTPS — odkomentuj až budeš mít SSL certifikát
   # RewriteCond %{HTTPS} !=on
   # RewriteCond %{HTTP_HOST} !^localhost

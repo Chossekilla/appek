@@ -88,6 +88,12 @@ try {
         if (!$hasRm) $pdo->exec("ALTER TABLE vendor_shop_orders ADD COLUMN rental_months INT NOT NULL DEFAULT 0");
     } catch (Throwable $e) { /* neblokuj objednávku */ }
 
+    // 🆕 A/B landing: idempotentní migrace sloupce landing_variant (ze které varianty přišla objednávka)
+    try {
+        $hasLv = $pdo->query("SHOW COLUMNS FROM vendor_shop_orders LIKE 'landing_variant'")->fetchAll();
+        if (!$hasLv) $pdo->exec("ALTER TABLE vendor_shop_orders ADD COLUMN landing_variant VARCHAR(32) DEFAULT NULL");
+    } catch (Throwable $e) { /* neblokuj objednávku */ }
+
     // Rate limit — max 5 objednávek z jedné IP za 10 minut
     $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     $ip = trim(explode(',', $ip)[0]);
@@ -110,11 +116,11 @@ try {
           (order_no, customer_name, customer_company, customer_email, customer_phone,
            customer_country, customer_ico, customer_dic, customer_address,
            tier, packages_json, install_url, notes, total_kc, currency,
-           payment_method, payment_status, locale, ip, user_agent, rental_months)
+           payment_method, payment_status, locale, ip, user_agent, rental_months, landing_variant)
         VALUES
           (:no, :n, :c, :e, :p, :co, :ico, :dic, :addr,
            :tier, :pkg, :url, :notes, :total, :curr,
-           :pm, 'pending', :loc, :ip, :ua, :rm)
+           :pm, 'pending', :loc, :ip, :ua, :rm, :lv)
     ");
     $stmt->execute([
         'no'   => $orderNo,
@@ -137,6 +143,7 @@ try {
         'ip'   => $ip,
         'ua'   => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
         'rm'   => $rentalMonths,
+        'lv'   => preg_replace('/[^a-z0-9_-]/', '', strtolower((string) ($d['landing_variant'] ?? ''))) ?: null,
     ]);
 
     // 🆕 Admin notifikace o NOVÉ OBJEDNÁVCE (čeká na platbu). Master-only (potřebuje vendor/_mail.php).

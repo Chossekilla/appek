@@ -115,6 +115,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     }
 }
 
+// ─── 🅰️🅱️ Landing varianta (A/B) — čte landing.php ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_landing_variant') {
+    try {
+        vendor_ensure_settings_table(vendor_db());
+        $lv = preg_replace('/[^a-z0-9_-]/', '', strtolower((string) ($_POST['landing_variant'] ?? 'classic')));
+        if ($lv === '') $lv = 'classic';
+        vendor_mail_set('landing_variant', $lv);
+        vendor_audit(vendor_db(), $user, 'landing_variant_save', null, 'variant=' . $lv);
+        $flash_ok = 'Landing varianta přepnuta na „' . $lv . '“ — na appek.cz je změna vidět okamžitě.';
+    } catch (Throwable $e) { $flash_err = $e->getMessage(); }
+}
+
 // Aktuální téma pro přepínač
 $curTheme = 'classic';
 try {
@@ -122,6 +134,28 @@ try {
     $v = vendor_db()->query("SELECT `value` FROM vendor_settings WHERE `key`='site_theme'")->fetchColumn();
     if ($v) $curTheme = preg_replace('/[^a-z0-9_-]/', '', strtolower((string) $v));
 } catch (Throwable $e) { /* fail-safe → classic */ }
+
+// 🅰️🅱️ Aktuální landing varianta + funnel statistiky (views/clicks + objednávky per varianta)
+$curVariant = 'classic';
+$lpStats = [];
+try {
+    $db = vendor_db();
+    $vv = $db->query("SELECT `value` FROM vendor_settings WHERE `key`='landing_variant'")->fetchColumn();
+    if ($vv) $curVariant = preg_replace('/[^a-z0-9_-]/', '', strtolower((string) $vv));
+    foreach (($db->query("SELECT variant, SUM(views) v, SUM(checkout_clicks) c, SUM(demo_clicks) d FROM vendor_landing_stats GROUP BY variant")->fetchAll(PDO::FETCH_ASSOC) ?: []) as $r) {
+        $lpStats[$r['variant']] = ['views' => (int) $r['v'], 'clicks' => (int) $r['c'], 'demo' => (int) $r['d'], 'orders' => 0, 'paid' => 0];
+    }
+    foreach (($db->query("SELECT COALESCE(NULLIF(landing_variant,''),'classic') variant, COUNT(*) n, SUM(payment_status='paid') paid FROM vendor_shop_orders GROUP BY COALESCE(NULLIF(landing_variant,''),'classic')")->fetchAll(PDO::FETCH_ASSOC) ?: []) as $r) {
+        $k = $r['variant'] ?: 'classic';
+        if (!isset($lpStats[$k])) $lpStats[$k] = ['views' => 0, 'clicks' => 0, 'demo' => 0, 'orders' => 0, 'paid' => 0];
+        $lpStats[$k]['orders'] = (int) $r['n'];
+        $lpStats[$k]['paid'] = (int) $r['paid'];
+    }
+} catch (Throwable $e) { /* fail-safe → prázdné statistiky */ }
+// Dostupné varianty = classic + každý lp/*.html soubor
+$lpVariants = ['classic'];
+foreach (glob(__DIR__ . '/../lp/*.html') ?: [] as $f) { $lpVariants[] = basename($f, '.html'); }
+$lpVariants = array_values(array_unique(array_merge($lpVariants, array_keys($lpStats))));
 ?><!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -213,6 +247,68 @@ try {
       </div>
       <div><button type="submit" class="btn-master primary">💾 Uložit téma</button></div>
     </form>
+  </div>
+
+  <!-- 🅰️🅱️ LANDING VARIANTA (A/B TEST) -->
+  <div class="pe-section">
+    <h2>🅰️🅱️ Landing varianta <small style="font-weight:400;color:#86868b;font-size:12px">— přepínatelný vzhled prodejní stránky appek.cz + měření, na co zákazníci reagují nejvíc</small></h2>
+    <form method="POST" style="display:flex;flex-direction:column;gap:12px;max-width:560px">
+      <?php vendor_csrf_field(); ?>
+      <input type="hidden" name="action" value="save_landing_variant">
+      <div>
+        <div class="pe-label">Aktivní vzhled (dostane každý návštěvník)</div>
+        <select name="landing_variant" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;font-family:inherit;font-size:13px">
+          <?php foreach ($lpVariants as $vv): ?>
+            <option value="<?= htmlspecialchars($vv) ?>" <?= $curVariant === $vv ? 'selected' : '' ?>><?= $vv === 'classic' ? 'Classic — původní landing (index.html)' : htmlspecialchars($vv) . ' — lp/' . htmlspecialchars($vv) . '.html' ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div style="font-size:12px;color:#888;line-height:1.6">
+        Náhled bez přepnutí pro návštěvníky:
+        <?php foreach ($lpVariants as $vv): ?><a href="https://appek.cz/?lp=<?= urlencode($vv) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($vv) ?> ↗</a><?= $vv !== end($lpVariants) ? ' · ' : '' ?><?php endforeach; ?>
+      </div>
+      <div><button type="submit" class="btn-master primary">💾 Přepnout vzhled</button></div>
+    </form>
+
+    <div style="margin-top:18px;overflow-x:auto">
+      <div style="font-size:12px;font-weight:700;color:#6e6e73;margin-bottom:8px">📊 Funnel per varianta (zhlédnutí → klik „Objednat" → zaplaceno)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:640px">
+        <thead>
+          <tr style="background:#fafafa;color:#6e6e73;font-size:11px;text-transform:uppercase;letter-spacing:0.4px">
+            <th style="padding:9px 12px;text-align:left">Varianta</th>
+            <th style="padding:9px 12px;text-align:right">Zhlédnutí</th>
+            <th style="padding:9px 12px;text-align:right">Klik „Objednat"</th>
+            <th style="padding:9px 12px;text-align:right">Klik demo</th>
+            <th style="padding:9px 12px;text-align:right">Objednávky</th>
+            <th style="padding:9px 12px;text-align:right">Zaplaceno</th>
+            <th style="padding:9px 12px;text-align:right">Klik→ z zhlédnutí</th>
+            <th style="padding:9px 12px;text-align:right">Konverze</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($lpVariants as $vv):
+            $s = $lpStats[$vv] ?? ['views' => 0, 'clicks' => 0, 'demo' => 0, 'orders' => 0, 'paid' => 0];
+            $ctr  = $s['views'] > 0 ? round($s['clicks'] / $s['views'] * 100, 1) : 0;
+            $conv = $s['views'] > 0 ? round($s['paid'] / $s['views'] * 100, 2) : 0;
+            $isActive = ($vv === $curVariant);
+          ?>
+            <tr style="border-bottom:1px solid #f0f0f3;<?= $isActive ? 'background:#f0f7ff;font-weight:700' : '' ?>">
+              <td style="padding:9px 12px"><?= $isActive ? '▶ ' : '' ?><?= htmlspecialchars($vv) ?><?= $isActive ? ' <span style="font-size:10px;color:#0071e3;font-weight:600">AKTIVNÍ</span>' : '' ?></td>
+              <td style="padding:9px 12px;text-align:right"><?= number_format($s['views'], 0, ',', ' ') ?></td>
+              <td style="padding:9px 12px;text-align:right"><?= number_format($s['clicks'], 0, ',', ' ') ?></td>
+              <td style="padding:9px 12px;text-align:right;color:#86868b"><?= number_format($s['demo'], 0, ',', ' ') ?></td>
+              <td style="padding:9px 12px;text-align:right"><?= number_format($s['orders'], 0, ',', ' ') ?></td>
+              <td style="padding:9px 12px;text-align:right;color:#15803d;font-weight:700"><?= number_format($s['paid'], 0, ',', ' ') ?></td>
+              <td style="padding:9px 12px;text-align:right;color:#86868b"><?= $ctr ?> %</td>
+              <td style="padding:9px 12px;text-align:right;font-weight:700"><?= $conv ?> %</td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+      <div style="font-size:11px;color:#86868b;margin-top:8px;line-height:1.5">
+        „Na co reagují nejvíc" = nejvyšší <strong>konverze</strong> (zaplaceno ÷ zhlédnutí) a klik-rate. Přepínač je ruční — nech každý vzhled běžet dostatečně dlouho, ať je srovnání férové (sezónnost zkresluje). Zhlédnutí/kliky sbírá <code>lp/track.php</code>, objednávky se párují přes <code>?lp=</code> na checkoutu.
+      </div>
+    </div>
   </div>
 
   <form method="POST">

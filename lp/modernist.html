@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APPEK B2B — krabicový gastro systém bez měsíčních poplatků</title>
+<meta name="description" content="Objednávky, faktury, dodací listy, výroba, HACCP, B2B portál, rozvozy. Jednorázová platba, vaše data na vašem hostingu. 100+ provozů v CZ a SK.">
+<meta name="robots" content="index,follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap">
+<style>
+  :root {
+    --color-bg: #f3f2f2;
+    --color-surface: #eae9e9;
+    --color-text: #201e1d;
+    --color-accent: #ec3013;
+    --color-divider: rgba(32,30,29,0.40);
+    --color-neutral-100: #f8f4f4;
+    --color-neutral-200: #eae7e7;
+    --color-neutral-600: #7d7979;
+    --color-neutral-700: #605d5d;
+    --color-neutral-800: #444141;
+    --color-accent-100: #fff2ef;
+    --color-accent-600: #dd2b0f;
+    --color-accent-700: #ae1800;
+    --color-accent-800: #7c1405;
+    --font-heading: "Archivo", system-ui, sans-serif;
+    --font-body: "Archivo", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body), Archivo, Helvetica, sans-serif; font-size: 15px; line-height: 1.55; }
+  a { color: var(--color-accent-700); text-decoration: none; }
+  a:hover { color: var(--color-accent); }
+  h1, h2, h3, h4, p, ul, li, figure, blockquote { margin: 0; padding: 0; }
+  ul { list-style: none; }
+  img { display: block; max-width: 100%; }
+  .grayscale { filter: grayscale(1) contrast(1.08); }
+  .btn { display: inline-flex; align-items: center; justify-content: flex-start; gap: 6px; cursor: pointer; text-decoration: none; font-family: var(--font-heading), Archivo, sans-serif; font-weight: 700; font-size: 14px; line-height: 1.2; color: var(--color-text); background: transparent; border: 1px solid transparent; padding: 10px 15px; }
+  .btn-primary { background: var(--color-accent); color: #fff; }
+  .btn-primary:hover { background: var(--color-accent-600); color: #fff; }
+  .btn-ghost { color: var(--color-accent-700); border-color: var(--color-divider); }
+  .btn-ghost:hover { background: rgba(236,48,19,0.08); }
+  .btn-block { width: 100%; }
+  .tag { display: inline-flex; align-items: center; font-size: 11px; letter-spacing: 0.02em; padding: 3px 10px; }
+  .tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
+  .tag-neutral { background: var(--color-neutral-100); color: var(--color-neutral-800); }
+  .tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent); }
+  .table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .table th { text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-600); padding: 10px; border-bottom: 2px solid var(--color-divider); }
+  .table td { padding: 10px; border-bottom: 1px solid var(--color-divider); }
+  .input { width: 100%; min-height: 42px; padding: 8px 12px; font: inherit; font-size: 14px; color: var(--color-text); }
+  .checkbox { width: 22px; height: 22px; accent-color: var(--color-accent); }
+  @media (max-width: 1080px) { .navlinks { display: none !important; } }
+  @media (max-width: 900px) { .hdr-langs { display: none !important; } }
+  @media (max-width: 700px) { .hdr-demo { display: none !important; } }
+  @media (max-width: 860px) {
+    .cols-2, .cols-3, .cols-4 { grid-template-columns: 1fr !important; }
+    .hero-grid { grid-template-columns: 1fr !important; }
+    .pad-x { padding-left: 20px !important; padding-right: 20px !important; }
+    .big { font-size: 44px !important; }
+    .sec-h2 { font-size: 34px !important; }
+    .hero-photo { min-height: 320px !important; }
+  }
+  @media (max-width: 640px) {
+    .big { font-size: 36px !important; }
+    .sec-h2 { font-size: 28px !important; }
+    .stat-row { grid-template-columns: 1fr !important; }
+    .stat-row li { border-left: none !important; border-top: 2px solid var(--color-divider); padding: 14px 0 !important; }
+    .stat-row li:first-child { border-top: none; }
+    .price-row { grid-template-columns: 1fr auto !important; }
+    .price-row > :nth-child(2) { grid-column: 1; }
+    .price-row > :nth-child(3) { grid-column: 2; grid-row: 2; justify-self: end; }
+    .form-grid { grid-template-columns: 1fr !important; }
+    .cloud { gap: 8px 18px !important; }
+    .cloud li { font-size: 90%; }
+    .hero-photo { min-height: 240px !important; }
+  }
+</style>
+</head>
+<body>
+
+<div style="max-width: 1360px; margin: 0 auto; border-left: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider); background: var(--color-bg); overflow: hidden">
+
+  <header style="position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 32px; padding: 14px 40px; background: var(--color-bg); border-bottom: 2px solid var(--color-divider)" class="pad-x">
+    <a href="#top" style="display: flex; align-items: center; gap: 10px; color: var(--color-text); font-weight: 800; letter-spacing: -0.01em; font-size: 17px; white-space: nowrap; flex: none">
+      <span style="display: grid; place-items: center; width: 26px; height: 26px; background: var(--color-accent); color: #fff; font-size: 15px; font-weight: 800">A</span>
+      APPEK B2B
+    </a>
+    <nav class="navlinks" style="display: flex; gap: 26px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; margin-left: 8px">
+      <a href="#features" style="color: var(--color-text)">Funkce</a>
+      <a href="#mobile" style="color: var(--color-text)">Mobile</a>
+      <a href="#delivery" style="color: var(--color-text)">Rozvozy</a>
+      <a href="#integrations" style="color: var(--color-text)">Integrace</a>
+      <a href="#pricing" style="color: var(--color-text)">Cena</a>
+    </nav>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 10px">
+      <span class="hdr-langs" style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: var(--color-neutral-600); white-space: nowrap">CS / SK / EN / DE / ES</span>
+      <a class="btn btn-ghost hdr-demo" href="https://demo.appek.cz" data-cta="demo" style="white-space: nowrap">Vyzkoušet demo</a>
+      <a class="btn btn-primary" href="/checkout.html?lp=modernist" data-cta="order">Objednat</a>
+    </div>
+  </header>
+
+  <section id="top" style="border-bottom: 2px solid var(--color-divider)">
+    <div class="hero-grid" style="display: grid; grid-template-columns: 1.05fr 0.95fr">
+      <div class="pad-x" style="padding: 64px 40px 48px; border-right: 2px solid var(--color-divider)">
+        <div style="display: block; width: fit-content; max-width: 100%; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; line-height: 1.5; text-transform: uppercase; color: var(--color-accent-700); border-bottom: 2px solid var(--color-accent); padding-bottom: 4px">Krabicovka pro gastro výrobce</div>
+        <h1 class="big" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 76px; line-height: 0.94; letter-spacing: -0.035em; font-weight: 800; margin-top: 28px">Vše pro váš provoz<br>v jednom systému</h1>
+        <p style="max-width: 46ch; margin-top: 26px; font-size: 18px; line-height: 1.5; color: var(--color-neutral-700)">Objednávky, faktury, dodací listy, výrobní list, HACCP, B2B portál pro odběratele, cenovky, štítky. <strong style="color: var(--color-text)">Bez měsíčních poplatků.</strong> Lokální nebo cloud — vy si vyberete.</p>
+        <div style="display: flex; gap: 12px; margin-top: 32px; flex-wrap: wrap">
+          <a class="btn btn-primary" href="https://demo.appek.cz" data-cta="demo" style="padding: 14px 22px; font-size: 15px">Vyzkoušet demo</a>
+        </div>
+        <ul class="stat-row" style="display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 48px; border-top: 2px solid var(--color-divider)">
+          <li style="padding: 18px 16px 0 0"><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.02em">5 minut</div><div style="font-size: 13px; color: var(--color-neutral-600); margin-top: 4px">na instalaci</div></li>
+          <li style="padding: 18px 16px 0; border-left: 2px solid var(--color-divider)"><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.02em">Vaše data</div><div style="font-size: 13px; color: var(--color-neutral-600); margin-top: 4px">váš hosting</div></li>
+          <li style="padding: 18px 0 0 16px; border-left: 2px solid var(--color-divider)"><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.02em">100+</div><div style="font-size: 13px; color: var(--color-neutral-600); margin-top: 4px">provozů v CZ a SK</div></li>
+        </ul>
+      </div>
+      <div class="grayscale hero-photo" style="position: relative; min-height: 100%; overflow: hidden">
+        <img src="/lp/assets/pek.png" alt="Pekařka připravuje těsto v provozu" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center center; display: block">
+      </div>
+    </div>
+  </section>
+
+  <section id="features" style="border-bottom: 2px solid var(--color-divider)">
+    <div class="pad-x" style="display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding: 56px 40px 32px; flex-wrap: wrap">
+      <div>
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Funkce</div>
+        <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 42px; line-height: 1.05; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px; max-width: 28ch">Kompletní sestava funkcí pro malou provozovnu od příjmu surovin až po rozvoz.</h2>
+      </div>
+      <p style="max-width: 40ch; font-size: 16px; line-height: 1.5; color: var(--color-neutral-700)">Od přijetí objednávky po HACCP audit — všechno v jedné aplikaci.</p>
+    </div>
+    <div class="cols-3" style="display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid var(--color-divider)">
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">01</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">Objednávky &amp; Faktury</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">Přijetí objednávky, dodací list, faktura s ISDOC exportem pro vaše účetní. Vše propojené.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">02</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">Výrobní list</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">Co a kolik vyrobit. Auto-sumarizace surovin podle objednávek + receptur.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">03</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">B2B portál pro odběratele</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">Vaši zákazníci si vidí ceny, skladem, objednají z mobilu i počítače. Bez vašeho zásahu.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">04</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">HACCP dokumentace</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">Plán, kritické body, audity, záznamy o teplotách. Vše připravené pro kontrolu SVS.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">05</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">Cenovky &amp; štítky</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">15 designů, A4 archy (Avery, Printky, SEVT). Tisk přímo z aplikace.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">06</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">Rozvozové trasy</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">Z dodacích listů sestaví denní rozvozový plán seskupený podle města a PSČ.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">07</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">Specializované balíčky</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">Cukrárna (dort konfigurátor), Restaurace (stoly), Catering (cenové úrovně), Sezónní akce.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">08</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">Multilanguage</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">CS / SK / EN / DE / ES — rozhraní pro tebe i mezinárodní odběratele. Přepnutí jedním klikem.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">09</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">POS kasa</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">Prodej přímo na pokladně — účtenky, hotovost i karta, volné řádky. Funguje na tabletu i dotykovém PC.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">10</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">Stolová mapa &amp; kuchyně</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">Plán stolů provozovny, objednávky ke stolu a kuchyňský displej (KDS) se stavem přípravy.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">11</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">Zálohy &amp; obnova</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">Automatické snímky databáze, rotace starých záloh a obnova na jeden klik. Tvá data jsou v bezpečí.</p></div>
+      <div style="padding: 40px 32px 44px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><div style="font-family: ui-monospace, monospace; font-size: 12px; color: var(--color-accent-700)">12</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-top: 22px">Auto-aktualizace</h3><p style="font-size: 15px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 12px; max-width: 34ch">Nové verze přicházejí přes vendor cloud. Klik a máš aktuální systém — bez DevOps.</p></div>
+    </div>
+  </section>
+
+  <section class="pad-x" style="background: var(--color-accent); color: #fff; padding: 72px 40px; border-bottom: 2px solid var(--color-divider)">
+    <p class="big" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 64px; line-height: 0.98; letter-spacing: -0.035em; font-weight: 800; max-width: 24ch">Bez měsíčních poplatků. Vaše data zůstanou vaše.</p>
+    <div style="display: flex; gap: 12px; margin-top: 36px; flex-wrap: wrap">
+      <a class="btn" href="https://demo.appek.cz" data-cta="demo" style="background: #fff; color: var(--color-accent); border: 2px solid #fff; padding: 14px 22px; font-size: 15px; font-weight: 700">Vyzkoušet demo</a>
+    </div>
+  </section>
+
+  <section id="mobile" class="hero-grid" style="border-bottom: 2px solid var(--color-divider); display: grid; grid-template-columns: 1fr 0.8fr">
+    <div class="pad-x" style="padding: 56px 40px; border-right: 2px solid var(--color-divider)">
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Mobilní · Tablet · Desktop</div>
+      <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Plnohodnotná aplikace v každé kapse</h2>
+      <p style="max-width: 52ch; font-size: 17px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 20px">APPEK funguje jako <strong style="color: var(--color-text)">PWA</strong> — nainstaluje se na mobil/tablet jako nativní aplikace. Push notifikace o objednávkách, offline mód, touch-friendly UI. Žádný App Store ani Google Play.</p>
+      <ul class="cols-2" style="display: grid; grid-template-columns: 1fr 1fr; margin-top: 36px; border-top: 2px solid var(--color-divider)">
+        <li style="padding: 20px 20px 20px 0; border-bottom: 2px solid var(--color-divider)"><div style="font-size: 15px; font-weight: 700">Instaluj jako appku</div><div style="font-size: 14px; line-height: 1.45; color: var(--color-neutral-700); margin-top: 5px">Klik na „Přidat na plochu“ — vznikne ikona jako u nativní appky. iOS i Android.</div></li>
+        <li style="padding: 20px 20px 20px 0; border-bottom: 2px solid var(--color-divider)"><div style="font-size: 15px; font-weight: 700">Push notifikace</div><div style="font-size: 14px; line-height: 1.45; color: var(--color-neutral-700); margin-top: 5px">Nová objednávka = zvonění. Funguje i s vypnutým prohlížečem.</div></li>
+        <li style="padding: 20px 20px 20px 0; border-bottom: 2px solid var(--color-divider)"><div style="font-size: 15px; font-weight: 700">Offline mód</div><div style="font-size: 14px; line-height: 1.45; color: var(--color-neutral-700); margin-top: 5px">Service worker cachuje vše potřebné. Pokračuješ i bez signálu.</div></li>
+        <li style="padding: 20px 20px 20px 0; border-bottom: 2px solid var(--color-divider)"><div style="font-size: 15px; font-weight: 700">Touch-first UI</div><div style="font-size: 14px; line-height: 1.45; color: var(--color-neutral-700); margin-top: 5px">Velká tlačítka, swipe gesta, optimalizováno pro práci jednou rukou.</div></li>
+        <li style="padding: 20px 20px 20px 0; border-bottom: 2px solid var(--color-divider)"><div style="font-size: 15px; font-weight: 700">Vždy responzivní</div><div style="font-size: 14px; line-height: 1.45; color: var(--color-neutral-700); margin-top: 5px">Layout se přepíná od iPhone SE po 4K monitor. Bez horizontálního scrollu.</div></li>
+        <li style="padding: 20px 20px 20px 0; border-bottom: 2px solid var(--color-divider)"><div style="font-size: 15px; font-weight: 700">Tmavý režim</div><div style="font-size: 14px; line-height: 1.45; color: var(--color-neutral-700); margin-top: 5px">Auto podle systému — méně světla v noční směně, šetrnější k oku.</div></li>
+      </ul>
+      <p style="font-family: ui-monospace, monospace; font-size: 12.5px; line-height: 1.5; color: var(--color-neutral-600); margin-top: 24px">Tip: Na iOS otevři v Safari → Sdílet → „Přidat na plochu“. Na Androidu Chrome ti to nabídne automaticky.</p>
+    </div>
+    <div class="grayscale" style="position: relative; min-height: 520px; background: var(--color-neutral-100)">
+      <img src="/lp/assets/provoz.jpg" alt="APPEK v provozu na mobilu a tabletu" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block">
+    </div>
+  </section>
+
+  <section id="delivery" style="border-bottom: 2px solid var(--color-divider)">
+    <div class="pad-x" style="display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding: 56px 40px 32px; flex-wrap: wrap">
+      <div>
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Rozvozový plán · Dodací listy</div>
+        <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Rozvoz máte v jednom přehledu</h2>
+      </div>
+      <p style="max-width: 44ch; font-size: 16px; line-height: 1.5; color: var(--color-neutral-700)">APPEK ti z <strong style="color: var(--color-text)">dodacích listů na vybraný den</strong> sestaví rozvozový plán — seskupený podle měst a PSČ, s počty kusů a částkami. Podklad pro řidiče na jeden klik.</p>
+    </div>
+    <div class="hero-grid" style="display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--color-divider)">
+      <div>
+        <div class="pad-x" style="padding: 24px 24px 24px 40px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Plán z dodacích listů</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">Vyber den → APPEK načte všechny dodací listy a sestaví z nich rozvozový seznam. Žádné ruční přepisování adres.</p></div>
+        <div class="pad-x" style="padding: 24px 24px 24px 40px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Seskupení podle měst a PSČ</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">Zastávky seřazené podle obcí a poštovních směrovacích čísel — řidič jede logicky po regionu.</p></div>
+        <div class="pad-x" style="padding: 24px 24px 24px 40px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Souhrn po městech</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">U každého města počet dodacích listů, kusů a celková částka. Hned vidíš, co kam veze.</p></div>
+        <div class="pad-x" style="padding: 24px 24px 24px 40px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Podklad pro řidiče</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">Rozvozový list k vytištění nebo na mobil — adresy, kontakty a položky každé zastávky.</p></div>
+      </div>
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 20px 24px; border-bottom: 2px solid var(--color-divider)">
+          <span style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 20px; font-weight: 800">Dnešní rozvoz</span>
+          <span style="font-size: 13px; color: var(--color-neutral-600)">4 dodací listy · 3 města · Pavel H.</span>
+        </div>
+        <div style="overflow-x: auto"><table class="table" style="width: 100%; min-width: 520px">
+          <thead><tr><th>Čas</th><th>Zastávka</th><th>Položky</th><th>Částka</th><th>Stav</th></tr></thead>
+          <tbody>
+            <tr><td style="font-family: ui-monospace, monospace">08:00</td><td style="font-weight: 600">Penzion U Lípy · Brno</td><td>12 položek</td><td>4 280 Kč</td><td style="color: var(--color-neutral-600)">hotovo</td></tr>
+            <tr><td style="font-family: ui-monospace, monospace">09:30</td><td style="font-weight: 600">Restaurace Pod Lípou · Brno</td><td>8 položek</td><td>2 940 Kč</td><td style="color: var(--color-neutral-600)">hotovo</td></tr>
+            <tr><td style="font-family: ui-monospace, monospace">11:00</td><td style="font-weight: 600">Hotel Continental · Blansko</td><td>24 položek</td><td>8 760 Kč</td><td style="color: var(--color-accent-700); font-weight: 600">další</td></tr>
+            <tr><td style="font-family: ui-monospace, monospace">12:30</td><td style="font-weight: 600">Catering Premium · Blansko</td><td>16 položek</td><td>5 430 Kč</td><td style="color: var(--color-neutral-600)">čeká</td></tr>
+          </tbody>
+        </table></div>
+        <div style="display: flex; justify-content: space-between; padding: 18px 24px; border-top: 2px solid var(--color-divider); font-family: var(--font-heading), Archivo, sans-serif; font-weight: 800; font-size: 17px"><span>Celkem v plánu · 60 položek</span><span>21 410 Kč</span></div>
+        <div style="padding: 18px 24px; border-top: 2px solid var(--color-divider); font-size: 14px; color: var(--color-neutral-700)">Funguje s těmito přepravci a dopravou: Vlastní vůz · Zásilkovna · DPD CZ · Toptrans <span class="tag tag-neutral">brzy</span> · Česká pošta <span class="tag tag-neutral">brzy</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="integrations" style="border-top: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider); background: var(--color-neutral-100)">
+    <div class="pad-x" style="display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding: 88px 40px 40px; flex-wrap: wrap">
+      <div>
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Integrace</div>
+        <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Funguje s tím, co používáte</h2>
+      </div>
+      <p style="max-width: 40ch; font-size: 16px; line-height: 1.5; color: var(--color-neutral-700)">Účetnictví, platby, rozvozy jídla, registry firem — všechno už máme propojené.</p>
+    </div>
+    <div class="pad-x" style="padding: 8px 40px 56px; border-top: 2px solid var(--color-divider)">
+      <ul class="cloud" style="display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 10px 28px; padding-top: 36px; max-width: 1000px; margin: 0 auto; text-align: center">
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 38px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-text); white-space: nowrap">POHODA</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 38px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-text); white-space: nowrap">Stripe</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-700); white-space: nowrap">Zásilkovna</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-700); white-space: nowrap">ARES (CZ)</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-700); white-space: nowrap">Money S3</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 38px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-text); white-space: nowrap">Wolt</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-700); white-space: nowrap">DPD</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-700); white-space: nowrap">GoPay</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-600); white-space: nowrap">FlexiBee</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-700); white-space: nowrap">Apple Pay</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-700); white-space: nowrap">Foodora</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-600); white-space: nowrap">ISDOC</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-700); white-space: nowrap">Bolt Food</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-600); white-space: nowrap">Helios</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-600); white-space: nowrap">Google Pay</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-700); white-space: nowrap">Dáme jídlo</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-600); white-space: nowrap">RPO (SK)</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 38px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-text); white-space: nowrap">POS kasa</li>
+        <li style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-neutral-600); white-space: nowrap">EET ready</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="use-cases" style="border-bottom: 2px solid var(--color-divider)">
+    <div class="pad-x" style="display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding: 56px 40px 32px; flex-wrap: wrap">
+      <div>
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Pro koho</div>
+        <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Jeden systém — víc oborů</h2>
+      </div>
+      <p style="max-width: 40ch; font-size: 16px; line-height: 1.5; color: var(--color-neutral-700)">APPEK B2B se přizpůsobí typu vaší výroby. Aktivuj specializované balíčky podle potřeby.</p>
+    </div>
+    <div class="cols-4" style="display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--color-divider)">
+      <div style="border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider)"><div class="grayscale" style="height: 220px; overflow: hidden"><img src="/lp/assets/dashboard.jpg" alt="APPEK pro pekárnu" style="width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block"></div><div style="padding: 22px 20px; border-top: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.02em">Pekárna</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 8px">Denní výroba, B2B závozy, receptury, výrobní plán z objednávek. HACCP audit-ready.</p><div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px"><span class="tag tag-outline">Šarže</span><span class="tag tag-outline">Závozy</span><span class="tag tag-outline">Cenovky</span></div></div></div>
+      <div style="border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider)"><div class="grayscale" style="height: 220px; overflow: hidden"><img src="/lp/assets/cukrarna.jpg" alt="APPEK pro cukrárnu" style="width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block"></div><div style="padding: 22px 20px; border-top: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.02em">Cukrárna</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 8px">Konfigurátor dortů, předobjednávky na termín, alergeny, fotky výrobků, e-shop integrace.</p><div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px"><span class="tag tag-outline">Konfigurátor</span><span class="tag tag-outline">Termíny</span><span class="tag tag-outline">Alergeny</span></div></div></div>
+      <div style="border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider)"><div class="grayscale" style="height: 220px; overflow: hidden"><img src="/lp/assets/lahudky.jpg" alt="APPEK pro lahůdkárnu" style="width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block"></div><div style="padding: 22px 20px; border-top: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.02em">Lahůdkárna</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 8px">Catering, denní menu, individuální ceny pro firmy, závozové trasy, fakturace měsíčně.</p><div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px"><span class="tag tag-outline">Catering</span><span class="tag tag-outline">Menu</span><span class="tag tag-outline">Trasy</span></div></div></div>
+      <div style="border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider)"><div class="grayscale" style="height: 220px; overflow: hidden"><img src="/lp/assets/provoz.jpg" alt="APPEK pro gastro velkoobchod" style="width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block"></div><div style="padding: 22px 20px; border-top: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.02em">Gastro velkoobchod</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 8px">B2B portál pro restaurace, hotely, kantýny. Cenové úrovně, splatnost, automatické faktury.</p><div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px"><span class="tag tag-outline">B2B portál</span><span class="tag tag-outline">Splatnost</span><span class="tag tag-outline">Auto-fakturace</span></div></div></div>
+    </div>
+  </section>
+
+  <section style="border-bottom: 2px solid var(--color-divider)">
+    <div class="pad-x" style="padding: 56px 40px 32px">
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Jak na to</div>
+      <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Hotovo za 5 minut</h2>
+      <p style="font-size: 16px; color: var(--color-neutral-700); margin-top: 14px">Bez programátora. Bez měsíčních poplatků. Vaše data zůstanou vaše.</p>
+    </div>
+    <div class="cols-4" style="display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--color-divider)">
+      <div style="padding: 28px 24px; border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider)"><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 44px; font-weight: 800; color: var(--color-accent); line-height: 1">1</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700; margin-top: 16px">Vyber způsob</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">Lokální XAMPP/MAMP zdarma, nebo webhosting za poplatek.</p></div>
+      <div style="padding: 28px 24px; border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider)"><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 44px; font-weight: 800; color: var(--color-accent); line-height: 1">2</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700; margin-top: 16px">5min instalace</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">Wizard tě provede: IČO (auto-fill z ARES), logo, vzhled, údaje. Hotovo.</p></div>
+      <div style="padding: 28px 24px; border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider)"><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 44px; font-weight: 800; color: var(--color-accent); line-height: 1">3</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700; margin-top: 16px">Začni pracovat</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">Vlož pár výrobků (nebo nahraj z Excelu). Pošli odběratelům link na B2B.</p></div>
+      <div style="padding: 28px 24px; border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider)"><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 44px; font-weight: 800; color: var(--color-accent); line-height: 1">4</div><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700; margin-top: 16px">Roste s tebou</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">Aktivuj specializované balíčky kdy chceš. Cukrárna, restaurace, catering...</p></div>
+    </div>
+  </section>
+
+  <section id="pricing" style="border-bottom: 2px solid var(--color-divider)">
+    <div class="pad-x" style="padding: 56px 40px 32px">
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Cena</div>
+      <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Bez měsíčních poplatků</h2>
+      <p style="font-size: 16px; color: var(--color-neutral-700); margin-top: 14px">Zaplatíš jednou — máš navždy. Updaty zdarma první rok.</p>
+    </div>
+    <div class="hero-grid" style="display: grid; grid-template-columns: 1.15fr 0.85fr; border-top: 2px solid var(--color-divider)">
+      <div class="pad-x" style="padding: 32px 40px; border-right: 2px solid var(--color-divider)">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+          <h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 800">Sestav si APPEK</h3>
+          <div style="display: flex; gap: 0; border: 2px solid var(--color-divider)">
+            <button type="button" id="seg-buy" onclick="setMode('buy')" style="padding: 10px 16px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; border: none; background: var(--color-accent); color: #fff">Koupit napořád</button>
+            <button type="button" id="seg-rent" onclick="setMode('rent')" style="padding: 10px 16px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; border: none; background: transparent; color: var(--color-text)">Pronájem měsíčně</button>
+          </div>
+        </div>
+        <p style="font-size: 15px; color: var(--color-neutral-700); margin-top: 12px">Core je vždy v ceně — přidej jen specializované balíčky, které potřebuješ.</p>
+        <div style="margin-top: 26px; border-top: 2px solid var(--color-divider)">
+          <div class="price-row" style="display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 18px 0; border-bottom: 2px solid var(--color-divider)">
+            <div>
+              <div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 700">Core — základ systému</div>
+              <div style="font-size: 14px; color: var(--color-neutral-700); margin-top: 4px">Objednávky, faktury a ISDOC, výroba, HACCP, B2B portál, ARES, cenovky, rozvozové trasy, PWA offline, updaty.</div>
+            </div>
+            <div data-core-price style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 800; white-space: nowrap">9 990 Kč</div>
+            <span class="tag tag-accent">v ceně</span>
+          </div>
+          <div id="pkg-rows"></div>
+        </div>
+      </div>
+      <div class="pad-x" style="padding: 32px 40px; background: var(--color-neutral-100)">
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-neutral-600)">Souhrn objednávky</div>
+        <ul id="summary-list" style="margin-top: 18px; border-top: 2px solid var(--color-divider)"></ul>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 20px">
+          <span style="font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-neutral-600)">Celkem bez DPH</span>
+          <span id="total" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap">9 990 Kč</span>
+        </div>
+        <div id="total-note" style="font-size: 13px; color: var(--color-neutral-600); margin-top: 4px">Jednorázově. Updaty zdarma první rok.</div>
+        <a class="btn btn-primary btn-block" href="/checkout.html?lp=modernist" data-cta="order" style="margin-top: 22px; padding: 14px 18px; font-size: 15px">Pokračovat k objednávce →</a>
+        <p style="font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.6; color: var(--color-neutral-600); margin-top: 16px">Jednorázová platba · bez měsíčních poplatků · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="border-bottom: 2px solid var(--color-divider)">
+    <div class="pad-x" style="padding: 56px 40px 32px">
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Reference</div>
+      <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Co říkají naši zákazníci</h2>
+      <p style="max-width: 62ch; font-size: 16px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 14px">100+ provozů: pekárny, cukrárny, lahůdkárny, restaurace, catering. Reálné zkušenosti, ne marketing.</p>
+    </div>
+    <div class="cols-3" style="display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid var(--color-divider)">
+      <blockquote style="margin: 0; padding: 32px 26px; border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider); display: flex; flex-direction: column; gap: 20px"><p style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; line-height: 1.35; letter-spacing: -0.01em">„Z 5 hodin papírování denně máme teď 30 minut. B2B portál si odběratelé nakonec objednávky uložili sami. Skvělé.“</p><footer style="margin-top: auto; display: flex; align-items: center; gap: 12px; padding-top: 18px; border-top: 2px solid var(--color-divider)"><span style="display: grid; place-items: center; width: 34px; height: 34px; background: var(--color-accent); color: #fff; font-size: 12px; font-weight: 800">OŠ</span><span style="font-size: 14px; line-height: 1.3"><strong>Ota Špejchar</strong><br><span style="color: var(--color-neutral-600)">Pekárna U Lípy, Brno</span></span></footer></blockquote>
+      <blockquote style="margin: 0; padding: 32px 26px; border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider); display: flex; flex-direction: column; gap: 20px"><p style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; line-height: 1.35; letter-spacing: -0.01em">„Konfigurátor dortů byl důvod, proč jsem koupila Profi. Zákazníci si vyberou tvar, příchuť, dekoraci — a já dostanu objednávku přímo do systému.“</p><footer style="margin-top: auto; display: flex; align-items: center; gap: 12px; padding-top: 18px; border-top: 2px solid var(--color-divider)"><span style="display: grid; place-items: center; width: 34px; height: 34px; background: var(--color-accent); color: #fff; font-size: 12px; font-weight: 800">MO</span><span style="font-size: 14px; line-height: 1.3"><strong>Marie Otradová</strong><br><span style="color: var(--color-neutral-600)">Cukrárna Sladký Sen, Praha</span></span></footer></blockquote>
+      <blockquote style="margin: 0; padding: 32px 26px; border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider); display: flex; flex-direction: column; gap: 20px"><p style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; line-height: 1.35; letter-spacing: -0.01em">„HACCP audit jsme zvládli za dvě hodiny místo dvou dnů. Všechny dokumenty automaticky, kontrola SVS nemohla říct křivý slovo.“</p><footer style="margin-top: auto; display: flex; align-items: center; gap: 12px; padding-top: 18px; border-top: 2px solid var(--color-divider)"><span style="display: grid; place-items: center; width: 34px; height: 34px; background: var(--color-accent); color: #fff; font-size: 12px; font-weight: 800">RR</span><span style="font-size: 14px; line-height: 1.3"><strong>Roman Růžek</strong><br><span style="color: var(--color-neutral-600)">Catering Premium, Ostrava</span></span></footer></blockquote>
+    </div>
+  </section>
+
+  <section id="contact" style="background: var(--color-accent); color: #fff; border-bottom: 2px solid var(--color-divider)">
+    <div class="hero-grid" style="display: grid; grid-template-columns: 1fr 1fr">
+      <div class="pad-x" style="padding: 56px 40px; border-right: 2px solid rgba(255,255,255,0.35)">
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.8">Kontakt</div>
+        <h2 class="sec-h2 big" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 60px; line-height: 0.98; letter-spacing: -0.035em; font-weight: 800; margin-top: 14px">Pojďme do toho</h2>
+        <p style="font-size: 18px; line-height: 1.45; margin-top: 20px; max-width: 40ch">Napište — odpovíme do 24 hodin v pracovní dny. Rádi vám pomůžeme s výběrem balíčku, nasazením i konfigurací. Bez závazku.</p>
+        <ul style="margin-top: 32px; border-top: 2px solid rgba(255,255,255,0.35); font-size: 17px; font-weight: 600">
+          <li style="padding: 14px 0; border-bottom: 2px solid rgba(255,255,255,0.35)"><a href="mailto:info@appek.cz" style="color: #fff">info@appek.cz</a></li>
+          <li style="padding: 14px 0; border-bottom: 2px solid rgba(255,255,255,0.35)"><a href="tel:+420733700808" style="color: #fff">+420 733 700 808</a></li>
+          <li style="padding: 14px 0; border-bottom: 2px solid rgba(255,255,255,0.35)">ČR, SK, EU, mezinárodně</li>
+        </ul>
+      </div>
+      <div class="pad-x" style="padding: 56px 40px">
+        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px">
+          <label style="display: block"><span style="display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px">Vaše jméno *</span><input class="input" style="width: 100%; background: #fff; border: 2px solid #fff; color: var(--color-text)"></label>
+          <label style="display: block"><span style="display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px">Firma</span><input class="input" style="width: 100%; background: #fff; border: 2px solid #fff; color: var(--color-text)"></label>
+          <label style="display: block"><span style="display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px">E-mail *</span><input class="input" type="email" style="width: 100%; background: #fff; border: 2px solid #fff; color: var(--color-text)"></label>
+          <label style="display: block"><span style="display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px">Telefon</span><input class="input" style="width: 100%; background: #fff; border: 2px solid #fff; color: var(--color-text)"></label>
+        </div>
+        <label style="display: block; margin-top: 18px"><span style="display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px">Zpráva</span><textarea class="input" rows="5" style="width: 100%; background: #fff; border: 2px solid #fff; color: var(--color-text); resize: vertical"></textarea></label>
+        <a class="btn btn-block" href="mailto:info@appek.cz" style="margin-top: 20px; background: var(--color-text); color: #fff; border: 2px solid var(--color-text); padding: 14px 18px; font-size: 15px; font-weight: 700; justify-content: flex-start; text-align: left">Odeslat poptávku →</a>
+        <p style="font-family: ui-monospace, monospace; font-size: 12px; margin-top: 14px; opacity: 0.9">Odpovíme do 24h · Nepředáme nikam dál · GDPR-friendly</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="pad-x" style="padding: 48px 40px 32px">
+    <div class="cols-4" style="display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 32px">
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px">
+          <span style="display: grid; place-items: center; width: 26px; height: 26px; background: var(--color-accent); color: #fff; font-size: 15px">A</span>APPEK B2B
+        </div>
+        <p style="font-size: 14px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 14px; max-width: 38ch">Krabicový gastro objednávkový systém. Vyrábíte? Prodáváte? Vše v jednom — bez měsíčních poplatků.</p>
+        <p style="font-size: 14px; margin-top: 14px"><a href="mailto:info@appek.cz">info@appek.cz</a> · <a href="tel:+420733700808">+420 733 700 808</a></p>
+      </div>
+      <div>
+        <h4 style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-neutral-600)">Produkt</h4>
+        <ul style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px; font-size: 15px">
+          <li><a href="#features" style="color: var(--color-text)">Funkce</a></li>
+          <li><a href="#mobile" style="color: var(--color-text)">Mobile</a></li>
+          <li><a href="#delivery" style="color: var(--color-text)">Rozvozy</a></li>
+          <li><a href="#integrations" style="color: var(--color-text)">Integrace</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-neutral-600)">Pro koho</h4>
+        <ul style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px; font-size: 15px">
+          <li><a href="#use-cases" style="color: var(--color-text)">Pekárna</a></li>
+          <li><a href="#use-cases" style="color: var(--color-text)">Cukrárna</a></li>
+          <li><a href="#use-cases" style="color: var(--color-text)">Lahůdkárna</a></li>
+          <li><a href="#use-cases" style="color: var(--color-text)">Gastro velkoobchod</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-neutral-600)">Společnost</h4>
+        <ul style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px; font-size: 15px">
+          <li><a href="#contact" style="color: var(--color-text)">Kontakt</a></li>
+          <li><a href="mailto:info@appek.cz" style="color: var(--color-text)">E-mail</a></li>
+          <li><a href="mailto:support@appek.cz" style="color: var(--color-text)">Support</a></li>
+        </ul>
+      </div>
+    </div>
+    <div style="display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-top: 36px; padding-top: 18px; border-top: 2px solid var(--color-divider); font-size: 13px; color: var(--color-neutral-600)">
+      <span>© 2026 APPEK B2B. Všechna práva vyhrazena.</span>
+      <span><a href="/zasady-ochrany-soukromi.html">GDPR / Soukromí</a> · <a href="/obchodni-podminky.html">Obchodní podmínky</a></span>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  // ── Pricing configurator (přeloženo z Component.renderVals) ──
+  var CORE = { buy: 9990, rent: 990 };
+  var PKGS = [
+    { key: "cukrarna",   name: "Cukrárna",     body: "Konfigurátor dortů, cukrářské receptury, ceník per dort, svatební objednávky.", buy: 2990, rent: 290 },
+    { key: "lahudky",    name: "Lahůdky",      body: "Gramáže pro krabičkování, log studeného řetězce, alergenová matice.", buy: 2490, rent: 250 },
+    { key: "restaurace", name: "Restaurace",   body: "Rezervace stolů, kuchyňský displej (KDS), napojení POS, analýza ziskovosti menu.", buy: 3490, rent: 350 },
+    { key: "catering",   name: "Catering",     body: "Event planner, banketové sety a cenové úrovně, přepočet porcí na hosty.", buy: 2990, rent: 290 },
+    { key: "sezona",     name: "Sezónní akce", body: "Pop-up trhy a akce, sezónní cenové úrovně, vánoční a velikonoční objednávky.", buy: 1990, rent: 190 }
+  ];
+  var mode = "buy";
+  var on = {};
+
+  function fmt(n) { return n.toLocaleString("cs-CZ") + " Kč"; }
+  function pkgLabel(p) { return mode === "rent" ? "+ " + fmt(p.rent) + " / měs." : "+ " + fmt(p.buy); }
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+  function renderRows() {
+    var html = PKGS.map(function (p) {
+      return '<label class="price-row" id="pkg-' + p.key + '" style="display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 18px 0; border-bottom: 2px solid var(--color-divider); cursor: pointer">'
+        + '<div><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 700">' + esc(p.name) + '</div>'
+        + '<div style="font-size: 14px; color: var(--color-neutral-700); margin-top: 4px">' + esc(p.body) + '</div></div>'
+        + '<div data-price style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 800; white-space: nowrap">' + pkgLabel(p) + '</div>'
+        + '<input type="checkbox" class="checkbox" data-pkg="' + p.key + '" ' + (on[p.key] ? "checked" : "") + '>'
+        + '</label>';
+    }).join("");
+    document.getElementById("pkg-rows").innerHTML = html;
+    document.querySelectorAll('#pkg-rows input[data-pkg]').forEach(function (cb) {
+      cb.addEventListener("change", function () { on[cb.getAttribute("data-pkg")] = cb.checked; render(); });
+    });
+  }
+
+  function render() {
+    var rent = mode === "rent";
+    var corePrice = rent ? fmt(CORE.rent) + " / měs." : fmt(CORE.buy);
+    document.querySelectorAll("[data-core-price]").forEach(function (e) { e.textContent = corePrice; });
+    var b = document.getElementById("seg-buy"), r = document.getElementById("seg-rent");
+    b.style.background = rent ? "transparent" : "var(--color-accent)"; b.style.color = rent ? "var(--color-text)" : "#fff";
+    r.style.background = rent ? "var(--color-accent)" : "transparent"; r.style.color = rent ? "#fff" : "var(--color-text)";
+    PKGS.forEach(function (p) {
+      var row = document.getElementById("pkg-" + p.key);
+      if (row) row.querySelector("[data-price]").textContent = pkgLabel(p);
+    });
+    var total = rent ? CORE.rent : CORE.buy;
+    var items = '<li style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 2px solid var(--color-divider); font-size: 15px"><span>Core</span><span style="font-weight: 700">' + corePrice + '</span></li>';
+    PKGS.forEach(function (p) {
+      if (on[p.key]) {
+        total += rent ? p.rent : p.buy;
+        items += '<li style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 2px solid var(--color-divider); font-size: 15px"><span>' + esc(p.name) + '</span><span style="font-weight: 700">' + pkgLabel(p) + '</span></li>';
+      }
+    });
+    document.getElementById("summary-list").innerHTML = items;
+    document.getElementById("total").textContent = rent ? fmt(total) + " / měs." : fmt(total);
+    document.getElementById("total-note").textContent = rent ? "Pronájem, platba měsíčně — zrušíte kdykoli." : "Jednorázově. Updaty zdarma první rok.";
+  }
+
+  window.setMode = function (m) { mode = m; render(); };
+  renderRows();
+  render();
+
+  // ── Funnel tracking (view + CTA clicks) — pošli variantu vendoru ──
+  var V = "modernist";
+  function track(ev, cta) {
+    try {
+      var u = "/lp/track.php?e=" + encodeURIComponent(ev) + "&v=" + V + (cta ? "&cta=" + encodeURIComponent(cta) : "");
+      if (navigator.sendBeacon) navigator.sendBeacon(u); else new Image().src = u;
+    } catch (e) {}
+  }
+  track("view");
+  document.querySelectorAll("[data-cta]").forEach(function (el) {
+    el.addEventListener("click", function () {
+      var c = el.getAttribute("data-cta");
+      track(c === "order" ? "checkout_click" : "demo_click", c);
+    });
+  });
+})();
+</script>
+</body>
+</html>

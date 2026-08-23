@@ -286,6 +286,8 @@ zip -r "$CUSTOMER_OUT" . \
   -x "updates/*" \
   -x "index.html" \
   -x "checkout.html" \
+  -x "landing.php" \
+  -x "lp/*" \
   -x "sitemap.xml" \
   -x "download.php" \
   -x "docs/*" \

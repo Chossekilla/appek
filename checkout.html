@@ -1066,6 +1066,8 @@ async function submitOrder() {
     currency: 'CZK',
     payment_method: payMethod === 'invoice' ? 'bank' : payMethod,
     locale: lang,
+    // 🆕 A/B: ze které varianty landingu přišel (?lp=modernist) — pro měření konverze per vzhled
+    landing_variant: (new URLSearchParams(location.search).get('lp') || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 32) || null,
   };
 
   const btn = document.getElementById('btn-buy');
