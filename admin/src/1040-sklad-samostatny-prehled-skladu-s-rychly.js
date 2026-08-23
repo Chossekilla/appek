@@ -628,24 +628,28 @@ async function renderSuroviny() {
   };
 
   // Mobilní karta
+  // 🆕 mobil: 3-sloupcový tile grid — ikona (kategorie) + skladem nahoře, název dole (2 řádky, uniformní výška)
+  const _katIkona = (s) => { const k = (typeof SUROVINA_KATEGORIE !== 'undefined') && SUROVINA_KATEGORIE.find(x => x.key === s._kat); return k ? k.icon : '📦'; };
+  const _skladShort = (s) => {
+    const akt = parseFloat(s.stock_aktualni) || 0;
+    if (akt <= 0) return '—';
+    const t = akt.toFixed(akt >= 100 ? 0 : 1).replace(/\.?0+$/, '').replace('.', ',');
+    return t + ' ' + esc(s.jednotka || 'g');
+  };
+  const _podMin = (s) => { const min = parseFloat(s.stock_minimalni); const akt = parseFloat(s.stock_aktualni) || 0; return !isNaN(min) && akt <= min; };
   const kartaMobile = (s) => `
-    <div class="card-block" style="padding:14px 16px;margin-bottom:10px;${!s.aktivni ? 'opacity:0.5' : ''}" onclick="editSurovina(${s.id})">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:16px;line-height:1.3">${esc(s.nazev)}</div>
-          <div style="font-size:13px;color:var(--text-3);margin-top:3px">${esc(s.jednotka || 'g')}${s.alergen ? ' · ⚠ ' + esc(s.alergen) : ''}</div>
-        </div>
-        <div style="text-align:right;font-size:13px;color:var(--text-3);white-space:nowrap">
-          <strong style="font-size:15px;color:var(--text-2)">${s.pocet_vyrobku || 0}×</strong><br>
-          ${s.aktivni ? '<span style="color:var(--success-text);font-weight:600">✓ Aktivní</span>' : '<span>○ Skrytá</span>'}
-        </div>
-      </div>
-    </div>
+    <button type="button" class="sur-tile" onclick="editSurovina(${s.id})" ${!s.aktivni ? 'style="opacity:.5"' : ''}>
+      <span class="sur-tile-top">
+        <span class="sur-tile-ico">${_katIkona(s)}</span>
+        <span class="sur-tile-num${_podMin(s) ? ' low' : ''}">${_skladShort(s)}</span>
+      </span>
+      <span class="sur-tile-name">${esc(s.nazev)}</span>
+    </button>
   `;
 
   const seznamMobile = () => {
     if (filtered.length === 0) return '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
-    if (!groupBy || kat !== 'vse') return surPageItems.map(kartaMobile).join('');
+    if (!groupBy || kat !== 'vse') return `<div class="sur-grid">${surPageItems.map(kartaMobile).join('')}</div>`;
     return SUROVINA_KATEGORIE.map(k => {
       const items = skupiny[k.key];
       if (items.length === 0) return '';
@@ -655,7 +659,7 @@ async function renderSuroviny() {
           <span>${k.label}</span>
           <span style="font-size:12px;font-weight:600;color:var(--text-3);background:var(--surface-2);padding:2px 10px;border-radius:10px">${items.length}</span>
         </h3>
-        ${items.map(kartaMobile).join('')}
+        <div class="sur-grid">${items.map(kartaMobile).join('')}</div>
       `;
     }).join('');
   };
@@ -805,6 +809,19 @@ async function renderSuroviny() {
 
     <!-- Mobile -->
     <div class="mobile-only-block">
+      <style>
+        .sur-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:0 0 12px; }
+        .sur-tile { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px 11px;
+          background:var(--surface); border:1px solid var(--border); border-radius:12px; cursor:pointer; text-align:center; font:inherit; color:inherit; }
+        .sur-tile:active { background:var(--surface-2); }
+        .sur-tile-top { display:flex; align-items:center; justify-content:center; gap:5px; min-height:24px; }
+        .sur-tile-ico { font-size:20px; line-height:1; }
+        .sur-tile-num { font-size:12.5px; font-weight:700; color:var(--text-2); white-space:nowrap; }
+        .sur-tile-num.low { color:var(--danger-text); }
+        .sur-tile-name { font-size:12px; line-height:1.25; font-weight:600; color:var(--text-1);
+          display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+          min-height:2.5em; word-break:break-word; hyphens:auto; }
+      </style>
       ${seznamMobile()}
     </div>
 
