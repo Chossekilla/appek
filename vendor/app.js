@@ -157,7 +157,7 @@ function renderTable(rows) {
     return;
   }
   tbody.innerHTML = rows.map(r => `
-    <tr data-id="${r.id}">
+    <tr data-id="${r.id}" id="lic-${r.id}">
       <td>${statusBadge(r.status, r.days_to_expiry)}${r.lock_state === 'locked' ? ` <span class="status-pill st-revoked" title="🔒 Anti-piracy lock — fingerprint instalace nesedí (reinstal/migrace serveru NEBO reuse klíče). Pokud legit, odemkni 🔓.">🔒 Locked</span>` : ''}</td>
       <td><code class="lic-key" onclick="copyKey('${esc(r.license_key)}')" title="Klik = kopírovat">${esc(r.license_key)}</code></td>
       <td>
@@ -184,6 +184,12 @@ function renderTable(rows) {
       </td>
     </tr>
   `).join('');
+
+  // 🆕 proklik z objednávky (shop.php „Otevřít licenci"): #lic-<id> → doscrolluj + zvýrazni řádek
+  if (location.hash && /^#lic-\d+$/.test(location.hash)) {
+    const el = document.getElementById(location.hash.slice(1));
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('lic-hl'); setTimeout(() => el.classList.remove('lic-hl'), 2800); }
+  }
 }
 
 // 🎁 Reissue klíče s jinými balíčky (zachová random část, customer info)
@@ -410,6 +416,16 @@ function openEditModal(id) {
         <label><span class="lbl">Expirace</span><input type="date" name="expires_at" value="${esc(r.expires_at ?? '')}"></label>
         <label><span class="lbl">Cena (Kč)</span><input type="number" name="price_kc" min="0" step="100" value="${esc(r.price_kc ?? '')}"></label>
       </div>
+      <div class="lic-presets" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 8px">
+        <span style="font-size:11px;color:#86868b">⏱️ Prodloužit:</span>
+        <button type="button" class="btn-preset" onclick="licPreset('d14')">+14 dní</button>
+        <button type="button" class="btn-preset" onclick="licPreset('m1')">+1 měsíc</button>
+        <button type="button" class="btn-preset" onclick="licPreset('m3')">+3 měsíce</button>
+        <button type="button" class="btn-preset" onclick="licPreset('m6')">+6 měsíců</button>
+        <button type="button" class="btn-preset" onclick="licPreset('y1')">+1 rok</button>
+        <button type="button" class="btn-preset" onclick="licPreset('clear')">∞ bez expirace</button>
+      </div>
+      <div style="font-size:11px;color:#86868b;margin:0 0 10px;line-height:1.4">💡 Změna platnosti jde na <strong>stejný klíč</strong> — zákazník nic nevkládá, projeví se do pár minut (heartbeat). Balíčky měň přes 🎁 (vygeneruje nový klíč se stejnou identitou).</div>
       <label><span class="lbl">Poznámka</span><textarea name="note" rows="2">${esc(r.note ?? '')}</textarea></label>
       <label class="checkbox-row"><input type="checkbox" name="paid" ${r.paid == 1 ? 'checked' : ''}><span>💰 Zaplaceno</span></label>
       <label class="checkbox-row"><input type="checkbox" name="rental" ${r.rental == 1 ? 'checked' : ''}><span>🗓️ Pronájem (my.appek.cz) — po vypršení + grace zamkne CELOU appku</span></label>
@@ -434,6 +450,28 @@ async function submitEdit(id) {
     loadStats(); loadLicenses();
   } catch (e) { alert('Chyba: ' + e.message); }
 }
+
+// 🆕 Rychlé prodloužení expirace v edit modalu — přičte k max(dnes, současná expirace) = skutečné prodloužení.
+//   'clear' = ∞ (bez expirace). Datum se skládá lokálně (ne toISOString/UTC, ať nepřeskočí den).
+window.licPreset = function(kind) {
+  const inp = document.querySelector('#edit-form input[name="expires_at"]');
+  if (!inp) return;
+  if (kind === 'clear') { inp.value = ''; return; }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  let base = today;
+  if (inp.value) { const cur = new Date(inp.value + 'T00:00:00'); if (!isNaN(cur) && cur > today) base = cur; }
+  const d = new Date(base);
+  switch (kind) {
+    case 'd14': d.setDate(d.getDate() + 14); break;
+    case 'm1':  d.setMonth(d.getMonth() + 1); break;
+    case 'm3':  d.setMonth(d.getMonth() + 3); break;
+    case 'm6':  d.setMonth(d.getMonth() + 6); break;
+    case 'y1':  d.setFullYear(d.getFullYear() + 1); break;
+    default: return;
+  }
+  const pad = n => String(n).padStart(2, '0');
+  inp.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+};
 
 // ═══════════════════════════════════════════════════════
 // REVOKE

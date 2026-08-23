@@ -34,6 +34,11 @@ $currentPage = 'licenses';
   .lic-table th { background: #fafafa; font-weight: 700; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.4px; font-size: 11px; }
   .lic-table .loading { text-align: center; color: #86868b; padding: 40px; }
   .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .btn-preset { padding: 5px 10px; border: 1px solid #d2d2d7; background: #fff; border-radius: 8px; font-size: 12px; font-weight: 600; color: #1d1d1f; cursor: pointer; font-family: inherit; transition: background .12s, border-color .12s; }
+  .btn-preset:hover { background: #f0f7ff; border-color: #0a84ff66; }
+  .btn-preset:active { transform: scale(.96); }
+  .lic-hl { animation: licHl 2.8s ease; }
+  @keyframes licHl { 0%, 55% { background: #fff7d6; } 100% { background: transparent; } }
 </style>
 </head>
 <body>
@@ -101,7 +106,7 @@ $currentPage = 'licenses';
 </div>
 
 <script src="i18n.js?v=1.0"></script>
-<script src="app.js?v=1.5"></script>
+<script src="app.js?v=1.6"></script>
 
 <?php vendor_render_footer(); ?>
 </body>

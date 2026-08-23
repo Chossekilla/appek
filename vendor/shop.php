@@ -321,7 +321,7 @@ if ($detailId > 0) {
           </form>
         <?php endif; ?>
         <?php if ($detail['license_id']): ?>
-          <a href="index.php#lic-<?= (int) $detail['license_id'] ?>" class="btn-master secondary">→ Otevřít licenci v Licencích</a>
+          <a href="licenses.php#lic-<?= (int) $detail['license_id'] ?>" class="btn-master secondary">→ Otevřít licenci v Licencích</a>
         <?php endif; ?>
       </div>
     </div>
