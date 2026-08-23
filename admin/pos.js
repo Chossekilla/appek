@@ -356,12 +356,28 @@
         <button class="pos-card" data-id="${v.id}" title="${esc(v.nazev)}">
           ${img}
           <div class="pos-card-badges">${b.join('')}</div>
+          <span class="pos-card-qty" data-qty-id="${v.id}"></span>
           <div class="pos-card-name">${esc(v.nazev)}</div>
           <div class="pos-card-price">${fmt(cena)} ${esc(CFG.currency || 'Kč')}</div>
         </button>`;
     }).join('');
     wrap.querySelectorAll('.pos-card').forEach(c => {
       c.onclick = () => addToCart(parseInt(c.dataset.id, 10));
+    });
+    updateCardQtys();
+  }
+
+  // 🆕 rohový badge kusů na dlaždici — kolik daného produktu je právě v košíku (jako počty u surovin/výrobků)
+  function updateCardQtys() {
+    const counts = {};
+    (State.cart || []).forEach(it => {
+      if (it.vyrobek_id != null) counts[it.vyrobek_id] = (counts[it.vyrobek_id] || 0) + it.mnozstvi;
+    });
+    document.querySelectorAll('.pos-card-qty').forEach(el => {
+      const id = parseInt(el.dataset.qtyId, 10);
+      const n = counts[id] || 0;
+      if (n > 0) { el.textContent = Number.isInteger(n) ? n : (+n.toFixed(2)); el.classList.add('on'); }
+      else { el.textContent = ''; el.classList.remove('on'); }
     });
   }
 
@@ -437,6 +453,7 @@
       });
     }
     recalc();
+    updateCardQtys();
   }
 
   function recalc() {

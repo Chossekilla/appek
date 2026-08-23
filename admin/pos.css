@@ -379,6 +379,28 @@ button { font-family: inherit; cursor: pointer; }
   gap: 3px;
   z-index: 1;
 }
+
+/* 🆕 rohový badge počtu kusů v košíku (vpravo nahoře) — jako počty u surovin/výrobků */
+.pos-card-qty {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--pos-primary, #BA7517);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.28);
+  z-index: 3;
+}
+.pos-card-qty.on { display: inline-flex; }
 .pos-badge {
   font-size: 11px;
   background: rgba(0,0,0,0.55);
@@ -1141,7 +1163,7 @@ html, body {
 }
 
 /* Cart panel — wider on big POS */
-.pos-main { grid-template-columns: 1fr 480px !important; }
+.pos-main { grid-template-columns: 1fr 520px !important; }
 
 /* Cart header */
 .pos-cart-head { padding: 14px 18px !important; }
@@ -1173,7 +1195,7 @@ html, body {
   padding: 14px 18px !important;
   gap: 14px !important;
   font-size: 16px !important;
-  grid-template-columns: 32px 1fr auto auto auto !important;
+  grid-template-columns: 1fr auto auto auto !important;
 }
 .pos-line-num { font-size: 14px !important; }
 .pos-line-name { font-size: 16px !important; max-width: 200px !important; }
@@ -1325,7 +1347,7 @@ html, body {
 
 /* ─── Tablet landscape (1024×768) ────────────────────────────── */
 @media (max-width: 1280px) and (min-width: 901px) {
-  .pos-main { grid-template-columns: 1fr 420px !important; }
+  .pos-main { grid-template-columns: 1fr 460px !important; }
   .pos-cat { min-width: 110px !important; width: 110px !important; height: 110px !important; }
   .pos-cat-icon { font-size: 38px !important; }
   .pos-grid {
