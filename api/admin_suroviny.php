@@ -106,6 +106,10 @@ function ensure_suroviny_tables(PDO $pdo): void {
     if (!in_array('ean', $cols, true)) {
         $pdo->exec("ALTER TABLE suroviny ADD COLUMN ean VARCHAR(13) DEFAULT NULL");
     }
+    // 📷 Fotka suroviny (jako u výrobku) → uploads/suroviny/
+    if (!in_array('obrazek_url', $cols, true)) {
+        $pdo->exec("ALTER TABLE suroviny ADD COLUMN obrazek_url VARCHAR(255) DEFAULT NULL");
+    }
     // 📋 Pohyby skladu — kompletní audit trail
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS sklad_pohyby (
@@ -230,6 +234,53 @@ function detekuj_alergeny_z_textu(string $text): string {
 // =============================================================
 // SEED - jednorázové naplnění
 // =============================================================
+// =============================================================
+// 📷 UPLOAD fotky suroviny — re-enkóduje přes GD (smaže EXIF/payload), uloží do uploads/suroviny/
+// =============================================================
+if ($method === 'POST' && $action === 'upload') {
+    if (empty($_FILES['obrazek'])) json_error('Chybí soubor');
+    $file = $_FILES['obrazek'];
+    if ($file['error'] !== UPLOAD_ERR_OK) json_error('Chyba uploadu (kód ' . $file['error'] . ')');
+    $allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    $mime = mime_content_type($file['tmp_name']);
+    if (!in_array($mime, $allowed)) json_error('Povolen je jen JPG, PNG nebo WEBP');
+    if ($file['size'] > 5 * 1024 * 1024) json_error('Soubor je větší než 5 MB');
+    $img = match($mime) {
+        'image/jpeg' => @imagecreatefromjpeg($file['tmp_name']),
+        'image/png'  => @imagecreatefrompng($file['tmp_name']),
+        'image/webp' => @imagecreatefromwebp($file['tmp_name']),
+    };
+    if (!$img) json_error('Nepodařilo se zpracovat obrázek');
+    $w = imagesx($img); $h = imagesy($img);
+    $max = 1200;
+    if ($w > $max || $h > $max) {
+        if ($w >= $h) { $nw = $max; $nh = (int) ($h * $max / $w); }
+        else          { $nh = $max; $nw = (int) ($w * $max / $h); }
+        $resized = imagecreatetruecolor($nw, $nh);
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        imagecopyresampled($resized, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
+        imagedestroy($img);
+        $img = $resized;
+    }
+    $upload_dir = __DIR__ . '/../uploads/suroviny';
+    if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+    $htaccess = $upload_dir . '/.htaccess';
+    if (!file_exists($htaccess)) {
+        file_put_contents($htaccess,
+            "<FilesMatch \"\\.(php|php3|php4|php5|phtml|phar)$\">\n"
+          . "    Require all denied\n"
+          . "</FilesMatch>\n");
+    }
+    $ext = ($mime === 'image/png') ? 'png' : 'jpg';
+    $filename = 'surovina_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+    $target = $upload_dir . '/' . $filename;
+    $ok = ($ext === 'png') ? imagepng($img, $target, 6) : imagejpeg($img, $target, 85);
+    imagedestroy($img);
+    if (!$ok) json_error('Nepodařilo se uložit soubor');
+    json_response(['url' => '/uploads/suroviny/' . $filename, 'filename' => $filename]);
+}
+
 if ($action === 'seed' && $method === 'POST') {
     $existuje = (int) $pdo->query("SELECT COUNT(*) FROM suroviny")->fetchColumn();
     if ($existuje > 0) {
@@ -906,11 +957,11 @@ if ($method === 'POST') {
             INSERT INTO suroviny (nazev, jednotka, alergen, cena_baleni, obsah_baleni, slozeni, slozeni_alergeny,
                 nutri_energie_kj, nutri_energie_kcal, nutri_tuky, nutri_tuky_nasycene, nutri_sacharidy, nutri_cukry, nutri_bilkoviny, nutri_sul,
                 stock_aktualni, stock_minimalni, stock_cilove,
-                poznamka, aktivni, ean)
+                poznamka, aktivni, ean, obrazek_url)
             VALUES (:n, :j, :a, :cb, :ob, :sl, :sla,
                 :nkj, :nkcal, :nt, :ntn, :nsa, :ncu, :nb, :nsl,
                 :sa, :sm, :sc,
-                :p, :ak, :e)
+                :p, :ak, :e, :obr)
         ");
         $stmt->execute(array_merge([
             'n'  => $nazev,
@@ -934,6 +985,7 @@ if ($method === 'POST') {
             'p'  => isset($d['poznamka']) && trim($d['poznamka']) !== '' ? trim($d['poznamka']) : null,
             'ak' => isset($d['aktivni']) ? (int) $d['aktivni'] : 1,
             'e'  => (isset($d['ean']) && preg_replace('/\D/', '', (string) $d['ean']) !== '') ? preg_replace('/\D/', '', (string) $d['ean']) : null,
+            'obr' => (isset($d['obrazek_url']) && trim((string) $d['obrazek_url']) !== '') ? trim((string) $d['obrazek_url']) : null,
         ]));
         $newId = (int) $pdo->lastInsertId();
         // 🆕 v3.0.168 — nová surovina rovnou do systému B (domovský sklad = default)
@@ -991,6 +1043,7 @@ if ($method === 'PUT') {
     if (array_key_exists('poznamka', $d))        $addCol('poznamka', trim((string) $d['poznamka']) !== '' ? trim($d['poznamka']) : null);
     if (array_key_exists('aktivni', $d))         $addCol('aktivni', (int) $d['aktivni']);
     if (array_key_exists('ean', $d))             $addCol('ean', preg_replace('/\D/', '', (string) ($d['ean'] ?? '')) !== '' ? preg_replace('/\D/', '', (string) $d['ean']) : null);
+    if (array_key_exists('obrazek_url', $d))     $addCol('obrazek_url', trim((string) ($d['obrazek_url'] ?? '')) !== '' ? trim((string) $d['obrazek_url']) : null);
     if (!empty($d['domovsky_sklad_id']))         $addCol('domovsky_sklad_id', (int) $d['domovsky_sklad_id']);
 
     if (empty($sets)) json_response(['ok' => true, 'nezmeneno' => true]);

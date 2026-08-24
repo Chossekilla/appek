@@ -640,7 +640,7 @@ async function renderSuroviny() {
   const kartaMobile = (s) => `
     <button type="button" class="sur-tile" onclick="editSurovina(${s.id})" ${!s.aktivni ? 'style="opacity:.5"' : ''}>
       <span class="sur-tile-top">
-        <span class="sur-tile-ico">${_katIkona(s)}</span>
+        ${s.obrazek_url ? `<img class="sur-tile-img" src="${esc(s.obrazek_url)}" alt="" loading="lazy">` : `<span class="sur-tile-ico">${_katIkona(s)}</span>`}
         <span class="sur-tile-num${_podMin(s) ? ' low' : ''}">${_skladShort(s)}</span>
       </span>
       <span class="sur-tile-name">${esc(s.nazev)}</span>
@@ -816,6 +816,7 @@ async function renderSuroviny() {
         .sur-tile:active { background:var(--surface-2); }
         .sur-tile-top { display:flex; align-items:center; justify-content:center; gap:5px; min-height:24px; }
         .sur-tile-ico { font-size:20px; line-height:1; }
+        .sur-tile-img { width:26px; height:26px; border-radius:6px; object-fit:cover; display:block; flex:0 0 auto; }
         .sur-tile-num { font-size:12.5px; font-weight:700; color:var(--text-2); white-space:nowrap; }
         .sur-tile-num.low { color:var(--danger-text); }
         .sur-tile-name { font-size:12px; line-height:1.25; font-weight:600; color:var(--text-1);

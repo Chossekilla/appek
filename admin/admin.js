@@ -33937,7 +33937,7 @@ async function renderSuroviny() {
   const kartaMobile = (s) => `
     <button type="button" class="sur-tile" onclick="editSurovina(${s.id})" ${!s.aktivni ? 'style="opacity:.5"' : ''}>
       <span class="sur-tile-top">
-        <span class="sur-tile-ico">${_katIkona(s)}</span>
+        ${s.obrazek_url ? `<img class="sur-tile-img" src="${esc(s.obrazek_url)}" alt="" loading="lazy">` : `<span class="sur-tile-ico">${_katIkona(s)}</span>`}
         <span class="sur-tile-num${_podMin(s) ? ' low' : ''}">${_skladShort(s)}</span>
       </span>
       <span class="sur-tile-name">${esc(s.nazev)}</span>
@@ -34113,6 +34113,7 @@ async function renderSuroviny() {
         .sur-tile:active { background:var(--surface-2); }
         .sur-tile-top { display:flex; align-items:center; justify-content:center; gap:5px; min-height:24px; }
         .sur-tile-ico { font-size:20px; line-height:1; }
+        .sur-tile-img { width:26px; height:26px; border-radius:6px; object-fit:cover; display:block; flex:0 0 auto; }
         .sur-tile-num { font-size:12.5px; font-weight:700; color:var(--text-2); white-space:nowrap; }
         .sur-tile-num.low { color:var(--danger-text); }
         .sur-tile-name { font-size:12px; line-height:1.25; font-weight:600; color:var(--text-1);
@@ -35052,6 +35053,20 @@ window.editSurovina = async function(id = null) {
   openModal(id ? `Surovina: ${esc(s.nazev)}` : 'Nová surovina', `
     <div class="form-grid">
       <div class="full">
+        <div class="image-upload">
+          <div class="image-preview" id="sur-img-preview">
+            ${s.obrazek_url ? `<img src="${esc(s.obrazek_url)}">` : '<div class="image-preview-empty">📷</div>'}
+          </div>
+          <div class="image-upload-controls">
+            <label class="form-label" style="margin-bottom:2px">Fotka suroviny <span style="color:var(--text-3);font-weight:400;font-size:12px">(volitelné)</span></label>
+            <input type="file" id="sur-img-file" accept="image/jpeg,image/png,image/webp" onchange="surUploadObrazek()">
+            <input type="hidden" id="sur-img-url" value="${esc(s.obrazek_url || '')}">
+            ${s.obrazek_url ? '<button type="button" class="btn-secondary" style="font-size:11px;padding:4px 10px;width:auto;align-self:flex-start;" onclick="surZrusitObrazek()">✕ Odebrat</button>' : ''}
+            <div class="image-upload-hint">JPG, PNG, WEBP · max 5 MB</div>
+          </div>
+        </div>
+      </div>
+      <div class="full">
         <label class="form-label">Název *</label>
         <input class="form-input" id="sur-nazev" value="${esc(s.nazev || '')}" placeholder="např. Mouka pšeničná hladká" required>
       </div>
@@ -35268,6 +35283,23 @@ window.surPrepocet = function() {
   box.innerHTML = `→ <strong>${cenaJed.toFixed(4).replace(/\.?0+$/, '').replace('.', ',')} Kč</strong> / ${esc(jed)}`;
 };
 
+// 🆕 Upload / odebrání fotky suroviny (jako u výrobku, vlastní IDs sur-img-*)
+window.surUploadObrazek = async function() {
+  const file = document.getElementById('sur-img-file')?.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('obrazek', file);
+  try {
+    const res = await api('admin_suroviny.php?action=upload', { method: 'POST', body: fd });
+    document.getElementById('sur-img-url').value = res.url;
+    document.getElementById('sur-img-preview').innerHTML = `<img src="${esc(res.url)}">`;
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+window.surZrusitObrazek = function() {
+  const u = document.getElementById('sur-img-url'); if (u) u.value = '';
+  const p = document.getElementById('sur-img-preview'); if (p) p.innerHTML = '<div class="image-preview-empty">📷</div>';
+};
+
 window.ulozitSurovinu = async function(id) {
   const numOrNull = (selektor) => {
     const v = document.getElementById(selektor)?.value;
@@ -35279,6 +35311,7 @@ window.ulozitSurovinu = async function(id) {
     jednotka: document.getElementById('sur-jed').value,
     alergen: document.getElementById('sur-aler').value.trim() || null,
     ean: (document.getElementById('sur-ean')?.value || '').replace(/\D/g, '') || null,
+    obrazek_url: document.getElementById('sur-img-url')?.value || null,
     cena_baleni: parseFloat(document.getElementById('sur-cena')?.value) || null,
     obsah_baleni: parseFloat(document.getElementById('sur-obsah')?.value) || null,
     slozeni: document.getElementById('sur-slozeni')?.value.trim() || null,
