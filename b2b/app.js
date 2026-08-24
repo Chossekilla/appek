@@ -2090,6 +2090,7 @@ function renderCheckout() {
         ` : ''}
         <!-- 🆕 v3.0.276 — doprava / poplatek / práh „zdarma" (živě dle vybrané metody, plní updateSurchargeDisplay) -->
         <div id="b2b-surcharge-rows"></div>
+        <div class="cart-summary-row checkout-total-ks"><span>📦 Kusů celkem</span><span>${cartCount()} ks</span></div>
         <div class="cart-summary-row total"><span>Celkem s DPH</span><span id="b2b-grand-total">${fmt(t.total)}</span></div>
       </div>
     </div>

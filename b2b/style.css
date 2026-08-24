@@ -4776,12 +4776,38 @@ body.cart-sheet-open #b2b-cart-sheet .ccb-panel { transform: translateY(0); }
   font-size: 20px; line-height: 1; cursor: pointer; color: var(--text-3);
 }
 
-/* 🖥️ Desktop (≥901px): sheet užší a na střed (ne full-width slab); lišta zůstává přes celou šířku */
+/* 🧹 v3.0.497 — přehlednější košík v sheetu (mobil i desktop drawer): míň šumu na řádek */
+#b2b-cart-sheet .cart-item-saved { display: none; }        /* per-item rabat pryč — celková sleva je v souhrnu dole */
+#b2b-cart-sheet .cart-item { padding: 9px 2px; }
+#b2b-cart-sheet .cart-item-unit { color: var(--text-3); font-size: 11.5px; }
+#b2b-cart-sheet .cart-item-price { font-size: 15px; }
+#b2b-cart-sheet .qty-chips { opacity: 0.9; }
+
+/* 🖥️ v3.0.497 — Desktop (≥901px): sheet = PRAVÝ drawer (plná výška, vyjede zprava), ne na střed */
 @media (min-width: 901px) {
   #b2b-cart-sheet .ccb-panel {
-    left: 50%; right: auto;
-    width: min(720px, 94vw);
-    transform: translate(-50%, 101%);
+    left: auto; right: 0; top: 0; bottom: 0;
+    width: min(460px, 94vw);
+    height: 100%; max-height: none;
+    border-radius: 16px 0 0 16px;
+    padding: 6px 18px 24px;
+    transform: translateX(101%);
+    box-shadow: -12px 0 34px rgba(0, 0, 0, 0.24);
   }
-  body.cart-sheet-open #b2b-cart-sheet .ccb-panel { transform: translate(-50%, 0); }
+  body.cart-sheet-open #b2b-cart-sheet .ccb-panel { transform: translateX(0); }
+  /* drawer = expandovaný stav → spodní lišta (collapsed) se schová, ať se nepřekrývají */
+  body.cart-sheet-open #b2b-cart-bar { display: none; }
 }
+
+/* 📦 v3.0.497 — výrazné pole „Kusů celkem" v souhrnu objednávky (vedle celkové ceny) */
+.checkout-total-ks {
+  font-weight: 800 !important;
+  color: var(--primary-dark);
+  background: var(--primary-light);
+  border: 1px solid var(--primary-border);
+  border-radius: 10px;
+  padding: 10px 14px !important;
+  margin: 6px 0;
+  font-size: 15px;
+}
+.checkout-total-ks span:last-child { font-size: 17px; }
