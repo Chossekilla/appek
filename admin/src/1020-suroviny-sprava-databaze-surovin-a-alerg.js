@@ -53,6 +53,10 @@ setTimeout(() => loadSurovinaKategorie(), 200);
 // Cache pro kategorizace (klíč = id, hodnota = key kategorie)
 const _katCache = new Map();
 function kategoriziujSurovinu(s) {
+  // 📂 v3.0.499 — ruční kategorie (z modalu) přebíjí auto-zařazení dle názvu, pokud je platný klíč
+  if (s.kategorie_rucni && (typeof SUROVINA_KATEGORIE === 'undefined' || SUROVINA_KATEGORIE.some(k => k.key === s.kategorie_rucni))) {
+    return s.kategorie_rucni;
+  }
   const cacheKey = s.id || s.nazev;
   if (_katCache.has(cacheKey)) return _katCache.get(cacheKey);
   const text = ((s.nazev || '') + ' ' + (s.slozeni || '')).toLowerCase();

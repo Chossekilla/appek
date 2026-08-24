@@ -110,6 +110,10 @@ function ensure_suroviny_tables(PDO $pdo): void {
     if (!in_array('obrazek_url', $cols, true)) {
         $pdo->exec("ALTER TABLE suroviny ADD COLUMN obrazek_url VARCHAR(255) DEFAULT NULL");
     }
+    // 📂 v3.0.499 — ruční kategorie suroviny (přepíše auto-zařazení dle názvu); NULL = auto
+    if (!in_array('kategorie_rucni', $cols, true)) {
+        $pdo->exec("ALTER TABLE suroviny ADD COLUMN kategorie_rucni VARCHAR(40) DEFAULT NULL");
+    }
     // 📋 Pohyby skladu — kompletní audit trail
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS sklad_pohyby (
@@ -895,7 +899,7 @@ if ($method === 'GET') {
     //   zátěžovým testem). Vracíme je zpět + stock_aktualni počítáme ŽIVĚ ze sklad_polozky
     //   (zdroj pravdy, vč. mínusů) s fallbackem na cache sloupec.
     $sql = "
-        SELECT s.id, s.nazev, s.jednotka, s.ean, s.obrazek_url, s.alergen, s.cena_baleni, s.obsah_baleni,
+        SELECT s.id, s.nazev, s.jednotka, s.ean, s.obrazek_url, s.kategorie_rucni, s.alergen, s.cena_baleni, s.obsah_baleni,
                s.slozeni, s.slozeni_alergeny, s.poznamka, s.aktivni, s.created_at,
                s.nutri_energie_kj, s.nutri_energie_kcal, s.nutri_tuky, s.nutri_tuky_nasycene,
                s.nutri_sacharidy, s.nutri_cukry, s.nutri_bilkoviny, s.nutri_sul,
@@ -957,11 +961,11 @@ if ($method === 'POST') {
             INSERT INTO suroviny (nazev, jednotka, alergen, cena_baleni, obsah_baleni, slozeni, slozeni_alergeny,
                 nutri_energie_kj, nutri_energie_kcal, nutri_tuky, nutri_tuky_nasycene, nutri_sacharidy, nutri_cukry, nutri_bilkoviny, nutri_sul,
                 stock_aktualni, stock_minimalni, stock_cilove,
-                poznamka, aktivni, ean, obrazek_url)
+                poznamka, aktivni, ean, obrazek_url, kategorie_rucni)
             VALUES (:n, :j, :a, :cb, :ob, :sl, :sla,
                 :nkj, :nkcal, :nt, :ntn, :nsa, :ncu, :nb, :nsl,
                 :sa, :sm, :sc,
-                :p, :ak, :e, :obr)
+                :p, :ak, :e, :obr, :kr)
         ");
         $stmt->execute(array_merge([
             'n'  => $nazev,
@@ -986,6 +990,7 @@ if ($method === 'POST') {
             'ak' => isset($d['aktivni']) ? (int) $d['aktivni'] : 1,
             'e'  => (isset($d['ean']) && preg_replace('/\D/', '', (string) $d['ean']) !== '') ? preg_replace('/\D/', '', (string) $d['ean']) : null,
             'obr' => (isset($d['obrazek_url']) && trim((string) $d['obrazek_url']) !== '') ? trim((string) $d['obrazek_url']) : null,
+            'kr' => (isset($d['kategorie_rucni']) && trim((string) $d['kategorie_rucni']) !== '') ? trim((string) $d['kategorie_rucni']) : null,
         ]));
         $newId = (int) $pdo->lastInsertId();
         // 🆕 v3.0.168 — nová surovina rovnou do systému B (domovský sklad = default)
@@ -1044,6 +1049,7 @@ if ($method === 'PUT') {
     if (array_key_exists('aktivni', $d))         $addCol('aktivni', (int) $d['aktivni']);
     if (array_key_exists('ean', $d))             $addCol('ean', preg_replace('/\D/', '', (string) ($d['ean'] ?? '')) !== '' ? preg_replace('/\D/', '', (string) $d['ean']) : null);
     if (array_key_exists('obrazek_url', $d))     $addCol('obrazek_url', trim((string) ($d['obrazek_url'] ?? '')) !== '' ? trim((string) $d['obrazek_url']) : null);
+    if (array_key_exists('kategorie_rucni', $d)) $addCol('kategorie_rucni', trim((string) ($d['kategorie_rucni'] ?? '')) !== '' ? trim((string) $d['kategorie_rucni']) : null);
     if (!empty($d['domovsky_sklad_id']))         $addCol('domovsky_sklad_id', (int) $d['domovsky_sklad_id']);
 
     if (empty($sets)) json_response(['ok' => true, 'nezmeneno' => true]);

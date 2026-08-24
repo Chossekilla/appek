@@ -327,6 +327,13 @@ window.editSurovina = async function(id = null) {
         </select>
       </div>
       <div>
+        <label class="form-label">📂 Kategorie <span style="color:var(--text-3);font-weight:400;font-size:12px">(řazení v seznamu)</span></label>
+        <select class="form-select" id="sur-kategorie">
+          <option value="">🔤 Automaticky (dle názvu)</option>
+          ${(typeof SUROVINA_KATEGORIE !== 'undefined' ? SUROVINA_KATEGORIE : []).map(k => `<option value="${k.key}" ${s.kategorie_rucni === k.key ? 'selected' : ''}>${k.icon} ${esc(k.label || k.key)}</option>`).join('')}
+        </select>
+      </div>
+      <div>
         <label class="form-label">Alergen <span style="color:var(--text-3);font-weight:400;font-size:12px">(volitelné)</span></label>
         <input class="form-input" id="sur-aler" value="${esc(s.alergen || '')}" placeholder="lepek, mléko, vejce…">
       </div>
@@ -560,6 +567,7 @@ window.ulozitSurovinu = async function(id) {
     alergen: document.getElementById('sur-aler').value.trim() || null,
     ean: (document.getElementById('sur-ean')?.value || '').replace(/\D/g, '') || null,
     obrazek_url: document.getElementById('sur-img-url')?.value || null,
+    kategorie_rucni: document.getElementById('sur-kategorie')?.value || null,
     cena_baleni: parseFloat(document.getElementById('sur-cena')?.value) || null,
     obsah_baleni: parseFloat(document.getElementById('sur-obsah')?.value) || null,
     slozeni: document.getElementById('sur-slozeni')?.value.trim() || null,
