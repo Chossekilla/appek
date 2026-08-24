@@ -658,8 +658,8 @@ async function renderDashboard(filters = {}) {
       </div>
     </div>
 
-    <!-- 2) Výroba na zítra + Rozvozové trasy (vedle sebe) -->
-    <div class="dashboard-row" style="grid-template-columns: 2fr 1fr">
+    <!-- 2) Výroba na zítra + Poznámky (nástěnka) + Rozvozové trasy (3 boxy vedle sebe) -->
+    <div class="dashboard-row dashboard-row-vpt" style="grid-template-columns: 1.6fr 1.2fr 1fr">
       <div class="card-block">
         <h3>🥖 Výroba na zítra</h3>
         ${d.vyroba_zitra.length === 0 ? '<div class="empty-state">Žádné objednávky na zítra</div>' : `
@@ -676,6 +676,16 @@ async function renderDashboard(filters = {}) {
             </tbody>
           </table>
         `}
+      </div>
+
+      <!-- 📌 v3.0.498 — Nástěnka poznámek: interní vzkazy mezi uživateli (sdílené, viditelné všem) -->
+      <div class="card-block dash-notes-box">
+        <h3>📌 Poznámky <span class="dash-notes-hint">interní vzkazy pro tým</span></h3>
+        <div class="dash-notes-add">
+          <input id="dash-note-input" type="text" maxlength="1000" placeholder="Napiš vzkaz kolegům…" onkeydown="if(event.key==='Enter'){event.preventDefault();dashNotesAdd();}">
+          <button type="button" onclick="dashNotesAdd()" title="Přidat vzkaz na nástěnku">Přidat</button>
+        </div>
+        <div id="dash-notes-list" class="dash-notes-list"><div class="dash-notes-empty">Načítám…</div></div>
       </div>
 
       <!-- 🛣️ Rozvozové trasy — quick access dlaždice -->
@@ -759,6 +769,8 @@ async function renderDashboard(filters = {}) {
   setTimeout(dashHealthBanner, 80);
   // 🍰 v3.0.406 — proužek aktivních/nadcházejících sezón
   setTimeout(dashSeasonalStrip, 100);
+  // 📌 v3.0.498 — nástěnka poznámek (fetch + render do karty)
+  setTimeout(renderDashNotes, 60);
 
   // 🗑️ v3.0.1 — Provoz widget přesunut do Restaurace tab "Provoz".
   // Cleanup timer pro případ že byl spuštěn na jiné stránce.
@@ -769,6 +781,62 @@ async function renderDashboard(filters = {}) {
 }
 
 // 🐛 v3.0.406 — Health monitor banner (dřív mrtvý inline <script> v template).
+// 📌 v3.0.498 — NÁSTĚNKA POZNÁMEK (interní vzkazy mezi uživateli, sdílené celému týmu)
+async function renderDashNotes() {
+  const list = document.getElementById('dash-notes-list');
+  if (!list) return; // nejsme na dashboardu
+  try {
+    const r = await api('admin_dash_notes.php');
+    const notes = (r && r.poznamky) || [];
+    if (notes.length === 0) {
+      list.innerHTML = '<div class="dash-notes-empty">Zatím žádné vzkazy. Napiš první ↑</div>';
+      return;
+    }
+    list.innerHTML = notes.map((n) => {
+      const t = new Date(String(n.created_at || '').replace(' ', 'T'));
+      const kdy = isNaN(t) ? '' : t.toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="dash-note">
+          <div class="dash-note-body">${esc(n.text)}</div>
+          <div class="dash-note-meta">
+            <span class="dash-note-autor">${esc(n.autor || 'Admin')}</span>
+            <span class="dash-note-kdy">${kdy}</span>
+            <button class="dash-note-del" onclick="dashNotesDelete(${n.id})" title="Smazat vzkaz" aria-label="Smazat vzkaz">✕</button>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = '<div class="dash-notes-empty">Nepodařilo se načíst poznámky.</div>';
+  }
+}
+
+window.dashNotesAdd = async function() {
+  const inp = document.getElementById('dash-note-input');
+  if (!inp) return;
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.disabled = true;
+  try {
+    await api('admin_dash_notes.php', { method: 'POST', body: JSON.stringify({ action: 'add', text }) });
+    inp.value = '';
+    await renderDashNotes();
+  } catch (e) {
+    if (typeof toast === 'function') toast('Nepodařilo se přidat vzkaz: ' + (e.message || ''), 'error');
+  } finally {
+    inp.disabled = false;
+    inp.focus();
+  }
+};
+
+window.dashNotesDelete = async function(id) {
+  try {
+    await api('admin_dash_notes.php', { method: 'POST', body: JSON.stringify({ action: 'delete', id }) });
+    await renderDashNotes();
+  } catch (e) {
+    if (typeof toast === 'function') toast('Nepodařilo se smazat vzkaz', 'error');
+  }
+};
+
 async function dashHealthBanner() {
   try {
     const r = await api('admin_health_monitor.php');
