@@ -831,6 +831,13 @@ function renderCart() {
   // 🛒 v3.0.495 — sticky spodní košík (mobil/tablet), nezávislý na .layout gridu
   renderStickyCart();
 
+  // 🛒 v3.0.496 — sticky košík zapnutý = JEDINÝ košík na CELÉM B2B (i desktop):
+  //   boční #cart-panel skryjeme (.no-cart → katalog na plnou šířku), košík = bar + rozbalení.
+  if (!(window._ccFirma && window._ccFirma.b2b_sticky_cart === false)) {
+    layout.classList.add('no-cart');
+    return;
+  }
+
   // Na záložkách Historie / Přehled košík nezobrazuj — layout = jeden sloupec
   if (state.currentTab === 'history' || state.currentTab === 'stats' || state.currentTab === 'checkout') {
     layout.classList.add('no-cart');
