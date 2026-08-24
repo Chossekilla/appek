@@ -64,7 +64,10 @@ jobs:
         #
         # Trvalá oprava: user → GitHub Settings → Secrets → rotuj DEPLOY_TOKEN aby
         # odpovídal DEPLOY_TOKEN v vendor/config.local.php na appek.cz.
-        continue-on-error: true
+        #
+        # 🆕 v3.0.496 — continue-on-error ODSTRANĚN: vendor publish JE kritický (demo i
+        #   zákazníci táhnou podepsaný bundle z vendor_updates). Když deploy/publish selže,
+        #   workflow teď ZČERVENÁ (zelená = fakt nasazeno) místo tichého průchodu.
         id: deploy
         run: |
           ZIP="appek-MASTER-v${{ steps.ver.outputs.version }}.zip"
@@ -86,11 +89,17 @@ jobs:
             LAST_BODY=$(echo "$RESP" | sed '$d')
             LAST_CODE=$(echo "$RESP" | tail -n1)
             echo "↪ Attempt $((i+1)): HTTP $LAST_CODE"
-            # Úspěch: 200 + status:ok
+            # Úspěch = 200 + status:ok + PUBLISHED. published:false = apply prošel, ale publish
+            # do vendor_updates flaknul (255/256/260 občas) → retry (často projde na další pokus).
             if [ "$LAST_CODE" = "200" ] && echo "$LAST_BODY" | grep -q '"status":"ok"'; then
-              echo "$LAST_BODY"
-              echo "✅ Nasazeno: v${{ steps.ver.outputs.version }} (attempt $((i+1)))"
-              exit 0
+              if echo "$LAST_BODY" | grep -q '"published":true'; then
+                echo "$LAST_BODY"
+                echo "✅ Nasazeno + publikováno: v${{ steps.ver.outputs.version }} (attempt $((i+1)))"
+                exit 0
+              fi
+              echo "⚠️ Apply OK, ale publish do vendor_updates NEPROBĚHL (published:false) — retry…"
+              echo "$LAST_BODY" | head -c 300; echo ""
+              continue
             fi
             # Non-retryable error (4xx kromě 409): okamžitě fail
             if [ "$LAST_CODE" = "400" ] || [ "$LAST_CODE" = "401" ] || [ "$LAST_CODE" = "403" ] || [ "$LAST_CODE" = "404" ] || [ "$LAST_CODE" = "405" ]; then
