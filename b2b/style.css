@@ -4697,3 +4697,80 @@ body.pos-mode .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(16
   .checkout-ci-controls .qty-input,
   .checkout-ci-controls .qty-quick-wide { height: 40px; }
 }
+
+/* ==================================================================
+   🛒 v3.0.495 — STICKY SPODNÍ KOŠÍK (mobil/tablet ≤900px)
+   Fixní lišta dole (bez scrollu) + rozbalovací sheet s CELÝM košíkem.
+   Desktop (>900px) má boční #cart-panel → lišta se NEZOBRAZUJE.
+   Barvy přes proměnné → automaticky light i dark režim.
+   ================================================================== */
+#b2b-cart-bar { display: none; }   /* desktop: skryto, košík je vpravo v panelu */
+
+@media (max-width: 900px) {
+  body.has-cart-bar #b2b-cart-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 9999;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    border-top: 1px solid var(--border-2);
+    box-shadow: 0 -6px 22px rgba(0, 0, 0, 0.14);
+  }
+  /* rezerva dole, aby poslední položky katalogu nezmizely pod lištou */
+  body.has-cart-bar .layout,
+  body.has-cart-bar .app-footer { padding-bottom: 86px; }
+
+  #b2b-cart-bar .ccb-main {
+    flex: 1 1 auto; min-width: 0;
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 14px;
+    cursor: pointer;
+    font: inherit;
+    color: var(--text);
+  }
+  #b2b-cart-bar .ccb-chevron { font-size: 11px; color: var(--text-3); transition: transform 0.22s ease; }
+  body.cart-sheet-open #b2b-cart-bar .ccb-chevron { transform: rotate(180deg); }
+  #b2b-cart-bar .ccb-count { font-weight: 700; white-space: nowrap; }
+  #b2b-cart-bar .ccb-saved { font-size: 12px; font-weight: 600; color: var(--success-text); white-space: nowrap; }
+  #b2b-cart-bar .ccb-total { margin-left: auto; font-weight: 800; font-size: 16px; white-space: nowrap; }
+  #b2b-cart-bar .ccb-cta {
+    flex: 0 0 auto;
+    background: var(--primary); color: #fff;
+    border: none; border-radius: 12px;
+    padding: 12px 18px;
+    font: inherit; font-weight: 800;
+    cursor: pointer; white-space: nowrap;
+  }
+
+  /* Rozbalovací sheet (bottom sheet) */
+  #b2b-cart-sheet { position: fixed; inset: 0; z-index: 9998; pointer-events: none; }
+  #b2b-cart-sheet .ccb-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0; transition: opacity 0.25s ease; pointer-events: none;
+  }
+  body.cart-sheet-open #b2b-cart-sheet .ccb-backdrop { opacity: 1; pointer-events: auto; }
+  #b2b-cart-sheet .ccb-panel {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    max-height: 82vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: var(--surface);
+    border-radius: 18px 18px 0 0;
+    padding: 6px 14px calc(90px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -12px 34px rgba(0, 0, 0, 0.24);
+    transform: translateY(101%);
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: auto;
+  }
+  body.cart-sheet-open #b2b-cart-sheet .ccb-panel { transform: translateY(0); }
+  #b2b-cart-sheet .cart-head { position: sticky; top: 0; background: var(--surface); padding-top: 10px; z-index: 1; }
+  #b2b-cart-sheet .ccb-close {
+    margin-left: 8px; background: none; border: none;
+    font-size: 20px; line-height: 1; cursor: pointer; color: var(--text-3);
+  }
+}

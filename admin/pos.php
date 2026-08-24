@@ -433,12 +433,15 @@ $csrfToken  = csrf_token();
       <input id="pos-search" type="text" placeholder="Hledat produkt (název / EAN / kód)…"
              autocomplete="off" autocorrect="off">
       <button class="pos-search-x" onclick="POS.search('')" title="Vymazat">✕</button>
-      <button class="pos-custom-btn" onclick="POS.openCustomItem()" title="Volná položka (zadej ručně název a cenu)">
-        ➕ <span class="pos-custom-lbl">Volná položka</span>
-      </button>
-      <button class="pos-custom-btn" onclick="POS.applyVoucher()" title="Uplatnit voucher / dárkovou kartu — sníží částku k úhradě">
-        🎟️ <span class="pos-custom-lbl">Voucher</span>
-      </button>
+      <!-- 🎟️ v3.0.495 — obal: na mobilu drží obě tlačítka v JEDNOM řádku (50/50) s malým popiskem; desktop = display:contents (beze změny) -->
+      <div class="pos-custom-row">
+        <button class="pos-custom-btn" onclick="POS.openCustomItem()" title="Volná položka (zadej ručně název a cenu)">
+          ➕ <span class="pos-custom-lbl">Volná položka</span>
+        </button>
+        <button class="pos-custom-btn" onclick="POS.applyVoucher()" title="Uplatnit voucher / dárkovou kartu — sníží částku k úhradě">
+          🎟️ <span class="pos-custom-lbl">Voucher</span>
+        </button>
+      </div>
     </div>
 
     <div class="pos-filters" id="pos-filters"></div>

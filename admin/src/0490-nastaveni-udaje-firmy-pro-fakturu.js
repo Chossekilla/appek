@@ -602,6 +602,19 @@ async function renderNastaveni() {
 
     </div>
 
+    <!-- 🛒 v3.0.495 — B2B eshop -->
+    <div class="nastaveni-row" style="margin-top:14px">
+      <div class="card-block">
+        <h3 style="margin-bottom:6px;">🛒 B2B eshop</h3>
+        <p class="page-sub" style="margin-bottom:14px;">Odběratelský portál (velkoobchodní objednávky) — vzhled košíku na mobilu.</p>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600">
+          <input type="checkbox" id="ns-b2b-sticky-cart" ${(n.b2b_sticky_cart ?? '1') !== '0' ? 'checked' : ''}>
+          <span>🛒 Sticky spodní lišta košíku na mobilu <span style="color:var(--text-3);font-weight:400;font-size:12px">(košík je vždy vidět dole; klik rozbalí celý košík — jen mobil/tablet, desktop má košík vpravo)</span></span>
+        </label>
+        <p style="font-size:11px;color:var(--text-3);margin-top:10px">Uloží se tlačítkem „💾 Uložit nastavení" dole. Platí pro celý B2B eshop.</p>
+      </div>
+    </div>
+
     <!-- 📃 Dlouhé seznamy + ⚡ Výkon — vedle sebe, přesunuto sem (v3.0.367: „dolů, ale ne úplně") -->
     <div class="nastaveni-row" style="margin-top:14px">
       <div class="card-block">

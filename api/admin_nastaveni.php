@@ -395,6 +395,8 @@ if ($method === 'PUT') {
         'vykon_lite',
         // 🖼️ obrázky/ikony v seznamu surovin: '1' | '0'
         'seznam_obrazky',
+        // 🛒 v3.0.495 — sticky spodní košík na B2B eshopu: '1' | '0'
+        'b2b_sticky_cart',
         // 📊 v3.0.284/286 — Google Analytics measurement ID — B2B portál + POS pokladna zvlášť
         // 📊 v3.0.310 — + admin core (hlavní aplikace)
         'ga_measurement_id',

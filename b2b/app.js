@@ -828,6 +828,9 @@ function renderCart() {
   const panel = document.getElementById('cart-panel');
   if (!layout || !panel) return;
 
+  // 🛒 v3.0.495 — sticky spodní košík (mobil/tablet), nezávislý na .layout gridu
+  renderStickyCart();
+
   // Na záložkách Historie / Přehled košík nezobrazuj — layout = jeden sloupec
   if (state.currentTab === 'history' || state.currentTab === 'stats' || state.currentTab === 'checkout') {
     layout.classList.add('no-cart');
@@ -920,6 +923,130 @@ function renderCart() {
     </div>
   `;
 }
+
+// =============================================================
+// 🛒 v3.0.495 — STICKY SPODNÍ KOŠÍK (mobil/tablet ≤900px)
+//   Fixní lišta dole (bez scrollu) + rozbalovací sheet s CELÝM košíkem
+//   ("rozšířený"). Vypínatelné v adminu (firma_branding.b2b_sticky_cart,
+//   default zapnuto). Desktop má boční #cart-panel → lišta jen ≤900px (CSS).
+//   Renderuje se do <body> (MIMO .layout grid), aby nerozbila layout.
+// =============================================================
+function cartBodyHTML(items, t) {
+  // ⚠️ Drží se v syncu s panelem v renderCart() — stejné položky + souhrn.
+  return `
+    <div class="cart-list">
+      ${items.map((i) => {
+        const cZakl = parseFloat(i.cena_zakladni || i.cena_bez_dph);
+        const cAkt = parseFloat(i.cena_bez_dph);
+        const maSlevu = cZakl > cAkt + 0.001;
+        const usetrenoNaPolozce = maSlevu ? (cZakl - cAkt) * i.mnozstvi * (1 + parseFloat(i.dph) / 100) : 0;
+        return `
+        <div class="cart-item">
+          <button class="cart-item-del" onclick="removeFromCart(${i.id})" title="Odebrat „${esc(i.nazev)}" z košíku" aria-label="Odebrat z košíku">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18"></path>
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+          </button>
+          <div class="cart-item-name">${esc(i.nazev)}</div>
+          <div class="cart-item-price">${fmt(cAkt * i.mnozstvi)}</div>
+          <div class="cart-item-meta">
+            <span class="cart-item-unit">
+              ${maSlevu ? `<s style="color:var(--text-3)">${fmt(cZakl)}</s> ` : ''}<strong>${fmt(cAkt)}</strong>/${esc(i.jednotka || 'ks')}${i.hmotnost_g ? ' · ' + i.hmotnost_g + ' g/ks' : ''}
+              ${hmotnostPolozkyG(i) > 0 ? `<span class="cart-item-weight" title="Celková hmotnost položky">⚖️ ${fmtHmotnost(hmotnostPolozkyG(i))}</span>` : ''}
+            </span>
+            <div class="qty-stack">
+              <div class="qty">
+                <button class="qty-btn" onclick="changeQty(${i.id}, -1)" title="−1 ${esc(i.jednotka || 'ks')}">−</button>
+                <span class="qty-val" title="${fmtMnozstvi(i.mnozstvi, i.jednotka)}">${i.mnozstvi}<span class="qty-val-unit"> ${esc(i.jednotka || 'ks')}</span></span>
+                <button class="qty-btn" onclick="changeQty(${i.id}, 1)" title="+1 ${esc(i.jednotka || 'ks')}">+</button>
+              </div>
+              <div class="qty-chips">
+                <button class="qty-chip-min" onclick="changeQty(${i.id}, -10)" title="−10 ${esc(i.jednotka || 'ks')}">−10</button>
+                <button class="qty-chip-plus" onclick="changeQty(${i.id}, 10)" title="+10 ${esc(i.jednotka || 'ks')}">+10</button>
+              </div>
+            </div>
+          </div>
+          ${maSlevu ? `<div class="cart-item-saved">💰 Rabat ${fmt(usetrenoNaPolozce)}</div>` : ''}
+        </div>
+      `;
+      }).join('')}
+    </div>
+    <div class="cart-summary">
+      ${t.usetreno > 0.005 ? `
+        <div class="cart-summary-row cart-summary-saved">
+          <span>💰 Celková sleva</span>
+          <span>− ${fmt(t.usetreno)}</span>
+        </div>
+      ` : ''}
+      <div class="cart-summary-row"><span>Bez DPH</span><span>${fmt(t.bezDph)}</span></div>
+      <div class="cart-summary-row"><span>DPH</span><span>${fmt(t.dph)}</span></div>
+      ${cartTotalWeightG() > 0 ? `
+        <div class="cart-summary-row cart-summary-weight" title="Součet hmotností všech položek (ks × hmotnost na kus + kg/g položky)">
+          <span>⚖️ Hmotnost</span><span>${fmtHmotnost(cartTotalWeightG())}</span>
+        </div>
+      ` : ''}
+      <div class="cart-summary-row total"><span>Celkem</span><span>${fmt(t.total)}</span></div>
+      ${state.currentTab === 'catalog' ? `
+        <button class="btn-primary cart-cta cart-cta-green" onclick="switchTab('checkout')">
+          Souhrn objednávky →
+        </button>
+      ` : ''}
+    </div>
+  `;
+}
+
+function renderStickyCart() {
+  // Vypínatelné v adminu (default zapnuto); jen katalog + neprázdný košík.
+  const enabled = !(window._ccFirma && window._ccFirma.b2b_sticky_cart === false);
+  const items = (typeof cartItems === 'function') ? cartItems() : [];
+  const show = enabled && items.length > 0 && state.currentTab === 'catalog';
+
+  let bar = document.getElementById('b2b-cart-bar');
+  let sheet = document.getElementById('b2b-cart-sheet');
+
+  if (!show) {
+    document.body.classList.remove('has-cart-bar', 'cart-sheet-open');
+    if (bar) bar.remove();
+    if (sheet) sheet.remove();
+    return;
+  }
+
+  const t = cartTotals();
+  if (!bar)   { bar = document.createElement('div');   bar.id = 'b2b-cart-bar';   document.body.appendChild(bar); }
+  if (!sheet) { sheet = document.createElement('div'); sheet.id = 'b2b-cart-sheet'; document.body.appendChild(sheet); }
+  document.body.classList.add('has-cart-bar');
+
+  const savedChip = t.usetreno > 0.005 ? `<span class="ccb-saved">💰 −${fmt(t.usetreno)}</span>` : '';
+  bar.innerHTML = `
+    <button class="ccb-main" onclick="toggleCartSheet()" aria-label="Zobrazit celý košík">
+      <span class="ccb-chevron" aria-hidden="true">▲</span>
+      <span class="ccb-count">🧾 ${cartCount()} ks</span>
+      ${savedChip}
+      <span class="ccb-total">${fmt(t.total)}</span>
+    </button>
+    <button class="ccb-cta" onclick="switchTab('checkout')">Souhrn →</button>
+  `;
+  sheet.innerHTML = `
+    <div class="ccb-backdrop" onclick="toggleCartSheet(false)"></div>
+    <div class="ccb-panel">
+      <div class="cart-head">
+        <h3>🧾 Košík <span style="color:var(--text-3); font-weight:500; font-size:13px">(${cartCount()} ks)</span></h3>
+        <button class="cart-clear" onclick="clearCart()">Vyprázdnit</button>
+        <button class="ccb-close" onclick="toggleCartSheet(false)" aria-label="Zavřít košík">✕</button>
+      </div>
+      ${cartBodyHTML(items, t)}
+    </div>
+  `;
+}
+
+window.toggleCartSheet = function(force) {
+  const open = typeof force === 'boolean' ? force : !document.body.classList.contains('cart-sheet-open');
+  document.body.classList.toggle('cart-sheet-open', open);
+};
 
 window.clearCart = function() {
   if (!confirm('Vyprázdnit košík?')) return;

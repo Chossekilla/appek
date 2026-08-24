@@ -3312,3 +3312,18 @@ html, body {
   right: 5px;
   line-height: 1.3;
 }
+
+/* 🎟️ v3.0.495 — POS: „Volná položka" + „Voucher" na JEDEN řádek + malý popisek (mobil).
+   .pos-custom-row: desktop = display:contents (tlačítka = přímé děti search-baru → beze změny);
+   ≤900px = flex řádek 50/50 pod vyhledáváním, popisky malým fontem místo skrytí. */
+.pos-custom-row { display: contents; }
+@media (max-width: 900px) {
+  .pos-custom-row { display: flex; gap: 8px; flex: 1 1 100%; }
+  .pos-custom-row .pos-custom-btn {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .pos-custom-lbl { display: inline !important; font-size: 11px !important; font-weight: 700 !important; }
+}

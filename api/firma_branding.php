@@ -16,7 +16,7 @@ appek_ensure_pwa_icons();  // 🆕 v3.0.364 — naseeduj PWA install ikony (defa
 try {
     $rows = $pdo->query("
         SELECT klic, hodnota FROM nastaveni
-        WHERE klic IN ('firma_logo_url', 'firma_favicon_url', 'firma_nazev', 'mena_config_json', 'ga_measurement_id', 'tracking_custom_code', 'gdpr_souhlas_povinny')
+        WHERE klic IN ('firma_logo_url', 'firma_favicon_url', 'firma_nazev', 'mena_config_json', 'ga_measurement_id', 'tracking_custom_code', 'gdpr_souhlas_povinny', 'b2b_sticky_cart')
     ")->fetchAll(PDO::FETCH_KEY_PAIR);
     // v3.0.283 — měna pro B2B fmt() (display konverze; necitlivé, DB zůstává v Kč)
     $mena = ['kod' => 'CZK', 'kurz' => 1, 'zobrazeni' => 'kc'];
@@ -37,6 +37,8 @@ try {
         'custom_tracking' => ($ct = trim((string) ($rows['tracking_custom_code'] ?? ''))) !== '' ? $ct : null,
         // 🆕 v3.0.432 — povinný GDPR souhlas u objednávky (default zapnuto; '0' = vypnuto v nastavení)
         'gdpr_souhlas_povinny' => (($rows['gdpr_souhlas_povinny'] ?? '1') !== '0'),
+        // 🛒 v3.0.495 — sticky spodní košík na B2B eshopu (default zapnuto; '0' = vypnuto v Nastavení)
+        'b2b_sticky_cart' => (($rows['b2b_sticky_cart'] ?? '1') !== '0'),
     ]);
 } catch (Throwable $e) {
     json_response(['logo_url' => null, 'favicon_url' => null]);
