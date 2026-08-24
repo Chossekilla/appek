@@ -831,12 +831,12 @@ function renderCart() {
   // 🛒 v3.0.495 — sticky spodní košík (mobil/tablet), nezávislý na .layout gridu
   renderStickyCart();
 
-  // 🛒 v3.0.496 — sticky košík zapnutý = JEDINÝ košík na CELÉM B2B (i desktop):
-  //   boční #cart-panel skryjeme (.no-cart → katalog na plnou šířku), košík = bar + rozbalení.
-  if (!(window._ccFirma && window._ccFirma.b2b_sticky_cart === false)) {
-    layout.classList.add('no-cart');
-    return;
-  }
+  // 🛒 v3.0.501 — režim košíku: 'side' (boční panel vpravo) | 'bottom' (spodní lišta) | 'both'.
+  //   Boční panel jen na desktopu (na mobilu se nevejde → tam spodní lišta, viz renderStickyCart).
+  const cartMode = (window._ccFirma && window._ccFirma.b2b_cart_mode) || 'both';
+  const isMobileCart = !window.matchMedia || window.matchMedia('(max-width: 900px)').matches;
+  const showSide = (cartMode === 'side' || cartMode === 'both') && !isMobileCart;
+  if (!showSide) { layout.classList.add('no-cart'); return; } // spodní lišta / mobil → boční panel skryt
 
   // Na záložkách Historie / Přehled košík nezobrazuj — layout = jeden sloupec
   if (state.currentTab === 'history' || state.currentTab === 'stats' || state.currentTab === 'checkout') {
@@ -883,7 +883,7 @@ function renderCart() {
               <line x1="14" y1="11" x2="14" y2="17"></line>
             </svg>
           </button>
-          <div class="cart-item-name">${esc(i.nazev)}</div>
+          <div class="cart-item-name">${i.obrazek_url ? `<img class="cart-item-thumb" src="${esc(i.obrazek_url)}" alt="" loading="lazy">` : ''}${esc(i.nazev)}</div>
           <div class="cart-item-price">${fmt(cAkt * i.mnozstvi)}</div>
           <div class="cart-item-meta">
             <span class="cart-item-unit">
@@ -958,7 +958,7 @@ function cartBodyHTML(items, t) {
               <line x1="14" y1="11" x2="14" y2="17"></line>
             </svg>
           </button>
-          <div class="cart-item-name">${esc(i.nazev)}</div>
+          <div class="cart-item-name">${i.obrazek_url ? `<img class="cart-item-thumb" src="${esc(i.obrazek_url)}" alt="" loading="lazy">` : ''}${esc(i.nazev)}</div>
           <div class="cart-item-price">${fmt(cAkt * i.mnozstvi)}</div>
           <div class="cart-item-meta">
             <span class="cart-item-unit">
@@ -1007,10 +1007,12 @@ function cartBodyHTML(items, t) {
 }
 
 function renderStickyCart() {
-  // Vypínatelné v adminu (default zapnuto); jen katalog + neprázdný košík.
-  const enabled = !(window._ccFirma && window._ccFirma.b2b_sticky_cart === false);
+  // 🛒 v3.0.501 — spodní lišta dle režimu: 'bottom'/'both' vždy; 'side' jen na mobilu (boční panel se tam nevejde).
+  const cartMode = (window._ccFirma && window._ccFirma.b2b_cart_mode) || 'both';
+  const isMobileCart = !window.matchMedia || window.matchMedia('(max-width: 900px)').matches;
+  const showBottom = (cartMode === 'bottom' || cartMode === 'both') || (cartMode === 'side' && isMobileCart);
   const items = (typeof cartItems === 'function') ? cartItems() : [];
-  const show = enabled && items.length > 0 && state.currentTab === 'catalog';
+  const show = showBottom && items.length > 0 && state.currentTab === 'catalog';
 
   let bar = document.getElementById('b2b-cart-bar');
   let sheet = document.getElementById('b2b-cart-sheet');

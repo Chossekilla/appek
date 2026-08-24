@@ -683,7 +683,7 @@ window.ulozitNastaveni = async function() {
   setIf('pagination_styl', v('ns-pagination')); // 🆕 v3.0.218 — styl stránkování seznamů
   setIf('pagination_pocet', v('ns-pag-pocet')); // 🆕 v3.0.247 — počet řádků na stránku
   if (document.getElementById('ns-seznam-obrazky')) data.seznam_obrazky = cb('ns-seznam-obrazky') ? '1' : '0'; // 🆕 obrázky/ikony v seznamech
-  if (document.getElementById('ns-b2b-sticky-cart')) data.b2b_sticky_cart = cb('ns-b2b-sticky-cart') ? '1' : '0'; // 🛒 v3.0.495 — sticky košík na B2B eshopu
+  if (document.getElementById('ns-b2b-cart-mode')) data.b2b_cart_mode = document.getElementById('ns-b2b-cart-mode').value || 'both'; // 🛒 v3.0.501 — režim košíku na B2B (side/bottom/both)
   if (document.getElementById('ns-perf-lite')) {                  // ⚡ v3.0.252 — odlehčený režim (výkon)
     const _pl = cb('ns-perf-lite');
     data.vykon_lite = _pl ? '1' : '0';

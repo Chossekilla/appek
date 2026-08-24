@@ -4811,3 +4811,6 @@ body.cart-sheet-open #b2b-cart-sheet .ccb-panel { transform: translateY(0); }
   font-size: 15px;
 }
 .checkout-total-ks span:last-child { font-size: 17px; }
+
+/* 🖼️ v3.0.501 — miniatura produktu v položce košíku (boční panel i sheet) */
+.cart-item-thumb{width:26px;height:26px;border-radius:5px;object-fit:cover;vertical-align:middle;margin-right:7px;border:1px solid var(--border)}

@@ -606,11 +606,14 @@ async function renderNastaveni() {
     <div class="nastaveni-row" style="margin-top:14px">
       <div class="card-block">
         <h3 style="margin-bottom:6px;">🛒 B2B eshop</h3>
-        <p class="page-sub" style="margin-bottom:14px;">Odběratelský portál (velkoobchodní objednávky) — vzhled košíku na mobilu.</p>
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600">
-          <input type="checkbox" id="ns-b2b-sticky-cart" ${(n.b2b_sticky_cart ?? '1') !== '0' ? 'checked' : ''}>
-          <span>🛒 Sticky spodní lišta košíku na mobilu <span style="color:var(--text-3);font-weight:400;font-size:12px">(košík je vždy vidět dole; klik rozbalí celý košík — jen mobil/tablet, desktop má košík vpravo)</span></span>
-        </label>
+        <p class="page-sub" style="margin-bottom:14px;">Odběratelský portál (velkoobchodní objednávky) — jak se zákazníkovi zobrazuje košík.</p>
+        <label class="form-label" style="font-size:12px">🛒 Zobrazení košíku</label>
+        <select class="form-select" id="ns-b2b-cart-mode" style="max-width:360px">
+          <option value="both" ${(n.b2b_cart_mode || 'both') === 'both' ? 'selected' : ''}>Obojí — boční panel (desktop) + spodní lišta</option>
+          <option value="side" ${n.b2b_cart_mode === 'side' ? 'selected' : ''}>Boční panel vpravo (sticky, s miniaturami)</option>
+          <option value="bottom" ${n.b2b_cart_mode === 'bottom' ? 'selected' : ''}>Jen spodní rozbalovací lišta</option>
+        </select>
+        <p style="font-size:11px;color:var(--text-3);margin-top:8px">Boční = košík stále vidíš vpravo i při scrollování a nakupování. Na mobilu se boční panel nevejde → tam je vždy spodní lišta.</p>
         <p style="font-size:11px;color:var(--text-3);margin-top:10px">Uloží se tlačítkem „💾 Uložit nastavení" dole. Platí pro celý B2B eshop.</p>
       </div>
     </div>
