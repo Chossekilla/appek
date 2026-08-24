@@ -3289,3 +3289,26 @@ html, body {
 
 /* 🛒 v3.0.443 — název položky košíku plně viditelný (bez max-width capu, 2 řádky); pořadové číslo odebráno + košík širší */
 .pos-line-name{max-width:none!important;white-space:normal!important;line-height:1.22!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important;text-overflow:ellipsis!important}
+
+/* 🗂️ v3.0.494 — POS kategorie: vyplnit/zmenšit do prostoru (flex-wrap, ŽÁDNÝ horizontální scroll)
+   + počet do pravého horního rohu jako badge (stejně jako u kategorií surovin/výrobků).
+   Tento blok je záměrně na konci souboru — jeho !important přebije ~10 breakpointů s fixní width. */
+.pos-cats-bar {
+  flex-wrap: wrap !important;      /* místo horizontálního scrollu se řádek zalomí dolů */
+  overflow-x: visible !important;
+  align-content: flex-start;
+}
+.pos-cat {
+  flex: 1 1 84px !important;       /* dlaždice vyplní šířku řádku a smrští se, když je těsno */
+  width: auto !important;          /* přebije breakpointové width:Npx !important */
+  min-width: 0 !important;
+  max-width: 150px !important;     /* zabrání obřím dlaždicím, když je kategorií málo */
+  flex-shrink: 1 !important;       /* přebije základní flex-shrink:0 (příčina scrollu) */
+  position: relative !important;   /* kotva pro rohový badge */
+}
+.pos-cat-count {
+  position: absolute !important;   /* počet ven z toku → do rohu */
+  top: 5px;
+  right: 5px;
+  line-height: 1.3;
+}

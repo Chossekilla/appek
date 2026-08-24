@@ -895,7 +895,7 @@ if ($method === 'GET') {
     //   zátěžovým testem). Vracíme je zpět + stock_aktualni počítáme ŽIVĚ ze sklad_polozky
     //   (zdroj pravdy, vč. mínusů) s fallbackem na cache sloupec.
     $sql = "
-        SELECT s.id, s.nazev, s.jednotka, s.alergen, s.cena_baleni, s.obsah_baleni,
+        SELECT s.id, s.nazev, s.jednotka, s.ean, s.obrazek_url, s.alergen, s.cena_baleni, s.obsah_baleni,
                s.slozeni, s.slozeni_alergeny, s.poznamka, s.aktivni, s.created_at,
                s.nutri_energie_kj, s.nutri_energie_kcal, s.nutri_tuky, s.nutri_tuky_nasycene,
                s.nutri_sacharidy, s.nutri_cukry, s.nutri_bilkoviny, s.nutri_sul,

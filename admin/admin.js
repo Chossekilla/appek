@@ -20079,7 +20079,7 @@ window.seedRestaurantPack = async function() {
 };
 
 async function renderRestaurantPage() {
-  const tab = state._restTab || 'tables';
+  const tab = state._restTab || 'provoz';   // v3.0.494 — default landing = Provoz (ne Stoly); shoduje se s fallbacky níže (ř. active/render) a pořadím bannerů
   const c = document.getElementById('content');
   c.innerHTML = `
     <div class="page-head">
