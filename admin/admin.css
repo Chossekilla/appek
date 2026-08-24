@@ -16,3 +16,13 @@
 .dash-note-del{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-3,#bbb);font-size:13px;line-height:1;padding:2px 5px;border-radius:5px}
 .dash-note-del:hover{background:rgba(200,50,50,.12);color:#c0392b}
 @media (max-width:900px){.dashboard-row-vpt{grid-template-columns:1fr !important}}
+
+/* 📂🔎 v3.0.500 — sklad detail: toolbar (hledání + kategorie select) + abecední skok pro dlouhé seznamy */
+.skd-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.skd-toolbar .skd-search{flex:1;min-width:140px}
+.skd-toolbar .skd-kat{max-width:190px}
+.skd-toolbar .skd-add{white-space:nowrap;font-size:13px;padding:8px 14px}
+.skd-abc{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
+.skd-abc-btn{font-size:12px;padding:5px 9px;border:1px solid var(--border,#e5e7eb);border-radius:7px;background:var(--surface,#fff);color:var(--text-2,#5F5E5A);cursor:pointer;font-weight:600}
+.skd-abc-btn.is-active{background:var(--primary,#BA7517);color:#fff;border-color:var(--primary,#BA7517)}
+@media(max-width:700px){.skd-toolbar .skd-add{flex:1 1 100%;order:3}.skd-toolbar .skd-kat{max-width:none;flex:1}.skd-abc-btn{padding:6px 11px}}

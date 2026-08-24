@@ -9062,6 +9062,32 @@ window.otevritSklad = async function(skladId, nazev, kod) {
     `;
     };
 
+    // 📂🔎 v3.0.500 — filtr/navigace položek skladu (kategorie + hledání + abecední skok; i na mobilu, pro dlouhé seznamy)
+    let _abc = 'vše';
+    window.skladPolAbc = (g) => { _abc = g; document.querySelectorAll('.skd-abc-btn').forEach(b => b.classList.toggle('is-active', b.dataset.abc === g)); window.skladRenderPolozky(); };
+    window.skladPolFilter = () => window.skladRenderPolozky();
+    window.skladRenderPolozky = () => {
+      const q = (document.getElementById('skd-search')?.value || '').trim().toLowerCase();
+      const kat = document.getElementById('skd-kat')?.value || '';
+      const firstCh = (n) => (n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().charAt(0).toUpperCase();
+      const inAbc = (n) => {
+        if (_abc === 'vše') return true;
+        const ch = firstCh(n);
+        if (_abc === '0-9') return ch >= '0' && ch <= '9';
+        const [a, b] = _abc.split('-');
+        return ch >= a && ch <= b;
+      };
+      const matchP = (p) => (!q || (p.nazev || '').toLowerCase().includes(q) || (p.cislo || '').toLowerCase().includes(q)) && inAbc(p.nazev);
+      let sur = suroviny.filter(matchP);
+      if (kat) sur = sur.filter(p => kategoriziujSurovinu(p) === kat); // kategorie surovin (auto dle názvu)
+      const vyr = kat ? [] : vyrobky.filter(matchP);                    // kategorie surovin se na výrobky nevztahuje
+      const el = document.getElementById('sklad-pol-list');
+      if (!el) return;
+      el.innerHTML = (sur.length + vyr.length) === 0
+        ? `<div style="text-align:center;padding:34px 20px;color:var(--text-3)">Nic nenalezeno pro tento filtr.</div>`
+        : renderTable(sur, 'Suroviny', '🌾') + renderTable(vyr, 'Výrobky', '📦');
+    };
+
     c.innerHTML = `
       <div style="display:flex;gap:6px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap;align-items:end">
         <button class="btn-secondary skd-tab ${(state._skladDetailTab || 'polozky') === 'polozky' ? 'is-active' : ''}" onclick="state._skladDetailTab='polozky';otevritSklad(${skladId}, '${esc(state._currentSkladNazev || '')}', '')" style="border-radius:8px 8px 0 0;border-bottom:none;font-size:13px;padding:8px 14px">📋 Položky (${items.length})</button>
@@ -9097,20 +9123,23 @@ window.otevritSklad = async function(skladId, nazev, kod) {
     const body = document.getElementById('sklad-detail-tab-body');
     if ((state._skladDetailTab || 'polozky') === 'polozky') {
       body.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-size:13px;color:var(--text-3)">${items.length} ${items.length === 1 ? 'položka' : (items.length >= 2 && items.length <= 4 ? 'položky' : 'položek')}</div>
-          <button class="btn-primary" onclick="priraditPolozku(${skladId})" style="font-size:13px;padding:8px 14px">+ Přiřadit položku</button>
+        <div class="skd-toolbar">
+          <input id="skd-search" class="form-input skd-search" type="search" placeholder="🔎 Hledat (název / kód)…" oninput="skladPolFilter()">
+          <select id="skd-kat" class="form-select skd-kat" onchange="skladPolFilter()">
+            <option value="">📂 Vše</option>
+            ${(typeof SUROVINA_KATEGORIE !== 'undefined' ? SUROVINA_KATEGORIE : []).map(k => `<option value="${k.key}">${k.icon} ${esc(k.label || k.key)}</option>`).join('')}
+          </select>
+          <button class="btn-primary skd-add" onclick="priraditPolozku(${skladId})">+ Přiřadit</button>
         </div>
+        ${items.length > 40 ? `<div class="skd-abc">${['vše','A-C','D-F','G-I','J-L','M-O','P-R','S-U','V-Z','0-9'].map(g => `<button class="skd-abc-btn${g === 'vše' ? ' is-active' : ''}" data-abc="${g}" onclick="skladPolAbc('${g}')">${g}</button>`).join('')}</div>` : ''}
         ${items.length === 0 ? `
           <div style="text-align:center;padding:40px 20px;color:var(--text-3)">
             <div style="font-size:36px;margin-bottom:8px">📭</div>
             <p>Žádné položky ve skladu. Přiřaď první surovinu nebo výrobek.</p>
           </div>
-        ` : `
-          ${renderTable(suroviny, 'Suroviny', '🌾')}
-          ${renderTable(vyrobky, 'Výrobky', '📦')}
-        `}
+        ` : `<div id="sklad-pol-list"></div>`}
       `;
+      if (items.length > 0) window.skladRenderPolozky();
     } else {
       body.innerHTML = '⏳ Načítám historii…';
       try {
