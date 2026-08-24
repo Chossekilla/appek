@@ -506,6 +506,8 @@ async function renderSuroviny() {
   filtered.forEach(s => skupiny[s._kat].push(s));
 
   // Helper pro vykreslení jedné suroviny v desktopové tabulce (řádek)
+  // 🆕 zobrazit obrázky/ikony v seznamu surovin (Nastavení → seznam_obrazky, default zapnuto)
+  const showImg = !(state.nastaveni && state.nastaveni.seznam_obrazky === '0');
   const radekDesktop = (s) => {
     const cb = parseFloat(s.cena_baleni) || 0;
     const ob = parseFloat(s.obsah_baleni) || 0;
@@ -526,6 +528,7 @@ async function renderSuroviny() {
     const cenaTxt = cenaDisp.toFixed((jedDisp === 'g' || jedDisp === 'ml') ? 4 : 2).replace(/\.?0+$/, '').replace('.', ',');
     return `
       <tr class="row-clickable" onclick="editSurovina(${s.id})" ${!s.aktivni ? 'style="opacity:0.5"' : ''}>
+        ${showImg ? `<td class="sur-img-cell">${s.obrazek_url ? `<img src="${esc(s.obrazek_url)}" class="sur-row-img" alt="" loading="lazy">` : `<span class="sur-row-noimg">${_katIkona(s)}</span>`}</td>` : ''}
         <td>
           <strong>${esc(s.nazev)}</strong>
           ${s.slozeni ? `<span title="Kompozitní surovina — má vlastní složení: ${esc(s.slozeni)}" style="margin-left:6px;color:#7c3aed;font-size:13px;cursor:help">🧬</span>` : ''}
@@ -598,6 +601,7 @@ async function renderSuroviny() {
     const head = `
       <thead>
         <tr>
+          ${showImg ? '<th class="sur-img-col"></th>' : ''}
           <th>Název</th>
           <th>Jednotka</th>
           <th>Alergen</th>
@@ -640,7 +644,7 @@ async function renderSuroviny() {
   const kartaMobile = (s) => `
     <button type="button" class="sur-tile" onclick="editSurovina(${s.id})" ${!s.aktivni ? 'style="opacity:.5"' : ''}>
       <span class="sur-tile-top">
-        ${s.obrazek_url ? `<img class="sur-tile-img" src="${esc(s.obrazek_url)}" alt="" loading="lazy">` : `<span class="sur-tile-ico">${_katIkona(s)}</span>`}
+        ${(showImg && s.obrazek_url) ? `<img class="sur-tile-img" src="${esc(s.obrazek_url)}" alt="" loading="lazy">` : `<span class="sur-tile-ico">${_katIkona(s)}</span>`}
         <span class="sur-tile-num${_podMin(s) ? ' low' : ''}">${_skladShort(s)}</span>
       </span>
       <span class="sur-tile-name">${esc(s.nazev)}</span>

@@ -393,6 +393,8 @@ if ($method === 'PUT') {
         'pagination_pocet',
         // ⚡ v3.0.252 — odlehčený režim (výkon): '1' | '0'
         'vykon_lite',
+        // 🖼️ obrázky/ikony v seznamu surovin: '1' | '0'
+        'seznam_obrazky',
         // 📊 v3.0.284/286 — Google Analytics measurement ID — B2B portál + POS pokladna zvlášť
         // 📊 v3.0.310 — + admin core (hlavní aplikace)
         'ga_measurement_id',

@@ -623,6 +623,10 @@ async function renderNastaveni() {
             </select>
           </div>
         </div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;margin-top:14px">
+          <input type="checkbox" id="ns-seznam-obrazky" ${(n.seznam_obrazky ?? '1') !== '0' ? 'checked' : ''}>
+          <span>🖼️ Zobrazovat obrázky/ikony v seznamu surovin <span style="color:var(--text-3);font-weight:400;font-size:12px">(vypni pro rychlejší, čistší seznam)</span></span>
+        </label>
         <p style="font-size:11px;color:var(--text-3);margin-top:10px">Uloží se tlačítkem „💾 Uložit nastavení" dole. Platí pro všechna zařízení.</p>
       </div>
 

@@ -682,6 +682,7 @@ window.ulozitNastaveni = async function() {
   setIf('uzaverka_dni_predem', v('ns-uzaverka-d'));
   setIf('pagination_styl', v('ns-pagination')); // 🆕 v3.0.218 — styl stránkování seznamů
   setIf('pagination_pocet', v('ns-pag-pocet')); // 🆕 v3.0.247 — počet řádků na stránku
+  if (document.getElementById('ns-seznam-obrazky')) data.seznam_obrazky = cb('ns-seznam-obrazky') ? '1' : '0'; // 🆕 obrázky/ikony v seznamech
   if (document.getElementById('ns-perf-lite')) {                  // ⚡ v3.0.252 — odlehčený režim (výkon)
     const _pl = cb('ns-perf-lite');
     data.vykon_lite = _pl ? '1' : '0';
@@ -713,6 +714,8 @@ window.ulozitNastaveni = async function() {
 
   try {
     await api('admin_nastaveni.php', { method: 'PUT', body: JSON.stringify(data) });
+    if (!state.nastaveni) state.nastaveni = {};
+    Object.assign(state.nastaveni, data); // 🆕 uložené hodnoty do stavu → změny (např. obrázky v seznamech) se projeví hned bez reloadu
     if ('pagination_styl' in data) state._pagStyl = null; // 🆕 v3.0.218 — projeví se nový styl
     if ('pagination_pocet' in data) { state._pagStyl = null; state._pagLimit = null; } // 🆕 v3.0.247 — reload limitu
     // Hezčí toast místo alert
