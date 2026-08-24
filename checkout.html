@@ -318,6 +318,41 @@
     .step-line { display: none; }
   }
 </style>
+<!-- 🎨 Modernist checkout re-skin — aktivní JEN z modernist landingu (?lp=modernist). HTML/JS/platby beze změny. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap">
+<script>(function(){try{if(new URLSearchParams(location.search).get('lp')==='modernist')document.documentElement.classList.add('lp-modernist');}catch(e){}})();</script>
+<style>
+  html.lp-modernist body { background:#f3f2f2 !important; color:#201e1d !important; font-family:"Archivo",-apple-system,system-ui,sans-serif !important; }
+  html.lp-modernist h1, html.lp-modernist h2, html.lp-modernist h3, html.lp-modernist h4,
+  html.lp-modernist .card h2, html.lp-modernist .summary h3, html.lp-modernist .pkg .pkg-name,
+  html.lp-modernist .pkg .pkg-price, html.lp-modernist .sum-row.total, html.lp-modernist .brand { font-family:"Archivo",sans-serif !important; letter-spacing:-0.02em; }
+  html.lp-modernist .brand span { background:none !important; -webkit-text-fill-color:#ec3013 !important; color:#ec3013 !important; }
+  html.lp-modernist .lang button { border-radius:0 !important; }
+  html.lp-modernist .lang button.active { background:#ec3013 !important; }
+  html.lp-modernist .card, html.lp-modernist .summary { border-radius:0 !important; box-shadow:none !important; border:2px solid rgba(32,30,29,0.4) !important; background:#fff !important; }
+  html.lp-modernist .buy-mode, html.lp-modernist .rental-periods { border-radius:0 !important; background:transparent !important; border:2px solid rgba(32,30,29,0.4) !important; padding:0 !important; gap:0 !important; }
+  html.lp-modernist .bm-btn, html.lp-modernist .rp-btn { border-radius:0 !important; box-shadow:none !important; }
+  html.lp-modernist .bm-btn.active, html.lp-modernist .rp-btn.active { background:#ec3013 !important; color:#fff !important; box-shadow:none !important; }
+  html.lp-modernist .pkg { border-radius:0 !important; border:2px solid rgba(32,30,29,0.4) !important; background:#fff !important; box-shadow:none !important; transform:none !important; }
+  html.lp-modernist .pkg:hover { background:#fff2ef !important; border-color:#ec3013 !important; transform:none !important; box-shadow:none !important; }
+  html.lp-modernist .pkg.selected, html.lp-modernist .pkg.core { background:#fff2ef !important; border-color:#ec3013 !important; box-shadow:none !important; }
+  html.lp-modernist input, html.lp-modernist textarea, html.lp-modernist select { border-radius:0 !important; border:2px solid rgba(32,30,29,0.4) !important; }
+  html.lp-modernist input:focus, html.lp-modernist textarea:focus, html.lp-modernist select:focus { border-color:#ec3013 !important; box-shadow:none !important; }
+  html.lp-modernist .pay-radio-row { border-radius:0 !important; border:2px solid rgba(32,30,29,0.4) !important; }
+  html.lp-modernist .pay-radio-row:hover { border-color:#ec3013 !important; background:#fff2ef !important; }
+  html.lp-modernist .pay-radio-row:has(input:checked) { border-color:#ec3013 !important; background:#fff2ef !important; box-shadow:none !important; }
+  html.lp-modernist .pay-radio-row input[type="radio"] { accent-color:#ec3013 !important; }
+  html.lp-modernist .pay-info-btn { border-radius:0 !important; }
+  html.lp-modernist .pay-info-btn:hover, html.lp-modernist .pay-info-btn.is-open { background:#ec3013 !important; border-color:#ec3013 !important; }
+  html.lp-modernist .pay-info-box { border-radius:0 !important; }
+  html.lp-modernist .btn { border-radius:0 !important; background:#ec3013 !important; box-shadow:none !important; font-family:"Archivo",sans-serif !important; }
+  html.lp-modernist .btn:hover:not(:disabled) { background:#dd2b0f !important; transform:none !important; box-shadow:none !important; }
+  html.lp-modernist .btn.secondary { border-radius:0 !important; border:2px solid rgba(32,30,29,0.4) !important; background:#fff !important; color:#201e1d !important; }
+  html.lp-modernist .info-banner { border-radius:0 !important; background:#fff2ef !important; border-left:3px solid #ec3013 !important; color:#7c1405 !important; }
+  html.lp-modernist .sum-row.total { border-top:2px solid #201e1d !important; }
+  html.lp-modernist .success-state .order-no { border-radius:0 !important; background:#201e1d !important; }
+  html.lp-modernist .success-state .payment-box { border-radius:0 !important; }
+</style>
 </head>
 <body>
 
