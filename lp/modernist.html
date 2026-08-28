@@ -66,6 +66,13 @@
   @media (max-width: 640px) {
     /* 🆕 v3.0.504 — telefon: všechny grid sekce na 2 sloupce (ne 1) → kratší stránka, čitelné */
     .cols-2, .cols-3, .cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
+    /* 🆕 v3.0.505 — kompaktnější mobil: menší padding karet + nadpisy + text + mezery bloků (brutalist desktop padding je na mobilu rozvláčný) */
+    .cols-2 > *, .cols-3 > *, .cols-4 > * { padding: 16px 14px 18px !important; }
+    .cols-2 h3, .cols-3 h3, .cols-4 h3 { font-size: 15.5px !important; margin-top: 8px !important; letter-spacing: -0.01em !important; line-height: 1.2 !important; }
+    .cols-2 p, .cols-3 p, .cols-4 p { font-size: 12.5px !important; line-height: 1.4 !important; margin-top: 6px !important; max-width: none !important; }
+    .hero-grid { gap: 18px !important; }
+    .hero-photo { min-height: 170px !important; }
+    .sec-h2 { font-size: 24px !important; }
     .big { font-size: 36px !important; }
     .sec-h2 { font-size: 28px !important; }
     .stat-row { grid-template-columns: 1fr !important; }
