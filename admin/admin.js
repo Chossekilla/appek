@@ -35180,7 +35180,7 @@ window.doplnitVse = async function(ids) {
 window.editSurovina = async function(id = null) {
   const s = id ? await api(`admin_suroviny.php?id=${id}`) : {};
   openModal(id ? `Surovina: ${esc(s.nazev)}` : 'Nová surovina', `
-    <div class="form-grid">
+    <div class="form-grid form-grid-tight"><!-- v3.0.502 — form-grid-tight = 2 sloupce i na mobilu (šetří místo; .full pole zůstávají celá) -->
       <div class="full">
         <div class="image-upload">
           <div class="image-preview" id="sur-img-preview">
