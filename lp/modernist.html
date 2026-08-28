@@ -55,7 +55,8 @@
   @media (max-width: 900px) { .hdr-langs { display: none !important; } }
   @media (max-width: 700px) { .hdr-demo { display: none !important; } }
   @media (max-width: 860px) {
-    .cols-2, .cols-3, .cols-4 { grid-template-columns: 1fr !important; }
+    /* 🆕 v3.0.504 — mobil: sekce NEpadají na 1 sloupec (byl kilometrový scroll). Tablet: cols-3 drží 3 sl., cols-4 → 2. */
+    .cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
     .hero-grid { grid-template-columns: 1fr !important; }
     .pad-x { padding-left: 20px !important; padding-right: 20px !important; }
     .big { font-size: 44px !important; }
@@ -63,6 +64,8 @@
     .hero-photo { min-height: 320px !important; }
   }
   @media (max-width: 640px) {
+    /* 🆕 v3.0.504 — telefon: všechny grid sekce na 2 sloupce (ne 1) → kratší stránka, čitelné */
+    .cols-2, .cols-3, .cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
     .big { font-size: 36px !important; }
     .sec-h2 { font-size: 28px !important; }
     .stat-row { grid-template-columns: 1fr !important; }
