@@ -13723,7 +13723,7 @@ window.editVyrobek = async function(id = null) {
       <!-- 📦 Hmotnost & rozměry — pro výpočet dopravy / přepravce (v3.0.340) -->
       <div class="full vy-section-box">
         <div class="vy-section-title">📦 Hmotnost & rozměry <span style="color:var(--text-3);font-weight:400;font-size:11px">(pro dopravu / přepravce)</span></div>
-        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
+        <div class="vy-hr-grid">
           <div><label class="form-label">Hmotnost (g)</label><input class="form-input" id="vy-hmotnost" type="number" min="0" step="1" value="${v.hmotnost_g || ''}" placeholder="500"></div>
           <div><label class="form-label">Délka (cm)</label><input class="form-input" id="vy-rozmer-d" type="number" min="0" step="0.1" value="${v.rozmer_d || ''}" placeholder="20"></div>
           <div><label class="form-label">Šířka (cm)</label><input class="form-input" id="vy-rozmer-s" type="number" min="0" step="0.1" value="${v.rozmer_s || ''}" placeholder="10"></div>
@@ -13890,26 +13890,21 @@ window.editVyrobek = async function(id = null) {
           `).join('')}</div>`;
         })()}
       </div>
-      <div>
-        <div class="checkbox-row">
+      <div class="full vy-check-grid">
+        <label class="vy-set-toggle" title="Zobrazit výrobek v katalogu / e-shopu">
           <input type="checkbox" id="vy-akt" ${v.aktivni == 1 || !id ? 'checked' : ''}>
-          <label for="vy-akt">Aktivní (zobrazit v katalogu)</label>
-        </div>
-      </div>
-      <div>
-        <div class="checkbox-row">
+          <span>✅ Aktivní <small>(katalog)</small></span>
+        </label>
+        <label class="vy-set-toggle" title="Označit jako oblíbený výrobek">
           <input type="checkbox" id="vy-obl" ${v.oblibeny == 1 ? 'checked' : ''}>
-          <label for="vy-obl">⭐ Oblíbený výrobek</label>
-        </div>
-      </div>
-      ${data._restaurace ? `
-      <div>
-        <div class="checkbox-row">
+          <span>⭐ Oblíbený</span>
+        </label>
+        ${data._restaurace ? `
+        <label class="vy-set-toggle" title="Vypnutím se výrobek skryje z pokladny (KASA). V katalogu / B2B zůstane.">
           <input type="checkbox" id="vy-pos" ${(v.zobrazit_na_pos == 1 || v.zobrazit_na_pos === undefined || v.zobrazit_na_pos === null || !id) ? 'checked' : ''}>
-          <label for="vy-pos">🧾 Zobrazovat na POS (KASA)</label>
-        </div>
-        <div style="font-size:11.5px;color:var(--text-3);margin-top:2px;margin-left:26px">Vypnutím se výrobek skryje z pokladny. V katalogu / B2B zůstane.</div>
-      </div>` : ''}
+          <span>🧾 POS <small>(KASA)</small></span>
+        </label>` : ''}
+      </div>
     </div>
 
     <!-- 🏷️ Statusové štítky — viditelné na kartě v katalogu, nezávislé na slevě -->
@@ -35557,7 +35552,7 @@ window.vySlozeniAddRow = function(surovina_id = '', mnozstvi = '', jednotka = 'g
   const sur = state._suroviny_cache || [];
   const row = document.createElement('div');
   row.className = 'sloz-row';
-  row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr auto;gap:8px;margin-bottom:6px;align-items:center';
+  row.style.cssText = '';
   row.innerHTML = `
     <select class="form-select sloz-sur" style="font-size:13px">
       <option value="">— Vyberte —</option>
@@ -35706,7 +35701,7 @@ window.vySlozeniAddPolotovar = function(slozka_id = '', mnozstvi = '', jednotka 
   }
   const row = document.createElement('div');
   row.className = 'sloz-row';
-  row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr auto;gap:8px;margin-bottom:6px;align-items:center';
+  row.style.cssText = '';
   row.innerHTML = `
     <select class="form-select sloz-pol" style="font-size:13px;border-color:#9333EA">
       <option value="">— polotovar / výrobek —</option>

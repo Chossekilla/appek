@@ -117,7 +117,7 @@ window.vySlozeniAddPolotovar = function(slozka_id = '', mnozstvi = '', jednotka 
   }
   const row = document.createElement('div');
   row.className = 'sloz-row';
-  row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr auto;gap:8px;margin-bottom:6px;align-items:center';
+  row.style.cssText = '';
   row.innerHTML = `
     <select class="form-select sloz-pol" style="font-size:13px;border-color:#9333EA">
       <option value="">— polotovar / výrobek —</option>

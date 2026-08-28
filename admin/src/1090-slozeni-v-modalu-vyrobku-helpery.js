@@ -39,7 +39,7 @@ window.vySlozeniAddRow = function(surovina_id = '', mnozstvi = '', jednotka = 'g
   const sur = state._suroviny_cache || [];
   const row = document.createElement('div');
   row.className = 'sloz-row';
-  row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr auto;gap:8px;margin-bottom:6px;align-items:center';
+  row.style.cssText = '';
   row.innerHTML = `
     <select class="form-select sloz-sur" style="font-size:13px">
       <option value="">— Vyberte —</option>
