@@ -85,6 +85,9 @@
     .cloud { gap: 8px 18px !important; }
     .cloud li { font-size: 90%; }
     .hero-photo { min-height: 240px !important; }
+    /* 🆕 v3.0.506 — osekání: menší svislý padding sekcí na mobilu */
+    section > .pad-x { padding-top: 30px !important; padding-bottom: 20px !important; }
+    section.pad-x { padding-top: 40px !important; padding-bottom: 40px !important; }
   }
 </style>
 </head>
@@ -190,30 +193,10 @@
       </div>
       <p style="max-width: 44ch; font-size: 16px; line-height: 1.5; color: var(--color-neutral-700)">APPEK ti z <strong style="color: var(--color-text)">dodacích listů na vybraný den</strong> sestaví rozvozový plán — seskupený podle měst a PSČ, s počty kusů a částkami. Podklad pro řidiče na jeden klik.</p>
     </div>
-    <div class="hero-grid" style="display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--color-divider)">
-      <div>
-        <div class="pad-x" style="padding: 24px 24px 24px 40px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Plán z dodacích listů</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">Vyber den → APPEK načte všechny dodací listy a sestaví z nich rozvozový seznam. Žádné ruční přepisování adres.</p></div>
-        <div class="pad-x" style="padding: 24px 24px 24px 40px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Seskupení podle měst a PSČ</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">Zastávky seřazené podle obcí a poštovních směrovacích čísel — řidič jede logicky po regionu.</p></div>
-        <div class="pad-x" style="padding: 24px 24px 24px 40px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Souhrn po městech</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">U každého města počet dodacích listů, kusů a celková částka. Hned vidíš, co kam veze.</p></div>
-        <div class="pad-x" style="padding: 24px 24px 24px 40px; border-bottom: 2px solid var(--color-divider); border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Podklad pro řidiče</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 6px">Rozvozový list k vytištění nebo na mobil — adresy, kontakty a položky každé zastávky.</p></div>
-      </div>
-      <div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 20px 24px; border-bottom: 2px solid var(--color-divider)">
-          <span style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 20px; font-weight: 800">Dnešní rozvoz</span>
-          <span style="font-size: 13px; color: var(--color-neutral-600)">4 dodací listy · 3 města · Pavel H.</span>
-        </div>
-        <div style="overflow-x: auto"><table class="table" style="width: 100%; min-width: 520px">
-          <thead><tr><th>Čas</th><th>Zastávka</th><th>Položky</th><th>Částka</th><th>Stav</th></tr></thead>
-          <tbody>
-            <tr><td style="font-family: ui-monospace, monospace">08:00</td><td style="font-weight: 600">Penzion U Lípy · Brno</td><td>12 položek</td><td>4 280 Kč</td><td style="color: var(--color-neutral-600)">hotovo</td></tr>
-            <tr><td style="font-family: ui-monospace, monospace">09:30</td><td style="font-weight: 600">Restaurace Pod Lípou · Brno</td><td>8 položek</td><td>2 940 Kč</td><td style="color: var(--color-neutral-600)">hotovo</td></tr>
-            <tr><td style="font-family: ui-monospace, monospace">11:00</td><td style="font-weight: 600">Hotel Continental · Blansko</td><td>24 položek</td><td>8 760 Kč</td><td style="color: var(--color-accent-700); font-weight: 600">další</td></tr>
-            <tr><td style="font-family: ui-monospace, monospace">12:30</td><td style="font-weight: 600">Catering Premium · Blansko</td><td>16 položek</td><td>5 430 Kč</td><td style="color: var(--color-neutral-600)">čeká</td></tr>
-          </tbody>
-        </table></div>
-        <div style="display: flex; justify-content: space-between; padding: 18px 24px; border-top: 2px solid var(--color-divider); font-family: var(--font-heading), Archivo, sans-serif; font-weight: 800; font-size: 17px"><span>Celkem v plánu · 60 položek</span><span>21 410 Kč</span></div>
-        <div style="padding: 18px 24px; border-top: 2px solid var(--color-divider); font-size: 14px; color: var(--color-neutral-700)">Funguje s těmito přepravci a dopravou: Vlastní vůz · Zásilkovna · DPD CZ · Toptrans <span class="tag tag-neutral">brzy</span> · Česká pošta <span class="tag tag-neutral">brzy</span></div>
-      </div>
+    <div class="cols-3" style="display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid var(--color-divider)">
+      <div style="padding: 28px 26px; border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Plán z dodacích listů</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 8px">Vyber den → APPEK načte všechny DL a sestaví rozvozový seznam. Žádné přepisování adres.</p></div>
+      <div style="padding: 28px 26px; border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Seskupení podle měst a PSČ</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 8px">Zastávky seřazené po obcích a PSČ — řidič jede logicky po regionu, u každého města počet kusů a částka.</p></div>
+      <div style="padding: 28px 26px"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Podklad pro řidiče</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 8px">Rozvozový list k tisku i na mobil — adresy, kontakty, položky. Vlastní vůz · Zásilkovna · DPD.</p></div>
     </div>
   </section>
 
@@ -319,19 +302,6 @@
         <a class="btn btn-primary btn-block" href="/checkout.html?lp=modernist" data-cta="order" style="margin-top: 22px; padding: 14px 18px; font-size: 15px">Pokračovat k objednávce →</a>
         <p style="font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.6; color: var(--color-neutral-600); margin-top: 16px">Jednorázová platba · bez měsíčních poplatků · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.</p>
       </div>
-    </div>
-  </section>
-
-  <section style="border-bottom: 2px solid var(--color-divider)">
-    <div class="pad-x" style="padding: 56px 40px 32px">
-      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Reference</div>
-      <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Co říkají naši zákazníci</h2>
-      <p style="max-width: 62ch; font-size: 16px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 14px">100+ provozů: pekárny, cukrárny, lahůdkárny, restaurace, catering. Reálné zkušenosti, ne marketing.</p>
-    </div>
-    <div class="cols-3" style="display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid var(--color-divider)">
-      <blockquote style="margin: 0; padding: 32px 26px; border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider); display: flex; flex-direction: column; gap: 20px"><p style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; line-height: 1.35; letter-spacing: -0.01em">„Z 5 hodin papírování denně máme teď 30 minut. B2B portál si odběratelé nakonec objednávky uložili sami. Skvělé.“</p><footer style="margin-top: auto; display: flex; align-items: center; gap: 12px; padding-top: 18px; border-top: 2px solid var(--color-divider)"><span style="display: grid; place-items: center; width: 34px; height: 34px; background: var(--color-accent); color: #fff; font-size: 12px; font-weight: 800">OŠ</span><span style="font-size: 14px; line-height: 1.3"><strong>Ota Špejchar</strong><br><span style="color: var(--color-neutral-600)">Pekárna U Lípy, Brno</span></span></footer></blockquote>
-      <blockquote style="margin: 0; padding: 32px 26px; border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider); display: flex; flex-direction: column; gap: 20px"><p style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; line-height: 1.35; letter-spacing: -0.01em">„Konfigurátor dortů byl důvod, proč jsem koupila Profi. Zákazníci si vyberou tvar, příchuť, dekoraci — a já dostanu objednávku přímo do systému.“</p><footer style="margin-top: auto; display: flex; align-items: center; gap: 12px; padding-top: 18px; border-top: 2px solid var(--color-divider)"><span style="display: grid; place-items: center; width: 34px; height: 34px; background: var(--color-accent); color: #fff; font-size: 12px; font-weight: 800">MO</span><span style="font-size: 14px; line-height: 1.3"><strong>Marie Otradová</strong><br><span style="color: var(--color-neutral-600)">Cukrárna Sladký Sen, Praha</span></span></footer></blockquote>
-      <blockquote style="margin: 0; padding: 32px 26px; border-right: 2px solid var(--color-divider); border-bottom: 2px solid var(--color-divider); display: flex; flex-direction: column; gap: 20px"><p style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; line-height: 1.35; letter-spacing: -0.01em">„HACCP audit jsme zvládli za dvě hodiny místo dvou dnů. Všechny dokumenty automaticky, kontrola SVS nemohla říct křivý slovo.“</p><footer style="margin-top: auto; display: flex; align-items: center; gap: 12px; padding-top: 18px; border-top: 2px solid var(--color-divider)"><span style="display: grid; place-items: center; width: 34px; height: 34px; background: var(--color-accent); color: #fff; font-size: 12px; font-weight: 800">RR</span><span style="font-size: 14px; line-height: 1.3"><strong>Roman Růžek</strong><br><span style="color: var(--color-neutral-600)">Catering Premium, Ostrava</span></span></footer></blockquote>
     </div>
   </section>
 
