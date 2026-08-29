@@ -35223,7 +35223,7 @@ window.editSurovina = async function(id = null) {
 
       <div class="full vy-section-box">
         <div class="vy-section-title">💰 Nákupní cena (pro kalkulaci nákladů)</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-grid form-grid-tight">
           <div>
             <label class="form-label">Cena balení (Kč)</label>
             <input class="form-input" id="sur-cena" type="number" step="0.01" min="0" value="${s.cena_baleni || ''}" placeholder="0,00" oninput="surPrepocet()">
@@ -35300,11 +35300,11 @@ window.editSurovina = async function(id = null) {
         <label class="form-label">Poznámka</label>
         <input class="form-input" id="sur-pozn" value="${esc(s.poznamka || '')}" placeholder="např. dodavatel, šarže…">
       </div>
-      <div>
-        <div class="checkbox-row">
+      <div class="full">
+        <label class="vy-set-toggle">
           <input type="checkbox" id="sur-akt" ${s.aktivni == 1 || !id ? 'checked' : ''}>
-          <label for="sur-akt">Aktivní</label>
-        </div>
+          <span>✅ Aktivní <small>(zobrazit v seznamu surovin)</small></span>
+        </label>
       </div>
     </div>
 
