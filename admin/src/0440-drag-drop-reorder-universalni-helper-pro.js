@@ -419,10 +419,10 @@ window.editVyrobek = async function(id = null) {
         </div>
         <div>
           <label class="form-label">⚖️ Prodej na váhu</label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding-top:6px">
+          <label class="vy-set-toggle" style="margin-top:2px">
             <input type="checkbox" id="vy-navahu" ${v.na_vahu ? 'checked' : ''}>
-            <span style="font-size:13px">Vážený produkt — cena za
-              <select id="vy-vjed" style="font-size:12px;padding:2px 4px">
+            <span>Vážený produkt — cena za
+              <select id="vy-vjed" onclick="event.stopPropagation()" style="font-size:12px;padding:2px 6px">
                 <option value="kg" ${(v.vaha_jednotka || 'kg') === 'kg' ? 'selected' : ''}>kg</option>
                 <option value="100g" ${v.vaha_jednotka === '100g' ? 'selected' : ''}>100 g</option>
               </select>
