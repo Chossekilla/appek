@@ -407,7 +407,7 @@ window.editSurovina = async function(id = null) {
 
       <div class="full vy-section-box">
         <div class="vy-section-title">🍎 Nutriční hodnoty <span style="color:var(--text-3);font-weight:400;font-size:11px">(na 100 g/ml — pro výpočet u výrobků)</span></div>
-        <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:10px">
+        <div class="vy-nutr-grid">
           <label class="ed-prop-mini"><span>Energie (kJ)</span><input class="form-input" type="number" step="0.1" min="0" id="sur-n-kj" value="${s.nutri_energie_kj ?? ''}" placeholder="0"></label>
           <label class="ed-prop-mini"><span>Energie (kcal)</span><input class="form-input" type="number" step="0.1" min="0" id="sur-n-kcal" value="${s.nutri_energie_kcal ?? ''}" placeholder="0"></label>
           <label class="ed-prop-mini"><span>Tuky (g)</span><input class="form-input" type="number" step="0.01" min="0" id="sur-n-tuky" value="${s.nutri_tuky ?? ''}" placeholder="0"></label>
