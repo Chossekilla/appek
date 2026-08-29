@@ -9,14 +9,10 @@ async function renderSklad() {
     state._suroviny_full_cache = list;
   }
   const c = document.getElementById('content');
-
-  // Filtr — jen aktivní suroviny s relevantnimi daty
   const aktivni = (list || []).filter(s => parseInt(s.aktivni) !== 0);
 
-  // Roztřídit do skupin: pod minimem / OK / bez minima
-  const podMin = [];
-  const nadMin = [];
-  const bezNasr = [];
+  // Skupiny pro statistiky (karty nahoře)
+  const podMin = [], nadMin = [], bezNasr = [];
   aktivni.forEach(s => {
     const akt = parseFloat(s.stock_aktualni) || 0;
     const min = parseFloat(s.stock_minimalni);
@@ -24,66 +20,108 @@ async function renderSklad() {
     else if (akt <= min) podMin.push(s);
     else nadMin.push(s);
   });
-
-  // Setříděno: pod minimem podle "kolik chybí" sestupně, ostatní abecedně
-  podMin.sort((a, b) => {
-    const ma = parseFloat(a.stock_minimalni) - (parseFloat(a.stock_aktualni) || 0);
-    const mb = parseFloat(b.stock_minimalni) - (parseFloat(b.stock_aktualni) || 0);
-    return mb - ma;
-  });
-  nadMin.sort((a, b) => (a.nazev || '').localeCompare(b.nazev || '', 'cs'));
-  bezNasr.sort((a, b) => (a.nazev || '').localeCompare(b.nazev || '', 'cs'));
-
-  // Celková hodnota skladu (cena_baleni / obsah_baleni × stock)
   let celkemHodnota = 0;
   aktivni.forEach(s => {
-    const cb = parseFloat(s.cena_baleni) || 0;
-    const ob = parseFloat(s.obsah_baleni) || 0;
-    const akt = parseFloat(s.stock_aktualni) || 0;
+    const cb = parseFloat(s.cena_baleni) || 0, ob = parseFloat(s.obsah_baleni) || 0, akt = parseFloat(s.stock_aktualni) || 0;
     if (cb > 0 && ob > 0 && akt > 0) celkemHodnota += (cb / ob) * akt;
   });
 
+  // Stránkování dle nastavení (stejné jako Suroviny/Objednávky/Odběratelé)
+  if (state._pagStyl == null || state._pagLimit == null) {
+    const n = state.nastaveni || {};
+    state._pagStyl = n.pagination_styl || 'load_more';
+    const poc = parseInt(n.pagination_pocet) || 10;
+    state._pagLimit = [10, 25, 50, 100, 200].includes(poc) ? poc : 10;
+  }
+
+  // Filtr (hledání) + řazení: pod minimem první (červené), pak abecedně
+  const norm = t => (t || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const q = norm(state._skladQ || '');
+  const rankFn = s => {
+    const akt = parseFloat(s.stock_aktualni) || 0, min = parseFloat(s.stock_minimalni);
+    if (isNaN(min)) return 2;
+    return akt <= min ? 0 : 1;
+  };
+  const filtered = aktivni
+    .filter(s => !q || norm(s.nazev).includes(q) || norm(s.alergen).includes(q))
+    .sort((a, b) => rankFn(a) - rankFn(b) || (a.nazev || '').localeCompare(b.nazev || '', 'cs'));
+  state._skladFiltered = filtered;
+
+  // Stránkování nad `filtered`
+  const sp = state._skladPag || (state._skladPag = { offset: 0, shown: 0, sig: null });
+  const lim = state._pagLimit || 10;
+  const sig = JSON.stringify([state._skladQ || '', state._pagStyl, lim]);
+  if (sp.sig !== sig) { sp.sig = sig; sp.offset = 0; sp.shown = 0; }
+  const paged = filtered.length > lim;
+  let pageItems = filtered;
+  if (paged) {
+    if ((state._pagStyl || 'load_more') === 'stranky') {
+      if (sp.offset >= filtered.length) sp.offset = 0;
+      pageItems = filtered.slice(sp.offset, sp.offset + lim);
+    } else {
+      sp.offset = 0;
+      if (!sp.shown) sp.shown = lim;
+      pageItems = filtered.slice(0, sp.shown);
+    }
+  }
+
+  const sel = state._skladSel || (state._skladSel = new Set());
+  const fmtNum = n => n.toFixed(n >= 100 ? 0 : 2).replace(/\.?0+$/, '').replace('.', ',');
+  const allOnPageSel = pageItems.length > 0 && pageItems.every(s => sel.has(s.id));
+
   const radek = (s) => {
-    const akt = parseFloat(s.stock_aktualni) || 0;
-    const min = parseFloat(s.stock_minimalni);
-    const cil = parseFloat(s.stock_cilove);
-    const jed = esc(s.jednotka || 'g');
-    const cb = parseFloat(s.cena_baleni) || 0;
-    const ob = parseFloat(s.obsah_baleni) || 0;
-    const cenaJed = (cb > 0 && ob > 0) ? cb / ob : 0;
-    const hodnota = cenaJed * akt;
+    const akt = parseFloat(s.stock_aktualni) || 0, min = parseFloat(s.stock_minimalni), cil = parseFloat(s.stock_cilove);
+    const jed = esc(s.jednotka || 'g'), cb = parseFloat(s.cena_baleni) || 0, ob = parseFloat(s.obsah_baleni) || 0;
+    const cenaJed = (cb > 0 && ob > 0) ? cb / ob : 0, hodnota = cenaJed * akt;
     const podMinFlag = !isNaN(min) && akt <= min;
     return `
-      <tr ${podMinFlag ? 'style="background:rgba(220,38,38,0.06)"' : ''}>
+      <tr class="row-clickable" onclick="editSurovina(${s.id})" ${podMinFlag ? 'style="background:rgba(220,38,38,0.06)"' : ''}>
+        <td onclick="event.stopPropagation()" style="text-align:center;width:36px"><input type="checkbox" class="skl-chk" ${sel.has(s.id) ? 'checked' : ''} onclick="skladToggleSel(${s.id}, this.checked)"></td>
         <td><strong>${esc(s.nazev)}</strong>${s.alergen ? `<span style="margin-left:6px;background:#fef3c7;color:#92400e;font-size:10px;padding:1px 6px;border-radius:6px;font-weight:600">${esc(s.alergen)}</span>` : ''}</td>
-        <td class="num" style="font-variant-numeric:tabular-nums">
-          ${podMinFlag
-            ? `<span style="background:#FEE2E2;color:#991B1B;font-weight:700;padding:3px 10px;border-radius:8px;font-size:13px">⚠ ${akt.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')} ${jed}</span>`
-            : `<strong>${akt.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')}</strong> ${jed}`}
-        </td>
+        <td class="num" style="font-variant-numeric:tabular-nums">${podMinFlag
+          ? `<span style="background:#FEE2E2;color:#991B1B;font-weight:700;padding:3px 10px;border-radius:8px;font-size:13px">⚠ ${fmtNum(akt)} ${jed}</span>`
+          : `<strong>${fmtNum(akt)}</strong> ${jed}`}</td>
         <td class="num" style="color:var(--text-3);font-size:12px">${!isNaN(min) ? min + ' ' + jed : '—'}</td>
         <td class="num" style="color:var(--text-3);font-size:12px">${!isNaN(cil) ? cil + ' ' + jed : '—'}</td>
+        <td class="num" style="font-variant-numeric:tabular-nums">${cenaJed > 0 ? fmt(cenaJed) + `<span style="color:var(--text-3);font-size:11px">/${jed}</span>` : '<span style="color:var(--text-3)">—</span>'}</td>
         <td class="num">${hodnota > 0 ? fmt(hodnota) : '<span style="color:var(--text-3)">—</span>'}</td>
-        <td onclick="event.stopPropagation();">
+        <td onclick="event.stopPropagation()" style="white-space:nowrap">
           <button class="btn-primary btn-green" style="font-size:12px;padding:6px 12px;margin-right:4px" onclick="surSkladModal(${s.id})" title="Příjem / výdej / inventura">📦 Pohyb</button>
           <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="editSurovina(${s.id})">✏️</button>
         </td>
-      </tr>
-    `;
+      </tr>`;
   };
 
   const head = `
     <thead>
       <tr>
+        <th style="width:36px;text-align:center"><input type="checkbox" ${allOnPageSel ? 'checked' : ''} onclick="skladSelAllPage(this.checked)" title="Vybrat vše na stránce"></th>
         <th>Surovina</th>
         <th class="num">Aktuální stav</th>
         <th class="num">Minimum</th>
         <th class="num">Cíl</th>
+        <th class="num">Cena/jed.</th>
         <th class="num">Hodnota Kč</th>
         <th></th>
       </tr>
-    </thead>
-  `;
+    </thead>`;
+
+  const pagControls = () => {
+    if (!paged) return '';
+    if ((state._pagStyl || 'load_more') === 'stranky') {
+      const totalPages = Math.ceil(filtered.length / lim);
+      const curPage = Math.floor(sp.offset / lim) + 1;
+      return `<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn-secondary" ${sp.offset <= 0 ? 'disabled' : ''} onclick="skladPag(-1)">← Předchozí</button>
+        <span style="font-size:13px;color:var(--text-2)">Strana ${curPage} / ${totalPages} · ${filtered.length} surovin</span>
+        <button class="btn-secondary" ${sp.offset + lim >= filtered.length ? 'disabled' : ''} onclick="skladPag(1)">Další →</button>
+      </div>`;
+    }
+    if (sp.shown >= filtered.length) return `<div style="text-align:center;margin-top:12px;font-size:12px;color:var(--text-3)">Zobrazeno všech ${filtered.length}</div>`;
+    return `<div style="text-align:center;margin-top:14px"><button class="btn-secondary" onclick="skladPagMore()">Načíst další (${filtered.length - sp.shown} zbývá)</button></div>`;
+  };
+
+  const selCount = sel.size;
 
   c.innerHTML = `
     <div class="page-head">
@@ -97,76 +135,99 @@ async function renderSklad() {
       </div>
     </div>
 
-    <!-- 🆕 v2.9.265 — Stat cards konzistence s Dashboard (clickable warn, primary tint hodnota) -->
     <div class="stat-grid" style="margin-bottom:14px">
-      ${podMin.length > 0 ? `
-        <div class="stat-card stat-warn" onclick="state._suroviny_pod_minimem=true;navigate('suroviny')" title="Klikni → Suroviny filtrované pod minimem">
-          <div class="stat-label">⚠️ Pod minimální hladinou</div>
-          <div class="stat-value">${podMin.length}</div>
-          <div class="stat-sub">klikni → suroviny</div>
-        </div>
-      ` : `
-        <div class="stat-card">
-          <div class="stat-label">✓ Pod minimem</div>
-          <div class="stat-value" style="color:var(--success-text)">0</div>
-          <div class="stat-sub">vše OK</div>
-        </div>
-      `}
-      <div class="stat-card">
-        <div class="stat-label">✓ V pořádku</div>
-        <div class="stat-value" style="color:var(--success-text)">${nadMin.length}</div>
-        <div class="stat-sub">nad minimem</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">⚪ Bez minima</div>
-        <div class="stat-value" style="color:var(--text-3)">${bezNasr.length}</div>
-        <div class="stat-sub">nenastaveno</div>
-      </div>
-      <div class="stat-card" style="background:linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);border-color:var(--primary-border)">
-        <div class="stat-label">💰 Hodnota skladu</div>
-        <div class="stat-value" style="color:var(--primary-dark);font-weight:700">${fmt(celkemHodnota)}</div>
-        <div class="stat-sub">celkem na skladě</div>
-      </div>
+      ${podMin.length > 0
+        ? `<div class="stat-card stat-warn"><div class="stat-label">⚠️ Pod minimální hladinou</div><div class="stat-value">${podMin.length}</div><div class="stat-sub">nahoře v seznamu</div></div>`
+        : `<div class="stat-card"><div class="stat-label">✓ Pod minimem</div><div class="stat-value" style="color:var(--success-text)">0</div><div class="stat-sub">vše OK</div></div>`}
+      <div class="stat-card"><div class="stat-label">✓ V pořádku</div><div class="stat-value" style="color:var(--success-text)">${nadMin.length}</div><div class="stat-sub">nad minimem</div></div>
+      <div class="stat-card"><div class="stat-label">⚪ Bez minima</div><div class="stat-value" style="color:var(--text-3)">${bezNasr.length}</div><div class="stat-sub">nenastaveno</div></div>
+      <div class="stat-card" style="background:linear-gradient(180deg, var(--surface) 0%, rgba(186, 117, 23, 0.04) 100%);border-color:var(--primary-border)"><div class="stat-label">💰 Hodnota skladu</div><div class="stat-value" style="color:var(--primary-dark);font-weight:700">${fmt(celkemHodnota)}</div><div class="stat-sub">celkem na skladě</div></div>
     </div>
 
-    ${podMin.length > 0 ? `
-      <div class="card-block" style="margin-bottom:14px;border-left:4px solid #DC2626;background:rgba(220,38,38,0.05)">
-        <h3 style="margin:0 0 10px;color:#991B1B;font-size:16px">⚠️ Suroviny pod minimální hladinou — doporučujeme naskladnit</h3>
-        <table class="table" style="margin:0;font-size:13px">
-          ${head}
-          <tbody>${podMin.map(radek).join('')}</tbody>
-        </table>
-      </div>
-    ` : ''}
+    <!-- 🆕 v3.0.517 — plochý seznam: filtr + select + export + stránkování -->
+    <div class="sklad-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <input class="filter-input" type="search" id="sklad-q" placeholder="🔎 Hledat surovinu (název, alergen)…" value="${esc(state._skladQ || '')}" oninput="debounce('sklad-q', function(){ state._skladQ = document.getElementById('sklad-q').value; renderSklad(); }, 200)" style="flex:1;min-width:200px">
+      ${selCount > 0
+        ? `<span style="font-size:13px;color:var(--primary-dark);font-weight:700;white-space:nowrap">✔ ${selCount} vybráno</span>
+           <button class="btn-secondary" onclick="skladExportCsv(true)" style="white-space:nowrap">⬇️ Export vybraných</button>
+           <button class="btn-secondary" onclick="state._skladSel.clear();renderSklad()" style="white-space:nowrap" title="Zrušit výběr">✕ Zrušit výběr</button>`
+        : `<button class="btn-secondary" onclick="skladExportCsv(false)" style="white-space:nowrap" title="Export všech surovin dle filtru">⬇️ Export CSV</button>`}
+    </div>
 
-    ${nadMin.length > 0 ? `
-      <div class="card-block" style="margin-bottom:14px">
-        <h3 style="margin:0 0 10px;font-size:16px">✅ Suroviny v pořádku</h3>
-        <table class="table" style="margin:0;font-size:13px">
-          ${head}
-          <tbody>${nadMin.map(radek).join('')}</tbody>
-        </table>
-      </div>
-    ` : ''}
+    ${aktivni.length === 0
+      ? '<div class="card-block"><div class="empty-state">Žádné suroviny — přidej je v sekci Suroviny.</div></div>'
+      : filtered.length === 0
+        ? `<div class="card-block"><div class="empty-state">Žádná surovina neodpovídá filtru „${esc(state._skladQ || '')}".</div></div>`
+        : `<div class="card-block" style="padding:0;overflow:hidden">
+             <div style="overflow-x:auto">
+               <table class="table" style="margin:0;font-size:13px;min-width:640px">${head}<tbody>${pageItems.map(radek).join('')}</tbody></table>
+             </div>
+           </div>
+           ${pagControls()}`}
 
-    ${bezNasr.length > 0 ? `
-      <details class="card-block" style="margin-bottom:14px">
-        <summary style="cursor:pointer;font-weight:700;font-size:16px;padding:6px 0">
-          📋 Bez nastaveného minima (${bezNasr.length}) — klikni pro zobrazení
-          <span style="font-weight:400;font-size:12px;color:var(--text-3);margin-left:8px">Nastavte minimum pro alerty</span>
-        </summary>
-        <div style="margin-top:10px">
-          <table class="table" style="margin:0;font-size:13px">
-            ${head}
-            <tbody>${bezNasr.map(radek).join('')}</tbody>
-          </table>
-        </div>
-      </details>
-    ` : ''}
-
-    ${aktivni.length === 0 ? '<div class="card-block"><div class="empty-state">Žádné suroviny — přidej je v sekci Suroviny.</div></div>' : ''}
+    <p style="font-size:11px;color:var(--text-3);margin-top:10px">ℹ️ Klikni na řádek → úprava suroviny · 📦 Pohyb → příjem/výdej/inventura · zaškrtni řádky a Export vybraných (CSV).</p>
   `;
 }
+
+// 🆕 v3.0.517 — hromadný výběr + export přehledu skladu (klientský CSV, žádný backend)
+window.skladToggleSel = function(id, checked) {
+  const sel = state._skladSel || (state._skladSel = new Set());
+  if (checked) sel.add(id); else sel.delete(id);
+  const tb = document.querySelector('.sklad-toolbar');
+  const c = sel.size;
+  if (tb) tb.innerHTML = `
+      <input class="filter-input" type="search" id="sklad-q" placeholder="🔎 Hledat surovinu (název, alergen)…" value="${esc(state._skladQ || '')}" oninput="debounce('sklad-q', function(){ state._skladQ = document.getElementById('sklad-q').value; renderSklad(); }, 200)" style="flex:1;min-width:200px">
+      ${c > 0
+        ? `<span style="font-size:13px;color:var(--primary-dark);font-weight:700;white-space:nowrap">✔ ${c} vybráno</span>
+           <button class="btn-secondary" onclick="skladExportCsv(true)" style="white-space:nowrap">⬇️ Export vybraných</button>
+           <button class="btn-secondary" onclick="state._skladSel.clear();renderSklad()" style="white-space:nowrap" title="Zrušit výběr">✕ Zrušit výběr</button>`
+        : `<button class="btn-secondary" onclick="skladExportCsv(false)" style="white-space:nowrap" title="Export všech surovin dle filtru">⬇️ Export CSV</button>`}`;
+};
+window.skladSelAllPage = function(checked) {
+  const sel = state._skladSel || (state._skladSel = new Set());
+  const filtered = state._skladFiltered || [];
+  const lim = state._pagLimit || 10;
+  const sp = state._skladPag || { offset: 0, shown: lim };
+  let pageItems = filtered;
+  if (filtered.length > lim) {
+    pageItems = (state._pagStyl === 'stranky') ? filtered.slice(sp.offset, sp.offset + lim) : filtered.slice(0, sp.shown || lim);
+  }
+  pageItems.forEach(s => { if (checked) sel.add(s.id); else sel.delete(s.id); });
+  renderSklad();
+};
+window.skladPag = function(dir) {
+  const sp = state._skladPag; if (!sp) return;
+  const lim = state._pagLimit || 10;
+  sp.offset = Math.max(0, sp.offset + dir * lim);
+  renderSklad();
+};
+window.skladPagMore = function() {
+  const sp = state._skladPag; if (!sp) return;
+  const lim = state._pagLimit || 10;
+  sp.shown = (sp.shown || lim) + lim;
+  renderSklad();
+};
+window.skladExportCsv = function(onlySelected) {
+  const filtered = state._skladFiltered || [];
+  const sel = state._skladSel || new Set();
+  const rows = onlySelected ? filtered.filter(s => sel.has(s.id)) : filtered;
+  if (!rows.length) { if (typeof toast === 'function') toast('Nic k exportu', 'info'); return; }
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const lines = [['Surovina', 'Aktuální stav', 'Jednotka', 'Minimum', 'Cíl', 'Cena/jednotka', 'Hodnota Kč', 'Alergen'].map(q).join(';')];
+  rows.forEach(s => {
+    const akt = parseFloat(s.stock_aktualni) || 0, cb = parseFloat(s.cena_baleni) || 0, ob = parseFloat(s.obsah_baleni) || 0;
+    const cenaJed = (cb > 0 && ob > 0) ? cb / ob : 0;
+    lines.push([s.nazev, akt, s.jednotka || 'g', (s.stock_minimalni ?? ''), (s.stock_cilove ?? ''), (cenaJed ? cenaJed.toFixed(4) : ''), (cenaJed * akt).toFixed(2), (s.alergen || '')].map(q).join(';'));
+  });
+  const csv = '﻿' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sklad-surovin-' + (onlySelected ? 'vybrane-' : '') + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  if (typeof toast === 'function') toast('✓ Export ' + rows.length + ' surovin', 'success');
+};
 
 // 🆕 v3.0.446 — přepínač HACCP hlídání šarží/expirace (uloží nastavení + re-render)
 window.skladSledovatelnostToggle = async function(on) {
