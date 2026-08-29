@@ -8984,6 +8984,72 @@ window.skladSetPozice = async function(polozkaId) {
 };
 
 // 🆕 v2.9.216 — Detail skladu (modal) — seznam přiřazených položek s edit
+// 🆕 v3.0.518 — hromadný výběr položek skladu → export CSV / tisk (modal karty skladů)
+window.skdBulkBarHtml = function() {
+  const sel = state._skdSel || new Set();
+  if (!sel.size) return '';
+  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--primary-light);border:1px solid var(--primary-border);border-radius:10px;padding:8px 12px">
+    <span style="font-weight:700;color:var(--primary-dark);font-size:13px">✔ ${sel.size} vybráno</span>
+    <button class="btn-secondary" onclick="skdExportSel()" style="font-size:12px;padding:5px 10px">📊 Export CSV</button>
+    <button class="btn-secondary" onclick="skdPrintSel()" style="font-size:12px;padding:5px 10px">🖨️ Tisk vybraných</button>
+    <span style="flex:1"></span>
+    <button class="btn-secondary" onclick="state._skdSel.clear();skdSyncSel()" style="font-size:12px;padding:5px 10px" title="Zrušit výběr">✕ Zrušit</button>
+  </div>`;
+};
+window.skdSyncSel = function() {
+  const bar = document.getElementById('skd-bulkbar');
+  if (bar) bar.innerHTML = skdBulkBarHtml();
+  if (typeof window.skladRenderPolozky === 'function') window.skladRenderPolozky();
+};
+window.skdToggleSel = function(id, checked) {
+  const sel = state._skdSel || (state._skdSel = new Set());
+  if (checked) sel.add(id); else sel.delete(id);
+  const bar = document.getElementById('skd-bulkbar');
+  if (bar) bar.innerHTML = skdBulkBarHtml();
+};
+window.skdSelGroup = function(ids, checked) {
+  const sel = state._skdSel || (state._skdSel = new Set());
+  (ids || []).forEach(id => { if (checked) sel.add(id); else sel.delete(id); });
+  skdSyncSel();
+};
+function _skdSelRows() {
+  const map = state._skdItemsById || {};
+  const sel = state._skdSel || new Set();
+  return [...sel].map(id => map[id]).filter(Boolean);
+}
+window.skdExportSel = function() {
+  const rows = _skdSelRows();
+  if (!rows.length) { if (typeof toast === 'function') toast('Nic k exportu', 'info'); return; }
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const lines = [['Kód', 'Název', 'Typ', 'Stav', 'Jednotka', 'Min', 'Cíl', 'Pozice'].map(q).join(';')];
+  rows.forEach(p => {
+    lines.push([p.cislo || '', p.nazev || '', p.item_typ || '', (parseFloat(p.stav) || 0), p.jednotka || '', (p.min_stav ?? ''), (p.cil_stav ?? ''), (p.pozice || '')].map(q).join(';'));
+  });
+  const csv = '﻿' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sklad-' + (state._currentSkladKod || 'polozky') + '-vyber-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  if (typeof toast === 'function') toast('✓ Export ' + rows.length + ' položek', 'success');
+};
+window.skdPrintSel = function() {
+  const rows = _skdSelRows();
+  if (!rows.length) { if (typeof toast === 'function') toast('Nic k tisku', 'info'); return; }
+  const e2 = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const nazevSkl = (state._currentSkladKod || '') + ' · ' + (state._currentSkladNazev || '');
+  const trs = rows.map(p => `<tr><td>${e2(p.cislo || '—')}</td><td>${e2(p.nazev || '?')}</td><td style="text-align:right">${(parseFloat(p.stav) || 0).toFixed(2)} ${e2(p.jednotka || '')}</td><td style="text-align:right">${p.min_stav != null ? parseFloat(p.min_stav).toFixed(2) : '—'}</td><td>${e2(p.pozice || '—')}</td></tr>`).join('');
+  const w = window.open('', '_blank');
+  if (!w) { if (typeof toast === 'function') toast('Povol vyskakovací okna pro tisk', 'info'); return; }
+  w.document.write('<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Sklad ' + e2(nazevSkl) + '</title>'
+    + '<style>body{font-family:-apple-system,Segoe UI,Arial,sans-serif;padding:24px;color:#1d1d1f}h1{font-size:18px;margin:0 0 4px}p{color:#666;margin:0 0 16px;font-size:13px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 10px;border-bottom:1px solid #ddd;text-align:left}th{background:#f5f5f7;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#666}@media print{body{padding:0}}</style>'
+    + '</head><body><h1>🏭 Sklad ' + e2(nazevSkl) + '</h1><p>Vybrané položky (' + rows.length + ') · ' + new Date().toLocaleDateString('cs-CZ') + '</p>'
+    + '<table><thead><tr><th>Kód</th><th>Název</th><th style="text-align:right">Stav</th><th style="text-align:right">Min</th><th>Pozice</th></tr></thead><tbody>' + trs + '</tbody></table>'
+    + '<scr' + 'ipt>window.onload=function(){window.print();}</scr' + 'ipt></body></html>');
+  w.document.close();
+};
+
 window.otevritSklad = async function(skladId, nazev, kod) {
   state._currentSkladId = skladId;  // pro pohybSkladu actions
   state._currentSkladNazev = nazev;
@@ -8996,12 +9062,18 @@ window.otevritSklad = async function(skladId, nazev, kod) {
     const items = r.polozky || [];
     const suroviny = items.filter(p => p.item_typ === 'surovina');
     const vyrobky = items.filter(p => p.item_typ === 'vyrobek');
+    // 🆕 v3.0.518 — výběr položek pro hromadný export/tisk (per sklad; reset při přepnutí skladu)
+    state._skdItemsById = {}; items.forEach(p => { state._skdItemsById[p.id] = p; });
+    if (state._skdSelSkladId !== skladId) { state._skdSel = new Set(); state._skdSelSkladId = skladId; }
+    if (!state._skdSel) state._skdSel = new Set();
     const c = document.getElementById('sklad-detail-content');
     if (!c) return;
 
     // 🆕 responzivní: desktop = tabulka, mobil (≤700px) = karty (jeden zdroj dat, akce postavené jednou)
     const renderTable = (rows, typLabel, typIcon) => {
       if (rows.length === 0) return '';
+      const sel = state._skdSel || (state._skdSel = new Set());
+      const allSel = rows.length > 0 && rows.every(p => sel.has(p.id));
       const cells = rows.map(p => {
         const stav = parseFloat(p.stav) || 0;
         const min = p.min_stav !== null ? parseFloat(p.min_stav) : null;
@@ -9019,6 +9091,7 @@ window.otevritSklad = async function(skladId, nazev, kod) {
       });
       const trows = cells.map(({ p, stav, min, underMin, actions, posBtn }) => `
               <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:8px 10px;text-align:center" onclick="event.stopPropagation()"><input type="checkbox" class="skd-chk" ${sel.has(p.id) ? 'checked' : ''} onclick="skdToggleSel(${p.id}, this.checked)"></td>
                 <td style="padding:8px 10px;font-family:monospace;color:var(--text-3);font-size:11.5px">${esc(p.cislo || '—')}</td>
                 <td style="padding:8px 10px"><strong>${esc(p.nazev || '?')}</strong></td>
                 <td style="padding:8px 10px;text-align:right;${underMin ? 'color:#c66800;font-weight:700' : ''}">${stav.toFixed(2)} ${esc(p.jednotka || '')}${underMin ? ' ⚠️' : ''}</td>
@@ -9033,7 +9106,7 @@ window.otevritSklad = async function(skladId, nazev, kod) {
       const cards = cells.map(({ p, stav, min, underMin, actions, posBtn }) => `
               <div class="skl-item-card">
                 <div class="skl-ic-top">
-                  <span class="skl-ic-name">${esc(p.nazev || '?')}</span>
+                  <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer"><input type="checkbox" ${sel.has(p.id) ? 'checked' : ''} onclick="event.stopPropagation();skdToggleSel(${p.id}, this.checked)"><span class="skl-ic-name">${esc(p.nazev || '?')}</span></label>
                   <span class="skl-ic-code">${esc(p.cislo || '—')}</span>
                 </div>
                 <div class="skl-ic-stats">
@@ -9050,6 +9123,7 @@ window.otevritSklad = async function(skladId, nazev, kod) {
         <table class="skl-tbl" style="width:100%;border-collapse:collapse;font-size:13px">
           <thead>
             <tr style="background:var(--surface-2);color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:0.4px">
+              <th style="padding:8px 10px;text-align:center;width:34px"><input type="checkbox" ${allSel ? 'checked' : ''} onclick="skdSelGroup([${rows.map(p => p.id).join(',')}], this.checked)" title="Vybrat vše v této skupině"></th>
               <th style="padding:8px 10px;text-align:left">Kód</th>
               <th style="padding:8px 10px;text-align:left">Název</th>
               <th style="padding:8px 10px;text-align:right">Stav</th>
@@ -9135,6 +9209,7 @@ window.otevritSklad = async function(skladId, nazev, kod) {
           </select>
           <button class="btn-primary skd-add" onclick="priraditPolozku(${skladId})">+ Přiřadit</button>
         </div>
+        <div id="skd-bulkbar" style="margin-bottom:10px">${typeof skdBulkBarHtml === 'function' ? skdBulkBarHtml() : ''}</div>
         ${items.length > 40 ? `<div class="skd-abc">${['vše','A-C','D-F','G-I','J-L','M-O','P-R','S-U','V-Z','0-9'].map(g => `<button class="skd-abc-btn${g === 'vše' ? ' is-active' : ''}" data-abc="${g}" onclick="skladPolAbc('${g}')">${g}</button>`).join('')}</div>` : ''}
         ${items.length === 0 ? `
           <div style="text-align:center;padding:40px 20px;color:var(--text-3)">
