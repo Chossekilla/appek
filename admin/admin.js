@@ -7991,6 +7991,8 @@ async function renderSkladyInline() {
         : api('admin_suroviny.php').then(d => { state._suroviny_full_cache = d; return d; }),
     ]);
     const sklady = r.sklady || [];
+    // 🆕 v3.0.515 — hlavní sklad = nejnižší aktivní id (výchozí pro POS/výrobu) → nelze smazat
+    const mainSkladId = sklady.filter(s => parseInt(s.aktivni ?? 1) !== 0).map(s => +s.id).reduce((m, id) => (m === 0 || id < m ? id : m), 0);
     const typIcon = { suchy: '📦', lednice: '❄️', mrazak: '🧊', jiny: '🏭' };
     const typLabel = { suchy: 'Suchý sklad', lednice: 'Lednice', mrazak: 'Mrazák', jiny: 'Jiný' };
 
@@ -8120,7 +8122,9 @@ async function renderSkladyInline() {
                 <button class="btn-secondary" onclick="exportSklad(${s.id}, 'pdf')" style="font-size:12px;padding:6px 10px" title="Rychlý export — HTML print-ready">📄</button>
                 <button class="btn-secondary" onclick="exportSklad(${s.id}, 'csv')" style="font-size:12px;padding:6px 10px" title="Rychlý export — CSV (Excel / účetní)">📊</button>
                 <span style="flex:1"></span>
-                <button class="btn-secondary" onclick="smazatSklad(${s.id}, '${esc(s.nazev)}')" style="font-size:12px;padding:6px 10px;background:#fde7e9;color:#a8232f;border-color:#fde7e9" title="Smazat / deaktivovat sklad">🗑️</button>
+                ${(+s.id === mainSkladId)
+                  ? `<span style="font-size:11.5px;padding:6px 10px;color:var(--text-3);white-space:nowrap" title="Hlavní sklad — nelze smazat (výchozí pro POS a výrobu)">🔒 Hlavní</span>`
+                  : `<button class="btn-secondary" onclick="smazatSklad(${s.id}, '${esc(s.nazev)}')" style="font-size:12px;padding:6px 10px;background:#fde7e9;color:#a8232f;border-color:#fde7e9" title="Smazat / deaktivovat sklad">🗑️</button>`}
               </div>
             </div>
           `).join('')}
@@ -13899,11 +13903,10 @@ window.editVyrobek = async function(id = null) {
           <input type="checkbox" id="vy-obl" ${v.oblibeny == 1 ? 'checked' : ''}>
           <span>⭐ Oblíbený</span>
         </label>
-        ${data._restaurace ? `
         <label class="vy-set-toggle" title="Vypnutím se výrobek skryje z pokladny (KASA). V katalogu / B2B zůstane.">
           <input type="checkbox" id="vy-pos" ${(v.zobrazit_na_pos == 1 || v.zobrazit_na_pos === undefined || v.zobrazit_na_pos === null || !id) ? 'checked' : ''}>
           <span>🧾 POS <small>(KASA)</small></span>
-        </label>` : ''}
+        </label>
       </div>
     </div>
 

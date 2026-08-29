@@ -138,6 +138,9 @@ if ($method === 'PUT') {
 // 🆕 v2.9.279 — Safety check: pokud sklad má položky/pohyby, jen soft delete
 if ($method === 'DELETE') {
     if (!$id) json_error('Chybí ID');
+    // 🆕 v3.0.515 — Hlavní (výchozí) sklad nelze smazat — POS i výroba do něj odepisují (sklad_default_id = nejnižší aktivní id)
+    $mainSkladId = (int) $pdo->query("SELECT id FROM sklady WHERE COALESCE(aktivni,1)=1 ORDER BY id LIMIT 1")->fetchColumn();
+    if ($mainSkladId && $id == $mainSkladId) json_error('Hlavní sklad nelze smazat — je výchozí pro POS a výrobu. Zůstává jako záložní úložiště zásob.', 409);
     try {
         // 1. Zkontroluj sklad_polozky (existující item assignments)
         $polCnt = 0;

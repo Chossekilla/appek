@@ -630,11 +630,10 @@ window.editVyrobek = async function(id = null) {
           <input type="checkbox" id="vy-obl" ${v.oblibeny == 1 ? 'checked' : ''}>
           <span>⭐ Oblíbený</span>
         </label>
-        ${data._restaurace ? `
         <label class="vy-set-toggle" title="Vypnutím se výrobek skryje z pokladny (KASA). V katalogu / B2B zůstane.">
           <input type="checkbox" id="vy-pos" ${(v.zobrazit_na_pos == 1 || v.zobrazit_na_pos === undefined || v.zobrazit_na_pos === null || !id) ? 'checked' : ''}>
           <span>🧾 POS <small>(KASA)</small></span>
-        </label>` : ''}
+        </label>
       </div>
     </div>
 
