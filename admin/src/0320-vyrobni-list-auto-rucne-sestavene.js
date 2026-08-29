@@ -1117,6 +1117,27 @@ window.skladSetPozice = async function(polozkaId) {
 };
 
 // 🆕 v2.9.216 — Detail skladu (modal) — seznam přiřazených položek s edit
+// 🆕 v3.0.519 — storno / oprava skladového pohybu (audit-safe reverzní korekce)
+window.stornoPohyb = async function(pohybId, popis) {
+  if (!confirm('Stornovat pohyb?\n\n' + (popis || '') + '\n\nVytvoří se reverzní korekce — stav se opraví, původní záznam v historii zůstane dohledatelný.')) return;
+  try {
+    await api('admin_sklad_pohyby.php', { method: 'POST', body: JSON.stringify({ action: 'storno', pohyb_id: pohybId }) });
+    if (typeof toast === 'function') toast('✓ Pohyb stornován', 'success');
+    state._suroviny_full_cache = null;
+    if (state._currentSkladId) otevritSklad(state._currentSkladId, state._currentSkladNazev || '', state._currentSkladKod || '');
+  } catch (e) { alert('Storno selhalo: ' + (e.message || e)); }
+};
+window.upravitPohyb = async function(pohybId, skladId, typ, nazev, itemTyp, itemId, jednotka) {
+  if (!confirm('Upravit pohyb „' + nazev + '"?\n\nStornuje se původní a hned zadáš správnou hodnotu.')) return;
+  try {
+    await api('admin_sklad_pohyby.php', { method: 'POST', body: JSON.stringify({ action: 'storno', pohyb_id: pohybId }) });
+    state._suroviny_full_cache = null;
+    if (typeof toast === 'function') toast('Původní stornován — zadej správné množství', 'info');
+    const reTyp = (typ === 'vratka') ? 'prijem' : typ;
+    if (typeof pohybSkladu === 'function') pohybSkladu(skladId, 0, reTyp, nazev, itemTyp, itemId, jednotka || '');
+  } catch (e) { alert('Úprava selhala: ' + (e.message || e)); }
+};
+
 // 🆕 v3.0.518 — hromadný výběr položek skladu → export CSV / tisk (modal karty skladů)
 window.skdBulkBarHtml = function() {
   const sel = state._skdSel || new Set();
@@ -1387,6 +1408,7 @@ window.otevritSklad = async function(skladId, nazev, kod) {
                   <th style="padding:8px 8px;text-align:right">Množství</th>
                   <th style="padding:8px 8px;text-align:right">Stav po</th>
                   <th style="padding:8px 8px;text-align:left">Detail</th>
+                  <th style="padding:8px 8px;text-align:right">Oprava</th>
                 </tr>
               </thead>
               <tbody>
@@ -1407,6 +1429,10 @@ window.otevritSklad = async function(skladId, nazev, kod) {
                       <td style="padding:6px 8px;text-align:right;color:${mnColor};font-weight:600">${mnTxt}</td>
                       <td style="padding:6px 8px;text-align:right">${p.stav_po !== null ? parseFloat(p.stav_po).toFixed(2) : '—'}</td>
                       <td style="padding:6px 8px;color:var(--text-3);font-size:11.5px">${esc(p.poznamka || '')}${p.kdo ? ` <span style="opacity:0.6">· ${esc(p.kdo)}</span>` : ''}</td>
+                      <td style="padding:6px 8px;text-align:right;white-space:nowrap">
+                        ${p.typ !== 'presun' ? `<button class="btn-secondary" onclick="stornoPohyb(${p.id}, '${esc((p.item_nazev || '') + ' · ' + t.lbl + ' ' + mnTxt)}')" style="font-size:11px;padding:3px 7px;background:#fde7e9;color:#a8232f;border-color:#fde7e9" title="Storno — vyruší tento pohyb reverzní korekcí (historie zůstane)">🔄 Storno</button>` : ''}
+                        ${['prijem', 'vydej', 'vratka'].includes(p.typ) ? ` <button class="btn-secondary" onclick="upravitPohyb(${p.id}, ${skladId}, '${p.typ}', '${esc(p.item_nazev || '')}', '${esc(p.item_typ)}', ${p.item_id}, '${esc(p.jednotka || '')}')" style="font-size:11px;padding:3px 7px" title="Upravit = storno původního + zadat správnou hodnotu">✏️ Upravit</button>` : ''}
+                      </td>
                     </tr>
                   `;
                 }).join('')}

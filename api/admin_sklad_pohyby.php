@@ -95,9 +95,46 @@ if ($method === 'POST') {
     $itemId  = (int) ($d['item_id'] ?? 0);
     $poznamka = trim((string) ($d['poznamka'] ?? ''));
 
-    if (!in_array($action, ['prijem','vydej','inventura','korekce','presun','vratka'], true)) {
+    if (!in_array($action, ['prijem','vydej','inventura','korekce','presun','vratka','storno'], true)) {
         json_error('Neplatná akce: ' . $action, 400);
     }
+
+    // 🆕 v3.0.519 — STORNO pohybu (reverzní, audit-safe): vyruší net efekt původního pohybu (= -mnozstvi),
+    //   zapíše se jako 'korekce' s poznámkou (bez ENUM migrace). Nesahá na původní záznam (ledger zůstává).
+    if ($action === 'storno') {
+        $origId = (int) ($d['pohyb_id'] ?? 0);
+        if (!$origId) json_error('Chybí pohyb_id');
+        $st = $pdo->prepare("SELECT * FROM sklad_pohyby_v2 WHERE id = :id");
+        $st->execute(['id' => $origId]);
+        $orig = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$orig) json_error('Pohyb nenalezen', 404);
+        if ($orig['typ'] === 'presun') json_error('Přesun mezi sklady nelze stornovat tímto tlačítkem — udělej opačný přesun.', 400);
+        $delta = -(float) $orig['mnozstvi'];
+        if ($delta === 0.0) json_error('Tento pohyb neměl vliv na stav — není co stornovat.', 400);
+        $pdo->beginTransaction();
+        try {
+            $p = get_or_create_polozka($pdo, (int) $orig['sklad_id'], $orig['item_typ'], (int) $orig['item_id'], true);
+            $stavPred = (float) $p['stav'];
+            $stavPo = $stavPred + $delta;
+            if ($stavPo < 0) { $pdo->rollBack(); json_error('Storno by způsobilo záporný stav (materiál už byl spotřebován). Řeš inventurou.', 409); }
+            $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :id")->execute(['s' => $stavPo, 'id' => $p['id']]);
+            if ($orig['item_typ'] === 'surovina') surovina_recompute_total($pdo, (int) $orig['item_id']);
+            $pozn = '🔄 Storno pohybu #' . $origId . ' (' . $orig['typ'] . ($orig['poznamka'] ? ': ' . $orig['poznamka'] : '') . ')';
+            $pdo->prepare("
+                INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, poznamka, kdo)
+                VALUES (:s, :t, :i, 'korekce', :m, :sp, :sP, :p, :k)
+            ")->execute([
+                's' => (int) $orig['sklad_id'], 't' => $orig['item_typ'], 'i' => (int) $orig['item_id'],
+                'm' => $delta, 'sp' => $stavPred, 'sP' => $stavPo, 'p' => mb_substr($pozn, 0, 255), 'k' => $admin,
+            ]);
+            $pdo->commit();
+            json_response(['ok' => true, 'stav_po' => $stavPo, 'storno_of' => $origId, 'mnozstvi' => $delta]);
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            json_error('Storno selhalo: ' . $e->getMessage(), 500);
+        }
+    }
+
     if (!in_array($itemTyp, ['surovina','vyrobek'], true)) json_error('item_typ musí být surovina nebo vyrobek');
     if ($itemId <= 0) json_error('Chybí item_id');
 
