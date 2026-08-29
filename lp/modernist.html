@@ -267,8 +267,8 @@
   <section id="pricing" style="border-bottom: 2px solid var(--color-divider)">
     <div class="pad-x" style="padding: 56px 40px 32px">
       <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Cena</div>
-      <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Bez měsíčních poplatků</h2>
-      <p style="font-size: 16px; color: var(--color-neutral-700); margin-top: 14px">Zaplatíš jednou — máš navždy. Updaty zdarma první rok.</p>
+      <h2 id="price-h2" class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Bez měsíčních poplatků</h2>
+      <p id="price-sub" style="font-size: 16px; color: var(--color-neutral-700); margin-top: 14px">Zaplatíš jednou — máš navždy. Updaty zdarma první rok.</p>
     </div>
     <div class="hero-grid" style="display: grid; grid-template-columns: 1.15fr 0.85fr; border-top: 2px solid var(--color-divider)">
       <div class="pad-x" style="padding: 32px 40px; border-right: 2px solid var(--color-divider)">
@@ -430,6 +430,8 @@
     document.getElementById("summary-list").innerHTML = items;
     document.getElementById("total").textContent = rent ? fmt(total) + " / měs." : fmt(total);
     document.getElementById("total-note").textContent = rent ? "Pronájem, platba měsíčně — zrušíte kdykoli." : "Jednorázově. Updaty zdarma první rok.";
+    document.getElementById("price-h2").textContent = rent ? "Měsíční pronájem" : "Bez měsíčních poplatků";
+    document.getElementById("price-sub").textContent = rent ? "Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají." : "Zaplatíš jednou — máš navždy. Updaty zdarma první rok.";
   }
 
   window.setMode = function (m) { mode = m; render(); };
