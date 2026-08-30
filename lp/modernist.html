@@ -76,8 +76,6 @@
     .big { font-size: 36px !important; }
     .sec-h2 { font-size: 28px !important; }
     .price-row { grid-template-columns: 1fr auto !important; }
-    .price-row > :nth-child(2) { grid-column: 1; }
-    .price-row > :nth-child(3) { grid-column: 2; grid-row: 2; justify-self: end; }
     .form-grid { grid-template-columns: 1fr !important; }
     .cloud { gap: 8px 18px !important; }
     .cloud li { font-size: 90%; }
@@ -91,7 +89,7 @@
     #pricing h3 { font-size: 19px !important; }
     #total { font-size: 26px !important; }
     .price-row { padding: 13px 0 !important; gap: 6px 12px !important; }
-    .price-row > div:first-child > div:first-child { font-size: 16px !important; }
+    .price-row > div:first-child > div:first-child { font-size: 18px !important; font-weight: 800 !important; }
     .price-row > div:first-child > div:last-child { font-size: 12.5px !important; margin-top: 2px !important; }
     .price-row [data-price], .price-row [data-core-price] { font-size: 15px !important; }
   }
@@ -303,13 +301,15 @@
         </div>
         <p style="font-size: 15px; color: var(--color-neutral-700); margin-top: 12px">Core je vždy v ceně — přidej jen specializované balíčky, které potřebuješ.</p>
         <div style="margin-top: 26px; border-top: 2px solid var(--color-divider)">
-          <div class="price-row" style="display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 18px 0; border-bottom: 2px solid var(--color-divider)">
-            <div>
-              <div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 700">Core — základ systému</div>
-              <div style="font-size: 14px; color: var(--color-neutral-700); margin-top: 4px">Objednávky, faktury a ISDOC, výroba, HACCP, B2B portál, ARES, cenovky, rozvozové trasy, PWA offline, updaty.</div>
+          <div class="price-row" style="display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 13px 0; border-bottom: 2px solid var(--color-divider)">
+            <div style="min-width: 0">
+              <div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.1">Core — základ systému</div>
+              <div style="font-size: 13px; line-height: 1.4; color: var(--color-neutral-700); margin-top: 3px">Objednávky, faktury a ISDOC, výroba, HACCP, B2B portál, ARES, cenovky, rozvozové trasy, PWA offline, updaty.</div>
             </div>
-            <div data-core-price style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 800; white-space: nowrap">9 990 Kč</div>
-            <span class="tag tag-accent">v ceně</span>
+            <div style="display: flex; align-items: center; gap: 10px; justify-self: end">
+              <div data-core-price style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 17px; font-weight: 800; white-space: nowrap">9 990 Kč</div>
+              <span class="tag tag-accent">v ceně</span>
+            </div>
           </div>
           <div id="pkg-rows"></div>
         </div>
@@ -419,11 +419,12 @@
 
   function renderRows() {
     var html = PKGS.map(function (p) {
-      return '<label class="price-row" id="pkg-' + p.key + '" style="display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 18px 0; border-bottom: 2px solid var(--color-divider); cursor: pointer">'
-        + '<div><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 700">' + esc(T(p.name)) + '</div>'
-        + '<div style="font-size: 14px; color: var(--color-neutral-700); margin-top: 4px">' + esc(T(p.body)) + '</div></div>'
-        + '<div data-price style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 800; white-space: nowrap">' + pkgLabel(p) + '</div>'
-        + '<input type="checkbox" class="checkbox" data-pkg="' + p.key + '" ' + (on[p.key] ? "checked" : "") + '>'
+      return '<label class="price-row" id="pkg-' + p.key + '" style="display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 13px 0; border-bottom: 2px solid var(--color-divider); cursor: pointer">'
+        + '<div style="min-width: 0"><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.1">' + esc(T(p.name)) + '</div>'
+        + '<div style="font-size: 13px; line-height: 1.4; color: var(--color-neutral-700); margin-top: 3px">' + esc(T(p.body)) + '</div></div>'
+        + '<div style="display: flex; align-items: center; gap: 12px; justify-self: end">'
+        + '<div data-price style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 17px; font-weight: 800; white-space: nowrap">' + pkgLabel(p) + '</div>'
+        + '<input type="checkbox" class="checkbox" data-pkg="' + p.key + '" ' + (on[p.key] ? "checked" : "") + '></div>'
         + '</label>';
     }).join("");
     document.getElementById("pkg-rows").innerHTML = html;
