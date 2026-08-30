@@ -339,6 +339,11 @@
   html.lp-modernist .step-num { border-radius:0 !important; border-color:#ec3013 !important; color:#ec3013 !important; }
   html.lp-modernist .step-item.done .step-num { background:#ec3013 !important; color:#fff !important; }
   html.lp-modernist .step-line { background:#ec3013 !important; }
+  /* 🆕 v3.0.525 — režim koupě jako hlavní taby nahoře (přepnutí mění celou stránku) */
+  .buy-mode-top { max-width: 560px; margin: 6px auto 22px; }
+  .buy-mode-top .buy-mode { margin: 0; }
+  .buy-mode-top .bm-btn { padding: 14px 18px; font-size: 15px; font-weight: 700; }
+  .buy-mode-top .rental-periods { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -351,6 +356,19 @@
       <button onclick="setLang('cs')" id="lang-cs" class="active">CS</button>
       <button onclick="setLang('en')" id="lang-en">EN</button>
       <button onclick="setLang('es')" id="lang-es">ES</button>
+    </div>
+  </div>
+
+  <!-- 🆕 v3.0.525 — REŽIM KOUPĚ nahoře jako hlavní taby (přepnutí mění celou stránku) -->
+  <div class="buy-mode-top">
+    <div class="buy-mode" id="buy-mode">
+      <button type="button" class="bm-btn active" onclick="setBuyMode(0)" data-i18n="mode_buy">Koupit napořád</button>
+      <button type="button" class="bm-btn" onclick="setBuyMode('rental')" data-i18n="mode_rent">Pronájem měsíčně</button>
+    </div>
+    <div class="rental-periods" id="rental-periods">
+      <button type="button" class="rp-btn" onclick="setRentalMonths(1)" data-m="1">1 měsíc</button>
+      <button type="button" class="rp-btn active" onclick="setRentalMonths(3)" data-m="3">3 měsíce</button>
+      <button type="button" class="rp-btn" onclick="setRentalMonths(6)" data-m="6">6 měsíců</button>
     </div>
   </div>
 
@@ -391,16 +409,7 @@
           <div class="info-banner" data-i18n="banner" id="info-banner">
             Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.
           </div>
-          <!-- 🆕 PRONÁJEM (Fáze 2): přepínač koupit napořád / pronájem měsíčně -->
-          <div class="buy-mode" id="buy-mode">
-            <button type="button" class="bm-btn active" onclick="setBuyMode(0)" data-i18n="mode_buy">Koupit napořád</button>
-            <button type="button" class="bm-btn" onclick="setBuyMode('rental')" data-i18n="mode_rent">Pronájem měsíčně</button>
-          </div>
-          <div class="rental-periods" id="rental-periods">
-            <button type="button" class="rp-btn" onclick="setRentalMonths(1)" data-m="1">1 měsíc</button>
-            <button type="button" class="rp-btn active" onclick="setRentalMonths(3)" data-m="3">3 měsíce</button>
-            <button type="button" class="rp-btn" onclick="setRentalMonths(6)" data-m="6">6 měsíců</button>
-          </div>
+          <!-- (přepínač režimu koupě přesunut nahoru jako hlavní taby — viz .buy-mode-top, v3.0.525) -->
           <div class="pkg-list" id="pkg-list">
             <div style="text-align:center;padding:40px;color:#86868b" data-i18n="loading">Načítání balíčků…</div>
           </div>
