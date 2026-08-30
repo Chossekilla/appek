@@ -75,7 +75,7 @@ if (!defined('APP_URL')) {
     define('APP_URL', $__host ? ($__sch . '://' . $__host) : '');
 }
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.520'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.521'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -737,11 +737,20 @@ function cenik_pro_odberatele(PDO $pdo, int $odberatel_id): array {
     $stmt->execute(['id' => $odberatel_id]);
     $skupina_id = $stmt->fetchColumn();
 
+    // 🆕 v3.0.521 — SCHEMA GUARD: volitelné sloupce vyrobky nemusí existovat na nekompletní/staré DB
+    //   → cenik házel „Unknown column 'v.sezona'" → celý SELECT spadl → PRÁZDNÝ B2B KATALOG.
+    //   Defenzivně: chybějící sloupec → NULL. Viz [[appek-fresh-install-schema]].
+    $vyrCols = [];
+    try { foreach ($pdo->query("SHOW COLUMNS FROM vyrobky") as $c) { $vyrCols[$c['Field']] = true; } } catch (Throwable $e) {}
+    $col = function ($name) use ($vyrCols) { return isset($vyrCols[$name]) ? "v.$name" : "NULL AS $name"; };
+    $cH = $col('hmotnost_g'); $cM = $col('min_objednavka'); $cS = $col('sezona');
+    $cA = $col('alergeny'); $cSl = $col('slozeni'); $cN = $col('nutricni_hodnoty');
+
     // Načti všechny aktivní výrobky se základními informacemi
     $vyrobky = $pdo->query("
         SELECT v.id, v.cislo, v.nazev, v.cena_bez_dph AS cena_zakladni,
-               v.kategorie_id, v.hmotnost_g, v.min_objednavka, v.sezona,
-               v.alergeny, v.slozeni, v.nutricni_hodnoty, -- 🆕 v3.0.224 — food-info do B2B (alergeny legálně!)
+               v.kategorie_id, $cH, $cM, $cS,
+               $cA, $cSl, $cN, -- 🆕 v3.0.224 food-info; v3.0.521 schema-guard (chybějící → NULL)
                j.kod AS jednotka,
                s.sazba AS dph,
                k.nazev AS kategorie_nazev, k.ikona AS kategorie_ikona
