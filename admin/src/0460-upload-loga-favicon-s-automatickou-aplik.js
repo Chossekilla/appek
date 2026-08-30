@@ -155,6 +155,8 @@ window.gdprZasady = function() {
     if (n.firma_favicon_url) aplikovatFavicon(n.firma_favicon_url);
     if (n.firma_logo_url)    aplikovatLogo(n.firma_logo_url);
     if (n.ga_measurement_id_core) aplikovatGaCore(n.ga_measurement_id_core);
+    // 🖥️ v3.0.522 — skrýt ikony (starší monitory): server nastavení → aplikuj i na novém zařízení bez localStorage
+    if (n.skryt_ikony === '1') { try { localStorage.setItem('appek_hide_emoji', '1'); } catch (e) {} if (window.appekHideEmoji) window.appekHideEmoji.enable(); }
   } catch (e) { /* neauth nebo network — ignore */ }
 })();
 

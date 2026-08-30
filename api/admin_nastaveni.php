@@ -393,6 +393,8 @@ if ($method === 'PUT') {
         'pagination_pocet',
         // ⚡ v3.0.252 — odlehčený režim (výkon): '1' | '0'
         'vykon_lite',
+        // 🖥️ v3.0.522 — skrýt dekorativní ikony/emoji (pro starší monitory, kde se renderují jako □): '1' | '0'
+        'skryt_ikony',
         // 🖼️ obrázky/ikony v seznamu surovin: '1' | '0'
         'seznam_obrazky',
         // 🛒 v3.0.495 — sticky spodní košík na B2B eshopu: '1' | '0'

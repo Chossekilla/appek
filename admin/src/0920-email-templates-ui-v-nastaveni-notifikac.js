@@ -690,6 +690,12 @@ window.ulozitNastaveni = async function() {
     try { localStorage.setItem('appek_perf_lite', _pl ? '1' : '0'); } catch (e) {}
     document.body.classList.toggle('perf-lite', _pl);
   }
+  if (document.getElementById('ns-hide-emoji')) {                 // 🖥️ v3.0.522 — skrýt ikony (starší monitory)
+    const _he = cb('ns-hide-emoji');
+    data.skryt_ikony = _he ? '1' : '0';
+    try { localStorage.setItem('appek_hide_emoji', _he ? '1' : '0'); } catch (e) {}
+    // aplikaci řeší onchange (enable/reload) + preamble bootstrap; zde jen persist do nastavení
+  }
   if (document.getElementById('ns-notif-nova')) data.notif_nova_objednavka = cb('ns-notif-nova') ? '1' : '0';
   if (document.getElementById('ns-notif-stav')) data.notif_zmena_stavu     = cb('ns-notif-stav') ? '1' : '0';
   if (document.querySelector('[data-stav-notif]')) {

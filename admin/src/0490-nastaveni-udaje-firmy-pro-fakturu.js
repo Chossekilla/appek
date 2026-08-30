@@ -656,6 +656,13 @@ async function renderNastaveni() {
           Odlehčený režim <span style="color:var(--text-3);font-weight:400">(rychlejší na slabších zařízeních)</span>
         </label>
         <p style="font-size:11px;color:var(--text-3);margin-top:10px">Projeví se hned (toto zařízení) · „💾 Uložit nastavení" dole uloží pro všechna zařízení.</p>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+          <input type="checkbox" id="ns-hide-emoji" ${n.skryt_ikony === '1' ? 'checked' : ''}
+            onchange="try{localStorage.setItem('appek_hide_emoji',this.checked?'1':'0')}catch(e){}; if(this.checked){window.appekHideEmoji&&window.appekHideEmoji.enable()}else{location.reload()}"
+            style="width:18px;height:18px;cursor:pointer">
+          🖥️ Skrýt ikony (pro starší monitory) <span style="color:var(--text-3);font-weight:400">(emoji se na starších systémech zobrazují jako □)</span>
+        </label>
+        <p style="font-size:11px;color:var(--text-3);margin-top:10px">Odstraní dekorativní emoji z textu. Vypnutí vyžaduje obnovení stránky. „💾 Uložit nastavení" dole uloží pro všechna zařízení.</p>
       </div>
     </div>
 

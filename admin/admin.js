@@ -22,6 +22,59 @@ const APPEK_ADMIN_JS_VERSION = '3.0.471';
   } catch (e) {}
 })();
 
+// 🖥️ v3.0.522 — „Skrýt ikony pro starší monitory" (volba v Nastavení → Výkon).
+//   Windows/starší systémy renderují emoji jako □ boxíky. Emoji jsou inline v textu
+//   (ne v CSS), takže je odstraňujeme z textových uzlů (TreeWalker) + MutationObserver
+//   pro SPA re-rendery. Přepnutí ZPĚT je nevratné (uzly už jsou přepsané) → OFF = reload.
+window.appekHideEmoji = (function () {
+  // Jen dekorativní piktogramy/emoji/dingbaty/symboly/vlajky/keycap — NE běžné šipky (→),
+  // pomlčky, odrážky, matematiku či rámečky (ty se na starých fontech renderují správně).
+  const RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{200D}\u{20E3}]/gu;
+  const clean = (s) => s.replace(RE, '').replace(/\s{2,}/g, ' ');
+  let observer = null;
+
+  function stripTextNode(n) {
+    const t = n.nodeValue;
+    if (!t) return;
+    const c = clean(t);
+    if (c !== t) n.nodeValue = c;              // zapiš JEN když se změní (jinak smyčka v MutationObserver)
+  }
+  function stripTree(root) {
+    if (!root) return;
+    if (root.nodeType === 3) { stripTextNode(root); return; }
+    if (root.nodeType !== 1) return;
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const arr = [];
+    while (w.nextNode()) arr.push(w.currentNode);
+    for (const n of arr) stripTextNode(n);
+    // atributy, které nesou viditelný text
+    let els; try { els = root.querySelectorAll('[placeholder],[title],[aria-label]'); } catch (e) { els = []; }
+    for (const el of els) {
+      for (const a of ['placeholder', 'title', 'aria-label']) {
+        if (el.hasAttribute(a)) { const v = el.getAttribute(a), c = clean(v); if (c !== v) el.setAttribute(a, c.trim()); }
+      }
+    }
+  }
+  function enable() {
+    if (!document.body) { document.addEventListener('DOMContentLoaded', enable); return; }
+    if (document.documentElement.classList.contains('hide-emoji')) return; // už běží
+    document.documentElement.classList.add('hide-emoji');
+    stripTree(document.body);
+    let queue = [], scheduled = false;
+    const flush = () => { scheduled = false; const b = queue; queue = []; for (const n of b) { try { stripTree(n); } catch (e) {} } };
+    observer = new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === 'characterData') queue.push(m.target);
+        else for (const n of m.addedNodes) queue.push(n);
+      }
+      if (!scheduled) { scheduled = true; (window.requestAnimationFrame || setTimeout)(flush, 0); }
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+  return { enable };
+})();
+(function bootHideEmoji() { try { if (localStorage.getItem('appek_hide_emoji') === '1') window.appekHideEmoji.enable(); } catch (e) {} })();
+
 (async function detectStaleCode() {
   try {
     // Skip pokud běžíme přes installer/recovery
@@ -14623,6 +14676,8 @@ window.gdprZasady = function() {
     if (n.firma_favicon_url) aplikovatFavicon(n.firma_favicon_url);
     if (n.firma_logo_url)    aplikovatLogo(n.firma_logo_url);
     if (n.ga_measurement_id_core) aplikovatGaCore(n.ga_measurement_id_core);
+    // 🖥️ v3.0.522 — skrýt ikony (starší monitory): server nastavení → aplikuj i na novém zařízení bez localStorage
+    if (n.skryt_ikony === '1') { try { localStorage.setItem('appek_hide_emoji', '1'); } catch (e) {} if (window.appekHideEmoji) window.appekHideEmoji.enable(); }
   } catch (e) { /* neauth nebo network — ignore */ }
 })();
 
@@ -16334,6 +16389,13 @@ async function renderNastaveni() {
           Odlehčený režim <span style="color:var(--text-3);font-weight:400">(rychlejší na slabších zařízeních)</span>
         </label>
         <p style="font-size:11px;color:var(--text-3);margin-top:10px">Projeví se hned (toto zařízení) · „💾 Uložit nastavení" dole uloží pro všechna zařízení.</p>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+          <input type="checkbox" id="ns-hide-emoji" ${n.skryt_ikony === '1' ? 'checked' : ''}
+            onchange="try{localStorage.setItem('appek_hide_emoji',this.checked?'1':'0')}catch(e){}; if(this.checked){window.appekHideEmoji&&window.appekHideEmoji.enable()}else{location.reload()}"
+            style="width:18px;height:18px;cursor:pointer">
+          🖥️ Skrýt ikony (pro starší monitory) <span style="color:var(--text-3);font-weight:400">(emoji se na starších systémech zobrazují jako □)</span>
+        </label>
+        <p style="font-size:11px;color:var(--text-3);margin-top:10px">Odstraní dekorativní emoji z textu. Vypnutí vyžaduje obnovení stránky. „💾 Uložit nastavení" dole uloží pro všechna zařízení.</p>
       </div>
     </div>
 
@@ -29274,6 +29336,12 @@ window.ulozitNastaveni = async function() {
     data.vykon_lite = _pl ? '1' : '0';
     try { localStorage.setItem('appek_perf_lite', _pl ? '1' : '0'); } catch (e) {}
     document.body.classList.toggle('perf-lite', _pl);
+  }
+  if (document.getElementById('ns-hide-emoji')) {                 // 🖥️ v3.0.522 — skrýt ikony (starší monitory)
+    const _he = cb('ns-hide-emoji');
+    data.skryt_ikony = _he ? '1' : '0';
+    try { localStorage.setItem('appek_hide_emoji', _he ? '1' : '0'); } catch (e) {}
+    // aplikaci řeší onchange (enable/reload) + preamble bootstrap; zde jen persist do nastavení
   }
   if (document.getElementById('ns-notif-nova')) data.notif_nova_objednavka = cb('ns-notif-nova') ? '1' : '0';
   if (document.getElementById('ns-notif-stav')) data.notif_zmena_stavu     = cb('ns-notif-stav') ? '1' : '0';
