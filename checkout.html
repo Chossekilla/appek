@@ -217,11 +217,12 @@
   /* 🆕 v2.9.212 — clean modern hero (méně dekorace, větší fokus) */
   /* ═══════════════════════════════════════════════════════ */
   .hero-clean {
+    --acc: #BA7517; --acc-soft: rgba(186,117,23,0.12); --acc-line: rgba(186,117,23,0.28);
     background: #fff;
     border-radius: 20px;
-    padding: 56px 48px 44px;
+    padding: 44px 44px 40px;
     margin-bottom: 28px;
-    text-align: center;
+    text-align: left;
     border: 1px solid rgba(0,0,0,0.04);
     box-shadow: 0 1px 3px rgba(0,0,0,0.03), 0 8px 32px rgba(0,0,0,0.04);
     position: relative;
@@ -257,66 +258,38 @@
     background-clip: text; color: transparent;
   }
   .hero-clean-lead {
-    font-size: 17px; line-height: 1.6;
-    color: #424245; max-width: 680px; margin: 0 auto 28px;
+    font-size: 16px; line-height: 1.6;
+    color: #424245; max-width: 48ch; margin: 0 0 26px;
   }
   .hero-clean-lead strong { color: #1d1d1f; font-weight: 700; }
 
-  /* Trust badges — inline row */
-  .hero-trust-row {
-    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
-    margin-bottom: 36px;
-  }
-  .ht-badge {
-    font-size: 13px; color: #424245;
-    background: #f5f5f7;
-    border: 1px solid rgba(0,0,0,0.04);
-    padding: 8px 14px; border-radius: 999px;
-    white-space: nowrap;
-  }
-  .ht-badge strong { color: #1d1d1f; font-weight: 700; }
+  /* Editorial split — hlavní obsah + licenční karta */
+  .hero-grid2 { display: grid; grid-template-columns: 1.35fr 0.9fr; gap: 44px; align-items: center; }
 
-  /* Stepper — clean horizontal flow */
-  .stepper-clean {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 4px; max-width: 760px; margin: 0 auto;
-    padding-top: 24px;
-    border-top: 1px solid rgba(0,0,0,0.06);
-  }
-  .step-item {
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    flex: 0 0 auto; min-width: 0;
-  }
-  .step-num {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: #fff; border: 2px solid #BA7517; color: #BA7517;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 13px;
-    transition: all 0.15s;
-  }
-  .step-item.done .step-num {
-    background: #BA7517; color: #fff;
-  }
-  .step-txt { text-align: center; font-size: 12px; line-height: 1.3; }
-  .step-txt strong { display: block; color: #1d1d1f; font-weight: 600; font-size: 12.5px; }
-  .step-txt div { color: #86868b; font-size: 11px; margin-top: 1px; }
-  .step-line {
-    flex: 1; height: 2px; background: linear-gradient(90deg, #BA7517, rgba(186,117,23,0.3));
-    margin-top: -22px; opacity: 0.5; min-width: 16px;
-  }
+  /* Proces — 4 kroky, čistý pruh pod textem */
+  .hero-steps { list-style: none; margin: 4px 0 0; padding: 20px 0 0; border-top: 1px solid rgba(0,0,0,0.08); display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .hero-steps li { display: flex; align-items: flex-start; gap: 9px; }
+  .hs-n { flex: 0 0 auto; width: 25px; height: 25px; border-radius: 50%; background: var(--acc-soft); color: var(--acc); font-weight: 800; font-size: 12.5px; display: grid; place-items: center; margin-top: 1px; }
+  .hs-t { display: flex; flex-direction: column; line-height: 1.25; }
+  .hs-t strong { font-size: 13px; color: #1d1d1f; font-weight: 700; }
+  .hs-t span { font-size: 11px; color: #86868b; margin-top: 1px; }
+
+  /* Signature — licenční karta */
+  .hero-license { background: #fff; border: 1.5px solid var(--acc-line); border-radius: 16px; padding: 22px 22px 18px; }
+  .hl-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: var(--acc); background: var(--acc-soft); padding: 6px 12px; border-radius: 999px; letter-spacing: 0.02em; margin-bottom: 15px; }
+  .hl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
+  .hl-list li { position: relative; padding-left: 25px; font-size: 14px; color: #1d1d1f; line-height: 1.4; }
+  .hl-list li strong { font-weight: 700; }
+  .hl-list li::before { content: '✓'; position: absolute; left: 0; top: -1px; color: #16a34a; font-weight: 800; font-size: 14px; }
+  .hl-foot { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.08); font-size: 12.5px; color: #6e6e73; line-height: 1.45; }
 
   /* MOBILE */
   @media (max-width: 720px) {
-    .hero-clean { padding: 40px 24px 32px; }
-    .hero-clean-title { font-size: 30px; letter-spacing: -0.5px; }
-    .hero-clean-lead { font-size: 15px; }
-    .hero-trust-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: stretch; }
-    .ht-badge { font-size: 12px; padding: 7px 10px; white-space: normal; text-align: center; display: flex; align-items: center; justify-content: center; }
-    .stepper-clean { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; align-items: start; }
-    .step-item { flex-direction: row; gap: 10px; }
-    .step-item.done { grid-column: 1 / -1; justify-content: center; }
-    .step-txt { text-align: left; }
-    .step-line { display: none; }
+    .hero-clean { padding: 30px 20px 26px; }
+    .hero-clean-title { font-size: 29px; letter-spacing: -0.5px; }
+    .hero-clean-lead { font-size: 15px; max-width: none; }
+    .hero-grid2 { grid-template-columns: 1fr; gap: 22px; }
+    .hero-steps { grid-template-columns: 1fr 1fr; gap: 14px 12px; padding-top: 16px; }
   }
 </style>
 <!-- 🎨 Modernist checkout re-skin — aktivní JEN z modernist landingu (?lp=modernist). HTML/JS/platby beze změny. -->
@@ -336,6 +309,9 @@
   html.lp-modernist .bm-btn.active, html.lp-modernist .rp-btn.active { background:#ec3013 !important; color:#fff !important; box-shadow:none !important; }
   html.lp-modernist .pkg { border-radius:0 !important; border:2px solid rgba(32,30,29,0.4) !important; background:#fff !important; box-shadow:none !important; transform:none !important; }
   html.lp-modernist .pkg:hover { background:#fff2ef !important; border-color:#ec3013 !important; transform:none !important; box-shadow:none !important; }
+  html.lp-modernist .hero-clean { --acc:#ec3013; --acc-soft:rgba(236,48,19,0.12); --acc-line:rgba(32,30,29,0.4); border-radius:0 !important; border:2px solid rgba(32,30,29,0.4) !important; box-shadow:none !important; }
+  html.lp-modernist .hero-license { border-radius:0 !important; border:2px solid rgba(32,30,29,0.4) !important; }
+  html.lp-modernist .hero-clean-eyebrow, html.lp-modernist .hl-badge, html.lp-modernist .hs-n { border-radius:0 !important; }
   html.lp-modernist .pkg.selected, html.lp-modernist .pkg.core { background:#fff2ef !important; border-color:#ec3013 !important; box-shadow:none !important; }
   html.lp-modernist input, html.lp-modernist textarea, html.lp-modernist select { border-radius:0 !important; border:2px solid rgba(32,30,29,0.4) !important; }
   html.lp-modernist input:focus, html.lp-modernist textarea:focus, html.lp-modernist select:focus { border-color:#ec3013 !important; box-shadow:none !important; }
@@ -382,33 +358,28 @@
   <!-- 🆕 v2.9.212 — clean modern hero (méně dekorace, větší fokus) -->
   <!-- ═══════════════════════════════════════════════════════ -->
   <div class="hero-clean">
-    <div class="hero-clean-eyebrow" data-i18n="hero_eyebrow">📦 APPEK B2B · Jednorázová licence</div>
-    <h1 class="hero-clean-title" data-i18n="conv_h1">
-      Jednou koupíte. <span class="hl">Navždy vlastníte.</span>
-    </h1>
-    <p class="hero-clean-lead" data-i18n="conv_lead">
-      Žádné měsíční poplatky, žádný subscription burnout. APPEK běží na <strong>vašem zařízení nebo webhostingu</strong> — vaše data zůstávají jen vaše. Licenční klíč přijde e-mailem ihned po zaplacení.
-    </p>
-
-    <!-- Trust badges — inline horizontální -->
-    <div class="hero-trust-row">
-      <span class="ht-badge" id="badge-license" data-i18n="badge_license">✅ <strong>Doživotní</strong> licence</span>
-      <span class="ht-badge">🏠 <strong>Vaše data</strong> na vašem hostingu</span>
-      <span class="ht-badge">🇨🇿 Český systém + 4 jazyky</span>
-      <span class="ht-badge" id="badge-updates" data-i18n="badge_updates">🔄 <strong>1 rok updates</strong> zdarma</span>
-    </div>
-
-    <!-- Workflow stepper — clean horizontální (na mobilu vertikální) -->
-    <div class="stepper-clean" aria-label="4 kroky od objednávky k provozu">
-      <div class="step-item"><div class="step-num">1</div><div class="step-txt"><strong data-i18n="sc1_t">Vyberte balíčky</strong><div data-i18n="sc1_d">2 minuty</div></div></div>
-      <div class="step-line"></div>
-      <div class="step-item"><div class="step-num">2</div><div class="step-txt"><strong data-i18n="sc2_t">Zaplaťte</strong><div data-i18n="sc2_d">karta / převod</div></div></div>
-      <div class="step-line"></div>
-      <div class="step-item"><div class="step-num">3</div><div class="step-txt"><strong data-i18n="sc3_t">Klíč e-mailem</strong><div data-i18n="sc3_d">ihned</div></div></div>
-      <div class="step-line"></div>
-      <div class="step-item"><div class="step-num">4</div><div class="step-txt"><strong data-i18n="sc4_t">Nainstalujte</strong><div data-i18n="sc4_d">5 min</div></div></div>
-      <div class="step-line"></div>
-      <div class="step-item done"><div class="step-num">✓</div><div class="step-txt"><strong data-i18n="sc5_t">Provoz</strong><div data-i18n="sc5_d">hotovo</div></div></div>
+    <div class="hero-grid2">
+      <div class="hero-main">
+        <div class="hero-clean-eyebrow" data-i18n="hero_eyebrow">📦 APPEK B2B · Jednorázová licence</div>
+        <h1 class="hero-clean-title" data-i18n="conv_h1">Jednou koupíte. <span class="hl">Navždy vlastníte.</span></h1>
+        <p class="hero-clean-lead" data-i18n="conv_lead">Žádné měsíční poplatky, žádný subscription burnout. APPEK běží na <strong>vašem zařízení nebo webhostingu</strong> — vaše data zůstávají jen vaše. Licenční klíč přijde e-mailem ihned po zaplacení.</p>
+        <ol class="hero-steps" aria-label="4 kroky od objednávky k provozu">
+          <li><span class="hs-n">1</span><span class="hs-t"><strong data-i18n="sc1_t">Vyberte balíčky</strong><span data-i18n="sc1_d">2 minuty</span></span></li>
+          <li><span class="hs-n">2</span><span class="hs-t"><strong data-i18n="sc2_t">Zaplaťte</strong><span data-i18n="sc2_d">karta / převod</span></span></li>
+          <li><span class="hs-n">3</span><span class="hs-t"><strong data-i18n="sc3_t">Klíč e-mailem</strong><span data-i18n="sc3_d">ihned</span></span></li>
+          <li><span class="hs-n">4</span><span class="hs-t"><strong data-i18n="sc4_t">Nainstalujte</strong><span data-i18n="sc4_d">5 minut</span></span></li>
+        </ol>
+      </div>
+      <aside class="hero-license">
+        <span class="hl-badge" id="badge-license" data-i18n="badge_license">✅ Doživotní licence</span>
+        <ul class="hl-list">
+          <li><strong>Jednorázová platba</strong> — žádné měsíční poplatky</li>
+          <li><strong>Vaše data</strong> na vašem zařízení / hostingu</li>
+          <li>Český systém <strong>+ EN a ES</strong> překlady</li>
+          <li id="badge-updates" data-i18n="badge_updates"><strong>1 rok updates</strong> zdarma</li>
+        </ul>
+        <div class="hl-foot">🔑 Licenční klíč přijde e-mailem do pár minut po zaplacení.</div>
+      </aside>
     </div>
   </div>
 
