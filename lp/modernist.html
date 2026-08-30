@@ -95,6 +95,19 @@
     .price-row > div:first-child > div:last-child { font-size: 12.5px !important; margin-top: 2px !important; }
     .price-row [data-price], .price-row [data-core-price] { font-size: 15px !important; }
   }
+  /* 🌐 v3.0.523 — přepínač jazyků (CS/SK/EN/DE/ES) */
+  .lang-dd { position: relative; flex: none; }
+  .lang-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: var(--font-heading), Archivo, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--color-text); background: transparent; border: 2px solid var(--color-divider); padding: 7px 10px; text-transform: uppercase; }
+  .lang-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .lang-caret { font-size: 9px; line-height: 1; }
+  .lang-menu { position: absolute; top: calc(100% + 4px); right: 0; min-width: 156px; background: var(--color-bg); border: 2px solid var(--color-text); display: none; z-index: 60; }
+  .lang-menu.open { display: block; }
+  .lang-menu button { display: flex; width: 100%; align-items: center; gap: 10px; cursor: pointer; font-family: var(--font-heading), Archivo, sans-serif; font-size: 13px; font-weight: 600; color: var(--color-text); background: transparent; border: none; border-bottom: 1px solid var(--color-divider); padding: 10px 12px; text-align: left; }
+  .lang-menu button:last-child { border-bottom: none; }
+  .lang-menu button:hover { background: var(--color-accent); color: #fff; }
+  .lang-menu button[aria-current="true"] { color: var(--color-accent); }
+  .lang-menu button[aria-current="true"]:hover { color: #fff; }
+  .lang-code { font-weight: 800; letter-spacing: 0.04em; min-width: 24px; }
 </style>
 </head>
 <body>
@@ -113,7 +126,16 @@
       <a href="#contact" style="color: var(--color-text)">Kontakt</a>
     </nav>
     <div style="margin-left: auto; display: flex; align-items: center; gap: 10px">
-      <span class="hdr-langs" style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: var(--color-neutral-600); white-space: nowrap">CS / SK / EN / DE / ES</span>
+      <div class="lang-dd" id="lang-dd">
+        <button type="button" class="lang-btn" id="lang-btn" aria-haspopup="true" aria-expanded="false" aria-label="Jazyk / Language"><span id="lang-cur">CS</span><span class="lang-caret" aria-hidden="true">▼</span></button>
+        <div class="lang-menu" id="lang-menu" role="menu">
+          <button type="button" data-lang="cs" role="menuitem"><span class="lang-code">CS</span>Čeština</button>
+          <button type="button" data-lang="sk" role="menuitem"><span class="lang-code">SK</span>Slovenčina</button>
+          <button type="button" data-lang="en" role="menuitem"><span class="lang-code">EN</span>English</button>
+          <button type="button" data-lang="de" role="menuitem"><span class="lang-code">DE</span>Deutsch</button>
+          <button type="button" data-lang="es" role="menuitem"><span class="lang-code">ES</span>Español</button>
+        </div>
+      </div>
       <a class="btn btn-ghost hdr-demo" href="https://demo.appek.cz" data-cta="demo" style="white-space: nowrap">Vyzkoušet demo</a>
       <a class="btn btn-primary" href="/checkout.html?lp=modernist" data-cta="order">Objednat</a>
     </div>
@@ -123,8 +145,8 @@
     <div class="hero-grid" style="display: grid; grid-template-columns: 1.05fr 0.95fr">
       <div class="pad-x" style="padding: 64px 40px 48px; border-right: 2px solid var(--color-divider)">
         <div style="display: block; width: fit-content; max-width: 100%; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; line-height: 1.5; text-transform: uppercase; color: var(--color-accent-700); border-bottom: 2px solid var(--color-accent); padding-bottom: 4px">Krabicovka pro gastro výrobce</div>
-        <h1 class="big" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 76px; line-height: 0.94; letter-spacing: -0.035em; font-weight: 800; margin-top: 28px">Vše pro váš provoz<br>v jednom systému</h1>
-        <p style="max-width: 46ch; margin-top: 26px; font-size: 18px; line-height: 1.5; color: var(--color-neutral-700)">Objednávky, faktury, dodací listy, výrobní list, HACCP, B2B portál pro odběratele, cenovky, štítky. <strong style="color: var(--color-text)">Bez měsíčních poplatků.</strong> Lokální nebo cloud — vy si vyberete.</p>
+        <h1 class="big" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 76px; line-height: 0.94; letter-spacing: -0.035em; font-weight: 800; margin-top: 28px" data-i18n-html>Vše pro váš provoz<br>v jednom systému</h1>
+        <p style="max-width: 46ch; margin-top: 26px; font-size: 18px; line-height: 1.5; color: var(--color-neutral-700)" data-i18n-html>Objednávky, faktury, dodací listy, výrobní list, HACCP, B2B portál pro odběratele, cenovky, štítky. <strong style="color: var(--color-text)">Bez měsíčních poplatků.</strong> Lokální nebo cloud — vy si vyberete.</p>
         <div style="display: flex; gap: 12px; margin-top: 32px; flex-wrap: wrap">
           <a class="btn btn-primary" href="https://demo.appek.cz" data-cta="demo" style="padding: 14px 22px; font-size: 15px">Vyzkoušet demo</a>
         </div>
@@ -170,7 +192,7 @@
     <div class="pad-x" style="padding: 56px 40px; border-right: 2px solid var(--color-divider)">
       <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Mobilní · Tablet · Desktop</div>
       <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Plnohodnotná aplikace v každé kapse</h2>
-      <p style="max-width: 52ch; font-size: 17px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 20px">APPEK funguje jako <strong style="color: var(--color-text)">PWA</strong> — nainstaluje se na mobil/tablet jako nativní aplikace. Push notifikace o objednávkách, offline mód, touch-friendly UI. Žádný App Store ani Google Play.</p>
+      <p style="max-width: 52ch; font-size: 17px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 20px" data-i18n-html>APPEK funguje jako <strong style="color: var(--color-text)">PWA</strong> — nainstaluje se na mobil/tablet jako nativní aplikace. Push notifikace o objednávkách, offline mód, touch-friendly UI. Žádný App Store ani Google Play.</p>
       <ul class="cols-2" style="display: grid; grid-template-columns: 1fr 1fr; margin-top: 36px; border-top: 2px solid var(--color-divider)">
         <li style="padding: 20px 20px 20px 0; border-bottom: 2px solid var(--color-divider)"><div style="font-size: 15px; font-weight: 700">Instaluj jako appku</div><div style="font-size: 14px; line-height: 1.45; color: var(--color-neutral-700); margin-top: 5px">Klik na „Přidat na plochu“ — vznikne ikona jako u nativní appky. iOS i Android.</div></li>
         <li style="padding: 20px 20px 20px 0; border-bottom: 2px solid var(--color-divider)"><div style="font-size: 15px; font-weight: 700">Push notifikace</div><div style="font-size: 14px; line-height: 1.45; color: var(--color-neutral-700); margin-top: 5px">Nová objednávka = zvonění. Funguje i s vypnutým prohlížečem.</div></li>
@@ -192,7 +214,7 @@
         <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Rozvozový plán · Dodací listy</div>
         <h2 class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Rozvoz máte v jednom přehledu</h2>
       </div>
-      <p style="max-width: 44ch; font-size: 16px; line-height: 1.5; color: var(--color-neutral-700)">APPEK ti z <strong style="color: var(--color-text)">dodacích listů na vybraný den</strong> sestaví rozvozový plán — seskupený podle měst a PSČ, s počty kusů a částkami. Podklad pro řidiče na jeden klik.</p>
+      <p style="max-width: 44ch; font-size: 16px; line-height: 1.5; color: var(--color-neutral-700)" data-i18n-html>APPEK ti z <strong style="color: var(--color-text)">dodacích listů na vybraný den</strong> sestaví rozvozový plán — seskupený podle měst a PSČ, s počty kusů a částkami. Podklad pro řidiče na jeden klik.</p>
     </div>
     <div class="cols-3" style="display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid var(--color-divider)">
       <div style="padding: 28px 26px; border-right: 2px solid var(--color-divider)"><h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 19px; font-weight: 700">Plán z dodacích listů</h3><p style="font-size: 15px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 8px">Vyber den → APPEK načte všechny DL a sestaví rozvozový seznam. Žádné přepisování adres.</p></div>
@@ -267,8 +289,8 @@
   <section id="pricing" style="border-bottom: 2px solid var(--color-divider)">
     <div class="pad-x" style="padding: 56px 40px 32px">
       <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Cena</div>
-      <h2 id="price-h2" class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Bez měsíčních poplatků</h2>
-      <p id="price-sub" style="font-size: 16px; color: var(--color-neutral-700); margin-top: 14px">Zaplatíš jednou — máš navždy. Updaty zdarma první rok.</p>
+      <h2 id="price-h2" data-i18n-skip class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Bez měsíčních poplatků</h2>
+      <p id="price-sub" data-i18n-skip style="font-size: 16px; color: var(--color-neutral-700); margin-top: 14px">Zaplatíš jednou — máš navždy. Updaty zdarma první rok.</p>
     </div>
     <div class="hero-grid" style="display: grid; grid-template-columns: 1.15fr 0.85fr; border-top: 2px solid var(--color-divider)">
       <div class="pad-x" style="padding: 32px 40px; border-right: 2px solid var(--color-divider)">
@@ -297,11 +319,11 @@
         <ul id="summary-list" style="margin-top: 18px; border-top: 2px solid var(--color-divider)"></ul>
         <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 20px">
           <span style="font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-neutral-600)">Celkem bez DPH</span>
-          <span id="total" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap">9 990 Kč</span>
+          <span id="total" data-i18n-skip style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap">9 990 Kč</span>
         </div>
-        <div id="total-note" style="font-size: 13px; color: var(--color-neutral-600); margin-top: 4px">Jednorázově. Updaty zdarma první rok.</div>
+        <div id="total-note" data-i18n-skip style="font-size: 13px; color: var(--color-neutral-600); margin-top: 4px">Jednorázově. Updaty zdarma první rok.</div>
         <a class="btn btn-primary btn-block" href="/checkout.html?lp=modernist" data-cta="order" style="margin-top: 22px; padding: 14px 18px; font-size: 15px">Pokračovat k objednávce →</a>
-        <p style="font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.6; color: var(--color-neutral-600); margin-top: 16px">Jednorázová platba · bez měsíčních poplatků · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.</p>
+        <p style="font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.6; color: var(--color-neutral-600); margin-top: 16px" data-i18n-html>Jednorázová platba · bez měsíčních poplatků · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.</p>
       </div>
     </div>
   </section>
@@ -375,9 +397,11 @@
   </footer>
 </div>
 
+<script src="/lp/i18n-modernist.js"></script>
 <script>
 (function () {
   // ── Pricing configurator (přeloženo z Component.renderVals) ──
+  function T(s) { return window.__t ? window.__t(s) : s; }   // 🌐 v3.0.523 — i18n dynamic strings
   var CORE = { buy: 9990, rent: 990 };
   var PKGS = [
     { key: "cukrarna",   name: "Cukrárna",     body: "Konfigurátor dortů, cukrářské receptury, ceník per dort, svatební objednávky.", buy: 2990, rent: 290 },
@@ -390,14 +414,14 @@
   var on = {};
 
   function fmt(n) { return n.toLocaleString("cs-CZ") + " Kč"; }
-  function pkgLabel(p) { return mode === "rent" ? "+ " + fmt(p.rent) + " / měs." : "+ " + fmt(p.buy); }
+  function pkgLabel(p) { return mode === "rent" ? "+ " + fmt(p.rent) + " " + T("/ měs.") : "+ " + fmt(p.buy); }
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
 
   function renderRows() {
     var html = PKGS.map(function (p) {
       return '<label class="price-row" id="pkg-' + p.key + '" style="display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 18px 0; border-bottom: 2px solid var(--color-divider); cursor: pointer">'
-        + '<div><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 700">' + esc(p.name) + '</div>'
-        + '<div style="font-size: 14px; color: var(--color-neutral-700); margin-top: 4px">' + esc(p.body) + '</div></div>'
+        + '<div><div style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 700">' + esc(T(p.name)) + '</div>'
+        + '<div style="font-size: 14px; color: var(--color-neutral-700); margin-top: 4px">' + esc(T(p.body)) + '</div></div>'
         + '<div data-price style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 18px; font-weight: 800; white-space: nowrap">' + pkgLabel(p) + '</div>'
         + '<input type="checkbox" class="checkbox" data-pkg="' + p.key + '" ' + (on[p.key] ? "checked" : "") + '>'
         + '</label>';
@@ -410,7 +434,7 @@
 
   function render() {
     var rent = mode === "rent";
-    var corePrice = rent ? fmt(CORE.rent) + " / měs." : fmt(CORE.buy);
+    var corePrice = rent ? fmt(CORE.rent) + " " + T("/ měs.") : fmt(CORE.buy);
     document.querySelectorAll("[data-core-price]").forEach(function (e) { e.textContent = corePrice; });
     var b = document.getElementById("seg-buy"), r = document.getElementById("seg-rent");
     b.style.background = rent ? "transparent" : "var(--color-accent)"; b.style.color = rent ? "var(--color-text)" : "#fff";
@@ -420,21 +444,22 @@
       if (row) row.querySelector("[data-price]").textContent = pkgLabel(p);
     });
     var total = rent ? CORE.rent : CORE.buy;
-    var items = '<li style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 2px solid var(--color-divider); font-size: 15px"><span>Core</span><span style="font-weight: 700">' + corePrice + '</span></li>';
+    var items = '<li style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 2px solid var(--color-divider); font-size: 15px"><span>' + T("Core") + '</span><span style="font-weight: 700">' + corePrice + '</span></li>';
     PKGS.forEach(function (p) {
       if (on[p.key]) {
         total += rent ? p.rent : p.buy;
-        items += '<li style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 2px solid var(--color-divider); font-size: 15px"><span>' + esc(p.name) + '</span><span style="font-weight: 700">' + pkgLabel(p) + '</span></li>';
+        items += '<li style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 2px solid var(--color-divider); font-size: 15px"><span>' + esc(T(p.name)) + '</span><span style="font-weight: 700">' + pkgLabel(p) + '</span></li>';
       }
     });
     document.getElementById("summary-list").innerHTML = items;
-    document.getElementById("total").textContent = rent ? fmt(total) + " / měs." : fmt(total);
-    document.getElementById("total-note").textContent = rent ? "Pronájem, platba měsíčně — zrušíte kdykoli." : "Jednorázově. Updaty zdarma první rok.";
-    document.getElementById("price-h2").textContent = rent ? "Měsíční pronájem" : "Bez měsíčních poplatků";
-    document.getElementById("price-sub").textContent = rent ? "Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají." : "Zaplatíš jednou — máš navždy. Updaty zdarma první rok.";
+    document.getElementById("total").textContent = rent ? fmt(total) + " " + T("/ měs.") : fmt(total);
+    document.getElementById("total-note").textContent = rent ? T("Pronájem, platba měsíčně — zrušíte kdykoli.") : T("Jednorázově. Updaty zdarma první rok.");
+    document.getElementById("price-h2").textContent = rent ? T("Měsíční pronájem") : T("Bez měsíčních poplatků");
+    document.getElementById("price-sub").textContent = rent ? T("Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají.") : T("Zaplatíš jednou — máš navždy. Updaty zdarma první rok.");
   }
 
   window.setMode = function (m) { mode = m; render(); };
+  window.__renderPricing = function () { renderRows(); render(); };   // 🌐 v3.0.523 — re-render po přepnutí jazyka
   renderRows();
   render();
 
