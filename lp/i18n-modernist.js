@@ -127,7 +127,8 @@
       "Jednorázově. Updaty zdarma první rok.": "Jednorazovo. Aktualizácie zadarmo prvý rok.",
       "Pronájem, platba měsíčně — zrušíte kdykoli.": "Prenájom, platba mesačne — zrušíte kedykoľvek.",
       "Měsíční pronájem": "Mesačný prenájom",
-      "Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají.": "Platíš mesačne — žiadna veľká investícia. Zrušíš kedykoľvek, dáta ti zostávajú."
+      "Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají.": "Platíš mesačne — žiadna veľká investícia. Zrušíš kedykoľvek, dáta ti zostávajú.",
+      "Účet i data u APPEKu zůstávají platné pořád — aplikaci aktivujete jen na sezónní měsíce, které potřebujete. Mimo aktivní období běží jen pro čtení (jako demo / údržba / offline): data máte u sebe, jen se nedá nic měnit.": "Účet aj dáta v APPEKu zostávajú platné stále — aplikáciu aktivujete len na sezónne mesiace, ktoré potrebujete. Mimo aktívneho obdobia beží len na čítanie (ako demo / údržba / offline): dáta máte u seba, len sa nedá nič meniť."
     },
     en: {
       "Funkce": "Features", "Integrace": "Integrations", "Cena": "Pricing", "Kontakt": "Contact",
@@ -250,7 +251,8 @@
       "Jednorázově. Updaty zdarma první rok.": "One-time. Free updates for the first year.",
       "Pronájem, platba měsíčně — zrušíte kdykoli.": "Rental, billed monthly — cancel anytime.",
       "Měsíční pronájem": "Monthly rental",
-      "Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají.": "Pay monthly — no big upfront cost. Cancel anytime, your data stays with you."
+      "Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají.": "Pay monthly — no big upfront cost. Cancel anytime, your data stays with you.",
+      "Účet i data u APPEKu zůstávají platné pořád — aplikaci aktivujete jen na sezónní měsíce, které potřebujete. Mimo aktivní období běží jen pro čtení (jako demo / údržba / offline): data máte u sebe, jen se nedá nic měnit.": "Your APPEK account and data stay valid the whole time — you activate the app only for the seasonal months you need. Outside the active period it runs read-only (like demo / maintenance / offline): your data is with you, you just cannot change anything."
     },
     de: {
       "Funkce": "Funktionen", "Integrace": "Integrationen", "Cena": "Preis", "Kontakt": "Kontakt",
@@ -373,7 +375,8 @@
       "Jednorázově. Updaty zdarma první rok.": "Einmalig. Updates im ersten Jahr gratis.",
       "Pronájem, platba měsíčně — zrušíte kdykoli.": "Miete, monatliche Zahlung — jederzeit kündbar.",
       "Měsíční pronájem": "Monatliche Miete",
-      "Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají.": "Monatlich zahlen — keine große Investition. Jederzeit kündbar, Ihre Daten bleiben."
+      "Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají.": "Monatlich zahlen — keine große Investition. Jederzeit kündbar, Ihre Daten bleiben.",
+      "Účet i data u APPEKu zůstávají platné pořád — aplikaci aktivujete jen na sezónní měsíce, které potřebujete. Mimo aktivní období běží jen pro čtení (jako demo / údržba / offline): data máte u sebe, jen se nedá nic měnit.": "Ihr APPEK-Konto und Ihre Daten bleiben durchgehend gültig — die App aktivieren Sie nur für die saisonalen Monate, die Sie brauchen. Außerhalb des aktiven Zeitraums läuft sie nur lesend (wie Demo / Wartung / offline): Ihre Daten bleiben bei Ihnen, Sie können nur nichts ändern."
     },
     es: {
       "Funkce": "Funciones", "Integrace": "Integraciones", "Cena": "Precio", "Kontakt": "Contacto",
@@ -496,7 +499,8 @@
       "Jednorázově. Updaty zdarma první rok.": "Pago único. Actualizaciones gratis el primer año.",
       "Pronájem, platba měsíčně — zrušíte kdykoli.": "Alquiler, pago mensual — cancela cuando quieras.",
       "Měsíční pronájem": "Alquiler mensual",
-      "Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají.": "Pagas al mes — sin gran inversión. Cancela cuando quieras, tus datos se quedan contigo."
+      "Platíš měsíčně — žádná velká investice. Zrušíš kdykoli, data ti zůstávají.": "Pagas al mes — sin gran inversión. Cancela cuando quieras, tus datos se quedan contigo.",
+      "Účet i data u APPEKu zůstávají platné pořád — aplikaci aktivujete jen na sezónní měsíce, které potřebujete. Mimo aktivní období běží jen pro čtení (jako demo / údržba / offline): data máte u sebe, jen se nedá nic měnit.": "Tu cuenta y tus datos de APPEK siguen válidos todo el tiempo — activas la app solo los meses de temporada que necesitas. Fuera del periodo activo funciona en solo lectura (como demo / mantenimiento / sin conexión): tus datos están contigo, solo que no puedes cambiar nada."
     }
   };
 
