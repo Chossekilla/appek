@@ -71,7 +71,12 @@ jobs:
         id: deploy
         run: |
           ZIP="appek-MASTER-v${{ steps.ver.outputs.version }}.zip"
-          BACKOFFS=(0 5 15 30)  # 0 = first try without wait
+          # 🆕 v3.0.522 — širší retry okno: publish do vendor_updates občas potřebuje
+          #   ~2 min mirror-settling (published:false / 255/256/260). Krátké okno (50s)
+          #   flaklo → ZČERVENÁ → „Run failed" email + nutný ruční rerun (co pak projde).
+          #   Rozšířeno na ~3 min (5 pokusů) → transient flake se zhojí v témže runu.
+          #   4xx dál failuje okamžitě (viz níže) → červená = fakt problém, ne flake.
+          BACKOFFS=(0 10 30 60 90)  # 0 = first try without wait
           MAX_TRIES=${#BACKOFFS[@]}
           LAST_CODE=""
           LAST_BODY=""
