@@ -238,7 +238,8 @@ function renderPackageHeaderBadges(active) {
   // 🎁 Subheader se zobrazí pouze pokud jsou aktivované balíčky
   if (sub) sub.classList.add('show');
   const currentPage = state.current || '';
-  host.innerHTML = active.map(p => {
+  host.style.setProperty('--pkg-n', active.length);   // 🆕 v3.0.532 — počet pro reverzní stagger při zavírání
+  host.innerHTML = active.map((p, i) => {
     const meta = PKG_NAV[p.key];
     if (!meta) return '';
     const isActive = currentPage === meta.page;
@@ -250,7 +251,7 @@ function renderPackageHeaderBadges(active) {
         title="${esc(meta.label)}"
         aria-label="${esc(meta.label)}"
         onclick="navigate('${meta.page}')"
-        style="--pkg-color: ${meta.color || '#BA7517'}">
+        style="--pkg-color: ${meta.color || '#BA7517'}; --i: ${i}">
         <span class="pkg-badge-icon">${meta.ikona}</span>
         <span class="pkg-badge-label">${esc(meta.label)}</span>
       </button>
