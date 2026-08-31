@@ -76,7 +76,7 @@ jobs:
           #   flaklo → ZČERVENÁ → „Run failed" email + nutný ruční rerun (co pak projde).
           #   Rozšířeno na ~3 min (5 pokusů) → transient flake se zhojí v témže runu.
           #   4xx dál failuje okamžitě (viz níže) → červená = fakt problém, ne flake.
-          BACKOFFS=(0 10 30 60 90)  # 0 = first try without wait
+          BACKOFFS=(0 10 30 60 120 180)  # 0 = first try; ~6.7 min okno (v529: publish flake se hojí za pár min, re-run joba pak projde)
           MAX_TRIES=${#BACKOFFS[@]}
           LAST_CODE=""
           LAST_BODY=""
