@@ -88,6 +88,7 @@ jobs:
             fi
             RESP=$(curl -sS -w '\n%{http_code}' -X POST \
               --connect-timeout 10 --max-time 120 \
+              -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
               -F "deploy_token=${{ secrets.DEPLOY_TOKEN }}" \
               -F "master_zip=@${ZIP}" \
               "${{ secrets.DEPLOY_URL }}/deploy-hook.php" 2>&1) || true
@@ -104,6 +105,14 @@ jobs:
               fi
               echo "⚠️ Apply OK, ale publish do vendor_updates NEPROBĚHL (published:false) — retry…"
               echo "$LAST_BODY" | head -c 300; echo ""
+              continue
+            fi
+            # 🆕 v3.0.530 — ROOT CAUSE flaku: Hostinger hcdn WAF občas vrátí 403 s JS-challenge
+            #   stránkou ("Just a moment"/jschallenge) místo průchodu na deploy-hook.php. To je
+            #   TRANSIENT (jiný pokus/UA projde) → retry, NE fatal. Skutečný token-403 vrací JSON
+            #   {"status":"error","error":"Neplatný token"} → ten padá níž jako non-retryable.
+            if [ "$LAST_CODE" = "403" ] && echo "$LAST_BODY" | grep -qiE 'just a moment|hcdn-cgi|jschallenge|<!DOCTYPE html|Checking your browser'; then
+              echo "⚠️ hcdn WAF challenge (403) — transient, retry…"
               continue
             fi
             # Non-retryable error (4xx kromě 409): okamžitě fail
