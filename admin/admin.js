@@ -18635,6 +18635,18 @@ function renderPackageHeaderBadges(active) {
       </button>
     `;
   }).join('');
+  playPackageReveal();
+}
+
+// 🆕 v3.0.535 — přehraj efektní „reveal" animaci ikon (spring pop + barevný glow, kaskáda).
+// Class-based restart přes reflow → funguje i proti !important animaci v CSS. Volá se
+// při renderu (load / změna balíčků) i při rozbalení subheaderu (klik na 🎁 Balíčky).
+function playPackageReveal() {
+  const sub = document.getElementById('package-subheader');
+  if (!sub) return;
+  sub.classList.remove('pkg-anim');
+  void sub.offsetWidth;               // vynucený reflow = CSS animace startuje znovu
+  sub.classList.add('pkg-anim');
 }
 
 // Legacy alias — pro případ že někdo volá starý název
@@ -18646,6 +18658,7 @@ function renderPackageSidebarItems(active) {
 window.togglePackageSubheader = function() {
   const isCollapsed = document.body.classList.toggle('pkg-subheader-collapsed');
   try { localStorage.setItem('appek_pkg_collapsed', isCollapsed ? '1' : '0'); } catch(e) {}
+  if (!isCollapsed) playPackageReveal();   // 🆕 v3.0.535 — při rozbalení přehraj reveal ikon jedna po druhé
 };
 // Restore stav po load — pokud user měl naposledy collapsed
 (function restorePackageSubheaderState() {
