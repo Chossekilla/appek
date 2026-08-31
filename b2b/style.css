@@ -4375,7 +4375,11 @@ html.dark [style*="background:#FCEBEB"] { background: var(--danger-bg) !importan
    ============================================================= */
 
 /* Universal overflow prevence — žádný horizontální scroll na žádné stránce */
-html, body { max-width: 100vw; overflow-x: hidden; }
+/* 🆕 v3.0.533 — overflow-x:clip místo hidden: `hidden` z <body> udělá scroll-container
+   → rozbije position:sticky u .cart-panel (košík se odroluje pryč). `clip` skryje
+   horiz. přetečení STEJNĚ, ale scroll-container nevytvoří → sticky košík zas drží.
+   Dvojitá deklarace = progressive enhancement (starý prohlížeč bez `clip` nechá `hidden`). */
+html, body { max-width: 100vw; overflow-x: hidden; overflow-x: clip; }
 
 /* Fluid typography — plynulé škálování dle viewport (clamp = min/preferred/max) */
 :root {
