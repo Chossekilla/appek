@@ -287,19 +287,18 @@
   </section>
 
   <section id="pricing" style="border-bottom: 2px solid var(--color-divider)">
-    <div class="pad-x" style="padding: 56px 40px 32px">
-      <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Cena</div>
-      <h2 id="price-h2" data-i18n-skip class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 46px; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; margin-top: 14px">Bez měsíčních poplatků</h2>
-      <p id="price-sub" data-i18n-skip style="font-size: 16px; color: var(--color-neutral-700); margin-top: 14px">Zaplatíte jednou — máte navždy. Updaty zdarma první rok.</p>
-    </div>
-    <div class="hero-grid" style="display: grid; grid-template-columns: 1.15fr 0.85fr; border-top: 2px solid var(--color-divider)">
-      <div class="pad-x" style="padding: 32px 40px; border-right: 2px solid var(--color-divider)">
-        <h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 800">Sestavte si APPEK</h3>
-        <div style="display: flex; gap: 0; border: 2px solid var(--color-divider); margin-top: 14px">
+    <div class="hero-grid" style="display: grid; grid-template-columns: 1.15fr 0.85fr">
+      <div class="pad-x" style="padding: 56px 40px 32px; border-right: 2px solid var(--color-divider)">
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent-700)">Cena</div>
+        <h3 style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 26px; font-weight: 800; margin-top: 12px">Sestavte si APPEK</h3>
+        <p style="font-size: 15px; color: var(--color-neutral-700); margin-top: 10px">Vyberte si jednu z možností, jak chcete službu využívat:</p>
+        <div style="display: flex; gap: 0; border: 2px solid var(--color-divider); margin-top: 12px">
           <button type="button" id="seg-buy" onclick="setMode('buy')" style="flex: 1; padding: 14px 16px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; border: none; background: var(--color-accent); color: #fff">Koupit napořád</button>
           <button type="button" id="seg-rent" onclick="setMode('rent')" style="flex: 1; padding: 14px 16px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; border: none; background: transparent; color: var(--color-text)">Pronájem měsíčně</button>
         </div>
-        <p style="font-size: 15px; color: var(--color-neutral-700); margin-top: 12px">Core je vždy v ceně — přidejte jen specializované balíčky, které potřebujete.</p>
+        <h2 id="price-h2" data-i18n-skip class="sec-h2" style="font-family: var(--font-heading), Archivo, sans-serif; font-size: 34px; line-height: 1.05; letter-spacing: -0.03em; font-weight: 800; margin-top: 22px">Bez měsíčních poplatků</h2>
+        <p id="price-sub" data-i18n-skip style="font-size: 15px; color: var(--color-neutral-700); margin-top: 10px">Zaplatíte jednou — máte navždy. Updaty zdarma první rok.</p>
+        <p style="font-size: 15px; color: var(--color-neutral-700); margin-top: 14px">Core je vždy v ceně — přidejte jen specializované balíčky, které potřebujete.</p>
         <p id="rent-note" style="display: none; font-size: 13.5px; line-height: 1.5; color: var(--color-neutral-700); margin-top: 12px; border-left: 3px solid var(--color-accent); padding-left: 12px">Účet i data u APPEKu zůstávají platné pořád — aplikaci aktivujete jen na sezónní měsíce, které potřebujete. Mimo aktivní období běží jen pro čtení (jako demo / údržba / offline): data máte u sebe, jen se nedá nic měnit.</p>
         <div style="margin-top: 26px; border-top: 2px solid var(--color-divider)">
           <div class="price-row" style="display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 13px 0; border-bottom: 2px solid var(--color-divider)">
@@ -413,7 +412,7 @@
 <button id="to-top" type="button" aria-label="Zpět nahoru" title="Zpět nahoru" data-i18n-skip style="position: fixed; right: 20px; bottom: 20px; z-index: 80; width: 48px; height: 48px; border: 2px solid var(--color-text); background: var(--color-accent); color: #fff; font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 800; line-height: 1; cursor: pointer; display: none; align-items: center; justify-content: center; box-shadow: 4px 4px 0 rgba(32,30,29,0.25)">↑</button>
 <script>(function(){var b=document.getElementById('to-top');if(!b)return;b.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});var t=function(){b.style.display=(window.scrollY>600)?'flex':'none';};window.addEventListener('scroll',t,{passive:true});t();})();</script>
 
-<script src="/lp/i18n-modernist.js?v=536"></script>
+<script src="/lp/i18n-modernist.js?v=537"></script>
 <script>
 (function () {
   // ── Pricing configurator (přeloženo z Component.renderVals) ──
