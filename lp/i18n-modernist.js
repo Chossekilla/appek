@@ -128,6 +128,7 @@
       "Pronájem, platba měsíčně — zrušíte kdykoli.": "Prenájom, platba mesačne — zrušíte kedykoľvek.",
       "Měsíční pronájem": "Mesačný prenájom",
       "Platíte měsíčně — žádná velká investice. Zrušíte kdykoli, data vám zůstávají.": "Platíte mesačne — žiadna veľká investícia. Zrušíte kedykoľvek, dáta vám zostávajú.",
+      "Měsíční pronájem · zrušíte kdykoli · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.": "Mesačný prenájom · zrušíte kedykoľvek · faktúra na firmu<br>Ceny bez DPH. Pre EU/global ceny v EUR / USD.",
       "Účet i data u APPEKu zůstávají platné pořád — aplikaci aktivujete jen na sezónní měsíce, které potřebujete. Mimo aktivní období běží jen pro čtení (jako demo / údržba / offline): data máte u sebe, jen se nedá nic měnit.": "Účet aj dáta v APPEKu zostávajú platné stále — aplikáciu aktivujete len na sezónne mesiace, ktoré potrebujete. Mimo aktívneho obdobia beží len na čítanie (ako demo / údržba / offline): dáta máte u seba, len sa nedá nič meniť."
     },
     en: {
@@ -252,6 +253,7 @@
       "Pronájem, platba měsíčně — zrušíte kdykoli.": "Rental, billed monthly — cancel anytime.",
       "Měsíční pronájem": "Monthly rental",
       "Platíte měsíčně — žádná velká investice. Zrušíte kdykoli, data vám zůstávají.": "Pay monthly — no big upfront cost. Cancel anytime, your data stays with you.",
+      "Měsíční pronájem · zrušíte kdykoli · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.": "Monthly rental · cancel anytime · company invoice<br>Prices excl. VAT. For EU/global, prices in EUR / USD.",
       "Účet i data u APPEKu zůstávají platné pořád — aplikaci aktivujete jen na sezónní měsíce, které potřebujete. Mimo aktivní období běží jen pro čtení (jako demo / údržba / offline): data máte u sebe, jen se nedá nic měnit.": "Your APPEK account and data stay valid the whole time — you activate the app only for the seasonal months you need. Outside the active period it runs read-only (like demo / maintenance / offline): your data is with you, you just cannot change anything."
     },
     de: {
@@ -376,6 +378,7 @@
       "Pronájem, platba měsíčně — zrušíte kdykoli.": "Miete, monatliche Zahlung — jederzeit kündbar.",
       "Měsíční pronájem": "Monatliche Miete",
       "Platíte měsíčně — žádná velká investice. Zrušíte kdykoli, data vám zůstávají.": "Monatlich zahlen — keine große Investition. Jederzeit kündbar, Ihre Daten bleiben.",
+      "Měsíční pronájem · zrušíte kdykoli · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.": "Monatliche Miete · jederzeit kündbar · Firmenrechnung<br>Preise zzgl. MwSt. Für EU/global Preise in EUR / USD.",
       "Účet i data u APPEKu zůstávají platné pořád — aplikaci aktivujete jen na sezónní měsíce, které potřebujete. Mimo aktivní období běží jen pro čtení (jako demo / údržba / offline): data máte u sebe, jen se nedá nic měnit.": "Ihr APPEK-Konto und Ihre Daten bleiben durchgehend gültig — die App aktivieren Sie nur für die saisonalen Monate, die Sie brauchen. Außerhalb des aktiven Zeitraums läuft sie nur lesend (wie Demo / Wartung / offline): Ihre Daten bleiben bei Ihnen, Sie können nur nichts ändern."
     },
     es: {
@@ -500,6 +503,7 @@
       "Pronájem, platba měsíčně — zrušíte kdykoli.": "Alquiler, pago mensual — cancela cuando quieras.",
       "Měsíční pronájem": "Alquiler mensual",
       "Platíte měsíčně — žádná velká investice. Zrušíte kdykoli, data vám zůstávají.": "Pagas al mes — sin gran inversión. Cancela cuando quieras, tus datos se quedan contigo.",
+      "Měsíční pronájem · zrušíte kdykoli · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.": "Alquiler mensual · cancela cuando quieras · factura a empresa<br>Precios sin IVA. Para EU/global, precios en EUR / USD.",
       "Účet i data u APPEKu zůstávají platné pořád — aplikaci aktivujete jen na sezónní měsíce, které potřebujete. Mimo aktivní období běží jen pro čtení (jako demo / údržba / offline): data máte u sebe, jen se nedá nic měnit.": "Tu cuenta y tus datos de APPEK siguen válidos todo el tiempo — activas la app solo los meses de temporada que necesitas. Fuera del periodo activo funciona en solo lectura (como demo / mantenimiento / sin conexión): tus datos están contigo, solo que no puedes cambiar nada."
     }
   };

@@ -327,7 +327,7 @@
         </div>
         <div id="total-note" data-i18n-skip style="font-size: 13px; color: var(--color-neutral-600); margin-top: 4px">Jednorázově. Updaty zdarma první rok.</div>
         <a class="btn btn-primary btn-block" href="/checkout.html?lp=modernist" data-cta="order" style="margin-top: 22px; padding: 14px 18px; font-size: 15px">Pokračovat k objednávce →</a>
-        <p style="font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.6; color: var(--color-neutral-600); margin-top: 16px" data-i18n-html>Jednorázová platba · bez měsíčních poplatků · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.</p>
+        <p id="price-fineprint" data-i18n-skip style="font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.6; color: var(--color-neutral-600); margin-top: 16px">Jednorázová platba · bez měsíčních poplatků · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.</p>
       </div>
     </div>
   </section>
@@ -413,7 +413,7 @@
 <button id="to-top" type="button" aria-label="Zpět nahoru" title="Zpět nahoru" data-i18n-skip style="position: fixed; right: 20px; bottom: 20px; z-index: 80; width: 48px; height: 48px; border: 2px solid var(--color-text); background: var(--color-accent); color: #fff; font-family: var(--font-heading), Archivo, sans-serif; font-size: 22px; font-weight: 800; line-height: 1; cursor: pointer; display: none; align-items: center; justify-content: center; box-shadow: 4px 4px 0 rgba(32,30,29,0.25)">↑</button>
 <script>(function(){var b=document.getElementById('to-top');if(!b)return;b.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});var t=function(){b.style.display=(window.scrollY>600)?'flex':'none';};window.addEventListener('scroll',t,{passive:true});t();})();</script>
 
-<script src="/lp/i18n-modernist.js?v=531"></script>
+<script src="/lp/i18n-modernist.js?v=536"></script>
 <script>
 (function () {
   // ── Pricing configurator (přeloženo z Component.renderVals) ──
@@ -474,6 +474,10 @@
     document.getElementById("price-h2").textContent = rent ? T("Měsíční pronájem") : T("Bez měsíčních poplatků");
     document.getElementById("price-sub").textContent = rent ? T("Platíte měsíčně — žádná velká investice. Zrušíte kdykoli, data vám zůstávají.") : T("Zaplatíte jednou — máte navždy. Updaty zdarma první rok.");
     var rn = document.getElementById("rent-note"); if (rn) rn.style.display = rent ? "block" : "none";
+    var fp = document.getElementById("price-fineprint");
+    if (fp) fp.innerHTML = rent
+      ? T("Měsíční pronájem · zrušíte kdykoli · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.")
+      : T("Jednorázová platba · bez měsíčních poplatků · faktura na firmu<br>Ceny bez DPH. Pro EU/global ceny v EUR / USD.");
   }
 
   window.setMode = function (m) { mode = m; render(); };
