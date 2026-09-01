@@ -391,7 +391,7 @@
       <aside class="hero-license">
         <span class="hl-badge" id="badge-license" data-i18n="badge_license">✅ Doživotní licence</span>
         <ul class="hl-list">
-          <li><strong>Jednorázová platba</strong> — žádné měsíční poplatky</li>
+          <li id="hl-payment"><strong>Jednorázová platba</strong> — žádné měsíční poplatky</li>
           <li><strong>Vaše data</strong> na vašem zařízení / hostingu</li>
           <li>Český systém <strong>+ EN a ES</strong> překlady</li>
           <li id="badge-updates" data-i18n="badge_updates"><strong>1 rok updates</strong> zdarma</li>
@@ -635,6 +635,7 @@ const I18N = {
     hero_eyebrow_rent: '🗓️ APPEK B2B · Měsíční pronájem',
     badge_license: '✅ <strong>Doživotní</strong> licence', badge_license_rent: '🗓️ <strong>Měsíční</strong> pronájem',
     badge_updates: '🔄 <strong>1 rok updates</strong> zdarma', badge_updates_rent: '🔄 <strong>Updates</strong> po dobu pronájmu',
+    hl_payment: '<strong>Jednorázová platba</strong> — žádné měsíční poplatky', hl_payment_rent: '<strong>Měsíční pronájem</strong> — zrušíte kdykoli',
     sc3_t_rent: 'Přístup po platbě', sc3_d_rent: 'Ihned po zaplacení',
     ct_1_t: 'Doživotní licence', ct_1_d: 'žádné předplatné',
     ct_2_t: 'Váš hosting, vaše data', ct_2_d: 'plná kontrola GDPR',
@@ -713,6 +714,7 @@ const I18N = {
     hero_eyebrow_rent: '🗓️ APPEK B2B · Monthly rental',
     badge_license: '✅ <strong>Lifetime</strong> license', badge_license_rent: '🗓️ <strong>Monthly</strong> rental',
     badge_updates: '🔄 <strong>1 year updates</strong> free', badge_updates_rent: '🔄 <strong>Updates</strong> for the rental period',
+    hl_payment: '<strong>One-time payment</strong> — no monthly fees', hl_payment_rent: '<strong>Monthly rental</strong> — cancel anytime',
     sc3_t_rent: 'Access after payment', sc3_d_rent: 'Right after payment',
     ct_1_t: 'Lifetime license', ct_1_d: 'no subscription',
     ct_2_t: 'Your hosting, your data', ct_2_d: 'full GDPR control',
@@ -787,6 +789,7 @@ const I18N = {
     hero_eyebrow_rent: '🗓️ APPEK B2B · Alquiler mensual',
     badge_license: '✅ <strong>Licencia</strong> vitalicia', badge_license_rent: '🗓️ <strong>Alquiler</strong> mensual',
     badge_updates: '🔄 <strong>1 año updates</strong> gratis', badge_updates_rent: '🔄 <strong>Updates</strong> durante el alquiler',
+    hl_payment: '<strong>Pago único</strong> — sin cuotas mensuales', hl_payment_rent: '<strong>Alquiler mensual</strong> — cancela cuando quieras',
     sc3_t_rent: 'Acceso tras el pago', sc3_d_rent: 'Justo tras el pago',
     ct_1_t: 'Licencia de por vida', ct_1_d: 'sin suscripción',
     ct_2_t: 'Tu hosting, tus datos', ct_2_d: 'control RGPD total',
@@ -880,6 +883,7 @@ function applyBuyModeBand() {
   set('[data-i18n="conv_lead"]',    r ? 'conv_lead_rent'    : 'conv_lead');
   set('#badge-license',             r ? 'badge_license_rent' : 'badge_license');
   set('#badge-updates',             r ? 'badge_updates_rent' : 'badge_updates');
+  set('#hl-payment',                r ? 'hl_payment_rent' : 'hl_payment');
   set('[data-i18n="sc3_t"]',        r ? 'sc3_t_rent' : 'sc3_t');
   set('[data-i18n="sc3_d"]',        r ? 'sc3_d_rent' : 'sc3_d');
 }
