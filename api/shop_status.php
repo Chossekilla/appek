@@ -28,7 +28,7 @@ require_once $vendorRoot . '/_lib.php';
 
 try {
     $pdo = vendor_db();
-    $stmt = $pdo->prepare("SELECT payment_status, license_id FROM vendor_shop_orders WHERE order_no = :no LIMIT 1");
+    $stmt = $pdo->prepare("SELECT payment_status, license_id, total_kc FROM vendor_shop_orders WHERE order_no = :no LIMIT 1");
     $stmt->execute(['no' => $orderNo]);
     $row = $stmt->fetch();
     if (!$row) {
@@ -41,6 +41,7 @@ try {
         'order_no'       => $orderNo,
         'payment_status' => $row['payment_status'],
         'has_license'    => !empty($row['license_id']),
+        'total_kc'       => (float)($row['total_kc'] ?? 0),
     ]);
 } catch (Throwable $e) {
     error_log('shop_status: ' . $e->getMessage());

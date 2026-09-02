@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Google Ads (gtag.js) — konverzní sledování AW-18420655081 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18420655081"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'AW-18420655081');
+</script>
 <title>Platba — APPEK</title>
 <style>
 * , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -163,6 +171,26 @@ function renderPending() {
     </div>`;
 }
 
+// 🆕 Google Ads — „Nákup" konverze: fire JEN po potvrzeném zaplacení (paid), s reálnou
+// částkou + order_no jako transaction_id. Dedup přes sessionStorage + transaction_id
+// (Google dedupuje taky) → nepočítá se 2× při reloadu confirmation stránky.
+function firePurchaseConversion(orderNo, valueCzk) {
+  try {
+    if (!orderNo) return;
+    var k = 'appek_conv_' + orderNo;
+    if (sessionStorage.getItem(k)) return;
+    sessionStorage.setItem(k, '1');
+    if (typeof gtag === 'function') {
+      gtag('event', 'conversion', {
+        send_to: 'AW-18420655081/xrqjCJCHpOscEOnH089E',
+        value: (parseFloat(valueCzk) > 0 ? parseFloat(valueCzk) : 1.0),
+        currency: 'CZK',
+        transaction_id: String(orderNo)
+      });
+    }
+  } catch (e) {}
+}
+
 // 🆕 v2.9.202 — pro Stripe session_id voláme verify endpoint který se
 // rovnou zeptá Stripe API (nezávisle na webhooks). Pokud paid → endpoint
 // sám vygeneruje licenci + pošle e-mail (idempotentně).
@@ -175,7 +203,7 @@ function renderPending() {
       const r = await fetch('/api/stripe_session_verify.php?session_id=' + encodeURIComponent(sessionId) + (orderNo ? '&order=' + encodeURIComponent(orderNo) : ''));
       if (r.ok) {
         const j = await r.json();
-        if (j.ok && j.status === 'paid') { renderSuccess(); return; }
+        if (j.ok && j.status === 'paid') { renderSuccess(); firePurchaseConversion(orderNo || j.order_no, j.total_kc); return; }
         if (j.status === 'failed') { renderError(t.e_body); return; }
         // status === 'pending' → spadne do polling loop níže
       }
@@ -189,7 +217,7 @@ function renderPending() {
       const r = await fetch('/api/shop_status.php?order=' + encodeURIComponent(orderNo));
       if (r.ok) {
         const j = await r.json();
-        if (j.payment_status === 'paid') { renderSuccess(); return; }
+        if (j.payment_status === 'paid') { renderSuccess(); firePurchaseConversion(orderNo, j.total_kc); return; }
         if (j.payment_status === 'cancelled' || j.payment_status === 'failed') {
           renderError(t.e_body); return;
         }
