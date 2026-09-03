@@ -38,4 +38,7 @@ body.pkg-subheader-collapsed #package-subheader.show .pkg-badge-square{transitio
 @keyframes pkgReveal{0%{opacity:0;transform:translateY(9px) scale(.9);filter:drop-shadow(0 0 0 transparent)}60%{opacity:1;transform:translateY(-2px) scale(1.03);filter:drop-shadow(0 2px 5px rgba(186,117,23,.22))}100%{opacity:1;transform:translateY(0) scale(1);filter:drop-shadow(0 1px 3px rgba(16,24,40,.1))}}
 #package-subheader.show{overflow:visible!important;background:transparent!important;border-bottom-color:transparent!important}
 body.pkg-subheader-collapsed #package-subheader.show{overflow:hidden!important}
-#package-subheader.pkg-anim .pkg-badge-square{animation:pkgReveal .6s cubic-bezier(.34,1.12,.55,1) calc(var(--i,0)*80ms) both!important}
+#package-subheader.pkg-anim .pkg-badge-square{animation:pkgReveal .6s cubic-bezier(.34,1.12,.55,1) calc(var(--i,0)*80ms) backwards!important}
+/* 🆕 v3.0.544 — hover: badge vyskočí NAD lištu (z-index escape) + zvednutí 20px; fill both→backwards uvolní transform po revealu, ať hover translateY funguje (animace jinak drží transform a přebíjí i !important) */
+#package-subheader:has(.pkg-badge-square:hover){position:relative!important;z-index:120!important;overflow:visible!important}
+#package-subheader .pkg-badge-square:hover{transform:translateY(-20px) scale(1.05)!important;z-index:20!important;box-shadow:0 16px 30px rgba(16,24,40,.22),0 6px 12px rgba(0,0,0,.12)!important}
