@@ -1000,7 +1000,6 @@ function renderPackages() {
     div.className = 'pkg' + (p.is_core ? ' core selected' : (SELECTED.has(p.key) ? ' selected' : ''));
     div.dataset.key = p.key;
     div.innerHTML = `
-      <div class="pkg-icon">${p.icon || '📦'}</div>
       <div class="pkg-body">
         <div class="pkg-name">${escapeHtml(name)}</div>
         <div class="pkg-desc">${escapeHtml(desc)}</div>
@@ -1029,7 +1028,7 @@ function renderSummary() {
     if (SELECTED.has(p.key)) {
       total += pkgPrice(p);
       const name = p[`name_${lang}`] || p.name_cs;
-      lines.push(`<div class="sum-row"><span>${p.icon || '📦'} ${escapeHtml(name)}</span><span>${formatPrice(pkgPrice(p))}</span></div>`);
+      lines.push(`<div class="sum-row"><span>${escapeHtml(name)}</span><span>${formatPrice(pkgPrice(p))}</span></div>`);
     }
   });
   if (lines.length === 0) {
