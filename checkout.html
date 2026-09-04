@@ -89,7 +89,8 @@
   .pkg.selected { border-color: #BA7517; background: rgba(186,117,23,0.06); box-shadow: 0 2px 8px rgba(186,117,23,0.12); }
   .pkg.core { background: linear-gradient(135deg, rgba(186,117,23,0.08), rgba(186,117,23,0.02)); border-color: #BA7517; border-width: 2px; }
   .pkg.core .pkg-name::after { content: " ⭐"; }
-  .pkg .pkg-icon { font-size: 28px; line-height: 1; flex-shrink: 0; }
+  .pkg .pkg-check { width: 22px; height: 22px; flex-shrink: 0; accent-color: #BA7517; cursor: pointer; margin: 0; }
+  .pkg .pkg-check:disabled { cursor: default; opacity: 0.6; }
   .pkg .pkg-body { flex: 1; min-width: 0; }
   .pkg .pkg-name { font-weight: 700; font-size: 15px; color: #1d1d1f; letter-spacing: -0.1px; }
   .pkg .pkg-desc { font-size: 12.5px; color: #6e6e73; margin-top: 3px; line-height: 1.5; }
@@ -996,10 +997,12 @@ function renderPackages() {
     const descKey = `description_${lang}`;
     const name = p[nameKey] || p.name_cs;
     const desc = p[descKey] || p.description_cs || '';
-    const div = document.createElement('div');
-    div.className = 'pkg' + (p.is_core ? ' core selected' : (SELECTED.has(p.key) ? ' selected' : ''));
-    div.dataset.key = p.key;
-    div.innerHTML = `
+    const isSel = p.is_core || SELECTED.has(p.key);
+    const label = document.createElement('label');
+    label.className = 'pkg' + (p.is_core ? ' core selected' : (SELECTED.has(p.key) ? ' selected' : ''));
+    label.dataset.key = p.key;
+    label.innerHTML = `
+      <input type="checkbox" class="pkg-check" ${isSel ? 'checked' : ''}${p.is_core ? ' disabled' : ''} aria-label="${escapeHtml(name)}">
       <div class="pkg-body">
         <div class="pkg-name">${escapeHtml(name)}</div>
         <div class="pkg-desc">${escapeHtml(desc)}</div>
@@ -1007,16 +1010,17 @@ function renderPackages() {
       <div class="pkg-price">${formatPrice(pkgPrice(p))}${RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} měs.</small>` : ''}</div>
     `;
     if (!p.is_core) {
-      div.addEventListener('click', () => togglePkg(p.key));
+      label.querySelector('.pkg-check').addEventListener('change', (e) => onPkgToggle(p.key, e.target.checked, label));
     }
-    wrap.appendChild(div);
+    wrap.appendChild(label);
   });
 }
 
-function togglePkg(key) {
-  if (SELECTED.has(key)) SELECTED.delete(key);
-  else SELECTED.add(key);
-  renderPackages();
+// 🆕 Stavové přepnutí dle checkboxu (idempotentní — add když checked, delete když ne).
+// Bez re-renderu celého seznamu → prvek přežije klik/tap, žádný ghost-click double-toggle.
+function onPkgToggle(key, checked, labelEl) {
+  if (checked) SELECTED.add(key); else SELECTED.delete(key);
+  if (labelEl) labelEl.classList.toggle('selected', checked);
   renderSummary();
 }
 
