@@ -94,6 +94,32 @@ try {
         if (!$hasLv) $pdo->exec("ALTER TABLE vendor_shop_orders ADD COLUMN landing_variant VARCHAR(32) DEFAULT NULL");
     } catch (Throwable $e) { /* neblokuj objednávku */ }
 
+    // 🎟️ Slevový kupon — idempotentní migrace sloupců + AUTORITATIVNÍ přepočet slevy server-side
+    //   (klient pošle jen kód; slevu %/Kč bere server z vendor_coupons → nelze podvrhnout).
+    try {
+        $hasCc = $pdo->query("SHOW COLUMNS FROM vendor_shop_orders LIKE 'coupon_code'")->fetchAll();
+        if (!$hasCc) {
+            $pdo->exec("ALTER TABLE vendor_shop_orders ADD COLUMN coupon_code VARCHAR(64) DEFAULT NULL");
+            $pdo->exec("ALTER TABLE vendor_shop_orders ADD COLUMN discount_kc DECIMAL(10,2) NOT NULL DEFAULT 0");
+        }
+    } catch (Throwable $e) { /* neblokuj objednávku */ }
+
+    $couponCode    = strtoupper(trim($d['coupon_code'] ?? ''));
+    $discountKc    = 0.0;
+    $couponApplied = null;
+    if ($couponCode !== '') {
+        try {
+            require_once __DIR__ . '/_shop_coupon_lib.php';
+            shop_coupon_ensure_table($pdo);
+            [$cValid, , , $cDisc] = shop_coupon_eval($pdo, $couponCode, $total);
+            if ($cValid && $cDisc > 0) {
+                $discountKc    = $cDisc;
+                $total         = max(0, round($total - $cDisc, 2));  // účtovaná částka = subtotal − sleva
+                $couponApplied = $couponCode;
+            }
+        } catch (Throwable $e) { error_log('shop_buy coupon: ' . $e->getMessage()); }
+    }
+
     // Rate limit — max 5 objednávek z jedné IP za 10 minut
     $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     $ip = trim(explode(',', $ip)[0]);
@@ -116,11 +142,12 @@ try {
           (order_no, customer_name, customer_company, customer_email, customer_phone,
            customer_country, customer_ico, customer_dic, customer_address,
            tier, packages_json, install_url, notes, total_kc, currency,
-           payment_method, payment_status, locale, ip, user_agent, rental_months, landing_variant)
+           payment_method, payment_status, locale, ip, user_agent, rental_months, landing_variant,
+           coupon_code, discount_kc)
         VALUES
           (:no, :n, :c, :e, :p, :co, :ico, :dic, :addr,
            :tier, :pkg, :url, :notes, :total, :curr,
-           :pm, 'pending', :loc, :ip, :ua, :rm, :lv)
+           :pm, 'pending', :loc, :ip, :ua, :rm, :lv, :coupon, :disc)
     ");
     $stmt->execute([
         'no'   => $orderNo,
@@ -144,7 +171,17 @@ try {
         'ua'   => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
         'rm'   => $rentalMonths,
         'lv'   => preg_replace('/[^a-z0-9_-]/', '', strtolower((string) ($d['landing_variant'] ?? ''))) ?: null,
+        'coupon' => $couponApplied,
+        'disc'   => $discountKc,
     ]);
+
+    // 🎟️ Kupon použit → započítej použití (best-effort, neblokuj objednávku)
+    if ($couponApplied !== null) {
+        try {
+            $pdo->prepare("UPDATE vendor_coupons SET pouzito = pouzito + 1 WHERE kod = :k")
+                ->execute(['k' => $couponApplied]);
+        } catch (Throwable $e) { /* neblokuj */ }
+    }
 
     // 🆕 Admin notifikace o NOVÉ OBJEDNÁVCE (čeká na platbu). Master-only (potřebuje vendor/_mail.php).
     try {

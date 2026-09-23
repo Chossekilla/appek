@@ -482,6 +482,21 @@
           <div id="sum-items">
             <div class="sum-row" style="color:#86868b;font-style:italic" data-i18n="sum_empty">Zatím nic nevybráno</div>
           </div>
+          <!-- 🎟️ Slevový kód -->
+          <div id="coupon-box" style="margin:10px 0 4px;border-top:1px dashed #e5e5e7;padding-top:12px">
+            <div style="display:flex;gap:6px">
+              <input type="text" id="coupon-code" placeholder="Slevový kód" autocomplete="off"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();applyCoupon();}"
+                     style="flex:1;min-width:0;padding:8px 10px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;text-transform:uppercase">
+              <button type="button" id="coupon-apply" onclick="applyCoupon()"
+                      style="padding:8px 14px;border:1px solid #BA7517;background:#fff;color:#BA7517;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">Použít</button>
+            </div>
+            <div id="coupon-msg" style="font-size:12px;margin-top:6px;display:none"></div>
+          </div>
+          <div class="sum-row" id="sum-discount" style="display:none;color:#208438;font-weight:600">
+            <span id="sum-discount-label">Sleva</span>
+            <span id="sum-discount-val">−0 Kč</span>
+          </div>
           <div class="sum-row total">
             <span data-i18n="total">Celkem</span>
             <span id="sum-total">0 Kč</span>
@@ -1024,6 +1039,50 @@ function onPkgToggle(key, checked, labelEl) {
   renderSummary();
 }
 
+// ─── 🎟️ Slevový kupon ───
+let COUPON = null;  // {kod, typ, hodnota, popis} když je platný aplikovaný
+const COUPON_T = {
+  cs: { applied:'Kupon použit', invalid:'Neplatný kód', not_found:'Neplatný kód', inactive:'Kód není aktivní', expired:'Kód vypršel', used_up:'Kód je vyčerpán', discount:'Sleva' },
+  en: { applied:'Coupon applied', invalid:'Invalid code', not_found:'Invalid code', inactive:'Code inactive', expired:'Code expired', used_up:'Code used up', discount:'Discount' },
+  es: { applied:'Cupón aplicado', invalid:'Código inválido', not_found:'Código inválido', inactive:'Código inactivo', expired:'Código expirado', used_up:'Código agotado', discount:'Descuento' },
+};
+function currentSubtotal() {
+  let t = 0; PACKAGES.forEach(p => { if (SELECTED.has(p.key)) t += pkgPrice(p); }); return t;
+}
+async function applyCoupon() {
+  const input = document.getElementById('coupon-code');
+  const msg = document.getElementById('coupon-msg');
+  const T = COUPON_T[lang] || COUPON_T.cs;
+  const code = (input.value || '').trim().toUpperCase();
+  if (!code) { COUPON = null; msg.style.display = 'none'; renderSummary(); return; }
+  const sub = currentSubtotal();
+  const btn = document.getElementById('coupon-apply');
+  btn.disabled = true;
+  let res = null;
+  const apis = ['/api/shop_coupon.php', '../api/shop_coupon.php', 'https://appek.cz/api/shop_coupon.php'];
+  for (const base of apis) {
+    try {
+      const r = await fetch(base + '?code=' + encodeURIComponent(code) + '&subtotal=' + sub);
+      res = await r.json();
+      if (res && res.ok) break;
+    } catch (e) { /* try next */ }
+  }
+  btn.disabled = false;
+  if (res && res.ok && res.valid) {
+    COUPON = { kod: res.kod, typ: res.typ, hodnota: res.hodnota, popis: res.popis };
+    msg.style.color = '#208438';
+    msg.textContent = '✓ ' + T.applied + (res.popis ? ' — ' + res.popis : '');
+    msg.style.display = 'block';
+  } else {
+    COUPON = null;
+    const reason = (res && res.reason) || 'invalid';
+    msg.style.color = '#b30019';
+    msg.textContent = '✕ ' + (T[reason] || T.invalid);
+    msg.style.display = 'block';
+  }
+  renderSummary();
+}
+
 function renderSummary() {
   const wrap = document.getElementById('sum-items');
   let total = 0;
@@ -1045,7 +1104,21 @@ function renderSummary() {
     wrap.innerHTML = header + lines.join('');
     document.getElementById('btn-buy').disabled = false;
   }
-  document.getElementById('sum-total').textContent = formatPrice(total);
+  // 🎟️ kupon sleva (přepočítá se i při změně balíčků)
+  let discount = 0;
+  const dEl = document.getElementById('sum-discount');
+  if (COUPON && total > 0) {
+    discount = COUPON.typ === 'percent'
+      ? Math.round(total * (COUPON.hodnota / 100))
+      : Math.min(COUPON.hodnota, total);
+    const T = COUPON_T[lang] || COUPON_T.cs;
+    document.getElementById('sum-discount-label').textContent = T.discount + ' (' + COUPON.kod + ')';
+    document.getElementById('sum-discount-val').textContent = '−' + formatPrice(discount);
+    if (dEl) dEl.style.display = 'flex';
+  } else if (dEl) {
+    dEl.style.display = 'none';
+  }
+  document.getElementById('sum-total').textContent = formatPrice(Math.max(0, total - discount));
 }
 
 function formatPrice(n) {
@@ -1103,6 +1176,7 @@ async function submitOrder() {
     tier: SELECTED.has('core') ? 'custom' : 'addon',
     packages: Array.from(SELECTED),
     total_kc: total,
+    coupon_code: COUPON ? COUPON.kod : null,  // 🎟️ server slevu ověří + odečte autoritativně
     rental_months: RENTAL_MONTHS,  // 🆕 0 = koupit napořád, >0 = pronájem na N měsíců
     currency: 'CZK',
     payment_method: payMethod === 'invoice' ? 'bank' : payMethod,

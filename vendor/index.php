@@ -452,6 +452,7 @@ function fmtKc(float $v): string {
       </div>
       <div class="actions">
         <a href="shop.php" class="primary">📋 Objednávky</a>
+        <a href="shop-coupons.php">🎟️ Kupony</a>
         <a href="https://appek.cz/checkout.html" target="_blank" rel="noopener">🛒 Checkout</a>
       </div>
     </div>
