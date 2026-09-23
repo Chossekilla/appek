@@ -204,6 +204,10 @@ if ($detailId > 0) {
     <div style="font-size:13px;color:#86868b">appek.cz/checkout → tady → licence</div>
   </div>
 
+  <div style="margin:-4px 0 18px">
+    <a href="shop-coupons.php" class="btn-master primary" style="text-decoration:none">🎟️ Slevové kupony</a>
+  </div>
+
   <?php if ($flash_ok): ?><div class="flash ok">✅ <?= $flash_ok ?></div><?php endif; ?>
   <?php if ($flash_err): ?><div class="flash err">❌ <?= htmlspecialchars($flash_err) ?></div><?php endif; ?>
 
