@@ -185,6 +185,9 @@
   .btn:active:not(:disabled) { transform: translateY(0); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
   .btn.secondary { background: #fff; color: #1d1d1f; border: 1px solid #d2d2d7; box-shadow: none; }
+  /* 🟢 Objednat button zelený (na přání) — ID + !important přebije i modernist červenou */
+  #btn-buy { background: linear-gradient(180deg, #25b34e, #178a3a) !important; border: none !important; color: #fff !important; }
+  #btn-buy:hover:not(:disabled) { box-shadow: 0 8px 20px rgba(23,138,58,0.35) !important; }
 
   .info-banner {
     background: linear-gradient(135deg, rgba(186,117,23,0.08), rgba(186,117,23,0.03));
