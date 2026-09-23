@@ -136,6 +136,18 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $orders = $stmt->fetchAll();
 
+// 🆕 Platnost licence (expires_at) per objednávka — pro sloupec „zaplaceno od → do"
+$licExp = [];
+$licIds = array_values(array_filter(array_map(fn($o) => (int) ($o['license_id'] ?? 0), $orders)));
+if ($licIds) {
+    $in = implode(',', array_map('intval', array_unique($licIds)));
+    try {
+        foreach ($pdo->query("SELECT id, expires_at, rental FROM vendor_licenses WHERE id IN ($in)") as $lr) {
+            $licExp[(int) $lr['id']] = $lr;
+        }
+    } catch (Throwable $e) { /* neblokuj seznam */ }
+}
+
 // Statistiky
 $stats = [
     'total'    => (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders")->fetchColumn(),
@@ -357,6 +369,7 @@ if ($detailId > 0) {
           <th>Cena</th>
           <th>Stav</th>
           <th>Licence</th>
+          <th>Platnost</th>
           <th>Datum</th>
           <th></th>
         </tr>
@@ -375,7 +388,12 @@ if ($detailId > 0) {
             <?php $pkgs = json_decode($o['packages_json'] ?? '[]', true) ?: []; ?>
             <?php if ($pkgs): ?><br><small style="color:#86868b"><?= htmlspecialchars(implode(', ', $pkgs)) ?></small><?php endif; ?>
           </td>
-          <td><strong><?= number_format((float) $o['total_kc'], 0, ',', ' ') ?> Kč</strong></td>
+          <td>
+            <strong><?= number_format((float) $o['total_kc'], 0, ',', ' ') ?> Kč</strong>
+            <?php if (!empty($o['coupon_code'])): ?>
+              <br><span title="Slevový kupon: <?= htmlspecialchars($o['coupon_code']) ?><?= (isset($o['discount_kc']) && (float) $o['discount_kc'] > 0) ? ' (−' . number_format((float) $o['discount_kc'], 0, ',', ' ') . ' Kč)' : '' ?>" style="font-size:11px;color:#208438;white-space:nowrap;font-weight:700">🎟️ <?= htmlspecialchars($o['coupon_code']) ?></span>
+            <?php endif; ?>
+          </td>
           <td><span class="badge <?= htmlspecialchars($o['payment_status']) ?>"><?= htmlspecialchars($o['payment_status']) ?></span></td>
           <td>
             <?php if ($o['license_key']): ?>
@@ -384,12 +402,33 @@ if ($detailId > 0) {
               <span style="color:#86868b">—</span>
             <?php endif; ?>
           </td>
+          <td style="white-space:nowrap;font-size:12px;color:#6e6e73">
+            <?php
+              $lid = (int) ($o['license_id'] ?? 0);
+              $exp = ($lid && isset($licExp[$lid])) ? $licExp[$lid] : null;
+              if ($lid) {
+                  $from = !empty($o['paid_at']) ? date('d.m.Y', strtotime($o['paid_at'])) : '—';
+                  if ($exp && !empty($exp['expires_at'])) {
+                      echo htmlspecialchars($from) . ' → <strong>' . htmlspecialchars(date('d.m.Y', strtotime($exp['expires_at']))) . '</strong>';
+                  } else {
+                      echo htmlspecialchars($from) . ' → <strong title="Trvalá licence (bez expirace)">∞</strong>';
+                  }
+              } else {
+                  echo '<span style="color:#c8c8c8">—</span>';
+              }
+            ?>
+          </td>
           <td style="white-space:nowrap;color:#6e6e73"><?= htmlspecialchars(date('d.m. H:i', strtotime($o['created_at']))) ?></td>
-          <td><a href="shop.php?detail=<?= (int) $o['id'] ?>" class="btn-master secondary" style="font-size:12px;padding:5px 10px">Detail →</a></td>
+          <td style="white-space:nowrap">
+            <?php if (!empty($o['license_id'])): ?>
+              <a href="licenses.php?edit=<?= (int) $o['license_id'] ?>#lic-<?= (int) $o['license_id'] ?>" class="btn-master secondary" title="Prodloužit / upravit licenci" style="font-size:13px;padding:5px 9px" onclick="event.stopPropagation()">⏳</a>
+            <?php endif; ?>
+            <a href="shop.php?detail=<?= (int) $o['id'] ?>" class="btn-master secondary" style="font-size:12px;padding:5px 10px">Detail →</a>
+          </td>
         </tr>
       <?php endforeach; ?>
       <?php if (empty($orders)): ?>
-        <tr><td colspan="8" style="text-align:center;color:#86868b;padding:60px 20px">
+        <tr><td colspan="9" style="text-align:center;color:#86868b;padding:60px 20px">
           <div style="font-size:36px;margin-bottom:10px">🛒</div>
           <strong>Žádné objednávky zatím</strong><br>
           <small>Až někdo na <code>appek.cz/sales/</code> klikne „Koupit", objeví se tady.</small>
