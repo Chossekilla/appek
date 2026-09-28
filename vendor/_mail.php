@@ -71,6 +71,7 @@ function vendor_send_mail(
     ?string $replyTo = null,
     ?string &$errOut = null
 ): bool {
+    mb_internal_encoding('UTF-8');
     $cfg = vendor_mail_settings();
     $fromEmail = $cfg['mail_from_email'] ?: 'noreply@appek.cz';
     $fromName  = $cfg['mail_from_name']  ?: 'APPEK';
@@ -91,16 +92,16 @@ function vendor_send_mail(
     $headers = [
         'MIME-Version: 1.0',
         'Content-Type: multipart/alternative; boundary="' . $boundary . '"',
-        'From: ' . mb_encode_mimeheader($fromName) . ' <' . $fromEmail . '>',
+        'From: ' . mb_encode_mimeheader($fromName, 'UTF-8') . ' <' . $fromEmail . '>',
         'X-Mailer: APPEK',
     ];
     if ($replyTo) $headers[] = 'Reply-To: ' . $replyTo;
 
-    $body  = "--$boundary\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n$bodyText\r\n";
-    $body .= "--$boundary\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n$bodyHtml\r\n";
+    $body  = "--$boundary\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n$bodyText\r\n";
+    $body .= "--$boundary\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n$bodyHtml\r\n";
     $body .= "--$boundary--\r\n";
 
-    $ok = @mail($to, mb_encode_mimeheader($subject), $body, implode("\r\n", $headers));
+    $ok = @mail($to, mb_encode_mimeheader($subject, 'UTF-8'), $body, implode("\r\n", $headers));
     if (!$ok) {
         $errOut = 'PHP mail() vrátilo false (sendmail config nebo blocked).';
         return false;
@@ -164,15 +165,15 @@ function vendor_smtp_send(array $cfg, string $to, string $subject, string $bodyH
     $write('DATA'); $read();
 
     $boundary = '=_=appek_' . bin2hex(random_bytes(8));
-    $payload  = "From: " . mb_encode_mimeheader($fromName) . " <$fromEmail>\r\n";
+    $payload  = "From: " . mb_encode_mimeheader($fromName, 'UTF-8') . " <$fromEmail>\r\n";
     $payload .= "To: <$to>\r\n";
     if ($replyTo) $payload .= "Reply-To: <$replyTo>\r\n";
-    $payload .= "Subject: " . mb_encode_mimeheader($subject) . "\r\n";
+    $payload .= "Subject: " . mb_encode_mimeheader($subject, 'UTF-8') . "\r\n";
     $payload .= "MIME-Version: 1.0\r\n";
     $payload .= "Content-Type: multipart/alternative; boundary=\"$boundary\"\r\n";
     $payload .= "X-Mailer: APPEK\r\n\r\n";
-    $payload .= "--$boundary\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n$bodyText\r\n";
-    $payload .= "--$boundary\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n$bodyHtml\r\n";
+    $payload .= "--$boundary\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n$bodyText\r\n";
+    $payload .= "--$boundary\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n$bodyHtml\r\n";
     $payload .= "--$boundary--\r\n";
     $payload .= "\r\n.\r\n";
     fputs($sock, $payload);

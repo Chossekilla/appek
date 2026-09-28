@@ -44,6 +44,12 @@ DirectoryIndex index.html index.php install.php
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # 🔎 SEO — na APEXu (marker .landing-only) jsou marketingové stránky VEŘEJNÉ → env APPEK_PUBLIC
+  #   (níže v HEADERS odebere X-Robots-Tag noindex). Zákaznické instalace marker nemají → zůstávají noindex.
+  RewriteCond %{DOCUMENT_ROOT}/.landing-only -f
+  RewriteCond %{REQUEST_URI} !^/(api|admin|b2b|pos|vendor|pirat|demo|uploads|install)(/|\.php|$) [NC]
+  RewriteRule ^ - [E=APPEK_PUBLIC:1]
+
   # 🎨 Landing A/B varianta — na APEXu (existuje marker .landing-only) servíruj `/` přes
   #   landing.php (čte vendor_settings.landing_variant → aktivní vzhled). Zákaznické
   #   instalace marker nemají → pravidlo se přeskočí, servírují index.html napřímo.
@@ -78,6 +84,10 @@ DirectoryIndex index.html index.php install.php
 <IfModule mod_headers.c>
   # Zákaz indexace robotem (HTTP level — přebije i meta tagy)
   Header always set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+  # …kromě veřejného marketingového webu na apexu (env z REWRITE sekce; po interním
+  #   přepisu na landing.php se proměnná jmenuje REDIRECT_APPEK_PUBLIC)
+  Header always unset X-Robots-Tag env=APPEK_PUBLIC
+  Header always unset X-Robots-Tag env=REDIRECT_APPEK_PUBLIC
 
   # Anti-clickjacking
   Header always set X-Frame-Options "SAMEORIGIN"
@@ -101,6 +111,12 @@ DirectoryIndex index.html index.php install.php
   # CSP — povol inline pro PWA a externí ARES/RPO + Heureka feeds
   # POZN.: Pokud chceš stahovat externí fonty (Google Fonts), přidej je do font-src
   Header always set Content-Security-Policy "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; font-src 'self' data:; connect-src 'self' https://ares.gov.cz https://rpo.statistics.sk; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+
+  # 🔎 Veřejný marketingový web na apexu (env APPEK_PUBLIC z REWRITE) — přísná CSP appky výše
+  #   blokovala Google Ads/GA4 (gtag → konverze se nepočítaly), Google Fonts a Stripe.js na checkoutu.
+  #   Pozdější `set` přepíše předchozí; zákaznické instalace (bez markeru) mají dál přísnou CSP.
+  Header always set Content-Security-Policy "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://js.stripe.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.doubleclick.net https://www.google.com https://www.google.cz https://*.googlesyndication.com https://*.googleadservices.com https://api.stripe.com; frame-src https://www.googletagmanager.com https://*.doubleclick.net https://js.stripe.com https://hooks.stripe.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https:" env=APPEK_PUBLIC
+  Header always set Content-Security-Policy "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://js.stripe.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.doubleclick.net https://www.google.com https://www.google.cz https://*.googlesyndication.com https://*.googleadservices.com https://api.stripe.com; frame-src https://www.googletagmanager.com https://*.doubleclick.net https://js.stripe.com https://hooks.stripe.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https:" env=REDIRECT_APPEK_PUBLIC
 
   # Odstranění hlavičky, která prozrazuje PHP verzi (security through obscurity)
   Header unset X-Powered-By

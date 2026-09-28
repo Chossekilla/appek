@@ -5,44 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#BA7517">
 
-<!-- Google Ads (gtag.js) — konverzní sledování AW-18420655081 -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18420655081"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'AW-18420655081');
-</script>
-
-<!-- ═══════════ GOOGLE ANALYTICS (GA4) ═══════════
-     👉 AŽ SPUSTÍŠ REKLAMU: níže na řádku APPEK_GA_ID nahraď G-XXXXXXXXXX
-        svým Measurement ID (GA4 → Správce → Datové proudy → web → „Measurement ID", tvar G-XXXXXXXXXX).
-        Měníš JEN tenhle jeden řádek. Dokud tam je placeholder s „XXXX", GA se vůbec nenačte. -->
-<script>window.APPEK_GA_ID = 'G-W93QSMGL59';</script>
-<script>
-  // GA se načítá AŽ PO souhlasu (cookie lišta níže). Tady jen definice + auto-load při dřívějším souhlasu.
-  (function () {
-    var id = window.APPEK_GA_ID || '';
-    window.__appekLoadGA = function () {
-      if (window.__appekGADone) return;
-      if (!id || id.indexOf('XXXX') !== -1) return;         // placeholder → GA vypnuté
-      window.__appekGADone = true;
-      var s = document.createElement('script');
-      s.async = true;
-      s.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
-      document.head.appendChild(s);
-      window.dataLayer = window.dataLayer || [];
-      window.gtag = function () { dataLayer.push(arguments); };
-      gtag('js', new Date());
-      gtag('config', id, { anonymize_ip: true });
-    };
-    try {
-      var c = JSON.parse(localStorage.getItem('appek_cookie_consent_v1') || 'null');
-      if (c && c.analytics) window.__appekLoadGA();          // dřívější souhlas → načti hned
-    } catch (e) {}
-  })();
-</script>
-<!-- ═══════════ /GOOGLE ANALYTICS ═══════════ -->
+<!--GOOGLE_TAGS--><!-- ↑ Google značky (GA4/Ads/GTM) vkládá landing.php z vendor_settings (Consent Mode v2). Apex se servíruje přes landing.php; přímé otevření index.html značky nemá. -->
 
 <title>APPEK — jednoduchý systém pro pekárny, cukrárny a gastro</title>
 <meta name="description" content="Objednávky, kasa, faktury, sklady i HACCP v jednom přehledném systému. Bez měsíčních poplatků, vlastní hosting nebo cloud. Pro pekárny, cukrárny a restaurace. Od 12 990 Kč.">
@@ -1856,9 +1819,19 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "WebSite",
+      "@id": "https://appek.cz/#website",
+      "name": "APPEK",
+      "alternateName": ["Appek", "APPEK B2B", "appek.cz"],
+      "url": "https://appek.cz/",
+      "inLanguage": "cs",
+      "publisher": { "@id": "https://appek.cz/#org" }
+    },
+    {
       "@type": "Organization",
       "@id": "https://appek.cz/#org",
       "name": "APPEK",
+      "alternateName": ["Appek", "APPEK B2B"],
       "url": "https://appek.cz/",
       "logo": "https://appek.cz/assets/og-image.png",
       "description": "Univerzální B2B/gastro objednávkový a evidenční systém pro pekárny, cukrárny, restaurace, lahůdkárny a catering."
@@ -5355,7 +5328,13 @@ document.addEventListener('keydown', (e) => {
       save(a);
       bar.classList.remove('show');
       toggle.classList.add('show');
-      if (a && window.__appekLoadGA) window.__appekLoadGA();
+      // Consent Mode v2: povol/odmítni měření (gtag definuje landing.php z vendor kódů).
+      if (typeof gtag === 'function') gtag('consent', 'update', {
+        ad_storage: a ? 'granted' : 'denied',
+        analytics_storage: a ? 'granted' : 'denied',
+        ad_user_data: a ? 'granted' : 'denied',
+        ad_personalization: a ? 'granted' : 'denied'
+      });
     }
     document.getElementById('appek-cc-accept').onclick = function () { decide(true); };
     document.getElementById('appek-cc-reject').onclick = function () { decide(false); };

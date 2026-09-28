@@ -3,13 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Google Ads (gtag.js) — konverzní sledování AW-18420655081 -->
+<!-- Google Ads (AW-18420655081) + GA4 (G-W93QSMGL59) — konverze + „purchase" — Consent Mode v2 -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18420655081"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
+  gtag('consent','default',{ad_storage:'denied',analytics_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',wait_for_update:500});
+  try { var _cc = JSON.parse(localStorage.getItem('appek_cookie_consent_v1') || 'null');
+    if (_cc && _cc.analytics) gtag('consent','update',{ad_storage:'granted',analytics_storage:'granted',ad_user_data:'granted',ad_personalization:'granted'}); } catch(e){}
   gtag('js', new Date());
   gtag('config', 'AW-18420655081');
+  gtag('config', 'G-W93QSMGL59', { anonymize_ip: true }); // GA4 → nákup do „Zvýšení objemu prodeje"
+  window.APPEK_GA_ID = 'G-W93QSMGL59';
 </script>
 <title>Platba — APPEK</title>
 <style>
@@ -186,6 +191,18 @@ function firePurchaseConversion(orderNo, valueCzk) {
         value: (parseFloat(valueCzk) > 0 ? parseFloat(valueCzk) : 1.0),
         currency: 'CZK',
         transaction_id: String(orderNo)
+      });
+      // 🆕 GA4 e-commerce „purchase" — aby se nákup objevil v GA4 „Zvýšení objemu prodeje"
+      gtag('event', 'purchase', {
+        transaction_id: String(orderNo),
+        value: (parseFloat(valueCzk) > 0 ? parseFloat(valueCzk) : 1.0),
+        currency: 'CZK',
+        items: [{
+          item_id: 'appek-license',
+          item_name: 'APPEK licence',
+          price: (parseFloat(valueCzk) > 0 ? parseFloat(valueCzk) : 1.0),
+          quantity: 1
+        }]
       });
     }
   } catch (e) {}

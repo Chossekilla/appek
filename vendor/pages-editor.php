@@ -127,6 +127,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     } catch (Throwable $e) { $flash_err = $e->getMessage(); }
 }
 
+// ─── 📊 Google kódy (GA4 / Ads / GTM) — čte landing.php, vkládá je do landingu ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_google_tags') {
+    try {
+        vendor_ensure_settings_table(vendor_db());
+        // Povol jen [A-Za-z0-9_-] (tvar G-…, AW-…, GT-…, label) — žádné skripty/HTML do landingu.
+        $clean = static fn($s) => preg_replace('/[^A-Za-z0-9_-]/', '', trim((string) $s));
+        $map = [
+            'google_ga4_id'         => $clean($_POST['google_ga4_id'] ?? ''),
+            'google_ads_id'         => $clean($_POST['google_ads_id'] ?? ''),
+            'google_ads_conv_label' => $clean($_POST['google_ads_conv_label'] ?? ''),
+            'google_gtm_id'         => $clean($_POST['google_gtm_id'] ?? ''),
+        ];
+        foreach ($map as $k => $v) { vendor_mail_set($k, $v); }
+        vendor_audit(vendor_db(), $user, 'google_tags_save', null,
+            'ga4=' . $map['google_ga4_id'] . ' ads=' . $map['google_ads_id'] . ' gtm=' . $map['google_gtm_id']);
+        $flash_ok = 'Google kódy uloženy — na appek.cz se vloží okamžitě (Consent Mode v2, GDPR).';
+    } catch (Throwable $e) { $flash_err = $e->getMessage(); }
+}
+
 // Aktuální téma pro přepínač
 $curTheme = 'classic';
 try {
@@ -152,6 +171,14 @@ try {
         $lpStats[$k]['paid'] = (int) $r['paid'];
     }
 } catch (Throwable $e) { /* fail-safe → prázdné statistiky */ }
+
+// 📊 Aktuální Google kódy pro předvyplnění formuláře
+$curGoogle = ['google_ga4_id' => '', 'google_ads_id' => '', 'google_ads_conv_label' => '', 'google_gtm_id' => ''];
+try {
+    $grows = vendor_db()->query("SELECT `key`,`value` FROM vendor_settings WHERE `key` IN ('google_ga4_id','google_ads_id','google_ads_conv_label','google_gtm_id')")->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
+    foreach ($grows as $gk => $gv) { $curGoogle[$gk] = (string) $gv; }
+} catch (Throwable $e) { /* fail-safe → prázdné */ }
+
 // Dostupné varianty = classic + každý lp/*.html soubor
 $lpVariants = ['classic'];
 foreach (glob(__DIR__ . '/../lp/*.html') ?: [] as $f) { $lpVariants[] = basename($f, '.html'); }
@@ -308,6 +335,45 @@ $lpVariants = array_values(array_unique(array_merge($lpVariants, array_keys($lpS
       <div style="font-size:11px;color:#86868b;margin-top:8px;line-height:1.5">
         „Na co reagují nejvíc" = nejvyšší <strong>konverze</strong> (zaplaceno ÷ zhlédnutí) a klik-rate. Přepínač je ruční — nech každý vzhled běžet dostatečně dlouho, ať je srovnání férové (sezónnost zkresluje). Zhlédnutí/kliky sbírá <code>lp/track.php</code>, objednávky se párují přes <code>?lp=</code> na checkoutu.
       </div>
+    </div>
+  </div>
+
+  <!-- 📊 GOOGLE KÓDY (MĚŘENÍ) -->
+  <div class="pe-section">
+    <h2>📊 Google kódy <small style="font-weight:400;color:#86868b;font-size:12px">— měřicí značky prodejního webu appek.cz. Vloží se do landingu automaticky (Consent Mode v2 = GDPR). Jedno místo pro celý web.</small></h2>
+    <form method="POST" style="display:flex;flex-direction:column;gap:14px;max-width:560px">
+      <?php vendor_csrf_field(); ?>
+      <input type="hidden" name="action" value="save_google_tags">
+
+      <div>
+        <div class="pe-label">GA4 — Measurement ID <small style="color:#86868b;font-weight:400;font-family:'SF Mono',Menlo,monospace;font-size:11px;margin-left:6px">G-XXXXXXXXXX</small></div>
+        <input type="text" name="google_ga4_id" value="<?= htmlspecialchars($curGoogle['google_ga4_id']) ?>" placeholder="G-XXXXXXXXXX" autocomplete="off" spellcheck="false" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;font-family:'SF Mono',Menlo,monospace;font-size:13px">
+        <div style="font-size:12px;color:#888;margin-top:5px;line-height:1.5">GA4 → Správce → Datové proudy → web → „Measurement ID". Prázdné = Analytics vypnuté.</div>
+      </div>
+
+      <div>
+        <div class="pe-label">Google Ads — Conversion ID <small style="color:#86868b;font-weight:400;font-family:'SF Mono',Menlo,monospace;font-size:11px;margin-left:6px">AW-XXXXXXXXXX</small></div>
+        <input type="text" name="google_ads_id" value="<?= htmlspecialchars($curGoogle['google_ads_id']) ?>" placeholder="AW-XXXXXXXXXX" autocomplete="off" spellcheck="false" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;font-family:'SF Mono',Menlo,monospace;font-size:13px">
+        <div style="font-size:12px;color:#888;margin-top:5px;line-height:1.5">Tohle je „značka Google", kterou Ads hledá na webu. Google Ads → Cíle → Souhrn → nastavení značky.</div>
+      </div>
+
+      <div>
+        <div class="pe-label">Google Ads — Conversion label „Nákup" <small style="color:#86868b;font-weight:400;font-family:'SF Mono',Menlo,monospace;font-size:11px;margin-left:6px">kód za lomítkem</small></div>
+        <input type="text" name="google_ads_conv_label" value="<?= htmlspecialchars($curGoogle['google_ads_conv_label']) ?>" placeholder="např. xrqjCJCHpOscEOnH089E" autocomplete="off" spellcheck="false" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;font-family:'SF Mono',Menlo,monospace;font-size:13px">
+        <div style="font-size:12px;color:#888;margin-top:5px;line-height:1.5">Ads → Cíle → konverze „Nákup" → „Nastavit značku ručně" → hodnota <code>send_to</code> za lomítkem (za „AW-…/"). Vloží se do landingu jako <code>window.APPEK_ADS_CONV</code>.</div>
+      </div>
+
+      <div>
+        <div class="pe-label">Google Tag / GTM <small style="color:#86868b;font-weight:400;font-family:'SF Mono',Menlo,monospace;font-size:11px;margin-left:6px">GT-XXXXXXX — volitelné</small></div>
+        <input type="text" name="google_gtm_id" value="<?= htmlspecialchars($curGoogle['google_gtm_id']) ?>" placeholder="GT-XXXXXXX" autocomplete="off" spellcheck="false" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;font-family:'SF Mono',Menlo,monospace;font-size:13px">
+        <div style="font-size:12px;color:#888;margin-top:5px;line-height:1.5">Volitelné. Vyplň <strong>jen pokud NEmáš vyplněné GA4/Ads výše</strong> — GT- kontejner je obvykle obsahuje, jinak by se konverze počítaly 2×.</div>
+      </div>
+
+      <div><button type="submit" class="btn-master primary">💾 Uložit Google kódy</button></div>
+    </form>
+
+    <div style="margin-top:14px;font-size:12px;color:#86868b;line-height:1.6;background:#fafafa;border:1px dashed #d2d2d7;border-radius:8px;padding:12px 14px">
+      <strong>Jak to funguje:</strong> kódy se vkládají do <code>&lt;head&gt;</code> landingu na místo markeru <code>&lt;!--GOOGLE_TAGS--&gt;</code>. Vše běží v <strong>Consent Mode v2</strong> — dokud návštěvník neklikne „Přijmout" v cookie liště, posílají se jen bezcookie pingy (GDPR OK). Ověř v Ads → „Diagnostika značky" a v GA4 → Přehledy v reálném čase (data naskočí ~do 30 min od první reálné návštěvy).
     </div>
   </div>
 

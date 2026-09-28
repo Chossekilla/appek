@@ -3,42 +3,60 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Google Ads (gtag.js) — konverzní sledování AW-18420655081 -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18420655081"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'AW-18420655081');
-</script>
-<!-- Google Analytics (GA4) - G-W93QSMGL59 - nacita se az PO souhlasu (cookie lista nize) -->
-<script>window.APPEK_GA_ID = 'G-W93QSMGL59';</script>
-<script>
-  (function () {
-    var id = window.APPEK_GA_ID || '';
-    window.__appekLoadGA = function () {
-      if (window.__appekGADone) return;
-      if (!id || id.indexOf('XXXX') !== -1) return;
-      window.__appekGADone = true;
-      var s = document.createElement('script');
-      s.async = true;
-      s.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
-      document.head.appendChild(s);
-      window.dataLayer = window.dataLayer || [];
-      window.gtag = function () { dataLayer.push(arguments); };
-      gtag('js', new Date());
-      gtag('config', id, { anonymize_ip: true });
-    };
-    try {
-      var c = JSON.parse(localStorage.getItem('appek_cookie_consent_v1') || 'null');
-      if (c && c.analytics) window.__appekLoadGA();
-    } catch (e) {}
-  })();
-</script>
-<!-- /GOOGLE ANALYTICS -->
+<!--GOOGLE_TAGS--><!-- ↑ Google značky (GA4/Ads/GTM) vkládá landing.php z vendor_settings (Consent Mode v2). Apex se servíruje přes landing.php. -->
 <title>APPEK B2B — krabicový gastro systém bez měsíčních poplatků</title>
 <meta name="description" content="Objednávky, faktury, dodací listy, výroba, HACCP, B2B portál, rozvozy. Jednorázová platba bez měsíčních poplatků, vaše data na vašem hostingu. Pro pekárny, cukrárny, restaurace a catering.">
-<meta name="robots" content="index,follow">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+<link rel="canonical" href="https://appek.cz/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="APPEK">
+<meta property="og:locale" content="cs_CZ">
+<meta property="og:url" content="https://appek.cz/">
+<meta property="og:title" content="APPEK — gastro systém pro pekárny, cukrárny a restaurace">
+<meta property="og:description" content="Objednávky, faktury, dodací listy, výroba, HACCP, B2B portál, rozvozy. Jednorázová platba bez měsíčních poplatků.">
+<meta property="og:image" content="https://appek.cz/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://appek.cz/assets/og-image.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<!-- 🔎 Strukturovaná data — značka „APPEK" (WebSite.name = název webu ve výsledcích Googlu) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://appek.cz/#website",
+      "name": "APPEK",
+      "alternateName": ["Appek", "APPEK B2B", "appek.cz"],
+      "url": "https://appek.cz/",
+      "inLanguage": "cs",
+      "publisher": { "@id": "https://appek.cz/#org" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://appek.cz/#org",
+      "name": "APPEK",
+      "alternateName": ["Appek", "APPEK B2B"],
+      "url": "https://appek.cz/",
+      "logo": "https://appek.cz/assets/apple-touch-icon.png",
+      "email": "info@appek.cz",
+      "description": "Objednávkový a evidenční systém pro pekárny, cukrárny, restaurace, lahůdkárny a catering."
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "APPEK B2B",
+      "url": "https://appek.cz/",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web, PWA (iOS, Android, Windows, macOS)",
+      "description": "Objednávky, faktury, dodací listy, kasa (POS), sklady, výroba, HACCP a B2B portál v jednom systému. Bez měsíčních poplatků.",
+      "publisher": { "@id": "https://appek.cz/#org" }
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap">
@@ -576,7 +594,12 @@
       save(a);
       bar.classList.remove('show');
       toggle.classList.add('show');
-      if (a && window.__appekLoadGA) window.__appekLoadGA();
+      if (typeof gtag === 'function') gtag('consent', 'update', {
+        ad_storage: a ? 'granted' : 'denied',
+        analytics_storage: a ? 'granted' : 'denied',
+        ad_user_data: a ? 'granted' : 'denied',
+        ad_personalization: a ? 'granted' : 'denied'
+      });
     }
     document.getElementById('appek-cc-accept').onclick = function () { decide(true); };
     document.getElementById('appek-cc-reject').onclick = function () { decide(false); };
