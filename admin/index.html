@@ -74,13 +74,22 @@ body.sidebar-pinned .sidebar-nav .nav-item span:not(.nav-icon):not(.pkg-lock){
   word-break:normal!important;overflow-wrap:normal!important;hyphens:none!important;
   text-align:center;max-width:100%;overflow:hidden;
 }
+/* 📌 v3.0.553 — SJEDNOCENÝ úzký rail (PC): pinned i collapsed = 84px, ikona nahoře + label
+   dole (flex-column), labely se vejdou / zalomí (overflow-wrap:anywhere → NIKDY se neořežou
+   uprostřed → žádné „Objedná"). Scoped @media ≥769px → MOBIL beze změny (viz pravidla výše). */
 @media (min-width: 769px) {
+  body.sidebar-pinned .sidebar{ width:84px!important; padding:12px 6px!important; }
+  body.sidebar-pinned .main-content, body.sidebar-pinned main#content{ margin-left:84px!important; }
   body.sidebar-pinned .sidebar-nav .nav-item,
   body.sidebar-collapsed .sidebar-nav .nav-item{ overflow:hidden!important; gap:3px!important; }
+  /* pinned nav-item → stejný layout jako collapsed (ikona nahoře + label dole, celá šířka) */
+  body.sidebar-pinned .sidebar-nav .nav-item{ flex-direction:column!important; justify-content:center!important; align-items:center!important; gap:2px!important; padding:6px 3px!important; }
+  body.sidebar-pinned .sidebar-nav .nav-item .nav-icon{ font-size:28px!important; }
+  body.sidebar-pinned .sidebar-nav .nav-item span:not(.nav-icon):not(.pkg-lock){ width:100%!important; }
   body.sidebar-pinned .sidebar-nav .nav-item span:not(.nav-icon):not(.pkg-lock),
   body.sidebar-collapsed .sidebar-nav .nav-item span:not(.nav-icon):not(.pkg-lock){
-    font-size:10px!important;line-height:1.2!important;white-space:normal!important;
-    word-break:normal!important;overflow-wrap:normal!important;hyphens:none!important;
+    font-size:10px!important;line-height:1.15!important;white-space:normal!important;
+    word-break:normal!important;overflow-wrap:anywhere!important;hyphens:none!important;
     text-align:center;max-width:100%;overflow:hidden;display:block;
   }
 }
