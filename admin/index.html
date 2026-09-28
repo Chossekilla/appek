@@ -79,7 +79,11 @@ body.sidebar-pinned .sidebar-nav .nav-item span:not(.nav-icon):not(.pkg-lock){
    uprostřed → žádné „Objedná"). Scoped @media ≥769px → MOBIL beze změny (viz pravidla výše). */
 @media (min-width: 769px) {
   body.sidebar-pinned .sidebar{ width:84px!important; padding:12px 6px!important; }
-  body.sidebar-pinned .main-content, body.sidebar-pinned main#content{ margin-left:84px!important; }
+  /* 🐛 v3.0.554 — pinned grid 1. sloupec = 84px (jako rail), NE leftover 280px → obsah flush
+     u railu (žádná ~200px mezera + žádný horizontální přesah, co uřezával obsah zleva).
+     margin-left:0 (grid sloupec dělá offset; dřívější margin:84px dvojitě počítal). */
+  html body.sidebar-pinned:not(.sidebar-collapsed) .admin-app{ grid-template-columns:84px 1fr!important; }
+  html body.sidebar-pinned .main-content, html body.sidebar-pinned main#content{ margin-left:0!important; }
   body.sidebar-pinned .sidebar-nav .nav-item,
   body.sidebar-collapsed .sidebar-nav .nav-item{ overflow:hidden!important; gap:3px!important; }
   /* pinned nav-item → stejný layout jako collapsed (ikona nahoře + label dole, celá šířka) */
