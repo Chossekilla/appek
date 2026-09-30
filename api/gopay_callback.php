@@ -78,6 +78,10 @@ if ($status['state'] === 'PAID' && $order['payment_status'] !== 'paid') {
     $pdo->prepare("UPDATE vendor_shop_orders SET payment_status = 'paid', paid_at = NOW() WHERE id = :id")
         ->execute(['id' => $order['id']]);
 
+    // 📈 Serverové GA4 měření (nezávislé na souhlasu/prohlížeči) — každý prodej se započítá (i pronájem)
+    require_once __DIR__ . '/_ga4_mp.php';
+    ga4_mp_purchase($order);
+
     // 🆕 PRONÁJEM — PRODLOUŽENÍ (my.appek.cz): objednávka s renew_license_id → posuň expiraci STÁVAJÍCÍ licence
     //   (žádný nový klíč). Prodlouží se od pozdějšího z (dnes, stávající expirace) — nepropadne zbytek.
     $renewId = (int) ($order['renew_license_id'] ?? 0);

@@ -106,6 +106,10 @@ try {
         'id'  => $order['id'],
     ]);
 
+    // 📈 Serverové GA4 měření (nezávislé na souhlasu/prohlížeči) — každý prodej se započítá
+    require_once __DIR__ . '/_ga4_mp.php';
+    ga4_mp_purchase($order);
+
     // Generate license
     $packages = json_decode($order['packages_json'] ?? '[]', true) ?: [];
     $packages = array_filter($packages, fn($k) => $k !== 'core');
