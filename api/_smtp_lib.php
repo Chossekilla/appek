@@ -50,10 +50,29 @@ function smtp_extract_email(string $s): string {
 }
 
 /**
+ * 🧪 v3.0.556 — Mail sink (testovací režim): když existuje `api/.mail-sink` nebo je
+ * v config.local.php `APPEK_MAIL_SINK = true`, e-maily se NEODESÍLAJÍ — jen se zapíšou
+ * do `api/.mail-sink.log` (JSONL: čas, komu, předmět). Pro zátěžové testy (smoke-chain
+ * na demu), aby notifikace nezahltily schránku ani limit odesílání hostingu. Dotfiles
+ * jsou z webu blokované (api/.htaccess) a nikdy se nebalí do bundlu.
+ */
+function appek_mail_sink_active(): bool {
+    return (defined('APPEK_MAIL_SINK') && APPEK_MAIL_SINK) || is_file(__DIR__ . '/.mail-sink');
+}
+
+function appek_mail_sink_write(string $to, string $subjectEnc): bool {
+    $subj = function_exists('mb_decode_mimeheader') ? mb_decode_mimeheader($subjectEnc) : $subjectEnc;
+    $line = json_encode(['t' => date('c'), 'to' => $to, 'subj' => $subj], JSON_UNESCAPED_UNICODE) . "\n";
+    @file_put_contents(__DIR__ . '/.mail-sink.log', $line, FILE_APPEND | LOCK_EX);
+    return true;
+}
+
+/**
  * Drop-in náhrada mail(): SMTP když zapnuté, jinak @mail(). Nikdy nehází — vrací bool.
  * $headers = už složené hlavičky (From/MIME/Content-Type…), stejně jako pro mail().
  */
 function appek_mail_raw(string $to, string $subjectEnc, string $body, string $headers): bool {
+    if (appek_mail_sink_active()) return appek_mail_sink_write($to, $subjectEnc);
     $cfg = smtp_cfg(db());
     if (!smtp_is_on($cfg)) return @mail($to, $subjectEnc, $body, $headers);
     try {

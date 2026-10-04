@@ -306,6 +306,7 @@ try {
     $protectedRuntime = [
         'api/config.local.php', 'api/.installed', 'vendor/config.local.php', 'vendor/.installed',
         'api/.license-state.json', 'api/.pirate-flag', 'api/.heartbeat-last', 'api/.check-install-key',
+        'api/.mail-sink', 'api/.mail-sink.log',  // 🧪 v3.0.556 testovací mail sink
     ];
     foreach ($protectedRuntime as $pp) {
         if (isset($fileList[$pp])) {
