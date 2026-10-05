@@ -81,22 +81,40 @@ function secret(): array {
 function cust_pw(int $i): string { return 'Smk-' . substr(hash_hmac('sha256', "cust:$i", secret()['seed']), 0, 18); }
 
 /** CLI bootstrap aplikace → PDO (stejný vzor jako scripts/test-money-paths.php). */
-function app_db(): PDO {
+function app_db(bool $fresh = false): PDO {
     static $pdo = null;
-    if ($pdo) return $pdo;
-    $_SERVER['HTTP_HOST'] = parse_url((string) cfg('base'), PHP_URL_HOST) ?: 'localhost';
-    $_SERVER['HTTPS'] = 'on'; $_SERVER['REQUEST_METHOD'] = 'GET'; $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
-    ob_start(); require_once cfg('root') . '/api/config.php'; ob_end_clean();
-    ini_set('display_errors', '1');
-    $pdo = db();
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    // Sjednoť collation spojení — sklad_pohyby_v2 je utf8mb4_general_ci, ostatní unicode_ci;
-    // bez toho padají porovnání sloupec↔parametr na „Illegal mix of collations".
+    if ($pdo && !$fresh) return $pdo;
+    if (!function_exists('db')) {
+        $_SERVER['HTTP_HOST'] = parse_url((string) cfg('base'), PHP_URL_HOST) ?: 'localhost';
+        $_SERVER['HTTPS'] = 'on'; $_SERVER['REQUEST_METHOD'] = 'GET'; $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+        ob_start(); require_once cfg('root') . '/api/config.php'; ob_end_clean();
+        ini_set('display_errors', '1');
+    }
+    // Vlastní PDO (ne sdílené db() cache) — abychom se mohli znovupřipojit po „gone away".
+    // Hosting pod zátěží občas odmítne socket (2002 „Operation not permitted") → pár pokusů s backoffem.
+    $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . (defined('DB_CHARSET') ? DB_CHARSET : 'utf8mb4');
+    $pdo = null; $lastErr = null;
+    for ($try = 1; $try <= 5; $try++) {
+        try { $pdo = new PDO($dsn, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false]); break; }
+        catch (PDOException $e) { $lastErr = $e; usleep(400000 * $try); }
+    }
+    if (!$pdo) throw $lastErr;
     try { $pdo->exec("SET collation_connection = 'utf8mb4_unicode_ci'"); } catch (Throwable $e) {}
     return $pdo;
 }
-function q(string $sql, array $p = []): array { $st = app_db()->prepare($sql); $st->execute($p); return $st->fetchAll(PDO::FETCH_ASSOC); }
-function q1(string $sql, array $p = []) { $st = app_db()->prepare($sql); $st->execute($p); return $st->fetchColumn(); }
+function db_run(string $sql, array $p, bool $one) {
+    for ($try = 1; ; $try++) {
+        try { $st = app_db()->prepare($sql); $st->execute($p); return $one ? $st->fetchColumn() : $st->fetchAll(PDO::FETCH_ASSOC); }
+        catch (PDOException $e) {
+            $m = $e->getMessage();
+            $transient = str_contains($m, 'gone away') || str_contains($m, '2006') || str_contains($m, '2002') || str_contains($m, '2013') || in_array((int) ($e->errorInfo[1] ?? 0), [2006, 2002, 2013], true);
+            if ($transient && $try <= 4) { usleep(300000 * $try); try { app_db(true); } catch (Throwable $e2) {} continue; }
+            throw $e;
+        }
+    }
+}
+function q(string $sql, array $p = []): array { return db_run($sql, $p, false); }
+function q1(string $sql, array $p = []) { return db_run($sql, $p, true); }
 
 final class Stats {
     public static array $s = [];
@@ -128,6 +146,19 @@ final class Http {
         return [CURLOPT_RESOLVE => ["$host:$port:" . cfg('resolve')], CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0];
     }
     public function req(string $method, string $path, $body = null, ?string $label = null, bool $raw = false): array {
+        // Transientní selhání sdíleného hostingu (spadlé spojení / přetížení) → pár pokusů s backoffem.
+        // GET je idempotentní vždy; u zápisů jen spojení-level kódy (0/502/503/504 = request neproběhl).
+        $out = null;
+        for ($try = 1; $try <= 3; $try++) {
+            $out = $this->reqOnce($method, $path, $body, $label, $raw);
+            $c = $out['code'];
+            $retry = ($c === 0 || in_array($c, [502, 503, 504], true)) || ($method === 'GET' && $c >= 500);
+            if (!$retry || $try === 3) break;
+            usleep(350000 * $try);
+        }
+        return $out;
+    }
+    private function reqOnce(string $method, string $path, $body = null, ?string $label = null, bool $raw = false): array {
         $ch = curl_init(cfg('base') . '/' . ltrim($path, '/'));
         $h = ['Accept: application/json, text/html', 'User-Agent: Mozilla/5.0 (APPEK smoke-chain ' . cfg('run') . ')'];
         if ($this->cookie !== '') $h[] = 'Cookie: APPEKSID=' . $this->cookie;
@@ -166,10 +197,15 @@ final class Admin {
     public Http $h;
     public function __construct() { $this->h = new Http(); $this->login(); }
     public function login(): void {
-        $s = secret(); $this->h->cookie = ''; $this->h->csrf = null;
-        $r = $this->h->req('POST', 'api/admin_login.php', ['email' => $s['admin_email'], 'heslo' => $s['admin_pw']], 'POST admin_login.php');
-        if ($r['code'] !== 200 || empty($r['json']['csrf_token'])) throw new RuntimeException('Admin login selhal: ' . $r['code'] . ' ' . substr($r['raw'], 0, 200));
-        $this->h->csrf = $r['json']['csrf_token'];
+        $s = secret();
+        for ($try = 1; $try <= 6; $try++) {
+            $this->h->cookie = ''; $this->h->csrf = null;
+            $r = $this->h->req('POST', 'api/admin_login.php', ['email' => $s['admin_email'], 'heslo' => $s['admin_pw']], 'POST admin_login.php');
+            if ($r['code'] === 200 && !empty($r['json']['csrf_token'])) { $this->h->csrf = $r['json']['csrf_token']; return; }
+            if ($r['code'] !== 200 && $r['code'] < 500 && $r['code'] !== 0) throw new RuntimeException('Admin login selhal: ' . $r['code'] . ' ' . substr($r['raw'], 0, 200));
+            usleep(400000 * $try); // transientní 500/0 (přetížení hostingu) → backoff a zkus znovu
+        }
+        throw new RuntimeException('Admin login selhal opakovane (hosting pretizen?)');
     }
     public function call(string $m, string $path, $body = null, ?string $label = null, bool $raw = false): array {
         $r = $this->h->req($m, $path, $body, $label, $raw);

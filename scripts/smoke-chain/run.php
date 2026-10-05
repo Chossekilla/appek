@@ -29,12 +29,18 @@ function sink_guard(): void {
 
 /** Spustí K workerů dané fáze jako samostatné procesy (php run.php worker …) a čeká na ně. */
 function spawn_workers(string $phase, int $K): void {
+    // Smaž staré worker-logy této fáze — jinak FATAL z dřívější iterace (append) zůstane
+    // a detekce pádu by každou další iteraci chybně shodila už hotovou fázi.
+    foreach (glob(rpath("worker-$phase-*.log")) ?: [] as $f) @unlink($f);
     $procs = [];
     for ($k = 0; $k < $K; $k++) {
         $cmd = [PHP_BINARY, '-d', 'memory_limit=1024M', __FILE__, 'worker', "--phase=$phase", "--shard=$k", "--of=$K",
                 '--run=' . cfg('run'), '--dir=' . $GLOBALS['DIR_BASE']];
         $log = rpath("worker-$phase-$k.log");
         $procs[$k] = proc_open($cmd, [0 => ['file', '/dev/null', 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes);
+        // Stagger startů: každý nový worker na první request spustí apply_full_schema (CREATE/ALTER);
+        // N souběžných DDL bootstrapů koliduje na metadata-locku MariaDB a padá prázdným 500.
+        if ($k < $K - 1) usleep(500000);
     }
     $t0 = time(); $last = 0;
     while (true) {
@@ -92,10 +98,11 @@ function phase_stock(): void {
     $batches = [];
     foreach ($polNeed as $pid => $qn) {
         $have = (float) q1("SELECT COALESCE(SUM(stav),0) FROM sklad_polozky WHERE item_typ='vyrobek' AND item_id=:i", ['i' => $pid]);
-        $make = (float) ceil(max(0, $qn - $have) * 1.05);
+        $make = (float) ceil(max(0, $qn - $have) * 1.10) + 2; // 10 % rezerva proti driftu/zaokrouhleni
         if ($make <= 0) continue;
-        $sizes = []; for ($b = 0; $b < 3; $b++) $sizes[] = floor($make / 4) + $b; $sizes[] = $make - array_sum($sizes);
-        $batches[$pid] = array_values(array_filter($sizes, fn($x) => $x > 0));
+        // 2 dávky RŮZNÉ velikosti (shodná velikost ve stejné minutě → dedup guard 409)
+        $b1 = max(1, (int) round($make * 0.4)); $b2 = (int) ($make - $b1);
+        $batches[$pid] = array_values(array_filter([$b1, $b2], fn($x) => $x > 0));
         $s2 = []; $p2 = []; bom_x($pid, $make, $s2, $p2);
         foreach ($s2 as $sid => $qq) $need[$sid] = ($need[$sid] ?? 0) + $qq;
     }
@@ -110,6 +117,8 @@ function phase_stock(): void {
         for ($l = 1; $l <= $lots; $l++) {
             $mn = $lots === 1 ? $tot : ($l === 1 ? $first : round($tot - $first, 3));
             $pz = cfg('tag') . "-rcv-$sid-$l";
+            // resume-safe: příjem NENÍ idempotentní → přeskoč, pokud poznámka už v ledgeru (po restartu orchestratoru)
+            if ((int) q1("SELECT COUNT(*) FROM sklad_pohyby_v2 WHERE poznamka=:p", ['p' => $pz]) > 0) { $rcv[] = ['sid' => $sid, 'mn' => $mn, 'pz' => $pz, 'code' => 200, 'skip' => true]; continue; }
             $r = $A->call('POST', 'api/admin_suroviny.php?action=sklad_prijem', ['surovina_id' => $sid, 'mnozstvi' => $mn, 'cena_za_jed' => $cj,
                 'sarze' => cfg('tag') . "-L$sid-$l", 'datum_spotreby' => date('Y-m-d', strtotime(dates_last() . ' +60 days')), 'poznamka' => $pz]);
             $rcv[] = ['sid' => $sid, 'mn' => $mn, 'pz' => $pz, 'code' => $r['code'], 'err' => $r['code'] >= 300 ? substr($r['raw'], 0, 200) : null];
@@ -120,6 +129,15 @@ function phase_stock(): void {
     foreach ($batches as $pid => $sizes) foreach ($sizes as $sz) {
         $r = $A->call('POST', 'api/admin_vyroba.php?action=vyrobit_polotovar', ['vyrobek_id' => $pid, 'mnozstvi' => $sz]);
         $made[] = ['pid' => $pid, 'mn' => $sz, 'code' => $r['code'], 'resp' => $r['json'] ?? substr($r['raw'], 0, 200)];
+    }
+    // Top-up: po dávkách ověř skutečný stav polotovaru a dorovnej (force), ať výroba neskončí v mínusu
+    foreach ($polNeed as $pid => $qn) {
+        $have = (float) q1("SELECT COALESCE(SUM(stav),0) FROM sklad_polozky WHERE item_typ='vyrobek' AND item_id=:i", ['i' => $pid]);
+        $short = ceil($qn * 1.05 - $have);
+        if ($short > 0) {
+            $r = $A->call('POST', 'api/admin_vyroba.php?action=vyrobit_polotovar', ['vyrobek_id' => $pid, 'mnozstvi' => $short, 'force' => true]);
+            $made[] = ['pid' => $pid, 'mn' => $short, 'topup' => true, 'code' => $r['code'], 'resp' => $r['json'] ?? substr($r['raw'], 0, 200)];
+        }
     }
     jsave('stock.json', ['need' => $need, 'pol_need' => $polNeed, 'receipts' => $rcv, 'batches' => $made, 'spotreba_pred' => $spot]);
     Stats::save('stats-stock.json');
@@ -190,8 +208,14 @@ function phase_rozvoz(): void {
 /** Faktury hromadně: 35 % zákazníků měsíčně (1 faktura za víc objednávek), zbytek za každou objednávku. */
 function phase_fa(): void {
     if (phase_done('fa')) { L('fa: hotovo driv'); return; }
-    $A = new Admin(); $out = ['fa' => [], 'skip' => [], 'err' => []];
-    $byCust = []; foreach (all_orders() as $o) if (!$o['cancelled']) $byCust[$o['odb']][] = $o;
+    $A = new Admin(); $out = jload('fa.json', ['fa' => [], 'skip' => [], 'err' => []]);
+    $out['err'] = []; // chyby počítej jen z tohoto průchodu
+    // resume-safe: přeskoč objednávky, které už fakturu mají (po restartu orchestratoru)
+    $T = cfg('tag');
+    $invoiced = array_fill_keys(array_map('intval', array_column(q("SELECT DISTINCT dl.objednavka_id id FROM dodaci_listy dl JOIN faktury_dodaci_listy fdl ON fdl.dodaci_list_id=dl.id JOIN faktury f ON f.id=fdl.faktura_id AND f.je_dobropis=0 JOIN odberatele o ON o.id=dl.odberatel_id WHERE o.cislo LIKE '$T-C%' AND dl.objednavka_id IS NOT NULL"), 'id')), true);
+    $haveFa = array_fill_keys(array_map(fn($x) => $x['id'], $out['fa']), true);
+    $byCust = []; foreach (all_orders() as $o) if (!$o['cancelled'] && !isset($invoiced[$o['id']])) $byCust[$o['odb']][] = $o;
+    if (!$byCust) { Stats::save('stats-fa.json'); mark_done('fa', ['fa' => count($out['fa'])]); L('fa: vse uz vyfakturovano (' . count($out['fa']) . ')'); return; }
     $monthly = []; $perOrder = [];
     foreach ($byCust as $cid => $os) { mt_srand((int) $cid * 31); if (mt_rand(1, 100) <= 35) $monthly[$cid] = $os; else foreach ($os as $o) $perOrder[$o['datum']][] = $o['id']; }
     ksort($perOrder);
@@ -248,10 +272,13 @@ function preflight(): void {
     $markers = (int) q1("SELECT COUNT(*) FROM nastaveni WHERE klic IN (" . implode(',', array_map(fn($d) => "'odpis_vyroba_$d'", $all)) . ')');
     if (($foreign || $markers) && !opt('force-dates')) die("❌ Terminy nejsou izolovane: $foreign cizich objednavek, $markers odpisovych markeru v oknu. Zvol jine --start nebo --force-dates.\n");
     $t = ['odberatele', 'objednavky', 'objednavky_polozky', 'dodaci_listy', 'faktury', 'sklad_pohyby_v2', 'objednavky_zmeny', 'prihlaseni_pokusy', 'notifications', 'vyrobky', 'suroviny'];
+    // tolerantní vůči čerstvé instalaci (některé tabulky vznikají líně, nejsou v _full_schema → mohou chybět)
+    $cnt = function (string $x) { try { return (int) q1("SELECT COUNT(*) FROM `$x`"); } catch (Throwable $e) { return -1; } };
+    $maxid = function (string $x) { try { return (int) q1("SELECT COALESCE(MAX(id),0) FROM `$x`"); } catch (Throwable $e) { return 0; } };
     $snap = [
-        'cislovani' => q('SELECT typ, rok, posledni FROM cislovani'),
-        'counts' => array_combine($t, array_map(fn($x) => (int) q1("SELECT COUNT(*) FROM $x"), $t)),
-        'max_id' => ['sklad_pohyby_v2' => (int) q1('SELECT COALESCE(MAX(id),0) FROM sklad_pohyby_v2'), 'objednavky_zmeny' => (int) q1('SELECT COALESCE(MAX(id),0) FROM objednavky_zmeny'), 'app_errors' => (int) (@q1('SELECT COALESCE(MAX(id),0) FROM app_errors') ?: 0)],
+        'cislovani' => (function () { try { return q('SELECT typ, rok, posledni FROM cislovani'); } catch (Throwable $e) { return []; } })(),
+        'counts' => array_combine($t, array_map($cnt, $t)),
+        'max_id' => ['sklad_pohyby_v2' => $maxid('sklad_pohyby_v2'), 'objednavky_zmeny' => $maxid('objednavky_zmeny'), 'app_errors' => $maxid('app_errors')],
         'stock' => array_map('floatval', array_column(q('SELECT id, stock_aktualni FROM suroviny'), 'stock_aktualni', 'id')),
         'error_logs' => array_map(fn($f) => ['f' => $f, 'size' => filesize($f)], array_values(array_filter([cfg('root') . '/api/error_log', cfg('root') . '/error_log', cfg('root') . '/admin/error_log', cfg('root') . '/b2b/error_log'], 'is_file'))),
         'sink_lines' => is_file(cfg('root') . '/api/.mail-sink.log') ? count(file(cfg('root') . '/api/.mail-sink.log')) : 0,

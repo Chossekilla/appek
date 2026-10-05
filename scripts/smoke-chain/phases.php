@@ -169,8 +169,14 @@ function w_customers(int $k, int $K): void {
         mt_srand(crc32(cfg('run') . 'ord') + $i * 104729);
         $rec = ['i' => $i, 'cislo' => $c['cislo'], 'grp' => $c['cenova_skupina_id'], 'splatnost' => $c['splatnost_dni'], 'orders' => [], 'err' => [], 'chk' => []];
         $r = $A->call('POST', 'api/admin_odberatele.php', $c);
-        if ($r['code'] !== 201) { $rec['err'][] = "create {$r['code']}: " . substr($r['raw'], 0, 160); jappend("customers-$k.jsonl", $rec); continue; }
-        $rec['id'] = $oid = (int) $r['json']['id'];
+        if ($r['code'] !== 201 && $r['code'] >= 500) { // prázdný 500 (kolize DDL) — zkus znovu, pak dohledej v DB
+            $rec['err'][] = "create 500 (retry): " . substr($r['raw'], 0, 80);
+            usleep(400000); $r = $A->call('POST', 'api/admin_odberatele.php', $c);
+        }
+        $oid = (int) ($r['json']['id'] ?? 0);
+        if (!$oid) { try { $oid = (int) q1('SELECT id FROM odberatele WHERE login_email=:e LIMIT 1', ['e' => $c['login_email']]); } catch (Throwable $e) { $oid = 0; } if ($oid) $rec['err'][] = "create {$r['code']} ale ucet vznikl (dohledano id $oid)"; }
+        if (!$oid) { $rec['err'][] = "create {$r['code']}: " . substr($r['raw'], 0, 160); jappend("customers-$k.jsonl", $rec); continue; }
+        $rec['id'] = $oid;
         if (mt_rand(1, 100) <= 20) {
             [$m2, $p2] = pick(MESTA);
             $rp = $A->call('POST', 'api/admin_pobocky.php', ['odberatel_id' => $oid, 'nazev' => 'Pobočka ' . pick(NAZVY), 'ulice' => pick(ULICE) . ' ' . mt_rand(1, 120), 'mesto' => mt_rand(0, 1) ? $c['mesto'] : $m2, 'psc' => $p2, 'cas_dodani' => pick(['05:30-06:30', '06:00-07:00', '07:00-08:00']), 'pokyny_pro_ridice' => pick(['zadni vchod', 'zvonit 2x', 'rampa u skladu', '']), 'vychozi' => 0, 'aktivni' => 1]);
@@ -206,13 +212,21 @@ function w_customers(int $k, int $K): void {
             }
             if (!$lines) continue;
             $misto = $defMisto; if (count($mista) > 1 && mt_rand(1, 100) <= 40) $misto = (int) pick($mista)['id'];
-            $body = ['typ' => 'jednorazova', 'misto_dodani_id' => $misto, 'polozky' => array_values($lines),
-                     'poznamka' => mt_rand(1, 100) <= 30 ? pick(['Prosim rano do 6:30.', 'Zadni vchod, zvonit.', 'Dekujeme!', 'Volat pri prijezdu.']) : '',
+            $nonce = cfg('tag') . ":$i:$d:" . (count($rec['orders']) + 1); // kotva pro dohledání po prázdném 500
+            $pozn = (mt_rand(1, 100) <= 30 ? pick(['Prosim rano do 6:30.', 'Zadni vchod, zvonit.', 'Dekujeme!', 'Volat pri prijezdu.']) . ' ' : '') . "[#$nonce]";
+            $body = ['typ' => 'jednorazova', 'misto_dodani_id' => $misto, 'polozky' => array_values($lines), 'poznamka' => $pozn,
                      'doprava' => mt_rand(1, 100) <= 85 ? 'rozvoz' : 'vlastni', 'platba' => mt_rand(1, 100) <= 60 ? 'faktura' : 'prevod',
                      'gdpr_souhlas' => true, 'datum_dodani' => $d];
             $ro = $B->req('POST', 'api/objednavky.php', $body, 'POST objednavky.php (b2b)');
-            if ($ro['code'] !== 201) { $rec['err'][] = "order {$ro['code']}: " . substr($ro['raw'], 0, 200); continue; }
-            $ord = ['id' => (int) $ro['json']['id'], 'cislo' => $ro['json']['cislo'] ?? null, 'via' => 'b2b', 'datum' => $d, 'misto' => $misto,
+            $oidNew = (int) ($ro['json']['id'] ?? 0);
+            if (!$oidNew && $ro['code'] >= 500) { // prázdný 500 — objednávka mohla vzniknout; dohledej přes nonce
+                usleep(300000);
+                $last = $B->req('GET', 'api/objednavky.php?last=6', null, 'GET objednavky.php?last (recover)');
+                foreach (($last['json']['objednavky'] ?? $last['json'] ?? []) as $lo) if (is_array($lo) && str_contains((string) ($lo['poznamka'] ?? ''), "[#$nonce]")) { $oidNew = (int) $lo['id']; break; }
+                $rec['err'][] = "order 500" . ($oidNew ? " ale vznikla (dohledano $oidNew)" : " ztracena: " . substr($ro['raw'], 0, 80));
+            }
+            if (!$oidNew) { if ($ro['code'] !== 201) $rec['err'][] = "order {$ro['code']}: " . substr($ro['raw'], 0, 160); continue; }
+            $ord = ['id' => $oidNew, 'cislo' => $ro['json']['cislo'] ?? null, 'via' => 'b2b', 'datum' => $d, 'misto' => $misto,
                     'doprava' => $body['doprava'], 'platba' => $body['platba'], 'stav' => 'nova', 'lines' => [], 'cancelled' => false, 'edited' => false];
             $readLines = function (array $polozky) use ($km): array {
                 $o = []; foreach ($polozky as $pl) if (!empty($pl['vyrobek_id'])) $o[] = ['v' => (int) $pl['vyrobek_id'], 'q' => (float) $pl['mnozstvi'], 'c' => (float) $pl['cena_bez_dph'], 'kat' => (float) ($km[(int) $pl['vyrobek_id']]['cena_bez_dph'] ?? -1)];
@@ -277,7 +291,13 @@ function w_stav(int $k, int $K, string $tag, array $stavy): void {
         sink_guard();
         $res = ['id' => $id];
         foreach ($stavy as $s) {
-            $r = $A->call('PUT', 'api/admin_objednavky.php', ['id' => $id, 'stav' => $s], "PUT admin_objednavky.php (stav=$s)");
+            // PUT stav je idempotentní (nastavení téhož stavu 2× = stejný výsledek) → prázdný 500
+            // sdíleného hostingu bezpečně zopakuj, ať objednávka nezůstane viset.
+            for ($try = 1; $try <= 4; $try++) {
+                $r = $A->call('PUT', 'api/admin_objednavky.php', ['id' => $id, 'stav' => $s], "PUT admin_objednavky.php (stav=$s)");
+                if ($r['code'] === 200 || $r['code'] < 500) break;
+                usleep(400000 * $try);
+            }
             $res[$s] = $r['code'];
             if ($r['code'] !== 200) $res['err'][] = "$s {$r['code']}: " . substr($r['raw'], 0, 160);
         }
@@ -295,7 +315,15 @@ function w_pay(int $k, int $K): void {
         mt_srand($f['id'] * 13);
         $x = mt_rand(1, 100); $amt = $x <= 70 ? $f['celkem'] : ($x <= 80 ? round($f['celkem'] / 2, 2) : null);
         $res = ['id' => $f['id'], 'want' => $amt];
-        if ($amt !== null) { $r = $A->call('PUT', 'api/admin_faktury.php', ['id' => $f['id'], 'castka_uhrazeno' => $amt], 'PUT admin_faktury.php (uhrada)'); $res['code'] = $r['code']; if ($r['code'] !== 200) $res['err'] = substr($r['raw'], 0, 200); }
+        if ($amt !== null) {
+            // úhrada = absolutní částka → idempotentní, prázdný 500 hostingu bezpečně zopakuj
+            for ($try = 1; $try <= 4; $try++) {
+                $r = $A->call('PUT', 'api/admin_faktury.php', ['id' => $f['id'], 'castka_uhrazeno' => $amt], 'PUT admin_faktury.php (uhrada)');
+                if ($r['code'] === 200 || $r['code'] < 500) break;
+                usleep(400000 * $try);
+            }
+            $res['code'] = $r['code']; if ($r['code'] !== 200) $res['err'] = substr($r['raw'], 0, 200);
+        }
         jappend("pay-$k.jsonl", $res);
         if (++$n % 300 === 0) echo '[' . date('H:i:s') . "] pay shard $k: $n\n";
     }

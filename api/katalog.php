@@ -88,15 +88,19 @@ if ($odb_id) {
     $jeNo = in_array('je_novinka', $colsExist, true) ? 'v.je_novinka' : '0 AS je_novinka';
     $jeDo = in_array('je_doprodej', $colsExist, true) ? 'v.je_doprodej' : '0 AS je_doprodej';
     $jeVy = in_array('je_vyprodano', $colsExist, true) ? 'v.je_vyprodano' : '0 AS je_vyprodano';
+    // 🆕 v3.0.521 guard rozšířen i na anonymní katalog: volitelné sloupce (sezona, alergeny…)
+    //   chybí na čerstvé instalaci (přidá je až příslušná feature-migrace) → „Unknown column 'v.sezona'"
+    //   shodil CELÝ SELECT → veřejný B2B katalog 500 / prázdný. Chybějící → NULL. Viz [[appek-fresh-install-schema]].
+    $colK = fn($n) => in_array($n, $colsExist, true) ? "v.$n" : "NULL AS $n";
 
     $sql = "
-        SELECT v.id, v.cislo, v.nazev, v.popis,
+        SELECT v.id, v.cislo, v.nazev, {$colK('popis')},
                v.cena_bez_dph AS cena_zakladni,
                v.cena_bez_dph,
-               v.hmotnost_g,
-               v.obrazek_url, v.objednat_do_hod, v.alergeny, v.oblibeny,
+               {$colK('hmotnost_g')},
+               {$colK('obrazek_url')}, {$colK('objednat_do_hod')}, {$colK('alergeny')}, {$colK('oblibeny')},
                $jeAk, $jeNo, $jeDo, $jeVy,
-               v.min_objednavka, v.sezona,
+               {$colK('min_objednavka')}, {$colK('sezona')},
                k.nazev AS kategorie, k.id AS kategorie_id, k.ikona AS kategorie_ikona,
                j.kod AS jednotka,
                s.sazba AS dph,
