@@ -679,8 +679,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     if (!$edit['lze']) json_error($edit['duvod'], 409);
 
     try {
+        $pdo->beginTransaction();
         $pdo->prepare("UPDATE objednavky SET stav = 'zrusena', upraveno_kdy = NOW() WHERE id = :id")
             ->execute(['id' => $id]);
+        // 🐛 PR12 — storno po výrobním odpisu vrátí spotřebované suroviny na sklad (idempotentně)
+        require_once __DIR__ . '/_bom_lib.php';
+        bom_vrat_objednavku_na_sklad($pdo, $id, 'storno zákazník');
+        $pdo->commit();
 
         $jm = $pdo->prepare("SELECT nazev FROM odberatele WHERE id = :id");
         $jm->execute(['id' => $odberatel_id]);
@@ -695,6 +700,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
         json_response(['ok' => true]);
     } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         error_log('objednavky DELETE: ' . $e->getMessage());
         json_error('Nepodařilo se zrušit: ' . $e->getMessage(), 500);
     }

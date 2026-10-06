@@ -205,3 +205,49 @@ function bom_products_using_surovina(PDO $pdo, int $sid): array {
     }
     return array_map('intval', array_keys($result));
 }
+
+/**
+ * 🐛 PR12 — vrácení surovin na sklad při STORNU objednávky, jejíž den už byl odepsán.
+ * Dřív zrušení objednávky po výrobním odpisu nevracelo spotřebované suroviny → trvalý úbytek
+ * skladu bez pokrytí. Vrací se jen když (a) den má odpisový marker (jinak sklad nikdy neklesl)
+ * a (b) tato objednávka ještě vrácena nebyla (idempotence přes nastaveni). Musí běžet uvnitř
+ * transakce volajícího. Vrací přehled nebo důvod přeskočení.
+ */
+function bom_vrat_objednavku_na_sklad(PDO $pdo, int $objId, string $kdo = 'storno'): array {
+    require_once __DIR__ . '/_sklad_lib.php';
+    $o = $pdo->prepare("SELECT id, cislo, datum_dodani FROM objednavky WHERE id = :id");
+    $o->execute(['id' => $objId]);
+    $ord = $o->fetch(PDO::FETCH_ASSOC);
+    if (!$ord) return ['vraceno' => false, 'duvod' => 'objednávka neexistuje'];
+    // vrať jen když byl den odepsán (jinak se sklad za tuto objednávku nikdy nesnížil)
+    $marker = $pdo->prepare("SELECT 1 FROM nastaveni WHERE klic = :k");
+    $marker->execute(['k' => 'odpis_vyroba_' . $ord['datum_dodani']]);
+    if (!$marker->fetchColumn()) return ['vraceno' => false, 'duvod' => 'den nebyl odepsán'];
+    $vrKey = 'vraceno_sklad_obj_' . $objId;
+    $done = $pdo->prepare("SELECT 1 FROM nastaveni WHERE klic = :k");
+    $done->execute(['k' => $vrKey]);
+    if ($done->fetchColumn()) return ['vraceno' => false, 'duvod' => 'už vráceno'];
+
+    $sur = []; $pol = [];
+    $lp = $pdo->prepare("SELECT vyrobek_id, mnozstvi FROM objednavky_polozky WHERE objednavka_id = :id AND vyrobek_id IS NOT NULL");
+    $lp->execute(['id' => $objId]);
+    foreach ($lp->fetchAll(PDO::FETCH_ASSOC) as $ln) bom_explode($pdo, (int) $ln['vyrobek_id'], (float) $ln['mnozstvi'], $sur, $pol);
+
+    $pozn = 'Vratka storno obj ' . ($ord['cislo'] ?? ('#' . $objId));
+    $addBack = function (int $skladId, string $typ, int $itemId, float $qty) use ($pdo, $pozn, $kdo) {
+        if ($qty <= 0) return;
+        $rowId = sklad_polozky_ensure($pdo, $skladId, $typ, $itemId);
+        $pdo->prepare("UPDATE sklad_polozky SET stav = stav + :q WHERE id = :r")->execute(['q' => $qty, 'r' => $rowId]);
+        $po = (float) $pdo->query("SELECT stav FROM sklad_polozky WHERE id = " . (int) $rowId)->fetchColumn();
+        $pdo->prepare("INSERT INTO sklad_pohyby_v2 (sklad_id,item_typ,item_id,typ,mnozstvi,stav_pred,stav_po,poznamka,kdo,kdy)
+                       VALUES (:s,:t,:i,'vratka',:mn,:pr,:po,:pz,:kdo,NOW())")
+            ->execute(['s' => $skladId, 't' => $typ, 'i' => $itemId, 'mn' => $qty, 'pr' => $po - $qty, 'po' => $po, 'pz' => mb_substr($pozn, 0, 255), 'kdo' => $kdo]);
+    };
+    foreach ($sur as $sid => $qty) { $addBack(surovina_home_sklad($pdo, (int) $sid), 'surovina', (int) $sid, (float) $qty); surovina_recompute_total($pdo, (int) $sid); }
+    $defSklad = sklad_default_id($pdo);
+    foreach ($pol as $pid => $qty) $addBack($defSklad, 'vyrobek', (int) $pid, (float) $qty);
+
+    $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES (:k, :v) ON DUPLICATE KEY UPDATE hodnota = :v2")
+        ->execute(['k' => $vrKey, 'v' => date('Y-m-d H:i') . ' · ' . $kdo, 'v2' => date('Y-m-d H:i') . ' · ' . $kdo]);
+    return ['vraceno' => true, 'suroviny' => count($sur), 'polotovary' => count($pol)];
+}

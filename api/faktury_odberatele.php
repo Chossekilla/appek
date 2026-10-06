@@ -35,7 +35,15 @@ foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $f) {
     $jeDob  = ((int) $f['je_dobropis']) === 1;
     $stav   = 'uhrazena';
     if (!$jeDob && $uhr + 0.01 < $celkem) {
-        $stav = (!empty($f['datum_splatnosti']) && $f['datum_splatnosti'] < $dnes) ? 'po_splatnosti' : 'neuhrazena';
+        // 🐛 PR14 — plně dobropisovaná faktura je vyrovnaná (ne po splatnosti/neuhrazená)
+        $cr = db()->prepare("SELECT COALESCE(SUM(castka_celkem),0) FROM faktury WHERE puvodni_faktura_id = :f AND je_dobropis = 1");
+        $cr->execute(['f' => (int) $f['id']]);
+        $credited = (float) $cr->fetchColumn();
+        if ($celkem > 0 && $credited <= -$celkem + 0.01) {
+            $stav = 'uhrazena';
+        } else {
+            $stav = (!empty($f['datum_splatnosti']) && $f['datum_splatnosti'] < $dnes) ? 'po_splatnosti' : 'neuhrazena';
+        }
     }
     $out[] = [
         'id'              => (int) $f['id'],

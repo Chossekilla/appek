@@ -629,7 +629,11 @@ if ($method === 'PUT') {
     $maFA = (bool) $pdo->query("SELECT COUNT(*) FROM faktury_dodaci_listy fdl JOIN dodaci_listy dl ON dl.id = fdl.dodaci_list_id WHERE dl.objednavka_id = $obj_id")->fetchColumn();
 
     // Pokud má DL nebo fakturu a není potvrzeno, vrať varování
-    $chceMenitData = isset($d['datum_dodani']) || !empty($d['polozky_zmeny']);
+    // 🐛 PR07 — datum_dodani ber jako změnu jen když se LIŠÍ od uloženého. Admin UI posílá
+    //   datum_dodani vždy (i u pouhé změny stavu) → dřív 409 „má DL" a nešlo z UI přepnout
+    //   objednávku s DL na expedovana/dorucena.
+    $datumSeMeni = isset($d['datum_dodani']) && (string) $d['datum_dodani'] !== (string) ($orig['datum_dodani'] ?? '');
+    $chceMenitData = $datumSeMeni || !empty($d['polozky_zmeny']);
     if (($maDL || $maFA) && $chceMenitData && !$vynutit) {
         json_error(
             ($maFA ? 'Tato objednávka má vystavenou FAKTURU.' : 'Tato objednávka má vystavený DODACÍ LIST.') .
@@ -659,6 +663,11 @@ if ($method === 'PUT') {
             }
             $pdo->prepare("UPDATE objednavky SET stav = :s WHERE id = :id")
                 ->execute(['s' => $d['stav'], 'id' => $obj_id]);
+            // 🐛 PR12 — storno po výrobním odpisu vrátí spotřebované suroviny na sklad (idempotentně)
+            if ($d['stav'] === 'zrusena' && $orig['stav'] !== 'zrusena') {
+                require_once __DIR__ . '/_bom_lib.php';
+                bom_vrat_objednavku_na_sklad($pdo, $obj_id, 'storno admin');
+            }
         }
         if (isset($d['interni_pozn'])) {
             $pdo->prepare("UPDATE objednavky SET interni_pozn = :p WHERE id = :id")
