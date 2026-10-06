@@ -37,6 +37,10 @@ $pdo = db();
 // VYTVOŘENÍ FAKTURY (POST only - chrání proti CSRF)
 // =============================================================
 if (($_GET['action'] ?? '') === 'vytvor') {
+    // 🐛 PR03 — vytvoření faktury je ADMIN mutace. Horní B2B gate propustí vlastníka faktury
+    //   v ?id, ale vytvor bere objednavka_id z BODY → zákazník by založil doklad k CIZÍ
+    //   objednávce. Vynuť admin (+CSRF) zde nezávisle na B2B gate.
+    require_admin();
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(405);
         header('Content-Type: application/json; charset=utf-8');

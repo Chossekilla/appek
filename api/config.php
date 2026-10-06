@@ -703,7 +703,17 @@ function json_input(): array {
 function require_odberatel(): int {
     session_secure_start();
     if (empty($_SESSION['odberatel_id'])) json_error('Vyžadováno přihlášení', 401);
-    return (int) $_SESSION['odberatel_id'];
+    $oid = (int) $_SESSION['odberatel_id'];
+    // 🐛 PR01 — ověř, že účet není mezitím zablokován/smazán. Dřív se `blokovan` četl JEN při
+    //   loginu → zablokovaný zákazník s živou session dál objednával. (Fail-open jen na infra
+    //   chybě DB, ne na blokaci.)
+    try {
+        $st = db()->prepare("SELECT blokovan FROM odberatele WHERE id = :o");
+        $st->execute(['o' => $oid]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if ($row === false || (int) ($row['blokovan'] ?? 0) !== 0) json_error('Účet je zablokován', 403);
+    } catch (Throwable $e) { /* DB výpadek → nezamykej všechny; login check gatuje běžné případy */ }
+    return $oid;
 }
 
 /**
