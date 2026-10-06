@@ -61,6 +61,30 @@ function bom_vyrobek_meta(PDO $pdo, int $vid): array {
     return $m;
 }
 
+/**
+ * 🐛 PR09 — konverze jednotky řádku receptu (vyrobek_suroviny.jednotka) na jednotku suroviny
+ * (suroviny.jednotka). Bez ní se „0,01 kg" suroviny vedené v g odepsalo jako 0,01 g (1000× míň).
+ * Převádí jen v rámci stejného rozměru (hmotnost g/kg/mg, objem ml/l/dl/cl, počet ks); neznámá nebo
+ * křížová dvojice (bal, lžíce…) → 1:1 (zachová původní chování, běžné recepty se nemění).
+ */
+function bom_surovina_jednotka(PDO $pdo, int $sid): string {
+    static $cache = [];
+    if (array_key_exists($sid, $cache)) return $cache[$sid];
+    $u = '';
+    try { $st = $pdo->prepare("SELECT jednotka FROM suroviny WHERE id = :id"); $st->execute(['id' => $sid]); $u = (string) $st->fetchColumn(); } catch (Throwable $e) {}
+    return $cache[$sid] = $u;
+}
+function bom_unit_factor(?string $from, ?string $to): float {
+    $f = mb_strtolower(trim((string) $from));
+    $t = mb_strtolower(trim((string) $to));
+    if ($f === '' || $t === '' || $f === $t) return 1.0;
+    static $base = ['g' => ['m', 1.0], 'kg' => ['m', 1000.0], 'mg' => ['m', 0.001],
+                    'ml' => ['v', 1.0], 'l' => ['v', 1000.0], 'dl' => ['v', 100.0], 'cl' => ['v', 10.0],
+                    'ks' => ['k', 1.0]];
+    if (isset($base[$f], $base[$t]) && $base[$f][0] === $base[$t][0]) return $base[$f][1] / $base[$t][1];
+    return 1.0;
+}
+
 /** Jednotková cena suroviny (cena_baleni / obsah_baleni). */
 function bom_surovina_unit_cost(PDO $pdo, int $sid): float {
     static $cache = [];
@@ -94,7 +118,8 @@ function bom_explode(PDO $pdo, int $vid, float $qty, array &$sur, array &$pol, i
             }
         } elseif (!empty($r['surovina_id'])) {
             $sid = (int) $r['surovina_id'];
-            $sur[$sid] = ($sur[$sid] ?? 0) + $need;
+            $factor = bom_unit_factor($r['jednotka'] ?? null, bom_surovina_jednotka($pdo, $sid)); // 🐛 PR09
+            $sur[$sid] = ($sur[$sid] ?? 0) + $need * $factor;
         }
     }
 }
@@ -110,7 +135,8 @@ function bom_cost(PDO $pdo, int $vid, array $visited = []): float {
         if (!empty($r['slozka_vyrobek_id'])) {
             $cost += bom_cost($pdo, (int) $r['slozka_vyrobek_id'], $visited) * $mn;
         } elseif (!empty($r['surovina_id'])) {
-            $cost += bom_surovina_unit_cost($pdo, (int) $r['surovina_id']) * $mn;
+            $sid = (int) $r['surovina_id'];
+            $cost += bom_surovina_unit_cost($pdo, $sid) * $mn * bom_unit_factor($r['jednotka'] ?? null, bom_surovina_jednotka($pdo, $sid)); // 🐛 PR09
         }
     }
     return round($cost, 4);

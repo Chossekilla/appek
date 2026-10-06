@@ -279,7 +279,9 @@ function run_probes(): void {
         $rec('PR08', 'DL zrusene objednavky zmizi z rozvozove trasy', 'neni na trase', $on ? 'JE na trase' : 'neni', $on);
 
         // Zásobení surovin pro sondové objednávky dne D + jednotková sonda
-        $kmin = (int) $cat['suroviny']['Kmín celý']['id'];
+        // dedikovaná surovina (g) JEN pro jednotkovou sondu → čisté měření 1000 g bez cizích konzumentů
+        $ksR = $A->call('POST', 'api/admin_suroviny.php', ['nazev' => "PROBE-UNIT surovina $tag", 'jednotka' => 'g', 'cena_baleni' => 100, 'obsah_baleni' => 1000, 'stock_minimalni' => 0, 'stock_cilove' => 0]);
+        $kmin = (int) ($ksR['json']['id'] ?? 0) ?: (int) $cat['suroviny']['Kmín celý']['id'];
         $pv = $A->call('POST', 'api/admin_vyrobky.php', ['nazev' => "Sonda jednotek ($tag)", 'cislo' => "$tag-PROBE-UNIT", 'jednotka_id' => 1, 'sazba_dph_id' => 1, 'cena_bez_dph' => 1, 'aktivni' => 1,
             'slozeni_polozky' => [['surovina_id' => $kmin, 'mnozstvi' => 0.01, 'jednotka' => 'kg', 'poradi' => 0]]]);
         $pvid = (int) ($pv['json']['id'] ?? 0);
