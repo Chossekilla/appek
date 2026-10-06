@@ -437,11 +437,20 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
     // 🔒 v3.0.315 — IDEMPOTENCY: zabraň dvojímu odpisu stejného dne (jinak drift skladu do mínusu).
     //   Bez force → pokud už byl den odepsán, odmítni 409.
     $odpisKey = 'odpis_vyroba_' . $datum;
+    $claimedMarker = false;
     if (!$force) {
+        // 🐛 PR10 — ATOMICKÝ claim markeru. Dřív SELECT mimo transakci → dva souběžné requesty
+        //   oba viděly „nic" a oba odepsaly (dvojí odečet skladu). INSERT na PRIMARY KEY klic
+        //   selže na duplicitě → druhý dostane 409. Marker se na konci přepíše na finální razítko.
         try {
-            $prev = $pdo->query("SELECT hodnota FROM nastaveni WHERE klic = " . $pdo->quote($odpisKey) . " LIMIT 1")->fetchColumn();
-            if ($prev) json_error('Výroba pro ' . $datum . ' už byla odepsána (' . $prev . '). Pro opětovný odpis použij „force".', 409);
-        } catch (Throwable $e) {}
+            $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES (:k, :v)")
+                ->execute(['k' => $odpisKey, 'v' => 'PROBÍHÁ ' . date('Y-m-d H:i:s')]);
+            $claimedMarker = true;
+        } catch (PDOException $e) {
+            $prev = '';
+            try { $prev = (string) $pdo->query("SELECT hodnota FROM nastaveni WHERE klic = " . $pdo->quote($odpisKey) . " LIMIT 1")->fetchColumn(); } catch (Throwable $e2) {}
+            json_error('Výroba pro ' . $datum . ' už byla odepsána nebo právě probíhá (' . $prev . '). Pro opětovný odpis použij „force".', 409);
+        }
     }
 
     // Sečti spotřebu (stejně jako v ?action=spotreba)
@@ -561,6 +570,8 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
         ]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
+        // 🐛 PR10 — když jsme marker claimnuli a odpis spadl, ukliď ho, ať nezablokuje legitimní retry
+        if (!empty($claimedMarker)) { try { $pdo->prepare("DELETE FROM nastaveni WHERE klic = :k AND hodnota LIKE 'PROBÍHÁ%'")->execute(['k' => $odpisKey]); } catch (Throwable $e2) {} }
         json_error_safe('Chyba odpisu', $e, 500);
     }
 }
