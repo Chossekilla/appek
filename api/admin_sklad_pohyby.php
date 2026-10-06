@@ -109,8 +109,11 @@ if ($method === 'POST') {
         $orig = $st->fetch(PDO::FETCH_ASSOC);
         if (!$orig) json_error('Pohyb nenalezen', 404);
         if ($orig['typ'] === 'presun') json_error('Přesun mezi sklady nelze stornovat tímto tlačítkem — udělej opačný přesun.', 400);
-        $delta = -(float) $orig['mnozstvi'];
-        if ($delta === 0.0) json_error('Tento pohyb neměl vliv na stav — není co stornovat.', 400);
+        // 🐛 PR11 — reverz dle SKUTEČNÉHO efektu pohybu (stav_pred − stav_po), ne z −mnozstvi:
+        //   výroba/POS ukládají „vydej" s KLADNÝM mnozstvi (stav klesl) → −mnozstvi odečetlo
+        //   podruhé místo vrácení. stav_pred − stav_po je správné nezávisle na znaménku mnozstvi.
+        $delta = (float) $orig['stav_pred'] - (float) $orig['stav_po'];
+        if (abs($delta) < 0.00001) json_error('Tento pohyb neměl vliv na stav — není co stornovat.', 400);
         $pdo->beginTransaction();
         try {
             $p = get_or_create_polozka($pdo, (int) $orig['sklad_id'], $orig['item_typ'], (int) $orig['item_id'], true);
