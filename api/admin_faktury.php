@@ -291,6 +291,12 @@ if ($method === 'PUT') {
 
     // Změny položek (polozky_zmeny: [{polozka_id, mnozstvi}, ...])
     if (!empty($d['polozky_zmeny']) && is_array($d['polozky_zmeny'])) {
+        // 🐛 PR13 — u auto-faktury (rucni=0) byla faktura_polozky prázdná a detail vrací ID
+        //   z dodaci_list_polozky → UPDATE/DELETE netrefilo žádný řádek a přepočet z prázdné
+        //   tabulky vynuloval fakturu na 0 Kč. Materializuj řádky z DL PŘED editací i přepočtem.
+        if ((int) $pdo->query("SELECT COUNT(*) FROM faktura_polozky WHERE faktura_id = " . (int) $fa_id)->fetchColumn() === 0) {
+            faktura_ensure_polozky($pdo, $fa_id);
+        }
         $pdo->beginTransaction();
         try {
             foreach ($d['polozky_zmeny'] as $z) {

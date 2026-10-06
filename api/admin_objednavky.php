@@ -435,14 +435,18 @@ if ($method === 'POST') {
             json_error('Objednávka je uzamčena (existuje dodací list)', 409);
         }
 
-        $stmt = $pdo->prepare("
-            SELECT v.cena_bez_dph, s.sazba
-            FROM vyrobky v JOIN sazby_dph s ON s.id = v.sazba_dph_id
-            WHERE v.id = :id AND v.aktivni = 1
-        ");
-        $stmt->execute(['id' => $vyrobek_id]);
-        $vyr = $stmt->fetch();
-        if (!$vyr) json_error('Výrobek neexistuje nebo není aktivní');
+        // 🐛 PR05 — cena z ceníku ODBĚRATELE (slevová skupina/pevná cena/sezóna), NE základní
+        //   vyrobky.cena_bez_dph. Sjednoceno s 'vytvorit' (v3.0.376) i B2B (objednavky.php:217),
+        //   jinak zákazník ve slevové skupině u dodatečně přidané položky přeplácel.
+        $odb_id_pp = (int) ($pdo->query("SELECT odberatel_id FROM objednavky WHERE id = " . (int) $obj_id)->fetchColumn() ?: 0);
+        $akt = $pdo->prepare("SELECT 1 FROM vyrobky WHERE id = :id AND aktivni = 1");
+        $akt->execute(['id' => $vyrobek_id]);
+        if (!$akt->fetchColumn()) json_error('Výrobek neexistuje nebo není aktivní');
+        $cenaPP = null; $sazbaPP = 0.0;
+        foreach (cenik_pro_odberatele($pdo, $odb_id_pp) as $row) {
+            if ((int) $row['id'] === $vyrobek_id) { $cenaPP = (float) $row['cena_bez_dph']; $sazbaPP = (float) ($row['dph'] ?? 0); break; }
+        }
+        if ($cenaPP === null) json_error('Výrobek není v ceníku odběratele nebo není dostupný');
 
         $pdo->beginTransaction();
         try {
@@ -452,7 +456,7 @@ if ($method === 'POST') {
                 VALUES (:o,:v,:m,:c,:s)
             ")->execute([
                 'o' => $obj_id, 'v' => $vyrobek_id, 'm' => $mnozstvi,
-                'c' => $vyr['cena_bez_dph'], 's' => $vyr['sazba'],
+                'c' => $cenaPP, 's' => $sazbaPP,
             ]);
             prepocitat_objednavku($pdo, $obj_id);
             $pdo->commit();

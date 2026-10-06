@@ -263,8 +263,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 🆕 v3.0.272 — PŘÍPLATKY: doprava (s prahem „zdarma od") + poplatek platby (dobírka…).
         //   Promítnou se do CELKEM a uloží jako řádky dokladu → propíšou se i do DL/faktury.
         require_once __DIR__ . '/_platby_lib.php';
-        $platbaKey  = strtolower(preg_replace('/[^a-z_]/', '', (string) ($data['platba'] ?? '')));
-        $dopravaKey = strtolower(preg_replace('/[^a-z_]/', '', (string) ($data['doprava'] ?? '')));
+        $platbaKey  = preg_replace('/[^a-z_]/', '', strtolower(trim((string) ($data['platba'] ?? ''))));
+        $dopravaKey = preg_replace('/[^a-z_]/', '', strtolower(trim((string) ($data['doprava'] ?? ''))));
         $subtotal   = round($bez + $dph, 2);
         $sur = platby_surcharges($pdo, $platbaKey, $dopravaKey, $subtotal);
         $dopCfg = platby_config_load($pdo)['doprava']['metody'][$dopravaKey] ?? null;
@@ -305,8 +305,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      : null,
             'b' => round($bez, 2), 'dph' => round($dph, 2),
             'cel' => round($bez + $dph, 2), 'pozn' => $data['poznamka'] ?? null,
-            'dor' => (substr(trim((string)($data['doprava'] ?? '')), 0, 30) ?: null),
-            'plt' => (substr(trim((string)($data['platba'] ?? '')), 0, 30) ?: null),
+            // 🐛 PR17 — ukládej NORMALIZOVANÝ klíč (stejný jako pro příplatek), ne syrový vstup;
+            //   jinak „Rozvoz"/„Prevod" uložené s velkým písmenem rozbíjí filtry/reporty i příplatky.
+            'dor' => ($dopravaKey ?: null),
+            'plt' => ($platbaKey ?: null),
             // 🔒 v3.0.425 — evidence GDPR souhlasu (server-authoritative čas)
             'gs' => !empty($data['gdpr_souhlas']) ? 1 : 0,
             'gsat' => !empty($data['gdpr_souhlas']) ? date('Y-m-d H:i:s') : null,
@@ -521,8 +523,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     //   platby/dopravy (nebo z dat, pokud je portál pošle). Řádky držíme zvlášť
     //   (mimo $polozky_clean), ať nezašpiní diff/log pro notifikaci.
     require_once __DIR__ . '/_platby_lib.php';
-    $platbaKey  = strtolower(preg_replace('/[^a-z_]/', '', (string) ($data['platba']  ?? $orig['zpusob_platby']   ?? '')));
-    $dopravaKey = strtolower(preg_replace('/[^a-z_]/', '', (string) ($data['doprava'] ?? $orig['zpusob_doruceni'] ?? '')));
+    $platbaKey  = preg_replace('/[^a-z_]/', '', strtolower(trim((string) ($data['platba']  ?? $orig['zpusob_platby']   ?? ''))));
+    $dopravaKey = preg_replace('/[^a-z_]/', '', strtolower(trim((string) ($data['doprava'] ?? $orig['zpusob_doruceni'] ?? ''))));
     $sur = platby_surcharges($pdo, $platbaKey, $dopravaKey, round($bez + $dph, 2));
     $dopCfg = platby_config_load($pdo)['doprava']['metody'][$dopravaKey] ?? null;
     $surRows = [];
