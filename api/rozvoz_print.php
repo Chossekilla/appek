@@ -39,6 +39,7 @@ $stmt = $pdo->prepare("
     JOIN odberatele od ON od.id = dl.odberatel_id
     LEFT JOIN mista_dodani md ON md.id = dl.misto_dodani_id
     WHERE dl.datum_dodani = :datum
+      AND (o.id IS NULL OR o.stav <> 'zrusena')   -- 🐛 PR08 — DL zrušené objednávky pryč z trasy (ruční DL bez objednávky zůstává)
     ORDER BY rozvoz_mesto, rozvoz_psc, od.nazev
 ");
 $stmt->execute(['datum' => $datum]);
