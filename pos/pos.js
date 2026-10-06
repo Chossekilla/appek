@@ -726,19 +726,25 @@
   const _TYP_LBL = { sebou:'🛍️ Sebou', vyzvednuti:'📦 Vyzvednutí', rozvoz:'🛵 Rozvoz', na_miste:'🍽️ Na místě' };
   const _hhmm = (dt) => { try { return new Date(String(dt).replace(' ','T')).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'}); } catch(e){ return ''; } };
 
-  // ─── Účtenky — dnešní POS prodeje ────────────────────────────
+  // ─── Účtenky — POS prodeje za zvolený den (default dnes) ─────
+  // 🐛 „POS nenačítá historii": standalone kasa uměla jen dnešek (quick_history bez date,
+  //   bez navigace). Doplněna volba dne (date-picker + ←/→/Dnes), jako má admin POS.
+  const _todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const _dateCs = (iso) => { try { return new Date(iso + 'T00:00:00').toLocaleDateString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' }); } catch (e) { return iso; } };
+  let _histDate = _todayISO();
   async function renderOrders() {
     const alt = $('#pos-altview');
     if (!alt) return;
     try {
-      const r = await api('admin_pos.php?action=quick_history&limit=100');
+      const r = await api('admin_pos.php?action=quick_history&date=' + encodeURIComponent(_histDate) + '&limit=100');
       const orders = r.objednavky || [];
       const s = r.souhrn || {};
       const trzby = s['tržby'] ?? s.trzby ?? 0;
+      const isToday = _histDate === _todayISO();
       alt.innerHTML = `
         <div class="pos-alt-wrap">
           <div class="pos-alt-head">
-            <h2 class="pos-alt-title">📜 Účtenky — dnes</h2>
+            <h2 class="pos-alt-title">📜 Účtenky — ${isToday ? 'dnes' : esc(_dateCs(_histDate))}</h2>
             <div class="pos-alt-sum">
               <span class="pos-chip"><strong>${s.pocet || 0}</strong> účtenek</span>
               <span class="pos-chip pos-chip-green"><strong>${fmt(trzby)}</strong> Kč</span>
@@ -746,8 +752,14 @@
               <span class="pos-chip">💳 ${fmt(s.karta || 0)}</span>
             </div>
           </div>
+          <div class="pos-hist-nav" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+            <button class="pos-modal-btn" onclick="POS.histShift(-1)">← Předchozí</button>
+            <input type="date" value="${_histDate}" max="${_todayISO()}" onchange="POS.histSet(this.value)" style="padding:8px 10px;border:2px solid #e1e5eb;border-radius:8px;font-size:15px;font-family:inherit">
+            <button class="pos-modal-btn" onclick="POS.histShift(1)"${isToday ? ' disabled' : ''}>Další →</button>
+            ${isToday ? '' : '<button class="pos-modal-btn" onclick="POS.histSet(POS._today())">📅 Dnes</button>'}
+          </div>
           ${orders.length === 0
-            ? '<div class="pos-alt-empty">🧾 Dnes zatím žádné účtenky.</div>'
+            ? `<div class="pos-alt-empty">🧾 ${isToday ? 'Dnes zatím žádné účtenky.' : 'V tento den žádné účtenky.'}</div>`
             : `<div class="pos-receipt-list">${orders.map(o => `
                 <button class="pos-receipt-row" onclick="POS.receipt(${o.id})">
                   <div class="pos-receipt-main">
@@ -853,6 +865,10 @@
     search:        setSearch,
     newOrder:      newOrder,
     refundReceipt: refundReceipt, // 🆕 v3.0.268 — vratky
+    // 🐛 historie účtenek — volba dne (viz renderOrders)
+    _today:        _todayISO,
+    histSet:       function (d) { if (d) { _histDate = d; renderOrders(); } },
+    histShift:     function (n) { const d = new Date(_histDate + 'T00:00:00'); d.setDate(d.getDate() + n); const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); if (iso <= _todayISO()) { _histDate = iso; renderOrders(); } },
 
     pickCustomer:  pickCustomer,
     setTyp:        setTyp,
