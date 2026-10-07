@@ -39,7 +39,7 @@ async function renderKDS() {
           <button class="btn-secondary" onclick="renderKDS()" style="padding:6px 14px">🔄 Obnovit teď</button>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:14px">
         ${orders.map(o => renderKDSOrder(o, stavLabels)).join('')}
       </div>
     `;

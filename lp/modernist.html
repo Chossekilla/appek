@@ -105,6 +105,9 @@
   @media (max-width: 1080px) { .navlinks { display: none !important; } }
   @media (max-width: 900px) { .hdr-langs { display: none !important; } }
   @media (max-width: 700px) { .hdr-demo { display: none !important; } }
+  /* 🐛 v559 — na velmi úzkých telefonech (≤420 px) se logo + CS▼ + Objednat nevešly
+     (gap 32 px + padding 40 px). Zmenšíme mezeru a boční padding → hlavička sedí. */
+  @media (max-width: 420px) { header.pad-x { gap: 10px !important; padding-left: 12px !important; padding-right: 12px !important; } }
   @media (max-width: 860px) {
     /* 🆕 v3.0.504 — mobil: sekce NEpadají na 1 sloupec (byl kilometrový scroll). Tablet: cols-3 drží 3 sl., cols-4 → 2. */
     .cols-4 { grid-template-columns: repeat(2, 1fr) !important; }

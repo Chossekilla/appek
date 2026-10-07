@@ -10,7 +10,7 @@
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
 // Automaticky spustí cache clear + reload, aby user nikdy nezůstal trčet na starém kódu.
-const APPEK_ADMIN_JS_VERSION = '3.0.558';
+const APPEK_ADMIN_JS_VERSION = '3.0.559';
 
 // ⚡ v3.0.252 — Odlehčený režim (volba výkonu v Nastavení): aplikuj z localStorage co nejdřív (bez bliknutí)
 (function applyPerfLite() {
@@ -15855,7 +15855,7 @@ async function renderNastaveni() {
           Nahraj logo firmy — automaticky se z něj vygeneruje i favicon (ikona v záložce prohlížeče).
           Podporováno PNG / JPG / WEBP, max 5 MB.
         </p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;align-items:start">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:24px;align-items:start">
         <!-- 🖼️ LEVÝ SLOUPEC: logo + favicon + akce + na dokladech -->
         <div style="display:flex;flex-direction:column;gap:14px">
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
@@ -18482,7 +18482,7 @@ window.loadBalicky = async function() {
       <div style="background:#FFF8E5;border-left:3px solid #BA7517;padding:14px 16px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#854F0B;line-height:1.6">
         🎁 <strong>Modulární licence.</strong> Můžeš aktivovat/deaktivovat jen balíčky obsažené ve tvém licenčním klíči (zelené). Zamčené (🔒) si dokoupíš u dodavatele — pošle ti nový klíč, který sem vložíš.
       </div>
-      <div class="pkg-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:14px">
+      <div class="pkg-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%,320px), 1fr));gap:14px">
         ${cards}
       </div>
     `;
@@ -18783,7 +18783,7 @@ async function renderPackagePage(pageKey) {
       Většina je <em>zatím v plánu</em> — řekni mi, kterou chceš implementovat jako první, postavím ji.
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:14px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%,320px), 1fr));gap:14px">
       ${featuresHtml}
     </div>
   `;
@@ -21063,7 +21063,7 @@ async function renderKDS() {
           <button class="btn-secondary" onclick="renderKDS()" style="padding:6px 14px">🔄 Obnovit teď</button>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:14px">
         ${orders.map(o => renderKDSOrder(o, stavLabels)).join('')}
       </div>
     `;
@@ -21216,7 +21216,7 @@ async function renderQRPending() {
         <strong style="font-size:14px;color:#854F0B">📲 ${orders.length} čekajících QR objednávek od ${Object.keys(byTable).length} stolů</strong>
         <span style="font-size:12px;color:var(--text-3);margin-left:8px">auto-refresh 10s</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px">
         ${Object.values(byTable).map(grp => {
           const total = grp.items.reduce((s, i) => s + i.jednotkova_cena * i.mnozstvi, 0);
           return `
@@ -28008,7 +28008,7 @@ async function renderDiagnostika() {
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px">
 
       <!-- 🖥️ SYSTÉM -->
       <div class="card-block" style="padding:16px">

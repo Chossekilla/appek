@@ -247,6 +247,9 @@ a:hover { text-decoration: underline; }
 /* Pokud nejsme na záložce s košíkem (Historie / Přehled), schováme úplně */
 .layout.no-cart { grid-template-columns: 1fr; }
 .layout.no-cart .cart-panel { display: none; }
+/* 🐛 v559 — grid item #content se smí smrštit pod min-content svých dětí (karty katalogu),
+   jinak celý obsah přetékal ~34px na úzkých displejích (≤360 px) a ořezával se vpravo. */
+.layout > #content, .layout #content { min-width: 0; }
 
 /* Hlavička panelu */
 .cart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
@@ -1797,7 +1800,7 @@ html.dark .orders-list .order-card:nth-child(even) { background: var(--surface-2
 }
 .order-card-items li .oci-main {
   display: grid;
-  grid-template-columns: 36px 1fr auto;
+  grid-template-columns: minmax(36px, auto) 1fr auto; /* 🐛 v559 qty sloupec roste pro 3+ číselná množství (100×, 250× …) */
   gap: 8px;
   align-items: baseline;
 }
@@ -1824,7 +1827,7 @@ html.dark .orders-list .order-card:nth-child(even) { background: var(--surface-2
     padding: 8px 0;
   }
   .order-card-items li .oci-main {
-    grid-template-columns: 30px 1fr auto;
+    grid-template-columns: minmax(30px, auto) 1fr auto; /* 🐛 v559 viz výše — množství se neořízne */
     gap: 6px;
     font-size: 13px;
   }

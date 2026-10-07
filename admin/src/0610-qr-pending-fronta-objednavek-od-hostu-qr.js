@@ -36,7 +36,7 @@ async function renderQRPending() {
         <strong style="font-size:14px;color:#854F0B">📲 ${orders.length} čekajících QR objednávek od ${Object.keys(byTable).length} stolů</strong>
         <span style="font-size:12px;color:var(--text-3);margin-left:8px">auto-refresh 10s</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px">
         ${Object.values(byTable).map(grp => {
           const total = grp.items.reduce((s, i) => s + i.jednotkova_cena * i.mnozstvi, 0);
           return `

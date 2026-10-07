@@ -32,6 +32,8 @@ p, ul, ol { margin-bottom: 12px; font-size: 14.5px; }
 ul, ol { padding-left: 22px; }
 li { margin-bottom: 4px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 14px 0; }
+/* 🐛 v559 — úzký telefon (≤420 px): GDPR tabulky přetékaly vpravo. Menší písmo + užší buňky. */
+@media (max-width: 420px) { table { font-size: 12.5px; } th, td { padding-left: 8px; padding-right: 8px; } }
 th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e5e5e7; }
 th { background: #fafafa; font-weight: 700; }
 code { background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Menlo, monospace; font-size: 13px; }

@@ -122,7 +122,7 @@ async function renderNastaveni() {
           Nahraj logo firmy — automaticky se z něj vygeneruje i favicon (ikona v záložce prohlížeče).
           Podporováno PNG / JPG / WEBP, max 5 MB.
         </p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;align-items:start">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:24px;align-items:start">
         <!-- 🖼️ LEVÝ SLOUPEC: logo + favicon + akce + na dokladech -->
         <div style="display:flex;flex-direction:column;gap:14px">
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">

@@ -104,7 +104,7 @@ window.loadBalicky = async function() {
       <div style="background:#FFF8E5;border-left:3px solid #BA7517;padding:14px 16px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#854F0B;line-height:1.6">
         🎁 <strong>Modulární licence.</strong> Můžeš aktivovat/deaktivovat jen balíčky obsažené ve tvém licenčním klíči (zelené). Zamčené (🔒) si dokoupíš u dodavatele — pošle ti nový klíč, který sem vložíš.
       </div>
-      <div class="pkg-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:14px">
+      <div class="pkg-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%,320px), 1fr));gap:14px">
         ${cards}
       </div>
     `;

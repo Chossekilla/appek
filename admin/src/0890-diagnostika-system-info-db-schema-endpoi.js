@@ -82,7 +82,7 @@ async function renderDiagnostika() {
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px">
 
       <!-- 🖥️ SYSTÉM -->
       <div class="card-block" style="padding:16px">

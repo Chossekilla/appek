@@ -101,6 +101,13 @@
   .pkg .pkg-name { font-weight: 700; font-size: 15px; color: #1d1d1f; letter-spacing: -0.1px; }
   .pkg .pkg-desc { font-size: 12.5px; color: #6e6e73; margin-top: 3px; line-height: 1.5; }
   .pkg .pkg-price { font-weight: 800; font-size: 17px; color: #1d1d1f; flex-shrink: 0; }
+  /* 🐛 v559 — na úzkých telefonech (≤480 px) cena vedle názvu zmáčkla popis balíčku
+     a text se ořezával. Cena se zalomí pod název → název/popis dostanou plnou šířku. */
+  @media (max-width: 480px) {
+    .pkg { flex-wrap: wrap; }
+    .pkg .pkg-body { flex: 1 1 auto; min-width: 0; }
+    .pkg .pkg-price { flex: 1 0 100%; text-align: right; margin-top: 2px; }
+  }
 
   .form-row { margin-bottom: 16px; }
   .form-row.split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

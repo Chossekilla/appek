@@ -112,7 +112,7 @@ async function renderPackagePage(pageKey) {
       Většina je <em>zatím v plánu</em> — řekni mi, kterou chceš implementovat jako první, postavím ji.
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:14px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%,320px), 1fr));gap:14px">
       ${featuresHtml}
     </div>
   `;
