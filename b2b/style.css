@@ -573,8 +573,10 @@ html.dark .cart-item:hover { background: var(--primary-light); color: var(--prim
 /* Hover — drobné zvýraznění barvou kategorie */
 .card:hover {
   border-color: hsl(var(--cat-hue, 30), 55%, 60%);
-  box-shadow: 0 4px 14px hsla(var(--cat-hue, 30), 55%, 50%, 0.22);
-  transform: translateY(-1px);
+  box-shadow: 0 6px 18px hsla(var(--cat-hue, 30), 55%, 50%, 0.26);
+  /* ŽÁDNÝ translateY — lift způsoboval „přeskakování" karet při přejezdu myší
+     (sousední karty si leapfrogovaly pozici nahoru/dolů, viz .card.in-cart ř.2229).
+     Jemné a příjemné zvýraznění obstará jen barva rámečku + silnější stín, bez pohybu. */
 }
 /* Vybraná karta - výraznější s tmavším pozadím */
 .card.in-cart {
