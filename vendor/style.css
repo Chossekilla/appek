@@ -176,6 +176,10 @@ body {
 
 .cust-name { font-weight: 600; }
 .cust-co { font-size: 11px; color: #86868b; margin-top: 2px; }
+.cust-dom { font-size: 11px; color: #86868b; margin-top: 2px; font-family: ui-monospace, "SF Mono", Menlo, monospace; word-break: break-all; }
+.cust-dom a { color: #55555f; text-decoration: none; border-bottom: 1px dotted #b8b8c0; }
+.cust-dom a:hover { color: #C2410C; border-bottom-color: #C2410C; }
+.dom-warn { color: #C2410C; font-weight: 600; }
 
 .actions { white-space: nowrap; }
 .actions .btn-icon { margin-left: 4px; }

@@ -17,7 +17,7 @@ $currentPage = 'licenses';
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>🔑 Licence — APPEK Master</title>
-<link rel="stylesheet" href="style.css?v=1.5">
+<link rel="stylesheet" href="style.css?v=1.6">
 <style>
   .toolbar { background: #fff; border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
   .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -106,7 +106,7 @@ $currentPage = 'licenses';
 </div>
 
 <script src="i18n.js?v=1.0"></script>
-<script src="app.js?v=1.7"></script>
+<script src="app.js?v=1.8"></script>
 
 <?php vendor_render_footer(); ?>
 </body>

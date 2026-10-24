@@ -150,6 +150,22 @@ function pkgChips(key) {
   return pkgs.map(p => `<span style="display:inline-block;padding:1px 6px;background:#FFE0A8;color:#854F0B;border-radius:999px;font-size:10.5px;font-weight:600;margin:1px 2px">${meta[p] || ''} ${p}</span>`).join('');
 }
 
+// Doména, kde licence reálně běží (heartbeat last_seen_host), fallback registrovaná install_url.
+// Když se liší → upozornění (migrace serveru nebo sdílený klíč).
+function domLine(r) {
+  const norm = h => String(h || '').toLowerCase().replace(/^www\./, '');
+  const seen = r.last_seen_host || '';
+  let reg = '';
+  try { reg = r.install_url ? new URL(r.install_url).host : ''; } catch (e) { reg = ''; }
+  const host = seen || reg;
+  if (!host) return `<div class="cust-dom muted">bez instalace</div>`;
+  const tip = seen ? (r.last_seen_at ? `Naposledy se ozvala ${fmtDate(r.last_seen_at)}` : 'Instalace se ozvala') : 'Zatím se neozvala (jen registrovaná URL)';
+  const ver = seen && r.last_seen_version ? ` · v${esc(r.last_seen_version)}` : '';
+  const diff = seen && reg && norm(seen) !== norm(reg)
+    ? ` <span class="dom-warn" title="Registrováno na ${esc(reg)}">≠ ${esc(reg)}</span>` : '';
+  return `<div class="cust-dom"><a href="https://${esc(host)}" target="_blank" rel="noopener" title="${esc(tip)}">${esc(host)}</a>${ver}${seen ? '' : ' <span class="muted">(neozvala se)</span>'}${diff}</div>`;
+}
+
 function renderTable(rows) {
   const tbody = document.getElementById('lic-body');
   if (!rows.length) {
@@ -163,6 +179,7 @@ function renderTable(rows) {
       <td>
         <div class="cust-name">${esc(r.customer_name)}</div>
         ${r.customer_company ? `<div class="cust-co">${esc(r.customer_company)}</div>` : ''}
+        ${domLine(r)}
       </td>
       <td>${pkgChips(r.license_key)}</td>
       <td>
