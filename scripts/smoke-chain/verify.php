@@ -347,6 +347,19 @@ function run_probes(): void {
         $r = $order($B17, $o17, 10, ['doprava' => 'Rozvoz', 'platba' => 'Prevod']);
         $zp = q('SELECT zpusob_platby, zpusob_doruceni FROM objednavky WHERE id=:i', ['i' => (int) ($r['json']['id'] ?? 0)])[0] ?? [];
         $rec('PR17', 'Klice platby/dopravy s velkym pismenem („Prevod", „Rozvoz")', 'normalizovano na prevod/rozvoz', 'HTTP ' . $r['code'] . ', ulozeno: ' . json_encode($zp, JSON_UNESCAPED_UNICODE), !empty($zp) && (($zp['zpusob_platby'] ?? '') !== 'prevod' || ($zp['zpusob_doruceni'] ?? '') !== 'rozvoz'));
+        // PR18 VIDITELNOST: čerstvá B2B objednávka musí být na 1. stránce admin Objednávek
+        // (výchozí seznam, stejné volání jako admin UI). Chytá řazení, které ji pohřbí pod
+        // objednávky s budoucím dodáním — v3.0.562 byla na ostré instalaci na str. 820.
+        [$o18, $c18] = $mk(18); $B18 = $b2b($c18);
+        $r = $order($B18, $o18, 5, ['datum_dodani' => date('Y-m-d', strtotime('+1 day'))]);
+        $nid = (int) ($r['json']['id'] ?? 0);
+        $lst = $A->call('GET', 'api/admin_objednavky.php?offset=0&limit=10');
+        $lj = $lst['json'] ?? [];
+        $ids = array_map(fn($x) => (int) ($x['id'] ?? 0), $lj['objednavky'] ?? (array_is_list($lj) ? $lj : []));
+        $rec('PR18', 'Cerstva B2B objednavka je videt na 1. strance admin Objednavky (vychozi razeni)', 'id na 1. strance (10 radku)',
+            $nid ? (in_array($nid, $ids, true) ? 'na 1. strance' : 'CHYBI na 1. strance (total ' . ($lj['total'] ?? '?') . ')') : 'objednavka nevznikla: HTTP ' . $r['code'],
+            $nid ? !in_array($nid, $ids, true) : null, ['id' => $nid, 'prvni_strana' => $ids]);
+        if ($nid) $A->call('PUT', 'api/admin_objednavky.php', ['id' => $nid, 'stav' => 'zrusena']);
     } catch (Throwable $e) {
         $P[] = ['id' => 'ERR', 'title' => 'Vyjimka v sondach', 'expect' => '', 'actual' => $e->getMessage(), 'verdict' => 'CHYBA HARNESSU', 'detail' => $e->getTraceAsString()];
         L('  POZOR sondy: ' . $e->getMessage() . ' @' . $e->getLine());

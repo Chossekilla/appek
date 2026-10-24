@@ -397,7 +397,9 @@ if ($method === 'GET') {
         $souhrn = $ss->fetch() ?: $souhrn;
     } catch (Throwable $e) { /* fallback na frontend dopočet */ }
 
-    $sql .= $where . " GROUP BY o.id ORDER BY o.datum_dodani DESC, o.datum_objednani DESC LIMIT $limit OFFSET $offset";
+    // Nejnověji vytvořené nahoře. Dřív ORDER BY datum_dodani DESC → objednávky s dodáním
+    // daleko v budoucnu (recurring/test data) odsunuly čerstvou objednávku třeba na str. 820.
+    $sql .= $where . " GROUP BY o.id ORDER BY o.id DESC LIMIT $limit OFFSET $offset";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     // 🆕 v3.0.212 — ke každému řádku štítek + barvu kanálu (pro badge v UI)
