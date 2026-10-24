@@ -360,6 +360,24 @@ function run_probes(): void {
             $nid ? (in_array($nid, $ids, true) ? 'na 1. strance' : 'CHYBI na 1. strance (total ' . ($lj['total'] ?? '?') . ')') : 'objednavka nevznikla: HTTP ' . $r['code'],
             $nid ? !in_array($nid, $ids, true) : null, ['id' => $nid, 'prvni_strana' => $ids]);
         if ($nid) $A->call('PUT', 'api/admin_objednavky.php', ['id' => $nid, 'stav' => 'zrusena']);
+        // PR19 VÝROBA: 2 objednávky stejného odběratele na stejné místo+den → rozpis po pobočkách
+        // musí obsahovat OBĚ a počítadlo je napočítat (v3.0.564: „Objednávek" vždy 1, 2. objednávka
+        // zmizela z rozpisu i s poznámkou). Volá stejný endpoint jako obrazovka Výroba.
+        [$o19, $c19] = $mk(19); $B19 = $b2b($c19);
+        $d19 = date('Y-m-d', strtotime('+2 day'));
+        $ra = $order($B19, $o19, 4, ['datum_dodani' => $d19, 'poznamka' => 'PR19-a']);
+        $rb = $order($B19, $o19, 6, ['datum_dodani' => $d19, 'poznamka' => 'PR19-b']);
+        $ia = (int) ($ra['json']['id'] ?? 0); $ib = (int) ($rb['json']['id'] ?? 0);
+        $vy = $A->call('GET', "api/admin_vyroba.php?datum=$d19");
+        $grp = null;
+        foreach (($vy['json']['po_pobockach'] ?? []) as $p) if (in_array($ia, $p['objednavka_ids'] ?? [], true) || in_array($ib, $p['objednavka_ids'] ?? [], true)) { $grp = $p; break; }
+        $both = $grp && in_array($ia, $grp['objednavka_ids'], true) && in_array($ib, $grp['objednavka_ids'], true);
+        $notes = $grp && str_contains((string) $grp['poznamka'], 'PR19-a') && str_contains((string) $grp['poznamka'], 'PR19-b');
+        $cnt = (int) ($vy['json']['pocet_objednavek'] ?? 0);
+        $rec('PR19', 'Vyroba: 2 objednavky na stejne misto — obe v rozpisu, obe poznamky, pocitadlo >= 2', 'obe id + obe poznamky + pocet >= 2',
+            ($ia && $ib) ? ('obe=' . ($both ? 'ano' : 'NE') . ', poznamky=' . ($notes ? 'ano' : 'NE') . ", pocet=$cnt") : 'objednavky nevznikly',
+            ($ia && $ib) ? !($both && $notes && $cnt >= 2) : null, ['ids' => [$ia, $ib], 'skupina' => $grp]);
+        foreach ([$ia, $ib] as $x) if ($x) $A->call('PUT', 'api/admin_objednavky.php', ['id' => $x, 'stav' => 'zrusena']);
     } catch (Throwable $e) {
         $P[] = ['id' => 'ERR', 'title' => 'Vyjimka v sondach', 'expect' => '', 'actual' => $e->getMessage(), 'verdict' => 'CHYBA HARNESSU', 'detail' => $e->getTraceAsString()];
         L('  POZOR sondy: ' . $e->getMessage() . ' @' . $e->getLine());

@@ -48,8 +48,8 @@ $stmt = $pdo->prepare("
            md.id AS misto_id, md.nazev AS misto,
            md.ulice, md.mesto, md.psc, md.kontaktni_osoba,
            md.telefon AS misto_tel, md.cas_dodani, md.pokyny_pro_ridice,
-           o.cislo AS objednavka_cislo, o.poznamka,
-           v.nazev AS vyrobek, p.mnozstvi
+           o.id AS objednavka_id, o.cislo AS objednavka_cislo, o.poznamka,
+           v.id AS vyrobek_id, v.nazev AS vyrobek, p.mnozstvi
     FROM objednavky o
     JOIN odberatele od ON od.id = o.odberatel_id
     LEFT JOIN mista_dodani md ON md.id = o.misto_dodani_id
@@ -61,25 +61,9 @@ $stmt = $pdo->prepare("
 $stmt->execute(['datum' => $datum]);
 $rozpis = $stmt->fetchAll();
 
-$po_pobockach = [];
-foreach ($rozpis as $r) {
-    $key = ($r['misto_id'] ?? 'no') . '|' . $r['odberatel_id'];
-    if (!isset($po_pobockach[$key])) {
-        $po_pobockach[$key] = [
-            'odberatel' => $r['odberatel'],
-            'misto' => $r['misto'] ?? '—',
-            'adresa' => trim(($r['ulice'] ?? '') . ', ' . ($r['mesto'] ?? '') . ' ' . ($r['psc'] ?? ''), ' ,'),
-            'kontakt' => $r['kontaktni_osoba'],
-            'telefon' => $r['misto_tel'],
-            'cas_dodani' => $r['cas_dodani'],
-            'pokyny' => $r['pokyny_pro_ridice'],
-            'objednavka_cislo' => $r['objednavka_cislo'],
-            'poznamka' => $r['poznamka'],
-            'polozky' => [],
-        ];
-    }
-    $po_pobockach[$key]['polozky'][] = ['vyrobek' => $r['vyrobek'], 'mnozstvi' => $r['mnozstvi']];
-}
+// Sdílené s obrazovkou Výroba (admin_vyroba.php) — všechna čísla/poznámky, položky sečtené po výrobku.
+require_once __DIR__ . '/_vyroba_lib.php';
+$po_pobockach = vyroba_po_pobockach($rozpis);
 ?>
 <!DOCTYPE html>
 <html lang="cs">
@@ -261,14 +245,15 @@ foreach ($rozpis as $r) {
           <div class="pobocka-pokyny">🚚 Pokyny pro řidiče: <?= esc($p['pokyny']) ?></div>
         <?php endif; ?>
         <?php if ($p['poznamka']): ?>
-          <div class="pobocka-pozn">📝 <?= esc($p['poznamka']) ?></div>
+          <div class="pobocka-pozn">📝 <?= nl2br(esc($p['poznamka'])) ?></div>
           <?php
-            // 🆕 v3.0.307 — fotka předlohy z poznámky (konfigurátor dortů/cateringu) → miniatura do tisku
-            $predlohaUrl = preg_match('~📸 Předloha:\s*(\S+)~u', (string) $p['poznamka'], $pm) ? $pm[1] : '';
+            // 🆕 v3.0.307 — fotky předloh z poznámek (konfigurátor dortů/cateringu) → miniatury do tisku
+            //   (víc objednávek na stejné místo = víc předloh, dřív se ukázala jen první)
+            preg_match_all('~📸 Předloha:\s*(\S+)~u', (string) $p['poznamka'], $pm);
           ?>
-          <?php if ($predlohaUrl !== ''): ?>
+          <?php foreach (array_unique($pm[1] ?? []) as $predlohaUrl): ?>
             <div class="pobocka-predloha"><div class="lbl">📸 Předloha:</div><img src="<?= esc($predlohaUrl) ?>" alt="Fotka předlohy" onerror="this.style.display='none'"></div>
-          <?php endif; ?>
+          <?php endforeach; ?>
         <?php endif; ?>
       </div>
     <?php endforeach; ?>

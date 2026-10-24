@@ -283,33 +283,13 @@ if ($method === 'GET') {
         $stmt->execute(['datum' => $datum]);
         $rozpis = $stmt->fetchAll();
 
-        $po_pobockach = [];
-        foreach ($rozpis as $r) {
-            $key = ($r['misto_id'] ?? 'no') . '|' . $r['odberatel_id'];
-            if (!isset($po_pobockach[$key])) {
-                $po_pobockach[$key] = [
-                    'odberatel' => $r['odberatel'],
-                    'misto' => $r['misto'] ?? '—',
-                    'adresa' => trim(($r['ulice'] ?? '') . ', ' . ($r['mesto'] ?? '') . ' ' . ($r['psc'] ?? ''), ' ,'),
-                    'kontakt' => $r['misto_kontakt'],
-                    'telefon' => $r['misto_tel'],
-                    'cas_dodani' => $r['cas_dodani'],
-                    'pokyny' => $r['pokyny_pro_ridice'],
-                    'objednavka_cislo' => $r['objednavka_cislo'],
-                    'poznamka' => $r['poznamka'],
-                    'polozky' => [],
-                ];
-            }
-            $po_pobockach[$key]['polozky'][] = [
-                'vyrobek' => $r['vyrobek'],
-                'mnozstvi' => $r['mnozstvi'],
-            ];
-        }
-
+        // Sdílené s tiskem (vyrobni_list_print.php) — všechna čísla/poznámky, položky sečtené po výrobku.
+        require_once __DIR__ . '/_vyroba_lib.php';
         json_response([
             'datum' => $datum,
             'souhrn' => $souhrn,
-            'po_pobockach' => array_values($po_pobockach),
+            'po_pobockach' => vyroba_po_pobockach($rozpis),
+            'pocet_objednavek' => vyroba_pocet_objednavek($rozpis),
         ]);
     }
 

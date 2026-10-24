@@ -1745,7 +1745,8 @@ window.renderVyrobaAutoForDate = async function(datum) {
     // Statistiky
     const celkemKusu = data.souhrn.reduce((sum, s) => sum + Number(s.celkem || 0), 0);
     const pocetVyrobku = data.souhrn.length;
-    const pocetObjednavek = new Set(data.po_pobockach.map(p => p.objednavka_id)).size;
+    // Dřív Set(po_pobockach.map(p => p.objednavka_id)) — pole neexistovalo → vždy 1. Teď počítá backend.
+    const pocetObjednavek = data.pocet_objednavek ?? new Set(data.po_pobockach.flatMap(p => p.objednavka_ids || [])).size;
     const pocetMist = data.po_pobockach.length;
 
     // Seskup souhrn podle kategorií
@@ -1833,7 +1834,7 @@ window.renderVyrobaAutoForDate = async function(datum) {
               `).join('')}
             </div>
             ${p.pokyny ? `<div style="margin-top:8px;padding:6px 10px;background:var(--info-bg);color:var(--info-text);border-radius:6px;font-size:12px;">🚚 ${esc(p.pokyny)}</div>` : ''}
-            ${p.poznamka ? `<div style="margin-top:6px;padding:6px 10px;background:var(--primary-light);color:var(--primary-dark);border-radius:6px;font-size:12px;">📝 ${esc(p.poznamka)}</div>` : ''}
+            ${p.poznamka ? `<div style="margin-top:6px;padding:6px 10px;background:var(--primary-light);color:var(--primary-dark);border-radius:6px;font-size:12px;white-space:pre-line">📝 ${esc(p.poznamka)}</div>` : ''}
           </div>
         `).join('')}
       </div>
