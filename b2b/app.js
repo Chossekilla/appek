@@ -724,12 +724,9 @@ async function showApp() {
   // 🔔 PWA Push banner — zobrazit za 3 sekundy (po načtení katalogu)
   setTimeout(_zobrazPushBannerB2B, 3000);
 
-  // Pokud má rozpracovaný košík, skoč rovnou do košíku
-  if (cartCount() > 0) {
-    switchTab('checkout');
-  } else {
-    switchTab('catalog');
-  }
+  // Po přihlášení VŽDY katalog (přání uživatele) — rozpracovaný košík zůstává
+  // vidět v bočním panelu (desktop) / spodní liště (mobil), do souhrnu se jde ručně.
+  switchTab('catalog');
   updateBadge();
 }
 
