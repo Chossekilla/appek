@@ -337,47 +337,9 @@ function fmtKc(float $v): string {
 <main class="page-master">
 
   <div class="page-header-master">
-    <h1>📊 Přehled</h1>
+    <h1>Přehled</h1>
     <div style="font-size:13px;color:#86868b">Vítej zpět, <strong><?= htmlspecialchars($user['display_name'] ?: $user['username']) ?></strong> · komplet vláda nad appek.cz z jednoho místa</div>
   </div>
-
-  <!-- ⚡ RYCHLÉ AKCE -->
-  <div class="quick-actions">
-    <a href="self-update.php" style="background:linear-gradient(135deg,#BA7517,#854F0B);color:#fff;border-color:#854F0B"><span>🚀</span> Self-update</a>
-    <a href="business-info.php"><span>🏢</span> Údaje firmy</a>
-    <a href="pages-editor.php"><span>✏️</span> Editor webu</a>
-    <a href="packages.php?new=1"><span>🎁</span> Nový balíček</a>
-    <a href="updates.php?upload=1"><span>⬆️</span> Customer update</a>
-    <a href="shop.php?status=pending"><span>🛒</span> Čekající objednávky</a>
-    <?php if ($kpi['pirate_open'] > 0): ?>
-      <a href="pirate.php?filter=open" style="background:linear-gradient(135deg,#DC2626,#991B1B);color:#fff;border-color:#991B1B"><span>🏴‍☠️</span> Pirate (<?= $kpi['pirate_open'] ?>)</a>
-    <?php endif; ?>
-    <a href="settings.php"><span>⚙️</span> Nastavení</a>
-    <a href="https://appek.cz/#pricing" target="_blank" rel="noopener" style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-color:#15803d"><span>🛍️</span> Frontpage Shop ↗</a>
-    <a href="https://appek.cz/checkout.html" target="_blank" rel="noopener"><span>💳</span> Checkout ↗</a>
-    <a href="https://appek.cz/" target="_blank" rel="noopener"><span>🌐</span> appek.cz ↗</a>
-    <a href="https://demo.appek.cz/" target="_blank" rel="noopener"><span>🧪</span> demo ↗</a>
-  </div>
-
-  <style>
-    .quick-actions {
-      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px;
-    }
-    .quick-actions a {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 14px; background: #fff;
-      border: 1px solid #e5e5e7; border-radius: 999px;
-      text-decoration: none; color: #1d1d1f;
-      font-size: 13px; font-weight: 600;
-      transition: all 0.15s;
-    }
-    .quick-actions a:hover {
-      border-color: #BA7517; color: #BA7517;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 10px rgba(186,117,23,0.1);
-    }
-    .quick-actions a span { font-size: 16px; }
-  </style>
 
   <!-- HERO KPI -->
   <div class="hero-kpi">
@@ -416,7 +378,7 @@ function fmtKc(float $v): string {
 
     <!-- WEB EDITOR -->
     <div class="hub-card web">
-      <a href="sales-cms.php" class="card-link" aria-label="Otevřít editor webu"></a>
+      <a href="pages-editor.php" class="card-link" aria-label="Otevřít editor webu"></a>
       <div class="head">
         <span class="ico icon-web">✏️</span>
         <div>
@@ -429,7 +391,7 @@ function fmtKc(float $v): string {
         <div><a href="https://appek.cz/" target="_blank" rel="noopener" style="color:#0058b8;text-decoration:none;font-weight:600">🌐 Otevřít web</a></div>
       </div>
       <div class="actions">
-        <a href="sales-cms.php" class="primary">✏️ Upravit obsah</a>
+        <a href="pages-editor.php" class="primary">✏️ Upravit obsah</a>
         <a href="https://appek.cz/" target="_blank" rel="noopener">👁️ Preview</a>
       </div>
     </div>
@@ -523,7 +485,7 @@ function fmtKc(float $v): string {
       </div>
       <div class="actions">
         <a href="licenses.php" class="primary">🔑 Spravovat</a>
-        <a href="licenses.php" onclick="setTimeout(()=>document.querySelector('.btn-master.primary')?.click(),300)">➕ Vydat</a>
+        <a href="licenses.php?new=1">➕ Vydat</a>
       </div>
     </div>
 

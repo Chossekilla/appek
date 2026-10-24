@@ -1,0 +1,129 @@
+/* =========================================================================
+   APPEK Master — vendor UI (návrh 2: Geist, grafitové menu, signální oranžová)
+   Jediný sdílený vzhled vendoru. Načítá ho vendor_render_topbar() (_layout.php),
+   takže je ZA inline <style> v <head> stránek → vyhrává při stejné specifičnosti.
+   Komponenty mají prefix `html body`, aby přebily i <style> bloky v <body>.
+   Hover efekty BEZ pohybu (žádný translate — poučení z B2B/admin „přeskakování").
+   ========================================================================= */
+:root{
+  --vx-bg:#F6F6F7; --vx-card:#FFFFFF; --vx-line:#E8E8EB; --vx-line-2:#DCDCE0;
+  --vx-ink:#0B0B0F; --vx-ink-2:#55555F; --vx-ink-3:#8B8B95;
+  --vx-rail:#0E0F13; --vx-rail-2:#17181E; --vx-rail-ink:#A6A7B0; --vx-rail-line:#24252D;
+  --vx-acc:#F97316; --vx-acc-2:#FB923C; --vx-acc-wash:#FFF1E7; --vx-acc-ink:#C2410C;
+  --vx-ok:#16A34A; --vx-ok-wash:#E9F8EF; --vx-warn:#D97706; --vx-warn-wash:#FEF4E2; --vx-bad:#E11D48; --vx-bad-wash:#FDECEF;
+  --vx-sans:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif;
+  --vx-mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --vx-r:14px; --vx-rail-w:240px;
+}
+
+/* ---------- základ ---------- */
+html body{background:var(--vx-bg)!important;color:var(--vx-ink);font-family:var(--vx-sans)!important;-webkit-font-smoothing:antialiased;letter-spacing:-.005em;margin:0;padding-left:var(--vx-rail-w)}
+html body code,html body kbd,html body pre,html body .mono{font-family:var(--vx-mono)}
+html body a{color:inherit}
+html body h1,html body h2,html body h3{letter-spacing:-.02em}
+
+/* ---------- levé menu ---------- */
+.vx-rail{position:fixed;inset:0 auto 0 0;width:var(--vx-rail-w);z-index:50;display:flex;flex-direction:column;padding:18px 12px 14px;background:var(--vx-rail);color:var(--vx-rail-ink);overflow-y:auto;box-sizing:border-box;font-family:var(--vx-sans)}
+.vx-brand{display:flex;align-items:center;gap:10px;padding:4px 10px 18px;text-decoration:none!important}
+.vx-logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--vx-acc-2),var(--vx-acc));display:grid;place-items:center;color:#fff;font:700 15px var(--vx-sans);box-shadow:0 6px 18px rgba(249,115,22,.35);flex:none}
+.vx-brand b{display:block;color:#fff;font:600 15px/1.1 var(--vx-sans)}
+.vx-brand small{display:block;font:500 11px/1.3 var(--vx-mono);color:#6B6C76;margin-top:2px}
+.vx-grp{font:500 11px/1 var(--vx-mono);text-transform:uppercase;letter-spacing:.08em;color:#5C5D67;padding:16px 10px 6px}
+.vx-nav a{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;font:500 14px/1.3 var(--vx-sans);color:var(--vx-rail-ink);text-decoration:none!important}
+.vx-nav a svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.vx-nav a:hover{background:var(--vx-rail-2);color:#fff}
+.vx-nav a.on{background:var(--vx-rail-2);color:#fff;box-shadow:0 0 0 1px var(--vx-rail-line) inset}
+.vx-nav a.on svg{color:var(--vx-acc)}
+.vx-cnt{margin-left:auto;font:500 11px/1 var(--vx-mono);color:#fff;background:#2A2B33;padding:3px 7px;border-radius:999px}
+.vx-cnt.hot{background:var(--vx-acc)} .vx-cnt.bad{background:var(--vx-bad)}
+.vx-ext{display:flex;gap:6px;padding:14px 10px 4px;flex-wrap:wrap}
+.vx-ext a{font:500 12px var(--vx-sans);color:var(--vx-rail-ink);border:1px solid var(--vx-rail-line);border-radius:8px;padding:5px 9px;text-decoration:none!important}
+.vx-ext a:hover{color:#fff;border-color:#3A3B44}
+.vx-foot{margin-top:auto;padding:12px 10px 0;border-top:1px solid var(--vx-rail-line);display:flex;align-items:center;gap:10px;font:500 13px var(--vx-sans);color:#fff}
+.vx-avatar{width:30px;height:30px;border-radius:50%;background:#2A2B33;display:grid;place-items:center;font:600 12px var(--vx-sans);flex:none}
+.vx-foot .v{font:11px var(--vx-mono);color:#6B6C76}
+.vx-foot a{margin-left:auto;color:var(--vx-rail-ink);font-size:12px;text-decoration:none!important}
+.vx-foot a:hover{color:#fff}
+.vx-today{padding:0 10px 4px;font:500 11.5px/1.4 var(--vx-mono);color:#6B6C76}
+
+/* ---------- obsah stránky ---------- */
+html body .page-master,html body .container,html body main{max-width:1320px}
+html body .page-master{margin:0 auto;padding:24px 32px 40px;box-sizing:border-box}
+html body .page-header-master{background:none!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 18px!important;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+html body .page-header-master h1{font:600 26px/1.15 var(--vx-sans)!important;letter-spacing:-.03em;margin:0;color:var(--vx-ink)}
+html body .page-header-master p,html body .page-header-master .sub{color:var(--vx-ink-2)}
+html body .back-master{max-width:1320px;margin:18px auto 0;padding:0 32px;box-sizing:border-box}
+html body .back-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--vx-ink-3);text-decoration:none;font:500 12.5px var(--vx-sans)}
+html body .back-btn:hover{color:var(--vx-ink);border-color:var(--vx-line);background:var(--vx-card)}
+html body .breadcrumbs-master{max-width:1320px;margin:12px auto 0;padding:0 32px;font-size:12.5px;color:var(--vx-ink-3)}
+html body .breadcrumbs-master a{color:var(--vx-ink-2);text-decoration:none}
+html body .breadcrumbs-master .bc-sep{margin:0 8px;color:var(--vx-line-2)}
+html body .breadcrumbs-master .bc-current{color:var(--vx-ink);font-weight:600}
+
+/* ---------- karty / panely ---------- */
+html body .panel-master,html body .card,html body .hub-card,html body .settings-card,html body .bi-card,html body .su-card{background:var(--vx-card)!important;border:1px solid var(--vx-line)!important;border-radius:var(--vx-r)!important;box-shadow:none!important}
+html body .panel-master{padding:20px 22px;margin-bottom:20px}
+html body .panel-master h2,html body .card h2,html body .settings-card h2{font:600 15px/1.3 var(--vx-sans)!important;letter-spacing:-.01em;color:var(--vx-ink)}
+html body .hub-card{transition:border-color .15s ease!important}
+html body .hub-card .actions a{border-radius:9px!important;font:500 12.5px/1.2 var(--vx-sans)!important;padding:7px 11px!important;border:1px solid var(--vx-line-2)!important;background:var(--vx-card)!important;color:var(--vx-ink)!important;text-decoration:none!important;box-shadow:none!important}
+html body .hub-card .actions a:hover{background:var(--vx-bg)!important;transform:none!important}
+html body .hub-card .actions a.primary{background:var(--vx-ink)!important;border-color:var(--vx-ink)!important;color:#fff!important}
+html body .hub-card .actions a.primary:hover{background:#26262D!important}
+html body .hub-card .name{font:600 15px/1.25 var(--vx-sans)!important;color:var(--vx-ink)!important}
+html body .hub-card .url{font:12px var(--vx-mono)!important;color:var(--vx-ink-3)!important}
+html body .hub-card .desc{color:var(--vx-ink-2)!important}
+html body .section-h{font:500 11.5px var(--vx-mono)!important;text-transform:uppercase;letter-spacing:.08em;color:var(--vx-ink-3)!important}
+html body .hub-card:hover,html body .card:hover{transform:none!important;border-color:var(--vx-line-2)!important;box-shadow:0 1px 2px rgba(0,0,0,.04)!important}
+
+/* ---------- KPI / statistiky ---------- */
+html body .stat-card,html body .kpi-tile,html body .pirate-stat{background:var(--vx-card)!important;border:1px solid var(--vx-line)!important;border-radius:var(--vx-r)!important;box-shadow:none!important;padding:16px 18px!important}
+html body .stat-card .label,html body .kpi-tile .lbl,html body .stat-card .lbl{font:500 12.5px var(--vx-sans)!important;color:var(--vx-ink-2)!important;text-transform:none!important;letter-spacing:0!important}
+html body .stat-card .value,html body .kpi-tile .val,html body .stat-card .val{font:600 28px/1.15 var(--vx-mono)!important;letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--vx-ink)!important}
+html body .kpi-tile .sub{font-size:12.5px;color:var(--vx-ink-3)!important}
+html body .kpi-tile:hover,html body .stat-card:hover{transform:none!important}
+
+/* ---------- tlačítka ---------- */
+html body .btn-master,html body .btn,html body .btn-mini{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:9px!important;font:500 13px/1.2 var(--vx-sans)!important;padding:8px 13px;border:1px solid var(--vx-line-2)!important;background:var(--vx-card)!important;color:var(--vx-ink)!important;text-decoration:none!important;cursor:pointer;box-shadow:none!important;transition:background .15s,border-color .15s!important}
+html body .btn-master:hover,html body .btn:hover,html body .btn-mini:hover{background:var(--vx-bg)!important;transform:none!important}
+html body .btn-master.primary,html body .btn.primary,html body button.prim{background:var(--vx-ink)!important;border-color:var(--vx-ink)!important;color:#fff!important}
+html body .btn-master.primary:hover,html body .btn.primary:hover,html body button.prim:hover{background:#26262D!important}
+html body .btn-master.danger,html body .btn.danger{color:var(--vx-bad)!important;border-color:#F5C2CD!important}
+html body .btn-master.danger:hover{background:var(--vx-bad-wash)!important}
+html body .btn-mini{padding:5px 9px;font-size:12px!important}
+
+/* ---------- formuláře ---------- */
+html body input[type=text],html body input[type=email],html body input[type=url],html body input[type=number],html body input[type=search],html body input[type=password],html body input[type=date],html body input[type=tel],html body select,html body textarea{font-family:var(--vx-sans);font-size:14px;border:1px solid var(--vx-line-2);border-radius:9px;background:var(--vx-card);color:var(--vx-ink);padding:8px 11px;box-sizing:border-box}
+html body input:focus,html body select:focus,html body textarea:focus{outline:none;border-color:var(--vx-acc);box-shadow:0 0 0 3px rgba(249,115,22,.15)}
+
+/* ---------- tabulky ---------- */
+html body table{border-collapse:collapse}
+html body table th{font:500 11.5px var(--vx-mono)!important;text-transform:uppercase;letter-spacing:.06em;color:var(--vx-ink-3)!important;background:transparent!important;border-bottom:1px solid var(--vx-line)!important}
+html body table td{border-color:var(--vx-line)!important}
+html body table tbody tr:hover{background:#FAFAFB}
+
+/* ---------- hlášky / štítky ---------- */
+html body .flash,html body .alert{border-radius:11px!important;border:1px solid var(--vx-line)!important;background:var(--vx-card)!important;color:var(--vx-ink)!important;padding:12px 16px!important;box-shadow:none!important;font-size:13.5px}
+html body .flash.ok,html body .alert.ok,html body .flash.success,html body .alert-success{border-color:#BBE7CA!important;background:var(--vx-ok-wash)!important;color:#14532D!important}
+html body .flash.err,html body .alert.err,html body .flash.error,html body .alert-error,html body .alert.danger{border-color:#F5C2CD!important;background:var(--vx-bad-wash)!important;color:#881337!important}
+html body .alert.warn,html body .flash.warn{border-color:#F6DDB0!important;background:var(--vx-warn-wash)!important;color:#78350F!important}
+html body .badge{font:500 11.5px/1.2 var(--vx-sans)!important;border-radius:999px!important;padding:3px 8px!important}
+
+/* ---------- patička ---------- */
+html body .footer-master{background:transparent;border-top:1px solid var(--vx-line);margin-top:40px;padding:18px 0;color:var(--vx-ink-3);font-size:12px}
+html body .footer-inner{max-width:1320px;margin:0 auto;padding:0 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+html body .footer-master a{color:var(--vx-ink-3);text-decoration:none}
+html body .footer-master a:hover{color:var(--vx-acc-ink)}
+html body .footer-master strong{color:var(--vx-ink-2);font-weight:600}
+html body .footer-master .sep{margin:0 6px;opacity:.4}
+
+/* ---------- mobil: menu nahoru, vodorovně ---------- */
+@media (max-width:900px){
+  html body{padding-left:0}
+  .vx-rail{position:sticky;top:0;inset:auto;width:auto;height:auto;flex-direction:row;align-items:center;gap:4px;overflow-x:auto;overflow-y:hidden;padding:10px 12px}
+  .vx-brand{padding:0 8px 0 2px}
+  .vx-brand small,.vx-grp,.vx-foot,.vx-ext,.vx-today{display:none}
+  .vx-nav{display:flex;gap:2px}
+  .vx-nav a{white-space:nowrap}
+  html body .page-master{padding:18px 16px 32px}
+  html body .back-master,html body .breadcrumbs-master,html body .footer-inner{padding:0 16px}
+}

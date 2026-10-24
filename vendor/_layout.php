@@ -79,39 +79,53 @@ function vendor_svatky_cz_map(): array {
     return $cache;
 }
 
+function vendor_nav_groups(): array {
+    // Jedno menu (dřív 2 řady + rychlé akce + hub karty na dashboardu = každý cíl 3×).
+    return [
+        ['label' => null, 'items' => [
+            ['key' => 'dashboard', 'label' => 'Přehled', 'url' => 'index.php', 'ico' => 'home'],
+        ]],
+        ['label' => 'Prodej', 'items' => [
+            ['key' => 'shop',          'label' => 'Objednávky', 'url' => 'shop.php',          'ico' => 'cart', 'cnt' => 'orders'],
+            ['key' => 'shop-coupons',  'label' => 'Kupony',     'url' => 'shop-coupons.php',  'ico' => 'ticket'],
+            ['key' => 'faktury',       'label' => 'Faktury',    'url' => 'faktury.php',       'ico' => 'doc'],
+        ]],
+        ['label' => 'Produkt', 'items' => [
+            ['key' => 'packages',      'label' => 'Balíčky',    'url' => 'packages.php',      'ico' => 'box'],
+            ['key' => 'licenses',      'label' => 'Licence',    'url' => 'licenses.php',      'ico' => 'key', 'cnt' => 'licenses'],
+            ['key' => 'pages-editor',  'label' => 'Web',        'url' => 'pages-editor.php',  'ico' => 'globe'],
+        ]],
+        ['label' => 'Provoz', 'items' => [
+            ['key' => 'updates',       'label' => 'Vydání pro zákazníky', 'url' => 'updates.php', 'ico' => 'up'],
+            ['key' => 'demo-log',      'label' => 'Demo',       'url' => 'demo-log.php',      'ico' => 'flask'],
+            ['key' => 'access',        'label' => 'Přístupy',   'url' => 'access.php',        'ico' => 'users'],
+            ['key' => 'pirate',        'label' => 'Piráti',     'url' => 'pirate.php',        'ico' => 'shield', 'cnt' => 'pirate'],
+        ]],
+        ['label' => 'Systém', 'items' => [
+            ['key' => 'business-info', 'label' => 'Firma',      'url' => 'business-info.php', 'ico' => 'firm'],
+            ['key' => 'settings',      'label' => 'Nastavení',  'url' => 'settings.php',      'ico' => 'cog'],
+            ['key' => 'self-update',   'label' => 'Aktualizace vendoru', 'url' => 'self-update.php', 'ico' => 'refresh'],
+        ]],
+    ];
+}
+
 function vendor_nav_items(): array {
-    // Flat list — backward compat. Pro 2-row layout viz vendor_nav_primary() + vendor_nav_secondary().
-    return array_merge(vendor_nav_primary(), vendor_nav_secondary());
+    // Flat list — zpětná kompatibilita.
+    $out = [];
+    foreach (vendor_nav_groups() as $g) foreach ($g['items'] as $it) $out[] = $it;
+    return $out;
 }
 
-/**
- * 🆕 v2.0.98 — PRIMARY nav (daily use) — render velké buttony nahoře.
- */
-function vendor_nav_primary(): array {
-    return [
-        ['key' => 'dashboard',     'label' => '📊 Přehled',      'url' => 'index.php'],
-        ['key' => 'shop',          'label' => '🛒 Eshop',        'url' => 'shop.php'],
-        ['key' => 'packages',      'label' => '🎁 Balíčky',      'url' => 'packages.php'],
-        ['key' => 'licenses',      'label' => '🔑 Licence',      'url' => 'licenses.php'],
-        ['key' => 'faktury',       'label' => '🧾 Faktury',      'url' => 'faktury.php'],
-        ['key' => 'pages-editor',  'label' => '✏️ Web',           'url' => 'pages-editor.php'],
-        ['key' => 'business-info', 'label' => '🏢 Firma',        'url' => 'business-info.php'],
-        ['key' => 'updates',       'label' => '🔄 Updates',      'url' => 'updates.php'],
-    ];
-}
-
-/**
- * 🆕 v2.0.98 — SECONDARY nav (admin / tools) — render malé obdélníky pod.
- */
-function vendor_nav_secondary(): array {
-    // 🆕 v2.5.2 — Pirate odstraněn ze secondary nav (interní audit nástroj,
-    //            zůstává dostupný z dashboard hub karty + přes přímý URL).
-    return [
-        ['key' => 'self-update',   'label' => '🚀 Self-update',  'url' => 'self-update.php'],
-        ['key' => 'access',        'label' => '👥 Přístupy',     'url' => 'access.php'],
-        ['key' => 'demo',          'label' => '🧪 Demo',         'url' => 'demo-log.php'],
-        ['key' => 'settings',      'label' => '⚙️ Nastavení',    'url' => 'settings.php'],
-    ];
+/** Počty do menu — stejné dotazy jako KPI na dashboardu (index.php). Soft-fail. */
+function vendor_nav_counts(): array {
+    $c = ['orders' => 0, 'licenses' => 0, 'pirate' => 0];
+    try {
+        $pdo = vendor_db();
+        try { $c['orders'] = (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='pending'")->fetchColumn(); } catch (Throwable $e) {}
+        try { $c['licenses'] = (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='active' AND expires_at IS NOT NULL AND expires_at <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)")->fetchColumn(); } catch (Throwable $e) {}
+        try { $c['pirate'] = (int) $pdo->query("SELECT COUNT(*) FROM vendor_pirate_installs WHERE status IN ('new','contacted','warned')")->fetchColumn(); } catch (Throwable $e) {}
+    } catch (Throwable $e) {}
+    return $c;
 }
 
 /**
@@ -142,27 +156,6 @@ function vendor_render_footer(): void {
         </div>
       </div>
     </footer>
-    <style>
-      .footer-master {
-        background: #fff; border-top: 1px solid #e5e5e7;
-        margin-top: 40px; padding: 18px 0;
-        color: #6e6e73; font-size: 12px;
-      }
-      .footer-inner {
-        max-width: 1400px; margin: 0 auto; padding: 0 24px;
-        display: flex; justify-content: space-between; align-items: center;
-        flex-wrap: wrap; gap: 10px;
-      }
-      .footer-master a {
-        color: #6e6e73; text-decoration: none;
-      }
-      .footer-master a:hover { color: #BA7517; }
-      .footer-master strong { color: #1d1d1f; font-weight: 700; }
-      .footer-master .sep { margin: 0 6px; opacity: 0.4; }
-      @media (max-width: 700px) {
-        .footer-inner { flex-direction: column; align-items: flex-start; }
-      }
-    </style>
     <?php
 }
 
@@ -184,21 +177,6 @@ function vendor_render_back(?string $href = 'index.php', ?string $label = '← Z
         <?= htmlspecialchars($label) ?>
       </a>
     </div>
-    <style>
-      .back-master { max-width: 1400px; margin: 14px auto 0; padding: 0 24px; }
-      .back-btn {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 7px 14px; border-radius: 8px;
-        background: #fff; border: 1px solid #e5e5e7;
-        color: #424245; text-decoration: none;
-        font-size: 12.5px; font-weight: 600;
-        transition: all 0.15s;
-      }
-      .back-btn:hover {
-        background: #f5f5f7; border-color: #BA7517; color: #BA7517;
-        transform: translateX(-2px);
-      }
-    </style>
     <?php
 }
 
@@ -216,385 +194,57 @@ function vendor_render_breadcrumbs(array $crumbs): void {
     }
     echo '</nav>';
     ?>
-    <style>
-      .breadcrumbs-master {
-        max-width: 1400px; margin: 12px auto 0; padding: 0 24px;
-        font-size: 12.5px; color: #6e6e73;
-      }
-      .breadcrumbs-master a {
-        color: #0058b8; text-decoration: none;
-      }
-      .breadcrumbs-master a:hover { text-decoration: underline; }
-      .breadcrumbs-master .bc-sep { margin: 0 8px; color: #c7c7cc; }
-      .breadcrumbs-master .bc-current { color: #1d1d1f; font-weight: 600; }
-    </style>
     <?php
 }
 
 function vendor_render_topbar(array $user, string $currentPage = ''): void {
-    // 🆕 v2.0.86 — Datum + svátek + verze pod logo (jako v admin)
-    // 🆕 v2.9.61 — verze přes vendor_appek_version() (čte z api/config.php)
     $version = vendor_appek_version();
-    $svatkyCZ = vendor_svatky_cz_map();
+    $svatek = vendor_svatky_cz_map()[(new DateTime('now'))->format('j.n')] ?? '';
     $dny = ['neděle','pondělí','úterý','středa','čtvrtek','pátek','sobota'];
     $now = new DateTime('now');
-    $den = $dny[(int)$now->format('w')];
-    $datum = $now->format('j. n. Y');
-    $klic = $now->format('j.n');
-    $svatek = $svatkyCZ[$klic] ?? '';
+    $today = $dny[(int) $now->format('w')] . ' ' . $now->format('j. n.') . ($svatek ? ' · ' . $svatek : '');
+    $alias = ['demo' => 'demo-log', 'sales-cms' => 'pages-editor'];
+    $active = $alias[$currentPage] ?? $currentPage;
+    $cnt = vendor_nav_counts();
+    $name = (string) ($user['display_name'] ?? $user['username'] ?? '');
+    $ini = mb_strtoupper(mb_substr(preg_replace('/[^\p{L}]/u', '', $name) ?: 'A', 0, 2));
+    $uiv = @filemtime(__DIR__ . '/ui.css') ?: 1;
     ?>
-    <header class="topbar-master">
-      <!-- ROW 1: Brand + meta + actions -->
-      <div class="topbar-row topbar-row-top">
-        <div class="brand-wrap-master">
-          <a href="index.php" class="brand-master" style="text-decoration:none;color:inherit">
-            🏢 <strong>APPEK</strong> <span>Master</span>
-            <span class="brand-version-badge" title="Verze APPEK Master">v<?= htmlspecialchars($version) ?></span>
-          </a>
-          <div class="brand-meta-master" title="Datum · svátek">
-            <span class="bm-date"><strong><?= htmlspecialchars($den) ?></strong> · <?= htmlspecialchars($datum) ?></span>
-            <?php if ($svatek): ?>
-              <span class="bm-sep">·</span>
-              <span class="bm-svatek">🎉 svátek má <strong><?= htmlspecialchars($svatek) ?></strong></span>
-            <?php endif; ?>
-          </div>
-        </div>
-        <div class="actions-master">
-          <span class="user-chip-master">👤 <?= htmlspecialchars($user['display_name'] ?? $user['username']) ?></span>
-          <a href="https://appek.cz/" target="_blank" rel="noopener" title="Otevřít appek.cz" style="font-size:16px;text-decoration:none;border:1.5px solid #BA7517;border-radius:8px;padding:3px 7px;background:#fff7e6">🌐</a>
-          <a href="index.php?logout=1" class="logout-link">Odhlásit</a>
-        </div>
-      </div>
-
-      <!-- ROW 2: Primary nav (velké obdélníky) -->
-      <nav class="topbar-row topbar-row-primary">
-        <?php foreach (vendor_nav_primary() as $item): ?>
-          <a href="<?= htmlspecialchars($item['url']) ?>" class="nav-btn-primary <?= $currentPage === $item['key'] ? 'active' : '' ?>">
-            <?= htmlspecialchars($item['label']) ?>
-          </a>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="ui.css?v=<?= (int) $uiv ?>">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <symbol id="vx-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+      <symbol id="vx-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12.4a1 1 0 0 0 1 .8h9.7a1 1 0 0 0 1-.8L21 7H6"/></symbol>
+      <symbol id="vx-ticket" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 0 0 4 2 2 0 0 1 0 4v2h18v-2a2 2 0 0 1 0-4 2 2 0 0 0 0-4V6H3z"/><path d="M13 6v12" stroke-dasharray="2 2"/></symbol>
+      <symbol id="vx-doc" viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h7M9 17h5"/></symbol>
+      <symbol id="vx-box" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></symbol>
+      <symbol id="vx-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></symbol>
+      <symbol id="vx-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></symbol>
+      <symbol id="vx-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6M5 21h14"/></symbol>
+      <symbol id="vx-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.5 19a1.3 1.3 0 0 0 1.1 2h12.8a1.3 1.3 0 0 0 1.1-2L14 9V3"/><path d="M7 15h10"/></symbol>
+      <symbol id="vx-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></symbol>
+      <symbol id="vx-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M12 8v4M12 16h.01"/></symbol>
+      <symbol id="vx-firm" viewBox="0 0 24 24"><path d="M4 21V5l8-3v19M12 9h8v12M7 8h2M7 12h2M7 16h2M15 13h2M15 17h2M2 21h20"/></symbol>
+      <symbol id="vx-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
+      <symbol id="vx-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/></symbol>
+    </svg>
+    <aside class="vx-rail" aria-label="Hlavní menu">
+      <a href="index.php" class="vx-brand"><span class="vx-logo">A</span><span><b>APPEK Master</b><small>v<?= htmlspecialchars($version) ?></small></span></a>
+      <div class="vx-today"><?= htmlspecialchars($today) ?></div>
+      <nav class="vx-nav">
+        <?php foreach (vendor_nav_groups() as $g): ?>
+          <?php if ($g['label']): ?><div class="vx-grp"><?= htmlspecialchars($g['label']) ?></div><?php endif; ?>
+          <?php foreach ($g['items'] as $it):
+              $n = isset($it['cnt']) ? (int) ($cnt[$it['cnt']] ?? 0) : 0;
+              $cls = ($it['cnt'] ?? '') === 'pirate' ? 'bad' : (($it['cnt'] ?? '') === 'orders' ? 'hot' : ''); ?>
+            <a href="<?= htmlspecialchars($it['url']) ?>" class="<?= $active === $it['key'] ? 'on' : '' ?>"><svg><use href="#vx-<?= htmlspecialchars($it['ico']) ?>"/></svg><?= htmlspecialchars($it['label']) ?><?php if ($n > 0): ?><span class="vx-cnt <?= $cls ?>"><?= $n ?></span><?php endif; ?></a>
+          <?php endforeach; ?>
         <?php endforeach; ?>
       </nav>
-
-      <!-- ROW 3: Secondary nav (malé obdélníky) -->
-      <nav class="topbar-row topbar-row-secondary">
-        <?php foreach (vendor_nav_secondary() as $item): ?>
-          <a href="<?= htmlspecialchars($item['url']) ?>" class="nav-btn-secondary <?= $currentPage === $item['key'] ? 'active' : '' ?>">
-            <?= htmlspecialchars($item['label']) ?>
-          </a>
-        <?php endforeach; ?>
-      </nav>
-    </header>
-    <style>
-      body { background: #f5f5f7; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; }
-
-      /* ═══ v2.0.99 — APPLE LIGHT HUGE TOPBAR ═══════════════════════════
-         Light frosted-glass · obrovské spacing · sladěné warm brand accents
-         ═══════════════════════════════════════════════════════════════ */
-      .topbar-master {
-        position: sticky; top: 0; z-index: 100;
-        background:
-          linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(252, 250, 247, 0.92) 100%);
-        backdrop-filter: saturate(180%) blur(24px);
-        -webkit-backdrop-filter: saturate(180%) blur(24px);
-        color: #1d1d1f;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-        box-shadow:
-          0 1px 0 rgba(0, 0, 0, 0.02),
-          0 8px 24px rgba(0, 0, 0, 0.04);
-      }
-      .topbar-master::after {
-        content: '';
-        position: absolute; left: 0; right: 0; bottom: -1px;
-        height: 1px;
-        background: linear-gradient(90deg,
-          transparent 0%,
-          rgba(186, 117, 23, 0.18) 35%,
-          rgba(186, 117, 23, 0.32) 50%,
-          rgba(186, 117, 23, 0.18) 65%,
-          transparent 100%);
-        pointer-events: none;
-      }
-      /* 🆕 v2.0.99 — HUGE 3-row layout */
-      .topbar-row {
-        max-width: 1600px; margin: 0 auto;
-        padding: 0 40px;
-        display: flex; align-items: center; gap: 28px;
-      }
-      .topbar-row-top {
-        padding-top: 22px; padding-bottom: 14px;
-        justify-content: space-between;
-        min-height: 76px;
-      }
-      .topbar-row-primary {
-        padding-bottom: 10px;
-        gap: 10px; flex-wrap: wrap;
-      }
-      .topbar-row-secondary {
-        padding-bottom: 18px;
-        gap: 8px; flex-wrap: wrap;
-      }
-      .brand-wrap-master {
-        display: flex; flex-direction: column; gap: 6px;
-        align-items: flex-start; min-width: 0; flex-shrink: 0;
-      }
-      .brand-master {
-        font-size: 22px; letter-spacing: 0.3px;
-        display: flex; align-items: center; gap: 12px;
-        white-space: nowrap;
-        font-feature-settings: "ss01";
-      }
-      .brand-master strong {
-        font-weight: 800;
-        background: linear-gradient(135deg, #D89940 0%, #BA7517 50%, #854F0B 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: -0.015em;
-      }
-      /* 🆕 v2.6.3 — small version badge vedle "APPEK Master" */
-      .brand-version-badge {
-        font-size: 10.5px !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.3px !important;
-        text-transform: none !important;
-        background: linear-gradient(135deg, rgba(186, 117, 23, 0.12), rgba(186, 117, 23, 0.06)) !important;
-        color: #854F0B !important;
-        padding: 2px 8px !important;
-        border-radius: 999px !important;
-        border: 1px solid rgba(186, 117, 23, 0.18) !important;
-        margin-left: 4px !important;
-        font-family: 'SF Mono', Menlo, Consolas, monospace !important;
-        opacity: 1 !important;
-        white-space: nowrap !important;
-        vertical-align: baseline !important;
-      }
-      .brand-master span:not(.brand-version-badge) {
-        font-size: 13px; opacity: 0.5; letter-spacing: 3px;
-        text-transform: uppercase; font-weight: 600;
-        color: #6e6e73;
-      }
-
-      /* Brand meta — apple light style */
-      .brand-meta-master {
-        display: flex; flex-wrap: nowrap; align-items: center; gap: 10px;
-        font-size: 13.5px; line-height: 1.3;
-        color: rgba(0, 0, 0, 0.5);
-        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-        padding-left: 36px;
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 0.1px;
-      }
-      .brand-meta-master .bm-date strong {
-        color: #1d1d1f;
-        font-weight: 700;
-      }
-      .brand-meta-master .bm-svatek {
-        color: rgba(0, 0, 0, 0.55);
-      }
-      .brand-meta-master .bm-svatek strong {
-        color: #BA7517;
-        font-weight: 700;
-      }
-      .brand-meta-master .bm-ver {
-        background: linear-gradient(135deg, #FFF8E7 0%, #FAEEDA 100%);
-        color: #854F0B;
-        padding: 4px 12px;
-        border-radius: 999px;
-        font-weight: 700;
-        font-size: 12px;
-        letter-spacing: 0.3px;
-        border: 1px solid rgba(186, 117, 23, 0.25);
-        box-shadow: 0 1px 3px rgba(186, 117, 23, 0.08);
-      }
-      .brand-meta-master .bm-sep { opacity: 0.3; font-weight: 400; color: rgba(0, 0, 0, 0.4); }
-      @media (max-width: 900px) {
-        .brand-meta-master { font-size: 12px; padding-left: 0; gap: 6px; }
-      }
-      @media (max-width: 480px) {
-        .brand-meta-master .bm-sep:nth-of-type(1) { display: none; }
-        .brand-meta-master .bm-date { display: none; }
-      }
-
-      /* === 🆕 v2.0.99 — PRIMARY NAV (HUGE light buttons, low round corner) === */
-      .nav-btn-primary {
-        color: #1d1d1f;
-        text-decoration: none;
-        padding: 16px 28px;
-        border-radius: 12px;
-        font-size: 16px;
-        font-weight: 600;
-        letter-spacing: -0.005em;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        white-space: nowrap;
-        background: rgba(0, 0, 0, 0.03);
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        display: inline-flex;
-        align-items: center;
-        line-height: 1.2;
-        flex: 0 0 auto;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-      }
-      .nav-btn-primary:hover {
-        background: rgba(186, 117, 23, 0.08);
-        color: #854F0B;
-        border-color: rgba(186, 117, 23, 0.2);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(186, 117, 23, 0.12);
-      }
-      .nav-btn-primary.active {
-        background: linear-gradient(135deg, #BA7517 0%, #854F0B 100%);
-        color: #fff;
-        border-color: rgba(186, 117, 23, 0.6);
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.2),
-          0 4px 14px rgba(186, 117, 23, 0.3),
-          0 0 0 1px rgba(186, 117, 23, 0.2);
-      }
-
-      /* === 🆕 v2.0.99 — SECONDARY NAV (small light rectangles pod primary) === */
-      .nav-btn-secondary {
-        color: rgba(0, 0, 0, 0.55);
-        text-decoration: none;
-        padding: 9px 16px;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 500;
-        letter-spacing: 0.1px;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        white-space: nowrap;
-        background: transparent;
-        border: 1px solid transparent;
-        display: inline-flex;
-        align-items: center;
-        line-height: 1.2;
-        flex: 0 0 auto;
-      }
-      .nav-btn-secondary:hover {
-        background: rgba(0, 0, 0, 0.04);
-        color: #1d1d1f;
-        border-color: rgba(0, 0, 0, 0.06);
-      }
-      .nav-btn-secondary.active {
-        background: rgba(186, 117, 23, 0.1);
-        color: #854F0B;
-        border-color: rgba(186, 117, 23, 0.25);
-        font-weight: 600;
-      }
-
-      /* === ACTIONS — light Apple-style chip + ghost buttons === */
-      .actions-master {
-        display: flex; align-items: center; gap: 12px;
-        font-size: 14px;
-        flex-shrink: 0;
-      }
-      .actions-master a {
-        color: rgba(0, 0, 0, 0.65);
-        text-decoration: none;
-        padding: 10px 16px;
-        border-radius: 10px;
-        font-weight: 500;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .actions-master a:hover {
-        background: rgba(0, 0, 0, 0.05);
-        color: #1d1d1f;
-      }
-      .actions-master a[href*="logout"]:hover,
-      .actions-master a.logout-link:hover {
-        background: rgba(220, 38, 38, 0.08);
-        color: #991B1B;
-      }
-      .user-chip-master {
-        display: inline-flex; align-items: center; gap: 9px;
-        background: linear-gradient(135deg, #FFF8E7 0%, #FAEEDA 100%);
-        border: 1px solid rgba(186, 117, 23, 0.22);
-        padding: 10px 18px;
-        border-radius: 999px;
-        font-size: 14px;
-        font-weight: 600;
-        color: #5C3608;
-        max-width: 280px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        box-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.6) inset,
-          0 1px 3px rgba(186, 117, 23, 0.08);
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .user-chip-master:hover {
-        background: linear-gradient(135deg, #FFFCF5 0%, #FAEEDA 100%);
-        border-color: rgba(186, 117, 23, 0.35);
-        transform: translateY(-1px);
-        box-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.7) inset,
-          0 4px 12px rgba(186, 117, 23, 0.15);
-      }
-      .page-master {
-        max-width: 1400px; margin: 0 auto; padding: 24px;
-      }
-      .page-header-master {
-        background: #fff; border-radius: 12px; padding: 20px 24px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-        display: flex; align-items: center; justify-content: space-between;
-        flex-wrap: wrap; gap: 12px;
-      }
-      .page-header-master h1 { margin: 0; font-size: 22px; }
-      .panel-master {
-        background: #fff; border-radius: 12px;
-        padding: 24px; margin-bottom: 16px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      }
-      .panel-master h2 { font-size: 16px; margin: 0 0 14px; color: #1d1d1f; }
-      .btn-master {
-        padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer;
-        font-family: inherit; font-size: 13.5px; font-weight: 600;
-        text-decoration: none; display: inline-block;
-        transition: all 0.15s;
-      }
-      .btn-master.primary {
-        background: linear-gradient(180deg, #BA7517, #854F0B); color: #fff;
-      }
-      .btn-master.primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(186,117,23,0.3); }
-      .btn-master.secondary { background: #f5f5f7; color: #1d1d1f; }
-      /* 🆕 v2.0.99 — Responzivita HUGE 2-row nav */
-      @media (max-width: 1280px) {
-        .topbar-row { padding-left: 28px; padding-right: 28px; }
-        .nav-btn-primary { padding: 14px 22px; font-size: 15px; }
-        .brand-master { font-size: 20px; }
-      }
-      @media (max-width: 1024px) {
-        .topbar-row { padding-left: 20px; padding-right: 20px; gap: 16px; }
-        .topbar-row-top { padding-top: 16px; padding-bottom: 10px; min-height: 64px; }
-        .nav-btn-primary { padding: 12px 18px; font-size: 14px; }
-        .nav-btn-secondary { padding: 7px 12px; font-size: 12px; }
-        .brand-master { font-size: 18px; }
-        .brand-meta-master { padding-left: 30px; font-size: 12.5px; }
-      }
-      @media (max-width: 900px) {
-        .topbar-row-top { flex-wrap: wrap; gap: 12px; }
-        /* 🆕 v2.5.2 — natural WRAP místo horizontal scroll (user feedback) */
-        .topbar-row-primary, .topbar-row-secondary {
-          flex-wrap: wrap;
-          row-gap: 8px;
-          padding-left: 16px; padding-right: 16px;
-        }
-        .nav-btn-primary { padding: 10px 14px; font-size: 13px; }
-        .nav-btn-secondary { padding: 7px 12px; font-size: 12.5px; }
-        .user-chip-master { padding: 8px 14px; font-size: 13px; }
-      }
-      @media (max-width: 600px) {
-        .topbar-row { padding-left: 12px; padding-right: 12px; }
-        .topbar-row-top { padding-top: 12px; padding-bottom: 8px; gap: 8px; min-height: 0; }
-        .topbar-row-primary, .topbar-row-secondary { row-gap: 6px; }
-        .nav-btn-primary { padding: 9px 12px; font-size: 12.5px; }
-        .nav-btn-secondary { padding: 6px 10px; font-size: 12px; }
-        .brand-master { font-size: 16px; gap: 8px; }
-        .brand-master span { display: none; }
-        .actions-master { gap: 6px; }
-        .actions-master a { padding: 8px 12px; font-size: 13px; }
-      }
-    </style>
+      <div class="vx-ext"><a href="https://appek.cz/" target="_blank" rel="noopener">appek.cz ↗</a><a href="https://demo.appek.cz/" target="_blank" rel="noopener">demo ↗</a></div>
+      <div class="vx-foot"><span class="vx-avatar"><?= htmlspecialchars($ini) ?></span><span><?= htmlspecialchars($name) ?></span><a href="index.php?logout=1">Odhlásit</a></div>
+    </aside>
     <?php
 }

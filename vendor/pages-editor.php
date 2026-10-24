@@ -245,7 +245,6 @@ $lpVariants = array_values(array_unique(array_merge($lpVariants, array_keys($lpS
     <h1>✏️ Pages Editor</h1>
     <div style="display:flex;gap:8px;align-items:center">
       <a href="https://appek.cz/" target="_blank" rel="noopener" class="btn-master secondary">👁️ Otevřít sales</a>
-      <a href="sales-cms.php" class="btn-master secondary">📄 JSON editor</a>
     </div>
   </div>
 
@@ -428,7 +427,6 @@ $lpVariants = array_values(array_unique(array_merge($lpVariants, array_keys($lpS
       <li>Příští load <code>appek.cz/</code> tento JSON načte JS-em a přepíše výchozí texty</li>
       <li>Cache 5 s — refreshni stránku 2× pokud nevidíš změny ihned</li>
       <li>Před uložením auto-záloha (<code>.bak.YYYYMMDD-HHMMSS</code>)</li>
-      <li>Pro pokročilou editaci JSON přímo: <a href="sales-cms.php">📄 JSON editor</a></li>
     </ol>
   </div>
 
