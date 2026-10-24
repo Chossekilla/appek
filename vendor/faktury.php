@@ -150,6 +150,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'mark_paid') {
     $pdo->prepare("UPDATE vendor_invoices SET stav='zaplaceno', datum_uhrady=CURDATE() WHERE id=:id AND stav<>'storno'")->execute(['id'=>$id]);
     header('Location: faktury.php?ok=paid'); exit;
 }
+// Změna stavu přímo ze seznamu (výběr ve sloupci Stav). Zaplaceno → datum úhrady dnes
+// (pokud ještě není), zpět na Vystaveno → datum úhrady smazat (oprava překliku).
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'set_stav') {
+    $id = (int) ($_POST['id'] ?? 0);
+    $stav = (string) ($_POST['stav'] ?? '');
+    if ($id > 0 && in_array($stav, ['vystaveno', 'zaplaceno', 'storno'], true)) {
+        $uhr = $stav === 'zaplaceno' ? 'COALESCE(datum_uhrady, CURDATE())' : ($stav === 'vystaveno' ? 'NULL' : 'datum_uhrady');
+        $pdo->prepare("UPDATE vendor_invoices SET stav=:s, datum_uhrady=$uhr WHERE id=:id")->execute(['s' => $stav, 'id' => $id]);
+    }
+    header('Location: faktury.php?ok=stav'); exit;
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'storno') {
     $id = (int) ($_POST['id'] ?? 0);
     $pdo->prepare("UPDATE vendor_invoices SET stav='storno' WHERE id=:id")->execute(['id'=>$id]);
@@ -342,6 +353,11 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
   .inv-table th{background:#fafafa;font-size:11px;text-transform:uppercase;color:#6e6e73;letter-spacing:.4px}
   .inv-table tr:hover td{background:#fafafa}
   .st{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
+  .st-form{margin:0}
+  .st-sel{appearance:none;-webkit-appearance:none;border:1px solid transparent;border-radius:999px;font:700 11px/1.4 inherit;padding:3px 22px 3px 9px;cursor:pointer;
+    background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+    background-position:calc(100% - 11px) 50%,calc(100% - 7px) 50%;background-size:4px 4px,4px 4px;background-repeat:no-repeat}
+  .st-sel:hover,.st-sel:focus{border-color:currentColor;outline:none}
   .form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media(max-width:600px){.form-grid2{grid-template-columns:1fr}}
   .fld label{display:block;font-size:12px;font-weight:600;color:#3a3a3c;margin-bottom:4px}
@@ -368,6 +384,7 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
 
 <?php if (!empty($flash_err)): ?><div style="background:#f8d7da;color:#721c24;padding:12px 16px;border-radius:10px;margin-bottom:14px">❌ <?= htmlspecialchars($flash_err) ?></div><?php endif; ?>
 <?php if (($_GET['ok'] ?? '') === 'paid'): ?><div style="background:#e6f4ea;color:#1e7d34;padding:12px 16px;border-radius:10px;margin-bottom:14px">✅ Označeno jako zaplaceno.</div><?php endif; ?>
+<?php if (($_GET['ok'] ?? '') === 'stav'): ?><div style="background:#e6f4ea;color:#1e7d34;padding:12px 16px;border-radius:10px;margin-bottom:14px">✅ Stav faktury změněn.</div><?php endif; ?>
 <?php if (($_GET['ok'] ?? '') === 'storno'): ?><div style="background:#fdecea;color:#8a1f1f;padding:12px 16px;border-radius:10px;margin-bottom:14px">Faktura stornována.</div><?php endif; ?>
 
 <?php if ($isForm): ?>
@@ -500,7 +517,18 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
             <td><?= date('d.m.Y', strtotime($r['datum_vystaveni'])) ?></td>
             <td style="<?= $overdue ? 'color:#A32D2D;font-weight:700' : '' ?>"><?= date('d.m.Y', strtotime($r['datum_splatnosti'])) ?><?= $overdue ? ' ⚠️' : '' ?></td>
             <td style="text-align:right;font-weight:700"><?= number_format((float)$r['celkem'],2,',',' ') ?> Kč</td>
-            <td><span class="st" style="color:<?= $st[0] ?>;background:<?= $st[1] ?>"><?= $st[2] ?></span></td>
+            <td>
+              <form method="post" action="faktury.php?action=set_stav" class="st-form">
+                <?php vendor_csrf_field(); ?><input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
+                <select name="stav" class="st-sel" title="Změnit stav faktury" data-prev="<?= $r['stav'] ?>" data-cislo="<?= htmlspecialchars($r['cislo']) ?>"
+                        style="color:<?= $st[0] ?>;background-color:<?= $st[1] ?>"
+                        onchange="if((this.value==='storno'||this.dataset.prev==='storno')&&!confirm((this.value==='storno'?'Stornovat fakturu ':'Vrátit ze storna fakturu ')+this.dataset.cislo+'?')){this.value=this.dataset.prev;return;}this.form.submit()">
+                  <option value="vystaveno"<?= $r['stav']==='vystaveno' ? ' selected' : '' ?>>Vystaveno</option>
+                  <option value="zaplaceno"<?= $r['stav']==='zaplaceno' ? ' selected' : '' ?>>Zaplaceno</option>
+                  <option value="storno"<?= $r['stav']==='storno' ? ' selected' : '' ?>>Storno</option>
+                </select>
+              </form>
+            </td>
             <td style="text-align:right;white-space:nowrap">
               <a href="faktury.php?edit=<?= (int)$r['id'] ?>" class="btn-master secondary" style="padding:6px 10px;font-size:12px" title="Upravit fakturu">✏️ Upravit</a>
               <a href="faktury.php?view=<?= (int)$r['id'] ?>" class="btn-master secondary" style="padding:6px 12px;font-size:12px">Otevřít</a>
