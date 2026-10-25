@@ -217,3 +217,12 @@ html body .vx-table tr:first-child td{border-top:none!important}
   html body .detail-grid .row dd{margin:0!important;font-size:14px!important;text-align:right;overflow-wrap:anywhere}
   html body .detail-grid .row dd code{font-size:12px;word-break:break-all}
 }
+
+/* ---------- v3.0.584 mobil: tlačítko menu DOLE uprostřed (palcem), otevřené = ✕ nad panelem ---------- */
+@media (max-width:900px){
+  .vx-burger{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);width:60px;height:60px;border-radius:50%;z-index:61;background:var(--vx-acc);border:0;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .vx-burger svg{width:26px;height:26px;stroke-width:2.2}
+  .vx-burger-dot{top:-2px;right:-2px;background:#fff;color:var(--vx-acc)}
+  html body{padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+  .vx-sheet{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+}

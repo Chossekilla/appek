@@ -49,10 +49,13 @@ if ($odb_id) {
         $jeNo = in_array('je_novinka', $colsExist, true) ? 'v.je_novinka' : '0 AS je_novinka';
         $jeDo = in_array('je_doprodej', $colsExist, true) ? 'v.je_doprodej' : '0 AS je_doprodej';
         $jeVy = in_array('je_vyprodano', $colsExist, true) ? 'v.je_vyprodano' : '0 AS je_vyprodano';
+        // v3.0.584 — obsah balení (hmotnost i objem ml/l) pro kartu v katalogu
+        $obN = in_array('obsah', $colsExist, true) ? 'v.obsah' : 'NULL AS obsah';
+        $obJ = in_array('obsah_jednotka', $colsExist, true) ? 'v.obsah_jednotka' : 'NULL AS obsah_jednotka';
 
         $stmt = $pdo->prepare("
             SELECT v.id, v.popis, v.obrazek_url, v.objednat_do_hod, v.alergeny, v.oblibeny,
-                   $jeAk, $jeNo, $jeDo, $jeVy
+                   $jeAk, $jeNo, $jeDo, $jeVy, $obN, $obJ
             FROM vyrobky v WHERE v.id IN ($placeholders)
         ");
         $stmt->execute($ids);
@@ -72,6 +75,8 @@ if ($odb_id) {
                 $v['je_novinka']      = (int) $extras[$vid]['je_novinka'];
                 $v['je_doprodej']     = (int) $extras[$vid]['je_doprodej'];
                 $v['je_vyprodano']    = (int) $extras[$vid]['je_vyprodano'];
+                $v['obsah']           = $extras[$vid]['obsah'];
+                $v['obsah_jednotka']  = $extras[$vid]['obsah_jednotka'];
             }
         }
     }
