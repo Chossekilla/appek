@@ -309,6 +309,42 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'renumber') {
 
 if ($method === 'POST' && ($_GET['action'] ?? '') === 'update_poradi') {
     $d = json_input();
+
+    // 🐛 v3.0.593 — nový formát { ids: [seřazená id ZOBRAZENÉ podmnožiny] }.
+    //   Dřív klient poslal poradi 0..N jen pro viditelné výrobky → při filtru kategorie kolidovaly s ostatními
+    //   (a při všech poradi=0 se nic neseřadilo). Teď: vezmi CELÝ seznam v pořadí zobrazení, přetažené výrobky
+    //   vrať na JEJICH původní místa v novém pořadí a celé pořadí přečísluj 0..N (stabilní, bez kolizí).
+    if (isset($d['ids']) && is_array($d['ids'])) {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $d['ids']), fn($x) => $x > 0)));
+        if (!$ids) json_error('Chybí seznam výrobků');
+        $pdo->beginTransaction();
+        try {
+            $all = $pdo->query("
+                SELECT v.id, v.poradi FROM vyrobky v
+                LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
+                ORDER BY v.aktivni DESC, k.poradi, v.poradi, v.nazev, v.id
+                FOR UPDATE
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            $inSubset = array_flip($ids);
+            $queue = $ids; $order = [];
+            foreach ($all as $r) {
+                $order[] = isset($inSubset[(int) $r['id']]) ? array_shift($queue) : (int) $r['id'];
+            }
+            $old = array_column($all, 'poradi', 'id');
+            $stmt = $pdo->prepare("UPDATE vyrobky SET poradi = :p WHERE id = :id");
+            $changed = 0;
+            foreach ($order as $i => $id) {
+                if ($id === null) continue;
+                if ((int) ($old[$id] ?? -1) !== $i) { $stmt->execute(['p' => $i, 'id' => $id]); $changed++; }
+            }
+            $pdo->commit();
+            json_response(['ok' => true, 'updated' => $changed]);
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            json_error_safe('Chyba ukládání', $e, 500);
+        }
+    }
+
     if (empty($d['poradi']) || !is_array($d['poradi'])) {
         json_error('Chybí seznam pořadí');
     }

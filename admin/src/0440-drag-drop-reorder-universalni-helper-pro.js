@@ -64,27 +64,54 @@ function attachReorderListeners(containerId, itemSelector) {
 
     const movedEl = draggedEl;
     draggedEl = null;
+    saveOrder(movedEl);
+  });
 
-    // Sbírám nové pořadí JEN z prvků, které mají data-id
-    const items = container.querySelectorAll(`[data-id]`);
-    const poradi = Array.from(items).map((el, i) => ({
-      id: parseInt(el.dataset.id),
-      poradi: i,
-    }));
-
+  // 🐛 v3.0.593 — ukládá SEŘAZENÁ id zobrazených výrobků; server je vrátí na jejich místa v celém seznamu
+  //   (dřív poradi 0..N jen pro viditelné → kolize s ostatními kategoriemi / nic při všech poradi=0)
+  async function saveOrder(movedEl) {
+    const ids = Array.from(container.querySelectorAll('[data-id]')).map(el => parseInt(el.dataset.id)).filter(Boolean);
     try {
-      await api('admin_vyrobky.php?action=update_poradi', {
-        method: 'POST',
-        body: { poradi },
-      });
-      // Krátký zelený flash
-      movedEl.classList.add('drag-saved');
-      setTimeout(() => movedEl.classList.remove('drag-saved'), 600);
+      await api('admin_vyrobky.php?action=update_poradi', { method: 'POST', body: { ids } });
+      if (movedEl) {
+        movedEl.classList.add('drag-saved');
+        setTimeout(() => movedEl.classList.remove('drag-saved'), 600);
+      }
     } catch (err) {
       alert('Nepodařilo se uložit pořadí: ' + err.message);
       renderVyrobky(state._vyrobkyFilters || {});
     }
-  });
+  }
+
+  // 🐛 v3.0.593 — DOTYK (iPhone/Android): HTML5 drag&drop na touch nejede → táhni za úchyt ⋮⋮
+  let touchEl = null;
+  container.addEventListener('touchstart', (e) => {
+    const handle = e.target.closest('.drag-handle, .vyrobek-card-handle');
+    if (!handle) return;
+    const it = findItem(handle);
+    if (!it) return;
+    touchEl = it;
+    it.classList.add('dragging');
+  }, { passive: true });
+  container.addEventListener('touchmove', (e) => {
+    if (!touchEl) return;
+    e.preventDefault();                      // nescrolluj stránku, když táhneš položku
+    const t = e.touches[0];
+    const under = document.elementFromPoint(t.clientX, t.clientY);
+    const target = under && findItem(under);
+    if (!target || target === touchEl || !container.contains(target)) return;
+    const rect = target.getBoundingClientRect();
+    if (t.clientY < rect.top + rect.height / 2) target.parentNode.insertBefore(touchEl, target);
+    else target.parentNode.insertBefore(touchEl, target.nextSibling);
+  }, { passive: false });
+  const touchDone = () => {
+    if (!touchEl) return;
+    const moved = touchEl; touchEl = null;
+    moved.classList.remove('dragging');
+    saveOrder(moved);
+  };
+  container.addEventListener('touchend', touchDone);
+  container.addEventListener('touchcancel', touchDone);
 }
 
 window.applyVyrobkyFilters = function() {

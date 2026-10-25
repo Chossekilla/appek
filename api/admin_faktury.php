@@ -253,13 +253,17 @@ if ($method === 'GET') {
     $stmt->execute($params);
     $faktury = $stmt->fetchAll();
 
-    $souhrn = $pdo->query("
+    // 🐛 v3.0.593 — souhrn (Celkem faktur / Celková částka / Po splatnosti) respektuje STEJNÝ filtr jako seznam
+    //   (dřív FROM faktury bez WHERE → při filtru „Tento měsíc" ukazoval součet všech faktur = „filtr nefunguje")
+    $ss = $pdo->prepare("
         SELECT COUNT(*) AS celkem,
-               COALESCE(SUM(castka_celkem), 0) AS celkem_kc,
-               COALESCE(SUM(CASE WHEN castka_uhrazeno < castka_celkem AND datum_splatnosti < CURDATE()
-                                 THEN castka_celkem - castka_uhrazeno ELSE 0 END), 0) AS po_splatnosti_kc
-        FROM faktury
-    ")->fetch();
+               COALESCE(SUM(f.castka_celkem), 0) AS celkem_kc,
+               COALESCE(SUM(CASE WHEN f.castka_uhrazeno < f.castka_celkem AND f.datum_splatnosti < CURDATE()
+                                 THEN f.castka_celkem - f.castka_uhrazeno ELSE 0 END), 0) AS po_splatnosti_kc
+        FROM faktury f JOIN odberatele od ON od.id = f.odberatel_id
+        WHERE 1=1" . $where);
+    $ss->execute($params);
+    $souhrn = $ss->fetch();
 
     json_response([
         'faktury'  => $faktury,

@@ -440,8 +440,8 @@ async function renderFaktury(filters = {}, opts = {}) {
     ${dashStylePeriodHtml('fa', filters.datum_od, filters.datum_do)}
 
     <div class="filters">
-      <input class="filter-input" type="search" id="ff-q" placeholder="Hledat (číslo, odběratel)..." value="${filters.q || ''}">
-      <select class="filter-select" id="ff-stav">
+      <input class="filter-input" type="search" id="ff-q" enterkeyhint="search" placeholder="Hledat (číslo, odběratel, VS)..." value="${esc(filters.q || '')}" onkeydown="if(event.key==='Enter'){event.preventDefault();applyFakturyFilters()}">
+      <select class="filter-select" id="ff-stav" onchange="applyFakturyFilters()">
         <option value="">Všechny stavy</option>
         <option value="cekajici" ${filters.stav_uhrady === 'cekajici' ? 'selected' : ''}>Čekající</option>
         <option value="po_splatnosti" ${filters.stav_uhrady === 'po_splatnosti' ? 'selected' : ''}>Po splatnosti</option>
