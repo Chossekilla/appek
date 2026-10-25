@@ -61,3 +61,11 @@ html.dark .faktura-card .fa-icon-actions .doc-badge.mail,html.theme-dark .faktur
 body.sidebar-collapsed .sidebar-pkg-icons.has-pkgs,body.sidebar-pinned .sidebar-pkg-icons.has-pkgs{flex-direction:column;margin-left:0;width:100%;align-items:center}
 body.sidebar-collapsed .sidebar-utils,body.sidebar-pinned .sidebar-utils{flex-direction:column}
 @media(max-width:700px){.sidebar-utils{flex-wrap:nowrap}.sidebar-pkg-icon{width:44px;height:44px;flex-basis:44px;font-size:23px}}
+/* v3.0.589 — desktop (rozbalený sidebar): ikony balíčků v JEDNOM řádku se „Skrýt menu", Připnout pod tím (ověřeno 1280px: „◀ Skrýt menu" + 3 ikony bez ořezu) */
+@media(min-width:701px){
+  body:not(.sidebar-collapsed):not(.sidebar-pinned) .sidebar-utils{gap:5px!important}
+  body:not(.sidebar-collapsed):not(.sidebar-pinned) .sidebar-utils>.sidebar-collapse{order:1!important;flex:1 1 0!important;width:auto!important;min-width:0!important;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding-left:8px!important;padding-right:4px!important;gap:4px!important;font-size:12px!important}
+  body:not(.sidebar-collapsed):not(.sidebar-pinned) .sidebar-utils>.sidebar-pkg-icons{order:2!important;margin-left:0;gap:4px!important}
+  body:not(.sidebar-collapsed):not(.sidebar-pinned) .sidebar-utils>.sidebar-pin{order:3!important;flex:0 0 100%!important;width:100%!important}
+  body:not(.sidebar-collapsed):not(.sidebar-pinned) .sidebar-pkg-icon{width:32px!important;height:32px!important;flex-basis:32px!important;font-size:17px!important;border-radius:9px}
+}

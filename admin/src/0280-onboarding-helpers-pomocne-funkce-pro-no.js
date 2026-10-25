@@ -642,7 +642,7 @@ async function navigate(page, args) {
   // 📱 Synchronizace bottom nav (mobile) — aktivní položka
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
   // 🎁 Re-render package badges v topbaru — aby se zvýraznil aktivní balíček
-  document.querySelectorAll('.pkg-big-btn, .pkg-badge-square, .sidebar-pkg-icon').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
+  document.querySelectorAll('.pkg-big-btn, .pkg-badge-square, .sidebar-pkg-icon').forEach(b => b.classList.toggle('is-active', b.dataset.page === _navActive));
   // 🆕 v3.0.39 — Update Floating Action Button per page (mobile)
   try { window.updateAppFAB && window.updateAppFAB(page); } catch (e) {}
 
