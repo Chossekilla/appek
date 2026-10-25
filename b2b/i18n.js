@@ -1301,7 +1301,27 @@ function initLangPillsActive() {
   });
   const sel = document.getElementById('b2b-lang-switch');
   if (sel) sel.value = code;
+  // 🌐 v3.0.569 — vlajka-dropdown (dotyk): aktuální vlajka v tlačítku + aktivní položka
+  const flags = { cs: '🇨🇿', en: '🇬🇧', es: '🇪🇸' };
+  document.querySelectorAll('.b2b-lang-dd-flag').forEach(f => { f.textContent = flags[code] || flags.cs; });
+  document.querySelectorAll('.b2b-lang-dd-menu [data-lang]').forEach(b => b.classList.toggle('is-active', b.dataset.lang === code));
 }
+
+// 🌐 v3.0.569 — otevřít/zavřít jazykový dropdown; zavře klik mimo a Esc
+window.toggleB2bLangMenu = function (ev, force) {
+  if (ev) ev.stopPropagation();
+  const btn = document.getElementById('lang-dd-btn');
+  const menu = document.querySelector('.b2b-lang-dd-menu');
+  if (!btn || !menu) return;
+  const open = typeof force === 'boolean' ? force : menu.hidden;
+  menu.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+};
+document.addEventListener('click', (e) => {
+  const menu = document.querySelector('.b2b-lang-dd-menu');
+  if (menu && !menu.hidden && !e.target.closest('.b2b-lang-dd')) window.toggleB2bLangMenu(null, false);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.toggleB2bLangMenu(null, false); });
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {

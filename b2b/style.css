@@ -4823,3 +4823,33 @@ body.cart-sheet-open #b2b-cart-sheet .ccb-panel { transform: translateY(0); }
 
 /* 🖼️ v3.0.501 — miniatura produktu v položce košíku (boční panel i sheet) */
 .cart-item-thumb{width:26px;height:26px;border-radius:5px;object-fit:cover;vertical-align:middle;margin-right:7px;border:1px solid var(--border)}
+
+/* =========================================================
+   🌐 v3.0.569 — JAZYK jako vlajka-dropdown v řadě ikon (dotyk ≤900px)
+   Na desktopu zůstává pruh vlajek; na mobilu zabíral celý řádek pod logem.
+   ========================================================= */
+.b2b-lang-dd { position: relative; display: none; }
+.b2b-lang-dd-btn { font-size: 18px; line-height: 1; }
+.b2b-lang-dd-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 300;
+  min-width: 168px; padding: 6px;
+  background: var(--surface, #fff); border: 1px solid var(--border, #e5e5e7);
+  border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.14);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.b2b-lang-dd-menu[hidden] { display: none; }
+.b2b-lang-dd-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 12px; border: 0; border-radius: 10px; background: transparent;
+  font: inherit; font-size: 15px; color: var(--text, #1d1d1f); text-align: left; cursor: pointer;
+}
+.b2b-lang-dd-menu button span { font-size: 20px; line-height: 1; }
+.b2b-lang-dd-menu button:hover,
+.b2b-lang-dd-menu button:focus-visible { background: var(--surface-2, #f5f5f7); outline: none; }
+.b2b-lang-dd-menu button.is-active { background: var(--primary-light, #FAEEDA); color: var(--primary-dark, #854F0B); font-weight: 600; }
+html.dark .b2b-lang-dd-menu { background: var(--surface-2); border-color: var(--border); }
+html.dark .b2b-lang-dd-menu button { color: var(--text); }
+@media (max-width: 900px) {
+  .header-row-top .b2b-lang-pills, .b2b-lang-pills { display: none !important; }
+  .b2b-lang-dd { display: block; }
+}

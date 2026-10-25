@@ -127,6 +127,17 @@
         </button>
       </div>
       <div class="header-actions">
+        <!-- 🌐 v3.0.569 — na dotyku (≤900px) jazyk jako vlajka-dropdown v řadě ikon (pruh vlajek se schová) -->
+        <div class="b2b-lang-dd">
+          <button type="button" id="lang-dd-btn" class="icon-btn b2b-lang-dd-btn" title="Jazyk / Language / Idioma" aria-label="Jazyk" aria-haspopup="menu" aria-expanded="false" onclick="toggleB2bLangMenu(event)">
+            <span class="b2b-lang-dd-flag">🇨🇿</span>
+          </button>
+          <div class="b2b-lang-dd-menu" role="menu" hidden>
+            <button type="button" role="menuitem" data-lang="cs" onclick="setB2bLang('cs')"><span>🇨🇿</span>Čeština</button>
+            <button type="button" role="menuitem" data-lang="en" onclick="setB2bLang('en')"><span>🇬🇧</span>English</button>
+            <button type="button" role="menuitem" data-lang="es" onclick="setB2bLang('es')"><span>🇪🇸</span>Español</button>
+          </div>
+        </div>
         <button id="pos-toggle" class="icon-btn icon-btn-pos" title="Přepnout dotykový (POS) režim" aria-label="POS režim" onclick="togglePosMode()">
           <span class="pos-icon-on">📱</span>
           <span class="pos-icon-off">🖥️</span>

@@ -1724,7 +1724,7 @@ function renderCard(v) {
   const slevaPct = maSlevu ? Math.round((1 - cenaAktualni / cenaZakladni) * 100) : 0;
 
   return `
-    <div class="card ${inCart ? 'in-cart' : ''} ${isVyprodano ? 'is-vyprodano' : ''}" data-kat="${katId}" style="--cat-hue: ${accentHue}" title="${esc(katNazev || '')}" onclick="if(document.body.classList.contains('pos-mode') && !event.target.closest('button,input')) { changeQty(${v.id}, 1); }">
+    <div class="card ${inCart ? 'in-cart' : ''} ${isVyprodano ? 'is-vyprodano' : ''}" data-kat="${katId}" data-vid="${v.id}" style="--cat-hue: ${accentHue}" title="${esc(katNazev || '')}" onclick="if(document.body.classList.contains('pos-mode') && !event.target.closest('button,input')) { changeQty(${v.id}, 1); }">
       <div class="card-img-wrap">
         ${img}
         ${renderStatusBadges({ isNovinka, isAkce, isDoprodej, isVyprodano })}
@@ -1794,9 +1794,30 @@ window.changeQty = function(id, delta) {
   if (next === 0) delete state.cart[id];
   else state.cart[id] = next;
   saveCart();
+  // 📌 Kotva scrollu: re-render přepíše celý katalog → Safari (iPhone) NEMÁ scroll anchoring
+  //   a po kliku na +/−/+5/+10 skočil na začátek stránky. Zapamatuj si, kde na obrazovce byla
+  //   karta, na kterou se ťuklo (stejný výrobek může být na stránce víckrát → i pořadí),
+  //   a po re-renderu dorovnej scroll tak, aby zůstala na stejném místě.
+  const ev = window.event;
+  const src = ev && ev.target && ev.target.closest ? ev.target.closest('.card[data-vid]') : null;
+  const sel = `.card[data-vid="${id}"]`;
+  const idx = src ? Math.max(0, [...document.querySelectorAll(sel)].indexOf(src)) : 0;
+  const before = document.querySelectorAll(sel)[idx];
+  const anchorTop = before ? before.getBoundingClientRect().top : null;
+  const y0 = window.scrollY;
+  if (document.activeElement && document.activeElement !== document.body && document.activeElement.blur) document.activeElement.blur();
   // Karty potřebují re-render aby se update reflektoval v `+/-` ovládání
   if (state.currentTab === 'catalog') renderCatalog();
   if (state.currentTab === 'checkout') renderCheckout();
+  const restore = (onlyJump) => {
+    const a = document.querySelectorAll(sel)[idx];
+    const diff = (a && anchorTop !== null) ? a.getBoundingClientRect().top - anchorTop : window.scrollY - y0;
+    if (onlyJump && Math.abs(diff) < 40) return;   // malý posun = uživatel roluje, neprat se s ním
+    if (a && anchorTop !== null) window.scrollBy(0, diff); else window.scrollTo(0, y0);
+  };
+  restore(false);
+  requestAnimationFrame(() => restore(true));
+  setTimeout(() => restore(true), 150);              // Safari umí skočit až po doběhnutí layoutu/obrázků
 };
 
 // =============================================================
