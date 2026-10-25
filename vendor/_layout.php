@@ -230,8 +230,17 @@ function vendor_render_topbar(array $user, string $currentPage = ''): void {
       <symbol id="vx-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
       <symbol id="vx-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/></symbol>
     </svg>
-    <aside class="vx-rail" aria-label="Hlavní menu">
-      <a href="index.php" class="vx-brand"><span class="vx-logo">A</span><span><b>APPEK Master</b><small>v<?= htmlspecialchars($version) ?></small></span></a>
+    <?php $cntSum = (int) $cnt['orders'] + (int) $cnt['licenses'] + (int) $cnt['pirate']; ?>
+    <div class="vx-backdrop" onclick="vxMenu(false)"></div>
+    <aside class="vx-rail" id="vx-rail" aria-label="Hlavní menu">
+      <div class="vx-top">
+        <a href="index.php" class="vx-brand"><span class="vx-logo">A</span><span><b>APPEK Master</b><small>v<?= htmlspecialchars($version) ?></small></span></a>
+        <button type="button" class="vx-burger" aria-controls="vx-rail" aria-expanded="false" aria-label="Menu" onclick="vxMenu()">
+          <svg class="vx-i-open" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          <svg class="vx-i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          <?php if ($cntSum > 0): ?><span class="vx-burger-dot"><?= $cntSum ?></span><?php endif; ?>
+        </button>
+      </div>
       <div class="vx-today"><?= htmlspecialchars($today) ?></div>
       <nav class="vx-nav">
         <?php foreach (vendor_nav_groups() as $g): ?>
@@ -246,5 +255,15 @@ function vendor_render_topbar(array $user, string $currentPage = ''): void {
       <div class="vx-ext"><a href="https://appek.cz/" target="_blank" rel="noopener">appek.cz ↗</a><a href="https://demo.appek.cz/" target="_blank" rel="noopener">demo ↗</a></div>
       <div class="vx-foot"><span class="vx-avatar"><?= htmlspecialchars($ini) ?></span><span><?= htmlspecialchars($name) ?></span><a href="index.php?logout=1">Odhlásit</a></div>
     </aside>
+    <script>
+      // Mobil (≤900px): ☰ vysune menu zleva; zavře klik vedle / ✕ / Esc / výběr položky.
+      function vxMenu(open) {
+        var h = document.documentElement, on = typeof open === 'boolean' ? open : !h.classList.contains('vx-open');
+        h.classList.toggle('vx-open', on);
+        var b = document.querySelector('.vx-burger'); if (b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
+      }
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') vxMenu(false); });
+      document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.vx-nav a')) vxMenu(false); });
+    </script>
     <?php
 }

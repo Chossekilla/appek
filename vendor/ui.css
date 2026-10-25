@@ -123,16 +123,34 @@ html body .footer-master a:hover{color:var(--vx-acc-ink)}
 html body .footer-master strong{color:var(--vx-ink-2);font-weight:600}
 html body .footer-master .sep{margin:0 6px;opacity:.4}
 
-/* ---------- mobil: menu nahoru, vodorovně ---------- */
+/* ---------- menu: horní řádek (logo + ☰), na desktopu ☰ schované ---------- */
+.vx-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.vx-burger{display:none;position:relative;width:40px;height:40px;border-radius:10px;border:1px solid var(--vx-rail-line);background:var(--vx-rail-2);color:#fff;cursor:pointer;place-items:center;flex:none}
+.vx-burger svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+.vx-burger .vx-i-close{display:none}
+.vx-burger-dot{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--vx-acc);color:#fff;font:600 10.5px/18px var(--vx-mono);text-align:center}
+.vx-backdrop{display:none}
+
+/* ---------- mobil (≤900px): horní lišta + vysouvací menu zleva ---------- */
 @media (max-width:900px){
-  html body{padding-left:0}
-  .vx-rail{position:sticky;top:0;inset:auto;width:auto;height:auto;flex-direction:row;align-items:center;gap:4px;overflow-x:auto;overflow-y:hidden;padding:10px 12px}
-  .vx-brand{padding:0 8px 0 2px}
-  .vx-brand small,.vx-grp,.vx-foot,.vx-ext,.vx-today{display:none}
-  .vx-nav{display:flex;gap:2px}
-  .vx-nav a{white-space:nowrap}
+  html body{padding-left:0;padding-top:60px}
+  .vx-rail{position:fixed;inset:0 0 auto 0;width:auto;height:60px;padding:10px 12px;overflow:hidden;z-index:60}
+  .vx-brand{padding:0}
+  .vx-burger{display:grid}
+  .vx-today,.vx-nav,.vx-ext,.vx-foot{display:none}
+  html.vx-open{overflow:hidden}
+  html.vx-open .vx-rail{right:auto;bottom:0;height:auto;width:min(300px,86vw);padding:10px 12px 14px;overflow-y:auto;box-shadow:12px 0 40px rgba(0,0,0,.35)}
+  html.vx-open .vx-top{padding-bottom:10px}
+  html.vx-open .vx-nav{display:block}
+  html.vx-open .vx-today{display:block;padding-top:6px}
+  html.vx-open .vx-ext{display:flex}
+  html.vx-open .vx-foot{display:flex}
+  html.vx-open .vx-burger .vx-i-open,html.vx-open .vx-burger-dot{display:none}
+  html.vx-open .vx-burger .vx-i-close{display:block}
+  html.vx-open .vx-backdrop{display:block;position:fixed;inset:0;background:rgba(11,11,15,.5);z-index:55}
+  .vx-nav a{padding:10px 10px;font-size:15px}
   html body .page-master{padding:18px 16px 32px}
-  html body .back-master,html body .breadcrumbs-master,html body .footer-inner{padding:0 16px}
+  html body .breadcrumbs-master,html body .footer-inner{padding:0 16px}
 }
 
 /* ---------- dashboard (v3.0.568): Vyžaduje pozornost / Poslední objednávky / Vydání / Rychlé akce ---------- */
