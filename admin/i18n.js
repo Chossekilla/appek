@@ -59,26 +59,46 @@ window.loadI18nForLang = async function(code) {
   }
 };
 
-// 🆕 v3.0.591 — reload se zachovanou pozicí (přepnutí jazyka nesmí „skočit nahoru"); admin scrolluje <body>
+// 🆕 v3.0.591 — reload se zachovanou STRÁNKOU i pozicí (přepnutí jazyka nesmí „skočit" jinam/nahoru).
+//   Aplikace nemá hash router → stránku (state.current + záložka Nastavení) si pamatujeme v sessionStorage.
+//   Admin scrolluje <body>.
 window.appekReloadKeepScroll = function() {
   try {
     const y = document.body.scrollTop || (document.scrollingElement || document.documentElement).scrollTop || 0;
-    sessionStorage.setItem('appek_scroll_restore', JSON.stringify({ h: location.hash, y: y, t: Date.now() }));
+    const page = (typeof state !== 'undefined' && state) ? state.current : null;
+    const tab  = (typeof state !== 'undefined' && state) ? (state._nastaveniTab || null) : null;
+    sessionStorage.setItem('appek_scroll_restore', JSON.stringify({ page: page, tab: tab, y: y, t: Date.now() }));
   } catch (e) {}
   location.reload();
 };
-(function appekRestoreScrollAfterReload() {
+(function appekRestoreAfterReload() {
   let s = null;
   try { s = JSON.parse(sessionStorage.getItem('appek_scroll_restore') || 'null'); sessionStorage.removeItem('appek_scroll_restore'); } catch (e) {}
-  if (!s || !s.y || s.h !== location.hash || Date.now() - s.t > 15000) return;
-  // obsah SPA se dokresluje async → zkoušej, dokud stránka není dost vysoká (max ~4 s)
-  let tries = 0;
-  const tick = () => {
-    const se = document.scrollingElement || document.documentElement;
-    if (document.body && document.body.scrollHeight >= s.y + 200) { document.body.scrollTop = s.y; se.scrollTop = s.y; }
-    if (++tries < 20 && Math.abs((document.body ? document.body.scrollTop : 0) - s.y) > 4) setTimeout(tick, 200);
+  if (!s || Date.now() - s.t > 20000) return;
+  const setY = () => {
+    if (!s.y) return;
+    let tries = 0;
+    const tick = () => {
+      const se = document.scrollingElement || document.documentElement;
+      if (document.body.scrollHeight >= s.y + 200) { document.body.scrollTop = s.y; se.scrollTop = s.y; }
+      if (++tries < 20 && Math.abs(document.body.scrollTop - s.y) > 4) setTimeout(tick, 200);
+    };
+    setTimeout(tick, 150);
   };
-  setTimeout(tick, 150);
+  // počkej, až aplikace nastartuje (přihlášený admin + první stránka vykreslená), pak otevři původní stránku
+  let waited = 0;
+  const boot = () => {
+    const ready = typeof navigate === 'function' && typeof state !== 'undefined' && state && state.admin
+      && document.getElementById('content') && document.getElementById('content').childElementCount > 0;
+    if (!ready) { if ((waited += 150) < 10000) setTimeout(boot, 150); return; }
+    if (s.page && state.current !== s.page) {
+      if (s.tab) state._nastaveniTab = s.tab;
+      Promise.resolve(navigate(s.page)).then(setY, setY);
+    } else {
+      setY();
+    }
+  };
+  setTimeout(boot, 150);
 })();
 
 window.setAppekLang = async function(code) {
