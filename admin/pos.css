@@ -3471,3 +3471,25 @@ html, body {
   .pos-app .pos-actions .pos-icon { flex: 0 0 40px !important; width: 40px !important; height: 40px !important; min-height: 0 !important; padding: 0 !important; }
   .pos-app .pos-actions .pos-finish { flex: 1 1 auto !important; height: 40px !important; min-height: 0 !important; font-size: 15px !important; grid-column: auto !important; }
 }
+
+/* =========================================================================
+   📱 v3.0.577 — MOBIL (na výšku i na šířku): v košíku jen HOTOVĚ + KARTA velké,
+   ostatní platby („Jiné ▾", další physical metody) + typ (Sebou/Vyzvednutí/Rozvoz/
+   Na místě) schované pod „⋯ Další ▾". Vybraný typ platí dál i schovaný.
+   ========================================================================= */
+.pos-more-toggle { display: none; }
+@media (max-width: 768px), (orientation: landscape) and (max-height: 520px) {
+  .pos-app .pos-payment-bar { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; padding: 8px 10px 4px !important; }
+  .pos-app .pos-payment-bar .pos-pay-btn[data-pay="hotove"],
+  .pos-app .pos-payment-bar .pos-pay-btn[data-pay="karta"] { min-height: 54px !important; font-size: 17px !important; font-weight: 800 !important; border-radius: 12px !important; }
+  /* sbaleno: vše kromě hotově/karta pryč */
+  body:not(.pos-more-open) .pos-app .pos-payment-bar .pos-pay-btn:not([data-pay="hotove"]):not([data-pay="karta"]),
+  .pos-app:not(.pos-more-open) .pos-payment-bar .pos-pay-btn:not([data-pay="hotove"]):not([data-pay="karta"]) { display: none !important; }
+  body:not(.pos-more-open) .pos-app .pos-type-bar,
+  .pos-app:not(.pos-more-open) .pos-type-bar { display: none !important; }
+  /* rozbaleno: ostatní metody přes celou šířku pod sebou v mřížce */
+  .pos-app.pos-more-open .pos-payment-bar .pos-pay-btn:not([data-pay="hotove"]):not([data-pay="karta"]) { min-height: 42px !important; }
+  .pos-more-toggle { display: flex !important; align-items: center; justify-content: center; gap: 6px; width: calc(100% - 20px); margin: 0 10px 6px; padding: 6px 10px; border: 1px dashed var(--pos-border, #D7D7DD); border-radius: 10px; background: transparent; color: var(--pos-text-2, #6B7280); font: 600 13px/1.2 inherit; cursor: pointer; }
+  .pos-more-toggle .pos-more-arrow { transition: transform .2s ease; display: inline-block; }
+  .pos-app.pos-more-open .pos-more-toggle .pos-more-arrow { transform: rotate(180deg); }
+}

@@ -499,6 +499,11 @@ $csrfToken  = csrf_token();
       <button class="pos-pay-btn is-active" data-pay="hotove" onclick="POS.setPay('hotove')">💵 Hotově</button>
       <button class="pos-pay-btn"           data-pay="karta"  onclick="POS.setPay('karta')">💳 Kartou</button>
     </div>
+    <!-- 🆕 v3.0.577 — mobil: jen Hotově + Karta velké, ostatní platby + typ (Sebou/Rozvoz…) pod „Další" -->
+    <button type="button" class="pos-more-toggle" aria-expanded="false"
+            onclick="document.body.classList.toggle('pos-more-open');this.setAttribute('aria-expanded',document.body.classList.contains('pos-more-open'))">
+      <span class="pos-more-txt">⋯ Další</span><span class="pos-more-arrow">▾</span>
+    </button>
 
     <div class="pos-type-bar">
       <button class="pos-type-btn is-active" data-typ="sebou"      onclick="POS.setTyp('sebou')">🛍️ Sebou</button>
