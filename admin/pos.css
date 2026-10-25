@@ -3334,36 +3334,37 @@ html, body {
 
 /* =========================================================================
    📱 v3.0.573 — iPhone (≤600px): VÍC MÍSTA PRO PRODUKTY (cíl 3×3 na iPhonu 15)
-   - kategorie ve 2 řadách (dřív 3): kompaktní dlaždice; pořadí po řádcích,
+   - kategorie ve 2 řadách (dřív 3): kompaktní dlaždice min. 68 px; pořadí po řádcích, co se nevejde → scroll do strany;
      sloupců = ceil(počet/2) přes :has() (fallback bez :has = column-flow, pořád 2 řady)
    - „Volná položka" + „Voucher" jen jako ikony v JEDNOM řádku s vyhledáváním
    Na konci souboru schválně: přebíjí starší vrstvy (v2.9.x/v3.0.495) pořadím i specifičností.
    ========================================================================= */
 @media (max-width:600px){
-  .pos-products .pos-cats-bar{display:grid!important;grid-template-rows:repeat(2,auto)!important;grid-auto-flow:column!important;grid-auto-columns:minmax(0,1fr)!important;grid-template-columns:none!important;gap:5px!important;padding:6px 8px!important;overflow:visible!important;flex-wrap:nowrap!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(2)):not(:has(> .pos-cat:nth-child(3))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(1,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(3)):not(:has(> .pos-cat:nth-child(4))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(4)):not(:has(> .pos-cat:nth-child(5))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(5)):not(:has(> .pos-cat:nth-child(6))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(6)):not(:has(> .pos-cat:nth-child(7))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(7)):not(:has(> .pos-cat:nth-child(8))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(4,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(8)):not(:has(> .pos-cat:nth-child(9))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(4,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(9)):not(:has(> .pos-cat:nth-child(10))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(5,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(10)):not(:has(> .pos-cat:nth-child(11))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(5,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(11)):not(:has(> .pos-cat:nth-child(12))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(6,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(12)):not(:has(> .pos-cat:nth-child(13))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(6,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(13)):not(:has(> .pos-cat:nth-child(14))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(7,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(14)):not(:has(> .pos-cat:nth-child(15))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(7,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(15)):not(:has(> .pos-cat:nth-child(16))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(8,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(16)):not(:has(> .pos-cat:nth-child(17))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(8,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(17)):not(:has(> .pos-cat:nth-child(18))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(9,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(18)):not(:has(> .pos-cat:nth-child(19))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(9,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(19)):not(:has(> .pos-cat:nth-child(20))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(10,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(20)):not(:has(> .pos-cat:nth-child(21))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(10,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(21)):not(:has(> .pos-cat:nth-child(22))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(11,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(22)):not(:has(> .pos-cat:nth-child(23))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(11,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(23)):not(:has(> .pos-cat:nth-child(24))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(12,minmax(0,1fr))!important}
-  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(24)):not(:has(> .pos-cat:nth-child(25))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(12,minmax(0,1fr))!important}
+  .pos-products .pos-cats-bar{display:grid!important;grid-template-rows:repeat(2,auto)!important;grid-auto-flow:column!important;grid-auto-columns:minmax(68px,1fr)!important;grid-template-columns:none!important;gap:5px!important;padding:6px 8px!important;overflow-x:auto!important;overflow-y:hidden!important;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain;flex-wrap:nowrap!important}
+  .pos-products .pos-cats-bar::-webkit-scrollbar{display:none}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(2)):not(:has(> .pos-cat:nth-child(3))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(1,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(3)):not(:has(> .pos-cat:nth-child(4))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(2,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(4)):not(:has(> .pos-cat:nth-child(5))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(2,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(5)):not(:has(> .pos-cat:nth-child(6))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(3,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(6)):not(:has(> .pos-cat:nth-child(7))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(3,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(7)):not(:has(> .pos-cat:nth-child(8))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(4,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(8)):not(:has(> .pos-cat:nth-child(9))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(4,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(9)):not(:has(> .pos-cat:nth-child(10))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(5,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(10)):not(:has(> .pos-cat:nth-child(11))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(5,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(11)):not(:has(> .pos-cat:nth-child(12))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(6,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(12)):not(:has(> .pos-cat:nth-child(13))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(6,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(13)):not(:has(> .pos-cat:nth-child(14))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(7,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(14)):not(:has(> .pos-cat:nth-child(15))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(7,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(15)):not(:has(> .pos-cat:nth-child(16))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(8,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(16)):not(:has(> .pos-cat:nth-child(17))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(8,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(17)):not(:has(> .pos-cat:nth-child(18))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(9,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(18)):not(:has(> .pos-cat:nth-child(19))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(9,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(19)):not(:has(> .pos-cat:nth-child(20))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(10,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(20)):not(:has(> .pos-cat:nth-child(21))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(10,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(21)):not(:has(> .pos-cat:nth-child(22))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(11,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(22)):not(:has(> .pos-cat:nth-child(23))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(11,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(23)):not(:has(> .pos-cat:nth-child(24))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(12,minmax(68px,1fr))!important}
+  .pos-products .pos-cats-bar:has(> .pos-cat:nth-child(24)):not(:has(> .pos-cat:nth-child(25))){grid-auto-flow:row!important;grid-template-rows:none!important;grid-template-columns:repeat(12,minmax(68px,1fr))!important}
   .pos-products .pos-cats-bar .pos-cat{width:auto!important;min-width:0!important;height:50px!important;min-height:0!important;padding:3px 2px!important;border-radius:10px!important;gap:0!important;margin:0!important}
   .pos-products .pos-cat .pos-cat-icon,.pos-products .pos-cat .pos-cat-img{font-size:19px!important;width:22px!important;height:22px!important;line-height:22px!important;margin:0!important}
   .pos-products .pos-cat .pos-cat-name{font-size:9.5px!important;line-height:1.15!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
