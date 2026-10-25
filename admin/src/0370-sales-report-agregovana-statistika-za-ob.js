@@ -4,8 +4,8 @@
 async function renderSalesReport() {
   const c = document.getElementById('content');
   const dnes = new Date();
-  const prvniMesice = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toISOString().split('T')[0];
-  const dnesStr = dnes.toISOString().split('T')[0];
+  const prvniMesice = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toYMD();
+  const dnesStr = dnes.toYMD();
   const od = state._salesOd || prvniMesice;
   const dotxt = state._salesDo || dnesStr;
   state._salesOd = od; state._salesDo = dotxt;
@@ -137,20 +137,20 @@ window.salesPredchoziMesic = function() {
   const od = new Date(state._salesOd);
   od.setMonth(od.getMonth() - 1, 1);
   const doD = new Date(od.getFullYear(), od.getMonth() + 1, 0);
-  state._salesOd = od.toISOString().split('T')[0];
-  state._salesDo = doD.toISOString().split('T')[0];
+  state._salesOd = od.toYMD();
+  state._salesDo = doD.toYMD();
   renderSalesReport();
 };
 window.salesTentoMesic = function() {
   const d = new Date();
-  state._salesOd = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-  state._salesDo = new Date().toISOString().split('T')[0];
+  state._salesOd = new Date(d.getFullYear(), d.getMonth(), 1).toYMD();
+  state._salesDo = new Date().toYMD();
   renderSalesReport();
 };
 window.salesTentoRok = function() {
   const d = new Date();
-  state._salesOd = new Date(d.getFullYear(), 0, 1).toISOString().split('T')[0];
-  state._salesDo = new Date().toISOString().split('T')[0];
+  state._salesOd = new Date(d.getFullYear(), 0, 1).toYMD();
+  state._salesDo = new Date().toYMD();
   renderSalesReport();
 };
 window.salesPrint = function() {

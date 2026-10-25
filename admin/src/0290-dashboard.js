@@ -901,7 +901,7 @@ async function loadProvozWidget() {
     safeFetch('admin_tables.php?action=capacity'),
     safeFetch('admin_kitchen.php'),
     safeFetch('admin_couriers.php'),
-    safeFetch('admin_pos.php?action=quick_history&date=' + new Date().toISOString().slice(0, 10)),
+    safeFetch('admin_pos.php?action=quick_history&date=' + new Date().toYMD()),
   ]);
 
   // Vyhodnocení dat (s fallbacky pro chyby)

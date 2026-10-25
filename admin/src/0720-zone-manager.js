@@ -104,7 +104,7 @@ function renderRestaurantTimeline(stoly, datum, openUcty, dayHours) {
 
   // 🆕 v3.0.19 — Aktuální čas marker pozice
   const now = new Date();
-  const nowDateStr = now.toISOString().slice(0, 10);
+  const nowDateStr = now.toYMD();
   const isToday = nowDateStr === datum;
   let nowLeftPx = null;
   if (isToday) {
@@ -659,7 +659,7 @@ window.editRestaurantTable = async function(id) {
 };
 
 window.rezervovatStul = async function(stulId, nazev) {
-  const today = state._rtDate || new Date().toISOString().slice(0,10);
+  const today = state._rtDate || new Date().toYMD();
   openModal(`📅 Rezervace stolu „${nazev}"`, `
     <div class="form-grid form-grid-tight">
       <div><label class="form-label">Datum</label>

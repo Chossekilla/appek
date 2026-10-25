@@ -30,7 +30,7 @@ window.otevritNovouObjednavku = async function() {
 function vykreslitNovouObjednavku() {
   const s = noState;
   const _zitra = new Date(); _zitra.setDate(_zitra.getDate() + 1);
-  const tomorrow = _zitra.toISOString().split('T')[0];
+  const tomorrow = _zitra.toYMD();
   if (!s.datum_dodani) s.datum_dodani = tomorrow;
 
   const odberatelSelected = s.odberatel_id && s.odberatel;

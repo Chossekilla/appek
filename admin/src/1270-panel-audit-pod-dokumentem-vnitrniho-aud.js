@@ -75,7 +75,7 @@ function renderHaccpAudityPanel() {
 window.haccpAuditPridat = function(rok) {
   haccpAuditOtevritModal({
     rok,
-    datum: new Date().toISOString().slice(0, 10),
+    datum: new Date().toYMD(),
     auditor: 'Hana Mašková',
     vysledek: 'v_poradku',
     napravna_opatreni: '',

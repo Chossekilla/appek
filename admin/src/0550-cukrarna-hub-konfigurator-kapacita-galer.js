@@ -195,7 +195,7 @@ window.cakeStandLoan = async function(id, kod) {
     odberatele = r.odberatele || r || [];
   } catch (e) {}
   const today = new Date();
-  const plus7 = new Date(today.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  const plus7 = new Date(today.getTime() + 7 * 86400000).toYMD();
 
   openModal(`📤 Půjčit stojan ${kod}`, `
     <div class="form-grid form-grid-tight">
@@ -554,7 +554,7 @@ async function renderCakeCapacity() {
   catch (e) { body.innerHTML = `<div class="alert err">${esc(e.message)}</div>`; return; }
 
   const dayNames = ['', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toYMD();
 
   body.innerHTML = `
     <div class="card-block" style="margin-bottom:14px">
@@ -824,7 +824,7 @@ window.cakeCreateOrder = async function(quote) {
 
   const today = new Date();
   const minDate = new Date(today.getTime() + (quote.doba_pripravy_dni || 2) * 86400000);
-  const minDateStr = minDate.toISOString().slice(0, 10);
+  const minDateStr = minDate.toYMD();
 
   openModal('🎂 Vytvořit objednávku dortu', `
     <div style="background:#FFF8E5;border-left:3px solid #BA7517;padding:12px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#854F0B">

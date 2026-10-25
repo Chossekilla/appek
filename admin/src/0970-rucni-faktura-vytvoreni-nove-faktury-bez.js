@@ -49,9 +49,9 @@ window.rfVystavitZVyberu = function(sel) {
 
 function vykreslitRucniFakturu() {
   const s = rucniFakturaState;
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toYMD();
   const _zitra = new Date(); _zitra.setDate(_zitra.getDate() + 1);
-  const tomorrow = _zitra.toISOString().split('T')[0];
+  const tomorrow = _zitra.toYMD();
 
   // Sazby DPH
   const sazbyOptions = `
@@ -288,7 +288,7 @@ window.rfPrepocitatSplatnost = function() {
   const d = new Date(dv.value);
   if (isNaN(d)) return;
   d.setDate(d.getDate() + splDni);
-  const novy = d.toISOString().slice(0, 10);
+  const novy = d.toYMD();
   s.datum_splatnosti = novy;
   const sp = document.getElementById('rf-datum-spl');
   if (sp) sp.value = novy;
@@ -312,11 +312,11 @@ window.rfVybratOdberatele = async function(id) {
     // (z aktuální hodnoty datum_vystaveni v inputu, fallback dnes)
     const splDni = parseInt(data.splatnost_dni) || 14;
     const dvInput = document.getElementById('rf-datum-vyst');
-    const dvStr = (dvInput && dvInput.value) ? dvInput.value : new Date().toISOString().slice(0, 10);
+    const dvStr = (dvInput && dvInput.value) ? dvInput.value : new Date().toYMD();
     const dv = new Date(dvStr);
     if (!isNaN(dv)) {
       dv.setDate(dv.getDate() + splDni);
-      rucniFakturaState.datum_splatnosti = dv.toISOString().slice(0, 10);
+      rucniFakturaState.datum_splatnosti = dv.toYMD();
     }
     // Načti pobočky
     rucniFakturaState.pobocky = await api(`admin_pobocky.php?odberatel_id=${id}`);

@@ -88,7 +88,7 @@ window.faBulkExportIsdoc = async function() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `faktury_isdoc_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.zip`;
+    a.download = `faktury_isdoc_${new Date().toYMD().replace(/-/g, '')}.zip`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -99,8 +99,8 @@ window.faBulkExportIsdoc = async function() {
 
 window.otevritExportFaktur = async function() {
   const dnes = new Date();
-  const od = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toISOString().slice(0, 10);
-  const dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const od = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toYMD();
+  const dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toYMD();
 
   // Načti uložený email (z nastavení)
   let savedEmail = '';

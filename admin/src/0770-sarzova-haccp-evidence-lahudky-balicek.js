@@ -97,7 +97,7 @@ async function renderBatches() {
 
 window.batchEdit = async function(id) {
   let b = { id:0, sarze_kod:'', vyrobek_nazev:'', mnozstvi:0, jednotka:'ks',
-            datum_vyroby:new Date().toISOString().slice(0,10), cas_vyroby:'',
+            datum_vyroby:new Date().toYMD(), cas_vyroby:'',
             dmt:'', teplota_min:'', teplota_max:'', sklad_misto:'', operator:'',
             stav:'sklad', poznamka:'' };
   if (id) {
@@ -110,7 +110,7 @@ window.batchEdit = async function(id) {
   } else {
     // default DMT: +3 dny pro lahůdky
     const d = new Date(); d.setDate(d.getDate() + 3);
-    b.dmt = d.toISOString().slice(0,10);
+    b.dmt = d.toYMD();
   }
   openModal(id ? `✏️ Šarže ${esc(b.sarze_kod)}` : '+ Nová šarže', `
     <div class="form-grid form-grid-tight">

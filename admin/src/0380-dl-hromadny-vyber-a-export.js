@@ -260,7 +260,7 @@ window.dlBulkExportCsvZip = async function() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `DL_csv_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.zip`;
+    a.download = `DL_csv_${new Date().toYMD().replace(/-/g, '')}.zip`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
     dlClearSelection();
@@ -269,8 +269,8 @@ window.dlBulkExportCsvZip = async function() {
 
 window.otevritExportDl = function() {
   const dnes = new Date();
-  const od = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toISOString().slice(0, 10);
-  const dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const od = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toYMD();
+  const dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toYMD();
   openModal('📤 Export dodacích listů', `
     <p style="font-size:14px;color:var(--text-2);margin-bottom:16px">
       Export do <strong>CSV</strong> — formát čitelný v Excelu, importovatelný do Money S3, Pohoda i jiných systémů.
@@ -389,7 +389,7 @@ async function _stahniSoubor(url, format) {
     // Pokus se zjistit filename z Content-Disposition hlavičky
     const cd = res.headers.get('content-disposition') || '';
     const m = cd.match(/filename="?([^";]+)"?/);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toYMD();
     const filename = (m && m[1])
       ? m[1]
       : `vyrobky-${today}.${format === 'heureka' || format === 'zbozi' ? 'xml' : (format === 'json' ? 'json' : format)}`;

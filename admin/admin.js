@@ -6,6 +6,12 @@
  *    Viz admin/src/README.md.
  */
 
+// 🕛 v3.0.568 — LOKÁLNÍ datum RRRR-MM-DD. Dřív toISOString().slice(0,10) = UTC →
+//   v ČR mezi půlnocí a 1:00/2:00 vyšel VČEREJŠEK (výroba/filtry/formuláře na špatný den).
+if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { configurable: true, writable: true, value: function () {
+  return this.getFullYear() + '-' + String(this.getMonth() + 1).padStart(2, '0') + '-' + String(this.getDate()).padStart(2, '0');
+} });
+
 // 🆕 v2.0.83 — SELF-HEALING STALE CODE DETECTION
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.
@@ -1262,7 +1268,7 @@ window.deleteNotif = async function(id) {
 async function triggerLicenseHeartbeatIfDue() {
   try {
     const HB_KEY = 'appek_heartbeat_last_date';
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const today = new Date().toYMD(); // YYYY-MM-DD
     const lastDate = localStorage.getItem(HB_KEY);
     // Pokud už dnes proběhl, jen zkontroluj cached pirate flag (file → JS doesn't see; check via API)
     if (lastDate === today) {
@@ -3657,7 +3663,7 @@ window.applyLocaleDefaults = async function(lang, force = false) {
               body: JSON.stringify({
                 nazev: s.nazev,
                 sazba: s.sazba,
-                platne_od: new Date().toISOString().split('T')[0],
+                platne_od: new Date().toYMD(),
               }),
             });
           } catch (e) { /* duplicate je OK */ }
@@ -5607,7 +5613,7 @@ async function loadProvozWidget() {
     safeFetch('admin_tables.php?action=capacity'),
     safeFetch('admin_kitchen.php'),
     safeFetch('admin_couriers.php'),
-    safeFetch('admin_pos.php?action=quick_history&date=' + new Date().toISOString().slice(0, 10)),
+    safeFetch('admin_pos.php?action=quick_history&date=' + new Date().toYMD()),
   ]);
 
   // Vyhodnocení dat (s fallbacky pro chyby)
@@ -6125,7 +6131,7 @@ async function renderVouchers() {
         <div id="vch-pct-wrap" style="display:none"><label class="form-label" style="font-size:12px">Sleva (%)</label><input class="form-input" id="vch-pct" type="number" min="1" max="100" step="1" value="10" style="width:90px"></div>
         <div id="vch-max-wrap" style="display:none"><label class="form-label" style="font-size:12px">Max sleva (Kč, volit.)</label><input class="form-input" id="vch-max" type="number" min="0" step="1" placeholder="bez stropu" style="width:120px"></div>
         <div id="vch-pocet-wrap"><label class="form-label" style="font-size:12px">Počet</label><input class="form-input" id="vch-pocet" type="number" min="1" max="500" value="1" style="width:80px"></div>
-        <div><label class="form-label" style="font-size:12px">Platnost do (volitelné)</label><input class="form-input" id="vch-platnost" type="date" min="${new Date().toISOString().slice(0,10)}" style="width:160px"></div>
+        <div><label class="form-label" style="font-size:12px">Platnost do (volitelné)</label><input class="form-input" id="vch-platnost" type="date" min="${new Date().toYMD()}" style="width:160px"></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
         <div style="min-width:240px"><label class="form-label" style="font-size:12px">Pro odběratele (volitelné)</label><select class="form-input" id="vch-odberatel" style="min-width:240px" onchange="voucherOdbChange()">${odbOpts}</select></div>
@@ -7464,7 +7470,7 @@ window.otevritNovouObjednavku = async function() {
 function vykreslitNovouObjednavku() {
   const s = noState;
   const _zitra = new Date(); _zitra.setDate(_zitra.getDate() + 1);
-  const tomorrow = _zitra.toISOString().split('T')[0];
+  const tomorrow = _zitra.toYMD();
   if (!s.datum_dodani) s.datum_dodani = tomorrow;
 
   const odberatelSelected = s.odberatel_id && s.odberatel;
@@ -9103,7 +9109,7 @@ window.skdExportSel = function() {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'sklad-' + (state._currentSkladKod || 'polozky') + '-vyber-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.download = 'sklad-' + (state._currentSkladKod || 'polozky') + '-vyber-' + new Date().toYMD() + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   if (typeof toast === 'function') toast('✓ Export ' + rows.length + ' položek', 'success');
@@ -9591,7 +9597,7 @@ window.setVyrobaMode = function(mode) {
 async function renderVyrobaAuto() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const datum = state._vyrobaDatum || tomorrow.toISOString().split('T')[0];
+  const datum = state._vyrobaDatum || tomorrow.toYMD();
   await renderVyrobaAutoForDate(datum);
 }
 
@@ -9599,7 +9605,7 @@ async function renderVyrobaAuto() {
 function _vyDatumOffset(days) {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  return d.toYMD();
 }
 
 window.renderVyrobaAutoForDate = async function(datum) {
@@ -10044,7 +10050,7 @@ async function loadVyrobaKalendar(rok, mesic) {
   // JS day: 0=Ne, 1=Po, …; my chceme Po=0
   const startDay = (firstOfMonth.getDay() + 6) % 7;
   const daysInMonth = new Date(rok, mesic, 0).getDate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toYMD();
   const selected = state._vyrobaDatum;
 
   const cells = [];
@@ -10173,11 +10179,11 @@ window.otevritNovyVyrobniList = async function() {
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#854F0B;margin-bottom:10px;font-weight:600">📅 Termíny</div>
         <label style="display:block;margin-bottom:8px">
           <span style="font-size:12px;color:var(--text-2);display:block;margin-bottom:4px">Datum dodání *</span>
-          <input type="date" class="input" id="vl-datum" value="${tomorrow.toISOString().split('T')[0]}" style="width:100%">
+          <input type="date" class="input" id="vl-datum" value="${tomorrow.toYMD()}" style="width:100%">
         </label>
         <label style="display:block">
           <span style="font-size:12px;color:var(--text-2);display:block;margin-bottom:4px">Datum výroby</span>
-          <input type="date" class="input" id="vl-vyroba" value="${new Date().toISOString().split('T')[0]}" style="width:100%">
+          <input type="date" class="input" id="vl-vyroba" value="${new Date().toYMD()}" style="width:100%">
         </label>
       </div>
       <div style="background:#EFF6FF;border:1px solid #B5D4F4;border-radius:8px;padding:14px">
@@ -10318,8 +10324,8 @@ window.smazatVyrobniList = async function(id) {
 // =============================================================
 async function renderRozvozy() {
   const c = document.getElementById('content');
-  const dnes = new Date().toISOString().split('T')[0];
-  const zitra = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const dnes = new Date().toYMD();
+  const zitra = new Date(Date.now() + 86400000).toYMD();
   const datum = state._rozvozyDatum || zitra;
   state._rozvozyDatum = datum;
 
@@ -10422,7 +10428,7 @@ window.rozvozSetDatum = function(d) {
 };
 
 window.rozvozTisk = function() {
-  const datum = state._rozvozyDatum || new Date().toISOString().split('T')[0];
+  const datum = state._rozvozyDatum || new Date().toYMD();
   window.open(`../api/rozvoz_print.php?datum=${datum}`, '_blank');
 };
 
@@ -10509,7 +10515,7 @@ function recurringFmtFrekvence(r) {
 }
 
 window.recurringEdit = async function(id) {
-  let r = { id: null, nazev: '', odberatel_id: null, misto_dodani_id: null, frekvence: 'tydne', dny_v_tydnu: '', cas_dodani: '', polozky: [], poznamka: '', aktivni: 1, datum_zacatku: new Date().toISOString().split('T')[0], datum_konce: '' };
+  let r = { id: null, nazev: '', odberatel_id: null, misto_dodani_id: null, frekvence: 'tydne', dny_v_tydnu: '', cas_dodani: '', polozky: [], poznamka: '', aktivni: 1, datum_zacatku: new Date().toYMD(), datum_konce: '' };
   if (id) {
     try { r = await api(`admin_recurring.php?id=${id}`); }
     catch (e) { return alert('Chyba: ' + e.message); }
@@ -10571,7 +10577,7 @@ window.recurringEdit = async function(id) {
       </div>
       <div>
         <label class="form-label">Datum začátku</label>
-        <input class="form-input" id="rec-dzacatku" type="date" value="${esc(r.datum_zacatku || new Date().toISOString().split('T')[0])}">
+        <input class="form-input" id="rec-dzacatku" type="date" value="${esc(r.datum_zacatku || new Date().toYMD())}">
       </div>
       <div>
         <label class="form-label">Datum konce (volitelné)</label>
@@ -10687,8 +10693,8 @@ window.recurringSmazat = async function(id, nazev) {
 async function renderSalesReport() {
   const c = document.getElementById('content');
   const dnes = new Date();
-  const prvniMesice = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toISOString().split('T')[0];
-  const dnesStr = dnes.toISOString().split('T')[0];
+  const prvniMesice = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toYMD();
+  const dnesStr = dnes.toYMD();
   const od = state._salesOd || prvniMesice;
   const dotxt = state._salesDo || dnesStr;
   state._salesOd = od; state._salesDo = dotxt;
@@ -10820,20 +10826,20 @@ window.salesPredchoziMesic = function() {
   const od = new Date(state._salesOd);
   od.setMonth(od.getMonth() - 1, 1);
   const doD = new Date(od.getFullYear(), od.getMonth() + 1, 0);
-  state._salesOd = od.toISOString().split('T')[0];
-  state._salesDo = doD.toISOString().split('T')[0];
+  state._salesOd = od.toYMD();
+  state._salesDo = doD.toYMD();
   renderSalesReport();
 };
 window.salesTentoMesic = function() {
   const d = new Date();
-  state._salesOd = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-  state._salesDo = new Date().toISOString().split('T')[0];
+  state._salesOd = new Date(d.getFullYear(), d.getMonth(), 1).toYMD();
+  state._salesDo = new Date().toYMD();
   renderSalesReport();
 };
 window.salesTentoRok = function() {
   const d = new Date();
-  state._salesOd = new Date(d.getFullYear(), 0, 1).toISOString().split('T')[0];
-  state._salesDo = new Date().toISOString().split('T')[0];
+  state._salesOd = new Date(d.getFullYear(), 0, 1).toYMD();
+  state._salesDo = new Date().toYMD();
   renderSalesReport();
 };
 window.salesPrint = function() {
@@ -11310,7 +11316,7 @@ window.dlBulkExportCsvZip = async function() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `DL_csv_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.zip`;
+    a.download = `DL_csv_${new Date().toYMD().replace(/-/g, '')}.zip`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
     dlClearSelection();
@@ -11319,8 +11325,8 @@ window.dlBulkExportCsvZip = async function() {
 
 window.otevritExportDl = function() {
   const dnes = new Date();
-  const od = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toISOString().slice(0, 10);
-  const dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const od = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toYMD();
+  const dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toYMD();
   openModal('📤 Export dodacích listů', `
     <p style="font-size:14px;color:var(--text-2);margin-bottom:16px">
       Export do <strong>CSV</strong> — formát čitelný v Excelu, importovatelný do Money S3, Pohoda i jiných systémů.
@@ -11439,7 +11445,7 @@ async function _stahniSoubor(url, format) {
     // Pokus se zjistit filename z Content-Disposition hlavičky
     const cd = res.headers.get('content-disposition') || '';
     const m = cd.match(/filename="?([^";]+)"?/);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toYMD();
     const filename = (m && m[1])
       ? m[1]
       : `vyrobky-${today}.${format === 'heureka' || format === 'zbozi' ? 'xml' : (format === 'json' ? 'json' : format)}`;
@@ -11468,7 +11474,7 @@ async function _stahniSoubor(url, format) {
 // Sdílený helper pro Faktury + Dodací listy (jako na dashboardu)
 function periodToRange(period) {
   const dnes = new Date();
-  const f = (d) => d.toISOString().slice(0, 10);
+  const f = (d) => d.toYMD();
   const today = f(dnes);
   if (period === 'dnes') return { od: today, do: today };
   if (period === 'tyden') {
@@ -11485,7 +11491,7 @@ function periodToRange(period) {
 function rangeToPeriod(od, doDt) {
   if (!od && !doDt) return 'vse';
   const dnes = new Date();
-  const f = (d) => d.toISOString().slice(0, 10);
+  const f = (d) => d.toYMD();
   const today = f(dnes);
   const monday = new Date(dnes);
   monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
@@ -11599,7 +11605,7 @@ function _periodApply(typ, od, doDt, openCustom) {
 
 function quickPeriodChips(typ, datum_od, datum_do) {
   const dnes = new Date();
-  const fmt = (d) => d.toISOString().slice(0, 10);
+  const fmt = (d) => d.toYMD();
 
   // Sestav rozsahy
   const today = new Date(dnes);
@@ -12145,7 +12151,7 @@ window.faBulkExportIsdoc = async function() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `faktury_isdoc_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.zip`;
+    a.download = `faktury_isdoc_${new Date().toYMD().replace(/-/g, '')}.zip`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -12156,8 +12162,8 @@ window.faBulkExportIsdoc = async function() {
 
 window.otevritExportFaktur = async function() {
   const dnes = new Date();
-  const od = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toISOString().slice(0, 10);
-  const dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const od = new Date(dnes.getFullYear(), dnes.getMonth(), 1).toYMD();
+  const dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toYMD();
 
   // Načti uložený email (z nastavení)
   let savedEmail = '';
@@ -12440,7 +12446,7 @@ window.openFakturaDetail = async function(id) {
   const uhrazeno = f.castka_uhrazeno || 0;
   const zbyva = f.castka_celkem - uhrazeno;
   // Vypočtený stav úhrady (stejně jako v SQL)
-  const dnes = new Date().toISOString().slice(0, 10);
+  const dnes = new Date().toYMD();
   const stav = uhrazeno >= f.castka_celkem ? 'uhrazena'
     : (f.datum_splatnosti < dnes ? 'po_splatnosti' : 'cekajici');
 
@@ -12802,7 +12808,7 @@ window.vymSubmit = async function() {
   if (!vraceno.length && !nove.length) { toast('Vyber co vrátit a/nebo přidej nové položky', 'error'); return; }
   if (nove.length && !window._vymOdb) { toast('❌ Faktura nemá odběratele — nové položky nelze založit', 'error'); return; }
   const btn = document.getElementById('vym-submit'); if (btn) btn.disabled = true;
-  const dnes = new Date().toISOString().slice(0, 10);
+  const dnes = new Date().toYMD();
   try {
     let dobCislo = null, objCislo = null;
     // 1) Dobropis vrácených (s 409 lhůta override)
@@ -12949,7 +12955,7 @@ window.opakovatObjednavkuZFaktury = async function(id) {
       msg: `Vytvoří novou objednávku se ${polozky.length} položkami pro odběratele "${f.odberatel_nazev}".\n`
         + (skipnuto > 0 ? `(${skipnuto} volných řádků bude přeskočeno)\n` : '')
         + `\nZadejte datum dodání (RRRR-MM-DD):`,
-      value: new Date(Date.now() + 86400000).toISOString().slice(0, 10), // zítra
+      value: new Date(Date.now() + 86400000).toYMD(), // zítra
     }));
     if (!datumDodani) return;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(datumDodani)) {
@@ -15509,7 +15515,7 @@ function renderOdberatelObjednavky() {
   }
   if (period > 0) {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - period);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const cutoffStr = cutoff.toYMD();
     filtered = filtered.filter(o => (o.datum_objednani || '') >= cutoffStr);
   }
 
@@ -18987,7 +18993,7 @@ window.cakeStandLoan = async function(id, kod) {
     odberatele = r.odberatele || r || [];
   } catch (e) {}
   const today = new Date();
-  const plus7 = new Date(today.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  const plus7 = new Date(today.getTime() + 7 * 86400000).toYMD();
 
   openModal(`📤 Půjčit stojan ${kod}`, `
     <div class="form-grid form-grid-tight">
@@ -19346,7 +19352,7 @@ async function renderCakeCapacity() {
   catch (e) { body.innerHTML = `<div class="alert err">${esc(e.message)}</div>`; return; }
 
   const dayNames = ['', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toYMD();
 
   body.innerHTML = `
     <div class="card-block" style="margin-bottom:14px">
@@ -19616,7 +19622,7 @@ window.cakeCreateOrder = async function(quote) {
 
   const today = new Date();
   const minDate = new Date(today.getTime() + (quote.doba_pripravy_dni || 2) * 86400000);
-  const minDateStr = minDate.toISOString().slice(0, 10);
+  const minDateStr = minDate.toYMD();
 
   openModal('🎂 Vytvořit objednávku dortu', `
     <div style="background:#FFF8E5;border-left:3px solid #BA7517;padding:12px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#854F0B">
@@ -19966,7 +19972,7 @@ window.cateringCreateOrder = async function(quote) {
   const odberatele = Array.isArray(odb) ? odb : (odb.odberatele || odb.data || []);
   if (odberatele.length === 0) { alert('Nejsou žádní odběratelé. Vytvoř nejdřív odběratele.'); return; }
 
-  const minDate = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+  const minDate = new Date(Date.now() + 2 * 86400000).toYMD();
   const odecitanych = (quote.kalkulace && quote.kalkulace.polozek_se_skladem) || 0;
   openModal('🥗 Vytvořit catering objednávku', `
     <div style="background:#DCFCE7;border-left:3px solid #166534;padding:12px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#14532D">
@@ -20559,7 +20565,7 @@ window.openFloorplanWindow = function() {
 
 async function renderRestaurantTables() {
   const c = document.getElementById('rest-tab-body') || document.getElementById('content');
-  const today = state._rtDate || new Date().toISOString().slice(0, 10);
+  const today = state._rtDate || new Date().toYMD();
   state._rtDate = today;
   const tab = state._rtTab || 'map';
   c.innerHTML = `
@@ -20663,7 +20669,7 @@ async function renderRestaurantTables() {
       ? (denDnes.zavreno == 1 ? '🔒 Zavřeno' : `${String(denDnes.otevreno_od).slice(0,5)}–${String(denDnes.otevreno_do).slice(0,5)}`)
       : '';
     // 🆕 v3.0.311 — rychlý filtr dne rezervací (dnes/zítra/pozítří + date picker) u otevírací doby
-    const _qd = (off) => { const d = new Date(); d.setDate(d.getDate() + off); return d.toISOString().slice(0, 10); };
+    const _qd = (off) => { const d = new Date(); d.setDate(d.getDate() + off); return d.toYMD(); };
     const segSwitch = `
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;justify-content:space-between">
         <div style="display:flex;gap:6px;padding:4px;background:var(--surface-2);border-radius:10px;width:fit-content">
@@ -20866,7 +20872,7 @@ window.tmAdd = function(den) {
 window.tmDel = function(den, i) { state._tm.dny[den].splice(i, 1); tmRenderBody(); };
 window.tmPozn = function(den, i, val) { state._tm.dny[den][i].pozn = val; };
 window.tmSetWeek = function(date) {
-  const monday = (() => { const t = new Date(date); const day = (t.getDay() + 6) % 7; t.setDate(t.getDate() - day); return t.toISOString().slice(0, 10); })();
+  const monday = (() => { const t = new Date(date); const day = (t.getDay() + 6) % 7; t.setDate(t.getDate() - day); return t.toYMD(); })();
   const ex = (state._tmData.weeks || []).find(w => w.tyden_od === monday);
   state._tm = ex
     ? { id: ex.id, tyden_od: ex.tyden_od, poznamka: ex.poznamka || '', styl: ex.styl || 'restaurace', layout: ex.layout || 'karta', custom_text: ex.custom_text || '', dny: JSON.parse(JSON.stringify(ex.dny)) }
@@ -22947,7 +22953,7 @@ function renderRestaurantTimeline(stoly, datum, openUcty, dayHours) {
 
   // 🆕 v3.0.19 — Aktuální čas marker pozice
   const now = new Date();
-  const nowDateStr = now.toISOString().slice(0, 10);
+  const nowDateStr = now.toYMD();
   const isToday = nowDateStr === datum;
   let nowLeftPx = null;
   if (isToday) {
@@ -23502,7 +23508,7 @@ window.editRestaurantTable = async function(id) {
 };
 
 window.rezervovatStul = async function(stulId, nazev) {
-  const today = state._rtDate || new Date().toISOString().slice(0,10);
+  const today = state._rtDate || new Date().toYMD();
   openModal(`📅 Rezervace stolu „${nazev}"`, `
     <div class="form-grid form-grid-tight">
       <div><label class="form-label">Datum</label>
@@ -24801,7 +24807,7 @@ async function renderBatches() {
 
 window.batchEdit = async function(id) {
   let b = { id:0, sarze_kod:'', vyrobek_nazev:'', mnozstvi:0, jednotka:'ks',
-            datum_vyroby:new Date().toISOString().slice(0,10), cas_vyroby:'',
+            datum_vyroby:new Date().toYMD(), cas_vyroby:'',
             dmt:'', teplota_min:'', teplota_max:'', sklad_misto:'', operator:'',
             stav:'sklad', poznamka:'' };
   if (id) {
@@ -24814,7 +24820,7 @@ window.batchEdit = async function(id) {
   } else {
     // default DMT: +3 dny pro lahůdky
     const d = new Date(); d.setDate(d.getDate() + 3);
-    b.dmt = d.toISOString().slice(0,10);
+    b.dmt = d.toYMD();
   }
   openModal(id ? `✏️ Šarže ${esc(b.sarze_kod)}` : '+ Nová šarže', `
     <div class="form-grid form-grid-tight">
@@ -26186,7 +26192,7 @@ window.cateringMarkDepositPaid = async function(id) {
   try {
     await api('admin_catering_orders.php?id=' + id, { method:'PUT', body: JSON.stringify({
       zaloha_uhrazena: 1,
-      zaloha_uhrazena_dne: new Date().toISOString().slice(0, 10),
+      zaloha_uhrazena_dne: new Date().toYMD(),
       stav: 'zaloha_uhraz',
     })});
     toastSuccess('Záloha označena jako uhrazená');
@@ -26211,7 +26217,7 @@ window.cateringMarkFinalPaid = async function(id) {
 async function renderSeasonalCatalog() {
   const c = document.getElementById('content');
   const tab = state._seasonalTab || 'calendar';
-  state._seasonalDate = state._seasonalDate || new Date().toISOString().slice(0, 10);
+  state._seasonalDate = state._seasonalDate || new Date().toYMD();
 
   c.innerHTML = `
     <div class="page-head">
@@ -26266,7 +26272,7 @@ async function renderSeasonalCatalog() {
 async function renderSeasonalCalendar() {
   const body = document.getElementById('seasonal-body');
   if (!body) return;
-  const selectedDate = state._seasonalDate || new Date().toISOString().slice(0, 10);
+  const selectedDate = state._seasonalDate || new Date().toYMD();
 
   let data;
   try { data = await api('admin_seasonal.php?date=' + selectedDate); }
@@ -26331,9 +26337,9 @@ async function renderSeasonalCalendar() {
           ${selectedDate === data.today ? '<span style="background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;margin-left:8px">DNES</span>' : ''}
         </div>
         <div style="display:flex;gap:6px">
-          <button class="btn-secondary" onclick="state._seasonalDate=new Date(state._seasonalDate || new Date()).toISOString().slice(0,10);state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() - 86400000).toISOString().slice(0,10);keepScroll(()=>renderSeasonalCalendar())">← Předchozí den</button>
+          <button class="btn-secondary" onclick="state._seasonalDate=new Date(state._seasonalDate || new Date()).toYMD();state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() - 86400000).toYMD();keepScroll(()=>renderSeasonalCalendar())">← Předchozí den</button>
           <input type="date" class="form-input" value="${selectedDate}" onchange="state._seasonalDate=this.value;keepScroll(()=>renderSeasonalCalendar())" style="width:auto">
-          <button class="btn-secondary" onclick="state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() + 86400000).toISOString().slice(0,10);keepScroll(()=>renderSeasonalCalendar())">Další den →</button>
+          <button class="btn-secondary" onclick="state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() + 86400000).toYMD();keepScroll(()=>renderSeasonalCalendar())">Další den →</button>
           <button class="btn-primary" onclick="state._seasonalDate='${data.today}';keepScroll(()=>renderSeasonalCalendar())">Dnes</button>
         </div>
       </div>
@@ -29074,7 +29080,7 @@ function renderDph(data) {
 }
 
 window.editDph = async function(id = null) {
-  let s = { sazba: '', nazev: '', platne_od: new Date().toISOString().split('T')[0] };
+  let s = { sazba: '', nazev: '', platne_od: new Date().toYMD() };
 
   if (id) {
     const data = await api('admin_sazby_dph.php');
@@ -30632,9 +30638,9 @@ window.rfVystavitZVyberu = function(sel) {
 
 function vykreslitRucniFakturu() {
   const s = rucniFakturaState;
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toYMD();
   const _zitra = new Date(); _zitra.setDate(_zitra.getDate() + 1);
-  const tomorrow = _zitra.toISOString().split('T')[0];
+  const tomorrow = _zitra.toYMD();
 
   // Sazby DPH
   const sazbyOptions = `
@@ -30871,7 +30877,7 @@ window.rfPrepocitatSplatnost = function() {
   const d = new Date(dv.value);
   if (isNaN(d)) return;
   d.setDate(d.getDate() + splDni);
-  const novy = d.toISOString().slice(0, 10);
+  const novy = d.toYMD();
   s.datum_splatnosti = novy;
   const sp = document.getElementById('rf-datum-spl');
   if (sp) sp.value = novy;
@@ -30895,11 +30901,11 @@ window.rfVybratOdberatele = async function(id) {
     // (z aktuální hodnoty datum_vystaveni v inputu, fallback dnes)
     const splDni = parseInt(data.splatnost_dni) || 14;
     const dvInput = document.getElementById('rf-datum-vyst');
-    const dvStr = (dvInput && dvInput.value) ? dvInput.value : new Date().toISOString().slice(0, 10);
+    const dvStr = (dvInput && dvInput.value) ? dvInput.value : new Date().toYMD();
     const dv = new Date(dvStr);
     if (!isNaN(dv)) {
       dv.setDate(dv.getDate() + splDni);
-      rucniFakturaState.datum_splatnosti = dv.toISOString().slice(0, 10);
+      rucniFakturaState.datum_splatnosti = dv.toYMD();
     }
     // Načti pobočky
     rucniFakturaState.pobocky = await api(`admin_pobocky.php?odberatel_id=${id}`);
@@ -31363,9 +31369,9 @@ window.otevritRucniDl = async function() {
 
 function vykreslitRucniDl() {
   const s = rdlState;
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toYMD();
   const _zitra = new Date(); _zitra.setDate(_zitra.getDate() + 1);
-  const tomorrow = _zitra.toISOString().split('T')[0];
+  const tomorrow = _zitra.toYMD();
 
   const odberatelSelected = s.odberatel_id && s.odberatel;
   const pobockyOptions = `<option value="">— bez pobočky —</option>` +
@@ -33827,7 +33833,7 @@ window.skladExportCsv = function(onlySelected) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'sklad-surovin-' + (onlySelected ? 'vybrane-' : '') + new Date().toISOString().slice(0, 10) + '.csv';
+  a.download = 'sklad-surovin-' + (onlySelected ? 'vybrane-' : '') + new Date().toYMD() + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   if (typeof toast === 'function') toast('✓ Export ' + rows.length + ' surovin', 'success');
@@ -33974,7 +33980,7 @@ window.skladTraceBack = async function(vyrobekId, datum) {
   let prods = state._vyrobky_pick_cache;
   if (!prods) { try { const r = await api('admin_vyrobky.php'); prods = Array.isArray(r) ? r : (r.polozky || r.vyrobky || r.data || []); state._vyrobky_pick_cache = prods; } catch (e) { prods = []; } }
   const opts = (prods || []).map(p => `<option value="${p.id}" ${(+p.id === +vyrobekId) ? 'selected' : ''}>${esc(p.nazev)}</option>`).join('');
-  const today = datum || new Date().toISOString().slice(0, 10);
+  const today = datum || new Date().toYMD();
   const body = `
     <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:12px;align-items:end">
       <label style="font-size:12px;font-weight:600;color:var(--text-2)">Výrobek (reklamace)
@@ -34059,8 +34065,8 @@ window._ztataSave = async function() {
 
 // 📉 v3.0.457 — REPORT ZTRÁT za období (rozpad dle důvodu + hodnota Kč).
 window.skladZtratyReport = async function() {
-  const to = new Date().toISOString().slice(0, 10);
-  const from = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+  const to = new Date().toYMD();
+  const from = new Date(Date.now() - 30 * 864e5).toYMD();
   const L = 'font-size:12px;font-weight:600;color:var(--text-2)';
   const body = `
     <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end">
@@ -34536,7 +34542,7 @@ window.exportSurovinyCsv = function() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `suroviny_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `suroviny_${new Date().toYMD()}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
   if (typeof toastSuccess === 'function') toastSuccess(`Exportováno ${sorted.length} surovin do CSV (dle kategorií)`);
@@ -37134,12 +37140,12 @@ async function renderStitky() {
   // Default datum (dnes a zítra)
   if (!s.od) {
     const d = new Date();
-    s.od = d.toISOString().split('T')[0];
+    s.od = d.toYMD();
   }
   if (!s.dto) {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    s.dto = d.toISOString().split('T')[0];
+    s.dto = d.toYMD();
   }
 
   // Načti data podle režimu
@@ -41555,7 +41561,7 @@ async function renderExportVyroby(filters = {}) {
   const dnes = new Date();
   const default_od = filters.od || state._exVyrobyOd || dnes.toISOString().slice(0, 8) + '01';
   const default_do_dt = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0);
-  const default_do = filters.do || state._exVyrobyDo || default_do_dt.toISOString().slice(0, 10);
+  const default_do = filters.do || state._exVyrobyDo || default_do_dt.toYMD();
   const obdobi = filters.obdobi || state._exVyrobyObdobi || 'mesic';
 
   state._exVyrobyOd = default_od;
@@ -41621,11 +41627,11 @@ window.exVyrobySetObdobi = function(obdobi) {
   let od, dto;
   if (obdobi === 'mesic') {
     od = dnes.toISOString().slice(0, 8) + '01';
-    dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toISOString().slice(0, 10);
+    dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toYMD();
   } else if (obdobi === 'minuly_mesic') {
     const m = new Date(dnes.getFullYear(), dnes.getMonth() - 1, 1);
-    od = m.toISOString().slice(0, 10);
-    dto = new Date(dnes.getFullYear(), dnes.getMonth(), 0).toISOString().slice(0, 10);
+    od = m.toYMD();
+    dto = new Date(dnes.getFullYear(), dnes.getMonth(), 0).toYMD();
   } else if (obdobi === 'rok') {
     od = dnes.getFullYear() + '-01-01';
     dto = dnes.getFullYear() + '-12-31';
@@ -42632,7 +42638,7 @@ function renderHaccpAudityPanel() {
 window.haccpAuditPridat = function(rok) {
   haccpAuditOtevritModal({
     rok,
-    datum: new Date().toISOString().slice(0, 10),
+    datum: new Date().toYMD(),
     auditor: 'Hana Mašková',
     vysledek: 'v_poradku',
     napravna_opatreni: '',

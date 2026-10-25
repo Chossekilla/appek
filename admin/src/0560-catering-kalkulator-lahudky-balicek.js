@@ -297,7 +297,7 @@ window.cateringCreateOrder = async function(quote) {
   const odberatele = Array.isArray(odb) ? odb : (odb.odberatele || odb.data || []);
   if (odberatele.length === 0) { alert('Nejsou žádní odběratelé. Vytvoř nejdřív odběratele.'); return; }
 
-  const minDate = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+  const minDate = new Date(Date.now() + 2 * 86400000).toYMD();
   const odecitanych = (quote.kalkulace && quote.kalkulace.polozek_se_skladem) || 0;
   openModal('🥗 Vytvořit catering objednávku', `
     <div style="background:#DCFCE7;border-left:3px solid #166534;padding:12px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#14532D">

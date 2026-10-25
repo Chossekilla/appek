@@ -652,7 +652,7 @@ function renderOdberatelObjednavky() {
   }
   if (period > 0) {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - period);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const cutoffStr = cutoff.toYMD();
     filtered = filtered.filter(o => (o.datum_objednani || '') >= cutoffStr);
   }
 

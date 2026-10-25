@@ -81,7 +81,7 @@ function recurringFmtFrekvence(r) {
 }
 
 window.recurringEdit = async function(id) {
-  let r = { id: null, nazev: '', odberatel_id: null, misto_dodani_id: null, frekvence: 'tydne', dny_v_tydnu: '', cas_dodani: '', polozky: [], poznamka: '', aktivni: 1, datum_zacatku: new Date().toISOString().split('T')[0], datum_konce: '' };
+  let r = { id: null, nazev: '', odberatel_id: null, misto_dodani_id: null, frekvence: 'tydne', dny_v_tydnu: '', cas_dodani: '', polozky: [], poznamka: '', aktivni: 1, datum_zacatku: new Date().toYMD(), datum_konce: '' };
   if (id) {
     try { r = await api(`admin_recurring.php?id=${id}`); }
     catch (e) { return alert('Chyba: ' + e.message); }
@@ -143,7 +143,7 @@ window.recurringEdit = async function(id) {
       </div>
       <div>
         <label class="form-label">Datum začátku</label>
-        <input class="form-input" id="rec-dzacatku" type="date" value="${esc(r.datum_zacatku || new Date().toISOString().split('T')[0])}">
+        <input class="form-input" id="rec-dzacatku" type="date" value="${esc(r.datum_zacatku || new Date().toYMD())}">
       </div>
       <div>
         <label class="form-label">Datum konce (volitelné)</label>

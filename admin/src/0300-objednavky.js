@@ -222,7 +222,7 @@ async function renderVouchers() {
         <div id="vch-pct-wrap" style="display:none"><label class="form-label" style="font-size:12px">Sleva (%)</label><input class="form-input" id="vch-pct" type="number" min="1" max="100" step="1" value="10" style="width:90px"></div>
         <div id="vch-max-wrap" style="display:none"><label class="form-label" style="font-size:12px">Max sleva (Kč, volit.)</label><input class="form-input" id="vch-max" type="number" min="0" step="1" placeholder="bez stropu" style="width:120px"></div>
         <div id="vch-pocet-wrap"><label class="form-label" style="font-size:12px">Počet</label><input class="form-input" id="vch-pocet" type="number" min="1" max="500" value="1" style="width:80px"></div>
-        <div><label class="form-label" style="font-size:12px">Platnost do (volitelné)</label><input class="form-input" id="vch-platnost" type="date" min="${new Date().toISOString().slice(0,10)}" style="width:160px"></div>
+        <div><label class="form-label" style="font-size:12px">Platnost do (volitelné)</label><input class="form-input" id="vch-platnost" type="date" min="${new Date().toYMD()}" style="width:160px"></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
         <div style="min-width:240px"><label class="form-label" style="font-size:12px">Pro odběratele (volitelné)</label><select class="form-input" id="vch-odberatel" style="min-width:240px" onchange="voucherOdbChange()">${odbOpts}</select></div>

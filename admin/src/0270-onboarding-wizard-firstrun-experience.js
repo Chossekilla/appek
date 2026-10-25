@@ -200,7 +200,7 @@ window.applyLocaleDefaults = async function(lang, force = false) {
               body: JSON.stringify({
                 nazev: s.nazev,
                 sazba: s.sazba,
-                platne_od: new Date().toISOString().split('T')[0],
+                platne_od: new Date().toYMD(),
               }),
             });
           } catch (e) { /* duplicate je OK */ }

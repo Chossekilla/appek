@@ -144,7 +144,7 @@ window.tmAdd = function(den) {
 window.tmDel = function(den, i) { state._tm.dny[den].splice(i, 1); tmRenderBody(); };
 window.tmPozn = function(den, i, val) { state._tm.dny[den][i].pozn = val; };
 window.tmSetWeek = function(date) {
-  const monday = (() => { const t = new Date(date); const day = (t.getDay() + 6) % 7; t.setDate(t.getDate() - day); return t.toISOString().slice(0, 10); })();
+  const monday = (() => { const t = new Date(date); const day = (t.getDay() + 6) % 7; t.setDate(t.getDate() - day); return t.toYMD(); })();
   const ex = (state._tmData.weeks || []).find(w => w.tyden_od === monday);
   state._tm = ex
     ? { id: ex.id, tyden_od: ex.tyden_od, poznamka: ex.poznamka || '', styl: ex.styl || 'restaurace', layout: ex.layout || 'karta', custom_text: ex.custom_text || '', dny: JSON.parse(JSON.stringify(ex.dny)) }

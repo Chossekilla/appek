@@ -1183,7 +1183,7 @@ window.skdExportSel = function() {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'sklad-' + (state._currentSkladKod || 'polozky') + '-vyber-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.download = 'sklad-' + (state._currentSkladKod || 'polozky') + '-vyber-' + new Date().toYMD() + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   if (typeof toast === 'function') toast('✓ Export ' + rows.length + ' položek', 'success');
@@ -1671,7 +1671,7 @@ window.setVyrobaMode = function(mode) {
 async function renderVyrobaAuto() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const datum = state._vyrobaDatum || tomorrow.toISOString().split('T')[0];
+  const datum = state._vyrobaDatum || tomorrow.toYMD();
   await renderVyrobaAutoForDate(datum);
 }
 
@@ -1679,7 +1679,7 @@ async function renderVyrobaAuto() {
 function _vyDatumOffset(days) {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  return d.toYMD();
 }
 
 window.renderVyrobaAutoForDate = async function(datum) {

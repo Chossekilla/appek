@@ -221,6 +221,20 @@ function vendor_require_login(): array {
         header('Location: index.php');
         exit;
     }
+    // 🔒 v3.0.568 — role readonly smí jen číst. Dřív existovala jen ve schématu (vendor_users.role)
+    //   a nikde se nehlídala → náhledový účet mohl měnit faktury, licence i nastavení.
+    //   Jedno centrální místo: tuhle funkci volá každá vendor stránka i api.php.
+    if (($u['role'] ?? '') === 'readonly' && in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+        http_response_code(403);
+        if (vendor_is_ajax()) {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'readonly', 'message' => 'Účet jen pro čtení — změny nejsou povolené.']);
+        } else {
+            header('Content-Type: text/html; charset=utf-8');
+            echo '<!doctype html><meta charset="utf-8"><p style="font:15px system-ui;padding:40px">🔒 Účet jen pro čtení — změny nejsou povolené. <a href="javascript:history.back()">Zpět</a></p>';
+        }
+        exit;
+    }
     return $u;
 }
 

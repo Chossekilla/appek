@@ -435,12 +435,12 @@ async function renderStitky() {
   // Default datum (dnes a zítra)
   if (!s.od) {
     const d = new Date();
-    s.od = d.toISOString().split('T')[0];
+    s.od = d.toYMD();
   }
   if (!s.dto) {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    s.dto = d.toISOString().split('T')[0];
+    s.dto = d.toYMD();
   }
 
   // Načti data podle režimu

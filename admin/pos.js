@@ -2,6 +2,12 @@
    🧾 APPEK POS — Standalone JS Core
    Vlastní logika (žádné dependencies na admin.js)
    ═════════════════════════════════════════════════════════════════ */
+
+// 🕛 v3.0.568 — LOKÁLNÍ datum RRRR-MM-DD. Dřív toISOString().slice(0,10) = UTC →
+//   v ČR mezi půlnocí a 1:00/2:00 vyšel VČEREJŠEK (výroba/filtry/formuláře na špatný den).
+if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { configurable: true, writable: true, value: function () {
+  return this.getFullYear() + '-' + String(this.getMonth() + 1).padStart(2, '0') + '-' + String(this.getDate()).padStart(2, '0');
+} });
 'use strict';
 
 // 🆕 v2.9.321 — POS error capture (předtím chyběl, admin/admin.js měl).
@@ -2110,7 +2116,7 @@
   async function renderHistory(panel, append = false) {
     if (!append) panel.innerHTML = `<div class="pos-loading" style="padding:40px;text-align:center">⏳ Načítám účtenky…</div>`;
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = new Date().toYMD();
       const date = State._historyDate || today;
       State._historyDate = date;
       // 🆕 v3.0.219 — paging Účtenek (POS = touch → „Načíst další")
@@ -2247,12 +2253,12 @@
     if (panel) renderHistory(panel);
   };
   window.posShiftDay = function(delta) {
-    const cur = State._historyDate || new Date().toISOString().slice(0, 10);
+    const cur = State._historyDate || new Date().toYMD();
     const d = new Date(cur);
     d.setDate(d.getDate() + delta);
-    const next = d.toISOString().slice(0, 10);
+    const next = d.toYMD();
     // Nepřeskoč budoucnost
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toYMD();
     if (next > today) return;
     posSetHistoryDate(next);
   };
@@ -2716,7 +2722,7 @@
   // ─── 🆕 v3.0.210 — Denní uzávěrka na stanice (obsluhu) ───────────
   const UZAV_ML = { hotovost:'💵 Hotovost', karta:'💳 Karta', qr:'📲 QR', online:'🌐 Online', poukaz:'🎟️ Poukaz', prevod:'🏦 Převod', ostatni:'➕ Ostatní' };
   async function renderUzaverka(panel) {
-    const date = State._uzavDate || new Date().toISOString().slice(0, 10);
+    const date = State._uzavDate || new Date().toYMD();
     State._uzavDate = date;
     panel.innerHTML = `
       <div class="pos-uzav">
@@ -2784,7 +2790,7 @@
   async function renderReports(panel) {
     panel.innerHTML = `<div class="pos-loading" style="padding:40px;text-align:center">⏳ Načítám statistiky…</div>`;
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = new Date().toYMD();
       const d = await api('admin_pos.php?action=quick_history&date=' + today + '&limit=200');
       const s = d.souhrn || {};
       panel.innerHTML = `

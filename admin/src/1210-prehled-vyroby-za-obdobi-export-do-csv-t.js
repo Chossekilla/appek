@@ -8,7 +8,7 @@ async function renderExportVyroby(filters = {}) {
   const dnes = new Date();
   const default_od = filters.od || state._exVyrobyOd || dnes.toISOString().slice(0, 8) + '01';
   const default_do_dt = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0);
-  const default_do = filters.do || state._exVyrobyDo || default_do_dt.toISOString().slice(0, 10);
+  const default_do = filters.do || state._exVyrobyDo || default_do_dt.toYMD();
   const obdobi = filters.obdobi || state._exVyrobyObdobi || 'mesic';
 
   state._exVyrobyOd = default_od;
@@ -74,11 +74,11 @@ window.exVyrobySetObdobi = function(obdobi) {
   let od, dto;
   if (obdobi === 'mesic') {
     od = dnes.toISOString().slice(0, 8) + '01';
-    dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toISOString().slice(0, 10);
+    dto = new Date(dnes.getFullYear(), dnes.getMonth() + 1, 0).toYMD();
   } else if (obdobi === 'minuly_mesic') {
     const m = new Date(dnes.getFullYear(), dnes.getMonth() - 1, 1);
-    od = m.toISOString().slice(0, 10);
-    dto = new Date(dnes.getFullYear(), dnes.getMonth(), 0).toISOString().slice(0, 10);
+    od = m.toYMD();
+    dto = new Date(dnes.getFullYear(), dnes.getMonth(), 0).toYMD();
   } else if (obdobi === 'rok') {
     od = dnes.getFullYear() + '-01-01';
     dto = dnes.getFullYear() + '-12-31';

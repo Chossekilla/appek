@@ -64,7 +64,9 @@ $kpi = [
     'demo_total' => 0, 'demo_today' => 0,
     'admin_users' => 0, 'b2b_users' => 0, 'vendor_users' => 0,
     'pirate_total' => 0, 'pirate_open' => 0, 'pirate_24h' => 0,
+    'failed_24h' => 0, 'outdated' => 0,
 ];
+$todoOrders = []; $todoLic = []; $recentOrders = [];
 
 if ($user) {
     try {
@@ -112,8 +114,16 @@ if ($user) {
                     try { $kpi['demo_today']  = (int) $mainPdo->query("SELECT COUNT(*) FROM demo_pristupy WHERE DATE(cas) = CURDATE()")->fetchColumn(); } catch (Throwable $e) {}
                     try { $kpi['admin_users'] = (int) $mainPdo->query("SELECT COUNT(*) FROM admin_users")->fetchColumn(); } catch (Throwable $e) {}
                     try { $kpi['b2b_users']   = (int) $mainPdo->query("SELECT COUNT(*) FROM odberatele WHERE login_email IS NOT NULL AND login_email <> ''")->fetchColumn(); } catch (Throwable $e) {}
+                    try { $kpi['failed_24h']  = (int) $mainPdo->query("SELECT COUNT(*) FROM prihlaseni_pokusy WHERE uspesny = 0 AND cas > DATE_SUB(NOW(), INTERVAL 24 HOUR)")->fetchColumn(); } catch (Throwable $e) {}
                 }
             } catch (Throwable $e) { /* DB nedostupná */ }
+        }
+        // 🆕 v3.0.568 — seznamy pro „Vyžaduje pozornost" / „Poslední objednávky" / „Vydání"
+        try { $todoOrders = $pdo->query("SELECT id, order_no, customer_name, customer_company, total_kc, payment_method, created_at FROM vendor_shop_orders WHERE payment_status='pending' ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC); } catch (Throwable $e) {}
+        try { $todoLic = $pdo->query("SELECT id, customer_name, customer_company, expires_at FROM vendor_licenses WHERE status='active' AND expires_at IS NOT NULL AND expires_at <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) ORDER BY expires_at LIMIT 5")->fetchAll(PDO::FETCH_ASSOC); } catch (Throwable $e) {}
+        try { $recentOrders = $pdo->query("SELECT id, order_no, customer_name, customer_company, tier, total_kc, payment_status, created_at FROM vendor_shop_orders ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC); } catch (Throwable $e) {}
+        if ($kpi['latest_version']) {
+            try { $st = $pdo->prepare("SELECT COUNT(*) FROM vendor_licenses WHERE status='active' AND last_seen_version IS NOT NULL AND last_seen_version <> :v"); $st->execute(['v' => $kpi['latest_version']]); $kpi['outdated'] = (int) $st->fetchColumn(); } catch (Throwable $e) {}
         }
     } catch (Throwable $e) { /* ignoruj */ }
 }
@@ -344,219 +354,99 @@ function fmtKc(float $v): string {
   <!-- HERO KPI -->
   <div class="hero-kpi">
     <div class="kpi-tile green">
-      <div class="lbl">🔑 Aktivní licence</div>
+      <div class="lbl">Aktivní licence</div>
       <div class="val"><?= $kpi['lic_active'] ?></div>
       <div class="sub">Celkem <?= $kpi['lic_total'] ?> · <?= $kpi['lic_expiring'] ?> vyprší ≤30 dní</div>
     </div>
     <div class="kpi-tile orange">
-      <div class="lbl">🛒 Čeká na platbu</div>
+      <div class="lbl">Čeká na platbu</div>
       <div class="val"><?= $kpi['orders_pending'] ?></div>
       <div class="sub">Celkem <?= $kpi['orders_total'] ?> objednávek</div>
     </div>
     <div class="kpi-tile gold">
-      <div class="lbl">💰 Tržby tento měsíc</div>
+      <div class="lbl">Tržby tento měsíc</div>
       <div class="val"><?= fmtKc($kpi['revenue_mtd']) ?></div>
       <div class="sub">Lifetime <?= fmtKc($kpi['revenue_total']) ?></div>
     </div>
     <div class="kpi-tile blue">
-      <div class="lbl">🧪 Demo dnes</div>
+      <div class="lbl">Demo dnes</div>
       <div class="val"><?= $kpi['demo_today'] ?></div>
       <div class="sub">Celkem <?= $kpi['demo_total'] ?> přístupů</div>
     </div>
     <?php if ($kpi['pirate_open'] > 0): ?>
     <a href="pirate.php?filter=open" class="kpi-tile" style="text-decoration:none;color:inherit;background:linear-gradient(135deg,#FEE2E2,#FECACA);border-color:#FCA5A5">
-      <div class="lbl" style="color:#991B1B">🏴‍☠️ Pirate (otevřené)</div>
+      <div class="lbl" style="color:#991B1B">Piráti (otevřené)</div>
       <div class="val" style="color:#DC2626"><?= $kpi['pirate_open'] ?></div>
       <div class="sub" style="color:#991B1B">Celkem <?= $kpi['pirate_total'] ?> · 24h: <?= $kpi['pirate_24h'] ?></div>
     </a>
     <?php endif; ?>
   </div>
 
-  <!-- ═══ SEKCE 1: PRODUKT ═══ -->
-  <div class="section-h">🌐 Produkt — appek.cz</div>
-  <div class="card-grid">
-
-    <!-- WEB EDITOR -->
-    <div class="hub-card web">
-      <a href="pages-editor.php" class="card-link" aria-label="Otevřít editor webu"></a>
-      <div class="head">
-        <span class="ico icon-web">✏️</span>
-        <div>
-          <div class="name">Editor webu</div>
-          <div class="url">appek.cz — sales landing page</div>
-        </div>
-      </div>
-      <div class="desc">Editace obsahu appek.cz ve 3 jazycích (CS/EN/ES). Auto-backup před uložením.</div>
-      <div class="row-stats">
-        <div><a href="https://appek.cz/" target="_blank" rel="noopener" style="color:#0058b8;text-decoration:none;font-weight:600">🌐 Otevřít web</a></div>
-      </div>
-      <div class="actions">
-        <a href="pages-editor.php" class="primary">✏️ Upravit obsah</a>
-        <a href="https://appek.cz/" target="_blank" rel="noopener">👁️ Preview</a>
-      </div>
-    </div>
-
-    <!-- ESHOP / OBJEDNÁVKY -->
-    <div class="hub-card shop">
-      <a href="shop.php" class="card-link" aria-label="Otevřít objednávky"></a>
-      <div class="head">
-        <span class="ico icon-shop">🛒</span>
-        <div>
-          <div class="name">Eshop &amp; objednávky</div>
-          <div class="url">appek.cz/checkout.html</div>
-        </div>
-      </div>
-      <div class="desc">Checkout flow, příjem objednávek, generování licencí po platbě.</div>
-      <div class="row-stats">
-        <div><strong><?= $kpi['orders_pending'] ?></strong>čeká</div>
-        <div><strong style="color:#34c759"><?= $kpi['orders_paid'] ?></strong>zaplaceno</div>
-        <div><strong style="color:#BA7517"><?= fmtKc($kpi['revenue_mtd']) ?></strong> MTD</div>
-      </div>
-      <div class="actions">
-        <a href="shop.php" class="primary">📋 Objednávky</a>
-        <a href="shop-coupons.php">🎟️ Kupony</a>
-        <a href="https://appek.cz/checkout.html" target="_blank" rel="noopener">🛒 Checkout</a>
-      </div>
-    </div>
-
-    <!-- BALÍČKY -->
-    <div class="hub-card pkg">
-      <a href="packages.php" class="card-link" aria-label="Spravovat balíčky"></a>
-      <div class="head">
-        <span class="ico icon-pkg">🎁</span>
-        <div>
-          <div class="name">Balíčky (katalog)</div>
-          <div class="url">Produkty nabízené v eshopu</div>
-        </div>
-      </div>
-      <div class="desc">Definice balíčků: ceny, popisy, bit_pos pro license mask, multi-lang.</div>
-      <div class="row-stats">
-        <div><strong><?= $kpi['packages_total'] ?></strong> balíčků</div>
-        <div><strong style="color:#34c759"><?= $kpi['packages_active'] ?></strong> aktivních</div>
-      </div>
-      <div class="actions">
-        <a href="packages.php" class="primary">🎁 Spravovat</a>
-        <a href="packages.php?new=1">➕ Nový</a>
-      </div>
-    </div>
-
-    <!-- DEMO — marketing showcase -->
-    <div class="hub-card demo">
-      <a href="demo-log.php" class="card-link" aria-label="Otevřít demo log"></a>
-      <div class="head">
-        <span class="ico icon-pkg">🧪</span>
-        <div>
-          <div class="name">demo.appek.cz</div>
-          <div class="url">Veřejné marketing demo · reset 1×/h</div>
-        </div>
-      </div>
-      <div class="desc">Sandbox pro zájemce ze sales stránky. Auto-login do ukázkového adminu.</div>
-      <div class="row-stats">
-        <div><strong><?= $kpi['demo_total'] ?></strong>celkem</div>
-        <div><strong style="color:#34c759"><?= $kpi['demo_today'] ?></strong>dnes</div>
-      </div>
-      <div class="actions">
-        <a href="https://demo.appek.cz/" target="_blank">🌐 Otevřít</a>
-        <a href="demo-log.php" class="primary">📊 Log</a>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ═══ SEKCE 2: ZÁKAZNÍCI ═══ -->
-  <div class="section-h">👥 Zákazníci — vydané instalace</div>
-  <div class="card-grid">
-
-    <!-- LICENCE -->
-    <div class="hub-card lic">
-      <a href="licenses.php" class="card-link" aria-label="Spravovat licence"></a>
-      <div class="head">
-        <span class="ico icon-lic">🔑</span>
-        <div>
-          <div class="name">Vydané licence</div>
-          <div class="url">HMAC SHA-256 klíče</div>
-        </div>
-      </div>
-      <div class="desc">Aktivní licence, generování manuálně nebo auto z objednávky, revokace.</div>
-      <div class="row-stats">
-        <div><strong><?= $kpi['lic_total'] ?></strong> celkem</div>
-        <div><strong style="color:#34c759"><?= $kpi['lic_active'] ?></strong> aktivních</div>
-        <div><strong style="color:#ff9500"><?= $kpi['lic_expiring'] ?></strong> ≤30d</div>
-      </div>
-      <div class="actions">
-        <a href="licenses.php" class="primary">🔑 Spravovat</a>
-        <a href="licenses.php?new=1">➕ Vydat</a>
-      </div>
-    </div>
-
-    <!-- AKTUALIZACE -->
-    <div class="hub-card upd">
-      <a href="updates.php" class="card-link" aria-label="Spravovat aktualizace"></a>
-      <div class="head">
-        <span class="ico icon-upd">🔄</span>
-        <div>
-          <div class="name">Aktualizace</div>
-          <div class="url">OTA push do zákaznických instalací</div>
-        </div>
-      </div>
-      <div class="desc">Build update bundle z lokálu/test domény → upload sem → zákazníci stáhnou.</div>
-      <div class="row-stats">
-        <div><strong><?= $kpi['updates_total'] ?></strong> verzí</div>
-        <?php if ($kpi['latest_version']): ?>
-          <div>nejnovější <strong><?= htmlspecialchars($kpi['latest_version']) ?></strong></div>
-        <?php else: ?>
-          <div>žádná publikovaná</div>
+  <?php
+    $h = fn($v) => htmlspecialchars((string) $v);
+    $dnyDo = fn($d) => (int) floor((strtotime($d) - strtotime(date('Y-m-d'))) / 86400);
+    $todoCount = count($todoOrders) + count($todoLic) + ($kpi['pirate_open'] > 0 ? 1 : 0) + ($kpi['failed_24h'] > 0 ? 1 : 0);
+    $payLbl = ['card' => 'karta', 'bank' => 'převod', 'crypto' => 'krypto', 'manual' => 'ručně'];
+    $stLbl = ['paid' => ['Zaplaceno', 'ok'], 'pending' => ['Čeká', 'warn'], 'failed' => ['Selhalo', 'bad'], 'refunded' => ['Vráceno', 'bad'], 'cancelled' => ['Zrušeno', 'bad']];
+  ?>
+  <div class="vx-cols">
+    <div>
+      <section class="vx-panel">
+        <div class="vx-ph"><h2>Vyžaduje pozornost</h2><?php if ($todoCount): ?><span class="vx-pill"><?= $todoCount ?> <?= $todoCount === 1 ? 'úkol' : ($todoCount < 5 ? 'úkoly' : 'úkolů') ?></span><?php endif; ?></div>
+        <?php foreach ($todoOrders as $o): ?>
+          <div class="vx-todo"><span class="vx-ic acc"><svg><use href="#vx-cart"/></svg></span><div><div class="t">Objednávka čeká na platbu</div><div class="m"><code><?= $h($o['order_no']) ?></code> · <?= $h($o['customer_company'] ?: $o['customer_name']) ?> · <?= fmtKc((float) $o['total_kc']) ?> · <?= $h($payLbl[$o['payment_method']] ?? $o['payment_method']) ?> · <?= $h(date('j. n.', strtotime($o['created_at']))) ?></div></div><a class="btn-master primary" href="shop.php?detail=<?= (int) $o['id'] ?>">Otevřít</a></div>
+        <?php endforeach; ?>
+        <?php foreach ($todoLic as $l): $d = $dnyDo($l['expires_at']); ?>
+          <div class="vx-todo"><span class="vx-ic warn"><svg><use href="#vx-key"/></svg></span><div><div class="t"><?= $d < 0 ? 'Licence vypršela před ' . abs($d) . ' dny' : ($d === 0 ? 'Licence vyprší dnes' : 'Licence vyprší za ' . $d . ' ' . ($d === 1 ? 'den' : ($d < 5 ? 'dny' : 'dní'))) ?></div><div class="m"><?= $h($l['customer_company'] ?: $l['customer_name']) ?> · do <?= $h(date('j. n. Y', strtotime($l['expires_at']))) ?></div></div><a class="btn-master" href="licenses.php?edit=<?= (int) $l['id'] ?>#lic-<?= (int) $l['id'] ?>">Prodloužit</a></div>
+        <?php endforeach; ?>
+        <?php if ($kpi['pirate_open'] > 0): ?>
+          <div class="vx-todo"><span class="vx-ic bad"><svg><use href="#vx-shield"/></svg></span><div><div class="t">Podezřelé instalace: <?= (int) $kpi['pirate_open'] ?></div><div class="m">za 24 h aktivních <?= (int) $kpi['pirate_24h'] ?> · celkem evidováno <?= (int) $kpi['pirate_total'] ?></div></div><a class="btn-master" href="pirate.php?filter=open">Prověřit</a></div>
         <?php endif; ?>
-      </div>
-      <div class="actions">
-        <a href="updates.php" class="primary">🔄 Spravovat</a>
-        <a href="updates.php?upload=1">⬆️ Upload</a>
-      </div>
+        <?php if ($kpi['failed_24h'] > 0): ?>
+          <div class="vx-todo"><span class="vx-ic warn"><svg><use href="#vx-users"/></svg></span><div><div class="t">Neúspěšná přihlášení za 24 h: <?= (int) $kpi['failed_24h'] ?></div><div class="m">admin / B2B / vendor účty</div></div><a class="btn-master" href="access.php?tab=failed">Přístupy</a></div>
+        <?php endif; ?>
+        <?php if (!$todoCount): ?><div class="vx-empty">Nic nečeká — všechno vyřízeno.</div><?php endif; ?>
+      </section>
+
+      <section class="vx-panel">
+        <div class="vx-ph"><h2>Poslední objednávky</h2><a href="shop.php">Všechny →</a></div>
+        <?php if ($recentOrders): ?>
+        <table class="vx-table">
+          <?php foreach ($recentOrders as $o): $sl = $stLbl[$o['payment_status']] ?? [$o['payment_status'], 'warn']; ?>
+            <tr onclick="location.href='shop.php?detail=<?= (int) $o['id'] ?>'" style="cursor:pointer">
+              <td><span class="no"><?= $h($o['order_no']) ?></span><br><?= $h($o['customer_company'] ?: $o['customer_name']) ?></td>
+              <td class="hide-sm"><?= $h($o['tier']) ?></td>
+              <td><span class="vx-st <?= $sl[1] ?>"><?= $h($sl[0]) ?></span></td>
+              <td class="num"><?= fmtKc((float) $o['total_kc']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </table>
+        <?php else: ?><div class="vx-empty">Zatím žádné objednávky.</div><?php endif; ?>
+      </section>
     </div>
 
-    <!-- PŘÍSTUPY -->
-    <div class="hub-card acc">
-      <a href="access.php" class="card-link" aria-label="Spravovat přístupy"></a>
-      <div class="head">
-        <span class="ico icon-acc">👥</span>
-        <div>
-          <div class="name">Přístupy</div>
-          <div class="url">Účty napříč všemi instalacemi</div>
+    <div>
+      <section class="vx-panel">
+        <div class="vx-ph"><h2>Vydání</h2><a href="updates.php">Historie →</a></div>
+        <div class="vx-rel">
+          <div class="vx-rel-row"><span>Vendor běží na</span><span class="mono">v<?= $h(vendor_appek_version()) ?></span></div>
+          <div class="vx-rel-row"><span>Feed pro zákazníky</span><span class="mono"><?= $kpi['latest_version'] ? 'v' . $h($kpi['latest_version']) : '—' ?></span></div>
+          <div class="vx-rel-row"><span>Instalace na starší verzi</span><span class="mono"><?= (int) $kpi['outdated'] ?></span></div>
+          <div class="vx-rel-row"><span>Balíčků v eshopu</span><span class="mono"><?= (int) $kpi['packages_active'] ?> / <?= (int) $kpi['packages_total'] ?></span></div>
         </div>
-      </div>
-      <div class="desc">Vendor admini, demo log, audit. Pro customer admin/B2B účty: spravuje si je každý zákazník sám.</div>
-      <div class="row-stats">
-        <div><strong><?= $kpi['vendor_users'] ?></strong>vendor admini</div>
-        <div><strong><?= $kpi['demo_today'] ?></strong>demo dnes</div>
-      </div>
-      <div class="actions">
-        <a href="access.php" class="primary">👥 Spravovat</a>
-        <a href="access.php?tab=failed">⚠️ Failed</a>
-      </div>
-    </div>
+        <div class="vx-rel-foot"><a class="btn-master" href="updates.php?upload=1">Nahrát balík</a><a class="btn-master" href="self-update.php">Ruční update vendoru</a></div>
+      </section>
 
-    <!-- PIRATE INSTALLS -->
-    <div class="hub-card" style="border-left:3px solid #DC2626">
-      <a href="pirate.php" class="card-link" aria-label="Pirate installs"></a>
-      <div class="head">
-        <span class="ico" style="color:#DC2626">🏴‍☠️</span>
-        <div>
-          <div class="name">Pirate installs</div>
-          <div class="url">Instalace bez platné licence</div>
+      <section class="vx-panel">
+        <div class="vx-ph"><h2>Rychlé akce</h2></div>
+        <div class="vx-quick">
+          <a href="licenses.php?new=1"><b>+</b>Nová licence</a>
+          <a href="shop-coupons.php"><b>%</b>Nový kupon</a>
+          <a href="packages.php?new=1"><b>▣</b>Nový balíček</a>
+          <a href="pages-editor.php"><b>✎</b>Texty webu</a>
         </div>
-      </div>
-      <div class="desc">Detekce přes denní heartbeat z customer admin loginů. No_key / unknown / key_reuse / revoked / expired.</div>
-      <div class="row-stats">
-        <div><strong style="color:#DC2626"><?= $kpi['pirate_open'] ?></strong> otevřené</div>
-        <div><strong><?= $kpi['pirate_total'] ?></strong> celkem</div>
-        <div><strong><?= $kpi['pirate_24h'] ?></strong> 24h</div>
-      </div>
-      <div class="actions">
-        <a href="pirate.php?filter=open" class="primary">🏴‍☠️ Pirate dashboard</a>
-        <a href="pirate.php?filter=all">📋 Vše</a>
-      </div>
+      </section>
     </div>
-
   </div>
 
   <!-- INFO FOOTER -->

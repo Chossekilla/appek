@@ -223,7 +223,7 @@ window.skladExportCsv = function(onlySelected) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'sklad-surovin-' + (onlySelected ? 'vybrane-' : '') + new Date().toISOString().slice(0, 10) + '.csv';
+  a.download = 'sklad-surovin-' + (onlySelected ? 'vybrane-' : '') + new Date().toYMD() + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   if (typeof toast === 'function') toast('✓ Export ' + rows.length + ' surovin', 'success');
@@ -370,7 +370,7 @@ window.skladTraceBack = async function(vyrobekId, datum) {
   let prods = state._vyrobky_pick_cache;
   if (!prods) { try { const r = await api('admin_vyrobky.php'); prods = Array.isArray(r) ? r : (r.polozky || r.vyrobky || r.data || []); state._vyrobky_pick_cache = prods; } catch (e) { prods = []; } }
   const opts = (prods || []).map(p => `<option value="${p.id}" ${(+p.id === +vyrobekId) ? 'selected' : ''}>${esc(p.nazev)}</option>`).join('');
-  const today = datum || new Date().toISOString().slice(0, 10);
+  const today = datum || new Date().toYMD();
   const body = `
     <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:12px;align-items:end">
       <label style="font-size:12px;font-weight:600;color:var(--text-2)">Výrobek (reklamace)
@@ -455,8 +455,8 @@ window._ztataSave = async function() {
 
 // 📉 v3.0.457 — REPORT ZTRÁT za období (rozpad dle důvodu + hodnota Kč).
 window.skladZtratyReport = async function() {
-  const to = new Date().toISOString().slice(0, 10);
-  const from = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+  const to = new Date().toYMD();
+  const from = new Date(Date.now() - 30 * 864e5).toYMD();
   const L = 'font-size:12px;font-weight:600;color:var(--text-2)';
   const body = `
     <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end">

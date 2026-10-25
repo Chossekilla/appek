@@ -278,7 +278,7 @@ async function loadVyrobaKalendar(rok, mesic) {
   // JS day: 0=Ne, 1=Po, …; my chceme Po=0
   const startDay = (firstOfMonth.getDay() + 6) % 7;
   const daysInMonth = new Date(rok, mesic, 0).getDate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toYMD();
   const selected = state._vyrobaDatum;
 
   const cells = [];
@@ -407,11 +407,11 @@ window.otevritNovyVyrobniList = async function() {
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#854F0B;margin-bottom:10px;font-weight:600">📅 Termíny</div>
         <label style="display:block;margin-bottom:8px">
           <span style="font-size:12px;color:var(--text-2);display:block;margin-bottom:4px">Datum dodání *</span>
-          <input type="date" class="input" id="vl-datum" value="${tomorrow.toISOString().split('T')[0]}" style="width:100%">
+          <input type="date" class="input" id="vl-datum" value="${tomorrow.toYMD()}" style="width:100%">
         </label>
         <label style="display:block">
           <span style="font-size:12px;color:var(--text-2);display:block;margin-bottom:4px">Datum výroby</span>
-          <input type="date" class="input" id="vl-vyroba" value="${new Date().toISOString().split('T')[0]}" style="width:100%">
+          <input type="date" class="input" id="vl-vyroba" value="${new Date().toYMD()}" style="width:100%">
         </label>
       </div>
       <div style="background:#EFF6FF;border:1px solid #B5D4F4;border-radius:8px;padding:14px">

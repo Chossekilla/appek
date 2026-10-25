@@ -209,7 +209,7 @@ window.openFloorplanWindow = function() {
 
 async function renderRestaurantTables() {
   const c = document.getElementById('rest-tab-body') || document.getElementById('content');
-  const today = state._rtDate || new Date().toISOString().slice(0, 10);
+  const today = state._rtDate || new Date().toYMD();
   state._rtDate = today;
   const tab = state._rtTab || 'map';
   c.innerHTML = `
@@ -313,7 +313,7 @@ async function renderRestaurantTables() {
       ? (denDnes.zavreno == 1 ? '🔒 Zavřeno' : `${String(denDnes.otevreno_od).slice(0,5)}–${String(denDnes.otevreno_do).slice(0,5)}`)
       : '';
     // 🆕 v3.0.311 — rychlý filtr dne rezervací (dnes/zítra/pozítří + date picker) u otevírací doby
-    const _qd = (off) => { const d = new Date(); d.setDate(d.getDate() + off); return d.toISOString().slice(0, 10); };
+    const _qd = (off) => { const d = new Date(); d.setDate(d.getDate() + off); return d.toYMD(); };
     const segSwitch = `
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;justify-content:space-between">
         <div style="display:flex;gap:6px;padding:4px;background:var(--surface-2);border-radius:10px;width:fit-content">

@@ -28,9 +28,9 @@ window.otevritRucniDl = async function() {
 
 function vykreslitRucniDl() {
   const s = rdlState;
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toYMD();
   const _zitra = new Date(); _zitra.setDate(_zitra.getDate() + 1);
-  const tomorrow = _zitra.toISOString().split('T')[0];
+  const tomorrow = _zitra.toYMD();
 
   const odberatelSelected = s.odberatel_id && s.odberatel;
   const pobockyOptions = `<option value="">— bez pobočky —</option>` +

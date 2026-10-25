@@ -168,7 +168,7 @@ window.openFakturaDetail = async function(id) {
   const uhrazeno = f.castka_uhrazeno || 0;
   const zbyva = f.castka_celkem - uhrazeno;
   // Vypočtený stav úhrady (stejně jako v SQL)
-  const dnes = new Date().toISOString().slice(0, 10);
+  const dnes = new Date().toYMD();
   const stav = uhrazeno >= f.castka_celkem ? 'uhrazena'
     : (f.datum_splatnosti < dnes ? 'po_splatnosti' : 'cekajici');
 
@@ -530,7 +530,7 @@ window.vymSubmit = async function() {
   if (!vraceno.length && !nove.length) { toast('Vyber co vrátit a/nebo přidej nové položky', 'error'); return; }
   if (nove.length && !window._vymOdb) { toast('❌ Faktura nemá odběratele — nové položky nelze založit', 'error'); return; }
   const btn = document.getElementById('vym-submit'); if (btn) btn.disabled = true;
-  const dnes = new Date().toISOString().slice(0, 10);
+  const dnes = new Date().toYMD();
   try {
     let dobCislo = null, objCislo = null;
     // 1) Dobropis vrácených (s 409 lhůta override)

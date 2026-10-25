@@ -97,7 +97,7 @@ window.cateringMarkDepositPaid = async function(id) {
   try {
     await api('admin_catering_orders.php?id=' + id, { method:'PUT', body: JSON.stringify({
       zaloha_uhrazena: 1,
-      zaloha_uhrazena_dne: new Date().toISOString().slice(0, 10),
+      zaloha_uhrazena_dne: new Date().toYMD(),
       stav: 'zaloha_uhraz',
     })});
     toastSuccess('Záloha označena jako uhrazená');

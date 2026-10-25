@@ -8,6 +8,12 @@
  * - Stav košíku v localStorage, aktualizace přes renderCart() po každé změně
  */
 
+// 🕛 v3.0.568 — LOKÁLNÍ datum RRRR-MM-DD. Dřív toISOString().slice(0,10) = UTC →
+//   v ČR mezi půlnocí a 1:00/2:00 vyšel VČEREJŠEK (výroba/filtry/formuláře na špatný den).
+if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { configurable: true, writable: true, value: function () {
+  return this.getFullYear() + '-' + String(this.getMonth() + 1).padStart(2, '0') + '-' + String(this.getDate()).padStart(2, '0');
+} });
+
 // 🆕 v2.0.76 — Relativní API path (../api)
 // Předtím: fetch('api/login.php') z /b2b/ → /b2b/api/login.php (404!)
 // Nyní:    fetch('../api/login.php')      → správně se rozřeší na /api/login.php
@@ -1813,7 +1819,7 @@ function renderCheckout() {
 
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  let minDate = tomorrow.toISOString().split('T')[0];
+  let minDate = tomorrow.toYMD();
   // 🍰 v3.0.406 — PŘEDOBJEDNÁVKY: košík s předobjednávkovým sezónním výrobkem
   //   posune minimální datum dodání na start sezóny (backend to stejně vynucuje).
   let preorderMin = null, preorderNazvy = [];
@@ -2304,7 +2310,7 @@ function rychleChipy(minDate) {
     d.setDate(d.getDate() + i);
     const label = i === 1 ? 'Zítra' : (i === 2 ? 'Pozítří' : dny[d.getDay()].charAt(0).toUpperCase() + dny[d.getDay()].slice(1));
     chips.push({
-      date: d.toISOString().split('T')[0],
+      date: d.toYMD(),
       label,
       short: `${d.getDate()}. ${d.getMonth() + 1}.`,
     });
@@ -2317,7 +2323,7 @@ function rychleChipy(minDate) {
   nextMonday.setDate(today.getDate() + daysUntilMonday);
   if (nextMonday > new Date(today.getTime() + 3 * 86400000)) {
     chips.push({
-      date: nextMonday.toISOString().split('T')[0],
+      date: nextMonday.toYMD(),
       label: 'Příští pondělí',
       short: `${nextMonday.getDate()}. ${nextMonday.getMonth() + 1}.`,
     });
@@ -2327,7 +2333,7 @@ function rychleChipy(minDate) {
   const week1 = new Date(today);
   week1.setDate(week1.getDate() + 7);
   chips.push({
-    date: week1.toISOString().split('T')[0],
+    date: week1.toYMD(),
     label: 'Za týden',
     short: `${week1.getDate()}. ${week1.getMonth() + 1}.`,
   });
@@ -2336,7 +2342,7 @@ function rychleChipy(minDate) {
   const week2 = new Date(today);
   week2.setDate(week2.getDate() + 14);
   chips.push({
-    date: week2.toISOString().split('T')[0],
+    date: week2.toYMD(),
     label: 'Za 2 týdny',
     short: `${week2.getDate()}. ${week2.getMonth() + 1}.`,
   });
@@ -2393,7 +2399,7 @@ window.submitOrder = async function() {
   }
 
   if (!data.datum_dodani) return alert('Vyplňte datum dodání');
-  if (data.datum_dodani < new Date().toISOString().slice(0, 10)) return alert('Datum dodání nemůže být v minulosti.'); // 🆕 v3.0.351 — friendly hláška (mobilní picker občas ignoruje min)
+  if (data.datum_dodani < new Date().toYMD()) return alert('Datum dodání nemůže být v minulosti.'); // 🆕 v3.0.351 — friendly hláška (mobilní picker občas ignoruje min)
 
   window._b2bSubmitting = true;
   const _subBtns = [...document.querySelectorAll('button')].filter(b => /submitOrder/.test(b.getAttribute('onclick') || ''));

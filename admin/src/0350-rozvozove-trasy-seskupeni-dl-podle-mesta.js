@@ -3,8 +3,8 @@
 // =============================================================
 async function renderRozvozy() {
   const c = document.getElementById('content');
-  const dnes = new Date().toISOString().split('T')[0];
-  const zitra = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const dnes = new Date().toYMD();
+  const zitra = new Date(Date.now() + 86400000).toYMD();
   const datum = state._rozvozyDatum || zitra;
   state._rozvozyDatum = datum;
 
@@ -107,7 +107,7 @@ window.rozvozSetDatum = function(d) {
 };
 
 window.rozvozTisk = function() {
-  const datum = state._rozvozyDatum || new Date().toISOString().split('T')[0];
+  const datum = state._rozvozyDatum || new Date().toYMD();
   window.open(`../api/rozvoz_print.php?datum=${datum}`, '_blank');
 };
 

@@ -115,7 +115,7 @@ window.opakovatObjednavkuZFaktury = async function(id) {
       msg: `Vytvoří novou objednávku se ${polozky.length} položkami pro odběratele "${f.odberatel_nazev}".\n`
         + (skipnuto > 0 ? `(${skipnuto} volných řádků bude přeskočeno)\n` : '')
         + `\nZadejte datum dodání (RRRR-MM-DD):`,
-      value: new Date(Date.now() + 86400000).toISOString().slice(0, 10), // zítra
+      value: new Date(Date.now() + 86400000).toYMD(), // zítra
     }));
     if (!datumDodani) return;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(datumDodani)) {

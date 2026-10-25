@@ -412,7 +412,7 @@ function renderDph(data) {
 }
 
 window.editDph = async function(id = null) {
-  let s = { sazba: '', nazev: '', platne_od: new Date().toISOString().split('T')[0] };
+  let s = { sazba: '', nazev: '', platne_od: new Date().toYMD() };
 
   if (id) {
     const data = await api('admin_sazby_dph.php');

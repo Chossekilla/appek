@@ -7,7 +7,7 @@
 async function triggerLicenseHeartbeatIfDue() {
   try {
     const HB_KEY = 'appek_heartbeat_last_date';
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const today = new Date().toYMD(); // YYYY-MM-DD
     const lastDate = localStorage.getItem(HB_KEY);
     // Pokud už dnes proběhl, jen zkontroluj cached pirate flag (file → JS doesn't see; check via API)
     if (lastDate === today) {

@@ -6,6 +6,12 @@
  *    Viz admin/src/README.md.
  */
 
+// 🕛 v3.0.568 — LOKÁLNÍ datum RRRR-MM-DD. Dřív toISOString().slice(0,10) = UTC →
+//   v ČR mezi půlnocí a 1:00/2:00 vyšel VČEREJŠEK (výroba/filtry/formuláře na špatný den).
+if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { configurable: true, writable: true, value: function () {
+  return this.getFullYear() + '-' + String(this.getMonth() + 1).padStart(2, '0') + '-' + String(this.getDate()).padStart(2, '0');
+} });
+
 // 🆕 v2.0.83 — SELF-HEALING STALE CODE DETECTION
 // Embedded BUILD_VERSION matchne to co se buildlo (auto-bumped přes build-zip.sh sed).
 // Po boot porovnáme s API_VERSION (z config.php). Pokud admin.js < config.php → stale.

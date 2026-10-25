@@ -5,7 +5,7 @@
 // Sdílený helper pro Faktury + Dodací listy (jako na dashboardu)
 function periodToRange(period) {
   const dnes = new Date();
-  const f = (d) => d.toISOString().slice(0, 10);
+  const f = (d) => d.toYMD();
   const today = f(dnes);
   if (period === 'dnes') return { od: today, do: today };
   if (period === 'tyden') {
@@ -22,7 +22,7 @@ function periodToRange(period) {
 function rangeToPeriod(od, doDt) {
   if (!od && !doDt) return 'vse';
   const dnes = new Date();
-  const f = (d) => d.toISOString().slice(0, 10);
+  const f = (d) => d.toYMD();
   const today = f(dnes);
   const monday = new Date(dnes);
   monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
@@ -136,7 +136,7 @@ function _periodApply(typ, od, doDt, openCustom) {
 
 function quickPeriodChips(typ, datum_od, datum_do) {
   const dnes = new Date();
-  const fmt = (d) => d.toISOString().slice(0, 10);
+  const fmt = (d) => d.toYMD();
 
   // Sestav rozsahy
   const today = new Date(dnes);

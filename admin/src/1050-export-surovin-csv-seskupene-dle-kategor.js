@@ -34,7 +34,7 @@ window.exportSurovinyCsv = function() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `suroviny_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `suroviny_${new Date().toYMD()}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
   if (typeof toastSuccess === 'function') toastSuccess(`Exportováno ${sorted.length} surovin do CSV (dle kategorií)`);

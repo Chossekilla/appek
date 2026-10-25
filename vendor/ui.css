@@ -82,6 +82,13 @@ html body .stat-card .value,html body .kpi-tile .val,html body .stat-card .val{f
 html body .kpi-tile .sub{font-size:12.5px;color:var(--vx-ink-3)!important}
 html body .kpi-tile:hover,html body .stat-card:hover{transform:none!important}
 
+html body .stats-grid,html body .stats-row,html body .pirate-stats,html body .stat-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;gap:12px!important}
+
+/* ---------- drobnosti napříč stránkami ---------- */
+html body .back-master{display:none}                 /* Přehled je vždy v levém menu — „Zpět" byl duplicitní */
+html body .lic-key{white-space:nowrap;font-size:12px}
+html body .tabs a.active,html body .tabs .tab.active,html body .tabs button.active,html body .tab-btn.active{background:var(--vx-ink)!important;border-color:var(--vx-ink)!important;color:#fff!important;box-shadow:none!important}
+
 /* ---------- tlačítka ---------- */
 html body .btn-master,html body .btn,html body .btn-mini{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:9px!important;font:500 13px/1.2 var(--vx-sans)!important;padding:8px 13px;border:1px solid var(--vx-line-2)!important;background:var(--vx-card)!important;color:var(--vx-ink)!important;text-decoration:none!important;cursor:pointer;box-shadow:none!important;transition:background .15s,border-color .15s!important}
 html body .btn-master:hover,html body .btn:hover,html body .btn-mini:hover{background:var(--vx-bg)!important;transform:none!important}
@@ -127,3 +134,47 @@ html body .footer-master .sep{margin:0 6px;opacity:.4}
   html body .page-master{padding:18px 16px 32px}
   html body .back-master,html body .breadcrumbs-master,html body .footer-inner{padding:0 16px}
 }
+
+/* ---------- dashboard (v3.0.568): Vyžaduje pozornost / Poslední objednávky / Vydání / Rychlé akce ---------- */
+html body .hero-kpi{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;gap:12px!important;margin-bottom:20px!important}
+@media (max-width:560px){html body .hero-kpi .kpi-tile .val{font-size:22px!important}}
+.vx-cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:start;margin-bottom:24px}
+.vx-cols>*{min-width:0}
+.vx-panel{background:var(--vx-card);border:1px solid var(--vx-line);border-radius:var(--vx-r);overflow:hidden}
+.vx-panel+.vx-panel{margin-top:20px}
+.vx-ph{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--vx-line)}
+.vx-ph h2{font:600 15px/1 var(--vx-sans)!important;margin:0!important;letter-spacing:-.01em}
+.vx-ph a{font-size:13px;font-weight:500;color:var(--vx-ink-2);text-decoration:none}
+.vx-ph a:hover{color:var(--vx-ink)}
+.vx-pill{font:500 11.5px/1 var(--vx-mono);background:var(--vx-acc-wash);color:var(--vx-acc-ink);padding:4px 8px;border-radius:999px}
+.vx-todo{display:flex;align-items:center;gap:14px;padding:13px 18px;border-top:1px solid var(--vx-line)}
+.vx-ph+.vx-todo{border-top:none}
+.vx-todo:hover{background:#FAFAFB}
+.vx-todo>div{flex:1;min-width:0}
+.vx-todo .t{font-weight:600;font-size:14px}
+.vx-todo .m{font-size:12.5px;color:var(--vx-ink-2)}
+.vx-todo .m code{font:12px var(--vx-mono);color:var(--vx-ink)}
+.vx-todo .btn-master{flex:none}
+.vx-ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex:none}
+.vx-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.vx-ic.warn{background:var(--vx-warn-wash);color:var(--vx-warn)} .vx-ic.acc{background:var(--vx-acc-wash);color:var(--vx-acc-ink)} .vx-ic.bad{background:var(--vx-bad-wash);color:var(--vx-bad)}
+.vx-empty{padding:22px 18px;color:var(--vx-ink-3);font-size:13.5px;text-align:center}
+html body .vx-table{width:100%;font-size:13px}
+html body .vx-table td{padding:11px 18px;border-top:1px solid var(--vx-line)!important;vertical-align:middle}
+html body .vx-table tr:first-child td{border-top:none!important}
+.vx-table td.num{font:500 13px var(--vx-mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.vx-table .no{font:12px var(--vx-mono);color:var(--vx-ink-3)}
+.vx-st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--vx-ink-2);white-space:nowrap}
+.vx-st::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--vx-warn)}
+.vx-st.ok::before{background:var(--vx-ok)} .vx-st.bad::before{background:var(--vx-bad)}
+.vx-rel{padding:14px 18px;display:grid;gap:11px}
+.vx-rel-row{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px}
+.vx-rel-row span:first-child{color:var(--vx-ink-2)}
+.vx-rel-row .mono{font:500 13px var(--vx-mono)}
+.vx-rel-foot{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 16px}
+.vx-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:14px 18px 18px}
+.vx-quick a{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--vx-line);border-radius:11px;font-size:13px;font-weight:500;color:var(--vx-ink-2);text-decoration:none}
+.vx-quick a b{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:var(--vx-acc-wash);color:var(--vx-acc-ink);font:600 13px var(--vx-mono)}
+.vx-quick a:hover{border-color:var(--vx-line-2);background:#FAFAFB;color:var(--vx-ink)}
+@media (max-width:1100px){.vx-cols{grid-template-columns:1fr}}
+@media (max-width:560px){.vx-todo{flex-wrap:wrap}.vx-todo .btn-master{margin-left:46px}.hide-sm{display:none}html body .vx-table td{padding:10px 12px}}
