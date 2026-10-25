@@ -101,6 +101,7 @@
   .pkg .pkg-name { font-weight: 700; font-size: 15px; color: #1d1d1f; letter-spacing: -0.1px; }
   .pkg .pkg-desc { font-size: 12.5px; color: #6e6e73; margin-top: 3px; line-height: 1.5; }
   .pkg .pkg-price { font-weight: 800; font-size: 17px; color: #1d1d1f; flex-shrink: 0; }
+  .pkg .pkg-price .pkg-kc { font-size: .64em; font-weight: 600; color: #86868b; margin-left: 4px; letter-spacing: 0; }
   /* 🐛 v559 — na úzkých telefonech (≤480 px) cena vedle názvu zmáčkla popis balíčku
      a text se ořezával. Cena se zalomí pod název → název/popis dostanou plnou šířku. */
   @media (max-width: 480px) {
@@ -1038,7 +1039,7 @@ function renderPackages() {
         <div class="pkg-name">${escapeHtml(name)}</div>
         <div class="pkg-desc">${escapeHtml(desc)}</div>
       </div>
-      <div class="pkg-price">${formatPrice(pkgPrice(p))}${RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} měs.</small>` : ''}</div>
+      <div class="pkg-price">${formatPriceHtml(pkgPrice(p))}${RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} měs.</small>` : ''}</div>
     `;
     if (!p.is_core) {
       label.querySelector('.pkg-check').addEventListener('change', (e) => onPkgToggle(p.key, e.target.checked, label));
@@ -1139,6 +1140,10 @@ function renderSummary() {
 
 function formatPrice(n) {
   return Math.round(parseFloat(n) || 0).toLocaleString('cs-CZ') + ' Kč';
+}
+// v3.0.594 — v kartách balíčků „Kč" menší a šedé (číslo zůstává výrazné)
+function formatPriceHtml(n) {
+  return Math.round(parseFloat(n) || 0).toLocaleString('cs-CZ') + '<span class="pkg-kc">Kč</span>';
 }
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

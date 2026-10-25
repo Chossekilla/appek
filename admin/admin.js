@@ -2513,10 +2513,20 @@ document.addEventListener('webkitfullscreenchange', () => {
 })();
 
 function openModal(title, body, size = '') {
+  const modal = document.getElementById('modal');
+  // 🐛 v3.0.594 — PŘEKRESLENÍ už otevřeného modalu (stateful formuláře: nová objednávka, ruční DL/FA…)
+  //   dřív: nový obsah + autofocus PRVNÍHO pole (odběratel nahoře) → modal „odskočil" nahoru po každé změně.
+  //   Teď: zachovej scroll všech scrollujících vrstev a autofocus přeskoč.
+  const reRender = !!(modal && modal.style.display === 'flex' && document.getElementById('modal-title').textContent === title);
+  const scrollers = reRender ? [modal, modal.querySelector('.modal-card'), document.getElementById('modal-body')].filter(Boolean) : [];
+  const saved = scrollers.map(el => el.scrollTop);
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = body;
-  const modal = document.getElementById('modal');
   modal.style.display = 'flex';
+  if (reRender) {
+    const restore = () => scrollers.forEach((el, i) => { if (saved[i]) el.scrollTop = saved[i]; });
+    restore(); requestAnimationFrame(restore);
+  }
   // Aplikuj size class na modal-card
   const card = modal.querySelector('.modal-card');
   if (card) {
@@ -2528,7 +2538,7 @@ function openModal(title, body, size = '') {
     setTimeout(labelizeTables, 0);
   }
   // 🆕 v3.0.347 — autofocus prvního pole + Esc zavře modal (parita s confirmDialog)
-  setTimeout(() => { const fe = card && card.querySelector('input:not([type=hidden]):not([disabled]),select,textarea'); if (fe) { try { fe.focus(); } catch (e) {} } }, 60);
+  if (!reRender) setTimeout(() => { const fe = card && card.querySelector('input:not([type=hidden]):not([disabled]),select,textarea'); if (fe) { try { fe.focus(); } catch (e) {} } }, 60);
   if (!modal._escBound) {
     modal._escBound = true;
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display === 'flex') closeModal(); });
@@ -7857,7 +7867,8 @@ window.noPridatZKatalogu = function() {
   vykreslitNovouObjednavku();
   // 🆕 Po přidání zaostři hledání DALŠÍHO produktu (ne odběratele) — rychlé hromadné zadávání.
   //    90ms, aby to přebilo auto-focus modalu (openModal zaostří první input přes setTimeout 60ms).
-  setTimeout(function () { document.getElementById('no-pridat-vyrobek')?.focus(); }, 90);
+  //    v3.0.594 — preventScroll: zaostření nesmí odrolovat modal (dřív „odskočení" po přidání produktu)
+  setTimeout(function () { try { document.getElementById('no-pridat-vyrobek')?.focus({ preventScroll: true }); } catch (e) {} }, 90);
 };
 
 window.noPridatVolny = function() {
@@ -12015,7 +12026,6 @@ async function renderFaktury(filters = {}, opts = {}) {
                 <span>⏰ ${fmtDate(f.datum_splatnosti)}</span>
                 <span>📦 ${f.pocet_polozek || 0} pol.</span>
               </div>
-              <div class="faktura-card-castka">${fmt(f.castka_celkem)}</div>
             </div>
             <div class="faktura-card-actions" onclick="event.stopPropagation();">
               <span class="doc-badges-row fa-icon-actions">
@@ -12025,6 +12035,7 @@ async function renderFaktury(filters = {}, opts = {}) {
                 <a href="#" class="doc-badge mail" title="Odeslat fakturu e-mailem (PDF v příloze)" onclick="otevritOdeslatEmailem('fa', ${f.id}, '${esc(f.cislo).replace(/'/g, '')}', '${esc(f.odberatel_email || '').replace(/'/g, '')}');return false">✉️</a>
               </span>
             </div>
+            <div class="faktura-card-sum"><span class="faktura-card-sum-lbl">fakturováno</span><span class="faktura-card-castka">${fmt(f.castka_celkem)}</span></div>
           </div>
         `).join('')
       }

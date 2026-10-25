@@ -541,7 +541,6 @@ async function renderFaktury(filters = {}, opts = {}) {
                 <span>⏰ ${fmtDate(f.datum_splatnosti)}</span>
                 <span>📦 ${f.pocet_polozek || 0} pol.</span>
               </div>
-              <div class="faktura-card-castka">${fmt(f.castka_celkem)}</div>
             </div>
             <div class="faktura-card-actions" onclick="event.stopPropagation();">
               <span class="doc-badges-row fa-icon-actions">
@@ -551,6 +550,7 @@ async function renderFaktury(filters = {}, opts = {}) {
                 <a href="#" class="doc-badge mail" title="Odeslat fakturu e-mailem (PDF v příloze)" onclick="otevritOdeslatEmailem('fa', ${f.id}, '${esc(f.cislo).replace(/'/g, '')}', '${esc(f.odberatel_email || '').replace(/'/g, '')}');return false">✉️</a>
               </span>
             </div>
+            <div class="faktura-card-sum"><span class="faktura-card-sum-lbl">fakturováno</span><span class="faktura-card-castka">${fmt(f.castka_celkem)}</span></div>
           </div>
         `).join('')
       }

@@ -417,7 +417,8 @@ window.noPridatZKatalogu = function() {
   vykreslitNovouObjednavku();
   // 🆕 Po přidání zaostři hledání DALŠÍHO produktu (ne odběratele) — rychlé hromadné zadávání.
   //    90ms, aby to přebilo auto-focus modalu (openModal zaostří první input přes setTimeout 60ms).
-  setTimeout(function () { document.getElementById('no-pridat-vyrobek')?.focus(); }, 90);
+  //    v3.0.594 — preventScroll: zaostření nesmí odrolovat modal (dřív „odskočení" po přidání produktu)
+  setTimeout(function () { try { document.getElementById('no-pridat-vyrobek')?.focus({ preventScroll: true }); } catch (e) {} }, 90);
 };
 
 window.noPridatVolny = function() {

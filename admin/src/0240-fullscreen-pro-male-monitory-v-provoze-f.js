@@ -49,10 +49,20 @@ document.addEventListener('webkitfullscreenchange', () => {
 })();
 
 function openModal(title, body, size = '') {
+  const modal = document.getElementById('modal');
+  // 🐛 v3.0.594 — PŘEKRESLENÍ už otevřeného modalu (stateful formuláře: nová objednávka, ruční DL/FA…)
+  //   dřív: nový obsah + autofocus PRVNÍHO pole (odběratel nahoře) → modal „odskočil" nahoru po každé změně.
+  //   Teď: zachovej scroll všech scrollujících vrstev a autofocus přeskoč.
+  const reRender = !!(modal && modal.style.display === 'flex' && document.getElementById('modal-title').textContent === title);
+  const scrollers = reRender ? [modal, modal.querySelector('.modal-card'), document.getElementById('modal-body')].filter(Boolean) : [];
+  const saved = scrollers.map(el => el.scrollTop);
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = body;
-  const modal = document.getElementById('modal');
   modal.style.display = 'flex';
+  if (reRender) {
+    const restore = () => scrollers.forEach((el, i) => { if (saved[i]) el.scrollTop = saved[i]; });
+    restore(); requestAnimationFrame(restore);
+  }
   // Aplikuj size class na modal-card
   const card = modal.querySelector('.modal-card');
   if (card) {
@@ -64,7 +74,7 @@ function openModal(title, body, size = '') {
     setTimeout(labelizeTables, 0);
   }
   // 🆕 v3.0.347 — autofocus prvního pole + Esc zavře modal (parita s confirmDialog)
-  setTimeout(() => { const fe = card && card.querySelector('input:not([type=hidden]):not([disabled]),select,textarea'); if (fe) { try { fe.focus(); } catch (e) {} } }, 60);
+  if (!reRender) setTimeout(() => { const fe = card && card.querySelector('input:not([type=hidden]):not([disabled]),select,textarea'); if (fe) { try { fe.focus(); } catch (e) {} } }, 60);
   if (!modal._escBound) {
     modal._escBound = true;
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display === 'flex') closeModal(); });
