@@ -224,7 +224,7 @@ async function renderVyrobky(filters = {}) {
             ${reorderMode ? '<td class="drag-handle">⋮⋮</td>' : ''}
             <td>${v.obrazek_url ? `<img src="${esc(v.obrazek_url)}" style="width:64px;height:64px;border-radius:8px;object-fit:cover;display:block;">` : `<div style="width:64px;height:64px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:32px;">${esc(v.kategorie_ikona || '🥖')}</div>`}</td>
             <td>${esc(v.cislo || '')}</td>
-            <td class="vyrobek-row-name"><strong>${esc(v.nazev)}</strong>${vyrobekDocBadges(v)}${v.hmotnost_g ? `<div style="color:var(--text-3);font-size:12px;">${v.hmotnost_g} g</div>` : ''}</td>
+            <td class="vyrobek-row-name"><strong>${esc(v.nazev)}</strong>${vyrobekDocBadges(v)}${vyrobekObsahTxt(v) ? `<div style="color:var(--text-3);font-size:12px;">${vyrobekObsahTxt(v)}</div>` : ''}</td>
             <td>${esc(v.kategorie_nazev || '')}</td>
             <td class="num" onclick="event.stopPropagation();">
               ${reorderMode ? fmt(v.cena_bez_dph) : `<span class="inline-edit" data-inline-table="vyrobky" data-inline-id="${v.id}" data-inline-field="cena_bez_dph" data-inline-type="number" data-inline-value="${v.cena_bez_dph}" title="Klik = upravit cenu inline">${fmt(v.cena_bez_dph)}</span>`}
@@ -284,7 +284,7 @@ async function renderVyrobky(filters = {}) {
             <div class="vyrobek-card-cislo">${esc(v.cislo || '')}</div>
             <div class="vyrobek-card-nazev">${esc(v.nazev)}${vyrobekDocBadges(v)}</div>
             <div class="vyrobek-card-meta">
-              ${v.hmotnost_g ? `${v.hmotnost_g} g · ` : ''}${esc(v.kategorie_nazev || '')}
+              ${vyrobekObsahTxt(v) ? `${vyrobekObsahTxt(v)} · ` : ''}${esc(v.kategorie_nazev || '')}
             </div>
             <div class="vyrobek-card-price">${fmt(v.cena_bez_dph)} <span class="dph">+${v.dph}%</span></div>
           </div>
@@ -355,3 +355,10 @@ window.toggleVyrobkyReorder = function() {
   renderVyrobky(state._vyrobkyFilters || {});
 };
 
+
+// v3.0.583 — obsah balení v seznamu výrobků: hmotnost i objem (ml/l), fallback na starší hmotnost_g
+function vyrobekObsahTxt(v) {
+  const n = parseFloat(v.obsah);
+  if (n > 0 && v.obsah_jednotka) return `${String(n).replace('.', ',')} ${esc(v.obsah_jednotka)}`;
+  return v.hmotnost_g ? `${v.hmotnost_g} g` : '';
+}
