@@ -62,17 +62,17 @@ const FEATURE_MAP = [
     'kitchen_display'     => 'restaurace',   // KDS — kitchen display system
     'pos_integration'     => 'restaurace',   // POS pokladna napojení
 
-    // ─── CATERING ───
-    'event_planner'       => 'catering',     // kalkulačka eventů (počet hostů → potřebné zdroje)
-    'banket_sets'         => 'catering',     // banketové sety / cenové úrovně
-    'catering_logistics'  => 'catering',     // rozšířená logistika rozvozů
-    'guest_count_calc'    => 'catering',     // přepočet porcí na počet hostů
+    // ─── VELKÝ CATERING — v3.0.588 součást balíčku Lahůdky ───
+    'event_planner'       => 'lahudky',      // kalkulačka eventů (počet hostů → potřebné zdroje)
+    'banket_sets'         => 'lahudky',      // banketové sety / cenové úrovně
+    'catering_logistics'  => 'lahudky',      // rozšířená logistika rozvozů
+    'guest_count_calc'    => 'lahudky',      // přepočet porcí na počet hostů
 
-    // ─── SEZÓNNÍ AKCE ───
-    'popup_events'        => 'sezona',       // pop-up trhy & akce
-    'seasonal_pricing'    => 'sezona',       // sezónní cenové úrovně
-    'christmas_orders'    => 'sezona',       // vánoční objednávky template
-    'easter_orders'       => 'sezona',       // velikonoční template
+    // ─── SEZÓNNÍ NABÍDKY — v3.0.588 zdarma (core), menu Nástroje ───
+    'popup_events'        => 'core',         // pop-up trhy & akce
+    'seasonal_pricing'    => 'core',         // sezónní cenové úrovně
+    'christmas_orders'    => 'core',         // vánoční objednávky template
+    'easter_orders'       => 'core',         // velikonoční template
 ];
 
 /**
@@ -109,8 +109,6 @@ function feature_upsell_html(string $featureKey): string {
         'cukrarna'   => ['name' => '🎂 Cukrárna',     'price' => '2 990 Kč'],
         'lahudky'    => ['name' => '🥪 Lahůdky',      'price' => '2 490 Kč'],
         'restaurace' => ['name' => '🍽️ Restaurace',   'price' => '3 490 Kč'],
-        'catering'   => ['name' => '🎉 Catering',     'price' => '2 990 Kč'],
-        'sezona'     => ['name' => '🍂 Sezónní akce', 'price' => '1 990 Kč'],
     ];
     $info = $packageNames[$pkg] ?? ['name' => ucfirst($pkg), 'price' => '—'];
 

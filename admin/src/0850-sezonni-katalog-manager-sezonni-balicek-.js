@@ -9,11 +9,11 @@ async function renderSeasonalCatalog() {
   c.innerHTML = `
     <div class="page-head">
       <div>
-        <h1 class="page-title">🍰 Sezónní katalog</h1>
+        <h1 class="page-title">🍰 Sezónní nabídky</h1>
         <p class="page-sub">Sezónní okna pro výrobky · B2B portal je filtruje automaticky.</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Dashboard</button>
+        <button class="btn-secondary" onclick="navigate('nastroje')">← Nástroje</button>
       </div>
     </div>
 
@@ -123,11 +123,11 @@ async function renderSeasonalCalendar() {
           <strong style="font-size:15px">📅 Vybraný den: ${new Date(selectedDate).toLocaleDateString('cs-CZ')}</strong>
           ${selectedDate === data.today ? '<span style="background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;margin-left:8px">DNES</span>' : ''}
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn-secondary" onclick="state._seasonalDate=new Date(state._seasonalDate || new Date()).toYMD();state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() - 86400000).toYMD();keepScroll(()=>renderSeasonalCalendar())">← Předchozí den</button>
-          <input type="date" class="form-input" value="${selectedDate}" onchange="state._seasonalDate=this.value;keepScroll(()=>renderSeasonalCalendar())" style="width:auto">
-          <button class="btn-secondary" onclick="state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() + 86400000).toYMD();keepScroll(()=>renderSeasonalCalendar())">Další den →</button>
-          <button class="btn-primary" onclick="state._seasonalDate='${data.today}';keepScroll(()=>renderSeasonalCalendar())">Dnes</button>
+        <div style="display:grid;grid-template-columns:44px minmax(0,1fr) 44px auto;gap:6px;align-items:center;width:100%;max-width:420px">
+          <button class="btn-secondary" title="Předchozí den" aria-label="Předchozí den" style="height:40px;padding:0;min-width:0" onclick="state._seasonalDate=new Date(state._seasonalDate || new Date()).toYMD();state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() - 86400000).toYMD();keepScroll(()=>renderSeasonalCalendar())">←</button>
+          <input type="date" class="form-input" value="${selectedDate}" onchange="state._seasonalDate=this.value;keepScroll(()=>renderSeasonalCalendar())" style="width:100%;min-width:0;height:40px">
+          <button class="btn-secondary" title="Další den" aria-label="Další den" style="height:40px;padding:0;min-width:0" onclick="state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() + 86400000).toYMD();keepScroll(()=>renderSeasonalCalendar())">→</button>
+          <button class="btn-primary" style="height:40px;padding:0 14px" onclick="state._seasonalDate='${data.today}';keepScroll(()=>renderSeasonalCalendar())">Dnes</button>
         </div>
       </div>
       <div style="margin-top:10px">

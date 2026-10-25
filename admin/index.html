@@ -227,6 +227,8 @@
         <span class="sidebar-pin-label-on">Připnuto</span>
         <span class="sidebar-pin-label-off">Připnout menu</span>
       </button>
+      <!-- v3.0.588 — ikony zapnutých balíčků (Cukrárna / Lahůdky / Restaurace) v řádku se Skrýt/Připnout menu -->
+      <div id="sidebar-pkg-icons" class="sidebar-pkg-icons" role="navigation" aria-label="Zapnuté balíčky"></div>
     </div>
   </aside>
 
@@ -291,25 +293,7 @@
       </div>
     </header>
 
-    <!-- 🎁 SUBHEADER — velké balíčky pod hlavičkou (zobrazí se jen když má customer aktivované)
-         🆕 v3.0.92 — collapse/expand toggle s "jazykem" co zůstane viditelný (user request) -->
-    <div id="package-subheader" class="package-subheader" role="navigation" aria-label="Aktivní balíčky">
-      <div class="pkg-sub-label">🎁 Tvé balíčky:</div>
-      <div id="topbar-package-badges" class="topbar-pkg-badges"></div>
-      <button type="button" id="pkg-subheader-toggle" class="pkg-subheader-toggle"
-              onclick="togglePackageSubheader()"
-              title="Schovat balíčky" aria-label="Schovat balíčky">
-        <span class="pkg-toggle-arrow" aria-hidden="true">▲</span>
-        <span class="pkg-toggle-text">Skrýt</span>
-      </button>
-    </div>
-    <!-- Collapsed handle — zobrazí se POUZE když je subheader sbalený -->
-    <button type="button" id="pkg-subheader-handle" class="pkg-subheader-handle"
-            onclick="togglePackageSubheader()"
-            title="Zobrazit balíčky" aria-label="Zobrazit balíčky">
-      🎁 Balíčky <span class="pkg-handle-arrow">▼</span>
-    </button>
-
+    <!-- v3.0.588 — blok „🎁 Tvé balíčky" + tlačítko „Balíčky" zrušeny; ikony zapnutých balíčků jsou v řádku Skrýt/Připnout menu (#sidebar-pkg-icons) -->
     <main id="content" class="main-content"></main>
     <!-- patička: verze + zákaznicky užitečné odkazy (dev deploy-nástroje viz vendor) -->
     <footer class="appek-footer" id="appek-footer">

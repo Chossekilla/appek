@@ -52,6 +52,8 @@ try {
                features_json
         FROM vendor_packages
         WHERE is_active = 1
+          -- v3.0.588: Velký catering je součástí Lahůdek, Sezónní nabídky jsou zdarma (core) → neprodávají se samostatně
+          AND `key` NOT IN ('catering', 'sezona')
         ORDER BY sort_order, id
     ")->fetchAll();
 

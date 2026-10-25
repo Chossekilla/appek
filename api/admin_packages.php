@@ -37,7 +37,7 @@ function packages_catalog(): array {
             'mena'        => 'Kč',
             'opakovani'   => 'zdarma',
             'popis'       => 'Objednávky, dodací listy, faktury, výrobky, odběratelé, HACCP, sklad.',
-            'features'    => ['Objednávky', 'Dodací listy', 'Faktury (ISDOC)', 'Výrobky a sklad', 'Odběratelé', 'HACCP', 'Push notifikace', 'REST API'],
+            'features'    => ['Objednávky', 'Dodací listy', 'Faktury (ISDOC)', 'Výrobky a sklad', 'Odběratelé', 'HACCP', 'Sezónní nabídky (Nástroje)', 'Push notifikace', 'REST API'],
             'always_on'   => true,
         ],
         'cukrarna' => [
@@ -60,12 +60,13 @@ function packages_catalog(): array {
             'cena_kc'     => 3000,
             'mena'        => 'Kč',
             'opakovani'   => 'ročně',
-            'popis'       => 'Catering, šaržová evidence, mix-and-match objednávky.',
+            'popis'       => 'Catering (vč. velkého cateringu pro firmy a akce), šaržová evidence, mix-and-match objednávky.',
             'features'    => [
                 '🍱 Catering kalkulátor (X osob → návrh chlebíčků/zákusků/nápojů)',
                 '📋 Šaržová HACCP evidence (každá várka = vlastní šarže + DMT)',
                 '🧩 Mix-and-match objednávka (zákazník volí ingredience na sendviči)',
                 '🚚 Catering objednávky s časem dodání',
+                '🎉 Velký catering — firemní akce, cenové úrovně dle počtu osob, smlouvy + nabídky (PDF), záloha 50 %',
             ],
         ],
         'restaurace' => [
@@ -82,34 +83,7 @@ function packages_catalog(): array {
                 '🛵 Vlastní rozvoz / spolupráce s kurýrkou',
             ],
         ],
-        'catering' => [
-            'nazev'       => 'Velký catering',
-            'ikona'       => '🎉',
-            'cena_kc'     => 2500,
-            'mena'        => 'Kč',
-            'opakovani'   => 'ročně',
-            'popis'       => 'Velkokapacitní objednávky pro firmy a akce.',
-            'features'    => [
-                '🏢 Firemní objednávky (faktura na IČO, vlastní cenové úrovně)',
-                '👥 Cenové úrovně podle počtu osob',
-                '📑 Generování smluv + nabídek (PDF)',
-                '🎯 Předzaplacená záloha (50%)',
-            ],
-        ],
-        'sezona' => [
-            'nazev'       => 'Sezónní balíček',
-            'ikona'       => '🍰',
-            'cena_kc'     => 1500,
-            'mena'        => 'Kč',
-            'opakovani'   => 'ročně',
-            'popis'       => 'Speciální módy pro Velikonoce, Vánoce, sv. Valentýna.',
-            'features'    => [
-                '🐰 Sezónní katalog (auto on/off podle data)',
-                '🎄 Předobjednávky s deadlinem',
-                '🎁 Dárkové balení (vrstva + cena)',
-                '🏷️ Sezónní akce a slevy',
-            ],
-        ],
+        // v3.0.588 — 'catering' (Velký catering) sloučen do Lahůdek, 'sezona' je zdarma (core, menu Nástroje)
     ];
 }
 

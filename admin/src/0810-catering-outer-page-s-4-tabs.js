@@ -11,7 +11,7 @@ async function renderCateringPage() {
         <p class="page-sub">Firemní objednávky · Cenové úrovně · PDF smlouvy · Záloha 50 %</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Dashboard</button>
+        <button class="btn-secondary" onclick="navigate('pkg_lahudky')">← Lahůdkárna</button>
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">

@@ -21,7 +21,7 @@ const PKG_PLACEHOLDER_CONTENT = {
       { ikona: '🍱', nazev: 'Catering kalkulátor', popis: 'X osob → návrh počtu chlebíčků/zákusků/nápojů s cenou.', stav: 'hotovo' },
       { ikona: '📋', nazev: 'Šaržová HACCP evidence', popis: 'Každá várka = vlastní šarže s teplotou skladu + DMT, filtry, kontrolní záznamy pro audit.', stav: 'hotovo' },
       { ikona: '🧩', nazev: 'Mix-and-match konfigurátor', popis: 'Šablony chlebíček/bageta s kategoriemi a ingrediencemi · cena se počítá automaticky · alergeny.', stav: 'hotovo' },
-      { ikona: '🚚', nazev: 'Catering objednávky s časem', popis: 'Rozvoz v určitý čas s timeslotem — sdílí evidenci s balíčkem 🎉 Velký catering.', stav: 'hotovo' },
+      { ikona: '🚚', nazev: 'Catering objednávky s časem', popis: 'Rozvoz v určitý čas s timeslotem — sdílí evidenci s 🎉 Velkým cateringem (součást Lahůdek).', stav: 'hotovo' },
     ],
   },
   pkg_restaurace: {

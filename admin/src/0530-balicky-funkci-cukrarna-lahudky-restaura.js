@@ -183,8 +183,7 @@ const PKG_NAV = {
   cukrarna:   { ikona: '🧁', label: 'Cukrárna',    page: 'pkg_cukrarna',    color: '#FFB6C1' },
   lahudky:    { ikona: '🥗', label: 'Lahůdky',     page: 'pkg_lahudky',     color: '#90EE90' },
   restaurace: { ikona: '🍕', label: 'Restaurace',  page: 'pkg_restaurace',  color: '#FFA500' },
-  catering:   { ikona: '🎉', label: 'Catering',    page: 'pkg_catering',    color: '#9370DB' },
-  sezona:     { ikona: '🍰', label: 'Sezónní',     page: 'pkg_sezona',      color: '#FF69B4' },
+  // v3.0.588 — Velký catering je v Lahůdkách, Sezónní nabídky v Nástrojích (zdarma) → bez vlastní ikony
 };
 
 window._activePackages = [];
@@ -227,67 +226,33 @@ window.loadActivePackages = async function() {
  * Klik → navigate na pkg_xxx stránku. Aktivní balíček (=current page) je vizuálně zvýrazněný.
  */
 function renderPackageHeaderBadges(active) {
-  const host = document.getElementById('topbar-package-badges');
-  const sub  = document.getElementById('package-subheader');
+  // v3.0.588 — ikony zapnutých balíčků v řádku „Skrýt / Připnout menu" (bývalý blok „Tvé balíčky" zrušen)
+  const host = document.getElementById('sidebar-pkg-icons');
   if (!host) return;
-  if (!active || active.length === 0) {
-    host.innerHTML = '';
-    if (sub) sub.classList.remove('show');
-    return;
-  }
-  // 🎁 Subheader se zobrazí pouze pokud jsou aktivované balíčky
-  if (sub) sub.classList.add('show');
+  const list = (active || []).filter(p => PKG_NAV[p.key]);
+  host.classList.toggle('has-pkgs', list.length > 0);
   const currentPage = state.current || '';
-  host.style.setProperty('--pkg-n', active.length);   // 🆕 v3.0.532 — počet pro reverzní stagger při zavírání
-  host.innerHTML = active.map((p, i) => {
+  host.innerHTML = list.map((p) => {
     const meta = PKG_NAV[p.key];
-    if (!meta) return '';
     const isActive = currentPage === meta.page;
-    return `
-      <button type="button"
-        class="pkg-badge-square ${isActive ? 'is-active' : ''}"
-        data-page="${meta.page}"
-        data-pkg-key="${esc(p.key)}"
-        title="${esc(meta.label)}"
-        aria-label="${esc(meta.label)}"
-        onclick="navigate('${meta.page}')"
-        style="--pkg-color: ${meta.color || '#BA7517'}; --i: ${i}">
-        <span class="pkg-badge-icon">${meta.ikona}</span>
-        <span class="pkg-badge-label">${esc(meta.label)}</span>
-      </button>
-    `;
+    return `<button type="button" class="sidebar-pkg-icon ${isActive ? 'is-active' : ''}"
+        data-page="${meta.page}" data-pkg-key="${esc(p.key)}"
+        title="${esc(meta.label)}" aria-label="${esc(meta.label)}"
+        onclick="navigate('${meta.page}')" style="--pkg-color:${meta.color || '#BA7517'}">${meta.ikona}</button>`;
   }).join('');
-  playPackageReveal();
 }
 
-// 🆕 v3.0.535 — přehraj efektní „reveal" animaci ikon (spring pop + barevný glow, kaskáda).
-// Class-based restart přes reflow → funguje i proti !important animaci v CSS. Volá se
-// při renderu (load / změna balíčků) i při rozbalení subheaderu (klik na 🎁 Balíčky).
-function playPackageReveal() {
-  const sub = document.getElementById('package-subheader');
-  if (!sub) return;
-  sub.classList.remove('pkg-anim');
-  void sub.offsetWidth;               // vynucený reflow = CSS animace startuje znovu
-  sub.classList.add('pkg-anim');
-}
+// v3.0.588 — bývalý reveal/sbalení bloku balíčků; ponecháno jako no-op kvůli starým voláním
+function playPackageReveal() {}
 
 // Legacy alias — pro případ že někdo volá starý název
 function renderPackageSidebarItems(active) {
   return renderPackageHeaderBadges(active);
 }
 
-// 🆕 v3.0.92 — Toggle package subheader (user: "klik na ikonku v rohu zajede nahoru, čouhat bude jazyk")
-window.togglePackageSubheader = function() {
-  const isCollapsed = document.body.classList.toggle('pkg-subheader-collapsed');
-  try { localStorage.setItem('appek_pkg_collapsed', isCollapsed ? '1' : '0'); } catch(e) {}
-  if (!isCollapsed) playPackageReveal();   // 🆕 v3.0.535 — při rozbalení přehraj reveal ikon jedna po druhé
-};
-// Restore stav po load — pokud user měl naposledy collapsed
-(function restorePackageSubheaderState() {
-  try {
-    if (localStorage.getItem('appek_pkg_collapsed') === '1') {
-      document.body.classList.add('pkg-subheader-collapsed');
-    }
-  } catch(e) {}
+// v3.0.588 — sbalitelný blok balíčků zrušen: no-op + úklid starého stavu (třída měnila layout sidebaru)
+window.togglePackageSubheader = function() {};
+(function cleanupPackageSubheaderState() {
+  document.body.classList.remove('pkg-subheader-collapsed');
+  try { localStorage.removeItem('appek_pkg_collapsed'); } catch(e) {}
 })();
-

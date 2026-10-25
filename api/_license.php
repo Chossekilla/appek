@@ -242,7 +242,22 @@ function license_has_package(string $packageKey): bool {
     static $cache = null;
     if ($cache === null) {
         $st = license_status();
-        $cache = $st['packages'] ?? ['core'];
+        $cache = license_effective_packages($st['packages'] ?? ['core']);
     }
     return in_array($packageKey, $cache, true);
+}
+
+/**
+ * 🆕 v3.0.588 — přestavba nabídky: z 5 placených balíčků zbyly 3 (Cukrárna, Lahůdky, Restaurace).
+ *   • Sezónní nabídky → ZDARMA pro všechny (součást core, v menu Nástroje).
+ *   • Velký catering → součást balíčku Lahůdky (kdo má Lahůdky, má i catering).
+ * Bity v klíči zůstávají (staré licence s catering/sezona dál platí — nic se neodebírá),
+ * mění se jen to, co odemykají. Klíč sám (license_status) vrací dál surový obsah.
+ */
+function license_effective_packages(array $raw): array {
+    $eff = $raw;
+    if (!in_array('core', $eff, true))   $eff[] = 'core';
+    if (!in_array('sezona', $eff, true)) $eff[] = 'sezona';
+    if (in_array('lahudky', $eff, true) && !in_array('catering', $eff, true)) $eff[] = 'catering';
+    return $eff;
 }

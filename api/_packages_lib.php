@@ -13,8 +13,7 @@ function packages_catalog_def(): array {
         'cukrarna'    => ['nazev' => 'Cukrárna',       'always_on' => false],
         'lahudky'     => ['nazev' => 'Lahůdkárna',     'always_on' => false],
         'restaurace'  => ['nazev' => 'Restaurace',     'always_on' => false],
-        'catering'    => ['nazev' => 'Catering',       'always_on' => false],
-        'sezona'      => ['nazev' => 'Sezónní',        'always_on' => false],
+        // v3.0.588 — Catering je součástí Lahůdek, Sezónní je zdarma (core) → už ne samostatné balíčky
     ];
 }
 
@@ -32,6 +31,16 @@ function packages_state_get(PDO $pdo): array {
 if (!function_exists('package_enabled')) {
     function package_enabled(string $key): bool {
         if ($key === 'core') return true;
+        // 🆕 v3.0.588 — Sezónní nabídky jsou zdarma (core): nevypne je toggle ani vypršení licence
+        if ($key === 'sezona') return true;
+        // 🆕 v3.0.588 — Velký catering je součástí Lahůdek: jede, když jedou Lahůdky
+        //   (+ zpětně: kdo má v klíči starý samostatný Catering, má ho dál)
+        if ($key === 'catering') {
+            if (package_enabled('lahudky')) return true;
+            // samostatný Catering jen podle SUROVÉHO bitu v klíči (efektivní seznam ho odvozuje z Lahůdek)
+            $rawPk = function_exists('license_status') ? (license_status()['packages'] ?? []) : [];
+            if (!in_array('catering', $rawPk, true)) return false;
+        }
         if (!license_has_package($key)) return false;
         // 🆕 v3.0.301 — po vypršení roční licence (po grace období) se add-on balíčky VYPNOU
         //   (core/POS jede dál). Řídí valid_until z heartbeatu, viz _license_enforce.php.

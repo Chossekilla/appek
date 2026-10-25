@@ -24,7 +24,7 @@ if (!feature_enabled('event_planner')) {
     echo json_encode([
         'error' => 'upsell',
         'feature' => 'event_planner',
-        'package' => 'catering',
+        'package' => 'lahudky', // v3.0.588 catering je součástí Lahůdek
         'message' => 'Event planner je součástí balíčku Catering.',
     ]);
     exit;

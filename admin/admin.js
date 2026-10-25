@@ -4600,12 +4600,12 @@ async function navigate(page, args) {
   //   monitoru („flex"). Formulářové/dashboard stránky zůstanou centrované.
   try { const _c = document.getElementById('content'); if (_c) _c.dataset.page = page; } catch (e) {}
   // 🆕 v3.0.375 — Nástroje pod-stránky (integrace/tiskárny/štítky) zvýrazní v menu rodiče „Nástroje" (jinak nic = uživatel „ztracený")
-  const _navActive = (page === 'integrace' || page === 'tiskarny' || page === 'stitky' || page === 'stanice') ? 'nastroje' : page;
+  const _navActive = (page === 'integrace' || page === 'tiskarny' || page === 'stitky' || page === 'stanice' || page === 'pkg_sezona') ? 'nastroje' : (page === 'pkg_catering' ? 'pkg_lahudky' : page);
   document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.page === _navActive));
   // 📱 Synchronizace bottom nav (mobile) — aktivní položka
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
   // 🎁 Re-render package badges v topbaru — aby se zvýraznil aktivní balíček
-  document.querySelectorAll('.pkg-big-btn, .pkg-badge-square').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
+  document.querySelectorAll('.pkg-big-btn, .pkg-badge-square, .sidebar-pkg-icon').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
   // 🆕 v3.0.39 — Update Floating Action Button per page (mobile)
   try { window.updateAppFAB && window.updateAppFAB(page); } catch (e) {}
 
@@ -18581,8 +18581,7 @@ const PKG_NAV = {
   cukrarna:   { ikona: '🧁', label: 'Cukrárna',    page: 'pkg_cukrarna',    color: '#FFB6C1' },
   lahudky:    { ikona: '🥗', label: 'Lahůdky',     page: 'pkg_lahudky',     color: '#90EE90' },
   restaurace: { ikona: '🍕', label: 'Restaurace',  page: 'pkg_restaurace',  color: '#FFA500' },
-  catering:   { ikona: '🎉', label: 'Catering',    page: 'pkg_catering',    color: '#9370DB' },
-  sezona:     { ikona: '🍰', label: 'Sezónní',     page: 'pkg_sezona',      color: '#FF69B4' },
+  // v3.0.588 — Velký catering je v Lahůdkách, Sezónní nabídky v Nástrojích (zdarma) → bez vlastní ikony
 };
 
 window._activePackages = [];
@@ -18625,70 +18624,36 @@ window.loadActivePackages = async function() {
  * Klik → navigate na pkg_xxx stránku. Aktivní balíček (=current page) je vizuálně zvýrazněný.
  */
 function renderPackageHeaderBadges(active) {
-  const host = document.getElementById('topbar-package-badges');
-  const sub  = document.getElementById('package-subheader');
+  // v3.0.588 — ikony zapnutých balíčků v řádku „Skrýt / Připnout menu" (bývalý blok „Tvé balíčky" zrušen)
+  const host = document.getElementById('sidebar-pkg-icons');
   if (!host) return;
-  if (!active || active.length === 0) {
-    host.innerHTML = '';
-    if (sub) sub.classList.remove('show');
-    return;
-  }
-  // 🎁 Subheader se zobrazí pouze pokud jsou aktivované balíčky
-  if (sub) sub.classList.add('show');
+  const list = (active || []).filter(p => PKG_NAV[p.key]);
+  host.classList.toggle('has-pkgs', list.length > 0);
   const currentPage = state.current || '';
-  host.style.setProperty('--pkg-n', active.length);   // 🆕 v3.0.532 — počet pro reverzní stagger při zavírání
-  host.innerHTML = active.map((p, i) => {
+  host.innerHTML = list.map((p) => {
     const meta = PKG_NAV[p.key];
-    if (!meta) return '';
     const isActive = currentPage === meta.page;
-    return `
-      <button type="button"
-        class="pkg-badge-square ${isActive ? 'is-active' : ''}"
-        data-page="${meta.page}"
-        data-pkg-key="${esc(p.key)}"
-        title="${esc(meta.label)}"
-        aria-label="${esc(meta.label)}"
-        onclick="navigate('${meta.page}')"
-        style="--pkg-color: ${meta.color || '#BA7517'}; --i: ${i}">
-        <span class="pkg-badge-icon">${meta.ikona}</span>
-        <span class="pkg-badge-label">${esc(meta.label)}</span>
-      </button>
-    `;
+    return `<button type="button" class="sidebar-pkg-icon ${isActive ? 'is-active' : ''}"
+        data-page="${meta.page}" data-pkg-key="${esc(p.key)}"
+        title="${esc(meta.label)}" aria-label="${esc(meta.label)}"
+        onclick="navigate('${meta.page}')" style="--pkg-color:${meta.color || '#BA7517'}">${meta.ikona}</button>`;
   }).join('');
-  playPackageReveal();
 }
 
-// 🆕 v3.0.535 — přehraj efektní „reveal" animaci ikon (spring pop + barevný glow, kaskáda).
-// Class-based restart přes reflow → funguje i proti !important animaci v CSS. Volá se
-// při renderu (load / změna balíčků) i při rozbalení subheaderu (klik na 🎁 Balíčky).
-function playPackageReveal() {
-  const sub = document.getElementById('package-subheader');
-  if (!sub) return;
-  sub.classList.remove('pkg-anim');
-  void sub.offsetWidth;               // vynucený reflow = CSS animace startuje znovu
-  sub.classList.add('pkg-anim');
-}
+// v3.0.588 — bývalý reveal/sbalení bloku balíčků; ponecháno jako no-op kvůli starým voláním
+function playPackageReveal() {}
 
 // Legacy alias — pro případ že někdo volá starý název
 function renderPackageSidebarItems(active) {
   return renderPackageHeaderBadges(active);
 }
 
-// 🆕 v3.0.92 — Toggle package subheader (user: "klik na ikonku v rohu zajede nahoru, čouhat bude jazyk")
-window.togglePackageSubheader = function() {
-  const isCollapsed = document.body.classList.toggle('pkg-subheader-collapsed');
-  try { localStorage.setItem('appek_pkg_collapsed', isCollapsed ? '1' : '0'); } catch(e) {}
-  if (!isCollapsed) playPackageReveal();   // 🆕 v3.0.535 — při rozbalení přehraj reveal ikon jedna po druhé
-};
-// Restore stav po load — pokud user měl naposledy collapsed
-(function restorePackageSubheaderState() {
-  try {
-    if (localStorage.getItem('appek_pkg_collapsed') === '1') {
-      document.body.classList.add('pkg-subheader-collapsed');
-    }
-  } catch(e) {}
+// v3.0.588 — sbalitelný blok balíčků zrušen: no-op + úklid starého stavu (třída měnila layout sidebaru)
+window.togglePackageSubheader = function() {};
+(function cleanupPackageSubheaderState() {
+  document.body.classList.remove('pkg-subheader-collapsed');
+  try { localStorage.removeItem('appek_pkg_collapsed'); } catch(e) {}
 })();
-
 // =============================================================
 // 🎁 PACKAGE PLACEHOLDER PAGES
 // =============================================================
@@ -18712,7 +18677,7 @@ const PKG_PLACEHOLDER_CONTENT = {
       { ikona: '🍱', nazev: 'Catering kalkulátor', popis: 'X osob → návrh počtu chlebíčků/zákusků/nápojů s cenou.', stav: 'hotovo' },
       { ikona: '📋', nazev: 'Šaržová HACCP evidence', popis: 'Každá várka = vlastní šarže s teplotou skladu + DMT, filtry, kontrolní záznamy pro audit.', stav: 'hotovo' },
       { ikona: '🧩', nazev: 'Mix-and-match konfigurátor', popis: 'Šablony chlebíček/bageta s kategoriemi a ingrediencemi · cena se počítá automaticky · alergeny.', stav: 'hotovo' },
-      { ikona: '🚚', nazev: 'Catering objednávky s časem', popis: 'Rozvoz v určitý čas s timeslotem — sdílí evidenci s balíčkem 🎉 Velký catering.', stav: 'hotovo' },
+      { ikona: '🚚', nazev: 'Catering objednávky s časem', popis: 'Rozvoz v určitý čas s timeslotem — sdílí evidenci s 🎉 Velkým cateringem (součást Lahůdek).', stav: 'hotovo' },
     ],
   },
   pkg_restaurace: {
@@ -19708,6 +19673,8 @@ async function renderCateringCalculator() {
       <button class="nastaveni-tab ${tab === 'mix' ? 'active' : ''}" onclick="state._lahudkyTab='mix';keepScroll(()=>renderCateringCalculator())">🧩 Mix-and-match</button>
       <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._lahudkyTab='orders';keepScroll(()=>renderCateringCalculator())">🚚 Catering s časem</button>
       <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._lahudkyTab='settings';keepScroll(()=>renderCateringCalculator())">⚙️ Nastavení kalkulačky</button>
+      <!-- v3.0.588 — Velký catering je nově součástí Lahůdek -->
+      <button class="nastaveni-tab" onclick="navigate('pkg_catering')">🎉 Velký catering</button>
     </div>
     <div id="lahudky-tab-body"></div>
   `;
@@ -25350,7 +25317,7 @@ async function renderLahudkyCateringList() {
     <div class="card-block" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
       <div>
         <strong style="font-size:14px">🚚 Catering objednávky s časem dodání</strong>
-        <div style="font-size:11.5px;color:var(--text-3);margin-top:2px">${akce.length} akcí · Sdílí evidenci s balíčkem 🎉 Velký catering</div>
+        <div style="font-size:11.5px;color:var(--text-3);margin-top:2px">${akce.length} akcí · Sdílí evidenci s 🎉 Velkým cateringem</div>
       </div>
       <button class="btn-primary btn-green" onclick="newCateringOrder()">+ Nová akce</button>
     </div>
@@ -25408,7 +25375,7 @@ async function renderCateringPage() {
         <p class="page-sub">Firemní objednávky · Cenové úrovně · PDF smlouvy · Záloha 50 %</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Dashboard</button>
+        <button class="btn-secondary" onclick="navigate('pkg_lahudky')">← Lahůdkárna</button>
       </div>
     </div>
     <div class="nastaveni-tabs" role="tablist" style="margin-bottom:14px">
@@ -26235,11 +26202,11 @@ async function renderSeasonalCatalog() {
   c.innerHTML = `
     <div class="page-head">
       <div>
-        <h1 class="page-title">🍰 Sezónní katalog</h1>
+        <h1 class="page-title">🍰 Sezónní nabídky</h1>
         <p class="page-sub">Sezónní okna pro výrobky · B2B portal je filtruje automaticky.</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-secondary" onclick="navigate('dashboard')">← Dashboard</button>
+        <button class="btn-secondary" onclick="navigate('nastroje')">← Nástroje</button>
       </div>
     </div>
 
@@ -26349,11 +26316,11 @@ async function renderSeasonalCalendar() {
           <strong style="font-size:15px">📅 Vybraný den: ${new Date(selectedDate).toLocaleDateString('cs-CZ')}</strong>
           ${selectedDate === data.today ? '<span style="background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;margin-left:8px">DNES</span>' : ''}
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn-secondary" onclick="state._seasonalDate=new Date(state._seasonalDate || new Date()).toYMD();state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() - 86400000).toYMD();keepScroll(()=>renderSeasonalCalendar())">← Předchozí den</button>
-          <input type="date" class="form-input" value="${selectedDate}" onchange="state._seasonalDate=this.value;keepScroll(()=>renderSeasonalCalendar())" style="width:auto">
-          <button class="btn-secondary" onclick="state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() + 86400000).toYMD();keepScroll(()=>renderSeasonalCalendar())">Další den →</button>
-          <button class="btn-primary" onclick="state._seasonalDate='${data.today}';keepScroll(()=>renderSeasonalCalendar())">Dnes</button>
+        <div style="display:grid;grid-template-columns:44px minmax(0,1fr) 44px auto;gap:6px;align-items:center;width:100%;max-width:420px">
+          <button class="btn-secondary" title="Předchozí den" aria-label="Předchozí den" style="height:40px;padding:0;min-width:0" onclick="state._seasonalDate=new Date(state._seasonalDate || new Date()).toYMD();state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() - 86400000).toYMD();keepScroll(()=>renderSeasonalCalendar())">←</button>
+          <input type="date" class="form-input" value="${selectedDate}" onchange="state._seasonalDate=this.value;keepScroll(()=>renderSeasonalCalendar())" style="width:100%;min-width:0;height:40px">
+          <button class="btn-secondary" title="Další den" aria-label="Další den" style="height:40px;padding:0;min-width:0" onclick="state._seasonalDate=new Date(new Date(state._seasonalDate).getTime() + 86400000).toYMD();keepScroll(()=>renderSeasonalCalendar())">→</button>
+          <button class="btn-primary" style="height:40px;padding:0 14px" onclick="state._seasonalDate='${data.today}';keepScroll(()=>renderSeasonalCalendar())">Dnes</button>
         </div>
       </div>
       <div style="margin-top:10px">
@@ -32363,6 +32330,14 @@ async function renderNastroje() {
         <div class="nastroje-card-desc">Platby (Stripe, GoPay, PayPal), přepravci (Zásilkovna, DPD, PPL, ČP) a účetní (POHODA, FlexiBee).</div>
         <div class="nastroje-card-cta">Otevřít →</div>
       </button>`)}
+
+      <!-- 🆕 v3.0.588 — Sezónní nabídky přesunuté z placeného balíčku do Nástrojů (zdarma) -->
+      <button class="nastroje-card" onclick="navigate('pkg_sezona')" aria-label="Otevřít sezónní nabídky">
+        <div class="nastroje-card-icon">🍰</div>
+        <div class="nastroje-card-title">Sezónní nabídky</div>
+        <div class="nastroje-card-desc">Vánoce, Velikonoce, Valentýn… Výrobky se samy zapnou a vypnou podle data, sezónní ceny a předobjednávky.</div>
+        <div class="nastroje-card-cta">Otevřít →</div>
+      </button>
 
       <button class="nastroje-card" onclick="navigate('katalog')" aria-label="Otevřít PDF nabídku">
         <div class="nastroje-card-icon">📑</div>

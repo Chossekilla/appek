@@ -17,7 +17,7 @@ async function renderLahudkyCateringList() {
     <div class="card-block" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
       <div>
         <strong style="font-size:14px">🚚 Catering objednávky s časem dodání</strong>
-        <div style="font-size:11.5px;color:var(--text-3);margin-top:2px">${akce.length} akcí · Sdílí evidenci s balíčkem 🎉 Velký catering</div>
+        <div style="font-size:11.5px;color:var(--text-3);margin-top:2px">${akce.length} akcí · Sdílí evidenci s 🎉 Velkým cateringem</div>
       </div>
       <button class="btn-primary btn-green" onclick="newCateringOrder()">+ Nová akce</button>
     </div>

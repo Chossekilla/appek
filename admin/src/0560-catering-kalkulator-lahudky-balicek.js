@@ -20,6 +20,8 @@ async function renderCateringCalculator() {
       <button class="nastaveni-tab ${tab === 'mix' ? 'active' : ''}" onclick="state._lahudkyTab='mix';keepScroll(()=>renderCateringCalculator())">🧩 Mix-and-match</button>
       <button class="nastaveni-tab ${tab === 'orders' ? 'active' : ''}" onclick="state._lahudkyTab='orders';keepScroll(()=>renderCateringCalculator())">🚚 Catering s časem</button>
       <button class="nastaveni-tab ${tab === 'settings' ? 'active' : ''}" onclick="state._lahudkyTab='settings';keepScroll(()=>renderCateringCalculator())">⚙️ Nastavení kalkulačky</button>
+      <!-- v3.0.588 — Velký catering je nově součástí Lahůdek -->
+      <button class="nastaveni-tab" onclick="navigate('pkg_catering')">🎉 Velký catering</button>
     </div>
     <div id="lahudky-tab-body"></div>
   `;

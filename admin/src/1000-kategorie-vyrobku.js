@@ -579,6 +579,14 @@ async function renderNastroje() {
         <div class="nastroje-card-cta">Otevřít →</div>
       </button>`)}
 
+      <!-- 🆕 v3.0.588 — Sezónní nabídky přesunuté z placeného balíčku do Nástrojů (zdarma) -->
+      <button class="nastroje-card" onclick="navigate('pkg_sezona')" aria-label="Otevřít sezónní nabídky">
+        <div class="nastroje-card-icon">🍰</div>
+        <div class="nastroje-card-title">Sezónní nabídky</div>
+        <div class="nastroje-card-desc">Vánoce, Velikonoce, Valentýn… Výrobky se samy zapnou a vypnou podle data, sezónní ceny a předobjednávky.</div>
+        <div class="nastroje-card-cta">Otevřít →</div>
+      </button>
+
       <button class="nastroje-card" onclick="navigate('katalog')" aria-label="Otevřít PDF nabídku">
         <div class="nastroje-card-icon">📑</div>
         <div class="nastroje-card-title">PDF nabídka</div>

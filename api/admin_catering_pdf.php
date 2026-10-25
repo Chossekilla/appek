@@ -21,7 +21,7 @@ require_admin();
 if (!package_enabled('catering') && !package_enabled('lahudky')) {
     http_response_code(402);
     header('Content-Type: application/json; charset=UTF-8');
-    json_response(['error' => 'Vyžaduje balíček 🎉 Catering nebo 🥗 Lahůdky']);
+    json_response(['error' => 'Vyžaduje balíček 🥗 Lahůdky (obsahuje i velký catering)']);
 }
 
 $pdo = db();

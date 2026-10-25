@@ -135,6 +135,8 @@ try {
     $orderNo = 'APPEK-ORD-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(2)));
 
     $packages = is_array($d['packages'] ?? null) ? $d['packages'] : [];
+    // v3.0.588 — catering (v Lahůdkách) a sezona (zdarma) se samostatně neprodávají
+    $packages = array_values(array_diff($packages, ['catering', 'sezona']));
     $packagesJson = json_encode(array_values($packages));
 
     $stmt = $pdo->prepare("

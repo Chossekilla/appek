@@ -637,12 +637,12 @@ async function navigate(page, args) {
   //   monitoru („flex"). Formulářové/dashboard stránky zůstanou centrované.
   try { const _c = document.getElementById('content'); if (_c) _c.dataset.page = page; } catch (e) {}
   // 🆕 v3.0.375 — Nástroje pod-stránky (integrace/tiskárny/štítky) zvýrazní v menu rodiče „Nástroje" (jinak nic = uživatel „ztracený")
-  const _navActive = (page === 'integrace' || page === 'tiskarny' || page === 'stitky' || page === 'stanice') ? 'nastroje' : page;
+  const _navActive = (page === 'integrace' || page === 'tiskarny' || page === 'stitky' || page === 'stanice' || page === 'pkg_sezona') ? 'nastroje' : (page === 'pkg_catering' ? 'pkg_lahudky' : page);
   document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.page === _navActive));
   // 📱 Synchronizace bottom nav (mobile) — aktivní položka
   document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
   // 🎁 Re-render package badges v topbaru — aby se zvýraznil aktivní balíček
-  document.querySelectorAll('.pkg-big-btn, .pkg-badge-square').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
+  document.querySelectorAll('.pkg-big-btn, .pkg-badge-square, .sidebar-pkg-icon').forEach(b => b.classList.toggle('is-active', b.dataset.page === page));
   // 🆕 v3.0.39 — Update Floating Action Button per page (mobile)
   try { window.updateAppFAB && window.updateAppFAB(page); } catch (e) {}
 
