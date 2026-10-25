@@ -365,8 +365,9 @@ function run_probes(): void {
         // zmizela z rozpisu i s poznámkou). Volá stejný endpoint jako obrazovka Výroba.
         [$o19, $c19] = $mk(19); $B19 = $b2b($c19);
         $d19 = date('Y-m-d', strtotime('+2 day'));
-        $ra = $order($B19, $o19, 4, ['datum_dodani' => $d19, 'poznamka' => 'PR19-a']);
-        $rb = $order($B19, $o19, 6, ['datum_dodani' => $d19, 'poznamka' => 'PR19-b']);
+        // množství ≥ min. objednávky sondového výrobku (5) — dřív 4 → HTTP 400 a sonda NEJASNÁ
+        $ra = $order($B19, $o19, 10, ['datum_dodani' => $d19, 'poznamka' => 'PR19-a']);
+        $rb = $order($B19, $o19, 12, ['datum_dodani' => $d19, 'poznamka' => 'PR19-b']);
         $ia = (int) ($ra['json']['id'] ?? 0); $ib = (int) ($rb['json']['id'] ?? 0);
         $vy = $A->call('GET', "api/admin_vyroba.php?datum=$d19");
         $grp = null;
