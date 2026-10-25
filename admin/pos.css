@@ -3515,3 +3515,21 @@ html, body {
   .pos-app .pos-actions .pos-icon:nth-of-type(4) { grid-column: 4 !important; grid-row: 1 !important; }
   .pos-app .pos-actions .pos-finish { grid-column: 5 !important; grid-row: 1 !important; font-size: 18px !important; min-height: 0 !important; }
 }
+
+/* v3.0.581 — mobil: platby v 1 nižším řádku [Hotově][Karta][⋯]; „⋯" rozbalí ostatní metody (vč. „jiných")
+   jako stejná tlačítka pod sebou místo popupu nahoře → víc místa pro položky. Název položky v košíku větší. */
+.pos-pay-btn.pos-pay-other { display: none; }
+@media (max-width: 768px), (orientation: landscape) and (max-height: 520px) {
+  .pos-app .pos-payment-bar { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; padding: 6px 10px 4px !important; }
+  .pos-app .pos-payment-bar .pos-pay-btn { order: 2; flex: 1 1 30% !important; min-width: 0 !important; min-height: 40px !important; padding: 6px 6px !important; font-size: 14px !important; border-radius: 10px !important; }
+  .pos-app .pos-payment-bar .pos-pay-btn[data-pay="hotove"],
+  .pos-app .pos-payment-bar .pos-pay-btn[data-pay="karta"] { order: 0; flex: 1 1 0 !important; min-height: 44px !important; font-size: 15px !important; }
+  .pos-app .pos-payment-bar .pos-more-toggle { order: 1; flex: 0 0 52px !important; width: 52px !important; height: 44px !important; margin: 0 !important; padding: 0 !important; border-style: solid !important; font-size: 20px !important; }
+  .pos-app .pos-payment-bar .pos-more-toggle .pos-more-txt { font-size: 0 !important; }
+  .pos-app .pos-payment-bar .pos-more-toggle .pos-more-txt::before { content: "⋯"; font-size: 22px; font-weight: 800; }
+  .pos-app .pos-payment-bar .pos-more-toggle .pos-more-arrow { font-size: 12px; }
+  /* rozbaleno: „Jiné ▾" popup nahrazen přímými tlačítky */
+  .pos-app.pos-more-open .pos-payment-bar .pos-pay-btn.pos-pay-more { display: none !important; }
+  .pos-app.pos-more-open .pos-payment-bar .pos-pay-btn.pos-pay-other { display: flex !important; align-items: center; justify-content: center; }
+  .pos-app .pos-cart-item .pos-line-name { font-size: 17px !important; font-weight: 700; }
+}

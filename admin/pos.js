@@ -606,8 +606,16 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
     });
     if (others.length > 0) {
       html.push('<button class="pos-pay-btn pos-pay-more" onclick="POS.payMenu(event)">📲 Jiné ▾</button>');
+      // v3.0.581 — mobil: „jiné" metody jako běžná tlačítka pod „⋯" (místo popupu nahoře); desktop je skrývá
+      others.forEach(m => {
+        const isAct = State.pos_payment === m.key ? ' is-active' : '';
+        html.push(`<button class="pos-pay-btn pos-pay-other${isAct}" data-pay="${m.key}" onclick="POS.setPay('${m.key}')">${esc(m.label)}</button>`);
+      });
     }
     bar.innerHTML = html.join('');
+    // mobil: „⋯ Další" přesunout do řádku plateb vedle Hotově/Karta
+    const moreT = document.querySelector('.pos-more-toggle');
+    if (moreT) bar.appendChild(moreT);
     // Pokud aktuální State.pos_payment není mezi povolenými → switch na první
     if (!methods.some(m => m.key === State.pos_payment) && primary.length) {
       setPay(primary[0].key);
