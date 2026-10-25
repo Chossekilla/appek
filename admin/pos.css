@@ -3533,3 +3533,12 @@ html, body {
   .pos-app.pos-more-open .pos-payment-bar .pos-pay-btn.pos-pay-other { display: flex !important; align-items: center; justify-content: center; }
   .pos-app .pos-cart-item .pos-line-name { font-size: 17px !important; font-weight: 700; }
 }
+/* v3.0.582 — zalomení: [Hotově][Karta][⋯] vždy 1. řádek, ostatní metody až pod ním; texty na 1 řádek */
+@media (max-width: 768px), (orientation: landscape) and (max-height: 520px) {
+  .pos-app .pos-payment-bar::after { content: ""; order: 2; flex: 0 0 100%; height: 0; }
+  .pos-app .pos-payment-bar .pos-pay-btn { order: 3; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .pos-app .pos-payment-bar .pos-pay-btn[data-pay="hotove"],
+  .pos-app .pos-payment-bar .pos-pay-btn[data-pay="karta"] { order: 0; height: 44px !important; max-height: 44px !important; }
+  .pos-app.pos-more-open .pos-payment-bar { row-gap: 6px !important; }
+  .pos-app.pos-more-open .pos-payment-bar .pos-pay-btn:not([data-pay="hotove"]):not([data-pay="karta"]) { flex: 1 1 calc(50% - 3px) !important; min-height: 40px !important; height: 40px !important; }
+}
