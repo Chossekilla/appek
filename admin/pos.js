@@ -1703,11 +1703,11 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
         </div>
 
         <footer class="pos-tm-foot">
-          <button class="pos-tm-btn" id="pos-tbl-bon">🍳 Tisk bonu</button>
-          <button class="pos-tm-btn" id="pos-tbl-kitchen">📨 Do kuchyně</button>
-          <button class="pos-tm-btn" id="pos-tbl-ucet">📤 Tisk účtu</button>
-          <button class="pos-tm-btn" id="pos-tbl-qr">📲 QR platba</button>
-          <button class="pos-tm-btn is-danger" id="pos-tbl-reopen" style="display:none">🔓 Znovu otevřít</button>
+          <button class="pos-tm-btn is-aux" id="pos-tbl-bon" title="Tisk bonu">🍳<span class="pos-tm-btn-lbl"> Tisk bonu</span></button>
+          <button class="pos-tm-btn is-aux" id="pos-tbl-kitchen" title="Do kuchyně">📨<span class="pos-tm-btn-lbl"> Do kuchyně</span></button>
+          <button class="pos-tm-btn is-aux" id="pos-tbl-ucet" title="Tisk účtu">📤<span class="pos-tm-btn-lbl"> Tisk účtu</span></button>
+          <button class="pos-tm-btn is-aux" id="pos-tbl-qr" title="QR platba">📲<span class="pos-tm-btn-lbl"> QR platba</span></button>
+          <button class="pos-tm-btn is-aux is-danger" id="pos-tbl-reopen" style="display:none" title="Znovu otevřít">🔓<span class="pos-tm-btn-lbl"> Znovu otevřít</span></button>
           <div class="pos-tm-btn-spacer"></div>
           <button class="pos-tm-btn is-save" id="pos-tbl-save">💾 Uložit <span class="pos-tm-btn-sub">a zavřít</span></button>
           <button class="pos-tm-btn is-primary" id="pos-tbl-pay">💰 Zaplatit <span class="pos-tm-btn-sub">a zavřít</span></button>
@@ -1947,7 +1947,9 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
     const metaEl = document.getElementById('pos-tm-meta');
     if (detail && metaEl && detail.otevreno_v) {
       const min = minutesSince(detail.otevreno_v);
-      metaEl.textContent = `· otevřen ${min} min · ${esc(detail.otevrel_jmeno || '?')}`;
+      // čitelná doba otevření (dřív „otevřen 45952 min")
+      const dur = min < 60 ? `${min} min` : (min < 1440 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${Math.floor(min / 1440)} d ${Math.floor((min % 1440) / 60)} h`);
+      metaEl.textContent = `· otevřen ${dur} · ${detail.otevrel_jmeno || '?'}`;
     }
 
     // Summary (sum bez DPH, sum DPH, total)
