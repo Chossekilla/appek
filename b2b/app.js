@@ -1036,8 +1036,7 @@ function renderStickyCart() {
   bar.innerHTML = `
     <button class="ccb-main" onclick="toggleCartSheet()" aria-label="Zobrazit celý košík">
       <span class="ccb-chevron" aria-hidden="true">▲</span>
-      <span class="ccb-count">🧾 ${cartCount()} ks</span>
-      ${savedChip}
+      <span class="ccb-info"><span class="ccb-count">🧾 ${cartCount()} ks</span>${savedChip}</span>
       <span class="ccb-total">${fmt(t.total)}</span>
     </button>
     <button class="ccb-cta" onclick="switchTab('checkout')">Souhrn →</button>
