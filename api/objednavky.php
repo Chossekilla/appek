@@ -475,7 +475,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     if (!$edit['lze']) json_error($edit['duvod'], 409);
 
     // Ověř místo dodání
-    $misto_id = (int) ($data['misto_dodani_id'] ?? $orig['misto_dodani_id']);
+    // v3.0.586 — objednávka bez místa (NULL) nesmí spadnout na 0 → FK 500 (smoke-chain PR04); sjednoceno s POST
+    $mistoRaw = array_key_exists('misto_dodani_id', $data) ? $data['misto_dodani_id'] : $orig['misto_dodani_id'];
+    $misto_id = !empty($mistoRaw) ? (int) $mistoRaw : null;
     if (!misto_patri_odberateli($pdo, $misto_id, $odberatel_id)) {
         json_error('Místo dodání nepatří k odběrateli', 400);
     }
