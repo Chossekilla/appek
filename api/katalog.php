@@ -105,7 +105,7 @@ if ($odb_id) {
                {$colK('hmotnost_g')},
                {$colK('obrazek_url')}, {$colK('objednat_do_hod')}, {$colK('alergeny')}, {$colK('oblibeny')},
                $jeAk, $jeNo, $jeDo, $jeVy,
-               {$colK('min_objednavka')}, {$colK('sezona')},
+               {$colK('min_objednavka')}, {$colK('sezona')}, {$colK('obsah')}, {$colK('obsah_jednotka')},
                k.nazev AS kategorie, k.id AS kategorie_id, k.ikona AS kategorie_ikona,
                j.kod AS jednotka,
                s.sazba AS dph,
