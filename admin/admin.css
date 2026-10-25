@@ -48,3 +48,5 @@ body.pkg-subheader-collapsed #package-subheader.show{overflow:hidden!important}
 .faktura-card .fa-icon-actions .doc-badge.mail{flex:0 0 56px!important;font-size:24px!important;background:#111!important;color:#fff!important;border:0!important}
 .faktura-card .fa-icon-actions .doc-badge.unavailable{opacity:.35}
 html.dark .faktura-card .fa-icon-actions .doc-badge.mail,html.theme-dark .faktura-card .fa-icon-actions .doc-badge.mail{background:#e4e4e7!important;color:#111!important}
+.faktura-card .faktura-card-actions{display:block!important}
+.faktura-card .fa-icon-actions{grid-column:1 / -1!important;width:100%!important}
