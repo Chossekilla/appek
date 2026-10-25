@@ -3426,3 +3426,48 @@ html, body {
   .pos-tm-btn.is-save, .pos-tm-btn.is-primary { grid-column: span 2 !important; min-height: 50px !important; font-size: 15px !important; }
   .pos-tm-btn-sub { display: none !important; }
 }
+
+/* =========================================================================
+   📱↔ v3.0.576 — TELEFON NA ŠÍŘKU (nízká obrazovka ≤520px): dřív desktop
+   rozložení → kategorie 183 px + hledání 119 px, produkty začínaly POD
+   obrazovkou (0 vidět) a FINISH v košíku byl 300 px pod okrajem.
+   ========================================================================= */
+@media (orientation: landscape) and (max-height: 520px) {
+  :root { --pos-card-min: 96px; }
+  .pos-tab-h .pth-txt { display: none !important; }
+
+  /* levý sloupec: kategorie / (hledání | filtry) / produkty */
+  .pos-app .pos-products { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; grid-template-rows: auto auto minmax(0, 1fr) !important; grid-template-areas: "cats cats" "search filters" "grid grid" !important; min-height: 0 !important; }
+  .pos-app .pos-products > .pos-cats-bar { grid-area: cats !important; display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; overflow-y: hidden !important; gap: 6px !important; padding: 5px 8px !important; scrollbar-width: none; }
+  .pos-app .pos-products > .pos-cats-bar::-webkit-scrollbar { display: none; }
+  .pos-app .pos-products .pos-cats-bar .pos-cat { flex: 0 0 auto !important; width: auto !important; min-width: 0 !important; height: 34px !important; min-height: 0 !important; padding: 0 10px !important; flex-direction: row !important; gap: 5px !important; border-radius: 9px !important; margin: 0 !important; }
+  .pos-app .pos-products .pos-cat .pos-cat-icon, .pos-app .pos-products .pos-cat .pos-cat-img { font-size: 16px !important; width: 18px !important; height: 18px !important; line-height: 18px !important; margin: 0 !important; }
+  .pos-app .pos-products .pos-cat .pos-cat-name { font-size: 12px !important; white-space: nowrap !important; }
+  .pos-app .pos-products .pos-cat .pos-cat-count { position: static !important; font-size: 10px !important; padding: 0 5px !important; height: 16px !important; line-height: 16px !important; min-width: 0 !important; }
+  .pos-app .pos-products > .pos-search-bar { grid-area: search !important; min-width: 0 !important; display: flex !important; flex-wrap: nowrap !important; gap: 6px !important; padding: 4px 8px !important; align-items: center !important; }
+  .pos-app .pos-products .pos-search-bar .pos-search-ic { display: none !important; }
+  .pos-app .pos-products .pos-search-bar input { flex: 1 1 auto !important; min-width: 0 !important; height: 36px !important; padding: 6px 12px !important; font-size: 14px !important; }
+  .pos-app .pos-products .pos-search-x { flex: 0 0 30px !important; width: 30px !important; height: 36px !important; padding: 0 !important; }
+  .pos-app .pos-products .pos-custom-row { display: contents !important; }
+  .pos-app .pos-products .pos-custom-btn { flex: 0 0 40px !important; width: 40px !important; min-width: 40px !important; height: 36px !important; padding: 0 !important; font-size: 17px !important; }
+  .pos-app .pos-products .pos-custom-lbl { display: none !important; }
+  .pos-app .pos-products > .pos-filters { grid-area: filters !important; min-width: 0 !important; display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; align-items: center !important; gap: 6px !important; padding: 4px 8px !important; border: 0 !important; scrollbar-width: none; }
+  .pos-app .pos-products > .pos-filters > * { flex: 0 0 auto !important; padding: 4px 10px !important; font-size: 12px !important; }
+  .pos-app .pos-products > .pos-grid { grid-area: grid !important; min-height: 0 !important; overflow-y: auto !important; gap: 6px !important; padding: 6px 8px !important; grid-auto-rows: auto !important; }
+  .pos-app .pos-products #pos-grid .pos-card { height: 96px !important; min-height: 96px !important; }
+  .pos-app .pos-products #pos-grid .pos-card-img, .pos-app .pos-products #pos-grid .pos-card-noimg { flex: 0 0 44px !important; height: 44px !important; min-height: 0 !important; aspect-ratio: auto !important; }
+  .pos-app .pos-products #pos-grid .pos-card-name { flex: 0 0 auto !important; font-size: 11.5px !important; line-height: 1.2 !important; max-height: 2.4em !important; overflow: hidden !important; padding-top: 3px !important; padding-bottom: 0 !important; }
+  .pos-app .pos-products #pos-grid .pos-card-price { flex: 0 0 auto !important; font-size: 13px !important; padding-top: 1px !important; padding-bottom: 2px !important; }
+
+  /* košík vpravo: celý roluje, CELKEM + akce s FINISH přilepené dole */
+  .pos-app .pos-cart { overflow-y: auto !important; overscroll-behavior: contain; }
+  .pos-app .pos-cart .pos-cart-list { flex: 0 0 auto !important; max-height: none !important; overflow: visible !important; }
+  .pos-app .pos-cart-head { padding: 6px 10px !important; }
+  .pos-app .pos-cust-row { padding: 6px 10px !important; }
+  .pos-app .pos-cart-item { grid-template-columns: minmax(0, 1fr) auto auto !important; }
+  .pos-app .pos-cart-item .pos-line-body { grid-column: 1 / -1 !important; }
+  .pos-app .pos-total-bar { position: sticky !important; bottom: 52px !important; z-index: 3 !important; padding: 6px 12px !important; background: var(--pos-card, #fff) !important; }
+  .pos-app .pos-actions { position: sticky !important; bottom: 0 !important; z-index: 3 !important; display: flex !important; flex-wrap: nowrap !important; align-items: center !important; gap: 6px !important; padding: 6px 10px !important; background: var(--pos-card, #fff) !important; box-shadow: 0 -4px 12px rgba(0, 0, 0, .06); }
+  .pos-app .pos-actions .pos-icon { flex: 0 0 40px !important; width: 40px !important; height: 40px !important; min-height: 0 !important; padding: 0 !important; }
+  .pos-app .pos-actions .pos-finish { flex: 1 1 auto !important; height: 40px !important; min-height: 0 !important; font-size: 15px !important; grid-column: auto !important; }
+}

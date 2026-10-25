@@ -529,9 +529,9 @@ async function renderFaktury(filters = {}, opts = {}) {
               <div class="faktura-card-castka">${fmt(f.castka_celkem)}</div>
             </div>
             <div class="faktura-card-actions" onclick="event.stopPropagation();">
-              <span class="doc-badges-row">
-                ${docBadge('dl', (f.pocet_dl > 0) ? (f.prvni_dl_objednavka_id ? `../api/dodaci_list.php?id=${f.prvni_dl_objednavka_id}` : `../api/dodaci_list.php?dl_id=${f.prvni_dl_id}`) : null, '📃 Dodací list', { disabledTitle: 'Faktura nemá navázaný DL' })}
-                ${docBadge('fa', `../api/faktura.php?id=${f.id}`, '💰 Faktura')}
+              <span class="doc-badges-row fa-icon-actions">
+                ${docBadge('dl', (f.pocet_dl > 0) ? (f.prvni_dl_objednavka_id ? `../api/dodaci_list.php?id=${f.prvni_dl_objednavka_id}` : `../api/dodaci_list.php?dl_id=${f.prvni_dl_id}`) : null, '📃', { title: 'Dodací list (PDF)', disabledTitle: 'Faktura nemá navázaný DL' })}
+                ${docBadge('fa', `../api/faktura.php?id=${f.id}`, '💰', { title: 'Faktura (PDF)' })}
               </span>
             </div>
           </div>
