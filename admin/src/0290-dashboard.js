@@ -517,8 +517,6 @@ async function renderDashboard(filters = {}) {
       </div>
     ` : ''}
 
-    <p class="period-range">📅 Období: <strong>${obdobiRange}</strong></p>
-
     <!-- HLAVNÍ STAT BOXY ZA OBDOBÍ — v2.9.240 layout 75/25 + 50/50 (user request) -->
     <!-- PC: Row 1 = [💰 TRŽBY span 3 (75%)] [📅 Dnes span 1 (25%)] -->
     <!--     Row 2 = [🛒 Objednávek span 2 (50%)] [⚠️ Po splatnosti span 2 (50%)] -->

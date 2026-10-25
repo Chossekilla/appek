@@ -242,6 +242,7 @@ function vendor_render_topbar(array $user, string $currentPage = ''): void {
         </button>
       </div>
       <div class="vx-today"><?= htmlspecialchars($today) ?></div>
+      <div class="vx-sheet" id="vx-sheet"><!-- desktop: display:contents; mobil (≤900px): spodní panel s dlaždicemi -->
       <nav class="vx-nav">
         <?php foreach (vendor_nav_groups() as $g): ?>
           <?php if ($g['label']): ?><div class="vx-grp"><?= htmlspecialchars($g['label']) ?></div><?php endif; ?>
@@ -254,6 +255,7 @@ function vendor_render_topbar(array $user, string $currentPage = ''): void {
       </nav>
       <div class="vx-ext"><a href="https://appek.cz/" target="_blank" rel="noopener">appek.cz ↗</a><a href="https://demo.appek.cz/" target="_blank" rel="noopener">demo ↗</a></div>
       <div class="vx-foot"><span class="vx-avatar"><?= htmlspecialchars($ini) ?></span><span><?= htmlspecialchars($name) ?></span><a href="index.php?logout=1">Odhlásit</a></div>
+      </div>
     </aside>
     <script>
       // Mobil (≤900px): ☰ vysune menu zleva; zavře klik vedle / ✕ / Esc / výběr položky.

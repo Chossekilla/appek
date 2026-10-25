@@ -519,7 +519,6 @@ async function renderFaktury(filters = {}, opts = {}) {
             </div>
             <div class="faktura-card-odb">${esc(f.odberatel_nazev)}</div>
             ${f.pobocky_nazvy ? `<div class="faktura-card-misto">📍 ${esc(f.pobocky_nazvy)}${f.pobocka_adresa ? ' — ' + esc(f.pobocka_adresa) : ''}</div>` : ''}
-            <div class="faktura-card-zdroj" onclick="event.stopPropagation();">${zdrojFakturyBadge(f)}</div>
             <div class="faktura-card-foot">
               <div class="faktura-card-datum">
                 <span>📅 ${fmtDate(f.datum_vystaveni)}</span>
@@ -530,8 +529,10 @@ async function renderFaktury(filters = {}, opts = {}) {
             </div>
             <div class="faktura-card-actions" onclick="event.stopPropagation();">
               <span class="doc-badges-row fa-icon-actions">
-                ${docBadge('dl', (f.pocet_dl > 0) ? (f.prvni_dl_objednavka_id ? `../api/dodaci_list.php?id=${f.prvni_dl_objednavka_id}` : `../api/dodaci_list.php?dl_id=${f.prvni_dl_id}`) : null, '📃', { title: 'Dodací list (PDF)', disabledTitle: 'Faktura nemá navázaný DL' })}
-                ${docBadge('fa', `../api/faktura.php?id=${f.id}`, '💰', { title: 'Faktura (PDF)' })}
+                ${docBadge('fa', `../api/faktura.php?id=${f.id}`, 'FA', { title: 'Faktura (PDF)' })}
+                ${docBadge('dl', (f.pocet_dl > 0) ? (f.prvni_dl_objednavka_id ? `../api/dodaci_list.php?id=${f.prvni_dl_objednavka_id}` : `../api/dodaci_list.php?dl_id=${f.prvni_dl_id}`) : null, 'DL', { title: 'Dodací list (PDF)', disabledTitle: 'Faktura nemá navázaný DL' })}
+                ${docBadge('obj', parseInt(f.prvni_objednavka_id) ? '#' : null, 'OBJ', { title: 'Otevřít objednávku', disabledTitle: 'Faktura nemá navázanou objednávku', onclick: `openObjednavkaDetail(${parseInt(f.prvni_objednavka_id) || 0})` })}
+                <a href="#" class="doc-badge mail" title="Odeslat fakturu e-mailem (PDF v příloze)" onclick="otevritOdeslatEmailem('fa', ${f.id}, '${esc(f.cislo).replace(/'/g, '')}', '${esc(f.odberatel_email || '').replace(/'/g, '')}');return false">✉️</a>
               </span>
             </div>
           </div>

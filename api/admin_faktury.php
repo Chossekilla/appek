@@ -163,7 +163,7 @@ if ($method === 'GET') {
         SELECT f.id, f.cislo, f.datum_vystaveni, f.datum_splatnosti,
                f.castka_celkem, f.castka_uhrazeno, f.variabilni_symbol, f.odeslano_email,
                f.rucni, f.obsah_upraveno, f.je_dobropis, f.puvodni_faktura_id,
-               od.nazev AS odberatel_nazev,
+               od.nazev AS odberatel_nazev, od.email AS odberatel_email,
                CASE
                    -- 🐛 PR14 — plně dobropisovaná faktura je vyrovnaná (ne po splatnosti)
                    WHEN f.castka_celkem > 0 AND (SELECT COALESCE(SUM(db.castka_celkem),0) FROM faktury db WHERE db.puvodni_faktura_id = f.id AND db.je_dobropis = 1) <= -f.castka_celkem + 0.01 THEN 'uhrazena'
