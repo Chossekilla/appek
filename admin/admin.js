@@ -4640,6 +4640,8 @@ async function navigate(page, args) {
     else if (page === 'integrace') { state._nastaveniTab = 'integrace'; await renderNastaveni(); } // 🆕 v3.0.370 — Integrace = samostatná stránka z Nástrojů (standalone shell v renderNastaveni)
     else if (page && page.startsWith('pkg_')) await renderPackagePage(page);
     else if (page === 'diagnostika') await renderDiagnostika();
+    // 🆕 v3.0.572 — Suroviny/HACCP/Kalkulace/Vyrobeno otevřené ze záložek Výroby: drž nahoře lištu Výroby
+    try { window.vyrobaInjectSubtabs && window.vyrobaInjectSubtabs(page); } catch (e) {}
     // Po renderu doplň data-label do <td> aby se na mobilu transformovaly v karty
     // Defer aby user viděl obsah okamžitě a nezdržoval první paint
     if ('requestIdleCallback' in window) {
@@ -7942,6 +7944,28 @@ const VYROBA_SUBTABS = [
   { key: 'prehled',    label: '📈 Vyrobeno',       nav: 'export_vyroby' },     // 🆕 v2.9.258 — 'Přehled' → 'Vyrobeno' (krátký, jasný; odlišit od Dashboard Přehled)
 ];
 
+// 🆕 v3.0.572 — lišta záložek Výroby jako helper: hub ji kreslí nahoře a stejnou lištu
+//   dostanou i „nav" stránky (Suroviny/HACCP/Kalkulace/Vyrobeno), když na ně uživatel
+//   přišel z Výroby. Dřív na nich menu Výroby zmizelo (vypadalo to, že se ztratil).
+function vyrobaSubtabsHtml(activeKey) {
+  const splitLabel = (lbl) => {
+    const m = lbl.match(/^(\p{Emoji}+|\p{Extended_Pictographic}+|[^\s]+)\s+(.+)$/u);
+    return m ? { icon: m[1], text: m[2] } : { icon: '', text: lbl };
+  };
+  return `<div class="seg-tabs" role="tablist">${VYROBA_SUBTABS.map(t => {
+    const { icon, text } = splitLabel(t.label);
+    return `<button type="button" role="tab" class="seg-tab ${activeKey === t.key ? 'active' : ''}" onclick="vyrobaSetSubTab('${t.key}')" aria-selected="${activeKey === t.key}"><span class="seg-tab-icon">${icon}</span><span class="seg-tab-text">${text}</span></button>`;
+  }).join('')}</div>`;
+}
+window.vyrobaInjectSubtabs = function (page) {
+  const sub = VYROBA_SUBTABS.find(t => t.nav === page);
+  if (!sub) { if (page !== 'vyroba') state._vyrobaFromHub = false; return; }  // odešel jinam → už ne „z Výroby"
+  if (!state._vyrobaFromHub) return;                                            // stránka otevřená odjinud → bez záložek Výroby
+  const c = document.getElementById('content');
+  if (!c || c.querySelector(':scope > .vyroba-nav-tabs')) return;
+  c.insertAdjacentHTML('afterbegin', `<div class="vyroba-nav-tabs" style="margin-bottom:14px">${vyrobaSubtabsHtml(sub.key)}</div>`);
+};
+
 async function renderVyrobaHub() {
   const c = document.getElementById('content');
   // 🆕 v2.9.222 — fix: zajisti že _vyrobaSubTab je VŽDY 'render' typ (ne 'nav').
@@ -7954,14 +7978,7 @@ async function renderVyrobaHub() {
     state._vyrobaSubTab = 'list';
   }
 
-  // 🆕 v2.9.227 — sub-taby jako stylované segmented control (icon nahoře, label dole)
-  // v2.9.229 — refactor na .seg-tabs (univerzální styling, sdílený s Nastavením)
-  const splitLabel = (lbl) => {
-    // Předpokládám formát "🧪 HACCP" — rozdělím na emoji + zbytek
-    const m = lbl.match(/^(\p{Emoji}+|\p{Extended_Pictographic}+|[^\s]+)\s+(.+)$/u);
-    if (m) return { icon: m[1], text: m[2] };
-    return { icon: '', text: lbl };
-  };
+  // sub-taby (segmented control) kreslí vyrobaSubtabsHtml() — sdílené i se stránkami Suroviny/HACCP/…
 
   c.innerHTML = `
     <div class="page-head">
@@ -7971,19 +7988,8 @@ async function renderVyrobaHub() {
       </div>
     </div>
 
-    <!-- 🗂️ SUB-TABY — segmented control s icon + label -->
-    <div class="seg-tabs" role="tablist">
-      ${VYROBA_SUBTABS.map(t => {
-        const { icon, text } = splitLabel(t.label);
-        return `
-        <button type="button" role="tab" class="seg-tab ${aktSubTab === t.key ? 'active' : ''}"
-                onclick="vyrobaSetSubTab('${t.key}')" aria-selected="${aktSubTab === t.key}">
-          <span class="seg-tab-icon">${icon}</span>
-          <span class="seg-tab-text">${text}</span>
-        </button>
-      `;
-      }).join('')}
-    </div>
+    <!-- 🗂️ SUB-TABY — segmented control s icon + label (sdílené s Surovinami/HACCP/… přes vyrobaSubtabsHtml) -->
+    ${vyrobaSubtabsHtml(aktSubTab)}
 
     <div class="nastaveni-page nastaveni-tab-content">
       <div id="vyroba-subtab-content"></div>
@@ -8002,6 +8008,7 @@ window.vyrobaSetSubTab = function(tabKey) {
   // při návratu na Výrobu (renderVyrobaHub by viděl _vyrobaSubTab='kalkulace' a
   // znovu zavolal navigate). Ukládáme jen 'render' sub-taby (list, sklady).
   if (sub?.nav) {
+    state._vyrobaFromHub = true;   // 🆕 v3.0.572 — cílová stránka dostane nahoru lištu záložek Výroby
     navigate(sub.nav);
   } else if (sub?.render) {
     state._vyrobaSubTab = tabKey;
@@ -9685,7 +9692,7 @@ window.renderVyrobaAutoForDate = async function(datum) {
 
     dd.innerHTML = `
       <!-- Statistiky -->
-      <div class="stat-grid" style="margin-bottom:14px">
+      <div class="stat-grid stat-grid-2col" style="margin-bottom:14px"><!-- mobil 2×2 (bez 2col by ≤700px šly pod sebe) -->
         <div class="stat-card">
           <div class="stat-label">Objednávek</div>
           <div class="stat-value">${pocetObjednavek}</div>

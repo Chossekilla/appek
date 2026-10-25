@@ -677,6 +677,8 @@ async function navigate(page, args) {
     else if (page === 'integrace') { state._nastaveniTab = 'integrace'; await renderNastaveni(); } // 🆕 v3.0.370 — Integrace = samostatná stránka z Nástrojů (standalone shell v renderNastaveni)
     else if (page && page.startsWith('pkg_')) await renderPackagePage(page);
     else if (page === 'diagnostika') await renderDiagnostika();
+    // 🆕 v3.0.572 — Suroviny/HACCP/Kalkulace/Vyrobeno otevřené ze záložek Výroby: drž nahoře lištu Výroby
+    try { window.vyrobaInjectSubtabs && window.vyrobaInjectSubtabs(page); } catch (e) {}
     // Po renderu doplň data-label do <td> aby se na mobilu transformovaly v karty
     // Defer aby user viděl obsah okamžitě a nezdržoval první paint
     if ('requestIdleCallback' in window) {
