@@ -59,8 +59,36 @@ window.loadI18nForLang = async function(code) {
   }
 };
 
+// 🆕 v3.0.591 — reload se zachovanou pozicí (přepnutí jazyka nesmí „skočit nahoru"); admin scrolluje <body>
+window.appekReloadKeepScroll = function() {
+  try {
+    const y = document.body.scrollTop || (document.scrollingElement || document.documentElement).scrollTop || 0;
+    sessionStorage.setItem('appek_scroll_restore', JSON.stringify({ h: location.hash, y: y, t: Date.now() }));
+  } catch (e) {}
+  location.reload();
+};
+(function appekRestoreScrollAfterReload() {
+  let s = null;
+  try { s = JSON.parse(sessionStorage.getItem('appek_scroll_restore') || 'null'); sessionStorage.removeItem('appek_scroll_restore'); } catch (e) {}
+  if (!s || !s.y || s.h !== location.hash || Date.now() - s.t > 15000) return;
+  // obsah SPA se dokresluje async → zkoušej, dokud stránka není dost vysoká (max ~4 s)
+  let tries = 0;
+  const tick = () => {
+    const se = document.scrollingElement || document.documentElement;
+    if (document.body && document.body.scrollHeight >= s.y + 200) { document.body.scrollTop = s.y; se.scrollTop = s.y; }
+    if (++tries < 20 && Math.abs((document.body ? document.body.scrollTop : 0) - s.y) > 4) setTimeout(tick, 200);
+  };
+  setTimeout(tick, 150);
+})();
+
 window.setAppekLang = async function(code) {
   if (!window.appekLangs.find(l => l.code === code)) code = 'cs';
+  // 🐛 v3.0.591 — odchod z přeloženého jazyka = reload (zpětný překlad DOM není spolehlivý → „visí" stará řeč)
+  if ((window.appekCurrentLang || 'cs') !== 'cs' && window.appekCurrentLang !== code) {
+    try { localStorage.setItem(I18N_LANG_KEY, code); } catch (e) {}
+    window.appekReloadKeepScroll();
+    return;
+  }
   // 🆕 v3.0.255 — restore aktuální DOM do CS PŘED změnou (řeší switch Z non-cs jazyka).
   //   Feature-detect: restorePageToCS je v i18n_auto.js (načítá se lazy přes loadI18nForLang).
   try { if (typeof window.restorePageToCS === 'function') window.restorePageToCS(document.body); } catch (e) {}

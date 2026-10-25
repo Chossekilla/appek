@@ -11511,7 +11511,16 @@ function rangeToPeriod(od, doDt) {
 }
 
 function dashStylePeriodHtml(typ, datum_od, datum_do) {
-  const currentPeriod = rangeToPeriod(datum_od, datum_do);
+  // 🐛 v3.0.591 — „blbne filtr": klik na V nastavil rozsah „tento měsíc" → z dat se odvodilo M
+  //   (svítilo M, panel Od/Do se neotevřel). Teď se pamatuje KLIKNUTÁ volba (state._periodSel);
+  //   z dat se odvozuje jen když volba chybí nebo rozsahu neodpovídá (např. po načtení stránky).
+  //   ∞ Vše přesunuto do panelu Vlastní (o ikonu méně); bez omezení svítí V.
+  const fromRange = rangeToPeriod(datum_od, datum_do);
+  const sel = (state._periodSel || {})[typ];
+  const selFits = sel && (sel === 'vlastni' ? !!(datum_od || datum_do) : sel === fromRange);
+  const currentPeriod = selFits ? sel : fromRange;           // dnes|tyden|mesic|rok|vlastni|vse
+  const activeChip = (currentPeriod === 'vse' || sel === 'vlastni_open') ? 'vlastni' : currentPeriod;
+  const showCustom = currentPeriod === 'vlastni' || (sel === 'vlastni_open');
   // 🆕 v2.9.287 — short labels pro mobile (sjednoceno s Dashboard period-tabs)
   const tabs = [
     { k: 'dnes',    icon: '📅', l: 'Dnes',         short: 'Dnes' },
@@ -11519,16 +11528,16 @@ function dashStylePeriodHtml(typ, datum_od, datum_do) {
     { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc', short: 'Měsíc' },
     { k: 'rok',     icon: '📊', l: 'Tento rok',    short: 'Rok' },
     { k: 'vlastni', icon: '⚙️', l: 'Vlastní',      short: 'Vlastní' },
-    { k: 'vse',     icon: '∞',  l: 'Vše',          short: 'Vše' },
   ];
   const isMob = typeof window !== 'undefined' && window.innerWidth <= 700;
   // 🆕 v3.0.97 — mobile = 1-letter (D/T/M/R/V) per user: "tady mělo být D T M R V jenom"
   const tabsHtml = tabs.map(t => {
     const label = isMob ? (t.x || (t.short || t.l || '').charAt(0).toUpperCase()) : t.l;
-    return `<button class="period-tab ${currentPeriod === t.k ? 'active' : ''}" onclick="periodTabSet('${typ}', '${t.k}')"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${label}</span></button>`;
+    return `<button class="period-tab ${activeChip === t.k ? 'active' : ''}" onclick="periodTabSet('${typ}', '${t.k}')"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${label}</span></button>`;
   }).join('');
-  const customHtml = currentPeriod === 'vlastni' ? `
-    <div class="period-custom" style="margin-top:10px">
+  const isVse = currentPeriod === 'vse';
+  const customHtml = showCustom ? `
+    <div class="period-custom" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
       <label class="filter-date-wrap">
         <span>Od:</span>
         <input class="filter-input" type="date" id="period-${typ}-od" value="${datum_od || ''}">
@@ -11538,17 +11547,22 @@ function dashStylePeriodHtml(typ, datum_od, datum_do) {
         <input class="filter-input" type="date" id="period-${typ}-do" value="${datum_do || ''}">
       </label>
       <button class="btn-secondary" onclick="periodTabApplyVlastni('${typ}')">Použít</button>
+      <button class="btn-secondary ${isVse ? 'active' : ''}" onclick="periodTabSet('${typ}', 'vse')" title="Bez omezení data" style="${isVse ? 'border-color:var(--primary);font-weight:700' : ''}">∞ Celé období</button>
     </div>
   ` : '';
   return `<div class="period-tabs">${tabsHtml}</div>${customHtml}`;
 }
 
 window.periodTabSet = function(typ, period) {
+  state._periodSel = state._periodSel || {};
   if (period === 'vlastni') {
-    // Default: tento měsíc range, ať se otevře kalendář s rozumnými hodnotami
-    const r = periodToRange('mesic');
-    return _periodApply(typ, r.od, r.do, true);
+    // otevři panel Od/Do; rozsah zatím neměň (žádné „přeskočení" na M) — vybere se a potvrdí Použít
+    state._periodSel[typ] = 'vlastni_open';
+    const curOd = document.getElementById(typ === 'dl' ? 'dlf-od' : typ === 'fa' ? 'ff-od' : 'of-od')?.value || '';
+    const curDo = document.getElementById(typ === 'dl' ? 'dlf-do' : typ === 'fa' ? 'ff-do' : 'of-do')?.value || '';
+    return _periodApply(typ, curOd, curDo, true);
   }
+  state._periodSel[typ] = period;
   if (period === 'vse') return _periodApply(typ, '', '', false);
   const r = periodToRange(period);
   _periodApply(typ, r.od, r.do, false);
@@ -11558,6 +11572,8 @@ window.periodTabApplyVlastni = function(typ) {
   const od = document.getElementById('period-' + typ + '-od')?.value || '';
   const doDt = document.getElementById('period-' + typ + '-do')?.value || '';
   if (od && doDt && od > doDt) return alert('Datum „od" musí být před „do"');
+  state._periodSel = state._periodSel || {};
+  state._periodSel[typ] = (od || doDt) ? 'vlastni' : 'vse';
   _periodApply(typ, od, doDt, false);
 };
 
@@ -15762,7 +15778,20 @@ window.toggleZamknoutMazani = async function (cb) {
   } catch (e) { cb.checked = !cb.checked; toastError('Nepodařilo se uložit: ' + (e.message || e)); }
 };
 
-async function renderNastaveni() {
+// 🐛 v3.0.591 — „po přepnutí / změně okno skočí nahoru": ~20 přepínačů v Nastavení volá renderNastaveni()
+//   napřímo (bez keepScroll) → innerHTML znovu = scroll na začátek. Obal: když je Nastavení UŽ vykreslené
+//   (značka data-ns-root v #content), překreslí se se zachovaným scrollem; příchod z jiné stránky začne nahoře.
+function renderNastaveni() {
+  const c = document.getElementById('content');
+  const inPlace = !!(c && c.querySelector('[data-ns-root]'));
+  const run = () => _renderNastaveniInner().then(() => {
+    const root = c && c.firstElementChild;
+    if (root) root.setAttribute('data-ns-root', '1');
+  });
+  return inPlace ? keepScroll(run) : run();
+}
+
+async function _renderNastaveniInner() {
   const n = await api('admin_nastaveni.php');
   const c = document.getElementById('content');
 
@@ -29516,7 +29545,9 @@ async function renderUsers() {
                 <td style="color:var(--text-3); font-size:13px">
                   ${u.posledni_prihlaseni ? fmtDateTime(u.posledni_prihlaseni) : (u.posledni_pos_login ? '🧾 ' + fmtDateTime(u.posledni_pos_login) : '—')}
                 </td>
-                <td onclick="event.stopPropagation();" style="text-align:right">
+                <td onclick="event.stopPropagation();" style="text-align:right;white-space:nowrap">
+                  ${(u.aktivni == 1 && u.email) ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px;margin-right:6px" title="Pošle uživateli e-mail s jednorázovým odkazem (platí 2 h) na nastavení nového hesla"
+                            onclick="event.stopPropagation();odeslatOdkazHeslo(${u.id}, '${esc(u.email).replace(/'/g, '')}')">📧 Odkaz na heslo</button>` : ''}
                   ${u.id != state.admin.id ? `
                     <button class="btn-danger" style="font-size:11px;padding:4px 10px;"
                             onclick="smazatUzivatele(${u.id}, '${esc(u.jmeno || u.email).replace(/'/g, '')}')">
@@ -29559,6 +29590,8 @@ async function renderUsers() {
                       ? `🕐 ${fmtDateTime(u.posledni_prihlaseni)}`
                       : '<span style="color:var(--text-3)">Ještě se nepřihlásil</span>'}
                   </div>
+                  ${(u.aktivni == 1 && u.email) ? `<button class="btn-secondary user-card-heslo" style="font-size:11px;padding:4px 10px;margin-right:6px" title="Pošle uživateli e-mail s jednorázovým odkazem (platí 2 h) na nastavení nového hesla"
+                            onclick="event.stopPropagation();odeslatOdkazHeslo(${u.id}, '${esc(u.email).replace(/'/g, '')}')">📧 Odkaz na heslo</button>` : ''}
                   ${u.id != state.admin.id ? `
                     <button class="btn-danger user-card-smazat"
                             onclick="event.stopPropagation();smazatUzivatele(${u.id}, '${esc(u.jmeno || u.email).replace(/'/g, '')}')">
@@ -29583,6 +29616,16 @@ async function renderUsers() {
   }
 }
 
+// 🆕 v3.0.591 — „📧 Odkaz na heslo": e-mail s jednorázovým odkazem na nastavení hesla
+window.odeslatOdkazHeslo = async function(id, email) {
+  if (!confirm(`Poslat na ${email} odkaz na nastavení nového hesla?\n\nOdkaz platí 2 hodiny a dá se použít jen jednou. Současné heslo platí, dokud si uživatel nenastaví nové.`)) return;
+  try {
+    const r = await api('admin_users.php', { method: 'POST', body: JSON.stringify({ action: 'send_reset', id }) });
+    toastSuccess(`Odkaz odeslán na ${r.email || email}`);
+  } catch (e) {
+    alert('Odkaz se nepodařilo odeslat: ' + e.message);
+  }
+};
 // =============================================================
 // 🔐 Práva v menu — editor pro role
 // =============================================================
@@ -45740,4 +45783,60 @@ document.addEventListener('keydown', function(e) {
       }
     };
   };
+})();
+// =============================================================
+// 🧭 v3.0.591 — ZACHOVAT POZICI PŘI PŘEKRESLENÍ (celá aplikace)
+// =============================================================
+// User: „to posouvání se nahoru po změně, takže nevíš, kde jsi na stránce byl — projdi celou aplikaci".
+// Příčina: stovky míst po změně (přepínač, uložení, filtr, stránkování) volají renderXxx() nebo
+// navigate(state.current) → innerHTML stránky znovu → dokument se na okamžik zkrátí → body.scrollTop = 0.
+// Jen menšina míst používá keepScroll()/keepAnchor() (0440). Místo oprav ~stovek volání jedno centrální pravidlo:
+//   • PŘECHOD na jinou stránku (nebo klik v menu)  → začni nahoře (očekávané).
+//   • PŘEKRESLENÍ stránky, na které uživatel už je → zachovej pozici (keepScroll).
+// Musí být POSLEDNÍ soubor v admin/src (obaluje už definované globální funkce). Admin scrolluje <body>.
+(function () {
+  if (typeof window.keepScroll !== 'function' || typeof window.navigate !== 'function') return;
+
+  let navDepth = 0;      // > 0 = právě běží přechod přes navigate() → render uvnitř nepřebírat
+  let userNav = false;   // klik v menu = uživatel chce „novou" stránku od začátku
+
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.closest && e.target.closest('.nav-item, .bottom-nav-item, .sidebar-pkg-icon, .nastroje-card, .btn-back')) userNav = true;
+  }, true);
+
+  const toTop = () => { try { document.body.scrollTop = 0; (document.scrollingElement || document.documentElement).scrollTop = 0; } catch (e) {} };
+
+  const origNavigate = window.navigate;
+  window.navigate = function (page, args) {
+    const samePage = page === state.current;
+    const fromMenu = userNav;
+    userNav = false;
+    navDepth++;
+    let ret;
+    try {
+      ret = (samePage && !fromMenu)
+        ? window.keepScroll(() => origNavigate.call(this, page, args))
+        : origNavigate.call(this, page, args);
+    } catch (e) { navDepth--; throw e; }
+    const done = () => { navDepth = Math.max(0, navDepth - 1); };
+    if (ret && typeof ret.then === 'function') ret.then(done, done); else done();
+    if (!samePage || fromMenu) toTop();
+    return ret;
+  };
+
+  // Globální renderXxx (function deklarace i window.renderXxx = …) — volané MIMO přechod = překreslení na místě
+  const content = () => document.getElementById('content');
+  Object.getOwnPropertyNames(window).forEach((name) => {
+    if (!/^render[A-Z]/.test(name)) return;
+    let fn;
+    try { fn = window[name]; } catch (e) { return; }
+    if (typeof fn !== 'function' || fn.__keepScrollWrapped) return;
+    const wrapped = function () {
+      const c = content();
+      const inPlace = navDepth === 0 && c && c.childElementCount > 0 && c.dataset.page === state.current;
+      return inPlace ? window.keepScroll(() => fn.apply(this, arguments)) : fn.apply(this, arguments);
+    };
+    wrapped.__keepScrollWrapped = true;
+    try { window[name] = wrapped; } catch (e) { /* nepřepisovatelné — nech být */ }
+  });
 })();

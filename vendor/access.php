@@ -54,6 +54,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $mainPdo->prepare("UPDATE odberatele SET blokovan = 0 WHERE id = :id")->execute(['id' => $target_id]);
                 }
                 $_SESSION['_flash_ok'] = "Uživatel aktivován.";
+            } elseif ($action === 'send_reset_link' && in_array($target_type, ['admin', 'b2b'])) {
+                // 🆕 v3.0.591 — e-mail s jednorázovým odkazem (2 h) na nastavení hesla (místo hesla v plaintextu)
+                require_once realpath(__DIR__ . '/..') . '/api/_password_reset_lib.php';
+                require_once __DIR__ . '/_mail.php';
+                $u = pr_find_user($mainPdo, $target_type, $target_id);
+                if (!$u) throw new RuntimeException('Uživatel není aktivní nebo nemá platný e-mail.');
+                $token = pr_create($mainPdo, $target_type, (int) $u['id'], 'vendor:' . ($user['username'] ?? $user['email'] ?? ''));
+                $base = defined('APP_URL') && APP_URL ? rtrim(APP_URL, '/')
+                      : 'https://' . preg_replace('/^vendor\./', '', (string) ($_SERVER['HTTP_HOST'] ?? 'appek.cz'));
+                [$subj, $html] = pr_email((string) $u['jmeno'], $base . '/api/password_reset.php?t=' . $token, 'APPEK');
+                $mailErr = null;
+                if (!vendor_send_mail($u['email'], $subj, $html, null, null, $mailErr)) {
+                    throw new RuntimeException('E-mail se nepodařilo odeslat: ' . ($mailErr ?: 'neznámá chyba'));
+                }
+                $_SESSION['_flash_ok'] = 'Odkaz na nastavení hesla odeslán na ' . htmlspecialchars($u['email']) . ' (platí 2 h).';
             } elseif ($action === 'reset_password' && in_array($target_type, ['admin', 'b2b'])) {
                 $newPass = bin2hex(random_bytes(6));
                 $hash = password_hash($newPass, PASSWORD_BCRYPT);
@@ -335,6 +350,7 @@ unset($_SESSION['_flash_ok'], $_SESSION['_flash_err']);
                 <?php else: ?>
                   <button class="btn-mini" name="action" value="activate">Aktivovat</button>
                 <?php endif; ?>
+                <button class="btn-mini" name="action" value="send_reset_link" onclick="return confirm('Poslat e-mailem odkaz na nastavení hesla? (platí 2 h, jednorázový)')">📧 Odkaz na heslo</button>
                 <button class="btn-mini" name="action" value="reset_password" onclick="return confirm('Reset hesla?')">Reset hesla</button>
               </form>
             </td>
@@ -370,6 +386,7 @@ unset($_SESSION['_flash_ok'], $_SESSION['_flash_err']);
                 <?php else: ?>
                   <button class="btn-mini" name="action" value="activate">Aktivovat</button>
                 <?php endif; ?>
+                <button class="btn-mini" name="action" value="send_reset_link" onclick="return confirm('Poslat e-mailem odkaz na nastavení hesla? (platí 2 h, jednorázový)')">📧 Odkaz na heslo</button>
                 <button class="btn-mini" name="action" value="reset_password" onclick="return confirm('Reset hesla?')">Reset</button>
               </form>
             </td>

@@ -26005,11 +26005,24 @@ window.restorePageToCS = function(root) {
 // Bug před tím: kontrolovalo state.currentPage (neexistuje — admin.js má state.current),
 // a translatePage běžel PŘED re-renderem → nový obsah zůstal ve staré řeči.
 const _originalSetAppekLang = window.setAppekLang;
-window.setAppekLang = function(code) {
+window.setAppekLang = async function(code) {
+  // 🐛 v3.0.591 — „zůstane viset" (DE → CS dál německy): původní setAppekLang je ASYNC a jazyk
+  //   přepíná až po lazy-loadu balíčku; bez await navigate() níže překreslil stránku ještě se STARÝM
+  //   appekCurrentLang a observer čerstvou češtinu hned přeložil zpět do DE. → jazyk přepni hned
+  //   a na původní funkci počkej před re-renderem.
+  // Odchod z PŘELOŽENÉHO stavu (DE/EN/SK/ES → cokoliv): zpětný překlad DOM je jen best-effort
+  //   (statické části, zalomené fráze) → ulož volbu a načti stránku znovu = vždy čistý stav.
+  var _prev = window.appekCurrentLang || 'cs';
+  if (_prev !== 'cs' && _prev !== code) {
+    try { localStorage.setItem('appek_lang', code); } catch (e) {}
+    if (typeof window.appekReloadKeepScroll === 'function') window.appekReloadKeepScroll(); else location.reload();
+    return;
+  }
+  window.appekCurrentLang = code;
   // 1) DOM zpět do CS (řeší switch z EN/SK/DE/ES na cokoliv)
   window.restorePageToCS(document.body);
   // 2) Update language state (localStorage + appekCurrentLang)
-  if (_originalSetAppekLang) _originalSetAppekLang(code);
+  if (_originalSetAppekLang) { try { await _originalSetAppekLang(code); } catch (e) {} }
 
   // 3) Re-render aktuální dynamické stránky NEJDŘÍV (čerstvý CS markup)
   var didRerender = false;

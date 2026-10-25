@@ -59,6 +59,27 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     $d = json_input();
 
+    // 🆕 v3.0.591 — „📧 Odeslat odkaz na heslo": jednorázový odkaz (2 h) na e-mail uživatele
+    if (($d['action'] ?? '') === 'send_reset') {
+        require_once __DIR__ . '/_password_reset_lib.php';
+        $u = pr_find_user($pdo, 'admin', (int) ($d['id'] ?? 0));
+        if (!$u) json_error('Uživatel neexistuje, není aktivní nebo nemá platný e-mail', 404);
+        try {
+            $token = pr_create($pdo, 'admin', (int) $u['id'], 'admin#' . ($_SESSION['admin_id'] ?? '') . ' ' . ($_SESSION['admin_jmeno'] ?? ''));
+        } catch (RuntimeException $e) {
+            json_error($e->getMessage(), 429);
+        }
+        // instalace může být v podsložce → cesta z umístění tohoto skriptu (…/api/admin_users.php)
+        $apiDir = (string) parse_url(rtrim(APP_URL, '/'), PHP_URL_PATH) !== ''
+            ? rtrim(APP_URL, '/') . '/api'
+            : rtrim(APP_URL, '/') . rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/api/x')), '/');
+        $link = $apiDir . '/password_reset.php?t=' . $token;
+        $appName = (string) (nastaveni_get($pdo, 'firma_nazev', '') ?: 'APPEK');
+        [$subj, $html] = pr_email((string) $u['jmeno'], $link, $appName);
+        if (!poslat_email([$u['email']], $subj, $html, 'html')) json_error('E-mail se nepodařilo odeslat (zkontroluj SMTP v Nastavení)', 502);
+        json_response(['ok' => true, 'email' => $u['email']]);
+    }
+
     $email = trim($d['email'] ?? '');
     $jmeno = trim($d['jmeno'] ?? '');
     $heslo = $d['heslo'] ?? '';

@@ -37,7 +37,16 @@ function rangeToPeriod(od, doDt) {
 }
 
 function dashStylePeriodHtml(typ, datum_od, datum_do) {
-  const currentPeriod = rangeToPeriod(datum_od, datum_do);
+  // 🐛 v3.0.591 — „blbne filtr": klik na V nastavil rozsah „tento měsíc" → z dat se odvodilo M
+  //   (svítilo M, panel Od/Do se neotevřel). Teď se pamatuje KLIKNUTÁ volba (state._periodSel);
+  //   z dat se odvozuje jen když volba chybí nebo rozsahu neodpovídá (např. po načtení stránky).
+  //   ∞ Vše přesunuto do panelu Vlastní (o ikonu méně); bez omezení svítí V.
+  const fromRange = rangeToPeriod(datum_od, datum_do);
+  const sel = (state._periodSel || {})[typ];
+  const selFits = sel && (sel === 'vlastni' ? !!(datum_od || datum_do) : sel === fromRange);
+  const currentPeriod = selFits ? sel : fromRange;           // dnes|tyden|mesic|rok|vlastni|vse
+  const activeChip = (currentPeriod === 'vse' || sel === 'vlastni_open') ? 'vlastni' : currentPeriod;
+  const showCustom = currentPeriod === 'vlastni' || (sel === 'vlastni_open');
   // 🆕 v2.9.287 — short labels pro mobile (sjednoceno s Dashboard period-tabs)
   const tabs = [
     { k: 'dnes',    icon: '📅', l: 'Dnes',         short: 'Dnes' },
@@ -45,16 +54,16 @@ function dashStylePeriodHtml(typ, datum_od, datum_do) {
     { k: 'mesic',   icon: '🗓️', l: 'Tento měsíc', short: 'Měsíc' },
     { k: 'rok',     icon: '📊', l: 'Tento rok',    short: 'Rok' },
     { k: 'vlastni', icon: '⚙️', l: 'Vlastní',      short: 'Vlastní' },
-    { k: 'vse',     icon: '∞',  l: 'Vše',          short: 'Vše' },
   ];
   const isMob = typeof window !== 'undefined' && window.innerWidth <= 700;
   // 🆕 v3.0.97 — mobile = 1-letter (D/T/M/R/V) per user: "tady mělo být D T M R V jenom"
   const tabsHtml = tabs.map(t => {
     const label = isMob ? (t.x || (t.short || t.l || '').charAt(0).toUpperCase()) : t.l;
-    return `<button class="period-tab ${currentPeriod === t.k ? 'active' : ''}" onclick="periodTabSet('${typ}', '${t.k}')"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${label}</span></button>`;
+    return `<button class="period-tab ${activeChip === t.k ? 'active' : ''}" onclick="periodTabSet('${typ}', '${t.k}')"><span class="period-tab-icon">${t.icon}</span><span class="period-tab-text">${label}</span></button>`;
   }).join('');
-  const customHtml = currentPeriod === 'vlastni' ? `
-    <div class="period-custom" style="margin-top:10px">
+  const isVse = currentPeriod === 'vse';
+  const customHtml = showCustom ? `
+    <div class="period-custom" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
       <label class="filter-date-wrap">
         <span>Od:</span>
         <input class="filter-input" type="date" id="period-${typ}-od" value="${datum_od || ''}">
@@ -64,17 +73,22 @@ function dashStylePeriodHtml(typ, datum_od, datum_do) {
         <input class="filter-input" type="date" id="period-${typ}-do" value="${datum_do || ''}">
       </label>
       <button class="btn-secondary" onclick="periodTabApplyVlastni('${typ}')">Použít</button>
+      <button class="btn-secondary ${isVse ? 'active' : ''}" onclick="periodTabSet('${typ}', 'vse')" title="Bez omezení data" style="${isVse ? 'border-color:var(--primary);font-weight:700' : ''}">∞ Celé období</button>
     </div>
   ` : '';
   return `<div class="period-tabs">${tabsHtml}</div>${customHtml}`;
 }
 
 window.periodTabSet = function(typ, period) {
+  state._periodSel = state._periodSel || {};
   if (period === 'vlastni') {
-    // Default: tento měsíc range, ať se otevře kalendář s rozumnými hodnotami
-    const r = periodToRange('mesic');
-    return _periodApply(typ, r.od, r.do, true);
+    // otevři panel Od/Do; rozsah zatím neměň (žádné „přeskočení" na M) — vybere se a potvrdí Použít
+    state._periodSel[typ] = 'vlastni_open';
+    const curOd = document.getElementById(typ === 'dl' ? 'dlf-od' : typ === 'fa' ? 'ff-od' : 'of-od')?.value || '';
+    const curDo = document.getElementById(typ === 'dl' ? 'dlf-do' : typ === 'fa' ? 'ff-do' : 'of-do')?.value || '';
+    return _periodApply(typ, curOd, curDo, true);
   }
+  state._periodSel[typ] = period;
   if (period === 'vse') return _periodApply(typ, '', '', false);
   const r = periodToRange(period);
   _periodApply(typ, r.od, r.do, false);
@@ -84,6 +98,8 @@ window.periodTabApplyVlastni = function(typ) {
   const od = document.getElementById('period-' + typ + '-od')?.value || '';
   const doDt = document.getElementById('period-' + typ + '-do')?.value || '';
   if (od && doDt && od > doDt) return alert('Datum „od" musí být před „do"');
+  state._periodSel = state._periodSel || {};
+  state._periodSel[typ] = (od || doDt) ? 'vlastni' : 'vse';
   _periodApply(typ, od, doDt, false);
 };
 

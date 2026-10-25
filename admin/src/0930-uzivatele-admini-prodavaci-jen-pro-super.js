@@ -110,7 +110,9 @@ async function renderUsers() {
                 <td style="color:var(--text-3); font-size:13px">
                   ${u.posledni_prihlaseni ? fmtDateTime(u.posledni_prihlaseni) : (u.posledni_pos_login ? '🧾 ' + fmtDateTime(u.posledni_pos_login) : '—')}
                 </td>
-                <td onclick="event.stopPropagation();" style="text-align:right">
+                <td onclick="event.stopPropagation();" style="text-align:right;white-space:nowrap">
+                  ${(u.aktivni == 1 && u.email) ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px;margin-right:6px" title="Pošle uživateli e-mail s jednorázovým odkazem (platí 2 h) na nastavení nového hesla"
+                            onclick="event.stopPropagation();odeslatOdkazHeslo(${u.id}, '${esc(u.email).replace(/'/g, '')}')">📧 Odkaz na heslo</button>` : ''}
                   ${u.id != state.admin.id ? `
                     <button class="btn-danger" style="font-size:11px;padding:4px 10px;"
                             onclick="smazatUzivatele(${u.id}, '${esc(u.jmeno || u.email).replace(/'/g, '')}')">
@@ -153,6 +155,8 @@ async function renderUsers() {
                       ? `🕐 ${fmtDateTime(u.posledni_prihlaseni)}`
                       : '<span style="color:var(--text-3)">Ještě se nepřihlásil</span>'}
                   </div>
+                  ${(u.aktivni == 1 && u.email) ? `<button class="btn-secondary user-card-heslo" style="font-size:11px;padding:4px 10px;margin-right:6px" title="Pošle uživateli e-mail s jednorázovým odkazem (platí 2 h) na nastavení nového hesla"
+                            onclick="event.stopPropagation();odeslatOdkazHeslo(${u.id}, '${esc(u.email).replace(/'/g, '')}')">📧 Odkaz na heslo</button>` : ''}
                   ${u.id != state.admin.id ? `
                     <button class="btn-danger user-card-smazat"
                             onclick="event.stopPropagation();smazatUzivatele(${u.id}, '${esc(u.jmeno || u.email).replace(/'/g, '')}')">
@@ -177,3 +181,13 @@ async function renderUsers() {
   }
 }
 
+// 🆕 v3.0.591 — „📧 Odkaz na heslo": e-mail s jednorázovým odkazem na nastavení hesla
+window.odeslatOdkazHeslo = async function(id, email) {
+  if (!confirm(`Poslat na ${email} odkaz na nastavení nového hesla?\n\nOdkaz platí 2 hodiny a dá se použít jen jednou. Současné heslo platí, dokud si uživatel nenastaví nové.`)) return;
+  try {
+    const r = await api('admin_users.php', { method: 'POST', body: JSON.stringify({ action: 'send_reset', id }) });
+    toastSuccess(`Odkaz odeslán na ${r.email || email}`);
+  } catch (e) {
+    alert('Odkaz se nepodařilo odeslat: ' + e.message);
+  }
+};

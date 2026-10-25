@@ -9,7 +9,20 @@ window.toggleZamknoutMazani = async function (cb) {
   } catch (e) { cb.checked = !cb.checked; toastError('Nepodařilo se uložit: ' + (e.message || e)); }
 };
 
-async function renderNastaveni() {
+// 🐛 v3.0.591 — „po přepnutí / změně okno skočí nahoru": ~20 přepínačů v Nastavení volá renderNastaveni()
+//   napřímo (bez keepScroll) → innerHTML znovu = scroll na začátek. Obal: když je Nastavení UŽ vykreslené
+//   (značka data-ns-root v #content), překreslí se se zachovaným scrollem; příchod z jiné stránky začne nahoře.
+function renderNastaveni() {
+  const c = document.getElementById('content');
+  const inPlace = !!(c && c.querySelector('[data-ns-root]'));
+  const run = () => _renderNastaveniInner().then(() => {
+    const root = c && c.firstElementChild;
+    if (root) root.setAttribute('data-ns-root', '1');
+  });
+  return inPlace ? keepScroll(run) : run();
+}
+
+async function _renderNastaveniInner() {
   const n = await api('admin_nastaveni.php');
   const c = document.getElementById('content');
 
