@@ -376,7 +376,9 @@ function run_probes(): void {
         $cnt = (int) ($vy['json']['pocet_objednavek'] ?? 0);
         $rec('PR19', 'Vyroba: 2 objednavky na stejne misto — obe v rozpisu, obe poznamky, pocitadlo >= 2', 'obe id + obe poznamky + pocet >= 2',
             ($ia && $ib) ? ('obe=' . ($both ? 'ano' : 'NE') . ', poznamky=' . ($notes ? 'ano' : 'NE') . ", pocet=$cnt") : 'objednavky nevznikly',
-            ($ia && $ib) ? !($both && $notes && $cnt >= 2) : null, ['ids' => [$ia, $ib], 'skupina' => $grp]);
+            ($ia && $ib) ? !($both && $notes && $cnt >= 2) : null, ['ids' => [$ia, $ib], 'skupina' => $grp,
+            'resp_a' => $ia ? null : ($ra['code'] . ' ' . substr((string) $ra['raw'], 0, 300)),
+            'resp_b' => $ib ? null : ($rb['code'] . ' ' . substr((string) $rb['raw'], 0, 300))]);
         foreach ([$ia, $ib] as $x) if ($x) $A->call('PUT', 'api/admin_objednavky.php', ['id' => $x, 'stav' => 'zrusena']);
     } catch (Throwable $e) {
         $P[] = ['id' => 'ERR', 'title' => 'Vyjimka v sondach', 'expect' => '', 'actual' => $e->getMessage(), 'verdict' => 'CHYBA HARNESSU', 'detail' => $e->getTraceAsString()];

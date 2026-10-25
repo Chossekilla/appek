@@ -184,8 +184,14 @@ if ($action === 'dl') {
                 $preskoceno[] = ['id' => (int) $o['id'], 'cislo' => $o['cislo'], 'duvod' => 'Objednávka nemá žádné položky'];
                 continue;
             }
-            if ($o['dl_id']) {
-                $preskoceno[] = ['id' => (int) $o['id'], 'cislo' => $o['cislo'], 'duvod' => 'Už má DL #' . $o['dl_id']];
+            // v3.0.587 — souběh (2 admini / dvojklik) vytvořil 2 DL na 1 objednávku (smoke-chain PR06):
+            //   $obj_list je načtený PŘED transakcí → zamkni řádek objednávky a stav DL ověř znovu až pod zámkem.
+            $pdo->prepare("SELECT id FROM objednavky WHERE id = :id FOR UPDATE")->execute(['id' => $o['id']]);
+            $st = $pdo->prepare("SELECT id FROM dodaci_listy WHERE objednavka_id = :o ORDER BY id LIMIT 1");
+            $st->execute(['o' => $o['id']]);
+            $existDl = (int) ($st->fetchColumn() ?: 0);
+            if ($existDl) {
+                $preskoceno[] = ['id' => (int) $o['id'], 'cislo' => $o['cislo'], 'duvod' => 'Už má DL #' . $existDl];
                 continue;
             }
             $dl_id = vytvor_dl_pro_objednavku($pdo, $o, $datum_vystaveni_dl);
