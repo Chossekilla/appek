@@ -564,15 +564,16 @@ function diagPerfResultHtml(R) {
   const slow  = R.pages.filter(p => p.ms > 1500);
   const jank  = R.pages.filter(p => p.longMax > 200);
   const fails = R.pages.reduce((a, p) => a + p.fails.length, 0) + R.jsErrors.length;
-  const rows = R.pages.map(p => `<tr>
-      <td>${esc(p.label)}</td>
-      <td class="num" style="color:${p.ms > 1500 ? '#B91C1C' : p.ms > 700 ? '#B0540B' : 'inherit'}">${p.ms} ms</td>
-      <td class="num">${p.req}</td>
-      <td class="num" style="color:${p.reqIdle > 1 ? '#B91C1C' : 'inherit'}">${p.reqIdle}</td>
-      <td class="num" style="color:${p.mutIdle > 60 ? '#B91C1C' : 'inherit'}">${p.mutIdle}</td>
-      <td class="num" style="color:${p.longMax > 200 ? '#B91C1C' : p.longMax > 100 ? '#B0540B' : 'inherit'}">${p.longN ? p.longN + '× / ' + p.longMax + ' ms' : '—'}</td>
-      <td style="font-family:monospace;font-size:10.5px;color:#B91C1C">${p.fails.map(esc).join('<br>') || '<span style="color:var(--text-3)">—</span>'}</td>
-    </tr>`).join('');
+  const col = (bad, warn) => bad ? '#B91C1C' : warn ? '#B0540B' : 'var(--text-2)';
+  const rows = R.pages.map(p => `<div style="display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;padding:7px 0;border-top:1px solid var(--border);font-size:12px">
+      <strong style="flex:1 1 140px;min-width:0">${esc(p.label)}</strong>
+      <span style="color:${col(p.ms > 1500, p.ms > 700)}">${p.ms} ms</span>
+      <span style="color:var(--text-3)">${p.req} pož.</span>
+      <span style="color:${col(p.reqIdle > 1, false)}">v klidu ${p.reqIdle}</span>
+      <span style="color:${col(p.mutIdle > 60, false)}">DOM ${p.mutIdle}</span>
+      <span style="color:${col(p.longMax > 200, p.longMax > 100)}">${p.longN ? 'záseky ' + p.longN + '× ' + p.longMax + ' ms' : 'bez záseků'}</span>
+      ${p.fails.length ? `<span style="flex-basis:100%;font-family:monospace;font-size:10.5px;color:#B91C1C">${p.fails.map(esc).join(' · ')}</span>` : ''}
+    </div>`).join('');
   return `
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-size:12px">
       ${badge(!slow.length, slow.length ? `Pomalé: ${slow.length}` : 'Rychlost OK')}
@@ -581,10 +582,7 @@ function diagPerfResultHtml(R) {
       ${badge(!fails, fails ? `Chyby načítání: ${fails}` : 'Bez chyb')}
       <span style="color:var(--text-3)">· ${esc(R.at)} · ${R.vw}×${R.vh} px · ${R.pages.length} stránek</span>
     </div>
-    <div style="overflow-x:auto"><table class="table" style="font-size:12px">
-      <thead><tr><th>Stránka</th><th class="num">Vykreslení</th><th class="num">Požadavků</th><th class="num" title="Požadavky v klidu po načtení (smyčka?)">V klidu</th><th class="num" title="Změny DOM v klidu (překreslování dokola?)">DOM v klidu</th><th class="num" title="Úlohy hlavního vlákna > 50 ms (záseky)">Záseky</th><th>Chyby</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>
+    <div>${rows}</div>
     ${R.jsErrors.length ? `<div style="margin-top:8px;font-size:11.5px;color:#B91C1C;font-family:monospace">${R.jsErrors.map(esc).join('<br>')}</div>` : ''}
     <div style="font-size:11px;color:var(--text-3);margin-top:6px">„V klidu" = měřeno 3 s po načtení bez akce. Více než 1 požadavek nebo desítky změn DOM v klidu znamenají něco, co běží pořád dokola. Záseky nad 200 ms jsou na telefonu znát jako „kousání".</div>`;
 }
@@ -600,7 +598,9 @@ window.diagPerfTest = async function() {
   let reqN = 0, fails = [], mut = 0; const longs = [];
   const of = window.fetch;
   window.fetch = function (u) {
-    reqN++; const k = String(u && u.url || u).split('?')[0].replace(/^.*\//, '');
+    const full = String(u && u.url || u); const k = full.split('?')[0].replace(/^.*\//, '');
+    // pravidelné heartbeaty (ping stanice, notifikace, licence) nejsou smyčka stránky → nepočítej je
+    if (!/admin_stanice\.php\?action=ping|admin_notifications\.php|license_heartbeat\.php|whoami\.php/.test(full)) reqN++;
     return of.apply(this, arguments).then(r => { if (!r.ok) fails.push(r.status + ' ' + k); return r; }, e => { fails.push('síť ' + k); throw e; });
   };
   const onErr = e => R.jsErrors.push(String(e.message || e.reason || e).slice(0, 160));
