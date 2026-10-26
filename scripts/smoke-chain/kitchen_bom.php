@@ -302,7 +302,9 @@ if ($iC) {
 }
 
 // C6: zaplacený účet už nejde měnit
-$pay = $A->call('POST', 'api/admin_pos.php?action=pay', ['ucet_id' => $ucetId, 'payment' => 'hotove']);
+// v3.0.601 — před platbou objednej ještě jedno jídlo, které kuchyň nestihla (pro C6e/C6f)
+$A->call('POST', 'api/admin_pos.php?action=item', ['ucet_id' => $ucetId, 'vyrobek_id' => $FIN[0], 'mnozstvi' => 1]);
+$pay =$A->call('POST', 'api/admin_pos.php?action=pay', ['ucet_id' => $ucetId, 'payment' => 'hotove']);
 $paidSum = (float) q1('SELECT suma_kc FROM restaurant_pos_ucty WHERE id = :u', ['u' => $ucetId]);
 $ustav = (string) q1('SELECT stav FROM restaurant_pos_ucty WHERE id = :u', ['u' => $ucetId]);
 rec('C6a', 'Zaplacení účtu (hotově) uzavře účet', $ustav === 'paid', "HTTP {$pay['code']}, stav $ustav");
@@ -316,6 +318,22 @@ $sk = $A->call('POST', 'api/admin_kitchen.php?action=order_status', ['id' => $iD
 rec('C6c', 'Zrušení z kuchyně na ZAPLACENÉM účtu se odmítne', $sk['code'] >= 400, "HTTP {$sk['code']}");
 $ri = $A->call('POST', 'api/admin_pos.php?action=item', ['ucet_id' => $ucetId, 'vyrobek_id' => $FIN[0], 'mnozstvi' => 1]);
 rec('C6d', 'Přidat položku na zaplacený účet nejde (409)', $ri['code'] === 409, "HTTP {$ri['code']}");
+// v3.0.601 — jídlo pro kuchyň (výrobek se stanicí) zůstává po zaplacení v KDS, dokud ho kuchyň nevydá
+$kIt = q("SELECT p.id, p.stav FROM restaurant_pos_polozky p JOIN vyrobky v ON v.id = p.vyrobek_id
+          WHERE p.ucet_id = :u AND v.kitchen_station_id IS NOT NULL AND p.stav != 'storno'", ['u' => $ucetId]);
+$kPend = array_values(array_filter($kIt, fn($r) => in_array($r['stav'], ['objednano','vari_se','hotovo'], true)));
+$kds = $A->call('GET', 'api/admin_pos.php?action=kds');
+$inKds = false;
+foreach (($kds['json']['orders'] ?? []) as $o) if ((int) $o['ucet_id'] === $ucetId && !empty($o['zaplaceno'])) $inKds = true;
+rec('C6e', 'Po zaplacení zůstane jídlo pro kuchyň v KDS (štítek zaplaceno)', count($kPend) >= 1 && $inKds,
+    count($kPend) . '/' . count($kIt) . ' nevydaných, v KDS ' . ($inKds ? 'ano' : 'ne'));
+if ($kPend) {
+    $sv = $A->call('POST', 'api/admin_pos.php?action=item_state', ['id' => (int) $kPend[0]['id'], 'stav' => 'servirovano']);
+    $svSt = (string) q1('SELECT stav FROM restaurant_pos_polozky WHERE id = :i', ['i' => (int) $kPend[0]['id']]);
+    $paidSum3 = (float) q1('SELECT suma_kc FROM restaurant_pos_ucty WHERE id = :u', ['u' => $ucetId]);
+    rec('C6f', 'Kuchyň vydá položku zaplaceného účtu (částka beze změny)', $sv['code'] === 200 && $svSt === 'servirovano' && near($paidSum3, $paidSum),
+        "HTTP {$sv['code']}, stav $svSt, suma $paidSum → $paidSum3");
+}
 
 // C7: s sebou → kitchen_queue (src=queue) se stanicí; stavy přes kuchyň
 $pol = []; foreach (array_slice($FIN, 0, 2) as $vid) $pol[] = ['vyrobek_id' => $vid, 'nazev' => $VYR[$vid]['nazev'], 'mnozstvi' => 1, 'cena_bez_dph' => 10, 'sazba_dph' => 12];
