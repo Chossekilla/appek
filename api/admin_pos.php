@@ -179,6 +179,22 @@ function pos_table_qr_token(PDO $pdo, int $stulId): string {
     return $new;
 }
 
+// 🆕 v3.0.601 — po zaplacení dokonči jen položky, které kuchyň nepřipravuje (nápoje apod. — výrobek
+//   bez kuchyňské stanice, když stanice existují). Jídla pro kuchyň zůstanou v KDS do vydání.
+//   Bez nastavených stanic nelze kuchyňské položky poznat → vše zůstane v KDS (zaplacené účty KDS skryje po 6 h).
+function pos_finalize_paid_items(PDO $pdo, int $ucetId): void {
+    $hasStations = false;
+    try { $hasStations = (int) $pdo->query("SELECT COUNT(*) FROM kitchen_stations WHERE aktivni = 1")->fetchColumn() > 0; }
+    catch (Throwable $e) {}
+    if (!$hasStations) return;
+    try {
+        $pdo->prepare("UPDATE restaurant_pos_polozky p LEFT JOIN vyrobky v ON v.id = p.vyrobek_id
+            SET p.stav = 'servirovano', p.cas_servirovano = COALESCE(p.cas_servirovano, NOW())
+            WHERE p.ucet_id = :u AND p.stav IN ('objednano','vari_se','hotovo') AND v.kitchen_station_id IS NULL")
+            ->execute(['u' => $ucetId]);
+    } catch (Throwable $e) {}
+}
+
 // Recalc + ulož sumu úctu (po každé změně položek)
 function recalc_ucet_total(PDO $pdo, int $ucetId): float {
     $stmt = $pdo->prepare("
@@ -521,7 +537,9 @@ if ($method === 'POST' && $action === 'item_state') {
     $own->execute(['id' => $itemId]);
     $ownStav = $own->fetchColumn();
     if ($ownStav === false) json_error('Položka nenalezena', 404);
-    if ($ownStav !== 'open') json_error('Účet je uzavřený — položku už nelze měnit', 409);
+    // 🆕 v3.0.601 — zaplacený účet: kuchyň smí položku jen posunout dál (vaří/hotovo/vydáno), ne stornovat
+    $kitchenForward = $ownStav === 'paid' && in_array($stav, ['vari_se','hotovo','servirovano'], true);
+    if ($ownStav !== 'open' && !$kitchenForward) json_error('Účet je uzavřený — položku už nelze měnit', 409);
     $timeCol = match($stav) {
         'vari_se' => 'cas_vari_se',
         'hotovo' => 'cas_pripraveno',
@@ -648,9 +666,9 @@ if ($method === 'POST' && $action === 'pay') {
 
         // 🆕 v3.0.145 — finalizuj nedovařené položky (nápoje apod.) na 'servirovano' při platbě.
         //   Předtím zůstávaly 'objednano' navždy (KDS je sice skrývá, ale data-hygiene).
-        $pdo->prepare("UPDATE restaurant_pos_polozky SET stav = 'servirovano'
-            WHERE ucet_id = :u AND stav IN ('objednano','vari_se','hotovo')")
-            ->execute(['u' => $ucetId]);
+        // 🆕 v3.0.601 — jídla pro kuchyň zůstávají v KDS i po zaplacení, dokud je kuchyň nevydá
+        //   (dřív zaplacení položky „vydalo" a kuchařům zmizely z obrazovky).
+        pos_finalize_paid_items($pdo, $ucetId);
 
         // Get stul_id pak uvolni
         $st = $pdo->prepare("SELECT stul_id FROM restaurant_pos_ucty WHERE id = :id");
@@ -880,12 +898,13 @@ if ($method === 'POST' && $action === 'move') {
 // 👨‍🍳 GET ?action=kds → kitchen display data (všechny aktivní položky)
 if ($method === 'GET' && $action === 'kds') {
     $stmt = $pdo->query("
-        SELECT p.*, p.nazev AS vyrobek_nazev, u.stul_id, u.id AS ucet_id,
+        SELECT p.*, p.nazev AS vyrobek_nazev, u.stul_id, u.id AS ucet_id, u.stav AS ucet_stav,
                t.nazev AS stul_nazev, t.zone_id
         FROM restaurant_pos_polozky p
         INNER JOIN restaurant_pos_ucty u ON u.id = p.ucet_id
         INNER JOIN restaurant_tables t   ON t.id = u.stul_id
-        WHERE u.stav = 'open' AND p.stav IN ('objednano','vari_se','hotovo')
+        WHERE (u.stav = 'open' OR (u.stav = 'paid' AND u.zaplaceno_v >= NOW() - INTERVAL 6 HOUR))
+          AND p.stav IN ('objednano','vari_se','hotovo')
         ORDER BY p.cas_objednavky ASC
     ");
     $items = $stmt->fetchAll();
@@ -898,6 +917,7 @@ if ($method === 'GET' && $action === 'kds') {
             'stul_id' => (int) $i['stul_id'],
             'stul_nazev' => $i['stul_nazev'],
             'zone_id' => $i['zone_id'],
+            'zaplaceno' => ($i['ucet_stav'] ?? '') === 'paid',
             'polozky' => [],
             'first_objednavka' => $i['cas_objednavky'],
         ];
@@ -1826,8 +1846,7 @@ function pos_finalize_ucet_payment(PDO $pdo, int $ucetId, string $zpusob = 'onli
         $pdo->prepare("UPDATE restaurant_pos_ucty SET stav='paid', zaplaceno_v=NOW(), suma_zaplaceno=:s,
                        cislo_dokladu=:d, pay_status='paid' WHERE id=:id")
             ->execute(['s' => $sumPaid, 'd' => $cislo, 'id' => $ucetId]);
-        $pdo->prepare("UPDATE restaurant_pos_polozky SET stav='servirovano'
-                       WHERE ucet_id=:u AND stav IN ('objednano','vari_se','hotovo')")->execute(['u' => $ucetId]);
+        pos_finalize_paid_items($pdo, $ucetId);
         $stulId = (int) $pdo->query("SELECT stul_id FROM restaurant_pos_ucty WHERE id=" . (int)$ucetId)->fetchColumn();
         if ($stulId) {
             $oc = $pdo->prepare("SELECT COUNT(*) FROM restaurant_pos_ucty WHERE stul_id=:s AND stav='open'");

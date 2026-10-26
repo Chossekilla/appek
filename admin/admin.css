@@ -93,3 +93,6 @@ html body #app[style*="display:none"],html body #app[style*="display: none"]{dis
 .faktura-card .faktura-card-foot .fa-icon-actions{display:grid!important;grid-template-columns:repeat(2,50px);gap:6px!important;width:auto!important;justify-content:end!important}
 .faktura-card .faktura-card-foot .fa-icon-actions .doc-badge{width:50px!important;min-width:0!important;max-width:50px!important;flex:none!important;height:28px!important;min-height:28px!important;font-size:11.5px!important;padding:0!important;border-radius:7px!important}
 .faktura-card .faktura-card-foot .fa-icon-actions .doc-badge.mail{flex:none!important;width:50px!important;font-size:14px!important}
+/* v3.0.601 — faktura karta: čtvercové ikony v řadě jako v přehledu (recentRowIcons) */
+.faktura-card .faktura-card-foot .recent-icons{display:flex!important;gap:6px!important;flex-wrap:nowrap}
+.faktura-card .faktura-card-foot .faktura-card-datum{min-width:0}

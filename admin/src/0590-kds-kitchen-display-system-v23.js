@@ -57,7 +57,7 @@ function renderKDSOrder(o, stavLabels) {
       <div style="padding:10px 14px;background:${isLate ? '#FEE2E2' : '#FFF8E7'};border-bottom:1.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-size:16px;font-weight:800;color:#854F0B">🍽️ ${esc(o.stul_nazev)}</div>
-          <div style="font-size:11px;color:#92400e">Účet #${o.ucet_id}</div>
+          <div style="font-size:11px;color:#92400e">Účet #${o.ucet_id}${o.zaplaceno ? ' · <span style="background:#DCFCE7;color:#166534;border-radius:4px;padding:1px 6px;font-weight:700">💰 zaplaceno</span>' : ''}</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:18px;font-weight:800;color:${isLate ? '#DC2626' : '#854F0B'}">⏱ ${waitingMin}m</div>

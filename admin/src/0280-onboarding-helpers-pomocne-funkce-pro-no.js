@@ -716,6 +716,7 @@ window.gotoNastaveniBlok = function(tab, blokId) {
     const scrollNaBlok = (zvyrazni) => {
       const blk = document.getElementById(blokId);
       if (!blk) return;
+      if (window.nsAccOpen) nsAccOpen(blk); // 🆕 v3.0.601 — cíl ve sbalené kartě accordionu → rozbal
       blk.scrollIntoView({ behavior: 'smooth', block: 'start' });
       if (zvyrazni) {
         blk.style.outline = '2px solid #16a34a';

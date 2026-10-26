@@ -173,7 +173,9 @@ if ($action === 'order_status' && $method === 'POST') {
         $chk->execute(['id' => $id]);
         $own = $chk->fetch();
         if (!$own) json_error('Položka nenalezena', 404);
-        if (($own['stav'] ?? '') !== 'open') json_error('Účet je uzavřený — položku už nelze měnit', 409);
+        // 🆕 v3.0.601 — zaplacený účet: kuchyň smí položku jen posunout dál, ne stornovat
+        $kitchenForward = ($own['stav'] ?? '') === 'paid' && in_array($st, ['preparing','ready','served'], true);
+        if (($own['stav'] ?? '') !== 'open' && !$kitchenForward) json_error('Účet je uzavřený — položku už nelze měnit', 409);
         $map = ['queued'=>'objednano','preparing'=>'vari_se','ready'=>'hotovo','served'=>'servirovano','cancelled'=>'storno'];
         $posStav = $map[$st];
         $timeCol = match($posStav) {
@@ -225,7 +227,8 @@ $queue = $pdo->query("
                v.kitchen_station_id AS station_id, p.ucet_id AS objednavka_id,
                p.cas_vari_se AS cas_zacatek, p.cas_objednavky AS cas_ref
         FROM restaurant_pos_polozky p
-        INNER JOIN restaurant_pos_ucty u ON u.id = p.ucet_id AND u.stav = 'open'
+        INNER JOIN restaurant_pos_ucty u ON u.id = p.ucet_id
+              AND (u.stav = 'open' OR (u.stav = 'paid' AND u.zaplaceno_v >= NOW() - INTERVAL 6 HOUR))
         LEFT JOIN vyrobky v ON v.id = p.vyrobek_id
         WHERE p.stav IN ('objednano','vari_se','hotovo')
         UNION ALL

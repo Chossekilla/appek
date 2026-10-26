@@ -4689,6 +4689,7 @@ window.gotoNastaveniBlok = function(tab, blokId) {
     const scrollNaBlok = (zvyrazni) => {
       const blk = document.getElementById(blokId);
       if (!blk) return;
+      if (window.nsAccOpen) nsAccOpen(blk); // 🆕 v3.0.601 — cíl ve sbalené kartě accordionu → rozbal
       blk.scrollIntoView({ behavior: 'smooth', block: 'start' });
       if (zvyrazni) {
         blk.style.outline = '2px solid #16a34a';
@@ -11531,7 +11532,12 @@ function dashStylePeriodHtml(typ, datum_od, datum_do) {
   //   ∞ Vše přesunuto do panelu Vlastní (o ikonu méně); bez omezení svítí V.
   const fromRange = rangeToPeriod(datum_od, datum_do);
   const sel = (state._periodSel || {})[typ];
-  const selFits = sel && (sel === 'vlastni' ? !!(datum_od || datum_do) : sel === fromRange);
+  // 🐛 v3.0.601 — v pondělí je „týden" = „dnes" (stejný rozsah), 1. v měsíci „měsíc" = „dnes" …
+  //   → porovnávej rozsah KLIKNUTÉ volby, ne první shodu z rangeToPeriod (jinak po kliku na T svítilo D).
+  const selRange = sel && !['vlastni', 'vlastni_open', 'vse'].includes(sel) ? periodToRange(sel) : null;
+  const selFits = sel && (sel === 'vlastni' ? !!(datum_od || datum_do)
+    : selRange ? (selRange.od === (datum_od || '') && selRange.do === (datum_do || ''))
+    : sel === fromRange);
   const currentPeriod = selFits ? sel : fromRange;           // dnes|tyden|mesic|rok|vlastni|vse
   const activeChip = (currentPeriod === 'vse' || sel === 'vlastni_open') ? 'vlastni' : currentPeriod;
   const showCustom = currentPeriod === 'vlastni' || (sel === 'vlastni_open');
@@ -12029,14 +12035,8 @@ async function renderFaktury(filters = {}, opts = {}) {
                 <span>⏰ ${fmtDate(f.datum_splatnosti)}</span>
                 <span>📦 ${f.pocet_polozek || 0} pol.</span>
               </div>
-              <div class="faktura-card-actions" onclick="event.stopPropagation();">
-              <span class="doc-badges-row fa-icon-actions">
-                ${docBadge('fa', `../api/faktura.php?id=${f.id}`, 'FA', { title: 'Faktura (PDF)' })}
-                ${docBadge('dl', (f.pocet_dl > 0) ? (f.prvni_dl_objednavka_id ? `../api/dodaci_list.php?id=${f.prvni_dl_objednavka_id}` : `../api/dodaci_list.php?dl_id=${f.prvni_dl_id}`) : null, 'DL', { title: 'Dodací list (PDF)', disabledTitle: 'Faktura nemá navázaný DL' })}
-                ${docBadge('obj', parseInt(f.prvni_objednavka_id) ? '#' : null, 'OBJ', { title: 'Otevřít objednávku', disabledTitle: 'Faktura nemá navázanou objednávku', onclick: `openObjednavkaDetail(${parseInt(f.prvni_objednavka_id) || 0})` })}
-                <a href="#" class="doc-badge mail" title="Odeslat fakturu e-mailem (PDF v příloze)" onclick="otevritOdeslatEmailem('fa', ${f.id}, '${esc(f.cislo).replace(/'/g, '')}', '${esc(f.odberatel_email || '').replace(/'/g, '')}');return false">✉️</a>
-              </span>
-              </div>
+              <!-- 🆕 v3.0.601 — stejné čtvercové ikony v řadě jako v přehledu (dashboard recentRowIcons) -->
+              <div class="faktura-card-actions" onclick="event.stopPropagation();">${recentRowIcons('fa', f)}</div>
             </div>
             <div class="faktura-card-sum"><span class="faktura-card-sum-lbl">fakturováno</span><span class="faktura-card-castka">${fmt(f.castka_celkem)}</span></div>
           </div>
@@ -17646,6 +17646,90 @@ window.gdprModal = function(titulek, htmlObsah) {
   document.body.appendChild(m);
 };
 // =============================================================
+// 🆕 v3.0.601 — NASTAVENÍ: karty jako accordion
+// =============================================================
+// Karty v každém tabu Nastavení jsou sbalené na nadpis, klik rozbalí. Otevřené se pamatují
+// (localStorage per nadpis) → po uložení / přepnutí tabu zůstane, jak to uživatel nechal.
+// Vylepšuje hotové DOM (MutationObserver nad #content) → renderNastaveni ani async karty se nemění.
+// Tab s jedinou kartou (Balíčky) a nápověda (<details>) zůstávají, jak jsou.
+(function () {
+  const LS_KEY = 'ns_acc_open';
+  let openSet;
+  try { openSet = new Set(JSON.parse(localStorage.getItem(LS_KEY) || '[]')); } catch (e) { openSet = new Set(); }
+  const save = () => { try { localStorage.setItem(LS_KEY, JSON.stringify([...openSet])); } catch (e) {} };
+
+  if (!document.getElementById('ns-acc-styles')) {
+    const s = document.createElement('style');
+    s.id = 'ns-acc-styles';
+    s.textContent = `
+      .ns-acc > .ns-acc-head { cursor: pointer; position: relative; padding-right: 30px; user-select: none; }
+      .ns-acc > .ns-acc-head::after { content: '▾'; position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+        font-size: 18px; line-height: 1; color: var(--text-3); transition: transform .15s; }
+      .ns-acc.ns-collapsed > .ns-acc-head::after { transform: translateY(-50%) rotate(-90deg); }
+      .ns-acc.ns-collapsed > :not(.ns-acc-head) { display: none !important; }
+      .ns-acc.ns-collapsed > .ns-acc-head, .ns-acc.ns-collapsed > .ns-acc-head h2,
+      .ns-acc.ns-collapsed > .ns-acc-head h3 { margin-bottom: 0 !important; }
+    `;
+    document.head.appendChild(s);
+  }
+
+  const keyOf = (h) => (h.textContent || '').trim().split('\n')[0].trim().slice(0, 60);
+
+  function headOf(card) {
+    const h = card.querySelector('h2, h3, h4');
+    if (!h) return null;
+    let el = h;
+    while (el.parentElement && el.parentElement !== card) el = el.parentElement;
+    return el.parentElement === card ? { head: el, title: h } : null;
+  }
+
+  function enhance() {
+    const page = document.querySelector('#content .nastaveni-page');
+    if (!page) return;
+    const cards = [...page.querySelectorAll('.card-block')]
+      .filter(c => c.tagName !== 'DETAILS' && !c.parentElement.closest('.card-block'));
+    const items = cards.map(c => ({ c, hh: headOf(c) })).filter(x => x.hh);
+    if (items.length < 2) return;
+    items.forEach(({ c, hh }) => {
+      if (c.dataset.nsAcc) return;
+      const key = keyOf(hh.title);
+      c.dataset.nsAcc = key;
+      c.classList.add('ns-acc');
+      hh.head.classList.add('ns-acc-head');
+      if (!openSet.has(key)) c.classList.add('ns-collapsed');
+      hh.head.addEventListener('click', (ev) => {
+        if (ev.target.closest('button, a, input, select, textarea, label')) return;
+        nsAccToggle(c, c.classList.contains('ns-collapsed'));
+      });
+    });
+  }
+
+  function nsAccToggle(card, open) {
+    card.classList.toggle('ns-collapsed', !open);
+    const key = card.dataset.nsAcc;
+    if (key) { open ? openSet.add(key) : openSet.delete(key); save(); }
+  }
+
+  // Deep-link (gotoNastaveniBlok) → rozbal kartu, ve které cíl leží
+  window.nsAccOpen = function (el) {
+    const card = el && el.closest && el.closest('.ns-acc');
+    if (card && card.classList.contains('ns-collapsed')) nsAccToggle(card, true);
+  };
+
+  let raf = 0;
+  const start = () => {
+    const root = document.getElementById('content');
+    if (!root) return setTimeout(start, 300);
+    new MutationObserver(() => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; enhance(); });
+    }).observe(root, { childList: true, subtree: true });
+    enhance();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+// =============================================================
 // 🖨️ TISKÁRNY (v3.0.5) — ESC/POS termo + auto-split + settings
 // =============================================================
 async function loadTiskarnyPanel() {
@@ -21140,7 +21224,7 @@ function renderKDSOrder(o, stavLabels) {
       <div style="padding:10px 14px;background:${isLate ? '#FEE2E2' : '#FFF8E7'};border-bottom:1.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-size:16px;font-weight:800;color:#854F0B">🍽️ ${esc(o.stul_nazev)}</div>
-          <div style="font-size:11px;color:#92400e">Účet #${o.ucet_id}</div>
+          <div style="font-size:11px;color:#92400e">Účet #${o.ucet_id}${o.zaplaceno ? ' · <span style="background:#DCFCE7;color:#166534;border-radius:4px;padding:1px 6px;font-weight:700">💰 zaplaceno</span>' : ''}</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:18px;font-weight:800;color:${isLate ? '#DC2626' : '#854F0B'}">⏱ ${waitingMin}m</div>

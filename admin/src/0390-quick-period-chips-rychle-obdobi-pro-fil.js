@@ -43,7 +43,12 @@ function dashStylePeriodHtml(typ, datum_od, datum_do) {
   //   ∞ Vše přesunuto do panelu Vlastní (o ikonu méně); bez omezení svítí V.
   const fromRange = rangeToPeriod(datum_od, datum_do);
   const sel = (state._periodSel || {})[typ];
-  const selFits = sel && (sel === 'vlastni' ? !!(datum_od || datum_do) : sel === fromRange);
+  // 🐛 v3.0.601 — v pondělí je „týden" = „dnes" (stejný rozsah), 1. v měsíci „měsíc" = „dnes" …
+  //   → porovnávej rozsah KLIKNUTÉ volby, ne první shodu z rangeToPeriod (jinak po kliku na T svítilo D).
+  const selRange = sel && !['vlastni', 'vlastni_open', 'vse'].includes(sel) ? periodToRange(sel) : null;
+  const selFits = sel && (sel === 'vlastni' ? !!(datum_od || datum_do)
+    : selRange ? (selRange.od === (datum_od || '') && selRange.do === (datum_do || ''))
+    : sel === fromRange);
   const currentPeriod = selFits ? sel : fromRange;           // dnes|tyden|mesic|rok|vlastni|vse
   const activeChip = (currentPeriod === 'vse' || sel === 'vlastni_open') ? 'vlastni' : currentPeriod;
   const showCustom = currentPeriod === 'vlastni' || (sel === 'vlastni_open');
@@ -541,14 +546,8 @@ async function renderFaktury(filters = {}, opts = {}) {
                 <span>⏰ ${fmtDate(f.datum_splatnosti)}</span>
                 <span>📦 ${f.pocet_polozek || 0} pol.</span>
               </div>
-              <div class="faktura-card-actions" onclick="event.stopPropagation();">
-              <span class="doc-badges-row fa-icon-actions">
-                ${docBadge('fa', `../api/faktura.php?id=${f.id}`, 'FA', { title: 'Faktura (PDF)' })}
-                ${docBadge('dl', (f.pocet_dl > 0) ? (f.prvni_dl_objednavka_id ? `../api/dodaci_list.php?id=${f.prvni_dl_objednavka_id}` : `../api/dodaci_list.php?dl_id=${f.prvni_dl_id}`) : null, 'DL', { title: 'Dodací list (PDF)', disabledTitle: 'Faktura nemá navázaný DL' })}
-                ${docBadge('obj', parseInt(f.prvni_objednavka_id) ? '#' : null, 'OBJ', { title: 'Otevřít objednávku', disabledTitle: 'Faktura nemá navázanou objednávku', onclick: `openObjednavkaDetail(${parseInt(f.prvni_objednavka_id) || 0})` })}
-                <a href="#" class="doc-badge mail" title="Odeslat fakturu e-mailem (PDF v příloze)" onclick="otevritOdeslatEmailem('fa', ${f.id}, '${esc(f.cislo).replace(/'/g, '')}', '${esc(f.odberatel_email || '').replace(/'/g, '')}');return false">✉️</a>
-              </span>
-              </div>
+              <!-- 🆕 v3.0.601 — stejné čtvercové ikony v řadě jako v přehledu (dashboard recentRowIcons) -->
+              <div class="faktura-card-actions" onclick="event.stopPropagation();">${recentRowIcons('fa', f)}</div>
             </div>
             <div class="faktura-card-sum"><span class="faktura-card-sum-lbl">fakturováno</span><span class="faktura-card-castka">${fmt(f.castka_celkem)}</span></div>
           </div>
