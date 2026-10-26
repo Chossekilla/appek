@@ -3,7 +3,8 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 cors_headers();
 require_admin();
-require_super_admin();
+// 🐛 v3.0.599 — sazby DPH číst smí každý admin (formuláře výrobků/faktur je potřebují); měnit jen super admin
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') require_super_admin();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $pdo = db();

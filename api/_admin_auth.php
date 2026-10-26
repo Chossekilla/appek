@@ -52,7 +52,10 @@ function require_admin(): array {
         if (in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true)) {
             $roAllowed = ['license_heartbeat.php', 'admin_klient_chyby.php', 'whoami.php'];
             $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '')));
-            if (!in_array($script, $roAllowed, true)) {
+            // 🐛 v3.0.599 — heartbeat zařízení (ping) je self-maintenance → jinak 403 každých pár sekund
+            //   (diagnostika měření). Jen akce ping; správa stanic (přejmenování/smazání) zůstává zamčená.
+            $isPing = $script === 'admin_stanice.php' && (($_GET['action'] ?? '') === 'ping');
+            if (!in_array($script, $roAllowed, true) && !$isPing) {
                 json_error('Náhledový účet — jen prohlížení. Plný přístup na vyžádání: info@appek.cz', 403);
             }
         }

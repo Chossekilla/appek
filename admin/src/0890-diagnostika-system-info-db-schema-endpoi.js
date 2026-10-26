@@ -289,6 +289,16 @@ async function renderDiagnostika() {
           `}
       </div>
 
+      <!-- 🆕 v3.0.599 — TEST PLYNULOSTI: průchod stránkami, smyčky, záseky, chyby načítání -->
+      <div class="card-block" style="padding:16px;grid-column:1/-1" id="diag-perf-card">
+        <h3 style="font-size:14px;margin:0 0 6px;color:var(--text-2);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          ⚡ Test plynulosti a chyb načítání
+          <button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="diagPerfTest()">▶ Spustit test</button>
+        </h3>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">Projde všechny stránky, které vidíš v menu, a na každé změří rychlost vykreslení, počet požadavků, chyby načítání, záseky hlavního vlákna („kousání") a jestli v klidu něco neběží pořád dokola (smyčka). Trvá asi 5 s na stránku — nech ji běžet.</div>
+        <div id="diag-perf-body">${diagPerfResultHtml(state._perfResult)}</div>
+      </div>
+
       <!-- 🩺 LIVE HEALTH CHECK — endpointy odpovídají? -->
       <div class="card-block" style="padding:16px">
         <h3 style="font-size:14px;margin:0 0 10px;color:var(--text-2)">🩺 Live health check</h3>
@@ -544,3 +554,76 @@ window.ulozitCisloRadu = async function(typ, rok) {
   }
 };
 
+// =============================================================
+// ⚡ v3.0.599 — TEST PLYNULOSTI (diagnostika): průchod stránkami a měření
+// =============================================================
+function diagPerfResultHtml(R) {
+  if (!R) return '<div style="font-size:12px;color:var(--text-3)">Zatím nespuštěno.</div>';
+  const badge = (ok, txt) => `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:${ok ? '#DCFCE7' : '#FEE2E2'};color:${ok ? '#166534' : '#991B1B'}">${txt}</span>`;
+  const loops = R.pages.filter(p => p.reqIdle > 1 || p.mutIdle > 60);
+  const slow  = R.pages.filter(p => p.ms > 1500);
+  const jank  = R.pages.filter(p => p.longMax > 200);
+  const fails = R.pages.reduce((a, p) => a + p.fails.length, 0) + R.jsErrors.length;
+  const rows = R.pages.map(p => `<tr>
+      <td>${esc(p.label)}</td>
+      <td class="num" style="color:${p.ms > 1500 ? '#B91C1C' : p.ms > 700 ? '#B0540B' : 'inherit'}">${p.ms} ms</td>
+      <td class="num">${p.req}</td>
+      <td class="num" style="color:${p.reqIdle > 1 ? '#B91C1C' : 'inherit'}">${p.reqIdle}</td>
+      <td class="num" style="color:${p.mutIdle > 60 ? '#B91C1C' : 'inherit'}">${p.mutIdle}</td>
+      <td class="num" style="color:${p.longMax > 200 ? '#B91C1C' : p.longMax > 100 ? '#B0540B' : 'inherit'}">${p.longN ? p.longN + '× / ' + p.longMax + ' ms' : '—'}</td>
+      <td style="font-family:monospace;font-size:10.5px;color:#B91C1C">${p.fails.map(esc).join('<br>') || '<span style="color:var(--text-3)">—</span>'}</td>
+    </tr>`).join('');
+  return `
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-size:12px">
+      ${badge(!slow.length, slow.length ? `Pomalé: ${slow.length}` : 'Rychlost OK')}
+      ${badge(!loops.length, loops.length ? `Možná smyčka: ${loops.map(p => p.label).join(', ')}` : 'Bez smyček')}
+      ${badge(!jank.length, jank.length ? `Záseky: ${jank.map(p => p.label).join(', ')}` : 'Bez záseků')}
+      ${badge(!fails, fails ? `Chyby načítání: ${fails}` : 'Bez chyb')}
+      <span style="color:var(--text-3)">· ${esc(R.at)} · ${R.vw}×${R.vh} px · ${R.pages.length} stránek</span>
+    </div>
+    <div style="overflow-x:auto"><table class="table" style="font-size:12px">
+      <thead><tr><th>Stránka</th><th class="num">Vykreslení</th><th class="num">Požadavků</th><th class="num" title="Požadavky v klidu po načtení (smyčka?)">V klidu</th><th class="num" title="Změny DOM v klidu (překreslování dokola?)">DOM v klidu</th><th class="num" title="Úlohy hlavního vlákna > 50 ms (záseky)">Záseky</th><th>Chyby</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    ${R.jsErrors.length ? `<div style="margin-top:8px;font-size:11.5px;color:#B91C1C;font-family:monospace">${R.jsErrors.map(esc).join('<br>')}</div>` : ''}
+    <div style="font-size:11px;color:var(--text-3);margin-top:6px">„V klidu" = měřeno 3 s po načtení bez akce. Více než 1 požadavek nebo desítky změn DOM v klidu znamenají něco, co běží pořád dokola. Záseky nad 200 ms jsou na telefonu znát jako „kousání".</div>`;
+}
+
+window.diagPerfTest = async function() {
+  const body = document.getElementById('diag-perf-body');
+  if (body) body.innerHTML = '<div style="font-size:12px">⏳ Běží… (neklikej, stránky se budou samy přepínat)</div>';
+  const pages = [...document.querySelectorAll('.sidebar .nav-item[data-page]')]
+    .filter(b => b.offsetParent !== null || getComputedStyle(b).display !== 'none')
+    .map(b => ({ page: b.dataset.page, label: (b.textContent || '').replace(/\s+/g, ' ').trim() }))
+    .filter((p, i, a) => p.page && p.page !== 'diagnostika' && a.findIndex(x => x.page === p.page) === i);
+  const R = { at: new Date().toLocaleString('cs-CZ'), vw: innerWidth, vh: innerHeight, pages: [], jsErrors: [] };
+  let reqN = 0, fails = [], mut = 0; const longs = [];
+  const of = window.fetch;
+  window.fetch = function (u) {
+    reqN++; const k = String(u && u.url || u).split('?')[0].replace(/^.*\//, '');
+    return of.apply(this, arguments).then(r => { if (!r.ok) fails.push(r.status + ' ' + k); return r; }, e => { fails.push('síť ' + k); throw e; });
+  };
+  const onErr = e => R.jsErrors.push(String(e.message || e.reason || e).slice(0, 160));
+  window.addEventListener('error', onErr); window.addEventListener('unhandledrejection', onErr);
+  const mo = new MutationObserver(ms => { mut += ms.length; }); mo.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+  let po = null; try { po = new PerformanceObserver(l => l.getEntries().forEach(e => longs.push(Math.round(e.duration)))); po.observe({ entryTypes: ['longtask'] }); } catch (e) {}
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  try {
+    for (const p of pages) {
+      const r0 = reqN, l0 = longs.length; fails = []; const t = performance.now();
+      try { await navigate(p.page); } catch (e) { fails.push('render: ' + e.message); }
+      const ms = Math.round(performance.now() - t);
+      await wait(1500);
+      const r1 = reqN, m1 = mut;
+      await wait(3000);
+      const L = longs.slice(l0);
+      R.pages.push({ label: p.label, page: p.page, ms, req: r1 - r0, reqIdle: reqN - r1, mutIdle: mut - m1, longN: L.length, longMax: L.reduce((a, x) => Math.max(a, x), 0), fails: fails.slice() });
+    }
+  } finally {
+    window.fetch = of; mo.disconnect(); if (po) po.disconnect();
+    window.removeEventListener('error', onErr); window.removeEventListener('unhandledrejection', onErr);
+  }
+  state._perfResult = R;
+  await navigate('diagnostika');
+  setTimeout(() => document.getElementById('diag-perf-card')?.scrollIntoView({ block: 'start' }), 400);
+};

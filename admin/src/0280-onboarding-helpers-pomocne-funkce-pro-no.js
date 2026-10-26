@@ -618,6 +618,9 @@ function adminOnly(html) {
 // Předtím dělaly `navigate('dodaci_listy'); setTimeout(()=>applyDlFilters({fakturovano:'0'}),100)`
 // což nefungovalo (applyDlFilters četl jen z DOM, ignoroval arg).
 async function navigate(page, args) {
+  // 🐛 v3.0.599 — bez přihlášení nic nevykresluj (klient_chyby: „Cannot read properties of null (reading 'jmeno')"
+  //   v renderDashboard na Androidu — navigace přišla dřív než login / po vypršení session)
+  if (!state.admin) return;
   // Zkontroluj, jestli má aktuální role právo na tuto stránku
   if (!muzeNavigovat(page)) {
     // 🆕 v2.9.305 — místo TICHÉHO fallbacku ukaž toast, ať user ví proč nic nereaguje

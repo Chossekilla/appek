@@ -345,25 +345,26 @@ foreach (['odberatele', 'vyrobky', 'objednavky', 'dodaci_listy', 'faktury', 'kat
 }
 
 // --- 🚨 JS CHYBY Z PROHLÍŽEČŮ (klient_chyby) ---
+// 🐛 v3.0.599 — sloupec času je `kdy` (ne `cas`) → sekce byla na všech instalacích rozbitá (SQL 1054)
 $js_errors = ['rows' => [], 'stats' => null, 'top' => null];
 try {
     // Stats
     $js_errors['stats'] = [
-        '1h'  => (int) $pdo->query("SELECT COUNT(*) FROM klient_chyby WHERE cas > DATE_SUB(NOW(), INTERVAL 1 HOUR)")->fetchColumn(),
-        '24h' => (int) $pdo->query("SELECT COUNT(*) FROM klient_chyby WHERE cas > DATE_SUB(NOW(), INTERVAL 24 HOUR)")->fetchColumn(),
-        '7d'  => (int) $pdo->query("SELECT COUNT(*) FROM klient_chyby WHERE cas > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn(),
+        '1h'  => (int) $pdo->query("SELECT COUNT(*) FROM klient_chyby WHERE kdy > DATE_SUB(NOW(), INTERVAL 1 HOUR)")->fetchColumn(),
+        '24h' => (int) $pdo->query("SELECT COUNT(*) FROM klient_chyby WHERE kdy > DATE_SUB(NOW(), INTERVAL 24 HOUR)")->fetchColumn(),
+        '7d'  => (int) $pdo->query("SELECT COUNT(*) FROM klient_chyby WHERE kdy > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn(),
         'celkem' => (int) $pdo->query("SELECT COUNT(*) FROM klient_chyby")->fetchColumn(),
     ];
     $js_errors['rows'] = $pdo->query("
-        SELECT id, cas, app, msg, source, line, col, url, user_info
+        SELECT id, kdy, kdy AS cas, app, msg, source, line, col, url, user_info
         FROM klient_chyby
-        ORDER BY cas DESC
+        ORDER BY kdy DESC
         LIMIT 30
     ")->fetchAll();
     $js_errors['top'] = $pdo->query("
-        SELECT msg, COUNT(*) AS pocet, MAX(cas) AS posledni
+        SELECT msg, COUNT(*) AS pocet, MAX(kdy) AS posledni
         FROM klient_chyby
-        WHERE cas > DATE_SUB(NOW(), INTERVAL 7 DAY)
+        WHERE kdy > DATE_SUB(NOW(), INTERVAL 7 DAY)
         GROUP BY msg
         ORDER BY pocet DESC
         LIMIT 5

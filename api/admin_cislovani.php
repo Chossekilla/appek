@@ -3,7 +3,8 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 cors_headers();
 $auth = require_admin();
-require_super_admin(); // jen super admin smí měnit číselné řady
+// 🐛 v3.0.599 — číst smí každý admin (dashboard/nastavení je načítá → 403 pro prodavače/náhled); měnit jen super admin
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') require_super_admin(); // jen super admin smí měnit číselné řady
 
 $method = $_SERVER['REQUEST_METHOD'];
 $pdo = db();

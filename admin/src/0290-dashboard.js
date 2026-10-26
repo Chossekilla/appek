@@ -448,7 +448,7 @@ async function renderDashboard(filters = {}) {
     <div class="page-head">
       <div>
         <h1 class="page-title">📊 Dashboard</h1>
-        <p class="page-sub">${greeting}, <strong>${esc(state.admin.jmeno)}</strong> · ${new Date().toLocaleDateString('cs-CZ', {weekday:'long', day:'numeric', month:'long'})}</p>
+        <p class="page-sub">${greeting}, <strong>${esc(state.admin?.jmeno || '')}</strong> · ${new Date().toLocaleDateString('cs-CZ', {weekday:'long', day:'numeric', month:'long'})}</p>
       </div>
     </div>
 
