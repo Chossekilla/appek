@@ -167,7 +167,7 @@ function renderRestaurantTimeline(stoly, datum, openUcty, dayHours) {
       if (toMin > fromMin) {
         const leftPx = (fromMin / 60) * hourPx;
         const widthPx = Math.max(20, ((toMin - fromMin) / 60) * hourPx);
-        const sum = parseFloat(ucet.castka_celkem || 0);
+        const sum = parseFloat(ucet.suma_kc ?? ucet.castka_celkem ?? 0);
         const pcs = parseInt(ucet.pocet_polozek || 0);
         const min = Math.max(0, Math.floor((Date.now() - dt.getTime()) / 60000));
         liveBlock = `

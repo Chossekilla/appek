@@ -1594,7 +1594,7 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
 
     // Stav: pokud má otevřený POS účet → occupied (i kdyby t.stav řekl něco jiného)
     const stav = ucet ? 'occupied' : (t.stav || 'free');
-    const sum = ucet ? parseFloat(ucet.castka_celkem || 0) : 0;
+    const sum = ucet ? parseFloat(ucet.suma_kc ?? ucet.castka_celkem ?? 0) : 0;
     const pcs = ucet ? parseInt(ucet.pocet_polozek || 0) : 0;
     const min = ucet ? minutesSince(ucet.otevreno_v) : 0;
 
