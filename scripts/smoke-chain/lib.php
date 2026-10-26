@@ -237,15 +237,24 @@ function parallel_post(array $admins, string $path, array $body): array {
 // BOM replika (nezávislá na api/_bom_lib.php — kontrola, ne znovupoužití produkční logiky)
 function bom_rows_cached(int $vid): array {
     static $c = [];
-    if (!isset($c[$vid])) $c[$vid] = q('SELECT vs.surovina_id, vs.slozka_vyrobek_id, vs.mnozstvi, COALESCE(v2.sleduje_sklad,0) AS sub_ss FROM vyrobek_suroviny vs LEFT JOIN vyrobky v2 ON v2.id = vs.slozka_vyrobek_id WHERE vs.vyrobek_id = :v', ['v' => $vid]);
+    if (!isset($c[$vid])) $c[$vid] = q('SELECT vs.surovina_id, vs.slozka_vyrobek_id, vs.mnozstvi, vs.jednotka AS rj, s.jednotka AS sj, COALESCE(v2.sleduje_sklad,0) AS sub_ss
+                                        FROM vyrobek_suroviny vs LEFT JOIN vyrobky v2 ON v2.id = vs.slozka_vyrobek_id LEFT JOIN suroviny s ON s.id = vs.surovina_id
+                                        WHERE vs.vyrobek_id = :v', ['v' => $vid]);
     return $c[$vid];
+}
+/** Převod jednotky řádku receptu na jednotku suroviny (zrcadlí produkční PR09: 0,012 kg suroviny vedené v g = 12 g). */
+function bom_unit_x(?string $from, ?string $to): float {
+    $b = ['g' => ['m', 1], 'kg' => ['m', 1000], 'mg' => ['m', 0.001], 'ml' => ['v', 1], 'l' => ['v', 1000], 'dl' => ['v', 100], 'cl' => ['v', 10], 'ks' => ['k', 1]];
+    $f = mb_strtolower(trim((string) $from)); $t = mb_strtolower(trim((string) $to));
+    if ($f === '' || $t === '' || $f === $t || !isset($b[$f], $b[$t]) || $b[$f][0] !== $b[$t][0]) return 1.0;
+    return $b[$f][1] / $b[$t][1];
 }
 function bom_x(int $vid, float $qty, array &$sur, array &$pol, int $depth = 0, array $path = []): void {
     if ($qty <= 0 || $depth > 8 || isset($path[$vid])) return;
     $path[$vid] = 1;
     foreach (bom_rows_cached($vid) as $r) {
         $mn = (float) $r['mnozstvi']; if ($mn <= 0) continue;
-        if ($r['surovina_id']) $sur[(int) $r['surovina_id']] = ($sur[(int) $r['surovina_id']] ?? 0) + $qty * $mn;
+        if ($r['surovina_id']) $sur[(int) $r['surovina_id']] = ($sur[(int) $r['surovina_id']] ?? 0) + $qty * $mn * bom_unit_x($r['rj'] ?? null, $r['sj'] ?? null);
         elseif ($r['slozka_vyrobek_id']) {
             $sv = (int) $r['slozka_vyrobek_id'];
             if ((int) $r['sub_ss'] === 1) $pol[$sv] = ($pol[$sv] ?? 0) + $qty * $mn;
