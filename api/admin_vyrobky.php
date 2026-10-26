@@ -584,11 +584,13 @@ function nutrice_z_receptury(PDO $pdo, int $vyrobek_id): ?array {
     return $out;
 }
 
-function sync_slozeni(PDO $pdo, int $vyrobek_id, array $polozky): void {
+/** Vrací seznam zahozených řádků (🐛 v3.0.598 — dřív cyklická složka zmizela potichu, uživatel nevěděl). */
+function sync_slozeni(PDO $pdo, int $vyrobek_id, array $polozky): array {
+    $skipped = [];
     try {
         $pdo->prepare("DELETE FROM vyrobek_suroviny WHERE vyrobek_id = :v")
             ->execute(['v' => $vyrobek_id]);
-        if (empty($polozky)) return;
+        if (empty($polozky)) return $skipped;
 
         // 🆕 v3.0.303 — řádek receptu může být SUROVINA nebo POLOTOVAR (slozka_vyrobek_id).
         $hasSlozka = in_array('slozka_vyrobek_id', $pdo->query("SHOW COLUMNS FROM vyrobek_suroviny")->fetchAll(PDO::FETCH_COLUMN), true);
@@ -605,8 +607,12 @@ function sync_slozeni(PDO $pdo, int $vyrobek_id, array $polozky): void {
             $slozka = $hasSlozka ? (int) ($p['slozka_vyrobek_id'] ?? 0) : 0;
             // BOM cyklus-guard: polotovar nesmí být sám sebe ani (ne)přímo tvořit cyklus → řádek zahodíme
             if ($slozka > 0) {
-                if ($slozka === $vyrobek_id) continue;
-                if (function_exists('bom_would_cycle') && bom_would_cycle($pdo, $vyrobek_id, $slozka)) continue;
+                if ($slozka === $vyrobek_id || (function_exists('bom_would_cycle') && bom_would_cycle($pdo, $vyrobek_id, $slozka))) {
+                    $nm = '';
+                    try { $q = $pdo->prepare("SELECT nazev FROM vyrobky WHERE id = :i"); $q->execute(['i' => $slozka]); $nm = (string) $q->fetchColumn(); } catch (Throwable $e) {}
+                    $skipped[] = 'Složka „' . ($nm !== '' ? $nm : '#' . $slozka) . '" by vytvořila cyklus (výrobek by obsahoval sám sebe) — nebyla uložena.';
+                    continue;
+                }
                 $sid = 0; // polotovar řádek nemá surovinu
             }
             if ($sid <= 0 && $slozka <= 0) continue;
@@ -623,7 +629,7 @@ function sync_slozeni(PDO $pdo, int $vyrobek_id, array $polozky): void {
         }
     } catch (PDOException $e) {
         // Pokud tabulky ještě neexistují, ignoruj - frontend zatím neposílá
-        if (str_contains($e->getMessage(), "doesn't exist") || str_contains($e->getMessage(), 'Base table')) return;
+        if (str_contains($e->getMessage(), "doesn't exist") || str_contains($e->getMessage(), 'Base table')) return $skipped;
         throw $e;
     }
     // 🆕 v3.0.223 — PROVÁZÁNÍ: recept se změnil → doplň alergeny ze surovin do výrobku (union,
@@ -644,6 +650,7 @@ function sync_slozeni(PDO $pdo, int $vyrobek_id, array $polozky): void {
             }
         }
     } catch (Throwable $e) { error_log('nutri z receptury #' . $vyrobek_id . ': ' . $e->getMessage()); }
+    return $skipped;
 }
 
 // =============================================================
@@ -704,7 +711,7 @@ if ($method === 'POST') {
 
     // Volitelně - položky složení
     if (isset($d['slozeni_polozky']) && is_array($d['slozeni_polozky'])) {
-        sync_slozeni($pdo, $new_id, $d['slozeni_polozky']);
+        $warnings = sync_slozeni($pdo, $new_id, $d['slozeni_polozky']);
     }
 
     // 🆕 v3.0.221 — auto-HACCP pro nový výrobek (drží provázání: přiřadí graf + vyplní haccp_data
@@ -715,7 +722,7 @@ if ($method === 'POST') {
         if (function_exists('haccp_autofill_one')) haccp_autofill_one($pdo, $new_id, false);
     } catch (Throwable $e) { error_log('auto-haccp create #' . $new_id . ': ' . $e->getMessage()); }
 
-    json_response(['id' => $new_id], 201);
+    json_response(['id' => $new_id] + (!empty($warnings) ? ['warnings' => $warnings] : []), 201);
 }
 
 // =============================================================
@@ -794,9 +801,9 @@ if ($method === 'PUT') {
 
     // Položky složení → sync receptury + auto-merge alergenů ze surovin (uvnitř sync_slozeni)
     if ($maRecept) {
-        sync_slozeni($pdo, (int) $d['id'], $d['slozeni_polozky']);
+        $warnings = sync_slozeni($pdo, (int) $d['id'], $d['slozeni_polozky']);
     }
-    json_response(['ok' => true]);
+    json_response(['ok' => true] + (!empty($warnings) ? ['warnings' => $warnings] : []));
 }
 
 // =============================================================

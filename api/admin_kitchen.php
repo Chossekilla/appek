@@ -167,6 +167,13 @@ if ($action === 'order_status' && $method === 'POST') {
     //   • 'pos'   → dine-in položka v restaurant_pos_polozky (mapuj stav, sync s KDS)
     //   • 'queue' → rozvoz/s sebou v kitchen_queue (jen tam existuje)
     if ($src === 'pos') {
+        // 🐛 v3.0.598 — položka uzavřeného (zaplaceného) účtu se už nesmí měnit: zrušení by zpětně změnilo
+        //   útratu zaplaceného účtu (smoke kitchen_bom C6c). Stejné pravidlo jako POS item_qty.
+        $chk = $pdo->prepare("SELECT p.ucet_id, u.stav FROM restaurant_pos_polozky p JOIN restaurant_pos_ucty u ON u.id = p.ucet_id WHERE p.id = :id");
+        $chk->execute(['id' => $id]);
+        $own = $chk->fetch();
+        if (!$own) json_error('Položka nenalezena', 404);
+        if (($own['stav'] ?? '') !== 'open') json_error('Účet je uzavřený — položku už nelze měnit', 409);
         $map = ['queued'=>'objednano','preparing'=>'vari_se','ready'=>'hotovo','served'=>'servirovano','cancelled'=>'storno'];
         $posStav = $map[$st];
         $timeCol = match($posStav) {
@@ -177,6 +184,14 @@ if ($action === 'order_status' && $method === 'POST') {
         };
         $sql = "UPDATE restaurant_pos_polozky SET stav = :s" . ($timeCol ? ", $timeCol = NOW()" : "") . " WHERE id = :id";
         $pdo->prepare($sql)->execute(['s'=>$posStav,'id'=>$id]);
+        // 🐛 v3.0.598 — zrušení z kuchyně musí snížit útratu účtu (dřív suma_kc dál obsahovala zrušené jídlo;
+        //   POS item_state storno přepočet dělal). Stejný výpočet jako recalc_ucet_total() v admin_pos.php.
+        if ($posStav === 'storno') {
+            $pdo->prepare("UPDATE restaurant_pos_ucty SET suma_kc = (
+                               SELECT COALESCE(SUM(jednotkova_cena * mnozstvi), 0) FROM restaurant_pos_polozky
+                               WHERE ucet_id = :u1 AND stav != 'storno') WHERE id = :u2")
+                ->execute(['u1' => (int) $own['ucet_id'], 'u2' => (int) $own['ucet_id']]);
+        }
     } else {
         $setExtra = '';
         if ($st === 'preparing') $setExtra = ', cas_zacatek = NOW()';

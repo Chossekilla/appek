@@ -172,7 +172,8 @@ if ($method === 'GET') {
             $mozne = floor($sk / $per);
             $vyrobitelne = ($vyrobitelne === null) ? $mozne : min($vyrobitelne, $mozne);
         }
-        json_response(['vyrobek_id' => $vid, 'mnozstvi' => $n, 'polozky' => $polozky, 'vyrobitelne_ze_skladu' => $vyrobitelne === null ? 0 : (int) $vyrobitelne]);
+        // 🐛 v3.0.598 — sklad v mínusu dával záporné „vyrobitelné" (floor(-738/91) = -9)
+        json_response(['vyrobek_id' => $vid, 'mnozstvi' => $n, 'polozky' => $polozky, 'vyrobitelne_ze_skladu' => $vyrobitelne === null ? 0 : max(0, (int) $vyrobitelne)]);
     }
 
     // 📤 Odepsat suroviny ze skladu pro daný den (po výrobě) — POST
@@ -433,6 +434,15 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
         }
     }
 
+    // 🐛 v3.0.598 — marker „PROBÍHÁ" se claimuje MIMO transakci → každý chybový výstup (nedostatek
+    //   surovin 409, nic k odepsání 404…) ho musí uvolnit, jinak je den zablokovaný NAPOŘÁD (i po
+    //   doskladnění „už byla odepsána nebo probíhá"). Dřív se uklízel jen při výjimce (500).
+    $releaseMarker = function () use ($pdo, $odpisKey, &$claimedMarker): void {
+        if (empty($claimedMarker)) return;
+        try { $pdo->prepare("DELETE FROM nastaveni WHERE klic = :k AND hodnota LIKE 'PROBÍHÁ%'")->execute(['k' => $odpisKey]); } catch (Throwable $e) {}
+        $claimedMarker = false;
+    };
+
     // Sečti spotřebu (stejně jako v ?action=spotreba)
     $src = vyroba_potreba_src($pdo, $datum);
     $stmt = $pdo->prepare("
@@ -444,7 +454,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
     ");
     $stmt->execute($src['params']);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    if (empty($rows) && empty($src['pol'])) json_error('Žádné suroviny ani polotovary k odepsání — neexistují objednávky na tento datum nebo výrobky bez receptur', 404);
+    if (empty($rows) && empty($src['pol'])) { $releaseMarker(); json_error('Žádné suroviny ani polotovary k odepsání — neexistují objednávky na tento datum nebo výrobky bez receptur', 404); }
 
     $kdo = $admin['email'] ?? $admin['jmeno'] ?? 'system';
     $odepsano = 0;
@@ -464,7 +474,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
             foreach ($lockStmt->fetchAll(PDO::FETCH_ASSOC) as $sr) {
                 $aktualniStavy[(int) $sr['id']] = (float) $sr['stock_aktualni'];
             }
-        } elseif (empty($src['pol'])) { $pdo->rollBack(); json_error('Žádné valid surovina IDs', 400); }
+        } elseif (empty($src['pol'])) { $pdo->rollBack(); $releaseMarker(); json_error('Žádné valid surovina IDs', 400); }
 
         // Pre-check: kterým chybí
         $deficity = [];
@@ -485,6 +495,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
         }
         if (!empty($deficity) && !$force) {
             $pdo->rollBack();
+            $releaseMarker();
             $names = array_slice(array_map(fn($d) => $d['nazev'], $deficity), 0, 5);
             json_response([
                 'error'    => 'Nedostatek surovin na skladu (' . count($deficity) . ')',
@@ -510,6 +521,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'odepsat_suroviny') {
             //   deficit-guard obejitelný. Skutečný stav po odečtu < 0 (bez force) ⇒ rollback.
             if ($po < 0 && !$force) {
                 $pdo->rollBack();
+                $releaseMarker();
                 json_response([
                     'error'    => 'Nedostatek suroviny „' . ($r['nazev'] ?? ('#' . $sid)) . '" na skladu (souběžný odběr?)',
                     'deficity' => [['nazev' => $r['nazev'] ?? ('#' . $sid), 'potreba' => $potreba, 'na_skladu' => round($po + $potreba, 3), 'chybi' => round(-$po, 3), 'jednotka' => $r['jednotka'] ?? '']],

@@ -14911,10 +14911,12 @@ window.ulozitVyrobek = async function(id) {
   if (window._savingVyrobek) return;            // 🆕 v3.0.347 — zábrana dvojího odeslání (dupl. produkt)
   window._savingVyrobek = true;
   try {
-    await api('admin_vyrobky.php', {
+    const res = await api('admin_vyrobky.php', {
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(data),
     });
+    // 🐛 v3.0.598 — server zahodil cyklickou složku receptu → řekni to (dřív zmizela potichu)
+    if (res && Array.isArray(res.warnings) && res.warnings.length) alert('Výrobek uložen, ale:\n\n• ' + res.warnings.join('\n• '));
     closeModal();
     navigate('vyrobky');
   } catch (e) { alert('Chyba: ' + e.message); }

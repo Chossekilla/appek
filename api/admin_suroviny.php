@@ -177,7 +177,12 @@ ensure_suroviny_tables($pdo);
 function title_case_cs(string $s): string {
     $s = trim($s);
     if ($s === '') return $s;
-    return mb_convert_case($s, MB_CASE_TITLE, 'UTF-8');
+    $t = mb_convert_case($s, MB_CASE_TITLE, 'UTF-8');
+    // 🐛 v3.0.598 — jednotky nechej malými („500 Ml" → „500 ml", „(Kg)" → „(kg)"): za číslem nebo v závorce.
+    //   Samotné „L" mimo to nechávám (velikost vajec „Vejce L").
+    $t = preg_replace_callback('/(?<=\d)(\s?)(Kg|Mg|Ml|Dl|Cl|Ks|G|L)(?![\p{L}])/u', fn($m) => $m[1] . mb_strtolower($m[2]), $t);
+    $t = preg_replace_callback('/\((Kg|Mg|Ml|Dl|Cl|Ks|G|L)\)/u', fn($m) => '(' . mb_strtolower($m[1]) . ')', $t);
+    return $t;
 }
 
 // Detekce 14 EU alergenů z textu (složení) — vrací Kč-list odděleno čárkami

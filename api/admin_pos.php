@@ -515,6 +515,13 @@ if ($method === 'POST' && $action === 'item_state') {
     $stav = $d['stav'] ?? '';
     $allowed = ['objednano','vari_se','hotovo','servirovano','storno'];
     if (!$itemId || !in_array($stav, $allowed, true)) json_error('Neplatné', 400);
+    // 🐛 v3.0.598 — položka zaplaceného/uzavřeného účtu se už nemění (storno by zpětně snížilo útratu
+    //   zaplaceného účtu → nesedí tržba; smoke kitchen_bom C6b). Stejné pravidlo jako item_qty.
+    $own = $pdo->prepare("SELECT u.stav FROM restaurant_pos_polozky p JOIN restaurant_pos_ucty u ON u.id = p.ucet_id WHERE p.id = :id");
+    $own->execute(['id' => $itemId]);
+    $ownStav = $own->fetchColumn();
+    if ($ownStav === false) json_error('Položka nenalezena', 404);
+    if ($ownStav !== 'open') json_error('Účet je uzavřený — položku už nelze měnit', 409);
     $timeCol = match($stav) {
         'vari_se' => 'cas_vari_se',
         'hotovo' => 'cas_pripraveno',
@@ -561,10 +568,12 @@ if ($method === 'POST' && $action === 'item_qty') {
 // ❌ DELETE ?action=item&id=N → smaž (nebo storno)
 if ($method === 'DELETE' && $action === 'item') {
     $id = (int) ($_GET['id'] ?? 0);
-    $u = $pdo->prepare("SELECT ucet_id, stav FROM restaurant_pos_polozky WHERE id = :id");
+    $u = $pdo->prepare("SELECT p.ucet_id, p.stav, u.stav AS u_stav FROM restaurant_pos_polozky p JOIN restaurant_pos_ucty u ON u.id = p.ucet_id WHERE p.id = :id");
     $u->execute(['id' => $id]);
     $row = $u->fetch();
     if (!$row) json_error('Položka nenalezena', 404);
+    // 🐛 v3.0.598 — mazat/stornovat položku zaplaceného účtu nejde (viz item_state)
+    if (($row['u_stav'] ?? '') !== 'open') json_error('Účet je uzavřený — položku už nelze měnit', 409);
     if ($row['stav'] === 'objednano') {
         // Nezačala se vařit → reálné smazání
         $pdo->prepare("DELETE FROM restaurant_pos_polozky WHERE id = :id")->execute(['id' => $id]);
