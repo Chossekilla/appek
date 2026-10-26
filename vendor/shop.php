@@ -38,6 +38,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ->execute(['id' => $orderId]);
             vendor_audit($pdo, $user, 'shop_mark_paid', null, $order['order_no']);
             $flash_ok = "Objednávka označena jako zaplacena. Můžeš teď vygenerovat licenci.";
+            // 🆕 v3.0.597 — prodloužení z my.appek.cz zaplacené PŘEVODEM → prodluž stávající licenci hned
+            if ((int) ($order['renew_license_id'] ?? 0) > 0) {
+                require_once __DIR__ . '/_renewal.php';
+                $res = vendor_apply_renewal($pdo, $order, (string) ($user['username'] ?? 'vendor'));
+                $flash_ok = $res
+                    ? 'Zaplaceno — licence prodloužena o ' . (int) $res['months'] . ' měs. (platí do ' . date('j. n. Y', strtotime((string) $res['expires_at'])) . '), zákazník dostal e-mail.'
+                    : 'Zaplaceno — prodloužení už bylo provedeno dříve.';
+            }
         } elseif ($action === 'mark_cancelled') {
             $pdo->prepare("UPDATE vendor_shop_orders SET payment_status = 'cancelled' WHERE id = :id")
                 ->execute(['id' => $orderId]);
