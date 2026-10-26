@@ -87,3 +87,9 @@ body.sidebar-collapsed .sidebar-utils,body.sidebar-pinned .sidebar-utils{flex-di
 /* v3.0.594 — 🐛 login: mobilní pravidla `.admin-app{display:flex/grid!important}` přebila inline display:none
    na #app → pod přihlášením „utekla" hlavička + prázdná aplikace. Dokud není přihlášeno (#app má display:none), skryj. */
 html body #app[style*="display:none"],html body #app[style*="display: none"]{display:none!important}
+/* v3.0.595 — karta faktury: tlačítka FA/DL/OBJ/✉️ užší, v ŘÁDKU s daty (vlevo data, vpravo mřížka 2×2 zarovnaná na výšku dat) */
+.faktura-card .faktura-card-foot{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px}
+.faktura-card .faktura-card-foot .faktura-card-actions{margin:0!important;flex:0 0 auto;display:block!important}
+.faktura-card .faktura-card-foot .fa-icon-actions{display:grid!important;grid-template-columns:repeat(2,50px);gap:6px!important;width:auto!important;justify-content:end!important}
+.faktura-card .faktura-card-foot .fa-icon-actions .doc-badge{width:50px!important;min-width:0!important;max-width:50px!important;flex:none!important;height:28px!important;min-height:28px!important;font-size:11.5px!important;padding:0!important;border-radius:7px!important}
+.faktura-card .faktura-card-foot .fa-icon-actions .doc-badge.mail{flex:none!important;width:50px!important;font-size:14px!important}

@@ -541,14 +541,14 @@ async function renderFaktury(filters = {}, opts = {}) {
                 <span>⏰ ${fmtDate(f.datum_splatnosti)}</span>
                 <span>📦 ${f.pocet_polozek || 0} pol.</span>
               </div>
-            </div>
-            <div class="faktura-card-actions" onclick="event.stopPropagation();">
+              <div class="faktura-card-actions" onclick="event.stopPropagation();">
               <span class="doc-badges-row fa-icon-actions">
                 ${docBadge('fa', `../api/faktura.php?id=${f.id}`, 'FA', { title: 'Faktura (PDF)' })}
                 ${docBadge('dl', (f.pocet_dl > 0) ? (f.prvni_dl_objednavka_id ? `../api/dodaci_list.php?id=${f.prvni_dl_objednavka_id}` : `../api/dodaci_list.php?dl_id=${f.prvni_dl_id}`) : null, 'DL', { title: 'Dodací list (PDF)', disabledTitle: 'Faktura nemá navázaný DL' })}
                 ${docBadge('obj', parseInt(f.prvni_objednavka_id) ? '#' : null, 'OBJ', { title: 'Otevřít objednávku', disabledTitle: 'Faktura nemá navázanou objednávku', onclick: `openObjednavkaDetail(${parseInt(f.prvni_objednavka_id) || 0})` })}
                 <a href="#" class="doc-badge mail" title="Odeslat fakturu e-mailem (PDF v příloze)" onclick="otevritOdeslatEmailem('fa', ${f.id}, '${esc(f.cislo).replace(/'/g, '')}', '${esc(f.odberatel_email || '').replace(/'/g, '')}');return false">✉️</a>
               </span>
+              </div>
             </div>
             <div class="faktura-card-sum"><span class="faktura-card-sum-lbl">fakturováno</span><span class="faktura-card-castka">${fmt(f.castka_celkem)}</span></div>
           </div>
