@@ -2418,19 +2418,19 @@ function renderStitkyCenovky() {
       <!-- Stav pillsy (Aktivní / Vše / Skryté) -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
         ${stavu.map(o => `
-          <button class="period-tab ${aktStav === o.k ? 'active' : ''}" onclick="stState.cenovkaStav='${o.k}';document.getElementById('st-vyr-list').innerHTML = stRenderVyrList();stCenovkyRerenderHead()" style="font-size:16px;padding:12px 20px;font-weight:700;min-height:48px">${o.l}</button>
+          <button class="period-tab st-chip ${aktStav === o.k ? 'active' : ''}" onclick="stState.cenovkaStav='${o.k}';document.getElementById('st-vyr-list').innerHTML = stRenderVyrList();stCenovkyRerenderHead()" style="font-size:16px;padding:12px 20px;font-weight:700;min-height:48px">${o.l}</button>
         `).join('')}
       </div>
 
       <!-- Kategorie pillsy -->
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-        <button class="period-tab ${aktivniKat === null || aktivniKat === undefined ? 'active' : ''}" onclick="stState.cenovkaKat=null;document.getElementById('st-vyr-list').innerHTML = stRenderVyrList();stCenovkyRerenderHead()" style="position:relative;font-size:16px;padding:12px 32px 12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:10px">
+        <button class="period-tab st-chip st-kat-chip ${aktivniKat === null || aktivniKat === undefined ? 'active' : ''}" onclick="stState.cenovkaKat=null;document.getElementById('st-vyr-list').innerHTML = stRenderVyrList();stCenovkyRerenderHead()" style="position:relative;font-size:16px;padding:12px 32px 12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:10px">
           <span style="font-size:28px;line-height:1">📦</span>
           <span>Vše</span>
           <span style="position:absolute;top:5px;right:6px;background:rgba(0,0,0,0.12);font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;line-height:1.4">${s.vyrobky?.length || 0}</span>
         </button>
         ${kategorie.map(k => `
-          <button class="period-tab ${aktivniKat === k.id ? 'active' : ''}" onclick="stState.cenovkaKat=${k.id};document.getElementById('st-vyr-list').innerHTML = stRenderVyrList();stCenovkyRerenderHead()" style="position:relative;font-size:16px;padding:12px 32px 12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:10px">
+          <button class="period-tab st-chip st-kat-chip ${aktivniKat === k.id ? 'active' : ''}" onclick="stState.cenovkaKat=${k.id};document.getElementById('st-vyr-list').innerHTML = stRenderVyrList();stCenovkyRerenderHead()" style="position:relative;font-size:16px;padding:12px 32px 12px 20px;font-weight:700;min-height:48px;display:inline-flex;align-items:center;gap:10px">
             <span style="font-size:28px;line-height:1">${esc(k.ikona)}</span>
             <span>${esc(k.nazev)}</span>
             <span style="position:absolute;top:5px;right:6px;background:rgba(0,0,0,0.12);font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;line-height:1.4">${k.pocet}</span>

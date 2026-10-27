@@ -503,6 +503,13 @@ window._ztratyReportRun = async function() {
 window._lsGet = function(k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
 window._lsSet = function(k, v) { try { localStorage.setItem(k, v); } catch (e) {} };
 
+// v3.0.620 — Suroviny kreslí jen viditelnou variantu (desktop/mobil) → při přechodu přes 700px překresli
+try {
+  window.matchMedia('(max-width: 700px)').addEventListener('change', () => {
+    if (state.current === 'suroviny' && typeof renderSuroviny === 'function') keepScroll(renderSuroviny);
+  });
+} catch (e) {}
+
 // 🆕 v3.0.604 — výběr surovin + Export vybraných (klientský CSV, exportSurovinyCsv)
 function surExportBtnsHtml(n) {
   return n > 0
@@ -787,6 +794,9 @@ async function renderSuroviny() {
     }).join('');
   };
 
+  // v3.0.620 — vykresli JEN viditelnou variantu (dřív desktop tabulka 111 řádků s obrázky + mobilní seznam naráz
+  //   → ~250 kB HTML při každém přepnutí → seknutí na iPhonu). Přechod přes 700px → překreslení (listener níž).
+  const _surMob = window.matchMedia('(max-width: 700px)').matches;
   c.innerHTML = `
     <div class="page-head">
       <div>
@@ -936,7 +946,7 @@ async function renderSuroviny() {
     </div>
 
     <div class="card-block desktop-only-block">
-      ${tabulkaDesktop()}
+      ${_surMob ? '' : tabulkaDesktop()}
     </div>
 
     <!-- Mobile -->
@@ -978,7 +988,7 @@ async function renderSuroviny() {
         <button type="button" class="${mView === 'tiles' ? 'active' : ''}" onclick="_lsSet('sur_mview','tiles');keepScroll(renderSuroviny)">▦ Dlaždice</button>
         <button type="button" class="${mView === 'rows' ? 'active' : ''}" onclick="_lsSet('sur_mview','rows');keepScroll(renderSuroviny)">☰ Řádky</button>
       </div>
-      ${seznamMobile()}
+      ${_surMob ? seznamMobile() : ''}
     </div>
 
     ${surPaginated && typeof pagControlHtml === 'function' ? pagControlHtml('sur', sp, 'surGoToPage', 'surLoadMore') : ''}

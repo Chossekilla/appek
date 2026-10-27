@@ -129,6 +129,14 @@
   .odb-typ-pills{ display:flex!important; flex-wrap:wrap!important; }
   .odb-typ-pill{ flex:1 1 auto!important; padding-left:12px!important; padding-right:12px!important; }
 }
+/* v3.0.620 — Štítky/cenovky: kategorie a stav používají .period-tab, jehož mobilní pravidla (flex:1 1 0, 1 řada,
+   ≤460px sloupec) jsou pro přepínač období D/T/M → 15 kategorií se slisovalo do 1 řady a texty se překrývaly. */
+@media (max-width: 700px){
+  .period-tab.st-chip{ flex:0 0 auto!important; width:auto!important; flex-direction:row!important; overflow:visible!important;
+    padding:10px 16px!important; white-space:nowrap!important; gap:8px!important; }
+  .period-tab.st-kat-chip{ padding:10px 30px 10px 14px!important; font-size:15px!important; }
+  .period-tab.st-kat-chip > span:first-child{ font-size:22px!important; }
+}
 </style>
 </head>
 <body>

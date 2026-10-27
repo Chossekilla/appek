@@ -1274,6 +1274,14 @@ window.otevritSklad = async function(skladId, nazev, kod) {
                   <span>Cíl ${p.cil_stav !== null ? parseFloat(p.cil_stav).toFixed(2) : '—'}</span>
                   <span>📍 ${p.pozice ? esc(p.pozice) : '—'} ${posBtn}</span>
                 </div>
+                ${(() => {
+                  // v3.0.620 — nákupní cena (pokud je u suroviny vyplněná) + hodnota zásoby
+                  const cb = parseFloat(p.cena_baleni) || 0, ob = parseFloat(p.obsah_baleni) || 0;
+                  if (!(cb > 0 && ob > 0)) return '';
+                  const cj = cb / ob, jed = (p.jednotka || 'g').toLowerCase();
+                  const [k, u] = jed === 'g' ? [1000, 'kg'] : jed === 'ml' ? [1000, 'l'] : [1, jed];
+                  return `<div class="skl-ic-price">💰 ${fmt(cj * k)}/${esc(u)} <span>· zásoba ${fmt(cj * stav)}</span></div>`;
+                })()}
                 <div class="skl-ic-actions">${actions}</div>
               </div>`).join('');
       return `
@@ -1354,6 +1362,16 @@ window.otevritSklad = async function(skladId, nazev, kod) {
         .skl-ic-stats{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-2);margin-bottom:9px}
         .skl-ic-stav.low{color:#c66800;font-weight:700}
         .skl-ic-actions{display:flex;flex-wrap:wrap;gap:6px}
+        .skl-ic-price{font-size:13px;font-weight:700;color:var(--primary-dark);margin:-3px 0 10px}
+        .skl-ic-price span{font-weight:500;color:var(--text-3)}
+        /* v3.0.620 — mobil: akce byly 11px / 4px padding → malé a skoro neviditelné. Teď 6 stejných dlaždic na prst. */
+        .skl-ic-actions{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+        .skl-ic-actions .btn-secondary{font-size:19px!important;font-weight:800;min-height:44px;padding:0!important;border-radius:10px;
+          display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border-2,var(--border))!important;line-height:1}
+        .skl-ic-actions .btn-secondary[title="Příjem"]{background:#dcfce7!important;color:#15803d!important;border-color:#86efac!important}
+        .skl-ic-actions .btn-secondary[title="Výdej"]{background:#fef3c7!important;color:#92400e!important;border-color:#fcd34d!important}
+        .skl-ic-actions .btn-secondary[title="Odebrat ze skladu"]{background:#fde7e9!important;color:#a8232f!important;border-color:#f5a3ab!important}
+        .skl-ic-stats .btn-icon{font-size:16px!important;padding:4px 8px!important;min-height:32px}
       </style>
     `;
 

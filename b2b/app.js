@@ -2554,7 +2554,7 @@ async function renderStats() {
         <div class="checkout-section">
           ${data.top_vyrobky.map((t) => `
             <div class="bar-row">
-              <div class="bar-head"><span>${esc(t.nazev)}</span><span><strong>${t.mnozstvi}</strong> ks</span></div>
+              <div class="bar-head"><span>${esc(t.nazev)}</span><span><strong>${(parseFloat(t.mnozstvi) || 0).toLocaleString('cs-CZ', { maximumFractionDigits: 3 })}</strong> ${esc(t.jednotka || 'ks')}</span></div>
               <div class="bar-track"><div class="bar-fill" style="width:${t.pct}%"></div></div>
             </div>
           `).join('')}

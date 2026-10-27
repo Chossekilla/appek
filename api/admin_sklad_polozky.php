@@ -175,7 +175,14 @@ if ($method === 'GET') {
                    CASE sp.item_typ
                        WHEN 'vyrobek'  THEN (SELECT cislo FROM vyrobky WHERE id = sp.item_id LIMIT 1)
                        ELSE NULL
-                   END AS cislo
+                   END AS cislo,
+                   -- v3.0.620 — nákupní cena (jen suroviny) pro mobilní karty detailu skladu
+                   CASE sp.item_typ
+                       WHEN 'surovina' THEN (SELECT cena_baleni FROM suroviny WHERE id = sp.item_id LIMIT 1)
+                       ELSE NULL END AS cena_baleni,
+                   CASE sp.item_typ
+                       WHEN 'surovina' THEN (SELECT obsah_baleni FROM suroviny WHERE id = sp.item_id LIMIT 1)
+                       ELSE NULL END AS obsah_baleni
             FROM sklad_polozky sp
             WHERE sp.sklad_id = :sid
             ORDER BY sp.item_typ, nazev
