@@ -18607,6 +18607,15 @@ window.loadBalicky = async function() {
           </label>`;
       }
 
+      // v3.0.610 — proklik do balíčku (stejný cíl jako ikona v menu, PKG_NAV); jen zakoupený + zapnutý (jinak zamčená stránka)
+      const nav = (typeof PKG_NAV !== 'undefined') && PKG_NAV[p.key];
+      const openBtn = (!isCore && licensed && enabled && nav)
+        ? `<button type="button" class="pkg-open-btn" onclick="navigate('${nav.page}')" title="Otevřít ${esc(nav.label || p.nazev)}" aria-label="Otevřít ${esc(nav.label || p.nazev)}"
+             style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;height:40px;padding:0 12px;border-radius:10px;border:1.5px solid var(--primary-border, #e7c9a0);background:var(--surface);color:var(--primary-dark);font:inherit;font-weight:700;font-size:13px;cursor:pointer">
+             <span style="font-size:18px;line-height:1">${nav.ikona || esc(p.ikona)}</span><span style="font-size:16px;line-height:1">↗</span>
+           </button>`
+        : '';
+
       const borderColor = isCore ? 'var(--success-text)'
                        : !licensed ? 'transparent'
                        : enabled ? 'var(--success-text)'
@@ -18627,7 +18636,10 @@ window.loadBalicky = async function() {
             </div>
             ${toggleHtml}
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center">${priceLabel}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <span>${priceLabel}</span>
+            ${openBtn}
+          </div>
           <ul style="margin:4px 0 0;padding-left:18px;list-style:'›  '">${featuresHtml}</ul>
           ${lockBanner}
         </div>
