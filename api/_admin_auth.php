@@ -48,6 +48,16 @@ function require_admin(): array {
     //   jinak by náhledová session házela 403 na pozadí. GET/HEAD projdou → vše se dá prohlédnout.
     //   INERTNÍ dokud žádný účet nemá role='readonly'.
     if (($_SESSION['admin_role'] ?? '') === 'readonly') {
+        // 🔒 v3.0.611 — veřejné DEMO (APPEK_DEMO_MODE): HACCP zamčený i pro ČTENÍ (šablony dokumentace = know-how);
+        //   jen náhledový účet na demo instalaci, zákaznické readonly účty ani admin na demu netknuté.
+        if (defined('APPEK_DEMO_MODE') && APPEK_DEMO_MODE) {
+            $haccpLocked = ['admin_haccp_autofill.php', 'admin_haccp_dokumenty.php', 'admin_haccp_export_csv.php',
+                            'admin_haccp_grafy.php', 'firemni_haccp.php', 'vyrobek_haccp.php'];
+            $scriptRo = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '')));
+            if (in_array($scriptRo, $haccpLocked, true)) {
+                json_error('HACCP je v demu zamčený — dostupné v plné verzi. Napiš na info@appek.cz', 403);
+            }
+        }
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         if (in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true)) {
             $roAllowed = ['license_heartbeat.php', 'admin_klient_chyby.php', 'whoami.php'];

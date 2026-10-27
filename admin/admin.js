@@ -3471,6 +3471,26 @@ async function showApp() {
     if (ensureBanner() || tries++ > 80) clearInterval(iv);
   }, 200);
 })();
+
+// 🔒 v3.0.611 — HACCP na veřejném demu zamčený (náhledový účet na demo.appek.cz). Backend to vynucuje
+//   taky (_admin_auth.php, APPEK_DEMO_MODE) — tohle je jen srozumitelná obrazovka místo chyb 403.
+window.demoHaccpLocked = function () {
+  var st = (typeof state !== 'undefined') ? state : null;
+  return !!(st && st.admin && st.admin.role === 'readonly' && /^demo\./i.test(location.hostname));
+};
+window.renderDemoHaccpLock = function () {
+  var c = document.getElementById('content');
+  if (!c) return;
+  c.innerHTML = '<div class="page-head"><div><h1 class="page-title">📋 HACCP</h1>'
+    + '<p class="page-sub">Dokumentace, produktové listy, grafy technologických postupů</p></div></div>'
+    + '<div class="card-block" style="max-width:640px;margin:24px auto;text-align:center;padding:36px 24px">'
+    + '<div style="font-size:44px;line-height:1;margin-bottom:12px">🔒</div>'
+    + '<h2 style="margin:0 0 8px;font-size:20px">HACCP je dostupné v plné verzi</h2>'
+    + '<p style="margin:0 0 18px;color:var(--text-2);font-size:14px;line-height:1.6">Kompletní HACCP dokumentace firmy, produktové listy výrobků s alergeny, '
+    + 'grafy technologických postupů, interní audity a tisk příručky. V demu je tahle část zamčená.</p>'
+    + '<a class="btn-primary" href="mailto:info@appek.cz?subject=HACCP%20v%20APPEK" style="text-decoration:none;display:inline-block;padding:12px 22px;font-size:15px">Chci plný přístup — info@appek.cz</a>'
+    + '</div>';
+};
 // =============================================================
 // 🎯 ONBOARDING WIZARD — first-run experience
 // =============================================================
@@ -4640,7 +4660,7 @@ async function navigate(page, args) {
     else if (page === 'nastroje') await renderNastroje();
     else if (page === 'tiskarny') await renderTiskarny(); // 🆕 v3.0.29
     else if (page === 'stanice') await renderStanice(); // 🆕 připojení víc zařízení (kasa/kuchyň)
-    else if (page === 'haccp') await renderHaccp();
+    else if (page === 'haccp') await (window.demoHaccpLocked && demoHaccpLocked() ? renderDemoHaccpLock() : renderHaccp());
     else if (page === 'odberatele') await renderOdberatele();
     else if (page === 'users') await renderUsers();
     else if (page === 'cenove_skupiny') await renderCenoveSkupiny();

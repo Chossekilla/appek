@@ -667,7 +667,7 @@ async function navigate(page, args) {
     else if (page === 'nastroje') await renderNastroje();
     else if (page === 'tiskarny') await renderTiskarny(); // 🆕 v3.0.29
     else if (page === 'stanice') await renderStanice(); // 🆕 připojení víc zařízení (kasa/kuchyň)
-    else if (page === 'haccp') await renderHaccp();
+    else if (page === 'haccp') await (window.demoHaccpLocked && demoHaccpLocked() ? renderDemoHaccpLock() : renderHaccp());
     else if (page === 'odberatele') await renderOdberatele();
     else if (page === 'users') await renderUsers();
     else if (page === 'cenove_skupiny') await renderCenoveSkupiny();
