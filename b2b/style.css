@@ -4865,3 +4865,10 @@ html.dark .b2b-lang-dd-menu button { color: var(--text); }
   .header-row-top .b2b-lang-pills, .b2b-lang-pills { display: none !important; }
   .b2b-lang-dd { display: block; }
 }
+
+/* v3.0.618 — košík: rabat v levém sloupci POD cenou/ks (dřív margin-top:-26px → při zalomení „/ks · g/ks + ⚖️"
+   do dvou řádků vjel do textu nad sebou). Rozložení stejné (vlevo info, vpravo ± a ±10), jen vzdušnější řádky. */
+.cart-item-left { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; flex: 1 1 auto; }
+.cart-item-left .cart-item-unit { row-gap: 5px; line-height: 1.4; }
+.cart-item-left .cart-item-unit strong { line-height: 1.15; }
+.cart-item-left .cart-item-saved { margin-top: 0; max-width: none; line-height: 1.3; }

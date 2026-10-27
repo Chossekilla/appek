@@ -889,10 +889,13 @@ function renderCart() {
           <div class="cart-item-name">${i.obrazek_url ? `<img class="cart-item-thumb" src="${esc(i.obrazek_url)}" alt="" loading="lazy">` : ''}${esc(i.nazev)}</div>
           <div class="cart-item-price">${fmt(cAkt * i.mnozstvi)}</div>
           <div class="cart-item-meta">
-            <span class="cart-item-unit">
-              ${maSlevu ? `<s style="color:var(--text-3)">${fmt(cZakl)}</s> ` : ''}<strong>${fmt(cAkt)}</strong>/${esc(i.jednotka || 'ks')}${i.hmotnost_g ? ' · ' + i.hmotnost_g + ' g/ks' : ''}
-              ${hmotnostPolozkyG(i) > 0 ? `<span class="cart-item-weight" title="Celková hmotnost položky">⚖️ ${fmtHmotnost(hmotnostPolozkyG(i))}</span>` : ''}
-            </span>
+            <div class="cart-item-left">
+              <span class="cart-item-unit">
+                ${maSlevu ? `<s style="color:var(--text-3)">${fmt(cZakl)}</s> ` : ''}<strong>${fmt(cAkt)}</strong>/${esc(i.jednotka || 'ks')}${i.hmotnost_g ? ' · ' + i.hmotnost_g + ' g/ks' : ''}
+                ${hmotnostPolozkyG(i) > 0 ? `<span class="cart-item-weight" title="Celková hmotnost položky">⚖️ ${fmtHmotnost(hmotnostPolozkyG(i))}</span>` : ''}
+              </span>
+              ${maSlevu ? `<div class="cart-item-saved">💰 Rabat ${fmt(usetrenoNaPolozce)}</div>` : ''}
+            </div>
             <div class="qty-stack">
               <div class="qty">
                 <button class="qty-btn" onclick="changeQty(${i.id}, -1)" title="−1 ${esc(i.jednotka || 'ks')}">−</button>
@@ -905,7 +908,6 @@ function renderCart() {
               </div>
             </div>
           </div>
-          ${maSlevu ? `<div class="cart-item-saved">💰 Rabat ${fmt(usetrenoNaPolozce)}</div>` : ''}
         </div>
       `;
       }).join('')}
@@ -964,10 +966,13 @@ function cartBodyHTML(items, t) {
           <div class="cart-item-name">${i.obrazek_url ? `<img class="cart-item-thumb" src="${esc(i.obrazek_url)}" alt="" loading="lazy">` : ''}${esc(i.nazev)}</div>
           <div class="cart-item-price">${fmt(cAkt * i.mnozstvi)}</div>
           <div class="cart-item-meta">
-            <span class="cart-item-unit">
-              ${maSlevu ? `<s style="color:var(--text-3)">${fmt(cZakl)}</s> ` : ''}<strong>${fmt(cAkt)}</strong>/${esc(i.jednotka || 'ks')}${i.hmotnost_g ? ' · ' + i.hmotnost_g + ' g/ks' : ''}
-              ${hmotnostPolozkyG(i) > 0 ? `<span class="cart-item-weight" title="Celková hmotnost položky">⚖️ ${fmtHmotnost(hmotnostPolozkyG(i))}</span>` : ''}
-            </span>
+            <div class="cart-item-left">
+              <span class="cart-item-unit">
+                ${maSlevu ? `<s style="color:var(--text-3)">${fmt(cZakl)}</s> ` : ''}<strong>${fmt(cAkt)}</strong>/${esc(i.jednotka || 'ks')}${i.hmotnost_g ? ' · ' + i.hmotnost_g + ' g/ks' : ''}
+                ${hmotnostPolozkyG(i) > 0 ? `<span class="cart-item-weight" title="Celková hmotnost položky">⚖️ ${fmtHmotnost(hmotnostPolozkyG(i))}</span>` : ''}
+              </span>
+              ${maSlevu ? `<div class="cart-item-saved">💰 Rabat ${fmt(usetrenoNaPolozce)}</div>` : ''}
+            </div>
             <div class="qty-stack">
               <div class="qty">
                 <button class="qty-btn" onclick="changeQty(${i.id}, -1)" title="−1 ${esc(i.jednotka || 'ks')}">−</button>
@@ -980,7 +985,6 @@ function cartBodyHTML(items, t) {
               </div>
             </div>
           </div>
-          ${maSlevu ? `<div class="cart-item-saved">💰 Rabat ${fmt(usetrenoNaPolozce)}</div>` : ''}
         </div>
       `;
       }).join('')}
