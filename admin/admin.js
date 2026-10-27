@@ -34385,6 +34385,10 @@ window._ztratyReportRun = async function() {
       <tbody>${list}</tbody></table></div>`;
 };
 
+// v3.0.605 — per-uživatel UI preference (sbalení sledovatelnosti, mobilní pohled); localStorage může selhat
+window._lsGet = function(k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
+window._lsSet = function(k, v) { try { localStorage.setItem(k, v); } catch (e) {} };
+
 // 🆕 v3.0.604 — výběr surovin + Export vybraných (klientský CSV, exportSurovinyCsv)
 function surExportBtnsHtml(n) {
   return n > 0
@@ -34476,7 +34480,8 @@ async function renderSuroviny() {
   const showImg = !(state.nastaveni && state.nastaveni.seznam_obrazky === '0');
   // 🆕 v3.0.604 — výběr řádků pro Export vybraných (vzor Sklad v3.0.517); výběr přežije změnu filtru
   const surSel = state._surSel || (state._surSel = new Set());
-  const radekDesktop = (s) => {
+  // cena za jednotku normalizovaná na zvolené zobrazení (kg/g, L/ml) — sdílí desktop tabulka i mobilní řádky
+  const cenaJedFmt = (s) => {
     const cb = parseFloat(s.cena_baleni) || 0;
     const ob = parseFloat(s.obsah_baleni) || 0;
     const cenaJed = (cb > 0 && ob > 0) ? (cb / ob) : 0;
@@ -34494,6 +34499,10 @@ async function renderSuroviny() {
       else { cenaDisp = perMl; jedDisp = 'ml'; }
     }
     const cenaTxt = cenaDisp.toFixed((jedDisp === 'g' || jedDisp === 'ml') ? 4 : 2).replace(/\.?0+$/, '').replace('.', ',');
+    return { cenaJed, cenaTxt, jedDisp };
+  };
+  const radekDesktop = (s) => {
+    const { cenaJed, cenaTxt, jedDisp } = cenaJedFmt(s);
     return `
       <tr class="row-clickable" onclick="editSurovina(${s.id})" ${!s.aktivni ? 'style="opacity:0.5"' : ''}>
         <td onclick="event.stopPropagation()" style="text-align:center;width:36px"><input type="checkbox" class="sur-chk" ${surSel.has(s.id) ? 'checked' : ''} onclick="surToggleSel(${s.id}, this.checked)"></td>
@@ -34622,9 +34631,34 @@ async function renderSuroviny() {
     </button>
   `;
 
+  // 🆕 v3.0.605 — mobil: volitelný řádkový výpis (vyšší řádky na prst, badge, checkbox pro export vybraných)
+  const mView = _lsGet('sur_mview') === 'rows' ? 'rows' : 'tiles';
+  const radekMobile = (s) => {
+    const { cenaJed, cenaTxt, jedDisp } = cenaJedFmt(s);
+    const low = _podMin(s);
+    return `
+    <div class="sur-mrow" onclick="editSurovina(${s.id})" ${!s.aktivni ? 'style="opacity:.55"' : ''}>
+      <label class="sur-mrow-chk" onclick="event.stopPropagation()"><input type="checkbox" class="sur-chk" ${surSel.has(s.id) ? 'checked' : ''} onclick="surToggleSel(${s.id}, this.checked)" aria-label="Vybrat ${esc(s.nazev)}"></label>
+      ${(showImg && s.obrazek_url) ? `<img class="sur-mrow-img" src="${esc(s.obrazek_url)}" alt="" loading="lazy">` : `<span class="sur-mrow-ico">${_katIkona(s)}</span>`}
+      <span class="sur-mrow-main">
+        <span class="sur-mrow-name">${esc(s.nazev)}</span>
+        <span class="sur-mrow-badges">
+          ${s.alergen ? `<span class="sur-b sur-b-al">${esc(s.alergen)}</span>` : ''}
+          ${!s.aktivni ? '<span class="sur-b">Skrytá</span>' : ''}
+          ${cenaJed > 0 ? `<span class="sur-b sur-b-cena">${cenaTxt} Kč/${jedDisp}</span>` : ''}
+          ${(s.pocet_vyrobku || 0) > 0 ? `<span class="sur-b">${s.pocet_vyrobku}× ve výrobcích</span>` : ''}
+        </span>
+      </span>
+      <span class="sur-mrow-stock${low ? ' low' : ''}">${low ? '⚠ ' : ''}${_skladShort(s)}</span>
+    </div>`;
+  };
+  const mList = (items) => mView === 'rows'
+    ? `<div class="sur-mlist">${items.map(radekMobile).join('')}</div>`
+    : `<div class="sur-grid">${items.map(kartaMobile).join('')}</div>`;
+
   const seznamMobile = () => {
     if (filtered.length === 0) return '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
-    if (!groupBy || kat !== 'vse') return `<div class="sur-grid">${surPageItems.map(kartaMobile).join('')}</div>`;
+    if (!groupBy || kat !== 'vse') return mList(surPageItems);
     return SUROVINA_KATEGORIE.map(k => {
       const items = skupiny[k.key];
       if (items.length === 0) return '';
@@ -34634,7 +34668,7 @@ async function renderSuroviny() {
           <span>${k.label}</span>
           <span style="font-size:12px;font-weight:600;color:var(--text-3);background:var(--surface-2);padding:2px 10px;border-radius:10px">${items.length}</span>
         </h3>
-        <div class="sur-grid">${items.map(kartaMobile).join('')}</div>
+        ${mList(items)}
       `;
     }).join('');
   };
@@ -34657,12 +34691,21 @@ async function renderSuroviny() {
     </div>
 
     <!-- 🔎 v3.0.446 — HACCP sledovatelnost šarží & expirace (volitelné hlídání) -->
-    <div class="card-block" style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <h3 style="margin:0;font-size:16px">🔎 Sledovatelnost šarží &amp; expirace <small style="font-weight:400;color:var(--text-3);font-size:12px">— HACCP, volitelné</small></h3>
-        <label style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;padding:6px 12px;border-radius:8px;background:var(--surface-2)">
+    <!-- v3.0.605 — sbalené do dropdownu (zabíralo půl mobilu); stav + výstrahy vidět i zavřené, otevření se pamatuje -->
+    <style>.sur-sled > summary::-webkit-details-marker { display:none; }
+      .sur-sled .sur-sled-arrow { transition: transform .15s; } .sur-sled:not([open]) .sur-sled-arrow { transform: rotate(-90deg); }</style>
+    <details class="card-block sur-sled" style="margin-bottom:16px" ${_lsGet('sur_sled_open') === '1' ? 'open' : ''} ontoggle="_lsSet('sur_sled_open', this.open ? '1' : '0')">
+      <summary style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;list-style:none;min-height:32px">
+        <span style="font-size:16px;font-weight:700">🔎 Sledovatelnost šarží &amp; expirace</span>
+        <span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;${sledOn ? 'background:var(--success-bg);color:var(--success-text)' : 'background:var(--surface-2);color:var(--text-3)'}">${sledOn ? 'Zapnuto' : 'Vypnuto'}</span>
+        ${sledData && sledData.drzenych > 0 ? `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:#FCEBEB;color:#A32D2D">🔒 ${sledData.drzenych}</span>` : ''}
+        ${sledData && sledData.expirujici > 0 ? `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:#FBEDDC;color:#7A4A00">📅 ${sledData.expirujici}</span>` : ''}
+        <span class="sur-sled-arrow" style="margin-left:auto;color:var(--text-3);font-size:16px">▾</span>
+      </summary>
+      <div style="margin-top:12px">
+        <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;padding:8px 12px;border-radius:8px;background:var(--surface-2)">
           <input type="checkbox" ${sledOn ? 'checked' : ''} onchange="skladSledovatelnostToggle(this.checked)" style="width:18px;height:18px;cursor:pointer">
-          ${sledOn ? 'Hlídání zapnuto' : 'Hlídání vypnuto'}
+          ${sledOn ? 'Hlídání zapnuto' : 'Hlídání vypnuto'} <small style="font-weight:400;color:var(--text-3)">— HACCP, volitelné</small>
         </label>
       </div>
       ${!sledOn ? `
@@ -34716,7 +34759,7 @@ async function renderSuroviny() {
           ` : (sledData ? `<div class="empty-state" style="padding:16px;font-size:13px">Zatím žádné šarže — zadej je u příjmu suroviny (📦 Pohyb → Příjem).</div>` : '')}
         </div>
       `}
-    </div>
+    </details>
 
     <!-- Filtry -->
     <div class="card-block sur-filtry" style="margin-bottom:16px">
@@ -34797,7 +34840,30 @@ async function renderSuroviny() {
         .sur-tile-name { font-size:12px; line-height:1.25; font-weight:600; color:var(--text-1);
           display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
           min-height:2.5em; word-break:break-word; hyphens:auto; }
+        .sur-mview { display:flex; gap:0; margin:0 0 10px; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+        .sur-mview button { flex:1; min-height:44px; border:0; background:var(--surface); font:inherit; font-weight:700; font-size:14px; color:var(--text-2); cursor:pointer; }
+        .sur-mview button.active { background:var(--primary); color:#fff; }
+        .sur-mlist { display:flex; flex-direction:column; gap:6px; margin:0 0 12px; }
+        .sur-mrow { display:flex; align-items:center; gap:10px; min-height:64px; padding:8px 12px 8px 4px;
+          background:var(--surface); border:1px solid var(--border); border-radius:12px; cursor:pointer; }
+        .sur-mrow:active { background:var(--surface-2); }
+        .sur-mrow-chk { display:flex; align-items:center; justify-content:center; width:40px; height:48px; flex:0 0 auto; cursor:pointer; }
+        .sur-mrow-chk input { width:22px; height:22px; cursor:pointer; accent-color:var(--primary); }
+        .sur-mrow-ico { font-size:24px; line-height:1; flex:0 0 auto; width:32px; text-align:center; }
+        .sur-mrow-img { width:36px; height:36px; border-radius:8px; object-fit:cover; flex:0 0 auto; }
+        .sur-mrow-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+        .sur-mrow-name { font-size:15px; font-weight:700; color:var(--text-1); line-height:1.25; overflow-wrap:anywhere; }
+        .sur-mrow-badges { display:flex; flex-wrap:wrap; gap:4px; }
+        .sur-b { font-size:11px; font-weight:600; padding:2px 8px; border-radius:8px; background:var(--surface-2); color:var(--text-2); white-space:nowrap; }
+        .sur-b-al { background:#fef3c7; color:#92400e; }
+        .sur-b-cena { background:var(--primary-bg, #f6ead8); color:var(--primary-dark); }
+        .sur-mrow-stock { flex:0 0 auto; font-size:14px; font-weight:800; color:var(--text-1); white-space:nowrap; text-align:right; }
+        .sur-mrow-stock.low { color:var(--danger-text); }
       </style>
+      <div class="sur-mview" role="group" aria-label="Zobrazení surovin">
+        <button type="button" class="${mView === 'tiles' ? 'active' : ''}" onclick="_lsSet('sur_mview','tiles');keepScroll(renderSuroviny)">▦ Dlaždice</button>
+        <button type="button" class="${mView === 'rows' ? 'active' : ''}" onclick="_lsSet('sur_mview','rows');keepScroll(renderSuroviny)">☰ Řádky</button>
+      </div>
       ${seznamMobile()}
     </div>
 
