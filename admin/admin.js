@@ -19793,7 +19793,7 @@ window.cakeRecalc = async function() {
 
       ${r.kalkulace ? `
       <div style="background:var(--surface-2);border-radius:8px;margin-top:10px;padding:8px 10px;font-size:11.5px">
-        <div style="font-weight:700;color:var(--text-2);margin-bottom:4px">🧮 Z kalkulace (receptura × ${r.velikost.skala})</div>
+        <div style="font-weight:700;color:var(--text-2);margin-bottom:4px">🧮 Z kalkulace (receptura × ${r.velikost.nasobic ?? r.velikost.skala ?? 1})</div>
         <div style="display:flex;justify-content:space-between"><span>Materiál (suroviny)</span><span style="font-variant-numeric:tabular-nums">${fmt(r.kalkulace.material_kc)}</span></div>
         <div style="display:flex;justify-content:space-between;color:var(--success-text)"><span>Marže</span><span style="font-variant-numeric:tabular-nums">${fmt(r.kalkulace.marze_kc)} · ${r.kalkulace.marze_pct}%</span></div>
         <div style="font-size:10px;color:var(--text-3);margin-top:3px">📦 ${r.kalkulace.recept_polozek} surovin — odečte se ze skladu při výrobě</div>
