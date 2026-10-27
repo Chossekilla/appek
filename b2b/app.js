@@ -1117,6 +1117,7 @@ function renderCatalog() {
   }
 
   // "Vaše poslední objednávky" — zobraz vždy (i s košíkem) pokud existují
+  // v3.0.617 — v katalogu jen poslední 3 (Historie plní stejnou cache až 50 kvůli reorder → dřív se ukázalo všech 50)
   // Ne při aktivním filtru kategorií nebo searchi
   const showPosledni = state.posledniObjednavky
     && state.posledniObjednavky.length > 0
@@ -1178,7 +1179,7 @@ function renderCatalog() {
           <button onclick="switchTab('history')" class="last-orders-more">Vše →</button>
         </div>
         <div class="last-orders-grid">
-          ${state.posledniObjednavky.map(renderOrderMiniCard).join('')}
+          ${state.posledniObjednavky.slice(0, 3).map(renderOrderMiniCard).join('')}
         </div>
       </div>
     ` : ''}
