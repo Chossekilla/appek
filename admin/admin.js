@@ -17671,7 +17671,13 @@ window.gdprModal = function(titulek, htmlObsah) {
     const s = document.createElement('style');
     s.id = 'ns-acc-styles';
     s.textContent = `
-      .ns-acc > .ns-acc-head { cursor: pointer; position: relative; padding-right: 30px; user-select: none; }
+      .ns-acc > .ns-acc-head { cursor: pointer; position: relative; padding-right: 30px; user-select: none; min-height: 34px;
+        display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+      /* v3.0.603 — sbalené karty v 2sloupcových .nastaveni-row (párované po dvou) nechávaly díry
+         a zubaté řádky → v accordion tabu jeden sloupec pod sebou */
+      .ns-acc-page .nastaveni-row { display: flex !important; flex-direction: column; gap: 14px; }
+      .ns-acc-page .nastaveni-row > .ns-acc { margin: 0 !important; }
+      .ns-acc.ns-collapsed { padding-top: 12px !important; padding-bottom: 12px !important; }
       .ns-acc > .ns-acc-head::after { content: '▾'; position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
         font-size: 18px; line-height: 1; color: var(--text-3); transition: transform .15s; }
       .ns-acc.ns-collapsed > .ns-acc-head::after { transform: translateY(-50%) rotate(-90deg); }
@@ -17699,6 +17705,7 @@ window.gdprModal = function(titulek, htmlObsah) {
       .filter(c => c.tagName !== 'DETAILS' && !c.parentElement.closest('.card-block'));
     const items = cards.map(c => ({ c, hh: headOf(c) })).filter(x => x.hh);
     if (items.length < 2) return;
+    page.classList.add('ns-acc-page');
     items.forEach(({ c, hh }) => {
       if (c.dataset.nsAcc) return;
       const key = keyOf(hh.title);
