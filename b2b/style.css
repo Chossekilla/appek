@@ -4872,3 +4872,7 @@ html.dark .b2b-lang-dd-menu button { color: var(--text); }
 .cart-item-left .cart-item-unit { row-gap: 5px; line-height: 1.4; }
 .cart-item-left .cart-item-unit strong { line-height: 1.15; }
 .cart-item-left .cart-item-saved { margin-top: 0; max-width: none; line-height: 1.3; }
+
+/* v3.0.619 — spodní lišta košíku: cena na stejné účaří jako „🧾 34 ks" (dřív vycentrovaná mezi 2 řádky → nesedělo) */
+#b2b-cart-bar .ccb-main { align-items: baseline; }
+#b2b-cart-bar .ccb-chevron { align-self: center; }
