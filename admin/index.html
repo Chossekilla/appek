@@ -106,6 +106,14 @@
     text-align:center; max-width:100%; width:100%; overflow:hidden; display:block;
   }
 }
+/* v3.0.608 — MOBIL (≤700px): sbalení (sidebar-collapsed) je zapamatované z PC, ale na mobilu nemá význam
+   (tlačítko Skrýt je skryté). admin.css body.sidebar-collapsed .sidebar-utils / .sidebar-pkg-icons.has-pkgs
+   {flex-direction:column} (bez @media) skládal ikony balíčků POD SEBE → vrať řádek jako v normálním stavu.
+   Mobilní PINNED rail (sloupec místo bottom-nav) záměrně netknutý (:not(.sidebar-pinned)). */
+@media (max-width: 700px) {
+  body.sidebar-collapsed:not(.sidebar-pinned) .sidebar-utils{ flex-direction:row; }
+  body.sidebar-collapsed:not(.sidebar-pinned) .sidebar-pkg-icons.has-pkgs{ flex-direction:row; width:auto!important; margin-left:auto!important; }
+}
 </style>
 </head>
 <body>
