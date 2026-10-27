@@ -4628,6 +4628,10 @@ async function navigate(page, args) {
     }
   }
   state.current = page;
+  // 🆕 v3.0.612 — pořadí přechodů: async render staré stránky (čeká na API) mohl dopsat #content AŽ PO
+  //   rychlém kliknutí jinam → uživatel viděl starou stránku (např. Nastavení přes otevřený balíček).
+  const _seq = (window._navSeq = (window._navSeq || 0) + 1);
+  window._navCur = { seq: _seq, page, args, done: false };
   // 🆕 v3.0.269 — data-page na #content → CSS uvolní max-width:1400 pro datové
   //   seznamy (faktury/DL/objednávky/výrobky/suroviny) → tabulky vyplní šířku
   //   monitoru („flex"). Formulářové/dashboard stránky zůstanou centrované.
@@ -4673,6 +4677,9 @@ async function navigate(page, args) {
     else if (page === 'integrace') { state._nastaveniTab = 'integrace'; await renderNastaveni(); } // 🆕 v3.0.370 — Integrace = samostatná stránka z Nástrojů (standalone shell v renderNastaveni)
     else if (page && page.startsWith('pkg_')) await renderPackagePage(page);
     else if (page === 'diagnostika') await renderDiagnostika();
+    // v3.0.612 — mezitím přišel novější přechod → tenhle render je zastaralý (mohl přepsat obsah) → nech vyhrát aktuální
+    if (window._navCur.seq !== _seq) { _navHealStale(); return; }
+    window._navCur.done = true;
     // 🆕 v3.0.572 — Suroviny/HACCP/Kalkulace/Vyrobeno otevřené ze záložek Výroby: drž nahoře lištu Výroby
     try { window.vyrobaInjectSubtabs && window.vyrobaInjectSubtabs(page); } catch (e) {}
     // Po renderu doplň data-label do <td> aby se na mobilu transformovaly v karty
@@ -4693,8 +4700,17 @@ async function navigate(page, args) {
       }
     } catch (e) {}
   } catch (e) {
+    if (window._navCur && window._navCur.seq !== _seq) { _navHealStale(); return; } // chyba zastaralého renderu → nepřepisuj aktuální stránku
     document.getElementById('content').innerHTML = `<div style="color:var(--danger-text);padding:20px;background:var(--danger-bg);border-radius:8px;">Chyba: ${esc(e.message)}</div>`;
   }
+}
+// v3.0.612 — zastaralý render doběhl po novějším přechodu. Když už aktuální stránka dorenderovala, mohl ji přepsat
+//   → vykresli ji ještě jednou (jednou). Když aktuální ještě běží, zapíše poslední sama → nic.
+function _navHealStale() {
+  const cur = window._navCur;
+  if (!cur || !cur.done || cur.healed) return;
+  cur.healed = true;
+  setTimeout(() => { if (window._navCur === cur) navigate(cur.page, cur.args); }, 0);
 }
 
 // 🆕 v3.0.398 — deep-link na konkrétní kartu v Nastavení: nastaví tab, vyrenderuje
