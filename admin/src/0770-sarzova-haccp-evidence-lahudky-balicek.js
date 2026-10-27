@@ -68,7 +68,7 @@ async function renderBatches() {
                 <tr style="border-top:1px solid var(--border);font-size:13px;${expirovalo ? 'background:#FEE2E2' : (expirujeBrzy ? 'background:#FEF3C7' : '')}">
                   <td style="padding:9px 14px;font-family:monospace;font-weight:600">${esc(b.sarze_kod)}</td>
                   <td style="padding:9px 14px;font-weight:500">${esc(b.vyrobek_nazev)}</td>
-                  <td style="padding:9px 14px;text-align:right;font-variant-numeric:tabular-nums">${b.mnozstvi} ${esc(b.jednotka)}</td>
+                  <td style="padding:9px 14px;text-align:right;font-variant-numeric:tabular-nums">${fmtQty(b.mnozstvi)} ${esc(b.jednotka)}</td>
                   <td style="padding:9px 14px;text-align:center;color:var(--text-3);font-size:12px">${new Date(b.datum_vyroby).toLocaleDateString('cs-CZ')}</td>
                   <td style="padding:9px 14px;text-align:center;font-weight:${expirovalo || expirujeBrzy ? '700' : '500'};color:${expirovalo ? '#991B1B' : (expirujeBrzy ? '#92400E' : 'var(--text-1)')}">
                     ${new Date(b.dmt).toLocaleDateString('cs-CZ')}

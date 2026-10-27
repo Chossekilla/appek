@@ -419,8 +419,8 @@ function haccpRenderEditor() {
 
     <div class="form-actions">
       ${ed.return_to === 'vyrobek' ? `<button class="btn-back" onclick="haccpZpetNaVyrobek(${v.id})" title="Zavře HACCP a vrátí se do editoru výrobku">← Zpět na výrobek</button>` : ''}
-      <a href="../api/vyrobek_haccp.php?id=${v.id}" target="_blank" class="btn-secondary" style="text-decoration:none">📄 PDF</a>
-      <button class="btn-secondary" onclick="window.open('../api/vyrobek_haccp.php?id=${v.id}&autoprint=1', '_blank')" title="Otevře tiskový dialog rovnou">🖨️ Tisk</button>
+      ${window.demoHaccpLocked && demoHaccpLocked() ? '' : `<a href="../api/vyrobek_haccp.php?id=${v.id}" target="_blank" class="btn-secondary" style="text-decoration:none">📄 PDF</a>
+      <button class="btn-secondary" onclick="window.open('../api/vyrobek_haccp.php?id=${v.id}&autoprint=1', '_blank')" title="Otevře tiskový dialog rovnou">🖨️ Tisk</button>`}
       <div style="flex:1"></div>
       <!-- "Zavřít" smazáno v v2.5.11 — × v rohu modal-card stačí (větší klikací plocha) -->
       <button class="btn-primary btn-green" onclick="ulozitHaccpData(${v.id})">💾 Uložit</button>

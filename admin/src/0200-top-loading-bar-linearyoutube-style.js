@@ -34,6 +34,11 @@
   window.topProgressStart = start;
   window.topProgressDone  = done;
 })();
+// v3.0.621 — množství z DB (DECIMAL …,3) chodí jako "163.000" → vypadá jako 163 tisíc. Formátuj: 163 / 1,5 / 0,25
+function fmtQty(n) {
+  const v = parseFloat(n);
+  return isFinite(v) ? v.toLocaleString('cs-CZ', { maximumFractionDigits: 3 }) : '0';
+}
 function fmt(n) {
   // 🌍 T4 — locale-aware formátování měny. Default cs-CZ/CZK, ale respektuje getCurrentLocale().
   // 💱 v3.0.283 — display přepočet na cílovou měnu (Nastavení → Přístupy & ceny → Měna).

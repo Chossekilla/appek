@@ -114,6 +114,24 @@
     text-align:center; max-width:100%; width:100%; overflow:hidden; display:block;
   }
 }
+/* v3.0.621 — úzké menu (rail) na MacBooku 13 (1280px) a nízkých oknech:
+   • položka měla jen 63px (padding sidebaru 10px) → „Objedn|ávky" se lámalo uprostřed slova → padding 5px = 73px.
+   • nízké okno (no-scroll, položky flex:1 0 0) → popisky zmáčknuté na 1–4px → menší ikony/okraje po stupních. */
+@media (min-width: 769px) {
+  body.sidebar-collapsed .sidebar{ padding-left:5px!important; padding-right:5px!important; }
+}
+@media (min-width: 769px) and (max-height: 900px) {
+  body.sidebar-collapsed .sidebar-nav .nav-item:not(#_rail){ padding:3px 3px!important; gap:1px!important; }
+  body.sidebar-collapsed .sidebar-nav .nav-item .nav-icon:not(#_rail){ font-size:21px!important; }
+  body.sidebar-collapsed .sidebar-utils{ gap:4px!important; }
+  body.sidebar-collapsed .sidebar-pkg-icons.has-pkgs{ gap:4px!important; }
+  body.sidebar-collapsed .sidebar-pkg-icon{ width:34px!important; height:34px!important; flex-basis:34px!important; font-size:17px!important; }
+}
+@media (min-width: 769px) and (max-height: 720px) {
+  body.sidebar-collapsed .sidebar-nav .nav-item:not(#_rail){ padding:2px 3px!important; }
+  body.sidebar-collapsed .sidebar-nav .nav-item .nav-icon:not(#_rail){ font-size:18px!important; }
+  body.sidebar-collapsed .sidebar-pkg-icon{ width:30px!important; height:30px!important; flex-basis:30px!important; font-size:15px!important; }
+}
 /* v3.0.608 — MOBIL (≤700px): sbalení (sidebar-collapsed) je zapamatované z PC, ale na mobilu nemá význam
    (tlačítko Skrýt je skryté). admin.css body.sidebar-collapsed .sidebar-utils / .sidebar-pkg-icons.has-pkgs
    {flex-direction:column} (bez @media) skládal ikony balíčků POD SEBE → vrať řádek jako v normálním stavu.

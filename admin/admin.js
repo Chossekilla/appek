@@ -2107,6 +2107,11 @@ window.skeletonLine = function(width = '60%', height = '14px') {
   window.topProgressStart = start;
   window.topProgressDone  = done;
 })();
+// v3.0.621 — množství z DB (DECIMAL …,3) chodí jako "163.000" → vypadá jako 163 tisíc. Formátuj: 163 / 1,5 / 0,25
+function fmtQty(n) {
+  const v = parseFloat(n);
+  return isFinite(v) ? v.toLocaleString('cs-CZ', { maximumFractionDigits: 3 }) : '0';
+}
 function fmt(n) {
   // 🌍 T4 — locale-aware formátování měny. Default cs-CZ/CZK, ale respektuje getCurrentLocale().
   // 💱 v3.0.283 — display přepočet na cílovou měnu (Nastavení → Přístupy & ceny → Měna).
@@ -14416,7 +14421,7 @@ window.editVyrobek = async function(id = null) {
     <div class="form-actions">
       ${id ? adminOnly(`<div class="form-actions-icons-row"><button class="btn-danger-corner" onclick="smazatVyrobek(${id})" title="Smazat výrobek" aria-label="Smazat výrobek">🗑️</button></div>`) : ''}
       <div style="flex:1"></div>
-      ${id ? `
+      ${id && !(window.demoHaccpLocked && demoHaccpLocked()) ? `
         <div class="haccp-pill" style="display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface-1);margin-right:18px">
           <a href="../api/vyrobek_haccp.php?id=${id}" target="_blank" title="Otevřít HACCP list výrobku v novém okně" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-weight:500;color:var(--text-1);border-right:1px solid var(--border);transition:background 0.15s" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">📋 HACCP list <span style="font-size:11px;opacity:0.6;margin-left:2px">↗</span></a>
           <button onclick="closeModal();setTimeout(()=>otevritHaccpEditor(${id}, {returnTo:'vyrobek'}), 80)" title="Upravit HACCP data tohoto výrobku" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-weight:500;color:var(--text-1);background:transparent;border:0;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">📝 Upravit HACCP</button>
@@ -20293,7 +20298,7 @@ window.cateringRecalc = async function() {
             <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--border)">
               <div>
                 <div>${esc(p.nazev)}</div>
-                <div style="font-size:10.5px;color:var(--text-3)">${p.mnozstvi} ${esc(p.jednotka)} × ${p.cena_per_jednotku} Kč</div>
+                <div style="font-size:10.5px;color:var(--text-3)">${fmtQty(p.mnozstvi)} ${esc(p.jednotka)} × ${p.cena_per_jednotku} Kč</div>
               </div>
               <span style="font-variant-numeric:tabular-nums;font-weight:600">${fmt(p.cena_kc)}</span>
             </div>
@@ -21464,7 +21469,7 @@ function renderKDSOrder(o, stavLabels) {
           const stv = stavLabels[p.stav] || stavLabels.objednano;
           return `
             <div style="display:flex;align-items:center;gap:8px;padding:8px;background:${stv.bg};border-radius:6px;border-left:4px solid ${stv.color}">
-              <div style="font-size:18px;font-weight:800;color:${stv.color};min-width:30px;text-align:center">${p.mnozstvi}×</div>
+              <div style="font-size:18px;font-weight:800;color:${stv.color};min-width:30px;text-align:center">${fmtQty(p.mnozstvi)}×</div>
               <div style="flex:1;min-width:0">
                 <div style="font-weight:600;font-size:13px">${esc(p.nazev)}</div>
                 ${p.poznamka ? `<div style="font-size:11px;color:#854F0B;font-weight:600">⚠️ ${esc(p.poznamka)}</div>` : ''}
@@ -21604,7 +21609,7 @@ async function renderQRPending() {
               <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
                 ${grp.items.map(i => `
                   <div style="display:flex;justify-content:space-between;padding:6px 10px;background:#FFFAF1;border-radius:6px">
-                    <span>${i.mnozstvi}× ${esc(i.nazev)}</span>
+                    <span>${fmtQty(i.mnozstvi)}× ${esc(i.nazev)}</span>
                     <strong>${(i.jednotkova_cena * i.mnozstvi).toFixed(2)} Kč</strong>
                   </div>
                   ${i.poznamka ? `<div style="font-size:11px;color:#854F0B;font-style:italic;padding-left:10px">⚠️ ${esc(i.poznamka)}</div>` : ''}
@@ -22611,7 +22616,7 @@ function posRenderItemsTab(u, total, stavLabels) {
             <div style="background:${stv.color};color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px" title="${stv.label}">${stv.ico}</div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:600;font-size:13px">${esc(p.nazev)}</div>
-              <div style="font-size:11px;color:var(--text-3)">${p.mnozstvi}× ${(+p.jednotkova_cena).toFixed(2)} Kč ${p.poznamka ? '· ⚠️ ' + esc(p.poznamka) : ''}</div>
+              <div style="font-size:11px;color:var(--text-3)">${fmtQty(p.mnozstvi)}× ${(+p.jednotkova_cena).toFixed(2)} Kč ${p.poznamka ? '· ⚠️ ' + esc(p.poznamka) : ''}</div>
             </div>
             <div style="text-align:right;flex-shrink:0">
               <div style="font-weight:700;font-size:14px">${(p.jednotkova_cena * p.mnozstvi).toFixed(2)} Kč</div>
@@ -22882,7 +22887,7 @@ window.posSplitDialog = function() {
         <div style="display:flex;align-items:center;gap:8px;padding:8px;background:#fff;border:1px solid var(--border);border-radius:6px">
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:600">${esc(p.nazev)}</div>
-            <div style="font-size:11px;color:var(--text-3)">${p.mnozstvi}× ${(+p.jednotkova_cena).toFixed(2)} = ${(p.jednotkova_cena * p.mnozstvi).toFixed(2)} Kč</div>
+            <div style="font-size:11px;color:var(--text-3)">${fmtQty(p.mnozstvi)}× ${(+p.jednotkova_cena).toFixed(2)} = ${(p.jednotkova_cena * p.mnozstvi).toFixed(2)} Kč</div>
           </div>
           <select onchange="window._splitAssign[${p.id}] = parseInt(this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-size:13px;font-weight:600">
             ${[1,2,3,4].map(n => `<option value="${n}">Část ${n}</option>`).join('')}
@@ -24329,7 +24334,7 @@ async function renderKitchenCapacity() {
                     <span style="font-size:18px">${q.station_ikona || '🍳'}</span>
                     <div>
                       <strong style="font-size:13.5px">${esc(q.vyrobek_nazev)}</strong>
-                      <span style="color:var(--text-3);font-size:11.5px">· ${q.mnozstvi}× · ${q.priprava_min}min</span>
+                      <span style="color:var(--text-3);font-size:11.5px">· ${fmtQty(q.mnozstvi)}× · ${q.priprava_min}min</span>
                       <div style="font-size:11px;color:var(--text-3)">
                         ${q.station_nazev ? `🍳 ${esc(q.station_nazev)} · ` : ''}
                         v queue ${q.minut_v_queue || 0}min
@@ -25142,7 +25147,7 @@ async function renderBatches() {
                 <tr style="border-top:1px solid var(--border);font-size:13px;${expirovalo ? 'background:#FEE2E2' : (expirujeBrzy ? 'background:#FEF3C7' : '')}">
                   <td style="padding:9px 14px;font-family:monospace;font-weight:600">${esc(b.sarze_kod)}</td>
                   <td style="padding:9px 14px;font-weight:500">${esc(b.vyrobek_nazev)}</td>
-                  <td style="padding:9px 14px;text-align:right;font-variant-numeric:tabular-nums">${b.mnozstvi} ${esc(b.jednotka)}</td>
+                  <td style="padding:9px 14px;text-align:right;font-variant-numeric:tabular-nums">${fmtQty(b.mnozstvi)} ${esc(b.jednotka)}</td>
                   <td style="padding:9px 14px;text-align:center;color:var(--text-3);font-size:12px">${new Date(b.datum_vyroby).toLocaleDateString('cs-CZ')}</td>
                   <td style="padding:9px 14px;text-align:center;font-weight:${expirovalo || expirujeBrzy ? '700' : '500'};color:${expirovalo ? '#991B1B' : (expirujeBrzy ? '#92400E' : 'var(--text-1)')}">
                     ${new Date(b.dmt).toLocaleDateString('cs-CZ')}
@@ -44239,8 +44244,8 @@ function haccpRenderEditor() {
 
     <div class="form-actions">
       ${ed.return_to === 'vyrobek' ? `<button class="btn-back" onclick="haccpZpetNaVyrobek(${v.id})" title="Zavře HACCP a vrátí se do editoru výrobku">← Zpět na výrobek</button>` : ''}
-      <a href="../api/vyrobek_haccp.php?id=${v.id}" target="_blank" class="btn-secondary" style="text-decoration:none">📄 PDF</a>
-      <button class="btn-secondary" onclick="window.open('../api/vyrobek_haccp.php?id=${v.id}&autoprint=1', '_blank')" title="Otevře tiskový dialog rovnou">🖨️ Tisk</button>
+      ${window.demoHaccpLocked && demoHaccpLocked() ? '' : `<a href="../api/vyrobek_haccp.php?id=${v.id}" target="_blank" class="btn-secondary" style="text-decoration:none">📄 PDF</a>
+      <button class="btn-secondary" onclick="window.open('../api/vyrobek_haccp.php?id=${v.id}&autoprint=1', '_blank')" title="Otevře tiskový dialog rovnou">🖨️ Tisk</button>`}
       <div style="flex:1"></div>
       <!-- "Zavřít" smazáno v v2.5.11 — × v rohu modal-card stačí (větší klikací plocha) -->
       <button class="btn-primary btn-green" onclick="ulozitHaccpData(${v.id})">💾 Uložit</button>

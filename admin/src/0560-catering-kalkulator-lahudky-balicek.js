@@ -256,7 +256,7 @@ window.cateringRecalc = async function() {
             <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--border)">
               <div>
                 <div>${esc(p.nazev)}</div>
-                <div style="font-size:10.5px;color:var(--text-3)">${p.mnozstvi} ${esc(p.jednotka)} × ${p.cena_per_jednotku} Kč</div>
+                <div style="font-size:10.5px;color:var(--text-3)">${fmtQty(p.mnozstvi)} ${esc(p.jednotka)} × ${p.cena_per_jednotku} Kč</div>
               </div>
               <span style="font-variant-numeric:tabular-nums;font-weight:600">${fmt(p.cena_kc)}</span>
             </div>

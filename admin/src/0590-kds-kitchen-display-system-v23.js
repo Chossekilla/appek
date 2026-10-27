@@ -69,7 +69,7 @@ function renderKDSOrder(o, stavLabels) {
           const stv = stavLabels[p.stav] || stavLabels.objednano;
           return `
             <div style="display:flex;align-items:center;gap:8px;padding:8px;background:${stv.bg};border-radius:6px;border-left:4px solid ${stv.color}">
-              <div style="font-size:18px;font-weight:800;color:${stv.color};min-width:30px;text-align:center">${p.mnozstvi}×</div>
+              <div style="font-size:18px;font-weight:800;color:${stv.color};min-width:30px;text-align:center">${fmtQty(p.mnozstvi)}×</div>
               <div style="flex:1;min-width:0">
                 <div style="font-weight:600;font-size:13px">${esc(p.nazev)}</div>
                 ${p.poznamka ? `<div style="font-size:11px;color:#854F0B;font-weight:600">⚠️ ${esc(p.poznamka)}</div>` : ''}

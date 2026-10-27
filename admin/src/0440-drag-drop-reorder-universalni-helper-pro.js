@@ -740,7 +740,7 @@ window.editVyrobek = async function(id = null) {
     <div class="form-actions">
       ${id ? adminOnly(`<div class="form-actions-icons-row"><button class="btn-danger-corner" onclick="smazatVyrobek(${id})" title="Smazat výrobek" aria-label="Smazat výrobek">🗑️</button></div>`) : ''}
       <div style="flex:1"></div>
-      ${id ? `
+      ${id && !(window.demoHaccpLocked && demoHaccpLocked()) ? `
         <div class="haccp-pill" style="display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface-1);margin-right:18px">
           <a href="../api/vyrobek_haccp.php?id=${id}" target="_blank" title="Otevřít HACCP list výrobku v novém okně" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-weight:500;color:var(--text-1);border-right:1px solid var(--border);transition:background 0.15s" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">📋 HACCP list <span style="font-size:11px;opacity:0.6;margin-left:2px">↗</span></a>
           <button onclick="closeModal();setTimeout(()=>otevritHaccpEditor(${id}, {returnTo:'vyrobek'}), 80)" title="Upravit HACCP data tohoto výrobku" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-weight:500;color:var(--text-1);background:transparent;border:0;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">📝 Upravit HACCP</button>

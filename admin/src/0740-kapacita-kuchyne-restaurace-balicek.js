@@ -95,7 +95,7 @@ async function renderKitchenCapacity() {
                     <span style="font-size:18px">${q.station_ikona || '🍳'}</span>
                     <div>
                       <strong style="font-size:13.5px">${esc(q.vyrobek_nazev)}</strong>
-                      <span style="color:var(--text-3);font-size:11.5px">· ${q.mnozstvi}× · ${q.priprava_min}min</span>
+                      <span style="color:var(--text-3);font-size:11.5px">· ${fmtQty(q.mnozstvi)}× · ${q.priprava_min}min</span>
                       <div style="font-size:11px;color:var(--text-3)">
                         ${q.station_nazev ? `🍳 ${esc(q.station_nazev)} · ` : ''}
                         v queue ${q.minut_v_queue || 0}min

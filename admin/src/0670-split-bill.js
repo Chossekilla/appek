@@ -16,7 +16,7 @@ window.posSplitDialog = function() {
         <div style="display:flex;align-items:center;gap:8px;padding:8px;background:#fff;border:1px solid var(--border);border-radius:6px">
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:600">${esc(p.nazev)}</div>
-            <div style="font-size:11px;color:var(--text-3)">${p.mnozstvi}× ${(+p.jednotkova_cena).toFixed(2)} = ${(p.jednotkova_cena * p.mnozstvi).toFixed(2)} Kč</div>
+            <div style="font-size:11px;color:var(--text-3)">${fmtQty(p.mnozstvi)}× ${(+p.jednotkova_cena).toFixed(2)} = ${(p.jednotkova_cena * p.mnozstvi).toFixed(2)} Kč</div>
           </div>
           <select onchange="window._splitAssign[${p.id}] = parseInt(this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-size:13px;font-weight:600">
             ${[1,2,3,4].map(n => `<option value="${n}">Část ${n}</option>`).join('')}

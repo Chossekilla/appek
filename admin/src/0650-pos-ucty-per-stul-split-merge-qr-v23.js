@@ -167,7 +167,7 @@ function posRenderItemsTab(u, total, stavLabels) {
             <div style="background:${stv.color};color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px" title="${stv.label}">${stv.ico}</div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:600;font-size:13px">${esc(p.nazev)}</div>
-              <div style="font-size:11px;color:var(--text-3)">${p.mnozstvi}× ${(+p.jednotkova_cena).toFixed(2)} Kč ${p.poznamka ? '· ⚠️ ' + esc(p.poznamka) : ''}</div>
+              <div style="font-size:11px;color:var(--text-3)">${fmtQty(p.mnozstvi)}× ${(+p.jednotkova_cena).toFixed(2)} Kč ${p.poznamka ? '· ⚠️ ' + esc(p.poznamka) : ''}</div>
             </div>
             <div style="text-align:right;flex-shrink:0">
               <div style="font-weight:700;font-size:14px">${(p.jednotkova_cena * p.mnozstvi).toFixed(2)} Kč</div>

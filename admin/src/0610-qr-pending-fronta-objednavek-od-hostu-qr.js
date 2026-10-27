@@ -53,7 +53,7 @@ async function renderQRPending() {
               <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
                 ${grp.items.map(i => `
                   <div style="display:flex;justify-content:space-between;padding:6px 10px;background:#FFFAF1;border-radius:6px">
-                    <span>${i.mnozstvi}× ${esc(i.nazev)}</span>
+                    <span>${fmtQty(i.mnozstvi)}× ${esc(i.nazev)}</span>
                     <strong>${(i.jednotkova_cena * i.mnozstvi).toFixed(2)} Kč</strong>
                   </div>
                   ${i.poznamka ? `<div style="font-size:11px;color:#854F0B;font-style:italic;padding-left:10px">⚠️ ${esc(i.poznamka)}</div>` : ''}
