@@ -65,7 +65,11 @@ function require_admin(): array {
             // 🐛 v3.0.599 — heartbeat zařízení (ping) je self-maintenance → jinak 403 každých pár sekund
             //   (diagnostika měření). Jen akce ping; správa stanic (přejmenování/smazání) zůstává zamčená.
             $isPing = $script === 'admin_stanice.php' && (($_GET['action'] ?? '') === 'ping');
-            if (!in_array($script, $roAllowed, true) && !$isPing) {
+            // v3.0.614 — výpočet ceny v konfigurátoru dortů / catering kalkulačce je čistý výpočet (POST kvůli tělu),
+            //   nic neukládá → náhledový účet ho smí (jinak demo neukáže cenu). create_order zůstává zamčené.
+            $isQuote = in_array($script, ['admin_cake_configurator.php', 'admin_catering_calc.php'], true)
+                    && (($_GET['action'] ?? '') === 'quote');
+            if (!in_array($script, $roAllowed, true) && !$isPing && !$isQuote) {
                 json_error('Náhledový účet — jen prohlížení. Plný přístup na vyžádání: info@appek.cz', 403);
             }
         }
