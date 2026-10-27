@@ -17056,7 +17056,11 @@ async function _renderNastaveniInner() {
   // === MAPA TAB → OBSAH ===
   const blokBalicky = `
     <div class="card-block" style="padding:16px">
-      <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">🎁 Balíčky funkcí — roční licence</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 6px">
+        <h2 style="margin:0;font-size:18px;letter-spacing:-0.01em">🎁 Balíčky funkcí — roční licence</h2>
+        <!-- v3.0.606 — prodloužení / dokoupení licence v zákaznickém portálu -->
+        <a href="https://my.appek.cz" target="_blank" rel="noopener" class="btn-primary" style="font-size:13px;padding:8px 14px;text-decoration:none;white-space:nowrap">🔄 Prodloužit licenci na my.appek.cz →</a>
+      </div>
       <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Rozšíření systému pro váš obor, jako <strong>roční licence</strong>. Zakoupené balíčky zapnete přepínačem; ostatní se aktivují <strong>po zakoupení</strong>.</p>
       <div id="ns-balicky-host">⏳ Načítám…</div>
     </div>
