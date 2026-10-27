@@ -76,6 +76,25 @@ window.pushSendTestAll = async function() {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
+// 📢 v3.0.602 — hromadná zpráva s vlastním textem (1. řádek nadpis, zbytek text)
+window.pushSendBulk = async function() {
+  const el = document.getElementById('push-bulk-msg');
+  const lines = (el?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
+  if (!lines.length) { toast('Napiš zprávu', 'error'); el?.focus(); return; }
+  const title = lines.length > 1 ? lines[0] : '📢 Oznámení';
+  const body = lines.length > 1 ? lines.slice(1).join(' ') : lines[0];
+  if (!(await confirmDialog({ title: 'Poslat zprávu všem?', msg: `„${title}" — ${body}\n\nOdejde VŠEM subscriberům (odběratelé + admini).`, okText: 'Poslat' }))) return;
+  try {
+    const r = await api('push.php?action=test', {
+      method: 'POST',
+      body: JSON.stringify({ all: true, hromadna: true, title, body }),
+    });
+    toast(`✅ Odesláno ${r.stats.sent}` + (r.stats.failed ? `, chyba ${r.stats.failed}` : '') + (r.stats.expired ? `, neplatných ${r.stats.expired}` : ''), 'success');
+    el.value = '';
+    loadPushStats();
+  } catch (e) { toast('❌ ' + (e.message || 'Odeslání selhalo'), 'error'); }
+};
+
 // 📧 v3.0.289 — SMTP odesílání (Nastavení → Notifikace)
 window.smtpToggle = function() {
   const on = !!(document.getElementById('smtp-enabled') || {}).checked;

@@ -104,9 +104,11 @@ if ($action === 'test' && $method === 'POST') {
 
     if (empty($subs)) json_error('Žádné subscriptions', 404);
 
+    // v3.0.602 — hromadná zpráva z adminu (vlastní text) se loguje jako 'hromadna', ne 'test'
+    $typ = !empty($d['hromadna']) ? 'hromadna' : 'test';
     $payload = [
-        'title' => $d['title'] ?? '🧪 Testovací notifikace',
-        'body'  => $d['body']  ?? 'Funguje to! Toto je test push notifikace z admin systému.',
+        'title' => mb_substr(trim((string) ($d['title'] ?? '')) ?: '🧪 Testovací notifikace', 0, 150),
+        'body'  => mb_substr(trim((string) ($d['body'] ?? '')) ?: 'Funguje to! Toto je test push notifikace z admin systému.', 0, 500),
         'url'   => $d['url']   ?? '/',
         'icon'  => $d['icon']  ?? '/uploads/logo/favicon.png',
     ];
@@ -118,8 +120,8 @@ if ($action === 'test' && $method === 'POST') {
             $stats['sent']++;
             $pdo->prepare("UPDATE push_subscriptions SET posledni_push = NOW(), chyba_count = 0 WHERE id = :id")
                 ->execute(['id' => $sub['id']]);
-            $pdo->prepare("INSERT INTO push_log (subscription_id, title, body, typ, stav) VALUES (:s, :t, :b, 'test', 'sent')")
-                ->execute(['s' => $sub['id'], 't' => $payload['title'], 'b' => $payload['body']]);
+            $pdo->prepare("INSERT INTO push_log (subscription_id, title, body, typ, stav) VALUES (:s, :t, :b, :tp, 'sent')")
+                ->execute(['s' => $sub['id'], 't' => $payload['title'], 'b' => $payload['body'], 'tp' => $typ]);
         } else {
             // 404/410 = endpoint expired → smaž
             if ($r['http_code'] === 404 || $r['http_code'] === 410) {
@@ -131,8 +133,8 @@ if ($action === 'test' && $method === 'POST') {
                 $pdo->prepare("UPDATE push_subscriptions SET chyba_count = chyba_count + 1, posledni_chyba = :c WHERE id = :id")
                     ->execute(['c' => substr($r['chyba'] ?? '', 0, 1000), 'id' => $sub['id']]);
             }
-            $pdo->prepare("INSERT INTO push_log (subscription_id, title, body, typ, stav, chyba) VALUES (:s, :t, :b, 'test', 'failed', :e)")
-                ->execute(['s' => $sub['id'], 't' => $payload['title'], 'b' => $payload['body'], 'e' => $r['chyba'] ?? '']);
+            $pdo->prepare("INSERT INTO push_log (subscription_id, title, body, typ, stav, chyba) VALUES (:s, :t, :b, :tp, 'failed', :e)")
+                ->execute(['s' => $sub['id'], 't' => $payload['title'], 'b' => $payload['body'], 'tp' => $typ, 'e' => $r['chyba'] ?? '']);
         }
     }
     json_response(['ok' => true, 'stats' => $stats]);

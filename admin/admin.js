@@ -11711,11 +11711,13 @@ window.quickPeriodSet = function(typ, od, doDt) {
 };
 
 window.applyDlFilters = function() {
+  // formulář ještě nevykreslený (skeleton) → nic, ať nepadne ani nevynuluje filtry
+  if (!document.getElementById('dlf-q')) return;
   renderDodaciListy({
-    q: document.getElementById('dlf-q').value,
-    fakturovano: document.getElementById('dlf-fakt').value,
-    datum_od: document.getElementById('dlf-od').value,
-    datum_do: document.getElementById('dlf-do').value,
+    q: document.getElementById('dlf-q')?.value || '',
+    fakturovano: document.getElementById('dlf-fakt')?.value || '',
+    datum_od: document.getElementById('dlf-od')?.value || '',
+    datum_do: document.getElementById('dlf-do')?.value || '',
   });
 };
 
@@ -12089,9 +12091,10 @@ function dlStavBadge(dl) {
 }
 
 window.applyFakturyFilters = function() {
+  if (!document.getElementById('ff-q')) return;
   renderFaktury({
-    q: document.getElementById('ff-q').value,
-    stav_uhrady: document.getElementById('ff-stav').value,
+    q: document.getElementById('ff-q')?.value || '',
+    stav_uhrady: document.getElementById('ff-stav')?.value || '',
     datum_od: document.getElementById('ff-od')?.value || '',
     datum_do: document.getElementById('ff-do')?.value || '',
   });
@@ -16206,6 +16209,12 @@ async function _renderNastaveniInner() {
       </p>
       <div id="push-stats-host" style="font-size:13px;color:var(--text-3);padding:12px;background:var(--surface-2);border-radius:8px">
         ⏳ Načítám statistiku…
+      </div>
+      <!-- 📢 v3.0.602 — hromadná zpráva: 1. řádek = nadpis, 2. řádek = text -->
+      <div style="margin-top:12px">
+        <label for="push-bulk-msg" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">📢 Hromadná zpráva všem</label>
+        <textarea id="push-bulk-msg" rows="2" maxlength="650" placeholder="1. řádek: nadpis (např. Zítra zavřeno)&#10;2. řádek: text zprávy" style="width:100%;box-sizing:border-box;resize:vertical;font-size:14px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"></textarea>
+        <button class="btn-primary" onclick="pushSendBulk()" style="margin-top:6px">📢 Poslat všem</button>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
         <button class="btn-primary btn-green" onclick="pushSendTest()" style="font-size:14px;font-weight:700;padding:10px 18px">🧪 Test push (mně)</button>
@@ -28775,6 +28784,25 @@ window.pushSendTestAll = async function() {
     alert(t('bulk_test_sent', { sent: r.stats.sent, failed: r.stats.failed, expired: r.stats.expired }));
     loadPushStats();
   } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+// 📢 v3.0.602 — hromadná zpráva s vlastním textem (1. řádek nadpis, zbytek text)
+window.pushSendBulk = async function() {
+  const el = document.getElementById('push-bulk-msg');
+  const lines = (el?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
+  if (!lines.length) { toast('Napiš zprávu', 'error'); el?.focus(); return; }
+  const title = lines.length > 1 ? lines[0] : '📢 Oznámení';
+  const body = lines.length > 1 ? lines.slice(1).join(' ') : lines[0];
+  if (!(await confirmDialog({ title: 'Poslat zprávu všem?', msg: `„${title}" — ${body}\n\nOdejde VŠEM subscriberům (odběratelé + admini).`, okText: 'Poslat' }))) return;
+  try {
+    const r = await api('push.php?action=test', {
+      method: 'POST',
+      body: JSON.stringify({ all: true, hromadna: true, title, body }),
+    });
+    toast(`✅ Odesláno ${r.stats.sent}` + (r.stats.failed ? `, chyba ${r.stats.failed}` : '') + (r.stats.expired ? `, neplatných ${r.stats.expired}` : ''), 'success');
+    el.value = '';
+    loadPushStats();
+  } catch (e) { toast('❌ ' + (e.message || 'Odeslání selhalo'), 'error'); }
 };
 
 // 📧 v3.0.289 — SMTP odesílání (Nastavení → Notifikace)

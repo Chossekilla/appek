@@ -395,6 +395,12 @@ async function _renderNastaveniInner() {
       <div id="push-stats-host" style="font-size:13px;color:var(--text-3);padding:12px;background:var(--surface-2);border-radius:8px">
         ⏳ Načítám statistiku…
       </div>
+      <!-- 📢 v3.0.602 — hromadná zpráva: 1. řádek = nadpis, 2. řádek = text -->
+      <div style="margin-top:12px">
+        <label for="push-bulk-msg" style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">📢 Hromadná zpráva všem</label>
+        <textarea id="push-bulk-msg" rows="2" maxlength="650" placeholder="1. řádek: nadpis (např. Zítra zavřeno)&#10;2. řádek: text zprávy" style="width:100%;box-sizing:border-box;resize:vertical;font-size:14px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"></textarea>
+        <button class="btn-primary" onclick="pushSendBulk()" style="margin-top:6px">📢 Poslat všem</button>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
         <button class="btn-primary btn-green" onclick="pushSendTest()" style="font-size:14px;font-weight:700;padding:10px 18px">🧪 Test push (mně)</button>
         <button class="btn-secondary" onclick="pushSendTestAll()">📢 Test všem (${'pošle test všem subscriberům'})</button>

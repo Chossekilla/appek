@@ -222,11 +222,13 @@ window.quickPeriodSet = function(typ, od, doDt) {
 };
 
 window.applyDlFilters = function() {
+  // formulář ještě nevykreslený (skeleton) → nic, ať nepadne ani nevynuluje filtry
+  if (!document.getElementById('dlf-q')) return;
   renderDodaciListy({
-    q: document.getElementById('dlf-q').value,
-    fakturovano: document.getElementById('dlf-fakt').value,
-    datum_od: document.getElementById('dlf-od').value,
-    datum_do: document.getElementById('dlf-do').value,
+    q: document.getElementById('dlf-q')?.value || '',
+    fakturovano: document.getElementById('dlf-fakt')?.value || '',
+    datum_od: document.getElementById('dlf-od')?.value || '',
+    datum_do: document.getElementById('dlf-do')?.value || '',
   });
 };
 
@@ -600,9 +602,10 @@ function dlStavBadge(dl) {
 }
 
 window.applyFakturyFilters = function() {
+  if (!document.getElementById('ff-q')) return;
   renderFaktury({
-    q: document.getElementById('ff-q').value,
-    stav_uhrady: document.getElementById('ff-stav').value,
+    q: document.getElementById('ff-q')?.value || '',
+    stav_uhrady: document.getElementById('ff-stav')?.value || '',
     datum_od: document.getElementById('ff-od')?.value || '',
     datum_do: document.getElementById('ff-do')?.value || '',
   });
