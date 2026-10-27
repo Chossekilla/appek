@@ -4718,11 +4718,13 @@ function _navHealStale() {
 //   diagnostika) se donačítají PO prvním scrollu a posunuly cíl o stovky px mimo.
 //   Používá dashboard error-banner i notifikační deep-link #/nastaveni/update.
 window.gotoNastaveniBlok = function(tab, blokId) {
+  // v3.0.612 — záložku nastav PŘEDEM a vykresli jednou přes navigate (dřív navigate + po 150 ms přímý renderNastaveni()
+  //   → klik jinam v té chvíli přepsal Nastavení přes novou stránku). Scroll jen když jsme pořád v Nastavení.
+  state._nastaveniTab = tab;
   navigate('nastaveni');
   setTimeout(() => {
-    state._nastaveniTab = tab;
-    renderNastaveni();
     const scrollNaBlok = (zvyrazni) => {
+      if (state.current !== 'nastaveni') return;
       const blk = document.getElementById(blokId);
       if (!blk) return;
       if (window.nsAccOpen) nsAccOpen(blk); // 🆕 v3.0.601 — cíl ve sbalené kartě accordionu → rozbal
@@ -46225,7 +46227,13 @@ document.addEventListener('keydown', function(e) {
     const wrapped = function () {
       const c = content();
       const inPlace = navDepth === 0 && c && c.childElementCount > 0 && c.dataset.page === state.current;
-      return inPlace ? window.keepScroll(() => fn.apply(this, arguments)) : fn.apply(this, arguments);
+      // v3.0.612 — přímé překreslení (přepnutí záložky, filtr…) může doběhnout AŽ po přechodu na jinou stránku
+      //   a přepsat ji → po doběhu zkontroluj pořadí přechodů a nech vyhrát aktuální stránku (_navHealStale, 0280)
+      const seqAtStart = window._navSeq;
+      const ret = inPlace ? window.keepScroll(() => fn.apply(this, arguments)) : fn.apply(this, arguments);
+      const check = () => { if (window._navSeq !== seqAtStart && typeof _navHealStale === 'function') _navHealStale(); };
+      if (ret && typeof ret.then === 'function') ret.then(check, check); else check();
+      return ret;
     };
     wrapped.__keepScrollWrapped = true;
     try { window[name] = wrapped; } catch (e) { /* nepřepisovatelné — nech být */ }

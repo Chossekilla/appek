@@ -725,11 +725,13 @@ function _navHealStale() {
 //   diagnostika) se donačítají PO prvním scrollu a posunuly cíl o stovky px mimo.
 //   Používá dashboard error-banner i notifikační deep-link #/nastaveni/update.
 window.gotoNastaveniBlok = function(tab, blokId) {
+  // v3.0.612 — záložku nastav PŘEDEM a vykresli jednou přes navigate (dřív navigate + po 150 ms přímý renderNastaveni()
+  //   → klik jinam v té chvíli přepsal Nastavení přes novou stránku). Scroll jen když jsme pořád v Nastavení.
+  state._nastaveniTab = tab;
   navigate('nastaveni');
   setTimeout(() => {
-    state._nastaveniTab = tab;
-    renderNastaveni();
     const scrollNaBlok = (zvyrazni) => {
+      if (state.current !== 'nastaveni') return;
       const blk = document.getElementById(blokId);
       if (!blk) return;
       if (window.nsAccOpen) nsAccOpen(blk); // 🆕 v3.0.601 — cíl ve sbalené kartě accordionu → rozbal
