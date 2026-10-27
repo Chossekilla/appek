@@ -90,6 +90,14 @@
   }
   html body.sidebar-pinned:not(.sidebar-collapsed) .main-content,
   html body.sidebar-pinned:not(.sidebar-collapsed) main#content{ margin-left:0!important; }
+  /* v3.0.609 — spodní lišta připnutého PLNÉHO menu = stejná jako nepřipnuté (v589): „Skrýt menu" + ikony balíčků
+     v JEDNOM řádku, „Připnuto" pod tím. admin.css body.sidebar-pinned .sidebar-utils/.sidebar-pkg-icons
+     {flex-direction:column} (určené pro rail) skládalo vše pod sebe přes celou šířku. Rail (collapsed) netknutý. */
+  html body.sidebar-pinned:not(.sidebar-collapsed) .sidebar-utils{ flex-direction:row!important; flex-wrap:wrap!important; align-items:center!important; gap:5px!important; }
+  html body.sidebar-pinned:not(.sidebar-collapsed) .sidebar-utils>.sidebar-collapse{ order:1!important; flex:1 1 0!important; width:auto!important; min-width:0!important; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding-left:8px!important; padding-right:4px!important; gap:4px!important; font-size:12px!important; }
+  html body.sidebar-pinned:not(.sidebar-collapsed) .sidebar-utils>.sidebar-pkg-icons.has-pkgs{ order:2!important; flex-direction:row!important; width:auto!important; margin:0!important; gap:4px!important; }
+  html body.sidebar-pinned:not(.sidebar-collapsed) .sidebar-utils>.sidebar-pin{ order:3!important; flex:0 0 100%!important; width:100%!important; }
+  html body.sidebar-pinned:not(.sidebar-collapsed) .sidebar-pkg-icon{ width:32px!important; height:32px!important; flex-basis:32px!important; font-size:17px!important; border-radius:9px; }
 
   /* ── SKRÝT = icon rail (ikony + malý text; dlouhé labely zalomí, nikdy neořežou) ──
      v3.0.607 — :not(#_rail) zvedá specificitu: density-* pravidla v admin.css
