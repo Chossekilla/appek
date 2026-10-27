@@ -91,12 +91,15 @@
   html body.sidebar-pinned:not(.sidebar-collapsed) .main-content,
   html body.sidebar-pinned:not(.sidebar-collapsed) main#content{ margin-left:0!important; }
 
-  /* ── SKRÝT = icon rail (ikony + malý text; dlouhé labely zalomí, nikdy neořežou) ── */
-  body.sidebar-collapsed .sidebar-nav .nav-item{
+  /* ── SKRÝT = icon rail (ikony + malý text; dlouhé labely zalomí, nikdy neořežou) ──
+     v3.0.607 — :not(#_rail) zvedá specificitu: density-* pravidla v admin.css
+     (html.density-X body:not(.sidebar-pinned) … .nav-item, bez :not(.sidebar-collapsed)) přebíjela
+     rail jen v ODEPNUTÉM stavu → padding 16px, text 29px, lámání „Objedn|ávky". Teď = připnutý rail. */
+  body.sidebar-collapsed .sidebar-nav .nav-item:not(#_rail){
     overflow:hidden!important; gap:2px!important; flex-direction:column!important;
     justify-content:center!important; align-items:center!important; padding:6px 3px!important;
   }
-  body.sidebar-collapsed .sidebar-nav .nav-item .nav-icon{ font-size:28px!important; }
+  body.sidebar-collapsed .sidebar-nav .nav-item .nav-icon:not(#_rail){ font-size:28px!important; }
   body.sidebar-collapsed .sidebar-nav .nav-item span:not(.nav-icon):not(.pkg-lock){
     font-size:10px!important; line-height:1.15!important; white-space:normal!important;
     word-break:normal!important; overflow-wrap:anywhere!important; hyphens:none!important;
