@@ -130,11 +130,19 @@ window.applyVyrobkyFilters = function() {
 window.keepScroll = function(fn) {
   const se = document.scrollingElement || document.documentElement;
   const y = se.scrollTop || document.body.scrollTop || 0;
-  const setY = (v) => { try { document.body.scrollTop = v; se.scrollTop = v; } catch (e) {} };
-  const ret = (typeof fn === 'function') ? fn() : fn;
+  const curY = () => se.scrollTop || document.body.scrollTop || 0;
+  // v3.0.622 — iOS Safari (scroller = <body>): zápis scrollTop během/po dotykovém gestu umí „zaseknout" dotykové
+  //   posouvání (stránka vypadá zamrzlá). Zapisuj JEN když se pozice opravdu změnila + po dobu překreslení drž
+  //   min-height obsahu → stránka se na okamžik nezkrátí → prohlížeč scroll nevynuluje → většinou zápis vůbec netřeba.
+  const setY = (v) => { if (Math.abs(curY() - v) < 2) return; try { document.body.scrollTop = v; se.scrollTop = v; } catch (e) {} };
+  const c = y > 0 ? document.getElementById('content') : null;
+  if (c) c.style.minHeight = c.offsetHeight + 'px';
+  const release = () => { if (c) c.style.minHeight = ''; };
+  let ret;
+  try { ret = (typeof fn === 'function') ? fn() : fn; } catch (e) { release(); throw e; }
   if (y > 0) {
     Promise.resolve().then(() => setY(y));   // po synchronním innerHTML, před vykreslením (bez záblesku)
-    const raf = () => requestAnimationFrame(() => setY(y));
+    const raf = () => requestAnimationFrame(() => { setY(y); release(); });
     if (ret && typeof ret.then === 'function') ret.then(raf, raf); else raf();
   }
   return ret;
