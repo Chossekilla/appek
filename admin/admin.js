@@ -34385,6 +34385,25 @@ window._ztratyReportRun = async function() {
       <tbody>${list}</tbody></table></div>`;
 };
 
+// 🆕 v3.0.604 — výběr surovin + Export vybraných (klientský CSV, exportSurovinyCsv)
+function surExportBtnsHtml(n) {
+  return n > 0
+    ? `<button class="btn-secondary" onclick="exportSurovinyCsv(true)" title="Export vybraných surovin do CSV">📤 Export vybraných (${n})</button>
+       <button class="btn-secondary" onclick="state._surSel.clear();keepScroll(renderSuroviny)" title="Zrušit výběr">✕ Zrušit výběr</button>`
+    : `<button class="btn-secondary" onclick="exportSurovinyCsv(false)" title="Export zobrazených surovin do CSV — seskupeno dle kategorie (respektuje filtr/kategorii). Zaškrtni řádky pro export jen vybraných.">📤 Export CSV</button>`;
+}
+window.surToggleSel = function(id, checked) {
+  const sel = state._surSel || (state._surSel = new Set());
+  if (checked) sel.add(id); else sel.delete(id);
+  const host = document.getElementById('sur-export-btns');
+  if (host) host.innerHTML = surExportBtnsHtml(sel.size);
+};
+window.surSelMany = function(ids, checked) {
+  const sel = state._surSel || (state._surSel = new Set());
+  String(ids || '').split(',').filter(Boolean).forEach(x => { const id = parseInt(x); if (checked) sel.add(id); else sel.delete(id); });
+  keepScroll(renderSuroviny);
+};
+
 async function renderSuroviny() {
   // 🚀 PERFORMANCE: cachuj výsledek (invalidate po editaci) — pro 1000+ surovin
   // ušetří 200-500 ms na každý re-render filtrů.
@@ -34455,6 +34474,8 @@ async function renderSuroviny() {
   // Helper pro vykreslení jedné suroviny v desktopové tabulce (řádek)
   // 🆕 zobrazit obrázky/ikony v seznamu surovin (Nastavení → seznam_obrazky, default zapnuto)
   const showImg = !(state.nastaveni && state.nastaveni.seznam_obrazky === '0');
+  // 🆕 v3.0.604 — výběr řádků pro Export vybraných (vzor Sklad v3.0.517); výběr přežije změnu filtru
+  const surSel = state._surSel || (state._surSel = new Set());
   const radekDesktop = (s) => {
     const cb = parseFloat(s.cena_baleni) || 0;
     const ob = parseFloat(s.obsah_baleni) || 0;
@@ -34475,6 +34496,7 @@ async function renderSuroviny() {
     const cenaTxt = cenaDisp.toFixed((jedDisp === 'g' || jedDisp === 'ml') ? 4 : 2).replace(/\.?0+$/, '').replace('.', ',');
     return `
       <tr class="row-clickable" onclick="editSurovina(${s.id})" ${!s.aktivni ? 'style="opacity:0.5"' : ''}>
+        <td onclick="event.stopPropagation()" style="text-align:center;width:36px"><input type="checkbox" class="sur-chk" ${surSel.has(s.id) ? 'checked' : ''} onclick="surToggleSel(${s.id}, this.checked)"></td>
         ${showImg ? `<td class="sur-img-cell">${s.obrazek_url ? `<img src="${esc(s.obrazek_url)}" class="sur-row-img" alt="" loading="lazy">` : `<span class="sur-row-noimg">${_katIkona(s)}</span>`}</td>` : ''}
         <td>
           <strong>${esc(s.nazev)}</strong>
@@ -34545,9 +34567,11 @@ async function renderSuroviny() {
 
   const tabulkaDesktop = () => {
     if (filtered.length === 0) return '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
-    const head = `
+    // hlavička per tabulka — „vybrat vše" platí pro řádky té tabulky (v roztříděném pohledu = kategorie)
+    const head = (items) => `
       <thead>
         <tr>
+          <th style="width:36px;text-align:center"><input type="checkbox" ${items.length && items.every(s => surSel.has(s.id)) ? 'checked' : ''} data-ids="${items.map(s => s.id).join(',')}" onclick="surSelMany(this.dataset.ids, this.checked)" title="Vybrat vše v tabulce"></th>
           ${showImg ? '<th class="sur-img-col"></th>' : ''}
           <th>Název</th>
           <th>Jednotka</th>
@@ -34561,7 +34585,7 @@ async function renderSuroviny() {
       </thead>
     `;
     if (!groupBy || kat !== 'vse') {
-      return `<table class="table sur-table">${head}<tbody>${surPageItems.map(radekDesktop).join('')}</tbody></table>`;
+      return `<table class="table sur-table">${head(surPageItems)}<tbody>${surPageItems.map(radekDesktop).join('')}</tbody></table>`;
     }
     // Groupovaný view — pro každou neprázdnou kategorii nadpis + řádky
     return SUROVINA_KATEGORIE.map(k => {
@@ -34573,7 +34597,7 @@ async function renderSuroviny() {
           <span>${k.label}</span>
           <span style="font-size:13px;font-weight:600;color:var(--text-3);background:var(--surface-2);padding:4px 12px;border-radius:12px">${items.length}</span>
         </h3>
-        <table class="table sur-table" style="margin-bottom:12px">${head}<tbody>${items.map(radekDesktop).join('')}</tbody></table>
+        <table class="table sur-table" style="margin-bottom:12px">${head(items)}<tbody>${items.map(radekDesktop).join('')}</tbody></table>
       `;
     }).join('');
   };
@@ -34626,7 +34650,7 @@ async function renderSuroviny() {
         <button class="btn-secondary" onclick="otevritKategorieSurovin()" title="Spravovat kategorie surovin (přidat, upravit, ikony)">📂 Kategorie</button>
         <button class="btn-secondary" onclick="otevritMatchSlozeni()" title="Projde složení výrobků a napáruje na suroviny">🔗 Spárovat</button>
         <button class="btn-secondary" onclick="openImportCenik('suroviny')" title="Import ceníku z Excel/CSV s auto-matchingem">📊 Import ceníku</button>
-        <button class="btn-secondary" onclick="exportSurovinyCsv()" title="Export zobrazených surovin do CSV — seskupeno dle kategorie (respektuje filtr/kategorii)">📤 Export CSV</button>
+        <span id="sur-export-btns" style="display:contents">${surExportBtnsHtml(surSel.size)}</span>
         <button class="btn-secondary" onclick="otevritImportSurovin()" title="Hromadný import — základní balíček nebo CSV">📥 JSON / vzorky</button>
         <button class="btn-primary btn-green btn-big-action" onclick="editSurovina()" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nová surovina</button>
       </div>
@@ -34785,9 +34809,13 @@ async function renderSuroviny() {
 // =============================================================
 // 📤 EXPORT SUROVIN — CSV seskupené dle kategorie (v3.0.182)
 // =============================================================
-window.exportSurovinyCsv = function() {
-  const rows = state._suroviny_filtered_export || [];
-  if (!rows.length) return alert('Žádné suroviny k exportu — zkontroluj filtr / kategorii.');
+window.exportSurovinyCsv = function(onlySelected) {
+  // v3.0.604 — onlySelected: vybrané řádky (state._surSel) z CELÉHO seznamu, ne jen z aktuálního filtru
+  const sel = state._surSel || new Set();
+  const rows = onlySelected
+    ? (state._suroviny_full_cache || []).filter(s => sel.has(s.id)).map(s => ({ ...s, _kat: kategoriziujSurovinu(s) }))
+    : (state._suroviny_filtered_export || []);
+  if (!rows.length) return alert(onlySelected ? 'Nic není vybráno.' : 'Žádné suroviny k exportu — zkontroluj filtr / kategorii.');
   const katLabel = {};
   (typeof SUROVINA_KATEGORIE !== 'undefined' ? SUROVINA_KATEGORIE : []).forEach(k => { katLabel[k.key] = k.label; });
   // seřaď dle kategorie, pak název
@@ -34818,7 +34846,7 @@ window.exportSurovinyCsv = function() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `suroviny_${new Date().toYMD()}.csv`;
+  a.download = `suroviny_${onlySelected ? 'vybrane_' : ''}${new Date().toYMD()}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
   if (typeof toastSuccess === 'function') toastSuccess(`Exportováno ${sorted.length} surovin do CSV (dle kategorií)`);

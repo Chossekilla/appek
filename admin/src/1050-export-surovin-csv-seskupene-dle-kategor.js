@@ -1,9 +1,13 @@
 // =============================================================
 // 📤 EXPORT SUROVIN — CSV seskupené dle kategorie (v3.0.182)
 // =============================================================
-window.exportSurovinyCsv = function() {
-  const rows = state._suroviny_filtered_export || [];
-  if (!rows.length) return alert('Žádné suroviny k exportu — zkontroluj filtr / kategorii.');
+window.exportSurovinyCsv = function(onlySelected) {
+  // v3.0.604 — onlySelected: vybrané řádky (state._surSel) z CELÉHO seznamu, ne jen z aktuálního filtru
+  const sel = state._surSel || new Set();
+  const rows = onlySelected
+    ? (state._suroviny_full_cache || []).filter(s => sel.has(s.id)).map(s => ({ ...s, _kat: kategoriziujSurovinu(s) }))
+    : (state._suroviny_filtered_export || []);
+  if (!rows.length) return alert(onlySelected ? 'Nic není vybráno.' : 'Žádné suroviny k exportu — zkontroluj filtr / kategorii.');
   const katLabel = {};
   (typeof SUROVINA_KATEGORIE !== 'undefined' ? SUROVINA_KATEGORIE : []).forEach(k => { katLabel[k.key] = k.label; });
   // seřaď dle kategorie, pak název
@@ -34,7 +38,7 @@ window.exportSurovinyCsv = function() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `suroviny_${new Date().toYMD()}.csv`;
+  a.download = `suroviny_${onlySelected ? 'vybrane_' : ''}${new Date().toYMD()}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
   if (typeof toastSuccess === 'function') toastSuccess(`Exportováno ${sorted.length} surovin do CSV (dle kategorií)`);
