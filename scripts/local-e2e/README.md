@@ -5,6 +5,7 @@ Běží proti LOKÁLNÍ instalaci (DB `appek`, XAMPP), ne proti demu (náhledov�
     /Applications/XAMPP/xamppfiles/bin/php -S 127.0.0.1:8765 -t ~/projects/appek.cz &
     T_EMAIL=<lokální admin> T_PASS=<heslo> python3 scripts/local-e2e/test_pickup.py   # vyzvednutí: 26 kontrol
     T_EMAIL=… T_PASS=… python3 scripts/local-e2e/test_rozvoz.py                      # kurýr + rozvoz + Wolt webhook: 21 kontrol
+    T_EMAIL=… T_PASS=… python3 scripts/local-e2e/test_web_objednavky.py              # online objednávky /objednat/: 32 kontrol (sám zapne+obnoví Restauraci)
 
 ⚠️ POS endpointy vyžadují balíček Restaurace (`nastaveni.packages_enabled.restaurace=true`) — před testem zapnout,
 po testu vrátit. `test_rozvoz.py` přepíše lokální integraci Wolt (testovací secret) — zazálohuj `courier_integrations` řádek `wolt` a obnov.

@@ -1270,7 +1270,7 @@ if ($method === 'GET' && $action === 'pickup_list') {
             SELECT id, cislo, castka_celkem, stav, pos_payment, datum_objednani,
                    vyzvednuti_cas, vyzvednuti_jmeno, vyzvednuti_tel, vyzvednuti_email, vyzvednuti_pripraveno
             FROM objednavky
-            WHERE puvod = 'pos' AND pos_typ = 'vyzvednuti' AND stav <> 'zrusena' AND vyzvednuto_kdy IS NULL
+            WHERE puvod IN ('pos','web') AND pos_typ = 'vyzvednuti' AND stav <> 'zrusena' AND vyzvednuto_kdy IS NULL
               AND datum_objednani >= NOW() - INTERVAL 14 DAY
             ORDER BY COALESCE(vyzvednuti_cas, datum_objednani) ASC
             LIMIT 100
@@ -1295,7 +1295,7 @@ if ($method === 'POST' && $action === 'pickup_complete') {
     pos_pickup_ensure($pdo);
     $d  = json_decode(file_get_contents('php://input'), true) ?? [];
     $id = (int) ($d['id'] ?? 0);
-    $o  = $pdo->prepare("SELECT id, cislo, stav, pos_payment, castka_celkem FROM objednavky WHERE id = :id AND puvod = 'pos' AND pos_typ = 'vyzvednuti'");
+    $o  = $pdo->prepare("SELECT id, cislo, stav, pos_payment, castka_celkem FROM objednavky WHERE id = :id AND puvod IN ('pos','web') AND pos_typ = 'vyzvednuti'");
     $o->execute(['id' => $id]);
     $ord = $o->fetch(PDO::FETCH_ASSOC);
     if (!$ord) json_error('Objednávka k vyzvednutí nenalezena', 404);
@@ -1318,7 +1318,7 @@ if ($method === 'POST' && $action === 'pickup_ready') {
     pos_pickup_ensure($pdo);
     $d  = json_decode(file_get_contents('php://input'), true) ?? [];
     $id = (int) ($d['id'] ?? 0);
-    $o  = $pdo->prepare("SELECT id, cislo, castka_celkem, pos_payment, vyzvednuti_email, vyzvednuti_jmeno FROM objednavky WHERE id = :id AND puvod = 'pos' AND pos_typ = 'vyzvednuti'");
+    $o  = $pdo->prepare("SELECT id, cislo, castka_celkem, pos_payment, vyzvednuti_email, vyzvednuti_jmeno FROM objednavky WHERE id = :id AND puvod IN ('pos','web') AND pos_typ = 'vyzvednuti'");
     $o->execute(['id' => $id]);
     $ord = $o->fetch(PDO::FETCH_ASSOC);
     if (!$ord) json_error('Objednávka k vyzvednutí nenalezena', 404);
@@ -1346,7 +1346,7 @@ if ($method === 'POST' && $action === 'pickup_cancel') {
     pos_pickup_ensure($pdo);
     $d  = json_decode(file_get_contents('php://input'), true) ?? [];
     $id = (int) ($d['id'] ?? 0);
-    $o  = $pdo->prepare("SELECT id, pos_payment FROM objednavky WHERE id = :id AND puvod = 'pos' AND pos_typ = 'vyzvednuti'");
+    $o  = $pdo->prepare("SELECT id, pos_payment FROM objednavky WHERE id = :id AND puvod IN ('pos','web') AND pos_typ = 'vyzvednuti'");
     $o->execute(['id' => $id]);
     $ord = $o->fetch(PDO::FETCH_ASSOC);
     if (!$ord) json_error('Objednávka k vyzvednutí nenalezena', 404);

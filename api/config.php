@@ -75,7 +75,7 @@ if (!defined('APP_URL')) {
     define('APP_URL', $__host ? ($__sch . '://' . $__host) : '');
 }
 define('APP_NAME',    'APPEK B2B');
-define('APP_VERSION',    '3.0.625'); // SemVer — bump při release (matches git tag bez 'v')
+define('APP_VERSION',    '3.0.626'); // SemVer — bump při release (matches git tag bez 'v')
 define('APP_REPO',       'Chossekilla/appek'); // GitHub owner/repo (backup, viz APP_UPDATE_URL)
 define('APP_UPDATE_URL', 'https://appek.cz/updates/manifest.json'); // Self-hosted update manifest (primární)
 define('UPLOAD_DIR',  __DIR__ . '/../uploads');
@@ -281,6 +281,8 @@ function kanaly_defaults(): array {
         'wolt'      => ['label' => 'Wolt',              'ikona' => '🛵', 'barva' => '#00b8a9', 'rada' => 'D-WO', 'pokladni' => false, 'zapnuto' => true],
         'bolt'      => ['label' => 'Bolt Food',         'ikona' => '🛵', 'barva' => '#30d175', 'rada' => 'D-BO', 'pokladni' => false, 'zapnuto' => true],
         'foodora'   => ['label' => 'Foodora',           'ikona' => '🛵', 'barva' => '#d6006e', 'rada' => 'D-FO', 'pokladni' => false, 'zapnuto' => true],
+        // 🆕 v3.0.626 — online objednávky jídla (/objednat/): pokladni=true → po zaplacení na pokladně jde do tržby
+        'web'       => ['label' => 'Online objednávky', 'ikona' => '🛍️', 'barva' => '#ea580c', 'rada' => 'WEB',  'pokladni' => true,  'zapnuto' => true],
         'interni'   => ['label' => 'Interní / ručně',   'ikona' => '✏️', 'barva' => '#6b7280', 'rada' => 'OBJ',  'pokladni' => false, 'zapnuto' => true],
     ];
 }

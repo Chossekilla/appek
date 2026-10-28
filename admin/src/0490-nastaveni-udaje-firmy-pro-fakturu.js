@@ -1542,6 +1542,13 @@ async function _renderNastaveniInner() {
     <div id="ns-platby-panel" style="margin-bottom:26px">⏳ Načítám…</div>
 
     ${adminOnly(`
+    <div class="card-block" style="padding:16px;margin-bottom:14px;border-left:4px solid #ea580c">
+      <h2 style="margin:0 0 10px;font-size:18px;letter-spacing:-0.01em">🛍️ Online objednávky jídla</h2>
+      <div id="web-obj-container"><div style="text-align:center;padding:14px;color:var(--text-3)">⏳ Načítám…</div></div>
+    </div>
+    `)}
+
+    ${adminOnly(`
     <div class="card-block" style="padding:16px;margin-bottom:14px;border-left:4px solid #0a84ff">
       <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">🔀 Prodejní kanály</h2>
       <p style="font-size:13px;color:var(--text-3);margin:0 0 4px;line-height:1.55">
@@ -1696,6 +1703,7 @@ async function _renderNastaveniInner() {
     loadPaymentMethodsPanel();
     // 🆕 v3.0.271 — kanály sloučeny pod Platby → naplň i jejich panel (jen admin; kontejner existuje jen pro něj)
     if (document.getElementById('kanaly-container')) renderKanalyPanel();
+    if (typeof webObjPanel === 'function') webObjPanel();   // 🆕 v3.0.626
   }
   // 🆕 v3.0.29 — Tiskárny přesunuté → naviguj na standalone page
   if (aktTab === 'tiskarny') {

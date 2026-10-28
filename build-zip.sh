@@ -186,7 +186,7 @@ version = sys.argv[1]
 root = os.getcwd()
 
 # Top-level cesty které tvoří customer/demo instalaci (ne vendor/, ne sales/)
-WALK_DIRS  = ['admin', 'api', 'b2b', 'pos', 'floorplan']
+WALK_DIRS  = ['admin', 'api', 'b2b', 'pos', 'floorplan', 'objednat', 'qr', 'pay']
 ROOT_FILES = ['index.php', 'install.php', 'instalace.html', '.htaccess', 'robots.txt']
 
 def skip(rel):
@@ -327,7 +327,8 @@ mkdir -p "$DEMO_OVERLAY/demo"
 # Customer-relevant složky a soubory do demo/
 # 🆕 v3.0.254 — přidány pos/ + floorplan/ (standalone /pos/ Kasa a /floorplan/ Mapa stolů).
 #   Dřív chyběly → demo neukazovalo jejich změny (admin/pos.php se aktualizoval, ale /pos/ ne).
-for p in api admin b2b pos floorplan install.php; do
+# 🆕 v3.0.626 — + objednat/ (online objednávky jídla) a veřejné qr/ + pay/ (na demu chyběly)
+for p in api admin b2b pos floorplan objednat qr pay install.php; do
   [[ -e "$p" ]] && cp -R "$p" "$DEMO_OVERLAY/demo/"
 done
 
