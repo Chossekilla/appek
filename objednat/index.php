@@ -110,7 +110,8 @@ header('Cache-Control: no-store');
   var INFO = null, MENU = null, CART = {}, TYP = 'vyzvednuti', SENDING = false;
   var $ = function(id){ return document.getElementById(id); };
   var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
-  var kc = function(n){ return (Math.round(n * 100) / 100).toLocaleString('cs-CZ', {minimumFractionDigits: 0, maximumFractionDigits: 2}) + ' Kč'; };
+  // celé koruny bez haléřů, jinak vždy 2 místa (39,20 Kč, ne 39,2 Kč)
+  var kc = function(n){ var r = Math.round(n * 100) / 100, d = r % 1 ? 2 : 0; return r.toLocaleString('cs-CZ', {minimumFractionDigits: d, maximumFractionDigits: d}) + ' Kč'; };
   var DNY = ['', 'po', 'út', 'st', 'čt', 'pá', 'so', 'ne'];
   function lsGet(){ try { return JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) { return {}; } }
   function lsSet(o){ try { localStorage.setItem(LS, JSON.stringify(Object.assign(lsGet(), o))); } catch (e) {} }
