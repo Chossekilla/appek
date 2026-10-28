@@ -322,6 +322,25 @@ $csrfToken  = csrf_token();
   .pos-header-center .pos-tab-h.active {
     border-color: var(--pos-primary, #BA7517) !important;
   }
+  /* v3.0.625 — hlavička pokladny: prostřední sloupec (záložky) byl `auto` → na 1280/iPadu/1024 vytlačil pravou část
+     (hodiny, zoom, uživatel, celá obrazovka) až o 185–396 px za okraj. Teď záložky berou zbytek místa a zúží se:
+     ≤1400 menší písmo, 701–1180 jen ikony (název v title), ≤700 posuvný pás (nic se neořízne). */
+  .pos-header { grid-template-columns: auto minmax(0, 1fr) auto !important; }
+  .pos-header-center { min-width: 0; justify-content: center; }
+  .pos-header-center .pos-tab-h { flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+  @media (max-width: 1400px) {
+    .pos-header-center .pos-tab-h { font-size: 15px !important; padding: 10px 12px !important; }
+  }
+  @media (min-width: 701px) and (max-width: 1180px) {
+    .pos-header-center .pos-tab-h .pth-txt { display: none !important; }
+    .pos-header-center .pos-tab-h { font-size: 20px !important; padding: 9px 14px !important; }
+    .pos-user-name { display: none !important; }
+  }
+  @media (max-width: 700px) {
+    .pos-header-center { overflow-x: auto; justify-content: flex-start; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .pos-header-center::-webkit-scrollbar { display: none; }
+    .pos-header-center .pos-tab-h { flex: 0 0 auto; }
+  }
 </style>
 <?php
   // 📊 v3.0.286 — Google Analytics pro POS (vlastní measurement ID, odděleně od B2B)
@@ -396,11 +415,11 @@ $csrfToken  = csrf_token();
     <div class="pos-loc" id="pos-location">📍 Provozovna</div>
   </div>
   <div class="pos-header-center">
-    <span class="pos-tab-h active" data-tab="products">🧾<span class="pth-txt"> KASA</span></span>
-    <span class="pos-tab-h" data-tab="tables">🪑<span class="pth-txt"> Stoly</span></span>
-    <span class="pos-tab-h" data-tab="orders">📜<span class="pth-txt"> Účtenky</span></span>
-    <span class="pos-tab-h" data-tab="reports">📊<span class="pth-txt"> Statistiky</span></span>
-    <span class="pos-tab-h" data-tab="uzaverka">🧮<span class="pth-txt"> Uzávěrka</span></span>
+    <span class="pos-tab-h active" data-tab="products" title="Kasa">🧾<span class="pth-txt"> KASA</span></span>
+    <span class="pos-tab-h" data-tab="tables" title="Stoly">🪑<span class="pth-txt"> Stoly</span></span>
+    <span class="pos-tab-h" data-tab="orders" title="Účtenky">📜<span class="pth-txt"> Účtenky</span></span>
+    <span class="pos-tab-h" data-tab="reports" title="Statistiky">📊<span class="pth-txt"> Statistiky</span></span>
+    <span class="pos-tab-h" data-tab="uzaverka" title="Uzávěrka">🧮<span class="pth-txt"> Uzávěrka</span></span>
   </div>
   <div class="pos-header-right">
     <span class="pos-time" id="pos-clock">--:--</span>

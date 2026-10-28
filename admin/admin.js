@@ -17956,7 +17956,7 @@ window.gdprModal = function(titulek, htmlObsah) {
       .ns-acc-page .nastaveni-row { display: flex !important; flex-direction: column; gap: 14px; }
       .ns-acc-page .nastaveni-row > .ns-acc { margin: 0 !important; }
       .ns-acc.ns-collapsed { padding-top: 12px !important; padding-bottom: 12px !important; }
-      .ns-acc > .ns-acc-head::after { content: '▾'; position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+      .ns-acc > .ns-acc-head::after { content: '▾'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
         font-size: 18px; line-height: 1; color: var(--text-3); transition: transform .15s; }
       .ns-acc.ns-collapsed > .ns-acc-head::after { transform: translateY(-50%) rotate(-90deg); }
       .ns-acc.ns-collapsed > :not(.ns-acc-head) { display: none !important; }

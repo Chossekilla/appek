@@ -15,3 +15,12 @@ Spuštění (demo login je předvyplněný → skript jen klikne „Přihlásit 
 
 `freeze.js` měří: max mezeru hlavního vlákna, long tasks, posouvání, co je „pod prstem" (neviditelné vrstvy),
 pomalé/neúspěšné požadavky. Limit: neumí reálné dotykové posouvání (momentum) — na to je hlídač 0012 v adminu.
+
+## Audit rozložení (`layout-audit.js`)
+
+    cd /tmp/wk && NODE_PATH=/tmp/wk/node_modules OUT=/tmp/la.json SHOTS=/tmp/la node <repo>/scripts/webkit-iphone/layout-audit.js
+    PAGES=faktury,suroviny VP=1280,iPhone390 …   # jen vybrané stránky / velikosti
+
+40 stránek adminu × 1280 / iPhone 430 / iPhone 390: vodorovné přetečení, prvky za okrajem (mimo posuvné/ořezávající
+kontejnery), oříznutý text. 2026-10-28: admin čistý (jen šipka accordionu +3 px → opr. v625), B2B čistý,
+POS hlavička přetékala o 185–396 px na 1280/iPad/1024 → opr. v625.
