@@ -902,38 +902,38 @@ function da_handle_inbound_order(string $sluzba, array $parsed): array {
         $pdo->prepare($sql)->execute($params);
         $objId = (int) $pdo->lastInsertId();
 
-        // 3) Vlož položky (jen nazev + cena + mnozstvi — chytré matchování by bylo přes external_id)
-        $hasPolozky = false;
-        try {
-            $pdo->query("SELECT 1 FROM objednavky_polozky LIMIT 1");
-            $hasPolozky = true;
-        } catch (Throwable $e) {}
-        if ($hasPolozky) {
-            $polCols = array_column($pdo->query("SHOW COLUMNS FROM objednavky_polozky")->fetchAll(PDO::FETCH_ASSOC), 'Field');
-            $hasVyrobekId = in_array('vyrobek_id', $polCols, true);
-            $hasNazev     = in_array('vyrobek_nazev', $polCols, true) || in_array('nazev', $polCols, true);
-            $nazevCol     = in_array('vyrobek_nazev', $polCols, true) ? 'vyrobek_nazev' : 'nazev';
-            $hasMnoz      = in_array('mnozstvi', $polCols, true);
-            $hasCena      = in_array('cena_ks', $polCols, true) || in_array('cena', $polCols, true);
-            $cenaCol      = in_array('cena_ks', $polCols, true) ? 'cena_ks' : 'cena';
-
-            foreach ($parsed['polozky'] as $pol) {
-                $pf = ['objednavka_id'];
-                $pv = [':o'];
-                $pp = ['o' => $objId];
-                if ($hasNazev) { $pf[] = $nazevCol;  $pv[] = ':n'; $pp['n'] = $pol['nazev']; }
-                if ($hasMnoz)  { $pf[] = 'mnozstvi'; $pv[] = ':m'; $pp['m'] = $pol['mnozstvi']; }
-                if ($hasCena)  { $pf[] = $cenaCol;   $pv[] = ':ck';$pp['ck'] = $pol['cena_ks']; }
-                if ($hasVyrobekId) {
-                    // Pokusíme se najít náš vyrobek podle external_id (které jsme my poslali jako appek-{id})
-                    $vyrId = null;
-                    if (!empty($pol['external_id']) && str_starts_with($pol['external_id'], 'appek-')) {
-                        $vyrId = (int) substr($pol['external_id'], 6);
-                    }
-                    $pf[] = 'vyrobek_id'; $pv[] = ':vi'; $pp['vi'] = $vyrId;
-                }
-                $polSql = "INSERT INTO objednavky_polozky (" . implode(',', $pf) . ") VALUES (" . implode(',', $pv) . ")";
-                try { $pdo->prepare($polSql)->execute($pp); } catch (Throwable $e) { /* skip položku */ }
+        // 3) Položky — 🐛 v3.0.624: dřív INSERT do neexistujících sloupců cena_ks/cena → povinné cena_bez_dph/sazba_dph
+        //   chyběly → KAŽDÁ položka tiše přeskočena (catch) → objednávka z platformy byla PRÁZDNÁ (bez kuchyně, bez odpisu).
+        //   Párování výrobku: external_id 'appek-{id}' (naše sync_menu) → jinak přesná shoda názvu (bez ohledu na velikost písmen).
+        $vById   = $pdo->prepare("SELECT v.id, COALESCE(s.sazba, 12) AS sazba FROM vyrobky v LEFT JOIN sazby_dph s ON s.id = v.sazba_dph_id WHERE v.id = :id");
+        $vByName = $pdo->prepare("SELECT v.id, COALESCE(s.sazba, 12) AS sazba FROM vyrobky v LEFT JOIN sazby_dph s ON s.id = v.sazba_dph_id
+                                  WHERE LOWER(TRIM(v.nazev)) = LOWER(TRIM(:n)) AND COALESCE(v.aktivni, 1) = 1 ORDER BY v.id LIMIT 1");
+        $insPol  = $pdo->prepare("INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph)
+                                  VALUES (:o, :vi, :n, 'ks', :m, :c, :s)");
+        $kitchenItems = [];
+        $polOk = 0;
+        foreach (($parsed['polozky'] ?? []) as $pol) {
+            $vyr = null;
+            if (!empty($pol['external_id']) && str_starts_with((string) $pol['external_id'], 'appek-')) {
+                $vById->execute(['id' => (int) substr((string) $pol['external_id'], 6)]);
+                $vyr = $vById->fetch(PDO::FETCH_ASSOC) ?: null;
+            }
+            if (!$vyr && trim((string) ($pol['nazev'] ?? '')) !== '') {
+                $vByName->execute(['n' => (string) $pol['nazev']]);
+                $vyr = $vByName->fetch(PDO::FETCH_ASSOC) ?: null;
+            }
+            $saz  = $vyr ? (float) $vyr['sazba'] : 12.0;                   // rozvoz jídla = 12 % (stejně jako hlavička)
+            $mn   = max(0.001, (float) ($pol['mnozstvi'] ?? 1));
+            $brut = (float) ($pol['cena_ks'] ?? 0);                         // platformy posílají cenu s DPH
+            try {
+                $insPol->execute([
+                    'o' => $objId, 'vi' => $vyr ? (int) $vyr['id'] : null, 'n' => mb_substr((string) ($pol['nazev'] ?? '?'), 0, 255),
+                    'm' => $mn, 'c' => round($brut / (1 + $saz / 100), 2), 's' => $saz,
+                ]);
+                $polOk++;
+                $kitchenItems[] = ['vyrobek_id' => $vyr ? (int) $vyr['id'] : null, 'nazev' => (string) ($pol['nazev'] ?? '?'), 'mnozstvi' => $mn];
+            } catch (Throwable $e) {
+                error_log("da_handle_inbound_order($sluzba): položka '" . ($pol['nazev'] ?? '?') . "' se neuložila: " . $e->getMessage());
             }
         }
 
@@ -947,6 +947,26 @@ function da_handle_inbound_order(string $sluzba, array $parsed): array {
             ]);
 
         $pdo->commit();
+
+        // 4b) 🆕 v3.0.624 — do kuchyně (fronta/KDS), stejná podmínka jako POS (kitchen_settings.auto_fire, default ZAP)
+        if ($kitchenItems) {
+            try {
+                $af = $pdo->query("SELECT auto_fire FROM kitchen_settings WHERE id=1")->fetchColumn();
+                if ($af === false || (bool) $af) {
+                    $vget = $pdo->prepare("SELECT priprava_min, kitchen_station_id FROM vyrobky WHERE id = :id");
+                    $kins = $pdo->prepare("INSERT INTO kitchen_queue (objednavka_id, polozka_id, station_id, vyrobek_nazev, mnozstvi, priprava_min, stav, cas_pridani, poznamka)
+                                           VALUES (:o, NULL, :s, :n, :m, :pm, 'queued', NOW(), :pz)");
+                    foreach ($kitchenItems as $ki) {
+                        $pm = 10; $sid = null;
+                        if ($ki['vyrobek_id']) {
+                            $vget->execute(['id' => $ki['vyrobek_id']]);
+                            if ($v = $vget->fetch(PDO::FETCH_ASSOC)) { $pm = (int) ($v['priprava_min'] ?? 10); $sid = $v['kitchen_station_id'] !== null ? (int) $v['kitchen_station_id'] : null; }
+                        }
+                        $kins->execute(['o' => $objId, 's' => $sid, 'n' => $ki['nazev'], 'm' => $ki['mnozstvi'], 'pm' => $pm, 'pz' => '🍔 ' . $sluzbaName . ' · ' . $cislo]);
+                    }
+                }
+            } catch (Throwable $e) { /* kuchyně ne-fatal (tabulka nemusí existovat bez balíčku Restaurace) */ }
+        }
 
         // 5) Auto-acknowledge u Woltu (musí být do ~5 minut nebo se zruší)
         if ($sluzba === 'wolt') {
@@ -962,7 +982,7 @@ function da_handle_inbound_order(string $sluzba, array $parsed): array {
             }
         } catch (Throwable $e) {}
 
-        return ['ok' => true, 'objednavka_id' => $objId, 'message' => "Vytvořena objednávka $cislo"];
+        return ['ok' => true, 'objednavka_id' => $objId, 'polozek' => $polOk, 'message' => "Vytvořena objednávka $cislo ($polOk položek)"];
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         return ['ok' => false, 'message' => 'DB chyba: ' . $e->getMessage()];
