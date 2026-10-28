@@ -1228,6 +1228,12 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
 
   async function finish() {
     if (State.cart.length === 0) return toast('Košík je prázdný', 'error');
+    // 📦 v3.0.623 — Vyzvednutí: čas + jméno/tel/e-mail + zaplatit hned / při vyzvednutí (pos/pos-pickup.js)
+    let pickup = null;
+    if (State.pos_typ === 'vyzvednuti' && window.POSPickup) {
+      pickup = await window.POSPickup.collect(($('#pos-total') || {}).textContent || '');
+      if (!pickup) return;
+    }
     // v2.9.43 — žádný confirm dialog (user klikl velké FINISH = vědomé rozhodnutí)
     const btn = $('.pos-finish');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Odesílám…'; }
@@ -1249,13 +1255,16 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
           })),
           odberatel_id: State.odberatel?.id || null,
           pos_typ:      State.pos_typ,
-          pos_payment:  State.pos_payment,
+          pos_payment:  (pickup && pickup.zaplatit_pozdeji) ? 'pri_vyzvednuti' : State.pos_payment,
           pos_tip:      State.pos_tip || 0,
           sleva_pct:    State.sleva_pct || 0,
           poznamka:     State.poznamka || '',
+          ...(pickup ? { vyzvednuti_cas: pickup.vyzvednuti_cas, vyzvednuti_jmeno: pickup.vyzvednuti_jmeno, vyzvednuti_tel: pickup.vyzvednuti_tel, vyzvednuti_email: pickup.vyzvednuti_email } : {}),
         }),
       });
-      toast(t('pos_bill_ready', { cislo: r.cislo, amount: fmt(r.celkem) + ' ' + (CFG.currency || 'Kč') }), 'success');
+      if (r.nezaplaceno) toast('📦 Uloženo k vyzvednutí · ' + r.cislo + ' · platí při vyzvednutí ' + fmt(r.celkem) + ' ' + (CFG.currency || 'Kč'), 'success');
+      else toast(t('pos_bill_ready', { cislo: r.cislo, amount: fmt(r.celkem) + ' ' + (CFG.currency || 'Kč') }), 'success');
+      if (pickup && window.POSPickup) window.POSPickup.refresh();
 
       // 🆕 v3.0.281 — voucher už je řádkem na účtence; teď odečti zůstatek (doklad=číslo).
       if (State._voucherRedeem && State._voucherRedeem.kod && State.cart.some(it => it.is_voucher)) {

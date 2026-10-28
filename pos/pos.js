@@ -669,7 +669,13 @@
 
   async function finish() {
     if (State.cart.length === 0) return toast('Košík je prázdný', 'error');
-    if (!confirm(`Dokončit objednávku?\n\nCelkem: ${$('#pos-total').textContent}\nPlatba: ${State.pos_payment}\nTyp: ${State.pos_typ}`)) return;
+    // 📦 v3.0.623 — Vyzvednutí: čas + jméno/tel/e-mail + zaplatit hned / při vyzvednutí (pos-pickup.js)
+    let pickup = null;
+    if (State.pos_typ === 'vyzvednuti' && window.POSPickup) {
+      pickup = await window.POSPickup.collect(($('#pos-total') || {}).textContent || '');
+      if (!pickup) return;
+    }
+    if (!pickup && !confirm(`Dokončit objednávku?\n\nCelkem: ${$('#pos-total').textContent}\nPlatba: ${State.pos_payment}\nTyp: ${State.pos_typ}`)) return;
     const btn = $('.pos-finish');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Odesílám…'; }
     try {
@@ -686,14 +692,16 @@
           })),
           odberatel_id: State.odberatel?.id || null,
           pos_typ:      State.pos_typ,
-          pos_payment:  State.pos_payment,
+          pos_payment:  (pickup && pickup.zaplatit_pozdeji) ? 'pri_vyzvednuti' : State.pos_payment,
           pos_tip:      State.pos_tip || 0,
           sleva_pct:    State.sleva_pct || 0,
           poznamka:     State.poznamka || '',
+          ...(pickup ? { vyzvednuti_cas: pickup.vyzvednuti_cas, vyzvednuti_jmeno: pickup.vyzvednuti_jmeno, vyzvednuti_tel: pickup.vyzvednuti_tel, vyzvednuti_email: pickup.vyzvednuti_email } : {}),
           station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })(),
         }),
       });
-      toast(`✓ Účet ${r.cislo} · ${fmt(r.celkem)} Kč`, 'success');
+      toast(r.nezaplaceno ? `📦 Uloženo k vyzvednutí · ${r.cislo} · platí při vyzvednutí ${fmt(r.celkem)} Kč` : `✓ Účet ${r.cislo} · ${fmt(r.celkem)} Kč`, 'success');
+      if (pickup && window.POSPickup) window.POSPickup.refresh();
       newOrder();
     } catch (e) {
       toast('Chyba: ' + e.message, 'error');

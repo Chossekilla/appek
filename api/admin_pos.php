@@ -1239,6 +1239,122 @@ if ($method === 'GET' && $action === 'customers') {
     }
 }
 
+// 📦 v3.0.623 — VYZVEDNUTÍ (objednávka předem → zákazník si přijde později).
+//   Dřív se „Vyzvednutí" chovalo jako „S sebou" (hned zaplaceno, v kuchyni „S sebou").
+//   Teď: čas + jméno/tel/e-mail, volitelně zaplatit až při vyzvednutí (pos_payment='pri_vyzvednuti',
+//   stav='nova' → mimo tržbu/uzávěrku), seznam čekajících, vydání (+platba), připraveno (+e-mail), zrušení.
+function pos_pickup_ensure(PDO $pdo): void {
+    static $done = false; if ($done) return; $done = true;
+    try {
+        $have = $pdo->query("SHOW COLUMNS FROM objednavky")->fetchAll(PDO::FETCH_COLUMN);
+        $add = [
+            'vyzvednuti_cas'        => 'DATETIME NULL',
+            'vyzvednuti_jmeno'      => 'VARCHAR(80) NULL',
+            'vyzvednuti_tel'        => 'VARCHAR(30) NULL',
+            'vyzvednuti_email'      => 'VARCHAR(120) NULL',
+            'vyzvednuti_pripraveno' => 'DATETIME NULL',
+            'vyzvednuto_kdy'        => 'DATETIME NULL',
+            'objednano_puvodne'     => 'DATETIME NULL',
+        ];
+        foreach ($add as $col => $def) {
+            if (!in_array($col, $have, true)) $pdo->exec("ALTER TABLE objednavky ADD COLUMN `$col` $def");
+        }
+    } catch (Throwable $e) { /* migrace soft-fail */ }
+}
+
+// GET ?action=pickup_list → čekající vyzvednutí (nevydaná, nezrušená, posl. 14 dní), seřazeno dle času
+if ($method === 'GET' && $action === 'pickup_list') {
+    pos_pickup_ensure($pdo);
+    try {
+        $rows = $pdo->query("
+            SELECT id, cislo, castka_celkem, stav, pos_payment, datum_objednani,
+                   vyzvednuti_cas, vyzvednuti_jmeno, vyzvednuti_tel, vyzvednuti_email, vyzvednuti_pripraveno
+            FROM objednavky
+            WHERE puvod = 'pos' AND pos_typ = 'vyzvednuti' AND stav <> 'zrusena' AND vyzvednuto_kdy IS NULL
+              AND datum_objednani >= NOW() - INTERVAL 14 DAY
+            ORDER BY COALESCE(vyzvednuti_cas, datum_objednani) ASC
+            LIMIT 100
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        if ($rows) {
+            $ids = array_map(fn($r) => (int) $r['id'], $rows);
+            $pq = $pdo->query("SELECT objednavka_id, vyrobek_nazev, mnozstvi FROM objednavky_polozky
+                               WHERE objednavka_id IN (" . implode(',', $ids) . ") AND vyrobek_id IS NOT NULL ORDER BY id");
+            $pol = [];
+            foreach ($pq as $x) $pol[(int) $x['objednavka_id']][] = ['nazev' => $x['vyrobek_nazev'], 'mnozstvi' => (float) $x['mnozstvi']];
+            foreach ($rows as &$r) { $r['polozky'] = $pol[(int) $r['id']] ?? []; $r['zaplaceno'] = $r['pos_payment'] !== 'pri_vyzvednuti'; }
+            unset($r);
+        }
+        json_response(['ok' => true, 'items' => $rows, 'count' => count($rows)]);
+    } catch (Throwable $e) {
+        json_error_safe('Chyba načtení vyzvednutí', $e, 500);
+    }
+}
+
+// POST ?action=pickup_complete { id, pos_payment? } → vydáno (a zaplaceno, pokud se platilo až teď)
+if ($method === 'POST' && $action === 'pickup_complete') {
+    pos_pickup_ensure($pdo);
+    $d  = json_decode(file_get_contents('php://input'), true) ?? [];
+    $id = (int) ($d['id'] ?? 0);
+    $o  = $pdo->prepare("SELECT id, cislo, stav, pos_payment, castka_celkem FROM objednavky WHERE id = :id AND puvod = 'pos' AND pos_typ = 'vyzvednuti'");
+    $o->execute(['id' => $id]);
+    $ord = $o->fetch(PDO::FETCH_ASSOC);
+    if (!$ord) json_error('Objednávka k vyzvednutí nenalezena', 404);
+    if ($ord['stav'] === 'zrusena') json_error('Objednávka je zrušená', 409);
+    if ($ord['pos_payment'] === 'pri_vyzvednuti') {
+        $pay = (string) ($d['pos_payment'] ?? '');
+        $okPay = ['hotove', 'karta', 'qr_platba', 'gift_card', 'voucher', 'mobile', 'paypal', 'stripe', 'gopay', 'prevod', 'faktura'];
+        if (!in_array($pay, $okPay, true)) json_error('Vyber způsob platby', 400);
+        // tržba patří do dne, kdy peníze přišly → datum_objednani = teď, původní čas do objednano_puvodne
+        $pdo->prepare("UPDATE objednavky SET pos_payment = :p, stav = 'zaplaceno', objednano_puvodne = COALESCE(objednano_puvodne, datum_objednani),
+                       datum_objednani = NOW(), vyzvednuto_kdy = NOW() WHERE id = :id")->execute(['p' => $pay, 'id' => $id]);
+    } else {
+        $pdo->prepare("UPDATE objednavky SET vyzvednuto_kdy = NOW() WHERE id = :id")->execute(['id' => $id]);
+    }
+    json_response(['ok' => true, 'id' => $id, 'cislo' => $ord['cislo'], 'celkem' => (float) $ord['castka_celkem']]);
+}
+
+// POST ?action=pickup_ready { id } → připraveno (+ e-mail zákazníkovi, pokud ho zadal)
+if ($method === 'POST' && $action === 'pickup_ready') {
+    pos_pickup_ensure($pdo);
+    $d  = json_decode(file_get_contents('php://input'), true) ?? [];
+    $id = (int) ($d['id'] ?? 0);
+    $o  = $pdo->prepare("SELECT id, cislo, castka_celkem, pos_payment, vyzvednuti_email, vyzvednuti_jmeno FROM objednavky WHERE id = :id AND puvod = 'pos' AND pos_typ = 'vyzvednuti'");
+    $o->execute(['id' => $id]);
+    $ord = $o->fetch(PDO::FETCH_ASSOC);
+    if (!$ord) json_error('Objednávka k vyzvednutí nenalezena', 404);
+    $pdo->prepare("UPDATE objednavky SET vyzvednuti_pripraveno = NOW() WHERE id = :id")->execute(['id' => $id]);
+    $mailed = false;
+    $email = trim((string) ($ord['vyzvednuti_email'] ?? ''));
+    if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        try {
+            require_once __DIR__ . '/_smtp_lib.php';
+            $firma = '';
+            try { $firma = (string) nastaveni_get($pdo, 'firma_nazev', ''); } catch (Throwable $e) {}
+            $subj = 'Vaše objednávka ' . $ord['cislo'] . ' je připravena k vyzvednutí';
+            $body = "Dobrý den" . ($ord['vyzvednuti_jmeno'] ? ', ' . $ord['vyzvednuti_jmeno'] : '') . ",\n\n"
+                  . "vaše objednávka " . $ord['cislo'] . " je připravena k vyzvednutí.\n"
+                  . ($ord['pos_payment'] === 'pri_vyzvednuti' ? 'K úhradě při vyzvednutí: ' . number_format((float) $ord['castka_celkem'], 2, ',', ' ') . " Kč\n" : '')
+                  . "\nDěkujeme" . ($firma ? ",\n" . $firma : '') . "\n";
+            $mailed = (bool) appek_mail_raw($email, '=?UTF-8?B?' . base64_encode($subj) . '?=', $body, "Content-Type: text/plain; charset=UTF-8");
+        } catch (Throwable $e) { $mailed = false; }
+    }
+    json_response(['ok' => true, 'id' => $id, 'emailed' => $mailed]);
+}
+
+// POST ?action=pickup_cancel { id } → zrušit NEZAPLACENÉ vyzvednutí (zaplacené = vratka přes refund)
+if ($method === 'POST' && $action === 'pickup_cancel') {
+    pos_pickup_ensure($pdo);
+    $d  = json_decode(file_get_contents('php://input'), true) ?? [];
+    $id = (int) ($d['id'] ?? 0);
+    $o  = $pdo->prepare("SELECT id, pos_payment FROM objednavky WHERE id = :id AND puvod = 'pos' AND pos_typ = 'vyzvednuti'");
+    $o->execute(['id' => $id]);
+    $ord = $o->fetch(PDO::FETCH_ASSOC);
+    if (!$ord) json_error('Objednávka k vyzvednutí nenalezena', 404);
+    if ($ord['pos_payment'] !== 'pri_vyzvednuti') json_error('Objednávka je zaplacená — zruš ji jako vratku (Účtenky → Vratka)', 409);
+    $pdo->prepare("UPDATE objednavky SET stav = 'zrusena' WHERE id = :id")->execute(['id' => $id]);
+    json_response(['ok' => true, 'id' => $id]);
+}
+
 // 🧾 POST ?action=quick_order — vytvoří POS objednávku z košíku (bez stolu)
 // 🆕 v2.9.270 — Idempotence: idempotency_key (klient generuje UUID) →
 //   pokud stejný klíč přijde dvakrát (síťový retry, dvojklik), vrátíme původní výsledek.
@@ -1253,14 +1369,23 @@ if ($method === 'POST' && $action === 'quick_order') {
     $sleva_pct    = (float)($data['sleva_pct'] ?? 0);
     $poznamka     = trim((string)($data['poznamka'] ?? ''));
     $idempKey     = trim((string)($data['idempotency_key'] ?? ''));
+    // 📦 v3.0.623 — údaje vyzvednutí (jen pos_typ=vyzvednuti)
+    $vyzCas   = trim((string)($data['vyzvednuti_cas'] ?? ''));       // 'YYYY-MM-DDTHH:MM' | 'YYYY-MM-DD HH:MM'
+    $vyzJmeno = mb_substr(trim((string)($data['vyzvednuti_jmeno'] ?? '')), 0, 80);
+    $vyzTel   = mb_substr(preg_replace('/[^0-9+ ]/', '', (string)($data['vyzvednuti_tel'] ?? '')), 0, 30);
+    $vyzEmail = mb_substr(trim((string)($data['vyzvednuti_email'] ?? '')), 0, 120);
+    if ($vyzEmail !== '' && !filter_var($vyzEmail, FILTER_VALIDATE_EMAIL)) $vyzEmail = '';
+    $vyzCasSql = null;
+    if ($vyzCas !== '') { $ts = strtotime(str_replace('T', ' ', $vyzCas)); if ($ts) $vyzCasSql = date('Y-m-d H:i:s', $ts); }
 
     $allowed_typy     = ['sebou', 'na_miste', 'rozvoz', 'vyzvednuti'];
     // 🆕 v3.0.160 — sjednoceno se zdrojem pravdy payment_methods.php (dřív chybělo 'qr_platba'
     //   → POS ji nabídl, ale quick_order ji odmítl 400; 'paypal' byl naopak b2b-only).
     //   Celý katalog metod → žádná zapnutá metoda nepadne na „Neplatná platební metoda".
     $allowed_payments = ['hotove', 'karta', 'qr_platba', 'gift_card', 'voucher', 'mobile',
-                         'paypal', 'stripe', 'gopay', 'prevod', 'dobirka', 'faktura'];
+                         'paypal', 'stripe', 'gopay', 'prevod', 'dobirka', 'faktura', 'pri_vyzvednuti'];
     if (!in_array($pos_typ, $allowed_typy, true))         json_error('Neplatný typ objednávky', 400);
+    if ($pos_payment === 'pri_vyzvednuti' && $pos_typ !== 'vyzvednuti') json_error('Platba při vyzvednutí jen u typu Vyzvednutí', 400);
     if (!in_array($pos_payment, $allowed_payments, true)) json_error('Neplatná platební metoda', 400);
     if (empty($polozky) || !is_array($polozky))           json_error('Prázdný košík', 400);
 
@@ -1368,7 +1493,7 @@ if ($method === 'POST' && $action === 'quick_order') {
         $meta_json = json_encode($meta_arr, JSON_UNESCAPED_UNICODE);
 
         // Stav: na místě/sebou/vyzvednutí → zaplaceno; rozvoz → nova (čeká na kurýra)
-        $stav = ($pos_typ === 'rozvoz') ? 'nova' : 'zaplaceno';
+        $stav = ($pos_typ === 'rozvoz' || $pos_payment === 'pri_vyzvednuti') ? 'nova' : 'zaplaceno';  // 📦 nezaplacené vyzvednutí čeká
 
         // 🆕 v2.9.39 — Walk-in customer fallback
         // `objednavky.odberatel_id` je NOT NULL + FK → "Neznámý zákazník" nelze
@@ -1546,6 +1671,15 @@ if ($method === 'POST' && $action === 'quick_order') {
 
         $pdo->commit();
 
+        // 📦 v3.0.623 — údaje vyzvednutí (samostatně po commitu, migrace soft)
+        if ($pos_typ === 'vyzvednuti') {
+            try {
+                pos_pickup_ensure($pdo);
+                $pdo->prepare("UPDATE objednavky SET vyzvednuti_cas = :c, vyzvednuti_jmeno = :j, vyzvednuti_tel = :t, vyzvednuti_email = :e WHERE id = :id")
+                    ->execute(['c' => $vyzCasSql, 'j' => ($vyzJmeno !== '' ? $vyzJmeno : null), 't' => ($vyzTel !== '' ? $vyzTel : null), 'e' => ($vyzEmail !== '' ? $vyzEmail : null), 'id' => $objId]);
+            } catch (Throwable $e) { /* soft-fail */ }
+        }
+
         // 🆕 v3.0.143 — Odpis surovin dle receptury za walk-in/rozvoz prodej (po commitu, soft-fail).
         try {
             $sold = [];
@@ -1568,7 +1702,10 @@ if ($method === 'POST' && $action === 'quick_order') {
                         'polozka_id' => null,
                     ];
                 }
-                $poznKit = ($pos_typ === 'rozvoz' ? '🛵 Rozvoz' : '🥡 S sebou') . ' · ' . $cislo;
+                $poznKit = ($pos_typ === 'rozvoz' ? '🛵 Rozvoz'
+                    : ($pos_typ === 'vyzvednuti'
+                        ? '📦 Vyzvednutí' . ($vyzCasSql ? ' ' . date('j.n. H:i', strtotime($vyzCasSql)) : '') . ($vyzJmeno !== '' ? ' · ' . $vyzJmeno : '')
+                        : '🥡 S sebou')) . ' · ' . $cislo;
                 pos_kitchen_insert($pdo, $kitchenItems, $objId, $poznKit);
             }
         } catch (Throwable $e) { /* kuchyně ne-fatal */ }
@@ -1637,7 +1774,8 @@ if ($method === 'POST' && $action === 'quick_order') {
                 $response['printer_dispatch'] = $dispatch;
             }
             // Vrátíme klientovi co dělat s účtenkou
-            $response['print_receipt_mode'] = (string) setting_get($pdo, 'pos_print_receipt_mode', 'ask');
+            $response['print_receipt_mode'] = ($pos_payment === 'pri_vyzvednuti') ? 'never' : (string) setting_get($pdo, 'pos_print_receipt_mode', 'ask');
+            $response['nezaplaceno'] = ($pos_payment === 'pri_vyzvednuti');
         } catch (Throwable $e) {
             // Soft-fail — tisk nesmí blokovat POS
             $response['printer_dispatch_error'] = $e->getMessage();
@@ -1694,7 +1832,7 @@ if ($method === 'GET' && $action === 'quick_history') {
         $sum = $pdo->prepare("
             SELECT
                 COUNT(*) AS pocet,
-                COALESCE(SUM(CASE WHEN stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS tržby,
+                COALESCE(SUM(CASE WHEN stav <> 'zrusena' AND COALESCE(pos_payment,'') <> 'pri_vyzvednuti' THEN castka_celkem ELSE 0 END), 0) AS tržby,
                 COALESCE(SUM(CASE WHEN stav <> 'zrusena' THEN pos_tip ELSE 0 END), 0) AS tip_sum,
                 COALESCE(SUM(CASE WHEN pos_payment='hotove' AND stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS hotove,
                 COALESCE(SUM(CASE WHEN pos_payment='karta'  AND stav <> 'zrusena' THEN castka_celkem ELSE 0 END), 0) AS karta,
@@ -1899,7 +2037,7 @@ function pos_uzaverka_data(PDO $pdo, string $date, ?string $pokladna = null): ar
         $tw = $pdo->prepare("
             SELECT COALESCE(NULLIF(pos_uzivatel,''),'(bez obsluhy)') AS obsluha, pos_payment, castka_celkem, COALESCE(pos_tip,0) AS tip
             FROM objednavky
-            WHERE {$pokIn} AND stav <> 'zrusena' AND datum_objednani >= :d AND datum_objednani < :dn{$pkFilter}
+            WHERE {$pokIn} AND stav <> 'zrusena' AND COALESCE(pos_payment,'') <> 'pri_vyzvednuti' AND datum_objednani >= :d AND datum_objednani < :dn{$pkFilter}
         ");
         $bind = ['d' => $date, 'dn' => $dNext];
         if ($pkFilter) $bind['pk'] = $pokladna;
@@ -1928,7 +2066,7 @@ function pos_uzaverka_data(PDO $pdo, string $date, ?string $pokladna = null): ar
     $pokladny = [];
     try {
         $pq = $pdo->prepare("SELECT DISTINCT pokladna FROM objednavky
-            WHERE {$pokIn} AND stav <> 'zrusena' AND datum_objednani >= :d AND datum_objednani < :dn
+            WHERE {$pokIn} AND stav <> 'zrusena' AND COALESCE(pos_payment,'') <> 'pri_vyzvednuti' AND datum_objednani >= :d AND datum_objednani < :dn
               AND pokladna IS NOT NULL AND pokladna <> '' ORDER BY pokladna");
         $pq->execute(['d' => $date, 'dn' => $dNext]);
         $pokladny = $pq->fetchAll(PDO::FETCH_COLUMN);

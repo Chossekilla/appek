@@ -562,5 +562,6 @@ $csrfToken  = csrf_token();
 <!-- 🌍 v3.0.420 — POS i18n: zdědí jazyk z adminu (appek_lang) + přeloží přes sdílený slovník -->
 <script src="pos-i18n.js?v=<?= htmlspecialchars($appVersion) ?>"></script>
 <script src="pos.js?v=<?= htmlspecialchars($appVersion) ?>"></script>
+<script src="../pos/pos-pickup.js?v=<?= htmlspecialchars($appVersion) ?>"></script>
 </body>
 </html>
