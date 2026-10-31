@@ -50,45 +50,72 @@ function vyrobekDocBadges(v) {
   return html;
 }
 
-async function renderVyrobky(filters = {}) {
+async function renderVyrobky(filters = {}, opts = {}) {
+  const append = !!(opts && opts.append);
+  const jump = opts && opts.offset !== undefined;
   const c = document.getElementById('content');
-  c.innerHTML = `
+  if (!append && !jump) c.innerHTML = `
     <div class="page-head"><div><h1 class="page-title">📦 Výrobky</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
-  const d = await api('admin_vyrobky.php');
-  // 🐛 fix v2.9.187 — defenzivní fallback, kdyby endpoint vrátil chybu/prázdnou strukturu
-  d.vyrobky = d.vyrobky || [];
-  d.kategorie = d.kategorie || [];
-
-  // Spočítej výrobky v každé kategorii (pro badge)
-  const pocetPoKat = {};
-  d.vyrobky.forEach((v) => {
-    const k = v.kategorie_id || 0;
-    pocetPoKat[k] = (pocetPoKat[k] || 0) + 1;
-  });
-
-  // Aplikuj filtry lokálně
   const aktivniKat = filters.kategorie_id ?? null;
   const q = (filters.q || '').trim().toLowerCase();
   const stav = filters.stav || ''; // '', 'aktivni', 'skryte'
   const reorderMode = !!state._vyrobkyReorder;
   const groupBy = !!state._vyrobky_group; // 🔀 přepínač "Roztřídit" — group by kategorii (jen když aktivniKat = null)
+  const grouping = groupBy && aktivniKat === null && !reorderMode;
+  // 🚀 v3.0.628 — běžný seznam stránkuje SERVER (filtry + počty po kategoriích taky ze serveru).
+  //   Režimy Řadit a Roztřídit dál potřebují celý seznam (pořadí/skupiny) → stahují vše jako dřív.
+  const paginated = !grouping && !reorderMode;
+  const vp = (state._vyrPag ??= { items: [], total: 0, offset: 0, limit: 50 });
 
-  const filtered = d.vyrobky.filter((v) => {
-    if (aktivniKat !== null && (v.kategorie_id || 0) != aktivniKat) return false;
-    if (stav === 'aktivni' && !v.aktivni) return false;
-    if (stav === 'skryte' && v.aktivni) return false;
-    if (q && !((v.nazev || '').toLowerCase().includes(q) || (v.cislo || '').toLowerCase().includes(q))) return false;
-    return true;
-  });
+  let d, filtered, pocetPoKat, nAll;
+  if (paginated) {
+    const vpSig = JSON.stringify([aktivniKat, q, stav]);
+    if (vp.sig !== vpSig) { vp.sig = vpSig; vp.items = []; vp.offset = 0; }
+    else if (append) vp.offset = vp.items.length;
+    else if (jump) vp.offset = Math.max(0, opts.offset);
+    else { vp.offset = 0; vp.items = []; }
+    await loadPaginationStyl(); applyPagLimit(vp);
+    const qs = new URLSearchParams({ offset: vp.offset, limit: vp.limit });
+    if (aktivniKat !== null) qs.set('kategorie_id', aktivniKat);
+    if (q) qs.set('q', q);
+    if (stav) qs.set('stav', stav);
+    d = await api('admin_vyrobky.php?' + qs.toString()).catch(() => ({}));
+    const page = Array.isArray(d.vyrobky) ? d.vyrobky : [];
+    vp.items = append ? vp.items.concat(page) : page;
+    vp.total = Number.isFinite(d.total) ? d.total : page.length;
+    filtered = vp.items;
+    pocetPoKat = d.pocty || {};
+    nAll = Number.isFinite(d.celkem) ? d.celkem : vp.total;
+  } else {
+    d = await api('admin_vyrobky.php');
+    // 🐛 fix v2.9.187 — defenzivní fallback, kdyby endpoint vrátil chybu/prázdnou strukturu
+    d.vyrobky = d.vyrobky || [];
+    // Spočítej výrobky v každé kategorii (pro badge)
+    pocetPoKat = {};
+    d.vyrobky.forEach((v) => {
+      const k = v.kategorie_id || 0;
+      pocetPoKat[k] = (pocetPoKat[k] || 0) + 1;
+    });
+    // Aplikuj filtry lokálně
+    filtered = d.vyrobky.filter((v) => {
+      if (aktivniKat !== null && (v.kategorie_id || 0) != aktivniKat) return false;
+      if (stav === 'aktivni' && !v.aktivni) return false;
+      if (stav === 'skryte' && v.aktivni) return false;
+      if (q && !((v.nazev || '').toLowerCase().includes(q) || (v.cislo || '').toLowerCase().includes(q))) return false;
+      return true;
+    });
+    nAll = d.vyrobky.length;
+  }
+  d.kategorie = d.kategorie || [];
+  const nFiltered = paginated ? vp.total : filtered.length;
 
   // Kategorie list pro filtr
   const kategorie = (d.kategorie || []).slice().sort((a, b) => (a.poradi || 0) - (b.poradi || 0));
 
   // Když je groupBy aktivní + zobrazujeme všechny — rozsekej filtered do skupin podle kategorie
   // (rozhoduje se v render helperech níže — connectorně, zachová pořadí kategorií)
-  const grouping = groupBy && aktivniKat === null && !reorderMode;
   const skupinyVyrobku = {};
   if (grouping) {
     kategorie.forEach(k => skupinyVyrobku[k.id] = []);
@@ -111,33 +138,14 @@ async function renderVyrobky(filters = {}) {
     return out;
   })();
 
-  // 🆕 v3.0.267 — stránkování výrobků (dosud jediný hlavní seznam BEZ stránkování — 1400+
-  //   řádků v DOM). Klientské nad `filtered` (kategorie badge/řazení/grupování potřebují plný
-  //   dataset, server vrací vše). Režim řazení a „Roztřídit" zůstávají bez stránkování.
-  const paginated = !grouping && !reorderMode;
-  const vp = state._vyrPag || (state._vyrPag = { offset: 0, shown: 0 });
-  applyPagLimit(vp);
-  const vpSig = JSON.stringify([aktivniKat, q, stav]);
-  if (vp.sig !== vpSig) { vp.sig = vpSig; vp.offset = 0; vp.shown = 0; }
-  let pageItems = filtered;
-  if (paginated) {
-    const vLim = vp.limit || 50;
-    if ((state._pagStyl || 'load_more') === 'stranky') {
-      if (vp.offset >= filtered.length) vp.offset = 0;
-      pageItems = filtered.slice(vp.offset, vp.offset + vLim);
-    } else {
-      vp.offset = 0;
-      if (!vp.shown) vp.shown = vLim;
-      pageItems = filtered.slice(0, vp.shown);
-    }
-  }
-  vp.items = pageItems; vp.total = filtered.length;
+  // 🆕 v3.0.267 — stránkování výrobků; v3.0.628 stránka přichází rovnou ze serveru (viz výše).
+  const pageItems = filtered;
 
   c.innerHTML = `
     <div class="page-head">
       <div>
         <h1 class="page-title">📦 Výrobky</h1>
-        <p class="page-sub">${filtered.length} / ${d.vyrobky.length} <span>výrobků</span></p>
+        <p class="page-sub">${nFiltered} / ${nAll} <span>výrobků</span></p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary" onclick="navigate('kategorie')" title="Spravovat kategorie výrobků">🏷️ Kategorie</button>
@@ -173,7 +181,7 @@ async function renderVyrobky(filters = {}) {
         <button class="kat-btn ${aktivniKat === null ? 'active' : ''}" onclick="filterVyrobkyKat(null)">
           <span class="kat-btn-emoji">📦</span>
           <span class="kat-btn-name">Vše</span>
-          <span class="kat-btn-count">${d.vyrobky.length}</span>
+          <span class="kat-btn-count">${nAll}</span>
         </button>
         ${kategorie.map((k) => `
           <button class="kat-btn ${aktivniKat == k.id ? 'active' : ''}" onclick="filterVyrobkyKat(${k.id})">
@@ -195,8 +203,8 @@ async function renderVyrobky(filters = {}) {
     <!-- Desktop: tabulka -->
     <div class="card-block desktop-only-block">
       ${(() => {
-        if (filtered.length === 0) {
-          const hasAnyRecord = (d.vyrobky || []).length > 0;
+        if (nFiltered === 0) {
+          const hasAnyRecord = nAll > 0;
           if (!hasAnyRecord) {
             return emptyState({
               icon: '📦',
@@ -290,7 +298,7 @@ async function renderVyrobky(filters = {}) {
           </div>
         </div>
       `;
-      if (filtered.length === 0) {
+      if (nFiltered === 0) {
         return `<div class="vyrobky-grid mobile-only-block" id="vyrobky-grid-mobile"><div class="card-block" style="grid-column:1/-1"><div class="empty-state">Žádné výrobky</div></div></div>`;
       }
       if (!grouping) {
@@ -340,14 +348,10 @@ async function renderVyrobky(filters = {}) {
   }
 }
 
-// 🆕 v3.0.267 — stránkování výrobků (klientské; viz renderVyrobky)
-window.vyrLoadMore = function() {
-  const vp = state._vyrPag; if (vp) vp.shown = (vp.shown || vp.limit || 50) + (vp.limit || 50);
-  renderVyrobky(state._vyrobkyFilters || {});
-};
+// 🆕 v3.0.267 — stránkování výrobků; v3.0.628 na serveru (viz renderVyrobky)
+window.vyrLoadMore = function() { renderVyrobky(state._vyrobkyFilters || {}, { append: true }); };
 window.vyrGoToPage = function(p) {
-  const vp = state._vyrPag; if (vp) { vp.offset = p * (vp.limit || 50); vp.shown = 0; }
-  renderVyrobky(state._vyrobkyFilters || {});
+  renderVyrobky(state._vyrobkyFilters || {}, { offset: p * ((state._vyrPag && state._vyrPag.limit) || 50) });
 };
 
 window.toggleVyrobkyReorder = function() {

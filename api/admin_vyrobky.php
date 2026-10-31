@@ -434,20 +434,22 @@ if ($method === 'GET') {
         $hasVS = !!$pdo->query("SHOW TABLES LIKE 'vyrobek_suroviny'")->fetchColumn();
         $hasKH = !!$pdo->query("SHOW TABLES LIKE 'kalkulace_historie'")->fetchColumn();
     } catch (Throwable $e) {}
+    // 🚀 v3.0.628 — __IN__ = filtr agregací: celý seznam „IS NOT NULL" (NULL by se stejně nepřipojil),
+    //   stránkovaný režim „IN (id stránky)" → agregace jen pro zobrazené výrobky.
     $vsJoin = $hasVS ? "LEFT JOIN (
             SELECT vyrobek_id, COUNT(*) AS pocet_surovin_receptu
-            FROM vyrobek_suroviny GROUP BY vyrobek_id
+            FROM vyrobek_suroviny WHERE vyrobek_id __IN__ GROUP BY vyrobek_id
         ) vs ON vs.vyrobek_id = v.id" : "";
     $vsSelect = $hasVS ? "COALESCE(vs.pocet_surovin_receptu, 0) AS pocet_surovin_receptu" : "0 AS pocet_surovin_receptu";
     $khJoin = $hasKH ? "LEFT JOIN (
             SELECT vyrobek_id, COUNT(*) AS pocet_kalkulaci, MAX(vytvoreno) AS posledni_kalkulace
-            FROM kalkulace_historie WHERE vyrobek_id IS NOT NULL GROUP BY vyrobek_id
+            FROM kalkulace_historie WHERE vyrobek_id __IN__ GROUP BY vyrobek_id
         ) kh ON kh.vyrobek_id = v.id" : "";
     $khSelect = $hasKH
         ? "COALESCE(kh.pocet_kalkulaci, 0) AS pocet_kalkulaci, kh.posledni_kalkulace"
         : "0 AS pocet_kalkulaci, NULL AS posledni_kalkulace";
 
-    $vyrobky = $pdo->query("
+    $sql = "
         SELECT v.*, k.nazev AS kategorie_nazev, k.ikona AS kategorie_ikona,
                j.kod AS jednotka_kod, s.sazba AS dph,
                COALESCE(sdl.pocet_dl, 0)  AS pocet_dl,
@@ -466,6 +468,7 @@ if ($method === 'GET') {
                    MAX(dl.datum_vystaveni)            AS posledni_dl
             FROM dodaci_list_polozky dlp
             JOIN dodaci_listy dl ON dl.id = dlp.dodaci_list_id
+            WHERE dlp.vyrobek_id __IN__
             GROUP BY dlp.vyrobek_id
         ) sdl ON sdl.vyrobek_id = v.id
         LEFT JOIN (
@@ -474,19 +477,59 @@ if ($method === 'GET') {
                    MAX(f.datum_vystaveni)        AS posledni_fa
             FROM faktura_polozky fp
             JOIN faktury f ON f.id = fp.faktura_id
+            WHERE fp.vyrobek_id __IN__
             GROUP BY fp.vyrobek_id
         ) sfa ON sfa.vyrobek_id = v.id
         {$vsJoin}
         {$khJoin}
-        ORDER BY v.aktivni DESC, k.poradi, v.poradi, v.nazev
-    ")->fetchAll();
-
-    json_response([
-        'vyrobky' => $vyrobky,
+    ";
+    $ciselniky = [
         'kategorie' => $pdo->query("SELECT * FROM kategorie_vyrobku ORDER BY poradi")->fetchAll(),
         'jednotky' => $pdo->query("SELECT * FROM jednotky ORDER BY id")->fetchAll(),
         'sazby' => $pdo->query("SELECT * FROM sazby_dph ORDER BY id")->fetchAll(),
-    ]);
+    ];
+
+    // 🚀 v3.0.628 — volitelné stránkování (?limit=&offset= + filtry kategorie_id/stav/q) pro obrazovku
+    //   Výrobky. Vrací stránku + total (po filtru) + pocty per kategorie a celkem (pro záložky).
+    //   Bez limit = celý seznam jako dřív (pickery, režimy Řadit/Roztřídit, ~20 dalších volajících).
+    if (isset($_GET['limit'])) {
+        $limit  = max(1, min(200, (int) $_GET['limit']));
+        $offset = max(0, (int) ($_GET['offset'] ?? 0));
+        $where = '';
+        $params = [];
+        $kat = (string) ($_GET['kategorie_id'] ?? '');
+        if ($kat !== '') {
+            if ((int) $kat === 0) $where .= " AND (v.kategorie_id IS NULL OR v.kategorie_id = 0)";
+            else { $where .= " AND v.kategorie_id = :kat"; $params['kat'] = (int) $kat; }
+        }
+        $stav = $_GET['stav'] ?? '';
+        if ($stav === 'aktivni') $where .= " AND v.aktivni = 1";
+        elseif ($stav === 'skryte') $where .= " AND (v.aktivni = 0 OR v.aktivni IS NULL)";
+        $q = trim($_GET['q'] ?? '');
+        if ($q !== '') {
+            $where .= " AND (v.nazev LIKE :q OR v.cislo LIKE :q2)";
+            $params['q'] = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q) . '%';
+            $params['q2'] = $params['q'];
+        }
+        $cs = $pdo->prepare("SELECT COUNT(*) FROM vyrobky v WHERE 1=1" . $where);
+        $cs->execute($params);
+        $total = (int) $cs->fetchColumn();
+        $order = " ORDER BY v.aktivni DESC, k.poradi, v.poradi, v.nazev, v.id";
+        $ids = $pdo->prepare("SELECT v.id FROM vyrobky v LEFT JOIN kategorie_vyrobku k ON v.kategorie_id = k.id
+                              WHERE 1=1" . $where . $order . " LIMIT $limit OFFSET $offset");
+        $ids->execute($params);
+        $ids = implode(',', array_map('intval', $ids->fetchAll(PDO::FETCH_COLUMN)));
+        $vyrobky = $ids === '' ? [] : $pdo->query(str_replace('__IN__', "IN ($ids)", $sql) . " WHERE v.id IN ($ids)" . $order)->fetchAll();
+        $pocty = [];
+        foreach ($pdo->query("SELECT COALESCE(kategorie_id, 0) AS k, COUNT(*) AS c FROM vyrobky GROUP BY COALESCE(kategorie_id, 0)") as $r) {
+            $pocty[(int) $r['k']] = (int) $r['c'];
+        }
+        json_response(['vyrobky' => $vyrobky, 'total' => $total, 'offset' => $offset, 'limit' => $limit,
+                       'celkem' => array_sum($pocty), 'pocty' => (object) $pocty] + $ciselniky);
+    }
+
+    $vyrobky = $pdo->query(str_replace('__IN__', 'IS NOT NULL', $sql) . " ORDER BY v.aktivni DESC, k.poradi, v.poradi, v.nazev")->fetchAll();
+    json_response(['vyrobky' => $vyrobky] + $ciselniky);
 }
 
 // =============================================================

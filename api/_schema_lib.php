@@ -241,6 +241,13 @@ function ensure_faktury_schema(PDO $pdo): void {
                 $pdo->exec("ALTER TABLE faktury ADD COLUMN $col $type NULL");
             }
         }
+        // 🚀 v3.0.628 — index pro dohledání dobropisů k faktuře (seznam faktur ho volá na každém
+        //   řádku; bez indexu = průchod celé tabulky × řádek, 60k faktur → +0,5 s na stránku).
+        $hasIdx = $pdo->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE()
+                               AND TABLE_NAME = 'faktury' AND COLUMN_NAME = 'puvodni_faktura_id' LIMIT 1")->fetchColumn();
+        if (!$hasIdx) {
+            try { $pdo->exec("ALTER TABLE faktury ADD INDEX idx_puvodni_faktura (puvodni_faktura_id)"); } catch (Throwable $e) {}
+        }
 
         // 🆕 faktura_polozky — admin_faktury.php detail SELECT + ruční INSERT vyžadují
         //   vyrobek_cislo + poznamka. Bez nich detail KAŽDÉ faktury padá 500

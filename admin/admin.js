@@ -13432,45 +13432,72 @@ function vyrobekDocBadges(v) {
   return html;
 }
 
-async function renderVyrobky(filters = {}) {
+async function renderVyrobky(filters = {}, opts = {}) {
+  const append = !!(opts && opts.append);
+  const jump = opts && opts.offset !== undefined;
   const c = document.getElementById('content');
-  c.innerHTML = `
+  if (!append && !jump) c.innerHTML = `
     <div class="page-head"><div><h1 class="page-title">📦 Výrobky</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
-  const d = await api('admin_vyrobky.php');
-  // 🐛 fix v2.9.187 — defenzivní fallback, kdyby endpoint vrátil chybu/prázdnou strukturu
-  d.vyrobky = d.vyrobky || [];
-  d.kategorie = d.kategorie || [];
-
-  // Spočítej výrobky v každé kategorii (pro badge)
-  const pocetPoKat = {};
-  d.vyrobky.forEach((v) => {
-    const k = v.kategorie_id || 0;
-    pocetPoKat[k] = (pocetPoKat[k] || 0) + 1;
-  });
-
-  // Aplikuj filtry lokálně
   const aktivniKat = filters.kategorie_id ?? null;
   const q = (filters.q || '').trim().toLowerCase();
   const stav = filters.stav || ''; // '', 'aktivni', 'skryte'
   const reorderMode = !!state._vyrobkyReorder;
   const groupBy = !!state._vyrobky_group; // 🔀 přepínač "Roztřídit" — group by kategorii (jen když aktivniKat = null)
+  const grouping = groupBy && aktivniKat === null && !reorderMode;
+  // 🚀 v3.0.628 — běžný seznam stránkuje SERVER (filtry + počty po kategoriích taky ze serveru).
+  //   Režimy Řadit a Roztřídit dál potřebují celý seznam (pořadí/skupiny) → stahují vše jako dřív.
+  const paginated = !grouping && !reorderMode;
+  const vp = (state._vyrPag ??= { items: [], total: 0, offset: 0, limit: 50 });
 
-  const filtered = d.vyrobky.filter((v) => {
-    if (aktivniKat !== null && (v.kategorie_id || 0) != aktivniKat) return false;
-    if (stav === 'aktivni' && !v.aktivni) return false;
-    if (stav === 'skryte' && v.aktivni) return false;
-    if (q && !((v.nazev || '').toLowerCase().includes(q) || (v.cislo || '').toLowerCase().includes(q))) return false;
-    return true;
-  });
+  let d, filtered, pocetPoKat, nAll;
+  if (paginated) {
+    const vpSig = JSON.stringify([aktivniKat, q, stav]);
+    if (vp.sig !== vpSig) { vp.sig = vpSig; vp.items = []; vp.offset = 0; }
+    else if (append) vp.offset = vp.items.length;
+    else if (jump) vp.offset = Math.max(0, opts.offset);
+    else { vp.offset = 0; vp.items = []; }
+    await loadPaginationStyl(); applyPagLimit(vp);
+    const qs = new URLSearchParams({ offset: vp.offset, limit: vp.limit });
+    if (aktivniKat !== null) qs.set('kategorie_id', aktivniKat);
+    if (q) qs.set('q', q);
+    if (stav) qs.set('stav', stav);
+    d = await api('admin_vyrobky.php?' + qs.toString()).catch(() => ({}));
+    const page = Array.isArray(d.vyrobky) ? d.vyrobky : [];
+    vp.items = append ? vp.items.concat(page) : page;
+    vp.total = Number.isFinite(d.total) ? d.total : page.length;
+    filtered = vp.items;
+    pocetPoKat = d.pocty || {};
+    nAll = Number.isFinite(d.celkem) ? d.celkem : vp.total;
+  } else {
+    d = await api('admin_vyrobky.php');
+    // 🐛 fix v2.9.187 — defenzivní fallback, kdyby endpoint vrátil chybu/prázdnou strukturu
+    d.vyrobky = d.vyrobky || [];
+    // Spočítej výrobky v každé kategorii (pro badge)
+    pocetPoKat = {};
+    d.vyrobky.forEach((v) => {
+      const k = v.kategorie_id || 0;
+      pocetPoKat[k] = (pocetPoKat[k] || 0) + 1;
+    });
+    // Aplikuj filtry lokálně
+    filtered = d.vyrobky.filter((v) => {
+      if (aktivniKat !== null && (v.kategorie_id || 0) != aktivniKat) return false;
+      if (stav === 'aktivni' && !v.aktivni) return false;
+      if (stav === 'skryte' && v.aktivni) return false;
+      if (q && !((v.nazev || '').toLowerCase().includes(q) || (v.cislo || '').toLowerCase().includes(q))) return false;
+      return true;
+    });
+    nAll = d.vyrobky.length;
+  }
+  d.kategorie = d.kategorie || [];
+  const nFiltered = paginated ? vp.total : filtered.length;
 
   // Kategorie list pro filtr
   const kategorie = (d.kategorie || []).slice().sort((a, b) => (a.poradi || 0) - (b.poradi || 0));
 
   // Když je groupBy aktivní + zobrazujeme všechny — rozsekej filtered do skupin podle kategorie
   // (rozhoduje se v render helperech níže — connectorně, zachová pořadí kategorií)
-  const grouping = groupBy && aktivniKat === null && !reorderMode;
   const skupinyVyrobku = {};
   if (grouping) {
     kategorie.forEach(k => skupinyVyrobku[k.id] = []);
@@ -13493,33 +13520,14 @@ async function renderVyrobky(filters = {}) {
     return out;
   })();
 
-  // 🆕 v3.0.267 — stránkování výrobků (dosud jediný hlavní seznam BEZ stránkování — 1400+
-  //   řádků v DOM). Klientské nad `filtered` (kategorie badge/řazení/grupování potřebují plný
-  //   dataset, server vrací vše). Režim řazení a „Roztřídit" zůstávají bez stránkování.
-  const paginated = !grouping && !reorderMode;
-  const vp = state._vyrPag || (state._vyrPag = { offset: 0, shown: 0 });
-  applyPagLimit(vp);
-  const vpSig = JSON.stringify([aktivniKat, q, stav]);
-  if (vp.sig !== vpSig) { vp.sig = vpSig; vp.offset = 0; vp.shown = 0; }
-  let pageItems = filtered;
-  if (paginated) {
-    const vLim = vp.limit || 50;
-    if ((state._pagStyl || 'load_more') === 'stranky') {
-      if (vp.offset >= filtered.length) vp.offset = 0;
-      pageItems = filtered.slice(vp.offset, vp.offset + vLim);
-    } else {
-      vp.offset = 0;
-      if (!vp.shown) vp.shown = vLim;
-      pageItems = filtered.slice(0, vp.shown);
-    }
-  }
-  vp.items = pageItems; vp.total = filtered.length;
+  // 🆕 v3.0.267 — stránkování výrobků; v3.0.628 stránka přichází rovnou ze serveru (viz výše).
+  const pageItems = filtered;
 
   c.innerHTML = `
     <div class="page-head">
       <div>
         <h1 class="page-title">📦 Výrobky</h1>
-        <p class="page-sub">${filtered.length} / ${d.vyrobky.length} <span>výrobků</span></p>
+        <p class="page-sub">${nFiltered} / ${nAll} <span>výrobků</span></p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-secondary" onclick="navigate('kategorie')" title="Spravovat kategorie výrobků">🏷️ Kategorie</button>
@@ -13555,7 +13563,7 @@ async function renderVyrobky(filters = {}) {
         <button class="kat-btn ${aktivniKat === null ? 'active' : ''}" onclick="filterVyrobkyKat(null)">
           <span class="kat-btn-emoji">📦</span>
           <span class="kat-btn-name">Vše</span>
-          <span class="kat-btn-count">${d.vyrobky.length}</span>
+          <span class="kat-btn-count">${nAll}</span>
         </button>
         ${kategorie.map((k) => `
           <button class="kat-btn ${aktivniKat == k.id ? 'active' : ''}" onclick="filterVyrobkyKat(${k.id})">
@@ -13577,8 +13585,8 @@ async function renderVyrobky(filters = {}) {
     <!-- Desktop: tabulka -->
     <div class="card-block desktop-only-block">
       ${(() => {
-        if (filtered.length === 0) {
-          const hasAnyRecord = (d.vyrobky || []).length > 0;
+        if (nFiltered === 0) {
+          const hasAnyRecord = nAll > 0;
           if (!hasAnyRecord) {
             return emptyState({
               icon: '📦',
@@ -13672,7 +13680,7 @@ async function renderVyrobky(filters = {}) {
           </div>
         </div>
       `;
-      if (filtered.length === 0) {
+      if (nFiltered === 0) {
         return `<div class="vyrobky-grid mobile-only-block" id="vyrobky-grid-mobile"><div class="card-block" style="grid-column:1/-1"><div class="empty-state">Žádné výrobky</div></div></div>`;
       }
       if (!grouping) {
@@ -13722,14 +13730,10 @@ async function renderVyrobky(filters = {}) {
   }
 }
 
-// 🆕 v3.0.267 — stránkování výrobků (klientské; viz renderVyrobky)
-window.vyrLoadMore = function() {
-  const vp = state._vyrPag; if (vp) vp.shown = (vp.shown || vp.limit || 50) + (vp.limit || 50);
-  renderVyrobky(state._vyrobkyFilters || {});
-};
+// 🆕 v3.0.267 — stránkování výrobků; v3.0.628 na serveru (viz renderVyrobky)
+window.vyrLoadMore = function() { renderVyrobky(state._vyrobkyFilters || {}, { append: true }); };
 window.vyrGoToPage = function(p) {
-  const vp = state._vyrPag; if (vp) { vp.offset = p * (vp.limit || 50); vp.shown = 0; }
-  renderVyrobky(state._vyrobkyFilters || {});
+  renderVyrobky(state._vyrobkyFilters || {}, { offset: p * ((state._vyrPag && state._vyrPag.limit) || 50) });
 };
 
 window.toggleVyrobkyReorder = function() {
@@ -15246,51 +15250,40 @@ window.odbTypBadge = function(key) {
 // Filter state — který typ je vybraný
 window.odbFilterTyp = window.odbFilterTyp || '';
 
-async function renderOdberatele() {
+async function renderOdberatele(opts = {}) {
+  // 🚀 v3.0.628 — stránkování na SERVERU (offset/limit + total), stejný vzor jako faktury/objednávky.
+  //   Dřív se stahovali všichni odběratelé + agregace přes celé tabulky a stránkovalo se až tady.
+  const append = !!(opts && opts.append);
+  const jump = opts && opts.offset !== undefined;
+  const filtrTyp = window.odbFilterTyp || '';
+  const filtrQ = (window.odbFilterQ || '').trim();
+  const _op = (state._odbPag ??= { items: [], total: 0, offset: 0, limit: 10 });
+  const _opSig = JSON.stringify([filtrTyp, filtrQ]);
+  if (_op.sig !== _opSig) { _op.sig = _opSig; _op.items = []; _op.offset = 0; }
+  else if (append) _op.offset = _op.items.length;
+  else if (jump) _op.offset = Math.max(0, opts.offset);
+  else { _op.offset = 0; _op.items = []; }
+
   const c0 = document.getElementById('content');
-  if (c0) c0.innerHTML = `
+  if (c0 && !append && !jump) c0.innerHTML = `
     <div class="page-head"><div><h1 class="page-title">👥 Odběratelé</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
-  const filtrTyp = window.odbFilterTyp || '';
-  const filtrQ = (window.odbFilterQ || '').trim();
-  const qs = new URLSearchParams();
+  await loadPaginationStyl(); applyPagLimit(_op);
+  const qs = new URLSearchParams({ offset: _op.offset, limit: _op.limit });
   if (filtrTyp) qs.set('typ', filtrTyp);
   if (filtrQ) qs.set('q', filtrQ);
-  const url = qs.toString() ? `admin_odberatele.php?${qs.toString()}` : 'admin_odberatele.php';
-  let [list, stats] = await Promise.all([
-    api(url).catch(() => []),
+  let [data, stats] = await Promise.all([
+    api(`admin_odberatele.php?${qs.toString()}`).catch(() => null),
     api('admin_odberatele.php?action=typy_stats').catch(() => []),
   ]);
   // 🆕 v2.9.288 — defenzivní fallback (server může vrátit error/non-array)
-  if (!Array.isArray(list)) list = [];
+  const page = Array.isArray(data?.odberatele) ? data.odberatele : [];
   if (!Array.isArray(stats)) stats = [];
+  _op.total = Number.isFinite(data?.total) ? data.total : page.length;
+  _op.items = append ? _op.items.concat(page) : page;
+  const odbPageItems = _op.items;
   const c = document.getElementById('content');
-
-  // 🆕 v3.0.458 — stránkování seznamu odběratelů dle nastavení (pagination_styl/pocet), klientské nad `list`.
-  if (state._pagStyl == null || state._pagLimit == null) {
-    const n = state.nastaveni || {};
-    state._pagStyl = n.pagination_styl || 'load_more';
-    const poc = parseInt(n.pagination_pocet) || 10;
-    state._pagLimit = [10, 25, 50, 100, 200].includes(poc) ? poc : 10;
-  }
-  const _op = state._odbPag || (state._odbPag = { offset: 0, shown: 0 });
-  if (typeof applyPagLimit === 'function') applyPagLimit(_op); else _op.limit = state._pagLimit || 10;
-  const _opSig = JSON.stringify([filtrTyp, filtrQ]);
-  if (_op.sig !== _opSig) { _op.sig = _opSig; _op.offset = 0; _op.shown = 0; }
-  let odbPageItems = list;
-  {
-    const lim = _op.limit || 10;
-    if ((state._pagStyl || 'load_more') === 'stranky') {
-      if (_op.offset >= list.length) _op.offset = 0;
-      odbPageItems = list.slice(_op.offset, _op.offset + lim);
-    } else {
-      _op.offset = 0;
-      if (!_op.shown) _op.shown = lim;
-      odbPageItems = list.slice(0, _op.shown);
-    }
-  }
-  _op.items = odbPageItems; _op.total = list.length;
 
   // Spočítej celkový počet (suma ze stats) pro pillsy "Vše"
   const totalAll = stats.reduce((s, r) => s + parseInt(r.pocet || 0, 10), 0);
@@ -15324,7 +15317,7 @@ async function renderOdberatele() {
     <div class="page-head">
       <div>
         <h1 class="page-title">👥 Odběratelé</h1>
-        <p class="page-sub">${list.length} odběratelů${filtrTyp ? ` v kategorii „${esc((window.odbTypByKey(filtrTyp) || {label: 'Nezařazeno'}).label)}"` : ''}</p>
+        <p class="page-sub">${_op.total} odběratelů${filtrTyp ? ` v kategorii „${esc((window.odbTypByKey(filtrTyp) || {label: 'Nezařazeno'}).label)}"` : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${adminOnly('<button class="btn-secondary" onclick="otevritImportVcard()" title="Import vizitek (vCard z mobilu nebo aplikací)">📇 Import vizitek</button>')}
@@ -15395,7 +15388,7 @@ async function renderOdberatele() {
 
     <!-- Mobile: kompaktní karty -->
     <div class="mobile-only-block">
-      ${list.length === 0 ? (
+      ${odbPageItems.length === 0 ? (
         // 🔧 v2.0.72 FIX: dříve používalo nedefinovanou proměnnou 'data' → ReferenceError.
         // Teď: pokud nejsou žádní odběratelé celkem (totalAll === 0), ukáže empty state;
         // jinak (existují, ale filtry vrátily 0) ukáže "neodpovídá filtru".
@@ -15465,15 +15458,9 @@ async function renderOdberatele() {
   if (typeof pagSetupInfinite === 'function') pagSetupInfinite('odb', _op, 'odbLoadMore');
 }
 
-// 🆕 v3.0.458 — stránkování seznamu odběratelů (klientské, dle nastavení pagination_styl/pocet).
-window.odbLoadMore = function() {
-  const op = state._odbPag; if (op) op.shown = (op.shown || op.limit || 10) + (op.limit || 10);
-  renderOdberatele();
-};
-window.odbGoToPage = function(p) {
-  const op = state._odbPag; if (op) { op.offset = p * (op.limit || 10); op.shown = 0; }
-  renderOdberatele();
-};
+// 🆕 v3.0.458 — stránkování seznamu odběratelů (dle nastavení pagination_styl/pocet); v3.0.628 na serveru.
+window.odbLoadMore = function() { renderOdberatele({ append: true }); };
+window.odbGoToPage = function(p) { renderOdberatele({ offset: p * ((state._odbPag && state._odbPag.limit) || 10) }); };
 
 window.applyOdbFilter = function() {
   window.odbFilterQ = document.getElementById('odb-q')?.value || '';

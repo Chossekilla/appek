@@ -191,13 +191,14 @@ if ($method === 'GET') {
         LEFT JOIN (
             SELECT faktura_id, COUNT(*) AS pocet
             FROM faktura_polozky
+            WHERE faktura_id IN (__IDS__)
             GROUP BY faktura_id
         ) ag_pol ON ag_pol.faktura_id = f.id
         LEFT JOIN (
             SELECT fdl.faktura_id,
                    COUNT(DISTINCT dl.id)                                                          AS pocet_dl,
-                   GROUP_CONCAT(DISTINCT dl.cislo ORDER BY dl.datum_vystaveni SEPARATOR ', ')     AS dl_cisla,
-                   GROUP_CONCAT(DISTINCT o.cislo ORDER BY o.datum_dodani SEPARATOR ', ')          AS objednavka_cisla,
+                   GROUP_CONCAT(DISTINCT dl.cislo ORDER BY dl.datum_vystaveni, dl.cislo SEPARATOR ', ')     AS dl_cisla,
+                   GROUP_CONCAT(DISTINCT o.cislo ORDER BY o.datum_dodani, o.cislo SEPARATOR ', ')          AS objednavka_cisla,
                    MIN(o.id)                                                                       AS prvni_objednavka_id,
                    MIN(dl.objednavka_id)                                                           AS prvni_dl_objednavka_id,
                    MIN(fdl.dodaci_list_id)                                                         AS prvni_dl_id,
@@ -206,6 +207,7 @@ if ($method === 'GET') {
             JOIN dodaci_listy dl ON dl.id = fdl.dodaci_list_id
             LEFT JOIN objednavky o ON o.id = dl.objednavka_id
             LEFT JOIN mista_dodani md ON md.id = dl.misto_dodani_id
+            WHERE fdl.faktura_id IN (__IDS__)
             GROUP BY fdl.faktura_id
         ) ag_dl ON ag_dl.faktura_id = f.id
         WHERE 1=1
@@ -243,15 +245,19 @@ if ($method === 'GET') {
     // 🆕 v3.0.219 — paging: offset/limit + total
     $limit  = max(1, min(200, (int) ($_GET['limit'] ?? 50)));
     $offset = max(0, (int) ($_GET['offset'] ?? 0));
-    $cs = $pdo->prepare("SELECT COUNT(*) FROM faktury f JOIN odberatele od ON od.id = f.odberatel_id WHERE 1=1" . $where);
+    // 🚀 v3.0.628 — JOIN odberatele jen při hledání (od.nazev); jinak zbytečný (odberatel_id NOT NULL + FK).
+    $fromF = "FROM faktury f" . ($hledat !== '' ? " JOIN odberatele od ON od.id = f.odberatel_id" : '');
+    $cs = $pdo->prepare("SELECT COUNT(*) $fromF WHERE 1=1" . $where);
     $cs->execute($params);
     $total = (int) $cs->fetchColumn();
 
-    $sql .= $where . " ORDER BY f.datum_vystaveni DESC, f.id DESC LIMIT $limit OFFSET $offset";
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $faktury = $stmt->fetchAll();
+    // 🚀 v3.0.628 — dvě fáze: ID stránky, pak agregace (položky/DL/dobropisy) jen pro ně.
+    //   Dřív se ag_pol/ag_dl počítaly pro VŠECHNY faktury a teprve pak LIMIT.
+    $ids = $pdo->prepare("SELECT f.id $fromF WHERE 1=1" . $where . " ORDER BY f.datum_vystaveni DESC, f.id DESC LIMIT $limit OFFSET $offset");
+    $ids->execute($params);
+    $ids = implode(',', array_map('intval', $ids->fetchAll(PDO::FETCH_COLUMN)));
+    $faktury = $ids === '' ? [] : $pdo->query(str_replace('__IDS__', $ids, $sql)
+        . " AND f.id IN ($ids) ORDER BY f.datum_vystaveni DESC, f.id DESC")->fetchAll();
 
     // 🐛 v3.0.593 — souhrn (Celkem faktur / Celková částka / Po splatnosti) respektuje STEJNÝ filtr jako seznam
     //   (dřív FROM faktury bez WHERE → při filtru „Tento měsíc" ukazoval součet všech faktur = „filtr nefunguje")
@@ -260,7 +266,7 @@ if ($method === 'GET') {
                COALESCE(SUM(f.castka_celkem), 0) AS celkem_kc,
                COALESCE(SUM(CASE WHEN f.castka_uhrazeno < f.castka_celkem AND f.datum_splatnosti < CURDATE()
                                  THEN f.castka_celkem - f.castka_uhrazeno ELSE 0 END), 0) AS po_splatnosti_kc
-        FROM faktury f JOIN odberatele od ON od.id = f.odberatel_id
+        $fromF
         WHERE 1=1" . $where);
     $ss->execute($params);
     $souhrn = $ss->fetch();

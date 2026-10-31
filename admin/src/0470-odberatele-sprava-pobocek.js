@@ -34,51 +34,40 @@ window.odbTypBadge = function(key) {
 // Filter state — který typ je vybraný
 window.odbFilterTyp = window.odbFilterTyp || '';
 
-async function renderOdberatele() {
+async function renderOdberatele(opts = {}) {
+  // 🚀 v3.0.628 — stránkování na SERVERU (offset/limit + total), stejný vzor jako faktury/objednávky.
+  //   Dřív se stahovali všichni odběratelé + agregace přes celé tabulky a stránkovalo se až tady.
+  const append = !!(opts && opts.append);
+  const jump = opts && opts.offset !== undefined;
+  const filtrTyp = window.odbFilterTyp || '';
+  const filtrQ = (window.odbFilterQ || '').trim();
+  const _op = (state._odbPag ??= { items: [], total: 0, offset: 0, limit: 10 });
+  const _opSig = JSON.stringify([filtrTyp, filtrQ]);
+  if (_op.sig !== _opSig) { _op.sig = _opSig; _op.items = []; _op.offset = 0; }
+  else if (append) _op.offset = _op.items.length;
+  else if (jump) _op.offset = Math.max(0, opts.offset);
+  else { _op.offset = 0; _op.items = []; }
+
   const c0 = document.getElementById('content');
-  if (c0) c0.innerHTML = `
+  if (c0 && !append && !jump) c0.innerHTML = `
     <div class="page-head"><div><h1 class="page-title">👥 Odběratelé</h1><p class="page-sub">${skeletonLine('120px', '12px')}</p></div></div>
     <div class="card-block">${skeletonTable(8)}</div>
   `;
-  const filtrTyp = window.odbFilterTyp || '';
-  const filtrQ = (window.odbFilterQ || '').trim();
-  const qs = new URLSearchParams();
+  await loadPaginationStyl(); applyPagLimit(_op);
+  const qs = new URLSearchParams({ offset: _op.offset, limit: _op.limit });
   if (filtrTyp) qs.set('typ', filtrTyp);
   if (filtrQ) qs.set('q', filtrQ);
-  const url = qs.toString() ? `admin_odberatele.php?${qs.toString()}` : 'admin_odberatele.php';
-  let [list, stats] = await Promise.all([
-    api(url).catch(() => []),
+  let [data, stats] = await Promise.all([
+    api(`admin_odberatele.php?${qs.toString()}`).catch(() => null),
     api('admin_odberatele.php?action=typy_stats').catch(() => []),
   ]);
   // 🆕 v2.9.288 — defenzivní fallback (server může vrátit error/non-array)
-  if (!Array.isArray(list)) list = [];
+  const page = Array.isArray(data?.odberatele) ? data.odberatele : [];
   if (!Array.isArray(stats)) stats = [];
+  _op.total = Number.isFinite(data?.total) ? data.total : page.length;
+  _op.items = append ? _op.items.concat(page) : page;
+  const odbPageItems = _op.items;
   const c = document.getElementById('content');
-
-  // 🆕 v3.0.458 — stránkování seznamu odběratelů dle nastavení (pagination_styl/pocet), klientské nad `list`.
-  if (state._pagStyl == null || state._pagLimit == null) {
-    const n = state.nastaveni || {};
-    state._pagStyl = n.pagination_styl || 'load_more';
-    const poc = parseInt(n.pagination_pocet) || 10;
-    state._pagLimit = [10, 25, 50, 100, 200].includes(poc) ? poc : 10;
-  }
-  const _op = state._odbPag || (state._odbPag = { offset: 0, shown: 0 });
-  if (typeof applyPagLimit === 'function') applyPagLimit(_op); else _op.limit = state._pagLimit || 10;
-  const _opSig = JSON.stringify([filtrTyp, filtrQ]);
-  if (_op.sig !== _opSig) { _op.sig = _opSig; _op.offset = 0; _op.shown = 0; }
-  let odbPageItems = list;
-  {
-    const lim = _op.limit || 10;
-    if ((state._pagStyl || 'load_more') === 'stranky') {
-      if (_op.offset >= list.length) _op.offset = 0;
-      odbPageItems = list.slice(_op.offset, _op.offset + lim);
-    } else {
-      _op.offset = 0;
-      if (!_op.shown) _op.shown = lim;
-      odbPageItems = list.slice(0, _op.shown);
-    }
-  }
-  _op.items = odbPageItems; _op.total = list.length;
 
   // Spočítej celkový počet (suma ze stats) pro pillsy "Vše"
   const totalAll = stats.reduce((s, r) => s + parseInt(r.pocet || 0, 10), 0);
@@ -112,7 +101,7 @@ async function renderOdberatele() {
     <div class="page-head">
       <div>
         <h1 class="page-title">👥 Odběratelé</h1>
-        <p class="page-sub">${list.length} odběratelů${filtrTyp ? ` v kategorii „${esc((window.odbTypByKey(filtrTyp) || {label: 'Nezařazeno'}).label)}"` : ''}</p>
+        <p class="page-sub">${_op.total} odběratelů${filtrTyp ? ` v kategorii „${esc((window.odbTypByKey(filtrTyp) || {label: 'Nezařazeno'}).label)}"` : ''}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${adminOnly('<button class="btn-secondary" onclick="otevritImportVcard()" title="Import vizitek (vCard z mobilu nebo aplikací)">📇 Import vizitek</button>')}
@@ -183,7 +172,7 @@ async function renderOdberatele() {
 
     <!-- Mobile: kompaktní karty -->
     <div class="mobile-only-block">
-      ${list.length === 0 ? (
+      ${odbPageItems.length === 0 ? (
         // 🔧 v2.0.72 FIX: dříve používalo nedefinovanou proměnnou 'data' → ReferenceError.
         // Teď: pokud nejsou žádní odběratelé celkem (totalAll === 0), ukáže empty state;
         // jinak (existují, ale filtry vrátily 0) ukáže "neodpovídá filtru".
@@ -253,15 +242,9 @@ async function renderOdberatele() {
   if (typeof pagSetupInfinite === 'function') pagSetupInfinite('odb', _op, 'odbLoadMore');
 }
 
-// 🆕 v3.0.458 — stránkování seznamu odběratelů (klientské, dle nastavení pagination_styl/pocet).
-window.odbLoadMore = function() {
-  const op = state._odbPag; if (op) op.shown = (op.shown || op.limit || 10) + (op.limit || 10);
-  renderOdberatele();
-};
-window.odbGoToPage = function(p) {
-  const op = state._odbPag; if (op) { op.offset = p * (op.limit || 10); op.shown = 0; }
-  renderOdberatele();
-};
+// 🆕 v3.0.458 — stránkování seznamu odběratelů (dle nastavení pagination_styl/pocet); v3.0.628 na serveru.
+window.odbLoadMore = function() { renderOdberatele({ append: true }); };
+window.odbGoToPage = function(p) { renderOdberatele({ offset: p * ((state._odbPag && state._odbPag.limit) || 10) }); };
 
 window.applyOdbFilter = function() {
   window.odbFilterQ = document.getElementById('odb-q')?.value || '';

@@ -155,6 +155,8 @@ if ($method === 'GET') {
 
     // FIX #15: Místo SUM(DISTINCT ...) používáme subquery, jinak by se
     // ztrácely objednávky s duplicitní castka_celkem
+    // 🚀 v3.0.628 — __F__ = filtr agregací na odběratele aktuální stránky (při stránkování),
+    //   jinak prázdný (celý seznam pro pickery).
     $sql = "
         SELECT o.id, o.cislo, o.nazev, o.ico, o.email, o.telefon,
                o.ulice, o.mesto, o.psc, o.typ,
@@ -167,41 +169,59 @@ if ($method === 'GET') {
         FROM odberatele o
         LEFT JOIN (
             SELECT odberatel_id, COUNT(*) AS pocet, SUM(castka_celkem) AS trzba
-            FROM objednavky GROUP BY odberatel_id
+            FROM objednavky WHERE 1=1 __F__ GROUP BY odberatel_id
         ) obj ON obj.odberatel_id = o.id
         LEFT JOIN (
             SELECT odberatel_id, COUNT(*) AS pocet
-            FROM mista_dodani WHERE aktivni = 1 GROUP BY odberatel_id
+            FROM mista_dodani WHERE aktivni = 1 __F__ GROUP BY odberatel_id
         ) md ON md.odberatel_id = o.id
         -- 🚀 N+1 → JOINs: pocet_dl/faktur jednou agregované, ne per-row subquery
         LEFT JOIN (
-            SELECT odberatel_id, COUNT(*) AS pocet FROM dodaci_listy GROUP BY odberatel_id
+            SELECT odberatel_id, COUNT(*) AS pocet FROM dodaci_listy WHERE 1=1 __F__ GROUP BY odberatel_id
         ) dl ON dl.odberatel_id = o.id
         LEFT JOIN (
-            SELECT odberatel_id, COUNT(*) AS pocet FROM faktury GROUP BY odberatel_id
+            SELECT odberatel_id, COUNT(*) AS pocet FROM faktury WHERE 1=1 __F__ GROUP BY odberatel_id
         ) fa ON fa.odberatel_id = o.id
         WHERE 1=1
     ";
+    $where = '';
     $params = [];
     if ($hledat !== '') {
         $hl = str_replace(['\\','%','_'], ['\\\\','\\%','\\_'], $hledat);
         // 🐛 v3.0.265 — opakovaný :q s EMULATE_PREPARES=false → 500. Unikátní placeholdery.
-        $sql .= " AND (o.nazev LIKE :q OR o.email LIKE :q2 OR o.ico LIKE :q3)";
+        $where .= " AND (o.nazev LIKE :q OR o.email LIKE :q2 OR o.ico LIKE :q3)";
         $params['q'] = '%' . $hl . '%';
         $params['q2'] = $params['q'];
         $params['q3'] = $params['q'];
     }
     if ($filtrTyp !== '') {
         if ($filtrTyp === '_nezarazeno') {
-            $sql .= " AND (o.typ IS NULL OR o.typ = '')";
+            $where .= " AND (o.typ IS NULL OR o.typ = '')";
         } else {
-            $sql .= " AND o.typ = :tp";
+            $where .= " AND o.typ = :tp";
             $params['tp'] = $filtrTyp;
         }
     }
-    $sql .= " ORDER BY o.nazev";
 
-    $stmt = $pdo->prepare($sql);
+    // 🚀 v3.0.628 — volitelné stránkování (?limit=&offset=) → {odberatele, total, offset, limit}.
+    //   Agregace (objednávky/tržba/DL/FA) se počítají jen pro odběratele na stránce — dřív přes
+    //   celé tabulky + celý seznam v jedné odpovědi (100k odběratelů = pád na paměť).
+    //   Bez limit = holé pole všech jako dřív (pickery v objednávce, faktuře, DL…).
+    if (isset($_GET['limit'])) {
+        $limit  = max(1, min(200, (int) $_GET['limit']));
+        $offset = max(0, (int) ($_GET['offset'] ?? 0));
+        $cs = $pdo->prepare("SELECT COUNT(*) FROM odberatele o WHERE 1=1" . $where);
+        $cs->execute($params);
+        $total = (int) $cs->fetchColumn();
+        $ids = $pdo->prepare("SELECT o.id FROM odberatele o WHERE 1=1" . $where . " ORDER BY o.nazev, o.id LIMIT $limit OFFSET $offset");
+        $ids->execute($params);
+        $ids = implode(',', array_map('intval', $ids->fetchAll(PDO::FETCH_COLUMN)));
+        $rows = $ids === '' ? [] : $pdo->query(str_replace('__F__', "AND odberatel_id IN ($ids)", $sql)
+            . " AND o.id IN ($ids) ORDER BY o.nazev, o.id")->fetchAll();
+        json_response(['odberatele' => $rows, 'total' => $total, 'offset' => $offset, 'limit' => $limit]);
+    }
+
+    $stmt = $pdo->prepare(str_replace('__F__', '', $sql) . $where . " ORDER BY o.nazev");
     $stmt->execute($params);
     json_response($stmt->fetchAll());
 }
