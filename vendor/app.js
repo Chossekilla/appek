@@ -385,7 +385,7 @@ function openGenerateModal(prefill) {
         <input type="checkbox" name="paid" checked>
         <span>💰 Zaplaceno</span>
       </label>
-      <label class="checkbox-row" ${ft ? 'hidden' : ''}>
+      <label class="checkbox-row" style="${ft ? 'display:none' : ''}">
         <input type="checkbox" name="rental" ${ft ? 'checked' : ''}>
         <span>🗓️ Pronájem (my.appek.cz) — po vypršení + grace zamkne CELOU appku. Expirace = zaplaceno do.</span>
       </label>
@@ -473,7 +473,7 @@ function openEditModal(id) {
       </div>
       </div>
       <label class="checkbox-row"><input type="checkbox" name="paid" ${r.paid == 1 ? 'checked' : ''}><span>💰 Zaplaceno</span></label>
-      <label class="checkbox-row" ${isFtKey(r.license_key) ? 'hidden' : ''}><input type="checkbox" name="rental" ${r.rental == 1 || isFtKey(r.license_key) ? 'checked' : ''}><span>🗓️ Pronájem (my.appek.cz) — po vypršení + grace zamkne CELOU appku</span></label>
+      <label class="checkbox-row" style="${isFtKey(r.license_key) ? 'display:none' : ''}"><input type="checkbox" name="rental" ${r.rental == 1 || isFtKey(r.license_key) ? 'checked' : ''}><span>🗓️ Pronájem (my.appek.cz) — po vypršení + grace zamkne CELOU appku</span></label>
       <div class="form-actions">
         <button type="button" class="btn-secondary" onclick="closeModal()">Zrušit</button>
         <button type="submit" class="btn btn-primary">💾 Uložit</button>

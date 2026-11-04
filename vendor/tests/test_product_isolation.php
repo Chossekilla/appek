@@ -30,5 +30,9 @@ check(str_contains($fak, "'prod'=>'appek'"), 'faktury: ruční faktura = appek')
 $js = file_get_contents("$root/vendor/app.js");
 check(str_contains($js, "ft ? 'Prázdné = 1 měsíc' : 'Prázdné = 1 rok'"), 'app.js: nápověda expirace podle produktu');
 
+// M2b — skrytí řádku Pronájem u foodtrucku: atribut hidden přebíjí CSS .checkbox-row (display:flex) → inline style
+check(!preg_match('/class="checkbox-row" \$\{[^}]*\? \'hidden\'/', $js), 'app.js: checkbox-row nesmí skrývat přes atribut hidden');
+check(substr_count($js, 'class="checkbox-row" style="${') >= 2, 'app.js: checkbox-row Pronájem skrytý přes style (gen + edit)');
+
 echo $fails ? "$fails FAIL\n" : "OK test_product_isolation\n";
 exit($fails ? 1 : 0);
