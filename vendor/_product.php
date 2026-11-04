@@ -62,3 +62,37 @@ function vendor_ensure_product_columns(PDO $pdo): void {
         } catch (Throwable $e) { /* tabulka zatím neexistuje → vytvoří ji její stránka, migrace proběhne příště */ }
     }
 }
+
+/**
+ * Výchozí hodnoty nové licence podle produktu.
+ *   foodtruck → vždy pronájem, žádné balíčky, platnost +1 měsíc (bez přetečení: 31.1. → 28./29.2.)
+ *   appek     → beze změny proti dřívějšku: známé balíčky, rental dle vstupu, platnost +1 rok
+ * Ručně zadané expires_at má přednost.
+ */
+function vendor_license_defaults(string $product, array $d, string $today): array {
+    $product = vendor_product_normalize($product, false);
+    $manual  = !empty($d['expires_at']) ? (string) $d['expires_at'] : null;
+    $base    = new DateTimeImmutable($today);
+
+    if ($product === 'foodtruck') {
+        $next = $base->modify('first day of next month');
+        $day  = min((int) $base->format('j'), (int) $next->format('t'));
+        return [
+            'product'    => 'foodtruck',
+            'packages'   => [],
+            'rental'     => 1,
+            'expires_at' => $manual ?? $next->setDate((int) $next->format('Y'), (int) $next->format('n'), $day)->format('Y-m-d'),
+        ];
+    }
+
+    $packages = is_array($d['packages'] ?? null) ? $d['packages'] : [];
+    if (defined('LICENSE_PACKAGE_BITS')) {
+        $packages = array_values(array_filter($packages, fn($p) => is_string($p) && isset(LICENSE_PACKAGE_BITS[$p])));
+    }
+    return [
+        'product'    => 'appek',
+        'packages'   => $packages,
+        'rental'     => !empty($d['rental']) ? 1 : 0,
+        'expires_at' => $manual ?? $base->modify('+1 year')->format('Y-m-d'),
+    ];
+}

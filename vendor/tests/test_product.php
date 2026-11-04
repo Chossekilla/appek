@@ -36,5 +36,17 @@ check(vendor_product_for_write() === 'appek', 'all → zápis appek');
 $_SESSION['vendor_product'] = 'evil';
 check(vendor_product_current() === 'appek', 'podvržená session → appek');
 
+// ── defaulty licence podle produktu ──
+$ft = vendor_license_defaults('foodtruck', ['packages' => ['cukrarna'], 'rental' => 0], '2026-11-04');
+check($ft['packages'] === [] && $ft['rental'] === 1 && $ft['expires_at'] === '2026-12-04' && $ft['product'] === 'foodtruck', 'ft defaulty');
+$ft2 = vendor_license_defaults('foodtruck', ['expires_at' => '2027-03-01'], '2026-11-04');
+check($ft2['expires_at'] === '2027-03-01', 'ft ruční datum');
+$ap = vendor_license_defaults('appek', ['packages' => ['cukrarna', 'xyz'], 'rental' => 1], '2026-11-04');
+check($ap['packages'] === ['cukrarna'] && $ap['rental'] === 1 && $ap['expires_at'] === '2027-11-04' && $ap['product'] === 'appek', 'appek beze změny');
+check(vendor_license_defaults('appek', [], '2026-01-31')['expires_at'] === '2027-01-31', 'appek +1 rok');
+check(vendor_license_defaults('appek', [], '2026-01-31')['rental'] === 0, 'appek default bez pronájmu');
+check(vendor_license_defaults('foodtruck', [], '2026-01-31')['expires_at'] === '2026-02-28', 'ft +1 měsíc konec měsíce');
+check(vendor_license_defaults('evil', [], '2026-11-04')['product'] === 'appek', 'neznámý produkt → appek');
+
 echo $fails ? "$fails FAIL\n" : "OK test_product\n";
 exit($fails ? 1 : 0);
