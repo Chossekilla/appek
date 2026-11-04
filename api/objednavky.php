@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_schema_lib.php'; // 🐛 v3.0.274 — ensure upraveno_kdy/zpusob_* (B2B edit padal na fresh installu)
+require_once __DIR__ . '/_voucher_lib.php'; // 🆕 v3.0.631 — voucher z adminu přežije úpravu/storno odběratelem
 cors_headers();
 $odberatel_id = require_odberatel();
 
@@ -606,6 +607,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
                 'c' => $sr['cena'], 's' => $sr['sazba'], 'p' => null,
             ]);
         }
+        // 🆕 v3.0.631 — voucher uplatněný v adminu: řádky jsou smazané výše → znovu podle knihy
+        //   pohybů (zaúčtuje jen rozdíl, % sleva se dopočítá z nového zboží) + přepočet hlavičky
+        voucher_objednavka_sync($pdo, $id, 'odběratel (B2B úprava)');
 
         // Spočítej rozdíly pro log + email
         $noveItems = [];
@@ -687,6 +691,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         // 🐛 PR12 — storno po výrobním odpisu vrátí spotřebované suroviny na sklad (idempotentně)
         require_once __DIR__ . '/_bom_lib.php';
         bom_vrat_objednavku_na_sklad($pdo, $id, 'storno zákazník');
+        voucher_objednavka_sync($pdo, $id, 'odběratel (storno)', true); // 🆕 v3.0.631 — voucher zpět
         $pdo->commit();
 
         $jm = $pdo->prepare("SELECT nazev FROM odberatele WHERE id = :id");

@@ -28,60 +28,15 @@
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_voucher_lib.php'; // 🆕 v3.0.631 — schéma, kanály, chování, voucher na objednávce
 cors_headers();
 require_admin();
 header('Content-Type: application/json; charset=UTF-8');
 
 $pdo = db();
 
-function vouchery_ensure_schema(PDO $pdo): void {
-    static $done = false;
-    if ($done) return;
-    $done = true;
-    try {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS vouchery (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                kod VARCHAR(40) NOT NULL UNIQUE,
-                typ VARCHAR(20) NOT NULL DEFAULT 'voucher',
-                hodnota DECIMAL(10,2) NOT NULL DEFAULT 0,
-                zustatek DECIMAL(10,2) NOT NULL DEFAULT 0,
-                platnost_do DATE NULL,
-                stav VARCHAR(20) NOT NULL DEFAULT 'aktivni',
-                poznamka VARCHAR(255) NULL,
-                vytvoreno DATETIME DEFAULT CURRENT_TIMESTAMP,
-                posledni_pouziti DATETIME NULL,
-                INDEX idx_kod (kod), INDEX idx_stav (stav)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS voucher_pohyby (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                voucher_id INT NOT NULL,
-                typ VARCHAR(20) NOT NULL,         -- 'uplatneni' | 'dobiti' | 'vytvoreni'
-                castka DECIMAL(10,2) NOT NULL,    -- + dobití / vytvoření, − uplatnění
-                zustatek_po DECIMAL(10,2) NOT NULL,
-                doklad VARCHAR(40) NULL,
-                kdo VARCHAR(120) NULL,
-                kdy DATETIME DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_v (voucher_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-        // v3.0.282 — voucher pro konkrétního odběratele + procentuální sleva (typ='sleva')
-        foreach ([
-            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS odberatel_id INT NULL",
-            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS odberatel_nazev VARCHAR(255) NULL",
-            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS odberatel_email VARCHAR(150) NULL",
-            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS sleva_pct DECIMAL(5,2) NULL",
-            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS sleva_max_kc DECIMAL(10,2) NULL",
-            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS odeslano_email TINYINT NOT NULL DEFAULT 0",
-            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS odeslano_kdy DATETIME NULL",
-            // v3.0.630 — kde lze uplatnit (CSV kanálů, NULL = všude) + jak se chová (platba | sleva)
-            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS kanaly VARCHAR(60) NULL",
-            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS chovani VARCHAR(10) NULL",
-        ] as $alter) { try { $pdo->exec($alter); } catch (Throwable $e) {} }
-    } catch (Throwable $e) { error_log('vouchery_ensure_schema: ' . $e->getMessage()); }
-}
+/** Schéma voucherů (tabulky + migrace) — sdílené v _voucher_lib.php (v3.0.631). */
+function vouchery_ensure_schema(PDO $pdo): void { voucher_ensure_schema($pdo); }
 vouchery_ensure_schema($pdo);
 
 // Bezpečná abeceda — bez matoucích znaků (0/O, 1/I/L)
@@ -106,27 +61,6 @@ function voucher_stav_runtime(array $v): string {
     return 'aktivni';
 }
 
-/** 🆕 v3.0.630 — místa, kde lze voucher uplatnit. Klíč = zdroj uplatnění (posílá ho volající). */
-const VOUCHER_KANALY = [
-    'pos'   => 'Pokladna',
-    'admin' => 'Objednávky v adminu',
-    'b2b'   => 'B2B portál',
-    'web'   => 'Online objednávky',
-];
-/** Povolené kanály voucheru (NULL/prázdné = všude — i vouchery z doby před v3.0.630). */
-function voucher_kanaly(array $v): array {
-    $k = array_values(array_intersect(explode(',', (string) ($v['kanaly'] ?? '')), array_keys(VOUCHER_KANALY)));
-    return $k ?: array_keys(VOUCHER_KANALY);
-}
-/** Jak se voucher chová: 'sleva' = snižuje cenu (a základ DPH po sazbách),
- *  'platba' = úhrada předem, cenu ani DPH nemění. % sleva je vždy sleva, dárková karta vždy platba,
- *  Kč voucher dle volby při vytvoření (default platba = dosavadní chování). */
-function voucher_chovani(array $v): string {
-    if (($v['typ'] ?? '') === 'sleva') return 'sleva';
-    if (($v['typ'] ?? '') === 'darkova_karta') return 'platba';
-    return ($v['chovani'] ?? '') === 'sleva' ? 'sleva' : 'platba';
-}
-/** Doplní do řádku odvozená pole pro UI/POS. */
 function voucher_enrich(array $v): array {
     $v['stav_aktualni'] = voucher_stav_runtime($v);
     $v['hodnota_text']  = voucher_hodnota_text($v);

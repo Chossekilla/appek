@@ -11,6 +11,10 @@ $pdo = db();
 require_once __DIR__ . '/_schema_lib.php';
 ensure_objednavky_polozky_schema($pdo);
 ensure_objednavky_schema($pdo);
+// 🆕 v3.0.631 — voucher na objednávce (uplatnění, přepočet při změně položek, vrácení při stornu)
+require_once __DIR__ . '/_voucher_lib.php';
+voucher_ensure_schema($pdo);
+$kdoAdmin = (string) ($_SESSION['admin_jmeno'] ?? ($_SESSION['admin_email'] ?? 'Admin'));
 
 function prepocitat_objednavku(PDO $pdo, int $obj_id): void {
     $stmt = $pdo->prepare("
@@ -256,6 +260,17 @@ if ($method === 'GET') {
         $polozky->execute(['id' => $obj['id']]);
         $obj['polozky'] = $polozky->fetchAll();
         $obj['zamcena'] = $obj['pocet_dl'] > 0;
+        // 🆕 v3.0.631 — uplatněný voucher (podle knihy pohybů)
+        $obj['voucher'] = null;
+        if ($vidObj = voucher_objednavka_id($pdo, (int) $obj['id'])) {
+            $vq = $pdo->prepare("SELECT v.kod, v.typ, v.chovani, v.sleva_pct, COALESCE(-SUM(p.castka), 0) AS uplatneno
+                                 FROM vouchery v JOIN voucher_pohyby p ON p.voucher_id = v.id AND p.objednavka_id = :o
+                                 WHERE v.id = :v GROUP BY v.id");
+            $vq->execute(['o' => $obj['id'], 'v' => $vidObj]);
+            if ($vr = $vq->fetch()) {
+                $obj['voucher'] = ['kod' => $vr['kod'], 'chovani' => voucher_chovani($vr), 'uplatneno' => round((float) $vr['uplatneno'], 2)];
+            }
+        }
 
         // Seznam dodacích listů a faktur svázaných s objednávkou
         try {
@@ -474,6 +489,7 @@ if ($method === 'POST') {
                 'o' => $obj_id, 'v' => $vyrobek_id, 'm' => $mnozstvi,
                 'c' => $cenaPP, 's' => $sazbaPP,
             ]);
+            voucher_objednavka_sync($pdo, $obj_id, $kdoAdmin); // 🆕 v3.0.631 — % sleva se dopočítá
             prepocitat_objednavku($pdo, $obj_id);
             $pdo->commit();
             json_response(['ok' => true]);
@@ -483,6 +499,31 @@ if ($method === 'POST') {
             json_error('Nepodařilo se přidat položku', 500);
         }
         exit;
+    }
+
+    // 🆕 v3.0.631 — uplatnit / odebrat voucher na existující objednávce
+    if ($action === 'voucher_uplatnit' || $action === 'voucher_odebrat') {
+        $obj_id = (int) ($d['objednavka_id'] ?? 0);
+        if (!$obj_id) json_error('Chybí objednávka');
+        if ($action === 'voucher_odebrat' && objednavka_zamcena($pdo, $obj_id)) {
+            json_error('Objednávka má dodací list — voucher už nelze odebrat', 409);
+        }
+        $pdo->beginTransaction();
+        try {
+            $r = $action === 'voucher_uplatnit'
+                ? voucher_objednavka_uplatnit($pdo, $obj_id, (string) ($d['kod'] ?? ''), 'admin', $kdoAdmin)
+                : ['vraceno' => voucher_objednavka_sync($pdo, $obj_id, $kdoAdmin, true) === 0.0];
+            $pdo->commit();
+            $c = $pdo->prepare("SELECT castka_celkem FROM objednavky WHERE id = :id");
+            $c->execute(['id' => $obj_id]);
+            json_response(['ok' => true, 'castka_celkem' => (float) $c->fetchColumn()] + $r);
+        } catch (RuntimeException $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            json_error($e->getMessage(), 409);
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            json_error_safe('Voucher se nepodařilo upravit', $e, 500);
+        }
     }
 
     if ($action === 'vytvorit') {
@@ -587,6 +628,11 @@ if ($method === 'POST') {
                 }
             }
 
+            // 🆕 v3.0.631 — voucher zadaný rovnou v nové objednávce (chyba = celá objednávka se nevytvoří)
+            if (trim((string) ($d['voucher_kod'] ?? '')) !== '') {
+                voucher_objednavka_uplatnit($pdo, $obj_id, (string) $d['voucher_kod'], 'admin', $kdoAdmin);
+            }
+
             $pdo->commit();
             break; // úspěch — ven z retry smyčky
         } catch (Exception $e) {
@@ -683,6 +729,7 @@ if ($method === 'PUT') {
             if ($d['stav'] === 'zrusena' && $orig['stav'] !== 'zrusena') {
                 require_once __DIR__ . '/_bom_lib.php';
                 bom_vrat_objednavku_na_sklad($pdo, $obj_id, 'storno admin');
+                voucher_objednavka_sync($pdo, $obj_id, $kdoAdmin, true); // 🆕 v3.0.631 — voucher zpět
             }
         }
         if (isset($d['interni_pozn'])) {
@@ -697,10 +744,14 @@ if ($method === 'PUT') {
                 ->execute(['d' => $d['datum_dodani'], 'id' => $obj_id]);
         }
         if (!empty($d['polozky_zmeny']) && is_array($d['polozky_zmeny'])) {
+            // 🆕 v3.0.631 — řádky voucheru se neupravují ručně (řídí je voucher_objednavka_sync)
+            $vq = $pdo->prepare("SELECT id FROM objednavky_polozky WHERE objednavka_id = :o AND voucher_id IS NOT NULL");
+            $vq->execute(['o' => $obj_id]);
+            $voucherRadky = array_map('intval', $vq->fetchAll(PDO::FETCH_COLUMN));
             foreach ($d['polozky_zmeny'] as $z) {
                 $pid = (int) ($z['polozka_id'] ?? 0);
                 $mn  = (float) ($z['mnozstvi'] ?? 0);
-                if (!$pid) continue;
+                if (!$pid || in_array($pid, $voucherRadky, true)) continue;
                 if ($mn <= 0) {
                     $pdo->prepare("DELETE FROM objednavky_polozky WHERE id = :id AND objednavka_id = :o")
                         ->execute(['id' => $pid, 'o' => $obj_id]);
@@ -709,6 +760,7 @@ if ($method === 'PUT') {
                         ->execute(['m' => $mn, 'id' => $pid, 'o' => $obj_id]);
                 }
             }
+            if (($d['stav'] ?? $orig['stav']) !== 'zrusena') voucher_objednavka_sync($pdo, $obj_id, $kdoAdmin);
             prepocitat_objednavku($pdo, $obj_id);
             $zmenyDoEmailu['polozky'] = true;
 
@@ -824,8 +876,16 @@ if ($method === 'DELETE') {
 
         $pdo->beginTransaction();
         try {
-            $pdo->prepare("DELETE FROM objednavky_polozky WHERE id = :id AND objednavka_id = :o")
-                ->execute(['id' => $polozka_id, 'o' => $obj_id]);
+            // 🆕 v3.0.631 — smazání řádku voucheru = odebrání voucheru (vrátí se na voucher)
+            $jv = $pdo->prepare("SELECT voucher_id FROM objednavky_polozky WHERE id = :id AND objednavka_id = :o");
+            $jv->execute(['id' => $polozka_id, 'o' => $obj_id]);
+            if ($jv->fetchColumn()) {
+                voucher_objednavka_sync($pdo, $obj_id, $kdoAdmin, true);
+            } else {
+                $pdo->prepare("DELETE FROM objednavky_polozky WHERE id = :id AND objednavka_id = :o")
+                    ->execute(['id' => $polozka_id, 'o' => $obj_id]);
+                voucher_objednavka_sync($pdo, $obj_id, $kdoAdmin);
+            }
             prepocitat_objednavku($pdo, $obj_id);
             $pdo->commit();
             json_response(['ok' => true]);
@@ -851,7 +911,15 @@ if ($method === 'DELETE') {
     require_once __DIR__ . '/_zaloha_helper.php';
     zaloha_snapshot($pdo, 'Před smazáním objednávky ID ' . $id);
 
-    $pdo->prepare("DELETE FROM objednavky WHERE id = :id")->execute(['id' => $id]);
+    $pdo->beginTransaction();
+    try {
+        voucher_objednavka_sync($pdo, $id, $kdoAdmin, true); // 🆕 v3.0.631 — uplatněný voucher zpět
+        $pdo->prepare("DELETE FROM objednavky WHERE id = :id")->execute(['id' => $id]);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error_safe('Objednávku se nepodařilo smazat', $e, 500);
+    }
     json_response(['ok' => true]);
 }
 

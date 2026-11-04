@@ -7317,7 +7317,18 @@ window.openObjednavkaDetail = async function(id) {
     </h3>
 
     <div class="obj-polozky-list" id="obj-polozky">
-      ${o.polozky.length === 0 ? '<div class="empty-state" style="padding:24px;background:var(--surface-2);border-radius:8px">Zatím žádné položky.</div>' : o.polozky.map((p) => `
+      ${o.polozky.length === 0 ? '<div class="empty-state" style="padding:24px;background:var(--surface-2);border-radius:8px">Zatím žádné položky.</div>' : o.polozky.map((p) => p.voucher_id ? `
+        <div class="obj-polozka-row" data-pol-id="${p.id}" style="background:#F0FDF4">
+          <div class="obj-polozka-img"><div class="obj-polozka-img-empty">🎟️</div></div>
+          <div class="obj-polozka-info">
+            <div class="obj-polozka-nazev">${esc(p.vyrobek_nazev)}</div>
+            <div class="obj-polozka-meta">${parseFloat(p.sazba_dph) > 0 ? 'sleva · DPH ' + parseFloat(p.sazba_dph) + ' %' : 'uhrazeno předem'}</div>
+          </div>
+          <div class="obj-polozka-qty"></div>
+          <div class="obj-polozka-cena" style="color:#166534">${fmt(p.cena_bez_dph * p.mnozstvi)}</div>
+          ${!o.zamcena && o.stav !== 'zrusena' ? `<button class="obj-polozka-del" onclick="odebratVoucherObj(${o.id})" title="Odebrat voucher (vrátí se na voucher)">×</button>` : '<span></span>'}
+        </div>
+      ` : `
         <div class="obj-polozka-row" data-pol-id="${p.id}">
           <div class="obj-polozka-img">${p.obrazek_url ? `<img src="${esc(p.obrazek_url)}" alt="">` : '<div class="obj-polozka-img-empty">🥖</div>'}</div>
           <div class="obj-polozka-info">
@@ -7341,6 +7352,23 @@ window.openObjednavkaDetail = async function(id) {
       <button class="btn-primary" style="font-size:13px" onclick="ulozitMnozstvi(${o.id})">💾 Uložit změny množství</button>
     </div>
     <div id="add-polozka-form"></div>
+
+    <!-- 🆕 v3.0.631 — VOUCHER / SLEVOVÝ KÓD na objednávce -->
+    ${o.voucher ? `
+      <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;font-size:13px">
+        <span>🎟️ Voucher <strong style="font-family:monospace">${esc(o.voucher.kod)}</strong></span>
+        <span style="background:${o.voucher.chovani === 'sleva' ? '#FEF3C7' : '#DBEAFE'};color:${o.voucher.chovani === 'sleva' ? '#92400e' : '#1e40af'};padding:1px 7px;border-radius:8px;font-size:11px;font-weight:600">${o.voucher.chovani === 'sleva' ? 'sleva z ceny' : 'platba'}</span>
+        <span style="font-weight:700;color:#166534">−${fmt(o.voucher.uplatneno)}</span>
+        <div style="flex:1"></div>
+        ${!o.zamcena && o.stav !== 'zrusena' ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="odebratVoucherObj(${o.id})">Odebrat</button>` : ''}
+      </div>
+    ` : (!o.zamcena && o.stav !== 'zrusena' ? `
+      <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <input class="form-input" id="obj-voucher-kod" placeholder="Slevový kód / voucher" style="flex:1;min-width:200px;font-family:monospace;text-transform:uppercase"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();uplatnitVoucherObj(${o.id})}">
+        <button class="btn-secondary" onclick="uplatnitVoucherObj(${o.id})">🎟️ Uplatnit kód</button>
+      </div>
+    ` : '')}
 
     <!-- SOUHRN: amber box -->
     <div style="margin-top:16px;background:#FAEEDA;border:2px solid #E5C499;border-radius:10px;padding:14px 18px">
@@ -7466,6 +7494,26 @@ window.openObjednavkaDetail = async function(id) {
       <button class="btn-primary btn-green" onclick="ulozitObjednavku(${o.id})">💾 Uložit změny</button>
     </div>
   `);
+};
+
+// 🆕 v3.0.631 — voucher na existující objednávce (server ověří kanál, odběratele, zůstatek; při
+//   stornu / odebrání se vrátí na voucher). Po změně znovu otevře detail s novými částkami.
+window.uplatnitVoucherObj = async function(id) {
+  const kod = (document.getElementById('obj-voucher-kod')?.value || '').toUpperCase().trim();
+  if (!kod) return toast('Zadejte kód voucheru', 'error');
+  try {
+    const r = await api('admin_objednavky.php', { method: 'POST', body: JSON.stringify({ action: 'voucher_uplatnit', objednavka_id: id, kod }) });
+    toast(`🎟️ Voucher uplatněn: −${fmt(r.uplatneno)}`, 'success');
+    openObjednavkaDetail(id);
+  } catch (e) { toast('❌ ' + (e.message || 'Voucher nelze uplatnit'), 'error'); }
+};
+window.odebratVoucherObj = async function(id) {
+  if (!(await confirmDialog({ msg: 'Odebrat voucher z objednávky? Částka se vrátí zpět na voucher.', danger: false }))) return;
+  try {
+    await api('admin_objednavky.php', { method: 'POST', body: JSON.stringify({ action: 'voucher_odebrat', objednavka_id: id }) });
+    toast('Voucher odebrán', 'success');
+    openObjednavkaDetail(id);
+  } catch (e) { toast('❌ ' + (e.message || 'Odebrání selhalo'), 'error'); }
 };
 
 window.ulozitObjednavku = async function(id) {
@@ -7762,12 +7810,40 @@ window.otevritNovouObjednavku = async function() {
     datum_dodani: null,
     poznamka: '',
     interni_poznamka: '',
+    voucher_kod: '',   // 🆕 v3.0.631 — slevový kód / voucher (uplatní server při vytvoření)
+    voucher: null,     //   ověřený voucher (jen pro náhled odhadu v souhrnu)
   };
 
   try {
     noState.vsechny_odberatele = await api('admin_odberatele.php');
   } catch (e) { alert('Nepodařilo se načíst odběratele: ' + e.message); return; }
 
+  vykreslitNovouObjednavku();
+};
+
+// 🆕 v3.0.631 — odhad voucheru pro souhrn (přesnou částku spočítá a zaúčtuje server při vytvoření)
+function noVoucherOdhad(v, total) {
+  if (!v || total <= 0) return 0;
+  let odhad = v.typ === 'sleva' ? total * (parseFloat(v.sleva_pct) || 0) / 100 : (parseFloat(v.zustatek) || 0);
+  if (v.typ === 'sleva' && parseFloat(v.sleva_max_kc) > 0) odhad = Math.min(odhad, parseFloat(v.sleva_max_kc));
+  return Math.round(Math.min(odhad, total) * 100) / 100;
+}
+
+// 🆕 v3.0.631 — ověř kód předem (aktivní, platí pro objednávky v adminu, pro tohoto odběratele)
+window.noOveritVoucher = async function() {
+  const s = noState;
+  const kod = (document.getElementById('no-voucher')?.value || s.voucher_kod || '').toUpperCase().trim();
+  s.voucher_kod = kod; s.voucher = null;
+  if (!kod) { vykreslitNovouObjednavku(); return; }
+  let v;
+  try { v = (await api('admin_vouchers.php?kod=' + encodeURIComponent(kod))).voucher || {}; }
+  catch (e) { vykreslitNovouObjednavku(); return toast('❌ ' + (e.message || 'Voucher nenalezen'), 'error'); }
+  let chyba = '';
+  if (v.stav_aktualni !== 'aktivni') chyba = 'Voucher není aktivní (' + (v.stav_aktualni || '?') + ')';
+  else if (Array.isArray(v.kanaly_list) && !v.kanaly_list.includes('admin')) chyba = 'Tento voucher nelze uplatnit v objednávkách v adminu';
+  else if (v.odberatel_id && String(v.odberatel_id) !== String(s.odberatel_id)) chyba = 'Voucher je vystavený pro jiného odběratele (' + (v.odberatel_nazev || '') + ')';
+  if (chyba) { vykreslitNovouObjednavku(); return toast('❌ ' + chyba, 'error'); }
+  s.voucher = v;
   vykreslitNovouObjednavku();
 };
 
@@ -7967,6 +8043,17 @@ function vykreslitNovouObjednavku() {
       </div>
     ` : ''}
 
+    ${odberatelSelected ? `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <input class="form-input" id="no-voucher" value="${esc(s.voucher_kod)}" placeholder="Slevový kód / voucher (volitelné)"
+               oninput="noState.voucher_kod = this.value.toUpperCase().trim(); noState.voucher = null"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();noOveritVoucher()}"
+               style="flex:1;min-width:200px;font-family:monospace;text-transform:uppercase">
+        <button class="btn-secondary" onclick="noOveritVoucher()">Ověřit kód</button>
+        ${s.voucher ? `<span style="font-size:13px;color:#166534">✓ ${esc(s.voucher.hodnota_text || '')} · ${s.voucher.chovani_eff === 'sleva' ? 'sleva z ceny' : 'platba'}</span>` : ''}
+      </div>
+    ` : ''}
+
     <div style="background:#FAEEDA;border-radius:8px;padding:14px 18px;margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#855;margin-bottom:4px">
         <span>Bez DPH</span><span>${fmt(bez)}</span>
@@ -7974,8 +8061,10 @@ function vykreslitNovouObjednavku() {
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#855;margin-bottom:8px">
         <span>DPH</span><span>${fmt(dph)}</span>
       </div>
+      ${s.voucher ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:#166534;margin-bottom:8px">
+          <span>🎟️ ${s.voucher.chovani_eff === 'sleva' ? 'Sleva' : 'Uhrazeno'} voucherem ${esc(s.voucher.kod)} (odhad)</span><span>−${fmt(noVoucherOdhad(s.voucher, bez + dph))}</span></div>` : ''}
       <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;color:#854F0B;border-top:1px solid #E5C499;padding-top:8px">
-        <span>Celkem</span><span>${fmt(bez + dph)}</span>
+        <span>Celkem</span><span>${fmt(bez + dph - noVoucherOdhad(s.voucher, bez + dph))}</span>
       </div>
     </div>
 
@@ -7990,6 +8079,7 @@ function vykreslitNovouObjednavku() {
 }
 
 window.noVybratOdberatele = async function(id) {
+  noState.voucher = null; // 🆕 v3.0.631 — ověření voucheru platí jen pro vybraného odběratele
   if (!id) {
     noState.odberatel_id = null;
     noState.cenik = [];
@@ -8221,6 +8311,7 @@ window.ulozitNovouObjednavku = async function() {
         polozky,
         poznamka: s.poznamka || null,
         interni_pozn: s.interni_poznamka || null,
+        voucher_kod: s.voucher_kod || undefined, // 🆕 v3.0.631 — server ověří a uplatní (chyba = objednávka se nevytvoří)
       }),
     });
     closeModal();
