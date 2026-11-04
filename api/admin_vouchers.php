@@ -14,7 +14,11 @@
  * GET  /api/admin_vouchers.php?kod=XXXX         → detail jednoho (pro POS lookup před uplatněním)
  * POST ?action=create   { typ?, hodnota | sleva_pct(+sleva_max_kc?), pocet?, platnost_do?, poznamka?,
  *                         odberatel_id?, send_email? } → vygeneruje kódy (+ volitelně email)
- * POST ?action=redeem   { kod, castka, doklad? } → Kč: min(castka,zustatek); %: castka*pct/100 (cap)
+ * POST ?action=redeem   { kod, castka, doklad?, kanal? } → Kč: min(castka,zustatek); %: castka*pct/100 (cap)
+ *                         kanal = pos|admin|b2b|web (default pos); mimo povolené kanály → 409
+ *
+ * v3.0.630: kanaly (kde lze uplatnit, NULL = všude) + chovani (platba = úhrada předem, nemění DPH;
+ *           sleva = snižuje cenu po sazbách DPH). % sleva vždy sleva, dárková karta vždy platba.
  * POST ?action=topup    { id|kod, castka }       → dobije zůstatek (jen Kč karta, ne % sleva)
  * POST ?action=deactivate { id }                 → stav=zruseny
  * POST ?action=send_email { id }                 → (znovu) odešle voucher emailem odběrateli
@@ -72,6 +76,9 @@ function vouchery_ensure_schema(PDO $pdo): void {
             "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS sleva_max_kc DECIMAL(10,2) NULL",
             "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS odeslano_email TINYINT NOT NULL DEFAULT 0",
             "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS odeslano_kdy DATETIME NULL",
+            // v3.0.630 — kde lze uplatnit (CSV kanálů, NULL = všude) + jak se chová (platba | sleva)
+            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS kanaly VARCHAR(60) NULL",
+            "ALTER TABLE vouchery ADD COLUMN IF NOT EXISTS chovani VARCHAR(10) NULL",
         ] as $alter) { try { $pdo->exec($alter); } catch (Throwable $e) {} }
     } catch (Throwable $e) { error_log('vouchery_ensure_schema: ' . $e->getMessage()); }
 }
@@ -97,6 +104,35 @@ function voucher_stav_runtime(array $v): string {
     if (($v['typ'] ?? '') === 'sleva') return 'aktivni';
     if ((float) $v['zustatek'] <= 0.001) return 'vycerpany';
     return 'aktivni';
+}
+
+/** 🆕 v3.0.630 — místa, kde lze voucher uplatnit. Klíč = zdroj uplatnění (posílá ho volající). */
+const VOUCHER_KANALY = [
+    'pos'   => 'Pokladna',
+    'admin' => 'Objednávky v adminu',
+    'b2b'   => 'B2B portál',
+    'web'   => 'Online objednávky',
+];
+/** Povolené kanály voucheru (NULL/prázdné = všude — i vouchery z doby před v3.0.630). */
+function voucher_kanaly(array $v): array {
+    $k = array_values(array_intersect(explode(',', (string) ($v['kanaly'] ?? '')), array_keys(VOUCHER_KANALY)));
+    return $k ?: array_keys(VOUCHER_KANALY);
+}
+/** Jak se voucher chová: 'sleva' = snižuje cenu (a základ DPH po sazbách),
+ *  'platba' = úhrada předem, cenu ani DPH nemění. % sleva je vždy sleva, dárková karta vždy platba,
+ *  Kč voucher dle volby při vytvoření (default platba = dosavadní chování). */
+function voucher_chovani(array $v): string {
+    if (($v['typ'] ?? '') === 'sleva') return 'sleva';
+    if (($v['typ'] ?? '') === 'darkova_karta') return 'platba';
+    return ($v['chovani'] ?? '') === 'sleva' ? 'sleva' : 'platba';
+}
+/** Doplní do řádku odvozená pole pro UI/POS. */
+function voucher_enrich(array $v): array {
+    $v['stav_aktualni'] = voucher_stav_runtime($v);
+    $v['hodnota_text']  = voucher_hodnota_text($v);
+    $v['kanaly_list']   = voucher_kanaly($v);
+    $v['chovani_eff']   = voucher_chovani($v);
+    return $v;
 }
 
 /** Hodnota voucheru jako čitelný text (Kč nebo %), pro email i UI. */
@@ -174,21 +210,19 @@ if ($method === 'GET') {
         $st->execute(['k' => strtoupper(trim((string) $_GET['kod']))]);
         $v = $st->fetch(PDO::FETCH_ASSOC);
         if (!$v) json_error('Voucher nenalezen', 404);
-        $v['stav_aktualni'] = voucher_stav_runtime($v);
-        $v['hodnota_text']  = voucher_hodnota_text($v);
-        json_response(['voucher' => $v]);
+        json_response(['voucher' => voucher_enrich($v)]);
     }
     $rows = $pdo->query("SELECT * FROM vouchery ORDER BY vytvoreno DESC, id DESC LIMIT 500")->fetchAll(PDO::FETCH_ASSOC);
     $hodnotaCelkem = 0; $zustatekCelkem = 0; $aktivni = 0;
     foreach ($rows as &$v) {
-        $v['stav_aktualni'] = voucher_stav_runtime($v);
-        $v['hodnota_text']  = voucher_hodnota_text($v);
+        $v = voucher_enrich($v);
         $hodnotaCelkem += (float) $v['hodnota'];
         if ($v['stav_aktualni'] === 'aktivni') { $zustatekCelkem += (float) $v['zustatek']; $aktivni++; }
     }
     unset($v);
     json_response([
         'vouchery' => $rows,
+        'kanaly'   => VOUCHER_KANALY,
         'souhrn'   => [
             'pocet'           => count($rows),
             'aktivnich'       => $aktivni,
@@ -220,6 +254,12 @@ if ($action === 'create') {
         if ($hodnota <= 0) json_error('Hodnota musí být kladná', 400);
     }
 
+    // 🆕 v3.0.630 — kde lze uplatnit (aspoň 1 místo; všechna = NULL) + chování Kč voucheru
+    $kanaly = array_values(array_intersect(array_keys(VOUCHER_KANALY), array_map('strval', (array) ($d['kanaly'] ?? array_keys(VOUCHER_KANALY)))));
+    if (!$kanaly) json_error('Vyberte aspoň jedno místo, kde půjde voucher uplatnit', 400);
+    $kanalyDb = count($kanaly) === count(VOUCHER_KANALY) ? null : implode(',', $kanaly);
+    $chovaniDb = $typ === 'voucher' ? ((($d['chovani'] ?? '') === 'sleva') ? 'sleva' : 'platba') : null;
+
     // Odběratel (volitelný) — POUZE z tabulky odberatele
     $odbId = (int) ($d['odberatel_id'] ?? 0);
     $odbNazev = null; $odbEmail = null;
@@ -238,8 +278,8 @@ if ($action === 'create') {
     if ($sendEmail && $pocet > 1) json_error('Při odeslání emailem vytvoř 1 kód (jde jednomu odběrateli)', 400);
 
     $prefix = $typ === 'darkova_karta' ? 'DK' : ($typ === 'sleva' ? 'SL' : 'VO');
-    $ins = $pdo->prepare("INSERT INTO vouchery (kod, typ, hodnota, zustatek, sleva_pct, sleva_max_kc, platnost_do, poznamka, odberatel_id, odberatel_nazev, odberatel_email)
-                          VALUES (:k,:t,:h,:z,:sp,:sm,:p,:po,:oid,:on,:oe)");
+    $ins = $pdo->prepare("INSERT INTO vouchery (kod, typ, hodnota, zustatek, sleva_pct, sleva_max_kc, platnost_do, poznamka, odberatel_id, odberatel_nazev, odberatel_email, kanaly, chovani)
+                          VALUES (:k,:t,:h,:z,:sp,:sm,:p,:po,:oid,:on,:oe,:kn,:ch)");
     $insLog = $pdo->prepare("INSERT INTO voucher_pohyby (voucher_id, typ, castka, zustatek_po, kdo) VALUES (:v,'vytvoreni',:c,:z,:kdo)");
     $vytvoreno = []; $emailVysledek = null;
     $pdo->beginTransaction();
@@ -259,6 +299,7 @@ if ($action === 'create') {
                 'k' => $kod, 't' => $typ, 'h' => $hodnota, 'z' => $hodnota,
                 'sp' => $slevaPct, 'sm' => $slevaMax, 'p' => $platnost, 'po' => $pozn,
                 'oid' => $odbId ?: null, 'on' => $odbNazev, 'oe' => ($odbEmail ?: null),
+                'kn' => $kanalyDb, 'ch' => $chovaniDb,
             ]);
             $vid = (int) $pdo->lastInsertId();
             $insLog->execute(['v' => $vid, 'c' => $hodnota, 'z' => $hodnota, 'kdo' => $admin]);
@@ -310,6 +351,13 @@ if ($action === 'redeem') {
             $pdo->commit();
             json_error('Voucher expiroval ' . $v['platnost_do'], 409);
         }
+        // 🆕 v3.0.630 — jen na místech povolených při vytvoření (bez 'kanal' = pokladna, jediný starší volající)
+        $kanal = (string) ($d['kanal'] ?? 'pos');
+        if (!in_array($kanal, voucher_kanaly($v), true)) {
+            $pdo->rollBack();
+            $kde = implode(', ', array_map(fn($k) => VOUCHER_KANALY[$k], voucher_kanaly($v)));
+            json_error('Tento voucher nelze uplatnit zde (' . (VOUCHER_KANALY[$kanal] ?? $kanal) . '). Platí jen: ' . $kde, 409);
+        }
 
         // ── % SLEVA — jednorázová, dopočítá se z částky objednávky (castka = útrata) ──
         if ($v['typ'] === 'sleva') {
@@ -323,7 +371,7 @@ if ($action === 'redeem') {
                 ->execute(['v' => $v['id'], 'c' => -$uplatneno, 'dok' => $doklad, 'kdo' => $admin]);
             $pdo->commit();
             json_response([
-                'ok' => true, 'kod' => $kod, 'typ' => 'sleva',
+                'ok' => true, 'kod' => $kod, 'typ' => 'sleva', 'chovani' => 'sleva',
                 'uplatneno' => $uplatneno, 'zbytek_voucheru' => 0,
                 'vyrovnano' => ($uplatneno >= $castka - 0.001),
             ]);
@@ -341,7 +389,7 @@ if ($action === 'redeem') {
             ->execute(['v' => $v['id'], 'c' => -$uplatneno, 'z' => $novyZust, 'dok' => $doklad, 'kdo' => $admin]);
         $pdo->commit();
         json_response([
-            'ok' => true, 'kod' => $kod, 'typ' => $v['typ'],
+            'ok' => true, 'kod' => $kod, 'typ' => $v['typ'], 'chovani' => voucher_chovani($v),
             'uplatneno' => round($uplatneno, 2),
             'zbytek_voucheru' => $novyZust,
             'vyrovnano' => ($uplatneno >= $castka - 0.001), // pokrylo celou požadovanou částku?

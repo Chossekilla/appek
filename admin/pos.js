@@ -1182,6 +1182,28 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
 
   // 🆕 v3.0.281 — uplatnění voucheru / dárkové karty: validace → negativní řádek (sníží částku
   //   k úhradě) → zůstatek voucheru se odečte až po úspěšné platbě (finish, doklad=číslo účtenky).
+  // 🆕 v3.0.630 — řádky voucheru v košíku. „Platba" = jeden řádek bez DPH (úhrada předem, cena
+  //   i DPH zboží beze změny). „Sleva z ceny" = záporné řádky po sazbách DPH v poměru k útratě,
+  //   takže sleva sníží i základ DPH každé sazby.
+  function voucherRadky(apply, label, jakoSleva) {
+    const radek = (nazev, cena, sazba) => ({ vyrobek_id: null, nazev, jednotka: 'ks', mnozstvi: 1, cena_bez_dph: cena, sazba_dph: sazba, is_custom: true, is_voucher: true });
+    if (!jakoSleva) return [radek(label, -apply, 0)];
+    const poSazbach = {};
+    State.cart.forEach(it => {
+      if (it.is_voucher) return;
+      const s = it.sazba_dph || 0;
+      poSazbach[s] = (poSazbach[s] || 0) + it.mnozstvi * it.cena_bez_dph * (1 + s / 100);
+    });
+    const sazby = Object.keys(poSazbach).filter(s => poSazbach[s] > 0);
+    const celkem = sazby.reduce((a, s) => a + poSazbach[s], 0);
+    let zbyva = apply;
+    return sazby.map((s, i) => {
+      const dil = i === sazby.length - 1 ? zbyva : Math.round(apply * poSazbach[s] / celkem * 100) / 100;
+      zbyva = Math.round((zbyva - dil) * 100) / 100;
+      return radek(label + (sazby.length > 1 ? ` (DPH ${s} %)` : ''), -Math.round(dil / (1 + s / 100) * 100) / 100, +s);
+    });
+  }
+
   async function applyVoucher() {
     if (!State.cart.length) return toast('Nejdřív přidej položky', 'error');
     const kod = (prompt('Zadej kód voucheru / dárkové karty / slevy:') || '').trim().toUpperCase();
@@ -1191,6 +1213,8 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
     catch (e) { return toast('❌ ' + (e.message || 'Voucher nenalezen'), 'error'); }
     const vch = v.voucher || {};
     if (vch.stav_aktualni !== 'aktivni') return toast('❌ Voucher není aktivní (' + (vch.stav_aktualni || '?') + ')', 'error');
+    // 🆕 v3.0.630 — voucher může mít povolená jen některá místa uplatnění
+    if (Array.isArray(vch.kanaly_list) && !vch.kanaly_list.includes('pos')) return toast('❌ Tento voucher nelze uplatnit na pokladně', 'error');
     State.cart = State.cart.filter(it => !it.is_voucher); // jen jeden voucher řádek
     let total = 0;
     State.cart.forEach(it => { total += it.mnozstvi * it.cena_bez_dph * (1 + (it.sazba_dph || 0) / 100); });
@@ -1218,8 +1242,10 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
       redeemCastka = apply;                        // backend odečte ze zůstatku
       label = '🎟️ ' + (vch.typ === 'darkova_karta' ? 'Dárková karta' : 'Voucher') + ' ' + kod;
     }
+    const jakoSleva = vch.chovani_eff === 'sleva';
+    if (jakoSleva) apply = Math.round(Math.min(apply, total - (State.pos_tip || 0)) * 100) / 100; // sleva jen ze zboží, ne ze spropitného
     if (apply <= 0) return toast('❌ Sleva vychází 0', 'error');
-    State.cart.push({ vyrobek_id: null, nazev: label, jednotka: 'ks', mnozstvi: 1, cena_bez_dph: -apply, sazba_dph: 0, is_custom: true, is_voucher: true });
+    voucherRadky(apply, label, jakoSleva).forEach(r => State.cart.push(r));
     State._voucherRedeem = { kod, amount: apply, castka: redeemCastka };
     renderCart();
     const doplatit = Math.round((total - apply) * 100) / 100;
@@ -1269,7 +1295,7 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
       // 🆕 v3.0.281 — voucher už je řádkem na účtence; teď odečti zůstatek (doklad=číslo).
       if (State._voucherRedeem && State._voucherRedeem.kod && State.cart.some(it => it.is_voucher)) {
         try {
-          await api('admin_vouchers.php?action=redeem', { method: 'POST', body: JSON.stringify({ kod: State._voucherRedeem.kod, castka: (State._voucherRedeem.castka ?? State._voucherRedeem.amount), doklad: r.cislo }) });
+          await api('admin_vouchers.php?action=redeem', { method: 'POST', body: JSON.stringify({ kod: State._voucherRedeem.kod, castka: (State._voucherRedeem.castka ?? State._voucherRedeem.amount), doklad: r.cislo, kanal: 'pos' }) });
         } catch (e) { toast('⚠️ Účtenka OK, ale voucher se nepodařilo odečíst: ' + (e.message || ''), 'warn'); }
       }
       State._voucherRedeem = null;

@@ -6368,6 +6368,15 @@ async function renderVouchers() {
     return `<option value="${o.id}" data-email="${esc(em)}">${esc(o.nazev)}${em ? ' — ' + esc(em) : ' (bez emailu)'}</option>`;
   }).join('');
   const s = d.souhrn || {};
+  // 🆕 v3.0.630 — kde lze voucher uplatnit + jak se chová (platba vs. sleva z ceny)
+  const vchKanaly = d.kanaly || { pos: 'Pokladna', admin: 'Objednávky v adminu', b2b: 'B2B portál', web: 'Online objednávky' };
+  const kanalKratce = { pos: 'Pokladna', admin: 'Admin', b2b: 'B2B', web: 'Online' };
+  const pouzitiBunka = (v) => {
+    const k = v.kanaly_list || Object.keys(vchKanaly);
+    const kde = k.length >= Object.keys(vchKanaly).length ? 'Všude' : k.map(x => kanalKratce[x] || x).join(', ');
+    const sleva = v.chovani_eff === 'sleva';
+    return `<div style="font-size:12px">${esc(kde)}</div><span title="${sleva ? 'Snižuje cenu i základ DPH' : 'Úhrada předem — cenu ani DPH nemění'}" style="display:inline-block;margin-top:3px;background:${sleva ? '#FEF3C7' : '#DBEAFE'};color:${sleva ? '#92400e' : '#1e40af'};padding:1px 7px;border-radius:8px;font-size:11px;font-weight:600;white-space:nowrap">${sleva ? 'sleva z ceny' : 'platba'}</span>`;
+  };
   const stavBadge = (v) => {
     const m = { aktivni: ['#DCFCE7', '#166534', 'Aktivní'], vycerpany: ['#E5E7EB', '#374151', 'Vyčerpaný'], zruseny: ['#FEE2E2', '#991B1B', 'Zrušený'], expirovany: ['#FEF3C7', '#92400e', 'Expirovaný'] };
     const a = m[v.stav_aktualni] || m.aktivni;
@@ -6375,7 +6384,7 @@ async function renderVouchers() {
   };
   c.innerHTML = `
     <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
-      <div><h1 class="page-title">🎟️ Vouchery & dárkové karty</h1><p class="page-sub">Poukazy a dárkové karty s hodnotou — částečné uplatnění na pokladně, dárkové karty lze dobíjet.</p></div>
+      <div><h1 class="page-title">🎟️ Vouchery & dárkové karty</h1><p class="page-sub">Poukazy, dárkové karty a slevy. U každého určíte, kde půjde uplatnit a jestli funguje jako platba, nebo sleva z ceny.</p></div>
       <button class="btn-secondary" onclick="navigate('nastaveni')">← Nastavení</button>
     </div>
     <div class="stat-grid">
@@ -6400,7 +6409,24 @@ async function renderVouchers() {
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;padding-bottom:8px;cursor:pointer"><input type="checkbox" id="vch-email" onchange="voucherOdbChange()"> 📧 Poslat emailem</label>
         <span id="vch-email-info" style="font-size:12px;color:var(--text-3);padding-bottom:9px"></span>
         <div style="flex:1;min-width:140px"><label class="form-label" style="font-size:12px">Poznámka</label><input class="form-input" id="vch-pozn" placeholder="např. věrnostní sleva"></div>
-        <button class="btn-primary btn-green" onclick="voucherVytvorit()">Vytvořit</button>
+      </div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)">
+        <div>
+          <label class="form-label" style="font-size:12px">Kde půjde uplatnit</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${Object.entries(vchKanaly).map(([k, l]) => `
+            <label style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;font-size:13px;cursor:pointer"><input type="checkbox" class="vch-kanal" value="${esc(k)}" checked> ${esc(l)}</label>`).join('')}
+          </div>
+        </div>
+        <div style="flex:1;min-width:260px">
+          <label class="form-label" style="font-size:12px">Jak se chová</label>
+          <select class="form-input" id="vch-chovani" onchange="voucherTypChange()" style="max-width:420px">
+            <option value="platba">Jako platba — sníží částku k úhradě</option>
+            <option value="sleva">Jako sleva z ceny — sníží cenu i DPH</option>
+          </select>
+          <div id="vch-chovani-fix" style="display:none;font-size:13px;font-weight:600;padding:8px 0"></div>
+          <div id="vch-chovani-info" style="font-size:12px;color:var(--text-3);margin-top:4px;line-height:1.45;max-width:520px"></div>
+        </div>
+        <button class="btn-primary btn-green" onclick="voucherVytvorit()" style="align-self:flex-end">Vytvořit</button>
       </div>
       <div id="vch-vysledek" style="margin-top:10px"></div>
     </div>
@@ -6408,18 +6434,19 @@ async function renderVouchers() {
     <div class="card-block" style="padding:0">
       ${(d.vouchery || []).length === 0 ? '<div class="empty-state" style="padding:30px">Žádné vouchery — vytvoř první nahoře</div>' : `
         <table class="table">
-          <thead><tr><th>Kód</th><th>Typ</th><th>Hodnota / sleva</th><th class="num">Zůstatek</th><th>Odběratel</th><th>Platnost</th><th>Stav</th><th></th></tr></thead>
+          <thead><tr><th>Kód</th><th>Typ</th><th>Hodnota / sleva</th><th class="num">Zůstatek</th><th>Odběratel</th><th>Použití</th><th>Platnost</th><th>Stav</th><th></th></tr></thead>
           <tbody>
             ${d.vouchery.map(v => {
               const typLabel = v.typ === 'darkova_karta' ? '💳 Dárková karta' : (v.typ === 'sleva' ? '🏷️ Sleva %' : '🎟️ Voucher');
               const odeslano = String(v.odeslano_email) === '1';
               return `
               <tr>
-                <td><strong style="font-family:monospace;letter-spacing:0.5px">${esc(v.kod)}</strong></td>
+                <td style="font-family:monospace;min-width:11ch"><strong>${esc(v.kod)}</strong></td>
                 <td style="white-space:nowrap">${typLabel}</td>
                 <td style="white-space:nowrap">${esc(v.hodnota_text || fmt(v.hodnota))}</td>
                 <td class="num" style="font-weight:700;${v.typ === 'sleva' ? 'color:var(--text-3)' : (parseFloat(v.zustatek) > 0 ? 'color:#16a34a' : 'color:var(--text-3)')}">${v.typ === 'sleva' ? '—' : fmt(v.zustatek)}</td>
                 <td style="word-break:break-word">${v.odberatel_nazev ? `${esc(v.odberatel_nazev)}${odeslano ? ` <span title="Odesláno emailem ${esc(v.odeslano_kdy || '')}" style="color:#16a34a">📧</span>` : ''}` : '<span style="color:var(--text-3)">—</span>'}</td>
+                <td>${pouzitiBunka(v)}</td>
                 <td style="white-space:nowrap">${v.platnost_do ? fmtDate(v.platnost_do) : '<span style="color:var(--text-3)">bez omezení</span>'}</td>
                 <td>${stavBadge(v)}</td>
                 <td style="white-space:nowrap;text-align:right">
@@ -6443,6 +6470,18 @@ window.voucherTypChange = function() {
   show('vch-kc-wrap', !isSleva);
   show('vch-pct-wrap', isSleva);
   show('vch-max-wrap', isSleva);
+  // 🆕 v3.0.630 — chování volitelné jen u Kč voucheru; % sleva je vždy sleva, dárková karta vždy platba
+  const sel = document.getElementById('vch-chovani');
+  const fix = document.getElementById('vch-chovani-fix');
+  const info = document.getElementById('vch-chovani-info');
+  if (!sel || !fix || !info) return;
+  const pevne = typ === 'sleva' ? 'sleva' : (typ === 'darkova_karta' ? 'platba' : null);
+  sel.style.display = pevne ? 'none' : '';
+  fix.style.display = pevne ? '' : 'none';
+  fix.textContent = pevne === 'sleva' ? 'Sleva z ceny (u % slevy vždy)' : (pevne === 'platba' ? 'Platba (u dárkové karty vždy)' : '');
+  info.textContent = (pevne || sel.value) === 'sleva'
+    ? 'Sníží ceny položek a tím i základ DPH (rozpočítá se podle sazeb). Na dokladu jako řádek „Sleva".'
+    : 'Funguje jako peníze zaplacené předem: ceny i DPH zůstanou, jen se sníží částka k úhradě. Na dokladu jako „uhrazeno voucherem".';
 };
 window.voucherOdbChange = function() {
   const sel = document.getElementById('vch-odberatel');
@@ -6479,7 +6518,10 @@ window.voucherVytvorit = async function() {
   const poznamka = document.getElementById('vch-pozn').value || '';
   const odberatel_id = parseInt(document.getElementById('vch-odberatel').value) || 0;
   const send_email = !!(document.getElementById('vch-email') || {}).checked;
-  const payload = { typ, pocet, platnost_do, poznamka, odberatel_id: odberatel_id || undefined, send_email };
+  const kanaly = [...document.querySelectorAll('.vch-kanal:checked')].map(x => x.value);
+  if (!kanaly.length) { toast('Vyber aspoň jedno místo, kde půjde voucher uplatnit', 'error'); return; }
+  const chovani = (document.getElementById('vch-chovani') || {}).value || 'platba';
+  const payload = { typ, pocet, platnost_do, poznamka, odberatel_id: odberatel_id || undefined, send_email, kanaly, chovani };
   if (typ === 'sleva') {
     const pct = parseFloat(document.getElementById('vch-pct').value) || 0;
     if (pct <= 0 || pct > 100) { toast('Sleva musí být 1–100 %', 'error'); return; }
