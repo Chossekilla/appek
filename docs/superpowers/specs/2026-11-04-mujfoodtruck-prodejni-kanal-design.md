@@ -35,6 +35,14 @@ Můj Foodtruck (fork appek v3.0.634, repo `Chossekilla/mujfoodtruck.cz`, klon `~
 - **Platební brána GoPay zůstává jedna (stávající GoID appek)** — na platební stránce GoPay může být vidět název obchodu/firma; to majiteli nevadí. Je to jediná povolená výjimka z cíle 1.
 - **Self-hosted jako appek:** zákazník si aplikaci stáhne a nainstaluje na vlastní hosting. Majitel NEMÁ kapacitu hostovat ani spravovat instalace zákazníků (hostovaná varianta zamítnuta).
 
+## Vzhled a texty aplikace (majitel)
+
+Admin aplikace foodtrucku (odvozený z appek admin) má **vlastní vzhled, vlastní texty a horní menu jako e-shop** — tak jak bylo zadáno při vzniku forku. Částečně hotovo (`admin/ft/ft.css`, `admin/ft/ft.js`: světlý/tmavý vzhled, horní menu, stránky Přehled / Kde stojíme / Věrnost / Akce / Statistiky). Součástí tohoto projektu je to **dotáhnout**:
+
+- Projít všechny obrazovky, které zákazník vidí (admin, kasa `/pos/`, KDS, instalátor, online objednávka, B2B portál pokud zůstává, chybové a zamykací hlášky, e-maily z aplikace) a **přepsat viditelné texty** na foodtruck terminologii a značku. Dnes je v aplikaci ~750 výskytů „appek/Krabicovka“ (většina jsou identifikátory v kódu — ty se NEpřejmenovávají; jen to, co uživatel vidí, vč. `<title>`, manifestu, ikon, nápovědy, onboardingu).
+- Sjednotit vzhled všech obrazovek na foodtruck styl (nejen admin).
+- Kontrola hotovo: grep viditelných řetězců + screenshoty klíčových obrazovek ve světlém i tmavém vzhledu.
+
 ## Distribuce a aktualizace (vyplývá ze self-hosted)
 
 - **Dva celky v jednom repu foodtrucku:** (a) *web produktu + prodej* (landing `index.html`, pokladna, platební callback, stav platby, heartbeat, ověření klíče, stahování, update feed, portál) — běží jen na mujfoodtruck.cz a jako jediný zná vendor DB; (b) *aplikace* pro zákazníka. Zákaznický balíček (ZIP) **nesmí obsahovat** celek (a) ani žádnou cestu/údaje k vendor DB. Vzor: appek `build-zip.sh` exclude + `.landing-only` marker na apexu.
