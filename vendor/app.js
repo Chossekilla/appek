@@ -372,7 +372,7 @@ function openGenerateModal(prefill) {
       <div class="grid-2" style="margin-top:10px">
         <label><span class="lbl">Expirace (volitelné)</span>
           <input type="date" name="expires_at">
-          <small>Prázdné = navždy</small>
+          <small>${ft ? 'Prázdné = 1 měsíc' : 'Prázdné = 1 rok'}</small>
         </label>
         <label><span class="lbl">Cena (Kč)</span>
           <input type="number" name="price_kc" min="0" step="100" placeholder="0" oninput="this.dataset.userEdited='1'">

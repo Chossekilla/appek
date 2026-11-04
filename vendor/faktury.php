@@ -129,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save') {
                            VALUES (:cs,:kn,:ki,:kd,:ka,:ke,:po,:c,:dv,:ds,:vs,:pz,:dn,:prod)")
                 ->execute(['cs'=>$cislo,'kn'=>$klient,'ki'=>trim($d['klient_ico']??''),'kd'=>trim($d['klient_dic']??''),
                     'ka'=>trim($d['klient_adresa']??''),'ke'=>trim($d['klient_email']??''),'po'=>$pj,'c'=>$celkem,
-                    'dv'=>$dv,'ds'=>$ds,'vs'=>$cislo,'pz'=>trim($d['poznamka']??''),'dn'=>$dodNazev,'prod'=>vendor_product_for_write()]);
+                    'dv'=>$dv,'ds'=>$ds,'vs'=>$cislo,'pz'=>trim($d['poznamka']??''),'dn'=>$dodNazev,'prod'=>'appek']);  // 🚚 ruční faktura = appek; foodtruck faktury vystaví Plán 2 (řada MFT)
             $id = (int) $pdo->lastInsertId();
         }
         // 🆕 upsert klienta do registru (aby šel příště jen vybrat) — dle IČO, jinak dle názvu
