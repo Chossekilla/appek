@@ -56,6 +56,14 @@ header('Cache-Control: no-store');
   .btn{padding:13px 20px;border-radius:12px;border:none;background:var(--acc);color:#fff;font-weight:750;font-size:15px;cursor:pointer;white-space:nowrap}
   .btn:disabled{opacity:.45;cursor:not-allowed}
   .btn.full{width:100%}
+  .vch-row{display:flex;gap:8px}
+  .vch-row input{flex:1;min-width:0;text-transform:uppercase;letter-spacing:.03em}
+  .btn.sec{background:#fff;color:var(--acc);border:1.5px solid var(--acc);padding:10px 14px;font-size:14px}
+  .vch-ok{display:flex;align-items:center;gap:8px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:10px;padding:9px 12px;font-size:13.5px;margin-bottom:12px}
+  .vch-ok b{font-family:ui-monospace,Menlo,monospace}
+  .vch-ok span{flex:1;min-width:0}
+  .vch-ok button{background:none;border:none;color:#166534;font-size:20px;line-height:1;cursor:pointer;padding:0 2px}
+  .lines .vch-l{color:#166534}
   .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:40;align-items:flex-end;justify-content:center}
   .sheet-bg.show{display:flex}
   .sheet{background:#fff;width:100%;max-width:560px;max-height:92dvh;overflow-y:auto;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
@@ -108,6 +116,7 @@ header('Cache-Control: no-store');
   var API = '../api/web_objednavky.php';
   var LS = 'appek_web_obj';
   var INFO = null, MENU = null, CART = {}, TYP = 'vyzvednuti', SENDING = false;
+  var VOUCHER = null;   // {kod, odecet, popis, chovani} — odhad ze serveru (počítá stejně jako objednávka)
   var $ = function(id){ return document.getElementById(id); };
   var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
   // celé koruny bez haléřů, jinak vždy 2 místa (39,20 Kč, ne 39,2 Kč)
@@ -230,6 +239,7 @@ header('Cache-Control: no-store');
          '<label class="fld"><span>E-mail (potvrzení)</span><input id="f-email" type="email" autocomplete="email" value="' + esc(s.email) + '"></label></div>' +
          '<label class="fld"><span>Poznámka (nepovinné)</span><textarea id="f-pozn" maxlength="500"></textarea></label>' +
          '<input class="hp" id="f-web" tabindex="-1" autocomplete="off" aria-hidden="true">';
+    h += '<div id="vch"></div>';
     h += '<div class="lines" id="lines"></div>';
     h += '<label class="chk"><input type="checkbox" id="f-souhlas"><span>Souhlasím se <a href="#" id="gdpr">zpracováním osobních údajů</a> pro vyřízení objednávky.</span></label>';
     h += '<button class="btn full" id="send">Objednat</button><p class="muted" id="pay-note"></p>';
@@ -237,10 +247,11 @@ header('Cache-Control: no-store');
     $('sheet-bg').classList.add('show');
     $('x').onclick = closeSheet;
     var seg = $('seg');
-    if (seg) seg.onclick = function(e){ var b = e.target.closest('button'); if (b) { TYP = b.dataset.t; syncTyp(); } };
+    if (seg) seg.onclick = function(e){ var b = e.target.closest('button'); if (b) { TYP = b.dataset.t; syncTyp(); if (VOUCHER) uplatnitVoucher(VOUCHER.kod); /* doprava změní základ → přepočítat */ } };
     $('f-den').onchange = fillCasy;
     $('gdpr').onclick = showGdpr;
     $('send').onclick = send;
+    renderVoucher();
     fillCasy(); syncTyp();
   }
   function fillCasy(){
@@ -256,8 +267,35 @@ header('Cache-Control: no-store');
     var l = cartLines(), d = doprava(), z = zbozi();
     $('lines').innerHTML = l.map(function(x){ return '<div><span>' + x.n + '× ' + esc(x.v.nazev) + '</span><span>' + kc(x.n * x.v.cena) + '</span></div>'; }).join('') +
       (TYP === 'rozvoz' ? '<div><span>Doprava</span><span>' + (d ? kc(d) : 'zdarma') + '</span></div>' : '') +
-      '<div class="tot"><span>Celkem</span><span>' + kc(z + d) + '</span></div>' +
+      (VOUCHER && VOUCHER.odecet > 0 ? '<div class="vch-l"><span>' + (VOUCHER.chovani === 'platba' ? 'Uhrazeno voucherem' : 'Sleva') + ' ' + esc(VOUCHER.kod) + '</span><span>−' + kc(VOUCHER.odecet) + '</span></div>' : '') +
+      '<div class="tot"><span>Celkem</span><span>' + kc(Math.max(0, z + d - (VOUCHER ? VOUCHER.odecet : 0))) + '</span></div>' +
       (INFO.min_objednavka > 0 && z < INFO.min_objednavka ? '<div style="color:#b91c1c;font-size:13px">Minimální objednávka je ' + kc(INFO.min_objednavka) + '</div>' : '');
+  }
+  // ── SLEVOVÝ KÓD ──────────────────────────────────────────
+  function renderVoucher(){
+    var box = $('vch'); if (!box) return;
+    box.innerHTML = VOUCHER
+      ? '<div class="vch-ok"><span>Kód <b>' + esc(VOUCHER.kod) + '</b> · ' + esc(VOUCHER.popis) + '</span><button type="button" id="vch-x" aria-label="Odebrat kód">×</button></div>'
+      : '<label class="fld"><span>Slevový kód / voucher (nepovinné)</span><div class="vch-row"><input id="f-voucher" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40">' +
+        '<button type="button" class="btn sec" id="vch-go">Uplatnit</button></div></label>';
+    if (VOUCHER) $('vch-x').onclick = function(){ VOUCHER = null; renderVoucher(); syncTyp(); };
+    else {
+      $('vch-go').onclick = function(){ uplatnitVoucher($('f-voucher').value); };
+      $('f-voucher').onkeydown = function(e){ if (e.key === 'Enter') { e.preventDefault(); uplatnitVoucher(this.value); } };
+    }
+  }
+  async function uplatnitVoucher(kod){
+    kod = String(kod || '').trim();
+    if (!kod) return err('Zadejte slevový kód.');
+    var b = $('vch-go'); if (b) { b.disabled = true; b.textContent = 'Ověřuji…'; }
+    try {
+      VOUCHER = await api('voucher', {body: {kod: kod, typ: TYP, polozky: cartLines().map(function(x){ return {id: x.v.id, mnozstvi: x.n}; })}});
+      $('err').style.display = 'none';
+    } catch (x) {
+      VOUCHER = null;
+      err(x.message);
+    }
+    renderVoucher(); syncTyp();
   }
   function closeSheet(){ $('sheet-bg').classList.remove('show'); }
   function err(m){ var e = $('err'); e.textContent = m; e.style.display = 'block'; $('sheet').scrollTop = 0; }
@@ -278,7 +316,8 @@ header('Cache-Control: no-store');
       jmeno: g('f-jmeno'), telefon: g('f-tel'), email: g('f-email'), poznamka: g('f-pozn'),
       adresa: g('f-adresa'), psc: g('f-psc'), mesto: g('f-mesto'),
       souhlas: $('f-souhlas').checked, web: g('f-web'),
-      polozky: cartLines().map(function(x){ return {id: x.v.id, mnozstvi: x.n}; })
+      polozky: cartLines().map(function(x){ return {id: x.v.id, mnozstvi: x.n}; }),
+      voucher_kod: VOUCHER ? VOUCHER.kod : g('f-voucher')   // napsaný, ale neuplatněný kód ověří server při odeslání
     };
     if (!body.jmeno) return err('Vyplňte jméno.');
     if (body.telefon.replace(/\D/g, '').length < 9) return err('Vyplňte telefon.');

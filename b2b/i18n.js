@@ -404,6 +404,11 @@ const B2B_PHRASES = [
   ['Dočasně nedostupné',               'Temporarily unavailable',              'Temporalmente no disponible'],
   ['Brzy v nabídce',                   'Coming soon',                          'Próximamente'],
   ['Předobjednávka',                   'Pre-order',                            'Reserva'],
+  // 🎟️ v3.0.634 — slevový kód v košíku
+  ['Slevový kód / voucher',            'Discount code / voucher',              'Código de descuento / vale'],
+  ['Uplatnit',                         'Apply',                                'Aplicar'],
+  ['Slevový kód lze použít jen u jednorázové objednávky.', 'Discount codes can only be used on one-time orders.', 'El código de descuento solo se puede usar en pedidos únicos.'],
+  ['Objednávka má slevový kód — sleva se po uložení přepočítá podle nového obsahu.', 'This order has a discount code — the discount is recalculated from the new contents after saving.', 'El pedido tiene un código de descuento: el descuento se recalculará según el nuevo contenido al guardar.'],
   ['Předobjednat',                     'Pre-order',                            'Reservar'],
   ['K objednání',                      'On order',                             'Por pedido'],
   ['Doručíme do',                      'We deliver by',                        'Entregamos en'],

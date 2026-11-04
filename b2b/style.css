@@ -4876,3 +4876,18 @@ html.dark .b2b-lang-dd-menu button { color: var(--text); }
 /* v3.0.619 — spodní lišta košíku: cena na stejné účaří jako „🧾 34 ks" (dřív vycentrovaná mezi 2 řádky → nesedělo) */
 #b2b-cart-bar .ccb-main { align-items: baseline; }
 #b2b-cart-bar .ccb-chevron { align-self: center; }
+
+/* 🎟️ v3.0.634 — slevový kód / voucher v souhrnu objednávky */
+.b2b-voucher-box { margin-top: 12px; }
+.b2b-voucher-box:empty { display: none; }
+.b2b-voucher-input { display: flex; gap: 8px; margin-top: 4px; }
+.b2b-voucher-input .input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: .03em; }
+.b2b-voucher-input .btn { flex-shrink: 0; white-space: nowrap; }
+.b2b-voucher-ok { display: flex; align-items: center; gap: 8px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 10px; padding: 9px 12px; font-size: 14px; }
+.b2b-voucher-ok span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.b2b-voucher-ok b { font-family: ui-monospace, Menlo, monospace; }
+.b2b-voucher-x { background: none; border: none; color: #166534; font-size: 20px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.b2b-voucher-err { color: #a8232f; font-size: 13px; margin-top: 6px; }
+.b2b-voucher-note { color: var(--text-muted, #6b7280); font-size: 13px; }
+html.dark .b2b-voucher-ok { background: #052e16; border-color: #166534; color: #86efac; }
+html.dark .b2b-voucher-x { color: #86efac; }

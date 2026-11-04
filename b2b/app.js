@@ -2120,9 +2120,12 @@ function renderCheckout() {
         ` : ''}
         <!-- 🆕 v3.0.276 — doprava / poplatek / práh „zdarma" (živě dle vybrané metody, plní updateSurchargeDisplay) -->
         <div id="b2b-surcharge-rows"></div>
+        <div id="b2b-voucher-row"></div>
         <div class="cart-summary-row checkout-total-ks"><span>📦 Kusů celkem</span><span>${cartCount()} ks</span></div>
         <div class="cart-summary-row total"><span>Celkem s DPH</span><span id="b2b-grand-total">${fmt(t.total)}</span></div>
       </div>
+      <!-- 🎟️ v3.0.634 — slevový kód / voucher (plní renderB2bVoucher) -->
+      <div id="b2b-voucher-box" class="b2b-voucher-box"></div>
     </div>
 
     ${actionsBlock(true)}
@@ -2246,6 +2249,8 @@ async function updateSurchargeDisplay() {
     // 🆕 v3.0.350 — fees se nepodařilo spočítat: NEukazuj klamně nižší total bez poplatků
     rowsEl.innerHTML = '<div class="cart-summary-row" style="color:#a8232f;font-size:13px"><span>⚠️ Dopravu/poplatek nelze teď spočítat</span><span>přičte se při odeslání</span></div>';
     totalEl.textContent = fmt(subtotal) + ' +';
+    state.checkoutData._zaklad = undefined;   // bez známých poplatků voucher nepřepočítáváme
+    renderB2bVoucher();
     return;
   }
   let html = '';
@@ -2262,9 +2267,71 @@ async function updateSurchargeDisplay() {
     html += `<div class="cart-summary-row"><span>➕ Poplatek za platbu</span><span>+ ${fmt(sur.platba_poplatek)}</span></div>`;
   }
   rowsEl.innerHTML = html;
-  totalEl.textContent = fmt(subtotal + (parseFloat(sur.priplatky_celkem) || 0));
+  const celkem = subtotal + (parseFloat(sur.priplatky_celkem) || 0);
+  state.checkoutData._zaklad = celkem;
+  totalEl.textContent = fmt(celkem);
+  // 🎟️ v3.0.634 — doprava/platba mění základ slevy → odhad voucheru přepočítat na serveru
+  if (state.checkoutData.voucher) await b2bVoucherOdhad(state.checkoutData.voucher.kod);
+  else renderB2bVoucher();
 }
 window.updateSurchargeDisplay = updateSurchargeDisplay;
+
+// 🎟️ v3.0.634 — SLEVOVÝ KÓD v košíku. Odhad počítá server (objednavky.php?action=voucher_odhad)
+//   stejně jako při vytvoření; při odeslání se kód ověří znovu (zdroj pravdy = server).
+function b2bVoucherLzePouzit() {
+  return ['jednorazova', 'naplanovana'].includes(state.checkoutData.typ || 'jednorazova');
+}
+function renderB2bVoucher(chyba) {
+  const box = document.getElementById('b2b-voucher-box');
+  const row = document.getElementById('b2b-voucher-row');
+  const totalEl = document.getElementById('b2b-grand-total');
+  if (!box || !row) return;
+  const v = b2bVoucherLzePouzit() ? state.checkoutData.voucher : null;
+  if (!b2bVoucherLzePouzit()) {
+    box.innerHTML = '<div class="b2b-voucher-note"><span class="b2b-i18n">Slevový kód lze použít jen u jednorázové objednávky.</span></div>';
+  } else if (v) {
+    box.innerHTML = `<div class="b2b-voucher-ok"><span>🎟️ <b>${esc(v.kod)}</b> · ${esc(v.popis)}</span>
+      <button type="button" class="b2b-voucher-x" onclick="b2bVoucherOdebrat()" aria-label="Odebrat kód">×</button></div>`;
+  } else {
+    const val = document.getElementById('b2b-voucher-kod')?.value || '';
+    box.innerHTML = `<label class="form-label" for="b2b-voucher-kod" style="font-weight:500">🎟️ <span class="b2b-i18n">Slevový kód / voucher</span> <span class="form-hint">— volitelné</span></label>
+      <div class="b2b-voucher-input">
+        <input class="input" id="b2b-voucher-kod" autocomplete="off" spellcheck="false" maxlength="40" value="${esc(val)}"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();b2bVoucherOdhad(this.value)}">
+        <button type="button" class="btn btn-secondary" id="b2b-voucher-go" onclick="b2bVoucherOdhad(document.getElementById('b2b-voucher-kod').value)"><span class="b2b-i18n">Uplatnit</span></button>
+      </div>
+      ${chyba ? `<div class="b2b-voucher-err">${esc(chyba)}</div>` : ''}`;
+  }
+  row.innerHTML = v && v.odecet > 0
+    ? `<div class="cart-summary-row cart-summary-saved"><span>🎟️ ${v.chovani === 'platba' ? 'Uhrazeno voucherem' : 'Sleva'} ${esc(v.kod)}</span><span>− ${fmt(v.odecet)}</span></div>`
+    : '';
+  // celkem = základ (zboží + doprava/poplatek, spočítal updateSurchargeDisplay) − voucher
+  const zaklad = state.checkoutData._zaklad;
+  if (totalEl && typeof zaklad === 'number') totalEl.textContent = fmt(Math.max(0, zaklad - (v && v.odecet > 0 ? v.odecet : 0)));
+}
+async function b2bVoucherOdhad(kod) {
+  kod = String(kod || '').trim();
+  if (!kod) return renderB2bVoucher('Zadejte kód.');
+  const btn = document.getElementById('b2b-voucher-go');
+  if (btn) { btn.disabled = true; btn.textContent = 'Ověřuji…'; }
+  try {
+    const r = await api('objednavky.php?action=voucher_odhad', {
+      method: 'POST',
+      body: JSON.stringify({
+        kod,
+        polozky: cartItems().map((i) => ({ vyrobek_id: parseInt(i.id), mnozstvi: i.mnozstvi })),
+        platba: state.checkoutData.platba || '', doprava: state.checkoutData.doprava || '',
+      }),
+    });
+    state.checkoutData.voucher = { kod: r.kod, odecet: +r.odecet || 0, popis: r.popis || '', chovani: r.chovani };
+    renderB2bVoucher();
+  } catch (e) {
+    state.checkoutData.voucher = null;
+    renderB2bVoucher(e.message);
+  }
+}
+window.b2bVoucherOdhad = b2bVoucherOdhad;
+window.b2bVoucherOdebrat = function() { state.checkoutData.voucher = null; renderB2bVoucher(); };
 
 window.setDoprava = function(key) {
   state.checkoutData.doprava = key;
@@ -2405,6 +2472,10 @@ window.submitOrder = async function() {
     // 🆕 v2.5 — doprava + platba selection
     doprava: state.checkoutData.doprava || 'vlastni',
     platba:  state.checkoutData.platba  || 'prevod',
+    // 🎟️ v3.0.634 — slevový kód (uplatněný, nebo jen napsaný → server ho ověří při odeslání)
+    voucher_kod: b2bVoucherLzePouzit()
+      ? (state.checkoutData.voucher?.kod || document.getElementById('b2b-voucher-kod')?.value.trim() || null)
+      : null,
     // 🔒 v3.0.425 — evidence GDPR souhlasu (kdy odsouhlasil)
     gdpr_souhlas: gdprOk,
     gdpr_souhlas_at: gdprOk ? new Date().toISOString() : null,
@@ -2436,6 +2507,7 @@ window.submitOrder = async function() {
     });
     state.cart = {};
     saveCart();
+    state.checkoutData.voucher = null;
 
     // 🆕 v2.9.203 — pokud user zvolil Stripe/GoPay, redirect na platební bránu
     if (res.payment_url) {
@@ -2782,8 +2854,10 @@ window.zacniUpravuObjednavky = async function(id) {
       poznamka: o.poznamka || '',
     };
     for (const p of (o.polozky || [])) {
+      if (!p.vyrobek_id) continue;   // doprava/poplatek/voucher = volné řádky, server je dopočítá
       editorState.polozky[p.vyrobek_id] = parseFloat(p.mnozstvi);
     }
+    editorState.voucher = (o.polozky || []).some((p) => p.voucher_id);   // 🎟️ v3.0.634
     renderEditorObjednavky();
   } catch (e) {
     alert('Chyba: ' + e.message);
@@ -2871,6 +2945,7 @@ function renderEditorObjednavky() {
       <div style="display:flex;justify-content:space-between;font-size:13px"><span>Bez DPH</span><span>${fmt(bezDph)}</span></div>
       <div style="display:flex;justify-content:space-between;font-size:13px"><span>DPH</span><span>${fmt(dph)}</span></div>
       <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:600;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"><span>Celkem</span><span>${fmt(bezDph + dph)}</span></div>
+      ${editorState.voucher ? '<div style="font-size:12.5px;color:#166534;margin-top:4px">🎟️ <span class="b2b-i18n">Objednávka má slevový kód — sleva se po uložení přepočítá podle nového obsahu.</span></div>' : ''}
     </div>
 
     <div class="modal-actions">

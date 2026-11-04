@@ -166,6 +166,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         json_response(['ok' => true]);
     }
 
+    // 🎟️ v3.0.634 — odhad slevového kódu pro košík (nic nezapisuje; počítá jako vytvoření níže:
+    //   ceny z ceníku odběratele + příplatky dopravy/platby, z nich se sleva počítá)
+    if (($_GET['action'] ?? '') === 'voucher_odhad') {
+        $cen = [];
+        foreach (cenik_pro_odberatele($pdo, $odberatel_id) as $row) $cen[(int) $row['id']] = $row;
+        $zb = 0.0;
+        foreach ((array) ($data['polozky'] ?? []) as $p) {
+            $c = $cen[(int) ($p['vyrobek_id'] ?? 0)] ?? null;
+            $mn = (float) ($p['mnozstvi'] ?? 0);
+            if (!$c || $mn <= 0) continue;
+            $zb += (float) $c['cena_bez_dph'] * $mn * (1 + (float) ($c['dph'] ?? 0) / 100);
+        }
+        if ($zb <= 0) json_error('Košík je prázdný', 400);
+        require_once __DIR__ . '/_platby_lib.php';
+        $sur = platby_surcharges($pdo, preg_replace('/[^a-z_]/', '', strtolower((string) ($data['platba'] ?? ''))),
+                                       preg_replace('/[^a-z_]/', '', strtolower((string) ($data['doprava'] ?? ''))), round($zb, 2));
+        $zb += (float) $sur['doprava_cena'] + (float) $sur['platba_poplatek'];
+        try {
+            json_response(['ok' => true] + voucher_odhad($pdo, (string) ($data['kod'] ?? ''), 'b2b', $odberatel_id, round($zb, 2)));
+        } catch (RuntimeException $e) {
+            json_error($e->getMessage(), 400);
+        }
+    }
+
     // Validace typu
     $typ = $data['typ'] ?? 'jednorazova';
     if (!in_array($typ, ['jednorazova','pravidelna_denni','tydenni_plan'])) {
@@ -200,6 +224,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array('plati_do', $ocols, true))    $pdo->exec("ALTER TABLE objednavky ADD COLUMN plati_do DATE NULL");
         if (!in_array('dny_v_tydnu', $ocols, true)) $pdo->exec("ALTER TABLE objednavky ADD COLUMN dny_v_tydnu VARCHAR(30) NULL");
     } catch (Throwable $e) { /* soft-fail — uložení proběhne bez těchto sloupců */ }
+
+    // 🎟️ v3.0.634 — slevový kód / voucher (jen jednorázová objednávka; opakované by ho čerpaly každý týden)
+    $voucherKod = strtoupper(trim((string) ($data['voucher_kod'] ?? '')));
+    if ($voucherKod !== '') {
+        if ($typ !== 'jednorazova') json_error('Slevový kód lze použít jen u jednorázové objednávky', 400);
+        voucher_ensure_schema($pdo);   // DDL mimo transakci
+    }
 
     $pdo->beginTransaction();
     try {
@@ -329,6 +360,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         }
 
+        // 🎟️ v3.0.634 — voucher v téže transakci (neplatný kód → RuntimeException → rollback, objednávka nevznikne)
+        if ($voucherKod !== '') {
+            $odbJm = (string) $pdo->query("SELECT nazev FROM odberatele WHERE id = " . (int) $odberatel_id)->fetchColumn();
+            voucher_objednavka_uplatnit($pdo, $obj_id, $voucherKod, 'b2b', 'odběratel (B2B)' . ($odbJm !== '' ? ' — ' . $odbJm : ''));
+        }
+
         $pdo->commit();
 
         // 🆕 v3.0.207 — pravidelné typy z portálu (pravidelna_denni / tydenni_plan) založí
@@ -385,9 +422,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // a vrať payment_url pro redirect. Pro 'prevod' / 'dobirka' jen json OK.
         $platba = strtolower(trim((string) ($data['platba'] ?? 'prevod')));
         $paymentUrl = null;
-        if ($platba === 'stripe' || $platba === 'gopay' || $platba === 'paypal') {
+        $kUhrade = round((float) $pdo->query("SELECT castka_celkem FROM objednavky WHERE id = " . (int) $obj_id)->fetchColumn(), 2);
+        if (($platba === 'stripe' || $platba === 'gopay' || $platba === 'paypal') && $kUhrade > 0) {   // voucher pokryl vše → není co platit
             require_once __DIR__ . '/_customer_integrace.php';
-            $celkemKc = round($bez + $dph, 2);
+            // 🎟️ v3.0.634 — k úhradě až po voucheru (hlavičku přepočítal voucher_objednavka_sync)
+            $celkemKc = round((float) $pdo->query("SELECT castka_celkem FROM objednavky WHERE id = " . (int) $obj_id)->fetchColumn(), 2);
             $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
                      . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
 
