@@ -129,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ─── Filtry & list ──────────────────────────────────────────────
 $filterStatus = $_GET['status'] ?? '';
 $q = trim($_GET['q'] ?? '');
-$where = [];
+$where = [vendor_product_sql(vendor_product_current())];  // 🚚 filtr produktu
 $params = [];
 if (in_array($filterStatus, ['pending', 'paid', 'failed', 'cancelled', 'refunded'], true)) {
     $where[] = "payment_status = :s";
@@ -157,12 +157,13 @@ if ($licIds) {
 }
 
 // Statistiky
+$pf = ' AND ' . vendor_product_sql(vendor_product_current());  // 🚚 filtr produktu
 $stats = [
-    'total'    => (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders")->fetchColumn(),
-    'pending'  => (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='pending'")->fetchColumn(),
-    'paid'     => (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='paid'")->fetchColumn(),
-    'revenue'  => (float) $pdo->query("SELECT COALESCE(SUM(total_kc),0) FROM vendor_shop_orders WHERE payment_status='paid'")->fetchColumn(),
-    'today'    => (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE DATE(created_at) = CURDATE()")->fetchColumn(),
+    'total'    => (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE 1=1$pf")->fetchColumn(),
+    'pending'  => (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='pending'$pf")->fetchColumn(),
+    'paid'     => (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='paid'$pf")->fetchColumn(),
+    'revenue'  => (float) $pdo->query("SELECT COALESCE(SUM(total_kc),0) FROM vendor_shop_orders WHERE payment_status='paid'$pf")->fetchColumn(),
+    'today'    => (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE DATE(created_at) = CURDATE()$pf")->fetchColumn(),
 ];
 
 // Detail objednávky
