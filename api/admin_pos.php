@@ -1351,7 +1351,18 @@ if ($method === 'POST' && $action === 'pickup_cancel') {
     $ord = $o->fetch(PDO::FETCH_ASSOC);
     if (!$ord) json_error('Objednávka k vyzvednutí nenalezena', 404);
     if ($ord['pos_payment'] !== 'pri_vyzvednuti') json_error('Objednávka je zaplacená — zruš ji jako vratku (Účtenky → Vratka)', 409);
-    $pdo->prepare("UPDATE objednavky SET stav = 'zrusena' WHERE id = :id")->execute(['id' => $id]);
+    // 🎟️ v3.0.633 — online objednávka mohla mít voucher (zadal ho zákazník) → při zrušení vrátit
+    require_once __DIR__ . '/_voucher_lib.php';
+    voucher_ensure_schema($pdo);   // DDL mimo transakci
+    $pdo->beginTransaction();
+    try {
+        voucher_objednavka_sync($pdo, $id, 'pokladna (zrušené vyzvednutí)', true);
+        $pdo->prepare("UPDATE objednavky SET stav = 'zrusena' WHERE id = :id")->execute(['id' => $id]);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error_safe('Zrušení se nepodařilo', $e, 500);
+    }
     json_response(['ok' => true, 'id' => $id]);
 }
 

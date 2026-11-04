@@ -182,6 +182,14 @@ if ($action === 'delivery_status' && $method === 'POST') {
                   AND id IS NOT NULL")
                 ->execute(['st'=>$objStav, 'id'=>$id]);
         }
+        // 🎟️ v3.0.633 — zrušený rozvoz: voucher z objednávky (online zákazník) vrátit
+        if ($objStav === 'zrusena') {
+            require_once __DIR__ . '/_voucher_lib.php';
+            $oidQ = $pdo->prepare("SELECT objednavka_id FROM courier_deliveries WHERE id = :id");
+            $oidQ->execute(['id' => $id]);
+            $oidV = (int) $oidQ->fetchColumn();
+            if ($oidV) voucher_objednavka_sync($pdo, $oidV, 'kurýr (zrušený rozvoz)', true);
+        }
     } catch (Throwable $e) { /* ne-fatal */ }
 
     // 🆕 v3.0.38 — Auto-push do externí služby pokud delivery má objednavka_id mapovaný na externí

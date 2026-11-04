@@ -544,6 +544,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     unset($sr);
 
     try {
+        voucher_ensure_schema($pdo);   // 🎟️ v3.0.633 — DDL mimo transakci (jinak implicitní commit → commit() hodí výjimku)
         $pdo->beginTransaction();
 
         // Načti staré položky pro porovnání
@@ -685,6 +686,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     if (!$edit['lze']) json_error($edit['duvod'], 409);
 
     try {
+        voucher_ensure_schema($pdo);   // 🎟️ v3.0.633 — DDL mimo transakci (jinak implicitní commit → commit() hodí výjimku)
         $pdo->beginTransaction();
         $pdo->prepare("UPDATE objednavky SET stav = 'zrusena', upraveno_kdy = NOW() WHERE id = :id")
             ->execute(['id' => $id]);

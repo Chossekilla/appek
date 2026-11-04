@@ -24,6 +24,10 @@ const VOUCHER_KANALY = [
 function voucher_ensure_schema(PDO $pdo): void {
     static $done = false;
     if ($done) return;
+    // DDL (CREATE/ALTER) v MySQL/MariaDB IMPLICITNĚ COMMITNE rozběhlou transakci → volajícímu pak commit() hodí
+    // „There is no active transaction" a půl změn už je uložená. Uvnitř transakce proto schéma nesahat
+    // (volající má ensure zavolat předem; tady jen předpokládáme, že schéma existuje).
+    if ($pdo->inTransaction()) return;
     $done = true;
     try {
         $pdo->exec("
@@ -104,6 +108,54 @@ function voucher_objednavka_id(PDO $pdo, int $oid): ?int {
  * řádky voucheru + hlavičku objednávky. $zrusit = storno/odebrání → vše zpět na voucher.
  * Vrací částku, kterou objednávka z voucheru nově čerpá (s DPH).
  */
+/**
+ * Kolik voucher z dané částky zboží (s DPH) odečte. $aplikovano = co už z něj tato objednávka čerpá
+ * (Kč voucher má k dispozici zůstatek + to, co už drží). Čistá funkce — sdílí ji sync i odhad v košíku.
+ */
+function voucher_cil(array $v, float $zbozi, float $aplikovano = 0.0): float {
+    if ($zbozi <= 0) return 0.0;
+    if ($v['typ'] === 'sleva') {
+        $cil = $zbozi * (float) $v['sleva_pct'] / 100;
+        if (!empty($v['sleva_max_kc'])) $cil = min($cil, (float) $v['sleva_max_kc']);
+    } else {
+        $cil = min($zbozi, (float) $v['zustatek'] + $aplikovano);
+    }
+    return round(max(0.0, min($cil, $zbozi)), 2);
+}
+
+/** Kontrola, že voucher jde použít v kanálu (a pro odběratele). Vyhodí RuntimeException s textem pro uživatele. */
+function voucher_validuj(array $v, string $kanal, ?int $odberatelId): void {
+    if ($v['stav'] === 'zruseny') throw new RuntimeException('Voucher je zrušený');
+    if (!empty($v['platnost_do']) && $v['platnost_do'] < date('Y-m-d')) throw new RuntimeException('Voucher expiroval ' . date('d.m.Y', strtotime($v['platnost_do'])));
+    if (!in_array($kanal, voucher_kanaly($v), true)) {
+        $kde = implode(', ', array_map(fn($k) => VOUCHER_KANALY[$k], voucher_kanaly($v)));
+        throw new RuntimeException('Tento voucher nelze uplatnit zde (' . (VOUCHER_KANALY[$kanal] ?? $kanal) . '). Platí jen: ' . $kde);
+    }
+    if (!empty($v['odberatel_id']) && (int) $v['odberatel_id'] !== (int) $odberatelId) {
+        throw new RuntimeException($kanal === 'web' ? 'Tento voucher je vystavený na jméno odběratele — online ho použít nelze'
+                                                    : 'Voucher je vystavený pro jiného odběratele (' . ($v['odberatel_nazev'] ?: '#' . $v['odberatel_id']) . ')');
+    }
+    if ($v['typ'] === 'sleva' && $v['stav'] === 'vycerpany') throw new RuntimeException('Slevový voucher už byl použit');
+    if ($v['typ'] !== 'sleva' && (float) $v['zustatek'] <= 0.004) throw new RuntimeException('Voucher je již vyčerpaný');
+}
+
+/** Odhad pro košík (bez zápisu): ['kod','chovani','odecet','popis']. Vyhodí RuntimeException. */
+function voucher_odhad(PDO $pdo, string $kod, string $kanal, ?int $odberatelId, float $zbozi): array {
+    voucher_ensure_schema($pdo);
+    $kod = strtoupper(trim($kod));
+    if ($kod === '') throw new RuntimeException('Zadejte kód');
+    $vs = $pdo->prepare("SELECT * FROM vouchery WHERE kod = :k LIMIT 1");
+    $vs->execute(['k' => $kod]);
+    $v = $vs->fetch(PDO::FETCH_ASSOC);
+    if (!$v) throw new RuntimeException('Kód „' . $kod . '" neplatí');
+    voucher_validuj($v, $kanal, $odberatelId);
+    $odecet = voucher_cil($v, $zbozi);
+    $popis = $v['typ'] === 'sleva'
+        ? 'Sleva ' . rtrim(rtrim(number_format((float) $v['sleva_pct'], 2, ',', ''), '0'), ',') . ' %' . (!empty($v['sleva_max_kc']) ? ' (max. ' . number_format((float) $v['sleva_max_kc'], 0, ',', ' ') . ' Kč)' : '')
+        : ($v['typ'] === 'darkova_karta' ? 'Dárková karta' : 'Voucher') . ' — zůstatek ' . number_format((float) $v['zustatek'], 2, ',', ' ') . ' Kč';
+    return ['kod' => $kod, 'chovani' => voucher_chovani($v), 'odecet' => $odecet, 'popis' => $popis];
+}
+
 function voucher_objednavka_sync(PDO $pdo, int $oid, string $kdo, bool $zrusit = false, ?int $vid = null): float {
     voucher_ensure_schema($pdo);
     $vid = $vid ?: voucher_objednavka_id($pdo, $oid);
@@ -126,15 +178,7 @@ function voucher_objednavka_sync(PDO $pdo, int $oid, string $kdo, bool $zrusit =
     }
     $zbozi = round(array_sum($poSazbach), 2);
 
-    if ($zrusit || $zbozi <= 0) {
-        $cil = 0.0;
-    } elseif ($v['typ'] === 'sleva') {
-        $cil = $zbozi * (float) $v['sleva_pct'] / 100;
-        if (!empty($v['sleva_max_kc'])) $cil = min($cil, (float) $v['sleva_max_kc']);
-    } else {
-        $cil = min($zbozi, (float) $v['zustatek'] + $aplikovano);
-    }
-    $cil = round(max(0.0, min($cil, $zbozi)), 2);
+    $cil = $zrusit ? 0.0 : voucher_cil($v, $zbozi, $aplikovano);
     $delta = round($cil - $aplikovano, 2);
 
     $ob = $pdo->prepare("SELECT cislo FROM objednavky WHERE id = :o");
@@ -208,7 +252,8 @@ function voucher_objednavka_uplatnit(PDO $pdo, int $oid, string $kod, string $ka
     if (!$o) throw new RuntimeException('Objednávka nenalezena');
     if ($o['stav'] === 'zrusena') throw new RuntimeException('Objednávka je stornovaná');
     $kan = kanaly_config($pdo)[$o['puvod'] ?? ''] ?? null;
-    if ($kan && !empty($kan['pokladni'])) throw new RuntimeException('Objednávka z pokladny / platformy — voucher se uplatňuje při placení na pokladně');
+    // pokladní objednávky řeší voucher při placení na pokladně — výjimka: zákazník ho zadá sám ve vlastním kanálu (online objednávka → 'web')
+    if ($kan && !empty($kan['pokladni']) && ($o['puvod'] ?? '') !== $kanal) throw new RuntimeException('Objednávka z pokladny / platformy — voucher se uplatňuje při placení na pokladně');
     $dl = $pdo->prepare("SELECT COUNT(*) FROM dodaci_listy WHERE objednavka_id = :o");
     $dl->execute(['o' => $oid]);
     if ((int) $dl->fetchColumn() > 0) throw new RuntimeException('Objednávka už má dodací list — voucher uplatněte před jeho vystavením');
@@ -220,17 +265,7 @@ function voucher_objednavka_uplatnit(PDO $pdo, int $oid, string $kod, string $ka
     $stary = voucher_objednavka_id($pdo, $oid);
     if ($stary === (int) $v['id']) throw new RuntimeException('Tento voucher už je na objednávce uplatněný');
     if ($stary) throw new RuntimeException('Na objednávce už je jiný voucher — nejdřív ho odeberte');
-    if ($v['stav'] === 'zruseny') throw new RuntimeException('Voucher je zrušený');
-    if (!empty($v['platnost_do']) && $v['platnost_do'] < date('Y-m-d')) throw new RuntimeException('Voucher expiroval ' . date('d.m.Y', strtotime($v['platnost_do'])));
-    if (!in_array($kanal, voucher_kanaly($v), true)) {
-        $kde = implode(', ', array_map(fn($k) => VOUCHER_KANALY[$k], voucher_kanaly($v)));
-        throw new RuntimeException('Tento voucher nelze uplatnit zde (' . (VOUCHER_KANALY[$kanal] ?? $kanal) . '). Platí jen: ' . $kde);
-    }
-    if (!empty($v['odberatel_id']) && (int) $v['odberatel_id'] !== (int) $o['odberatel_id']) {
-        throw new RuntimeException('Voucher je vystavený pro jiného odběratele (' . ($v['odberatel_nazev'] ?: '#' . $v['odberatel_id']) . ')');
-    }
-    if ($v['typ'] === 'sleva' && $v['stav'] === 'vycerpany') throw new RuntimeException('Slevový voucher už byl použit');
-    if ($v['typ'] !== 'sleva' && (float) $v['zustatek'] <= 0.004) throw new RuntimeException('Voucher je již vyčerpaný');
+    voucher_validuj($v, $kanal, (int) $o['odberatel_id']);
 
     $uplatneno = voucher_objednavka_sync($pdo, $oid, $kdo, false, (int) $v['id']);
     if ($uplatneno <= 0) throw new RuntimeException('Objednávka nemá žádné zboží, ze kterého by šlo slevu odečíst');

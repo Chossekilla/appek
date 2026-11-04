@@ -15,6 +15,7 @@
  * Odpis surovin: přes plán výroby (datum_dodani), jako B2B — NE při vytvoření (jinak dvojí odpis).
  */
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_voucher_lib.php';
 
 cors_headers();
 header('Content-Type: application/json; charset=UTF-8');
@@ -121,6 +122,51 @@ function wo_restaurace(PDO $pdo): bool {
 }
 
 // ─── ADMIN: nastavení ────────────────────────────────────────────────
+/** Košík → položky s cenami ze serveru + doprava. $strict=true hlídá i min. objednávku (při odeslání). */
+function wo_kosik(PDO $pdo, array $cfg, array $polozky, string $typ, bool $strict): array {
+    $vyrMap = [];
+    foreach (wo_vyrobky($pdo) as $v) $vyrMap[$v['id']] = $v;
+    $items = [];
+    foreach ($polozky as $p) {
+        $id = (int) ($p['id'] ?? 0); $mn = (int) ($p['mnozstvi'] ?? 0);
+        if (!$id || $mn < 1) continue;
+        if ($mn > 99) json_error('Max 99 ks od jedné položky', 400);
+        if (!isset($vyrMap[$id])) json_error('Položka už není v nabídce — obnovte prosím stránku', 409);
+        $items[$id] = ($items[$id] ?? 0) + $mn;
+    }
+    if (!$items) json_error('Košík je prázdný', 400);
+    if (count($items) > 50) json_error('Max 50 různých položek', 400);
+
+    $bez = 0.0; $dph = 0.0; $zbozi = 0.0;
+    foreach ($items as $id => $mn) {
+        $v = $vyrMap[$id];
+        $bez += $mn * $v['cena_bez_dph'];
+        $dph += $mn * $v['cena_bez_dph'] * $v['sazba_dph'] / 100;
+        $zbozi += $mn * $v['cena'];
+    }
+    if ($strict && $cfg['min_objednavka'] > 0 && $zbozi + 0.001 < $cfg['min_objednavka']) {
+        json_error('Minimální objednávka je ' . number_format($cfg['min_objednavka'], 0, ',', ' ') . ' Kč', 400);
+    }
+    $dopravaSdph = 0.0;
+    if ($typ === 'rozvoz' && $cfg['rozvoz_cena'] > 0 && !($cfg['rozvoz_zdarma_od'] > 0 && $zbozi >= $cfg['rozvoz_zdarma_od'])) $dopravaSdph = (float) $cfg['rozvoz_cena'];
+    $dphPripl = (float) nastaveni_get($pdo, 'dph_sazba_priplatky', 21);
+    $dopravaBez = round($dopravaSdph / (1 + $dphPripl / 100), 2);
+    $bez += $dopravaBez; $dph += $dopravaSdph - $dopravaBez;
+    return ['items' => $items, 'vyrMap' => $vyrMap, 'bez' => $bez, 'dph' => $dph, 'zbozi' => $zbozi,
+            'doprava' => $dopravaSdph, 'dopravaBez' => $dopravaBez, 'dphPripl' => $dphPripl];
+}
+
+/** Ochrana proti hádání kódů: max 10 neplatných pokusů z jedné IP za 30 min. $fail=true pokus zaznamená. */
+function wo_voucher_rl(PDO $pdo, string $ip, bool $fail = false): void {
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS web_voucher_rl (id INT AUTO_INCREMENT PRIMARY KEY, ip VARCHAR(45), kdy DATETIME DEFAULT CURRENT_TIMESTAMP, INDEX (ip, kdy))");
+        if ($fail) { $pdo->prepare("INSERT INTO web_voucher_rl (ip) VALUES (:ip)")->execute(['ip' => $ip]); return; }
+        $q = $pdo->prepare("SELECT COUNT(*) FROM web_voucher_rl WHERE ip = :ip AND kdy > NOW() - INTERVAL 30 MINUTE");
+        $q->execute(['ip' => $ip]);
+        if ((int) $q->fetchColumn() >= 10) json_error('Příliš mnoho neplatných kódů. Zkuste to prosím za chvíli.', 429);
+    } catch (PDOException $e) {}
+}
+
 if ($action === 'settings') {
     require_once __DIR__ . '/_admin_auth.php';
     require_admin();
@@ -173,6 +219,23 @@ if ($action === 'menu' && $method === 'GET') {
 }
 
 // ─── veřejné: objednávka ─────────────────────────────────────────────
+// 🎟️ v3.0.633 — POST ?action=voucher { kod, typ, polozky } → odhad slevy pro košík (nic nezapisuje)
+if ($action === 'voucher' && $method === 'POST') {
+    if (!$aktivni) json_error('Online objednávky teď nepřijímáme', 403);
+    $d  = json_decode(file_get_contents('php://input'), true) ?? [];
+    $ip = substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
+    wo_voucher_rl($pdo, $ip);
+    $typ = ($d['typ'] ?? '') === 'rozvoz' ? 'rozvoz' : 'vyzvednuti';
+    $k = wo_kosik($pdo, $cfg, (array) ($d['polozky'] ?? []), $typ, false);
+    try {
+        $odh = voucher_odhad($pdo, (string) ($d['kod'] ?? ''), 'web', null, round($k['bez'] + $k['dph'], 2));
+    } catch (RuntimeException $e) {
+        wo_voucher_rl($pdo, $ip, true);
+        json_error($e->getMessage(), 400);
+    }
+    json_response(['ok' => true] + $odh);
+}
+
 if ($action === 'order' && $method === 'POST') {
     if (!$aktivni) json_error('Online objednávky teď nepřijímáme', 403);
     $d = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -219,35 +282,13 @@ if ($action === 'order' && $method === 'POST') {
     if (!$okOkno) json_error('Vybraný čas už není dostupný — vyberte prosím jiný', 400);
 
     // položky: ceny ze serveru
-    $vyrMap = [];
-    foreach (wo_vyrobky($pdo) as $v) $vyrMap[$v['id']] = $v;
-    $items = [];
-    foreach ((array) ($d['polozky'] ?? []) as $p) {
-        $id = (int) ($p['id'] ?? 0); $mn = (int) ($p['mnozstvi'] ?? 0);
-        if (!$id || $mn < 1) continue;
-        if ($mn > 99) json_error('Max 99 ks od jedné položky', 400);
-        if (!isset($vyrMap[$id])) json_error('Položka už není v nabídce — obnovte prosím stránku', 409);
-        $items[$id] = ($items[$id] ?? 0) + $mn;
-    }
-    if (!$items) json_error('Košík je prázdný', 400);
-    if (count($items) > 50) json_error('Max 50 různých položek', 400);
-
-    $bez = 0.0; $dph = 0.0; $zbozi = 0.0;
-    foreach ($items as $id => $mn) {
-        $v = $vyrMap[$id];
-        $bez += $mn * $v['cena_bez_dph'];
-        $dph += $mn * $v['cena_bez_dph'] * $v['sazba_dph'] / 100;
-        $zbozi += $mn * $v['cena'];
-    }
-    if ($cfg['min_objednavka'] > 0 && $zbozi + 0.001 < $cfg['min_objednavka']) {
-        json_error('Minimální objednávka je ' . number_format($cfg['min_objednavka'], 0, ',', ' ') . ' Kč', 400);
-    }
-    $dopravaSdph = 0.0;
-    if ($typ === 'rozvoz' && $cfg['rozvoz_cena'] > 0 && !($cfg['rozvoz_zdarma_od'] > 0 && $zbozi >= $cfg['rozvoz_zdarma_od'])) $dopravaSdph = $cfg['rozvoz_cena'];
-    $dphPripl = (float) nastaveni_get($pdo, 'dph_sazba_priplatky', 21);
-    $dopravaBez = round($dopravaSdph / (1 + $dphPripl / 100), 2);
-    $bez += $dopravaBez; $dph += $dopravaSdph - $dopravaBez;
+    ['items' => $items, 'vyrMap' => $vyrMap, 'bez' => $bez, 'dph' => $dph, 'doprava' => $dopravaSdph, 'dopravaBez' => $dopravaBez, 'dphPripl' => $dphPripl]
+        = wo_kosik($pdo, $cfg, (array) ($d['polozky'] ?? []), $typ, true);
     $celkem = round($bez + $dph, 2);
+
+    // 🎟️ v3.0.633 — slevový kód / voucher (ověří se i se zablokováním proti hádání kódů)
+    $voucherKod = strtoupper(trim((string) ($d['voucher_kod'] ?? '')));
+    if ($voucherKod !== '') { wo_voucher_rl($pdo, $ip); voucher_ensure_schema($pdo); } // DDL mimo transakci (implicitní commit)
 
     wo_ensure($pdo);
     $token = bin2hex(random_bytes(12));
@@ -275,7 +316,15 @@ if ($action === 'order' && $method === 'POST') {
         $pdo->prepare("UPDATE objednavky SET vyzvednuti_cas = :ct, vyzvednuti_jmeno = :j, vyzvednuti_tel = :t, vyzvednuti_email = :e, web_token = :tok, web_adresa = :a WHERE id = :id")
             ->execute(['ct' => date('Y-m-d H:i:s', $casTs), 'j' => $jmeno, 't' => $tel, 'e' => ($email !== '' ? $email : null), 'tok' => $token,
                        'a' => ($typ === 'rozvoz' ? "$adresa, $psc $mesto" : null), 'id' => $objId]);
+        if ($voucherKod !== '') {
+            voucher_objednavka_uplatnit($pdo, $objId, $voucherKod, 'web', 'online zákazník (' . $jmeno . ')');
+            $celkem = round((float) $pdo->query("SELECT castka_celkem FROM objednavky WHERE id = " . $objId)->fetchColumn(), 2);
+        }
         $pdo->commit();
+    } catch (RuntimeException $e) {                    // voucher neprošel → objednávka nevznikne, zákazník kód opraví
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        wo_voucher_rl($pdo, $ip, true);
+        json_error($e->getMessage(), 400);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         json_error_safe('Objednávku se nepodařilo uložit', $e, 500);

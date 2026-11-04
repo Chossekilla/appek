@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# E2E online objednávek (/objednat/) proti LOKÁLNÍ instalaci (php -S 127.0.0.1:8765, DB appek).
+# E2E online objednávek (/objednat/, vč. slevového kódu v3.0.633) proti LOKÁLNÍ instalaci (php -S 127.0.0.1:8765, DB appek).
 # Dočasně zapne balíček Restaurace + web_objednavky, na konci vrátí původní nastavení.
 # Admin část (nastavení, vydání na POS) potřebuje T_EMAIL/T_PASS lokálního testovacího účtu.
 import json, os, sys, urllib.request, urllib.error, http.cookiejar, subprocess
@@ -50,6 +50,7 @@ try:
     setting('packages_enabled', json.dumps(pk))
     sql("DELETE FROM nastaveni WHERE klic='web_objednavky'")
     if sql("SHOW TABLES LIKE 'web_objednavky_rl'"): sql("DELETE FROM web_objednavky_rl")
+    if sql("SHOW TABLES LIKE 'web_voucher_rl'"): sql("DELETE FROM web_voucher_rl")
 
     print('== 1) vypnuto = nepřijímá')
     st, j = req('web_objednavky.php?action=info'); check('info 200, aktivni=false', st == 200 and j.get('aktivni') is False, (st, j))
@@ -110,6 +111,43 @@ try:
     st, s = req('web_objednavky.php?action=stav&t=' + tok); check('stav zákazníka: připraveno', s.get('krok') == 'pripraveno', s)
     st, j = req('admin_pos.php?action=pickup_complete', {'id': int(oid), 'pos_payment': 'hotove'}); check('vydat + zaplatit 200', st == 200, (st, j))
     st, s = req('web_objednavky.php?action=stav&t=' + tok); check('stav: hotovo + zaplaceno', s.get('krok') == 'hotovo' and s.get('zaplaceno') is True, s)
+
+    print('== 7b) slevový kód / voucher (v3.0.633)')
+    def voucher(**kw):
+        st, j = req('admin_vouchers.php?action=create', {'poznamka': 'e2e web v633', **kw}); return j['vytvoreno'][0]['kod']
+    def vzust(k): return float(sql(f"SELECT zustatek FROM vouchery WHERE kod='{k}'") or 0)
+    kSleva = voucher(typ='sleva', sleva_pct=10, kanaly=['web'])
+    kKc    = voucher(typ='voucher', hodnota=50, kanaly=['web'], chovani='platba')
+    kAdm   = voucher(typ='voucher', hodnota=50, kanaly=['admin'])
+    kOdb   = voucher(typ='voucher', hodnota=50, odberatel_id=int(sql("SELECT id FROM odberatele ORDER BY id LIMIT 1")))
+    anon()
+    vb = {'typ': 'vyzvednuti', 'polozky': base['polozky']}
+    st, j = req('web_objednavky.php?action=voucher', {**vb, 'kod': kSleva.lower()})
+    check('odhad % slevy (kód bez ohledu na velikost písmen)', st == 200 and abs(j.get('odecet', 0) - round(ocek * 0.10, 2)) < 0.02 and j.get('chovani') == 'sleva', (st, j))
+    st, j = req('web_objednavky.php?action=voucher', {**vb, 'kod': kAdm}); check('voucher jen pro admin → 400', st == 400 and 'nelze' in j.get('error', ''), (st, j))
+    st, j = req('web_objednavky.php?action=voucher', {**vb, 'kod': kOdb}); check('voucher na jméno odběratele → 400', st == 400, (st, j))
+    st, j = req('web_objednavky.php?action=voucher', {**vb, 'kod': 'NEEXISTUJE-1'}); check('neexistující kód → 400', st == 400, (st, j))
+    st, j = req('web_objednavky.php?action=order', {**base, 'voucher_kod': kAdm}); check('objednávka s neplatným kódem → 400 a nevznikne', st == 400 and not j.get('cislo'), (st, j))
+    st, j = req('web_objednavky.php?action=order', {**base, 'voucher_kod': kSleva})
+    check('objednávka s 10 % → celkem po slevě', st == 200 and abs(j.get('celkem', 0) - round(ocek * 0.9, 2)) < 0.05, (st, j, ocek))
+    sid = sql(f"SELECT id FROM objednavky WHERE web_token='{j.get('token')}'")
+    check('řádek slevy s voucher_id', sql(f"SELECT COUNT(*) FROM objednavky_polozky WHERE objednavka_id={sid} AND voucher_id IS NOT NULL") >= '1')
+    check('% voucher vyčerpán', sql(f"SELECT stav FROM vouchery WHERE kod='{kSleva}'") == 'vycerpany')
+    st, j = req('web_objednavky.php?action=order', {**base, 'voucher_kod': kSleva}); check('použitý % voucher podruhé → 400', st == 400, (st, j))
+    st, j = req('web_objednavky.php?action=order', {**base, 'voucher_kod': kKc})
+    kid = sql(f"SELECT id FROM objednavky WHERE web_token='{j.get('token')}'")
+    check('Kč voucher 50 → celkem −50, zůstatek 0', st == 200 and abs(j.get('celkem', 0) - round(ocek - 50, 2)) < 0.05 and vzust(kKc) == 0, (st, j, vzust(kKc)))
+    check('hlavička = součet řádků', sql(f"SELECT ABS(o.castka_celkem - (SELECT SUM(ROUND(p.mnozstvi*p.cena_bez_dph*(1+p.sazba_dph/100),2)) FROM objednavky_polozky p WHERE p.objednavka_id=o.id)) < 0.05 FROM objednavky o WHERE o.id={kid}") == '1')
+    check('login', login())
+    st, j = req('admin_pos.php?action=pickup_cancel', {'id': int(kid)}); check('zrušení vyzvednutí 200', st == 200, (st, j))
+    check('zrušené vyzvednutí vrátí voucher (zůstatek 50)', vzust(kKc) == 50, vzust(kKc))
+    st, j = req('admin_pos.php?action=pickup_complete', {'id': int(sid), 'pos_payment': 'hotove'})
+    check('vydání se slevou: účtuje se částka po slevě', st == 200 and abs(j.get('celkem', 0) - round(ocek * 0.9, 2)) < 0.05, (st, j))
+    for k in (kSleva, kKc, kAdm, kOdb): req('admin_vouchers.php?action=deactivate', {'id': int(sql(f"SELECT id FROM vouchery WHERE kod='{k}'"))})
+    anon(); sql("DELETE FROM web_voucher_rl")   # předchozí kroky už 5 neplatných pokusů spotřebovaly
+    codes = [req('web_objednavky.php?action=voucher', {**vb, 'kod': f'HADAM-{i}'})[0] for i in range(12)]
+    check('hádání kódů: po 10 neplatných pokusech → 429', codes[:10] == [400] * 10 and codes[10:] == [429, 429], codes)
+    sql("DELETE FROM web_voucher_rl")
 
     print('== 8) limit na IP')
     anon()
