@@ -48,5 +48,24 @@ check(vendor_license_defaults('appek', [], '2026-01-31')['rental'] === 0, 'appek
 check(vendor_license_defaults('foodtruck', [], '2026-01-31')['expires_at'] === '2026-02-28', 'ft +1 měsíc konec měsíce');
 check(vendor_license_defaults('evil', [], '2026-11-04')['product'] === 'appek', 'neznámý produkt → appek');
 
+// ── nastavení Můj Foodtruck: validace ──
+[$err, $vals] = vendor_ft_settings_validate([
+    'ft_price_month_kc' => '499', 'ft_price_year_kc' => '', 'ft_web_url' => 'https://mujfoodtruck.cz',
+    'ft_portal_url' => '', 'ft_mail_from_email' => 'info@mujfoodtruck.cz', 'ft_mail_from_name' => ' Můj Foodtruck ',
+    'ft_invoice_prefix' => '', 'ft_supplier_name' => 'Firma s.r.o.', 'neznamy_klic' => 'x',
+]);
+check($err === [], 'platná data bez chyb');
+check($vals['ft_price_month_kc'] === '499' && $vals['ft_price_year_kc'] === '', 'ceny');
+check($vals['ft_invoice_prefix'] === 'MFT', 'default prefix faktur MFT');
+check($vals['ft_mail_from_name'] === 'Můj Foodtruck', 'trim');
+check(!isset($vals['neznamy_klic']) && count($vals) === count(VENDOR_FT_SETTING_KEYS), 'jen whitelist klíčů');
+[$err] = vendor_ft_settings_validate(['ft_price_month_kc' => '-5']);
+check(count($err) === 1, 'záporná cena = chyba');
+[$err] = vendor_ft_settings_validate(['ft_price_month_kc' => 'abc', 'ft_web_url' => 'javascript:alert(1)', 'ft_mail_from_email' => 'neni-email']);
+check(count($err) === 3, 'nečíslo + špatná URL + špatný e-mail = 3 chyby');
+[$err, $vals] = vendor_ft_settings_validate(['ft_price_month_kc' => '499,50', 'ft_invoice_prefix' => 'mft-x']);
+check($err === [] && $vals['ft_price_month_kc'] === '499.50', 'desetinná čárka');
+check($vals['ft_invoice_prefix'] === 'MFTX', 'prefix jen A-Z0-9 velkými');
+
 echo $fails ? "$fails FAIL\n" : "OK test_product\n";
 exit($fails ? 1 : 0);

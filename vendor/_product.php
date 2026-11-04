@@ -96,3 +96,43 @@ function vendor_license_defaults(string $product, array $d, string $today): arra
         'expires_at' => $manual ?? $base->modify('+1 year')->format('Y-m-d'),
     ];
 }
+
+/** Klíče vendor_settings pro Můj Foodtruck (čtou je Plány 2–4: pokladna, e-maily, faktury, portál). */
+const VENDOR_FT_SETTING_KEYS = [
+    'ft_price_month_kc', 'ft_price_year_kc', 'ft_web_url', 'ft_portal_url',
+    'ft_mail_from_email', 'ft_mail_from_name', 'ft_invoice_prefix',
+    'ft_supplier_name', 'ft_supplier_ico', 'ft_supplier_dic', 'ft_supplier_address',
+    'ft_supplier_bank_account', 'ft_supplier_iban',
+];
+
+/**
+ * Validace formuláře „Můj Foodtruck" v Nastavení.
+ * @return array [string[] $errors, array<string,string> $values] — values jen pro whitelist klíčů.
+ *   ceny: prázdné nebo číslo ≥ 0 (desetinná čárka OK); URL: prázdné nebo http(s);
+ *   e-mail: prázdný nebo platný; prefix faktur: A–Z0–9 velkými, default MFT.
+ */
+function vendor_ft_settings_validate(array $in): array {
+    $errors = [];
+    $vals = [];
+    foreach (VENDOR_FT_SETTING_KEYS as $k) {
+        $vals[$k] = trim((string) ($in[$k] ?? ''));
+    }
+    foreach (['ft_price_month_kc' => 'Měsíční cena', 'ft_price_year_kc' => 'Roční cena'] as $k => $label) {
+        if ($vals[$k] === '') continue;
+        $n = str_replace([' ', ','], ['', '.'], $vals[$k]);
+        if (!is_numeric($n) || (float) $n < 0) { $errors[] = "$label musí být číslo ≥ 0."; continue; }
+        $vals[$k] = $n;
+    }
+    foreach (['ft_web_url' => 'Adresa webu', 'ft_portal_url' => 'Adresa portálu'] as $k => $label) {
+        if ($vals[$k] === '') continue;
+        if (!filter_var($vals[$k], FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $vals[$k])) {
+            $errors[] = "$label musí být platná adresa (https://…).";
+        }
+    }
+    if ($vals['ft_mail_from_email'] !== '' && !filter_var($vals['ft_mail_from_email'], FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'E-mail odesílatele není platný.';
+    }
+    $prefix = preg_replace('/[^A-Z0-9]/', '', strtoupper($vals['ft_invoice_prefix']));
+    $vals['ft_invoice_prefix'] = $prefix !== '' ? substr($prefix, 0, 8) : 'MFT';
+    return [$errors, $vals];
+}
