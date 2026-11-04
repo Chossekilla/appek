@@ -123,6 +123,12 @@ html body .footer-master a:hover{color:var(--vx-acc-ink)}
 html body .footer-master strong{color:var(--vx-ink-2);font-weight:600}
 html body .footer-master .sep{margin:0 6px;opacity:.4}
 
+/* ---------- 🚚 přepínač produktu (Appek / Můj Foodtruck / Vše) ---------- */
+.vx-prod{display:flex;gap:2px;margin:0 6px 14px;padding:3px;border-radius:10px;background:var(--vx-rail-2);border:1px solid var(--vx-rail-line)}
+.vx-prod a{flex:1;text-align:center;padding:6px 4px;border-radius:7px;font:500 12px/1.2 var(--vx-sans);color:#9A9BA5;text-decoration:none!important;white-space:nowrap}
+.vx-prod a:hover{color:#fff}
+.vx-prod a.on{background:var(--vx-acc);color:#fff}
+
 /* ---------- menu: horní řádek (logo + ☰), na desktopu ☰ schované ---------- */
 .vx-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .vx-burger{display:none;position:relative;width:40px;height:40px;border-radius:10px;border:1px solid var(--vx-rail-line);background:var(--vx-rail-2);color:#fff;cursor:pointer;place-items:center;flex:none}

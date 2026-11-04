@@ -16,6 +16,7 @@
  */
 
 require_once __DIR__ . '/_lib.php';
+require_once __DIR__ . '/_license_mft.php';  // 🚚 klíče Můj Foodtruck
 
 $user   = vendor_require_login();
 $pdo    = vendor_db();
@@ -35,7 +36,7 @@ if ($method === 'POST') {
 if ($action === 'list' && $method === 'GET') {
     $status = $_GET['status'] ?? '';
     $q      = trim($_GET['q'] ?? '');
-    $where = [];
+    $where = [vendor_product_sql(vendor_product_current())];  // 🚚 filtr produktu
     $params = [];
     if (in_array($status, ['active','expired','revoked'], true)) {
         $where[] = "status = :s";
@@ -63,22 +64,23 @@ if ($action === 'list' && $method === 'GET') {
 
 // ── STATS ───────────────────────────────────────────────────────
 if ($action === 'stats' && $method === 'GET') {
+    $pf = ' AND ' . vendor_product_sql(vendor_product_current());  // 🚚 filtr produktu
     $stats = [
-        'total'         => (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses")->fetchColumn(),
-        'active'        => (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='active'")->fetchColumn(),
-        'expired'       => (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='expired'")->fetchColumn(),
-        'revoked'       => (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='revoked'")->fetchColumn(),
+        'total'         => (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE 1=1$pf")->fetchColumn(),
+        'active'        => (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='active'$pf")->fetchColumn(),
+        'expired'       => (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='expired'$pf")->fetchColumn(),
+        'revoked'       => (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='revoked'$pf")->fetchColumn(),
         'expiring_soon' => (int) $pdo->query("
             SELECT COUNT(*) FROM vendor_licenses
             WHERE status='active' AND expires_at IS NOT NULL
               AND expires_at <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
-              AND expires_at >= CURDATE()
+              AND expires_at >= CURDATE()$pf
         ")->fetchColumn(),
         'this_month'    => (int) $pdo->query("
             SELECT COUNT(*) FROM vendor_licenses
-            WHERE issued_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+            WHERE issued_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')$pf
         ")->fetchColumn(),
-        'revenue_total' => (float) ($pdo->query("SELECT COALESCE(SUM(price_kc),0) FROM vendor_licenses WHERE paid=1")->fetchColumn() ?: 0),
+        'revenue_total' => (float) ($pdo->query("SELECT COALESCE(SUM(price_kc),0) FROM vendor_licenses WHERE paid=1$pf")->fetchColumn() ?: 0),
     ];
     vendor_json($stats);
 }
@@ -89,16 +91,16 @@ if ($action === 'generate' && $method === 'POST') {
     $name = trim($d['customer_name'] ?? '');
     if ($name === '') vendor_json_error('Jméno zákazníka je povinné');
 
-    // Balíčky (může být prázdné = core only)
-    $packages = $d['packages'] ?? [];
-    if (!is_array($packages)) $packages = [];
-    // Vyfiltruj jen známé balíčky
-    $packages = array_values(array_filter($packages, fn($p) => isset(LICENSE_PACKAGE_BITS[$p])));
+    // 🚚 Produkt + výchozí hodnoty (foodtruck: MFT klíč, bez balíčků, vždy pronájem, +1 měsíc;
+    //    appek: beze změny — známé balíčky, rental dle formuláře, +1 rok)
+    $product  = vendor_product_normalize($d['product'] ?? vendor_product_for_write(), false);
+    $defaults = vendor_license_defaults($product, $d, date('Y-m-d'));
+    $packages = $defaults['packages'];
 
     // Snaž se vygenerovat unique klíč (do 5 pokusů — kolize je extrémně nepravděpodobná)
     $key = null;
     for ($i = 0; $i < 5; $i++) {
-        $candidate = license_generate_with_packages($packages);
+        $candidate = $product === 'foodtruck' ? mft_license_generate() : license_generate_with_packages($packages);
         $c = $pdo->prepare("SELECT 1 FROM vendor_licenses WHERE license_key = :k");
         $c->execute(['k' => $candidate]);
         if (!$c->fetchColumn()) { $key = $candidate; break; }
@@ -109,8 +111,8 @@ if ($action === 'generate' && $method === 'POST') {
         $pdo->prepare("
             INSERT INTO vendor_licenses
                 (license_key, customer_name, customer_company, customer_email, customer_phone,
-                 install_url, note, issued_at, expires_at, status, issued_by_id, price_kc, paid, rental)
-            VALUES (:k, :n, :co, :e, :p, :u, :nt, CURDATE(), :ex, 'active', :uid, :pr, :pd, :rt)
+                 install_url, note, issued_at, expires_at, status, issued_by_id, price_kc, paid, rental, product)
+            VALUES (:k, :n, :co, :e, :p, :u, :nt, CURDATE(), :ex, 'active', :uid, :pr, :pd, :rt, :prod)
         ")->execute([
             'k'   => $key,
             'n'   => $name,
@@ -120,12 +122,13 @@ if ($action === 'generate' && $method === 'POST') {
             'u'   => $d['install_url']      ?? null,
             'nt'  => $d['note']             ?? null,
             // 🆕 v3.0.302 — default ROČNÍ licence: bez zadaného data → platnost 1 rok od vystavení.
-            'ex'  => !empty($d['expires_at']) ? $d['expires_at'] : date('Y-m-d', strtotime('+1 year')),
+            'ex'  => $defaults['expires_at'],
             'uid' => $user['id'],
             'pr'  => isset($d['price_kc']) ? (float) $d['price_kc'] : null,
             'pd'  => !empty($d['paid']) ? 1 : 0,
             // 🆕 PRONÁJEM (my.appek.cz): rental=1 → měsíční nájem, po grace hard-lock celé appky
-            'rt'  => !empty($d['rental']) ? 1 : 0,
+            'rt'  => $defaults['rental'],
+            'prod'=> $product,
         ]);
         $id = (int) $pdo->lastInsertId();
         $license = $pdo->prepare("SELECT * FROM vendor_licenses WHERE id = :id");
@@ -186,6 +189,9 @@ if ($action === 'reissue' && $method === 'POST') {
     $row->execute(['id' => $id]);
     $r = $row->fetch();
     if (!$r) vendor_json_error('Licence neexistuje', 404);
+    if (str_starts_with((string) $r['license_key'], 'MFT-')) {
+        vendor_json_error('Licence Můj Foodtruck nemá balíčky — reissue není potřeba');
+    }
 
     // Reissue zachová random část původního klíče, jen přepíše balíčky
     $newKey = license_reissue_with_packages($r['license_key'], $packages);
