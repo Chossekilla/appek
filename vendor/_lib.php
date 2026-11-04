@@ -26,6 +26,7 @@ ini_set('log_errors', '1');
 // 🔑 License algoritmus — self-contained kopie sdílená s api/_license.php
 // (NUTNĚ stejný LICENSE_SALT, jinak validace nesedí na customer instalacích!)
 require_once __DIR__ . '/_license.php';
+require_once __DIR__ . '/_product.php';  // 🚚 produkt Appek / Můj Foodtruck
 
 // 🔐 TOTP (2FA) — Google Authenticator kompatibilní
 require_once __DIR__ . '/_totp.php';
@@ -51,6 +52,7 @@ function vendor_db(): PDO {
         vendor_ensure_2fa_columns($pdo);
         vendor_ensure_pirate_columns($pdo);
         vendor_ensure_update_signature_column($pdo);
+        vendor_ensure_product_columns($pdo);  // 🚚 sloupec product (appek|foodtruck)
         vendor_apply_status_expiry($pdo);
     }
     return $pdo;
