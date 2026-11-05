@@ -51,6 +51,7 @@ $orderNo = $status['order_number'];
 $stmt = $pdo->prepare("SELECT * FROM vendor_shop_orders WHERE order_no = :no LIMIT 1");
 $stmt->execute(['no' => $orderNo]);
 $order = $stmt->fetch();
+if ($order && ($order['product'] ?? 'appek') !== 'appek') $order = false;   // 🚚 objednávky Můj Foodtruck zpracovává jen mujfoodtruck.cz (jinak by vznikla appek licence)
 
 if (!$order) {
     error_log("gopay_callback: order $orderNo not found");
