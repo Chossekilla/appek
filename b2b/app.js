@@ -2615,6 +2615,15 @@ async function renderStats() {
   c.innerHTML = head + `<p class="section-sub">Načítám…</p>`;
   try {
     const data = await api('statistiky.php?period=' + encodeURIComponent(period));
+    // 🐛 v3.0.635 — na začátku měsíce ukazoval výchozí „Tento měsíc" 0 objednávek, i když
+    //   zákazník objednává (data jsou z minulého měsíce). Když období uživatel sám NEvybral
+    //   a je prázdné, přepni na nejbližší období s daty (minulý měsíc → 90 dní → vše).
+    if (!state._statsPeriodUser && period === 'mesic' && !(+data.souhrn.objednavek)) {
+      for (const p of ['minuly', '90', 'vse']) {
+        const d = await api('statistiky.php?period=' + p);
+        if (+d.souhrn.objednavek) { state._statsPeriod = p; return renderStats(); }
+      }
+    }
     c.innerHTML = head + `
       <div class="stat-grid">
         <div class="stat"><div class="stat-label">Objednávek</div><div class="stat-value">${data.souhrn.objednavek}</div></div>
@@ -2637,7 +2646,7 @@ async function renderStats() {
     c.innerHTML = head + `<p style="color:var(--danger-text)">Chyba: ${esc(e.message)}</p>`;
   }
 }
-window.b2bSetStatsPeriod = function(p) { state._statsPeriod = p; renderStats(); };
+window.b2bSetStatsPeriod = function(p) { state._statsPeriod = p; state._statsPeriodUser = true; renderStats(); };
 
 // =============================================================
 // BOOTSTRAP
