@@ -141,15 +141,7 @@ function licensePackagesFromKey(key) {
   return Object.entries(PKG_BITS).filter(([_, bit]) => n & (1 << bit)).map(([k]) => k);
 }
 
-// 🚚 Produkt Appek / Můj Foodtruck (přepínač v menu → window.VENDOR_PRODUCT)
-function vendorProduct() { return window.VENDOR_PRODUCT === 'foodtruck' ? 'foodtruck' : (window.VENDOR_PRODUCT === 'all' ? 'all' : 'appek'); }
-function isFtKey(key) { return String(key || '').startsWith('MFT-'); }
-
 function pkgChips(key) {
-  if (isFtKey(key)) {
-    const badge = vendorProduct() === 'all' ? '<span class="badge" title="Licence Můj Foodtruck">Foodtruck</span> ' : '';
-    return badge + '<span class="muted" style="font-size:11px">bez balíčků</span>';
-  }
   const pkgs = licensePackagesFromKey(key);
   if (pkgs.length === 0) return `<span class="muted" style="font-size:11px">core only</span>`;
   const meta = {
@@ -339,8 +331,7 @@ function openGenerateModal(prefill) {
   // 🐛 v3.0.414 — prefill z pirátské stránky (licenses.php?new=1&prefill_url=…&prefill_host=…);
   //   dřív se odkaz „Vystavit licenci" ignoroval → vendor nemohl přímo vydat klíč piratovi.
   prefill = prefill || {};
-  const ft = vendorProduct() === 'foodtruck';  // 🚚 foodtruck: MFT klíč, bez balíčků, vždy pronájem
-  openModal(ft ? '🔑 Nová licence — Můj Foodtruck' : '🔑 Vygenerovat licenční klíč', `
+  openModal('🔑 Vygenerovat licenční klíč', `
     <form id="gen-form" onsubmit="event.preventDefault();submitGenerate();">
       <label><span class="lbl">Jméno zákazníka *</span>
         <input type="text" name="customer_name" required autofocus placeholder="Jan Novák">
@@ -356,8 +347,6 @@ function openGenerateModal(prefill) {
         <input type="url" name="install_url" placeholder="https://muj-provoz.cz">
       </label>
 
-      ${ft ? '<div class="alert" style="margin-top:10px">Můj Foodtruck: klíč <strong>MFT-…</strong>, bez balíčků, vždy měsíční pronájem. Prázdná expirace = 1 měsíc.</div>' : ''}
-      <div ${ft ? 'hidden' : ''}>
       <label style="margin-top:10px"><span class="lbl">🎁 Balíčky k aktivaci</span></label>
       <div style="background:#f7f8fa;padding:12px;border-radius:10px;border:1px dashed #d2d2d7">
         <div style="font-size:12px;color:#86868b;margin-bottom:8px">Core je vždy součástí. Vyber doplňkové balíčky (kódují se do klíče).</div>
@@ -367,12 +356,11 @@ function openGenerateModal(prefill) {
           <strong id="pkg-total" style="font-size:16px;color:#0071e3">0 Kč</strong>
         </div>
       </div>
-      </div>
 
       <div class="grid-2" style="margin-top:10px">
         <label><span class="lbl">Expirace (volitelné)</span>
           <input type="date" name="expires_at">
-          <small>${ft ? 'Prázdné = 1 měsíc' : 'Prázdné = 1 rok'}</small>
+          <small>Prázdné = navždy</small>
         </label>
         <label><span class="lbl">Cena (Kč)</span>
           <input type="number" name="price_kc" min="0" step="100" placeholder="0" oninput="this.dataset.userEdited='1'">
@@ -385,8 +373,8 @@ function openGenerateModal(prefill) {
         <input type="checkbox" name="paid" checked>
         <span>💰 Zaplaceno</span>
       </label>
-      <label class="checkbox-row" style="${ft ? 'display:none' : ''}">
-        <input type="checkbox" name="rental" ${ft ? 'checked' : ''}>
+      <label class="checkbox-row">
+        <input type="checkbox" name="rental">
         <span>🗓️ Pronájem (my.appek.cz) — po vypršení + grace zamkne CELOU appku. Expirace = zaplaceno do.</span>
       </label>
       <div class="form-actions">
@@ -413,9 +401,8 @@ async function submitGenerate() {
   const data = Object.fromEntries(new FormData(form).entries());
   data.paid = form.paid.checked;
   data.rental = form.rental.checked ? 1 : 0;  // 🆕 pronájem (my.appek.cz)
-  data.product = vendorProduct() === 'foodtruck' ? 'foodtruck' : 'appek';  // 🚚 v pohledu „Vše" se vydává appek
-  // Collect selected packages (foodtruck balíčky nemá)
-  data.packages = data.product === 'foodtruck' ? [] : Array.from(form.querySelectorAll('input[name="pkg"]:checked')).map(el => el.value);
+  // Collect selected packages
+  data.packages = Array.from(form.querySelectorAll('input[name="pkg"]:checked')).map(el => el.value);
   delete data.pkg;
   try {
     const r = await api('generate', { method: 'POST', body: data });
@@ -465,15 +452,13 @@ function openEditModal(id) {
       </div>
       <div style="font-size:11px;color:#86868b;margin:0 0 10px;line-height:1.4">💡 Změna platnosti jde na <strong>stejný klíč</strong> — zákazník nic nevkládá, projeví se do pár minut (heartbeat). Balíčky měň přes 🎁 (vygeneruje nový klíč se stejnou identitou).</div>
       <label><span class="lbl">Poznámka</span><textarea name="note" rows="2">${esc(r.note ?? '')}</textarea></label>
-      <div ${isFtKey(r.license_key) ? 'hidden' : ''}>
       <label style="margin-top:2px"><span class="lbl">🎁 Balíčky v licenci</span></label>
       <div style="background:#f7f8fa;padding:10px 12px;border-radius:10px;border:1px dashed #d2d2d7;margin-bottom:12px">
         <div style="font-size:11px;color:#86868b;margin-bottom:8px;line-height:1.45">Zaškrtnutí přidá/odebere balíček. Změna balíčků = <strong>nový klíč se stejnou identitou</strong> (random částí) — zákazník ho jednou vloží. Platnost a ostatní pole jdou na stejný klíč bez akce zákazníka.</div>
         ${renderPackageCheckboxes(licensePackagesFromKey(r.license_key))}
       </div>
-      </div>
       <label class="checkbox-row"><input type="checkbox" name="paid" ${r.paid == 1 ? 'checked' : ''}><span>💰 Zaplaceno</span></label>
-      <label class="checkbox-row" style="${isFtKey(r.license_key) ? 'display:none' : ''}"><input type="checkbox" name="rental" ${r.rental == 1 || isFtKey(r.license_key) ? 'checked' : ''}><span>🗓️ Pronájem (my.appek.cz) — po vypršení + grace zamkne CELOU appku</span></label>
+      <label class="checkbox-row"><input type="checkbox" name="rental" ${r.rental == 1 ? 'checked' : ''}><span>🗓️ Pronájem (my.appek.cz) — po vypršení + grace zamkne CELOU appku</span></label>
       <div class="form-actions">
         <button type="button" class="btn-secondary" onclick="closeModal()">Zrušit</button>
         <button type="submit" class="btn btn-primary">💾 Uložit</button>
@@ -493,7 +478,7 @@ async function submitEdit(id) {
   const lic = allLicenses.find(x => x.id === id);
   const orig = lic ? licensePackagesFromKey(lic.license_key).slice().sort().join(',') : '';
   const chosen = Array.from(form.querySelectorAll('input[name="pkg"]:checked')).map(el => el.value).sort();
-  const pkgChanged = !isFtKey(lic && lic.license_key) && chosen.join(',') !== orig;  // 🚚 MFT klíč nemá balíčky
+  const pkgChanged = chosen.join(',') !== orig;
   try {
     let newKey = null;
     if (pkgChanged) {

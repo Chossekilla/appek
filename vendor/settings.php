@@ -215,22 +215,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     }
 }
 
-// ─── 🚚 Můj Foodtruck — nastavení prodejního kanálu ────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_ft') {
-    [$ftErr, $ftVals] = vendor_ft_settings_validate($_POST);
-    if ($ftErr) {
-        $flash_err = 'Neuloženo: ' . htmlspecialchars(implode(' ', $ftErr));
-    } else {
-        try {
-            foreach ($ftVals as $k => $v) vendor_mail_set($k, $v);
-            vendor_audit($pdo, $user, 'ft_settings_save', null, null);
-            $flash_ok = 'Nastavení Můj Foodtruck uloženo.';
-        } catch (Throwable $e) {
-            $flash_err = 'Uložení selhalo: ' . htmlspecialchars($e->getMessage());
-        }
-    }
-}
-
 // ─── Test mail ──────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'test_mail') {
     $target = trim($_POST['test_to'] ?? '');
@@ -643,54 +627,6 @@ if (!$totpEnabled) {
       </div>
     </div>
 
-  </div>
-
-  <!-- ══════════════ 🚚 MŮJ FOODTRUCK ══════════════ -->
-  <?php
-    $ftCfg = [];
-    foreach (VENDOR_FT_SETTING_KEYS as $k) $ftCfg[$k] = (string) ($allSettings[$k] ?? '');
-    if ($ftCfg['ft_invoice_prefix'] === '') $ftCfg['ft_invoice_prefix'] = 'MFT';
-    $ftField = function (string $k, string $label, string $type = 'text', string $ph = '', string $hint = '') use ($ftCfg) {
-        echo '<div><label>' . htmlspecialchars($label) . ($hint !== '' ? ' <small>' . htmlspecialchars($hint) . '</small>' : '') . '</label>'
-           . '<input type="' . $type . '" name="' . $k . '" value="' . htmlspecialchars($ftCfg[$k]) . '" placeholder="' . htmlspecialchars($ph) . '"'
-           . ($type === 'number' ? ' min="0" step="1"' : '') . '></div>';
-    };
-  ?>
-  <h2 class="settings-section-title" id="ft">Můj Foodtruck <small>druhý prodejní kanál — ceny, odesílatel e-mailů, dodavatel na fakturách</small></h2>
-  <div class="settings-grid">
-    <div class="settings-card">
-      <h2>Prodej Můj Foodtruck</h2>
-      <p style="font-size:13px;color:#6e6e73;line-height:1.5;margin-bottom:14px">
-        Používá pokladna, e-maily, faktury a zákaznický portál na webu Můj Foodtruck. Zákazník tu značku appek nikde neuvidí.
-      </p>
-      <form method="POST">
-        <?php vendor_csrf_field(); ?>
-        <input type="hidden" name="action" value="save_ft">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px">
-          <?php
-            $ftField('ft_price_month_kc', 'Cena za měsíc (Kč)', 'number', '499');
-            $ftField('ft_price_year_kc', 'Cena za rok (Kč)', 'number', '', 'prázdné = 12 × měsíční');
-            $ftField('ft_web_url', 'Adresa webu', 'url', 'https://mujfoodtruck.cz');
-            $ftField('ft_portal_url', 'Adresa zákaznického portálu', 'url', 'https://muj.mujfoodtruck.cz');
-            $ftField('ft_mail_from_email', 'E-mail odesílatele', 'email', 'info@mujfoodtruck.cz');
-            $ftField('ft_mail_from_name', 'Jméno odesílatele', 'text', 'Můj Foodtruck');
-            $ftField('ft_invoice_prefix', 'Prefix faktur', 'text', 'MFT', 'MFT-RRRR-NNN');
-          ?>
-        </div>
-        <h3 style="font-size:14px;margin:4px 0 10px">Dodavatel na fakturách</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px">
-          <?php
-            $ftField('ft_supplier_name', 'Název / jméno');
-            $ftField('ft_supplier_ico', 'IČO');
-            $ftField('ft_supplier_dic', 'DIČ');
-            $ftField('ft_supplier_address', 'Adresa');
-            $ftField('ft_supplier_bank_account', 'Číslo účtu');
-            $ftField('ft_supplier_iban', 'IBAN');
-          ?>
-        </div>
-        <button type="submit" class="btn-master">Uložit nastavení Můj Foodtruck</button>
-      </form>
-    </div>
   </div>
 
   <!-- ══════════════ 🔐 ÚČET & ZABEZPEČENÍ ══════════════ -->

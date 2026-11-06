@@ -121,8 +121,7 @@ function my_licenses(PDO $pdo, string $email): array {
     $em = strtolower(trim($email));
     $sql = "SELECT DISTINCT l.* FROM vendor_licenses l
             LEFT JOIN vendor_install_emails ie ON ie.license_id = l.id
-            WHERE (LOWER(l.customer_email) = :e1 OR LOWER(ie.email) = :e2)
-              AND COALESCE(l.product,'appek') = 'appek'  -- 🚚 portál my.appek.cz jen pro Appek
+            WHERE LOWER(l.customer_email) = :e1 OR LOWER(ie.email) = :e2
             ORDER BY (l.expires_at IS NULL) ASC, l.expires_at ASC";
     try {
         $st = $pdo->prepare($sql);
@@ -130,7 +129,7 @@ function my_licenses(PDO $pdo, string $email): array {
         return $st->fetchAll();
     } catch (Throwable $e) {
         // vendor_install_emails nemusí existovat (čerstvý vendor) → aspoň přímý e-mail licence
-        $st = $pdo->prepare("SELECT * FROM vendor_licenses WHERE LOWER(customer_email) = :e AND COALESCE(product,'appek') = 'appek'
+        $st = $pdo->prepare("SELECT * FROM vendor_licenses WHERE LOWER(customer_email) = :e
                              ORDER BY (expires_at IS NULL) ASC, expires_at ASC");
         $st->execute(['e' => $em]);
         return $st->fetchAll();

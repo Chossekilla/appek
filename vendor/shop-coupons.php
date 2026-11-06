@@ -24,7 +24,6 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS vendor_coupons (
     plati_do DATE DEFAULT NULL,
     max_pouziti INT DEFAULT NULL,
     pouzito INT NOT NULL DEFAULT 0,
-    product VARCHAR(16) NOT NULL DEFAULT 'appek',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
@@ -48,10 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($hodnota <= 0) throw new Exception('Hodnota slevy musí být kladná.');
             if ($typ === 'percent' && $hodnota > 100) throw new Exception('Procento nemůže být přes 100 %.');
 
-            $prod = vendor_product_normalize($_POST['product'] ?? vendor_product_for_write(), false);  // 🚚 kupon platí jen pro svůj produkt
-            $st = $pdo->prepare("INSERT INTO vendor_coupons (kod, typ, hodnota, popis, plati_do, max_pouziti, product)
-                                 VALUES (:k, :t, :h, :p, :pd, :mp, :prod)");
-            $st->execute(['k' => $kod, 't' => $typ, 'h' => $hodnota, 'p' => $popis, 'pd' => $platiDo, 'mp' => $maxPouziti, 'prod' => $prod]);
+            $st = $pdo->prepare("INSERT INTO vendor_coupons (kod, typ, hodnota, popis, plati_do, max_pouziti)
+                                 VALUES (:k, :t, :h, :p, :pd, :mp)");
+            $st->execute(['k' => $kod, 't' => $typ, 'h' => $hodnota, 'p' => $popis, 'pd' => $platiDo, 'mp' => $maxPouziti]);
             if (function_exists('vendor_audit')) vendor_audit($pdo, $user, 'coupon_create', null, $kod);
             $flash_ok = "Kupon $kod vytvořen.";
         } elseif ($action === 'toggle') {
@@ -74,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$coupons = $pdo->query("SELECT * FROM vendor_coupons WHERE " . vendor_product_sql(vendor_product_current()) . " ORDER BY active DESC, created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+$coupons = $pdo->query("SELECT * FROM vendor_coupons ORDER BY active DESC, created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 $today = date('Y-m-d');
 ?><!DOCTYPE html>
 <html lang="cs">
@@ -132,14 +130,6 @@ $today = date('Y-m-d');
                style="text-transform:uppercase" autocomplete="off">
       </div>
       <div>
-        <label>Produkt</label>
-        <select name="product">
-          <?php foreach (VENDOR_PRODUCTS as $pk => $pl): ?>
-            <option value="<?= htmlspecialchars($pk) ?>"<?= vendor_product_for_write() === $pk ? ' selected' : '' ?>><?= htmlspecialchars($pl) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div>
         <label>Typ slevy</label>
         <select name="typ">
           <option value="percent">Procenta (%)</option>
@@ -174,7 +164,7 @@ $today = date('Y-m-d');
     <table class="order-table">
       <thead>
         <tr>
-          <th>Kód</th><?php if (vendor_product_current() === 'all'): ?><th>Produkt</th><?php endif; ?><th>Sleva</th><th>Popis</th><th>Platnost</th><th>Použití</th><th>Stav</th><th>Akce</th>
+          <th>Kód</th><th>Sleva</th><th>Popis</th><th>Platnost</th><th>Použití</th><th>Stav</th><th>Akce</th>
         </tr>
       </thead>
       <tbody>
@@ -188,7 +178,6 @@ $today = date('Y-m-d');
           ?>
           <tr>
             <td><code><?= htmlspecialchars($c['kod']) ?></code></td>
-            <?php if (vendor_product_current() === 'all'): ?><td><?= htmlspecialchars(VENDOR_PRODUCTS[$c['product'] ?? 'appek'] ?? 'Appek') ?></td><?php endif; ?>
             <td><strong>−<?= $sleva ?></strong></td>
             <td style="color:#6e6e73"><?= htmlspecialchars($c['popis'] ?? '') ?: '—' ?></td>
             <td><?= $c['plati_do'] ? htmlspecialchars($c['plati_do']) : '<span style="color:#86868b">bez limitu</span>' ?></td>

@@ -38,7 +38,6 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS vendor_invoices (
     vs VARCHAR(20) NULL,
     stav ENUM('vystaveno','zaplaceno','storno') NOT NULL DEFAULT 'vystaveno',
     poznamka TEXT NULL,
-    product VARCHAR(16) NOT NULL DEFAULT 'appek',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_stav (stav), INDEX idx_datum (datum_vystaveni)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
@@ -125,11 +124,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save') {
                                               : "SELECT dodavatel_nazev FROM vendor_invoice_clients WHERE nazev=:v LIMIT 1");
             $dq->execute(['v' => $cIco0 !== '' ? $cIco0 : $klient]);
             $dodNazev = $dq->fetchColumn() ?: null;
-            $pdo->prepare("INSERT INTO vendor_invoices (cislo,klient_nazev,klient_ico,klient_dic,klient_adresa,klient_email,polozky,celkem,datum_vystaveni,datum_splatnosti,vs,poznamka,dodavatel_nazev,product)
-                           VALUES (:cs,:kn,:ki,:kd,:ka,:ke,:po,:c,:dv,:ds,:vs,:pz,:dn,:prod)")
+            $pdo->prepare("INSERT INTO vendor_invoices (cislo,klient_nazev,klient_ico,klient_dic,klient_adresa,klient_email,polozky,celkem,datum_vystaveni,datum_splatnosti,vs,poznamka,dodavatel_nazev)
+                           VALUES (:cs,:kn,:ki,:kd,:ka,:ke,:po,:c,:dv,:ds,:vs,:pz,:dn)")
                 ->execute(['cs'=>$cislo,'kn'=>$klient,'ki'=>trim($d['klient_ico']??''),'kd'=>trim($d['klient_dic']??''),
                     'ka'=>trim($d['klient_adresa']??''),'ke'=>trim($d['klient_email']??''),'po'=>$pj,'c'=>$celkem,
-                    'dv'=>$dv,'ds'=>$ds,'vs'=>$cislo,'pz'=>trim($d['poznamka']??''),'dn'=>$dodNazev,'prod'=>'appek']);  // 🚚 ruční faktura = appek; foodtruck faktury vystaví Plán 2 (řada MFT)
+                    'dv'=>$dv,'ds'=>$ds,'vs'=>$cislo,'pz'=>trim($d['poznamka']??''),'dn'=>$dodNazev]);
             $id = (int) $pdo->lastInsertId();
         }
         // 🆕 upsert klienta do registru (aby šel příště jen vybrat) — dle IČO, jinak dle názvu
@@ -493,7 +492,7 @@ $hasBank = !empty($biz['business_bank_account']) || !empty($biz['business_bank_i
     <a href="faktury.php?new=1" class="btn-master">＋ Nová faktura</a>
   </div>
   <?php
-    $rows = $pdo->query("SELECT * FROM vendor_invoices WHERE " . vendor_product_sql(vendor_product_current()) . " ORDER BY id DESC LIMIT 300")->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $pdo->query("SELECT * FROM vendor_invoices ORDER BY id DESC LIMIT 300")->fetchAll(PDO::FETCH_ASSOC);
     $sumOpen = 0.0; foreach ($rows as $r) if ($r['stav']==='vystaveno') $sumOpen += (float)$r['celkem'];
   ?>
   <div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px">

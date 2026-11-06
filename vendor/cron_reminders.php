@@ -40,8 +40,7 @@ $sql = "SELECT id, license_key, customer_name, customer_email, expires_at
           AND expires_at >= CURDATE()
           AND expires_at <= DATE_ADD(CURDATE(), INTERVAL :d DAY)
           AND (reminded_until IS NULL OR reminded_until <> expires_at)
-          AND customer_email IS NOT NULL AND customer_email <> ''
-          AND COALESCE(product,'appek') = 'appek'";  // 🚚 foodtruck má vlastní připomínky (Plán 2) — tahle šablona je APPEK
+          AND customer_email IS NOT NULL AND customer_email <> ''";
 $st = $pdo->prepare($sql);
 $st->execute(['d' => REMINDER_DAYS]);
 $rows = $st->fetchAll(PDO::FETCH_ASSOC);

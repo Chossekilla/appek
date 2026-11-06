@@ -121,8 +121,8 @@ function vendor_nav_counts(): array {
     $c = ['orders' => 0, 'licenses' => 0, 'pirate' => 0];
     try {
         $pdo = vendor_db();
-        try { $c['orders'] = (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='pending' AND " . vendor_product_sql(vendor_product_current()))->fetchColumn(); } catch (Throwable $e) {}
-        try { $c['licenses'] = (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='active' AND expires_at IS NOT NULL AND expires_at <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) AND " . vendor_product_sql(vendor_product_current()))->fetchColumn(); } catch (Throwable $e) {}
+        try { $c['orders'] = (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='pending'")->fetchColumn(); } catch (Throwable $e) {}
+        try { $c['licenses'] = (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='active' AND expires_at IS NOT NULL AND expires_at <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)")->fetchColumn(); } catch (Throwable $e) {}
         try { $c['pirate'] = (int) $pdo->query("SELECT COUNT(*) FROM vendor_pirate_installs WHERE status IN ('new','contacted','warned')")->fetchColumn(); } catch (Throwable $e) {}
     } catch (Throwable $e) {}
     return $c;
@@ -243,17 +243,6 @@ function vendor_render_topbar(array $user, string $currentPage = ''): void {
       </div>
       <div class="vx-today"><?= htmlspecialchars($today) ?></div>
       <div class="vx-sheet" id="vx-sheet"><!-- desktop: display:contents; mobil (≤900px): spodní panel s dlaždicemi -->
-      <?php // 🚚 Přepínač produktu — filtruje licence, objednávky, faktury, kupony a přehled.
-        $vxProd = vendor_product_current();
-        $vxQ = $_GET; unset($vxQ['product']);
-        $vxBase = strtok($_SERVER['REQUEST_URI'] ?? 'index.php', '?');
-        $vxOpts = VENDOR_PRODUCTS + ['all' => 'Vše']; ?>
-      <div class="vx-prod" role="group" aria-label="Produkt">
-        <?php foreach ($vxOpts as $pk => $pl): ?>
-          <a href="<?= htmlspecialchars($vxBase . '?' . http_build_query($vxQ + ['product' => $pk])) ?>" class="<?= $vxProd === $pk ? 'on' : '' ?>"<?= $vxProd === $pk ? ' aria-current="true"' : '' ?>><?= htmlspecialchars($pl) ?></a>
-        <?php endforeach; ?>
-      </div>
-      <script>window.VENDOR_PRODUCT = <?= json_encode($vxProd) ?>;</script>
       <nav class="vx-nav">
         <?php foreach (vendor_nav_groups() as $g): ?>
           <?php if ($g['label']): ?><div class="vx-grp"><?= htmlspecialchars($g['label']) ?></div><?php endif; ?>

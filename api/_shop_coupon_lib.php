@@ -22,15 +22,8 @@ function shop_coupon_ensure_table(PDO $pdo): void {
         plati_do DATE DEFAULT NULL,
         max_pouziti INT DEFAULT NULL,
         pouzito INT NOT NULL DEFAULT 0,
-        product VARCHAR(16) NOT NULL DEFAULT 'appek',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-    // 🚚 Starší tabulka bez sloupce product → doplnit (kupony jsou per produkt: appek | foodtruck)
-    try {
-        if (!$pdo->query("SHOW COLUMNS FROM vendor_coupons LIKE 'product'")->fetchAll()) {
-            $pdo->exec("ALTER TABLE vendor_coupons ADD COLUMN product VARCHAR(16) NOT NULL DEFAULT 'appek'");
-        }
-    } catch (Throwable $e) { /* neblokuj pokladnu */ }
 }
 
 /**
@@ -38,15 +31,12 @@ function shop_coupon_ensure_table(PDO $pdo): void {
  * @return array [bool $valid, string $reason, ?array $coupon, float $discountKc]
  *   reason ∈ empty|not_found|inactive|expired|used_up|ok
  */
-// 🚚 $product: kupon platí jen pro svůj produkt (appek | foodtruck). Kupon jiného produktu
-//    = not_found (nic neprozradí). Výchozí appek → stávající volání beze změny.
-function shop_coupon_eval(PDO $pdo, string $code, float $subtotal, string $product = 'appek'): array {
+function shop_coupon_eval(PDO $pdo, string $code, float $subtotal): array {
     $code = strtoupper(trim($code));
     if ($code === '') return [false, 'empty', null, 0.0];
 
-    $product = $product === 'foodtruck' ? 'foodtruck' : 'appek';
-    $st = $pdo->prepare("SELECT * FROM vendor_coupons WHERE kod = :k AND COALESCE(product,'appek') = :p LIMIT 1");
-    $st->execute(['k' => $code, 'p' => $product]);
+    $st = $pdo->prepare("SELECT * FROM vendor_coupons WHERE kod = :k LIMIT 1");
+    $st->execute(['k' => $code]);
     $c = $st->fetch(PDO::FETCH_ASSOC);
     if (!$c)                                                                 return [false, 'not_found', null, 0.0];
     if ((int) $c['active'] !== 1)                                           return [false, 'inactive', $c, 0.0];

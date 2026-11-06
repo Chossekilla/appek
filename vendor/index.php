@@ -71,20 +71,19 @@ $todoOrders = []; $todoLic = []; $recentOrders = [];
 if ($user) {
     try {
         $pdo = vendor_db();
-        $pf = ' AND ' . vendor_product_sql(vendor_product_current());  // 🚚 filtr produktu (Appek / Můj Foodtruck)
-        $kpi['lic_total']    = (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE 1=1$pf")->fetchColumn();
-        $kpi['lic_active']   = (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='active'$pf")->fetchColumn();
+        $kpi['lic_total']    = (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses")->fetchColumn();
+        $kpi['lic_active']   = (int) $pdo->query("SELECT COUNT(*) FROM vendor_licenses WHERE status='active'")->fetchColumn();
         $kpi['lic_expiring'] = (int) $pdo->query("
             SELECT COUNT(*) FROM vendor_licenses
             WHERE status='active' AND expires_at IS NOT NULL
-              AND expires_at <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)$pf
+              AND expires_at <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
         ")->fetchColumn();
         try {
-            $kpi['orders_total']   = (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE 1=1$pf")->fetchColumn();
-            $kpi['orders_pending'] = (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='pending'$pf")->fetchColumn();
-            $kpi['orders_paid']    = (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='paid'$pf")->fetchColumn();
-            $kpi['revenue_mtd']    = (float) $pdo->query("SELECT COALESCE(SUM(total_kc),0) FROM vendor_shop_orders WHERE payment_status='paid' AND paid_at >= DATE_FORMAT(CURDATE(),'%Y-%m-01')$pf")->fetchColumn();
-            $kpi['revenue_total']  = (float) $pdo->query("SELECT COALESCE(SUM(total_kc),0) FROM vendor_shop_orders WHERE payment_status='paid'$pf")->fetchColumn();
+            $kpi['orders_total']   = (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders")->fetchColumn();
+            $kpi['orders_pending'] = (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='pending'")->fetchColumn();
+            $kpi['orders_paid']    = (int) $pdo->query("SELECT COUNT(*) FROM vendor_shop_orders WHERE payment_status='paid'")->fetchColumn();
+            $kpi['revenue_mtd']    = (float) $pdo->query("SELECT COALESCE(SUM(total_kc),0) FROM vendor_shop_orders WHERE payment_status='paid' AND paid_at >= DATE_FORMAT(CURDATE(),'%Y-%m-01')")->fetchColumn();
+            $kpi['revenue_total']  = (float) $pdo->query("SELECT COALESCE(SUM(total_kc),0) FROM vendor_shop_orders WHERE payment_status='paid'")->fetchColumn();
         } catch (Throwable $e) { /* tabulka může neexistovat */ }
         try {
             $kpi['packages_total']  = (int) $pdo->query("SELECT COUNT(*) FROM vendor_packages")->fetchColumn();
@@ -120,11 +119,11 @@ if ($user) {
             } catch (Throwable $e) { /* DB nedostupná */ }
         }
         // 🆕 v3.0.568 — seznamy pro „Vyžaduje pozornost" / „Poslední objednávky" / „Vydání"
-        try { $todoOrders = $pdo->query("SELECT id, order_no, customer_name, customer_company, total_kc, payment_method, created_at FROM vendor_shop_orders WHERE payment_status='pending'$pf ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC); } catch (Throwable $e) {}
-        try { $todoLic = $pdo->query("SELECT id, customer_name, customer_company, expires_at FROM vendor_licenses WHERE status='active' AND expires_at IS NOT NULL AND expires_at <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)$pf ORDER BY expires_at LIMIT 5")->fetchAll(PDO::FETCH_ASSOC); } catch (Throwable $e) {}
-        try { $recentOrders = $pdo->query("SELECT id, order_no, customer_name, customer_company, tier, total_kc, payment_status, created_at FROM vendor_shop_orders WHERE 1=1$pf ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC); } catch (Throwable $e) {}
+        try { $todoOrders = $pdo->query("SELECT id, order_no, customer_name, customer_company, total_kc, payment_method, created_at FROM vendor_shop_orders WHERE payment_status='pending' ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC); } catch (Throwable $e) {}
+        try { $todoLic = $pdo->query("SELECT id, customer_name, customer_company, expires_at FROM vendor_licenses WHERE status='active' AND expires_at IS NOT NULL AND expires_at <= DATE_ADD(CURDATE(), INTERVAL 30 DAY) ORDER BY expires_at LIMIT 5")->fetchAll(PDO::FETCH_ASSOC); } catch (Throwable $e) {}
+        try { $recentOrders = $pdo->query("SELECT id, order_no, customer_name, customer_company, tier, total_kc, payment_status, created_at FROM vendor_shop_orders ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC); } catch (Throwable $e) {}
         if ($kpi['latest_version']) {
-            try { $st = $pdo->prepare("SELECT COUNT(*) FROM vendor_licenses WHERE status='active' AND last_seen_version IS NOT NULL AND last_seen_version <> :v$pf"); $st->execute(['v' => $kpi['latest_version']]); $kpi['outdated'] = (int) $st->fetchColumn(); } catch (Throwable $e) {}
+            try { $st = $pdo->prepare("SELECT COUNT(*) FROM vendor_licenses WHERE status='active' AND last_seen_version IS NOT NULL AND last_seen_version <> :v"); $st->execute(['v' => $kpi['latest_version']]); $kpi['outdated'] = (int) $st->fetchColumn(); } catch (Throwable $e) {}
         }
     } catch (Throwable $e) { /* ignoruj */ }
 }
