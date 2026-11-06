@@ -15478,14 +15478,14 @@ async function renderOdberatele(opts = {}) {
         <thead>
           <tr>
             <th>Č.</th><th>Název</th><th>IČO</th><th>Login</th>
-            <th class="num">Pobočky</th><th class="num">Objednávek</th><th class="num">Tržba celkem</th>
-            <th>Stav</th><th></th>
+            <th class="num">Pobočky</th><th class="num">Objednávek</th><th class="num" style="white-space:nowrap">Tržba celkem</th>
+            <th>Stav</th><th class="odb-akce-th">Doklady</th>
           </tr>
         </thead>
         <tbody>
           ${odbPageItems.map((o) => `
             <tr class="row-clickable" onclick="editOdberatel(${o.id})">
-              <td>${esc(o.cislo || '')}</td>
+              <td class="odb-cislo">${esc(o.cislo || '')}</td>
               <td class="odberatel-row-name">
                 <strong>${esc(o.nazev)}</strong>
                 ${o.typ ? `<div style="margin-top:2px">${window.odbTypBadge(o.typ)}</div>` : ''}
@@ -15494,13 +15494,13 @@ async function renderOdberatele(opts = {}) {
                 ${o.email ? `<div style="font-size:11px;margin-top:1px"><a href="mailto:${esc(o.email)}" onclick="event.stopPropagation();" style="color:var(--text-3);text-decoration:none">✉️ ${esc(o.email)}</a></div>` : ''}
               </td>
               <td>${esc(o.ico || '')}</td>
-              <td>${o.login_email ? esc(o.login_email) : '<i style="color:var(--text-3)">bez přístupu</i>'}</td>
+              <td class="odb-login">${o.login_email ? esc(o.login_email) : '<i style="color:var(--text-3)">bez přístupu</i>'}</td>
               <td class="num"><strong>${o.pocet_pobocek}</strong></td>
               <td class="num">${o.pocet_objednavek}</td>
-              <td class="num">${fmt(o.trzba_celkem)}</td>
+              <td class="num" style="white-space:nowrap">${fmt(o.trzba_celkem)}</td>
               <td>${o.blokovan ? '<span class="status zrusena">Blokován</span>' : '<span class="status dorucena">Aktivní</span>'}</td>
-              <td onclick="event.stopPropagation();" style="white-space:nowrap;text-align:right">
-                <span class="doc-badges-row" style="justify-content:flex-end;gap:4px">
+              <td onclick="event.stopPropagation();" class="odb-akce-td">
+                <div class="odb-akce">
                   ${o.pocet_objednavek > 0
                     ? `<a href="#" onclick="zobrazitObjednavkyOdberatele(${o.id});return false" class="doc-badge obj" title="Zobrazit objednávky odběratele">🛒 OBJ ${o.pocet_objednavek}</a>`
                     : `<span class="doc-badge obj unavailable" title="Žádné objednávky">🛒 0</span>`}
@@ -15510,8 +15510,8 @@ async function renderOdberatele(opts = {}) {
                   ${(o.pocet_faktur || 0) > 0
                     ? `<a href="#" onclick="zobrazitFakturyOdberatele(${o.id});return false" class="doc-badge fa" title="Zobrazit faktury odběratele">💰 FA ${o.pocet_faktur}</a>`
                     : `<span class="doc-badge fa unavailable" title="Žádné faktury">💰 0</span>`}
-                  <button class="btn-secondary" style="font-size:12px;padding:6px 10px;margin-left:4px" onclick="editOdberatel(${o.id})">Detail</button>
-                </span>
+                  <button class="btn-secondary odb-detail" onclick="editOdberatel(${o.id})">Detail</button>
+                </div>
               </td>
             </tr>
           `).join('')}

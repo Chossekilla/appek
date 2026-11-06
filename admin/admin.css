@@ -96,3 +96,14 @@ html body #app[style*="display:none"],html body #app[style*="display: none"]{dis
 /* v3.0.601 — faktura karta: čtvercové ikony v řadě jako v přehledu (recentRowIcons) */
 .faktura-card .faktura-card-foot .recent-icons{display:flex!important;gap:6px!important;flex-wrap:nowrap}
 .faktura-card .faktura-card-foot .faktura-card-datum{min-width:0}
+/* v3.0.637 — Odběratelé (tabulka): doklady OBJ/DL/FA + Detail v pevné mřížce → u všech řádků stejně zarovnané */
+.table td{vertical-align:middle}
+.table th.odb-akce-th{text-align:right}
+.table td.odb-akce-td{text-align:right;white-space:nowrap;width:1%}
+.odb-akce{display:grid!important;grid-template-columns:repeat(3,78px) 72px;gap:6px;justify-content:end;align-items:center}
+.odb-akce .doc-badge{display:inline-flex!important;align-items:center;justify-content:center;width:100%!important;min-width:0;margin:0!important;
+  min-height:34px;padding:6px 4px!important;font-size:12.5px!important;line-height:1!important;box-sizing:border-box;flex:none!important;border-radius:999px;white-space:nowrap}
+.odb-akce .doc-badge.unavailable{opacity:.45}
+.odb-akce .odb-detail{width:100%;min-height:34px;padding:6px 8px;font-size:12.5px;margin:0;border-radius:999px;justify-content:center}
+@media (max-width:1700px){.odb-akce{grid-template-columns:repeat(2,76px)}}
+@media (min-width:1701px){.table td.odberatel-row-name{min-width:210px}}
