@@ -78,7 +78,7 @@ async function loadPaymentMethodsPanel() {
       <div class="card-block" style="margin:18px 0 0;padding:16px;border-left:4px solid #BA7517">
         <h3 style="margin:0 0 4px;font-size:16px">🚚 Doprava — ceny a práh „zdarma"</h3>
         <p style="font-size:12px;color:var(--text-3);margin:0 0 14px;line-height:1.5">Cena za každý způsob dopravy se přičte k objednávce. Nad nastavenou hranicí je doprava <strong>zdarma</strong>. Týká se B2B portálu (a POS rozvozu).</p>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:rgba(186,117,23,0.08);border-radius:8px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-bottom:14px;padding:10px 12px;background:rgba(186,117,23,0.08);border-radius:8px">
           <label style="font-size:13px;font-weight:600;min-width:170px">🎉 Doprava zdarma od</label>
           <input type="number" step="1" min="0" id="dopr-zdarma-od" value="${dopr.zdarma_od!=null?dopr.zdarma_od:''}" placeholder="např. 1500" style="width:120px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:600">
           <span style="font-size:13px;color:var(--text-3)">Kč (s DPH). Prázdné = nikdy zdarma.</span>

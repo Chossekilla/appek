@@ -10,4 +10,6 @@ $admin = require_admin();
 // 🔒 v3.0.228 — vrať i čerstvý CSRF token, aby se frontend při každém loadu/reloadu
 // sesynchronizoval se session (self-heal pro CSRF strict mód). whoami je GET → vždy projde.
 $admin['csrf_token'] = csrf_token();
+// e-mail přihlášeného (Bezpečnostní list v Nastavení ho tiskne — dřív tam bylo vždy „—")
+try { $st = db()->prepare('SELECT email FROM admin_users WHERE id = ? LIMIT 1'); $st->execute([$admin['id']]); $admin['email'] = (string) ($st->fetchColumn() ?: ''); } catch (Throwable $e) {}
 json_response($admin);
