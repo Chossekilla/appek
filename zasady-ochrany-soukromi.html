@@ -68,6 +68,7 @@ footer a { color: #BA7517; text-decoration: none; }
       <tr><th data-i18n="t2_ico">IČO</th><td data-i18n="t2_ico_v">[Doplnit]</td></tr>
       <tr><th data-i18n="t2_addr">Sídlo</th><td data-i18n="t2_addr_v">[Doplnit]</td></tr>
       <tr><th>E-mail</th><td><a href="mailto:gdpr@appek.cz">gdpr@appek.cz</a></td></tr>
+      <tr><th data-i18n="t2_phone">Telefon</th><td><a href="tel:+420774599622" data-biz-phone>+420 774 599 622</a></td></tr>
     </table>
 
     <h2><span class="num">3</span><span data-i18n="h3">Jaké údaje zpracováváme</span></h2>
@@ -156,7 +157,7 @@ const I18N = {
     p1: 'Tyto zásady popisují, jak provozovatel APPEK B2B (dále jen „Správce") zpracovává osobní údaje v souladu s Nařízením EU 2016/679 (GDPR) a zákonem č. 110/2019 Sb.',
     t2_subject: 'Subjekt', t2_subject_v: '[Doplnit obchodní jméno]',
     t2_ico: 'IČO', t2_ico_v: '[Doplnit]',
-    t2_addr: 'Sídlo', t2_addr_v: '[Doplnit]',
+    t2_addr: 'Sídlo', t2_addr_v: '[Doplnit]', t2_phone: 'Telefon',
     p3: 'Při nákupu licence a používání APPEK shromažďujeme:',
     p3_a: '<strong>Identifikační údaje</strong>: jméno, příjmení, název firmy, IČO, DIČ',
     p3_b: '<strong>Kontaktní údaje</strong>: e-mail, telefon, fakturační adresa',
@@ -209,7 +210,7 @@ const I18N = {
     p1: 'This policy describes how the operator of APPEK B2B (hereinafter "Controller") processes personal data in accordance with EU Regulation 2016/679 (GDPR) and Act No. 110/2019 Sb.',
     t2_subject: 'Entity', t2_subject_v: '[Fill in business name]',
     t2_ico: 'Business ID', t2_ico_v: '[Fill in]',
-    t2_addr: 'Address', t2_addr_v: '[Fill in]',
+    t2_addr: 'Address', t2_addr_v: '[Fill in]', t2_phone: 'Phone',
     p3: 'When purchasing a license and using APPEK, we collect:',
     p3_a: '<strong>Identification data</strong>: first name, last name, company name, business ID, VAT ID',
     p3_b: '<strong>Contact data</strong>: e-mail, phone, billing address',
@@ -262,7 +263,7 @@ const I18N = {
     p1: 'Esta política describe cómo el operador de APPEK B2B (en adelante "Responsable") procesa datos personales de acuerdo con el Reglamento UE 2016/679 (GDPR) y la Ley n.º 110/2019 Sb.',
     t2_subject: 'Entidad', t2_subject_v: '[Rellenar razón social]',
     t2_ico: 'NIF empresa', t2_ico_v: '[Rellenar]',
-    t2_addr: 'Dirección', t2_addr_v: '[Rellenar]',
+    t2_addr: 'Dirección', t2_addr_v: '[Rellenar]', t2_phone: 'Teléfono',
     p3: 'Al comprar una licencia y usar APPEK, recopilamos:',
     p3_a: '<strong>Datos de identificación</strong>: nombre, apellido, nombre de empresa, NIF, identificador fiscal',
     p3_b: '<strong>Datos de contacto</strong>: correo, teléfono, dirección de facturación',
@@ -356,5 +357,6 @@ setLang(lang);
 })();
 </script>
 
+<script src="/assets/biz-contact.js" defer></script>
 </body>
 </html>

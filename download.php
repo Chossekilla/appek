@@ -229,6 +229,6 @@ function showError(int $code, string $title, string $msg): void {
     echo '<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><title>' . htmlspecialchars($title) . '</title></head><body style="font-family:system-ui;max-width:600px;margin:60px auto;padding:20px;text-align:center">
         <h1>❌ ' . htmlspecialchars($title) . '</h1>
         <p>' . $msg . '</p>
-        <p><small>Kontaktuj <a href="mailto:info@appek.cz">info@appek.cz</a> · +420 733 700 808</small></p>
+        <p><small>Kontaktuj <a href="mailto:info@appek.cz">info@appek.cz</a> · <a href="tel:+420774599622">+420 774 599 622</a></small></p>
     </body></html>';
 }

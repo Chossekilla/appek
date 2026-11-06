@@ -232,6 +232,9 @@ footer a { color: #BA7517; text-decoration: none; }
 
       <dt data-i18n="seller_email">Kontaktní e-mail:</dt>
       <dd><a href="mailto:support@appek.cz">support@appek.cz</a></dd>
+
+      <dt data-i18n="seller_phone">Telefon:</dt>
+      <dd><a href="tel:+420774599622" data-biz-phone>+420 774 599 622</a></dd>
     </dl>
     <p data-i18n="p2_1" style="font-size:13px;color:#6e6e73;margin-top:14px">
       Dozorové orgány: Česká obchodní inspekce (<a href="https://www.coi.cz" target="_blank">coi.cz</a>),
@@ -578,6 +581,7 @@ Object.assign(I18N.en, {
   seller_dic: 'VAT ID:', seller_dic_val: '[Fill in if VAT payer]',
   seller_addr: 'Registered office:', seller_addr_val: '[Fill in registered address]',
   seller_email: 'Contact e-mail:',
+  seller_phone: 'Phone:',
   seller_reg: 'Registration:', seller_reg_val: '[Fill in trade/commercial register]',
   p2_1: 'Supervisory authorities: Czech Trade Inspection (<a href="https://www.coi.cz" target="_blank">coi.cz</a>), Office for Personal Data Protection (<a href="https://www.uoou.cz" target="_blank">uoou.cz</a>).',
   // Section 3
@@ -678,6 +682,7 @@ Object.assign(I18N.es, {
   seller_dic: 'NIF fiscal:', seller_dic_val: '[Rellenar si es sujeto de IVA]',
   seller_addr: 'Sede:', seller_addr_val: '[Rellenar dirección registrada]',
   seller_email: 'Correo de contacto:',
+  seller_phone: 'Teléfono:',
   seller_reg: 'Registro:', seller_reg_val: '[Rellenar registro mercantil]',
   p2_1: 'Autoridades supervisoras: Inspección Comercial Checa (<a href="https://www.coi.cz" target="_blank">coi.cz</a>), Oficina de Protección de Datos Personales (<a href="https://www.uoou.cz" target="_blank">uoou.cz</a>).',
   // Section 3
@@ -773,6 +778,7 @@ Object.assign(I18N.cs, {
   seller_dic: 'DIČ:', seller_dic_val: '[Doplnit, pokud plátce DPH]',
   seller_addr: 'Sídlo:', seller_addr_val: '[Doplnit adresu sídla]',
   seller_email: 'Kontaktní e-mail:',
+  seller_phone: 'Telefon:',
   pay_method: 'Způsob', pay_provider: 'Provider', pay_when: 'Splatnost',
   pay_card: 'Platební karta (mezinárodní)', pay_card_cz: 'Platební karta (CZ + Apple/Google Pay)',
   pay_bank: 'Bankovní převod', pay_instant: 'Okamžitě', pay_bank_when: '14 dnů',
@@ -845,5 +851,6 @@ setLang(lang);
 })();
 </script>
 
+<script src="/assets/biz-contact.js" defer></script>
 </body>
 </html>

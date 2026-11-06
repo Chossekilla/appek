@@ -4453,7 +4453,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
         <ul>
           <!-- 🆕 v2.9.293 — data-biz atributy pro auto-load z /api/business_info.php (vendor) -->
           <li>📧 <a href="mailto:info@appek.cz" data-biz-email>info@appek.cz</a></li>
-          <li>📞 <a href="tel:+420733700808" data-biz-phone>+420 733 700 808</a></li>
+          <li>📞 <a href="tel:+420774599622" data-biz-phone>+420 774 599 622</a></li>
           <!-- 🗑️ v2.9.311 — otevírací doba odstraněna (user: dej pryč) — SaaS odpovídá <24h, fixní hodiny jsou matoucí -->
           <li><span data-i18n="contact_region">🌍 ČR, SK, EU, mezinárodně</span></li>
         </ul>
@@ -4495,7 +4495,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
       <p data-i18n="footer_brand_d">Krabicový gastro objednávkový systém. Vyrábíte? Prodáváte? Vše v jednom — bez měsíčních poplatků.</p>
       <ul class="footer-contact">
         <li>📧 <a href="mailto:info@appek.cz" data-biz-email>info@appek.cz</a></li>
-        <li>📞 <a href="tel:+420733700808" data-biz-phone>+420 733 700 808</a></li>
+        <li>📞 <a href="tel:+420774599622" data-biz-phone>+420 774 599 622</a></li>
       </ul>
     </div>
     <div>
@@ -5241,49 +5241,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// =============================================================
-// 🆕 v2.9.293 — Business info loader z /api/business_info.php (vendor settings)
-// =============================================================
-// Centrální zdroj pravdy: vendor/business-info.php → vendor_settings tabulka.
-// Pokud vendor nakonfiguroval business_email / business_phone, použijí se;
-// jinak zůstanou hardcoded fallbacky v HTML (info@appek.cz, 733 700 808).
-(async function loadBusinessInfo() {
-  try {
-    const r = await fetch('/api/business_info.php', { cache: 'no-cache' });
-    if (!r.ok) return;
-    const biz = await r.json();
-    if (biz.error) return;
-
-    // Email — všechny <... data-biz-email> elementy
-    const email = biz.business_email || biz.business_support_email;
-    if (email) {
-      document.querySelectorAll('[data-biz-email]').forEach(el => {
-        const isLink = el.tagName === 'A';
-        if (isLink) el.href = 'mailto:' + email;
-        if (el.textContent.includes('@')) el.textContent = email;
-      });
-    }
-    // Telefon
-    const phone = biz.business_phone;
-    if (phone) {
-      const phoneClean = '+' + phone.replace(/[^\d]/g, '');
-      document.querySelectorAll('[data-biz-phone]').forEach(el => {
-        if (el.tagName === 'A') el.href = 'tel:' + phoneClean;
-        el.textContent = phone;
-      });
-    }
-    // Adresa (volitelně do dalších míst pomocí data-biz-address)
-    const addr = biz.business_address_full;
-    if (addr) {
-      document.querySelectorAll('[data-biz-address]').forEach(el => { el.textContent = addr; });
-    }
-    // Obchodní jméno
-    const name = biz.business_name;
-    if (name) {
-      document.querySelectorAll('[data-biz-name]').forEach(el => { el.textContent = name; });
-    }
-  } catch (e) { /* silent — hardcoded fallback zůstává */ }
-})();
+// Kontakty z nastavení webu → /assets/biz-contact.js (v3.0.636)
 </script>
 
 <!-- Sticky CTA pro mobil odebrána (user) -->
@@ -5380,5 +5338,6 @@ document.addEventListener('keydown', (e) => {
 
 <button id="btn-top" class="btn-top" aria-label="Nahoru na začátek" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 
+<script src="/assets/biz-contact.js" defer></script>
 </body>
 </html>

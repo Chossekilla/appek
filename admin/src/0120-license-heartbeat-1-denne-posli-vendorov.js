@@ -77,7 +77,7 @@ function renderLicenseLockOverlay(payload) {
       </a>
       <!-- 🆕 v2.9.280 — podpora telefonem (jen pro kritické situace) -->
       <div style="font-size:12px;color:#7F1D1D;margin-top:6px">
-        nebo telefon <a href="tel:+420733700808" style="color:#7F1D1D;font-weight:600;text-decoration:none">733 700 808</a>
+        nebo telefon <a href="tel:+420774599622" style="color:#7F1D1D;font-weight:600;text-decoration:none">774 599 622</a>
       </div>
       <div style="font-size:11px;color:#86868b;margin-top:14px;font-family:monospace">
         Doména: ${location.hostname}<br>

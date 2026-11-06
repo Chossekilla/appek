@@ -9,7 +9,7 @@
 
 **Vše pro váš provoz v jednom systému.** Objednávky, výroba, sklady, fakturace, B2B portál, POS kasa, HACCP — jeden krabicový systém pro pekárny, cukrárny, lahůdkárny, restaurace a catering. Bez měsíčních poplatků, vaše data zůstanou na vašem serveru.
 
-🌐 **Demo:** [demo.appek.cz](https://demo.appek.cz) · 🏠 **Web:** [appek.cz](https://appek.cz) · 📩 [info@appek.cz](mailto:info@appek.cz) · 📞 +420 733 700 808
+🌐 **Demo:** [demo.appek.cz](https://demo.appek.cz) · 🏠 **Web:** [appek.cz](https://appek.cz) · 📩 [info@appek.cz](mailto:info@appek.cz) · 📞 +420 774 599 622
 
 ---
 
@@ -119,7 +119,7 @@ Překlady jsou **lazy-loaded** (jen aktivní jazyk se stáhne v runtime), 18 000
 ## 📞 Podpora
 
 - 📧 **E-mail:** [info@appek.cz](mailto:info@appek.cz)
-- 📞 **Telefon:** +420 733 700 808
+- 📞 **Telefon:** +420 774 599 622
 - 🌍 **Region:** ČR, SK, EU, mezinárodně
 - ⏱️ **Reakční doba:** do 24 hodin v pracovní dny
 - 🔒 **GDPR:** [Zásady ochrany osobních údajů](https://appek.cz/zasady-ochrany-soukromi.html) · [Obchodní podmínky](https://appek.cz/obchodni-podminky.html)

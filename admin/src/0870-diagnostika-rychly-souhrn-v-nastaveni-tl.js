@@ -531,7 +531,7 @@ window.openCheatSheet = async function() {
           <tr style="background:#f7f8fa"><td style="padding:10px;font-weight:600;border-top:1px solid #eee">📦 Verze</td><td style="padding:10px;border-top:1px solid #eee">v${esc(ver)}</td></tr>
           <tr><td style="padding:10px;font-weight:600;border-top:1px solid #eee;vertical-align:top">⚠️ Co to znamená</td><td style="padding:10px;border-top:1px solid #eee;font-size:12.5px;color:#555;line-height:1.55">
             Licence je svázaná s emailem <strong>${esc(licEmail)}</strong>. Při instalaci na jiném serveru ti pošleme ověřovací kód na tento email — <strong>NEZTRAĆ k němu přístup</strong>.
-            Pokud změníš email (např. opustíš poskytovatele), kontaktuj nás na <a href="mailto:podpora@appek.cz">podpora@appek.cz</a> <span style="color:#888;font-size:11px">· tel <a href="tel:+420733700808" style="color:#888;text-decoration:none">733 700 808</a></span>.
+            Pokud změníš email (např. opustíš poskytovatele), kontaktuj nás na <a href="mailto:podpora@appek.cz">podpora@appek.cz</a> <span style="color:#888;font-size:11px">· tel <a href="tel:+420774599622" style="color:#888;text-decoration:none">774 599 622</a></span>.
           </td></tr>
         </table>
 
