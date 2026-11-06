@@ -40,7 +40,6 @@ try {
     $stmt = $pdo->prepare("SELECT * FROM vendor_shop_orders WHERE order_no = :no LIMIT 1");
     $stmt->execute(['no' => $orderNo]);
     $order = $stmt->fetch();
-    if ($order && ($order['product'] ?? 'appek') !== 'appek') $order = false;   // 🚚 objednávky Můj Foodtruck zpracovává jen mujfoodtruck.cz (jinak by vznikla appek licence)
     if (!$order) {
         http_response_code(404);
         echo json_encode(['ok' => false, 'error' => 'order_not_found']);

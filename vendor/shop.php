@@ -32,10 +32,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $order = $order->fetch();
 
         if (!$order) throw new Exception('Objednávka neexistuje.');
-        // 🚚 Můj Foodtruck: licenci MFT vystavuje mujfoodtruck.cz po platbě — tady by vznikla appek licence
-        if (($order['product'] ?? 'appek') === 'foodtruck' && in_array($action, ['mark_paid', 'generate_license'], true)) {
-            throw new Exception('Objednávku Můj Foodtruck nejde zpracovat tady — licenci MFT vystaví mujfoodtruck.cz automaticky po zaplacení kartou.');
-        }
 
         if ($action === 'mark_paid') {
             $pdo->prepare("UPDATE vendor_shop_orders SET payment_status = 'paid', paid_at = NOW() WHERE id = :id")
