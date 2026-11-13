@@ -917,6 +917,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .pos-modal-foot {
   display: flex;
+  flex-wrap: wrap;            /* víc tlačítek (detail účtenky jich má 6) se zalomí, nic se neořízne */
   gap: 8px;
   justify-content: flex-end;
   padding: 12px 18px;

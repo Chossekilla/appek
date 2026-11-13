@@ -2158,6 +2158,17 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
   };
 
   // ─── History / Účtenky ───────────────────────────────────────
+  // Popisky typu / platby / stavu — na úrovni modulu, používá je seznam i detail účtenky
+  const TYP_LABEL = {
+    sebou: '🛍️ Sebou', na_miste: '🍽️ Na místě',
+    vyzvednuti: '📦 Vyzvednutí', rozvoz: '🛵 Rozvoz'
+  };
+  const PAY_LABEL = {
+    hotove: '💵 Hotově', karta: '💳 Karta',
+    paypal: '💼 PayPal', gift_card: '🎁 Gift card',
+    voucher: '🎟️ Voucher', mobile: '📱 Mobile',
+    online: '🌐 Online', pri_vyzvednuti: '🤝 Při vyzvednutí', prevodem: '🏦 Převodem'
+  };
   async function renderHistory(panel, append = false) {
     if (!append) panel.innerHTML = `<div class="pos-loading" style="padding:40px;text-align:center">⏳ Načítám účtenky…</div>`;
     try {
@@ -2175,20 +2186,16 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
       const orders = State._historyItems;
       const s = d.souhrn || {};
 
-      const TYP_LABEL = {
-        sebou: '🛍️ Sebou', na_miste: '🍽️ Na místě',
-        vyzvednuti: '📦 Vyzvednutí', rozvoz: '🛵 Rozvoz'
-      };
-      const PAY_LABEL = {
-        hotove: '💵 Hotově', karta: '💳 Karta',
-        paypal: '💼 PayPal', gift_card: '🎁 Gift card',
-        voucher: '🎟️ Voucher', mobile: '📱 Mobile'
-      };
       const STAV_BADGE = (stav) => {
         const map = {
           'zaplaceno': { bg: '#DCFCE7', fg: '#166534', label: '✓ Zaplaceno' },
           'nova':      { bg: '#FEF3C7', fg: '#92400E', label: '⏱ Nová' },
           'zruseno':   { bg: '#FEE2E2', fg: '#991B1B', label: '✕ Storno' },
+          'zrusena':   { bg: '#FEE2E2', fg: '#991B1B', label: '✕ Zrušená' },
+          'potvrzena': { bg: '#DBEAFE', fg: '#1E40AF', label: 'Potvrzená' },
+          've_vyrobe': { bg: '#FEF3C7', fg: '#92400E', label: 'Připravuje se' },
+          'pripravena':{ bg: '#DCFCE7', fg: '#166534', label: 'Připravená' },
+          'dorucena':  { bg: '#DCFCE7', fg: '#166534', label: '✓ Vydaná' },
         };
         const m = map[stav] || { bg: '#E5E7EB', fg: '#374151', label: stav };
         return `<span style="background:${m.bg};color:${m.fg};padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700">${m.label}</span>`;
@@ -2241,7 +2248,7 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
                 </thead>
                 <tbody>
                   ${orders.map(o => {
-                    const time = (o.datum_objednani || '').slice(11, 16);
+                    const time = (o.created_at || o.datum_objednani || '').slice(11, 16);   // datum_objednani je jen datum → čas z created_at
                     // 🆕 v2.9.308 — celý řádek clickable → otevře detail modal
                     return `
                       <tr data-id="${o.id}" onclick="posShowReceiptDetail(${o.id})" style="cursor:pointer" title="Klikni pro detail účtenky">
@@ -2350,7 +2357,8 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
          <button class="btn-primary" onclick="posShowReceiptDetail(${objId})">🔄 Zkusit znovu</button>`);
       return;
     }
-    const time = (d.datum_objednani || '').replace('T', ' ').slice(0, 16);
+    const _kdy = String(d.created_at || d.datum_objednani || '').replace('T', ' ');   // datum_objednani je jen datum → čas z created_at
+    const time = _kdy.length >= 10 ? (parseInt(_kdy.slice(8, 10), 10) + '. ' + parseInt(_kdy.slice(5, 7), 10) + '. ' + _kdy.slice(0, 4) + (_kdy.length >= 16 ? ' ' + _kdy.slice(11, 16) : '')) : '—';
     const polozky = Array.isArray(d.polozky) ? d.polozky : [];
     const typLabel = TYP_LABEL[d.pos_typ] || d.pos_typ || '—';
     const payLabel = PAY_LABEL[d.pos_payment] || d.pos_payment || '—';

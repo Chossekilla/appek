@@ -328,8 +328,19 @@ $csrfToken  = csrf_token();
   .pos-header { grid-template-columns: auto minmax(0, 1fr) auto !important; }
   .pos-header-center { min-width: 0; justify-content: center; }
   .pos-header-center .pos-tab-h { flex: 0 1 auto; min-width: 0; white-space: nowrap; }
-  @media (max-width: 1400px) {
-    .pos-header-center .pos-tab-h { font-size: 15px !important; padding: 10px 12px !important; }
+  /* jednotná velikost záložek na počítači/notebooku (dřív ≥1441 px = obří 20px taby, na 13" notebooku 1470 px se text nevešel do rámečku) */
+  @media (min-width: 701px) {
+    .pos-header-center { gap: 6px; }
+    .pos-header-center .pos-tab-h { flex: 0 0 auto; font-size: clamp(14px, 1.1vw, 16px) !important; padding: 10px clamp(11px, 0.95vw, 18px) !important; line-height: 1.25 !important; gap: 6px; }
+  }
+  /* 13" notebook (cca 1441–1700 px) spadne do „velkého režimu“ pro kiosky → hlavička nabobtná a na záložky nezbyde místo */
+  @media (min-width: 1441px) and (max-width: 1700px) {
+    .pos-brand-name { font-size: 17px !important; }
+    .pos-brand-ic   { font-size: 24px !important; }
+    .pos-loc        { font-size: 14px !important; padding: 7px 11px !important; }
+    .pos-time       { font-size: 16px !important; padding: 7px 11px !important; }
+    .pos-user-name  { font-size: 14px !important; }
+    .pos-user-avatar { width: 38px !important; height: 38px !important; font-size: 16px !important; }
   }
   @media (min-width: 701px) and (max-width: 1180px) {
     .pos-header-center .pos-tab-h .pth-txt { display: none !important; }

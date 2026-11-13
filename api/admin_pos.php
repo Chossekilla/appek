@@ -1825,7 +1825,7 @@ if ($method === 'GET' && $action === 'quick_history') {
         $pokInO = pos_pokladni_sql($pdo, 'o.puvod');
 
         $st = $pdo->prepare("
-            SELECT o.id, o.cislo, o.datum_objednani, o.castka_celkem, o.castka_bez_dph, o.castka_dph, o.stav,
+            SELECT o.id, o.cislo, o.datum_objednani, o.created_at, o.castka_celkem, o.castka_bez_dph, o.castka_dph, o.stav,
                    o.pos_typ, o.pos_payment, o.pos_tip, o.pos_uzivatel, o.poznamka,
                    o.odberatel_id, COALESCE(od.nazev, '—') AS odberatel_nazev,
                    (SELECT COUNT(*) FROM objednavky_polozky p WHERE p.objednavka_id = o.id) AS pocet_polozek
@@ -2328,7 +2328,7 @@ if ($method === 'GET' && $action === 'quick_order_detail') {
     try {
         $pokInO = pos_pokladni_sql($pdo, 'o.puvod'); // 🆕 v3.0.212 — detail jen pokladních kanálů
         $st = $pdo->prepare("
-            SELECT o.id, o.cislo, o.datum_objednani, o.castka_celkem, o.castka_bez_dph, o.castka_dph,
+            SELECT o.id, o.cislo, o.datum_objednani, o.created_at, o.castka_celkem, o.castka_bez_dph, o.castka_dph,
                    o.stav, o.poznamka, o.puvod, o.pos_typ, o.pos_payment, o.pos_tip, o.pos_uzivatel,
                    o.odberatel_id, COALESCE(od.nazev, '—') AS odberatel_nazev
             FROM objednavky o
