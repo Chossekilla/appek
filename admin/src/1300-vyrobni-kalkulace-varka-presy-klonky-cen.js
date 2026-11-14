@@ -609,12 +609,6 @@ window.vkUpdateZdobField = function(i, key, val, debounced) {
   vkState.zdobeni[i][key] = val;
   if (debounced) vkRenderDebounced(); else vkRender();
 };
-// Backward-compat (pro kalkulaci načtenou se starým schema)
-window.vkUpdateZdob = function(i, val) {
-  if (!vkState.zdobeni[i]) return;
-  vkState.zdobeni[i].cena_per_kus = val;
-  vkRenderDebounced();
-};
 window.vkAddFixni = function() {
   vkState.fixni.push({ nazev: '', cena_kc: 0 });
   vkRender();

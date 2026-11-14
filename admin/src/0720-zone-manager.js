@@ -648,11 +648,75 @@ window.saveRestaurantTable = async function() {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
+// 🐛 v3.0.640 — „✏️ Vlastnosti" stolu byl stub: nabídl jen SMAZÁNÍ (i s rezervacemi) → kdo
+//   nečetl pozorně, přišel o stůl. Teď skutečná úprava (název, místa, zóna, tvar) přes PUT;
+//   smazání zůstává jako samostatné červené tlačítko s potvrzením.
 window.editRestaurantTable = async function(id) {
-  // Stub for now - just delete option
+  const t = (state._rtStolyCache || []).find(s => Number(s.id) === Number(id));
+  if (!t) { alert('Stůl nenalezen — obnov stránku.'); return; }
+  const zones = state._rtZones || [];
+  const zonaField = zones.length
+    ? `<div><label class="form-label">Zóna</label>
+         <select class="form-input" id="rt-zona">
+           ${zones.map(z => `<option value="${z.id}" ${Number(z.id) === Number(t.zone_id) ? 'selected' : ''}>${esc(`${z.ikona || ''} ${z.nazev}`.trim())}</option>`).join('')}
+           <option value="" ${t.zone_id ? '' : 'selected'}>— bez zóny —</option>
+         </select>
+       </div>`
+    : `<div><label class="form-label">Sekce</label>
+         <input class="form-input" id="rt-sekce" value="${esc(t.sekce || '')}" placeholder="např. Terasa, Hlavní sál, Salonek">
+       </div>`;
+  const tvar = t.tvar || 'square';
+  openModal(`✏️ Vlastnosti stolu „${esc(t.nazev)}"`, `
+    <div class="form-grid form-grid-tight">
+      <div><label class="form-label">Název *</label>
+        <input class="form-input" id="rt-nazev" value="${esc(t.nazev || '')}">
+      </div>
+      <div><label class="form-label">Počet míst</label>
+        <input type="number" class="form-input" id="rt-mist" value="${parseInt(t.mist, 10) || 2}" min="1" max="40">
+      </div>
+      ${zonaField}
+      <div><label class="form-label">Tvar</label>
+        <select class="form-input" id="rt-tvar">
+          <option value="square" ${tvar === 'square' ? 'selected' : ''}>⬜ Čtverec</option>
+          <option value="round" ${tvar === 'round' ? 'selected' : ''}>⭕ Kulatý</option>
+          <option value="rect" ${tvar === 'rect' ? 'selected' : ''}>▭ Obdélník</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" style="color:#B91C1C;margin-right:auto" onclick="smazatRestaurantTable(${Number(t.id)})">🗑️ Smazat stůl</button>
+      <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
+      <button class="btn-primary btn-green" onclick="ulozitRestaurantTable(${Number(t.id)})">💾 Uložit</button>
+    </div>
+  `);
+};
+
+window.ulozitRestaurantTable = async function(id) {
+  const nazev = document.getElementById('rt-nazev')?.value?.trim();
+  if (!nazev) { alert('Vyplň název.'); return; }
+  const zonaSel = document.getElementById('rt-zona');
+  const zoneId = zonaSel ? (parseInt(zonaSel.value, 10) || null) : undefined; // undefined = instalace bez zón → zone_id neposílat
+  const zona = zoneId ? (state._rtZones || []).find(z => Number(z.id) === zoneId) : null;
+  const body = {
+    nazev,
+    mist: parseInt(document.getElementById('rt-mist').value, 10) || 2,
+    sekce: zona ? zona.nazev : (zonaSel ? null : (document.getElementById('rt-sekce')?.value?.trim() || null)),
+    tvar: document.getElementById('rt-tvar').value,
+  };
+  if (zoneId !== undefined) body.zone_id = zoneId;
+  try {
+    await api('admin_tables.php?id=' + Number(id), { method: 'PUT', body: JSON.stringify(body) });
+    closeModal();
+    toastSuccess('Stůl uložen');
+    renderRestaurantTables();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+window.smazatRestaurantTable = async function(id) {
   if (!(await confirmDialog({ title: 'Smazat stůl?', msg: 'Smaže i všechny rezervace tohoto stolu.', danger: true, okText: 'Smazat' }))) return;
   try {
-    await api('admin_tables.php?id=' + id, { method: 'DELETE' });
+    await api('admin_tables.php?id=' + Number(id), { method: 'DELETE' });
+    closeModal();
     toastSuccess('Stůl smazán');
     renderRestaurantTables();
   } catch (e) { alert('Chyba: ' + e.message); }

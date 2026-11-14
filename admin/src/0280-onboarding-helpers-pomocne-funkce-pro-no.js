@@ -154,36 +154,6 @@ function _onboardHybridInstallGuide() {
     </div>`;
 }
 
-function _onboardPackagesStep() {
-  // Informativní přehled — bez výběru. Balíčky se aktivují dokoupením roční licence.
-  const balicky = [
-    { ikona: '🧁', label: 'Cukrárna',       popis: 'Konfigurátor dortů, kapacita pečení, galerie' },
-    { ikona: '🥗', label: 'Lahůdkárna',     popis: 'Catering kalkulačka, šarže HACCP, mix-and-match' },
-    { ikona: '🍕', label: 'Restaurace',     popis: 'Stoly, kapacita kuchyně, doba přípravy, rozvoz' },
-    { ikona: '🎉', label: 'Velký catering', popis: 'Firemní objednávky, cenové úrovně, smlouvy' },
-    { ikona: '🍰', label: 'Sezónní',        popis: 'Automatické on/off výrobků dle data, předobjednávky' },
-  ];
-  return `
-    <h3 style="margin:0 0 8px">Specializované balíčky</h3>
-    <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">Volitelná rozšíření pro tvůj obor, dostupná jako <strong>roční licence</strong>. Jádro systému — objednávky, faktury, výroba a HACCP — máš v základu zdarma. Balíčky lze aktivovat kdykoliv později; stačí se ozvat dodavateli a připraví ti nový klíč.</p>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-      ${balicky.map(b => `
-        <div style="display:flex;align-items:center;gap:14px;padding:13px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface)">
-          <span style="font-size:24px;line-height:1;flex-shrink:0;opacity:0.9">${b.ikona}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:14.5px;margin-bottom:2px">${b.label}</div>
-            <div style="font-size:12.5px;color:var(--text-3);line-height:1.4">${b.popis}</div>
-          </div>
-          <span style="font-size:11.5px;color:var(--text-3);font-weight:600;flex-shrink:0;white-space:nowrap;padding-left:8px">Roční licence</span>
-        </div>`).join('')}
-    </div>
-    <div class="form-actions">
-      <button class="btn-secondary" onclick="onboardBack()">← Zpět</button>
-      <div style="flex:1"></div>
-      <button class="btn-primary btn-green" onclick="onboardNext()" style="font-weight:700;padding:12px 24px">➜ Dál</button>
-    </div>
-  `;
-}
 
 function _onboardDemoDataStep() {
   // 🆕 v2.9.326 — Toggle: user vybere DEMO vs PRÁZDNÁ DB (předtím auto-naplnilo bez ptaní)
@@ -407,39 +377,8 @@ window._onboardSetLocalOs = function(os) {
   renderOnboardingStep();
 };
 
-window._onboardTogglePkg = function(pkgId, on) {
-  const arr = state._onboard.data.balicky || [];
-  if (on) {
-    if (!arr.includes(pkgId)) arr.push(pkgId);
-  } else {
-    const i = arr.indexOf(pkgId);
-    if (i >= 0) arr.splice(i, 1);
-  }
-  state._onboard.data.balicky = arr;
-  renderOnboardingStep();
-};
 
-window._onboardSetSeed = function(yes) {
-  state._onboard.data.demo_data_seed = yes;
-  renderOnboardingStep();
-};
 
-window._onboardApplySeed = async function() {
-  const data = state._onboard.data;
-  if (data.demo_data_seed === true) {
-    // 🆕 v2.0.97 FIX: backend má action='apply', ne 'seed'.
-    // Předtím onboarding sice volal demo seed, ale endpoint vrátil 404 → John Doe se nikdy nevytvořil.
-    try {
-      const res = await api('admin_demo_seed.php?action=apply', { method: 'POST', body: JSON.stringify({ kategorie: data.kategorie_zvolene || [] }) });
-      const summary = `Vytvořeno: ${res.kategorie || 0} kategorií, ${res.vyrobky || 0} výrobků, ${res.odberatele || 0} odběratelů, ${res.objednavky || 0} obj, ${res.dodaci_listy || 0} DL, ${res.faktury || 0} faktur`;
-      toastSuccess(summary, '🎬 Demo data připravena (John Doe s.r.o.)');
-    } catch (e) {
-      console.error('Demo seed failed:', e);
-      toastWarn('Demo data nelze nahrát: ' + (e.message || 'chyba serveru'));
-    }
-  }
-  onboardNext();
-};
 
 window.onboardNext = function() { state._onboard.step++; renderOnboardingStep(); };
 window.onboardBack = function() { state._onboard.step = Math.max(0, state._onboard.step - 1); renderOnboardingStep(); };
@@ -575,28 +514,7 @@ window.onboardSaveAndNext = async function() {
   } catch (e) { alert('Chyba ukládání: ' + e.message); }
 };
 
-window.onboardKategorieToggle = function(nazev, checked) {
-  const arr = state._onboard.data.kategorie_zvolene || [];
-  if (checked && !arr.includes(nazev)) arr.push(nazev);
-  if (!checked) {
-    const i = arr.indexOf(nazev);
-    if (i >= 0) arr.splice(i, 1);
-  }
-  state._onboard.data.kategorie_zvolene = arr;
-};
 
-window.onboardSeedAndNext = async function() {
-  const kategorie = state._onboard.data.kategorie_zvolene || [];
-  if (kategorie.length === 0) {
-    if (!(await confirmDialog({ msg: 'Žádné kategorie nejsou vybrané. Pokračovat bez vzorových dat?', danger: false }))) return;
-    return onboardNext();
-  }
-  try {
-    const r = await api('admin_onboarding.php?action=seed_demo', { method: 'POST', body: JSON.stringify({ kategorie }) });
-    alert(t('demo_created_cats_products', { cats: r.kategorie_pridano, prods: r.vyrobky_pridano }));
-    onboardNext();
-  } catch (e) { alert('Chyba: ' + e.message); }
-};
 
 // Manuální restart pro testování — z konzole: restartOnboarding()
 window.restartOnboarding = async function() {

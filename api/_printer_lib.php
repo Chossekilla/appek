@@ -162,7 +162,6 @@ function pr_align(string $a): string {
     return PR_ESC . 'a' . chr($code);
 }
 function pr_bold(bool $on): string { return PR_ESC . 'E' . chr($on ? 1 : 0); }
-function pr_underline(int $n): string { return PR_ESC . '-' . chr(max(0, min(2, $n))); }
 function pr_size(int $w = 1, int $h = 1): string {
     $w = max(1, min(8, $w)); $h = max(1, min(8, $h));
     return PR_GS . '!' . chr((($w - 1) << 4) | ($h - 1));

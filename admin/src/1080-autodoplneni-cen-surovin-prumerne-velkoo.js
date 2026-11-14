@@ -1,87 +1,7 @@
 // =============================================================
 // AUTO-DOPLNĚNÍ CEN SUROVIN — průměrné velkoobchodní ceny pro pekařství
 // =============================================================
-window.surovinyDoplnitCeny = async function() {
-  let preview;
-  try { preview = await api('admin_suroviny_autofill_ceny.php'); }
-  catch (e) { return alert('Chyba: ' + e.message); }
 
-  const navrhy = preview.navrhy || [];
-  const matched = navrhy.filter(n => n.matched);
-  const unmatched = navrhy.filter(n => !n.matched);
-
-  const fmtKc = n => (parseFloat(n) || 0).toFixed(2).replace('.', ',') + ' Kč';
-
-  const rowsMatched = matched.map(n => {
-    const ma = (n.aktualni.cena_baleni > 0 && n.aktualni.obsah_baleni > 0);
-    const aktKc = ma ? (n.aktualni.cena_baleni / n.aktualni.obsah_baleni) : null;
-    const novyKc = n.navrh.cena_baleni / n.navrh.obsah_baleni;
-    const change = aktKc !== null ? ((novyKc - aktKc) / aktKc * 100) : null;
-    return `
-      <tr>
-        <td><strong>${esc(n.nazev)}</strong></td>
-        <td style="font-size:11px;color:var(--text-3)">${esc(n.navrh.label)}</td>
-        <td class="num" style="font-size:12px">${ma ? fmtKc(aktKc) + '/' + esc(n.aktualni.jednotka) : '—'}</td>
-        <td class="num"><strong>${fmtKc(novyKc)}/${esc(n.navrh.jednotka)}</strong></td>
-        <td class="num" style="font-size:11px">${change !== null ? `<span style="color:${change > 5 ? '#dc2626' : (change < -5 ? '#16a34a' : 'var(--text-3)')}">${change > 0 ? '+' : ''}${change.toFixed(0)} %</span>` : '<span style="color:var(--text-3)">nová</span>'}</td>
-      </tr>
-    `;
-  }).join('');
-
-  const rowsUnmatched = unmatched.map(n => `<li><span style="color:var(--text-2)">${esc(n.nazev)}</span></li>`).join('');
-
-  openModal('🧾 Doplnit ceny surovin', `
-    <p style="font-size:13px;color:var(--text-2);margin-bottom:14px">
-      Návrh průměrných velkoobchodních cen pro pekařství v ČR (2024–2025).
-      Hodnoty zahrnují <strong>${matched.length}</strong> rozpoznaných surovin z celkem ${navrhy.length}.
-    </p>
-
-    <div style="background:#FFF8E7;padding:10px 14px;border-radius:8px;font-size:11px;margin-bottom:12px;border:1px solid #F59E0B33">
-      <strong>📋 Pravidla:</strong> ceny jsou orientační velkoobchodní (pro gastro provozy, ne maloobchodní), normalizované na 1 jednotku (1 kg, 1 l, 1 ks). Po aplikaci si je můžeš ručně doupřesnit dle skutečných smluvních cen tvých dodavatelů.
-    </div>
-
-    ${matched.length === 0 ? '<div class="empty-state" style="padding:30px">Žádné suroviny k doplnění.</div>' : `
-      <div style="max-height:50vh;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:14px">
-        <table class="table" style="margin:0;font-size:13px">
-          <thead><tr><th>Surovina</th><th>Rozpoznáno jako</th><th class="num">Aktuální</th><th class="num">Návrh</th><th class="num">Změna</th></tr></thead>
-          <tbody>${rowsMatched}</tbody>
-        </table>
-      </div>
-    `}
-
-    ${unmatched.length > 0 ? `
-      <details style="margin-bottom:12px;font-size:12px;color:var(--text-3)">
-        <summary style="cursor:pointer;padding:6px 0">⚠ Nerozpoznáno (${unmatched.length}) — doplň ručně</summary>
-        <ul style="margin:6px 0 0 22px;max-height:140px;overflow:auto;font-size:12px">${rowsUnmatched}</ul>
-      </details>
-    ` : ''}
-
-    <div style="background:#F0F9FF;border:1px solid #93C5FD;padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;color:#1e40af">
-      ℹ️ <strong>Defaultně</strong> doplní jen suroviny <em>bez ceny</em> (ruční úpravy zachová).<br>
-      ⚠️ <strong>Force</strong> přepíše všechny ceny — i ručně zadané.
-    </div>
-
-    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-      <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
-      <button class="btn-secondary" onclick="surovinyDoplnitCenyRun(true)" style="color:#dc2626;border-color:#fca5a5">⚠️ Přepsat vše</button>
-      <button class="btn-primary btn-green" onclick="surovinyDoplnitCenyRun(false)">✅ Doplnit prázdné</button>
-    </div>
-  `, 'wide');
-};
-
-window.surovinyDoplnitCenyRun = async function(force) {
-  closeModal();
-  try {
-    const r = await api('admin_suroviny_autofill_ceny.php' + (force ? '?force=1' : ''), { method: 'POST', body: '{}' });
-    state._suroviny_cache = null; state._suroviny_full_cache = null; // invalidate cache
-    await renderSuroviny();
-    const t = document.createElement('div');
-    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:14px 22px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:14px;font-weight:600;z-index:9999';
-    t.innerHTML = `✓ Doplněno <strong>${r.applied}</strong> surovin · přeskočeno ${r.skipped}${r.unmatched > 0 ? ` · nerozpoznáno ${r.unmatched}` : ''}`;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 4500);
-  } catch (e) { alert('Chyba: ' + e.message); }
-};
 
 // 📦 Modal pro pohyby skladu (příjem / výdej / inventura) — rychlá akce z listu i detailu
 window.surSkladModal = async function(id) {
@@ -623,15 +543,4 @@ window.smazatSurovinu = async function(id) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
-window.seedSuroviny = async function() {
-  if (!(await confirmDialog({ msg: 'Naplnit databázi sadou ~70 výchozích surovin? (Existující se nepřepíší.)', danger: true }))) return;
-  try {
-    const res = await api('admin_suroviny.php?action=seed', { method: 'POST' });
-    // Invalidate cache aby seed byl vidět hned
-    state._suroviny_cache = null;
-    state._suroviny_full_cache = null;
-    alert(res.message ? res.message : `Vloženo ${res.inserted} surovin.`);
-    if (state.current === 'suroviny') renderSuroviny();
-  } catch (e) { alert('Chyba: ' + e.message); }
-};
 

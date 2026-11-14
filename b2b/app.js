@@ -455,6 +455,7 @@ async function _initPushB2B() {
         });
       } catch {}
     }
+    _pushFooterToggle();
   } catch (e) { console.warn('PWA push init failed:', e); }
 }
 
@@ -488,6 +489,7 @@ window.zapnoutPushNotifikace = async function() {
     alert('✅ Hotovo! Budete dostávat upozornění na změny vašich objednávek.');
     // Schovej banner
     document.getElementById('push-prompt-banner')?.remove();
+    _pushFooterToggle();
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
@@ -503,7 +505,22 @@ window.vypnoutPushNotifikace = async function() {
   });
   await sub.unsubscribe();
   alert('Notifikace byly vypnuty.');
+  _pushFooterToggle();
 };
+
+// 🔔 v3.0.640 — trvalý přepínač upozornění v patičce. Dřív šlo push zapnout jen jednorázovým
+//   bannerem (po zavření už nikdy) a VYPNOUT vůbec — vypnoutPushNotifikace nemělo tlačítko.
+async function _pushFooterToggle() {
+  const host = document.querySelector('.app-footer-copy');
+  if (!host || !_pushSwReg || !('PushManager' in window) || !('Notification' in window)) return;
+  let el = document.getElementById('push-footer-toggle');
+  if (!el) { el = document.createElement('div'); el.id = 'push-footer-toggle'; el.style.cssText = 'margin-top:6px'; host.appendChild(el); }
+  let sub = null;
+  try { sub = await _pushSwReg.pushManager.getSubscription(); } catch (e) {}
+  if (sub) el.innerHTML = '<a href="#" onclick="vypnoutPushNotifikace();return false" style="color:inherit">🔕 Vypnout upozornění na tomto zařízení</a>';
+  else if (Notification.permission !== 'denied') el.innerHTML = '<a href="#" onclick="zapnoutPushNotifikace();return false" style="color:inherit">🔔 Zapnout upozornění na objednávky</a>';
+  else el.innerHTML = '';
+}
 
 function _urlBase64ToUint8Array(base64) {
   const padding = '='.repeat((4 - base64.length % 4) % 4);
@@ -1439,84 +1456,6 @@ window.reorderObjednavku = async function(id) {
   switchTab('checkout');
 };
 
-// Modal: Zobrazit položky objednávky + akce (znovu, DL, FA)
-window.zobrazPolozkiObjednavky = async function(id) {
-  // Hledej v posledních nebo načti z API
-  let obj = state.posledniObjednavky?.find(o => o.id == id);
-  if (!obj) {
-    try {
-      obj = await api(`objednavky.php?id=${id}`);
-    } catch(e) {
-      return alert('Nepodařilo se načíst objednávku.');
-    }
-  }
-  if (!obj || !obj.polozky || obj.polozky.length === 0) {
-    return alert('Objednávka neobsahuje žádné položky.');
-  }
-
-  const maDL = obj.pocet_dl > 0 && obj.prvni_dl_id;
-  const maFA = obj.pocet_faktur > 0 && obj.prvni_faktura_id;
-
-  // Spočítej celkovou cenu
-  let celkem = parseFloat(obj.castka_celkem || 0);
-
-  openModal(`
-    <div class="modal-head">
-      <h2>📦 Položky objednávky ${esc(obj.cislo)}</h2>
-      <button class="modal-close" onclick="closeModal()"></button>
-    </div>
-    <div class="modal-meta" style="margin-bottom:12px;color:var(--text-2);font-size:13px;">
-      📅 ${fmtDate(obj.datum_dodani)} · ${obj.pocet_polozek || obj.polozky.length} položek · <strong>${fmt(celkem)}</strong>
-      ${obj.stav ? ` · <span class="status ${esc(obj.stav)}">${statusLabel(obj.stav)}</span>` : ''}
-    </div>
-    <table class="modal-items-table">
-      <thead>
-        <tr><th style="text-align:left">Výrobek</th><th style="text-align:center;width:50px">Ks</th><th style="text-align:right">Cena</th></tr>
-      </thead>
-      <tbody>
-        ${obj.polozky.map(p => {
-          const nazev = p.vyrobek_nazev || p.nazev || 'Výrobek';
-          const mn = parseFloat(p.mnozstvi) || 0;
-          // Fallback: pokud backend nevrací cena_celkem, spočti z bez DPH × množství + DPH
-          let cena = parseFloat(p.cena_celkem || 0);
-          if (!cena) {
-            const cBez = parseFloat(p.cena_bez_dph || 0);
-            const dph = parseFloat(p.sazba_dph || 0);
-            cena = cBez * mn * (1 + dph / 100);
-          }
-          return `<tr>
-            <td>${esc(nazev)}</td>
-            <td style="text-align:center;font-weight:700;color:var(--primary-dark)">${mn}×</td>
-            <td style="text-align:right">${fmt(cena)}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>
-    <div style="border-top:2px solid var(--primary);margin-top:8px;padding-top:10px;display:flex;justify-content:space-between;font-weight:700;font-size:15px;">
-      <span>Celkem</span>
-      <span>${fmt(celkem)}</span>
-    </div>
-    <div class="modal-polozky-actions">
-      <button class="oc-btn oc-btn-primary" onclick="reorderObjednavku(${obj.id}); closeModal();" style="flex:2">
-        🔁 Znovu objednat
-      </button>
-      ${maDL ? `
-        <a class="oc-btn oc-btn-ghost" href="../api/dodaci_list.php?id=${obj.id}" target="_blank">
-          📃 DL
-        </a>
-      ` : `
-        <span class="oc-btn oc-btn-ghost oc-btn-disabled" title="DL zatím neexistuje">📃 DL</span>
-      `}
-      ${maFA ? `
-        <a class="oc-btn oc-btn-ghost" href="../api/faktura.php?id=${obj.prvni_faktura_id}" target="_blank">
-          💰 FA
-        </a>
-      ` : `
-        <span class="oc-btn oc-btn-ghost oc-btn-disabled" title="FA zatím neexistuje">💰 FA</span>
-      `}
-    </div>
-  `);
-};
 
 // Mini karta objednávky pro Katalog (kompaktní verze renderOrderCard, 3 vedle sebe)
 function renderOrderMiniCard(o) {

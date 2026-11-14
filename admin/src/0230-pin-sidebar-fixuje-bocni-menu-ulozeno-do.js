@@ -31,18 +31,7 @@ window.toggleSidebarCollapse = function() {
   });
 };
 
-// 🆕 v2.6.5 — Megamenu funkce stub'd (kdyby ji někdo volal z legacy kódu, no-op)
-window.openMegaMenu = function() { /* removed in v2.6.5 */ };
-window.closeMegaMenu = function() {
-  document.body.classList.remove('megamenu-open');
-};
 
-window.navigateFromMegaMenu = function(page) {
-  closeMegaMenu();
-  if (typeof navigate === 'function') {
-    setTimeout(() => navigate(page), 50);
-  }
-};
 (function initSidebarCollapse() {
   if (localStorage.getItem('sidebarCollapsed') === '1') {
     document.body.classList.add('sidebar-collapsed');

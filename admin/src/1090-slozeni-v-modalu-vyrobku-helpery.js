@@ -11,27 +11,6 @@ async function loadSurovinyCache() {
   return state._suroviny_cache;
 }
 
-// 🆕 v2.9.290 — Tlačítko v editVyrobek pro doplnění demo receptu (RK01, CH01, …)
-window.vyNaplnitDemoRecept = async function(vyrobekId, cislo) {
-  if (!(await confirmDialog({ msg: t('confirm_demo_recipe', { cislo }), danger: false }))) return;
-  try {
-    const r = await api('admin_demo_seed.php?action=seed_one_recipe', {
-      method: 'POST',
-      body: JSON.stringify({ cislo }),
-    });
-    let msg = `✓ Recept doplněn pro „${r.vyrobek}"\n\nVloženo: ${r.vlozeno} / ${r.celkem_v_demo} surovin.`;
-    if (r.nenalezeno && r.nenalezeno.length > 0) {
-      msg += `\n\n⚠ Nenalezeno v DB (přeskočeno): ${r.nenalezeno.slice(0, 5).join(', ')}`;
-      msg += `\n\n💡 Tip: spusť 🎬 Naplnit demo daty pro doplnění chybějících surovin.`;
-    }
-    alert(msg);
-    // Reload editVyrobek modal s čerstvými daty
-    closeModal();
-    setTimeout(() => editVyrobek(vyrobekId), 200);
-  } catch (e) {
-    alert('Chyba: ' + e.message);
-  }
-};
 
 window.vySlozeniAddRow = function(surovina_id = '', mnozstvi = '', jednotka = 'g', poznamka = '') {
   const c = document.getElementById('vy-sloz-rows');

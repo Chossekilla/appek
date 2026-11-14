@@ -99,6 +99,7 @@ function haccpRenderDokumenty() {
               <a href="../api/firemni_haccp.php?id=${aktId}&download=1" download class="btn-secondary" style="text-decoration:none;font-size:12px;background:#ECFDF5;border-color:#10B981;color:#065F46" title="Stáhnout tento formulář">⬇️ Stáhnout</a>
               <a href="../api/firemni_haccp.php?id=${aktId}" target="_blank" class="btn-secondary" style="text-decoration:none;font-size:12px" title="Otevřít v novém okně">📄 Náhled ↗</a>
               <button class="btn-secondary" onclick="window.open('../api/firemni_haccp.php?id=${aktId}&autoprint=1', '_blank')" style="font-size:12px" title="Vytisknout">🖨 Tisk</button>
+              ${aktId ? `<button class="btn-secondary" onclick="haccpDokSmazat(${Number(aktId)})" style="font-size:12px;color:#B91C1C" title="Smazat dokument (výchozí sadu lze kdykoli znovu naimportovat)">🗑️ Smazat</button>` : ''}<!-- v3.0.640: haccpDokSmazat dřív nemělo tlačítko -->
               <button class="btn-primary btn-green" onclick="haccpDokUlozit()" style="font-size:12px">💾 Uložit</button>
             </div>
           </div>

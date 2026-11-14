@@ -309,15 +309,6 @@ window.resetDefaultSeason = async function(key) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
-window.saveDefaultSleva = async function(key) {
-  const el = document.getElementById('ds-sleva-' + key);
-  const pct = parseFloat(el && el.value) || 0;
-  try {
-    await api('admin_seasonal.php?action=save_default_sleva', { method: 'POST', body: JSON.stringify({ key, sleva_pct: pct }) });
-    toastSuccess('Sezónní cena uložena');
-    renderSeasonalManage();
-  } catch (e) { alert('Chyba: ' + e.message); }
-};
 
 // 🆕 v3.0.342 — pohyblivé svátky (Velikonoce, Den matek) → letošní datum do výchozí sezóny
 function appekEasterSunday(year) {

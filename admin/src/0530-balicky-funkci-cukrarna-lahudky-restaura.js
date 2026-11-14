@@ -254,16 +254,8 @@ function renderPackageHeaderBadges(active) {
   }).join('');
 }
 
-// v3.0.588 — bývalý reveal/sbalení bloku balíčků; ponecháno jako no-op kvůli starým voláním
-function playPackageReveal() {}
 
-// Legacy alias — pro případ že někdo volá starý název
-function renderPackageSidebarItems(active) {
-  return renderPackageHeaderBadges(active);
-}
 
-// v3.0.588 — sbalitelný blok balíčků zrušen: no-op + úklid starého stavu (třída měnila layout sidebaru)
-window.togglePackageSubheader = function() {};
 (function cleanupPackageSubheaderState() {
   document.body.classList.remove('pkg-subheader-collapsed');
   try { localStorage.removeItem('appek_pkg_collapsed'); } catch(e) {}

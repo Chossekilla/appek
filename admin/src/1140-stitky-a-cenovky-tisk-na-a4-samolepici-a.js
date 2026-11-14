@@ -273,11 +273,6 @@ function designAsSablona(designId, currentW_mm, currentH_mm, foldHalf = false) {
   };
 }
 
-// 🔍 Helper: zjistí jestli aktuální formát je sklad od půlky (Appek cenovka)
-function stIsFoldHalfFormat(formatId, customSettings) {
-  const fmt = formatId === 'custom' ? customSettings : (STITKY_FORMATY.find(f => f.id === formatId) || STITKY_FORMATY[0]);
-  return !!(fmt && fmt.foldHalf);
-}
 
 const stState = {
   rezim: 'cenovky',            // 'expedicni' | 'cenovky' | 'moje' | 'editor' — výchozí cenovky
@@ -1085,20 +1080,6 @@ window.stPickVyrobekById = function(id) {
   renderStitky();
 };
 
-// ✏️ Otevři modal pro úpravu vybraného produktu
-window.stUpravitVybranyVyrobek = function() {
-  if (!stState.vybranyVyrobekId) {
-    alert('Nejdřív vyber produkt z dropdown (klikni na řádek v seznamu).');
-    return;
-  }
-  if (typeof window.editVyrobek === 'function') {
-    window.editVyrobek(stState.vybranyVyrobekId);
-  } else if (typeof window.otevritVyrobek === 'function') {
-    window.otevritVyrobek(stState.vybranyVyrobekId);
-  } else {
-    alert('Editor produktů není dostupný.');
-  }
-};
 
 // 🔢 Step-hint helper — pod každé pole v cenovkách napíše krok postupu
 // Použití: stStepHint(1, 'Vyber rozměr archu, který máš v tiskárně')

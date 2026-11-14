@@ -134,35 +134,11 @@ function _t_lang(string $lang, string $key): string {
 /**
  * Helper: vrátí aktuální jazyk (cached).
  */
-function _current_lang(): string {
-    static $lang = null;
-    if ($lang === null) $lang = _detect_lang();
-    return $lang;
-}
 
 /**
  * Formátování data podle locale.
  */
-function _fmt_date_loc(string $date, ?string $lang = null): string {
-    if (!$date) return '';
-    $lang = $lang ?? _current_lang();
-    $ts = strtotime($date);
-    if ($ts === false) return $date;
-    switch ($lang) {
-        case 'en': return date('M j, Y', $ts);          // Jan 15, 2026
-        case 'es': return date('j/n/Y', $ts);           // 15/1/2026
-        default:   return date('j. n. Y', $ts);         // 15. 1. 2026
-    }
-}
 
 /**
  * Formátování měny podle locale (Kč pořád, ale tvar závisí).
  */
-function _fmt_money_loc(float $n, ?string $lang = null): string {
-    $lang = $lang ?? _current_lang();
-    switch ($lang) {
-        case 'en': return number_format($n, 2, '.', ',') . ' CZK';
-        case 'es': return number_format($n, 2, ',', '.') . ' CZK';
-        default:   return number_format($n, 2, ',', ' ') . ' Kč';
-    }
-}

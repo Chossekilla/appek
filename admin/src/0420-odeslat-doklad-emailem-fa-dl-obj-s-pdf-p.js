@@ -91,66 +91,6 @@ window.ulozitFakturu = async function(id) {
   navigate('faktury');
 };
 
-window.opakovatObjednavkuZFaktury = async function(id) {
-  try {
-    const f = await api(`admin_faktury.php?id=${id}`);
-    if (!f.polozky || f.polozky.length === 0) {
-      return alert('Faktura neobsahuje žádné položky.');
-    }
-
-    // Filtrovat jen položky s vyrobek_id (volné řádky bez výrobku nelze opakovat)
-    const polozky = f.polozky
-      .filter(p => p.vyrobek_id)
-      .map(p => ({
-        vyrobek_id: parseInt(p.vyrobek_id),
-        mnozstvi: parseFloat(p.mnozstvi),
-      }));
-
-    if (polozky.length === 0) {
-      return alert('Faktura neobsahuje žádné výrobky z katalogu, které by šly opakovat.');
-    }
-
-    const skipnuto = f.polozky.length - polozky.length;
-    const datumDodani = (await promptDialog({
-      msg: `Vytvoří novou objednávku se ${polozky.length} položkami pro odběratele "${f.odberatel_nazev}".\n`
-        + (skipnuto > 0 ? `(${skipnuto} volných řádků bude přeskočeno)\n` : '')
-        + `\nZadejte datum dodání (RRRR-MM-DD):`,
-      value: new Date(Date.now() + 86400000).toYMD(), // zítra
-    }));
-    if (!datumDodani) return;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(datumDodani)) {
-      return alert('Neplatný formát data. Použijte RRRR-MM-DD.');
-    }
-
-    // Pokud má faktura odkaz na původní objednávku, zkus přidat misto_dodani z ní
-    let misto_dodani_id = null;
-    if (f.objednavky && f.objednavky.length > 0) {
-      try {
-        const puvObj = await api(`admin_objednavky.php?id=${f.objednavky[0].id}`);
-        misto_dodani_id = puvObj.misto_dodani_id || null;
-      } catch (e) { /* ignore */ }
-    }
-
-    const res = await api('admin_objednavky.php', {
-      method: 'POST',
-      body: {
-        action: 'vytvorit',
-        odberatel_id: f.odberatel_id,
-        misto_dodani_id,
-        datum_dodani: datumDodani,
-        polozky,
-        poznamka: `Nová objednávka z faktury ${f.cislo}`,
-      },
-    });
-
-    closeModal();
-    alert(t('order_created_simple', { cislo: res.cislo }));
-    navigate('objednavky');
-    setTimeout(() => openObjednavkaDetail(res.id), 200);
-  } catch (e) {
-    alert('Chyba: ' + (e.message || e));
-  }
-};
 
 window.smazatFakturu = async function(id) {
   if (!await confirmDelete2x('tuto fakturu')) return;

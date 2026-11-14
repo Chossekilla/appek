@@ -1617,24 +1617,6 @@ window.sparklineSVG = function(data, opts = {}) {
   `;
 };
 
-window.barsSVG = function(data, opts = {}) {
-  const {fmt: fmtFn = (v) => v} = opts;
-  if (!data || data.length === 0) return '<div style="font-size:11px;color:#aaa;padding:14px">Žádná data</div>';
-  const max = Math.max(...data.map(d => d.value));
-  return `
-    <div class="chart-bars" style="margin-bottom:24px">
-      ${data.map(d => {
-        const pct = max > 0 ? (d.value / max) * 100 : 0;
-        return `
-          <div class="chart-bar" style="height:${pct}%" title="${esc(d.label)}: ${fmtFn(d.value)}">
-            <div class="chart-bar-value">${fmtFn(d.value)}</div>
-            <div class="chart-bar-label">${esc((d.label || '').slice(0, 12))}</div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-};
 
 // =============================================================
 // 🎬 DEMO DATA SEEDER — one-click "Naplnit ukázkovými daty"
@@ -2505,18 +2487,7 @@ window.toggleSidebarCollapse = function() {
   });
 };
 
-// 🆕 v2.6.5 — Megamenu funkce stub'd (kdyby ji někdo volal z legacy kódu, no-op)
-window.openMegaMenu = function() { /* removed in v2.6.5 */ };
-window.closeMegaMenu = function() {
-  document.body.classList.remove('megamenu-open');
-};
 
-window.navigateFromMegaMenu = function(page) {
-  closeMegaMenu();
-  if (typeof navigate === 'function') {
-    setTimeout(() => navigate(page), 50);
-  }
-};
 (function initSidebarCollapse() {
   if (localStorage.getItem('sidebarCollapsed') === '1') {
     document.body.classList.add('sidebar-collapsed');
@@ -3119,11 +3090,6 @@ window.triggerPwaInstall = async function() {
   if (el) el.remove();
 };
 
-// iOS detection (Safari nemá beforeinstallprompt — musí ručně přes Share menu)
-window.isPwaInstalled = function() {
-  return window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone === true;
-};
 
 // 📍 Tap-to-navigate — univerzální maps deeplink (iOS Maps, Android Google Maps, fallback web)
 window.openInMaps = function(address, city = '', psc = '') {
@@ -3138,11 +3104,6 @@ window.openInMaps = function(address, city = '', psc = '') {
   else                window.open(`https://www.google.com/maps/search/?api=1&query=${full}`, '_blank');
 };
 
-// 📞 Tap-to-call helper — fix formátu telefonu pro tel: link
-window.makeCallLink = function(phone) {
-  if (!phone) return '';
-  return 'tel:' + String(phone).replace(/[^+0-9]/g, '');
-};
 
 // =============================================================
 // 📱 v3.0.41 — POCKET UX UPGRADE — Pull-to-refresh, Swipe-to-action,
@@ -4360,36 +4321,6 @@ function _onboardHybridInstallGuide() {
     </div>`;
 }
 
-function _onboardPackagesStep() {
-  // Informativní přehled — bez výběru. Balíčky se aktivují dokoupením roční licence.
-  const balicky = [
-    { ikona: '🧁', label: 'Cukrárna',       popis: 'Konfigurátor dortů, kapacita pečení, galerie' },
-    { ikona: '🥗', label: 'Lahůdkárna',     popis: 'Catering kalkulačka, šarže HACCP, mix-and-match' },
-    { ikona: '🍕', label: 'Restaurace',     popis: 'Stoly, kapacita kuchyně, doba přípravy, rozvoz' },
-    { ikona: '🎉', label: 'Velký catering', popis: 'Firemní objednávky, cenové úrovně, smlouvy' },
-    { ikona: '🍰', label: 'Sezónní',        popis: 'Automatické on/off výrobků dle data, předobjednávky' },
-  ];
-  return `
-    <h3 style="margin:0 0 8px">Specializované balíčky</h3>
-    <p style="font-size:13px;color:var(--text-3);margin:0 0 18px">Volitelná rozšíření pro tvůj obor, dostupná jako <strong>roční licence</strong>. Jádro systému — objednávky, faktury, výroba a HACCP — máš v základu zdarma. Balíčky lze aktivovat kdykoliv později; stačí se ozvat dodavateli a připraví ti nový klíč.</p>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-      ${balicky.map(b => `
-        <div style="display:flex;align-items:center;gap:14px;padding:13px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface)">
-          <span style="font-size:24px;line-height:1;flex-shrink:0;opacity:0.9">${b.ikona}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:14.5px;margin-bottom:2px">${b.label}</div>
-            <div style="font-size:12.5px;color:var(--text-3);line-height:1.4">${b.popis}</div>
-          </div>
-          <span style="font-size:11.5px;color:var(--text-3);font-weight:600;flex-shrink:0;white-space:nowrap;padding-left:8px">Roční licence</span>
-        </div>`).join('')}
-    </div>
-    <div class="form-actions">
-      <button class="btn-secondary" onclick="onboardBack()">← Zpět</button>
-      <div style="flex:1"></div>
-      <button class="btn-primary btn-green" onclick="onboardNext()" style="font-weight:700;padding:12px 24px">➜ Dál</button>
-    </div>
-  `;
-}
 
 function _onboardDemoDataStep() {
   // 🆕 v2.9.326 — Toggle: user vybere DEMO vs PRÁZDNÁ DB (předtím auto-naplnilo bez ptaní)
@@ -4613,39 +4544,8 @@ window._onboardSetLocalOs = function(os) {
   renderOnboardingStep();
 };
 
-window._onboardTogglePkg = function(pkgId, on) {
-  const arr = state._onboard.data.balicky || [];
-  if (on) {
-    if (!arr.includes(pkgId)) arr.push(pkgId);
-  } else {
-    const i = arr.indexOf(pkgId);
-    if (i >= 0) arr.splice(i, 1);
-  }
-  state._onboard.data.balicky = arr;
-  renderOnboardingStep();
-};
 
-window._onboardSetSeed = function(yes) {
-  state._onboard.data.demo_data_seed = yes;
-  renderOnboardingStep();
-};
 
-window._onboardApplySeed = async function() {
-  const data = state._onboard.data;
-  if (data.demo_data_seed === true) {
-    // 🆕 v2.0.97 FIX: backend má action='apply', ne 'seed'.
-    // Předtím onboarding sice volal demo seed, ale endpoint vrátil 404 → John Doe se nikdy nevytvořil.
-    try {
-      const res = await api('admin_demo_seed.php?action=apply', { method: 'POST', body: JSON.stringify({ kategorie: data.kategorie_zvolene || [] }) });
-      const summary = `Vytvořeno: ${res.kategorie || 0} kategorií, ${res.vyrobky || 0} výrobků, ${res.odberatele || 0} odběratelů, ${res.objednavky || 0} obj, ${res.dodaci_listy || 0} DL, ${res.faktury || 0} faktur`;
-      toastSuccess(summary, '🎬 Demo data připravena (John Doe s.r.o.)');
-    } catch (e) {
-      console.error('Demo seed failed:', e);
-      toastWarn('Demo data nelze nahrát: ' + (e.message || 'chyba serveru'));
-    }
-  }
-  onboardNext();
-};
 
 window.onboardNext = function() { state._onboard.step++; renderOnboardingStep(); };
 window.onboardBack = function() { state._onboard.step = Math.max(0, state._onboard.step - 1); renderOnboardingStep(); };
@@ -4781,28 +4681,7 @@ window.onboardSaveAndNext = async function() {
   } catch (e) { alert('Chyba ukládání: ' + e.message); }
 };
 
-window.onboardKategorieToggle = function(nazev, checked) {
-  const arr = state._onboard.data.kategorie_zvolene || [];
-  if (checked && !arr.includes(nazev)) arr.push(nazev);
-  if (!checked) {
-    const i = arr.indexOf(nazev);
-    if (i >= 0) arr.splice(i, 1);
-  }
-  state._onboard.data.kategorie_zvolene = arr;
-};
 
-window.onboardSeedAndNext = async function() {
-  const kategorie = state._onboard.data.kategorie_zvolene || [];
-  if (kategorie.length === 0) {
-    if (!(await confirmDialog({ msg: 'Žádné kategorie nejsou vybrané. Pokračovat bez vzorových dat?', danger: false }))) return;
-    return onboardNext();
-  }
-  try {
-    const r = await api('admin_onboarding.php?action=seed_demo', { method: 'POST', body: JSON.stringify({ kategorie }) });
-    alert(t('demo_created_cats_products', { cats: r.kategorie_pridano, prods: r.vyrobky_pridano }));
-    onboardNext();
-  } catch (e) { alert('Chyba: ' + e.message); }
-};
 
 // Manuální restart pro testování — z konzole: restartOnboarding()
 window.restartOnboarding = async function() {
@@ -6145,32 +6024,6 @@ window.dashApplyVlastni = function() {
   renderDashboard({ obdobi: 'vlastni', datum_od: od, datum_do: do_ });
 };
 
-function renderCasovyGraf(data) {
-  if (data.length === 0) return '<div class="empty-state">Žádná data</div>';
-  const max = Math.max(...data.map(d => parseFloat(d.trzby))) || 1;
-  const sum = data.reduce((a, d) => a + parseFloat(d.trzby), 0);
-
-  // Pokud máme méně než ~30 bodů, ukážeme bar chart, jinak line chart
-  return `
-    <div class="chart-container">
-      <div class="chart-bars" style="--max:${max}">
-        ${data.map((d) => {
-          const v = parseFloat(d.trzby);
-          const pct = (v / max * 100).toFixed(1);
-          return `
-            <div class="chart-bar-wrap" title="${fmtDate(d.den)}: ${fmt(v)} (${d.objednavek} obj.)">
-              <div class="chart-bar" style="height:${pct}%"></div>
-              <div class="chart-bar-label">${new Date(d.den).getDate()}.${new Date(d.den).getMonth() + 1}.</div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <div class="chart-summary">
-        Celkem za období: <strong>${fmt(sum)}</strong>
-      </div>
-    </div>
-  `;
-}
 
 // =============================================================
 // OBJEDNÁVKY
@@ -11812,10 +11665,6 @@ window.exportVyrobku = async function(format) {
   return _stahniSoubor(url, format);
 };
 
-window.exportVyrobkuHeureka = async function() {
-  const url = `${API}/admin_vyrobky_export.php?format=heureka`;
-  return _stahniSoubor(url, 'heureka');
-};
 
 // 🔗 v3.0.448 — trvalé feed URL pro Google Merchant / Heuréku (crawler stahuje sám, bez loginu přes token)
 window.zobrazFeedUrl = async function() {
@@ -12046,71 +11895,7 @@ function _periodApply(typ, od, doDt, openCustom) {
   }
 }
 
-function quickPeriodChips(typ, datum_od, datum_do) {
-  const dnes = new Date();
-  const fmt = (d) => d.toYMD();
 
-  // Sestav rozsahy
-  const today = new Date(dnes);
-  // Posledních 7 dní (vč. dneška)
-  const last7 = new Date(dnes); last7.setDate(last7.getDate() - 6);
-  // Tento týden — od pondělí do dneška
-  const tydenStart = new Date(dnes);
-  const wd = (tydenStart.getDay() + 6) % 7; // 0 = pondělí
-  tydenStart.setDate(tydenStart.getDate() - wd);
-  // Posledních 10 dní (dekáda)
-  const last10 = new Date(dnes); last10.setDate(last10.getDate() - 9);
-  // Tento měsíc — od 1. do dnes
-  const mesicStart = new Date(dnes.getFullYear(), dnes.getMonth(), 1);
-  // Posledních 30 dní
-  const last30 = new Date(dnes); last30.setDate(last30.getDate() - 29);
-
-  const chips = [
-    { k: 'today', l: 'Dnes',           od: fmt(today),       do: fmt(today) },
-    { k: '7d',    l: '7 dní',          od: fmt(last7),       do: fmt(today) },
-    { k: 'tyden', l: 'Tento týden',    od: fmt(tydenStart),  do: fmt(today) },
-    { k: '10d',   l: 'Dekáda (10 dní)',od: fmt(last10),      do: fmt(today) },
-    { k: 'mesic', l: 'Tento měsíc',    od: fmt(mesicStart),  do: fmt(today) },
-    { k: '30d',   l: '30 dní',         od: fmt(last30),      do: fmt(today) },
-  ];
-
-  return chips.map(c => {
-    const active = datum_od === c.od && datum_do === c.do;
-    return `
-      <button class="qp-chip ${active ? 'is-active' : ''}" onclick="quickPeriodSet('${typ}', '${c.od}', '${c.do}')">
-        <span class="qp-check">${active ? '✓' : '☐'}</span>
-        <span>${c.l}</span>
-      </button>
-    `;
-  }).join('') + `
-    <button class="qp-chip qp-clear ${!datum_od && !datum_do ? 'is-active' : ''}" onclick="quickPeriodSet('${typ}', '', '')" title="Bez filtrace období">
-      <span class="qp-check">${(!datum_od && !datum_do) ? '✓' : '☐'}</span>
-      <span>Vše</span>
-    </button>
-  `;
-}
-
-window.quickPeriodSet = function(typ, od, doDt) {
-  if (typ === 'dl') {
-    const elOd = document.getElementById('dlf-od');
-    const elDo = document.getElementById('dlf-do');
-    if (elOd) elOd.value = od;
-    if (elDo) elDo.value = doDt;
-    applyDlFilters();
-  } else if (typ === 'fa') {
-    const elOd = document.getElementById('ff-od');
-    const elDo = document.getElementById('ff-do');
-    if (elOd) elOd.value = od;
-    if (elDo) elDo.value = doDt;
-    applyFakturyFilters();
-  } else if (typ === 'obj') {
-    const elOd = document.getElementById('of-od');
-    const elDo = document.getElementById('of-do');
-    if (elOd) elOd.value = od;
-    if (elDo) elDo.value = doDt;
-    applyObjFilters();
-  }
-};
 
 window.applyDlFilters = function() {
   // formulář ještě nevykreslený (skeleton) → nic, ať nepadne ani nevynuluje filtry
@@ -13372,66 +13157,6 @@ window.ulozitFakturu = async function(id) {
   navigate('faktury');
 };
 
-window.opakovatObjednavkuZFaktury = async function(id) {
-  try {
-    const f = await api(`admin_faktury.php?id=${id}`);
-    if (!f.polozky || f.polozky.length === 0) {
-      return alert('Faktura neobsahuje žádné položky.');
-    }
-
-    // Filtrovat jen položky s vyrobek_id (volné řádky bez výrobku nelze opakovat)
-    const polozky = f.polozky
-      .filter(p => p.vyrobek_id)
-      .map(p => ({
-        vyrobek_id: parseInt(p.vyrobek_id),
-        mnozstvi: parseFloat(p.mnozstvi),
-      }));
-
-    if (polozky.length === 0) {
-      return alert('Faktura neobsahuje žádné výrobky z katalogu, které by šly opakovat.');
-    }
-
-    const skipnuto = f.polozky.length - polozky.length;
-    const datumDodani = (await promptDialog({
-      msg: `Vytvoří novou objednávku se ${polozky.length} položkami pro odběratele "${f.odberatel_nazev}".\n`
-        + (skipnuto > 0 ? `(${skipnuto} volných řádků bude přeskočeno)\n` : '')
-        + `\nZadejte datum dodání (RRRR-MM-DD):`,
-      value: new Date(Date.now() + 86400000).toYMD(), // zítra
-    }));
-    if (!datumDodani) return;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(datumDodani)) {
-      return alert('Neplatný formát data. Použijte RRRR-MM-DD.');
-    }
-
-    // Pokud má faktura odkaz na původní objednávku, zkus přidat misto_dodani z ní
-    let misto_dodani_id = null;
-    if (f.objednavky && f.objednavky.length > 0) {
-      try {
-        const puvObj = await api(`admin_objednavky.php?id=${f.objednavky[0].id}`);
-        misto_dodani_id = puvObj.misto_dodani_id || null;
-      } catch (e) { /* ignore */ }
-    }
-
-    const res = await api('admin_objednavky.php', {
-      method: 'POST',
-      body: {
-        action: 'vytvorit',
-        odberatel_id: f.odberatel_id,
-        misto_dodani_id,
-        datum_dodani: datumDodani,
-        polozky,
-        poznamka: `Nová objednávka z faktury ${f.cislo}`,
-      },
-    });
-
-    closeModal();
-    alert(t('order_created_simple', { cislo: res.cislo }));
-    navigate('objednavky');
-    setTimeout(() => openObjednavkaDetail(res.id), 200);
-  } catch (e) {
-    alert('Chyba: ' + (e.message || e));
-  }
-};
 
 window.smazatFakturu = async function(id) {
   if (!await confirmDelete2x('tuto fakturu')) return;
@@ -17467,7 +17192,7 @@ async function _renderNastaveniInner() {
   const blokUcetni = `
     <div class="card-block" style="padding:16px;margin-bottom:14px">
       <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">📊 Účetní integrace</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Live propojení s českými účetními systémy — automatický export faktur a DL z APPEK.</p>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Faktury přeneseš do účetnictví exportem <strong>ISDOC</strong> — importuje ho POHODA, Money S3, ABRA FlexiBee, Helios i iDoklad. Přímé online napojení na POHODA mServer / FlexiBee API zatím není k dispozici.</p>
     </div>
 
     <!-- 🆕 v2.9.187 — Sales report + Fixní náklady přesunuté z bývalého tabu Výroba -->
@@ -17485,45 +17210,19 @@ async function _renderNastaveniInner() {
       <!-- 🆕 v2.9.219 — '💰 Fixní náklady' přesunuto do Výrobní kalkulace (tlačítko v page-head) -->
     </div>
 
-    <!-- 3-sloupcový grid: POHODA + FlexiBee + ISDOC -->
-    <div class="settings-3col">
-      <!-- POHODA mServer card -->
-      <div class="card-block" style="padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-          <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
-            <span style="background:#e30613;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">POHODA</span>
-            mServer
-          </h3>
-          <div id="ns-pohoda-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
-        </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px">Stormware POHODA — XML API. Faktury, DL, partneři.</p>
-        <div id="ns-pohoda-config" style="display:flex;flex-direction:column;gap:8px">⏳</div>
+    <!-- 🐛 v3.0.640 — karty „POHODA mServer" a „FlexiBee REST" odstraněny: slibovaly automatický export
+         a dvoucestnou synchronizaci, ale exportní backend nikdy nefungoval (neexistující tabulka
+         faktury_polozky, chybné sloupce), loader se v záložce Integrace vůbec nevolal (karty visely na ⏳)
+         a mServer běží v LAN, kam hostovaný APPEK nedosáhne. Podporovaná cesta = ISDOC export. -->
+    <div class="card-block" style="padding:18px;background:var(--surface-2)">
+      <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
+          <span style="background:#003a70;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">📄 ISDOC</span>
+          Export faktur do účetnictví
+        </h3>
       </div>
-
-      <!-- FlexiBee card -->
-      <div class="card-block" style="padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-          <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
-            <span style="background:#f7941d;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">🐝 FlexiBee</span>
-            REST API
-          </h3>
-          <div id="ns-fbee-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
-        </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px">ABRA FlexiBee cloud / on-prem. Dvoucestná synchronizace.</p>
-        <div id="ns-fbee-config" style="display:flex;flex-direction:column;gap:8px">⏳</div>
-      </div>
-
-      <!-- ISDOC info -->
-      <div class="card-block" style="padding:18px;background:var(--surface-2)">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-          <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
-            <span style="background:#003a70;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">📄 ISDOC</span>
-          </h3>
-          <div style="font-size:12px;font-weight:600;color:#0058b8">offline</div>
-        </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Money S3, Helios, ABRA, iDoklad importují <strong>ISDOC XML</strong>. Export ve Fakturách.</p>
-        <button class="btn-secondary" onclick="navigate('faktury')" style="font-size:12px;width:100%;padding:8px">→ Otevřít Faktury</button>
-      </div>
+      <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Export ISDOC najdeš ve <strong>Fakturách</strong> — u jednotlivé faktury i hromadně pro vybrané faktury. Soubor pak naimportuješ ve svém účetním programu: <strong>POHODA, Money S3, ABRA FlexiBee, Helios, iDoklad</strong>.</p>
+      <button class="btn-secondary" onclick="navigate('faktury')" style="font-size:12px;padding:8px 14px">→ Otevřít Faktury</button>
     </div>
   `;
 
@@ -17792,7 +17491,7 @@ async function _renderNastaveniInner() {
     <!-- 🆕 v3.0.29 — Účetní sekce (POHODA / FlexiBee / ISDOC) sloučena pod Integrace -->
     <div style="margin-top:18px;padding:14px 0;border-top:2px solid var(--border)">
       <h2 style="margin:0 0 4px;font-size:18px;letter-spacing:-0.01em">📊 Účetní integrace</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">POHODA mServer · FlexiBee REST · ISDOC export — live sync s tvým účetním softwarem.</p>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Export faktur ve formátu ISDOC — pro POHODA, Money S3, ABRA FlexiBee, Helios i iDoklad.</p>
     </div>
   ` + blokUcetni;
 
@@ -17889,9 +17588,6 @@ async function _renderNastaveniInner() {
   }
   if (aktTab === 'balicky') {
     loadBalicky();
-  }
-  if (aktTab === 'ucetni') {
-    loadUcetniIntegrace();
   }
   if (aktTab === 'integrace') {
     loadCustomerIntegrace();
@@ -18917,173 +18613,8 @@ window.testIntCard = async function(svc) {
   } catch (e) { alert('❌ ' + e.message); }
 };
 
-// 🆕 v2.9.3 — loadUcetniIntegrace() byla volaná ale ne definovaná → "⏳" stuck
-// Wrapper který načte oba (POHODA + FlexiBee) paralelně
-async function loadUcetniIntegrace() {
-  // ISDOC card je staticky vyrendrovaný v blokUcetni (offline = funkční offline export)
-  // Načítáme POHODA + FlexiBee config asynchronně
-  await Promise.allSettled([
-    loadPohodaConfig(),
-    loadFlexibeeConfig(),
-  ]);
-}
-window.loadUcetniIntegrace = loadUcetniIntegrace;
-
-async function loadPohodaConfig() {
-  const cfg = await api('admin_pohoda.php?action=settings').catch(() => ({}));
-  const enabled = cfg.pohoda_enabled === '1';
-  const statusEl = document.getElementById('ns-pohoda-status');
-  if (statusEl) {
-    statusEl.innerHTML = enabled
-      ? '<span style="background:#DCFCE7;color:#166534;padding:4px 12px;border-radius:999px">✅ Aktivní</span>'
-      : '<span style="background:#F3F4F6;color:#6B7280;padding:4px 12px;border-radius:999px">⚫ Neaktivní</span>';
-  }
-  const host = document.getElementById('ns-pohoda-config');
-  if (!host) return;
-  host.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <label><span class="lbl">URL mServeru</span>
-        <input id="pohoda-url" class="form-input" placeholder="http://192.168.1.100:444" value="${esc(cfg.pohoda_url || '')}">
-      </label>
-      <label><span class="lbl">IČO firmy (v Pohoda)</span>
-        <input id="pohoda-ico" class="form-input" placeholder="12345678" value="${esc(cfg.pohoda_ico || '')}">
-      </label>
-      <label><span class="lbl">Uživatel</span>
-        <input id="pohoda-username" class="form-input" placeholder="Admin" value="${esc(cfg.pohoda_username || '')}">
-      </label>
-      <label><span class="lbl">Heslo ${cfg.pohoda_password_set ? '<small style="color:#16A34A">(uloženo — vyplň jen pro změnu)</small>' : ''}</span>
-        <input id="pohoda-password" type="password" class="form-input" placeholder="${cfg.pohoda_password_set ? '••••••••' : ''}">
-      </label>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer">
-        <input type="checkbox" id="pohoda-enabled" ${enabled ? 'checked' : ''} style="width:18px;height:18px">
-        Povolit POHODA mServer
-      </label>
-      <button class="btn-primary" onclick="savePohodaConfig()" style="margin-left:auto">💾 Uložit</button>
-      <button class="btn-secondary" onclick="testPohodaConnection()">🔌 Test spojení</button>
-      <a class="btn-secondary" href="../api/admin_pohoda.php?action=audit_log" target="_blank" style="text-decoration:none">📋 Log</a>
-    </div>
-    <details style="margin-top:10px">
-      <summary style="cursor:pointer;color:var(--text-3);font-size:13px">ℹ️ Jak nastavit POHODA mServer?</summary>
-      <div style="font-size:12.5px;color:var(--text-2);padding:8px 0;line-height:1.6">
-        <ol style="padding-left:20px">
-          <li>Otevři Pohodu na počítači kde běží účetnictví</li>
-          <li>Menu <strong>Soubor → mServer</strong> → Konfigurace → zapni "Spustit mServer"</li>
-          <li>Nastav port (default 444) a uživatele s heslem</li>
-          <li>Pokud APPEK běží na cloudu, otevři port 444 ve firewallu / VPN</li>
-          <li>Zde zadej <code>http://&lt;IP-PC&gt;:444</code>, IČO, uživatele a heslo → 🔌 Test spojení</li>
-        </ol>
-        <p>📖 Plná dokumentace: <a href="https://www.stormware.cz/pohoda/xml/dokumentace/" target="_blank">stormware.cz/pohoda/xml/dokumentace</a></p>
-      </div>
-    </details>
-  `;
-}
-
-window.savePohodaConfig = async function() {
-  const body = {
-    enabled: document.getElementById('pohoda-enabled').checked ? '1' : '0',
-    url: document.getElementById('pohoda-url').value.trim(),
-    ico: document.getElementById('pohoda-ico').value.trim(),
-    username: document.getElementById('pohoda-username').value.trim(),
-    password: document.getElementById('pohoda-password').value,
-  };
-  try {
-    await api('admin_pohoda.php?action=save_settings', { method: 'POST', body: JSON.stringify(body) });
-    toastSuccess('✅ POHODA konfigurace uložena');
-    loadPohodaConfig();
-  } catch (e) { alert('Chyba: ' + e.message); }
-};
-
-window.testPohodaConnection = async function() {
-  toastSuccess('⏳ Testuji spojení…');
-  try {
-    const r = await api('admin_pohoda.php?action=test');
-    if (r.ok) {
-      alert('✅ ' + (r.message || 'Spojení OK'));
-    } else {
-      alert('❌ ' + (r.error || 'Selhalo'));
-    }
-  } catch (e) { alert('❌ ' + e.message); }
-};
-
-async function loadFlexibeeConfig() {
-  const cfg = await api('admin_flexibee.php?action=settings').catch(() => ({}));
-  const enabled = cfg.flexibee_enabled === '1';
-  const statusEl = document.getElementById('ns-fbee-status');
-  if (statusEl) {
-    statusEl.innerHTML = enabled
-      ? '<span style="background:#DCFCE7;color:#166534;padding:4px 12px;border-radius:999px">✅ Aktivní</span>'
-      : '<span style="background:#F3F4F6;color:#6B7280;padding:4px 12px;border-radius:999px">⚫ Neaktivní</span>';
-  }
-  const host = document.getElementById('ns-fbee-config');
-  if (!host) return;
-  host.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <label><span class="lbl">URL serveru</span>
-        <input id="fbee-url" class="form-input" placeholder="https://moje-firma.flexibee.eu:5434" value="${esc(cfg.flexibee_url || '')}">
-      </label>
-      <label><span class="lbl">Kód firmy (company slug)</span>
-        <input id="fbee-company" class="form-input" placeholder="moje_firma_s_r_o" value="${esc(cfg.flexibee_company || '')}">
-      </label>
-      <label><span class="lbl">Uživatel</span>
-        <input id="fbee-username" class="form-input" placeholder="admin" value="${esc(cfg.flexibee_username || '')}">
-      </label>
-      <label><span class="lbl">Heslo ${cfg.flexibee_password_set ? '<small style="color:#16A34A">(uloženo — vyplň jen pro změnu)</small>' : ''}</span>
-        <input id="fbee-password" type="password" class="form-input" placeholder="${cfg.flexibee_password_set ? '••••••••' : ''}">
-      </label>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer">
-        <input type="checkbox" id="fbee-enabled" ${enabled ? 'checked' : ''} style="width:18px;height:18px">
-        Povolit FlexiBee REST
-      </label>
-      <button class="btn-primary" onclick="saveFlexibeeConfig()" style="margin-left:auto">💾 Uložit</button>
-      <button class="btn-secondary" onclick="testFlexibeeConnection()">🔌 Test spojení</button>
-      <a class="btn-secondary" href="../api/admin_flexibee.php?action=audit_log" target="_blank" style="text-decoration:none">📋 Log</a>
-    </div>
-    <details style="margin-top:10px">
-      <summary style="cursor:pointer;color:var(--text-3);font-size:13px">ℹ️ Jak nastavit FlexiBee REST?</summary>
-      <div style="font-size:12.5px;color:var(--text-2);padding:8px 0;line-height:1.6">
-        <ol style="padding-left:20px">
-          <li>Přihlas se do FlexiBee (cloud nebo on-prem) jako administrátor</li>
-          <li>V URL prohlížeče vidíš <code>https://server.flexibee.eu:5434/c/<strong>kod_firmy</strong>/...</code> — kód firmy je <strong>company slug</strong></li>
-          <li>Vytvoř service-user s rolí pro REST API přístup (Nastavení → Uživatelé)</li>
-          <li>Zde zadej URL bez /c/firma, kód firmy zvlášť, uživatele + heslo → 🔌 Test spojení</li>
-        </ol>
-        <p>📖 Dokumentace: <a href="https://demo.flexibee.eu/devdoc/" target="_blank">demo.flexibee.eu/devdoc</a></p>
-      </div>
-    </details>
-  `;
-}
-
-window.saveFlexibeeConfig = async function() {
-  const body = {
-    enabled: document.getElementById('fbee-enabled').checked ? '1' : '0',
-    url: document.getElementById('fbee-url').value.trim(),
-    company: document.getElementById('fbee-company').value.trim(),
-    username: document.getElementById('fbee-username').value.trim(),
-    password: document.getElementById('fbee-password').value,
-  };
-  try {
-    await api('admin_flexibee.php?action=save_settings', { method: 'POST', body: JSON.stringify(body) });
-    toastSuccess('✅ FlexiBee konfigurace uložena');
-    loadFlexibeeConfig();
-  } catch (e) { alert('Chyba: ' + e.message); }
-};
-
-window.testFlexibeeConnection = async function() {
-  toastSuccess('⏳ Testuji spojení…');
-  try {
-    const r = await api('admin_flexibee.php?action=test');
-    if (r.ok) {
-      alert('✅ ' + (r.message || 'Spojení OK'));
-    } else {
-      alert('❌ ' + (r.error || 'Selhalo'));
-    }
-  } catch (e) { alert('❌ ' + e.message); }
-};
-
+// 🐛 v3.0.640 — loadUcetniIntegrace / POHODA mServer / FlexiBee REST karty odstraněny (backend exportu nikdy
+//   nefungoval; podporovaná cesta = ISDOC export ve Fakturách). Kód je v git historii (≤ v3.0.639).
 // =============================================================
 // 🎁 BALÍČKY FUNKCÍ — Cukrárna / Lahůdky / Restaurace …
 // =============================================================
@@ -19340,16 +18871,8 @@ function renderPackageHeaderBadges(active) {
   }).join('');
 }
 
-// v3.0.588 — bývalý reveal/sbalení bloku balíčků; ponecháno jako no-op kvůli starým voláním
-function playPackageReveal() {}
 
-// Legacy alias — pro případ že někdo volá starý název
-function renderPackageSidebarItems(active) {
-  return renderPackageHeaderBadges(active);
-}
 
-// v3.0.588 — sbalitelný blok balíčků zrušen: no-op + úklid starého stavu (třída měnila layout sidebaru)
-window.togglePackageSubheader = function() {};
 (function cleanupPackageSubheaderState() {
   document.body.classList.remove('pkg-subheader-collapsed');
   try { localStorage.removeItem('appek_pkg_collapsed'); } catch(e) {}
@@ -24177,11 +23700,75 @@ window.saveRestaurantTable = async function() {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
+// 🐛 v3.0.640 — „✏️ Vlastnosti" stolu byl stub: nabídl jen SMAZÁNÍ (i s rezervacemi) → kdo
+//   nečetl pozorně, přišel o stůl. Teď skutečná úprava (název, místa, zóna, tvar) přes PUT;
+//   smazání zůstává jako samostatné červené tlačítko s potvrzením.
 window.editRestaurantTable = async function(id) {
-  // Stub for now - just delete option
+  const t = (state._rtStolyCache || []).find(s => Number(s.id) === Number(id));
+  if (!t) { alert('Stůl nenalezen — obnov stránku.'); return; }
+  const zones = state._rtZones || [];
+  const zonaField = zones.length
+    ? `<div><label class="form-label">Zóna</label>
+         <select class="form-input" id="rt-zona">
+           ${zones.map(z => `<option value="${z.id}" ${Number(z.id) === Number(t.zone_id) ? 'selected' : ''}>${esc(`${z.ikona || ''} ${z.nazev}`.trim())}</option>`).join('')}
+           <option value="" ${t.zone_id ? '' : 'selected'}>— bez zóny —</option>
+         </select>
+       </div>`
+    : `<div><label class="form-label">Sekce</label>
+         <input class="form-input" id="rt-sekce" value="${esc(t.sekce || '')}" placeholder="např. Terasa, Hlavní sál, Salonek">
+       </div>`;
+  const tvar = t.tvar || 'square';
+  openModal(`✏️ Vlastnosti stolu „${esc(t.nazev)}"`, `
+    <div class="form-grid form-grid-tight">
+      <div><label class="form-label">Název *</label>
+        <input class="form-input" id="rt-nazev" value="${esc(t.nazev || '')}">
+      </div>
+      <div><label class="form-label">Počet míst</label>
+        <input type="number" class="form-input" id="rt-mist" value="${parseInt(t.mist, 10) || 2}" min="1" max="40">
+      </div>
+      ${zonaField}
+      <div><label class="form-label">Tvar</label>
+        <select class="form-input" id="rt-tvar">
+          <option value="square" ${tvar === 'square' ? 'selected' : ''}>⬜ Čtverec</option>
+          <option value="round" ${tvar === 'round' ? 'selected' : ''}>⭕ Kulatý</option>
+          <option value="rect" ${tvar === 'rect' ? 'selected' : ''}>▭ Obdélník</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" style="color:#B91C1C;margin-right:auto" onclick="smazatRestaurantTable(${Number(t.id)})">🗑️ Smazat stůl</button>
+      <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
+      <button class="btn-primary btn-green" onclick="ulozitRestaurantTable(${Number(t.id)})">💾 Uložit</button>
+    </div>
+  `);
+};
+
+window.ulozitRestaurantTable = async function(id) {
+  const nazev = document.getElementById('rt-nazev')?.value?.trim();
+  if (!nazev) { alert('Vyplň název.'); return; }
+  const zonaSel = document.getElementById('rt-zona');
+  const zoneId = zonaSel ? (parseInt(zonaSel.value, 10) || null) : undefined; // undefined = instalace bez zón → zone_id neposílat
+  const zona = zoneId ? (state._rtZones || []).find(z => Number(z.id) === zoneId) : null;
+  const body = {
+    nazev,
+    mist: parseInt(document.getElementById('rt-mist').value, 10) || 2,
+    sekce: zona ? zona.nazev : (zonaSel ? null : (document.getElementById('rt-sekce')?.value?.trim() || null)),
+    tvar: document.getElementById('rt-tvar').value,
+  };
+  if (zoneId !== undefined) body.zone_id = zoneId;
+  try {
+    await api('admin_tables.php?id=' + Number(id), { method: 'PUT', body: JSON.stringify(body) });
+    closeModal();
+    toastSuccess('Stůl uložen');
+    renderRestaurantTables();
+  } catch (e) { alert('Chyba: ' + e.message); }
+};
+
+window.smazatRestaurantTable = async function(id) {
   if (!(await confirmDialog({ title: 'Smazat stůl?', msg: 'Smaže i všechny rezervace tohoto stolu.', danger: true, okText: 'Smazat' }))) return;
   try {
-    await api('admin_tables.php?id=' + id, { method: 'DELETE' });
+    await api('admin_tables.php?id=' + Number(id), { method: 'DELETE' });
+    closeModal();
     toastSuccess('Stůl smazán');
     renderRestaurantTables();
   } catch (e) { alert('Chyba: ' + e.message); }
@@ -27202,15 +26789,6 @@ window.resetDefaultSeason = async function(key) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
-window.saveDefaultSleva = async function(key) {
-  const el = document.getElementById('ds-sleva-' + key);
-  const pct = parseFloat(el && el.value) || 0;
-  try {
-    await api('admin_seasonal.php?action=save_default_sleva', { method: 'POST', body: JSON.stringify({ key, sleva_pct: pct }) });
-    toastSuccess('Sezónní cena uložena');
-    renderSeasonalManage();
-  } catch (e) { alert('Chyba: ' + e.message); }
-};
 
 // 🆕 v3.0.342 — pohyblivé svátky (Velikonoce, Den matek) → letošní datum do výchozí sezóny
 function appekEasterSunday(year) {
@@ -36041,87 +35619,7 @@ window.surImportRucni = async function() {
 // =============================================================
 // AUTO-DOPLNĚNÍ CEN SUROVIN — průměrné velkoobchodní ceny pro pekařství
 // =============================================================
-window.surovinyDoplnitCeny = async function() {
-  let preview;
-  try { preview = await api('admin_suroviny_autofill_ceny.php'); }
-  catch (e) { return alert('Chyba: ' + e.message); }
 
-  const navrhy = preview.navrhy || [];
-  const matched = navrhy.filter(n => n.matched);
-  const unmatched = navrhy.filter(n => !n.matched);
-
-  const fmtKc = n => (parseFloat(n) || 0).toFixed(2).replace('.', ',') + ' Kč';
-
-  const rowsMatched = matched.map(n => {
-    const ma = (n.aktualni.cena_baleni > 0 && n.aktualni.obsah_baleni > 0);
-    const aktKc = ma ? (n.aktualni.cena_baleni / n.aktualni.obsah_baleni) : null;
-    const novyKc = n.navrh.cena_baleni / n.navrh.obsah_baleni;
-    const change = aktKc !== null ? ((novyKc - aktKc) / aktKc * 100) : null;
-    return `
-      <tr>
-        <td><strong>${esc(n.nazev)}</strong></td>
-        <td style="font-size:11px;color:var(--text-3)">${esc(n.navrh.label)}</td>
-        <td class="num" style="font-size:12px">${ma ? fmtKc(aktKc) + '/' + esc(n.aktualni.jednotka) : '—'}</td>
-        <td class="num"><strong>${fmtKc(novyKc)}/${esc(n.navrh.jednotka)}</strong></td>
-        <td class="num" style="font-size:11px">${change !== null ? `<span style="color:${change > 5 ? '#dc2626' : (change < -5 ? '#16a34a' : 'var(--text-3)')}">${change > 0 ? '+' : ''}${change.toFixed(0)} %</span>` : '<span style="color:var(--text-3)">nová</span>'}</td>
-      </tr>
-    `;
-  }).join('');
-
-  const rowsUnmatched = unmatched.map(n => `<li><span style="color:var(--text-2)">${esc(n.nazev)}</span></li>`).join('');
-
-  openModal('🧾 Doplnit ceny surovin', `
-    <p style="font-size:13px;color:var(--text-2);margin-bottom:14px">
-      Návrh průměrných velkoobchodních cen pro pekařství v ČR (2024–2025).
-      Hodnoty zahrnují <strong>${matched.length}</strong> rozpoznaných surovin z celkem ${navrhy.length}.
-    </p>
-
-    <div style="background:#FFF8E7;padding:10px 14px;border-radius:8px;font-size:11px;margin-bottom:12px;border:1px solid #F59E0B33">
-      <strong>📋 Pravidla:</strong> ceny jsou orientační velkoobchodní (pro gastro provozy, ne maloobchodní), normalizované na 1 jednotku (1 kg, 1 l, 1 ks). Po aplikaci si je můžeš ručně doupřesnit dle skutečných smluvních cen tvých dodavatelů.
-    </div>
-
-    ${matched.length === 0 ? '<div class="empty-state" style="padding:30px">Žádné suroviny k doplnění.</div>' : `
-      <div style="max-height:50vh;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:14px">
-        <table class="table" style="margin:0;font-size:13px">
-          <thead><tr><th>Surovina</th><th>Rozpoznáno jako</th><th class="num">Aktuální</th><th class="num">Návrh</th><th class="num">Změna</th></tr></thead>
-          <tbody>${rowsMatched}</tbody>
-        </table>
-      </div>
-    `}
-
-    ${unmatched.length > 0 ? `
-      <details style="margin-bottom:12px;font-size:12px;color:var(--text-3)">
-        <summary style="cursor:pointer;padding:6px 0">⚠ Nerozpoznáno (${unmatched.length}) — doplň ručně</summary>
-        <ul style="margin:6px 0 0 22px;max-height:140px;overflow:auto;font-size:12px">${rowsUnmatched}</ul>
-      </details>
-    ` : ''}
-
-    <div style="background:#F0F9FF;border:1px solid #93C5FD;padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;color:#1e40af">
-      ℹ️ <strong>Defaultně</strong> doplní jen suroviny <em>bez ceny</em> (ruční úpravy zachová).<br>
-      ⚠️ <strong>Force</strong> přepíše všechny ceny — i ručně zadané.
-    </div>
-
-    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-      <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
-      <button class="btn-secondary" onclick="surovinyDoplnitCenyRun(true)" style="color:#dc2626;border-color:#fca5a5">⚠️ Přepsat vše</button>
-      <button class="btn-primary btn-green" onclick="surovinyDoplnitCenyRun(false)">✅ Doplnit prázdné</button>
-    </div>
-  `, 'wide');
-};
-
-window.surovinyDoplnitCenyRun = async function(force) {
-  closeModal();
-  try {
-    const r = await api('admin_suroviny_autofill_ceny.php' + (force ? '?force=1' : ''), { method: 'POST', body: '{}' });
-    state._suroviny_cache = null; state._suroviny_full_cache = null; // invalidate cache
-    await renderSuroviny();
-    const t = document.createElement('div');
-    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--success-bg);color:var(--success-text);padding:14px 22px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:14px;font-weight:600;z-index:9999';
-    t.innerHTML = `✓ Doplněno <strong>${r.applied}</strong> surovin · přeskočeno ${r.skipped}${r.unmatched > 0 ? ` · nerozpoznáno ${r.unmatched}` : ''}`;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 4500);
-  } catch (e) { alert('Chyba: ' + e.message); }
-};
 
 // 📦 Modal pro pohyby skladu (příjem / výdej / inventura) — rychlá akce z listu i detailu
 window.surSkladModal = async function(id) {
@@ -36663,17 +36161,6 @@ window.smazatSurovinu = async function(id) {
   } catch (e) { alert('Chyba: ' + e.message); }
 };
 
-window.seedSuroviny = async function() {
-  if (!(await confirmDialog({ msg: 'Naplnit databázi sadou ~70 výchozích surovin? (Existující se nepřepíší.)', danger: true }))) return;
-  try {
-    const res = await api('admin_suroviny.php?action=seed', { method: 'POST' });
-    // Invalidate cache aby seed byl vidět hned
-    state._suroviny_cache = null;
-    state._suroviny_full_cache = null;
-    alert(res.message ? res.message : `Vloženo ${res.inserted} surovin.`);
-    if (state.current === 'suroviny') renderSuroviny();
-  } catch (e) { alert('Chyba: ' + e.message); }
-};
 
 // =============================================================
 // SLOŽENÍ V MODALU VÝROBKU - helpery
@@ -36688,27 +36175,6 @@ async function loadSurovinyCache() {
   return state._suroviny_cache;
 }
 
-// 🆕 v2.9.290 — Tlačítko v editVyrobek pro doplnění demo receptu (RK01, CH01, …)
-window.vyNaplnitDemoRecept = async function(vyrobekId, cislo) {
-  if (!(await confirmDialog({ msg: t('confirm_demo_recipe', { cislo }), danger: false }))) return;
-  try {
-    const r = await api('admin_demo_seed.php?action=seed_one_recipe', {
-      method: 'POST',
-      body: JSON.stringify({ cislo }),
-    });
-    let msg = `✓ Recept doplněn pro „${r.vyrobek}"\n\nVloženo: ${r.vlozeno} / ${r.celkem_v_demo} surovin.`;
-    if (r.nenalezeno && r.nenalezeno.length > 0) {
-      msg += `\n\n⚠ Nenalezeno v DB (přeskočeno): ${r.nenalezeno.slice(0, 5).join(', ')}`;
-      msg += `\n\n💡 Tip: spusť 🎬 Naplnit demo daty pro doplnění chybějících surovin.`;
-    }
-    alert(msg);
-    // Reload editVyrobek modal s čerstvými daty
-    closeModal();
-    setTimeout(() => editVyrobek(vyrobekId), 200);
-  } catch (e) {
-    alert('Chyba: ' + e.message);
-  }
-};
 
 window.vySlozeniAddRow = function(surovina_id = '', mnozstvi = '', jednotka = 'g', poznamka = '') {
   const c = document.getElementById('vy-sloz-rows');
@@ -37888,11 +37354,6 @@ function designAsSablona(designId, currentW_mm, currentH_mm, foldHalf = false) {
   };
 }
 
-// 🔍 Helper: zjistí jestli aktuální formát je sklad od půlky (Appek cenovka)
-function stIsFoldHalfFormat(formatId, customSettings) {
-  const fmt = formatId === 'custom' ? customSettings : (STITKY_FORMATY.find(f => f.id === formatId) || STITKY_FORMATY[0]);
-  return !!(fmt && fmt.foldHalf);
-}
 
 const stState = {
   rezim: 'cenovky',            // 'expedicni' | 'cenovky' | 'moje' | 'editor' — výchozí cenovky
@@ -38700,20 +38161,6 @@ window.stPickVyrobekById = function(id) {
   renderStitky();
 };
 
-// ✏️ Otevři modal pro úpravu vybraného produktu
-window.stUpravitVybranyVyrobek = function() {
-  if (!stState.vybranyVyrobekId) {
-    alert('Nejdřív vyber produkt z dropdown (klikni na řádek v seznamu).');
-    return;
-  }
-  if (typeof window.editVyrobek === 'function') {
-    window.editVyrobek(stState.vybranyVyrobekId);
-  } else if (typeof window.otevritVyrobek === 'function') {
-    window.otevritVyrobek(stState.vybranyVyrobekId);
-  } else {
-    alert('Editor produktů není dostupný.');
-  }
-};
 
 // 🔢 Step-hint helper — pod každé pole v cenovkách napíše krok postupu
 // Použití: stStepHint(1, 'Vyber rozměr archu, který máš v tiskárně')
@@ -43285,6 +42732,7 @@ function haccpRenderDokumenty() {
               <a href="../api/firemni_haccp.php?id=${aktId}&download=1" download class="btn-secondary" style="text-decoration:none;font-size:12px;background:#ECFDF5;border-color:#10B981;color:#065F46" title="Stáhnout tento formulář">⬇️ Stáhnout</a>
               <a href="../api/firemni_haccp.php?id=${aktId}" target="_blank" class="btn-secondary" style="text-decoration:none;font-size:12px" title="Otevřít v novém okně">📄 Náhled ↗</a>
               <button class="btn-secondary" onclick="window.open('../api/firemni_haccp.php?id=${aktId}&autoprint=1', '_blank')" style="font-size:12px" title="Vytisknout">🖨 Tisk</button>
+              ${aktId ? `<button class="btn-secondary" onclick="haccpDokSmazat(${Number(aktId)})" style="font-size:12px;color:#B91C1C" title="Smazat dokument (výchozí sadu lze kdykoli znovu naimportovat)">🗑️ Smazat</button>` : ''}<!-- v3.0.640: haccpDokSmazat dřív nemělo tlačítko -->
               <button class="btn-primary btn-green" onclick="haccpDokUlozit()" style="font-size:12px">💾 Uložit</button>
             </div>
           </div>
@@ -45288,12 +44736,6 @@ window.vkUpdateZdobField = function(i, key, val, debounced) {
   vkState.zdobeni[i][key] = val;
   if (debounced) vkRenderDebounced(); else vkRender();
 };
-// Backward-compat (pro kalkulaci načtenou se starým schema)
-window.vkUpdateZdob = function(i, val) {
-  if (!vkState.zdobeni[i]) return;
-  vkState.zdobeni[i].cena_per_kus = val;
-  vkRenderDebounced();
-};
 window.vkAddFixni = function() {
   vkState.fixni.push({ nazev: '', cena_kc: 0 });
   vkRender();
@@ -46230,37 +45672,6 @@ window.applyTopbarSpacing = function() { /* no-op — spacing řeší CSS .topba
 // =============================================================
 // 🚀 v2.9.53 — Aplikace dropdown v topbaru (B2B / POS / Floor Plan)
 // =============================================================
-window.tbToggleApps = function(e) {
-  if (e) { e.stopPropagation(); e.preventDefault(); }
-  var menu = document.getElementById('tb-apps-menu');
-  var wrap = document.getElementById('tb-apps-wrap');
-  var btn  = wrap ? wrap.querySelector('.tb-apps-btn') : null;
-  if (!menu) return;
-  var isOpen = menu.classList.contains('show');
-  if (isOpen) {
-    menu.classList.remove('show');
-    menu.style.display = 'none';                 // inline — nepřebitelné CSS cache
-    if (btn) btn.setAttribute('aria-expanded', 'false');
-  } else {
-    menu.classList.add('show');
-    // Force všechny floating styly inline (immune to CSS cache)
-    menu.style.display = 'flex';
-    menu.style.flexDirection = 'column';
-    menu.style.position = 'absolute';
-    menu.style.top = 'calc(100% + 8px)';
-    menu.style.right = '0';
-    menu.style.left = 'auto';
-    menu.style.zIndex = '10060';
-    menu.style.minWidth = '280px';
-    menu.style.background = '#fff';
-    menu.style.border = '1px solid rgba(0,0,0,0.12)';
-    menu.style.borderRadius = '14px';
-    menu.style.boxShadow = '0 12px 36px rgba(0,0,0,0.16)';
-    menu.style.padding = '8px';
-    menu.style.gap = '2px';
-    if (btn) btn.setAttribute('aria-expanded', 'true');
-  }
-};
 // Init — zajisti že apps menu je zavřené (inline display:none) po loadu
 (function() {
   function closeAppsInit() {

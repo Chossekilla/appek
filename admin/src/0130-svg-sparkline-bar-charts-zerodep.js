@@ -51,22 +51,4 @@ window.sparklineSVG = function(data, opts = {}) {
   `;
 };
 
-window.barsSVG = function(data, opts = {}) {
-  const {fmt: fmtFn = (v) => v} = opts;
-  if (!data || data.length === 0) return '<div style="font-size:11px;color:#aaa;padding:14px">Žádná data</div>';
-  const max = Math.max(...data.map(d => d.value));
-  return `
-    <div class="chart-bars" style="margin-bottom:24px">
-      ${data.map(d => {
-        const pct = max > 0 ? (d.value / max) * 100 : 0;
-        return `
-          <div class="chart-bar" style="height:${pct}%" title="${esc(d.label)}: ${fmtFn(d.value)}">
-            <div class="chart-bar-value">${fmtFn(d.value)}</div>
-            <div class="chart-bar-label">${esc((d.label || '').slice(0, 12))}</div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-};
 

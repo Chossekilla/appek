@@ -7,15 +7,6 @@
 
 require_once __DIR__ . '/_license.php';
 
-function packages_catalog_def(): array {
-    return [
-        'core'        => ['nazev' => 'Core',           'always_on' => true],
-        'cukrarna'    => ['nazev' => 'Cukrárna',       'always_on' => false],
-        'lahudky'     => ['nazev' => 'Lahůdkárna',     'always_on' => false],
-        'restaurace'  => ['nazev' => 'Restaurace',     'always_on' => false],
-        // v3.0.588 — Catering je součástí Lahůdek, Sezónní je zdarma (core) → už ne samostatné balíčky
-    ];
-}
 
 function packages_state_get(PDO $pdo): array {
     try {

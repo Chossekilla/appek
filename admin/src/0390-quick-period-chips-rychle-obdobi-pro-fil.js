@@ -155,71 +155,7 @@ function _periodApply(typ, od, doDt, openCustom) {
   }
 }
 
-function quickPeriodChips(typ, datum_od, datum_do) {
-  const dnes = new Date();
-  const fmt = (d) => d.toYMD();
 
-  // Sestav rozsahy
-  const today = new Date(dnes);
-  // Posledních 7 dní (vč. dneška)
-  const last7 = new Date(dnes); last7.setDate(last7.getDate() - 6);
-  // Tento týden — od pondělí do dneška
-  const tydenStart = new Date(dnes);
-  const wd = (tydenStart.getDay() + 6) % 7; // 0 = pondělí
-  tydenStart.setDate(tydenStart.getDate() - wd);
-  // Posledních 10 dní (dekáda)
-  const last10 = new Date(dnes); last10.setDate(last10.getDate() - 9);
-  // Tento měsíc — od 1. do dnes
-  const mesicStart = new Date(dnes.getFullYear(), dnes.getMonth(), 1);
-  // Posledních 30 dní
-  const last30 = new Date(dnes); last30.setDate(last30.getDate() - 29);
-
-  const chips = [
-    { k: 'today', l: 'Dnes',           od: fmt(today),       do: fmt(today) },
-    { k: '7d',    l: '7 dní',          od: fmt(last7),       do: fmt(today) },
-    { k: 'tyden', l: 'Tento týden',    od: fmt(tydenStart),  do: fmt(today) },
-    { k: '10d',   l: 'Dekáda (10 dní)',od: fmt(last10),      do: fmt(today) },
-    { k: 'mesic', l: 'Tento měsíc',    od: fmt(mesicStart),  do: fmt(today) },
-    { k: '30d',   l: '30 dní',         od: fmt(last30),      do: fmt(today) },
-  ];
-
-  return chips.map(c => {
-    const active = datum_od === c.od && datum_do === c.do;
-    return `
-      <button class="qp-chip ${active ? 'is-active' : ''}" onclick="quickPeriodSet('${typ}', '${c.od}', '${c.do}')">
-        <span class="qp-check">${active ? '✓' : '☐'}</span>
-        <span>${c.l}</span>
-      </button>
-    `;
-  }).join('') + `
-    <button class="qp-chip qp-clear ${!datum_od && !datum_do ? 'is-active' : ''}" onclick="quickPeriodSet('${typ}', '', '')" title="Bez filtrace období">
-      <span class="qp-check">${(!datum_od && !datum_do) ? '✓' : '☐'}</span>
-      <span>Vše</span>
-    </button>
-  `;
-}
-
-window.quickPeriodSet = function(typ, od, doDt) {
-  if (typ === 'dl') {
-    const elOd = document.getElementById('dlf-od');
-    const elDo = document.getElementById('dlf-do');
-    if (elOd) elOd.value = od;
-    if (elDo) elDo.value = doDt;
-    applyDlFilters();
-  } else if (typ === 'fa') {
-    const elOd = document.getElementById('ff-od');
-    const elDo = document.getElementById('ff-do');
-    if (elOd) elOd.value = od;
-    if (elDo) elDo.value = doDt;
-    applyFakturyFilters();
-  } else if (typ === 'obj') {
-    const elOd = document.getElementById('of-od');
-    const elDo = document.getElementById('of-do');
-    if (elOd) elOd.value = od;
-    if (elDo) elDo.value = doDt;
-    applyObjFilters();
-  }
-};
 
 window.applyDlFilters = function() {
   // formulář ještě nevykreslený (skeleton) → nic, ať nepadne ani nevynuluje filtry

@@ -334,10 +334,6 @@ window.exportVyrobku = async function(format) {
   return _stahniSoubor(url, format);
 };
 
-window.exportVyrobkuHeureka = async function() {
-  const url = `${API}/admin_vyrobky_export.php?format=heureka`;
-  return _stahniSoubor(url, 'heureka');
-};
 
 // 🔗 v3.0.448 — trvalé feed URL pro Google Merchant / Heuréku (crawler stahuje sám, bez loginu přes token)
 window.zobrazFeedUrl = async function() {

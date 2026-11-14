@@ -256,11 +256,6 @@ window.triggerPwaInstall = async function() {
   if (el) el.remove();
 };
 
-// iOS detection (Safari nemá beforeinstallprompt — musí ručně přes Share menu)
-window.isPwaInstalled = function() {
-  return window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone === true;
-};
 
 // 📍 Tap-to-navigate — univerzální maps deeplink (iOS Maps, Android Google Maps, fallback web)
 window.openInMaps = function(address, city = '', psc = '') {
@@ -275,11 +270,6 @@ window.openInMaps = function(address, city = '', psc = '') {
   else                window.open(`https://www.google.com/maps/search/?api=1&query=${full}`, '_blank');
 };
 
-// 📞 Tap-to-call helper — fix formátu telefonu pro tel: link
-window.makeCallLink = function(phone) {
-  if (!phone) return '';
-  return 'tel:' + String(phone).replace(/[^+0-9]/g, '');
-};
 
 // =============================================================
 // 📱 v3.0.41 — POCKET UX UPGRADE — Pull-to-refresh, Swipe-to-action,

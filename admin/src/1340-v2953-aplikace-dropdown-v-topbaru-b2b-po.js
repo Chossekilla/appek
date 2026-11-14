@@ -1,37 +1,6 @@
 // =============================================================
 // 🚀 v2.9.53 — Aplikace dropdown v topbaru (B2B / POS / Floor Plan)
 // =============================================================
-window.tbToggleApps = function(e) {
-  if (e) { e.stopPropagation(); e.preventDefault(); }
-  var menu = document.getElementById('tb-apps-menu');
-  var wrap = document.getElementById('tb-apps-wrap');
-  var btn  = wrap ? wrap.querySelector('.tb-apps-btn') : null;
-  if (!menu) return;
-  var isOpen = menu.classList.contains('show');
-  if (isOpen) {
-    menu.classList.remove('show');
-    menu.style.display = 'none';                 // inline — nepřebitelné CSS cache
-    if (btn) btn.setAttribute('aria-expanded', 'false');
-  } else {
-    menu.classList.add('show');
-    // Force všechny floating styly inline (immune to CSS cache)
-    menu.style.display = 'flex';
-    menu.style.flexDirection = 'column';
-    menu.style.position = 'absolute';
-    menu.style.top = 'calc(100% + 8px)';
-    menu.style.right = '0';
-    menu.style.left = 'auto';
-    menu.style.zIndex = '10060';
-    menu.style.minWidth = '280px';
-    menu.style.background = '#fff';
-    menu.style.border = '1px solid rgba(0,0,0,0.12)';
-    menu.style.borderRadius = '14px';
-    menu.style.boxShadow = '0 12px 36px rgba(0,0,0,0.16)';
-    menu.style.padding = '8px';
-    menu.style.gap = '2px';
-    if (btn) btn.setAttribute('aria-expanded', 'true');
-  }
-};
 // Init — zajisti že apps menu je zavřené (inline display:none) po loadu
 (function() {
   function closeAppsInit() {

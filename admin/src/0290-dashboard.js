@@ -1166,30 +1166,4 @@ window.dashApplyVlastni = function() {
   renderDashboard({ obdobi: 'vlastni', datum_od: od, datum_do: do_ });
 };
 
-function renderCasovyGraf(data) {
-  if (data.length === 0) return '<div class="empty-state">Žádná data</div>';
-  const max = Math.max(...data.map(d => parseFloat(d.trzby))) || 1;
-  const sum = data.reduce((a, d) => a + parseFloat(d.trzby), 0);
-
-  // Pokud máme méně než ~30 bodů, ukážeme bar chart, jinak line chart
-  return `
-    <div class="chart-container">
-      <div class="chart-bars" style="--max:${max}">
-        ${data.map((d) => {
-          const v = parseFloat(d.trzby);
-          const pct = (v / max * 100).toFixed(1);
-          return `
-            <div class="chart-bar-wrap" title="${fmtDate(d.den)}: ${fmt(v)} (${d.objednavek} obj.)">
-              <div class="chart-bar" style="height:${pct}%"></div>
-              <div class="chart-bar-label">${new Date(d.den).getDate()}.${new Date(d.den).getMonth() + 1}.</div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <div class="chart-summary">
-        Celkem za období: <strong>${fmt(sum)}</strong>
-      </div>
-    </div>
-  `;
-}
 

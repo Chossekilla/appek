@@ -1255,7 +1255,7 @@ async function _renderNastaveniInner() {
   const blokUcetni = `
     <div class="card-block" style="padding:16px;margin-bottom:14px">
       <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">📊 Účetní integrace</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Live propojení s českými účetními systémy — automatický export faktur a DL z APPEK.</p>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Faktury přeneseš do účetnictví exportem <strong>ISDOC</strong> — importuje ho POHODA, Money S3, ABRA FlexiBee, Helios i iDoklad. Přímé online napojení na POHODA mServer / FlexiBee API zatím není k dispozici.</p>
     </div>
 
     <!-- 🆕 v2.9.187 — Sales report + Fixní náklady přesunuté z bývalého tabu Výroba -->
@@ -1273,45 +1273,19 @@ async function _renderNastaveniInner() {
       <!-- 🆕 v2.9.219 — '💰 Fixní náklady' přesunuto do Výrobní kalkulace (tlačítko v page-head) -->
     </div>
 
-    <!-- 3-sloupcový grid: POHODA + FlexiBee + ISDOC -->
-    <div class="settings-3col">
-      <!-- POHODA mServer card -->
-      <div class="card-block" style="padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-          <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
-            <span style="background:#e30613;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">POHODA</span>
-            mServer
-          </h3>
-          <div id="ns-pohoda-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
-        </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px">Stormware POHODA — XML API. Faktury, DL, partneři.</p>
-        <div id="ns-pohoda-config" style="display:flex;flex-direction:column;gap:8px">⏳</div>
+    <!-- 🐛 v3.0.640 — karty „POHODA mServer" a „FlexiBee REST" odstraněny: slibovaly automatický export
+         a dvoucestnou synchronizaci, ale exportní backend nikdy nefungoval (neexistující tabulka
+         faktury_polozky, chybné sloupce), loader se v záložce Integrace vůbec nevolal (karty visely na ⏳)
+         a mServer běží v LAN, kam hostovaný APPEK nedosáhne. Podporovaná cesta = ISDOC export. -->
+    <div class="card-block" style="padding:18px;background:var(--surface-2)">
+      <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
+          <span style="background:#003a70;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">📄 ISDOC</span>
+          Export faktur do účetnictví
+        </h3>
       </div>
-
-      <!-- FlexiBee card -->
-      <div class="card-block" style="padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-          <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
-            <span style="background:#f7941d;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">🐝 FlexiBee</span>
-            REST API
-          </h3>
-          <div id="ns-fbee-status" style="font-size:12px;font-weight:600;color:var(--text-3)">⏳</div>
-        </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px">ABRA FlexiBee cloud / on-prem. Dvoucestná synchronizace.</p>
-        <div id="ns-fbee-config" style="display:flex;flex-direction:column;gap:8px">⏳</div>
-      </div>
-
-      <!-- ISDOC info -->
-      <div class="card-block" style="padding:18px;background:var(--surface-2)">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-          <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
-            <span style="background:#003a70;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:800;letter-spacing:0.5px">📄 ISDOC</span>
-          </h3>
-          <div style="font-size:12px;font-weight:600;color:#0058b8">offline</div>
-        </div>
-        <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Money S3, Helios, ABRA, iDoklad importují <strong>ISDOC XML</strong>. Export ve Fakturách.</p>
-        <button class="btn-secondary" onclick="navigate('faktury')" style="font-size:12px;width:100%;padding:8px">→ Otevřít Faktury</button>
-      </div>
+      <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Export ISDOC najdeš ve <strong>Fakturách</strong> — u jednotlivé faktury i hromadně pro vybrané faktury. Soubor pak naimportuješ ve svém účetním programu: <strong>POHODA, Money S3, ABRA FlexiBee, Helios, iDoklad</strong>.</p>
+      <button class="btn-secondary" onclick="navigate('faktury')" style="font-size:12px;padding:8px 14px">→ Otevřít Faktury</button>
     </div>
   `;
 
@@ -1580,7 +1554,7 @@ async function _renderNastaveniInner() {
     <!-- 🆕 v3.0.29 — Účetní sekce (POHODA / FlexiBee / ISDOC) sloučena pod Integrace -->
     <div style="margin-top:18px;padding:14px 0;border-top:2px solid var(--border)">
       <h2 style="margin:0 0 4px;font-size:18px;letter-spacing:-0.01em">📊 Účetní integrace</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">POHODA mServer · FlexiBee REST · ISDOC export — live sync s tvým účetním softwarem.</p>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Export faktur ve formátu ISDOC — pro POHODA, Money S3, ABRA FlexiBee, Helios i iDoklad.</p>
     </div>
   ` + blokUcetni;
 
@@ -1677,9 +1651,6 @@ async function _renderNastaveniInner() {
   }
   if (aktTab === 'balicky') {
     loadBalicky();
-  }
-  if (aktTab === 'ucetni') {
-    loadUcetniIntegrace();
   }
   if (aktTab === 'integrace') {
     loadCustomerIntegrace();

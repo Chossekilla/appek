@@ -17,11 +17,6 @@ function shipping_carrier_enabled(string $c): bool {
     if (!function_exists('customer_int_enabled') || !customer_int_enabled($c)) return false;
     return function_exists(shipping_create_fn($c));
 }
-function shipping_enabled_carriers(): array {
-    $out = [];
-    foreach (shipping_supported_carriers() as $c) if (shipping_carrier_enabled($c)) $out[] = $c;
-    return $out;
-}
 
 function shipping_create_fn(string $c): string {
     return $c === 'zas' ? 'customer_int_zas_create_packet' : 'customer_int_' . $c . '_create_shipment';
