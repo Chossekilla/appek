@@ -99,8 +99,8 @@ if ($method === 'POST' && $action === 'upload_logo') {
 
     // === 3) Uložit URL do nastaveni (s cache-bust timestampem) ===
     $ts = time();
-    $logoUrl = '/uploads/logo/logo.' . $logoExt . '?v=' . $ts;
-    $favUrl  = '/uploads/logo/favicon.png?v=' . $ts;
+    $logoUrl = app_url_path('uploads/logo/logo.') . $logoExt . '?v=' . $ts; // v3.0.639 podsložka
+    $favUrl  = app_url_path('uploads/logo/favicon.png') . '?v=' . $ts;
 
     $st = $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES (:k, :v) ON DUPLICATE KEY UPDATE hodnota = :v2");
     $st->execute(['k' => 'firma_logo_url',    'v' => $logoUrl, 'v2' => $logoUrl]);

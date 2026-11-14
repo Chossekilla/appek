@@ -310,7 +310,9 @@ window.rfVybratOdberatele = async function(id) {
     rucniFakturaState.odberatel = data;
     // Auto-spočítej datum splatnosti podle splatnost_dni odběratele
     // (z aktuální hodnoty datum_vystaveni v inputu, fallback dnes)
-    const splDni = parseInt(data.splatnost_dni) || 14;
+    // v3.0.639 — `|| 14` dělal ze splatnosti 0 dní (splatné ihned) 14 dní; 14 jen když chybí
+    const splParsed = parseInt(data.splatnost_dni, 10);
+    const splDni = Number.isFinite(splParsed) ? splParsed : 14;
     const dvInput = document.getElementById('rf-datum-vyst');
     const dvStr = (dvInput && dvInput.value) ? dvInput.value : new Date().toYMD();
     const dv = new Date(dvStr);

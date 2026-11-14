@@ -1592,6 +1592,10 @@ if ($action === 'apply') {
                     $stats['kuchyne_stanice']++;
                 }
             }
+            // 🐛 v3.0.639 — stejné 4 výchozí stanice zakládá i admin_kitchen.php / admin_prep_times.php
+            //   při prvním otevření KDS → seed je pak „nevytvořil" a hlásil 0, ačkoli náhled slíbil 4
+            //   a demo je má. Hlásíme stav po seedu (= co náhled slibuje), ne jen nově vložené.
+            $stats['kuchyne_stanice'] = (int) $pdo->query("SELECT COUNT(*) FROM kitchen_stations WHERE aktivni = 1")->fetchColumn();
         } catch (Throwable $e) { $stats['errors'][] = 'Restaurace stoly/kuchyně: ' . $e->getMessage(); }
 
         // 14. FLAGGED VÝROBKY — oblíbený, novinka, akce (pro pěkný katalog)

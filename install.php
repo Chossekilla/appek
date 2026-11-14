@@ -21,6 +21,54 @@ if (is_dir(__DIR__ . '/vendor') && file_exists(__DIR__ . '/index.html')) {
 session_start();
 require_once __DIR__ . '/api/_license.php';
 
+/**
+ * 🌐 v3.0.639 — POST JSON na licenční server (appek.cz → záloha vendor.appek.cz).
+ *   cURL first (instalátor ho stejně vyžaduje v kontrole požadavků), fallback
+ *   file_get_contents. Dřív JEN file_get_contents → na hostingu s allow_url_fopen=0
+ *   licence nikdy neprošla a instalace navždy uvízla na kroku Licence.
+ *   Vrací [odpověď|null, důvod]: '' = OK, 'no_transport' = není cURL ani allow_url_fopen,
+ *   'unreachable' = server neodpověděl platným JSONem.
+ */
+function install_vendor_post(array $urls, array $payload, int $timeout = 8): array {
+    $json     = json_encode($payload);
+    $canCurl  = function_exists('curl_init') && function_exists('curl_exec'); // hosting občas zakáže jen curl_exec
+    $canFopen = filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN);
+    if (!$canCurl && !$canFopen) return [null, 'no_transport'];
+    foreach ($urls as $url) {
+        $body = false;
+        if ($canCurl) {
+            try {
+                $c = curl_init($url);
+                curl_setopt_array($c, [
+                    CURLOPT_POST           => true,
+                    CURLOPT_POSTFIELDS     => $json,
+                    CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'User-Agent: APPEK-Installer/1.0'],
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_TIMEOUT        => $timeout,
+                    CURLOPT_CONNECTTIMEOUT => min(5, $timeout),
+                ]);
+                $body = curl_exec($c);
+                curl_close($c);
+            } catch (Throwable $e) { $body = false; } // rozbitá/zakázaná cURL → zkus fopen níž
+        }
+        if (($body === false || $body === '') && $canFopen) {
+            $ctx = stream_context_create(['http' => [
+                'method'        => 'POST',
+                'header'        => "Content-Type: application/json\r\nUser-Agent: APPEK-Installer/1.0\r\n",
+                'content'       => $json,
+                'timeout'       => $timeout,
+                'ignore_errors' => true, // 4xx/5xx tělo (JSON s message) chceme přečíst
+            ]]);
+            $body = @file_get_contents($url, false, $ctx);
+        }
+        if (is_string($body) && $body !== '') {
+            $resp = json_decode($body, true);
+            if (is_array($resp)) return [$resp, ''];
+        }
+    }
+    return [null, 'unreachable'];
+}
+
 $step = (int) ($_GET['step'] ?? $_POST['step'] ?? 0);
 $err  = null;
 $ok   = null;
@@ -60,7 +108,7 @@ $T = [
     'license_validate'=> ['cs' => '🔓 Ověřit klíč &amp; pokračovat', 'en' => '🔓 Verify key &amp; continue', 'es' => '🔓 Verificar clave y continuar'],
     'license_invalid' => ['cs' => 'Neplatný licenční klíč. Zkontroluj formát APPEK-XXXX-XXXX-XXXX-XXXX.', 'en' => 'Invalid license key. Check format APPEK-XXXX-XXXX-XXXX-XXXX.', 'es' => 'Clave inválida. Verifica el formato APPEK-XXXX-XXXX-XXXX-XXXX.'],
     'license_required'=> ['cs' => 'Pro pokračování zadej platný licenční klíč.', 'en' => 'Enter a valid license key to continue.', 'es' => 'Introduce una clave válida para continuar.'],
-    'license_xampp'   => ['cs' => '🧪 XAMPP test mode — testovací klíč přednastaven.', 'en' => '🧪 XAMPP test mode — test key pre-filled.', 'es' => '🧪 Modo de prueba XAMPP — clave de prueba precargada.'],
+    'license_xampp'   => ['cs' => '🧪 Lokální instalace (XAMPP/MAMP) — vlož svůj klíč a e-mail. Ověření licence potřebuje jednorázově internet.', 'en' => '🧪 Local install (XAMPP/MAMP) — enter your key and e-mail. License verification needs a one-time internet connection.', 'es' => '🧪 Instalación local (XAMPP/MAMP) — introduce tu clave y e-mail. La verificación de la licencia necesita internet una vez.'],
 
     // ─── Mode selection ───
     'mode_title'      => ['cs' => '🎯 Vyber režim provozu', 'en' => '🎯 Choose operation mode', 'es' => '🎯 Elige el modo de operación'],
@@ -71,7 +119,7 @@ $T = [
     'mode_hybrid_t'   => ['cs' => 'Hybridní (master + cloud)', 'en' => 'Hybrid (master + cloud)', 'es' => 'Híbrido (master + cloud)'],
     'mode_hybrid_d'   => ['cs' => 'Hlavní aplikace u tebe (PC/server), cloud zrcadlí. Mobilní přístup pro odběratele.', 'en' => 'Main app at your place (PC/server), cloud mirrors. Mobile access for customers.', 'es' => 'App principal en tu sitio (PC/servidor), cloud refleja. Acceso móvil para clientes.'],
     'mode_local_t'    => ['cs' => 'Pouze lokálně', 'en' => 'Local only', 'es' => 'Solo local' ],
-    'mode_local_d'    => ['cs' => 'XAMPP/MAMP na tvém PC. Offline. Bez webu, bez sync. Pro testování / interní použití.', 'en' => 'XAMPP/MAMP on your PC. Offline. No web, no sync. For testing / internal use.', 'es' => 'XAMPP/MAMP en tu PC. Offline. Sin web, sin sync. Para pruebas / uso interno.'],
+    'mode_local_d'    => ['cs' => 'XAMPP/MAMP na tvém PC. Provoz offline — bez webu, bez sync (jen ověření licence při instalaci potřebuje jednorázově internet). Pro testování / interní použití.', 'en' => 'XAMPP/MAMP on your PC. Runs offline — no web, no sync (only the license check during install needs a one-time internet connection). For testing / internal use.', 'es' => 'XAMPP/MAMP en tu PC. Funciona offline — sin web, sin sync (solo la verificación de licencia al instalar necesita internet una vez). Para pruebas / uso interno.'],
 
     // ─── Server check ───
     'check_title'     => ['cs' => '📋 Kontrola serveru', 'en' => '📋 Server check', 'es' => '📋 Comprobación del servidor'],
@@ -185,26 +233,10 @@ if (isset($_GET['reset_license'])) {
 // 🆕 v2.0.73 — Send (re-send) challenge code email
 if (isset($_GET['send_code']) && !empty($_SESSION['install_license_challenge'])) {
     $ch = $_SESSION['install_license_challenge'];
-    $emailVerifyUrls = ['https://appek.cz/api/license_email_verify.php',
-                        'https://vendor.appek.cz/api/license_email_verify.php'];
-    $resp = null;
-    foreach ($emailVerifyUrls as $url) {
-        $ctx = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => "Content-Type: application/json\r\nUser-Agent: APPEK-Installer/1.0\r\n",
-                'content' => json_encode([
-                    'license_key' => $ch['license'],
-                    'email'       => $ch['email'],
-                    'action'      => 'send_code',
-                ]),
-                'timeout' => 8,
-                'ignore_errors' => true,
-            ],
-        ]);
-        $body = @file_get_contents($url, false, $ctx);
-        if ($body !== false) { $resp = json_decode($body, true); if (is_array($resp)) break; }
-    }
+    [$resp] = install_vendor_post(
+        ['https://appek.cz/api/license_email_verify.php', 'https://vendor.appek.cz/api/license_email_verify.php'],
+        ['license_key' => $ch['license'], 'email' => $ch['email'], 'action' => 'send_code']
+    );
     if ($resp && !empty($resp['ok']) && !empty($resp['sent'])) {
         $_SESSION['install_license_challenge']['sent'] = true;
         $_SESSION['install_license_warn'] = '✉️ Kód odeslán na ' . ($resp['masked_email'] ?? '***') . ' — zkontroluj inbox (i spam).';
@@ -236,35 +268,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['license_key']) && emp
         $err = 'Zadej platný email — pro bezpečnostní binding licence.';
     } else {
         // 🔐 EMAIL VERIFICATION FLOW
-        $emailVerifyUrls = ['https://appek.cz/api/license_email_verify.php',
-                            'https://vendor.appek.cz/api/license_email_verify.php'];
-        $emailVerifyResp = null;
-        $emailAction = $challengeCode ? 'verify_code' : 'check';
-        foreach ($emailVerifyUrls as $url) {
-            $ctx = stream_context_create([
-                'http' => [
-                    'method'  => 'POST',
-                    'header'  => "Content-Type: application/json\r\nUser-Agent: APPEK-Installer/1.0\r\n",
-                    'content' => json_encode([
-                        'license_key' => $candidate,
-                        'email'       => $candidateEmail,
-                        'action'      => $emailAction,
-                        'code'        => $challengeCode,
-                    ]),
-                    'timeout' => 8,
-                    'ignore_errors' => true,
-                ],
-            ]);
-            $body = @file_get_contents($url, false, $ctx);
-            if ($body !== false) {
-                $emailVerifyResp = json_decode($body, true);
-                if (is_array($emailVerifyResp)) break;
-            }
-        }
+        [$emailVerifyResp, $vendorFail] = install_vendor_post(
+            ['https://appek.cz/api/license_email_verify.php', 'https://vendor.appek.cz/api/license_email_verify.php'],
+            ['license_key' => $candidate, 'email' => $candidateEmail,
+             'action' => $challengeCode ? 'verify_code' : 'check', 'code' => $challengeCode]
+        );
 
         if (!$emailVerifyResp) {
-            // Vendor server nedostupný — povol pokračovat v offline módu (s warningem)
-            $_SESSION['install_license_warn'] = '⚠️ Email verifikace přeskočena (vendor offline). Po instalaci ověř ručně.';
+            // 🐛 v3.0.639 — dřív tu bylo jen varování „přeskočeno (vendor offline)", ale bez
+            //   install_license_email se krok registrace níž nikdy nespustil → kupující navždy
+            //   na kroku Licence s klamnou hláškou. Bez ověření e-mailu NEpokračujeme záměrně:
+            //   TOFU vazba brání tomu, aby někdo s uniklým klíčem (+ zablokovaným appek.cz)
+            //   nainstaloval první a heartbeat pak označil skutečného majitele za key_reuse.
+            $err = $vendorFail === 'no_transport'
+                ? 'Licenci nejde ověřit: server nemá zapnuté rozšíření cURL ani allow_url_fopen. Zapněte cURL v nastavení PHP u hostingu a zkuste to znovu.'
+                : 'Licenční server appek.cz teď neodpovídá, klíč nejde ověřit. Zkuste to prosím za pár minut znovu. Pokud potíže trvají, ověřte u hostingu, že povoluje odchozí HTTPS spojení, případně napište na info@appek.cz.';
         } elseif (!empty($emailVerifyResp['ok']) && in_array($emailVerifyResp['status'] ?? '', ['bound_tofu', 'already_bound', 'rebound'], true)) {
             // ✅ Email OK — proceed
             $_SESSION['install_license_email'] = $candidateEmail;
@@ -299,29 +317,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['license_key']) && emp
         $installUrl = $proto . '://' . $thisHost;
 
         // Zkus na vendor — pokud nedostupný (offline / firewall), povol pokračovat s warningem
-        $vendorUrls = ['https://appek.cz/api/license_verify.php', 'https://vendor.appek.cz/api/license_verify.php'];
-        $resp = null;
-        foreach ($vendorUrls as $url) {
-            $ctx = stream_context_create([
-                'http' => [
-                    'method'  => 'POST',
-                    'header'  => "Content-Type: application/json\r\nUser-Agent: APPEK-Installer/1.0\r\n",
-                    'content' => json_encode([
-                        'license_key'    => $candidate,
-                        'install_url'    => $installUrl,
-                        'current_version'=> defined('APP_VERSION') ? APP_VERSION : '0.0.0',
-                        'register'       => true,
-                    ]),
-                    'timeout' => 5,
-                    'ignore_errors' => true,
-                ],
-            ]);
-            $body = @file_get_contents($url, false, $ctx);
-            if ($body !== false) {
-                $resp = json_decode($body, true);
-                if (is_array($resp)) break;
-            }
-        }
+        [$resp] = install_vendor_post(
+            ['https://appek.cz/api/license_verify.php', 'https://vendor.appek.cz/api/license_verify.php'],
+            ['license_key' => $candidate, 'install_url' => $installUrl,
+             'current_version' => defined('APP_VERSION') ? APP_VERSION : '0.0.0', 'register' => true],
+            5
+        );
 
         if ($resp && isset($resp['valid'])) {
             if ($resp['valid'] === false) {
@@ -739,13 +740,13 @@ small { color: #888; font-size: 12px; }
       ?>
       <form method="POST" action="install.php">
         <label><span class="lbl"><?= t('license_label') ?></span>
-          <input type="text" name="license_key" value="<?= $challenge ? htmlspecialchars($challenge['license']) : ($isLocalhost ? 'APPEK-4UG2-FWHX-D6SS-D3BA' : '') ?>" placeholder="APPEK-XXXX-XXXX-XXXX-XXXX" required style="font-family:'SF Mono',Menlo,monospace;letter-spacing:0.05em;text-transform:uppercase" <?= $challenge ? '' : 'autofocus' ?>>
+          <input type="text" name="license_key" value="<?= htmlspecialchars($challenge ? $challenge['license'] : (is_string($_POST['license_key'] ?? null) ? $_POST['license_key'] : '')) ?>" placeholder="APPEK-XXXX-XXXX-XXXX-XXXX" required style="font-family:'SF Mono',Menlo,monospace;letter-spacing:0.05em;text-transform:uppercase" <?= $challenge ? '' : 'autofocus' ?>>
           <small><?= $isLocalhost ? t('license_xampp') : t('license_hint') ?></small>
         </label>
 
         <label>
           <span class="lbl">📧 Email pro bezpečnostní binding licence <span style="color:#dc2626">*</span></span>
-          <input type="email" name="license_email" value="<?= htmlspecialchars($challenge['email'] ?? '') ?>" placeholder="tvuj@email.cz" required <?= $challenge ? 'autofocus' : '' ?>>
+          <input type="email" name="license_email" value="<?= htmlspecialchars($challenge['email'] ?? (is_string($_POST['license_email'] ?? null) ? $_POST['license_email'] : '')) ?>" placeholder="tvuj@email.cz" required <?= $challenge ? 'autofocus' : '' ?>>
           <small style="color:#666;font-size:12px;display:block;margin-top:4px">
             🔐 <strong>Hybrid TOFU verifikace:</strong> Při první instalaci se email automaticky bind k licenci. Při instalaci s jiným emailem ti pošleme ověřovací kód na původní email (anti-fraud).
           </small>

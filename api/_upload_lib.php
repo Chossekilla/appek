@@ -8,7 +8,7 @@
  *   json_response(['ok' => true, 'url' => $url]);
  *
  * Unikátní jména (víc objednávek) · zmenší na max 1600 px · .htaccess zakáže PHP.
- * Vyžaduje GD. URL je ROOT-absolutní `/uploads/predlohy/…` (produkce na doménovém rootu).
+ * Vyžaduje GD. URL je od kořene domény vč. podsložky instalace (app_url_path, v3.0.639).
  */
 
 if (!function_exists('upload_predloha_image')) {
@@ -55,6 +55,6 @@ if (!function_exists('upload_predloha_image')) {
         imagedestroy($img);
         if (!$ok || !file_exists($path)) json_error('Uložení fotky selhalo (oprávnění uploads/?)', 500);
 
-        return '/uploads/predlohy/' . $name;
+        return (function_exists('app_url_path') ? app_url_path('uploads/predlohy/') : '/uploads/predlohy/') . $name; // v3.0.639 podsložka
     }
 }

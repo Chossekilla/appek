@@ -287,7 +287,7 @@ if ($method === 'POST' && $action === 'upload') {
     $ok = ($ext === 'png') ? imagepng($img, $target, 6) : imagejpeg($img, $target, 85);
     imagedestroy($img);
     if (!$ok) json_error('Nepodařilo se uložit soubor');
-    json_response(['url' => '/uploads/suroviny/' . $filename, 'filename' => $filename]);
+    json_response(['url' => app_url_path('uploads/suroviny/') . $filename, 'filename' => $filename]); // v3.0.639 podsložka
 }
 
 if ($action === 'seed' && $method === 'POST') {

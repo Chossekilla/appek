@@ -168,7 +168,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'upload') {
     if (!$ok) json_error('Nepodařilo se uložit soubor');
 
     json_response([
-        'url' => '/uploads/vyrobky/' . $filename,
+        'url' => app_url_path('uploads/vyrobky/') . $filename, // v3.0.639 podsložka
         'filename' => $filename,
     ]);
 }
@@ -708,8 +708,9 @@ if ($method === 'POST') {
                              kategorie_id, jednotka_id, cena_bez_dph, sazba_dph_id,
                              hmotnost_g, obsah, obsah_jednotka, rozmer_d, rozmer_s, rozmer_v, obrazek_url, min_objednavka,
                              aktivni, oblibeny, je_akce, je_novinka, je_doprodej, je_vyprodano, zobrazit_na_pos, poradi,
-                             priprava_min, kitchen_station_id, obor, na_vahu, plu, vaha_jednotka)
-        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:rd,:rs,:rv,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:zpos,:por,:prip,:station,:obor,:navahu,:plu,:vjed)
+                             priprava_min, kitchen_station_id, obor, na_vahu, plu, vaha_jednotka,
+                             je_polotovar, sleduje_sklad, postup_json)
+        VALUES (:cislo,:ean,:nazev,:popis,:sloz,:aler,:nutr,:kat,:jed,:cena,:sazba,:hm,:ob,:obj,:rd,:rs,:rv,:obr,:min,:akt,:obl,:jak,:jno,:jdo,:jvy,:zpos,:por,:prip,:station,:obor,:navahu,:plu,:vjed,:jpol,:ssk,:postup)
     ");
     $stmt->execute([
         'cislo' => $d['cislo'] ?? null,
@@ -749,6 +750,13 @@ if ($method === 'POST') {
         'navahu' => isset($d['na_vahu']) ? (int) $d['na_vahu'] : 0,
         'plu' => !empty($d['plu']) ? (int) $d['plu'] : null,
         'vjed' => !empty($d['vaha_jednotka']) ? substr((string) $d['vaha_jednotka'], 0, 8) : 'kg',
+        // 🐛 v3.0.639 — BOM/sestavy (v3.0.303) uměl jen PUT → nový polotovar / hybrid-sklad výrobek
+        //   se založil jako obyčejný (příznaky zahozené) a recept se pak rozpadal špatně.
+        'jpol'   => isset($d['je_polotovar']) ? (int) $d['je_polotovar'] : 0,
+        'ssk'    => isset($d['sleduje_sklad']) ? (int) $d['sleduje_sklad'] : 0,
+        'postup' => isset($d['postup_json'])
+                    ? (is_array($d['postup_json']) ? json_encode($d['postup_json'], JSON_UNESCAPED_UNICODE) : $d['postup_json'])
+                    : null,
     ]);
     $new_id = (int) $pdo->lastInsertId();
 

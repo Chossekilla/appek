@@ -155,12 +155,12 @@ try {
         $img = '';
         if (!empty($v['obrazek_url'])) {
             $url = $v['obrazek_url'];
-            $disk = __DIR__ . '/..' . (str_starts_with($url, '/') ? $url : '/' . $url);
-            if (file_exists($disk)) $img = $url;
+            $disk = __DIR__ . '/..' . app_url_to_rel($url); // v3.0.639 — i '/podslozka/uploads/…'
+            if (file_exists($disk)) $img = app_url_path(ltrim(app_url_to_rel($url), '/')); // URL pro AKTUÁLNÍ adresu instalace
         }
         if (!$img) {
             $cand = __DIR__ . '/../uploads/vyrobky/' . $v['id'] . '.jpg';
-            if (file_exists($cand)) $img = '/uploads/vyrobky/' . $v['id'] . '.jpg';
+            if (file_exists($cand)) $img = app_url_path('uploads/vyrobky/') . $v['id'] . '.jpg';
         }
         ob_start(); ?>
         <div class="pc">

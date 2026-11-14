@@ -100,7 +100,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'upload') {
     if (!$ok) json_error('Nepodařilo se uložit soubor');
 
     json_response([
-        'url' => '/uploads/kategorie/' . $filename,
+        'url' => app_url_path('uploads/kategorie/') . $filename, // v3.0.639 podsložka
         'filename' => $filename,
     ]);
 }
@@ -171,7 +171,7 @@ if ($method === 'PUT') {
         $stary_url = $stary->fetchColumn();
         $novy_url  = !empty($d['obrazek_url']) ? trim($d['obrazek_url']) : null;
         if ($stary_url && $stary_url !== $novy_url) {
-            $stary_path = realpath(__DIR__ . '/..' . $stary_url);
+            $stary_path = realpath(__DIR__ . '/..' . app_url_to_rel($stary_url));
             $upload_dir = realpath(__DIR__ . '/../uploads/kategorie');
             // Bezpečnostní kontrola - cesta musí být v uploads/kategorie/
             if ($stary_path && $upload_dir && str_starts_with($stary_path, $upload_dir)) {
@@ -228,7 +228,7 @@ if ($method === 'DELETE') {
     $obr->execute(['id' => $id]);
     $url = $obr->fetchColumn();
     if ($url) {
-        $path = realpath(__DIR__ . '/..' . $url);
+        $path = realpath(__DIR__ . '/..' . app_url_to_rel($url));
         $upload_dir = realpath(__DIR__ . '/../uploads/kategorie');
         if ($path && $upload_dir && str_starts_with($path, $upload_dir)) {
             @unlink($path);

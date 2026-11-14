@@ -322,7 +322,7 @@ window.editOdberatel = async function(id = null) {
         </div>
         <div>
           <label class="form-label">Splatnost (dní)</label>
-          <input class="form-input" id="od-spl" type="number" value="${o.splatnost_dni || 14}">
+          <input class="form-input" id="od-spl" type="number" value="${o.splatnost_dni ?? 14}">
         </div>
         <div>
           <label class="form-label">🏷️ Typ odběratele</label>
@@ -513,7 +513,7 @@ window.ulozitOdberatele = async function(id) {
     telefon: document.getElementById('od-tel').value || null,
     kontaktni_osoba: document.getElementById('od-ko').value || null,
     login_email: document.getElementById('od-log').value || null,
-    splatnost_dni: parseInt(document.getElementById('od-spl').value) || 14,
+    splatnost_dni: (n => Number.isFinite(n) ? n : 14)(parseInt(document.getElementById('od-spl').value, 10)), // v3.0.639: 0 = splatné ihned (dřív || 14)
     cenova_skupina_id: parseInt(document.getElementById('od-skupina')?.value) || null,
     blokovan: document.getElementById('od-blok').checked ? 1 : 0,
     notif_emaily: document.getElementById('od-notif')?.checked ? 1 : 0,

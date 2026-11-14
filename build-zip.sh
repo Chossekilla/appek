@@ -292,7 +292,15 @@ zip -r "$CUSTOMER_OUT" . \
   -x "download.php" \
   -x "docs/*" \
   -x "CLAUDE.md" -x "SYNC_ARCHITECTURE.md" \
+  -x ".remember/*" \
+  -x "HANDOFF-*" -x "SETUP-IMAC.md" -x "deploy-local.sh" -x "TRANSLATIONS_*" -x "*.v2.0.backup.md" \
+  -x "tests/*" -x "mobile/*" -x "deploy/docs/*" -x "deploy/htaccess-templates/*" \
+  -x "obchodni-podminky.html" -x "zasady-ochrany-soukromi.html" -x "kontakty.html" -x "payment-done.html" \
   > /dev/null
+# ↑ v3.0.639 — interní poznámky/dev artefakty (.remember, HANDOFF, SETUP-IMAC, testy, mobilní
+#   projekt, deploy docs/šablony) + vendorovy stránky (VOP, zásady, kontakty, payment-done licencí)
+#   nepatří kupci. deploy/demo-seed*.sql ZŮSTÁVÁ (čte ho admin_reset_demo.php), instalace.html
+#   ZŮSTÁVÁ (odkazuje na ni onboarding v adminu).
 
 CUSTOMER_SIZE=$(ls -lh "$CUSTOMER_OUT" | awk '{print $5}')
 CUSTOMER_COUNT=$(unzip -l "$CUSTOMER_OUT" | tail -1 | awk '{print $2}')

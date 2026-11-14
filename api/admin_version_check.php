@@ -18,6 +18,9 @@ require_once __DIR__ . '/_license.php';
 
 cors_headers();
 require_admin();
+// 🔓 v3.0.639 — uvolni zámek PHP session: endpoint session dál jen nečte a může čekat na vendor
+//   (2× až 10 s). Pill ho volá při každém startu adminu → jinak by whoami/dashboard čekaly na zámek.
+session_write_close();
 header('Content-Type: application/json; charset=UTF-8');
 
 $pdo = db();
@@ -94,9 +97,23 @@ if ($useCached) {
         'packages'        => ['core', 'cukrarna', 'lahudky', 'restaurace', 'catering', 'sezona'],
     ]);
 
-    $lastErr = null;
+    // 🛡️ v3.0.639 — negativní cache: update pill v liště adminu teď volá tenhle endpoint při
+    //   KAŽDÉM načtení adminu. Bez ní by výpadek vendoru znamenal až 2× 10 s blokovaný PHP
+    //   proces na každé načtení. Po neúspěchu 10 min vendor nezkoušíme (?refresh=1 vždy ano).
+    $failTtl = 600;
+    $failAt  = 0;
+    try {
+        $fs = $pdo->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'update_check_fail_at'");
+        $fs->execute();
+        $failAt = (int) $fs->fetchColumn();
+    } catch (Throwable $e) {}
+    $skipRemote = !$refresh && $failAt > 0 && ($now - $failAt) >= 0 && ($now - $failAt) < $failTtl;
+
+    $lastErr = $skipRemote
+        ? 'Server aktualizací nedávno neodpověděl — další pokus za ' . (int) ceil(($failTtl - ($now - $failAt)) / 60) . ' min.'
+        : null;
     $data = null;
-    foreach ($endpointCandidates as $endpoint) {
+    foreach (($skipRemote ? [] : $endpointCandidates) as $endpoint) {
         $ch = curl_init($endpoint);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -131,6 +148,12 @@ if ($useCached) {
 
     if (!$data) {
         $verOut['error'] = $lastErr ?: 'Žádný update endpoint nereagoval';
+        if (!$skipRemote) { // zapamatuj selhání → dalších 10 min bez síťového pokusu
+            try {
+                $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('update_check_fail_at', :v)
+                               ON DUPLICATE KEY UPDATE hodnota = :v2")->execute(['v' => (string) $now, 'v2' => (string) $now]);
+            } catch (Throwable $e) {}
+        }
         if ($cachedData) {
             $verOut = array_merge($verOut, $cachedData);
             $verOut['cached'] = true;

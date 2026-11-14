@@ -215,7 +215,7 @@ let updateData = null;
 
   // 2. Auto-fetch z /api/version.php — vrátí instalovanou verzi (APP_VERSION) + license_key
   try {
-    const r = await fetch('/api/version.php', { credentials: 'same-origin' });
+    const r = await fetch('../api/version.php', { credentials: 'same-origin', cache: 'no-cache' });
     if (r.ok) {
       const j = await r.json();
       if (j.version)     document.getElementById('current_version').value = j.version;
@@ -226,79 +226,80 @@ let updateData = null;
   } catch (e) { /* ignore */ }
 })();
 
-async function checkUpdate() {
-  const license = document.getElementById('license_key').value.trim().toUpperCase();
-  const current = document.getElementById('current_version').value.trim() || '0.0.0';
-  // 🔧 Regex povolí A-Z + 0-9 (checksum může obsahovat HEX 0/1)
-  if (!/^APPEK-[A-Z0-9-]+$/.test(license)) {
-    return showStatus('error', '❌ Neplatný formát licence. Musí být APPEK-XXXX-XXXX-XXXX-XXXX.');
-  }
-  showStatus('info', '🔎 Dotaz na vendor server…');
+// HTML escape pro hodnoty vkládané přes innerHTML (chybová hláška serveru, verze…)
+function updEsc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
-  // API base — zkus relativně, pak HTTPS na appek.cz (i vendor.appek.cz pro jistotu)
-  const apiCandidates = [
-    '/api/updates_check.php',
-    'https://appek.cz/api/updates_check.php',
-    'https://vendor.appek.cz/api/updates_check.php',
-  ];
-  let res = null;
-  let lastUrl = null;
-  let lastStatus = null;
-  let lastBody = null;
-  for (const url of apiCandidates) {
-    lastUrl = url;
-    try {
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          license_key: license,
-          current_version: current,
-          channel: 'stable',
-          packages: ['core', 'cukrarna', 'lahudky', 'restaurace', 'catering', 'sezona'],
-        }),
-      });
-      lastStatus = r.status;
-      const txt = await r.text();
-      lastBody = txt;
-      try { const j = JSON.parse(txt); if (j.ok) { res = j; break; } }
-      catch (e) { /* not JSON, continue */ }
-    } catch (e) {
-      lastBody = String(e);
-    }
+async function checkUpdate() {
+  // 🐛 v3.0.639 — dřív se tahle stránka ptala z prohlížeče přímo appek.cz/vendor.appek.cz →
+  //   u kupce to zablokovala vlastní CSP (connect-src 'self'), '/api/…' bylo root-absolutní
+  //   (instalace v podsložce = 404) a apply neposílal podpis ani CSRF → ruční aktualizace
+  //   nikdy neprošla. Teď stejná cesta jako Nastavení → Údržba: vlastní server
+  //   (admin_version_check.php volá vendor curlem; vyžaduje přihlášeného admina).
+  const current = document.getElementById('current_version').value.trim() || '0.0.0';
+  showStatus('info', '🔎 Ověřuji dostupnost aktualizace…');
+
+  let j = null, status = null, body = '';
+  try {
+    const r = await fetch('../api/admin_version_check.php?refresh=1', { credentials: 'same-origin', cache: 'no-cache' });
+    status = r.status;
+    body = await r.text();
+    try { j = JSON.parse(body); } catch (e) { /* not JSON */ }
+  } catch (e) {
+    body = String(e);
   }
 
   // Vždy ukázat debug detaily aby uživatel věděl co se stalo
   showDebug({
-    url:    lastUrl,
-    status: lastStatus,
-    body:   (lastBody || '').slice(0, 400),
-    license_prefix: license.slice(0, 12) + '…',
+    url:    'api/admin_version_check.php',
+    status: status,
+    body:   (body || '').slice(0, 400),
     current_version: current,
   });
 
-  if (!res || !res.ok) {
-    return showStatus('error', `❌ ${res?.error || 'Nelze kontaktovat vendor server.'} <br><small>Detail níže ↓</small>`);
+  if (status === 401 || status === 403) {
+    return showStatus('error', '❌ Nejdřív se přihlas do administrace jako admin, pak tuto stránku obnov.');
   }
-
-  if (!res.update_available) {
-    return showStatus('success', `✅ Jsi na aktuální verzi (${res.current_version}). Žádný update.`);
+  const v = j && j.version;
+  if (!v) {
+    return showStatus('error', '❌ Nelze ověřit aktualizace. <br><small>Detail níže ↓</small>');
+  }
+  if (j.license && j.license.key) document.getElementById('license_key').value = j.license.key;
+  if (v.error && !v.latest) {
+    return showStatus('error', `❌ ${updEsc(v.error)} <br><small>Detail níže ↓</small>`);
+  }
+  // Vendor neodpověděl, ale server vrátil starší údaje z mezipaměti (stale) → nevydávat to za živou kontrolu
+  const staleNote = v.error ? ` <br><small>⚠️ Server aktualizací teď neodpověděl (${updEsc(v.error)}) — údaje jsou z mezipaměti, zkus to později znovu.</small>` : '';
+  if (!v.update_available || !v.latest) {
+    if (v.error) {
+      return showStatus('warn', `⚠️ Dostupnost aktualizace teď nejde ověřit. Poslední známý stav: verze ${updEsc(v.current || current)} je aktuální.${staleNote}`);
+    }
+    return showStatus('success', `✅ Jsi na aktuální verzi (${updEsc(v.current || current)}). Žádný update.`);
   }
 
   // ─── Update je k dispozici ───
-  updateData = res.latest;
-  showStatus('info', `🆕 Dostupná verze: <strong>${res.latest.version}</strong>`);
+  updateData = {
+    version:      v.latest,
+    download_url: v.download_url,
+    checksum:     v.checksum_sha256,
+    signature:    v.signature,       // 🔐 v3.0.388 — bez podpisu updates_apply odmítne
+    changelog:    v.changelog,
+    size_bytes:   v.file_size,
+    published_at: v.released_at,
+  };
+  showStatus('info', `🆕 Dostupná verze: <strong>${updEsc(v.latest)}</strong>${staleNote}`);
 
-  document.getElementById('cur-ver').textContent = res.current_version;
-  document.getElementById('new-ver').textContent = res.latest.version;
-  document.getElementById('changelog').textContent = res.latest.changelog || '(žádný changelog)';
+  document.getElementById('cur-ver').textContent = v.current || current;
+  document.getElementById('new-ver').textContent = v.latest;
+  document.getElementById('changelog').textContent = v.changelog || '(žádný changelog)';
 
-  const mb = (res.latest.size_bytes / 1024 / 1024).toFixed(2);
+  const mb = updateData.size_bytes ? (updateData.size_bytes / 1024 / 1024).toFixed(2) + ' MB' : '—';
   document.getElementById('meta-grid').innerHTML = `
-    <div><small style="color:#86868b">Velikost</small><strong>${mb} MB</strong></div>
-    <div><small style="color:#86868b">Channel</small><strong>${res.latest.channel}</strong></div>
-    <div><small style="color:#86868b">Publikováno</small><strong>${res.latest.published_at || '—'}</strong></div>
-    <div><small style="color:#86868b">SHA-256</small><strong style="font-family:monospace;font-size:11px">${(res.latest.checksum || '').substring(0,16)}…</strong></div>
+    <div><small style="color:#86868b">Velikost</small><strong>${mb}</strong></div>
+    <div><small style="color:#86868b">Channel</small><strong>stable</strong></div>
+    <div><small style="color:#86868b">Publikováno</small><strong>${updEsc(updateData.published_at || '—')}</strong></div>
+    <div><small style="color:#86868b">SHA-256</small><strong style="font-family:monospace;font-size:11px">${updEsc((updateData.checksum || '').substring(0,16))}…</strong></div>
   `;
 
   document.getElementById('update-card').style.display = 'block';
@@ -318,28 +319,27 @@ async function applyUpdate() {
   logEl.textContent = '⚡ Spouštím aktualizaci…\n';
   logEl.scrollIntoView({ behavior: 'smooth' });
 
-  const apiCandidates = [
-    '/api/updates_apply.php',
-    'https://appek.cz/api/updates_apply.php',
-  ];
+  // 🐛 v3.0.639 — jen lokální endpoint (updates_apply musí běžet u kupce, aby mohl psát
+  //   soubory) + CSRF hlavička + podpis bundlu — bez nich ho server odmítne.
+  let csrf = '';
+  try { csrf = localStorage.getItem('appek_csrf_token') || ''; } catch (e) { /* storage blokovaný */ }
   let res = null;
-  for (const url of apiCandidates) {
-    try {
-      logEl.textContent += `\n→ Volám ${url}…\n`;
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          license_key: license,
-          version: updateData.version,
-          download_url: updateData.download_url,
-          expected_checksum: updateData.checksum,
-        }),
-      });
-      res = await r.json();
-      break;
-    } catch (e) { logEl.textContent += `Chyba: ${e.message}\n`; }
-  }
+  try {
+    logEl.textContent += '\n→ Volám api/updates_apply.php…\n';
+    const r = await fetch('../api/updates_apply.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, csrf ? { 'X-CSRF-Token': csrf } : {}),
+      body: JSON.stringify({
+        license_key:       license,
+        version:           updateData.version,
+        download_url:      updateData.download_url,
+        expected_checksum: updateData.checksum || null,
+        signature:         updateData.signature || null,
+      }),
+    });
+    res = await r.json();
+  } catch (e) { logEl.textContent += `Chyba: ${e.message}\n`; }
 
   if (!res) {
     logEl.textContent += '\n❌ Server neodpovídá.';

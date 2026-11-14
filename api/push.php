@@ -110,7 +110,7 @@ if ($action === 'test' && $method === 'POST') {
         'title' => mb_substr(trim((string) ($d['title'] ?? '')) ?: '🧪 Testovací notifikace', 0, 150),
         'body'  => mb_substr(trim((string) ($d['body'] ?? '')) ?: 'Funguje to! Toto je test push notifikace z admin systému.', 0, 500),
         'url'   => $d['url']   ?? '/',
-        'icon'  => $d['icon']  ?? '/uploads/logo/favicon.png',
+        'icon'  => $d['icon']  ?? app_url_path('uploads/logo/favicon.png'), // v3.0.639 podsložka
     ];
 
     $stats = ['sent' => 0, 'failed' => 0, 'expired' => 0];

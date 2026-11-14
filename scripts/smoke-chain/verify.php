@@ -131,20 +131,23 @@ function run_verify(): array {
     $chk('V31', 'Vyrobni plan (souhrn) per den = suma objednanych kusu', $plan);
 
     // — trasa —
-    $rz = jload('rozvoz.json', []); $rv = []; $pickup = 0;
+    // v3.0.639 — osobní odběr (zpusob_doruceni vlastni/vlastni_odber) na trase řidiče NENÍ (V33 je teď tvrdý check)
+    $notPickup = "(o.id IS NULL OR o.zpusob_doruceni IS NULL OR o.zpusob_doruceni NOT IN ('vlastni','vlastni_odber'))";
+    $rz = jload('rozvoz.json', []); $rv = []; $pickupOnRoute = [];
     foreach (cfg('dates') as $d) {
-        $db = array_map('intval', array_column(q('SELECT id FROM dodaci_listy WHERE datum_dodani=:d', ['d' => $d]), 'id'));
+        $db = array_map('intval', array_column(q("SELECT dl.id FROM dodaci_listy dl LEFT JOIN objednavky o ON o.id = dl.objednavka_id WHERE dl.datum_dodani=:d AND $notPickup", ['d' => $d]), 'id'));
+        $pk = array_map('intval', array_column(q("SELECT dl.id FROM dodaci_listy dl JOIN objednavky o ON o.id = dl.objednavka_id WHERE dl.datum_dodani=:d AND o.zpusob_doruceni IN ('vlastni','vlastni_odber')", ['d' => $d]), 'id'));
+        if ($hit = array_intersect($pk, $rz[$d]['dl_ids'] ?? [])) $pickupOnRoute[] = "$d: " . count($hit) . ' DL s osobnim odberem na trase';
         $api = $rz[$d]['dl_ids'] ?? [];
         sort($db); $a2 = $api; sort($a2);
         if ($db !== $a2) $rv[] = "$d: DB " . count($db) . ' DL vs trasa ' . count($api) . ' (navic ' . count(array_diff($a2, $db)) . ', chybi ' . count(array_diff($db, $a2)) . ')';
         if (count($api) !== count(array_unique($api))) $rv[] = "$d: DL na trase vicekrat";
         if (($rz[$d]['print_zastavek'] ?? -1) !== count($api)) $rv[] = "$d: tisk " . ($rz[$d]['print_zastavek'] ?? '?') . ' zastavek vs ' . count($api);
-        $sum = (float) q1('SELECT COALESCE(SUM(castka_celkem),0) FROM dodaci_listy WHERE datum_dodani=:d', ['d' => $d]);
+        $sum = (float) q1("SELECT COALESCE(SUM(dl.castka_celkem),0) FROM dodaci_listy dl LEFT JOIN objednavky o ON o.id = dl.objednavka_id WHERE dl.datum_dodani=:d AND $notPickup", ['d' => $d]);
         if (abs($sum - (float) ($rz[$d]['celkem_kc'] ?? 0)) > 0.05) $rv[] = "$d: trasa celkem " . ($rz[$d]['celkem_kc'] ?? '?') . " vs DB $sum";
     }
-    foreach ($orders as $o) if (!$o['cancelled'] && ($o['doprava'] ?? '') === 'vlastni') $pickup++;
-    $chk('V32', 'Rozvozova trasa per den = vsechny DL dne (JSON i tisk), soucty sedi', $rv);
-    $chk('V33', 'Osobni odber (doprava=vlastni) neni na trase ridice', $pickup, "$pickup objednavek s osobnim odberem — trasa ignoruje zpusob dopravy (znama vlastnost)", 'warn');
+    $chk('V32', 'Rozvozova trasa per den = vsechny DL dne bez osobniho odberu (JSON i tisk), soucty sedi', $rv);
+    $chk('V33', 'Osobni odber (doprava=vlastni) neni na trase ridice', $pickupOnRoute);
 
     // — e-maily (mail sink) —
     $sink = is_file(cfg('root') . '/api/.mail-sink.log') ? array_slice(file(cfg('root') . '/api/.mail-sink.log', FILE_IGNORE_NEW_LINES), (int) ($bl['sink_lines'] ?? 0)) : [];
@@ -170,7 +173,7 @@ function run_verify(): array {
         if ((int) ($fl['jp'] ?? -1) !== $v['jp'] || (int) ($fl['ss'] ?? -1) !== $v['ss']) $rv2[] = "$key: finalni priznaky polotovaru nesedi";
         if (($v['jp'] || $v['ss']) && ($v['flags_after_post']['je_polotovar'] !== $v['jp'] || $v['flags_after_post']['sleduje_sklad'] !== $v['ss'])) $rv2[] = "$key: POST zahodil je_polotovar/sleduje_sklad (po POST " . json_encode($v['flags_after_post']) . ', srovnano az PUTem)';
     }
-    $chk('V38', 'Recepty a priznaky polotovaru ulozene tak, jak poslany (vc. POST)', $rv2, 'POST vyrobku ignoruje je_polotovar/sleduje_sklad — zname, harness srovnava PUTem', 'warn');
+    $chk('V38', 'Recepty a priznaky polotovaru ulozene tak, jak poslany (vc. POST)', $rv2); // v3.0.639: POST uz priznaky uklada → tvrdy check
 
     // — portál —
     $pr = [];

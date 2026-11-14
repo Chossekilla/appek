@@ -41,8 +41,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Appek B2B';
   const options = {
     body: data.body || '',
-    icon: data.icon || '/uploads/logo/favicon.png',
-    badge: data.badge || data.icon || '/uploads/logo/favicon.png',
+    icon: data.icon || '../uploads/logo/favicon.png',
+    badge: data.badge || data.icon || '../uploads/logo/favicon.png',
     tag: data.tag || 'appek-notification',
     requireInteraction: !!data.requireInteraction,
     data: {

@@ -464,7 +464,7 @@ if ($action === 'create_order' && $method === 'POST') {
                . ($r['text'] !== '' ? ' · text: „' . $r['text'] . '"' : '');
         // 🆕 v3.0.305 — fotka předlohy (volitelná) → do poznámky (povol jen http(s) nebo náš /uploads/ path)
         $foto = trim((string) ($d['foto'] ?? ''));
-        if ($foto !== '' && preg_match('~^(https?://|/uploads/)~i', $foto) && mb_strlen($foto) <= 500) {
+        if ($foto !== '' && (preg_match('~^(https?://|/uploads/)~i', $foto) || str_starts_with($foto, app_url_path('uploads/'))) && mb_strlen($foto) <= 500) {
             $popis .= "\n📸 Předloha: " . $foto;
         }
         $pdo->prepare("INSERT INTO objednavky (cislo, odberatel_id, datum_objednani, datum_dodani, castka_bez_dph, castka_dph, castka_celkem, stav, poznamka, puvod)

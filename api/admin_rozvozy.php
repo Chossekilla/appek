@@ -43,6 +43,7 @@ $stmt = $pdo->prepare("
     LEFT JOIN mista_dodani md ON md.id = dl.misto_dodani_id
     WHERE dl.datum_dodani = :datum
       AND (o.id IS NULL OR o.stav <> 'zrusena')   -- 🐛 PR08 — DL zrušené objednávky pryč z trasy (ruční DL bez objednávky zůstává)
+      AND (o.id IS NULL OR o.zpusob_doruceni IS NULL OR o.zpusob_doruceni NOT IN ('vlastni', 'vlastni_odber'))   -- 🐛 v3.0.639 — osobní odběr (zákazník si vyzvedne sám) nepatří řidiči na trasu
     ORDER BY rozvoz_mesto, rozvoz_psc, od.nazev
 ");
 $stmt->execute(['datum' => $datum]);

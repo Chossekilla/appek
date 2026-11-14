@@ -679,6 +679,9 @@ window.updateAppFAB = function(page) {
 async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'grid';
+  // 🔄 v3.0.639 — kontrola nové verze (pill v liště) až po bootstrapu i po přihlášení (login nedělá
+  //   reload) a odloženě, aby nebrzdila start (admin_version_check.php může čekat na vendor).
+  setTimeout(() => { if (typeof window.appekCheckUpdate === 'function') window.appekCheckUpdate(); }, 4000);
   // 🐛 v3.0.51 — class na body pro CSS gating floating elementů (fallback k :has())
   document.body.classList.remove('is-login');
   document.getElementById('admin-name').textContent = state.admin.jmeno;

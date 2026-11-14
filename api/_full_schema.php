@@ -327,6 +327,15 @@ function apply_full_schema(PDO $pdo): void {
         'faktura_polozky' => [
             'vyrobek_cislo' => "ADD COLUMN vyrobek_cislo VARCHAR(50) DEFAULT NULL",
             'poznamka'      => "ADD COLUMN poznamka VARCHAR(255) DEFAULT NULL",
+            'vraci_polozku_id' => "ADD COLUMN vraci_polozku_id INT NULL", // částečný dobropis (v3.0.275)
+        ],
+        // 🛡️ v3.0.639 — čistá instalace: sloupce, které dřív přidávaly JEN líné ensure_*()
+        //   z _schema_lib.php (volané až z některých endpointů). Dashboard (PR14 dotaz na
+        //   dobropisy) proto na úplně nové instalaci padal 500, dokud se neotevřely Faktury.
+        //   Typy zrcadlí ensure_*() 1:1, aby nová instalace = upgradovaná instalace.
+        'dodaci_list_polozky' => [
+            'vyrobek_cislo' => "ADD COLUMN vyrobek_cislo VARCHAR(40) NULL AFTER vyrobek_id",
+            'poznamka'      => "ADD COLUMN poznamka TEXT NULL",
         ],
         // admin_users — kolega `posledni_login` (z _schema.sql)
         'admin_users' => [
@@ -412,6 +421,11 @@ function apply_full_schema(PDO $pdo): void {
             // 🔒 v3.0.425 — GDPR souhlas u B2B objednávky (objednavky.php)
             'gdpr_souhlas'    => "ADD COLUMN gdpr_souhlas TINYINT(1) NOT NULL DEFAULT 0",
             'gdpr_souhlas_at' => "ADD COLUMN gdpr_souhlas_at DATETIME NULL",
+            // v3.0.639 — dřív jen ensure_objednavky_schema() (viz komentář u dodaci_list_polozky)
+            'interni_pozn'    => "ADD COLUMN interni_pozn TEXT NULL AFTER poznamka",
+            'upraveno_kdy'    => "ADD COLUMN upraveno_kdy DATETIME NULL",
+            'zpusob_doruceni' => "ADD COLUMN zpusob_doruceni VARCHAR(30) NULL",
+            'zpusob_platby'   => "ADD COLUMN zpusob_platby VARCHAR(30) NULL",
         ],
         // objednavky_polozky (admin_objednavky.php — vyrobek_id NULL + nazev snapshot; vraci_polozku_id = vratka)
         'objednavky_polozky' => [
@@ -432,11 +446,21 @@ function apply_full_schema(PDO $pdo): void {
         'dodaci_listy' => [
             'rucni' => "ADD COLUMN rucni TINYINT(1) NOT NULL DEFAULT 0",
             'obsah_upraveno' => "ADD COLUMN obsah_upraveno DATETIME NULL",
+            // v3.0.639 — snapshot odběratele (dřív jen ensure_dodaci_listy_schema)
+            'odb_nazev_snapshot' => "ADD COLUMN odb_nazev_snapshot VARCHAR(255) NULL",
+            'odb_ico_snapshot'   => "ADD COLUMN odb_ico_snapshot VARCHAR(20) NULL",
+            'odb_dic_snapshot'   => "ADD COLUMN odb_dic_snapshot VARCHAR(20) NULL",
+            'odb_ulice_snapshot' => "ADD COLUMN odb_ulice_snapshot VARCHAR(255) NULL",
+            'odb_mesto_snapshot' => "ADD COLUMN odb_mesto_snapshot VARCHAR(120) NULL",
+            'odb_psc_snapshot'   => "ADD COLUMN odb_psc_snapshot VARCHAR(15) NULL",
         ],
         // faktury (admin_faktury.php query)
         'faktury' => [
             'odeslano_email' => "ADD COLUMN odeslano_email DATETIME NULL",
             'obsah_upraveno' => "ADD COLUMN obsah_upraveno DATETIME NULL",
+            // v3.0.639 — dobropisy: admin_dashboard.php (PR14) je čte hned na první obrazovce
+            'je_dobropis'        => "ADD COLUMN je_dobropis TINYINT(1) NULL DEFAULT 0",
+            'puvodni_faktura_id' => "ADD COLUMN puvodni_faktura_id INT NULL",
         ],
         // nastaveni — zajisti sloupce
         'nastaveni' => [
@@ -503,6 +527,7 @@ function apply_full_schema(PDO $pdo): void {
         "ALTER TABLE suroviny ADD INDEX idx_suroviny_aktivni (aktivni)",
         "ALTER TABLE suroviny ADD INDEX idx_suroviny_alergen (alergen(50))",
         "ALTER TABLE vyrobek_suroviny ADD INDEX idx_vs_surovina (surovina_id)",
+        "ALTER TABLE faktury ADD INDEX idx_puvodni_faktura (puvodni_faktura_id)", // = ensure_faktury_schema
     ];
     foreach ($indexes as $sql) {
         try { $pdo->exec($sql); }

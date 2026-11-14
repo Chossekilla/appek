@@ -1047,13 +1047,10 @@ function poslat_email(array $emailKomu, string $predmet, string $telo, string $f
  */
 function notifikace_zmena_objednavky(PDO $pdo, int $obj_id, array $orig, array $info): void {
     // Email odběratele - oba emaily (login + business)
-    $stmt = $pdo->prepare("SELECT email, login_email, nazev FROM odberatele WHERE id = :id");
-    $stmt->execute(['id' => (int) $orig['odberatel_id']]);
-    $odb = $stmt->fetch();
-    $emaily_odb = array_filter([
-        $odb['login_email'] ?? null,
-        $odb['email'] ?? null,
-    ]);
+    // 🐛 v3.0.639 — dřív napřímo z odberatele → zákazník s vypnutými notifikacemi
+    //   (notif_emaily=0) dál dostával „UPRAVENA/ZRUŠENA". Teď přes notif_email_odberatele(),
+    //   která opt-out respektuje (jako ostatní notifikace). Pekárně jde e-mail dál vždy.
+    $emaily_odb = notif_email_odberatele($pdo, (int) $orig['odberatel_id']);
 
     // Email pekárny - admin_email_pro_objednavky (může být čárkou oddělené více adres)
     $emaily_pekarny_raw = nastaveni_get($pdo, 'admin_email_pro_objednavky', '')
@@ -1136,6 +1133,46 @@ function notif_email_odberatele(PDO $pdo, int $odb_id): array {
         $odb['login_email'] ?? null,
         $odb['email'] ?? null,
     ])));
+}
+
+/**
+ * 🆕 v3.0.639 — URL cesta instalace od kořene domény: '' = doménový root, '/appek' = podsložka.
+ *   Upload URL (logo, favicon, obrázky výrobků/kategorií/surovin, předlohy, push ikona) byly
+ *   root-absolutní '/uploads/…' → při instalaci do podsložky 404. Na doménovém rootu vrací ''
+ *   → URL zůstávají přesně jako dřív. Odvozeno z běžícího skriptu: SCRIPT_NAME (URL) minus
+ *   jeho cesta pod kořenem instalace (SCRIPT_FILENAME); fallback = odříznutí /api|admin|b2b|pos.
+ */
+function app_base_path(): string {
+    static $base = null;
+    if ($base !== null) return $base;
+    if (PHP_SAPI === 'cli') return $base = '';
+    $name = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    $file = str_replace('\\', '/', (string) (realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) ?: ''));
+    $root = str_replace('\\', '/', dirname(__DIR__));
+    if ($name !== '' && $file !== '' && str_starts_with($file, $root . '/')) {
+        $rel = substr($file, strlen($root));                       // např. /api/admin_vyrobky.php
+        if (str_ends_with($name, $rel)) return $base = rtrim(substr($name, 0, -strlen($rel)), '/');
+    }
+    $dir = rtrim(str_replace('\\', '/', dirname($name !== '' ? $name : '/')), '/');
+    return $base = (string) preg_replace('#/(api|admin|b2b|pos)$#', '', $dir);
+}
+
+/** 'uploads/logo/x.png' → '/uploads/logo/x.png' (root) | '/appek/uploads/logo/x.png' (podsložka). */
+function app_url_path(string $path): string {
+    return app_base_path() . '/' . ltrim($path, '/');
+}
+
+/**
+ * Uložená upload URL → cesta relativní ke kořeni instalace ('/uploads/…'), pro mapování na disk
+ *   (__DIR__ . '/..' . app_url_to_rel($url)). Bere část od '/uploads/', takže funguje pro
+ *   '/uploads/…' (root) i '/appek/uploads/…' (podsložka) — i když se URL uložila při přístupu
+ *   přes jinou adresu stejné instalace. Odřízne ?v=… cache-buster.
+ */
+function app_url_to_rel(string $url): string {
+    $p = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+    $i = strpos($p, '/uploads/');
+    if ($i !== false) return substr($p, $i);
+    return str_starts_with($p, '/') ? $p : '/' . $p;
 }
 
 function notif_zapnuto(PDO $pdo, string $klic, $default = '1'): bool {

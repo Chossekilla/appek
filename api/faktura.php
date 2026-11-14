@@ -71,7 +71,9 @@ if (($_GET['action'] ?? '') === 'vytvor') {
                 $st->execute(['d' => $dl_in]);
                 if ($ex = $st->fetchColumn()) { $pdo->commit(); echo json_encode(['faktura_id' => (int) $ex, 'existing' => true]); exit; }
 
-                $spl = (int) ($pdo->query("SELECT splatnost_dni FROM odberatele WHERE id = " . (int) $dl['odberatel_id'])->fetchColumn() ?: 14);
+                // 🐛 v3.0.639 — `?: 14` dělal ze splatnosti 0 dní (splatné ihned) 14 dní; 14 jen když chybí
+                $splRaw = $pdo->query("SELECT splatnost_dni FROM odberatele WHERE id = " . (int) $dl['odberatel_id'])->fetchColumn();
+                $spl = ($splRaw === false || $splRaw === null || $splRaw === '') ? 14 : (int) $splRaw;
                 // DPH rozpad z položek DL
                 $sums = $pdo->prepare("SELECT
                         COALESCE(SUM(mnozstvi * cena_bez_dph), 0) AS bez,
@@ -132,7 +134,8 @@ if (($_GET['action'] ?? '') === 'vytvor') {
         // 3) Splatnost odběratele
         $stmt = $pdo->prepare("SELECT splatnost_dni FROM odberatele WHERE id = :id");
         $stmt->execute(['id' => $obj['odberatel_id']]);
-        $spl = (int) ($stmt->fetchColumn() ?: 14);
+        $splRaw = $stmt->fetchColumn();
+        $spl = ($splRaw === false || $splRaw === null || $splRaw === '') ? 14 : (int) $splRaw; // v3.0.639: 0 = splatné ihned (dřív ?: 14)
 
         // 4) Najdeme nebo vytvoříme dodací list
         $stmt = $pdo->prepare("SELECT id FROM dodaci_listy WHERE objednavka_id = :id");

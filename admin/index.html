@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="APPEK B2B">
 <link rel="manifest" href="manifest.php">
-<link rel="apple-touch-icon" sizes="180x180" href="/uploads/logo/pwa/icon-apple.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../uploads/logo/pwa/icon-apple.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
 <title>APPEK B2B – Administrace</title>
@@ -320,7 +320,7 @@
           <span class="btn-notif-icon">🔔</span>
           <span class="btn-notif-badge" id="notif-badge" style="display:none">0</span>
         </button>
-        <!-- 🔄 Update available — auto-detect, klik = otevři updater.html -->
+        <!-- 🔄 Update available — auto-detect (přes api/admin_version_check.php), klik = Nastavení → Údržba → Licence & aktualizace (fallback href updater.html) -->
         <a id="update-pill" href="updater.html" style="display:none;align-items:center;gap:6px;padding:7px 14px;background:linear-gradient(135deg,#208438,#1f9244);color:#fff;border-radius:999px;text-decoration:none;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(34,197,94,0.3);animation:pulseUpd 2s ease-in-out infinite" title="Klikni pro aktualizaci">
           <span style="font-size:16px">🔄</span>
           <span id="update-pill-text">Nová verze</span>
@@ -424,7 +424,13 @@
 //    v2.9.52 — Client-side semver kontrola: pill se ukáže JEN když je
 //    latest SKUTEČNĚ vyšší než current (server může vrátit false-positive
 //    pokud na vendoru existuje test-build vyšší verze).
-(async function autoCheckUpdate() {
+// ♻️ v3.0.639 — NEvolá se hned při načtení: spouští ho showApp() (po bootstrapu i po přihlášení,
+//   odloženě), protože login nedělá reload (jen showApp) a okamžité volání soupeřilo o zámek
+//   PHP session s bootstrap requesty. Max 1× za minutu (showApp může proběhnout opakovaně).
+window.appekCheckUpdate = async function autoCheckUpdate() {
+  const nowTs = Date.now();
+  if (window._appekUpdCheckedAt && nowTs - window._appekUpdCheckedAt < 60000) return;
+  window._appekUpdCheckedAt = nowTs;
   // Semver compare — vrátí >0 pokud a>b, <0 pokud a<b, 0 pokud rovny
   function semverCmp(a, b) {
     const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
@@ -437,43 +443,24 @@
     return 0;
   }
   try {
-    const vRes = await fetch('../api/version.php', { cache: 'no-cache' });
-    if (!vRes.ok) return;
-    const v = await vRes.json();
-    if (!v.version || !v.license_key) return;
-    const current = v.version;
-    const license = v.license_key.toUpperCase();
-
-    const endpoints = [
-      'https://appek.cz/api/updates_check.php',
-      'https://vendor.appek.cz/api/updates_check.php',
-      '/api/updates_check.php',
-    ];
-    let res = null;
-    for (const url of endpoints) {
-      try {
-        const r = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            license_key: license, current_version: current, channel: 'stable',
-            packages: ['core', 'cukrarna', 'lahudky', 'restaurace', 'catering', 'sezona'],
-          }),
-        });
-        if (!r.ok) continue;
-        const j = await r.json();
-        if (j.ok) { res = j; break; }
-      } catch (e) {}
-    }
+    // 🐛 v3.0.639 — dřív se prohlížeč ptal přímo appek.cz/vendor.appek.cz → vlastní CSP
+    //   (connect-src 'self') to u kupce zablokovala a '/api/…' bylo root-absolutní (instalace
+    //   v podsložce = 404) → pill se kupci NIKDY neukázal. Teď přes vlastní server:
+    //   admin_version_check.php (curl na vendor + 1h cache + negativní cache při výpadku).
+    const r = await fetch('../api/admin_version_check.php', { cache: 'no-cache', credentials: 'same-origin' });
+    if (!r.ok) return; // nepřihlášený (401) / jen-POS (403) → žádný pill
+    const j = await r.json();
+    const ver = (j && j.version) || {};
+    const current = ver.current;
     const pill = document.getElementById('update-pill');
 
-    // Pokud nemáme odpověď, nebo server neřekl update_available → pill SKRYTÝ
-    if (!res || !res.update_available || !res.latest || !res.latest.version) {
+    // Server neřekl update_available → pill SKRYTÝ
+    if (!ver.update_available || !ver.latest || !current) {
       if (pill) pill.style.display = 'none';
       return;
     }
 
-    const latest = res.latest.version;
+    const latest = ver.latest;
 
     // 🛡️ KLÍČOVÁ KONTROLA — pill jen pokud latest je SKUTEČNĚ novější než current.
     // Tím zmizí "skákající" upozornění když je už aplikace aktuální.
@@ -487,12 +474,20 @@
       text.textContent = `🆕 Nová verze ${latest}`;
       pill.style.display = 'inline-flex';
       pill.title = `Z verze ${current} → ${latest}. Klikni pro aktualizaci.`;
+      // Klik → in-app Nastavení → Údržba → Licence & aktualizace (stejná cesta jako notifikace);
+      //   href updater.html zůstává jen jako fallback, kdyby admin.js ještě nebyl načtený.
+      pill.onclick = (ev) => {
+        if (typeof window.gotoNastaveniBlok === 'function') {
+          ev.preventDefault();
+          window.gotoNastaveniBlok('udrzba', 'ns-license-block');
+        }
+      };
     }
     if (typeof window.toastInfo === 'function') {
       setTimeout(() => window.toastInfo(`🆕 Nová verze ${latest} k dispozici · klikni nahoře`), 800);
     }
   } catch (e) {}
-})();
+};
 </script>
 
 <!-- 📱 PWA: Service Worker + Install prompt -->

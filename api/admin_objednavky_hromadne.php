@@ -108,7 +108,7 @@ if ($action === 'preview') {
             $skupiny_fa[$kfa] = [
                 'odberatel_id'    => (int) $o['odberatel_id'],
                 'odberatel_nazev' => $o['odberatel_nazev'],
-                'splatnost_dni'   => (int) ($o['splatnost_dni'] ?: 14),
+                'splatnost_dni'   => (int) ($o['splatnost_dni'] ?? 14), // v3.0.639: 0 dní je platná hodnota (dřív ?: 14)
                 'objednavky'      => [],
                 'castka_celkem'   => 0,
             ];
@@ -245,7 +245,7 @@ if ($action === 'fa') {
             $skupiny[$k] = [
                 'odberatel_id'    => $k,
                 'odberatel_nazev' => $o['odberatel_nazev'],
-                'splatnost_dni'   => (int) ($o['splatnost_dni'] ?: 14),
+                'splatnost_dni'   => (int) ($o['splatnost_dni'] ?? 14), // v3.0.639: 0 dní je platná hodnota (dřív ?: 14)
                 'platby'          => [],
                 'objednavky'      => [],
             ];

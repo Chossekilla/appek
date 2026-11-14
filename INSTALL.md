@@ -197,7 +197,7 @@ Vyberte:
 
 - **Cloud only** — standardní, doporučeno
 - **Hybrid** — lokální PC + cloud sync (pro slabé připojení)
-- **Local only** — pouze offline (bez B2B portálu)
+- **Local only** — provoz offline (bez B2B portálu); instalace jednorázově potřebuje internet kvůli ověření licence
 
 ### Krok 4: Kontrola serveru
 

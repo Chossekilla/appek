@@ -602,7 +602,7 @@ if ($action === 'create_order' && $method === 'POST') {
     $textPozn = trim((string) ($d['poznamka'] ?? ''));
     if ($textPozn !== '') $pozn .= "\n📝 " . mb_substr($textPozn, 0, 300);
     $foto = trim((string) ($d['foto'] ?? ''));
-    if ($foto !== '' && preg_match('~^(https?://|/uploads/)~i', $foto) && mb_strlen($foto) <= 500) $pozn .= "\n📸 Předloha: " . $foto;
+    if ($foto !== '' && (preg_match('~^(https?://|/uploads/)~i', $foto) || str_starts_with($foto, app_url_path('uploads/'))) && mb_strlen($foto) <= 500) $pozn .= "\n📸 Předloha: " . $foto;
 
     try {
         $cislo = kanal_dalsi_cislo($pdo, 'catering');
