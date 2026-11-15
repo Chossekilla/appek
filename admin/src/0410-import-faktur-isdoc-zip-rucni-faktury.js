@@ -282,6 +282,7 @@ window.openFakturaDetail = async function(id) {
       <div class="form-actions-tools">
         <a href="../api/faktura.php?id=${f.id}" target="_blank" class="btn-secondary" style="text-decoration:none;">📄 PDF</a>
         <a href="../api/admin_export_isdoc.php?action=isdoc&id=${f.id}" class="btn-secondary" style="text-decoration:none;" title="Stáhnout ISDOC XML pro účetnictví (Money S3, Pohoda…)">📤 ISDOC export</a>
+        ${typeof ucetniFakturaTlacitka === 'function' ? ucetniFakturaTlacitka(f) : ''}
         <button class="btn-secondary" onclick="tiskFaktury(${f.id})" title="Otevře tiskový dialog (PDF / tiskárna)">🖨️ Tisk</button>
         <button class="btn-secondary" onclick="noOpakovatZeZdroje('fa', ${f.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu objednat</button>
         ${!f.je_dobropis ? adminOnly(`<button class="btn-secondary" style="color:#DC2626;border-color:#FCA5A5" onclick="vystavitDobropis(${f.id}, '${esc(f.cislo).replace(/'/g, '')}')" title="Vystavit opravný daňový doklad (dobropis) — záporná částka se propíše do statistik">↩️ Dobropis</button>`) : ''}

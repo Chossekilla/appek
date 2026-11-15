@@ -549,4 +549,13 @@ function apply_full_schema(PDO $pdo): void {
         $pdo->exec("ALTER TABLE suroviny ADD COLUMN IF NOT EXISTS domovsky_sklad_id INT NULL"); // čte surovina_home_sklad()
         $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN IF NOT EXISTS surovina_id INT NULL"); // 🆕 v3.0.381 — cake/catering odpis (dřív jen runtime ensure = křehké)
     } catch (Throwable $e) { error_log('apply_full_schema systemB: ' . $e->getMessage()); }
+
+    // ════════════════════════════════════════════════════════════
+    // 5. 📊 ÚČETNÍ INTEGRACE (POHODA / FlexiBee) — accounting_sync_log + accounting_export_state.
+    //    Definice v _ucetni_lib.php (jediný zdroj pravdy), idempotentní CREATE IF NOT EXISTS.
+    // ════════════════════════════════════════════════════════════
+    try {
+        require_once __DIR__ . '/_ucetni_lib.php';
+        if (function_exists('ucetni_ensure_schema')) ucetni_ensure_schema($pdo);
+    } catch (Throwable $e) { error_log('apply_full_schema ucetni: ' . $e->getMessage()); }
 }
