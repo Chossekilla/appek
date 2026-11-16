@@ -102,7 +102,7 @@ window.importFakturPreview = async function() {
             <td>${fmtDate(i.datum_vystaveni)}</td>
             <td>${esc(i.odberatel)}${i.ico ? `<br><small style="color:var(--text-3)">IČO ${esc(i.ico)}</small>` : ''}</td>
             <td class="num">${i.pocet_polozek}</td>
-            <td class="num">${fmt(i.castka_celkem)}</td>
+            <td class="num">${fmt(i.castka_celkem)}${i.mena && i.mena !== 'CZK' ? `<br><small style="color:var(--text-3)">${i.castka_celkem_mena != null ? esc(Number(i.castka_celkem_mena).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + ' ' : ''}${esc(i.mena)} · kurz ${esc(String(i.mena_kurz))}</small>` : ''}</td>
             <td>${i.duplicate ? '<span style="color:#B0540B">⚠ existuje</span>' : '<span style="color:#1A7F37">✓ nová</span>'}</td>
           </tr>
         `).join('')}
