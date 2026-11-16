@@ -60,6 +60,8 @@ $odb = (int) $pdo->query("SELECT id FROM odberatele ORDER BY id LIMIT 1")->fetch
 
 try {
     echo "── prodej v EUR (ceník v Kč, přepočet kurzem)\n";
+    $r = http2('POST', "$base/api/admin_mena.php?action=save", ['config' => ['kod' => 'EUR', 'kurz' => 1, 'zobrazeni' => 'mena']], $jar, $csrf);
+    ok($r['code'] === 400 && str_contains($r['body'], 'Zadej kurz'), 'kurz 1 u EUR odmítnut (nevyplněný kurz)');
     $r = http2('POST', "$base/api/admin_mena.php?action=save", ['config' => ['kod' => 'EUR', 'kurz' => 25.25, 'zobrazeni' => 'mena']], $jar, $csrf);
     ok(($r['json']['config']['delitel'] ?? 0) == 25.25, 'měna EUR uložena (delitel = kurz)');
     $polozky = [

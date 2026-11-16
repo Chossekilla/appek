@@ -424,7 +424,7 @@ async function _renderNastaveniInner() {
     <div class="card-block admin-only" id="ns-mena-block" style="margin-bottom:14px">
       <h3 style="margin-bottom:6px">💱 Měna & přepočet</h3>
       <p class="page-sub" style="margin-bottom:12px;font-size:12px">
-        Ceny v databázi jsou v Kč. Zde nastavíš cílovou měnu a kurz — zobrazení se přepočítá v adminu, na pokladně i v B2B portálu; na doklady lze přidat informativní přepočet. Trvalý přepočet ceníku níže ceny skutečně přepíše.
+        Ceník zadáváš v Kč. Když zvolíš cílovou měnu (např. EUR) a „Prodávat v cílové měně", přepočte se kurzem celý prodej — admin, pokladna, B2B portál i doklady (faktura, dobropis, dodací list, účtenka; na faktuře i rekapitulace DPH v Kč). Měna a kurz se uloží na každý doklad při vystavení, pozdější změna kurzu staré doklady nemění. Trvalý přepočet ceníku níže ceny skutečně přepíše do cílové měny.
       </p>
       <div id="ns-mena-body" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
     </div>

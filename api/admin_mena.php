@@ -93,6 +93,8 @@ if ($action === 'save') {
     if (!isset(MENA_PODPOROVANE[$kod])) json_error('Nepodporovaná měna', 400);
     $kurz = (float) ($cfg['kurz'] ?? 1);
     if ($kod !== 'CZK' && $kurz <= 0) json_error('Kurz musí být kladný', 400);
+    // 🆕 v3.0.641 — kurz 1 u cizí měny = nevyplněný kurz (výchozí hodnota z Kč) → odmítni, jinak 1 EUR = 1 Kč
+    if ($kod !== 'CZK' && abs($kurz - 1.0) < 0.000001) json_error('Zadej kurz — kolik Kč je 1 ' . $kod . ' (nebo ho načti z ČNB).', 400);
     $save = [
         'kod' => $kod,
         'kurz' => $kod === 'CZK' ? 1.0 : round($kurz, 4),

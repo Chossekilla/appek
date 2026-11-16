@@ -417,13 +417,13 @@ window.menaLoad = async function() {
       </div>
       <!-- 🆕 v3.0.367 — hint když je CZK (kurz skrytý) → user „nevidím nastavení kurzu" -->
       <div id="mena-cils-hint" ${cizi ? 'hidden' : ''} style="margin-top:10px;font-size:12px;color:var(--text-2);background:var(--info-bg,#EFF6FF);border:1px dashed var(--border);border-radius:8px;padding:9px 12px">💡 Výchozí měna je <strong>Kč</strong>. Pro <strong>vlastní kurz</strong> nebo přepočet vyber výše cizí měnu (EUR, USD…) — objeví se volba zdroje kurzu (✍️ Vlastní / 🏦 ČNB) i pole pro kurz.</div>
-      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:12px" id="mena-volby" ${cizi ? '' : 'hidden'}>
+      <div style="display:${cizi ? 'flex' : 'none'};gap:18px;flex-wrap:wrap;align-items:center;margin-top:12px" id="mena-volby">
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="radio" name="mena-zobr" value="kc" ${c.zobrazeni !== 'mena' ? 'checked' : ''} ${trvale ? 'disabled' : ''}> Zobrazovat v Kč (základ)</label>
+          <input type="radio" name="mena-zobr" value="kc" ${c.zobrazeni !== 'mena' ? 'checked' : ''} ${trvale ? 'disabled' : ''}> Prodávat v Kč (měna jen pro informaci)</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
           <input type="radio" name="mena-zobr" value="mena" ${c.zobrazeni === 'mena' ? 'checked' : ''}> Prodávat v cílové měně (ceny, objednávky, faktury, dodací listy, účtenky)</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="checkbox" id="mena-dual" ${c.dual_doklady ? 'checked' : ''}> Informativní přepočet na dokladech</label>
+          <input type="checkbox" id="mena-dual" ${c.dual_doklady ? 'checked' : ''}> Při prodeji v Kč ukázat na dokladech přepočet do cílové měny</label>
       </div>
       <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
         <button class="btn-primary btn-green" onclick="menaSave()">💾 Uložit měnu</button>
@@ -445,10 +445,13 @@ window.menaKodChange = function() {
   document.getElementById('mena-kurz-wrap').style.display = cizi ? '' : 'none';
   const zw = document.getElementById('mena-zdroj-wrap'); if (zw) zw.style.display = cizi ? '' : 'none';
   document.getElementById('mena-cnb-btn').style.display = cizi ? '' : 'none';
-  document.getElementById('mena-volby').hidden = !cizi;
+  document.getElementById('mena-volby').style.display = cizi ? 'flex' : 'none';   // 🐛 v3.0.641 — [hidden] přebíjel inline display:flex
   document.getElementById('mena-prepocet-sekce').hidden = !cizi || !!(window._menaCfg && window._menaCfg.zakladni && window._menaCfg.zakladni !== 'CZK');
   const ch = document.getElementById('mena-cils-hint'); if (ch) ch.hidden = cizi;  // 🆕 v3.0.367
   const kk = document.getElementById('mena-kurz-kod'); if (kk) kk.textContent = kod;
+  // 🆕 v3.0.641 — z Kč na cizí měnu zůstal kurz „1" (1 EUR = 1 Kč by rozbil všechny ceny) → hned kurz ČNB
+  const kurzEl = document.getElementById('mena-kurz');
+  if (cizi && kurzEl) { kurzEl.value = ''; menaCnb(); }
 };
 // 🆕 v3.0.339 — přepínač zdroje kurzu: vlastní (editovatelný) vs ČNB (zamčený + auto-fetch)
 window.menaZdrojChange = function() {
@@ -471,6 +474,8 @@ window.menaCnb = async function() {
 };
 window.menaSave = async function() {
   const kod = document.getElementById('mena-kod').value;
+  const kurzVal = parseFloat(document.getElementById('mena-kurz').value);
+  if (kod !== 'CZK' && !(kurzVal > 0 && kurzVal !== 1)) { toast('❌ Zadej kurz (kolik Kč je 1 ' + kod + ') nebo ho načti z ČNB', 'error'); return; }
   const cfg = {
     kod,
     kurz: parseFloat(document.getElementById('mena-kurz').value) || 1,
