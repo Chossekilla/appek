@@ -1264,7 +1264,7 @@ async function _renderNastaveniInner() {
   const blokUcetni = `
     <div class="card-block" style="padding:16px;margin-bottom:14px">
       <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">📊 Účetní integrace</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Faktury přeneseš do účetnictví exportem <strong>ISDOC</strong> — importuje ho POHODA, Money S3, ABRA FlexiBee, Helios i iDoklad. Přímé online napojení na POHODA mServer / FlexiBee API zatím není k dispozici.</p>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Faktury a dobropisy přeneseš do <strong>POHODY</strong> (XML soubor nebo přímo přes POHODA mServer) a do <strong>ABRA Flexi / FlexiBee</strong> (REST API) — u faktury i hromadně za období. Pro ostatní programy (Money S3, Helios, iDoklad…) slouží export <strong>ISDOC</strong>.</p>
     </div>
 
     <!-- 🆕 v2.9.187 — Sales report + Fixní náklady přesunuté z bývalého tabu Výroba -->
@@ -1282,10 +1282,12 @@ async function _renderNastaveniInner() {
       <!-- 🆕 v2.9.219 — '💰 Fixní náklady' přesunuto do Výrobní kalkulace (tlačítko v page-head) -->
     </div>
 
-    <!-- 🐛 v3.0.640 — karty „POHODA mServer" a „FlexiBee REST" odstraněny: slibovaly automatický export
-         a dvoucestnou synchronizaci, ale exportní backend nikdy nefungoval (neexistující tabulka
-         faktury_polozky, chybné sloupce), loader se v záložce Integrace vůbec nevolal (karty visely na ⏳)
-         a mServer běží v LAN, kam hostovaný APPEK nedosáhne. Podporovaná cesta = ISDOC export. -->
+    <!-- 📊 POHODA + ABRA Flexi — nová implementace (api/admin_ucetni.php + admin/src/0525): skutečné schéma
+         (faktura_polozky / položky DL), XML ověřené proti XSD Stormware, FlexiBee upsert přes ext ID.
+         Obsah karet renderuje loadUcetniIntegrace() (volá se níž v bloku aktTab === 'integrace'). -->
+    <div class="settings-3col">
+    <div class="card-block" style="padding:18px" id="ucetni-pohoda-card">⏳ Načítám…</div>
+    <div class="card-block" style="padding:18px" id="ucetni-flexibee-card">⏳ Načítám…</div>
     <div class="card-block" style="padding:18px;background:var(--surface-2)">
       <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
         <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
@@ -1295,6 +1297,7 @@ async function _renderNastaveniInner() {
       </div>
       <p style="font-size:12px;color:var(--text-3);margin:0 0 10px;line-height:1.55">Export ISDOC najdeš ve <strong>Fakturách</strong> — u jednotlivé faktury i hromadně pro vybrané faktury. Soubor pak naimportuješ ve svém účetním programu: <strong>POHODA, Money S3, ABRA FlexiBee, Helios, iDoklad</strong>.</p>
       <button class="btn-secondary" onclick="navigate('faktury')" style="font-size:12px;padding:8px 14px">→ Otevřít Faktury</button>
+    </div>
     </div>
   `;
 
@@ -1563,7 +1566,7 @@ async function _renderNastaveniInner() {
     <!-- 🆕 v3.0.29 — Účetní sekce (POHODA / FlexiBee / ISDOC) sloučena pod Integrace -->
     <div style="margin-top:18px;padding:14px 0;border-top:2px solid var(--border)">
       <h2 style="margin:0 0 4px;font-size:18px;letter-spacing:-0.01em">📊 Účetní integrace</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Export faktur ve formátu ISDOC — pro POHODA, Money S3, ABRA FlexiBee, Helios i iDoklad.</p>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">POHODA (XML / mServer) · ABRA Flexi / FlexiBee (REST API) · ISDOC export pro ostatní účetní programy.</p>
     </div>
   ` + blokUcetni;
 
@@ -1663,6 +1666,7 @@ async function _renderNastaveniInner() {
   }
   if (aktTab === 'integrace') {
     loadCustomerIntegrace();
+    if (typeof loadUcetniIntegrace === 'function') loadUcetniIntegrace(); // 📊 POHODA + FlexiBee karty (0525)
     // 📊 v3.0.284/286 — předvyplň GA measurement ID (B2B + POS zvlášť)
     api('admin_nastaveni.php').then(n => {
       const inp = document.getElementById('ns-ga-id');

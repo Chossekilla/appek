@@ -570,4 +570,13 @@ function apply_full_schema(PDO $pdo): void {
             }
         } catch (Throwable $e) { error_log("apply_full_schema mena $t: " . $e->getMessage()); }
     }
+
+    // ════════════════════════════════════════════════════════════
+    // 6. 📊 ÚČETNÍ INTEGRACE (POHODA / FlexiBee) — accounting_sync_log + accounting_export_state.
+    //    Definice v _ucetni_lib.php (jediný zdroj pravdy), idempotentní CREATE IF NOT EXISTS.
+    // ════════════════════════════════════════════════════════════
+    try {
+        require_once __DIR__ . '/_ucetni_lib.php';
+        if (function_exists('ucetni_ensure_schema')) ucetni_ensure_schema($pdo);
+    } catch (Throwable $e) { error_log('apply_full_schema ucetni: ' . $e->getMessage()); }
 }
