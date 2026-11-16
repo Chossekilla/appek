@@ -618,6 +618,7 @@ if ($action === 'create_order' && $method === 'POST') {
             'p' => $pozn,
         ]);
         $objId = (int) $pdo->lastInsertId();
+        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
 
         $stmt = $pdo->prepare("
             INSERT INTO objednavky_polozky

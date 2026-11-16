@@ -384,14 +384,12 @@ $csrfToken  = csrf_token();
     locale:     'cs-CZ',
     // 💱 v3.0.283 — měna z nastavení (mena_config_json): zobrazeni='mena' → POS přepočítává kurzem
     <?php
-      $menaCfg = ['kod' => 'CZK', 'symbol' => 'Kč', 'kurz' => 1, 'zobrazeni' => 'kc'];
+      $menaCfg = ['kod' => 'CZK', 'symbol' => 'Kč', 'kurz' => 1, 'zobrazeni' => 'kc', 'delitel' => 1];
       try {
-          $mcRaw = function_exists('nastaveni') ? (nastaveni()['mena_config_json'] ?? '') : '';
-          $mc = $mcRaw ? json_decode($mcRaw, true) : null;
-          if (is_array($mc) && !empty($mc['kod']) && $mc['kod'] !== 'CZK') {
-              $symboly = ['EUR' => '€', 'USD' => '$', 'GBP' => '£', 'PLN' => 'zł', 'HUF' => 'Ft', 'CHF' => 'CHF'];
-              $menaCfg = ['kod' => $mc['kod'], 'symbol' => $symboly[$mc['kod']] ?? $mc['kod'], 'kurz' => max(0.0001, (float) ($mc['kurz'] ?? 1)), 'zobrazeni' => ($mc['zobrazeni'] ?? 'kc') === 'mena' ? 'mena' : 'kc'];
-          }
+          // v3.0.640 — sdílený loader (_mena_lib): delitel = 1 po trvalém přepočtu ceníku
+          require_once __DIR__ . '/../api/_mena_lib.php';
+          $mc = mena_config_load(db());
+          $menaCfg = ['kod' => $mc['kod'], 'symbol' => $mc['symbol'], 'kurz' => $mc['kurz'], 'zobrazeni' => $mc['zobrazeni'], 'delitel' => $mc['delitel']];
       } catch (Throwable $e) { /* default Kč */ }
     ?>
     currency:   <?= json_encode($menaCfg['zobrazeni'] === 'mena' ? $menaCfg['symbol'] : 'Kč') ?>,

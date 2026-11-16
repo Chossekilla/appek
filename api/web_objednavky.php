@@ -306,6 +306,7 @@ if ($action === 'order' && $method === 'POST') {
                        VALUES (:c, 'web', :o, NOW(), :dd, :b, :d, :ck, 'nova', 'web', :pt, 'pri_vyzvednuti', :pz)")
             ->execute(['c' => $cislo, 'o' => $odbId, 'dd' => date('Y-m-d', $casTs), 'b' => round($bez, 2), 'd' => round($dph, 2), 'ck' => $celkem, 'pt' => $typ, 'pz' => $poznFull]);
         $objId = (int) $pdo->lastInsertId();
+        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
         $ins = $pdo->prepare("INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph)
                               VALUES (:o, :v, :n, 'ks', :m, :c, :s)");
         foreach ($items as $id => $mn) {

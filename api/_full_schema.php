@@ -403,6 +403,7 @@ function apply_full_schema(PDO $pdo): void {
         // odberatele (admin_odberatele.php auto-migrace)
         'odberatele' => [
             'typ'              => "ADD COLUMN typ VARCHAR(50) DEFAULT NULL",
+            'jazyk_dokladu'    => "ADD COLUMN jazyk_dokladu VARCHAR(5) DEFAULT NULL",   // 🌍 v3.0.640 cs/en/es, NULL = výchozí firmy
             'notif_emaily'     => "ADD COLUMN notif_emaily TINYINT(1) NOT NULL DEFAULT 1",
             'kontaktni_osoba'  => "ADD COLUMN kontaktni_osoba VARCHAR(150) DEFAULT NULL",
             'blokovan'         => "ADD COLUMN blokovan TINYINT(1) NOT NULL DEFAULT 0",
@@ -549,4 +550,24 @@ function apply_full_schema(PDO $pdo): void {
         $pdo->exec("ALTER TABLE suroviny ADD COLUMN IF NOT EXISTS domovsky_sklad_id INT NULL"); // čte surovina_home_sklad()
         $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN IF NOT EXISTS surovina_id INT NULL"); // 🆕 v3.0.381 — cake/catering odpis (dřív jen runtime ensure = křehké)
     } catch (Throwable $e) { error_log('apply_full_schema systemB: ' . $e->getMessage()); }
+
+    // ════════════════════════════════════════════════════════════
+    // 5. 💱 v3.0.640 — MĚNA DOKLADU (snapshot při vystavení, viz _mena_lib.php)
+    //    ADD s DEFAULT 'CZK' doplní měnu všem STÁVAJÍCÍM dokladům (byly vystavené v Kč),
+    //    pak se default přepne na NULL → nový doklad bez snapshotu dostane měnu prodeje
+    //    nejpozději při prvním tisku (mena_doklad lazy). Pozdější změna kurzu staré doklady nemění.
+    // ════════════════════════════════════════════════════════════
+    foreach (['faktury', 'objednavky', 'dodaci_listy'] as $t) {
+        try {
+            $cols = $pdo->query("SHOW COLUMNS FROM `$t`")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('mena', $cols, true)) {
+                $pdo->exec("ALTER TABLE `$t` ADD COLUMN mena VARCHAR(3) NULL DEFAULT 'CZK',
+                                            ADD COLUMN mena_kurz DECIMAL(12,6) NULL DEFAULT 1,
+                                            ADD COLUMN mena_zaklad VARCHAR(3) NULL DEFAULT 'CZK'");
+                $pdo->exec("ALTER TABLE `$t` ALTER COLUMN mena SET DEFAULT NULL,
+                                            ALTER COLUMN mena_kurz SET DEFAULT NULL,
+                                            ALTER COLUMN mena_zaklad SET DEFAULT NULL");
+            }
+        } catch (Throwable $e) { error_log("apply_full_schema mena $t: " . $e->getMessage()); }
+    }
 }

@@ -19,11 +19,10 @@ try {
         WHERE klic IN ('firma_logo_url', 'firma_favicon_url', 'firma_nazev', 'mena_config_json', 'ga_measurement_id', 'tracking_custom_code', 'gdpr_souhlas_povinny', 'b2b_sticky_cart', 'b2b_cart_mode')
     ")->fetchAll(PDO::FETCH_KEY_PAIR);
     // v3.0.283 — měna pro B2B fmt() (display konverze; necitlivé, DB zůstává v Kč)
-    $mena = ['kod' => 'CZK', 'kurz' => 1, 'zobrazeni' => 'kc'];
-    if (!empty($rows['mena_config_json'])) {
-        $mc = json_decode($rows['mena_config_json'], true);
-        if (is_array($mc)) $mena = ['kod' => $mc['kod'] ?? 'CZK', 'kurz' => max(0.0001, (float) ($mc['kurz'] ?? 1)), 'zobrazeni' => ($mc['zobrazeni'] ?? 'kc') === 'mena' ? 'mena' : 'kc'];
-    }
+    //   v3.0.640 — sdílený loader (_mena_lib) → i `delitel` (1 po trvalém přepočtu ceníku)
+    require_once __DIR__ . '/_mena_lib.php';
+    $mc = mena_config_load($pdo);
+    $mena = ['kod' => $mc['kod'], 'kurz' => $mc['kurz'], 'zobrazeni' => $mc['zobrazeni'], 'delitel' => $mc['delitel'], 'zakladni' => $mc['zakladni']];
     // 📊 v3.0.284 — GA measurement ID pro B2B portál (gtag vkládá app.js); validace formátu
     $gaId = trim((string) ($rows['ga_measurement_id'] ?? ''));
     if ($gaId !== '' && !preg_match('/^(G|AW|UA)-[A-Z0-9-]{4,}$/i', $gaId)) $gaId = '';

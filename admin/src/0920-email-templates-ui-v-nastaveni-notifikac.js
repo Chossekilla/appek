@@ -670,6 +670,7 @@ window.ulozitNastaveni = async function() {
   setIf('firma_telefon', v('ns-tel'));
   setIf('firma_web', v('ns-web'));
   setIf('firma_paticka_dokladu', v('ns-paticka'));
+  if (document.getElementById('ns-jazyk-dokladu')) data.firma_jazyk_dokladu = v('ns-jazyk-dokladu') || 'cs';   // 🌍 v3.0.640
   // 🎨 Branding
   setIf('firma_brand_color', v('ns-brand-color') || v('ns-brand-color-text'));
   // 🖼️ v3.0.439 — logo NEukládáme přes obecný save: firma_logo_url řídí výhradně upload/remove

@@ -347,6 +347,8 @@ if ($action === 'import') {
                 'psc' => $odb['psc'] ?: null,
             ]);
             $faId = (int) $pdo->lastInsertId();
+            // 💱 v3.0.640 — ISDOC import nečte měnu → částky bere jako Kč
+            $pdo->prepare("UPDATE faktury SET mena = 'CZK', mena_kurz = 1, mena_zaklad = 'CZK' WHERE id = ?")->execute([$faId]);
 
             // Pokus o párování položek na existující výrobky podle čísla
             $matchVyr = $pdo->prepare("SELECT id FROM vyrobky WHERE cislo = :c LIMIT 1");

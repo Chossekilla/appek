@@ -323,6 +323,8 @@ if ($action === 'fa') {
                 'vs'  => $vs,
             ]);
             $fa_id = (int) $pdo->lastInsertId();
+            require_once __DIR__ . '/_mena_lib.php';
+            mena_snapshot_doklad($pdo, 'faktury', $fa_id);   // 💱 v3.0.640 — měna dokladu = měna prodeje v okamžiku vystavení
 
             // Linkuj všechny DL k faktuře
             $stmt = $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f, :d)");

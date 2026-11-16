@@ -399,10 +399,12 @@ window.menaLoad = async function() {
     const opts = Object.entries(r.podporovane || { CZK: 'Kč', EUR: '€' })
       .map(([k, s]) => `<option value="${k}" ${c.kod === k ? 'selected' : ''}>${k} (${s})</option>`).join('');
     const cizi = c.kod !== 'CZK';
+    const trvale = c.zakladni && c.zakladni !== 'CZK';   // 🆕 v3.0.640 — ceník už je trvale v cílové měně
     el.innerHTML = `
+      ${trvale ? `<div style="margin-bottom:10px;font-size:12px;background:var(--info-bg,#EFF6FF);border:1px solid var(--border);border-radius:8px;padding:9px 12px">🔒 Ceník je <strong>trvale přepočtený do ${esc(c.zakladni)}</strong> — prodej i doklady jedou v ${esc(c.zakladni)}. Kurz níže slouží jen pro rekapitulaci DPH v Kč na fakturách. Návrat do Kč = obnova zálohy DB z doby před přepočtem (Údržba → Zálohy).</div>` : ''}
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
         <div><label class="form-label" style="font-size:12px">Cílová měna</label>
-          <select class="form-input" id="mena-kod" style="width:130px" onchange="menaKodChange()">${opts}</select></div>
+          <select class="form-input" id="mena-kod" style="width:130px" onchange="menaKodChange()" ${trvale ? 'disabled' : ''}>${opts}</select></div>
         <div id="mena-zdroj-wrap" style="${cizi ? '' : 'display:none'}"><label class="form-label" style="font-size:12px">Zdroj kurzu</label>
           <div style="display:flex;gap:4px">
             <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;border:1px solid var(--border);border-radius:6px;padding:6px 9px"><input type="radio" name="mena-zdroj" value="rucni" ${c.kurz_zdroj !== 'cnb' ? 'checked' : ''} onchange="menaZdrojChange()"> ✍️ Vlastní</label>
@@ -417,9 +419,9 @@ window.menaLoad = async function() {
       <div id="mena-cils-hint" ${cizi ? 'hidden' : ''} style="margin-top:10px;font-size:12px;color:var(--text-2);background:var(--info-bg,#EFF6FF);border:1px dashed var(--border);border-radius:8px;padding:9px 12px">💡 Výchozí měna je <strong>Kč</strong>. Pro <strong>vlastní kurz</strong> nebo přepočet vyber výše cizí měnu (EUR, USD…) — objeví se volba zdroje kurzu (✍️ Vlastní / 🏦 ČNB) i pole pro kurz.</div>
       <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:12px" id="mena-volby" ${cizi ? '' : 'hidden'}>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="radio" name="mena-zobr" value="kc" ${c.zobrazeni !== 'mena' ? 'checked' : ''}> Zobrazovat v Kč (základ)</label>
+          <input type="radio" name="mena-zobr" value="kc" ${c.zobrazeni !== 'mena' ? 'checked' : ''} ${trvale ? 'disabled' : ''}> Zobrazovat v Kč (základ)</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="radio" name="mena-zobr" value="mena" ${c.zobrazeni === 'mena' ? 'checked' : ''}> Zobrazovat přepočtené v cílové měně</label>
+          <input type="radio" name="mena-zobr" value="mena" ${c.zobrazeni === 'mena' ? 'checked' : ''}> Prodávat v cílové měně (ceny, objednávky, faktury, dodací listy, účtenky)</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
           <input type="checkbox" id="mena-dual" ${c.dual_doklady ? 'checked' : ''}> Informativní přepočet na dokladech</label>
       </div>
@@ -427,7 +429,7 @@ window.menaLoad = async function() {
         <button class="btn-primary btn-green" onclick="menaSave()">💾 Uložit měnu</button>
         <span id="mena-save-info" style="font-size:12px;color:var(--text-3)"></span>
       </div>
-      <div style="border-top:1px dashed var(--border);margin-top:14px;padding-top:12px" ${cizi ? '' : 'hidden'} id="mena-prepocet-sekce">
+      <div style="border-top:1px dashed var(--border);margin-top:14px;padding-top:12px" ${cizi && !trvale ? '' : 'hidden'} id="mena-prepocet-sekce">
         <strong style="font-size:13px">⚠️ Trvalý přepočet ceníku</strong>
         <p class="page-sub" style="font-size:12px;margin:4px 0 8px">Přepíše uložené ceny všech výrobků (cena ÷ kurz). Nevratné bez zálohy — záloha DB se vytvoří automaticky před přepočtem.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -444,7 +446,7 @@ window.menaKodChange = function() {
   const zw = document.getElementById('mena-zdroj-wrap'); if (zw) zw.style.display = cizi ? '' : 'none';
   document.getElementById('mena-cnb-btn').style.display = cizi ? '' : 'none';
   document.getElementById('mena-volby').hidden = !cizi;
-  document.getElementById('mena-prepocet-sekce').hidden = !cizi;
+  document.getElementById('mena-prepocet-sekce').hidden = !cizi || !!(window._menaCfg && window._menaCfg.zakladni && window._menaCfg.zakladni !== 'CZK');
   const ch = document.getElementById('mena-cils-hint'); if (ch) ch.hidden = cizi;  // 🆕 v3.0.367
   const kk = document.getElementById('mena-kurz-kod'); if (kk) kk.textContent = kod;
 };
@@ -509,9 +511,12 @@ window.menaPrepocet = async function(kurz) {
     el.innerHTML = '💾 Vytvářím zálohu DB…';
     await api('admin_zalohy.php?action=create', { method: 'POST', body: JSON.stringify({ label: `před přepočtem měny (kurz ${kurz})`, include_uploads: false }) });
     el.innerHTML = '⏳ Přepočítávám ceník…';
-    const r = await api('admin_mena.php?action=prepocet', { method: 'POST', body: JSON.stringify({ kurz }) });
+    const kod = document.getElementById('mena-kod').value;
+    const r = await api('admin_mena.php?action=prepocet', { method: 'POST', body: JSON.stringify({ kurz, kod }) });
+    if (r.config) window._menaCfg = r.config;   // 🆕 v3.0.640 — ceník je teď v cílové měně (delitel 1)
     el.innerHTML = `<div style="background:var(--success-bg);color:var(--success-text);border-radius:8px;padding:10px 12px;margin-top:8px">✅ Přepočteno ${r.prepocteno} výrobků kurzem ${r.kurz}. Záloha DB vytvořena (Údržba → Zálohy).</div>`;
-    toast(`✅ Ceník přepočten (${r.prepocteno} výrobků)`, 'success');
+    toast(`✅ Ceník přepočten (${r.prepocteno} výrobků) — prodej i doklady jsou teď v ${kod}`, 'success');
+    setTimeout(() => window.menaLoad(), 1500);
   } catch (e) { el.innerHTML = `<span style="color:var(--danger-text)">❌ ${esc(e.message)} — ceny NEzměněny${String(e.message).includes('záloh') ? '' : ' (pokud selhala záloha)'}</span>`; }
 };
 

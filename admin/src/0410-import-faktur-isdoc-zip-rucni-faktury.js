@@ -280,7 +280,9 @@ window.openFakturaDetail = async function(id) {
 
     <div class="form-actions">
       <div class="form-actions-tools">
-        <a href="../api/faktura.php?id=${f.id}" target="_blank" class="btn-secondary" style="text-decoration:none;">📄 PDF</a>
+        <a href="../api/faktura.php?id=${f.id}" target="_blank" class="btn-secondary" style="text-decoration:none;" title="PDF v jazyce odběratele">📄 PDF</a>
+        <a href="../api/faktura.php?id=${f.id}&lang=en" target="_blank" class="btn-secondary" style="text-decoration:none;" title="PDF v angličtině (jednorázově, nastavení odběratele se nemění)">📄 EN</a>
+        <a href="../api/faktura.php?id=${f.id}&lang=es" target="_blank" class="btn-secondary" style="text-decoration:none;" title="PDF ve španělštině (jednorázově, nastavení odběratele se nemění)">📄 ES</a>
         <a href="../api/admin_export_isdoc.php?action=isdoc&id=${f.id}" class="btn-secondary" style="text-decoration:none;" title="Stáhnout ISDOC XML pro účetnictví (Money S3, Pohoda…)">📤 ISDOC export</a>
         <button class="btn-secondary" onclick="tiskFaktury(${f.id})" title="Otevře tiskový dialog (PDF / tiskárna)">🖨️ Tisk</button>
         <button class="btn-secondary" onclick="noOpakovatZeZdroje('fa', ${f.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu objednat</button>

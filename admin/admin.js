@@ -2162,15 +2162,18 @@ function fmtQty(n) {
 function fmt(n) {
   // 🌍 T4 — locale-aware formátování měny. Default cs-CZ/CZK, ale respektuje getCurrentLocale().
   // 💱 v3.0.283 — display přepočet na cílovou měnu (Nastavení → Přístupy & ceny → Měna).
-  //   DB hodnoty jsou VŽDY v Kč; při zobrazeni='mena' se dělí kurzem a formátuje cílovou měnou.
+  //   v3.0.640: dělí se `delitel` ze serveru (= kurz, dokud je ceník v Kč; 1 po trvalém přepočtu
+  //   → žádný dvojí přepočet). Bez cílové měny je částka VŽDY v Kč — jazyk rozhraní mění jen
+  //   formát čísla (dřív angličtina vypsala „£" / „€" u korunových částek).
   try {
     const m = window._menaCfg;
     if (m && m.zobrazeni === 'mena' && m.kod !== 'CZK' && m.kurz > 0) {
-      return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: m.kod, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((n || 0) / m.kurz);
+      const del = m.delitel > 0 ? m.delitel : m.kurz;
+      return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: m.kod, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((n || 0) / del);
     }
     const cfg = (typeof window.getCurrentLocale === 'function') ? window.getCurrentLocale() : null;
     const locale   = (cfg && cfg.locale)   || 'cs-CZ';
-    const currency = (cfg && cfg.currency) || 'CZK';
+    const currency = (m && m.zakladni) || 'CZK';
     return new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
   } catch (e) {
     return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: 'CZK', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
@@ -6426,10 +6429,12 @@ window.menaLoad = async function() {
     const opts = Object.entries(r.podporovane || { CZK: 'Kč', EUR: '€' })
       .map(([k, s]) => `<option value="${k}" ${c.kod === k ? 'selected' : ''}>${k} (${s})</option>`).join('');
     const cizi = c.kod !== 'CZK';
+    const trvale = c.zakladni && c.zakladni !== 'CZK';   // 🆕 v3.0.640 — ceník už je trvale v cílové měně
     el.innerHTML = `
+      ${trvale ? `<div style="margin-bottom:10px;font-size:12px;background:var(--info-bg,#EFF6FF);border:1px solid var(--border);border-radius:8px;padding:9px 12px">🔒 Ceník je <strong>trvale přepočtený do ${esc(c.zakladni)}</strong> — prodej i doklady jedou v ${esc(c.zakladni)}. Kurz níže slouží jen pro rekapitulaci DPH v Kč na fakturách. Návrat do Kč = obnova zálohy DB z doby před přepočtem (Údržba → Zálohy).</div>` : ''}
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
         <div><label class="form-label" style="font-size:12px">Cílová měna</label>
-          <select class="form-input" id="mena-kod" style="width:130px" onchange="menaKodChange()">${opts}</select></div>
+          <select class="form-input" id="mena-kod" style="width:130px" onchange="menaKodChange()" ${trvale ? 'disabled' : ''}>${opts}</select></div>
         <div id="mena-zdroj-wrap" style="${cizi ? '' : 'display:none'}"><label class="form-label" style="font-size:12px">Zdroj kurzu</label>
           <div style="display:flex;gap:4px">
             <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;border:1px solid var(--border);border-radius:6px;padding:6px 9px"><input type="radio" name="mena-zdroj" value="rucni" ${c.kurz_zdroj !== 'cnb' ? 'checked' : ''} onchange="menaZdrojChange()"> ✍️ Vlastní</label>
@@ -6444,9 +6449,9 @@ window.menaLoad = async function() {
       <div id="mena-cils-hint" ${cizi ? 'hidden' : ''} style="margin-top:10px;font-size:12px;color:var(--text-2);background:var(--info-bg,#EFF6FF);border:1px dashed var(--border);border-radius:8px;padding:9px 12px">💡 Výchozí měna je <strong>Kč</strong>. Pro <strong>vlastní kurz</strong> nebo přepočet vyber výše cizí měnu (EUR, USD…) — objeví se volba zdroje kurzu (✍️ Vlastní / 🏦 ČNB) i pole pro kurz.</div>
       <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:12px" id="mena-volby" ${cizi ? '' : 'hidden'}>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="radio" name="mena-zobr" value="kc" ${c.zobrazeni !== 'mena' ? 'checked' : ''}> Zobrazovat v Kč (základ)</label>
+          <input type="radio" name="mena-zobr" value="kc" ${c.zobrazeni !== 'mena' ? 'checked' : ''} ${trvale ? 'disabled' : ''}> Zobrazovat v Kč (základ)</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="radio" name="mena-zobr" value="mena" ${c.zobrazeni === 'mena' ? 'checked' : ''}> Zobrazovat přepočtené v cílové měně</label>
+          <input type="radio" name="mena-zobr" value="mena" ${c.zobrazeni === 'mena' ? 'checked' : ''}> Prodávat v cílové měně (ceny, objednávky, faktury, dodací listy, účtenky)</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
           <input type="checkbox" id="mena-dual" ${c.dual_doklady ? 'checked' : ''}> Informativní přepočet na dokladech</label>
       </div>
@@ -6454,7 +6459,7 @@ window.menaLoad = async function() {
         <button class="btn-primary btn-green" onclick="menaSave()">💾 Uložit měnu</button>
         <span id="mena-save-info" style="font-size:12px;color:var(--text-3)"></span>
       </div>
-      <div style="border-top:1px dashed var(--border);margin-top:14px;padding-top:12px" ${cizi ? '' : 'hidden'} id="mena-prepocet-sekce">
+      <div style="border-top:1px dashed var(--border);margin-top:14px;padding-top:12px" ${cizi && !trvale ? '' : 'hidden'} id="mena-prepocet-sekce">
         <strong style="font-size:13px">⚠️ Trvalý přepočet ceníku</strong>
         <p class="page-sub" style="font-size:12px;margin:4px 0 8px">Přepíše uložené ceny všech výrobků (cena ÷ kurz). Nevratné bez zálohy — záloha DB se vytvoří automaticky před přepočtem.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -6471,7 +6476,7 @@ window.menaKodChange = function() {
   const zw = document.getElementById('mena-zdroj-wrap'); if (zw) zw.style.display = cizi ? '' : 'none';
   document.getElementById('mena-cnb-btn').style.display = cizi ? '' : 'none';
   document.getElementById('mena-volby').hidden = !cizi;
-  document.getElementById('mena-prepocet-sekce').hidden = !cizi;
+  document.getElementById('mena-prepocet-sekce').hidden = !cizi || !!(window._menaCfg && window._menaCfg.zakladni && window._menaCfg.zakladni !== 'CZK');
   const ch = document.getElementById('mena-cils-hint'); if (ch) ch.hidden = cizi;  // 🆕 v3.0.367
   const kk = document.getElementById('mena-kurz-kod'); if (kk) kk.textContent = kod;
 };
@@ -6536,9 +6541,12 @@ window.menaPrepocet = async function(kurz) {
     el.innerHTML = '💾 Vytvářím zálohu DB…';
     await api('admin_zalohy.php?action=create', { method: 'POST', body: JSON.stringify({ label: `před přepočtem měny (kurz ${kurz})`, include_uploads: false }) });
     el.innerHTML = '⏳ Přepočítávám ceník…';
-    const r = await api('admin_mena.php?action=prepocet', { method: 'POST', body: JSON.stringify({ kurz }) });
+    const kod = document.getElementById('mena-kod').value;
+    const r = await api('admin_mena.php?action=prepocet', { method: 'POST', body: JSON.stringify({ kurz, kod }) });
+    if (r.config) window._menaCfg = r.config;   // 🆕 v3.0.640 — ceník je teď v cílové měně (delitel 1)
     el.innerHTML = `<div style="background:var(--success-bg);color:var(--success-text);border-radius:8px;padding:10px 12px;margin-top:8px">✅ Přepočteno ${r.prepocteno} výrobků kurzem ${r.kurz}. Záloha DB vytvořena (Údržba → Zálohy).</div>`;
-    toast(`✅ Ceník přepočten (${r.prepocteno} výrobků)`, 'success');
+    toast(`✅ Ceník přepočten (${r.prepocteno} výrobků) — prodej i doklady jsou teď v ${kod}`, 'success');
+    setTimeout(() => window.menaLoad(), 1500);
   } catch (e) { el.innerHTML = `<span style="color:var(--danger-text)">❌ ${esc(e.message)} — ceny NEzměněny${String(e.message).includes('záloh') ? '' : ' (pokud selhala záloha)'}</span>`; }
 };
 
@@ -12784,7 +12792,9 @@ window.openFakturaDetail = async function(id) {
 
     <div class="form-actions">
       <div class="form-actions-tools">
-        <a href="../api/faktura.php?id=${f.id}" target="_blank" class="btn-secondary" style="text-decoration:none;">📄 PDF</a>
+        <a href="../api/faktura.php?id=${f.id}" target="_blank" class="btn-secondary" style="text-decoration:none;" title="PDF v jazyce odběratele">📄 PDF</a>
+        <a href="../api/faktura.php?id=${f.id}&lang=en" target="_blank" class="btn-secondary" style="text-decoration:none;" title="PDF v angličtině (jednorázově, nastavení odběratele se nemění)">📄 EN</a>
+        <a href="../api/faktura.php?id=${f.id}&lang=es" target="_blank" class="btn-secondary" style="text-decoration:none;" title="PDF ve španělštině (jednorázově, nastavení odběratele se nemění)">📄 ES</a>
         <a href="../api/admin_export_isdoc.php?action=isdoc&id=${f.id}" class="btn-secondary" style="text-decoration:none;" title="Stáhnout ISDOC XML pro účetnictví (Money S3, Pohoda…)">📤 ISDOC export</a>
         <button class="btn-secondary" onclick="tiskFaktury(${f.id})" title="Otevře tiskový dialog (PDF / tiskárna)">🖨️ Tisk</button>
         <button class="btn-secondary" onclick="noOpakovatZeZdroje('fa', ${f.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu objednat</button>
@@ -15411,6 +15421,15 @@ window.editOdberatel = async function(id = null) {
           </select>
         </div>
         <div>
+          <label class="form-label">🌍 Jazyk dokladů</label>
+          <select class="form-input" id="od-jazyk-dokladu" title="Faktury, dobropisy, dodací listy a e-maily s nimi">
+            <option value="">— výchozí firmy —</option>
+            <option value="cs" ${o.jazyk_dokladu === 'cs' ? 'selected' : ''}>Čeština</option>
+            <option value="en" ${o.jazyk_dokladu === 'en' ? 'selected' : ''}>English</option>
+            <option value="es" ${o.jazyk_dokladu === 'es' ? 'selected' : ''}>Español</option>
+          </select>
+        </div>
+        <div>
           <label class="form-label">🧾 Slevová skupina</label>
           <select class="form-input" id="od-skupina">${skupinyOptions}</select>
         </div>
@@ -15596,6 +15615,7 @@ window.ulozitOdberatele = async function(id) {
     notif_emaily: document.getElementById('od-notif')?.checked ? 1 : 0,
     poznamka: document.getElementById('od-pozn').value || null,
     typ: document.getElementById('od-typ')?.value || null,
+    jazyk_dokladu: document.getElementById('od-jazyk-dokladu')?.value || null,
   };
   const heslo = document.getElementById('od-heslo').value;
   if (heslo) data.heslo = heslo;
@@ -16061,6 +16081,15 @@ async function _renderNastaveniInner() {
             <label class="form-label">Patička dokladů</label>
             <textarea class="form-input" id="ns-paticka" rows="3" placeholder="APPEK B2B s.r.o. · tel: ... · web: ...">${esc(n.firma_paticka_dokladu || '')}</textarea>
             <small style="color:var(--text-3);font-size:12px;display:block;margin-top:4px;">Zobrazí se na konci faktury a dodacího listu. Více řádků = Enter.</small>
+          </div>
+          <div class="full">
+            <label class="form-label">🌍 Výchozí jazyk dokladů</label>
+            <select class="form-input" id="ns-jazyk-dokladu">
+              <option value="cs" ${(n.firma_jazyk_dokladu || 'cs') === 'cs' ? 'selected' : ''}>Čeština</option>
+              <option value="en" ${n.firma_jazyk_dokladu === 'en' ? 'selected' : ''}>English</option>
+              <option value="es" ${n.firma_jazyk_dokladu === 'es' ? 'selected' : ''}>Español</option>
+            </select>
+            <small style="color:var(--text-3);font-size:12px;display:block;margin-top:4px;">Faktury, dobropisy, dodací listy a e-maily s nimi. U odběratele lze nastavit jiný jazyk (Odběratelé → upravit → Jazyk dokladů). Měna dokladů se řídí nastavením Měna.</small>
           </div>
         </div>
       </div>
@@ -29698,6 +29727,7 @@ window.ulozitNastaveni = async function() {
   setIf('firma_telefon', v('ns-tel'));
   setIf('firma_web', v('ns-web'));
   setIf('firma_paticka_dokladu', v('ns-paticka'));
+  if (document.getElementById('ns-jazyk-dokladu')) data.firma_jazyk_dokladu = v('ns-jazyk-dokladu') || 'cs';   // 🌍 v3.0.640
   // 🎨 Branding
   setIf('firma_brand_color', v('ns-brand-color') || v('ns-brand-color-text'));
   // 🖼️ v3.0.439 — logo NEukládáme přes obecný save: firma_logo_url řídí výhradně upload/remove

@@ -239,8 +239,8 @@ if ($method === 'POST') {
                                     email, telefon, kontaktni_osoba,
                                     login_email, heslo_hash,
                                     splatnost_dni, sleva_pct, blokovan, notif_emaily, poznamka,
-                                    cenova_skupina_id, typ)
-            VALUES (:c,:n,:ico,:dic,:ul,:me,:psc,:em,:tel,:ko,:log,:hash,:sp,:sl,:bl,:nf,:po,:cs,:tp)
+                                    cenova_skupina_id, typ, jazyk_dokladu)
+            VALUES (:c,:n,:ico,:dic,:ul,:me,:psc,:em,:tel,:ko,:log,:hash,:sp,:sl,:bl,:nf,:po,:cs,:tp,:jd)
         ");
         $stmt->execute([
             'c' => $d['cislo'] ?? null, 'n' => trim($d['nazev']),
@@ -255,6 +255,7 @@ if ($method === 'POST') {
             'po' => $d['poznamka'] ?? null,
             'cs' => !empty($d['cenova_skupina_id']) ? (int) $d['cenova_skupina_id'] : null,
             'tp' => !empty($d['typ']) ? trim((string)$d['typ']) : null,
+            'jd' => in_array($d['jazyk_dokladu'] ?? '', ['cs', 'en', 'es'], true) ? $d['jazyk_dokladu'] : null,
         ]);
         $odb_id = (int) $pdo->lastInsertId();
 
@@ -313,6 +314,11 @@ if ($method === 'PUT') {
         'cs' => !empty($d['cenova_skupina_id']) ? (int) $d['cenova_skupina_id'] : null,
         'tp' => !empty($d['typ']) ? trim((string)$d['typ']) : null,
     ];
+    // 🌍 v3.0.640 — jazyk dokladů jen když ho klient posílá (jiné PUT volání ho nesmaže)
+    if (array_key_exists('jazyk_dokladu', $d)) {
+        $sql .= ", jazyk_dokladu = :jd";
+        $params['jd'] = in_array($d['jazyk_dokladu'], ['cs', 'en', 'es'], true) ? $d['jazyk_dokladu'] : null;
+    }
     if (!empty($d['heslo'])) {
         $sql .= ", heslo_hash = :hash";
         $params['hash'] = password_hash($d['heslo'], PASSWORD_DEFAULT);

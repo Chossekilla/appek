@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_i18n.php';      // 🌍 v3.0.640 — jazyk dokladu (cs/en/es)
+require_once __DIR__ . '/_mena_lib.php';  // 💱 v3.0.640 — měna dokladu (snapshot)
 session_secure_start(); // 🔒 v3.0.349 — start session PŘED B2B gate (jinak $_SESSION prázdné → i vlastník faktury 401)
 
 // 🆕 v2.9.164 — public access přes signed token z e-mailu (alternativa k admin login).
@@ -94,6 +96,8 @@ if (($_GET['action'] ?? '') === 'vytvor') {
                     VALUES (:c,:o,CURDATE(),CURDATE(),DATE_ADD(CURDATE(), INTERVAL :sp DAY),:bez,:dph,:cel,:vs)
                 ")->execute(['c' => $cislo_fa, 'o' => $dl['odberatel_id'], 'sp' => $spl, 'bez' => $bez, 'dph' => $dph, 'cel' => $cel, 'vs' => $vs]);
                 $fa_id = (int) $pdo->lastInsertId();
+                require_once __DIR__ . '/_mena_lib.php';
+                mena_snapshot_doklad($pdo, 'faktury', $fa_id);   // 💱 v3.0.640 — měna dokladu = měna prodeje v okamžiku vystavení
                 $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f,:d)")->execute(['f' => $fa_id, 'd' => $dl_in]);
                 $pdo->prepare("UPDATE dodaci_listy SET fakturovano = 1 WHERE id = :id")->execute(['id' => $dl_in]);
                 $pdo->commit();
@@ -190,6 +194,8 @@ if (($_GET['action'] ?? '') === 'vytvor') {
             'cel' => $obj['castka_celkem'], 'vs' => $vs,
         ]);
         $fa_id = (int) $pdo->lastInsertId();
+        require_once __DIR__ . '/_mena_lib.php';
+        mena_snapshot_doklad($pdo, 'faktury', $fa_id);   // 💱 v3.0.640 — měna dokladu = měna prodeje v okamžiku vystavení
 
         $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f,:d)")
             ->execute(['f' => $fa_id, 'd' => $dl_id]);
@@ -313,7 +319,17 @@ function nacti_fakturu(PDO $pdo, int $id): ?array {
             $dph_rozpis[$maxKey]['dph'] = round($dph_rozpis[$maxKey]['dph'] + $resDph, 2);
         }
     }
-    return ['f' => $f, 'polozky' => $polozky, 'dph_rozpis' => $dph_rozpis];
+    // 💱 v3.0.640 — měna dokladu (snapshot) + rozpis/celkem přepočtené do ní; v cizí měně i rozpis v Kč (§29 ZDPH)
+    $mena = mena_doklad($pdo, 'faktury', $f);
+    $bezC = (float) $f['castka_bez_dph']; $dphC = (float) $f['castka_dph'];
+    $rozpisDoc = $mena['k_doklad'] == 1.0 ? $dph_rozpis : mena_prevod_rozpisu($dph_rozpis, $mena['k_doklad'], $bezC, $dphC);
+    $f['_celkem_doc'] = $mena['k_doklad'] == 1.0 ? round((float) $f['castka_celkem'], 2)
+        : round(array_sum(array_column($rozpisDoc, 'bez')) + array_sum(array_column($rozpisDoc, 'dph')), 2);
+    $f['_mena'] = $mena['mena'];
+    $rozpisCzk = $mena['mena'] === 'CZK' ? [] : ($mena['k_czk'] == 1.0 ? $dph_rozpis : mena_prevod_rozpisu($dph_rozpis, $mena['k_czk'], $bezC, $dphC));
+    $lang = doc_lang_resolve($pdo, (int) $f['odberatel_id'], $_GET['lang'] ?? null);
+    return ['f' => $f, 'polozky' => $polozky, 'dph_rozpis' => $dph_rozpis, 'dph_rozpis_doc' => $rozpisDoc,
+            'dph_rozpis_czk' => $rozpisCzk, 'mena' => $mena, 'lang' => $lang];
 }
 
 // Sběr ID — single nebo bulk
@@ -350,6 +366,7 @@ $polozky = $faktury_render[0]['polozky'];
 $dph_rozpis = $faktury_render[0]['dph_rozpis'];
 
 $bulk_count = count($faktury_render);
+doc_lang_set($faktury_render[0]['lang']);   // jazyk stránky/toolbaru = první doklad (bulk: každý doklad si ho přepne)
 $autoprint = !empty($_GET['autoprint']);
 
 // 💸 v3.0.287 — QR Platba (SPD — český standard „QR Platba", spec SPAYD 1.0).
@@ -373,7 +390,7 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
     /** Sestaví SPD řetězec; vrátí '' pokud chybí IBAN nebo nekladná částka / dobropis. */
     function faktura_spd_string(array $f, PDO $pdo): string {
         if (!empty($f['je_dobropis'])) return '';                             // dobropis = vratka, ne platba
-        $castka = round((float) ($f['castka_celkem'] ?? 0), 2);
+        $castka = round((float) ($f['_celkem_doc'] ?? $f['castka_celkem'] ?? 0), 2);   // 💱 v měně dokladu
         if ($castka <= 0) return '';
         // 1) IBAN z platby configu
         $iban = '';
@@ -389,10 +406,10 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
         $vs  = preg_replace('/\D/', '', (string) ($f['variabilni_symbol'] ?? ''));
         $am  = number_format($castka, 2, '.', '');
         // MSG: bez diakritiky a hvězdiček, max 60 znaků (SPAYD limit)
-        $msg = 'Faktura ' . ($f['cislo'] ?? '');
+        $msg = _t('Faktura') . ' ' . ($f['cislo'] ?? '');
         $msg = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $msg) ?: $msg;
         $msg = mb_substr(str_replace('*', ' ', $msg), 0, 60);
-        $spd = 'SPD*1.0*ACC:' . $iban . '*AM:' . $am . '*CC:CZK';
+        $spd = 'SPD*1.0*ACC:' . $iban . '*AM:' . $am . '*CC:' . preg_replace('/[^A-Z]/', '', strtoupper((string) ($f['_mena'] ?? 'CZK')));
         if ($vs !== '') $spd .= '*X-VS:' . $vs;
         $spd .= '*MSG:' . $msg;
         return $spd;
@@ -400,10 +417,10 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="<?= esc(doc_lang()) ?>">
 <head>
 <meta charset="UTF-8">
-<title><?= $bulk_count > 1 ? 'Tisk ' . $bulk_count . ' faktur' : esc($f['cislo']) . ' - faktura' ?></title>
+<title><?= $bulk_count > 1 ? esc(_t('Tisk {n} faktur', ['n' => $bulk_count])) : esc(_t(!empty($f['je_dobropis']) ? '{cislo} - dobropis' : '{cislo} - faktura', ['cislo' => $f['cislo']])) ?></title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Helvetica Neue',Arial,sans-serif;color:#2C2C2A;background:#f5f5f0;padding:20px}
@@ -498,18 +515,22 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
 <div class="toolbar">
   <span class="info">
     <?php if ($bulk_count > 1): ?>
-      📦 <strong>Hromadný tisk <?= $bulk_count ?> faktur</strong> · v dialogu „Uložit jako PDF" pro 1 PDF s více stránkami
+      📦 <strong><?= esc(_t('Hromadný tisk {n} faktur', ['n' => $bulk_count])) ?></strong> · <?= esc(_t('v dialogu „Uložit jako PDF" pro 1 PDF s více stránkami')) ?>
     <?php else: ?>
-      💡 Pro PDF klikněte „Tisk" → v dialogu „Uložit jako PDF"
+      💡 <?= esc(_t('Pro PDF klikněte „Tisk" → v dialogu „Uložit jako PDF"')) ?>
     <?php endif; ?>
   </span>
-  <button class="btn" onclick="window.history.back()">← Zpět</button>
-  <button class="btn btn-primary" onclick="window.print()">🖨 Tisk / Uložit PDF</button>
+  <button class="btn" onclick="window.history.back()"><?= esc(_t('← Zpět')) ?></button>
+  <button class="btn btn-primary" onclick="window.print()"><?= esc(_t('🖨 Tisk / Uložit PDF')) ?></button>
 </div>
 <?php foreach ($faktury_render as $idx => $fr):
     $f = $fr['f'];
     $polozky = $fr['polozky'];
-    $dph_rozpis = $fr['dph_rozpis'];
+    $dph_rozpis = $fr['dph_rozpis_doc'];     // 💱 v měně dokladu
+    $dph_rozpis_czk = $fr['dph_rozpis_czk'];
+    $mena = $fr['mena'];
+    doc_lang_set($fr['lang']);
+    doc_mena_set($mena);
 ?>
 <div class="page">
   <div class="header">
@@ -521,53 +542,53 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
       <?php endif; ?>
       <?php // 🆕 v3.0.268 — dobropis = opravný daňový doklad (vlastní nadpis + vazba na původní FA)
             $jeDobropis = !empty($f['je_dobropis']); ?>
-      <h1><?= $jeDobropis ? 'Opravný daňový doklad (dobropis)' : 'Faktura' ?></h1>
-      <div class="cislo">č. <strong><?= esc($f['cislo']) ?></strong></div>
+      <h1><?= esc(_t($jeDobropis ? 'Opravný daňový doklad (dobropis)' : 'Faktura')) ?></h1>
+      <div class="cislo"><?= esc(_t('č.')) ?> <strong><?= esc($f['cislo']) ?></strong></div>
       <?php if ($jeDobropis && !empty($f['puvodni_faktura_id'])):
           $puvC = $pdo->query("SELECT cislo FROM faktury WHERE id = " . (int) $f['puvodni_faktura_id'])->fetchColumn();
-          if ($puvC): ?><div style="font-size:9pt;color:#666;margin-top:1mm">k faktuře <strong><?= esc($puvC) ?></strong></div><?php endif;
+          if ($puvC): ?><div style="font-size:9pt;color:#666;margin-top:1mm"><?= esc(_t('k faktuře')) ?> <strong><?= esc($puvC) ?></strong></div><?php endif;
       endif; ?>
     </div>
     <div class="firma">
       <div class="nazev"><?= esc(firma('nazev', 'APPEK B2B')) ?></div>
       <?php if (firma('ulice')): ?><div><?= esc(firma('ulice')) ?></div><?php endif; ?>
       <?php if (firma('mesto') || firma('psc')): ?><div><?= esc(trim(firma('mesto') . ' ' . firma('psc'))) ?></div><?php endif; ?>
-      <?php if (firma('ico')): ?><div>IČO: <?= esc(firma('ico')) ?></div><?php endif; ?>
-      <?php if (firma('dic')): ?><div>DIČ: <?= esc(firma('dic')) ?></div><?php endif; ?>
+      <?php if (firma('ico')): ?><div><?= esc(_t('IČO')) ?>: <?= esc(firma('ico')) ?></div><?php endif; ?>
+      <?php if (firma('dic')): ?><div><?= esc(_t('DIČ')) ?>: <?= esc(firma('dic')) ?></div><?php endif; ?>
     </div>
   </div>
   <div class="parties">
     <div>
-      <h3>Dodavatel</h3>
+      <h3><?= esc(_t('Dodavatel')) ?></h3>
       <div class="name"><?= esc(firma('nazev', 'APPEK B2B')) ?></div>
       <div class="row">
         <?php if (firma('ulice')): ?><?= esc(firma('ulice')) ?><br><?php endif; ?>
         <?php if (firma('mesto') || firma('psc')): ?><?= esc(trim(firma('mesto') . ' ' . firma('psc'))) ?><br><?php endif; ?>
-        <?php if (firma('ico')): ?>IČO: <?= esc(firma('ico')) ?><br><?php endif; ?>
-        <?php if (firma('dic')): ?>DIČ: <?= esc(firma('dic')) ?><?php endif; ?>
+        <?php if (firma('ico')): ?><?= esc(_t('IČO')) ?>: <?= esc(firma('ico')) ?><br><?php endif; ?>
+        <?php if (firma('dic')): ?><?= esc(_t('DIČ')) ?>: <?= esc(firma('dic')) ?><?php endif; ?>
       </div>
     </div>
     <div>
-      <h3>Odběratel</h3>
+      <h3><?= esc(_t('Odběratel')) ?></h3>
       <div class="name"><?= esc($f['odb_nazev']) ?></div>
       <div class="row">
         <?php if ($f['ulice']): ?><?= esc($f['ulice']) ?><br><?php endif; ?>
         <?php if ($f['mesto'] || $f['psc']): ?><?= esc(trim($f['mesto'] . ' ' . $f['psc'])) ?><br><?php endif; ?>
-        <?php if ($f['ico']): ?>IČO: <?= esc($f['ico']) ?><br><?php endif; ?>
-        <?php if ($f['dic']): ?>DIČ: <?= esc($f['dic']) ?><?php endif; ?>
+        <?php if ($f['ico']): ?><?= esc(_t('IČO')) ?>: <?= esc($f['ico']) ?><br><?php endif; ?>
+        <?php if ($f['dic']): ?><?= esc(_t('DIČ')) ?>: <?= esc($f['dic']) ?><?php endif; ?>
       </div>
     </div>
   </div>
   <div class="info-box">
-    <div><div class="lbl">Datum vystavení</div><div class="val"><?= fmt_date($f['datum_vystaveni']) ?></div></div>
-    <div><div class="lbl">Datum splatnosti</div><div class="val"><?= fmt_date($f['datum_splatnosti']) ?></div></div>
-    <div><div class="lbl">Datum zd. plnění</div><div class="val"><?= fmt_date($f['datum_dph']) ?></div></div>
-    <div><div class="lbl">Bankovní spojení</div><div class="val"><?= esc(firma('banka', '—')) ?></div></div>
-    <div><div class="lbl">Variabilní symbol</div><div class="val"><?= esc($f['variabilni_symbol']) ?></div></div>
-    <div><div class="lbl">Forma úhrady</div><div class="val">Bankovní převod</div></div>
+    <div><div class="lbl"><?= esc(_t('Datum vystavení')) ?></div><div class="val"><?= _fmt_date_loc($f['datum_vystaveni']) ?></div></div>
+    <div><div class="lbl"><?= esc(_t('Datum splatnosti')) ?></div><div class="val"><?= _fmt_date_loc($f['datum_splatnosti']) ?></div></div>
+    <div><div class="lbl"><?= esc(_t('Datum zd. plnění')) ?></div><div class="val"><?= _fmt_date_loc($f['datum_dph']) ?></div></div>
+    <div><div class="lbl"><?= esc(_t('Bankovní spojení')) ?></div><div class="val"><?= esc(firma('banka', '—')) ?></div></div>
+    <div><div class="lbl"><?= esc(_t('Variabilní symbol')) ?></div><div class="val"><?= esc($f['variabilni_symbol']) ?></div></div>
+    <div><div class="lbl"><?= esc(_t('Forma úhrady')) ?></div><div class="val"><?= esc(_t('Bankovní převod')) ?></div></div>
   </div>
   <table class="items">
-    <thead><tr><th style="width:18mm">Kód</th><th>Položka</th><th class="num" style="width:22mm">Množství</th><th class="num" style="width:22mm">Cena</th><th class="num" style="width:14mm">DPH</th><th class="num" style="width:28mm">Celkem s DPH</th></tr></thead>
+    <thead><tr><th style="width:18mm"><?= esc(_t('Kód')) ?></th><th><?= esc(_t('Položka')) ?></th><th class="num" style="width:22mm"><?= esc(_t('Množství')) ?></th><th class="num" style="width:22mm"><?= esc(_t('Cena')) ?></th><th class="num" style="width:14mm"><?= esc(_t('DPH')) ?></th><th class="num" style="width:28mm"><?= esc(_t('Celkem s DPH')) ?></th></tr></thead>
     <tbody>
       <?php foreach ($polozky as $p):
         $bez = $p['cena_bez_dph'] * $p['mnozstvi'];
@@ -579,13 +600,13 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
           <td>
             <strong><?= esc($p['vyrobek_nazev']) ?></strong>
             <?php if (!empty($p['datum_dodani'])): ?>
-              <div class="sub">DL z <?= fmt_date($p['datum_dodani']) ?></div>
+              <div class="sub"><?= esc(_t('DL z')) ?> <?= _fmt_date_loc($p['datum_dodani']) ?></div>
             <?php endif; ?>
           </td>
-          <td class="num"><?= fmt_ks($p['mnozstvi']) ?> <?= esc($p['jednotka'] ?? 'ks') ?></td>
-          <td class="num"><?= fmt_kc($p['cena_bez_dph']) ?></td>
+          <td class="num"><?= _fmt_qty_loc($p['mnozstvi']) ?> <?= esc(_unit_loc($p['jednotka'] ?? 'ks')) ?></td>
+          <td class="num"><?= doc_money($p['cena_bez_dph']) ?></td>
           <td class="num"><?= number_format($sazba, 0) ?>%</td>
-          <td class="num"><strong><?= fmt_kc($bez + $dph) ?></strong></td>
+          <td class="num"><strong><?= doc_money($bez + $dph) ?></strong></td>
         </tr>
       <?php endforeach; ?>
     </tbody>
@@ -593,31 +614,47 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
   <div class="bottom">
     <div>
       <table class="dph-table">
-        <thead><tr><th>Sazba</th><th class="num">Bez DPH</th><th class="num">DPH</th><th class="num">Celkem</th></tr></thead>
+        <thead><tr><th><?= esc(_t('Sazba')) ?></th><th class="num"><?= esc(_t('Bez DPH')) ?></th><th class="num"><?= esc(_t('DPH')) ?></th><th class="num"><?= esc(_t('Celkem')) ?></th></tr></thead>
         <tbody>
           <?php foreach ($dph_rozpis as $sazba => $r): ?>
             <tr>
               <td><?= number_format($sazba, 0) ?>%</td>
-              <td class="num"><?= fmt_kc($r['bez']) ?></td>
-              <td class="num"><?= fmt_kc($r['dph']) ?></td>
-              <td class="num"><strong><?= fmt_kc($r['bez'] + $r['dph']) ?></strong></td>
+              <td class="num"><?= doc_money_raw($r['bez']) ?></td>
+              <td class="num"><?= doc_money_raw($r['dph']) ?></td>
+              <td class="num"><strong><?= doc_money_raw($r['bez'] + $r['dph']) ?></strong></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
+      <?php if ($dph_rozpis_czk): // 💱 doklad v cizí měně → DPH i v Kč (§29 ZDPH) + použitý kurz ?>
+        <div style="margin-top:3mm;font-size:8.5pt;color:#855;font-weight:600"><?= esc(_t('Rekapitulace DPH v Kč')) ?> · <?= esc(_t('kurz')) ?> <?= _fmt_num_loc($mena['mena_kurz'], 3) ?> CZK/<?= esc($mena['mena']) ?></div>
+        <table class="dph-table" style="margin-top:1mm">
+          <tbody>
+            <?php foreach ($dph_rozpis_czk as $sazba => $r): ?>
+              <tr>
+                <td><?= number_format($sazba, 0) ?>%</td>
+                <td class="num"><?= _fmt_money_loc($r['bez']) ?></td>
+                <td class="num"><?= _fmt_money_loc($r['dph']) ?></td>
+                <td class="num"><?= _fmt_money_loc($r['bez'] + $r['dph']) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      <?php endif; ?>
     </div>
     <div class="summary-final">
-      <div class="lbl">K úhradě</div>
-      <div class="val"><?= fmt_kc($f['castka_celkem']) ?></div>
+      <div class="lbl"><?= esc(_t('K úhradě')) ?></div>
+      <div class="val"><?= doc_money_raw($f['_celkem_doc']) ?></div>
       <?php
         // 💱 v3.0.283 — informativní přepočet na cílovou měnu (mena_config_json, dual_doklady)
         try {
             $mcRaw = nastaveni_get($pdo, 'mena_config_json', '');
             $mc = $mcRaw ? json_decode($mcRaw, true) : null;
-            if (is_array($mc) && !empty($mc['dual_doklady']) && ($mc['kod'] ?? 'CZK') !== 'CZK' && (float) ($mc['kurz'] ?? 0) > 0) {
+            // jen u dokladu v Kč — doklad v cizí měně už nese rekapitulaci v Kč výše
+            if ($mena['mena'] === 'CZK' && is_array($mc) && !empty($mc['dual_doklady']) && ($mc['kod'] ?? 'CZK') !== 'CZK' && (float) ($mc['kurz'] ?? 0) > 0) {
                 $prep = round((float) $f['castka_celkem'] / (float) $mc['kurz'], 2);
-                echo '<div style="font-size:10pt;color:#855;margin-top:3px">≈ ' . number_format($prep, 2, ',', ' ') . ' ' . htmlspecialchars($mc['kod'])
-                   . ' <span style="font-size:8pt">(kurz ' . number_format((float) $mc['kurz'], 3, ',', ' ') . ' Kč/' . htmlspecialchars($mc['kod']) . ')</span></div>';
+                echo '<div style="font-size:10pt;color:#855;margin-top:3px">≈ ' . _fmt_money_loc($prep, null, (string) $mc['kod'])
+                   . ' <span style="font-size:8pt">(' . esc(_t('kurz')) . ' ' . _fmt_num_loc((float) $mc['kurz'], 3) . ' CZK/' . htmlspecialchars($mc['kod']) . ')</span></div>';
             }
         } catch (Throwable $e) { /* bez přepočtu */ }
         // 💸 v3.0.287 — QR Platba (SPD) — naskenuj v bankovní aplikaci, předvyplní platbu
@@ -626,7 +663,7 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
       ?>
         <div class="qr-platba" style="margin-top:8px;display:flex;flex-direction:column;align-items:center">
           <div class="qr-img" data-spd="<?= htmlspecialchars($spd, ENT_QUOTES) ?>" style="width:108px;height:108px;background:#fff;padding:4px;border-radius:6px"></div>
-          <div style="font-size:8pt;color:#855;margin-top:3px;font-weight:600">📱 QR Platba</div>
+          <div style="font-size:8pt;color:#855;margin-top:3px;font-weight:600">📱 <?= esc(_t('QR Platba')) ?></div>
         </div>
       <?php endif; ?>
     </div>
@@ -641,20 +678,20 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
     <?php if ($tel || $em || $web): ?>
       <div class="foot-row">
         <?php if ($tel): ?>
-          <div class="foot-cell"><div class="lbl">Telefon</div><div class="val"><?= esc($tel) ?></div></div>
+          <div class="foot-cell"><div class="lbl"><?= esc(_t('Telefon')) ?></div><div class="val"><?= esc($tel) ?></div></div>
         <?php endif; ?>
         <?php if ($em): ?>
-          <div class="foot-cell"><div class="lbl">E-mail</div><div class="val"><?= esc($em) ?></div></div>
+          <div class="foot-cell"><div class="lbl"><?= esc(_t('E-mail')) ?></div><div class="val"><?= esc($em) ?></div></div>
         <?php endif; ?>
         <?php if ($web): ?>
-          <div class="foot-cell"><div class="lbl">Web</div><div class="val"><?= esc($web) ?></div></div>
+          <div class="foot-cell"><div class="lbl"><?= esc(_t('Web')) ?></div><div class="val"><?= esc($web) ?></div></div>
         <?php endif; ?>
       </div>
     <?php endif; ?>
     <?php if ($pati): ?>
       <div class="foot-custom"><?= esc($pati) ?></div>
     <?php endif; ?>
-    <div class="foot-meta">Vystaveno <?= date('j. n. Y H:i') ?> · <?= esc(firma('nazev', 'APPEK B2B')) ?></div>
+    <div class="foot-meta"><?= esc(_t('Vystaveno')) ?> <?= _fmt_date_loc(time(), null, true) ?> · <?= esc(firma('nazev', 'APPEK B2B')) ?></div>
   </div>
 </div>
 <?php endforeach; ?>

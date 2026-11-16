@@ -3,7 +3,8 @@
  * 💱 MĚNA & PŘEPOČET (v3.0.283).
  *
  * Config v nastaveni.mena_config_json:
- *   { kod:'EUR', kurz:25.000, zobrazeni:'kc'|'mena', dual_doklady:bool }
+ *   { kod:'EUR', kurz:25.000, zobrazeni:'kc'|'mena', dual_doklady:bool, zakladni:'CZK'|kod }
+ *   (zakladni = měna uložených částek; po trvalém přepočtu = kod — viz _mena_lib.php)
  *   - kurz = kolik Kč za 1 jednotku cílové měny (ČNB konvence, např. 1 EUR = 25,265 Kč)
  *   - zobrazeni='mena' → admin/POS/B2B ukazují ceny PŘEPOČTENÉ do cílové měny
  *     (DB zůstává v Kč — vratné přepnutím zpět na 'kc')
@@ -25,26 +26,7 @@ header('Content-Type: application/json; charset=UTF-8');
 
 $pdo = db();
 
-const MENA_PODPOROVANE = ['CZK' => 'Kč', 'EUR' => '€', 'USD' => '$', 'GBP' => '£', 'PLN' => 'zł', 'HUF' => 'Ft', 'CHF' => 'CHF'];
-
-function mena_config_load(PDO $pdo): array {
-    $def = ['kod' => 'CZK', 'kurz' => 1.0, 'zobrazeni' => 'kc', 'dual_doklady' => false, 'kurz_zdroj' => 'rucni'];
-    try {
-        $st = $pdo->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'mena_config_json'");
-        $st->execute();
-        $raw = $st->fetchColumn();
-        $cfg = $raw ? json_decode($raw, true) : null;
-        if (!is_array($cfg)) return $def;
-        $out = array_merge($def, $cfg);
-        $out['kod']  = strtoupper((string) $out['kod']);
-        if (!isset(MENA_PODPOROVANE[$out['kod']])) $out['kod'] = 'CZK';
-        $out['kurz'] = max(0.0001, (float) $out['kurz']);
-        $out['zobrazeni'] = $out['zobrazeni'] === 'mena' ? 'mena' : 'kc';
-        $out['dual_doklady'] = !empty($out['dual_doklady']);
-        $out['kurz_zdroj'] = ($out['kurz_zdroj'] ?? 'rucni') === 'cnb' ? 'cnb' : 'rucni';
-        return $out;
-    } catch (Throwable $e) { return $def; }
-}
+require_once __DIR__ . '/_mena_lib.php';   // MENA_PODPOROVANE + mena_config_load (sdílené s doklady)
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $action = $_GET['action'] ?? '';
@@ -52,7 +34,6 @@ $action = $_GET['action'] ?? '';
 // ── GET config ────────────────────────────────────────────────────────
 if ($method === 'GET' && $action === '') {
     $cfg = mena_config_load($pdo);
-    $cfg['symbol'] = MENA_PODPOROVANE[$cfg['kod']];
     json_response(['config' => $cfg, 'podporovane' => MENA_PODPOROVANE]);
 }
 
@@ -100,7 +81,14 @@ $d = json_input();
 // ── uložit config ─────────────────────────────────────────────────────
 if ($action === 'save') {
     $cfg = $d['config'] ?? $d;
+    $akt = mena_config_load($pdo);
     $kod = strtoupper(trim((string) ($cfg['kod'] ?? 'CZK')));
+    // Po trvalém přepočtu je ceník uložený v cílové měně → nejde přepnout jinam ani zobrazit v Kč
+    // (to by vyžadovalo zpětný přepočet; návrat = obnova zálohy DB vytvořené před přepočtem).
+    if ($akt['zakladni'] !== 'CZK') {
+        if ($kod !== $akt['zakladni']) json_error('Ceník je trvale přepočtený do ' . $akt['zakladni'] . ' — měnu nelze změnit (návrat = obnova zálohy DB z doby před přepočtem).', 400);
+        $cfg['zobrazeni'] = 'mena';
+    }
     if (!isset(MENA_PODPOROVANE[$kod])) json_error('Nepodporovaná měna', 400);
     $kurz = (float) ($cfg['kurz'] ?? 1);
     if ($kod !== 'CZK' && $kurz <= 0) json_error('Kurz musí být kladný', 400);
@@ -110,12 +98,12 @@ if ($action === 'save') {
         'zobrazeni' => (($cfg['zobrazeni'] ?? 'kc') === 'mena' && $kod !== 'CZK') ? 'mena' : 'kc',
         'dual_doklady' => !empty($cfg['dual_doklady']) && $kod !== 'CZK',
         'kurz_zdroj' => (($cfg['kurz_zdroj'] ?? 'rucni') === 'cnb' && $kod !== 'CZK') ? 'cnb' : 'rucni',
+        'zakladni' => $akt['zakladni'],
     ];
     $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('mena_config_json', :v)
                    ON DUPLICATE KEY UPDATE hodnota = VALUES(hodnota)")
         ->execute(['v' => json_encode($save, JSON_UNESCAPED_UNICODE)]);
-    $save['symbol'] = MENA_PODPOROVANE[$save['kod']];
-    json_response(['ok' => true, 'config' => $save]);
+    json_response(['ok' => true, 'config' => mena_config_load($pdo)]);
 }
 
 // ── TRVALÝ přepočet ceníku ────────────────────────────────────────────
@@ -123,6 +111,10 @@ if ($action === 'prepocet') {
     $kurz = (float) ($d['kurz'] ?? 0);
     if ($kurz <= 0.0001 || $kurz > 10000) json_error('Neplatný kurz', 400);
     if (abs($kurz - 1.0) < 0.000001) json_error('Kurz 1 = žádná změna', 400);
+    $akt = mena_config_load($pdo);
+    $cil = strtoupper(trim((string) ($d['kod'] ?? $akt['kod'])));
+    if ($cil === 'CZK' || !isset(MENA_PODPOROVANE[$cil])) json_error('Vyber cílovou měnu (EUR, USD…) a ulož ji před přepočtem', 400);
+    if ($akt['zakladni'] !== 'CZK') json_error('Ceník už je přepočtený do ' . $akt['zakladni'], 400);
     $admin = function_exists('aktualni_admin') ? (aktualni_admin($pdo)['jmeno'] ?? 'Admin') : 'Admin';
     $pdo->beginTransaction();
     try {
@@ -140,8 +132,15 @@ if ($action === 'prepocet') {
             $pdo->prepare("INSERT INTO activity_log (kdo, akce, detail) VALUES (:kdo, 'mena_prepocet', :det)")
                 ->execute(['kdo' => $admin, 'det' => "Trvalý přepočet ceníku kurzem $kurz ($pocet výrobků)"]);
         } catch (Throwable $e) { /* ignore */ }
+        // Ceník je teď v cílové měně → config.zakladni = cíl (prodej i doklady jedou v ní, už se nedělí kurzem).
+        //   kurz zůstává = Kč za 1 jednotku (pro rekapitulaci DPH v Kč na dokladech).
+        $novy = ['kod' => $cil, 'kurz' => round($kurz, 4), 'zobrazeni' => 'mena', 'dual_doklady' => $akt['dual_doklady'],
+                 'kurz_zdroj' => $akt['kurz_zdroj'], 'zakladni' => $cil];
+        $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('mena_config_json', :v)
+                       ON DUPLICATE KEY UPDATE hodnota = VALUES(hodnota)")
+            ->execute(['v' => json_encode($novy, JSON_UNESCAPED_UNICODE)]);
         $pdo->commit();
-        json_response(['ok' => true, 'prepocteno' => $pocet, 'kurz' => $kurz]);
+        json_response(['ok' => true, 'prepocteno' => $pocet, 'kurz' => $kurz, 'config' => mena_config_load($pdo)]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         json_error_safe('Přepočet selhal', $e, 500);

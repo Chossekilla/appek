@@ -485,6 +485,11 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
             'sm'  => $f['odb_mesto_snapshot'] ?? null, 'sp' => $f['odb_psc_snapshot'] ?? null,
         ]);
         $dobId = (int) $pdo->lastInsertId();
+        require_once __DIR__ . '/_mena_lib.php';
+        // 💱 v3.0.640 — dobropis MUSÍ být ve stejné měně a kurzu jako opravovaná faktura
+        mena_snapshot_doklad($pdo, 'faktury', (int) $srcId);
+        $pdo->prepare("UPDATE faktury d JOIN faktury s ON s.id = ? SET d.mena = s.mena, d.mena_kurz = s.mena_kurz, d.mena_zaklad = s.mena_zaklad WHERE d.id = ?")
+            ->execute([(int) $srcId, $dobId]);
         $ins = $pdo->prepare("
             INSERT INTO faktura_polozky (faktura_id, vyrobek_id, vyrobek_cislo, vyrobek_nazev,
                                          jednotka, mnozstvi, cena_bez_dph, sazba_dph, poradi, vraci_polozku_id)
@@ -635,6 +640,8 @@ if ($method === 'POST') {
             'psc' => $odb['psc'],
         ]);
         $fa_id = (int) $pdo->lastInsertId();
+        require_once __DIR__ . '/_mena_lib.php';
+        mena_snapshot_doklad($pdo, 'faktury', $fa_id);   // 💱 v3.0.640 — měna dokladu = měna prodeje v okamžiku vystavení
 
         // Vlož položky
         $stmt = $pdo->prepare("

@@ -30,7 +30,12 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[m]));
-  const fmt = (n) => Number(n || 0).toFixed(2).replace('.', ',');
+  // 💱 v3.0.640 — přepočet na měnu prodeje (CFG.mena z index.php; delitel=1 po trvalém přepočtu)
+  const fmt = (n) => {
+    const m = CFG.mena;
+    const v = Number(n || 0) / ((m && m.zobrazeni === 'mena' && m.delitel > 0) ? m.delitel : 1);
+    return v.toFixed(2).replace('.', ',');
+  };
 
   // ─── API helper ──────────────────────────────────────────────
   async function api(path, opts = {}) {

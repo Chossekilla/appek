@@ -10,6 +10,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_email_token.php';
+require_once __DIR__ . '/_i18n.php';   // 🌍 v3.0.640 — e-mail v jazyce odběratele (= jazyk dokladu)
 cors_headers();
 require_admin();
 
@@ -54,29 +55,39 @@ $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 
 
 try {
     if ($typ === 'fa') {
-        $s = $pdo->prepare("SELECT cislo FROM faktury WHERE id = :id LIMIT 1");
+        $s = $pdo->prepare("SELECT cislo, odberatel_id, je_dobropis FROM faktury WHERE id = :id LIMIT 1");
         $s->execute(['id' => $id]);
-        $cislo = $s->fetchColumn();
+        $row = $s->fetch(PDO::FETCH_ASSOC) ?: [];
+        $cislo = $row['cislo'] ?? '';
         if (!$cislo) json_error('Faktura nenalezena', 404);
-        $nazev_souboru = 'Faktura-' . $cislo . '.pdf';
+        $L = doc_lang_resolve($pdo, (int) $row['odberatel_id']);
+        $jeDob = !empty($row['je_dobropis']);   // dobropis má vlastní názvosloví (dřív chodil jako „Faktura")
+        $nazev_souboru = _t_lang($L, $jeDob ? 'Dobropis-{cislo}.pdf' : 'Faktura-{cislo}.pdf', ['cislo' => $cislo]);
         $renderer = 'faktura.php';
-        $default_predmet = "Faktura $cislo · $firma_nazev";
+        $default_predmet = _t_lang($L, $jeDob ? 'Dobropis {cislo} · {firma}' : 'Faktura {cislo} · {firma}', ['cislo' => $cislo, 'firma' => $firma_nazev]);
+        $druh = $jeDob ? 'Dobropis' : 'Faktura';
     } elseif ($typ === 'dl') {
-        $s = $pdo->prepare("SELECT cislo FROM dodaci_listy WHERE id = :id LIMIT 1");
+        $s = $pdo->prepare("SELECT cislo, odberatel_id FROM dodaci_listy WHERE id = :id LIMIT 1");
         $s->execute(['id' => $id]);
-        $cislo = $s->fetchColumn();
+        $row = $s->fetch(PDO::FETCH_ASSOC) ?: [];
+        $cislo = $row['cislo'] ?? '';
         if (!$cislo) json_error('Dodací list nenalezen', 404);
-        $nazev_souboru = 'Dodaci-list-' . $cislo . '.pdf';
+        $L = doc_lang_resolve($pdo, (int) $row['odberatel_id']);
+        $nazev_souboru = _t_lang($L, 'Dodaci-list-{cislo}.pdf', ['cislo' => $cislo]);
         $renderer = 'dodaci_list.php';
-        $default_predmet = "Dodací list $cislo · $firma_nazev";
+        $default_predmet = _t_lang($L, 'Dodací list {cislo} · {firma}', ['cislo' => $cislo, 'firma' => $firma_nazev]);
+        $druh = 'Dodací list';
     } else { // obj
-        $s = $pdo->prepare("SELECT cislo FROM objednavky WHERE id = :id LIMIT 1");
+        $s = $pdo->prepare("SELECT cislo, odberatel_id FROM objednavky WHERE id = :id LIMIT 1");
         $s->execute(['id' => $id]);
-        $cislo = $s->fetchColumn();
+        $row = $s->fetch(PDO::FETCH_ASSOC) ?: [];
+        $cislo = $row['cislo'] ?? '';
         if (!$cislo) json_error('Objednávka nenalezena', 404);
-        $nazev_souboru = 'Objednavka-' . $cislo . '.pdf';
+        $L = doc_lang_resolve($pdo, (int) $row['odberatel_id']);
+        $nazev_souboru = _t_lang($L, 'Objednavka-{cislo}.pdf', ['cislo' => $cislo]);
         $renderer = 'dodaci_list.php';  // objednávka jde přes dodací list endpoint
-        $default_predmet = "Objednávka $cislo · $firma_nazev";
+        $default_predmet = _t_lang($L, 'Objednávka {cislo} · {firma}', ['cislo' => $cislo, 'firma' => $firma_nazev]);
+        $druh = 'Objednávka';
     }
 
     // 🔐 v2.9.164 — generuj signed token pro public e-mail link (vyhne se admin loginu pro odběratele)
@@ -172,8 +183,12 @@ function send_email_with_attachment(string $komu, string $predmet, string $html_
 }
 
 // === HTML šablona ===
-$typ_label = $typ === 'fa' ? 'faktury' : ($typ === 'dl' ? 'dodacího listu' : 'objednávky');
-$typ_label_velky = $typ === 'fa' ? 'Faktura' : ($typ === 'dl' ? 'Dodací list' : 'Objednávka');
+// 🌍 v3.0.640 — texty v jazyce odběratele ($L); celé věty z překladového slovníku (pády se liší)
+$vetaPriloha = ['Faktura' => 'V příloze najdete PDF faktury {cislo}.', 'Dobropis' => 'V příloze najdete PDF dobropisu {cislo}.',
+                'Dodací list' => 'V příloze najdete PDF dodacího listu {cislo}.', 'Objednávka' => 'V příloze najdete PDF objednávky {cislo}.'][$druh];
+$vetaOdkaz   = ['Faktura' => 'Fakturu {cislo} najdete zde:', 'Dobropis' => 'Dobropis {cislo} najdete zde:',
+                'Dodací list' => 'Dodací list {cislo} najdete zde:', 'Objednávka' => 'Objednávku {cislo} najdete zde:'][$druh];
+$typ_label_velky = _t_lang($L, $druh);
 
 $zprava_html = $zprava ? '<p>' . nl2br(htmlspecialchars($zprava)) . '</p>' : '';
 $zprava_plain = $zprava ? $zprava . "\n\n" : '';
@@ -183,28 +198,29 @@ $zprava_plain = $zprava ? $zprava . "\n\n" : '';
 // dostal e-mail bez přílohy a bez odkazu, slepá ulička.
 $has_attachment = $pdf_content !== null;
 $intro_html = $has_attachment
-    ? 'V příloze najdete PDF ' . htmlspecialchars($typ_label) . ' <strong>' . htmlspecialchars($cislo) . '</strong>.'
-    : htmlspecialchars($typ_label_velky) . ' <strong>' . htmlspecialchars($cislo) . '</strong> najdete zde: <a href="' . htmlspecialchars($pdf_url) . '" style="color:#BA7517;font-weight:600;text-decoration:underline">' . htmlspecialchars($pdf_url) . '</a>';
+    ? str_replace(htmlspecialchars($cislo), '<strong>' . htmlspecialchars($cislo) . '</strong>', htmlspecialchars(_t_lang($L, $vetaPriloha, ['cislo' => $cislo])))
+    : str_replace(htmlspecialchars($cislo), '<strong>' . htmlspecialchars($cislo) . '</strong>', htmlspecialchars(_t_lang($L, $vetaOdkaz, ['cislo' => $cislo])))
+      . ' <a href="' . htmlspecialchars($pdf_url) . '" style="color:#BA7517;font-weight:600;text-decoration:underline">' . htmlspecialchars($pdf_url) . '</a>';
 $intro_plain = $has_attachment
-    ? "v příloze najdete PDF $typ_label $cislo."
-    : "$typ_label_velky $cislo najdete zde: $pdf_url";
+    ? _t_lang($L, $vetaPriloha, ['cislo' => $cislo])
+    : _t_lang($L, $vetaOdkaz, ['cislo' => $cislo]) . ' ' . $pdf_url;
 
 $html_telo = '
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"></head>
+<html lang="' . $L . '"><head><meta charset="UTF-8"></head>
 <body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#f5f5f5;padding:20px">
   <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,0.05)">
     <h1 style="color:#BA7517;font-size:22px;margin:0 0 12px">' . htmlspecialchars($typ_label_velky) . ' ' . htmlspecialchars($cislo) . '</h1>
-    <p style="color:#666;font-size:14px;margin:0 0 20px">Dobrý den,</p>
+    <p style="color:#666;font-size:14px;margin:0 0 20px">' . htmlspecialchars(_t_lang($L, 'Dobrý den,')) . '</p>
     <p style="font-size:14px;line-height:1.6">' . $intro_html . '</p>
     ' . $zprava_html . '
     <p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #eee;font-size:13px;color:#888">
-      S pozdravem,<br><strong>' . htmlspecialchars($firma_nazev) . '</strong>
+      ' . htmlspecialchars(_t_lang($L, 'S pozdravem,')) . '<br><strong>' . htmlspecialchars($firma_nazev) . '</strong>
     </p>
   </div>
 </body></html>';
 
-$plain_telo = "Dobrý den,\n\n" . $intro_plain . "\n\n" . $zprava_plain . "S pozdravem,\n$firma_nazev";
+$plain_telo = _t_lang($L, 'Dobrý den,') . "\n\n" . $intro_plain . "\n\n" . $zprava_plain . _t_lang($L, 'S pozdravem,') . "\n$firma_nazev";
 
 // === Odeslání ===
 $odeslano = 0;

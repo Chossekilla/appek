@@ -107,7 +107,7 @@ function fmt(n) {
     return new Intl.NumberFormat('cs-CZ', {
       style: 'currency', currency: m.kod,
       minimumFractionDigits: 2, maximumFractionDigits: 2,
-    }).format((n || 0) / m.kurz);
+    }).format((n || 0) / (m.delitel > 0 ? m.delitel : m.kurz));   // v3.0.640 — po trvalém přepočtu delitel=1
   }
   return new Intl.NumberFormat('cs-CZ', {
     style: 'currency', currency: 'CZK',

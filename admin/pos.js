@@ -103,7 +103,7 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
   const fmt = (n) => {
     let v = Number(n || 0);
     const m = CFG.mena;
-    if (m && m.zobrazeni === 'mena' && m.kurz > 0) v = v / m.kurz;
+    if (m && m.zobrazeni === 'mena' && m.kurz > 0) v = v / (m.delitel > 0 ? m.delitel : m.kurz);   // v3.0.640
     return v.toFixed(2).replace('.', ',');
   };
 

@@ -121,6 +121,8 @@ try {
         'ul' => $odb['ulice'], 'me' => $odb['mesto'], 'psc' => $odb['psc'],
     ]);
     $fa_id = (int) $pdo->lastInsertId();
+    require_once __DIR__ . '/_mena_lib.php';
+    mena_snapshot_doklad($pdo, 'faktury', $fa_id);   // 💱 v3.0.640 — měna dokladu = měna prodeje v okamžiku vystavení
 
     // Naváž všechny DL na fakturu + označ jako fakturované
     $link = $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f, :d)");

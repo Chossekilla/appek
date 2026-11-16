@@ -162,6 +162,7 @@ function pr_align(string $a): string {
     return PR_ESC . 'a' . chr($code);
 }
 function pr_bold(bool $on): string { return PR_ESC . 'E' . chr($on ? 1 : 0); }
+function pr_underline(int $n): string { return PR_ESC . '-' . chr(max(0, min(2, $n))); }  // ESC - n: 0 vyp, 1/2 tečky
 function pr_size(int $w = 1, int $h = 1): string {
     $w = max(1, min(8, $w)); $h = max(1, min(8, $h));
     return PR_GS . '!' . chr((($w - 1) << 4) | ($h - 1));
@@ -220,13 +221,21 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
     }
     $out .= pr_hr($w);
 
+    // 💱 v3.0.640 — účtenka v měně prodeje (snapshot objednávky); € tiskárny v cp852 neumí → kód měny
+    $kM = 1.0; $symM = 'Kč'; $menaM = 'CZK';
+    try {
+        require_once __DIR__ . '/_mena_lib.php';
+        $mm = mena_doklad(db(), 'objednavky', $order);
+        $kM = (float) $mm['k_doklad']; $menaM = $mm['mena']; $symM = $menaM === 'CZK' ? 'Kč' : $menaM;
+    } catch (Throwable $e) { /* Kč */ }
+
     foreach (($order['polozky'] ?? []) as $p) {
         $nm  = (string)($p['vyrobek_nazev'] ?? '?');
         $mn  = (int)($p['mnozstvi'] ?? 1);
         $cena = (float)($p['cena_celkem'] ?? ($p['cena_bez_dph'] ?? 0) * $mn);
         // Řádek: "2× Espresso          50.00"
         $prefix = $mn . '× ';
-        $price = sprintf('%.2f', $cena);
+        $price = sprintf('%.2f', round($cena * $kM, 2));
         $maxNm = $w - mb_strlen($prefix, 'UTF-8') - mb_strlen($price, 'UTF-8') - 1;
         $nmShort = mb_strimwidth($nm, 0, $maxNm, '..', 'UTF-8');
         $out .= pr_text(pr_two_col($prefix . $nmShort, $price, $w), $enc);
@@ -234,7 +243,7 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
 
     $out .= pr_hr($w, '=');
     $out .= pr_bold(true) . pr_size(1, 2);
-    $celk = sprintf('CELKEM: %.2f Kč', (float)($order['castka_celkem'] ?? 0));
+    $celk = sprintf('CELKEM: %.2f %s', round((float)($order['castka_celkem'] ?? 0) * $kM, 2), $symM);
     $out .= pr_text(str_pad($celk, $w, ' ', STR_PAD_LEFT) . "\n", $enc);
     $out .= pr_size() . pr_bold(false);
     // 💱 v3.0.283 — informativní přepočet na cílovou měnu (mena_config_json, dual_doklady)
@@ -242,7 +251,7 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
         $mcSt = db()->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'mena_config_json'");
         $mcSt->execute();
         $mc = json_decode((string) $mcSt->fetchColumn(), true);
-        if (is_array($mc) && !empty($mc['dual_doklady']) && ($mc['kod'] ?? 'CZK') !== 'CZK' && (float) ($mc['kurz'] ?? 0) > 0) {
+        if ($menaM === 'CZK' && is_array($mc) && !empty($mc['dual_doklady']) && ($mc['kod'] ?? 'CZK') !== 'CZK' && (float) ($mc['kurz'] ?? 0) > 0) {
             $prep = sprintf('= %.2f %s (kurz %.3f)', (float) ($order['castka_celkem'] ?? 0) / (float) $mc['kurz'], $mc['kod'], (float) $mc['kurz']);
             $out .= pr_text(str_pad($prep, $w, ' ', STR_PAD_LEFT) . "\n", $enc);
         }
@@ -252,7 +261,7 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
         $out .= pr_text(pr_two_col('Platba:', (string)$order['pos_payment'], $w), $enc);
     }
     if (!empty($order['pos_tip']) && (float)$order['pos_tip'] > 0) {
-        $out .= pr_text(pr_two_col('Spropitné:', sprintf('%.2f Kč', $order['pos_tip']), $w), $enc);
+        $out .= pr_text(pr_two_col('Spropitné:', sprintf('%.2f %s', round((float) $order['pos_tip'] * $kM, 2), $symM), $w), $enc);
     }
 
     $out .= pr_feed(1) . pr_align('C');

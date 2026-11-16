@@ -377,6 +377,7 @@ try {
                 'psc' => $odb['psc'],
             ]);
             $dl_id = (int) $pdo->lastInsertId();
+            require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'dodaci_listy', $dl_id);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
 
             // Vlož položky
             $stmt = $pdo->prepare("

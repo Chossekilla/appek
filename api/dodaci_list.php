@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_i18n.php';      // 🌍 v3.0.640 — jazyk dokladu (cs/en/es)
+require_once __DIR__ . '/_mena_lib.php';  // 💱 v3.0.640 — měna dokladu (snapshot)
 session_secure_start(); // 🔒 v3.0.349 — start session PŘED B2B gate (jinak $_SESSION prázdné → i vlastník DL 401)
 
 // 🆕 v2.9.164 — public access přes signed token z e-mailu (alternativa k admin login).
@@ -97,9 +99,11 @@ function nacti_dl_z_objednavky(PDO $pdo, int $id): ?array {
         ");
         $stmt->execute(['id' => $id]);
         $polozky = $stmt->fetchAll();
-        $cislo_dl = 'DL-' . date('Y', strtotime($o['datum_dodani'])) . '-XXXX (náhled)';
+        $cislo_dl = 'DL-' . date('Y', strtotime($o['datum_dodani'])) . '-XXXX (' . _t_lang(doc_lang_resolve($pdo, (int) $o['odberatel_id'], $_GET['lang'] ?? null), 'náhled') . ')';
     }
-    return ['o' => $o, 'polozky' => $polozky, 'cislo_dl' => $cislo_dl];
+    $mena = mena_doklad($pdo, 'objednavky', $o);   // 💱 DL k objednávce = měna objednávky
+    return ['o' => $o, 'polozky' => $polozky, 'cislo_dl' => $cislo_dl, 'mena' => $mena,
+            'lang' => doc_lang_resolve($pdo, (int) $o['odberatel_id'], $_GET['lang'] ?? null)];
 }
 
 function nacti_dl_primo(PDO $pdo, int $dl_id): ?array {
@@ -148,7 +152,16 @@ function nacti_dl_primo(PDO $pdo, int $dl_id): ?array {
         'misto_tel'    => $dl['misto_tel'],
         'poznamka'     => $dl['poznamka'] ?? null,
     ];
-    return ['o' => $o, 'polozky' => $polozky, 'cislo_dl' => $cislo_dl];
+    // 💱 DL s objednávkou dědí její měnu, ruční DL má vlastní snapshot
+    if (!empty($dl['objednavka_id'])) {
+        $oq = $pdo->prepare("SELECT id, mena, mena_kurz, mena_zaklad FROM objednavky WHERE id = ?");
+        $oq->execute([(int) $dl['objednavka_id']]);
+        $mena = mena_doklad($pdo, 'objednavky', $oq->fetch() ?: ['id' => 0]);
+    } else {
+        $mena = mena_doklad($pdo, 'dodaci_listy', $dl);
+    }
+    return ['o' => $o, 'polozky' => $polozky, 'cislo_dl' => $cislo_dl, 'mena' => $mena,
+            'lang' => doc_lang_resolve($pdo, (int) $dl['odberatel_id'], $_GET['lang'] ?? null)];
 }
 
 function pripravit_dl_render(array $data): array {
@@ -156,7 +169,7 @@ function pripravit_dl_render(array $data): array {
     $polozky = $data['polozky'];
     $cislo_dl = $data['cislo_dl'];
 
-    $datum = date('j. n. Y', strtotime($o['datum_dodani']));
+    $datum = $o['datum_dodani'];   // formátuje šablona podle jazyka dokladu
     $misto = $o['misto_nazev']
         ? $o['misto_nazev'] . ', ' . trim($o['misto_ulice'] . ', ' . $o['misto_mesto'] . ' ' . $o['misto_psc'], ' ,')
         : trim($o['odb_ulice'] . ', ' . $o['odb_mesto'] . ' ' . $o['odb_psc'], ' ,');
@@ -171,6 +184,7 @@ function pripravit_dl_render(array $data): array {
         'o' => $o, 'polozky' => $polozky, 'cislo_dl' => $cislo_dl,
         'datum' => $datum, 'misto' => $misto,
         'celkem_ks' => $celkem_ks, 'celkem_kc' => $celkem_kc,
+        'mena' => $data['mena'], 'lang' => $data['lang'],
     ];
 }
 
@@ -230,6 +244,7 @@ $celkem_ks = $dl_render[0]['celkem_ks'];
 $celkem_kc = $dl_render[0]['celkem_kc'];
 
 $bulk_count = count($dl_render);
+doc_lang_set($dl_render[0]['lang']);
 $autoprint = !empty($_GET['autoprint']);
 
 // 🆕 v2.9.171 — pokud user otevřel odkaz z e-mailu typu 'obj', titulek dokumentu
@@ -237,14 +252,15 @@ $autoprint = !empty($_GET['autoprint']);
 // Bez tokenu (admin view) zůstává "dodací list" jako historicky.
 $_is_objednavka_view = (isset($_token_typ) && $_token_typ === 'obj');
 $_titulek_nazev = $_is_objednavka_view ? 'Objednávka' : 'Dodací list';
-$_titulek_slovo_2pad = $_is_objednavka_view ? 'objednávky' : 'dodacího listu';
+// 🐛 v3.0.640 — dřív „Tisk 5 dodacího listu" (genitiv jednotného čísla) → celé fráze z překladů
 $_cislo_zobrazit = $_is_objednavka_view ? ($o['cislo'] ?: $cislo_dl) : $cislo_dl;
 ?>
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="<?= esc(doc_lang()) ?>">
 <head>
 <meta charset="UTF-8">
-<title><?= $bulk_count > 1 ? 'Tisk ' . $bulk_count . ' ' . esc($_titulek_slovo_2pad) : esc($_cislo_zobrazit) . ' - ' . strtolower($_titulek_nazev) ?></title>
+<title><?= $bulk_count > 1 ? esc(_t($_is_objednavka_view ? 'Tisk {n} objednávek' : 'Tisk {n} dodacích listů', ['n' => $bulk_count]))
+                          : esc(_t($_is_objednavka_view ? '{cislo} - objednávka' : '{cislo} - dodací list', ['cislo' => $_cislo_zobrazit])) ?></title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Helvetica Neue',Arial,sans-serif;color:#2C2C2A;background:#f5f5f0;padding:20px}
@@ -334,13 +350,13 @@ $_cislo_zobrazit = $_is_objednavka_view ? ($o['cislo'] ?: $cislo_dl) : $cislo_dl
 <div class="toolbar">
   <span class="info">
     <?php if ($bulk_count > 1): ?>
-      📦 <strong>Hromadný tisk <?= $bulk_count ?> <?= esc($_titulek_slovo_2pad) ?></strong> · v dialogu „Uložit jako PDF" pro 1 PDF s více stránkami
+      📦 <strong><?= esc(_t($_is_objednavka_view ? 'Hromadný tisk {n} objednávek' : 'Hromadný tisk {n} dodacích listů', ['n' => $bulk_count])) ?></strong> · <?= esc(_t('v dialogu „Uložit jako PDF" pro 1 PDF s více stránkami')) ?>
     <?php else: ?>
-      💡 Pro PDF klikněte „Tisk" → v dialogu „Uložit jako PDF"
+      💡 <?= esc(_t('Pro PDF klikněte „Tisk" → v dialogu „Uložit jako PDF"')) ?>
     <?php endif; ?>
   </span>
-  <button class="btn" onclick="window.history.back()">← Zpět</button>
-  <button class="btn btn-primary" onclick="window.print()">🖨 Tisk / Uložit PDF</button>
+  <button class="btn" onclick="window.history.back()"><?= esc(_t('← Zpět')) ?></button>
+  <button class="btn btn-primary" onclick="window.print()"><?= esc(_t('🖨 Tisk / Uložit PDF')) ?></button>
 </div>
 <?php foreach ($dl_render as $idx => $dlr):
     $o = $dlr['o'];
@@ -350,6 +366,9 @@ $_cislo_zobrazit = $_is_objednavka_view ? ($o['cislo'] ?: $cislo_dl) : $cislo_dl
     $misto = $dlr['misto'];
     $celkem_ks = $dlr['celkem_ks'];
     $celkem_kc = $dlr['celkem_kc'];
+    doc_lang_set($dlr['lang']);
+    doc_mena_set($dlr['mena']);
+    $_cislo_zobrazit = $_is_objednavka_view ? ($o['cislo'] ?: $cislo_dl) : $cislo_dl;
 ?>
 <div class="page">
   <div class="header">
@@ -359,68 +378,68 @@ $_cislo_zobrazit = $_is_objednavka_view ? ($o['cislo'] ?: $cislo_dl) : $cislo_dl
             if ($logoUrl): ?>
         <img src="<?= esc($logoUrl) ?>" style="max-height:18mm;max-width:60mm;margin-bottom:6mm;object-fit:contain" alt="Logo">
       <?php endif; ?>
-      <h1><?= esc($_titulek_nazev) ?></h1>
-      <div class="cislo">č. <strong><?= esc($_cislo_zobrazit) ?></strong></div>
+      <h1><?= esc(_t($_titulek_nazev)) ?></h1>
+      <div class="cislo"><?= esc(_t('č.')) ?> <strong><?= esc($_cislo_zobrazit) ?></strong></div>
     </div>
     <div class="firma">
       <div class="nazev"><?= esc(firma('nazev', 'APPEK B2B')) ?></div>
       <?php if (firma('ulice')): ?><div><?= esc(firma('ulice')) ?></div><?php endif; ?>
       <?php if (firma('mesto') || firma('psc')): ?><div><?= esc(trim(firma('mesto') . ' ' . firma('psc'))) ?></div><?php endif; ?>
-      <?php if (firma('ico')): ?><div>IČO: <?= esc(firma('ico')) ?></div><?php endif; ?>
-      <?php if (firma('dic')): ?><div>DIČ: <?= esc(firma('dic')) ?></div><?php endif; ?>
+      <?php if (firma('ico')): ?><div><?= esc(_t('IČO')) ?>: <?= esc(firma('ico')) ?></div><?php endif; ?>
+      <?php if (firma('dic')): ?><div><?= esc(_t('DIČ')) ?>: <?= esc(firma('dic')) ?></div><?php endif; ?>
     </div>
   </div>
   <div class="parties">
     <div>
-      <h3>Odběratel</h3>
+      <h3><?= esc(_t('Odběratel')) ?></h3>
       <div class="name"><?= esc($o['odb_nazev']) ?></div>
       <div class="row">
         <?php if ($o['odb_ulice']): ?><?= esc($o['odb_ulice']) ?><br><?php endif; ?>
         <?php if ($o['odb_mesto'] || $o['odb_psc']): ?><?= esc(trim($o['odb_mesto'] . ' ' . $o['odb_psc'])) ?><br><?php endif; ?>
-        <?php if ($o['ico']): ?>IČO: <?= esc($o['ico']) ?><br><?php endif; ?>
-        <?php if ($o['dic']): ?>DIČ: <?= esc($o['dic']) ?><?php endif; ?>
+        <?php if ($o['ico']): ?><?= esc(_t('IČO')) ?>: <?= esc($o['ico']) ?><br><?php endif; ?>
+        <?php if ($o['dic']): ?><?= esc(_t('DIČ')) ?>: <?= esc($o['dic']) ?><?php endif; ?>
       </div>
     </div>
     <div>
-      <h3>Místo dodání</h3>
+      <h3><?= esc(_t('Místo dodání')) ?></h3>
       <div class="row">
         <?= esc($misto) ?>
-        <?php if ($o['misto_kontakt']): ?><br>Kontakt: <?= esc($o['misto_kontakt']) ?><?php endif; ?>
-        <?php if ($o['misto_tel']): ?>, tel. <?= esc($o['misto_tel']) ?><?php endif; ?>
+        <?php if ($o['misto_kontakt']): ?><br><?= esc(_t('Kontakt')) ?>: <?= esc($o['misto_kontakt']) ?><?php endif; ?>
+        <?php if ($o['misto_tel']): ?>, <?= esc(_t('tel.')) ?> <?= esc($o['misto_tel']) ?><?php endif; ?>
       </div>
     </div>
   </div>
   <div class="info-box">
-    <div><div class="lbl">Datum dodání</div><div class="val"><?= esc($datum) ?></div></div>
-    <div><div class="lbl">Č. objednávky</div><div class="val"><?= esc($o['cislo']) ?></div></div>
-    <div><div class="lbl">Počet kusů</div><div class="val"><?= fmt_ks($celkem_ks) ?> ks</div></div>
+    <div><div class="lbl"><?= esc(_t('Datum dodání')) ?></div><div class="val"><?= _fmt_date_loc($datum) ?></div></div>
+    <div><div class="lbl"><?= esc(_t('Č. objednávky')) ?></div><div class="val"><?= esc($o['cislo']) ?></div></div>
+    <div><div class="lbl"><?= esc(_t('Počet kusů')) ?></div><div class="val"><?= _fmt_qty_loc($celkem_ks) ?> <?= esc(_unit_loc('ks')) ?></div></div>
   </div>
   <table class="items">
-    <thead><tr><th style="width:18mm">Kód</th><th>Výrobek</th><th class="num" style="width:24mm">Množství</th><th class="num" style="width:26mm">Cena/ks</th><th class="num" style="width:30mm">Celkem</th></tr></thead>
+    <thead><tr><th style="width:18mm"><?= esc(_t('Kód')) ?></th><th><?= esc(_t('Výrobek')) ?></th><th class="num" style="width:24mm"><?= esc(_t('Množství')) ?></th><th class="num" style="width:26mm"><?= esc(_t('Cena/ks')) ?></th><th class="num" style="width:30mm"><?= esc(_t('Celkem')) ?></th></tr></thead>
     <tbody>
       <?php foreach ($polozky as $p): $cena = $p['cena_bez_dph'] * $p['mnozstvi']; ?>
         <tr>
           <td><?= esc($p['vyrobek_cislo']) ?></td>
           <td><strong><?= esc($p['vyrobek_nazev']) ?></strong></td>
-          <td class="num"><?= fmt_ks($p['mnozstvi']) ?> <?= esc($p['jednotka'] ?? 'ks') ?></td>
-          <td class="num"><?= fmt_kc($p['cena_bez_dph']) ?></td>
-          <td class="num"><strong><?= fmt_kc($cena) ?></strong></td>
+          <td class="num"><?= _fmt_qty_loc($p['mnozstvi']) ?> <?= esc(_unit_loc($p['jednotka'] ?? 'ks')) ?></td>
+          <td class="num"><?= doc_money($p['cena_bez_dph']) ?></td>
+          <td class="num"><strong><?= doc_money($cena) ?></strong></td>
         </tr>
       <?php endforeach; ?>
     </tbody>
   </table>
   <div class="summary">
-    <div class="summary-row total"><span>Celkem bez DPH</span><span><?= fmt_kc($celkem_kc) ?></span></div>
+    <div class="summary-row total"><span><?= esc(_t('Celkem bez DPH')) ?></span><span><?= doc_money($celkem_kc) ?></span></div>
   </div>
   <div style="clear:both"></div>
-  <?php if ($o['poznamka']): ?><div class="pozn"><strong>Poznámka:</strong> <?= esc($o['poznamka']) ?></div><?php endif; ?>
+  <?php if ($o['poznamka']): ?><div class="pozn"><strong><?= esc(_t('Poznámka')) ?>:</strong> <?= esc($o['poznamka']) ?></div><?php endif; ?>
   <div class="signatures">
     <?php if ($_is_objednavka_view): ?>
-      <div class="sig-line">Vystavil (dodavatel)</div>
-      <div class="sig-line">Objednatel (odběratel)</div>
+      <div class="sig-line"><?= esc(_t('Vystavil (dodavatel)')) ?></div>
+      <div class="sig-line"><?= esc(_t('Objednatel (odběratel)')) ?></div>
     <?php else: ?>
-      <div class="sig-line">Vystavil (dodavatel)</div>
-      <div class="sig-line">Převzal (odběratel)</div>
+      <div class="sig-line"><?= esc(_t('Vystavil (dodavatel)')) ?></div>
+      <div class="sig-line"><?= esc(_t('Převzal (odběratel)')) ?></div>
     <?php endif; ?>
   </div>
   <div class="foot">
@@ -433,20 +452,20 @@ $_cislo_zobrazit = $_is_objednavka_view ? ($o['cislo'] ?: $cislo_dl) : $cislo_dl
     <?php if ($tel || $em || $web): ?>
       <div class="foot-row">
         <?php if ($tel): ?>
-          <div class="foot-cell"><div class="lbl">Telefon</div><div class="val"><?= esc($tel) ?></div></div>
+          <div class="foot-cell"><div class="lbl"><?= esc(_t('Telefon')) ?></div><div class="val"><?= esc($tel) ?></div></div>
         <?php endif; ?>
         <?php if ($em): ?>
-          <div class="foot-cell"><div class="lbl">E-mail</div><div class="val"><?= esc($em) ?></div></div>
+          <div class="foot-cell"><div class="lbl"><?= esc(_t('E-mail')) ?></div><div class="val"><?= esc($em) ?></div></div>
         <?php endif; ?>
         <?php if ($web): ?>
-          <div class="foot-cell"><div class="lbl">Web</div><div class="val"><?= esc($web) ?></div></div>
+          <div class="foot-cell"><div class="lbl"><?= esc(_t('Web')) ?></div><div class="val"><?= esc($web) ?></div></div>
         <?php endif; ?>
       </div>
     <?php endif; ?>
     <?php if ($pati): ?>
       <div class="foot-custom"><?= esc($pati) ?></div>
     <?php endif; ?>
-    <div class="foot-meta">Vytištěno <?= date('j. n. Y H:i') ?> · <?= esc(firma('nazev', 'APPEK B2B')) ?></div>
+    <div class="foot-meta"><?= esc(_t('Vytištěno')) ?> <?= _fmt_date_loc(time(), null, true) ?> · <?= esc(firma('nazev', 'APPEK B2B')) ?></div>
   </div>
 </div>
 <?php endforeach; ?>

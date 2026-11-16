@@ -334,6 +334,15 @@ window.editOdberatel = async function(id = null) {
           </select>
         </div>
         <div>
+          <label class="form-label">🌍 Jazyk dokladů</label>
+          <select class="form-input" id="od-jazyk-dokladu" title="Faktury, dobropisy, dodací listy a e-maily s nimi">
+            <option value="">— výchozí firmy —</option>
+            <option value="cs" ${o.jazyk_dokladu === 'cs' ? 'selected' : ''}>Čeština</option>
+            <option value="en" ${o.jazyk_dokladu === 'en' ? 'selected' : ''}>English</option>
+            <option value="es" ${o.jazyk_dokladu === 'es' ? 'selected' : ''}>Español</option>
+          </select>
+        </div>
+        <div>
           <label class="form-label">🧾 Slevová skupina</label>
           <select class="form-input" id="od-skupina">${skupinyOptions}</select>
         </div>
@@ -519,6 +528,7 @@ window.ulozitOdberatele = async function(id) {
     notif_emaily: document.getElementById('od-notif')?.checked ? 1 : 0,
     poznamka: document.getElementById('od-pozn').value || null,
     typ: document.getElementById('od-typ')?.value || null,
+    jazyk_dokladu: document.getElementById('od-jazyk-dokladu')?.value || null,
   };
   const heslo = document.getElementById('od-heslo').value;
   if (heslo) data.heslo = heslo;

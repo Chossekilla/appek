@@ -155,7 +155,13 @@ $csrfToken  = csrf_token();
     csrfToken:  <?= json_encode($csrfToken) ?>,
     apiBase:    '/api/',
     locale:     'cs-CZ',
-    currency:   'Kč',
+    <?php // 💱 v3.0.640 — stejná měna prodeje jako /admin/pos.php (dřív tu bylo natvrdo Kč)
+      $menaCfg = ['kod' => 'CZK', 'symbol' => 'Kč', 'kurz' => 1, 'zobrazeni' => 'kc', 'delitel' => 1];
+      try { require_once __DIR__ . '/../api/_mena_lib.php'; $mc = mena_config_load(db());
+            $menaCfg = ['kod' => $mc['kod'], 'symbol' => $mc['symbol'], 'kurz' => $mc['kurz'], 'zobrazeni' => $mc['zobrazeni'], 'delitel' => $mc['delitel']];
+      } catch (Throwable $e) { /* default Kč */ } ?>
+    currency:   <?= json_encode($menaCfg['zobrazeni'] === 'mena' ? $menaCfg['symbol'] : 'Kč') ?>,
+    mena:       <?= json_encode($menaCfg) ?>,
   };
 </script>
 </head>

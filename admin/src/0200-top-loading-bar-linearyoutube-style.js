@@ -42,15 +42,18 @@ function fmtQty(n) {
 function fmt(n) {
   // 🌍 T4 — locale-aware formátování měny. Default cs-CZ/CZK, ale respektuje getCurrentLocale().
   // 💱 v3.0.283 — display přepočet na cílovou měnu (Nastavení → Přístupy & ceny → Měna).
-  //   DB hodnoty jsou VŽDY v Kč; při zobrazeni='mena' se dělí kurzem a formátuje cílovou měnou.
+  //   v3.0.640: dělí se `delitel` ze serveru (= kurz, dokud je ceník v Kč; 1 po trvalém přepočtu
+  //   → žádný dvojí přepočet). Bez cílové měny je částka VŽDY v Kč — jazyk rozhraní mění jen
+  //   formát čísla (dřív angličtina vypsala „£" / „€" u korunových částek).
   try {
     const m = window._menaCfg;
     if (m && m.zobrazeni === 'mena' && m.kod !== 'CZK' && m.kurz > 0) {
-      return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: m.kod, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((n || 0) / m.kurz);
+      const del = m.delitel > 0 ? m.delitel : m.kurz;
+      return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: m.kod, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((n || 0) / del);
     }
     const cfg = (typeof window.getCurrentLocale === 'function') ? window.getCurrentLocale() : null;
     const locale   = (cfg && cfg.locale)   || 'cs-CZ';
-    const currency = (cfg && cfg.currency) || 'CZK';
+    const currency = (m && m.zakladni) || 'CZK';
     return new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
   } catch (e) {
     return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: 'CZK', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);

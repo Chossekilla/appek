@@ -600,6 +600,7 @@ if ($method === 'POST') {
                 'ip' => $d['interni_pozn'] ?? null,
             ]);
             $obj_id = (int) $pdo->lastInsertId();
+            require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $obj_id);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
 
             $stmt = $pdo->prepare("
                 INSERT INTO objednavky_polozky

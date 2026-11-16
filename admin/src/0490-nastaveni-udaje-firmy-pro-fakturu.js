@@ -125,6 +125,15 @@ async function _renderNastaveniInner() {
             <textarea class="form-input" id="ns-paticka" rows="3" placeholder="APPEK B2B s.r.o. · tel: ... · web: ...">${esc(n.firma_paticka_dokladu || '')}</textarea>
             <small style="color:var(--text-3);font-size:12px;display:block;margin-top:4px;">Zobrazí se na konci faktury a dodacího listu. Více řádků = Enter.</small>
           </div>
+          <div class="full">
+            <label class="form-label">🌍 Výchozí jazyk dokladů</label>
+            <select class="form-input" id="ns-jazyk-dokladu">
+              <option value="cs" ${(n.firma_jazyk_dokladu || 'cs') === 'cs' ? 'selected' : ''}>Čeština</option>
+              <option value="en" ${n.firma_jazyk_dokladu === 'en' ? 'selected' : ''}>English</option>
+              <option value="es" ${n.firma_jazyk_dokladu === 'es' ? 'selected' : ''}>Español</option>
+            </select>
+            <small style="color:var(--text-3);font-size:12px;display:block;margin-top:4px;">Faktury, dobropisy, dodací listy a e-maily s nimi. U odběratele lze nastavit jiný jazyk (Odběratelé → upravit → Jazyk dokladů). Měna dokladů se řídí nastavením Měna.</small>
+          </div>
         </div>
       </div>
 

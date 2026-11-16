@@ -346,6 +346,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'gsat' => !empty($data['gdpr_souhlas']) ? date('Y-m-d H:i:s') : null,
         ]);
         $obj_id = (int) $pdo->lastInsertId();
+        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $obj_id);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
 
         // Vlož položky (🆕 v3.0.272 — vyrobek_nazev kvůli volným řádkům příplatků s vyrobek_id=NULL)
         $stmt = $pdo->prepare("

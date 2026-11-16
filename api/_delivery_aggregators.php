@@ -901,6 +901,7 @@ function da_handle_inbound_order(string $sluzba, array $parsed): array {
         $sql = "INSERT INTO objednavky (" . implode(',', $fields) . ") VALUES (" . implode(',', $vals) . ")";
         $pdo->prepare($sql)->execute($params);
         $objId = (int) $pdo->lastInsertId();
+        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
 
         // 3) Položky — 🐛 v3.0.624: dřív INSERT do neexistujících sloupců cena_ks/cena → povinné cena_bez_dph/sazba_dph
         //   chyběly → KAŽDÁ položka tiše přeskočena (catch) → objednávka z platformy byla PRÁZDNÁ (bez kuchyně, bez odpisu).

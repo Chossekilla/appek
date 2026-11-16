@@ -1593,6 +1593,7 @@ if ($method === 'POST' && $action === 'quick_order') {
             try {
                 $st->execute(array_merge(['cislo' => $cislo], $headerParams));
                 $objId = (int)$pdo->lastInsertId();
+                require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
                 break;
             } catch (PDOException $e) {
                 $dup = ($e->getCode() === '23000') || (isset($e->errorInfo[1]) && (int)$e->errorInfo[1] === 1062);
@@ -1917,7 +1918,7 @@ function pos_ucet_create_sale(PDO $pdo, int $ucetId, ?string $pokladna = null): 
         for ($a = 0; $a < 5; $a++) {
             try {
                 $ins->execute(['c'=>$cislo,'ob'=>(int)$walkin,'dt'=>$datum,'dd'=>date('Y-m-d', strtotime($datum)),'bd'=>$bez,'d'=>$dph,'cel'=>$celkem,'pp'=>$pos_payment,'uz'=>($ucet['otevrel_jmeno'] ?: 'POS'),'poz'=>$poz,'pk'=>$pokladna]);
-                $objId = (int) $pdo->lastInsertId(); break;
+                $objId = (int) $pdo->lastInsertId(); require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId); /* 💱 v3.0.640 — měna prodeje v okamžiku vzniku */ break;
             } catch (PDOException $e) {
                 if ((int)($e->errorInfo[1] ?? 0) === 1062 && $a < 4) {
                     // 🐛 v3.0.336 — ROOT CAUSE „Duplicate entry 'POS-…'": check-then-insert race.
@@ -2287,6 +2288,7 @@ if ($method === 'POST' && $action === 'refund_order') {
             'pk'  => $o['pokladna'] ?? null, // 🆕 vratka zdědí pokladnu původní účtenky → per-kasa uzávěrka nettuje refundy
         ]);
         $rid = (int) $pdo->lastInsertId();
+        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $rid);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
         $insP = $pdo->prepare("
             INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph, vraci_polozku_id)
             VALUES (:o,:v,:n,:j,:m,:c,:s,:vp)");
