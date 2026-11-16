@@ -450,6 +450,7 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
   table.items th{background:#F1EFE8;padding:3.5mm 4mm;text-align:left;font-size:9pt;color:#888;text-transform:uppercase;border-bottom:1px solid #aaa;font-weight:500;letter-spacing:.5px}
   table.items td{padding:3.5mm 4mm;border-bottom:1px solid #E5E3DD;font-size:10pt}
   table.items td.num,table.items th.num{text-align:right}
+  table.items td.num,.dph-table td.num{white-space:nowrap}   /* částka + měna na jednom řádku */
   table.items .sub{font-size:9pt;color:#888}
   .bottom{display:grid;grid-template-columns:1fr 1fr;gap:8mm;margin-top:6mm}
   .dph-table{width:100%;border-collapse:collapse}

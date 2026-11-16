@@ -462,7 +462,7 @@ window.noOpakovatZeZdroje = async function(source, id) {
   noState.interni_poznamka = `Znovu objednáno z ${Z.label} ${cislo}`;   // NE poznamka — ta jde zákazníkovi v e-mailu
   noState.zdroj = { typ: source, id, cislo, label: Z.label, odberatel_id: odberatelId, mistoZdroj,
     nedostupne: r.nedostupne, zmenaJednotky: r.zmenaJednotky, sloucene: r.sloucene,
-    volne: volne.map(p => ({ nazev: p.vyrobek_nazev || '—' })),
+    volne: [...new Set(volne.map(p => p.vyrobek_nazev || '—'))].map(nazev => ({ nazev })),
     pocetDl: source === 'fa' ? (doklad.dodaci_listy || []).length : 0,
     dobropisy: source === 'fa' ? (doklad.dobropisy || []).map(d => d.cislo) : [] };
   vykreslitNovouObjednavku();

@@ -56,7 +56,7 @@ function _surCenyHtml() {
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;cursor:pointer">
       <input type="checkbox" ${force ? 'checked' : ''} ${ro || blok ? 'disabled' : ''} onchange="state._surCenyForce=this.checked;_surCenyRender()"> Přepsat i ručně zadané ceny (vyberte je jednotlivě)</label>
     ${radky.length ? `<div style="max-height:50vh;overflow:auto;border:1px solid var(--border);border-radius:6px">
-      <table class="table" style="margin:0;font-size:13px;min-width:560px">
+      <table class="table" style="margin:0;font-size:13px">
         <thead><tr><th style="width:28px"></th><th>Surovina</th><th>Rozpoznáno jako</th><th class="num">Aktuální</th><th class="num">Návrh</th><th class="num">Změna</th></tr></thead>
         <tbody>${tr}</tbody></table></div>`
       : '<div class="empty-state" style="padding:24px">Žádná surovina k doplnění — všechny rozpoznané už cenu mají.</div>'}
