@@ -79,7 +79,7 @@ async function renderCouriers() {
                     ${!parseInt(c.aktivni) ? '<span style="background:#FEE2E2;color:#991B1B;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:600">Neaktivní</span>' : ''}
                   </strong>
                   ${c.externi ? `<div style="font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase">${esc(c.externi_sluzba)}</div>` : ''}
-                  ${c.telefon ? `<div style="font-size:11.5px;margin-top:4px">📞 <a href="tel:${esc(c.telefon)}">${esc(c.telefon)}</a></div>` : ''}
+                  ${c.telefon ? `<div style="font-size:11.5px;margin-top:4px">📞 ${makeCallLink(c.telefon) ? `<a href="${esc(makeCallLink(c.telefon))}">${esc(c.telefon)}</a>` : esc(c.telefon)}</div>` : ''}
                   ${c.vozidlo ? `<div style="font-size:11.5px;color:var(--text-3)">🚗 ${esc(c.vozidlo)}${c.spz ? ' · ' + esc(c.spz) : ''}</div>` : ''}
                   ${c.zona_obslazi ? `<div style="font-size:11px;color:var(--text-3)">📍 ${esc(c.zona_obslazi)}</div>` : ''}
                 </div>

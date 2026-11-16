@@ -352,6 +352,7 @@ window.stChipChangePocet = function(vId, delta) {
 window.stChipRemove = function(vId) {
   const id = parseInt(vId);
   if (stState.vybraneVyr) stState.vybraneVyr.delete(id);
+  if (parseInt(stState.vybranyVyrobekId) === id) stState.vybranyVyrobekId = null;
   if (stState.poctyPerVyrobek) delete stState.poctyPerVyrobek[id];
   if (typeof renderStitky === 'function') renderStitky();
 };
@@ -360,6 +361,7 @@ window.stVymazatVse = async function() {
   if (!stState.vybraneVyr || stState.vybraneVyr.size === 0) return;
   if (!(await confirmDialog({ msg: t('confirm_clear_selected_products', { n: stState.vybraneVyr.size }), danger: false }))) return;
   stState.vybraneVyr.clear();
+  stState.vybranyVyrobekId = null;
   stState.poctyPerVyrobek = {};
   if (typeof renderStitky === 'function') renderStitky();
 };
@@ -676,6 +678,7 @@ async function renderStitky() {
                 ${(s.designId || s.sablonaId)
                   ? `<button type="button" class="btn-secondary" onclick="stSetRezim('editor')" style="font-size:12px;white-space:nowrap;height:38px;padding:0 14px" title="Otevřít aktivní design v editoru — uprav layout a ulož jako vlastní šablonu">✏️ Upravit štítek ↗</button>`
                   : `<button type="button" class="btn-secondary" disabled style="font-size:12px;white-space:nowrap;height:38px;padding:0 14px;opacity:0.5" title="Nejdřív vyber design štítku výše">✏️ Upravit štítek</button>`}
+                ${(s.rezim === 'cenovky' && muzeNavigovat('vyrobky') && stVybranyIdProEditaci()) ? `<button type="button" class="btn-secondary" onclick="stUpravitVybranyVyrobek()" style="font-size:12px;white-space:nowrap;height:38px;padding:0 14px" title="Otevřít editor vybraného produktu (cena, EAN, alergeny…) — po uložení zůstaneš tady">✏️ Upravit produkt</button>` : ''}
               </div>
               <!-- Live dropdown s výsledky z DB -->
               <div id="st-vyrobky-dropdown" style="position:relative;display:none">
@@ -683,7 +686,7 @@ async function renderStitky() {
                   <div id="st-vyrobky-results"></div>
                 </div>
               </div>
-              ${s.vyrobky && s.vyrobky.length ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px">📊 ${s.vyrobky.length} produktů v DB${s.vybranyVyrobekId ? ` · ✓ vybráno: <strong>${esc(s.vybranyVyrobekNazev)}</strong>` : ''}</div>` : ''}
+              ${s.vyrobky && s.vyrobky.length ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px">📊 ${s.vyrobky.length} produktů v DB${(() => { const vid = stVybranyIdProEditaci(); const vv = vid ? s.vyrobky.find(x => parseInt(x.id) === vid) : null; return vv ? ` · ✓ vybráno: <strong>${esc(vv.nazev)}</strong>` : ''; })()}</div>` : ''}
             </div>
           </div>
 
@@ -719,6 +722,7 @@ async function renderStitky() {
                     <input type="number" min="1" max="999" value="${pocet}" onchange="stChipSetPocet(${vId}, this.value)" style="width:38px;height:28px;border:none;background:transparent;text-align:center;font-size:13.5px;font-weight:700;color:#1d1d1f;font-family:inherit;-moz-appearance:textfield" onclick="this.select()">
                     <button type="button" onclick="stChipChangePocet(${vId}, +1)" style="background:transparent;border:none;cursor:pointer;width:28px;height:28px;font-size:15px;font-weight:700;color:#854F0B" aria-label="Více">+</button>
                   </div>
+                  ${muzeNavigovat('vyrobky') ? `<button type="button" onclick="stUpravitVyrobek(${parseInt(vId)})" title="Upravit produkt" aria-label="Upravit produkt" style="background:transparent;border:none;cursor:pointer;width:24px;height:24px;font-size:13px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center">✏️</button>` : ''}
                   <button type="button" onclick="stChipRemove(${vId})" title="Odebrat" style="background:transparent;border:none;cursor:pointer;width:24px;height:24px;font-size:13px;color:#dc2626;border-radius:50%;display:inline-flex;align-items:center;justify-content:center">✕</button>
                 </div>
               `;
@@ -1078,6 +1082,43 @@ window.stPickVyrobekById = function(id) {
   const wrap = document.getElementById('st-vyrobky-dropdown');
   if (wrap) wrap.style.display = 'none';
   renderStitky();
+};
+
+// ✏️ v3.0.640 — úprava produktu přímo z cenovek (obnoveno + dodělané: dřív bez tlačítka a s alertem)
+function stVybranyIdProEditaci() {
+  const sel = stState.vybraneVyr || new Set();
+  const inSel = (id) => [...sel].some(x => parseInt(x) === parseInt(id));
+  if (stState.vybranyVyrobekId && inSel(stState.vybranyVyrobekId)) return parseInt(stState.vybranyVyrobekId);
+  if (sel.size === 1) return parseInt([...sel][0]);
+  return null;
+}
+window.stUpravitVyrobek = function(id) {
+  id = parseInt(id);
+  if (!id) return;
+  if (typeof window.editVyrobek !== 'function') { toastError('Editor produktů není dostupný.'); return; }
+  stState.vybranyVyrobekId = id;   // naposledy upravovaný = „vybraný"
+  window.editVyrobek(id);
+};
+window.stUpravitVybranyVyrobek = function() {
+  const id = stVybranyIdProEditaci();
+  if (!id) {
+    const n = stState.vybraneVyr ? stState.vybraneVyr.size : 0;
+    toastWarn(n > 1 ? 'Vybráno více produktů — klikni na ✏️ u konkrétního produktu.' : 'Nejdřív vyber produkt (vyhledej ho nebo zaškrtni v seznamu).');
+    return;
+  }
+  window.stUpravitVyrobek(id);
+};
+// Volá ulozitVyrobek/smazatVyrobek (0460), když je uživatel na stránce Štítky → zůstane tu, překreslí náhled.
+window.stPoUlozeniVyrobku = async function(id, smazano = false) {
+  id = parseInt(id);
+  if (smazano && id) {
+    if (stState.vybraneVyr) stState.vybraneVyr.delete(id);
+    if (stState.poctyPerVyrobek) delete stState.poctyPerVyrobek[id];
+    if (parseInt(stState.vybranyVyrobekId) === id) { stState.vybranyVyrobekId = null; stState.vybranyVyrobekNazev = ''; }
+  }
+  stState._vyrobkyFetchedAt = 0;   // renderStitky pak znovu načte admin_vyrobky.php
+  await renderStitky();
+  toastSuccess(smazano ? 'Produkt odstraněn z cenovek.' : 'Produkt uložen — cenovka aktualizována.');
 };
 
 

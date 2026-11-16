@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt->execute(['id' => (int) $_GET['id'], 'odb' => $odberatel_id]);
         $obj = $stmt->fetch();
         if (!$obj) json_error('Objednávka nenalezena', 404);
+        unset($obj['interni_pozn']);   // 🔒 v3.0.640 — interní poznámka admina se zákazníkovi neposílá
 
         // 🆕 v3.0.274 — LEFT JOIN + COALESCE: zákazník MUSÍ v detailu objednávky vidět
         //   i řádky příplatků (doprava/poplatek, vyrobek_id=NULL), které platí.

@@ -225,7 +225,7 @@ window.rtOpenTableActions = function(id) {
                   <div style="font-weight:800;font-size:14px;color:#78350F;font-variant-numeric:tabular-nums">${r.cas_od.slice(0,5)} – ${r.cas_do.slice(0,5)}</div>
                   <div style="font-size:13px;color:#92400E;margin-top:2px">👤 ${esc(r.jmeno)} · ${r.pocet_osob}p ${r.poznamka ? '· ' + esc(r.poznamka) : ''}</div>
                 </div>
-                ${r.telefon ? `<a href="tel:${esc(r.telefon)}" style="font-size:12px;font-weight:700;color:#78350F;text-decoration:none;background:rgba(255,255,255,0.6);padding:6px 12px;border-radius:8px;white-space:nowrap">📞 ${esc(r.telefon)}</a>` : ''}
+                ${r.telefon ? (makeCallLink(r.telefon) ? `<a href="${esc(makeCallLink(r.telefon))}" style="font-size:12px;font-weight:700;color:#78350F;text-decoration:none;background:rgba(255,255,255,0.6);padding:6px 12px;border-radius:8px;white-space:nowrap">📞 ${esc(r.telefon)}</a>` : `<span style="font-size:12px;font-weight:700;color:#78350F;text-decoration:none;background:rgba(255,255,255,0.6);padding:6px 12px;border-radius:8px;white-space:nowrap">📞 ${esc(r.telefon)}</span>`) : ''}
               </div>
             `).join('')}
           </div>

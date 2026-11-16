@@ -696,7 +696,7 @@ async function renderSuroviny() {
   sp.items = surPageItems; sp.total = filtered.length;
 
   const tabulkaDesktop = () => {
-    if (filtered.length === 0) return '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
+    if (filtered.length === 0) return list.length === 0 ? _surEmptyCta() : '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
     // hlavička per tabulka — „vybrat vše" platí pro řádky té tabulky (v roztříděném pohledu = kategorie)
     const head = (items) => `
       <thead>
@@ -778,7 +778,7 @@ async function renderSuroviny() {
     : `<div class="sur-grid">${items.map(kartaMobile).join('')}</div>`;
 
   const seznamMobile = () => {
-    if (filtered.length === 0) return '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
+    if (filtered.length === 0) return list.length === 0 ? _surEmptyCta() : '<div class="empty-state">Žádné suroviny odpovídající filtru</div>';
     if (!groupBy || kat !== 'vse') return mList(surPageItems);
     return SUROVINA_KATEGORIE.map(k => {
       const items = skupiny[k.key];
@@ -808,8 +808,10 @@ async function renderSuroviny() {
         <button class="btn-secondary" onclick="otevritKategorieSurovin()" title="Spravovat kategorie surovin (přidat, upravit, ikony)">📂 Kategorie</button>
         <button class="btn-secondary" onclick="otevritMatchSlozeni()" title="Projde složení výrobků a napáruje na suroviny">🔗 Spárovat</button>
         <button class="btn-secondary" onclick="openImportCenik('suroviny')" title="Import ceníku z Excel/CSV s auto-matchingem">📊 Import ceníku</button>
+        <button class="btn-secondary" onclick="surovinyDoplnitCeny()" title="Doplní orientační velkoobchodní ceny (Kč) k surovinám bez ceny — s náhledem a výběrem">🧾 Doplnit ceny</button>
         <span id="sur-export-btns" style="display:contents">${surExportBtnsHtml(surSel.size)}</span>
         <button class="btn-secondary" onclick="otevritImportSurovin()" title="Hromadný import — základní balíček nebo CSV">📥 JSON / vzorky</button>
+        <button class="btn-secondary" onclick="seedSuroviny()" title="Přidá chybějící běžné pekařské suroviny (bez cen)">🌾 Výchozí suroviny</button>
         <button class="btn-primary btn-green btn-big-action" onclick="editSurovina()" style="font-size:18px !important;font-weight:800 !important;padding:18px 32px !important;min-height:64px !important;border-radius:12px !important;letter-spacing:0.3px !important">+ Nová surovina</button>
       </div>
     </div>

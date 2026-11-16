@@ -371,7 +371,7 @@ window.stToggleObj = function(id) {
 
 window.stToggleVyr = function(id) {
   id = parseInt(id);
-  if (stState.vybraneVyr.has(id)) stState.vybraneVyr.delete(id);
+  if (stState.vybraneVyr.has(id)) { stState.vybraneVyr.delete(id); if (parseInt(stState.vybranyVyrobekId) === id) stState.vybranyVyrobekId = null; }
   else stState.vybraneVyr.add(id);
   // Aktualizuj seznam (visual select state) i mřížku samostatně (rychlejší než full renderStitky který je async)
   const ll = document.getElementById('st-vyr-list');
@@ -418,7 +418,7 @@ window.stToggleVse = function(typ, aktivovat) {
       return (v.nazev || '').toLowerCase().includes(q);
     });
     if (aktivovat) list.forEach(v => stState.vybraneVyr.add(v.id));
-    else stState.vybraneVyr.clear();
+    else { stState.vybraneVyr.clear(); stState.vybranyVyrobekId = null; }
   }
   renderStitky();
 };

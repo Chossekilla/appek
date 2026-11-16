@@ -83,7 +83,11 @@ if ($method === 'GET' && ($_GET['action'] ?? '') === 'vratitelne') {
 if ($method === 'GET') {
     if (isset($_GET['id'])) {
         $stmt = $pdo->prepare("
-            SELECT f.*, od.nazev AS odberatel_nazev
+            SELECT f.*, od.nazev AS odberatel_nazev,
+                   od.typ AS odberatel_typ,
+                   od.email AS odberatel_email,
+                   COALESCE(NULLIF(f.odb_ico_snapshot, ''), od.ico) AS odberatel_ico,
+                   COALESCE(NULLIF(f.odb_dic_snapshot, ''), od.dic) AS odberatel_dic
             FROM faktury f
             JOIN odberatele od ON od.id = f.odberatel_id
             WHERE f.id = :id
@@ -139,7 +143,7 @@ if ($method === 'GET') {
         //   chyběla, faktura linkovala jen na objednávku → nekonzistentní řetězec).
         try {
             $stmt = $pdo->prepare("
-                SELECT dl.id, dl.cislo, dl.datum_dodani
+                SELECT dl.id, dl.cislo, dl.datum_dodani, dl.misto_dodani_id
                 FROM faktury_dodaci_listy fdl
                 JOIN dodaci_listy dl ON dl.id = fdl.dodaci_list_id
                 WHERE fdl.faktura_id = :id
@@ -149,6 +153,14 @@ if ($method === 'GET') {
             $f['dodaci_listy'] = $stmt->fetchAll();
         } catch (Exception $e) {
             $f['dodaci_listy'] = [];
+        }
+        // 🆕 v3.0.640 — dobropisy k této faktuře (upozornění u „Znovu objednat")
+        try {
+            $stmt = $pdo->prepare("SELECT id, cislo, castka_celkem FROM faktury WHERE puvodni_faktura_id = :id AND je_dobropis = 1 ORDER BY id");
+            $stmt->execute(['id' => (int) $f['id']]);
+            $f['dobropisy'] = $stmt->fetchAll();
+        } catch (Exception $e) {
+            $f['dobropisy'] = [];
         }
 
         json_response($f);

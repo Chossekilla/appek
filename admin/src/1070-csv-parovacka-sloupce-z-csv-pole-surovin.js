@@ -199,7 +199,7 @@ window.surCsvSubmit = async function() {
     alert(t('csv_import_done', { created: res.vytvoreno, updated: res.aktualizovano, total: res.celkem, errors: res.chyby?.length ? '\n\n⚠ Chyby:\n' + res.chyby.join('\n') : '' }));
     state._csvImportPreview = null;
     closeModal();
-    renderSuroviny();
+    (window._surRefreshAfterChange || renderSuroviny)();   // v3.0.640 — i cache, jinak se import neukáže
   } catch (e) {
     alert('Chyba importu: ' + e.message);
   }
@@ -289,7 +289,7 @@ window.surImportBalicek = async function() {
     });
     alert(t('import_done', { created: r.vytvoreno, updated: r.aktualizovano, total: r.celkem, errors: r.chyby?.length ? '\n\n⚠ Chyby:\n' + r.chyby.join('\n') : '' }));
     closeModal();
-    renderSuroviny();
+    (window._surRefreshAfterChange || renderSuroviny)();   // v3.0.640 — i cache, jinak se import neukáže
   } catch (e) {
     alert('Chyba importu: ' + e.message);
   }
@@ -322,7 +322,7 @@ window.surImportRucni = async function() {
     alert(t('import_done', { created: res.vytvoreno, updated: res.aktualizovano, total: res.celkem, errors: res.chyby?.length ? '\n\n⚠ Chyby:\n' + res.chyby.join('\n') : '' }));
     state._importSurovinyRows = null;   // reset
     closeModal();
-    renderSuroviny();
+    (window._surRefreshAfterChange || renderSuroviny)();   // v3.0.640 — i cache, jinak se import neukáže
   } catch (e) {
     alert('Chyba importu: ' + e.message);
   }

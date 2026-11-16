@@ -79,7 +79,7 @@ async function renderRozvozy() {
                   <td style="font-size:12px">${esc(dl.rozvoz_adresa || '—')}${dl.rozvoz_psc ? `<br><span style="color:var(--text-3);font-size:11px">${esc(dl.rozvoz_psc)}</span>` : ''}</td>
                   <td style="font-size:12px">
                     ${dl.kontaktni_osoba ? `👤 ${esc(dl.kontaktni_osoba)}<br>` : ''}
-                    ${(dl.misto_telefon || dl.odberatel_telefon) ? `📞 <a href="tel:${esc((dl.misto_telefon || dl.odberatel_telefon).replace(/[^+0-9]/g, ''))}" onclick="event.stopPropagation()" style="color:var(--primary)">${esc(dl.misto_telefon || dl.odberatel_telefon)}</a>` : ''}
+                    ${(() => { const ph = dl.misto_telefon || dl.odberatel_telefon; if (!ph) return ''; const h = makeCallLink(ph); return h ? `📞 <a href="${esc(h)}" onclick="event.stopPropagation()" style="color:var(--primary)">${esc(ph)}</a>` : `📞 ${esc(ph)}`; })()}
                     ${dl.cas_dodani ? `<br>⏰ <strong>${esc(dl.cas_dodani)}</strong>` : ''}
                   </td>
                   <td class="num">${dl.pocet_polozek || 0}</td>

@@ -532,6 +532,12 @@ if ($method === 'POST') {
             json_error('Chybí povinné údaje');
         }
         $odb_id = (int) $d['odberatel_id'];
+        // 🆕 v3.0.640 — datum dodání RRRR-MM-DD + platné datum (dřív syrově → SQLSTATE 22007 / 0000-00-00)
+        $datum_dodani = trim((string) $d['datum_dodani']);
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $datum_dodani, $dm)
+            || !checkdate((int) $dm[2], (int) $dm[3], (int) $dm[1])) {
+            json_error('Neplatné datum dodání (RRRR-MM-DD)', 400);
+        }
 
         // 🆕 v3.0.153 BUG C — ověř existenci odběratele (jinak FK violation → leak raw SQLSTATE klientovi)
         $odbEx = $pdo->prepare("SELECT 1 FROM odberatele WHERE id = :id LIMIT 1");
@@ -572,7 +578,12 @@ if ($method === 'POST') {
 
                 if ($vid) {
                     $c = $cenik[$vid] ?? null;
-                    if (!$c) throw new Exception("Řádek " . ($i + 1) . ": výrobek není dostupný");
+                    if (!$c) {
+                        $nmSt = $pdo->prepare("SELECT nazev FROM vyrobky WHERE id = :id");
+                        $nmSt->execute(['id' => $vid]);
+                        $nm = $nmSt->fetchColumn();
+                        throw new Exception('Řádek ' . ($i + 1) . ': výrobek ' . ($nm !== false ? '„' . $nm . '" ' : '#' . $vid . ' ') . 'už není v nabídce (neaktivní / smazaný)');
+                    }
                     $bez += $c['cena_bez_dph'] * $mn;
                     $dph += $c['cena_bez_dph'] * $mn * $c['sazba'] / 100;
                 } else {
@@ -593,7 +604,7 @@ if ($method === 'POST') {
                 VALUES (:c,:o,:m,'jednorazova','potvrzena',CURDATE(),:d,:b,:dph,:cel,:p,:ip)
             ")->execute([
                 'c' => $cislo, 'o' => $odb_id, 'm' => $misto_id,
-                'd' => $d['datum_dodani'],
+                'd' => $datum_dodani,
                 'b' => round($bez, 2), 'dph' => round($dph, 2),
                 'cel' => round($bez + $dph, 2),
                 'p' => $d['poznamka'] ?? null,
@@ -636,13 +647,17 @@ if ($method === 'POST') {
 
             $pdo->commit();
             break; // úspěch — ven z retry smyčky
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
+            // 🔒 v3.0.640 — SQL chyby nejdou klientovi (dřív json_error(SQLSTATE…)); deadlock = retry
             if ($pdo->inTransaction()) $pdo->rollBack();
             $dl = ($e->getCode() === '40001')
                 || (isset($e->errorInfo[1]) && in_array((int) $e->errorInfo[1], [1213, 1205], true));
             if ($dl && $attempt < 4) { usleep(mt_rand(8000, 40000) * $attempt); continue; }
+            json_error_safe('Objednávku se nepodařilo vytvořit', $e, 500);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
             error_log('admin_objednavky vytvorit: ' . $e->getMessage());
-            json_error($e->getMessage(), 400);
+            json_error($e->getMessage(), 400);   // vlastní validace „Řádek N: …" + voucher
         }
         } // konec retry-on-deadlock smyčky
 

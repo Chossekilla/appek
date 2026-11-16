@@ -20,13 +20,16 @@ window.otevritNovouObjednavku = async function() {
     interni_poznamka: '',
     voucher_kod: '',   // 🆕 v3.0.631 — slevový kód / voucher (uplatní server při vytvoření)
     voucher: null,     //   ověřený voucher (jen pro náhled odhadu v souhrnu)
+    zdroj: null,       // 🆕 v3.0.640 — „Znovu objednat": co bylo převzato z dokladu (banner)
+    _ukladam: false,   // 🆕 v3.0.640 — pojistka proti dvojkliku (2× POST = 2 objednávky)
   };
 
   try {
     noState.vsechny_odberatele = await api('admin_odberatele.php');
-  } catch (e) { alert('Nepodařilo se načíst odběratele: ' + e.message); return; }
+  } catch (e) { alert('Nepodařilo se načíst odběratele: ' + e.message); return false; }
 
   vykreslitNovouObjednavku();
+  return true;
 };
 
 // 🆕 v3.0.631 — odhad voucheru pro souhrn (přesnou částku spočítá a zaúčtuje server při vytvoření)
@@ -192,6 +195,7 @@ function vykreslitNovouObjednavku() {
     </div>
 
     <h3 style="margin:20px 0 8px;font-size:15px">Položky</h3>
+    ${s.zdroj ? noZdrojBanner(s.zdroj, s) : ''}
 
     ${odberatelSelected ? '' : `
       <div style="background:#E6F1FB;color:#0C447C;padding:12px 16px;border-radius:8px;margin-bottom:12px;font-size:13px">
@@ -279,41 +283,72 @@ function vykreslitNovouObjednavku() {
     <div class="form-actions">
       <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
       <div style="flex:1"></div>
-      <button class="btn-primary btn-green" onclick="ulozitNovouObjednavku()" ${s.polozky.length === 0 || !s.odberatel_id ? 'disabled' : ''}>
-        🛒 Vytvořit objednávku
+      <button class="btn-primary btn-green" id="no-ulozit" onclick="ulozitNovouObjednavku()" ${s.polozky.length === 0 || !s.odberatel_id || s._ukladam ? 'disabled' : ''}>
+        ${s._ukladam ? '⏳ Ukládám…' : '🛒 Vytvořit objednávku'}
       </button>
     </div>
   `, 'wide');
 }
 
-window.noVybratOdberatele = async function(id) {
+// 🆕 v3.0.640 — „Znovu objednat": co se převzalo z původního dokladu a co ne
+function noZdrojBanner(z, s) {
+  const max = 10;
+  const seznam = (arr, f) => arr.slice(0, max).map(f).join(', ') + (arr.length > max ? ` a další (${arr.length - max})` : '');
+  const jiny = !!(s.odberatel_id && s.odberatel_id !== z.odberatel_id);
+  const odb = (s.vsechny_odberatele || []).find(o => o.id == s.odberatel_id);
+  const r = [`🔁 Převzato z ${esc(z.label)} <strong>${esc(z.cislo)}</strong> — zkontrolujte množství a datum dodání. Ceny jsou podle <strong>aktuálního ceníku</strong> odběratele, ne podle původního dokladu.`];
+  if (jiny) r.push('ℹ️ Odběratel změněn — ceny přepočteny podle jeho ceníku, místo dodání je jeho výchozí pobočka.');
+  else if (z.mistoZdroj && s.misto_dodani_id == z.mistoZdroj) r.push('📍 Místo dodání převzato z původního dokladu.');
+  else if (z.mistoZdroj && !s.pobocky.some(m => m.id == z.mistoZdroj)) r.push('⚠️ Původní místo dodání už není aktivní — vybrána výchozí pobočka, zkontrolujte ji.');
+  if (z.nedostupne.length) r.push(`⚠️ Nepřidáno — výrobek už není v nabídce: ${seznam(z.nedostupne, p => `${esc(p.nazev)} (${fmtQty(p.mnozstvi)} ${esc(p.jednotka || 'ks')})`)}.`);
+  if (z.zmenaJednotky.length) r.push(`⚠️ Změnila se jednotka: ${seznam(z.zmenaJednotky, x => `${esc(x.nazev)} (${esc(x.puvodni)} → ${esc(x.nova)})`)} — zkontrolujte množství.`);
+  if (z.volne.length) r.push(`ℹ️ Nepřeneseno (řádky mimo katalog — doprava, poplatky, slevy/vouchery, ruční text nebo smazaný výrobek): ${seznam(z.volne, p => esc(p.nazev))}. Potřebné přidejte přes „+ Volný řádek".`);
+  if (z.pocetDl > 1) r.push(`ℹ️ Faktura je souhrnná za ${z.pocetDl} DL — stejné výrobky jsou sečtené do jedné objednávky. Jednu dodávku zopakujete přes „Znovu objednat" u konkrétní objednávky.`);
+  else if (z.sloucene > 0) r.push('ℹ️ Opakované řádky stejného výrobku byly sečteny.');
+  if (z.dobropisy.length) r.push(`ℹ️ K faktuře existuje dobropis ${seznam(z.dobropisy, c => esc(c))} — množství jsou podle původní faktury (vrácené kusy nejsou odečtené).`);
+  if (odb && parseInt(odb.blokovan, 10) === 1) r.push('⚠️ Odběratel je blokovaný (nemůže se přihlásit / smazaný / anonymizovaný) — ověřte, že mu chcete objednávku vytvořit.');
+  return `<div class="no-zdroj-banner" style="position:relative;background:#FFF8EB;border:1px solid #F5D49A;border-radius:8px;padding:10px 34px 10px 14px;margin-bottom:12px;font-size:13px;line-height:1.5;color:#3d2f12"><button type="button" onclick="noState.zdroj=null;vykreslitNovouObjednavku()" title="Skrýt" aria-label="Skrýt" style="position:absolute;top:6px;right:8px;background:none;border:0;cursor:pointer;font-size:15px;color:#6b5a3a">✕</button>${r.map(x => `<div>${x}</div>`).join('')}</div>`;
+}
+
+function noAktivniPobocky(list) { // „smazaná" pobočka s historií má aktivni=0 → nenabízet pro novou objednávku
+  return (Array.isArray(list) ? list : []).filter(m => m.aktivni == null || parseInt(m.aktivni, 10) !== 0);
+}
+function noPrecenitPolozky() { // ceník AKTUÁLNÍHO odběratele (server počítá stejně)
+  const s = noState; const pryc = [];
+  s.polozky = s.polozky.filter(p => {
+    if (!p.vyrobek_id) return true;
+    const v = s.cenik.find(x => x.id == p.vyrobek_id);
+    if (!v) { pryc.push(p.vyrobek_nazev || ('#' + p.vyrobek_id)); return false; }
+    p.cena_bez_dph = parseFloat(v.cena_bez_dph) || 0;
+    const sz = parseFloat(v.dph ?? p.sazba_dph); if (isFinite(sz)) p.sazba_dph = sz;
+    return true;
+  });
+  if (pryc.length) toastWarn('Odebráno (výrobek už není v nabídce): ' + pryc.join(', '));
+}
+window.noVybratOdberatele = async function(id, opts = {}) {
   noState.voucher = null; // 🆕 v3.0.631 — ověření voucheru platí jen pro vybraného odběratele
   if (!id) {
-    noState.odberatel_id = null;
-    noState.cenik = [];
-    noState.pobocky = [];
-    noState.odberatel = null;
-    noState.posledni_objednavky = [];
-    return vykreslitNovouObjednavku();
+    Object.assign(noState, { odberatel_id: null, misto_dodani_id: null, cenik: [], pobocky: [], odberatel: null, posledni_objednavky: [] });
+    vykreslitNovouObjednavku(); return false;
   }
-  noState.odberatel_id = parseInt(id);
   try {
-    const data = await api(`cenik_odberatele.php?odberatel_id=${id}`);
-    noState.cenik = data.vyrobky;
+    const [data, pobocky] = await Promise.all([
+      api(`cenik_odberatele.php?odberatel_id=${id}`),
+      api(`admin_pobocky.php?odberatel_id=${id}`),
+    ]);
+    noState.odberatel_id = parseInt(id, 10);
+    noState.cenik = Array.isArray(data.vyrobky) ? data.vyrobky : [];
     noState.odberatel = data;
-    noState.pobocky = await api(`admin_pobocky.php?odberatel_id=${id}`);
-    const vychozi = noState.pobocky.find(m => m.vychozi == 1) || noState.pobocky[0];
-    if (vychozi) noState.misto_dodani_id = vychozi.id;
-    try {
-      noState.posledni_objednavky = await api(
-        `admin_objednavky.php?action=posledni&odberatel_id=${id}&limit=5`
-      );
-    } catch (e) {
-      console.warn('Nepodařilo se načíst poslední objednávky:', e);
-      noState.posledni_objednavky = [];
-    }
+    noState.pobocky = noAktivniPobocky(pobocky);
+    const chtene = opts.misto_dodani_id ? noState.pobocky.find(m => m.id == opts.misto_dodani_id) : null;
+    const vychozi = chtene || noState.pobocky.find(m => m.vychozi == 1) || noState.pobocky[0] || null;
+    noState.misto_dodani_id = vychozi ? vychozi.id : null; // 🐛 v3.0.640 — dřív zůstalo místo PŘEDCHOZÍHO odběratele → 400
+    noPrecenitPolozky();
+    try { noState.posledni_objednavky = await api(`admin_objednavky.php?action=posledni&odberatel_id=${id}&limit=5`); }
+    catch (e) { console.warn('Nepodařilo se načíst poslední objednávky:', e); noState.posledni_objednavky = []; }
     vykreslitNovouObjednavku();
-  } catch (e) { alert('Chyba: ' + e.message); }
+    return true;
+  } catch (e) { alert('Chyba: ' + e.message); vykreslitNovouObjednavku(); return false; }
 };
 
 window.noNacistZObjednavky = function(obj_id) {
@@ -353,77 +388,84 @@ window.noNacistZObjednavky = function(obj_id) {
   showConfirmModal('📋 Načíst položky z objednávky', html);
 };
 
-window.noAplikovatPolozky = function(obj, mode) {
+window.noAplikovatPolozky = function(obj, mode, opts = {}) {
+  // 🆕 v3.0.640 — stejné výrobky sloučí, vrátí co se nepřidalo (dřív tiše zahazovalo neaktivní výrobky)
   const s = noState;
-  if (mode === 'replace') s.polozky = [];
-  obj.polozky.forEach((p) => {
-    const vCeniku = s.cenik.find(v => v.id == p.vyrobek_id);
-    if (vCeniku) {
-      s.polozky.push({
-        vyrobek_id: vCeniku.id,
-        vyrobek_cislo: vCeniku.cislo,
-        vyrobek_nazev: vCeniku.nazev,
-        jednotka: vCeniku.jednotka || p.jednotka || 'ks',
-        mnozstvi: parseFloat(p.mnozstvi),
-        cena_bez_dph: parseFloat(vCeniku.cena_bez_dph),
-        sazba_dph: parseFloat(vCeniku.dph || p.sazba_dph || 12),
-      });
-    }
+  if (mode === 'replace') { s.polozky = []; if (!opts.tichy) s.zdroj = null; }
+  const nedostupne = [], zmenaJednotky = [];
+  let pridano = 0, sloucene = 0;
+  (obj.polozky || []).forEach((p) => {
+    const mn = Math.round((parseFloat(p.mnozstvi) || 0) * 1000) / 1000;
+    if (!p.vyrobek_id || mn <= 0) return;
+    const v = s.cenik.find(x => x.id == p.vyrobek_id);
+    if (!v) { nedostupne.push({ nazev: p.vyrobek_nazev || ('#' + p.vyrobek_id), mnozstvi: mn, jednotka: p.jednotka || 'ks' }); return; }
+    const jP = String(p.jednotka || '').trim().toLowerCase(), jN = String(v.jednotka || '').trim().toLowerCase();
+    if (jP && jN && jP !== jN && !zmenaJednotky.some(z => z.nazev === v.nazev)) zmenaJednotky.push({ nazev: v.nazev, puvodni: p.jednotka, nova: v.jednotka });
+    const exist = s.polozky.find(x => x.vyrobek_id == v.id);
+    if (exist) { exist.mnozstvi = Math.round(((parseFloat(exist.mnozstvi) || 0) + mn) * 1000) / 1000; sloucene++; return; }
+    const sz = parseFloat(v.dph ?? p.sazba_dph ?? 12);
+    s.polozky.push({ vyrobek_id: v.id, vyrobek_cislo: v.cislo, vyrobek_nazev: v.nazev, jednotka: v.jednotka || p.jednotka || 'ks',
+      mnozstvi: mn, cena_bez_dph: parseFloat(v.cena_bez_dph) || 0, sazba_dph: isFinite(sz) ? sz : 12, je_z_katalogu: true });
+    pridano++;
   });
   vykreslitNovouObjednavku();
+  if (!opts.tichy && nedostupne.length) toastWarn('Nepřidáno (výrobek už není v nabídce): ' + nedostupne.map(x => x.nazev).join(', '));
+  return { pridano, sloucene, nedostupne, zmenaJednotky };
 };
 
 /**
- * Vytvořit novou objednávku ze zdrojového dokladu (OBJ / DL / FA).
- * - Zavře aktuální modal (detail), otevře čistý NO modal
- * - Přednastaví odběratele (načte ceník + pobočky)
- * - Aplikuje položky z původního dokladu (mapuje na aktuální ceník)
+ * Vytvořit novou objednávku ze zdrojového dokladu (OBJ / DL / FA) — „🔁 Znovu objednat".
+ * 🆕 v3.0.640: kontroly PŘED zavřením detailu (dobropis, POS Walk-in, nic z katalogu, vše neaktivní),
+ * místo dodání ze zdroje (je-li aktivní), sloučení stejných výrobků, banner co (ne)bylo převzato,
+ * stopa ve vnitřní poznámce (NE v poznámce — ta jde zákazníkovi e-mailem).
  */
+window.lzeZnovuObjednat = function(type, row) { // sdílí detail FA/DL/OBJ, mobilní karty a dashboard
+  if (!row) return false;
+  if (type === 'fa' && parseInt(row.je_dobropis, 10) === 1) return false;          // dobropis DOB- = opravný doklad
+  const odb = row.odberatel_nazev ?? row.odberatel ?? '';
+  if (row.odberatel_typ === 'pos_walkin' || odb === 'POS Walk-in') return false;   // anonymní zákazník pokladny
+  return true;
+};
 window.noOpakovatZeZdroje = async function(source, id) {
-  let zdroj, polozky, odberatel_id;
+  const Z = ({ obj: { url: 'admin_objednavky.php', label: 'objednávky' }, dl: { url: 'admin_dodaci_listy.php', label: 'dodacího listu' }, fa: { url: 'admin_faktury.php', label: 'faktury' } })[source];
+  if (!Z) return alert('Neznámý zdroj: ' + source);
+  let doklad;
+  try { doklad = await api(`${Z.url}?id=${id}`); } catch (e) { return alert('Nepodařilo se načíst zdrojový doklad: ' + e.message); }
+  if (source === 'fa' && parseInt(doklad.je_dobropis, 10) === 1) return alert('⚠️ Dobropis (opravný daňový doklad) nelze objednat znovu — otevřete původní fakturu.');
+  const odberatelId = parseInt(doklad.odberatel_id, 10) || 0;
+  if (!odberatelId) return alert('Zdrojový doklad nemá odběratele.');
+  if (!lzeZnovuObjednat(source, doklad)) return alert('⚠️ Doklad anonymního zákazníka pokladny (POS Walk-in) nelze objednat znovu.');
+  const vse = Array.isArray(doklad.polozky) ? doklad.polozky : [];
+  const katalog = vse.filter(p => p.vyrobek_id && parseFloat(p.mnozstvi) > 0);
+  const volne = vse.filter(p => !p.vyrobek_id);
+  if (!katalog.length) return alert('Tento doklad neobsahuje žádné výrobky z katalogu, které by šly objednat znovu.');
+  let mistoZdroj = parseInt(doklad.misto_dodani_id, 10) || null;     // OBJ/DL přímo, FA ruční/DOB
+  if (!mistoZdroj && source === 'fa') {
+    const mista = [...new Set((doklad.dodaci_listy || []).map(d => parseInt(d.misto_dodani_id, 10)).filter(Boolean))];
+    if (mista.length === 1) mistoZdroj = mista[0];
+  }
+  let cenikData;  // předem, detail je ještě otevřený; stejné URL jako formulář → api() GET cache
   try {
-    if (source === 'obj') {
-      zdroj = await api(`admin_objednavky.php?id=${id}`);
-      polozky = zdroj.polozky || [];
-      odberatel_id = zdroj.odberatel_id;
-    } else if (source === 'dl') {
-      zdroj = await api(`admin_dodaci_listy.php?id=${id}`);
-      polozky = zdroj.polozky || [];
-      odberatel_id = zdroj.odberatel_id;
-    } else if (source === 'fa') {
-      zdroj = await api(`admin_faktury.php?id=${id}`);
-      polozky = zdroj.polozky || [];
-      odberatel_id = zdroj.odberatel_id;
-    } else {
-      return alert('Neznámý zdroj: ' + source);
-    }
-  } catch (e) {
-    return alert('Nepodařilo se načíst zdrojový doklad: ' + e.message);
+    const pre = await Promise.all([api(`cenik_odberatele.php?odberatel_id=${odberatelId}`), api(`admin_pobocky.php?odberatel_id=${odberatelId}`), api('admin_odberatele.php')]);
+    cenikData = pre[0] || {};
+  } catch (e) { return alert('Nepodařilo se připravit novou objednávku: ' + e.message); }
+  const vNabidce = new Set((cenikData.vyrobky || []).map(v => parseInt(v.id, 10)));
+  if (!katalog.some(p => vNabidce.has(parseInt(p.vyrobek_id, 10)))) {
+    const jmena = [...new Set(katalog.map(p => p.vyrobek_nazev || ('#' + p.vyrobek_id)))];
+    return alert('Žádný výrobek z dokladu už není v nabídce (neaktivní): ' + jmena.slice(0, 10).join(', ') + (jmena.length > 10 ? ' …' : ''));
   }
-
-  // Filtrovat jen položky s vyrobek_id (volné řádky bez výrobku)
-  const cleanPolozky = polozky.filter(p => p.vyrobek_id);
-  const skipnuto = polozky.length - cleanPolozky.length;
-  if (cleanPolozky.length === 0) {
-    return alert('Tento doklad neobsahuje žádné výrobky z katalogu, které by šly opakovat.');
-  }
-  if (!odberatel_id) {
-    return alert('Zdrojový doklad nemá odběratele.');
-  }
-
   closeModal();
-
-  // Otevři novou objednávku, počkej až se naplní vsechny_odberatele
-  await otevritNovouObjednavku();
-  // Vyber odběratele (načte ceník + pobočky + posledni objednavky)
-  await noVybratOdberatele(odberatel_id);
-  // Aplikuj položky
-  noAplikovatPolozky({ polozky: cleanPolozky }, 'replace');
-
-  // Krátká info zpráva pokud něco bylo přeskočeno
-  if (skipnuto > 0) {
-    setTimeout(() => alert(t('imported_lines_skipped', { n: cleanPolozky.length, skipped: skipnuto })), 100);
-  }
+  if (!(await otevritNovouObjednavku())) return;
+  if (!(await noVybratOdberatele(odberatelId, { misto_dodani_id: mistoZdroj }))) return;
+  const r = noAplikovatPolozky({ polozky: katalog }, 'replace', { tichy: true });
+  const cislo = doklad.cislo || ('#' + id);
+  noState.interni_poznamka = `Znovu objednáno z ${Z.label} ${cislo}`;   // NE poznamka — ta jde zákazníkovi v e-mailu
+  noState.zdroj = { typ: source, id, cislo, label: Z.label, odberatel_id: odberatelId, mistoZdroj,
+    nedostupne: r.nedostupne, zmenaJednotky: r.zmenaJednotky, sloucene: r.sloucene,
+    volne: volne.map(p => ({ nazev: p.vyrobek_nazev || '—' })),
+    pocetDl: source === 'fa' ? (doklad.dodaci_listy || []).length : 0,
+    dobropisy: source === 'fa' ? (doklad.dobropisy || []).map(d => d.cislo) : [] };
+  vykreslitNovouObjednavku();
 };
 
 window.noPridatZKatalogu = function() {
@@ -487,6 +529,7 @@ window.noUpdatePolozka = function(idx, field, value) {
 
 window.ulozitNovouObjednavku = async function() {
   const s = noState;
+  if (!s || s._ukladam) return; // 🆕 v3.0.640 — dvojklik = 2× POST = 2 objednávky
   if (!s.odberatel_id) return alert('Vyberte odběratele');
   if (!s.datum_dodani) return alert('Vyplňte datum dodání');
   // Validace volných řádků
@@ -508,6 +551,8 @@ window.ulozitNovouObjednavku = async function() {
   }));
   if (polozky.length === 0) return alert('Přidejte alespoň jednu položku');
 
+  s._ukladam = true;
+  const btn = document.getElementById('no-ulozit'); if (btn) { btn.disabled = true; btn.textContent = '⏳ Ukládám…'; }
   try {
     const res = await api('admin_objednavky.php', {
       method: 'POST',
@@ -522,9 +567,16 @@ window.ulozitNovouObjednavku = async function() {
         voucher_kod: s.voucher_kod || undefined, // 🆕 v3.0.631 — server ověří a uplatní (chyba = objednávka se nevytvoří)
       }),
     });
+    const zeZdroje = !!s.zdroj;
     closeModal();
     alert(t('order_created', { cislo: res.cislo }));
     navigate('objednavky');
+    if (zeZdroje) setTimeout(() => openObjednavkaDetail(res.id), 250);
   } catch (e) { alert('Chyba: ' + e.message); }
+  finally {
+    s._ukladam = false;
+    const b = document.getElementById('no-ulozit');
+    if (b) { b.disabled = !(s.polozky.length && s.odberatel_id); b.textContent = '🛒 Vytvořit objednávku'; }
+  }
 };
 

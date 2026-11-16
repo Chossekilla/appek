@@ -290,103 +290,61 @@ if ($method === 'POST' && $action === 'upload') {
     json_response(['url' => app_url_path('uploads/suroviny/') . $filename, 'filename' => $filename]); // v3.0.639 podsložka
 }
 
+// 🌾 v3.0.640 — výchozí pekařské suroviny (seznam v _suroviny_ceny_lib.php). Doplní jen CHYBĚJÍCÍ
+//   (porovnání názvu bez diakritiky); existující se nemění ani neaktivují. Ceny = „Doplnit ceny".
+if ($action === 'seed_nahled' && $method === 'GET') {
+    require_once __DIR__ . '/_suroviny_ceny_lib.php';
+    $ex = [];
+    foreach ($pdo->query("SELECT nazev, aktivni FROM suroviny")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $ex[suroviny_normalizuj_nazev((string) $r['nazev'])] = (int) $r['aktivni'];
+    }
+    $pol = []; $novych = 0;
+    foreach (suroviny_vychozi_seznam() as [$n, $j, $a]) {
+        $k = suroviny_normalizuj_nazev($n);
+        $stav = !array_key_exists($k, $ex) ? 'novy' : ($ex[$k] ? 'existuje' : 'existuje_skryta');
+        if ($stav === 'novy') $novych++;
+        $pol[] = ['nazev' => title_case_cs($n), 'jednotka' => $j, 'alergen' => $a, 'stav' => $stav];
+    }
+    json_response(['celkem' => count($pol), 'novych' => $novych, 'polozky' => $pol]);
+}
+
 if ($action === 'seed' && $method === 'POST') {
-    $existuje = (int) $pdo->query("SELECT COUNT(*) FROM suroviny")->fetchColumn();
-    if ($existuje > 0) {
-        json_response(['ok' => true, 'inserted' => 0, 'message' => 'Suroviny už existují (' . $existuje . ').']);
+    require_once __DIR__ . '/_suroviny_ceny_lib.php';
+    $d = json_input();
+    $jenNazvy = null;
+    if (!empty($d['nazvy']) && is_array($d['nazvy'])) {
+        $jenNazvy = array_flip(array_map(fn($x) => suroviny_normalizuj_nazev((string) $x), $d['nazvy']));
     }
-
-    $seed = [
-        // Mouky
-        ['Mouka pšeničná hladká', 'g', 'lepek'],
-        ['Mouka pšeničná polohrubá', 'g', 'lepek'],
-        ['Mouka pšeničná hrubá', 'g', 'lepek'],
-        ['Mouka chlebová T1050', 'g', 'lepek'],
-        ['Mouka chlebová T1150', 'g', 'lepek'],
-        ['Mouka žitná chlebová T960', 'g', 'lepek'],
-        ['Mouka špaldová', 'g', 'lepek'],
-        ['Mouka kukuřičná', 'g', null],
-        ['Mouka ovesná', 'g', 'lepek'],
-        ['Mouka pohanková', 'g', null],
-        ['Mouka rýžová', 'g', null],
-        ['Krupice pšeničná', 'g', 'lepek'],
-        ['Strouhanka', 'g', 'lepek'],
-        // Sypké přídavky
-        ['Otruby pšeničné', 'g', 'lepek'],
-        ['Vločky ovesné', 'g', 'lepek'],
-        ['Lněné semínko', 'g', null],
-        ['Slunečnicová semínka', 'g', null],
-        ['Dýňová semínka', 'g', null],
-        ['Sezamová semínka', 'g', 'sezam'],
-        ['Mák mletý', 'g', null],
-        ['Mák celý', 'g', null],
-        ['Chia semínka', 'g', null],
-        // Cukry
-        ['Cukr krystal', 'g', null],
-        ['Cukr moučka', 'g', null],
-        ['Cukr hnědý třtinový', 'g', null],
-        ['Cukr vanilkový', 'g', null],
-        ['Med', 'g', null],
-        ['Melasa', 'g', null],
-        // Tuky
-        ['Máslo', 'g', 'mléko'],
-        ['Sádlo', 'g', null],
-        ['Margarín', 'g', 'mléko'],
-        ['Olej slunečnicový', 'ml', null],
-        ['Olej řepkový', 'ml', null],
-        ['Olej olivový', 'ml', null],
-        // Vejce a mléčné
-        ['Vejce', 'ks', 'vejce'],
-        ['Žloutek', 'ks', 'vejce'],
-        ['Bílek', 'ks', 'vejce'],
-        ['Mléko plnotučné', 'ml', 'mléko'],
-        ['Smetana 33%', 'ml', 'mléko'],
-        ['Smetana 12%', 'ml', 'mléko'],
-        ['Tvaroh měkký', 'g', 'mléko'],
-        ['Mascarpone', 'g', 'mléko'],
-        ['Zakysaná smetana', 'g', 'mléko'],
-        ['Jogurt bílý', 'g', 'mléko'],
-        // Kvasnice / kypřící
-        ['Droždí čerstvé', 'g', null],
-        ['Droždí sušené', 'g', null],
-        ['Prášek do pečiva', 'g', null],
-        ['Jedlá soda', 'g', null],
-        ['Pšeničný kvas', 'g', 'lepek'],
-        ['Žitný kvas', 'g', 'lepek'],
-        // Sůl, koření, aroma
-        ['Sůl', 'g', null],
-        ['Skořice mletá', 'g', null],
-        ['Vanilka (lusk/extrakt)', 'g', null],
-        ['Kakao', 'g', null],
-        ['Čokoláda hořká 70%', 'g', 'mléko'],
-        ['Čokoláda mléčná', 'g', 'mléko'],
-        ['Kokos strouhaný', 'g', null],
-        // Ořechy
-        ['Vlašské ořechy', 'g', 'ořechy'],
-        ['Lískové ořechy', 'g', 'ořechy'],
-        ['Mandle', 'g', 'ořechy'],
-        ['Kešu', 'g', 'ořechy'],
-        // Sušené ovoce
-        ['Rozinky', 'g', null],
-        ['Brusinky sušené', 'g', null],
-        ['Datle', 'g', null],
-        ['Sušené meruňky', 'g', null],
-        // Náplně
-        ['Marmeláda meruňková', 'g', null],
-        ['Povidla švestková', 'g', null],
-        // Citrus
-        ['Citron - šťáva', 'ml', null],
-        ['Citronová kůra', 'g', null],
-        ['Pomeranč - kůra', 'g', null],
-    ];
-
-    $stmt = $pdo->prepare("INSERT IGNORE INTO suroviny (nazev, jednotka, alergen) VALUES (:n, :j, :a)");
-    $vlozeno = 0;
-    foreach ($seed as $s) {
-        $stmt->execute(['n' => $s[0], 'j' => $s[1], 'a' => $s[2]]);
-        if ($stmt->rowCount() > 0) $vlozeno++;
+    $ex = [];
+    foreach ($pdo->query("SELECT nazev FROM suroviny")->fetchAll(PDO::FETCH_COLUMN) as $nz) $ex[suroviny_normalizuj_nazev((string) $nz)] = true;
+    $seznam = suroviny_vychozi_seznam();
+    $vlozeno = []; $preskoceno = [];
+    $pdo->beginTransaction();
+    try {
+        $ins = $pdo->prepare("INSERT INTO suroviny (nazev, jednotka, alergen, poznamka, aktivni) VALUES (:n, :j, :a, :p, 1)");
+        foreach ($seznam as [$n, $j, $a]) {
+            $k = suroviny_normalizuj_nazev($n);
+            if ($jenNazvy !== null && !isset($jenNazvy[$k])) continue;
+            $nazev = title_case_cs($n);
+            if (isset($ex[$k])) { $preskoceno[] = ['nazev' => $nazev, 'duvod' => 'existuje']; continue; }
+            try {
+                $ins->execute(['n' => $nazev, 'j' => $j, 'a' => $a, 'p' => 'Výchozí surovina — alergeny a jednotku ověřte podle etikety dodavatele.']);
+                $vlozeno[] = $nazev; $ex[$k] = true;
+            } catch (PDOException $e) {
+                if ($e->getCode() !== '23000') throw $e;            // jen duplicita (collation) se přeskočí
+                $preskoceno[] = ['nazev' => $nazev, 'duvod' => 'existuje'];
+            }
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error_safe('Naplnění selhalo', $e, 500);
     }
-    json_response(['ok' => true, 'inserted' => $vlozeno]);
+    // systém B skladu: domovský sklad + řádky sklad_polozky se stavem 0 (žádné pohyby)
+    try { sklad_unify_migrate($pdo); } catch (Throwable $e) { error_log('seed suroviny sklad_unify_migrate: ' . $e->getMessage()); }
+    $nIns = count($vlozeno);
+    json_response(['ok' => true, 'inserted' => $nIns, 'vlozeno' => $vlozeno, 'preskoceno' => $preskoceno, 'celkem' => count($seznam),
+                   'message' => $nIns ? "Vloženo $nIns surovin." : 'Všechny výchozí suroviny už existují.']);
 }
 
 // =============================================================

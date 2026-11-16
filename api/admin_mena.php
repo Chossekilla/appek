@@ -14,7 +14,8 @@
  * GET  ?action=cnb&kod=EUR           → { kurz, datum } z denního kurzovního lístku ČNB
  * POST ?action=save { config }       → uloží (validace kod/kurz)
  * GET  ?action=prepocet_nahled&kurz= → { pocet, ukazky:[{id,nazev,stara,nova}] }
- * POST ?action=prepocet { kurz }     → TRVALE přepíše vyrobky.cena_bez_dph (cena/kurz),
+ * POST ?action=prepocet { kurz, kod } → TRVALE přepíše vyrobky.cena_bez_dph, pevné ceny skupin
+ *                                      a ceny surovin (cena/kurz) + config.zakladni = kod,
  *                                      transakce + zápis do activity logu. UI před tím
  *                                      vynucuje zálohu DB (admin_zalohy create).
  */
@@ -127,6 +128,11 @@ if ($action === 'prepocet') {
             $pdo->prepare("UPDATE cenove_skupiny_slevy SET pevna_cena = ROUND(pevna_cena / :k, 2) WHERE pevna_cena IS NOT NULL AND pevna_cena > 0")
                 ->execute(['k' => $kurz]);
         } catch (Throwable $e) { /* tabulka/sloupec nemusí být na staré instalaci */ }
+        // 🆕 v3.0.640 — i ceny surovin (jinak food cost míchá Kč suroviny s cenami výrobků v cizí měně)
+        try {
+            $pdo->prepare("UPDATE suroviny SET cena_baleni = ROUND(cena_baleni / :k, 2) WHERE cena_baleni IS NOT NULL AND cena_baleni > 0")
+                ->execute(['k' => $kurz]);
+        } catch (Throwable $e) { /* stará instalace bez sloupce */ }
         // audit do activity logu (best-effort, tabulka nemusí existovat na staré instalaci)
         try {
             $pdo->prepare("INSERT INTO activity_log (kdo, akce, detail) VALUES (:kdo, 'mena_prepocet', :det)")

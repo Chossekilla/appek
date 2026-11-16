@@ -7,7 +7,7 @@
  * POST ?action=dismiss            → skryje onboarding navždy
  * POST ?action=complete           → označí jako hotový
  * GET ?action=ares&ico=12345678   → načte data z ARES (pro auto-fill)
- * POST ?action=seed_demo          → naplní vzorovými daty (15 výrobků, 3 kategorie)
+ * POST ?action=restart            → znovu spustí průvodce
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
@@ -207,81 +207,6 @@ if ($action === 'ares' && $method === 'GET') {
         json_error('Subjekt s IČO ' . $ico . ' nenalezen v ARES ani v slovenském RPO', 404);
     }
     json_error('Registry nedostupný (zkontroluj síť / firewall)', 502);
-}
-
-// 🎁 Seed — naplní demo daty (kategorie + 15 výrobků)
-if ($action === 'seed_demo' && $method === 'POST') {
-    $d = json_input();
-    $kategorieZvolene = $d['kategorie'] ?? [];   // např. ['Chleby', 'Pečivo', 'Koláče']
-
-    // Naplň kategorie
-    $stmtKat = $pdo->prepare("INSERT INTO kategorie_vyrobku (nazev, ikona, poradi, aktivni) VALUES (:n, :i, :p, 1)");
-    $kategorieIkony = [
-        'Chleby' => '🥖', 'Pečivo' => '🥐', 'Koláče' => '🥧', 'Zákusky' => '🍰',
-        'Slané pečivo' => '🥨', 'Káva a sirupy' => '☕', 'Dorty' => '🎂', 'Bezlepkové' => '🌾',
-    ];
-    $katIds = [];
-    foreach ($kategorieZvolene as $i => $nazev) {
-        try {
-            $stmtKat->execute(['n' => $nazev, 'i' => $kategorieIkony[$nazev] ?? '🥖', 'p' => $i + 1]);
-            $katIds[$nazev] = $pdo->lastInsertId();
-        } catch (Throwable $e) { /* duplikát = OK */ }
-    }
-
-    // Vzorové výrobky (uložené v memo — můžeme rozšířit)
-    $vzorky = [
-        // Chleby
-        ['Chleba selský',     'Chleby',    35, 700, 'g', 'Tradiční selský chleba'],
-        ['Chleba pšenično-žitný', 'Chleby', 32, 700, 'g', ''],
-        ['Chleba dalamánek',  'Chleby',    25, 500, 'g', ''],
-        ['Chleba bezlepkový', 'Bezlepkové',58, 400, 'g', 'Pro celiaky'],
-        // Pečivo
-        ['Bageta klasická',   'Pečivo',    18, 250, 'g', ''],
-        ['Rohlík',            'Pečivo',     5,  50, 'g', ''],
-        ['Houska',            'Pečivo',     7,  60, 'g', ''],
-        ['Bageta cibulová',   'Pečivo',    22, 250, 'g', ''],
-        // Slané
-        ['Croissant slaný',   'Slané pečivo', 28, 80, 'g', 'Listové těsto'],
-        ['Sýrový šnek',       'Slané pečivo', 25, 100, 'g', ''],
-        // Koláče
-        ['Koláč švestkový',   'Koláče',    45, 300, 'g', ''],
-        ['Koláč tvarohový',   'Koláče',    48, 300, 'g', ''],
-        ['Záviny',            'Koláče',    55, 350, 'g', ''],
-        // Zákusky
-        ['Větrník',           'Zákusky',   38, 90, 'g', ''],
-        ['Punčovka',          'Zákusky',   35, 80, 'g', ''],
-    ];
-
-    // Najdi default jednotku + sazba DPH
-    $jedKs = $pdo->query("SELECT id FROM jednotky WHERE kod = 'ks' LIMIT 1")->fetchColumn();
-    if (!$jedKs) {
-        $pdo->exec("INSERT INTO jednotky (kod, nazev) VALUES ('ks', 'kus')");
-        $jedKs = $pdo->lastInsertId();
-    }
-    $dph12 = $pdo->query("SELECT id FROM sazby_dph WHERE sazba = 12 LIMIT 1")->fetchColumn();
-    if (!$dph12) {
-        $pdo->exec("INSERT INTO sazby_dph (sazba, nazev) VALUES (12, 'Snížená 12 %')");
-        $dph12 = $pdo->lastInsertId();
-    }
-
-    $stmtV = $pdo->prepare("
-        INSERT INTO vyrobky (nazev, kategorie_id, cena_bez_dph, hmotnost_g, jednotka_id, sazba_dph_id, popis, aktivni)
-        VALUES (:n, :k, :c, :h, :j, :d, :p, 1)
-    ");
-    $vlozeno = 0;
-    foreach ($vzorky as $v) {
-        $katId = $katIds[$v[1]] ?? null;
-        if (!$katId) continue;
-        try {
-            $stmtV->execute([
-                'n' => $v[0], 'k' => $katId, 'c' => $v[2], 'h' => $v[3],
-                'j' => $jedKs, 'd' => $dph12, 'p' => $v[5],
-            ]);
-            $vlozeno++;
-        } catch (Throwable $e) { /* duplikát = OK */ }
-    }
-
-    json_response(['ok' => true, 'kategorie_pridano' => count($katIds), 'vyrobky_pridano' => $vlozeno]);
 }
 
 json_error('Neznámá akce', 404);

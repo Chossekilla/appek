@@ -23,7 +23,9 @@ function recentRowIcons(type, row) {
       ${recentIcon(dlUrl, '📃', 'DL', 'dl')}
       ${recentIcon(faUrl, '💰', 'FA', 'fa')}
       <button type="button" class="recent-icon-btn recent-icon-email" title="Odeslat emailem (PDF v příloze)" onclick="event.stopPropagation();otevritOdeslatEmailem('${type}', ${row.id}, '${cisloEsc}', '${emailEsc}')"><span class="recent-icon-em">✉️</span></button>
-      <button type="button" class="recent-icon-btn recent-icon-reorder" title="Znovu objednat (vytvořit novou objednávku)" onclick="event.stopPropagation();noOpakovatZeZdroje('${type}', ${row.id})"><span class="recent-icon-em">🔁</span></button>
+      ${lzeZnovuObjednat(type, row)
+        ? `<button type="button" class="recent-icon-btn recent-icon-reorder" title="Znovu objednat (vytvořit novou objednávku)" onclick="event.stopPropagation();noOpakovatZeZdroje('${type}', ${row.id})"><span class="recent-icon-em">🔁</span></button>`
+        : `<span class="recent-icon-btn recent-icon-reorder disabled" title="${type === 'fa' && parseInt(row.je_dobropis, 10) === 1 ? 'Dobropis nelze objednat znovu' : 'Nelze objednat znovu (anonymní zákazník pokladny)'}"><span class="recent-icon-em">🔁</span></span>`}
     </span>
   `;
 }

@@ -250,7 +250,7 @@ window.openDodaciListDetail = async function(id) {
 
       <div class="form-actions">
         <div class="form-actions-tools">
-          <button class="btn-secondary" onclick="noOpakovatZeZdroje('dl', ${dl.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu objednat</button>
+          ${lzeZnovuObjednat('dl', dl) ? `<button class="btn-secondary" onclick="noOpakovatZeZdroje('dl', ${dl.id})" title="Vytvořit novou objednávku se stejnými položkami">🔁 Znovu objednat</button>` : ''}
           <a href="../api/admin_export_dl.php?action=csv-detail&id=${dl.id}" class="btn-secondary" style="text-decoration:none" title="Stáhnout CSV s položkami pro Money / Pohoda / Excel">📊 CSV export</a>
           <button class="btn-secondary" onclick='tiskDodaciList(${JSON.stringify({id: dl.id, objednavka_id: dl.objednavka_id || null})})' title="Otevře tiskový dialog (PDF / tiskárna)">🖨️ Tisk</button>
           <button class="btn-secondary" onclick="printQueue.add({type:'dl', id: ${dl.id}, label: 'DL ${esc(dl.cislo || '#'+dl.id)}'})" title="Přidat do fronty pro hromadný tisk">➕🖨️</button>

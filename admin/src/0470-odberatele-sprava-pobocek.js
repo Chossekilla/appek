@@ -141,7 +141,7 @@ async function renderOdberatele(opts = {}) {
                 <strong>${esc(o.nazev)}</strong>
                 ${o.typ ? `<div style="margin-top:2px">${window.odbTypBadge(o.typ)}</div>` : ''}
                 ${(o.ulice || o.mesto) ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px">${esc([o.ulice, o.psc, o.mesto].filter(Boolean).join(', '))}</div>` : ''}
-                ${o.telefon ? `<div style="font-size:11px;margin-top:1px"><a href="tel:${esc(String(o.telefon).replace(/[\s-]/g, ''))}" onclick="event.stopPropagation();" style="color:var(--text-3);text-decoration:none">📞 ${esc(o.telefon)}</a></div>` : ''}
+                ${o.telefon ? `<div style="font-size:11px;margin-top:1px">${makeCallLink(o.telefon) ? `<a href="${esc(makeCallLink(o.telefon))}" onclick="event.stopPropagation();" style="color:var(--text-3);text-decoration:none">📞 ${esc(o.telefon)}</a>` : `<span style="color:var(--text-3)">📞 ${esc(o.telefon)}</span>`}</div>` : ''}
                 ${o.email ? `<div style="font-size:11px;margin-top:1px"><a href="mailto:${esc(o.email)}" onclick="event.stopPropagation();" style="color:var(--text-3);text-decoration:none">✉️ ${esc(o.email)}</a></div>` : ''}
               </td>
               <td>${esc(o.ico || '')}</td>
@@ -193,7 +193,7 @@ async function renderOdberatele(opts = {}) {
                 <div class="odberatel-card-nazev">${esc(o.nazev)}</div>
                 ${o.typ ? `<div style="margin:2px 0">${window.odbTypBadge(o.typ)}</div>` : ''}
                 ${(o.ulice || o.mesto) ? `<div class="odberatel-card-adresa">📍 ${esc([o.ulice, o.psc, o.mesto].filter(Boolean).join(', '))}</div>` : ''}
-                ${o.telefon ? `<div class="odberatel-card-adresa"><a href="tel:${esc(String(o.telefon).replace(/[\s-]/g, ''))}" onclick="event.stopPropagation();" class="odberatel-link">📞 ${esc(o.telefon)}</a></div>` : ''}
+                ${o.telefon ? `<div class="odberatel-card-adresa">${makeCallLink(o.telefon) ? `<a href="${esc(makeCallLink(o.telefon))}" onclick="event.stopPropagation();" class="odberatel-link">📞 ${esc(o.telefon)}</a>` : `<span>📞 ${esc(o.telefon)}</span>`}</div>` : ''}
                 ${o.email ? `<div class="odberatel-card-adresa"><a href="mailto:${esc(o.email)}" onclick="event.stopPropagation();" class="odberatel-link">✉️ ${esc(o.email)}</a></div>` : ''}
               </div>
               ${o.blokovan ? '<span class="status zrusena">Blokován</span>' : '<span class="status dorucena">Aktivní</span>'}
@@ -397,7 +397,7 @@ window.editOdberatel = async function(id = null) {
           ` : o.mista_dodani.map((m) => {
               const isDefault = m.vychozi == 1;
               const isInactive = m.aktivni == 0;
-              const tel = m.telefon ? String(m.telefon).replace(/[\s-]/g, '') : '';
+              const tel = makeCallLink(m.telefon);
               return `
               <div class="pobocka-card ${isDefault ? 'is-default' : ''} ${isInactive ? 'is-inactive' : ''}">
                 <div class="pobocka-info">
@@ -415,7 +415,7 @@ window.editOdberatel = async function(id = null) {
                   ${m.kontaktni_osoba || m.telefon || m.email || m.cas_dodani ? `
                     <div class="pobocka-meta">
                       ${m.kontaktni_osoba ? `<span>👤 ${esc(m.kontaktni_osoba)}</span>` : ''}
-                      ${m.telefon ? `<a href="tel:${esc(tel)}" onclick="event.stopPropagation();" class="pobocka-link">📞 ${esc(m.telefon)}</a>` : ''}
+                      ${m.telefon ? (tel ? `<a href="${esc(tel)}" onclick="event.stopPropagation();" class="pobocka-link">📞 ${esc(m.telefon)}</a>` : `<span>📞 ${esc(m.telefon)}</span>`) : ''}
                       ${m.email ? `<a href="mailto:${esc(m.email)}" onclick="event.stopPropagation();" class="pobocka-link">✉️ ${esc(m.email)}</a>` : ''}
                       ${m.cas_dodani ? `<span>⏰ ${esc(m.cas_dodani)}</span>` : ''}
                     </div>

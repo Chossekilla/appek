@@ -1,41 +1,7 @@
 // =============================================================
-// 🚀 v2.9.53 — Aplikace dropdown v topbaru (B2B / POS / Floor Plan)
-// =============================================================
-// Init — zajisti že apps menu je zavřené (inline display:none) po loadu
-(function() {
-  function closeAppsInit() {
-    var menu = document.getElementById('tb-apps-menu');
-    if (menu) { menu.classList.remove('show'); menu.style.display = 'none'; }
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', closeAppsInit);
-  } else { closeAppsInit(); }
-  setTimeout(closeAppsInit, 300);
-})();
-// Zavři apps dropdown při kliku mimo
-document.addEventListener('click', function(e) {
-  var wrap = document.getElementById('tb-apps-wrap');
-  if (!wrap) return;
-  if (!wrap.contains(e.target)) {
-    var menu = document.getElementById('tb-apps-menu');
-    if (menu && menu.classList.contains('show')) {
-      menu.classList.remove('show');
-      var btn = wrap.querySelector('.tb-apps-btn');
-      if (btn) btn.setAttribute('aria-expanded', 'false');
-    }
-  }
-}, true);
-// Escape zavře
-document.addEventListener('keydown', function(e) {
-  if (e.key !== 'Escape') return;
-  var menu = document.getElementById('tb-apps-menu');
-  if (menu && menu.classList.contains('show')) menu.classList.remove('show');
-});
-
-// =============================================================
 // 📱 v2.9.55 — Mobilní header compact — JS bulletproof
 // Na mobilu (≤700px) schová texty co zabírají místo: jméno,
-// kód jazyka "CS", label "Aplikace". CSS-cache-immune (inline styly).
+// kód jazyka "CS", text Odhlásit. CSS-cache-immune (inline styly).
 // =============================================================
 (function() {
   function applyMobileHeader() {
@@ -45,8 +11,6 @@ document.addEventListener('keydown', function(e) {
     var hideOnMobile = [
       '.topbar .topbar-user',           // "Vítejte, Demo Admin" + datum (datum je v sidebar-logo)
       '.topbar .lang-trigger-code',     // "CS" text za vlajkou
-      '.topbar .tb-apps-lbl',           // "Aplikace" text
-      '.topbar .tb-apps-arr',           // šipka ▾ u Aplikace
       '.topbar .btn-logout-label',      // "Odhlásit" text
       '.topbar #fullscreen-btn',        // fullscreen tlačítko
     ];
@@ -56,19 +20,6 @@ document.addEventListener('keydown', function(e) {
       });
     });
 
-    // Apps tlačítko na mobilu = čtverec (jen 🚀)
-    var appsBtn = document.querySelector('.topbar .tb-apps-btn');
-    if (appsBtn) {
-      if (isMobile) {
-        appsBtn.style.width = '40px';
-        appsBtn.style.padding = '0';
-        appsBtn.style.justifyContent = 'center';
-      } else {
-        appsBtn.style.width = '';
-        appsBtn.style.padding = '';
-        appsBtn.style.justifyContent = '';
-      }
-    }
     // Logout na mobilu = čtverec (jen ↩)
     var logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {

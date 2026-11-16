@@ -97,7 +97,8 @@ window.ulozitPobocku = async function(odberatel_id, pobocka_id, returnTo = null)
     }[returnTo];
     if (navrat) {
       const st = navrat.st();
-      st.pobocky = await api(`admin_pobocky.php?odberatel_id=${odberatel_id}`);
+      const _pob = await api(`admin_pobocky.php?odberatel_id=${odberatel_id}`);
+      st.pobocky = returnTo === 'novaObjednavka' ? noAktivniPobocky(_pob) : _pob;   // 🆕 v3.0.640 — neaktivní pobočku nenabízet
       if (st.pobocky.length === 1) st.misto_dodani_id = st.pobocky[0].id;
       navrat.render();
     } else {

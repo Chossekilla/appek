@@ -8,6 +8,7 @@
 (function () {
   const CFG = window.POS_CONFIG || {};
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const callLink = (phone) => { if (phone === null || phone === undefined) return ''; let s = String(phone).split(/[,;]/)[0].replace(/[^+0-9]/g, ''); if (s.startsWith('00')) s = '+' + s.slice(2); s = s.replace(/(?!^)\+/g, ''); return /\d{3,}/.test(s) ? 'tel:' + s : ''; };   // 📞 v3.0.640
   const money = (n) => (parseFloat(n) || 0).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kč';
   const qty = (n) => (parseFloat(n) || 0).toLocaleString('cs-CZ', { maximumFractionDigits: 3 });
 
@@ -175,7 +176,7 @@
             ${o.vyzvednuti_pripraveno ? '<span class="pk-badge pk-ready">připraveno</span>' : ''}</span>
         </div>
         <div class="pk-meta">${esc(o.cislo)} · <strong>${esc(o.vyzvednuti_jmeno || '—')}</strong>
-          ${o.vyzvednuti_tel ? ` · <a href="tel:${esc(String(o.vyzvednuti_tel).replace(/\s+/g, ''))}">📞 ${esc(o.vyzvednuti_tel)}</a>` : ''}
+          ${o.vyzvednuti_tel ? ` · ${callLink(o.vyzvednuti_tel) ? `<a href="${esc(callLink(o.vyzvednuti_tel))}">📞 ${esc(o.vyzvednuti_tel)}</a>` : `📞 ${esc(o.vyzvednuti_tel)}`}` : ''}
           ${o.vyzvednuti_email ? ' · ✉️' : ''}</div>
         ${items ? `<div class="pk-items">${items}</div>` : ''}
         <div class="pk-act">

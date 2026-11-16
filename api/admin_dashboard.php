@@ -260,7 +260,7 @@ if ($nedavneDlIds) {
 // Nedávné faktury (místo dodání odvozeno z prvního DL, plus DL badge info)
 $nedavne_fa = $pdo->query("
     SELECT f.id, f.cislo, f.datum_vystaveni, f.datum_splatnosti,
-           f.castka_celkem, f.castka_uhrazeno, f.rucni,
+           f.castka_celkem, f.castka_uhrazeno, f.rucni, f.je_dobropis,
            od.nazev AS odberatel,
            CASE
                -- 🐛 PR14 — plně dobropisovaná faktura je vyrovnaná (ne po splatnosti)

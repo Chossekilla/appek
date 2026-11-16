@@ -74,15 +74,24 @@ function bom_surovina_jednotka(PDO $pdo, int $sid): string {
     try { $st = $pdo->prepare("SELECT jednotka FROM suroviny WHERE id = :id"); $st->execute(['id' => $sid]); $u = (string) $st->fetchColumn(); } catch (Throwable $e) {}
     return $cache[$sid] = $u;
 }
-function bom_unit_factor(?string $from, ?string $to): float {
+/** Přísná varianta: null = nelze převést (prázdná/neznámá jednotka nebo jiný rozměr). v3.0.640 */
+if (!function_exists('bom_unit_factor_strict')) {
+function bom_unit_factor_strict(?string $from, ?string $to): ?float {
     $f = mb_strtolower(trim((string) $from));
     $t = mb_strtolower(trim((string) $to));
-    if ($f === '' || $t === '' || $f === $t) return 1.0;
+    if ($f !== '' && $f === $t) return 1.0;
     static $base = ['g' => ['m', 1.0], 'kg' => ['m', 1000.0], 'mg' => ['m', 0.001],
                     'ml' => ['v', 1.0], 'l' => ['v', 1000.0], 'dl' => ['v', 100.0], 'cl' => ['v', 10.0],
                     'ks' => ['k', 1.0]];
     if (isset($base[$f], $base[$t]) && $base[$f][0] === $base[$t][0]) return $base[$f][1] / $base[$t][1];
-    return 1.0;
+    return null;
+}
+}
+function bom_unit_factor(?string $from, ?string $to): float {
+    $f = mb_strtolower(trim((string) $from));
+    $t = mb_strtolower(trim((string) $to));
+    if ($f === '' || $t === '' || $f === $t) return 1.0;
+    return bom_unit_factor_strict($f, $t) ?? 1.0;   // neznámá/křížová dvojice → 1:1 (původní chování)
 }
 
 /** Jednotková cena suroviny (cena_baleni / obsah_baleni). */

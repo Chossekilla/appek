@@ -431,7 +431,7 @@ window.menaLoad = async function() {
       </div>
       <div style="border-top:1px dashed var(--border);margin-top:14px;padding-top:12px" ${cizi && !trvale ? '' : 'hidden'} id="mena-prepocet-sekce">
         <strong style="font-size:13px">⚠️ Trvalý přepočet ceníku</strong>
-        <p class="page-sub" style="font-size:12px;margin:4px 0 8px">Přepíše uložené ceny všech výrobků (cena ÷ kurz). Nevratné bez zálohy — záloha DB se vytvoří automaticky před přepočtem.</p>
+        <p class="page-sub" style="font-size:12px;margin:4px 0 8px">Přepíše uložené ceny výrobků, pevné ceny skupin i ceny surovin (cena ÷ kurz). Prodej i doklady pak jedou trvale v cílové měně. Nevratné bez zálohy — záloha DB se vytvoří automaticky před přepočtem.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn-secondary" onclick="menaPrepocetNahled()">👁️ Náhled přepočtu</button>
           <div id="mena-prepocet-nahled" style="font-size:12px;flex-basis:100%"></div>
@@ -1143,6 +1143,7 @@ window.openObjednavkaDetail = async function(id) {
       const _furl = _fm ? _fm[1] : '';
       return `<div style="margin-bottom:14px;padding:10px 14px;background:#F7F8FA;border-left:3px solid #BA7517;border-radius:4px;font-size:13px"><strong>📝 Poznámka:</strong> ${esc(o.poznamka)}${_furl ? `<div style="margin-top:8px"><a href="${esc(_furl)}" target="_blank" rel="noopener" title="Otevřít fotku předlohy v plné velikosti"><img src="${esc(_furl)}" alt="Fotka předlohy" style="max-height:130px;max-width:220px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:block" onerror="this.style.display='none'"></a></div>` : ''}</div>`;
     })() : ''}
+    ${o.interni_pozn ? `<div style="margin-bottom:14px;padding:10px 14px;background:#F4F6FA;border-left:3px solid #6B7280;border-radius:4px;font-size:13px;white-space:pre-line"><strong>🔒 Interní poznámka:</strong> ${esc(o.interni_pozn)}</div>` : ''}
 
     <!-- POLOŽKY jako seznam řádků -->
     <h3 class="modal-section-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -1299,9 +1300,9 @@ window.openObjednavkaDetail = async function(id) {
     <div class="obj-doc-actions-wrap">
       <div class="obj-doc-actions-label">📋 Doklady</div>
       <div class="obj-doc-actions">
-        <button class="doc-action" onclick="noOpakovatZeZdroje('obj', ${o.id})" title="Vytvořit novou objednávku se stejnými položkami">
+        ${lzeZnovuObjednat('obj', o) ? `<button class="doc-action" onclick="noOpakovatZeZdroje('obj', ${o.id})" title="Vytvořit novou objednávku se stejnými položkami">
           <span class="doc-action-ic">🔁</span><span>Znovu objednat</span>
-        </button>
+        </button>` : ''}
         ${(!o.dodaci_listy || o.dodaci_listy.length === 0) ? `
           <a href="../api/dodaci_list.php?id=${o.id}" target="_blank" class="doc-action"><span class="doc-action-ic">📃</span><span>Vytvořit DL</span></a>
         ` : `

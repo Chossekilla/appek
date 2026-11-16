@@ -269,6 +269,15 @@ window.openInMaps = function(address, city = '', psc = '') {
   else if (isAndroid) location.href = `geo:0,0?q=${full}`;
   else                window.open(`https://www.google.com/maps/search/?api=1&query=${full}`, '_blank');
 };
+// 📞 Tap-to-call — normalizuje telefon pro tel: odkaz (mezery, pomlčky, závorky, tečky pryč; 00420 → +420).
+//   Vrací '' když v textu není telefonní číslo → volající pak vykreslí jen text bez odkazu. (v3.0.640)
+window.makeCallLink = function(phone) {
+  if (phone === null || phone === undefined) return '';
+  let s = String(phone).split(/[,;]/)[0].replace(/[^+0-9]/g, '');
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  s = s.replace(/(?!^)\+/g, '');
+  return /\d{3,}/.test(s) ? 'tel:' + s : '';
+};
 
 
 // =============================================================

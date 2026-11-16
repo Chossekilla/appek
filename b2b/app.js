@@ -100,6 +100,14 @@ function esc(s) {
     {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
   ));
 }
+// 📞 Tap-to-call — stejné jako admin makeCallLink (0260); v3.0.640
+function b2bCallLink(phone) {
+  if (phone === null || phone === undefined) return '';
+  let s = String(phone).split(/[,;]/)[0].replace(/[^+0-9]/g, '');
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  s = s.replace(/(?!^)\+/g, '');
+  return /\d{3,}/.test(s) ? 'tel:' + s : '';
+}
 function fmt(n) {
   // 💱 v3.0.283 — display přepočet na cílovou měnu (config z firma_branding.php; DB je v Kč)
   const m = window._mena;
@@ -727,7 +735,8 @@ async function showApp() {
     cookieConsentInit();
     const cEl = document.getElementById('app-footer-contact');
     if (cEl && f) {
-      const tel  = f.firma_telefon ? `<a href="tel:${esc(f.firma_telefon).replace(/\s+/g,'')}">📞 ${esc(f.firma_telefon)}</a>` : '';
+      const telH = b2bCallLink(f.firma_telefon);
+      const tel  = f.firma_telefon ? (telH ? `<a href="${esc(telH)}">📞 ${esc(f.firma_telefon)}</a>` : `<span>📞 ${esc(f.firma_telefon)}</span>`) : '';
       const mail = f.firma_email   ? `<a href="mailto:${esc(f.firma_email)}">✉️ ${esc(f.firma_email)}</a>` : '';
       const adr  = (f.firma_ulice || f.firma_mesto) ? `<span>📍 ${esc([f.firma_ulice, f.firma_mesto].filter(Boolean).join(', '))}</span>` : '';
       // 🔒 v3.0.425 — odkaz na zásady zpracování osobních údajů (GDPR)

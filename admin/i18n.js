@@ -648,13 +648,6 @@ const I18N = {
     de: '✓ Änderungen gespeichert. {co} aktualisiert — neue drucken.',
     es: '✓ Cambios guardados. {co} actualizados — imprimir nuevos.',
   },
-  imported_lines_skipped: {
-    cs: '📥 Načteno {n} položek. ({skipped} volných řádků bez výrobku přeskočeno.)',
-    sk: '📥 Načítaných {n} položiek. ({skipped} prázdnych riadkov bez výrobku preskočených.)',
-    en: '📥 Loaded {n} items. ({skipped} empty rows without product skipped.)',
-    de: '📥 {n} Artikel geladen. ({skipped} leere Zeilen ohne Produkt übersprungen.)',
-    es: '📥 Cargados {n} artículos. ({skipped} filas vacías sin producto omitidas.)',
-  },
 
   // Form row errors
   row_missing_name: {
@@ -693,13 +686,6 @@ const I18N = {
     en: 'Order {cislo} was created.',
     de: 'Bestellung {cislo} wurde erstellt.',
     es: 'Pedido {cislo} fue creado.',
-  },
-  order_created_simple: {
-    cs: 'Vytvořena objednávka {cislo}.',
-    sk: 'Vytvorená objednávka {cislo}.',
-    en: 'Order {cislo} created.',
-    de: 'Bestellung {cislo} erstellt.',
-    es: 'Pedido {cislo} creado.',
   },
   invoice_issued_simple: {
     cs: 'Faktura {cislo} byla vystavena.',

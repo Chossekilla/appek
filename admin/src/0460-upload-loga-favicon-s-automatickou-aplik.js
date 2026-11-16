@@ -323,7 +323,9 @@ window.ulozitVyrobek = async function(id) {
     // 🐛 v3.0.598 — server zahodil cyklickou složku receptu → řekni to (dřív zmizela potichu)
     if (res && Array.isArray(res.warnings) && res.warnings.length) alert('Výrobek uložen, ale:\n\n• ' + res.warnings.join('\n• '));
     closeModal();
-    navigate('vyrobky');
+    // ✏️ v3.0.640 — editor otevřený z cenovek: zůstaň na Štítcích a překresli (dřív skok do Výrobků)
+    if (state.current === 'stitky' && typeof window.stPoUlozeniVyrobku === 'function') await window.stPoUlozeniVyrobku(id || (res && res.id));
+    else navigate('vyrobky');
   } catch (e) { alert('Chyba: ' + e.message); }
   finally { window._savingVyrobek = false; }
 };
@@ -332,6 +334,7 @@ window.smazatVyrobek = async function(id) {
   if (!await confirmDelete2x({ co: 'tento výrobek', detail: 'Pokud má historické objednávky, výrobek se pouze skryje (nezůstanou rozbité doklady).' })) return;
   await api(`admin_vyrobky.php?id=${id}`, { method: 'DELETE' });
   closeModal();
-  navigate('vyrobky');
+  if (state.current === 'stitky' && typeof window.stPoUlozeniVyrobku === 'function') await window.stPoUlozeniVyrobku(id, true);
+  else navigate('vyrobky');
 };
 
