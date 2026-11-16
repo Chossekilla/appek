@@ -4,6 +4,7 @@
  * GET ?datum=YYYY-MM-DD  → seznam DL na ten den seskupený podle města + adresy
  */
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_mena_lib.php'; // 💱 v3.0.642 — částky v měně dokladu (mena_doc_pole)
 require_once __DIR__ . '/_admin_auth.php';
 cors_headers();
 require_admin();
@@ -48,6 +49,7 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute(['datum' => $datum]);
 $dl_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+mena_doc_pole($pdo, 'dodaci_listy', $dl_list);   // 💱 v3.0.642 — částka DL v jeho měně (součty zůstávají v Kč)
 
 // Seskup podle města/PSČ
 $mesta = [];

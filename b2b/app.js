@@ -122,6 +122,23 @@ function fmt(n) {
     minimumFractionDigits: 2, maximumFractionDigits: 2,
   }).format(n);
 }
+// 💱 v3.0.642 — částka KONKRÉTNÍHO dokladu v jeho měně (server vrací doc_mena + doc_celkem shodně s PDF).
+//   NEDĚLÍ kurzem: stará Kč objednávka/faktura zůstane v Kč i po přepnutí prodeje na EUR.
+//   Bez `mena` (starší endpoint) = původní fmt().
+function fmtDoc(n, mena) {
+  if (!mena) return fmt(n);
+  const kod = String(mena).toUpperCase();
+  try {
+    return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: kod, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
+  } catch (e) { return fmt(n); }
+}
+// Uložená částka položky → měna dokladu (cena/ks na centy jako na PDF); bez doc_k beze změny
+function docK(o, n) {
+  const k = o && o.doc_mena && o.doc_k ? parseFloat(o.doc_k) : 0;
+  n = parseFloat(n || 0);
+  return (!k || k === 1) ? n : Math.round(n * k * 100) / 100;
+}
+function docCelkem(o) { return (o && o.doc_mena && o.doc_celkem != null) ? o.doc_celkem : o.castka_celkem; }
 function fmtDate(s) {
   if (!s) return '';
   return new Date(s).toLocaleDateString('cs-CZ', {
@@ -1192,7 +1209,7 @@ function renderCatalog() {
           <div>
             <div class="quick-reorder-title">Zopakovat poslední objednávku</div>
             <div class="quick-reorder-meta">
-              ${esc(posledni.cislo)} · ${posledni.polozky?.length || 0} položek · ${fmt(parseFloat(posledni.castka_celkem || 0))}
+              ${esc(posledni.cislo)} · ${posledni.polozky?.length || 0} položek · ${fmtDoc(parseFloat(docCelkem(posledni) || 0), posledni.doc_mena)}
             </div>
           </div>
         </div>
@@ -1486,7 +1503,7 @@ function renderOrderMiniCard(o) {
         <span class="status ${esc(o.stav)}">${statusLabel(o.stav)}</span>
       </div>
       <div class="order-mini-meta" onclick="zobrazDetailObjednavky(${o.id})">
-        📅 ${fmtDate(o.datum_dodani)} · ${o.pocet_polozek} pol. · <strong>${fmt(o.castka_celkem)}</strong>
+        📅 ${fmtDate(o.datum_dodani)} · ${o.pocet_polozek} pol. · <strong>${fmtDoc(docCelkem(o), o.doc_mena)}</strong>
       </div>
       ${polozky.length > 0 ? `
         <ul class="order-mini-list" onclick="zobrazDetailObjednavky(${o.id})">
@@ -1530,7 +1547,7 @@ function renderOrderCard(o) {
     const v = state.vyrobky.find(x => x.id == p.vyrobek_id);
     const nazev = p.vyrobek_nazev || (v ? v.nazev : `Výrobek #${p.vyrobek_id}`);
     const mn = parseFloat(p.mnozstvi);
-    const cenaJedn = parseFloat(p.cena_bez_dph || 0);
+    const cenaJedn = docK(o, p.cena_bez_dph);   // 💱 v3.0.642 — v měně dokladu
     const dph = parseFloat(p.sazba_dph || 0);
     const sDph = cenaJedn * (1 + dph / 100);
     const bezDphCelkem = cenaJedn * mn;
@@ -1539,6 +1556,7 @@ function renderOrderCard(o) {
     // Detekce rabatu: porovnání zaplacené ceny vs. základní ceny (z polozky nebo z katalogu)
     let cenaZakladni = parseFloat(p.cena_zakladni || 0);
     if (!cenaZakladni && v) cenaZakladni = parseFloat(v.cena_zakladni || v.cena_bez_dph || 0);
+    cenaZakladni = docK(o, cenaZakladni);
     const maRabat = cenaZakladni > cenaJedn + 0.001;
     const rabatKs = maRabat ? (cenaZakladni - cenaJedn) : 0;
     const slevaPct = maRabat ? Math.round((1 - cenaJedn / cenaZakladni) * 100) : 0;
@@ -1558,7 +1576,7 @@ function renderOrderCard(o) {
         <span class="status ${esc(o.stav)}">${statusLabel(o.stav)}</span>
       </div>
       <div class="order-card-meta" onclick="zobrazDetailObjednavky(${o.id})">
-        📅 ${fmtDate(o.datum_dodani)} · ${o.pocet_polozek} pol. · <strong>${fmt(o.castka_celkem)}</strong>
+        📅 ${fmtDate(o.datum_dodani)} · ${o.pocet_polozek} pol. · <strong>${fmtDoc(docCelkem(o), o.doc_mena)}</strong>
       </div>
       ${polozky.length > 0 ? `
         <ul class="order-card-items">
@@ -1567,27 +1585,27 @@ function renderOrderCard(o) {
               <div class="oci-main">
                 <span class="oci-qty">${p.mn}×</span>
                 <span class="oci-name">${esc(p.nazev)}</span>
-                ${p.celkem > 0 ? `<span class="oci-price">${fmt(p.celkem)}</span>` : ''}
+                ${p.celkem > 0 ? `<span class="oci-price">${fmtDoc(p.celkem, o.doc_mena)}</span>` : ''}
               </div>
               ${p.cenaJedn > 0 ? `
                 <div class="oci-detail">
                   ${p.maRabat ? `
-                    <span class="oci-d oci-d-saving"><span class="oci-d-lbl">💰 Rabat /ks</span> <strong>−${fmt(p.rabatKs)}</strong></span>
+                    <span class="oci-d oci-d-saving"><span class="oci-d-lbl">💰 Rabat /ks</span> <strong>−${fmtDoc(p.rabatKs, o.doc_mena)}</strong></span>
                     <span class="oci-d-sep">·</span>
                     <span class="oci-d oci-d-saving"><span class="oci-d-lbl">Sleva</span> <strong>−${p.slevaPct}%</strong></span>
                     <span class="oci-d-sep">·</span>
-                    <span class="oci-d"><span class="oci-d-lbl">Běžně</span> <s>${fmt(p.cenaZakladni)}</s></span>
+                    <span class="oci-d"><span class="oci-d-lbl">Běžně</span> <s>${fmtDoc(p.cenaZakladni, o.doc_mena)}</s></span>
                     <span class="oci-d-sep">·</span>
                   ` : ''}
-                  <span class="oci-d"><span class="oci-d-lbl">Vaše /ks</span> <strong>${fmt(p.cenaJedn)}</strong></span>
+                  <span class="oci-d"><span class="oci-d-lbl">Vaše /ks</span> <strong>${fmtDoc(p.cenaJedn, o.doc_mena)}</strong></span>
                   <span class="oci-d-sep">·</span>
-                  <span class="oci-d"><span class="oci-d-lbl">s DPH /ks</span> <strong>${fmt(p.sDph)}</strong></span>
+                  <span class="oci-d"><span class="oci-d-lbl">s DPH /ks</span> <strong>${fmtDoc(p.sDph, o.doc_mena)}</strong></span>
                   <span class="oci-d-sep">·</span>
                   <span class="oci-d"><span class="oci-d-lbl">DPH</span> <strong>${p.dph.toFixed(0)}%</strong></span>
                   <span class="oci-d-sep">·</span>
-                  <span class="oci-d"><span class="oci-d-lbl">Bez DPH celkem</span> <strong>${fmt(p.bezDphCelkem)}</strong></span>
+                  <span class="oci-d"><span class="oci-d-lbl">Bez DPH celkem</span> <strong>${fmtDoc(p.bezDphCelkem, o.doc_mena)}</strong></span>
                   <span class="oci-d-sep">·</span>
-                  <span class="oci-d"><span class="oci-d-lbl">DPH celkem</span> <strong>${fmt(p.dphCelkem)}</strong></span>
+                  <span class="oci-d"><span class="oci-d-lbl">DPH celkem</span> <strong>${fmtDoc(p.dphCelkem, o.doc_mena)}</strong></span>
                 </div>
               ` : ''}
             </li>
@@ -2532,7 +2550,7 @@ async function loadDoklady() {
               <div style="font-size:12px;color:var(--text-3);margin-top:2px">Vystaveno ${fmtDate(f.datum_vystaveni)}${(f.datum_splatnosti && !f.je_dobropis) ? ' · splatnost ' + fmtDate(f.datum_splatnosti) : ''}</div>
             </div>
             <div style="text-align:right;flex-shrink:0">
-              <strong style="font-size:16px;${(f.je_dobropis || f.castka_celkem < 0) ? 'color:#16a34a' : ''}">${fmt(f.castka_celkem)}</strong>
+              <strong style="font-size:16px;${(f.je_dobropis || f.castka_celkem < 0) ? 'color:#16a34a' : ''}">${fmtDoc(docCelkem(f), f.doc_mena)}</strong>
               <div style="margin-top:4px"><a class="oc-btn oc-btn-ghost oc-btn-sm" href="../api/faktura.php?id=${f.id}" target="_blank" rel="noopener">📄 PDF</a></div>
             </div>
           </div>
@@ -2697,7 +2715,7 @@ function renderDetailObjednavky(o) {
       </div>
       <div class="detail-meta-box">
         <div class="detail-meta-label">Celkem</div>
-        <div class="detail-meta-value">${fmt(o.castka_celkem)}</div>
+        <div class="detail-meta-value">${fmtDoc(docCelkem(o), o.doc_mena)}</div>
       </div>
     </div>
 
@@ -2720,8 +2738,8 @@ function renderDetailObjednavky(o) {
           <tr>
             <td>${esc(p.vyrobek_nazev)}</td>
             <td class="num">${parseFloat(p.mnozstvi)} ${esc(p.jednotka || 'ks')}</td>
-            <td class="num">${fmt(p.cena_bez_dph)}</td>
-            <td class="num"><strong>${fmt(parseFloat(p.cena_bez_dph) * parseFloat(p.mnozstvi))}</strong></td>
+            <td class="num">${fmtDoc(docK(o, p.cena_bez_dph), o.doc_mena)}</td>
+            <td class="num"><strong>${fmtDoc(o.doc_mena && o.doc_k != 1 ? Math.round(docK(o, p.cena_bez_dph) * parseFloat(p.mnozstvi) * 100) / 100 : parseFloat(p.cena_bez_dph) * parseFloat(p.mnozstvi), o.doc_mena)}</strong></td>
           </tr>
         `).join('')}
       </tbody>

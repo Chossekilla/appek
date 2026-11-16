@@ -2180,6 +2180,45 @@ function fmt(n) {
   }
 }
 
+// 💱 v3.0.642 — částka KONKRÉTNÍHO dokladu (faktura/dobropis/objednávka/DL) v JEHO měně.
+//   Server vrací doc_mena + doc_celkem (doc_bez/doc_dph/doc_k) spočítané shodně s PDF.
+//   NEDĚLÍ kurzem → stará Kč faktura zůstane v Kč i po přepnutí prodeje na EUR; EUR faktura = „K úhradě" z PDF.
+//   Statistiky/součty (tržby, reporty) dál přes fmt(). Bez `mena` (starší endpoint) = fmt().
+function fmtDoc(n, mena) {
+  if (!mena) return fmt(n);
+  const kod = String(mena).toUpperCase();
+  try {
+    if (kod === 'CZK') {
+      // Kč doklad: stejný formát jako fmt() bez přepočtu (locale dle jazyka rozhraní) → Kč instalace beze změny
+      const cfg = (typeof window.getCurrentLocale === 'function') ? window.getCurrentLocale() : null;
+      return new Intl.NumberFormat((cfg && cfg.locale) || 'cs-CZ', { style: 'currency', currency: 'CZK', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
+    }
+    return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: kod, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
+  } catch (e) { return fmt(n); }
+}
+// Celková částka dokladu v jeho měně (fallback castka_celkem) + formát
+function docCelkem(d) { return (d && d.doc_mena && d.doc_celkem != null) ? d.doc_celkem : (d ? d.castka_celkem : 0); }
+function fmtDocCelkem(d) { return fmtDoc(docCelkem(d), d && d.doc_mena); }
+// Uložená částka (cena/ks) → měna dokladu, na centy jako PDF; Kč doklad beze změny
+function docK(d, n) {
+  const k = d && d.doc_mena && d.doc_k ? parseFloat(d.doc_k) : 0;
+  n = parseFloat(n || 0);
+  return (!k || k === 1) ? n : Math.round(n * k * 100) / 100;
+}
+// Řádek položky (mn × cena) v měně dokladu — shodně s mena_doklad_polozky (round(mn × round(cena×k)))
+function docRadek(d, cena, mn) {
+  const k = d && d.doc_mena && d.doc_k ? parseFloat(d.doc_k) : 0;
+  if (!k || k === 1) return parseFloat(cena || 0) * parseFloat(mn || 0);
+  return Math.round(docK(d, cena) * parseFloat(mn || 0) * 100) / 100;
+}
+// Řádek s DPH v měně dokladu (DPH po řádcích na centy jako PDF); Kč doklad = původní výpočet
+function docRadekSDph(d, cena, mn, sazba) {
+  const k = d && d.doc_mena && d.doc_k ? parseFloat(d.doc_k) : 0;
+  if (!k || k === 1) return parseFloat(cena) * parseFloat(mn) * (1 + parseFloat(sazba) / 100);
+  const z = docRadek(d, cena, mn);
+  return Math.round((z + Math.round(z * parseFloat(sazba || 0)) / 100) * 100) / 100;
+}
+
 // URL na PDF dodacího listu — ruční DL (bez objednávky) jdou přes ?dl_id, ostatní přes ?id (objednávka)
 function dlPdfUrl(d) {
   if (d.objednavka_id) return `../api/dodaci_list.php?id=${d.objednavka_id}`;
@@ -5458,7 +5497,7 @@ async function renderDashboard(filters = {}) {
                     ${recentPolozkyLine(o)}
                   </td>
                   <td><span class="status ${o.stav}" style="font-size:10px">${statusLabel(o.stav)}</span></td>
-                  <td class="num"><strong>${fmt(o.castka_celkem)}</strong></td>
+                  <td class="num"><strong>${fmtDocCelkem(o)}</strong></td>
                   <td class="recent-actions" onclick="event.stopPropagation()">
                     ${recentRowIcons('obj', o)}
                   </td>
@@ -5487,7 +5526,7 @@ async function renderDashboard(filters = {}) {
                     ${recentPolozkyLine(dl)}
                   </td>
                   <td>${dlStavBadge(dl)}</td>
-                  <td class="num"><strong>${fmt(dl.castka_celkem)}</strong></td>
+                  <td class="num"><strong>${fmtDocCelkem(dl)}</strong></td>
                   <td class="recent-actions" onclick="event.stopPropagation()">
                     ${recentRowIcons('dl', dl)}
                   </td>
@@ -5516,7 +5555,7 @@ async function renderDashboard(filters = {}) {
                     ${recentPolozkyLine(f)}
                   </td>
                   <td>${stavUhradyBadge(f.stav_uhrady)}</td>
-                  <td class="num"><strong>${fmt(f.castka_celkem)}</strong></td>
+                  <td class="num"><strong>${fmtDocCelkem(f)}</strong></td>
                   <td class="recent-actions" onclick="event.stopPropagation()">
                     ${recentRowIcons('fa', f)}
                   </td>
@@ -6752,7 +6791,7 @@ async function renderObjednavky(filters = {}, opts = {}) {
                       : `<span class="doc-badge fa unavailable" title="Faktura zatím nevystavena">💰</span>`}
                   </span>
                 </td>
-                <td class="num"><strong>${fmt(o.castka_celkem)}</strong></td>
+                <td class="num"><strong>${fmtDocCelkem(o)}</strong></td>
                 <td onclick="event.stopPropagation();" style="white-space:nowrap;text-align:right">
                   <span class="doc-badges-row" style="justify-content:flex-end">
                     <button class="doc-badge reorder reorder-icon" onclick="noOpakovatZeZdroje('obj', ${o.id})" title="Znovu objednat">🔁</button>
@@ -6801,7 +6840,7 @@ async function renderObjednavky(filters = {}, opts = {}) {
                 <span>🚚 ${fmtDate(o.datum_dodani)}</span>
                 <span>📦 ${o.pocet_polozek} pol.</span>
               </div>
-              <div class="obj-card-castka">${fmt(o.castka_celkem)}</div>
+              <div class="obj-card-castka">${fmtDocCelkem(o)}</div>
             </div>
           </div>
         `).join('')}
@@ -7206,7 +7245,7 @@ window.openObjednavkaDetail = async function(id) {
             <div class="obj-polozka-meta">${parseFloat(p.sazba_dph) > 0 ? 'sleva · DPH ' + parseFloat(p.sazba_dph) + ' %' : 'uhrazeno předem'}</div>
           </div>
           <div class="obj-polozka-qty"></div>
-          <div class="obj-polozka-cena" style="color:#166534">${fmt(p.cena_bez_dph * p.mnozstvi)}</div>
+          <div class="obj-polozka-cena" style="color:#166534">${fmtDoc(docRadek(o, p.cena_bez_dph, p.mnozstvi), o.doc_mena)}</div>
           ${!o.zamcena && o.stav !== 'zrusena' ? `<button class="obj-polozka-del" onclick="odebratVoucherObj(${o.id})" title="Odebrat voucher (vrátí se na voucher)">×</button>` : '<span></span>'}
         </div>
       ` : `
@@ -7214,16 +7253,16 @@ window.openObjednavkaDetail = async function(id) {
           <div class="obj-polozka-img">${p.obrazek_url ? `<img src="${esc(p.obrazek_url)}" alt="">` : '<div class="obj-polozka-img-empty">🥖</div>'}</div>
           <div class="obj-polozka-info">
             <div class="obj-polozka-nazev">${esc(p.vyrobek_nazev)}</div>
-            <div class="obj-polozka-meta">${fmt(p.cena_bez_dph)} / ${esc(p.jednotka || 'ks')}</div>
+            <div class="obj-polozka-meta">${fmtDoc(docK(o, p.cena_bez_dph), o.doc_mena)} / ${esc(p.jednotka || 'ks')}</div>
           </div>
           <div class="obj-polozka-qty">
             <button type="button" class="qty-btn" onclick="objQtyAdj(${p.id}, -1)" title="−1">−</button>
             <input type="number" min="0" step="1" class="form-input qty-input"
                    value="${Math.round(p.mnozstvi)}" data-orig="${Math.round(p.mnozstvi)}" data-pol-id="${p.id}"
-                   data-cena="${p.cena_bez_dph}" oninput="objQtyRecalc(${p.id})">
+                   data-cena="${p.cena_bez_dph}" data-doc-mena="${esc(o.doc_mena || '')}" data-doc-k="${o.doc_k || ''}" oninput="objQtyRecalc(${p.id})">
             <button type="button" class="qty-btn" onclick="objQtyAdj(${p.id}, 1)" title="+1">+</button>
           </div>
-          <div class="obj-polozka-cena" id="obj-polozka-cena-${p.id}">${fmt(p.cena_bez_dph * p.mnozstvi)}</div>
+          <div class="obj-polozka-cena" id="obj-polozka-cena-${p.id}">${fmtDoc(docRadek(o, p.cena_bez_dph, p.mnozstvi), o.doc_mena)}</div>
           <button class="obj-polozka-del" onclick="smazatPolozku(${p.id}, ${o.id})" title="Smazat">×</button>
         </div>
       `).join('')}
@@ -7239,7 +7278,7 @@ window.openObjednavkaDetail = async function(id) {
       <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;font-size:13px">
         <span>🎟️ Voucher <strong style="font-family:monospace">${esc(o.voucher.kod)}</strong></span>
         <span style="background:${o.voucher.chovani === 'sleva' ? '#FEF3C7' : '#DBEAFE'};color:${o.voucher.chovani === 'sleva' ? '#92400e' : '#1e40af'};padding:1px 7px;border-radius:8px;font-size:11px;font-weight:600">${o.voucher.chovani === 'sleva' ? 'sleva z ceny' : 'platba'}</span>
-        <span style="font-weight:700;color:#166534">−${fmt(o.voucher.uplatneno)}</span>
+        <span style="font-weight:700;color:#166534">−${fmtDoc(docK(o, o.voucher.uplatneno), o.doc_mena)}</span>
         <div style="flex:1"></div>
         ${!o.zamcena && o.stav !== 'zrusena' ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="odebratVoucherObj(${o.id})">Odebrat</button>` : ''}
       </div>
@@ -7254,13 +7293,13 @@ window.openObjednavkaDetail = async function(id) {
     <!-- SOUHRN: amber box -->
     <div style="margin-top:16px;background:#FAEEDA;border:2px solid #E5C499;border-radius:10px;padding:14px 18px">
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#855;margin-bottom:4px">
-        <span>Bez DPH</span><span>${fmt(o.castka_bez_dph)}</span>
+        <span>Bez DPH</span><span>${fmtDoc(o.doc_mena ? o.doc_bez : o.castka_bez_dph, o.doc_mena)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#855;margin-bottom:6px">
-        <span>DPH</span><span>${fmt(o.castka_dph)}</span>
+        <span>DPH</span><span>${fmtDoc(o.doc_mena ? o.doc_dph : o.castka_dph, o.doc_mena)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:20px;font-weight:700;color:#854F0B;border-top:1px solid #E5C499;padding-top:6px">
-        <span>Celkem s DPH</span><span>${fmt(o.castka_celkem)}</span>
+        <span>Celkem s DPH</span><span>${fmtDocCelkem(o)}</span>
       </div>
     </div>
 
@@ -7279,7 +7318,7 @@ window.openObjednavkaDetail = async function(id) {
             <strong>${esc(dl.cislo)}</strong>
             <span style="color:var(--text-3)">${fmtDate(dl.datum_vystaveni)}</span>
             <span style="color:var(--text-3)">·</span>
-            <span>${fmt(dl.castka_celkem)}</span>
+            <span>${fmtDocCelkem(dl)}</span>
             <div style="flex:1"></div>
             <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="closeModal();openDodaciListDetail(${dl.id})">Detail</button>
             <a href="../api/dodaci_list.php?id=${o.id}" target="_blank" class="btn-secondary" style="font-size:12px;padding:4px 10px;text-decoration:none">PDF</a>
@@ -7291,8 +7330,8 @@ window.openObjednavkaDetail = async function(id) {
             <strong>${esc(fa.cislo)}</strong>
             <span style="color:var(--text-3)">${fmtDate(fa.datum_vystaveni)}</span>
             <span style="color:var(--text-3)">·</span>
-            <span>${fmt(fa.castka_celkem)}</span>
-            ${fa.castka_uhrazeno > 0 ? `<span style="color:var(--success-text);font-size:11px">uhrazeno ${fmt(fa.castka_uhrazeno)}</span>` : ''}
+            <span>${fmtDocCelkem(fa)}</span>
+            ${fa.castka_uhrazeno > 0 ? `<span style="color:var(--success-text);font-size:11px">uhrazeno ${fmtDoc(fa.doc_mena ? fa.doc_uhrazeno : fa.castka_uhrazeno, fa.doc_mena)}</span>` : ''}
             <div style="flex:1"></div>
             <a href="../api/faktura.php?id=${fa.id}" target="_blank" class="btn-secondary" style="font-size:12px;padding:4px 10px;text-decoration:none">💰 Otevřít / Tisk</a>
           </div>
@@ -7489,7 +7528,9 @@ window.objQtyRecalc = function(polozka_id) {
   if (!inp || !cenaCell) return;
   const mn = parseFloat(inp.value) || 0;
   const cena = parseFloat(inp.dataset.cena) || 0;
-  cenaCell.textContent = fmt(mn * cena);
+  // 💱 v3.0.642 — v měně dokladu (Kč doklad = beze změny)
+  const d = { doc_mena: inp.dataset.docMena || '', doc_k: inp.dataset.docK || '' };
+  cenaCell.textContent = d.doc_mena ? fmtDoc(docRadek(d, cena, mn), d.doc_mena) : fmt(mn * cena);
 };
 
 window.smazatPolozku = async function(polozka_id, objednavka_id) {
@@ -10757,7 +10798,7 @@ async function renderRozvozy() {
                   </td>
                   <td class="num">${dl.pocet_polozek || 0}</td>
                   <td class="num">${Math.round(dl.celkem_ks || 0)}</td>
-                  <td class="num"><strong>${fmt(dl.castka_celkem)}</strong></td>
+                  <td class="num"><strong>${fmtDocCelkem(dl)}</strong></td>
                 </tr>
                 ${dl.pokyny_pro_ridice ? `
                 <tr style="background:var(--info-bg);color:var(--info-text)">
@@ -11331,7 +11372,7 @@ async function renderDodaciListy(filters = {}, opts = {}) {
                     ? `<a href="#" onclick="openFakturaDetail(${d.prvni_faktura_id});return false" class="doc-badge fa">💰 ${esc(d.faktura_cisla || '')}</a>`
                     : '<span style="color:var(--danger-text);font-size:11px;font-weight:500">Nefakturováno</span>'}
                 </td>
-                <td class="num"><strong>${fmt(d.castka_celkem)}</strong></td>
+                <td class="num"><strong>${fmtDocCelkem(d)}</strong></td>
                 <td onclick="event.stopPropagation();" style="white-space:nowrap;text-align:right">
                   <span class="doc-badges-row" style="justify-content:flex-end">
                     ${docBadge('dl', dlPdfUrl(d), '📃 DL', { title: 'Otevřít DL (PDF)' })}
@@ -11386,7 +11427,7 @@ async function renderDodaciListy(filters = {}, opts = {}) {
                 <span>📅 vystaveno ${fmtDate(d.datum_vystaveni)}</span>
                 <span>🚚 dodáno ${fmtDate(d.datum_dodani)}</span>
               </div>
-              <div class="dl-card-castka">${fmt(d.castka_celkem)}</div>
+              <div class="dl-card-castka">${fmtDocCelkem(d)}</div>
             </div>
             <div class="dl-card-actions" onclick="event.stopPropagation();">
               <span class="doc-badges-row">
@@ -11992,7 +12033,7 @@ window.openDodaciListDetail = async function(id) {
     const fakturyHtml = dl.faktury.length === 0
       ? '<span style="color:var(--danger-text);font-weight:500">Zatím nefakturováno</span>'
       : dl.faktury.map((f) =>
-          `<a href="#" onclick="closeModal();openFakturaDetail(${f.id});return false" class="doc-badge fa">💰 ${esc(f.cislo)} · ${fmt(f.castka_celkem)}</a>`
+          `<a href="#" onclick="closeModal();openFakturaDetail(${f.id});return false" class="doc-badge fa">💰 ${esc(f.cislo)} · ${fmtDocCelkem(f)}</a>`
         ).join(' ');
 
     openModal(`📃 Dodací list ${dl.cislo}`, `
@@ -12041,16 +12082,16 @@ window.openDodaciListDetail = async function(id) {
       <h3 class="modal-section-title">📦 Položky <span style="font-size:11px;color:var(--text-3);font-weight:400">(${dl.polozky.length})</span></h3>
       <div class="obj-polozky-list">
         ${dl.polozky.length === 0 ? '<div class="empty-state" style="padding:24px;background:var(--surface-2);border-radius:8px">Žádné položky.</div>' : dl.polozky.map((p) => {
-          const celkem = parseFloat(p.mnozstvi) * parseFloat(p.cena_bez_dph);
+          const celkem = dl.doc_mena && dl.doc_k && +dl.doc_k !== 1 ? docRadek(dl, p.cena_bez_dph, p.mnozstvi) : parseFloat(p.mnozstvi) * parseFloat(p.cena_bez_dph);   // 💱 v3.0.642
           return `
             <div class="obj-polozka-row obj-polozka-readonly">
               <div class="obj-polozka-img">${p.obrazek_url ? `<img src="${esc(p.obrazek_url)}" alt="">` : '<div class="obj-polozka-img-empty">🥖</div>'}</div>
               <div class="obj-polozka-info">
                 <div class="obj-polozka-nazev">${esc(p.vyrobek_nazev)}</div>
-                <div class="obj-polozka-meta">${p.vyrobek_cislo ? 'kód ' + esc(p.vyrobek_cislo) + ' · ' : ''}${fmt(p.cena_bez_dph)} / ${esc(p.jednotka || 'ks')}</div>
+                <div class="obj-polozka-meta">${p.vyrobek_cislo ? 'kód ' + esc(p.vyrobek_cislo) + ' · ' : ''}${fmtDoc(docK(dl, p.cena_bez_dph), dl.doc_mena)} / ${esc(p.jednotka || 'ks')}</div>
               </div>
               <div class="obj-polozka-qty obj-polozka-qty-static">${parseFloat(p.mnozstvi)} ${esc(p.jednotka || 'ks')}</div>
-              <div class="obj-polozka-cena">${fmt(celkem)}</div>
+              <div class="obj-polozka-cena">${fmtDoc(celkem, dl.doc_mena)}</div>
             </div>
           `;
         }).join('')}
@@ -12058,7 +12099,7 @@ window.openDodaciListDetail = async function(id) {
 
       <div style="margin-top:14px;background:#FAEEDA;border:2px solid #E5C499;border-radius:10px;padding:16px 22px">
         <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:22px;font-weight:700;color:#854F0B">
-          <span>Celkem</span><span>${fmt(dl.castka_celkem)}</span>
+          <span>Celkem</span><span>${fmtDocCelkem(dl)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12px;color:#854F0B;margin-top:6px;border-top:1px dashed #E5C499;padding-top:6px">
           <span>📅 Datum dodání</span><span><strong>${fmtDate(dl.datum_dodani)}</strong></span>
@@ -12254,7 +12295,7 @@ async function renderFaktury(filters = {}, opts = {}) {
                 <td onclick="event.stopPropagation();">${zdrojFakturyBadge(f)}</td>
                 <td class="num">${f.pocet_polozek || 0}</td>
                 <td>${stavUhradyBadge(f.stav_uhrady)}</td>
-                <td class="num"><strong>${fmt(f.castka_celkem)}</strong></td>
+                <td class="num"><strong>${fmtDocCelkem(f)}</strong></td>
                 <td onclick="event.stopPropagation();" style="white-space:nowrap;text-align:right">
                   <span class="doc-badges-row" style="justify-content:flex-end">
                     ${docBadge('dl', (f.pocet_dl > 0) ? (f.prvni_dl_objednavka_id ? `../api/dodaci_list.php?id=${f.prvni_dl_objednavka_id}` : `../api/dodaci_list.php?dl_id=${f.prvni_dl_id}`) : null, '📃 DL', { title: 'Otevřít dodací list (PDF)', disabledTitle: 'Faktura nemá navázaný DL' })}
@@ -12304,7 +12345,7 @@ async function renderFaktury(filters = {}, opts = {}) {
               <!-- 🆕 v3.0.601 — stejné čtvercové ikony v řadě jako v přehledu (dashboard recentRowIcons) -->
               <div class="faktura-card-actions" onclick="event.stopPropagation();">${recentRowIcons('fa', f)}</div>
             </div>
-            <div class="faktura-card-sum"><span class="faktura-card-sum-lbl">fakturováno</span><span class="faktura-card-castka">${fmt(f.castka_celkem)}</span></div>
+            <div class="faktura-card-sum"><span class="faktura-card-sum-lbl">fakturováno</span><span class="faktura-card-castka">${fmtDocCelkem(f)}</span></div>
           </div>
         `).join('')
       }
@@ -12748,6 +12789,9 @@ window.openFakturaDetail = async function(id) {
   const f = await api(`admin_faktury.php?id=${id}`);
   const uhrazeno = f.castka_uhrazeno || 0;
   const zbyva = f.castka_celkem - uhrazeno;
+  // 💱 v3.0.642 — zobrazené částky v měně DOKLADU (jako PDF); stav úhrady dál z uložených částek
+  const uhrazenoDoc = f.doc_mena ? (f.doc_uhrazeno || 0) : uhrazeno;
+  const zbyvaDoc = f.doc_mena ? Math.round((docCelkem(f) - uhrazenoDoc) * 100) / 100 : zbyva;
   // Vypočtený stav úhrady (stejně jako v SQL)
   const dnes = new Date().toYMD();
   const stav = uhrazeno >= f.castka_celkem ? 'uhrazena'
@@ -12764,7 +12808,7 @@ window.openFakturaDetail = async function(id) {
       <div style="background:#EFF6FF;border:1px solid #B5D4F4;border-radius:8px;padding:12px 14px">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#0C447C;margin-bottom:6px;font-weight:600">💰 Stav úhrady</div>
         <div>${stavUhradyBadge(stav)}</div>
-        <div style="font-size:12px;color:#0C447C;margin-top:6px">Uhrazeno: <strong>${fmt(uhrazeno)}</strong>${zbyva > 0 ? ` · Zbývá: <strong style="color:${zbyva > 0 ? 'var(--danger-text)' : '#27500A'}">${fmt(zbyva)}</strong>` : ''}</div>
+        <div style="font-size:12px;color:#0C447C;margin-top:6px">Uhrazeno: <strong>${fmtDoc(uhrazenoDoc, f.doc_mena)}</strong>${zbyva > 0 ? ` · Zbývá: <strong style="color:${zbyva > 0 ? 'var(--danger-text)' : '#27500A'}">${fmtDoc(zbyvaDoc, f.doc_mena)}</strong>` : ''}</div>
       </div>
     </div>
 
@@ -12803,22 +12847,22 @@ window.openFakturaDetail = async function(id) {
     </h3>
     <div class="obj-polozky-list" id="fa-polozky">
       ${(f.polozky || []).length === 0 ? '<div class="empty-state" style="padding:24px;background:var(--surface-2);border-radius:8px">Žádné položky.</div>' : (f.polozky || []).map(p => {
-        const celkem = parseFloat(p.cena_bez_dph) * parseFloat(p.mnozstvi) * (1 + parseFloat(p.sazba_dph) / 100);
+        const celkem = docRadekSDph(f, p.cena_bez_dph, p.mnozstvi, p.sazba_dph);   // 💱 v3.0.642
         return `
           <div class="obj-polozka-row" data-pol-id="${p.id}">
             <div class="obj-polozka-img">${p.obrazek_url ? `<img src="${esc(p.obrazek_url)}" alt="">` : '<div class="obj-polozka-img-empty">🥖</div>'}</div>
             <div class="obj-polozka-info">
               <div class="obj-polozka-nazev">${esc(p.vyrobek_nazev)}</div>
-              <div class="obj-polozka-meta">${fmt(p.cena_bez_dph)} / ${esc(p.jednotka || 'ks')} · DPH ${parseFloat(p.sazba_dph)}%</div>
+              <div class="obj-polozka-meta">${fmtDoc(docK(f, p.cena_bez_dph), f.doc_mena)} / ${esc(p.jednotka || 'ks')} · DPH ${parseFloat(p.sazba_dph)}%</div>
             </div>
             <div class="obj-polozka-qty">
               <button type="button" class="qty-btn" onclick="faQtyAdj(${p.id}, -1)" title="−1">−</button>
               <input type="number" min="0" step="1" class="form-input qty-input"
                      value="${parseFloat(p.mnozstvi)}" data-orig="${parseFloat(p.mnozstvi)}" data-pol-id="${p.id}"
-                     data-cena="${p.cena_bez_dph}" data-dph="${p.sazba_dph}" oninput="faQtyRecalc(${p.id})">
+                     data-cena="${p.cena_bez_dph}" data-dph="${p.sazba_dph}" data-doc-mena="${esc(f.doc_mena || '')}" data-doc-k="${f.doc_k || ''}" oninput="faQtyRecalc(${p.id})">
               <button type="button" class="qty-btn" onclick="faQtyAdj(${p.id}, 1)" title="+1">+</button>
             </div>
-            <div class="obj-polozka-cena" id="fa-polozka-cena-${p.id}">${fmt(celkem)}</div>
+            <div class="obj-polozka-cena" id="fa-polozka-cena-${p.id}">${fmtDoc(celkem, f.doc_mena)}</div>
             <button class="obj-polozka-del" onclick="smazatPolozkuFaktury(${p.id}, ${f.id})" title="Smazat">×</button>
           </div>
         `;
@@ -12830,16 +12874,16 @@ window.openFakturaDetail = async function(id) {
 
     <div style="margin-top:14px;background:#FAEEDA;border:2px solid #E5C499;border-radius:10px;padding:16px 22px">
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#855;margin-bottom:4px">
-        <span>Bez DPH</span><span>${fmt(f.castka_bez_dph)}</span>
+        <span>Bez DPH</span><span>${fmtDoc(f.doc_mena ? f.doc_bez : f.castka_bez_dph, f.doc_mena)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#855;margin-bottom:8px">
-        <span>DPH</span><span>${fmt(f.castka_dph)}</span>
+        <span>DPH</span><span>${fmtDoc(f.doc_mena ? f.doc_dph : f.castka_dph, f.doc_mena)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:22px;font-weight:700;color:#854F0B;border-top:1px solid #E5C499;padding-top:8px">
-        <span>Celkem s DPH</span><span>${fmt(f.castka_celkem)}</span>
+        <span>Celkem s DPH</span><span>${fmtDocCelkem(f)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:#854F0B;margin-top:6px;border-top:1px dashed #E5C499;padding-top:6px">
-        <span>📅 Splatnost</span><span><strong>${fmtDate(f.datum_splatnosti)}</strong>${(f.castka_uhrazeno || 0) > 0 ? ` · uhrazeno ${fmt(f.castka_uhrazeno)}` : ''}</span>
+        <span>📅 Splatnost</span><span><strong>${fmtDate(f.datum_splatnosti)}</strong>${(f.castka_uhrazeno || 0) > 0 ? ` · uhrazeno ${fmtDoc(uhrazenoDoc, f.doc_mena)}` : ''}</span>
       </div>
     </div>
 
@@ -13277,7 +13321,9 @@ window.faQtyRecalc = function(polozka_id) {
   const mn = parseFloat(inp.value) || 0;
   const cena = parseFloat(inp.dataset.cena) || 0;
   const dph = parseFloat(inp.dataset.dph) || 0;
-  cenaCell.textContent = fmt(mn * cena * (1 + dph / 100));
+  // 💱 v3.0.642 — v měně dokladu (Kč doklad = beze změny)
+  const d = { doc_mena: inp.dataset.docMena || '', doc_k: inp.dataset.docK || '' };
+  cenaCell.textContent = d.doc_mena ? fmtDoc(docRadekSDph(d, cena, mn, dph), d.doc_mena) : fmt(mn * cena * (1 + dph / 100));
 };
 
 window.ulozitPolozkyFaktury = async function(id) {
@@ -15846,7 +15892,7 @@ function renderOdberatelObjednavky() {
               <td>${fmtDate(o.datum_objednani)}</td>
               <td>${fmtDate(o.datum_dodani)}</td>
               <td>${stavBadge(o.stav)}</td>
-              <td class="num"><strong>${fmt(o.castka_celkem)}</strong></td>
+              <td class="num"><strong>${fmtDocCelkem(o)}</strong></td>
               <td><button class="btn-link" onclick="event.stopPropagation();closeModal();setTimeout(()=>openObjednavkaDetail(${o.id}),50)">↗ Detail</button></td>
             </tr>
           `).join('')}
@@ -31642,8 +31688,8 @@ function vykreslitRucniFakturu() {
       <div style="font-size:13px;font-weight:700;color:#0C447C;margin-bottom:8px">📋 Vystavit z existující objednávky / dodacího listu <span style="font-weight:400;color:#5b7a9c">(volitelné)</span></div>
       <select class="form-select" onchange="rfVystavitZVyberu(this)" style="width:100%">
         <option value="">— vyber nefakturovanou objednávku / DL —</option>
-        ${_nObj.length ? `<optgroup label="📦 Objednávky bez dodacího listu (${_nObj.length})">${_nObj.map(o => `<option value="obj:${o.id}">${esc(o.cislo || ('#' + o.id))} · ${esc(o.odberatel_nazev || o.odberatel || '—')} · ${fmt(parseFloat(o.castka_celkem) || 0)}</option>`).join('')}</optgroup>` : ''}
-        ${_nDl.length ? `<optgroup label="📃 Nefakturované dodací listy (${_nDl.length})">${_nDl.map(d => `<option value="dl:${d.id}">${esc(d.cislo || ('#' + d.id))} · ${esc(d.odberatel_nazev || d.odberatel || '—')} · ${fmt(parseFloat(d.castka_celkem) || 0)}</option>`).join('')}</optgroup>` : ''}
+        ${_nObj.length ? `<optgroup label="📦 Objednávky bez dodacího listu (${_nObj.length})">${_nObj.map(o => `<option value="obj:${o.id}">${esc(o.cislo || ('#' + o.id))} · ${esc(o.odberatel_nazev || o.odberatel || '—')} · ${fmtDocCelkem(o)}</option>`).join('')}</optgroup>` : ''}
+        ${_nDl.length ? `<optgroup label="📃 Nefakturované dodací listy (${_nDl.length})">${_nDl.map(d => `<option value="dl:${d.id}">${esc(d.cislo || ('#' + d.id))} · ${esc(d.odberatel_nazev || d.odberatel || '—')} · ${fmtDocCelkem(d)}</option>`).join('')}</optgroup>` : ''}
       </select>
       <div style="font-size:11px;color:#5b7a9c;margin-top:6px;line-height:1.5">Objednávka, DL i faktura mají <strong>vlastní číselné řady</strong> — nekolidují. Ne každá objednávka musí mít DL/fakturu a naopak. Nebo vyplň fakturu ručně níže.</div>
     </div>` : '';
@@ -31727,7 +31773,7 @@ function vykreslitRucniFakturu() {
                 <div onclick="rfNacistZObjednavky(${o.id})" style="background:#F7F8FA;border:1px solid #E8D5B0;border-radius:10px;padding:12px;cursor:pointer">
                   <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
                     <strong style="font-size:13px">${esc(o.cislo)}</strong>
-                    <span style="font-weight:700;color:#854F0B;font-size:14px">${fmt(o.castka_celkem)}</span>
+                    <span style="font-weight:700;color:#854F0B;font-size:14px">${fmtDocCelkem(o)}</span>
                   </div>
                   <div style="font-size:11px;color:#999;margin-bottom:6px">📅 ${fmtDate(o.datum_dodani)} · ${o.pocet_polozek} pol.</div>
                   ${pol.length > 0 ? `

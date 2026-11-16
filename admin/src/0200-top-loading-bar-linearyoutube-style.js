@@ -60,6 +60,45 @@ function fmt(n) {
   }
 }
 
+// 💱 v3.0.642 — částka KONKRÉTNÍHO dokladu (faktura/dobropis/objednávka/DL) v JEHO měně.
+//   Server vrací doc_mena + doc_celkem (doc_bez/doc_dph/doc_k) spočítané shodně s PDF.
+//   NEDĚLÍ kurzem → stará Kč faktura zůstane v Kč i po přepnutí prodeje na EUR; EUR faktura = „K úhradě" z PDF.
+//   Statistiky/součty (tržby, reporty) dál přes fmt(). Bez `mena` (starší endpoint) = fmt().
+function fmtDoc(n, mena) {
+  if (!mena) return fmt(n);
+  const kod = String(mena).toUpperCase();
+  try {
+    if (kod === 'CZK') {
+      // Kč doklad: stejný formát jako fmt() bez přepočtu (locale dle jazyka rozhraní) → Kč instalace beze změny
+      const cfg = (typeof window.getCurrentLocale === 'function') ? window.getCurrentLocale() : null;
+      return new Intl.NumberFormat((cfg && cfg.locale) || 'cs-CZ', { style: 'currency', currency: 'CZK', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
+    }
+    return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: kod, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
+  } catch (e) { return fmt(n); }
+}
+// Celková částka dokladu v jeho měně (fallback castka_celkem) + formát
+function docCelkem(d) { return (d && d.doc_mena && d.doc_celkem != null) ? d.doc_celkem : (d ? d.castka_celkem : 0); }
+function fmtDocCelkem(d) { return fmtDoc(docCelkem(d), d && d.doc_mena); }
+// Uložená částka (cena/ks) → měna dokladu, na centy jako PDF; Kč doklad beze změny
+function docK(d, n) {
+  const k = d && d.doc_mena && d.doc_k ? parseFloat(d.doc_k) : 0;
+  n = parseFloat(n || 0);
+  return (!k || k === 1) ? n : Math.round(n * k * 100) / 100;
+}
+// Řádek položky (mn × cena) v měně dokladu — shodně s mena_doklad_polozky (round(mn × round(cena×k)))
+function docRadek(d, cena, mn) {
+  const k = d && d.doc_mena && d.doc_k ? parseFloat(d.doc_k) : 0;
+  if (!k || k === 1) return parseFloat(cena || 0) * parseFloat(mn || 0);
+  return Math.round(docK(d, cena) * parseFloat(mn || 0) * 100) / 100;
+}
+// Řádek s DPH v měně dokladu (DPH po řádcích na centy jako PDF); Kč doklad = původní výpočet
+function docRadekSDph(d, cena, mn, sazba) {
+  const k = d && d.doc_mena && d.doc_k ? parseFloat(d.doc_k) : 0;
+  if (!k || k === 1) return parseFloat(cena) * parseFloat(mn) * (1 + parseFloat(sazba) / 100);
+  const z = docRadek(d, cena, mn);
+  return Math.round((z + Math.round(z * parseFloat(sazba || 0)) / 100) * 100) / 100;
+}
+
 // URL na PDF dodacího listu — ruční DL (bez objednávky) jdou přes ?dl_id, ostatní přes ?id (objednávka)
 function dlPdfUrl(d) {
   if (d.objednavka_id) return `../api/dodaci_list.php?id=${d.objednavka_id}`;

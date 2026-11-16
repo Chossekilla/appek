@@ -175,7 +175,7 @@ window.openDodaciListDetail = async function(id) {
     const fakturyHtml = dl.faktury.length === 0
       ? '<span style="color:var(--danger-text);font-weight:500">Zatím nefakturováno</span>'
       : dl.faktury.map((f) =>
-          `<a href="#" onclick="closeModal();openFakturaDetail(${f.id});return false" class="doc-badge fa">💰 ${esc(f.cislo)} · ${fmt(f.castka_celkem)}</a>`
+          `<a href="#" onclick="closeModal();openFakturaDetail(${f.id});return false" class="doc-badge fa">💰 ${esc(f.cislo)} · ${fmtDocCelkem(f)}</a>`
         ).join(' ');
 
     openModal(`📃 Dodací list ${dl.cislo}`, `
@@ -224,16 +224,16 @@ window.openDodaciListDetail = async function(id) {
       <h3 class="modal-section-title">📦 Položky <span style="font-size:11px;color:var(--text-3);font-weight:400">(${dl.polozky.length})</span></h3>
       <div class="obj-polozky-list">
         ${dl.polozky.length === 0 ? '<div class="empty-state" style="padding:24px;background:var(--surface-2);border-radius:8px">Žádné položky.</div>' : dl.polozky.map((p) => {
-          const celkem = parseFloat(p.mnozstvi) * parseFloat(p.cena_bez_dph);
+          const celkem = dl.doc_mena && dl.doc_k && +dl.doc_k !== 1 ? docRadek(dl, p.cena_bez_dph, p.mnozstvi) : parseFloat(p.mnozstvi) * parseFloat(p.cena_bez_dph);   // 💱 v3.0.642
           return `
             <div class="obj-polozka-row obj-polozka-readonly">
               <div class="obj-polozka-img">${p.obrazek_url ? `<img src="${esc(p.obrazek_url)}" alt="">` : '<div class="obj-polozka-img-empty">🥖</div>'}</div>
               <div class="obj-polozka-info">
                 <div class="obj-polozka-nazev">${esc(p.vyrobek_nazev)}</div>
-                <div class="obj-polozka-meta">${p.vyrobek_cislo ? 'kód ' + esc(p.vyrobek_cislo) + ' · ' : ''}${fmt(p.cena_bez_dph)} / ${esc(p.jednotka || 'ks')}</div>
+                <div class="obj-polozka-meta">${p.vyrobek_cislo ? 'kód ' + esc(p.vyrobek_cislo) + ' · ' : ''}${fmtDoc(docK(dl, p.cena_bez_dph), dl.doc_mena)} / ${esc(p.jednotka || 'ks')}</div>
               </div>
               <div class="obj-polozka-qty obj-polozka-qty-static">${parseFloat(p.mnozstvi)} ${esc(p.jednotka || 'ks')}</div>
-              <div class="obj-polozka-cena">${fmt(celkem)}</div>
+              <div class="obj-polozka-cena">${fmtDoc(celkem, dl.doc_mena)}</div>
             </div>
           `;
         }).join('')}
@@ -241,7 +241,7 @@ window.openDodaciListDetail = async function(id) {
 
       <div style="margin-top:14px;background:#FAEEDA;border:2px solid #E5C499;border-radius:10px;padding:16px 22px">
         <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:22px;font-weight:700;color:#854F0B">
-          <span>Celkem</span><span>${fmt(dl.castka_celkem)}</span>
+          <span>Celkem</span><span>${fmtDocCelkem(dl)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12px;color:#854F0B;margin-top:6px;border-top:1px dashed #E5C499;padding-top:6px">
           <span>📅 Datum dodání</span><span><strong>${fmtDate(dl.datum_dodani)}</strong></span>
@@ -437,7 +437,7 @@ async function renderFaktury(filters = {}, opts = {}) {
                 <td onclick="event.stopPropagation();">${zdrojFakturyBadge(f)}</td>
                 <td class="num">${f.pocet_polozek || 0}</td>
                 <td>${stavUhradyBadge(f.stav_uhrady)}</td>
-                <td class="num"><strong>${fmt(f.castka_celkem)}</strong></td>
+                <td class="num"><strong>${fmtDocCelkem(f)}</strong></td>
                 <td onclick="event.stopPropagation();" style="white-space:nowrap;text-align:right">
                   <span class="doc-badges-row" style="justify-content:flex-end">
                     ${docBadge('dl', (f.pocet_dl > 0) ? (f.prvni_dl_objednavka_id ? `../api/dodaci_list.php?id=${f.prvni_dl_objednavka_id}` : `../api/dodaci_list.php?dl_id=${f.prvni_dl_id}`) : null, '📃 DL', { title: 'Otevřít dodací list (PDF)', disabledTitle: 'Faktura nemá navázaný DL' })}
@@ -487,7 +487,7 @@ async function renderFaktury(filters = {}, opts = {}) {
               <!-- 🆕 v3.0.601 — stejné čtvercové ikony v řadě jako v přehledu (dashboard recentRowIcons) -->
               <div class="faktura-card-actions" onclick="event.stopPropagation();">${recentRowIcons('fa', f)}</div>
             </div>
-            <div class="faktura-card-sum"><span class="faktura-card-sum-lbl">fakturováno</span><span class="faktura-card-castka">${fmt(f.castka_celkem)}</span></div>
+            <div class="faktura-card-sum"><span class="faktura-card-sum-lbl">fakturováno</span><span class="faktura-card-castka">${fmtDocCelkem(f)}</span></div>
           </div>
         `).join('')
       }

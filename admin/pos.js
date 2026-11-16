@@ -107,6 +107,16 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
     return v.toFixed(2).replace('.', ',');
   };
 
+  // 💱 v3.0.642 — částka účtenky v měně DOKLADU (server: doc_mena + doc_celkem jako na tištěné účtence).
+  //   Nedělí kurzem → stará Kč účtenka zůstane v Kč i po přepnutí prodeje na EUR.
+  const _DOC_SYM = { CZK: 'Kč', EUR: '€', USD: '$', GBP: '£', PLN: 'zł', HUF: 'Ft', CHF: 'CHF' };
+  const fmtDocPos = (o) => {
+    const kod = o && o.doc_mena;
+    const conv = CFG.mena && CFG.mena.zobrazeni === 'mena' && (CFG.mena.delitel > 0 || CFG.mena.kurz > 0) && CFG.mena.kod && CFG.mena.kod !== 'CZK';
+    if (!kod || (kod === 'CZK' && !conv)) return `${fmt(o.castka_celkem)} ${CFG.currency || 'Kč'}`;
+    return `${Number(o.doc_celkem || 0).toFixed(2).replace('.', ',')} ${_DOC_SYM[kod] || kod}`;
+  };
+
   // ─── API helper ──────────────────────────────────────────────
   async function api(path, opts = {}) {
     const url = CFG.apiBase + path;
@@ -2259,7 +2269,7 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
                         <td>${TYP_LABEL[o.pos_typ] || o.pos_typ || '—'}</td>
                         <td>${PAY_LABEL[o.pos_payment] || o.pos_payment || '—'}</td>
                         <td>${STAV_BADGE(o.stav)}</td>
-                        <td class="num" style="font-weight:800;font-size:15px">${fmt(o.castka_celkem)} ${CFG.currency || 'Kč'}</td>
+                        <td class="num" style="font-weight:800;font-size:15px">${fmtDocPos(o)}</td>
                         <td>
                           <button class="pos-hist-btn pos-hist-btn-edit" onclick="event.stopPropagation();posOpenOrderInAdmin(${o.id})" title="Otevřít v admin pro úpravu / fakturu / vrácení">
                             ✏️ Upravit

@@ -684,7 +684,7 @@ function renderOdberatelObjednavky() {
               <td>${fmtDate(o.datum_objednani)}</td>
               <td>${fmtDate(o.datum_dodani)}</td>
               <td>${stavBadge(o.stav)}</td>
-              <td class="num"><strong>${fmt(o.castka_celkem)}</strong></td>
+              <td class="num"><strong>${fmtDocCelkem(o)}</strong></td>
               <td><button class="btn-link" onclick="event.stopPropagation();closeModal();setTimeout(()=>openObjednavkaDetail(${o.id}),50)">↗ Detail</button></td>
             </tr>
           `).join('')}

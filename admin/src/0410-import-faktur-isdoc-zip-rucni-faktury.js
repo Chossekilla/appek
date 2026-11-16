@@ -167,6 +167,9 @@ window.openFakturaDetail = async function(id) {
   const f = await api(`admin_faktury.php?id=${id}`);
   const uhrazeno = f.castka_uhrazeno || 0;
   const zbyva = f.castka_celkem - uhrazeno;
+  // 💱 v3.0.642 — zobrazené částky v měně DOKLADU (jako PDF); stav úhrady dál z uložených částek
+  const uhrazenoDoc = f.doc_mena ? (f.doc_uhrazeno || 0) : uhrazeno;
+  const zbyvaDoc = f.doc_mena ? Math.round((docCelkem(f) - uhrazenoDoc) * 100) / 100 : zbyva;
   // Vypočtený stav úhrady (stejně jako v SQL)
   const dnes = new Date().toYMD();
   const stav = uhrazeno >= f.castka_celkem ? 'uhrazena'
@@ -183,7 +186,7 @@ window.openFakturaDetail = async function(id) {
       <div style="background:#EFF6FF;border:1px solid #B5D4F4;border-radius:8px;padding:12px 14px">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#0C447C;margin-bottom:6px;font-weight:600">💰 Stav úhrady</div>
         <div>${stavUhradyBadge(stav)}</div>
-        <div style="font-size:12px;color:#0C447C;margin-top:6px">Uhrazeno: <strong>${fmt(uhrazeno)}</strong>${zbyva > 0 ? ` · Zbývá: <strong style="color:${zbyva > 0 ? 'var(--danger-text)' : '#27500A'}">${fmt(zbyva)}</strong>` : ''}</div>
+        <div style="font-size:12px;color:#0C447C;margin-top:6px">Uhrazeno: <strong>${fmtDoc(uhrazenoDoc, f.doc_mena)}</strong>${zbyva > 0 ? ` · Zbývá: <strong style="color:${zbyva > 0 ? 'var(--danger-text)' : '#27500A'}">${fmtDoc(zbyvaDoc, f.doc_mena)}</strong>` : ''}</div>
       </div>
     </div>
 
@@ -222,22 +225,22 @@ window.openFakturaDetail = async function(id) {
     </h3>
     <div class="obj-polozky-list" id="fa-polozky">
       ${(f.polozky || []).length === 0 ? '<div class="empty-state" style="padding:24px;background:var(--surface-2);border-radius:8px">Žádné položky.</div>' : (f.polozky || []).map(p => {
-        const celkem = parseFloat(p.cena_bez_dph) * parseFloat(p.mnozstvi) * (1 + parseFloat(p.sazba_dph) / 100);
+        const celkem = docRadekSDph(f, p.cena_bez_dph, p.mnozstvi, p.sazba_dph);   // 💱 v3.0.642
         return `
           <div class="obj-polozka-row" data-pol-id="${p.id}">
             <div class="obj-polozka-img">${p.obrazek_url ? `<img src="${esc(p.obrazek_url)}" alt="">` : '<div class="obj-polozka-img-empty">🥖</div>'}</div>
             <div class="obj-polozka-info">
               <div class="obj-polozka-nazev">${esc(p.vyrobek_nazev)}</div>
-              <div class="obj-polozka-meta">${fmt(p.cena_bez_dph)} / ${esc(p.jednotka || 'ks')} · DPH ${parseFloat(p.sazba_dph)}%</div>
+              <div class="obj-polozka-meta">${fmtDoc(docK(f, p.cena_bez_dph), f.doc_mena)} / ${esc(p.jednotka || 'ks')} · DPH ${parseFloat(p.sazba_dph)}%</div>
             </div>
             <div class="obj-polozka-qty">
               <button type="button" class="qty-btn" onclick="faQtyAdj(${p.id}, -1)" title="−1">−</button>
               <input type="number" min="0" step="1" class="form-input qty-input"
                      value="${parseFloat(p.mnozstvi)}" data-orig="${parseFloat(p.mnozstvi)}" data-pol-id="${p.id}"
-                     data-cena="${p.cena_bez_dph}" data-dph="${p.sazba_dph}" oninput="faQtyRecalc(${p.id})">
+                     data-cena="${p.cena_bez_dph}" data-dph="${p.sazba_dph}" data-doc-mena="${esc(f.doc_mena || '')}" data-doc-k="${f.doc_k || ''}" oninput="faQtyRecalc(${p.id})">
               <button type="button" class="qty-btn" onclick="faQtyAdj(${p.id}, 1)" title="+1">+</button>
             </div>
-            <div class="obj-polozka-cena" id="fa-polozka-cena-${p.id}">${fmt(celkem)}</div>
+            <div class="obj-polozka-cena" id="fa-polozka-cena-${p.id}">${fmtDoc(celkem, f.doc_mena)}</div>
             <button class="obj-polozka-del" onclick="smazatPolozkuFaktury(${p.id}, ${f.id})" title="Smazat">×</button>
           </div>
         `;
@@ -249,16 +252,16 @@ window.openFakturaDetail = async function(id) {
 
     <div style="margin-top:14px;background:#FAEEDA;border:2px solid #E5C499;border-radius:10px;padding:16px 22px">
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#855;margin-bottom:4px">
-        <span>Bez DPH</span><span>${fmt(f.castka_bez_dph)}</span>
+        <span>Bez DPH</span><span>${fmtDoc(f.doc_mena ? f.doc_bez : f.castka_bez_dph, f.doc_mena)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#855;margin-bottom:8px">
-        <span>DPH</span><span>${fmt(f.castka_dph)}</span>
+        <span>DPH</span><span>${fmtDoc(f.doc_mena ? f.doc_dph : f.castka_dph, f.doc_mena)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:22px;font-weight:700;color:#854F0B;border-top:1px solid #E5C499;padding-top:8px">
-        <span>Celkem s DPH</span><span>${fmt(f.castka_celkem)}</span>
+        <span>Celkem s DPH</span><span>${fmtDocCelkem(f)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:#854F0B;margin-top:6px;border-top:1px dashed #E5C499;padding-top:6px">
-        <span>📅 Splatnost</span><span><strong>${fmtDate(f.datum_splatnosti)}</strong>${(f.castka_uhrazeno || 0) > 0 ? ` · uhrazeno ${fmt(f.castka_uhrazeno)}` : ''}</span>
+        <span>📅 Splatnost</span><span><strong>${fmtDate(f.datum_splatnosti)}</strong>${(f.castka_uhrazeno || 0) > 0 ? ` · uhrazeno ${fmtDoc(uhrazenoDoc, f.doc_mena)}` : ''}</span>
       </div>
     </div>
 

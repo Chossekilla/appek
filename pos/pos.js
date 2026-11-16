@@ -37,6 +37,16 @@
     return v.toFixed(2).replace('.', ',');
   };
 
+  // 💱 v3.0.642 — částka účtenky v měně DOKLADU (server: doc_mena + doc_celkem jako na tištěné účtence).
+  //   Nedělí kurzem → stará Kč účtenka zůstane v Kč i po přepnutí prodeje na EUR.
+  const _DOC_SYM = { CZK: 'Kč', EUR: '€', USD: '$', GBP: '£', PLN: 'zł', HUF: 'Ft', CHF: 'CHF' };
+  const fmtDocPos = (o) => {
+    const kod = o && o.doc_mena;
+    const conv = CFG.mena && CFG.mena.zobrazeni === 'mena' && (CFG.mena.delitel > 0 || CFG.mena.kurz > 0) && CFG.mena.kod && CFG.mena.kod !== 'CZK';
+    if (!kod || (kod === 'CZK' && !conv)) return `${fmt(o.castka_celkem)} Kč`;
+    return `${Number(o.doc_celkem || 0).toFixed(2).replace('.', ',')} ${_DOC_SYM[kod] || kod}`;
+  };
+
   // ─── API helper ──────────────────────────────────────────────
   async function api(path, opts = {}) {
     const url = CFG.apiBase + path;
@@ -779,7 +789,7 @@
                     <strong>${esc(o.cislo)}</strong>
                     <span class="pos-receipt-meta">${_hhmm(o.datum_objednani)} · ${o.pocet_polozek} pol. · ${_PAY_IC[o.pos_payment] || ''} · ${_TYP_LBL[o.pos_typ] || esc(o.pos_typ || '')}</span>
                   </div>
-                  <div class="pos-receipt-amt">${fmt(o.castka_celkem)} Kč</div>
+                  <div class="pos-receipt-amt">${fmtDocPos(o)}</div>
                 </button>`).join('')}</div>`}
         </div>`;
     } catch (e) {
@@ -794,12 +804,12 @@
       const body = `
         <div class="pos-rdetail-meta">${esc(o.odberatel_nazev || '—')}${o.pos_uzivatel ? ' · ' + esc(o.pos_uzivatel) : ''} · ${_hhmm(o.datum_objednani)}</div>
         <table class="pos-rdetail-tbl">
-          ${pol.map(p => `<tr><td class="rd-q">${(+p.mnozstvi)}×</td><td class="rd-n">${esc(p.vyrobek_nazev)}</td><td class="rd-a">${fmt(p.cena_bez_dph * p.mnozstvi)} Kč</td></tr>`).join('')}
+          ${pol.map(p => `<tr><td class="rd-q">${(+p.mnozstvi)}×</td><td class="rd-n">${esc(p.vyrobek_nazev)}</td><td class="rd-a">${fmtDocPos({ doc_mena: o.doc_mena, castka_celkem: p.cena_bez_dph * p.mnozstvi, doc_celkem: Math.round(p.cena_bez_dph * p.mnozstvi * (+o.doc_k || 1) * 100) / 100 })}</td></tr>`).join('')}
         </table>
         <div class="pos-rdetail-tot">
           <div><span>Bez DPH</span><span>${fmt(o.castka_bez_dph)} Kč</span></div>
           <div><span>DPH</span><span>${fmt(o.castka_dph)} Kč</span></div>
-          <div class="rd-grand"><span>CELKEM</span><span>${fmt(o.castka_celkem)} Kč</span></div>
+          <div class="rd-grand"><span>CELKEM</span><span>${fmtDocPos(o)}</span></div>
         </div>`;
       // 🆕 v3.0.268 — VRATKY: refundace zaplacené účtenky (záporná účtenka VRA-…)
       const foot = `<button class="pos-modal-btn" onclick='POS._printReceipt(${JSON.stringify(o)})'>🖨️ Tisk účtenky</button>`
