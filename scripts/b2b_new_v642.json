@@ -1,0 +1,17 @@
+[
+ {"cs":"Kusů celkem","en":"Total pieces","es":"Unidades en total"},
+ {"cs":"Odebrat kód","en":"Remove code","es":"Quitar código"},
+ {"cs":"Souhrn →","en":"Summary →","es":"Resumen →"},
+ {"cs":"Zavřít košík","en":"Close cart","es":"Cerrar carrito"},
+ {"cs":"Zobrazit celý košík","en":"Show full cart","es":"Ver carrito completo"},
+ {"cs":"Zapnout upozornění na objednávky","en":"Turn on order notifications","es":"Activar avisos de pedidos"},
+ {"cs":"Vypnout upozornění na tomto zařízení","en":"Turn off notifications on this device","es":"Desactivar avisos en este dispositivo"},
+ {"cs":"Zásady se nepodařilo načíst.","en":"The policy could not be loaded.","es":"No se pudo cargar la política."},
+ {"cs":"Zásady zatím nejsou k dispozici.","en":"The policy is not available yet.","es":"La política aún no está disponible."},
+ {"cs":"Zásady zpracování osobních údajů","en":"Personal data processing policy","es":"Política de tratamiento de datos personales"},
+ {"cs":"(vždy aktivní)","en":"(always active)","es":"(siempre activas)"},
+ {"cs":"přičte se při odeslání","en":"added when the order is sent","es":"se añadirá al enviar el pedido"},
+ {"cs":"Souhlasím se zpracováním","en":"I agree to the processing of","es":"Acepto el tratamiento de"},
+ {"cs":"osobních údajů","en":"personal data","es":"datos personales"},
+ {"cs":"kdy dodávat","en":"when to deliver","es":"cuándo entregar"}
+]

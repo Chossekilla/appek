@@ -1095,7 +1095,7 @@ function stVybranyIdProEditaci() {
 window.stUpravitVyrobek = function(id) {
   id = parseInt(id);
   if (!id) return;
-  if (typeof window.editVyrobek !== 'function') { toastError('Editor produktů není dostupný.'); return; }
+  if (typeof window.editVyrobek !== 'function') { toastError(t('st_editor_nedostupny')); return; }
   stState.vybranyVyrobekId = id;   // naposledy upravovaný = „vybraný"
   window.editVyrobek(id);
 };
@@ -1103,7 +1103,7 @@ window.stUpravitVybranyVyrobek = function() {
   const id = stVybranyIdProEditaci();
   if (!id) {
     const n = stState.vybraneVyr ? stState.vybraneVyr.size : 0;
-    toastWarn(n > 1 ? 'Vybráno více produktů — klikni na ✏️ u konkrétního produktu.' : 'Nejdřív vyber produkt (vyhledej ho nebo zaškrtni v seznamu).');
+    toastWarn(n > 1 ? t('st_vybrano_vice') : t('st_nejdriv_vyber'));
     return;
   }
   window.stUpravitVyrobek(id);
@@ -1118,7 +1118,7 @@ window.stPoUlozeniVyrobku = async function(id, smazano = false) {
   }
   stState._vyrobkyFetchedAt = 0;   // renderStitky pak znovu načte admin_vyrobky.php
   await renderStitky();
-  toastSuccess(smazano ? 'Produkt odstraněn z cenovek.' : 'Produkt uložen — cenovka aktualizována.');
+  toastSuccess(smazano ? t('st_produkt_odstranen') : t('st_produkt_ulozen'));
 };
 
 

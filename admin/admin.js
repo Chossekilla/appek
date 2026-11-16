@@ -6481,7 +6481,7 @@ window.menaLoad = async function() {
     const cizi = c.kod !== 'CZK';
     const trvale = c.zakladni && c.zakladni !== 'CZK';   // 🆕 v3.0.640 — ceník už je trvale v cílové měně
     el.innerHTML = `
-      ${trvale ? `<div style="margin-bottom:10px;font-size:12px;background:var(--info-bg,#EFF6FF);border:1px solid var(--border);border-radius:8px;padding:9px 12px">🔒 Ceník je <strong>trvale přepočtený do ${esc(c.zakladni)}</strong> — prodej i doklady jedou v ${esc(c.zakladni)}. Kurz níže slouží jen pro rekapitulaci DPH v Kč na fakturách. Návrat do Kč = obnova zálohy DB z doby před přepočtem (Údržba → Zálohy).</div>` : ''}
+      ${trvale ? `<div style="margin-bottom:10px;font-size:12px;background:var(--info-bg,#EFF6FF);border:1px solid var(--border);border-radius:8px;padding:9px 12px">${t('mena_trvale_info', { kod: esc(c.zakladni) })}</div>` : ''}
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
         <div><label class="form-label" style="font-size:12px">Cílová měna</label>
           <select class="form-input" id="mena-kod" style="width:130px" onchange="menaKodChange()" ${trvale ? 'disabled' : ''}>${opts}</select></div>
@@ -6555,7 +6555,7 @@ window.menaCnb = async function() {
 window.menaSave = async function() {
   const kod = document.getElementById('mena-kod').value;
   const kurzVal = parseFloat(document.getElementById('mena-kurz').value);
-  if (kod !== 'CZK' && !(kurzVal > 0 && kurzVal !== 1)) { toast('❌ Zadej kurz (kolik Kč je 1 ' + kod + ') nebo ho načti z ČNB', 'error'); return; }
+  if (kod !== 'CZK' && !(kurzVal > 0 && kurzVal !== 1)) { toast(t('mena_zadej_kurz', { kod }), 'error'); return; }
   const cfg = {
     kod,
     kurz: parseFloat(document.getElementById('mena-kurz').value) || 1,
@@ -6600,7 +6600,7 @@ window.menaPrepocet = async function(kurz) {
     const r = await api('admin_mena.php?action=prepocet', { method: 'POST', body: JSON.stringify({ kurz, kod }) });
     if (r.config) window._menaCfg = r.config;   // 🆕 v3.0.640 — ceník je teď v cílové měně (delitel 1)
     el.innerHTML = `<div style="background:var(--success-bg);color:var(--success-text);border-radius:8px;padding:10px 12px;margin-top:8px">✅ Přepočteno ${r.prepocteno} výrobků kurzem ${r.kurz}. Záloha DB vytvořena (Údržba → Zálohy).</div>`;
-    toast(`✅ Ceník přepočten (${r.prepocteno} výrobků) — prodej i doklady jsou teď v ${kod}`, 'success');
+    toast(t('mena_cenik_prepocten', { n: r.prepocteno, kod }), 'success');
     setTimeout(() => window.menaLoad(), 1500);
   } catch (e) { el.innerHTML = `<span style="color:var(--danger-text)">❌ ${esc(e.message)} — ceny NEzměněny${String(e.message).includes('záloh') ? '' : ' (pokud selhala záloha)'}</span>`; }
 };
@@ -8007,20 +8007,21 @@ function vykreslitNovouObjednavku() {
 // 🆕 v3.0.640 — „Znovu objednat": co se převzalo z původního dokladu a co ne
 function noZdrojBanner(z, s) {
   const max = 10;
-  const seznam = (arr, f) => arr.slice(0, max).map(f).join(', ') + (arr.length > max ? ` a další (${arr.length - max})` : '');
+  // 🌍 v3.0.642 — věty s proměnnými přes t() (i18n.js, klíče reorder_*); DOM walker by je nepřeložil
+  const seznam = (arr, f) => arr.slice(0, max).map(f).join(', ') + (arr.length > max ? ' ' + t('reorder_a_dalsi', { n: arr.length - max }) : '');
   const jiny = !!(s.odberatel_id && s.odberatel_id !== z.odberatel_id);
   const odb = (s.vsechny_odberatele || []).find(o => o.id == s.odberatel_id);
-  const r = [`🔁 Převzato z ${esc(z.label)} <strong>${esc(z.cislo)}</strong> — zkontrolujte množství a datum dodání. Ceny jsou podle <strong>aktuálního ceníku</strong> odběratele, ne podle původního dokladu.`];
-  if (jiny) r.push('ℹ️ Odběratel změněn — ceny přepočteny podle jeho ceníku, místo dodání je jeho výchozí pobočka.');
-  else if (z.mistoZdroj && s.misto_dodani_id == z.mistoZdroj) r.push('📍 Místo dodání převzato z původního dokladu.');
-  else if (z.mistoZdroj && !s.pobocky.some(m => m.id == z.mistoZdroj)) r.push('⚠️ Původní místo dodání už není aktivní — vybrána výchozí pobočka, zkontrolujte ji.');
-  if (z.nedostupne.length) r.push(`⚠️ Nepřidáno — výrobek už není v nabídce: ${seznam(z.nedostupne, p => `${esc(p.nazev)} (${fmtQty(p.mnozstvi)} ${esc(p.jednotka || 'ks')})`)}.`);
-  if (z.zmenaJednotky.length) r.push(`⚠️ Změnila se jednotka: ${seznam(z.zmenaJednotky, x => `${esc(x.nazev)} (${esc(x.puvodni)} → ${esc(x.nova)})`)} — zkontrolujte množství.`);
-  if (z.volne.length) r.push(`ℹ️ Nepřeneseno (řádky mimo katalog — doprava, poplatky, slevy/vouchery, ruční text nebo smazaný výrobek): ${seznam(z.volne, p => esc(p.nazev))}. Potřebné přidejte přes „+ Volný řádek".`);
-  if (z.pocetDl > 1) r.push(`ℹ️ Faktura je souhrnná za ${z.pocetDl} DL — stejné výrobky jsou sečtené do jedné objednávky. Jednu dodávku zopakujete přes „Znovu objednat" u konkrétní objednávky.`);
-  else if (z.sloucene > 0) r.push('ℹ️ Opakované řádky stejného výrobku byly sečteny.');
-  if (z.dobropisy.length) r.push(`ℹ️ K faktuře existuje dobropis ${seznam(z.dobropisy, c => esc(c))} — množství jsou podle původní faktury (vrácené kusy nejsou odečtené).`);
-  if (odb && parseInt(odb.blokovan, 10) === 1) r.push('⚠️ Odběratel je blokovaný (nemůže se přihlásit / smazaný / anonymizovaný) — ověřte, že mu chcete objednávku vytvořit.');
+  const r = [t('reorder_prevzato_' + (['obj', 'dl', 'fa'].includes(z.typ) ? z.typ : 'obj'), { cislo: esc(z.cislo) })];
+  if (jiny) r.push(t('reorder_odberatel_zmenen'));
+  else if (z.mistoZdroj && s.misto_dodani_id == z.mistoZdroj) r.push(t('reorder_misto_prevzato'));
+  else if (z.mistoZdroj && !s.pobocky.some(m => m.id == z.mistoZdroj)) r.push(t('reorder_misto_neaktivni'));
+  if (z.nedostupne.length) r.push(t('reorder_nepridano', { seznam: seznam(z.nedostupne, p => `${esc(p.nazev)} (${fmtQty(p.mnozstvi)} ${esc(p.jednotka || 'ks')})`) }));
+  if (z.zmenaJednotky.length) r.push(t('reorder_zmena_jednotky', { seznam: seznam(z.zmenaJednotky, x => `${esc(x.nazev)} (${esc(x.puvodni)} → ${esc(x.nova)})`) }));
+  if (z.volne.length) r.push(t('reorder_neprenoseno', { seznam: seznam(z.volne, p => esc(p.nazev)) }));
+  if (z.pocetDl > 1) r.push(t('reorder_souhrnna_fa', { n: z.pocetDl }));
+  else if (z.sloucene > 0) r.push(t('reorder_secteno'));
+  if (z.dobropisy.length) r.push(t('reorder_dobropis_existuje', { seznam: seznam(z.dobropisy, c => esc(c)) }));
+  if (odb && parseInt(odb.blokovan, 10) === 1) r.push(t('reorder_odberatel_blokovan'));
   return `<div class="no-zdroj-banner" style="position:relative;background:#FFF8EB;border:1px solid #F5D49A;border-radius:8px;padding:10px 34px 10px 14px;margin-bottom:12px;font-size:13px;line-height:1.5;color:#3d2f12"><button type="button" onclick="noState.zdroj=null;vykreslitNovouObjednavku()" title="Skrýt" aria-label="Skrýt" style="position:absolute;top:6px;right:8px;background:none;border:0;cursor:pointer;font-size:15px;color:#6b5a3a">✕</button>${r.map(x => `<div>${x}</div>`).join('')}</div>`;
 }
 
@@ -8037,7 +8038,7 @@ function noPrecenitPolozky() { // ceník AKTUÁLNÍHO odběratele (server počí
     const sz = parseFloat(v.dph ?? p.sazba_dph); if (isFinite(sz)) p.sazba_dph = sz;
     return true;
   });
-  if (pryc.length) toastWarn('Odebráno (výrobek už není v nabídce): ' + pryc.join(', '));
+  if (pryc.length) toastWarn(t('reorder_toast_odebrano', { seznam: pryc.join(', ') }));
 }
 window.noVybratOdberatele = async function(id, opts = {}) {
   noState.voucher = null; // 🆕 v3.0.631 — ověření voucheru platí jen pro vybraného odběratele
@@ -8123,7 +8124,7 @@ window.noAplikovatPolozky = function(obj, mode, opts = {}) {
     pridano++;
   });
   vykreslitNovouObjednavku();
-  if (!opts.tichy && nedostupne.length) toastWarn('Nepřidáno (výrobek už není v nabídce): ' + nedostupne.map(x => x.nazev).join(', '));
+  if (!opts.tichy && nedostupne.length) toastWarn(t('reorder_toast_nepridano', { seznam: nedostupne.map(x => x.nazev).join(', ') }));
   return { pridano, sloucene, nedostupne, zmenaJednotky };
 };
 
@@ -8144,15 +8145,15 @@ window.noOpakovatZeZdroje = async function(source, id) {
   const Z = ({ obj: { url: 'admin_objednavky.php', label: 'objednávky' }, dl: { url: 'admin_dodaci_listy.php', label: 'dodacího listu' }, fa: { url: 'admin_faktury.php', label: 'faktury' } })[source];
   if (!Z) return alert('Neznámý zdroj: ' + source);
   let doklad;
-  try { doklad = await api(`${Z.url}?id=${id}`); } catch (e) { return alert('Nepodařilo se načíst zdrojový doklad: ' + e.message); }
-  if (source === 'fa' && parseInt(doklad.je_dobropis, 10) === 1) return alert('⚠️ Dobropis (opravný daňový doklad) nelze objednat znovu — otevřete původní fakturu.');
+  try { doklad = await api(`${Z.url}?id=${id}`); } catch (e) { return alert(t('reorder_err_nacist_doklad', { err: e.message })); }
+  if (source === 'fa' && parseInt(doklad.je_dobropis, 10) === 1) return alert(t('reorder_err_dobropis'));
   const odberatelId = parseInt(doklad.odberatel_id, 10) || 0;
-  if (!odberatelId) return alert('Zdrojový doklad nemá odběratele.');
-  if (!lzeZnovuObjednat(source, doklad)) return alert('⚠️ Doklad anonymního zákazníka pokladny (POS Walk-in) nelze objednat znovu.');
+  if (!odberatelId) return alert(t('reorder_err_bez_odberatele'));
+  if (!lzeZnovuObjednat(source, doklad)) return alert(t('reorder_err_walkin'));
   const vse = Array.isArray(doklad.polozky) ? doklad.polozky : [];
   const katalog = vse.filter(p => p.vyrobek_id && parseFloat(p.mnozstvi) > 0);
   const volne = vse.filter(p => !p.vyrobek_id);
-  if (!katalog.length) return alert('Tento doklad neobsahuje žádné výrobky z katalogu, které by šly objednat znovu.');
+  if (!katalog.length) return alert(t('reorder_err_bez_katalogu'));
   let mistoZdroj = parseInt(doklad.misto_dodani_id, 10) || null;     // OBJ/DL přímo, FA ruční/DOB
   if (!mistoZdroj && source === 'fa') {
     const mista = [...new Set((doklad.dodaci_listy || []).map(d => parseInt(d.misto_dodani_id, 10)).filter(Boolean))];
@@ -8162,11 +8163,11 @@ window.noOpakovatZeZdroje = async function(source, id) {
   try {
     const pre = await Promise.all([api(`cenik_odberatele.php?odberatel_id=${odberatelId}`), api(`admin_pobocky.php?odberatel_id=${odberatelId}`), api('admin_odberatele.php')]);
     cenikData = pre[0] || {};
-  } catch (e) { return alert('Nepodařilo se připravit novou objednávku: ' + e.message); }
+  } catch (e) { return alert(t('reorder_err_pripravit', { err: e.message })); }
   const vNabidce = new Set((cenikData.vyrobky || []).map(v => parseInt(v.id, 10)));
   if (!katalog.some(p => vNabidce.has(parseInt(p.vyrobek_id, 10)))) {
     const jmena = [...new Set(katalog.map(p => p.vyrobek_nazev || ('#' + p.vyrobek_id)))];
-    return alert('Žádný výrobek z dokladu už není v nabídce (neaktivní): ' + jmena.slice(0, 10).join(', ') + (jmena.length > 10 ? ' …' : ''));
+    return alert(t('reorder_err_vse_neaktivni', { seznam: jmena.slice(0, 10).join(', ') + (jmena.length > 10 ? ' …' : '') }));
   }
   closeModal();
   if (!(await otevritNovouObjednavku())) return;
@@ -17343,7 +17344,7 @@ async function _renderNastaveniInner() {
   const blokUcetni = `
     <div class="card-block" style="padding:16px;margin-bottom:14px">
       <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">📊 Účetní integrace</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Faktury a dobropisy přeneseš do <strong>POHODY</strong> (XML soubor nebo přímo přes POHODA mServer) a do <strong>ABRA Flexi / FlexiBee</strong> (REST API) — u faktury i hromadně za období. Pro ostatní programy (Money S3, Helios, iDoklad…) slouží export <strong>ISDOC</strong>.</p>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">${t('ucetni_integrace_uvod')}</p>
     </div>
 
     <!-- 🆕 v2.9.187 — Sales report + Fixní náklady přesunuté z bývalého tabu Výroba -->
@@ -18788,7 +18789,7 @@ const UCETNI_SYS = {
 function _ucetniDnes() { return new Date().toISOString().slice(0, 10); }
 function _ucetniZacatekMesice() { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1, 12).toISOString().slice(0, 10); }
 function _ucetniKdy(s) { return s ? (typeof fmtDateTime === 'function' ? fmtDateTime(s) : String(s)) : ''; }
-function _ucetniChyba(e) { return (e && e.message) ? e.message : String(e || 'Neznámá chyba'); }
+function _ucetniChyba(e) { return (e && e.message) ? e.message : String(e || t('ucetni_neznama_chyba')); }
 
 async function _ucetniCfgNacti(force = false) {
   if (window._ucetniCfg && !force) return window._ucetniCfg;
@@ -18805,7 +18806,7 @@ async function loadUcetniIntegrace() {
   let cfg;
   try { cfg = await _ucetniCfgNacti(true); }
   catch (e) {
-    const msg = `<div style="color:var(--danger-text);font-size:13px">❌ Nastavení účetní integrace nelze načíst: ${esc(_ucetniChyba(e))}</div>`;
+    const msg = `<div style="color:var(--danger-text);font-size:13px">${t('ucetni_nelze_nacist', { err: esc(_ucetniChyba(e)) })}</div>`;
     if (hostP) hostP.innerHTML = msg; if (hostF) hostF.innerHTML = msg;
     return;
   }
@@ -18855,9 +18856,8 @@ function _ucetniKartaHtml(sys, cfg) {
       + _ucetniPole(pre + '-typfa', 'Typ faktury (kód)', c.flexibee_typ_faktura, { placeholder: 'FAKTURA', disabled: ro })
       + _ucetniPole(pre + '-typdob', 'Typ dobropisu (kód)', c.flexibee_typ_dobropis, { placeholder: 'automaticky', disabled: ro });
 
-  const popis = isP
-    ? 'Vydané faktury a dobropisy do agendy <strong>Vydané faktury</strong>. Bez připojení stáhneš <strong>XML soubor</strong> a naimportuješ ho v POHODĚ (Soubor → Datová komunikace → XML import/export); s běžícím <strong>POHODA mServerem</strong> se odesílá přímo.'
-    : 'Faktury a dobropisy do <strong>Vydaných faktur</strong>, odběratelé do <strong>Adresáře</strong>, výrobky do <strong>Ceníku</strong>. Opakované odeslání záznam aktualizuje (žádné duplicity).';
+  // 🌍 v3.0.642 — odstavce s <strong> by DOM walker přeložil jen po kouscích → celé přes t() (i18n.js)
+  const popis = isP ? t('ucetni_popis_pohoda') : t('ucetni_popis_flexibee');
 
   const akce = isP
     ? `<button class="btn-secondary" onclick="ucetniHromadnyExport('pohoda')">📦 Hromadný export</button>
@@ -18870,18 +18870,7 @@ function _ucetniKartaHtml(sys, cfg) {
        <button class="btn-secondary" onclick="ucetniPrijate('flexibee')">📥 Přijaté faktury</button>
        <button class="btn-secondary" onclick="ucetniLog('flexibee')">📋 Log</button>`;
 
-  const napoveda = isP
-    ? `<ol style="padding-left:18px;margin:6px 0">
-         <li>V POHODĚ: <strong>Soubor → POHODA mServer</strong> → nový mServer pro účetní jednotku, port (např. 444), spustit.</li>
-         <li>Uživatel potřebuje právo <em>Soubor → Datová komunikace</em> a <em>Administrátorské funkce → POHODA mServer</em>.</li>
-         <li>APPEK na internetu: mServer zveřejni přes <strong>HTTPS</strong> (reverzní proxy / VPN). Adresy v místní síti jdou jen po zapnutí volby níž.</li>
-         <li>Bez mServeru stačí <strong>⬇️ XML</strong> (u faktury nebo hromadně) a import v POHODĚ.</li>
-       </ol>`
-    : `<ol style="padding-left:18px;margin:6px 0">
-         <li>Adresa serveru bez cesty (např. <code>https://firma.flexibee.eu</code>), kód firmy najdeš v URL za <code>/c/</code>.</li>
-         <li>Uživatel musí mít povolený přístup přes <strong>REST API</strong>.</li>
-         <li>Typ dobropisu se dohledá sám (doklad typu „dobropis"), případně zadej jeho kód.</li>
-       </ol>`;
+  const napoveda = `<ol style="padding-left:18px;margin:6px 0">${(isP ? ['ucetni_nap_p1', 'ucetni_nap_p2', 'ucetni_nap_p3', 'ucetni_nap_p4'] : ['ucetni_nap_f1', 'ucetni_nap_f2', 'ucetni_nap_f3']).map(k => `<li>${t(k)}</li>`).join('')}</ol>`;
 
   return `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
@@ -18925,17 +18914,17 @@ window.ucetniUlozit = async function(sys) {
   else Object.assign(body, { company: v('company'), typ_faktura: v('typfa'), typ_dobropis: v('typdob') });
   try {
     await api('admin_ucetni.php?action=save', { method: 'POST', body });
-    toastSuccess('✅ Nastavení ' + UCETNI_SYS[sys].do + ' uloženo');
+    toastSuccess(t('ucetni_ulozeno_' + sys));
     loadUcetniIntegrace();
   } catch (e) { toastError('❌ ' + _ucetniChyba(e)); }
 };
 
 window.ucetniTest = async function(sys) {
-  toastInfo('⏳ Testuji připojení k ' + UCETNI_SYS[sys].k + '…');
+  toastInfo(t('ucetni_testuji_' + sys));
   try {
     const r = await api('admin_ucetni.php?action=test', { method: 'POST', body: { system: sys } });
     if (r.ok) { toastSuccess('✅ ' + r.message); if (r.warning) toastWarn('⚠️ ' + r.warning); }
-    else toastError('❌ ' + (r.error || 'Připojení selhalo'));
+    else toastError('❌ ' + (r.error || t('ucetni_pripojeni_selhalo')));
   } catch (e) { toastError('❌ ' + _ucetniChyba(e)); }
   loadUcetniIntegrace();
 };
@@ -18950,7 +18939,7 @@ async function _ucetniStahni(action, body, fallbackName) {
   });
   if (!res.ok) {
     let msg = 'HTTP ' + res.status;
-    try { const j = await res.json(); if (j && j.error) msg = j.error === 'csrf_invalid' ? 'Relace vypršela — obnov stránku.' : j.error; } catch (e) {}
+    try { const j = await res.json(); if (j && j.error) msg = j.error === 'csrf_invalid' ? t('ucetni_relace_vyprsela') : j.error; } catch (e) {}
     throw new Error(msg);
   }
   const cd = res.headers.get('Content-Disposition') || '';
@@ -18962,7 +18951,7 @@ async function _ucetniStahni(action, body, fallbackName) {
   a.href = url; a.download = m ? m[1] : fallbackName;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
-  if (vynechano) toastWarn('⚠️ Vynecháno: ' + decodeURIComponent(vynechano));
+  if (vynechano) toastWarn(t('ucetni_vynechano', { seznam: decodeURIComponent(vynechano) }));
 }
 
 // ─────────────────────────── hromadný export ───────────────────────────
@@ -19001,7 +18990,7 @@ window.ucetniHromadneXml = async function() {
   const o = _ucetniObdobiZFormu();
   try {
     await _ucetniStahni('pohoda_xml', o, 'pohoda_faktury.xml');
-    toastSuccess('✅ XML staženo — naimportuj ho v POHODĚ (Soubor → Datová komunikace → XML import/export)');
+    toastSuccess(t('ucetni_xml_stazeno'));
   } catch (e) { toastError('❌ ' + _ucetniChyba(e)); }
 };
 
@@ -19020,12 +19009,12 @@ window.ucetniHromadneOdeslat = async function(sys) {
         <td style="padding:4px 6px">${esc(v.cislo)}</td><td style="padding:4px 6px">⏭️</td><td></td>
         <td style="padding:4px 6px;font-size:12px">${esc(v.zprava || '')}</td></tr>`).join('');
     if (box) box.innerHTML = `
-      <div style="font-weight:600;margin-bottom:8px">Odesláno ${r.odeslano} · chyb ${r.chyb} · přeskočeno ${r.preskoceno}</div>
+      <div style="font-weight:600;margin-bottom:8px">${t('ucetni_bulk_souhrn', { ok: r.odeslano, chyb: r.chyb, skip: r.preskoceno })}</div>
       ${rows ? `<div style="max-height:50vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="text-align:left;color:var(--text-3);font-size:11px;text-transform:uppercase"><th style="padding:4px 6px">Faktura</th><th></th><th style="padding:4px 6px">Číslo ${esc(UCETNI_SYS[sys].v)}</th><th style="padding:4px 6px">Zpráva</th></tr></thead>
         <tbody>${rows}</tbody></table></div>` : '<div style="color:var(--text-3)">V období nebylo nic k odeslání.</div>'}`;
-    if (r.chyb) toastWarn(`⚠️ ${r.chyb} faktur se nepodařilo odeslat — viz tabulka`);
-    else toastSuccess(`✅ Odesláno ${r.odeslano} faktur`);
+    if (r.chyb) toastWarn(t('ucetni_bulk_chyby', { n: r.chyb }));
+    else toastSuccess(t('ucetni_bulk_ok', { n: r.odeslano }));
   } catch (e) {
     if (box) box.innerHTML = `<div style="color:var(--danger-text)">❌ ${esc(_ucetniChyba(e))}</div>`;
     toastError('❌ ' + _ucetniChyba(e));
@@ -19036,32 +19025,32 @@ window.ucetniHromadneOdeslat = async function(sys) {
 
 window.ucetniAdresar = async function(sys) {
   if (sys === 'pohoda') {
-    const odeslat = await confirmDialog({ title: '👥 Odběratelé → POHODA', msg: 'Odeslat všechny odběratele přímo na mServer? (Zrušit = jen stáhnout XML pro ruční import.) Existující záznamy se stejným IČO se aktualizují.', okText: '📤 Odeslat', cancelText: '⬇️ Jen XML' });
+    const odeslat = await confirmDialog({ title: t('ucetni_adresar_pohoda_title'), msg: t('ucetni_adresar_pohoda_msg'), okText: t('ucetni_ok_odeslat_ikona'), cancelText: t('ucetni_jen_xml') });
     try {
-      if (!odeslat) { await _ucetniStahni('pohoda_adresar', { rezim: 'soubor' }, 'pohoda_adresar.xml'); toastSuccess('✅ XML adresáře staženo'); return; }
-      toastInfo('⏳ Odesílám odběratele…');
+      if (!odeslat) { await _ucetniStahni('pohoda_adresar', { rezim: 'soubor' }, 'pohoda_adresar.xml'); toastSuccess(t('ucetni_xml_adresare_stazeno')); return; }
+      toastInfo(t('ucetni_odesilam_odberatele'));
       const r = await api('admin_ucetni.php?action=pohoda_adresar', { method: 'POST', body: { rezim: 'odeslat' } });
-      if (r.chyby && r.chyby.length) toastWarn(`⚠️ Zapsáno ${r.odeslano}, chyby: ${r.chyby.slice(0, 3).join(' | ')}`);
-      else toastSuccess(`✅ Zapsáno ${r.odeslano} odběratelů do POHODY`);
+      if (r.chyby && r.chyby.length) toastWarn(t('ucetni_zapsano_chyby', { n: r.odeslano, chyby: r.chyby.slice(0, 3).join(' | ') }));
+      else toastSuccess(t('ucetni_zapsano_odberatelu_pohoda', { n: r.odeslano }));
     } catch (e) { toastError('❌ ' + _ucetniChyba(e)); }
     return;
   }
-  if (!(await confirmDialog({ title: '👥 Odběratelé → FlexiBee', msg: 'Zapsat všechny odběratele do adresáře FlexiBee? Opakovaný export záznamy jen aktualizuje.', okText: 'Odeslat' }))) return;
-  toastInfo('⏳ Odesílám odběratele…');
+  if (!(await confirmDialog({ title: t('ucetni_adresar_flexi_title'), msg: t('ucetni_adresar_flexi_msg'), okText: t('ucetni_ok_odeslat') }))) return;
+  toastInfo(t('ucetni_odesilam_odberatele'));
   try {
     const r = await api('admin_ucetni.php?action=flexi_adresar', { method: 'POST', body: {} });
-    if (r.ok) toastSuccess(`✅ Zapsáno ${r.odeslano} odběratelů do FlexiBee`);
-    else toastWarn(`⚠️ Zapsáno ${r.odeslano}, chyby: ${(r.chyby || []).join(' | ')}`);
+    if (r.ok) toastSuccess(t('ucetni_zapsano_odberatelu_flexibee', { n: r.odeslano }));
+    else toastWarn(t('ucetni_zapsano_chyby', { n: r.odeslano, chyby: (r.chyby || []).join(' | ') }));
   } catch (e) { toastError('❌ ' + _ucetniChyba(e)); }
 };
 
 window.ucetniCenik = async function() {
-  if (!(await confirmDialog({ title: '🥖 Výrobky → ceník FlexiBee', msg: 'Zapsat všechny aktivní výrobky do ceníku FlexiBee (cena bez DPH, sazba, EAN)? Opakovaný export záznamy aktualizuje.', okText: 'Odeslat' }))) return;
-  toastInfo('⏳ Odesílám výrobky…');
+  if (!(await confirmDialog({ title: t('ucetni_cenik_title'), msg: t('ucetni_cenik_msg'), okText: t('ucetni_ok_odeslat') }))) return;
+  toastInfo(t('ucetni_odesilam_vyrobky'));
   try {
     const r = await api('admin_ucetni.php?action=flexi_cenik', { method: 'POST', body: {} });
-    if (r.ok) toastSuccess(`✅ Zapsáno ${r.odeslano} výrobků do ceníku`);
-    else toastWarn(`⚠️ Zapsáno ${r.odeslano}, chyby: ${(r.chyby || []).join(' | ')}`);
+    if (r.ok) toastSuccess(t('ucetni_zapsano_vyrobku', { n: r.odeslano }));
+    else toastWarn(t('ucetni_zapsano_chyby', { n: r.odeslano, chyby: (r.chyby || []).join(' | ') }));
   } catch (e) { toastError('❌ ' + _ucetniChyba(e)); }
 };
 
@@ -19089,7 +19078,7 @@ window.ucetniPrijateNacti = async function(sys) {
     const suma = {};
     f.forEach(x => { suma[x.mena] = (suma[x.mena] || 0) + Number(x.celkem || 0); });
     box.innerHTML = `
-      <div style="margin-bottom:8px;color:var(--text-2)">${f.length} faktur · ${Object.entries(suma).map(([m, s]) => esc(s.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + m)).join(' · ')}</div>
+      <div style="margin-bottom:8px;color:var(--text-2)">${t('ucetni_prijate_pocet', { n: f.length })} · ${Object.entries(suma).map(([m, s]) => esc(s.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + m)).join(' · ')}</div>
       <div style="max-height:60vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text)">
         <thead><tr style="text-align:left;color:var(--text-3);font-size:11px;text-transform:uppercase">
           <th style="padding:4px 6px">Číslo</th><th style="padding:4px 6px">Dod. číslo</th><th style="padding:4px 6px">Dodavatel</th>
@@ -19147,13 +19136,13 @@ function _ucetniBadge(sys, s) {
   if (!s) return '';
   const lbl = UCETNI_SYS[sys].label;
   if (s.ok_at) {
-    const kde = s.rezim === 'soubor' ? (sys === 'pohoda' ? 'XML pro POHODU staženo' : `XML pro ${lbl} staženo`) : (sys === 'pohoda' ? 'V POHODĚ' : 'Ve FlexiBee');
-    const cislo = s.externi_cislo ? ` č. ${s.externi_cislo}` : '';
-    const zmena = s.zmeneno_od_exportu ? ' · ⚠️ faktura se od exportu změnila' : '';
-    const chyba = s.stav === 'chyba' && s.posledni_chyba ? ` · poslední pokus selhal: ${s.posledni_chyba}` : '';
+    const kde = t((s.rezim === 'soubor' ? 'ucetni_kde_xml_' : 'ucetni_kde_v_') + sys);
+    const cislo = s.externi_cislo ? ' ' + t('ucetni_cislo_c', { c: s.externi_cislo }) : '';
+    const zmena = s.zmeneno_od_exportu ? ' · ' + t('ucetni_zmeneno_od_exportu') : '';
+    const chyba = s.stav === 'chyba' && s.posledni_chyba ? ' · ' + t('ucetni_posledni_pokus_selhal', { err: s.posledni_chyba }) : '';
     return `<span title="${esc(kde + cislo + ' (' + _ucetniKdy(s.ok_at) + ')' + zmena + chyba)}" style="font-size:11.5px;padding:3px 8px;border-radius:999px;background:${s.zmeneno_od_exportu || s.stav === 'chyba' ? '#FEF3C7;color:#92400E' : '#DCFCE7;color:#166534'};white-space:nowrap;align-self:center">✓ ${esc(kde + cislo)} · ${esc(_ucetniKdy(s.ok_at))}${s.zmeneno_od_exportu ? ' ⚠️' : ''}</span>`;
   }
-  return `<span title="${esc(s.posledni_chyba || '')}" style="font-size:11.5px;padding:3px 8px;border-radius:999px;background:#FEE2E2;color:#991B1B;white-space:nowrap;align-self:center;max-width:320px;overflow:hidden;text-overflow:ellipsis">✗ ${esc(lbl)}: ${esc(String(s.posledni_chyba || 'export selhal').slice(0, 80))}</span>`;
+  return `<span title="${esc(s.posledni_chyba || '')}" style="font-size:11.5px;padding:3px 8px;border-radius:999px;background:#FEE2E2;color:#991B1B;white-space:nowrap;align-self:center;max-width:320px;overflow:hidden;text-overflow:ellipsis">✗ ${esc(lbl)}: ${esc(String(s.posledni_chyba || t('ucetni_export_selhal')).slice(0, 80))}</span>`;
 }
 
 async function ucetniFakturaObnov(id) {
@@ -19181,19 +19170,19 @@ window.ucetniFakturaObnov = ucetniFakturaObnov;
 
 window.ucetniOdeslatFakturu = async function(sys, id, force = false) {
   const lbl = UCETNI_SYS[sys].label;
-  toastInfo(sys === 'pohoda' ? '⏳ Odesílám do POHODY…' : '⏳ Odesílám do FlexiBee…');
+  toastInfo(t('ucetni_odesilam_do_' + sys));
   try {
     const r = await api(`admin_ucetni.php?action=${sys === 'pohoda' ? 'pohoda_send' : 'flexi_send'}`, { method: 'POST', body: { faktura_id: id, force } });
     if (r.needs_force) {
-      const znovu = await confirmDialog({ title: sys === 'pohoda' ? 'Faktura už je v POHODĚ' : 'Faktura už je ve FlexiBee', msg: r.zprava + (r.duvod === 'beze_zmeny' ? ' Přesto odeslat znovu?' : ''), okText: 'Odeslat znovu' });
+      const znovu = await confirmDialog({ title: t('ucetni_uz_je_v_' + sys), msg: r.zprava + (r.duvod === 'beze_zmeny' ? ' ' + t('ucetni_presto_znovu') : ''), okText: t('ucetni_odeslat_znovu') });
       if (znovu) return ucetniOdeslatFakturu(sys, id, true);
       return;
     }
     if (r.ok) {
-      toastSuccess(`✅ Odesláno do ${sys === 'pohoda' ? 'POHODY' : 'FlexiBee'}${r.externi_cislo ? ' — č. ' + r.externi_cislo : ''}${r.zprava ? ' (' + r.zprava + ')' : ''}`);
+      toastSuccess(t('ucetni_odeslano_do_' + sys) + (r.externi_cislo ? ' — ' + t('ucetni_cislo_c', { c: r.externi_cislo }) : '') + (r.zprava ? ' (' + r.zprava + ')' : ''));
       (r.varovani || []).forEach(w => toastWarn('⚠️ ' + w));
     } else {
-      toastError(`❌ ${lbl}: ${r.zprava || 'odeslání selhalo'}`);
+      toastError(`❌ ${lbl}: ${r.zprava || t('ucetni_odeslani_selhalo')}`);
     }
   } catch (e) { toastError('❌ ' + _ucetniChyba(e)); }
   ucetniFakturaObnov(id);
@@ -19202,7 +19191,7 @@ window.ucetniOdeslatFakturu = async function(sys, id, force = false) {
 window.ucetniFakturaXml = async function(id) {
   try {
     await _ucetniStahni('pohoda_xml', { faktura_id: id }, `pohoda_faktura_${id}.xml`);
-    toastSuccess('✅ XML staženo — naimportuj ho v POHODĚ (Soubor → Datová komunikace → XML import/export)');
+    toastSuccess(t('ucetni_xml_stazeno'));
   } catch (e) { toastError('❌ ' + _ucetniChyba(e)); }
   ucetniFakturaObnov(id);
 };
@@ -36796,11 +36785,11 @@ function _surCenyHtml() {
       : `<span style="color:${zm > 5 ? 'var(--danger-text)' : (zm < -5 ? 'var(--success-text)' : 'var(--text-3)')}">${zm > 0 ? '+' : ''}${zm.toFixed(0)} %</span>`;
     const dis = !lzeVybrat(n) || ro || blok;
     return `<tr${n.stav === 'ma_cenu' && !force ? ' style="opacity:.55"' : ''}>
-      <td><input type="checkbox" ${sel.has(n.id) && lzeVybrat(n) ? 'checked' : ''} ${dis ? 'disabled' : ''} onchange="_surCenyToggle(${n.id}, this.checked)" aria-label="Vybrat ${esc(n.nazev)}"></td>
-      <td><strong>${esc(n.nazev)}</strong><div style="font-size:11px;color:var(--text-3)">vedeno v ${esc(n.jednotka || '—')}</div></td>
+      <td><input type="checkbox" ${sel.has(n.id) && lzeVybrat(n) ? 'checked' : ''} ${dis ? 'disabled' : ''} onchange="_surCenyToggle(${n.id}, this.checked)" aria-label="${esc(t('sur_ceny_vybrat', { nazev: n.nazev }))}"></td>
+      <td><strong>${esc(n.nazev)}</strong><div style="font-size:11px;color:var(--text-3)">${t('sur_ceny_vedeno_v', { j: esc(n.jednotka || '—') })}</div></td>
       <td style="font-size:12px;color:var(--text-2)">${esc(v.label || '')}</td>
       <td class="num" style="font-size:12px">${akt}</td>
-      <td class="num"><strong>${_surCenyFmt(v.cena_za_jed)}/${esc(v.jed || '')}</strong><div style="font-size:11px;color:var(--text-3)">balení: ${_surCenyFmt(v.cena_baleni)} / ${fmtQty(v.obsah_baleni)} ${esc(n.jednotka || '')}</div></td>
+      <td class="num"><strong>${_surCenyFmt(v.cena_za_jed)}/${esc(v.jed || '')}</strong><div style="font-size:11px;color:var(--text-3)">${t('sur_ceny_baleni')}: ${_surCenyFmt(v.cena_baleni)} / ${fmtQty(v.obsah_baleni)} ${esc(n.jednotka || '')}</div></td>
       <td class="num" style="font-size:12px">${zmHtml}</td></tr>`;
   }).join('');
   const sekce = (stav, nadpis, f) => {
@@ -36809,8 +36798,8 @@ function _surCenyHtml() {
   };
   return `
     <div style="background:var(--info-bg,#EFF6FF);color:var(--info-text,inherit);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:12px">
-      ℹ️ ${esc(p.zdroj || '')} Jednotka ani zásoba suroviny se nemění; před uložením se vytvoří záloha DB.</div>
-    ${blok ? `<div style="background:var(--danger-bg);color:var(--danger-text);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px">Ceny ve vaší databázi byly trvale přepočteny do ${esc(p.mena.db_kod)}. Orientační ceny jsou v Kč, proto je automatické doplnění vypnuté — doplňte ceny ručně.</div>` : ''}
+      ℹ️ ${esc(p.zdroj || '')} ${t('sur_ceny_info')}</div>
+    ${blok ? `<div style="background:var(--danger-bg);color:var(--danger-text);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px">${t('sur_ceny_blok', { kod: esc(p.mena.db_kod) })}</div>` : ''}
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;cursor:pointer">
       <input type="checkbox" ${force ? 'checked' : ''} ${ro || blok ? 'disabled' : ''} onchange="state._surCenyForce=this.checked;_surCenyRender()"> Přepsat i ručně zadané ceny (vyberte je jednotlivě)</label>
     ${radky.length ? `<div style="max-height:50vh;overflow:auto;border:1px solid var(--border);border-radius:6px">
@@ -36818,13 +36807,13 @@ function _surCenyHtml() {
         <thead><tr><th style="width:28px"></th><th>Surovina</th><th>Rozpoznáno jako</th><th class="num">Aktuální</th><th class="num">Návrh</th><th class="num">Změna</th></tr></thead>
         <tbody>${tr}</tbody></table></div>`
       : '<div class="empty-state" style="padding:24px">Žádná surovina k doplnění — všechny rozpoznané už cenu mají.</div>'}
-    ${sekce('nekompatibilni', '⚠️ Nelze převést jednotku', n => `<li>${esc(n.nazev)} — ${esc(n.duvod)}</li>`)}
-    ${sekce('nerozpoznano', '❔ Nerozpoznáno — doplňte ručně', n => `<li>${esc(n.nazev)}</li>`)}
-    ${sekce('beze_zmeny', '✓ Beze změny', n => `<li>${esc(n.nazev)}</li>`)}
+    ${sekce('nekompatibilni', t('sur_ceny_sekce_nekompat'), n => `<li>${esc(n.nazev)} — ${esc(n.duvod)}</li>`)}
+    ${sekce('nerozpoznano', t('sur_ceny_sekce_nerozpoznano'), n => `<li>${esc(n.nazev)}</li>`)}
+    ${sekce('beze_zmeny', t('sur_ceny_sekce_beze_zmeny'), n => `<li>${esc(n.nazev)}</li>`)}
     <div class="form-actions" style="margin-top:14px">
       <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
       <div style="flex:1"></div>
-      <button class="btn-primary btn-green" onclick="surovinyDoplnitCenyRun()" ${!vybrano || ro || blok ? 'disabled' : ''} ${ro ? 'title="Náhledový účet — jen prohlížení"' : ''}>Uložit vybrané (${vybrano})</button>
+      <button class="btn-primary btn-green" onclick="surovinyDoplnitCenyRun()" ${!vybrano || ro || blok ? 'disabled' : ''} ${ro ? 'title="Náhledový účet — jen prohlížení"' : ''}>${t('sur_ceny_ulozit_vybrane', { n: vybrano })}</button>
     </div>`;
 }
 window._surCenyRender = function() { openModal('🧾 Doplnit ceny surovin', _surCenyHtml(), 'wide'); };   // stejný titulek = překreslení se zachovaným scrollem
@@ -36839,27 +36828,27 @@ window.surovinyDoplnitCenyRun = async function() {
   const vybrane = (p.navrhy || []).filter(n => state._surCenySel.has(n.id) && lze(n));
   if (!vybrane.length) return;
   const prepis = vybrane.filter(n => n.stav === 'ma_cenu').length;
-  if (prepis && !(await confirmDialog({ title: 'Přepsat ruční ceny?', msg: `Přepíše se ${prepis} ručně zadaných cen. Před změnou se vytvoří záloha DB (Údržba → Zálohy).`, okText: 'Přepsat', danger: true }))) return;
+  if (prepis && !(await confirmDialog({ title: t('sur_ceny_prepsat_title'), msg: t('sur_ceny_prepsat_msg', { n: prepis }), okText: t('sur_ceny_prepsat_ok'), danger: true }))) return;
   try {
     const r = await api('admin_suroviny_autofill_ceny.php', { method: 'POST', body: { force, ids: vybrane.map(n => n.id) } });
     closeModal();
     _surRefreshAfterChange();
-    toastSuccess(`Doplněno ${r.applied} cen`, r.zaloha ? 'Záloha DB vytvořena' : undefined);
-    if (force && !r.zaloha) toastWarn('Zálohu se nepodařilo vytvořit — změny jsou uložené.');
+    toastSuccess(t('sur_ceny_doplneno', { n: r.applied }), r.zaloha ? t('sur_ceny_zaloha_ok') : undefined);
+    if (force && !r.zaloha) toastWarn(t('sur_ceny_zaloha_fail'));
   } catch (e) { toastError(e.message); }
 };
 
 window.seedSuroviny = async function() {
   let n;
   try { n = await api('admin_suroviny.php?action=seed_nahled'); } catch (e) { return toastError(e.message); }
-  if (!n.novych) return toastInfo('Všechny výchozí suroviny už v databázi máte.');
-  if (_surIsReadonly()) return toastInfo(`Chybí ${n.novych} z ${n.celkem} výchozích surovin — náhledový účet je nemůže přidat.`);
-  if (!(await confirmDialog({ title: 'Naplnit výchozí suroviny', msg: `Přidá se ${n.novych} z ${n.celkem} běžných pekařských surovin (bez cen). Existující suroviny se nemění. Ceny pak doplníte tlačítkem „Doplnit ceny".`, okText: 'Naplnit', icon: '🌾' }))) return;
+  if (!n.novych) return toastInfo(t('sur_seed_vse_mate'));
+  if (_surIsReadonly()) return toastInfo(t('sur_seed_readonly', { n: n.novych, celkem: n.celkem }));
+  if (!(await confirmDialog({ title: t('sur_seed_title'), msg: t('sur_seed_msg', { n: n.novych, celkem: n.celkem }), okText: t('sur_seed_ok'), icon: '🌾' }))) return;
   try {
     const r = await api('admin_suroviny.php?action=seed', { method: 'POST', body: {} });
     _surRefreshAfterChange();
     toastSuccess(r.message);
-    if (r.inserted > 0 && await confirmDialog({ title: 'Doplnit orientační ceny?', msg: 'Chcete k novým surovinám rovnou doplnit orientační ceny?', okText: 'Doplnit ceny', cancelText: 'Teď ne' })) surovinyDoplnitCeny();
+    if (r.inserted > 0 && await confirmDialog({ title: t('sur_seed_ceny_title'), msg: t('sur_seed_ceny_msg'), okText: t('sur_seed_ceny_ok'), cancelText: t('sur_seed_ceny_ne') })) surovinyDoplnitCeny();
   } catch (e) { toastError(e.message); }
 };
 
@@ -38879,7 +38868,7 @@ function stVybranyIdProEditaci() {
 window.stUpravitVyrobek = function(id) {
   id = parseInt(id);
   if (!id) return;
-  if (typeof window.editVyrobek !== 'function') { toastError('Editor produktů není dostupný.'); return; }
+  if (typeof window.editVyrobek !== 'function') { toastError(t('st_editor_nedostupny')); return; }
   stState.vybranyVyrobekId = id;   // naposledy upravovaný = „vybraný"
   window.editVyrobek(id);
 };
@@ -38887,7 +38876,7 @@ window.stUpravitVybranyVyrobek = function() {
   const id = stVybranyIdProEditaci();
   if (!id) {
     const n = stState.vybraneVyr ? stState.vybraneVyr.size : 0;
-    toastWarn(n > 1 ? 'Vybráno více produktů — klikni na ✏️ u konkrétního produktu.' : 'Nejdřív vyber produkt (vyhledej ho nebo zaškrtni v seznamu).');
+    toastWarn(n > 1 ? t('st_vybrano_vice') : t('st_nejdriv_vyber'));
     return;
   }
   window.stUpravitVyrobek(id);
@@ -38902,7 +38891,7 @@ window.stPoUlozeniVyrobku = async function(id, smazano = false) {
   }
   stState._vyrobkyFetchedAt = 0;   // renderStitky pak znovu načte admin_vyrobky.php
   await renderStitky();
-  toastSuccess(smazano ? 'Produkt odstraněn z cenovek.' : 'Produkt uložen — cenovka aktualizována.');
+  toastSuccess(smazano ? t('st_produkt_odstranen') : t('st_produkt_ulozen'));
 };
 
 
