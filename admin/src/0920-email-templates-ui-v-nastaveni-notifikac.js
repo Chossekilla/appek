@@ -1,13 +1,31 @@
 // =============================================================
 // 📝 EMAIL TEMPLATES — UI v Nastavení → Notifikace
 // =============================================================
+// 🌍 v3.0.643 — jazykové varianty zákaznických šablon (cs/en/es). Jazyk e-mailu = jazyk dokladů
+//   odběratele (Odběratel → Jazyk dokladů, jinak výchozí jazyk firmy). Interní šablona pekárně jen česky.
+const EMAIL_TPL_LANGS = { cs: '🇨🇿 Čeština', en: '🇬🇧 English', es: '🇪🇸 Español' };
+function emailTplLang() { return EMAIL_TPL_LANGS[state._emailTplLang] ? state._emailTplLang : 'cs'; }
+window.emailTplSetLang = function(lang) {
+  state._emailTplLang = EMAIL_TPL_LANGS[lang] ? lang : 'cs';
+  loadEmailTemplates();
+};
+
 window.loadEmailTemplates = async function() {
   const host = document.getElementById('email-templates-container');
   if (!host) return;
+  const lang = emailTplLang();
   try {
-    const d = await api('admin_nastaveni.php?action=email_templates');
+    const d = await api('admin_nastaveni.php?action=email_templates&lang=' + lang);
     state._email_templates_promenne = d.promenne || {};
-    host.innerHTML = d.templates.map(t => `
+    state._emailTplSample = d.sample || null;
+    state._emailTplPoznLabel = d.poznamka_label || 'Poznámka';
+    const langBar = `
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 4px">
+        <span style="font-size:12px;color:var(--text-3);font-weight:600">Jazyk šablon:</span>
+        ${Object.entries(EMAIL_TPL_LANGS).map(([k, label]) => `<button type="button" class="period-tab ${k === lang ? 'active' : ''}" onclick="emailTplSetLang('${k}')" style="font-size:12px;padding:6px 12px">${label}</button>`).join('')}
+      </div>
+      <div style="font-size:12px;color:var(--text-3);margin:0 0 6px;line-height:1.45">Zákazník dostane e-mail v jazyce svých dokladů (u odběratele „Jazyk dokladů", jinak výchozí jazyk firmy) a částky v měně objednávky.${lang !== 'cs' ? ' Neupravená šablona = výchozí text v tomto jazyce. Interní notifikace pekárně je jen česky.' : ''}</div>`;
+    host.innerHTML = langBar + d.templates.map(t => `
       <div class="card-block" style="padding:12px 14px;margin:0;background:var(--surface-2);border:1px solid var(--border)">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
           <div style="flex:1;min-width:240px">
@@ -35,7 +53,8 @@ window.loadEmailTemplates = async function() {
 
 window.emailTemplateEdit = async function(klic, override = null) {
   try {
-    const d = await api('admin_nastaveni.php?action=email_templates');
+    const lang = emailTplLang();
+    const d = await api('admin_nastaveni.php?action=email_templates&lang=' + lang);
     const tpl = d.templates.find(t => t.klic === klic);
     if (!tpl) return alert('Šablona nenalezena');
     // 🎯 Override (např. po výběru HTML designu z picker modal)
@@ -47,7 +66,7 @@ window.emailTemplateEdit = async function(klic, override = null) {
     const promenne = d.promenne || {};
     const isHtml = tpl.format === 'html';
 
-    openModal(`✏️ Upravit šablonu — ${tpl.popis || klic}`, `
+    openModal(`✏️ Upravit šablonu — ${tpl.popis || klic} · ${EMAIL_TPL_LANGS[lang]}`, `
       <!-- Toggle Text / HTML -->
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding:10px 14px;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">
         <div style="display:flex;gap:4px;align-items:center">
@@ -55,7 +74,7 @@ window.emailTemplateEdit = async function(klic, override = null) {
           <button type="button" id="et-mode-html" class="period-tab ${isHtml ? 'active' : ''}" onclick="emailTplSetMode('html')" style="font-size:13px;padding:8px 16px"><span class="period-tab-icon">🎨</span><span class="period-tab-text">HTML</span></button>
           <input type="hidden" id="et-format" value="${isHtml ? 'html' : 'text'}">
         </div>
-        <div id="et-html-tools" style="display:${isHtml ? 'flex' : 'none'};gap:6px;flex-wrap:wrap">
+        <div id="et-html-tools" style="display:${isHtml && lang === 'cs' ? 'flex' : 'none'};gap:6px;flex-wrap:wrap">
           <button type="button" class="btn-primary btn-green" onclick="emailTplGenerate('${esc(klic)}', 'random')" style="font-size:12px;padding:6px 14px;font-weight:700">🎲 Náhodný design</button>
           <button type="button" class="btn-secondary" onclick="emailTplShowDesigns('${esc(klic)}')" style="font-size:12px;padding:6px 12px">🎨 Vybrat design</button>
         </div>
@@ -94,7 +113,8 @@ window.emailTplSetMode = function(mode) {
   document.getElementById('et-format').value = mode;
   document.getElementById('et-mode-text')?.classList.toggle('active', mode === 'text');
   document.getElementById('et-mode-html')?.classList.toggle('active', mode === 'html');
-  document.getElementById('et-html-tools').style.display = mode === 'html' ? 'flex' : 'none';
+  // HTML designy jsou předpřipravené česky → nabízí se jen u české šablony
+  document.getElementById('et-html-tools').style.display = mode === 'html' && emailTplLang() === 'cs' ? 'flex' : 'none';
   const hint = document.getElementById('et-format-hint');
   if (hint) hint.textContent = mode === 'html' ? '(HTML — můžeš použít tagy, inline styly)' : '(prostý text)';
 };
@@ -180,7 +200,7 @@ window.emailTemplateSave = async function(klic) {
   try {
     await api('admin_nastaveni.php?action=email_template', {
       method: 'PUT',
-      body: JSON.stringify({ klic, predmet, telo, format }),
+      body: JSON.stringify({ klic, predmet, telo, format, lang: emailTplLang() }),
     });
     closeModal();
     loadEmailTemplates();
@@ -216,6 +236,7 @@ window.emailTplSaveFromPreview = async function() {
         predmet: String(p.predmet).trim(),
         telo:    p.telo,
         format:  p.format || 'text',
+        lang:    p.lang || emailTplLang(),
       }),
     });
     state._emailTplPendingSave = null;
@@ -235,7 +256,7 @@ window.emailTemplatePreview = async function(klic, customVars = null) {
   try {
     const r = await api('admin_nastaveni.php?action=email_template_preview', {
       method: 'POST',
-      body: JSON.stringify({ klic, vars: customVars }),
+      body: JSON.stringify({ klic, vars: customVars, lang: emailTplLang() }),
     });
     // Detekce HTML: server pošle r.format, ale pojistka — heuristika podle obsahu
     const isHtml = (r.format === 'html')
@@ -289,7 +310,7 @@ window.emailTemplatePreviewLive = async function(klic) {
   const telo    = document.getElementById('et-telo')?.value || '';
   const format  = document.getElementById('et-format')?.value || 'text';
   // Render lokálně přes substituci proměnných (na frontendu — same logic)
-  const sample = {
+  const sample = state._emailTplSample || {
     firma: 'APPEK B2B',
     cislo: 'OBJ-2026-148',
     datum: '14. 5. 2026',
@@ -305,7 +326,7 @@ window.emailTemplatePreviewLive = async function(klic) {
   const render = (text) => {
     let out = text;
     if (out.includes('{poznamka_block}')) {
-      out = out.replace('{poznamka_block}', sample.poznamka ? '\nPoznámka: ' + sample.poznamka + '\n' : '');
+      out = out.replace('{poznamka_block}', sample.poznamka ? '\n' + (state._emailTplPoznLabel || 'Poznámka') + ': ' + sample.poznamka + '\n' : '');
     }
     Object.keys(sample).forEach(k => {
       out = out.split('{' + k + '}').join(sample[k]);
@@ -319,7 +340,7 @@ window.emailTemplatePreviewLive = async function(klic) {
     ? `<iframe id="email-preview-iframe" style="width:100%;min-height:540px;border:1px solid var(--border);border-radius:8px;background:#fff" sandbox="allow-same-origin"></iframe>`
     : `<pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.6;margin:0;color:#000;background:#fff;padding:14px 18px;border-radius:8px;border:1px solid var(--border)">${esc(bodyRendered)}</pre>`;
   // Uložíme aktuální editor stav do globálního state — kvůli tlačítku Uložit níže
-  state._emailTplPendingSave = { klic, predmet, telo, format };
+  state._emailTplPendingSave = { klic, predmet, telo, format, lang: emailTplLang() };
   openModal(`👁️ Náhled (před uložením) ${isHtml ? '— HTML render' : '— text'}`, `
     <div style="background:var(--surface-2);padding:12px;border-radius:8px;margin-bottom:10px;border:1px solid var(--border)">
       <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Předmět</div>
@@ -360,7 +381,7 @@ window.emailTemplateReset = async function(klic) {
   try {
     await api('admin_nastaveni.php?action=email_template_reset', {
       method: 'POST',
-      body: JSON.stringify({ klic }),
+      body: JSON.stringify({ klic, lang: emailTplLang() }),
     });
     loadEmailTemplates();
   } catch (e) { alert('Chyba: ' + e.message); }

@@ -361,12 +361,22 @@ if ($action === 'order' && $method === 'POST') {
         try {
             require_once __DIR__ . '/_smtp_lib.php';
             $firma = (string) nastaveni_get($pdo, 'firma_nazev', '');
-            $subj = 'Objednávka ' . $cislo . ' přijata';
-            $body = "Dobrý den, $jmeno,\n\nděkujeme, vaši objednávku $cislo jsme přijali.\n"
-                  . ($typ === 'rozvoz' ? "Doručíme ji na: $adresa, $psc $mesto\n" : "Vyzvednutí: ")
-                  . ($typ === 'rozvoz' ? 'Kdy: ' : '') . date('j. n. Y H:i', $casTs) . "\n"
-                  . 'K úhradě při ' . ($typ === 'rozvoz' ? 'převzetí' : 'vyzvednutí') . ': ' . number_format($celkem, 2, ',', ' ') . " Kč\n\n"
-                  . "Stav objednávky: $stavUrl\n\nDěkujeme" . ($firma ? ",\n$firma" : '') . "\n";
+            // 🌍💱 v3.0.643 — anonymní zákazník nemá odběratele → jazyk = výchozí jazyk dokladů firmy;
+            //   částka v měně objednávky (snapshot). Čeština + Kč = text beze změny.
+            $L = email_lang_odberatele($pdo, null);
+            $tv = fn(string $k, array $x = []) => _t_lang($L, $k, $x);
+            $mRows = [['id' => $objId]];
+            mena_doc_pole($pdo, 'objednavky', $mRows);
+            $mena = $mRows[0]['doc_mena'] ?? 'CZK';
+            $kUhrade = ($L === 'cs' && $mena === 'CZK')
+                ? number_format($celkem, 2, ',', ' ') . ' Kč'
+                : _fmt_money_loc($mena === 'CZK' ? $celkem : (float) $mRows[0]['doc_celkem'], $L, $mena);
+            $subj = $tv('Objednávka {cislo} přijata', ['cislo' => $cislo]);
+            $body = $tv('Dobrý den, {jmeno},', ['jmeno' => $jmeno]) . "\n\n" . $tv('děkujeme, vaši objednávku {cislo} jsme přijali.', ['cislo' => $cislo]) . "\n"
+                  . ($typ === 'rozvoz' ? $tv('Doručíme ji na: {adresa}', ['adresa' => "$adresa, $psc $mesto"]) . "\n" : $tv('Vyzvednutí:') . ' ')
+                  . ($typ === 'rozvoz' ? $tv('Kdy:') . ' ' : '') . _fmt_date_loc($casTs, $L, true) . "\n"
+                  . $tv($typ === 'rozvoz' ? 'K úhradě při převzetí:' : 'K úhradě při vyzvednutí:') . ' ' . $kUhrade . "\n\n"
+                  . $tv('Stav objednávky:') . " $stavUrl\n\n" . $tv('Děkujeme') . ($firma ? ",\n$firma" : '') . "\n";
             appek_mail_raw($email, '=?UTF-8?B?' . base64_encode($subj) . '?=', $body, "Content-Type: text/plain; charset=UTF-8");
         } catch (Throwable $e) {}
     }

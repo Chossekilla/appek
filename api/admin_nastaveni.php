@@ -127,14 +127,45 @@ if ($method === 'POST' && $action === 'remove_logo') {
 
 // =============================================================
 // 📝 EMAIL TEMPLATES — správa šablon e-mailů
-// GET    ?action=email_templates              → seznam šablon (s defaulty)
-// PUT    ?action=email_template { klic, predmet, telo, aktivni? }  → uložit
-// POST   ?action=email_template_reset { klic }  → reset na default
-// POST   ?action=email_template_preview { klic, vars? }  → vrátí vyrenderovaný text
+// GET    ?action=email_templates[&lang=cs|en|es]  → seznam šablon (s defaulty) v jazyce
+// PUT    ?action=email_template { klic, predmet, telo, aktivni?, lang? }  → uložit
+// POST   ?action=email_template_reset { klic, lang? }  → reset na default
+// POST   ?action=email_template_preview { klic, vars?, lang? }  → vrátí vyrenderovaný text
+// 🌍 v3.0.643 — jazykové varianty zákaznických šablon (en/es) se ukládají do STEJNÉ tabulky
+//   pod klíčem 'klic@en' / 'klic@es' (beze změny schématu; česká 'klic' zůstává, jak byla).
+//   Interní 'admin_nova_objednavka' varianty nemá.
 // =============================================================
+/** Jazyk editoru šablon z požadavku (cs/en/es), jinak cs. */
+function email_tpl_req_lang($v): string {
+    $l = strtolower(trim((string) $v));
+    return in_array($l, EMAIL_LANGS, true) ? $l : 'cs';
+}
+/** Vzorová data pro náhled šablony v daném jazyce (částky v Kč jako vzor). */
+function email_tpl_sample(PDO $pdo, string $lang): array {
+    email_i18n_boot();
+    $m = fn($n) => _fmt_money_loc($n, $lang, 'CZK');
+    [$dec, $thou] = _num_seps($lang);
+    $ks = _unit_loc('ks', $lang);
+    return [
+        'firma'          => nastaveni_get($pdo, 'firma_nazev', 'APPEK B2B'),
+        'cislo'          => 'OBJ-2026-148',
+        'datum'          => _fmt_date_loc('2026-05-14', $lang),
+        'misto'          => '',
+        'odberatel'      => 'Hotel Beránek s.r.o.',
+        'stav'           => email_stav_label('expedovana', $lang),
+        'polozky_text'   => "  • Chleba selský — 12 $ks × " . $m(28) . ' = ' . $m(336) . "\n  • Bageta — 8 $ks × " . $m(18) . ' = ' . $m(144),
+        'castka_bez_dph' => $m(420),
+        'castka_dph'     => $m(60),
+        'castka_celkem'  => $m(480),
+        'poznamka'       => ['cs' => 'Dovézt prosím před 8:30.', 'en' => 'Please deliver before 8:30.', 'es' => 'Entregar antes de las 8:30, por favor.'][$lang] ?? '',
+    ];
+}
+
 if ($action === 'email_templates' && $method === 'GET') {
     ensure_email_templates_table($pdo);
+    $lang = email_tpl_req_lang($_GET['lang'] ?? 'cs');
     $defaults = email_template_defaults();
+    $defaultsLang = $lang === 'cs' ? [] : email_template_defaults_lang($lang);
     // Načti uložené z DB
     $ulozene = [];
     try {
@@ -145,19 +176,29 @@ if ($action === 'email_templates' && $method === 'GET') {
     // Merge: každá šablona z defaulta + případně přepsání z DB
     $result = [];
     foreach ($defaults as $klic => $def) {
-        $u = $ulozene[$klic] ?? null;
+        $maVariantu = $lang === 'cs' || isset($defaultsLang[$klic]);
+        if (!$maVariantu) continue;   // interní šablona (jen česky) — v en/es seznamu není
+        $dbKlic = $lang === 'cs' ? $klic : $klic . '@' . $lang;
+        $defX = $lang === 'cs' ? $def : $defaultsLang[$klic];
+        $u = $ulozene[$dbKlic] ?? null;
         $result[] = [
             'klic'    => $klic,
-            'popis'   => $u['popis']   ?? $def['popis']   ?? '',
-            'predmet' => $u['predmet'] ?? $def['predmet'] ?? '',
-            'telo'    => $u['telo']    ?? $def['telo']    ?? '',
+            'lang'    => $lang,
+            'popis'   => $lang === 'cs' ? ($u['popis'] ?? $def['popis'] ?? '') : ($def['popis'] ?? ''),
+            'predmet' => $u['predmet'] ?? $defX['predmet'] ?? '',
+            'telo'    => $u['telo']    ?? $defX['telo']    ?? '',
             'format'  => $u['format']  ?? 'text',
             'aktivni' => $u ? (int) $u['aktivni'] : 1,
-            'default' => $def,        // pro reset/zobrazení defaultu
+            'default' => $defX,        // pro reset/zobrazení defaultu
             'upraveno' => $u ? true : false,
+            'jen_cesky' => !isset(email_template_defaults_lang('en')[$klic]),
         ];
     }
-    json_response(['templates' => $result, 'promenne' => [
+    $sample = email_tpl_sample($pdo, $lang);
+    json_response(['templates' => $result, 'lang' => $lang, 'jazyky' => EMAIL_LANGS,
+        'sample' => $sample,
+        'poznamka_label' => $lang === 'cs' ? 'Poznámka' : _t_lang($lang, 'Poznámka'),
+        'promenne' => [
         'firma' => 'Název firmy z nastavení',
         'cislo' => 'Číslo objednávky (např. OBJ-2026-148)',
         'datum' => 'Datum dodání (např. 14. 5. 2026)',
@@ -180,6 +221,11 @@ if ($action === 'email_template' && $method === 'PUT') {
     if (!$klic) json_error('Chybí klic');
     $defaults = email_template_defaults();
     if (!isset($defaults[$klic])) json_error('Neznámá šablona');
+    $lang = email_tpl_req_lang($d['lang'] ?? 'cs');
+    if ($lang !== 'cs' && !isset(email_template_defaults_lang($lang)[$klic])) json_error('Tato šablona je jen česká (interní)');
+    $dbKlic = $lang === 'cs' ? $klic : $klic . '@' . $lang;
+    $popis = $defaults[$klic]['popis'] ?? null;
+    if ($lang !== 'cs' && $popis !== null) $popis .= ' [' . strtoupper($lang) . ']';
     $format = ($d['format'] ?? 'text') === 'html' ? 'html' : 'text';
 
     $pdo->prepare("
@@ -187,18 +233,18 @@ if ($action === 'email_template' && $method === 'PUT') {
         VALUES (:k, :p, :t, :f, :pp, :a)
         ON DUPLICATE KEY UPDATE predmet = :p2, telo = :t2, format = :f2, aktivni = :a2
     ")->execute([
-        'k'  => $klic,
+        'k'  => $dbKlic,
         'p'  => trim($d['predmet'] ?? ''),
         't'  => $d['telo'] ?? '',
         'f'  => $format,
-        'pp' => $defaults[$klic]['popis'] ?? null,
+        'pp' => $popis,
         'a'  => isset($d['aktivni']) ? (int)(bool)$d['aktivni'] : 1,
         'p2' => trim($d['predmet'] ?? ''),
         't2' => $d['telo'] ?? '',
         'f2' => $format,
         'a2' => isset($d['aktivni']) ? (int)(bool)$d['aktivni'] : 1,
     ]);
-    json_response(['ok' => true]);
+    json_response(['ok' => true, 'klic' => $dbKlic]);
 }
 
 // 🎲 Generuj náhodnou HTML šablonu daného designu
@@ -225,33 +271,26 @@ if ($action === 'email_template_reset' && $method === 'POST') {
     $d = json_input();
     $klic = trim($d['klic'] ?? '');
     if (!$klic) json_error('Chybí klic');
-    $pdo->prepare("DELETE FROM email_templates WHERE klic = :k")->execute(['k' => $klic]);
+    $lang = email_tpl_req_lang($d['lang'] ?? 'cs');
+    // 🌍 v3.0.643 — reset varianty v jazyce smaže jen 'klic@lang' (česká šablona zůstane)
+    $pdo->prepare("DELETE FROM email_templates WHERE klic = :k")->execute(['k' => $lang === 'cs' ? $klic : $klic . '@' . $lang]);
     json_response(['ok' => true]);
 }
 
 if ($action === 'email_template_preview' && $method === 'POST') {
     $d = json_input();
     $klic = trim($d['klic'] ?? '');
-    $tpl = email_template_load($pdo, $klic);
-    // Vzorové proměnné — pokud uživatel pošle vlastní, mergne se
-    $sample = [
-        'firma'          => nastaveni_get($pdo, 'firma_nazev', 'APPEK B2B'),
-        'cislo'          => 'OBJ-2026-148',
-        'datum'          => '14. 5. 2026',
-        'misto'          => '',
-        'odberatel'      => 'Hotel Beránek s.r.o.',
-        'stav'           => 'expedována',
-        'polozky_text'   => "  • Chleba selský — 12 ks × 28,00 Kč = 336,00 Kč\n  • Bageta — 8 ks × 18,00 Kč = 144,00 Kč",
-        'castka_bez_dph' => '420,00 Kč',
-        'castka_dph'     => '60,00 Kč',
-        'castka_celkem'  => '480,00 Kč',
-        'poznamka'       => 'Dovézt prosím před 8:30.',
-    ];
+    $lang = email_tpl_req_lang($d['lang'] ?? 'cs');
+    $tpl = email_template_load($pdo, $klic, $lang);
+    $tLang = $tpl['jazyk'] ?? 'cs';
+    // Vzorové proměnné (v jazyce šablony) — pokud uživatel pošle vlastní, mergne se
+    $sample = email_tpl_sample($pdo, $tLang);
     if (isset($d['vars']) && is_array($d['vars'])) $sample = array_merge($sample, $d['vars']);
     json_response([
-        'predmet' => email_template_render($tpl['predmet'], $sample),
-        'telo'    => email_template_render($tpl['telo'], $sample),
+        'predmet' => email_template_render($tpl['predmet'], $sample, $tLang),
+        'telo'    => email_template_render($tpl['telo'], $sample, $tLang),
         'format'  => $tpl['format'] ?? 'text',  // 🔧 frontend potřebuje vědět, jestli renderovat jako HTML
+        'jazyk'   => $tLang,
     ]);
 }
 
