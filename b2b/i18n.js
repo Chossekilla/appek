@@ -1192,6 +1192,22 @@ const B2B_PHRASES = [
   ['Zásady cookies', 'Cookie policy', 'Política de cookies'],
   ['Zásady používání cookies', 'Cookie usage policy', 'Política de uso de cookies'],
   ['Žádná data v tomto období', 'No data in this period', 'No hay datos en este período'],
+  // b2b dopreklady v3.0.642 (kosik/checkout/upozorneni/zasady) (+15)
+  ['Kusů celkem', 'Total pieces', 'Unidades en total'],
+  ['Odebrat kód', 'Remove code', 'Quitar código'],
+  ['Souhrn →', 'Summary →', 'Resumen →'],
+  ['Zavřít košík', 'Close cart', 'Cerrar carrito'],
+  ['Zobrazit celý košík', 'Show full cart', 'Ver carrito completo'],
+  ['Zapnout upozornění na objednávky', 'Turn on order notifications', 'Activar avisos de pedidos'],
+  ['Vypnout upozornění na tomto zařízení', 'Turn off notifications on this device', 'Desactivar avisos en este dispositivo'],
+  ['Zásady se nepodařilo načíst.', 'The policy could not be loaded.', 'No se pudo cargar la política.'],
+  ['Zásady zatím nejsou k dispozici.', 'The policy is not available yet.', 'La política aún no está disponible.'],
+  ['Zásady zpracování osobních údajů', 'Personal data processing policy', 'Política de tratamiento de datos personales'],
+  ['(vždy aktivní)', '(always active)', '(siempre activas)'],
+  ['přičte se při odeslání', 'added when the order is sent', 'se añadirá al enviar el pedido'],
+  ['Souhlasím se zpracováním', 'I agree to the processing of', 'Acepto el tratamiento de'],
+  ['osobních údajů', 'personal data', 'datos personales'],
+  ['kdy dodávat', 'when to deliver', 'cuándo entregar'],
 ];
 
 const B2B_LOOKUP = new Map();

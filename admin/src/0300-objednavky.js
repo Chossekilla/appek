@@ -401,7 +401,7 @@ window.menaLoad = async function() {
     const cizi = c.kod !== 'CZK';
     const trvale = c.zakladni && c.zakladni !== 'CZK';   // 🆕 v3.0.640 — ceník už je trvale v cílové měně
     el.innerHTML = `
-      ${trvale ? `<div style="margin-bottom:10px;font-size:12px;background:var(--info-bg,#EFF6FF);border:1px solid var(--border);border-radius:8px;padding:9px 12px">🔒 Ceník je <strong>trvale přepočtený do ${esc(c.zakladni)}</strong> — prodej i doklady jedou v ${esc(c.zakladni)}. Kurz níže slouží jen pro rekapitulaci DPH v Kč na fakturách. Návrat do Kč = obnova zálohy DB z doby před přepočtem (Údržba → Zálohy).</div>` : ''}
+      ${trvale ? `<div style="margin-bottom:10px;font-size:12px;background:var(--info-bg,#EFF6FF);border:1px solid var(--border);border-radius:8px;padding:9px 12px">${t('mena_trvale_info', { kod: esc(c.zakladni) })}</div>` : ''}
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
         <div><label class="form-label" style="font-size:12px">Cílová měna</label>
           <select class="form-input" id="mena-kod" style="width:130px" onchange="menaKodChange()" ${trvale ? 'disabled' : ''}>${opts}</select></div>
@@ -475,7 +475,7 @@ window.menaCnb = async function() {
 window.menaSave = async function() {
   const kod = document.getElementById('mena-kod').value;
   const kurzVal = parseFloat(document.getElementById('mena-kurz').value);
-  if (kod !== 'CZK' && !(kurzVal > 0 && kurzVal !== 1)) { toast('❌ Zadej kurz (kolik Kč je 1 ' + kod + ') nebo ho načti z ČNB', 'error'); return; }
+  if (kod !== 'CZK' && !(kurzVal > 0 && kurzVal !== 1)) { toast(t('mena_zadej_kurz', { kod }), 'error'); return; }
   const cfg = {
     kod,
     kurz: parseFloat(document.getElementById('mena-kurz').value) || 1,
@@ -520,7 +520,7 @@ window.menaPrepocet = async function(kurz) {
     const r = await api('admin_mena.php?action=prepocet', { method: 'POST', body: JSON.stringify({ kurz, kod }) });
     if (r.config) window._menaCfg = r.config;   // 🆕 v3.0.640 — ceník je teď v cílové měně (delitel 1)
     el.innerHTML = `<div style="background:var(--success-bg);color:var(--success-text);border-radius:8px;padding:10px 12px;margin-top:8px">✅ Přepočteno ${r.prepocteno} výrobků kurzem ${r.kurz}. Záloha DB vytvořena (Údržba → Zálohy).</div>`;
-    toast(`✅ Ceník přepočten (${r.prepocteno} výrobků) — prodej i doklady jsou teď v ${kod}`, 'success');
+    toast(t('mena_cenik_prepocten', { n: r.prepocteno, kod }), 'success');
     setTimeout(() => window.menaLoad(), 1500);
   } catch (e) { el.innerHTML = `<span style="color:var(--danger-text)">❌ ${esc(e.message)} — ceny NEzměněny${String(e.message).includes('záloh') ? '' : ' (pokud selhala záloha)'}</span>`; }
 };

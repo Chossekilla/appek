@@ -1264,7 +1264,7 @@ async function _renderNastaveniInner() {
   const blokUcetni = `
     <div class="card-block" style="padding:16px;margin-bottom:14px">
       <h2 style="margin:0 0 6px;font-size:18px;letter-spacing:-0.01em">📊 Účetní integrace</h2>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Faktury a dobropisy přeneseš do <strong>POHODY</strong> (XML soubor nebo přímo přes POHODA mServer) a do <strong>ABRA Flexi / FlexiBee</strong> (REST API) — u faktury i hromadně za období. Pro ostatní programy (Money S3, Helios, iDoklad…) slouží export <strong>ISDOC</strong>.</p>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">${t('ucetni_integrace_uvod')}</p>
     </div>
 
     <!-- 🆕 v2.9.187 — Sales report + Fixní náklady přesunuté z bývalého tabu Výroba -->
