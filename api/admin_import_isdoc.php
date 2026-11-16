@@ -14,6 +14,10 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
+require_once __DIR__ . '/_mena_lib.php';
+// 🧪 CLI testy (scripts/tests/ucetni/test_isdoc_mena.php) potřebují jen parsuj_isdoc() — funkce
+//   na nejvyšší úrovni souboru jsou definované už při kompilaci, takže stačí skončit před endpointem.
+if (defined('ISDOC_IMPORT_INCLUDE')) return;
 cors_headers();
 require_admin();
 
@@ -121,6 +125,33 @@ function parsuj_isdoc(string $xml): array {
         }
     }
 
+    // 💱 v3.0.642 — měna: všechny „obyčejné" částky ISDOC (UnitPrice, LineExtensionAmount, …) jsou
+    //   v TUZEMSKÉ měně (LocalCurrencyCode), varianty *Curr v cizí (ForeignCurrencyCode, kurz CurrRate
+    //   za RefCurrRate jednotek). Ukládáme Kč částky + snapshot mena/mena_kurz (mena_zaklad = CZK) →
+    //   PDF faktury je znovu přepočte do cizí měny. Doklad vedený v jiné tuzemské měně než Kč
+    //   (např. slovenský v EUR) odmítneme — jinak by se EUR částky potichu uložily jako Kč.
+    $local = strtoupper(trim((string) $X('string(/is:Invoice/is:LocalCurrencyCode)'))) ?: 'CZK';
+    if ($local !== 'CZK') {
+        return ['error' => "Doklad je veden v tuzemské měně $local — import ISDOC umí jen doklady vedené v Kč (CZK)."];
+    }
+    $mena = ['mena' => 'CZK', 'mena_kurz' => 1.0, 'mena_zaklad' => 'CZK'];
+    $castka_mena = null;
+    $foreign = strtoupper(trim((string) $X('string(/is:Invoice/is:ForeignCurrencyCode)')));
+    if ($foreign !== '' && $foreign !== 'CZK') {
+        if (!isset(MENA_PODPOROVANE[$foreign])) {
+            return ['error' => "Doklad v cizí měně $foreign — tuto měnu APPEK nepodporuje (" . implode(', ', array_keys(MENA_PODPOROVANE)) . ').'];
+        }
+        $rate = (float) str_replace(',', '.', (string) $X('string(/is:Invoice/is:CurrRate)'));
+        $refRaw = (string) $X('string(/is:Invoice/is:RefCurrRate)');
+        $ref = $refRaw === '' ? 1.0 : (float) str_replace(',', '.', $refRaw);
+        $kurz = ($rate > 0 && $ref > 0) ? $rate / $ref : 0.0;
+        if ($kurz <= 0) return ['error' => "Doklad v cizí měně $foreign nemá platný kurz (CurrRate)."];
+        $mena = ['mena' => $foreign, 'mena_kurz' => round($kurz, 6), 'mena_zaklad' => 'CZK'];
+        $pc = (string) $X('string(/is:Invoice/is:LegalMonetaryTotal/is:PayableAmountCurr)');
+        if ($pc === '') $pc = (string) $X('string(/is:Invoice/is:LegalMonetaryTotal/is:TaxInclusiveAmountCurr)');
+        if ($pc !== '') $castka_mena = round((float) $pc, 2);
+    }
+
     $vs = (string) $X('string(/is:Invoice/is:PaymentMeans/is:Payment/is:Details/is:VariableSymbol)');
     if ($vs === '') $vs = preg_replace('/\D/', '', $cislo);
     $note = (string) $X('string(/is:Invoice/is:Note)');
@@ -199,7 +230,9 @@ function parsuj_isdoc(string $xml): array {
         'polozky'           => $polozky,
         'castka_bez_dph'    => round($bez_total, 2),
         'castka_dph'        => round($dph_total, 2),
-        'castka_celkem'     => round($cel_total, 2),
+        'castka_celkem'     => round($cel_total, 2),   // vždy Kč (tuzemská měna ISDOC)
+        'mena'              => $mena,
+        'castka_celkem_mena'=> $castka_mena,            // „K úhradě" v cizí měně (jen informativně)
     ];
 }
 
@@ -229,6 +262,9 @@ if ($action === 'preview') {
             'cislo'          => $f['cislo'],
             'datum_vystaveni'=> $f['datum_vystaveni'],
             'castka_celkem'  => $f['castka_celkem'],
+            'mena'           => $f['mena']['mena'],
+            'mena_kurz'      => $f['mena']['mena_kurz'],
+            'castka_celkem_mena' => $f['castka_celkem_mena'],
             'odberatel'      => $f['odberatel']['nazev'],
             'ico'            => $f['odberatel']['ico'],
             'pocet_polozek'  => count($f['polozky']),
@@ -347,8 +383,9 @@ if ($action === 'import') {
                 'psc' => $odb['psc'] ?: null,
             ]);
             $faId = (int) $pdo->lastInsertId();
-            // 💱 v3.0.640 — ISDOC import nečte měnu → částky bere jako Kč
-            $pdo->prepare("UPDATE faktury SET mena = 'CZK', mena_kurz = 1, mena_zaklad = 'CZK' WHERE id = ?")->execute([$faId]);
+            // 💱 v3.0.642 — snapshot měny z ISDOC (částky v DB jsou vždy Kč = tuzemská měna ISDOC)
+            $pdo->prepare("UPDATE faktury SET mena = ?, mena_kurz = ?, mena_zaklad = 'CZK' WHERE id = ?")
+                ->execute([$f['mena']['mena'], $f['mena']['mena_kurz'], $faId]);
 
             // Pokus o párování položek na existující výrobky podle čísla
             $matchVyr = $pdo->prepare("SELECT id FROM vyrobky WHERE cislo = :c LIMIT 1");

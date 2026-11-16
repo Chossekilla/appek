@@ -101,6 +101,52 @@ function isdoc_nacti_fakturu(PDO $pdo, int $fa_id): ?array {
     return $f;
 }
 
+/**
+ * 💱 v3.0.642 — doklad v cizí měně (snapshot mena na faktuře ≠ CZK) → normalizovaná faktura
+ * z účetní knihovny (ucetni_nacti_fakturu): STEJNÉ částky jako PDF (EUR = mena_doklad_polozky)
+ * i jako export do POHODY/FlexiBee (Kč = EUR × kurz, rozpočteno na položky). null = doklad v Kč.
+ */
+function isdoc_cizi_mena(PDO $pdo, array $f): ?array {
+    if (empty($f['id'])) return null;
+    require_once __DIR__ . '/_mena_lib.php';
+    $m = mena_doklad($pdo, 'faktury', $f);
+    if ($m['mena'] === 'CZK') return null;
+    require_once __DIR__ . '/_ucetni_lib.php';
+    $inv = ucetni_nacti_fakturu($pdo, (int) $f['id']);
+    if (!$inv || empty($inv['cizi'])) return null;
+    // Rekapitulace DPH v Kč po sazbách = částka sazby v cizí měně × kurz — přesně jako
+    //   „Rekapitulace DPH v Kč" na PDF (§29 ZDPH). Položky v Kč se na ni rozpočtou (Σ po sazbě sedí).
+    $kurz = (float) $inv['cizi']['kurz'];
+    $rek = [];
+    foreach ($inv['cizi']['rekapitulace'] as $k => $r) {
+        $rek[$k] = ['sazba' => (float) $r['sazba'], 'zaklad' => round($r['zaklad'] * $kurz, 2), 'dph' => round($r['dph'] * $kurz, 2)];
+    }
+    $inv['rekapitulace'] = $rek;
+    $inv['polozky'] = ucetni_rozpocitej_polozky($inv['polozky'], $rek);
+    $inv['celkem_bez'] = round(array_sum(array_column($rek, 'zaklad')), 2);
+    $inv['celkem_dph'] = round(array_sum(array_column($rek, 'dph')), 2);
+    $inv['celkem'] = round($inv['celkem_bez'] + $inv['celkem_dph'], 2);
+    return $inv;
+}
+
+/** Částka do ISDOC (2 des., bez „-0.00"). */
+function isdoc_amt($x): string {
+    $s = number_format(round((float) $x, 2), 2, '.', '');
+    return ((float) $s == 0.0) ? '0.00' : $s;
+}
+
+/** Jednotková cena v Kč u cizoměnového dokladu — až 4 des. (EUR × kurz), aby šla zpět přepočítat na centy. */
+function isdoc_cena($x): string {
+    $s = number_format(round((float) $x, 4), 4, '.', '');
+    $s = preg_replace('/(\.\d\d)0{1,2}$/', '$1', $s);
+    return ((float) $s == 0.0) ? '0.00' : $s;
+}
+
+/** Kurz (Kč za 1 jednotku cizí měny) bez zbytečných nul: 25.250000 → 25.25. */
+function isdoc_kurz($x): string {
+    return rtrim(rtrim(number_format((float) $x, 6, '.', ''), '0'), '.');
+}
+
 function generuj_isdoc(PDO $pdo, array $f): string {
     $firma_nazev = nastaveni_get($pdo, 'firma_nazev', 'Provoz');
     $firma_ico   = nastaveni_get($pdo, 'firma_ico', '');
@@ -166,6 +212,16 @@ function generuj_isdoc(PDO $pdo, array $f): string {
     $dph_total = round((float) $f['castka_dph'], 2);
     $cel_total = round((float) $f['castka_celkem'], 2);
 
+    // 💱 v3.0.642 — cizí měna: ISDOC nese částky v tuzemské měně (Kč) + *Curr varianty v cizí měně,
+    //   ForeignCurrencyCode, CurrRate = kurz (Kč za RefCurrRate=1 jednotku). Doklad v Kč → $cz = null
+    //   a výstup zůstává beze změny (byte-identický s dřívějšími verzemi).
+    $cz = isdoc_cizi_mena($pdo, $f);
+    if ($cz) {
+        $bez_total = $cz['celkem_bez'];
+        $dph_total = $cz['celkem_dph'];
+        $cel_total = $cz['celkem'];
+    }
+
     // Build XML
     $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     $xml .= '<Invoice xmlns="http://isdoc.cz/namespace/2013" version="6.0.1">' . "\n";
@@ -179,7 +235,12 @@ function generuj_isdoc(PDO $pdo, array $f): string {
     $xml .= '  <ElectronicPossibilityAgreementReference />' . "\n";
     $xml .= '  <Note>' . isdoc_xml($f['poznamka'] ?? '') . '</Note>' . "\n";
     $xml .= '  <LocalCurrencyCode>CZK</LocalCurrencyCode>' . "\n";
-    $xml .= '  <CurrRate>1</CurrRate>' . "\n";
+    if ($cz) {
+        $xml .= '  <ForeignCurrencyCode>' . isdoc_xml($cz['cizi']['mena']) . '</ForeignCurrencyCode>' . "\n";
+        $xml .= '  <CurrRate>' . isdoc_kurz($cz['cizi']['kurz']) . '</CurrRate>' . "\n";
+    } else {
+        $xml .= '  <CurrRate>1</CurrRate>' . "\n";
+    }
     $xml .= '  <RefCurrRate>1</RefCurrRate>' . "\n";
 
     // Dodavatel (Seller)
@@ -235,7 +296,8 @@ function generuj_isdoc(PDO $pdo, array $f): string {
     // Položky
     $xml .= '  <InvoiceLines>' . "\n";
     $i = 0;
-    foreach ($f['polozky'] as $p) {
+    if ($cz) $xml .= isdoc_radky_cizi($cz);
+    foreach (($cz ? [] : $f['polozky']) as $p) {
         $i++;
         $mn  = (float) $p['mnozstvi'];
         $cena = (float) $p['cena_bez_dph'];
@@ -267,7 +329,8 @@ function generuj_isdoc(PDO $pdo, array $f): string {
 
     // TaxTotal
     $xml .= '  <TaxTotal>' . "\n";
-    foreach ($sazby as $s) {
+    if ($cz) $xml .= isdoc_rekapitulace_cizi($cz);
+    foreach (($cz ? [] : $sazby) as $s) {
         $b = round($s['bez'], 2);
         $d = round($s['dph'], 2);
         $xml .= '    <TaxSubTotal>' . "\n";
@@ -283,11 +346,15 @@ function generuj_isdoc(PDO $pdo, array $f): string {
         $xml .= '      <TaxCategory><Percent>' . number_format($s['sazba'], 0, '.', '') . '</Percent></TaxCategory>' . "\n";
         $xml .= '    </TaxSubTotal>' . "\n";
     }
+    if ($cz) $xml .= '    <TaxAmountCurr>' . isdoc_amt($cz['cizi']['celkem_dph']) . '</TaxAmountCurr>' . "\n";
     $xml .= '    <TaxAmount>' . number_format($dph_total, 2, '.', '') . '</TaxAmount>' . "\n";
     $xml .= '  </TaxTotal>' . "\n";
 
     // LegalMonetaryTotal
     $xml .= '  <LegalMonetaryTotal>' . "\n";
+    if ($cz) {
+        $xml .= isdoc_souhrn_cizi($bez_total, $cel_total, $cz['cizi']['celkem_bez'], $cz['cizi']['celkem']);
+    } else {
     $xml .= '    <TaxExclusiveAmount>' . number_format($bez_total, 2, '.', '') . '</TaxExclusiveAmount>' . "\n";
     $xml .= '    <TaxInclusiveAmount>' . number_format($cel_total, 2, '.', '') . '</TaxInclusiveAmount>' . "\n";
     $xml .= '    <AlreadyClaimedTaxExclusiveAmount>0</AlreadyClaimedTaxExclusiveAmount>' . "\n";
@@ -297,6 +364,7 @@ function generuj_isdoc(PDO $pdo, array $f): string {
     $xml .= '    <PayableRoundingAmount>0</PayableRoundingAmount>' . "\n";
     $xml .= '    <PaidDepositsAmount>0</PaidDepositsAmount>' . "\n";
     $xml .= '    <PayableAmount>' . number_format($cel_total, 2, '.', '') . '</PayableAmount>' . "\n";
+    }
     $xml .= '  </LegalMonetaryTotal>' . "\n";
 
     // Platba — bankovní účet a VS
@@ -319,6 +387,91 @@ function generuj_isdoc(PDO $pdo, array $f): string {
     }
 
     $xml .= '</Invoice>' . "\n";
+    return $xml;
+}
+
+/** 💱 Řádky cizoměnového dokladu: Kč (tuzemská měna) + *Curr v měně dokladu — pořadí dle XSD InvoiceLineType. */
+function isdoc_radky_cizi(array $inv): string {
+    $xml = '';
+    $i = 0;
+    foreach ($inv['polozky'] as $k => $p) {
+        $i++;
+        $c = $inv['cizi']['polozky'][$k] ?? ['cena_mj' => 0, 'zaklad' => 0, 'dph' => 0];
+        $sazba = (float) $p['sazba'];
+        $xml .= '    <InvoiceLine>' . "\n";
+        $xml .= '      <ID>' . $i . '</ID>' . "\n";
+        $xml .= '      <InvoicedQuantity unitCode="' . isdoc_xml($p['jednotka'] ?: 'ks') . '">' . number_format((float) $p['mnozstvi'], 3, '.', '') . '</InvoicedQuantity>' . "\n";
+        $xml .= '      <LineExtensionAmountCurr>' . isdoc_amt($c['zaklad']) . '</LineExtensionAmountCurr>' . "\n";
+        $xml .= '      <LineExtensionAmount>' . isdoc_amt($p['zaklad']) . '</LineExtensionAmount>' . "\n";
+        $xml .= '      <LineExtensionAmountTaxInclusiveCurr>' . isdoc_amt($c['zaklad'] + $c['dph']) . '</LineExtensionAmountTaxInclusiveCurr>' . "\n";
+        $xml .= '      <LineExtensionAmountTaxInclusive>' . isdoc_amt($p['zaklad'] + $p['dph']) . '</LineExtensionAmountTaxInclusive>' . "\n";
+        $xml .= '      <LineExtensionTaxAmount>' . isdoc_amt($p['dph']) . '</LineExtensionTaxAmount>' . "\n";
+        $xml .= '      <UnitPrice>' . isdoc_cena($p['cena_mj']) . '</UnitPrice>' . "\n";
+        $xml .= '      <UnitPriceTaxInclusive>' . isdoc_cena((float) $p['cena_mj'] * (1 + $sazba / 100)) . '</UnitPriceTaxInclusive>' . "\n";
+        $xml .= '      <ClassifiedTaxCategory>' . "\n";
+        $xml .= '        <Percent>' . number_format($sazba, 0, '.', '') . '</Percent>' . "\n";
+        $xml .= '        <VATCalculationMethod>0</VATCalculationMethod>' . "\n";
+        $xml .= '      </ClassifiedTaxCategory>' . "\n";
+        $xml .= '      <Item><Description>' . isdoc_xml($p['nazev']) . '</Description>';
+        if (($p['kod'] ?? '') !== '') {
+            $xml .= '<SellersItemIdentification><ID>' . isdoc_xml($p['kod']) . '</ID></SellersItemIdentification>';
+        }
+        $xml .= '</Item>' . "\n";
+        $xml .= '    </InvoiceLine>' . "\n";
+    }
+    return $xml;
+}
+
+/** 💱 Rekapitulace DPH po sazbách (Kč + *Curr) — pořadí dle XSD TaxSubTotalType. */
+function isdoc_rekapitulace_cizi(array $inv): string {
+    $xml = '';
+    foreach ($inv['rekapitulace'] as $key => $r) {
+        $c = $inv['cizi']['rekapitulace'][$key] ?? ['zaklad' => 0, 'dph' => 0];
+        $b = (float) $r['zaklad']; $d = (float) $r['dph'];
+        $bc = (float) $c['zaklad']; $dc = (float) $c['dph'];
+        $xml .= '    <TaxSubTotal>' . "\n";
+        $xml .= '      <TaxableAmountCurr>' . isdoc_amt($bc) . '</TaxableAmountCurr>' . "\n";
+        $xml .= '      <TaxableAmount>' . isdoc_amt($b) . '</TaxableAmount>' . "\n";
+        $xml .= '      <TaxAmountCurr>' . isdoc_amt($dc) . '</TaxAmountCurr>' . "\n";
+        $xml .= '      <TaxAmount>' . isdoc_amt($d) . '</TaxAmount>' . "\n";
+        $xml .= '      <TaxInclusiveAmountCurr>' . isdoc_amt($bc + $dc) . '</TaxInclusiveAmountCurr>' . "\n";
+        $xml .= '      <TaxInclusiveAmount>' . isdoc_amt($b + $d) . '</TaxInclusiveAmount>' . "\n";
+        $xml .= '      <AlreadyClaimedTaxableAmountCurr>0</AlreadyClaimedTaxableAmountCurr>' . "\n";
+        $xml .= '      <AlreadyClaimedTaxableAmount>0</AlreadyClaimedTaxableAmount>' . "\n";
+        $xml .= '      <AlreadyClaimedTaxAmountCurr>0</AlreadyClaimedTaxAmountCurr>' . "\n";
+        $xml .= '      <AlreadyClaimedTaxAmount>0</AlreadyClaimedTaxAmount>' . "\n";
+        $xml .= '      <AlreadyClaimedTaxInclusiveAmountCurr>0</AlreadyClaimedTaxInclusiveAmountCurr>' . "\n";
+        $xml .= '      <AlreadyClaimedTaxInclusiveAmount>0</AlreadyClaimedTaxInclusiveAmount>' . "\n";
+        $xml .= '      <DifferenceTaxableAmountCurr>' . isdoc_amt($bc) . '</DifferenceTaxableAmountCurr>' . "\n";
+        $xml .= '      <DifferenceTaxableAmount>' . isdoc_amt($b) . '</DifferenceTaxableAmount>' . "\n";
+        $xml .= '      <DifferenceTaxAmountCurr>' . isdoc_amt($dc) . '</DifferenceTaxAmountCurr>' . "\n";
+        $xml .= '      <DifferenceTaxAmount>' . isdoc_amt($d) . '</DifferenceTaxAmount>' . "\n";
+        $xml .= '      <DifferenceTaxInclusiveAmountCurr>' . isdoc_amt($bc + $dc) . '</DifferenceTaxInclusiveAmountCurr>' . "\n";
+        $xml .= '      <DifferenceTaxInclusiveAmount>' . isdoc_amt($b + $d) . '</DifferenceTaxInclusiveAmount>' . "\n";
+        $xml .= '      <TaxCategory><Percent>' . number_format((float) $r['sazba'], 0, '.', '') . '</Percent></TaxCategory>' . "\n";
+        $xml .= '    </TaxSubTotal>' . "\n";
+    }
+    return $xml;
+}
+
+/** 💱 LegalMonetaryTotal v cizí měně — u souhrnu jde *Curr ZA tuzemskou částkou (pořadí dle XSD). */
+function isdoc_souhrn_cizi(float $bez, float $cel, float $bezC, float $celC): string {
+    $r = [
+        ['TaxExclusiveAmount', $bez, $bezC],
+        ['TaxInclusiveAmount', $cel, $celC],
+        ['AlreadyClaimedTaxExclusiveAmount', 0, 0],
+        ['AlreadyClaimedTaxInclusiveAmount', 0, 0],
+        ['DifferenceTaxExclusiveAmount', $bez, $bezC],
+        ['DifferenceTaxInclusiveAmount', $cel, $celC],
+        ['PayableRoundingAmount', 0, 0],
+        ['PaidDepositsAmount', 0, 0],
+        ['PayableAmount', $cel, $celC],
+    ];
+    $xml = '';
+    foreach ($r as [$el, $kc, $cur]) {
+        $xml .= "    <$el>" . isdoc_amt($kc) . "</$el>\n";
+        $xml .= "    <{$el}Curr>" . isdoc_amt($cur) . "</{$el}Curr>\n";
+    }
     return $xml;
 }
 
