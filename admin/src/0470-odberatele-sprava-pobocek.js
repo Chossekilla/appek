@@ -343,6 +343,14 @@ window.editOdberatel = async function(id = null) {
           </select>
         </div>
         <div>
+          <label class="form-label">💱 Měna platby</label>
+          <select class="form-input" id="od-mena-platby" title="V jaké měně odběratel standardně platí (B2B košík, objednávky, faktury). Funguje, když jsou v Nastavení → Přístupy, ceny & měna zapnuté platby v Kč i cizí měně.">
+            <option value="">— výchozí firmy —</option>
+            ${[...new Set(['CZK', 'EUR', ...((window._menaCfg && window._menaCfg.platba && window._menaCfg.platba.meny) || []), ...(o.mena_platby ? [o.mena_platby] : [])])]
+              .map(k => `<option value="${esc(k)}" ${o.mena_platby === k ? 'selected' : ''}>${k === 'CZK' ? 'Kč (CZK)' : k === 'EUR' ? '€ (EUR)' : esc(k)}</option>`).join('')}
+          </select>
+        </div>
+        <div>
           <label class="form-label">🧾 Slevová skupina</label>
           <select class="form-input" id="od-skupina">${skupinyOptions}</select>
         </div>
@@ -529,6 +537,7 @@ window.ulozitOdberatele = async function(id) {
     poznamka: document.getElementById('od-pozn').value || null,
     typ: document.getElementById('od-typ')?.value || null,
     jazyk_dokladu: document.getElementById('od-jazyk-dokladu')?.value || null,
+    mena_platby: document.getElementById('od-mena-platby')?.value || null,   // 💱 v3.0.643
   };
   const heslo = document.getElementById('od-heslo').value;
   if (heslo) data.heslo = heslo;

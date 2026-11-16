@@ -6519,8 +6519,164 @@ window.menaLoad = async function() {
           <button class="btn-secondary" onclick="menaPrepocetNahled()">👁️ Náhled přepočtu</button>
           <div id="mena-prepocet-nahled" style="font-size:12px;flex-basis:100%"></div>
         </div>
-      </div>`;
+      </div>
+      ${menaPlatbaHtml(c, r)}`;
+    // 🆕 v3.0.643 — trvalý přepočet a platby ve více měnách se vylučují
+    if (c.platba && c.platba.aktivni) { const ps = document.getElementById('mena-prepocet-sekce'); if (ps) ps.hidden = true; }
   } catch (e) { el.innerHTML = `<span style="color:var(--danger-text)">Chyba: ${esc(e.message)}</span>`; }
+};
+
+// ═══════════════════════════════════════════════════════════
+// 💱 v3.0.643 — PLATBA V KČ I V CIZÍ MĚNĚ (blok config.platba, api/admin_mena.php?action=save_platba)
+// ═══════════════════════════════════════════════════════════
+const MENA_KANALY_UI = [['pos', 'Pokladna'], ['stul', 'Účet u stolu'], ['b2b', 'B2B portál'], ['web', 'Web objednávky (/objednat)'], ['qr', 'QR platba hostem']];
+function menaPlatbaHtml(c, r) {
+  const p = c.platba || {};
+  const trvale = c.zakladni && c.zakladni !== 'CZK';
+  const podp = Object.entries(r.podporovane || { CZK: 'Kč', EUR: '€' }).filter(([k]) => k !== 'CZK');
+  const meny = p.meny || ['EUR'];
+  const kurzy = r.kurzy || {};
+  const info = (r.platba_info && r.platba_info.meny) || {};
+  const box = 'border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px';
+  const help = 'font-size:12px;color:var(--text-3);margin:4px 0 0';
+  const lbl = 'display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer';
+  const menaRow = ([k, sym]) => {
+    const kz = kurzy[k];
+    const stav = info[k] && info[k].ok === false ? `<span style="color:var(--danger-text)">${esc(info[k].chyba || '')}</span>` : '';
+    return `<div class="mena-pl-mena" data-kod="${k}" style="${box};${meny.includes(k) ? '' : 'display:none'}">
+      <strong style="font-size:13px">${k} (${esc(sym)})</strong>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-top:6px">
+        <div><label class="form-label" style="font-size:12px">Kurz ČNB</label>
+          <div style="font-size:13px;padding:7px 0">${kz ? `1 ${k} = ${Number(kz.kurz).toFixed(3)} Kč <span style="color:var(--text-3)">(${esc(kz.datum)})</span>` : '<span style="color:var(--text-3)">zatím nenačten</span>'}</div></div>
+        <div class="mena-pl-rucni" style="${p.kurz_zdroj === 'rucni' ? '' : 'display:none'}"><label class="form-label" style="font-size:12px">Vlastní kurz (Kč za 1 ${k})</label>
+          <input class="form-input" type="number" min="0.0001" step="0.001" style="width:120px" id="mena-pl-rucni-${k}" value="${(p.kurzy_rucni && p.kurzy_rucni[k]) || ''}"></div>
+        <div><label class="form-label" style="font-size:12px">Přirážka ke kurzu (%)</label>
+          <input class="form-input" type="number" min="0" max="20" step="0.1" style="width:90px" id="mena-pl-prirazka-${k}" value="${(p.prirazka_pct && p.prirazka_pct[k]) || 0}"></div>
+      </div>
+      <p style="${help}">Přirážka: zákazník platící v ${k} zaplatí o tolik % víc (kurz prodeje = kurz ÷ (1 + přirážka)). Rekapitulace DPH v Kč na dokladu zůstává podle kurzu ČNB. 0 = bez přirážky.</p>
+      ${stav ? `<p style="${help}">${stav}</p>` : ''}
+    </div>`;
+  };
+  const prij = ['CZK', ...meny];
+  const terminal = p.terminal_meny || prij;
+  const kanaly = p.kanaly || MENA_KANALY_UI.map(x => x[0]);
+  return `
+  <div style="border-top:1px dashed var(--border);margin-top:16px;padding-top:12px" id="mena-platba-sekce">
+    <strong style="font-size:14px">💱 Platba v Kč i v cizí měně</strong>
+    <p class="page-sub" style="font-size:12px;margin:4px 0 8px">Ceník zůstává v Kč. Zákazník si u každé platby vybere měnu: když platí v EUR, je celý doklad v EUR (účtenka, objednávka, faktura, dodací list, e-mail, QR, platební brána) a vrací se mu také v EUR. Když platí v Kč, je vše v Kč. Jedna platba = jedna měna (různé měny u stolu = rozděl účet).</p>
+    ${trvale ? `<div style="font-size:12px;background:var(--warning-bg,#FEF3C7);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:8px">Ceník je trvale přepočtený do ${esc(c.zakladni)} — platby ve více měnách nejde zapnout (ceník musí zůstat v Kč).</div>` : ''}
+    <label style="${lbl};font-weight:600">
+      <input type="checkbox" id="mena-pl-aktivni" ${p.aktivni ? 'checked' : ''} ${trvale ? 'disabled' : ''}> Přijímat platby v Kč i v cizí měně</label>
+    <p style="${help}">Dokud je vypnuto, prodává se jako dosud. Zapnutí vylučuje trvalý přepočet ceníku (ten se skryje).</p>
+
+    <div style="${box}">
+      <label class="form-label" style="font-size:12px">Přijímané měny</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <label style="${lbl}"><input type="checkbox" checked disabled> Kč (CZK)</label>
+        ${podp.map(([k, sym]) => `<label style="${lbl}"><input type="checkbox" class="mena-pl-mena-cb" value="${k}" ${meny.includes(k) ? 'checked' : ''} onchange="menaPlatbaToggle()"> ${k} (${esc(sym)})</label>`).join('')}
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+        <div><label class="form-label" style="font-size:12px">Výchozí měna platby</label>
+          <select class="form-input" id="mena-pl-vychozi" style="width:140px">${prij.map(k => `<option value="${k}" ${(p.vychozi || 'CZK') === k ? 'selected' : ''}>${k}</option>`).join('')}</select></div>
+        <div><label class="form-label" style="font-size:12px">Vrácení hotovosti</label>
+          <select class="form-input" id="mena-pl-vraceni" style="width:220px">
+            <option value="mena_platby" ${(p.vraceni || 'mena_platby') === 'mena_platby' ? 'selected' : ''}>v měně platby</option>
+            <option value="czk" ${p.vraceni === 'czk' ? 'selected' : ''}>vždy v Kč</option>
+            <option value="volba" ${p.vraceni === 'volba' ? 'selected' : ''}>volí prodavač</option>
+          </select></div>
+      </div>
+      <p style="${help}">Výchozí měna se předvyplní u každé platby (u odběratele lze nastavit vlastní). Vrácení: v čem pokladní vrací drobné, když zákazník platí hotově víc.</p>
+    </div>
+
+    <div style="${box}">
+      <label class="form-label" style="font-size:12px">Kurz</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <label style="${lbl}"><input type="radio" name="mena-pl-zdroj" value="cnb" ${p.kurz_zdroj !== 'rucni' ? 'checked' : ''} onchange="menaPlatbaToggle()"> Kurz ČNB automaticky</label>
+        <label style="${lbl}"><input type="radio" name="mena-pl-zdroj" value="rucni" ${p.kurz_zdroj === 'rucni' ? 'checked' : ''} onchange="menaPlatbaToggle()"> Vlastní kurz</label>
+        <button class="btn-secondary" onclick="menaKurzyObnovit()">🔄 Načíst kurzy ČNB teď</button>
+        <span id="mena-pl-kurzy-info" style="font-size:12px;color:var(--text-3)"></span>
+      </div>
+      <p style="${help}">Kurz ČNB se stahuje denně (cron po 14:30) a při první platbě dne. Když ČNB není dostupná, použije se poslední známý kurz.</p>
+      <div style="margin-top:8px"><label class="form-label" style="font-size:12px">Max. stáří kurzu (dny)</label>
+        <input class="form-input" type="number" min="1" max="14" step="1" style="width:90px" id="mena-pl-stari" value="${p.max_stari_kurzu_dni || 3}"></div>
+      <p style="${help}">Je-li poslední kurz starší, platba v cizí měně se dočasně vypne (víkend a svátky = 3 dny stačí).</p>
+      ${podp.map(menaRow).join('')}
+    </div>
+
+    <div style="${box}">
+      <label class="form-label" style="font-size:12px">Platební terminál umí účtovat v</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap" id="mena-pl-terminal">
+        ${['CZK', ...podp.map(x => x[0])].map(k => `<label class="mena-pl-term" data-kod="${k}" style="${lbl};${k === 'CZK' || meny.includes(k) ? '' : 'display:none'}"><input type="checkbox" value="${k}" ${terminal.includes(k) || k === 'CZK' ? 'checked' : ''} ${k === 'CZK' ? 'disabled' : ''}> ${k}</label>`).join('')}
+      </div>
+      <p style="${help}">Při platbě kartou v EUR ukáže pokladna velkou výzvu „ZADEJ DO TERMINÁLU x,xx EUR". Neumí-li terminál EUR, karta v EUR se nenabídne.</p>
+    </div>
+
+    <div style="${box}">
+      <label class="form-label" style="font-size:12px">Kde se dá platit v cizí měně</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        ${MENA_KANALY_UI.map(([k, l]) => `<label style="${lbl}"><input type="checkbox" class="mena-pl-kanal" value="${k}" ${kanaly.includes(k) ? 'checked' : ''}> ${l}</label>`).join('')}
+      </div>
+      <p style="${help}">V nezaškrtnutých kanálech se platí jen v Kč.</p>
+    </div>
+
+    <div style="${box}">
+      <label class="form-label" style="font-size:12px">EUR účet (IBAN) pro QR platbu převodem</label>
+      <input class="form-input" id="mena-pl-iban" style="max-width:340px" placeholder="CZ65 0800 0000 1920 0014 5399" value="${esc(p.iban_eur || '')}">
+      <p style="${help}">Bez EUR účtu se QR platba převodem v EUR nevytvoří (na Kč účet by banka eura přepočítala).</p>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn-primary btn-green" onclick="menaPlatbaSave()">💾 Uložit platby v měnách</button>
+      <span id="mena-pl-info" style="font-size:12px;color:var(--text-3)"></span>
+    </div>
+  </div>`;
+}
+window.menaPlatbaToggle = function() {
+  const meny = [...document.querySelectorAll('.mena-pl-mena-cb:checked')].map(x => x.value);
+  document.querySelectorAll('.mena-pl-mena').forEach(el => { el.style.display = meny.includes(el.dataset.kod) ? '' : 'none'; });
+  document.querySelectorAll('.mena-pl-term').forEach(el => { el.style.display = (el.dataset.kod === 'CZK' || meny.includes(el.dataset.kod)) ? '' : 'none'; });
+  const rucni = (document.querySelector('input[name="mena-pl-zdroj"]:checked') || {}).value === 'rucni';
+  document.querySelectorAll('.mena-pl-rucni').forEach(el => { el.style.display = rucni ? '' : 'none'; });
+  const sel = document.getElementById('mena-pl-vychozi');
+  if (sel) {
+    const cur = sel.value;
+    sel.innerHTML = ['CZK', ...meny].map(k => `<option value="${k}" ${cur === k ? 'selected' : ''}>${k}</option>`).join('');
+  }
+};
+window.menaPlatbaSave = async function() {
+  const meny = [...document.querySelectorAll('.mena-pl-mena-cb:checked')].map(x => x.value);
+  if (!meny.length) { toast('Vyber aspoň jednu cizí měnu', 'error'); return; }
+  const num = id => parseFloat((document.getElementById(id) || {}).value);
+  const platba = {
+    aktivni: !!(document.getElementById('mena-pl-aktivni') || {}).checked,
+    meny,
+    vychozi: (document.getElementById('mena-pl-vychozi') || {}).value || 'CZK',
+    vraceni: (document.getElementById('mena-pl-vraceni') || {}).value || 'mena_platby',
+    kurz_zdroj: (document.querySelector('input[name="mena-pl-zdroj"]:checked') || {}).value || 'cnb',
+    max_stari_kurzu_dni: parseInt((document.getElementById('mena-pl-stari') || {}).value, 10) || 3,
+    prirazka_pct: Object.fromEntries(meny.map(k => [k, num('mena-pl-prirazka-' + k) || 0])),
+    kurzy_rucni: Object.fromEntries(meny.map(k => [k, num('mena-pl-rucni-' + k) || null])),
+    terminal_meny: [...document.querySelectorAll('#mena-pl-terminal input:checked')].map(x => x.value),
+    kanaly: [...document.querySelectorAll('.mena-pl-kanal:checked')].map(x => x.value),
+    iban_eur: ((document.getElementById('mena-pl-iban') || {}).value || '').trim(),
+  };
+  const info = document.getElementById('mena-pl-info');
+  try {
+    const r = await api('admin_mena.php?action=save_platba', { method: 'POST', body: JSON.stringify({ platba }) });
+    window._menaCfg = r.config;
+    toast(r.config.platba.aktivni ? '✅ Platby v Kč i cizí měně zapnuté' : '✅ Uloženo (platby v cizí měně vypnuté)', 'success');
+    if (r.prelozeno) toast(r.prelozeno, 'info');
+    window.menaLoad();
+  } catch (e) { if (info) info.innerHTML = `<span style="color:var(--danger-text)">❌ ${esc(e.message)}</span>`; toast('❌ ' + e.message, 'error'); }
+};
+window.menaKurzyObnovit = async function() {
+  const info = document.getElementById('mena-pl-kurzy-info');
+  if (info) info.textContent = '⏳';
+  try {
+    const r = await api('admin_mena.php?action=kurzy_obnovit', { method: 'POST', body: '{}' });
+    if (info) info.textContent = Object.entries(r.kurzy || {}).filter(([k]) => k === 'EUR' || (window._menaCfg?.platba?.meny || []).includes(k))
+      .map(([k, v]) => `1 ${k} = ${Number(v.kurz).toFixed(3)} Kč (${v.datum})`).join(' · ');
+  } catch (e) { if (info) info.innerHTML = `<span style="color:var(--danger-text)">${esc(e.message)}</span>`; }
 };
 window.menaKodChange = function() {
   const kod = document.getElementById('mena-kod').value;
@@ -6529,7 +6685,7 @@ window.menaKodChange = function() {
   const zw = document.getElementById('mena-zdroj-wrap'); if (zw) zw.style.display = cizi ? '' : 'none';
   document.getElementById('mena-cnb-btn').style.display = cizi ? '' : 'none';
   document.getElementById('mena-volby').style.display = cizi ? 'flex' : 'none';   // 🐛 v3.0.641 — [hidden] přebíjel inline display:flex
-  document.getElementById('mena-prepocet-sekce').hidden = !cizi || !!(window._menaCfg && window._menaCfg.zakladni && window._menaCfg.zakladni !== 'CZK');
+  document.getElementById('mena-prepocet-sekce').hidden = !cizi || !!(window._menaCfg && ((window._menaCfg.zakladni && window._menaCfg.zakladni !== 'CZK') || (window._menaCfg.platba && window._menaCfg.platba.aktivni)));   // 💱 v3.0.643 — vylučuje se s platbami ve více měnách
   const ch = document.getElementById('mena-cils-hint'); if (ch) ch.hidden = cizi;  // 🆕 v3.0.367
   const kk = document.getElementById('mena-kurz-kod'); if (kk) kk.textContent = kod;
   // 🆕 v3.0.641 — z Kč na cizí měnu zůstal kurz „1" (1 EUR = 1 Kč by rozbil všechny ceny) → hned kurz ČNB
@@ -15555,6 +15711,14 @@ window.editOdberatel = async function(id = null) {
           </select>
         </div>
         <div>
+          <label class="form-label">💱 Měna platby</label>
+          <select class="form-input" id="od-mena-platby" title="V jaké měně odběratel standardně platí (B2B košík, objednávky, faktury). Funguje, když jsou v Nastavení → Přístupy, ceny & měna zapnuté platby v Kč i cizí měně.">
+            <option value="">— výchozí firmy —</option>
+            ${[...new Set(['CZK', 'EUR', ...((window._menaCfg && window._menaCfg.platba && window._menaCfg.platba.meny) || []), ...(o.mena_platby ? [o.mena_platby] : [])])]
+              .map(k => `<option value="${esc(k)}" ${o.mena_platby === k ? 'selected' : ''}>${k === 'CZK' ? 'Kč (CZK)' : k === 'EUR' ? '€ (EUR)' : esc(k)}</option>`).join('')}
+          </select>
+        </div>
+        <div>
           <label class="form-label">🧾 Slevová skupina</label>
           <select class="form-input" id="od-skupina">${skupinyOptions}</select>
         </div>
@@ -15741,6 +15905,7 @@ window.ulozitOdberatele = async function(id) {
     poznamka: document.getElementById('od-pozn').value || null,
     typ: document.getElementById('od-typ')?.value || null,
     jazyk_dokladu: document.getElementById('od-jazyk-dokladu')?.value || null,
+    mena_platby: document.getElementById('od-mena-platby')?.value || null,   // 💱 v3.0.643
   };
   const heslo = document.getElementById('od-heslo').value;
   if (heslo) data.heslo = heslo;
