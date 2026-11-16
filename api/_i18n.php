@@ -168,11 +168,11 @@ const APPEK_I18N = [
     'Objednávka #{cislo} byla ZRUŠENA'  => ['en' => 'Order #{cislo} has been CANCELLED', 'es' => 'El pedido n.º {cislo} ha sido CANCELADO'],
     'Objednávka #{cislo} byla UPRAVENA' => ['en' => 'Order #{cislo} has been CHANGED',   'es' => 'El pedido n.º {cislo} ha sido MODIFICADO'],
     'Vážení,'                => ['en' => 'Dear customer,',           'es' => 'Estimado cliente:'],
-    'objednávka #{cislo} (datum dodání {datum}) byla zrušena.' => ['en' => 'order #{cislo} (delivery date {datum}) has been cancelled.', 'es' => 'el pedido n.º {cislo} (fecha de entrega {datum}) ha sido cancelado.'],
+    'objednávka #{cislo} (datum dodání {datum}) byla zrušena.' => ['en' => 'Order #{cislo} (delivery date {datum}) has been cancelled.', 'es' => 'El pedido n.º {cislo} (fecha de entrega {datum}) ha sido cancelado.'],
     'Změnu provedl: {kdo}'   => ['en' => 'Changed by: {kdo}',        'es' => 'Modificado por: {kdo}'],
     'Pokud k tomu došlo omylem, vytvořte prosím novou objednávku.' => ['en' => 'If this happened by mistake, please place a new order.', 'es' => 'Si se trata de un error, realice por favor un nuevo pedido.'],
     'S pozdravem'            => ['en' => 'Kind regards',             'es' => 'Atentamente'],
-    'v objednávce #{cislo} (datum dodání {datum}) byly provedeny tyto změny:' => ['en' => 'the following changes have been made to order #{cislo} (delivery date {datum}):', 'es' => 'en el pedido n.º {cislo} (fecha de entrega {datum}) se han realizado los siguientes cambios:'],
+    'v objednávce #{cislo} (datum dodání {datum}) byly provedeny tyto změny:' => ['en' => 'The following changes have been made to order #{cislo} (delivery date {datum}):', 'es' => 'En el pedido n.º {cislo} (fecha de entrega {datum}) se han realizado los siguientes cambios:'],
     'PŘIDÁNO:'               => ['en' => 'ADDED:',                   'es' => 'AÑADIDO:'],
     'ZMĚNĚNO:'               => ['en' => 'CHANGED:',                 'es' => 'MODIFICADO:'],
     'ODEBRÁNO:'              => ['en' => 'REMOVED:',                 'es' => 'ELIMINADO:'],
@@ -193,7 +193,7 @@ const APPEK_I18N = [
     // Online objednávka (web_objednavky.php) + vyzvednutí (admin_pos.php)
     'Objednávka {cislo} přijata' => ['en' => 'Order {cislo} received', 'es' => 'Pedido {cislo} recibido'],
     'Dobrý den, {jmeno},'    => ['en' => 'Hello {jmeno},',           'es' => 'Buenos días, {jmeno}:'],
-    'děkujeme, vaši objednávku {cislo} jsme přijali.' => ['en' => 'thank you, we have received your order {cislo}.', 'es' => 'gracias, hemos recibido su pedido {cislo}.'],
+    'děkujeme, vaši objednávku {cislo} jsme přijali.' => ['en' => 'Thank you, we have received your order {cislo}.', 'es' => 'Gracias, hemos recibido su pedido {cislo}.'],
     'Doručíme ji na: {adresa}' => ['en' => 'We will deliver it to: {adresa}', 'es' => 'Lo entregaremos en: {adresa}'],
     'Vyzvednutí:'            => ['en' => 'Pickup:',                  'es' => 'Recogida:'],
     'Kdy:'                   => ['en' => 'When:',                    'es' => 'Cuándo:'],
@@ -203,7 +203,7 @@ const APPEK_I18N = [
     'Děkujeme'               => ['en' => 'Thank you',                'es' => 'Gracias'],
     'Vaše objednávka {cislo} je připravena k vyzvednutí' => ['en' => 'Your order {cislo} is ready for pickup', 'es' => 'Su pedido {cislo} está listo para recoger'],
     'Dobrý den'              => ['en' => 'Hello',                    'es' => 'Buenos días'],
-    'vaše objednávka {cislo} je připravena k vyzvednutí.' => ['en' => 'your order {cislo} is ready for pickup.', 'es' => 'su pedido {cislo} está listo para recoger.'],
+    'vaše objednávka {cislo} je připravena k vyzvednutí.' => ['en' => 'Your order {cislo} is ready for pickup.', 'es' => 'Su pedido {cislo} está listo para recoger.'],
 ];
 
 /** Měrné jednotky, které se na dokladu překládají (ostatní — kg, g, l, ml… — jsou mezinárodní). */

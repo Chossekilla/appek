@@ -1069,7 +1069,9 @@ function notifikace_zmena_objednavky(PDO $pdo, int $obj_id, array $orig, array $
     // 🌍 v3.0.643 — odběratel dostane e-mail ve svém jazyce (= jazyk dokladů), pekárna vždy česky.
     //   Česky mluvící odběratel → jeden e-mail všem jako dřív (beze změny).
     $lang = email_lang_odberatele($pdo, (int) $orig['odberatel_id']);
-    if ($lang === 'cs') {
+    // EUR objednávka: odběratel v měně objednávky, pekárna v Kč → nelze poslat jeden společný e-mail
+    try { $menaObj = mena_doklad_ro($pdo, $orig)['mena']; } catch (Throwable $e) { $menaObj = 'CZK'; }
+    if ($lang === 'cs' && $menaObj === 'CZK') {
         [$predmet, $telo] = notif_zmena_objednavky_text($pdo, $obj_id, $orig, $info, 'cs');
         poslat_email($vsechny_emaily, $predmet, $telo);
         return;
@@ -1080,7 +1082,7 @@ function notifikace_zmena_objednavky(PDO $pdo, int $obj_id, array $orig, array $
     }
     $jen_pekarna = array_values(array_diff($emaily_pekarny, $emaily_odb));
     if ($jen_pekarna) {
-        [$predmet, $telo] = notif_zmena_objednavky_text($pdo, $obj_id, $orig, $info, 'cs');
+        [$predmet, $telo] = notif_zmena_objednavky_text($pdo, $obj_id, $orig, $info, 'cs', true);
         poslat_email($jen_pekarna, $predmet, $telo);
     }
 }
@@ -1089,7 +1091,7 @@ function notifikace_zmena_objednavky(PDO $pdo, int $obj_id, array $orig, array $
  * 🌍 v3.0.643 — [předmět, tělo] e-mailu o úpravě/zrušení objednávky v jazyce $lang.
  * Částky v měně objednávky (EUR objednávka = EUR, jako na PDF/v B2B); čeština v Kč = text beze změny.
  */
-function notif_zmena_objednavky_text(PDO $pdo, int $obj_id, array $orig, array $info, string $lang): array {
+function notif_zmena_objednavky_text(PDO $pdo, int $obj_id, array $orig, array $info, string $lang, bool $interni = false): array {
     email_i18n_boot();
     $cislo  = $orig['cislo'];
     $datum  = _fmt_date_loc($orig['datum_dodani'], $lang);
@@ -1146,11 +1148,13 @@ function notif_zmena_objednavky_text(PDO $pdo, int $obj_id, array $orig, array $
     // 💱 Částky v měně objednávky. Nová = přesně jako PDF (mena_doc_pole nad aktuálními položkami);
     //   původní se dopočítá kurzem snapshotu (původní položky už v DB nejsou). Kč = beze změny.
     $m = mena_doklad_ro($pdo, $orig);
+    if ($interni) $m = ['mena' => 'CZK', 'k_doklad' => 1.0] + $m;   // pekárna: interní e-mail vždy v Kč (jako dřív)
     $puvodni = (float) $orig['castka_celkem'];
     $nova = isset($info['castka']) ? (float) $info['castka'] : null;
     if ($m['mena'] !== 'CZK') {
         $puvodniKc = $puvodni;
-        $puvodni = round($puvodni * (float) $m['k_doklad'], 2);
+        // přesně jako potvrzení/PDF (spočítáno volajícím před úpravou položek); jinak přepočet hlavičky
+        $puvodni = isset($orig['_doc_celkem']) ? (float) $orig['_doc_celkem'] : round($puvodni * (float) $m['k_doklad'], 2);
         if ($nova !== null) {
             $novaKc = $nova;
             $rows = [['id' => $obj_id]];
@@ -1389,7 +1393,7 @@ function email_template_defaults_lang(string $lang): array {
             'objednavka_nova' => [
                 'popis'   => '📥 Order confirmation (to customer)',
                 'predmet' => 'Order confirmation #{cislo} (delivery {datum})',
-                'telo'    => "Dear customer,\n\nwe confirm receipt of your order #{cislo}.\n\n"
+                'telo'    => "Dear customer,\n\nWe confirm receipt of your order #{cislo}.\n\n"
                            . $sep
                            . "Delivery date:     {datum}\n"
                            . "Delivery address:  {misto}\n"
@@ -1405,37 +1409,37 @@ function email_template_defaults_lang(string $lang): array {
             'objednavka_potvrzena' => [
                 'popis'   => '✓ Order confirmed',
                 'predmet' => 'Order #{cislo} — confirmed',
-                'telo'    => "Dear customer,\n\nwe have confirmed your order #{cislo} (delivery date {datum}).\n\n"
+                'telo'    => "Dear customer,\n\nWe have confirmed your order #{cislo} (delivery date {datum}).\n\n"
                            . "If you need to make any changes, please contact us as soon as possible.\n\nKind regards\n{firma}",
             ],
             'objednavka_ve_vyrobe' => [
                 'popis'   => '🔥 Order in production',
                 'predmet' => 'Order #{cislo} — in production',
-                'telo'    => "Dear customer,\n\nyour order #{cislo} (delivery date {datum}) is now being produced.\n\n"
+                'telo'    => "Dear customer,\n\nYour order #{cislo} (delivery date {datum}) is now being produced.\n\n"
                            . "It will be ready for you shortly.\n\nKind regards\n{firma}",
             ],
             'objednavka_pripravena' => [
                 'popis'   => '📦 Ready for dispatch',
                 'predmet' => 'Order #{cislo} — ready',
-                'telo'    => "Dear customer,\n\nyour order #{cislo} is ready for dispatch.\n\n"
+                'telo'    => "Dear customer,\n\nYour order #{cislo} is ready for dispatch.\n\n"
                            . "Delivery date: {datum}\n\nKind regards\n{firma}",
             ],
             'objednavka_expedovana' => [
                 'popis'   => '🚚 Order dispatched (on its way)',
                 'predmet' => 'Order #{cislo} — DISPATCHED',
-                'telo'    => "Dear customer,\n\nyour order #{cislo} (delivery date {datum}) has been dispatched and is on its way to you.\n\n"
+                'telo'    => "Dear customer,\n\nYour order #{cislo} (delivery date {datum}) has been dispatched and is on its way to you.\n\n"
                            . "Total amount: {castka_celkem}\n\nKind regards\n{firma}",
             ],
             'objednavka_dorucena' => [
                 'popis'   => '✅ Order delivered',
                 'predmet' => 'Order #{cislo} — DELIVERED',
-                'telo'    => "Dear customer,\n\nwe confirm that order #{cislo} has been delivered.\n\n"
+                'telo'    => "Dear customer,\n\nWe confirm that order #{cislo} has been delivered.\n\n"
                            . "Thank you for your business.\n\nKind regards\n{firma}",
             ],
             'objednavka_zrusena' => [
                 'popis'   => '❌ Order cancelled',
                 'predmet' => 'Order #{cislo} — CANCELLED',
-                'telo'    => "Dear customer,\n\nyour order #{cislo} (delivery date {datum}) has been cancelled.\n\n"
+                'telo'    => "Dear customer,\n\nYour order #{cislo} (delivery date {datum}) has been cancelled.\n\n"
                            . "If this is a mistake, please contact us.\n\nKind regards\n{firma}",
             ],
         ];
@@ -1445,7 +1449,7 @@ function email_template_defaults_lang(string $lang): array {
             'objednavka_nova' => [
                 'popis'   => '📥 Confirmación del pedido (al cliente)',
                 'predmet' => 'Confirmación del pedido n.º {cislo} (entrega {datum})',
-                'telo'    => "Estimado cliente:\n\nle confirmamos la recepción de su pedido n.º {cislo}.\n\n"
+                'telo'    => "Estimado cliente:\n\nLe confirmamos la recepción de su pedido n.º {cislo}.\n\n"
                            . $sep
                            . "Fecha de entrega:      {datum}\n"
                            . "Dirección de entrega:  {misto}\n"
@@ -1461,37 +1465,37 @@ function email_template_defaults_lang(string $lang): array {
             'objednavka_potvrzena' => [
                 'popis'   => '✓ Pedido confirmado',
                 'predmet' => 'Pedido n.º {cislo}: confirmado',
-                'telo'    => "Estimado cliente:\n\nhemos confirmado su pedido n.º {cislo} (fecha de entrega {datum}).\n\n"
+                'telo'    => "Estimado cliente:\n\nHemos confirmado su pedido n.º {cislo} (fecha de entrega {datum}).\n\n"
                            . "Si necesita realizar algún cambio, póngase en contacto con nosotros lo antes posible.\n\nAtentamente\n{firma}",
             ],
             'objednavka_ve_vyrobe' => [
                 'popis'   => '🔥 Pedido en producción',
                 'predmet' => 'Pedido n.º {cislo}: en producción',
-                'telo'    => "Estimado cliente:\n\nestamos elaborando su pedido n.º {cislo} (fecha de entrega {datum}).\n\n"
+                'telo'    => "Estimado cliente:\n\nEstamos elaborando su pedido n.º {cislo} (fecha de entrega {datum}).\n\n"
                            . "En breve lo tendrá preparado.\n\nAtentamente\n{firma}",
             ],
             'objednavka_pripravena' => [
                 'popis'   => '📦 Listo para el envío',
                 'predmet' => 'Pedido n.º {cislo}: preparado',
-                'telo'    => "Estimado cliente:\n\nsu pedido n.º {cislo} está listo para el envío.\n\n"
+                'telo'    => "Estimado cliente:\n\nSu pedido n.º {cislo} está listo para el envío.\n\n"
                            . "Fecha de entrega: {datum}\n\nAtentamente\n{firma}",
             ],
             'objednavka_expedovana' => [
                 'popis'   => '🚚 Pedido enviado (en camino)',
                 'predmet' => 'Pedido n.º {cislo}: ENVIADO',
-                'telo'    => "Estimado cliente:\n\nsu pedido n.º {cislo} (fecha de entrega {datum}) ha sido enviado y está en camino.\n\n"
+                'telo'    => "Estimado cliente:\n\nSu pedido n.º {cislo} (fecha de entrega {datum}) ha sido enviado y está en camino.\n\n"
                            . "Importe total: {castka_celkem}\n\nAtentamente\n{firma}",
             ],
             'objednavka_dorucena' => [
                 'popis'   => '✅ Pedido entregado',
                 'predmet' => 'Pedido n.º {cislo}: ENTREGADO',
-                'telo'    => "Estimado cliente:\n\nle confirmamos la entrega del pedido n.º {cislo}.\n\n"
+                'telo'    => "Estimado cliente:\n\nLe confirmamos la entrega del pedido n.º {cislo}.\n\n"
                            . "Gracias por confiar en nosotros.\n\nAtentamente\n{firma}",
             ],
             'objednavka_zrusena' => [
                 'popis'   => '❌ Pedido cancelado',
                 'predmet' => 'Pedido n.º {cislo}: CANCELADO',
-                'telo'    => "Estimado cliente:\n\nsu pedido n.º {cislo} (fecha de entrega {datum}) ha sido cancelado.\n\n"
+                'telo'    => "Estimado cliente:\n\nSu pedido n.º {cislo} (fecha de entrega {datum}) ha sido cancelado.\n\n"
                            . "Si se trata de un error, póngase en contacto con nosotros.\n\nAtentamente\n{firma}",
             ],
         ];
@@ -1555,19 +1559,21 @@ function email_template_load(PDO $pdo, string $klic, string $lang = 'cs'): array
  * Speciální: {poznamka_block} se nahrazuje za "\nPoznámka: ...\n" pokud existuje, jinak "".
  * $lang = jazyk šablony (popisek „Poznámka").
  */
-function email_template_render(string $text, array $vars, string $lang = 'cs'): string {
-    // Speciální: poznamka_block
+function email_template_render(string $text, array $vars, string $lang = 'cs', string $format = 'text'): string {
+    // 🔒 v3.0.643 — HTML šablona: hodnoty escapovat (poznámka/název odběratele nesmí vložit HTML),
+    //   řádky nechává (HTML návrhy dávají {polozky_text} do <pre> s pre-wrap). Dosazení najednou (strtr)
+    //   → {proměnná} uvnitř hodnoty se už nerozvine.
+    $html = ($format === 'html');
+    $esc = fn($v) => $html ? htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8') : (string) $v;
+    $map = [];
     if (strpos($text, '{poznamka_block}') !== false) {
         $pozn = trim($vars['poznamka'] ?? '');
         $label = 'Poznámka';
         if ($lang !== 'cs') { email_i18n_boot(); $label = _t_lang($lang, 'Poznámka'); }
-        $block = $pozn !== '' ? "\n$label: $pozn\n" : '';
-        $text = str_replace('{poznamka_block}', $block, $text);
+        $map['{poznamka_block}'] = $pozn !== '' ? $esc("\n$label: $pozn\n") : '';
     }
-    foreach ($vars as $k => $v) {
-        $text = str_replace('{' . $k . '}', (string) $v, $text);
-    }
-    return $text;
+    foreach ($vars as $k => $v) $map['{' . $k . '}'] = $esc($v);
+    return strtr($text, $map);
 }
 
 /** Popisek stavu objednávky pro {stav} a push (česky jako dřív, jinak přeložený). */
@@ -1684,7 +1690,7 @@ function notif_render_nova(PDO $pdo, int $obj_id, ?string $lang = null): ?array 
         'jazyk'   => $tLang,
         'vars'    => $vars,
         'predmet' => email_template_render($tpl['predmet'], $vars, $tLang),
-        'telo'    => email_template_render($tpl['telo'], $vars, $tLang),
+        'telo'    => email_template_render($tpl['telo'], $vars, $tLang, $tpl['format'] ?? 'text'),
         'format'  => $tpl['format'] ?? 'auto',
         // 📱 PWA push notifikace (paralelně s emailem — bonus)
         'push'    => [
@@ -1787,7 +1793,7 @@ function notif_render_stav(PDO $pdo, int $obj_id, string $novy, ?string $lang = 
         'jazyk'   => $tLang,
         'vars'    => $vars,
         'predmet' => email_template_render($tpl['predmet'], $vars, $tLang),
-        'telo'    => email_template_render($tpl['telo'], $vars, $tLang),
+        'telo'    => email_template_render($tpl['telo'], $vars, $tLang, $tpl['format'] ?? 'text'),
         'format'  => $tpl['format'] ?? 'auto',
         'push'    => [
             'title' => "$ikona " . _t_lang($lang, 'Objednávka {cislo}', ['cislo' => $o['cislo']]),

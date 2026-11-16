@@ -138,7 +138,9 @@ if ($method === 'POST' && $action === 'remove_logo') {
 /** Jazyk editoru šablon z požadavku (cs/en/es), jinak cs. */
 function email_tpl_req_lang($v): string {
     $l = strtolower(trim((string) $v));
-    return in_array($l, EMAIL_LANGS, true) ? $l : 'cs';
+    if ($l === '') return 'cs';                                   // parametr nevyplněn = čeština (zpětná kompatibilita)
+    if (!in_array($l, EMAIL_LANGS, true)) json_error('Nepodporovaný jazyk šablony (cs/en/es)', 400);   // dřív tiše přepsal českou
+    return $l;
 }
 /** Vzorová data pro náhled šablony v daném jazyce (částky v Kč jako vzor). */
 function email_tpl_sample(PDO $pdo, string $lang): array {
@@ -288,7 +290,7 @@ if ($action === 'email_template_preview' && $method === 'POST') {
     if (isset($d['vars']) && is_array($d['vars'])) $sample = array_merge($sample, $d['vars']);
     json_response([
         'predmet' => email_template_render($tpl['predmet'], $sample, $tLang),
-        'telo'    => email_template_render($tpl['telo'], $sample, $tLang),
+        'telo'    => email_template_render($tpl['telo'], $sample, $tLang, $tpl['format'] ?? 'text'),
         'format'  => $tpl['format'] ?? 'text',  // 🔧 frontend potřebuje vědět, jestli renderovat jako HTML
         'jazyk'   => $tLang,
     ]);

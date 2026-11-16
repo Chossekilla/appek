@@ -691,6 +691,11 @@ if ($method === 'PUT') {
     $stmt->execute(['id' => $obj_id]);
     $orig = $stmt->fetch();
     if (!$orig) json_error('Objednávka nenalezena', 404);
+    // 💱 v3.0.643 — původní částka v měně dokladu PŘED úpravou (pro e-mail o úpravě = jako potvrzení/PDF)
+    if (!empty($orig['id'])) {
+        try { require_once __DIR__ . '/_mena_lib.php'; $tmpDoc = [['id' => (int) $orig['id']]]; mena_doc_pole($pdo, 'objednavky', $tmpDoc);
+              if (isset($tmpDoc[0]['doc_celkem'])) $orig['_doc_celkem'] = (float) $tmpDoc[0]['doc_celkem']; } catch (Throwable $e) { /* fallback v notifikaci */ }
+    }
 
     // Načti staré položky (LEFT JOIN — volné řádky)
     $stmt = $pdo->prepare("
