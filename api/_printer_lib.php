@@ -221,21 +221,34 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
     }
     $out .= pr_hr($w);
 
-    // 💱 v3.0.640 — účtenka v měně prodeje (snapshot objednávky); € tiskárny v cp852 neumí → kód měny
-    $kM = 1.0; $symM = 'Kč'; $menaM = 'CZK';
+    // 💱 v3.0.640/642 — účtenka v měně DOKLADU (snapshot ze SPRÁVNÉ tabulky; DL dědí měnu objednávky),
+    //   cizí měna = stejný výpočet jako PDF/seznamy (mena_doklad_polozky: cena/ks na centy, DPH po řádcích).
+    //   € tiskárny v cp852 neumí → kód měny.
+    $kM = 1.0; $symM = 'Kč'; $menaM = 'CZK'; $calcM = null;
     try {
         require_once __DIR__ . '/_mena_lib.php';
-        $mm = mena_doklad(db(), 'objednavky', $order);
+        $tab = $order['_mena_tab'] ?? 'objednavky';
+        $radekMeny = $order;
+        if ($tab === 'dodaci_listy' && !empty($order['objednavka_id'])) {
+            $q = db()->prepare("SELECT id, mena, mena_kurz, mena_zaklad FROM objednavky WHERE id = ?");
+            $q->execute([(int) $order['objednavka_id']]);
+            $radekMeny = $q->fetch(PDO::FETCH_ASSOC) ?: $order;
+        }
+        $mm = mena_doklad_ro(db(), $radekMeny);
         $kM = (float) $mm['k_doklad']; $menaM = $mm['mena']; $symM = $menaM === 'CZK' ? 'Kč' : $menaM;
+        if ($menaM !== 'CZK') {
+            $calcM = mena_doklad_polozky(array_map(fn($p) => [(float) ($p['mnozstvi'] ?? 1), (float) ($p['cena_bez_dph'] ?? 0), (float) ($p['sazba_dph'] ?? 0)],
+                                                   array_values($order['polozky'] ?? [])), $mm);
+        }
     } catch (Throwable $e) { /* Kč */ }
 
-    foreach (($order['polozky'] ?? []) as $p) {
+    foreach (array_values($order['polozky'] ?? []) as $ixP => $p) {
         $nm  = (string)($p['vyrobek_nazev'] ?? '?');
         $mn  = (int)($p['mnozstvi'] ?? 1);
         $cena = (float)($p['cena_celkem'] ?? ($p['cena_bez_dph'] ?? 0) * $mn);
         // Řádek: "2× Espresso          50.00"
         $prefix = $mn . '× ';
-        $price = sprintf('%.2f', round($cena * $kM, 2));
+        $price = sprintf('%.2f', $calcM ? $calcM['polozky'][$ixP]['zaklad'] + $calcM['polozky'][$ixP]['dph'] : round($cena * $kM, 2));
         $maxNm = $w - mb_strlen($prefix, 'UTF-8') - mb_strlen($price, 'UTF-8') - 1;
         $nmShort = mb_strimwidth($nm, 0, $maxNm, '..', 'UTF-8');
         $out .= pr_text(pr_two_col($prefix . $nmShort, $price, $w), $enc);
@@ -243,7 +256,7 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
 
     $out .= pr_hr($w, '=');
     $out .= pr_bold(true) . pr_size(1, 2);
-    $celk = sprintf('CELKEM: %.2f %s', round((float)($order['castka_celkem'] ?? 0) * $kM, 2), $symM);
+    $celk = sprintf('CELKEM: %.2f %s', $calcM ? $calcM['celkem'] : round((float)($order['castka_celkem'] ?? 0) * $kM, 2), $symM);
     $out .= pr_text(str_pad($celk, $w, ' ', STR_PAD_LEFT) . "\n", $enc);
     $out .= pr_size() . pr_bold(false);
     // 💱 v3.0.283 — informativní přepočet na cílovou měnu (mena_config_json, dual_doklady)
@@ -569,6 +582,7 @@ function printer_print_doc(PDO $pdo, string $docType, int $docId, int $printerId
         $p->execute(['id' => $docId]);
         $items = $p->fetchAll();
         $order['datum_objednani'] = $order['datum_objednani'] ?? date('Y-m-d H:i');
+        $order['_mena_tab'] = 'objednavky';
     } elseif ($docType === 'dl') {
         $s = $pdo->prepare("SELECT dl.*, od.nazev AS odberatel_nazev FROM dodaci_listy dl LEFT JOIN odberatele od ON od.id = dl.odberatel_id WHERE dl.id = :id");
         $s->execute(['id' => $docId]);
@@ -584,6 +598,7 @@ function printer_print_doc(PDO $pdo, string $docType, int $docId, int $printerId
         $p->execute(['id' => $docId]);
         $items = $p->fetchAll();
         $order['datum_objednani'] = $order['datum_vystaveni'] ?? date('Y-m-d H:i');
+        $order['_mena_tab'] = 'dodaci_listy';
     } elseif ($docType === 'fa') {
         $s = $pdo->prepare("SELECT f.*, od.nazev AS odberatel_nazev FROM faktury f LEFT JOIN odberatele od ON od.id = f.odberatel_id WHERE f.id = :id");
         $s->execute(['id' => $docId]);
@@ -599,6 +614,7 @@ function printer_print_doc(PDO $pdo, string $docType, int $docId, int $printerId
         $p->execute(['id' => $docId]);
         $items = $p->fetchAll();
         $order['datum_objednani'] = $order['datum_vystaveni'] ?? date('Y-m-d H:i');
+        $order['_mena_tab'] = 'faktury';
     } else {
         return ['ok' => false, 'error' => 'Neznámý typ dokladu: ' . $docType];
     }

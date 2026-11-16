@@ -804,11 +804,11 @@
       const body = `
         <div class="pos-rdetail-meta">${esc(o.odberatel_nazev || '—')}${o.pos_uzivatel ? ' · ' + esc(o.pos_uzivatel) : ''} · ${_hhmm(o.datum_objednani)}</div>
         <table class="pos-rdetail-tbl">
-          ${pol.map(p => `<tr><td class="rd-q">${(+p.mnozstvi)}×</td><td class="rd-n">${esc(p.vyrobek_nazev)}</td><td class="rd-a">${fmtDocPos({ doc_mena: o.doc_mena, castka_celkem: p.cena_bez_dph * p.mnozstvi, doc_celkem: Math.round(p.cena_bez_dph * p.mnozstvi * (+o.doc_k || 1) * 100) / 100 })}</td></tr>`).join('')}
+          ${pol.map(p => `<tr><td class="rd-q">${(+p.mnozstvi)}×</td><td class="rd-n">${esc(p.vyrobek_nazev)}</td><td class="rd-a">${fmtDocPos({ doc_mena: o.doc_mena, castka_celkem: p.cena_bez_dph * p.mnozstvi, doc_celkem: p.doc_radek != null ? p.doc_radek : p.cena_bez_dph * p.mnozstvi })}</td></tr>`).join('')}
         </table>
         <div class="pos-rdetail-tot">
-          <div><span>Bez DPH</span><span>${fmt(o.castka_bez_dph)} Kč</span></div>
-          <div><span>DPH</span><span>${fmt(o.castka_dph)} Kč</span></div>
+          <div><span>Bez DPH</span><span>${fmtDocPos({ doc_mena: o.doc_mena, castka_celkem: o.castka_bez_dph, doc_celkem: o.doc_bez })}</span></div>
+          <div><span>DPH</span><span>${fmtDocPos({ doc_mena: o.doc_mena, castka_celkem: o.castka_dph, doc_celkem: o.doc_dph })}</span></div>
           <div class="rd-grand"><span>CELKEM</span><span>${fmtDocPos(o)}</span></div>
         </div>`;
       // 🆕 v3.0.268 — VRATKY: refundace zaplacené účtenky (záporná účtenka VRA-…)

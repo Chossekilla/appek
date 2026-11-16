@@ -101,6 +101,8 @@ function esc(s) {
   ));
 }
 // 📞 Tap-to-call — stejné jako admin makeCallLink (0260); v3.0.640
+// Centy OD NULY jako PHP round() (dobropisy = záporné částky; Math.round(-x.5) by dal o cent jinak) — v3.0.642
+function r2c(x) { x = parseFloat(x) || 0; return Math.sign(x) * Math.round(Math.abs(x) * 100 + 1e-7) / 100; }
 function b2bCallLink(phone) {
   if (phone === null || phone === undefined) return '';
   let s = String(phone).split(/[,;]/)[0].replace(/[^+0-9]/g, '');
@@ -136,7 +138,7 @@ function fmtDoc(n, mena) {
 function docK(o, n) {
   const k = o && o.doc_mena && o.doc_k ? parseFloat(o.doc_k) : 0;
   n = parseFloat(n || 0);
-  return (!k || k === 1) ? n : Math.round(n * k * 100) / 100;
+  return (!k || k === 1) ? n : r2c(n * k);
 }
 function docCelkem(o) { return (o && o.doc_mena && o.doc_celkem != null) ? o.doc_celkem : o.castka_celkem; }
 function fmtDate(s) {
@@ -2739,7 +2741,7 @@ function renderDetailObjednavky(o) {
             <td>${esc(p.vyrobek_nazev)}</td>
             <td class="num">${parseFloat(p.mnozstvi)} ${esc(p.jednotka || 'ks')}</td>
             <td class="num">${fmtDoc(docK(o, p.cena_bez_dph), o.doc_mena)}</td>
-            <td class="num"><strong>${fmtDoc(o.doc_mena && o.doc_k != 1 ? Math.round(docK(o, p.cena_bez_dph) * parseFloat(p.mnozstvi) * 100) / 100 : parseFloat(p.cena_bez_dph) * parseFloat(p.mnozstvi), o.doc_mena)}</strong></td>
+            <td class="num"><strong>${fmtDoc(o.doc_mena && o.doc_k != 1 ? r2c(docK(o, p.cena_bez_dph) * parseFloat(p.mnozstvi)) : parseFloat(p.cena_bez_dph) * parseFloat(p.mnozstvi), o.doc_mena)}</strong></td>
           </tr>
         `).join('')}
       </tbody>

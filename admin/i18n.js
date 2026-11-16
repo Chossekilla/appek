@@ -2111,7 +2111,7 @@ window.t = function(key, vars) {
   // Final fallback na češtinu nebo key
   if (!s) s = entry.cs || key;
   if (vars) {
-    for (const k in vars) s = s.replace(new RegExp('{' + k + '}', 'g'), vars[k]);
+    for (const k in vars) s = s.replace(new RegExp('{' + k + '}', 'g'), () => vars[k]);   // funkce: $& $' v hodnotě se neinterpretují
   }
   return s;
 };

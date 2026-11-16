@@ -219,6 +219,22 @@ function parsuj_isdoc(string $xml): array {
         $cel_total = $bez_total + $dph_total;
     }
 
+    // 💱 v3.0.642 — kontrola: APPEK počítá cizoměnový doklad z položek (cena/ks na centy, DPH po řádcích,
+    //   Kč ceny uložené na 2 desetinná místa). Jiný program mohl počítat DPH ze součtu → PDF po importu by
+    //   ukázalo o centy jinou částku, než je v souboru. Nesedí-li to, náhled i import to řeknou nahlas.
+    $varovani = null; $castka_mena_appek = null;
+    if ($mena['mena'] !== 'CZK') {
+        require_once __DIR__ . '/_mena_lib.php';
+        $mCalc = $mena + ['k_doklad' => 1.0 / max(0.0001, (float) $mena['mena_kurz']), 'k_czk' => 1.0];
+        $calc = mena_doklad_polozky(array_map(fn($p) => [(float) $p['mnozstvi'], round((float) $p['cena_bez_dph'], 2), (float) $p['sazba_dph']], $polozky), $mCalc);
+        $castka_mena_appek = $calc['celkem'];
+        if ($castka_mena !== null && abs($castka_mena_appek - $castka_mena) > 0.005) {
+            $varovani = sprintf('V souboru je k úhradě %s %s, APPEK z položek spočítá %s %s (jiný způsob zaokrouhlení DPH / přepočtu kurzem). Po importu bude PDF ukazovat %s %s.',
+                number_format($castka_mena, 2, ',', ' '), $mena['mena'], number_format($castka_mena_appek, 2, ',', ' '), $mena['mena'],
+                number_format($castka_mena_appek, 2, ',', ' '), $mena['mena']);
+        }
+    }
+
     return [
         'cislo' => $cislo,
         'datum_vystaveni'   => $datum_vys ?: date('Y-m-d'),
@@ -233,6 +249,8 @@ function parsuj_isdoc(string $xml): array {
         'castka_celkem'     => round($cel_total, 2),   // vždy Kč (tuzemská měna ISDOC)
         'mena'              => $mena,
         'castka_celkem_mena'=> $castka_mena,            // „K úhradě" v cizí měně (jen informativně)
+        'castka_celkem_mena_appek' => $castka_mena_appek, // co ukáže PDF po importu
+        'varovani'          => $varovani,
     ];
 }
 
@@ -265,6 +283,8 @@ if ($action === 'preview') {
             'mena'           => $f['mena']['mena'],
             'mena_kurz'      => $f['mena']['mena_kurz'],
             'castka_celkem_mena' => $f['castka_celkem_mena'],
+            'castka_celkem_mena_appek' => $f['castka_celkem_mena_appek'],
+            'varovani'       => $f['varovani'],
             'odberatel'      => $f['odberatel']['nazev'],
             'ico'            => $f['odberatel']['ico'],
             'pocet_polozek'  => count($f['polozky']),

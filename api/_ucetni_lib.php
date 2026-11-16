@@ -436,7 +436,14 @@ function ucetni_nacti_fakturu(PDO $pdo, int $id): ?array {
         $cel = round((float) $f['castka_celkem'], 2);
     }
     $varovani = [];
-    $rekap = ucetni_rekapitulace($polozky, $bez, $dph);
+    // 💱 v3.0.642 — cizí měna: rekapitulace v Kč = částka sazby v cizí měně × kurz (přesně „Rekapitulace
+    //   DPH v Kč" z PDF i ISDOC); dřív se dopočítávala z Kč položek a o haléře ujela (171,23 vs 171,20).
+    if ($calc) {
+        $rekap = [];
+        foreach ($calc['rozpis_czk'] as $sz => $r) $rekap[ucetni_num((float) $sz, 2)] = ['sazba' => (float) $sz, 'zaklad' => $r['bez'], 'dph' => $r['dph']];
+    } else {
+        $rekap = ucetni_rekapitulace($polozky, $bez, $dph);
+    }
     if ($polozky) {
         $polozky = ucetni_rozpocitej_polozky($polozky, $rekap);
         $sumItems = 0.0;

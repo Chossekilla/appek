@@ -2432,8 +2432,8 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
                       ${p.poznamka ? `<div style="font-size:11px;color:#9097a3;margin-top:2px">💬 ${esc(p.poznamka)}</div>` : ''}
                     </td>
                     <td style="text-align:right;padding:8px 10px;font-variant-numeric:tabular-nums">${mn % 1 ? mn.toFixed(2) : mn.toFixed(0)}${p.jednotka && p.jednotka !== 'ks' ? ' ' + esc(p.jednotka) : '×'}</td>
-                    <td style="text-align:right;padding:8px 10px;font-variant-numeric:tabular-nums">${fmt(cs)}</td>
-                    <td style="text-align:right;padding:8px 10px;font-weight:700;font-variant-numeric:tabular-nums">${fmt(sum)} ${CFG.currency || 'Kč'}</td>
+                    <td style="text-align:right;padding:8px 10px;font-variant-numeric:tabular-nums">${p.doc_radek != null && mn ? (p.doc_radek / mn).toFixed(2).replace('.', ',') : fmt(cs)}</td>
+                    <td style="text-align:right;padding:8px 10px;font-weight:700;font-variant-numeric:tabular-nums">${fmtDocPos({ doc_mena: d.doc_mena, castka_celkem: sum, doc_celkem: p.doc_radek != null ? p.doc_radek : sum })}</td>
                   </tr>
                 `;
               }).join('')}
@@ -2444,21 +2444,21 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
       <div style="margin-top:14px;padding-top:12px;border-top:2px solid #E1E5EB">
         <div style="display:flex;justify-content:space-between;font-size:13px;color:#5C6370;padding:3px 0">
           <span>Mezisoučet (bez DPH)</span>
-          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_bez_dph) || 0)} ${CFG.currency || 'Kč'}</span>
+          <span style="font-variant-numeric:tabular-nums">${fmtDocPos({ doc_mena: d.doc_mena, castka_celkem: parseFloat(d.castka_bez_dph) || 0, doc_celkem: d.doc_bez })}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:13px;color:#5C6370;padding:3px 0">
           <span>DPH</span>
-          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_dph) || 0)} ${CFG.currency || 'Kč'}</span>
+          <span style="font-variant-numeric:tabular-nums">${fmtDocPos({ doc_mena: d.doc_mena, castka_celkem: parseFloat(d.castka_dph) || 0, doc_celkem: d.doc_dph })}</span>
         </div>
         ${tip > 0 ? `
           <div style="display:flex;justify-content:space-between;font-size:13px;color:#BA7517;padding:3px 0">
             <span>Spropitné</span>
-            <span style="font-variant-numeric:tabular-nums">${fmt(tip)} ${CFG.currency || 'Kč'}</span>
+            <span style="font-variant-numeric:tabular-nums">${fmtDocPos({ doc_mena: d.doc_mena, castka_celkem: tip, doc_celkem: Math.round(tip * (+d.doc_k || 1) * 100) / 100 })}</span>
           </div>
         ` : ''}
         <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:800;color:#1a1d24;padding:8px 0 0;border-top:1px solid #E1E5EB;margin-top:6px">
           <span>CELKEM</span>
-          <span style="font-variant-numeric:tabular-nums">${fmt(parseFloat(d.castka_celkem) || 0)} ${CFG.currency || 'Kč'}</span>
+          <span style="font-variant-numeric:tabular-nums">${fmtDocPos(Object.assign({}, d, { castka_celkem: parseFloat(d.castka_celkem) || 0 }))}</span>
         </div>
       </div>
     `;

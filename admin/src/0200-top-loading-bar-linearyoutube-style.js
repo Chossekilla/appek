@@ -76,6 +76,9 @@ function fmtDoc(n, mena) {
     return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: kod, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
   } catch (e) { return fmt(n); }
 }
+// Zaokrouhlení na centy OD NULY jako PHP round() — JS Math.round(-3852.5) = -3852 by u dobropisu
+//   (záporné částky) dalo o cent jinou částku než PDF. +1e-7 = ochrana proti float 0.4999999.
+function r2c(x) { x = parseFloat(x) || 0; return Math.sign(x) * Math.round(Math.abs(x) * 100 + 1e-7) / 100; }
 // Celková částka dokladu v jeho měně (fallback castka_celkem) + formát
 function docCelkem(d) { return (d && d.doc_mena && d.doc_celkem != null) ? d.doc_celkem : (d ? d.castka_celkem : 0); }
 function fmtDocCelkem(d) { return fmtDoc(docCelkem(d), d && d.doc_mena); }
@@ -83,20 +86,20 @@ function fmtDocCelkem(d) { return fmtDoc(docCelkem(d), d && d.doc_mena); }
 function docK(d, n) {
   const k = d && d.doc_mena && d.doc_k ? parseFloat(d.doc_k) : 0;
   n = parseFloat(n || 0);
-  return (!k || k === 1) ? n : Math.round(n * k * 100) / 100;
+  return (!k || k === 1) ? n : r2c(n * k);
 }
 // Řádek položky (mn × cena) v měně dokladu — shodně s mena_doklad_polozky (round(mn × round(cena×k)))
 function docRadek(d, cena, mn) {
   const k = d && d.doc_mena && d.doc_k ? parseFloat(d.doc_k) : 0;
   if (!k || k === 1) return parseFloat(cena || 0) * parseFloat(mn || 0);
-  return Math.round(docK(d, cena) * parseFloat(mn || 0) * 100) / 100;
+  return r2c(docK(d, cena) * parseFloat(mn || 0));
 }
 // Řádek s DPH v měně dokladu (DPH po řádcích na centy jako PDF); Kč doklad = původní výpočet
 function docRadekSDph(d, cena, mn, sazba) {
   const k = d && d.doc_mena && d.doc_k ? parseFloat(d.doc_k) : 0;
   if (!k || k === 1) return parseFloat(cena) * parseFloat(mn) * (1 + parseFloat(sazba) / 100);
   const z = docRadek(d, cena, mn);
-  return Math.round((z + Math.round(z * parseFloat(sazba || 0)) / 100) * 100) / 100;
+  return r2c(z + r2c(z * parseFloat(sazba || 0) / 100));
 }
 
 // URL na PDF dodacího listu — ruční DL (bez objednávky) jdou přes ?dl_id, ostatní přes ?id (objednávka)
