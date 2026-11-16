@@ -290,7 +290,7 @@ async function renderDodaciListy(filters = {}, opts = {}) {
                     ? `<a href="#" onclick="openFakturaDetail(${d.prvni_faktura_id});return false" class="doc-badge fa">💰 ${esc(d.faktura_cisla || '')}</a>`
                     : '<span style="color:var(--danger-text);font-size:11px;font-weight:500">Nefakturováno</span>'}
                 </td>
-                <td class="num"><strong>${fmt(d.castka_celkem)}</strong></td>
+                <td class="num"><strong>${fmtDocCelkem(d)}</strong></td>
                 <td onclick="event.stopPropagation();" style="white-space:nowrap;text-align:right">
                   <span class="doc-badges-row" style="justify-content:flex-end">
                     ${docBadge('dl', dlPdfUrl(d), '📃 DL', { title: 'Otevřít DL (PDF)' })}
@@ -345,7 +345,7 @@ async function renderDodaciListy(filters = {}, opts = {}) {
                 <span>📅 vystaveno ${fmtDate(d.datum_vystaveni)}</span>
                 <span>🚚 dodáno ${fmtDate(d.datum_dodani)}</span>
               </div>
-              <div class="dl-card-castka">${fmt(d.castka_celkem)}</div>
+              <div class="dl-card-castka">${fmtDocCelkem(d)}</div>
             </div>
             <div class="dl-card-actions" onclick="event.stopPropagation();">
               <span class="doc-badges-row">

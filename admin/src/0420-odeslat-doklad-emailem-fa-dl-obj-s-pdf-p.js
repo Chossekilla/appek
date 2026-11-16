@@ -129,7 +129,9 @@ window.faQtyRecalc = function(polozka_id) {
   const mn = parseFloat(inp.value) || 0;
   const cena = parseFloat(inp.dataset.cena) || 0;
   const dph = parseFloat(inp.dataset.dph) || 0;
-  cenaCell.textContent = fmt(mn * cena * (1 + dph / 100));
+  // 💱 v3.0.642 — v měně dokladu (Kč doklad = beze změny)
+  const d = { doc_mena: inp.dataset.docMena || '', doc_k: inp.dataset.docK || '' };
+  cenaCell.textContent = d.doc_mena ? fmtDoc(docRadekSDph(d, cena, mn, dph), d.doc_mena) : fmt(mn * cena * (1 + dph / 100));
 };
 
 window.ulozitPolozkyFaktury = async function(id) {

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_mena_lib.php'; // 💱 v3.0.642 — částky v měně dokladu (mena_doc_pole)
 require_once __DIR__ . '/_admin_auth.php';
 cors_headers();
 require_admin();
@@ -310,6 +311,11 @@ if ($nedavneFaIds) {
     }
     unset($f);
 }
+
+// 💱 v3.0.642 — nedávné doklady: částka v měně DOKLADU (jako na PDF); statistiky výše zůstávají v Kč
+mena_doc_pole($pdo, 'objednavky', $nedavne);
+mena_doc_pole($pdo, 'dodaci_listy', $nedavne_dl);
+mena_doc_pole($pdo, 'faktury', $nedavne_fa);
 
 // 🆕 v2.9.242 — Alerts widget pro Dashboard (rychlé COUNTs, indexed columns)
 $alerts = [

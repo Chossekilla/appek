@@ -711,7 +711,7 @@ async function renderObjednavky(filters = {}, opts = {}) {
                       : `<span class="doc-badge fa unavailable" title="Faktura zatím nevystavena">💰</span>`}
                   </span>
                 </td>
-                <td class="num"><strong>${fmt(o.castka_celkem)}</strong></td>
+                <td class="num"><strong>${fmtDocCelkem(o)}</strong></td>
                 <td onclick="event.stopPropagation();" style="white-space:nowrap;text-align:right">
                   <span class="doc-badges-row" style="justify-content:flex-end">
                     <button class="doc-badge reorder reorder-icon" onclick="noOpakovatZeZdroje('obj', ${o.id})" title="Znovu objednat">🔁</button>
@@ -760,7 +760,7 @@ async function renderObjednavky(filters = {}, opts = {}) {
                 <span>🚚 ${fmtDate(o.datum_dodani)}</span>
                 <span>📦 ${o.pocet_polozek} pol.</span>
               </div>
-              <div class="obj-card-castka">${fmt(o.castka_celkem)}</div>
+              <div class="obj-card-castka">${fmtDocCelkem(o)}</div>
             </div>
           </div>
         `).join('')}
@@ -1165,7 +1165,7 @@ window.openObjednavkaDetail = async function(id) {
             <div class="obj-polozka-meta">${parseFloat(p.sazba_dph) > 0 ? 'sleva · DPH ' + parseFloat(p.sazba_dph) + ' %' : 'uhrazeno předem'}</div>
           </div>
           <div class="obj-polozka-qty"></div>
-          <div class="obj-polozka-cena" style="color:#166534">${fmt(p.cena_bez_dph * p.mnozstvi)}</div>
+          <div class="obj-polozka-cena" style="color:#166534">${fmtDoc(docRadek(o, p.cena_bez_dph, p.mnozstvi), o.doc_mena)}</div>
           ${!o.zamcena && o.stav !== 'zrusena' ? `<button class="obj-polozka-del" onclick="odebratVoucherObj(${o.id})" title="Odebrat voucher (vrátí se na voucher)">×</button>` : '<span></span>'}
         </div>
       ` : `
@@ -1173,16 +1173,16 @@ window.openObjednavkaDetail = async function(id) {
           <div class="obj-polozka-img">${p.obrazek_url ? `<img src="${esc(p.obrazek_url)}" alt="">` : '<div class="obj-polozka-img-empty">🥖</div>'}</div>
           <div class="obj-polozka-info">
             <div class="obj-polozka-nazev">${esc(p.vyrobek_nazev)}</div>
-            <div class="obj-polozka-meta">${fmt(p.cena_bez_dph)} / ${esc(p.jednotka || 'ks')}</div>
+            <div class="obj-polozka-meta">${fmtDoc(docK(o, p.cena_bez_dph), o.doc_mena)} / ${esc(p.jednotka || 'ks')}</div>
           </div>
           <div class="obj-polozka-qty">
             <button type="button" class="qty-btn" onclick="objQtyAdj(${p.id}, -1)" title="−1">−</button>
             <input type="number" min="0" step="1" class="form-input qty-input"
                    value="${Math.round(p.mnozstvi)}" data-orig="${Math.round(p.mnozstvi)}" data-pol-id="${p.id}"
-                   data-cena="${p.cena_bez_dph}" oninput="objQtyRecalc(${p.id})">
+                   data-cena="${p.cena_bez_dph}" data-doc-mena="${esc(o.doc_mena || '')}" data-doc-k="${o.doc_k || ''}" oninput="objQtyRecalc(${p.id})">
             <button type="button" class="qty-btn" onclick="objQtyAdj(${p.id}, 1)" title="+1">+</button>
           </div>
-          <div class="obj-polozka-cena" id="obj-polozka-cena-${p.id}">${fmt(p.cena_bez_dph * p.mnozstvi)}</div>
+          <div class="obj-polozka-cena" id="obj-polozka-cena-${p.id}">${fmtDoc(docRadek(o, p.cena_bez_dph, p.mnozstvi), o.doc_mena)}</div>
           <button class="obj-polozka-del" onclick="smazatPolozku(${p.id}, ${o.id})" title="Smazat">×</button>
         </div>
       `).join('')}
@@ -1198,7 +1198,7 @@ window.openObjednavkaDetail = async function(id) {
       <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;font-size:13px">
         <span>🎟️ Voucher <strong style="font-family:monospace">${esc(o.voucher.kod)}</strong></span>
         <span style="background:${o.voucher.chovani === 'sleva' ? '#FEF3C7' : '#DBEAFE'};color:${o.voucher.chovani === 'sleva' ? '#92400e' : '#1e40af'};padding:1px 7px;border-radius:8px;font-size:11px;font-weight:600">${o.voucher.chovani === 'sleva' ? 'sleva z ceny' : 'platba'}</span>
-        <span style="font-weight:700;color:#166534">−${fmt(o.voucher.uplatneno)}</span>
+        <span style="font-weight:700;color:#166534">−${fmtDoc(docK(o, o.voucher.uplatneno), o.doc_mena)}</span>
         <div style="flex:1"></div>
         ${!o.zamcena && o.stav !== 'zrusena' ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="odebratVoucherObj(${o.id})">Odebrat</button>` : ''}
       </div>
@@ -1213,13 +1213,13 @@ window.openObjednavkaDetail = async function(id) {
     <!-- SOUHRN: amber box -->
     <div style="margin-top:16px;background:#FAEEDA;border:2px solid #E5C499;border-radius:10px;padding:14px 18px">
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#855;margin-bottom:4px">
-        <span>Bez DPH</span><span>${fmt(o.castka_bez_dph)}</span>
+        <span>Bez DPH</span><span>${fmtDoc(o.doc_mena ? o.doc_bez : o.castka_bez_dph, o.doc_mena)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#855;margin-bottom:6px">
-        <span>DPH</span><span>${fmt(o.castka_dph)}</span>
+        <span>DPH</span><span>${fmtDoc(o.doc_mena ? o.doc_dph : o.castka_dph, o.doc_mena)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:20px;font-weight:700;color:#854F0B;border-top:1px solid #E5C499;padding-top:6px">
-        <span>Celkem s DPH</span><span>${fmt(o.castka_celkem)}</span>
+        <span>Celkem s DPH</span><span>${fmtDocCelkem(o)}</span>
       </div>
     </div>
 
@@ -1238,7 +1238,7 @@ window.openObjednavkaDetail = async function(id) {
             <strong>${esc(dl.cislo)}</strong>
             <span style="color:var(--text-3)">${fmtDate(dl.datum_vystaveni)}</span>
             <span style="color:var(--text-3)">·</span>
-            <span>${fmt(dl.castka_celkem)}</span>
+            <span>${fmtDocCelkem(dl)}</span>
             <div style="flex:1"></div>
             <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="closeModal();openDodaciListDetail(${dl.id})">Detail</button>
             <a href="../api/dodaci_list.php?id=${o.id}" target="_blank" class="btn-secondary" style="font-size:12px;padding:4px 10px;text-decoration:none">PDF</a>
@@ -1250,8 +1250,8 @@ window.openObjednavkaDetail = async function(id) {
             <strong>${esc(fa.cislo)}</strong>
             <span style="color:var(--text-3)">${fmtDate(fa.datum_vystaveni)}</span>
             <span style="color:var(--text-3)">·</span>
-            <span>${fmt(fa.castka_celkem)}</span>
-            ${fa.castka_uhrazeno > 0 ? `<span style="color:var(--success-text);font-size:11px">uhrazeno ${fmt(fa.castka_uhrazeno)}</span>` : ''}
+            <span>${fmtDocCelkem(fa)}</span>
+            ${fa.castka_uhrazeno > 0 ? `<span style="color:var(--success-text);font-size:11px">uhrazeno ${fmtDoc(fa.doc_mena ? fa.doc_uhrazeno : fa.castka_uhrazeno, fa.doc_mena)}</span>` : ''}
             <div style="flex:1"></div>
             <a href="../api/faktura.php?id=${fa.id}" target="_blank" class="btn-secondary" style="font-size:12px;padding:4px 10px;text-decoration:none">💰 Otevřít / Tisk</a>
           </div>
@@ -1448,7 +1448,9 @@ window.objQtyRecalc = function(polozka_id) {
   if (!inp || !cenaCell) return;
   const mn = parseFloat(inp.value) || 0;
   const cena = parseFloat(inp.dataset.cena) || 0;
-  cenaCell.textContent = fmt(mn * cena);
+  // 💱 v3.0.642 — v měně dokladu (Kč doklad = beze změny)
+  const d = { doc_mena: inp.dataset.docMena || '', doc_k: inp.dataset.docK || '' };
+  cenaCell.textContent = d.doc_mena ? fmtDoc(docRadek(d, cena, mn), d.doc_mena) : fmt(mn * cena);
 };
 
 window.smazatPolozku = async function(polozka_id, objednavka_id) {

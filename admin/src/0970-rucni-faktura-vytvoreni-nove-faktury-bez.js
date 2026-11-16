@@ -133,8 +133,8 @@ function vykreslitRucniFakturu() {
       <div style="font-size:13px;font-weight:700;color:#0C447C;margin-bottom:8px">📋 Vystavit z existující objednávky / dodacího listu <span style="font-weight:400;color:#5b7a9c">(volitelné)</span></div>
       <select class="form-select" onchange="rfVystavitZVyberu(this)" style="width:100%">
         <option value="">— vyber nefakturovanou objednávku / DL —</option>
-        ${_nObj.length ? `<optgroup label="📦 Objednávky bez dodacího listu (${_nObj.length})">${_nObj.map(o => `<option value="obj:${o.id}">${esc(o.cislo || ('#' + o.id))} · ${esc(o.odberatel_nazev || o.odberatel || '—')} · ${fmt(parseFloat(o.castka_celkem) || 0)}</option>`).join('')}</optgroup>` : ''}
-        ${_nDl.length ? `<optgroup label="📃 Nefakturované dodací listy (${_nDl.length})">${_nDl.map(d => `<option value="dl:${d.id}">${esc(d.cislo || ('#' + d.id))} · ${esc(d.odberatel_nazev || d.odberatel || '—')} · ${fmt(parseFloat(d.castka_celkem) || 0)}</option>`).join('')}</optgroup>` : ''}
+        ${_nObj.length ? `<optgroup label="📦 Objednávky bez dodacího listu (${_nObj.length})">${_nObj.map(o => `<option value="obj:${o.id}">${esc(o.cislo || ('#' + o.id))} · ${esc(o.odberatel_nazev || o.odberatel || '—')} · ${fmtDocCelkem(o)}</option>`).join('')}</optgroup>` : ''}
+        ${_nDl.length ? `<optgroup label="📃 Nefakturované dodací listy (${_nDl.length})">${_nDl.map(d => `<option value="dl:${d.id}">${esc(d.cislo || ('#' + d.id))} · ${esc(d.odberatel_nazev || d.odberatel || '—')} · ${fmtDocCelkem(d)}</option>`).join('')}</optgroup>` : ''}
       </select>
       <div style="font-size:11px;color:#5b7a9c;margin-top:6px;line-height:1.5">Objednávka, DL i faktura mají <strong>vlastní číselné řady</strong> — nekolidují. Ne každá objednávka musí mít DL/fakturu a naopak. Nebo vyplň fakturu ručně níže.</div>
     </div>` : '';
@@ -218,7 +218,7 @@ function vykreslitRucniFakturu() {
                 <div onclick="rfNacistZObjednavky(${o.id})" style="background:#F7F8FA;border:1px solid #E8D5B0;border-radius:10px;padding:12px;cursor:pointer">
                   <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
                     <strong style="font-size:13px">${esc(o.cislo)}</strong>
-                    <span style="font-weight:700;color:#854F0B;font-size:14px">${fmt(o.castka_celkem)}</span>
+                    <span style="font-weight:700;color:#854F0B;font-size:14px">${fmtDocCelkem(o)}</span>
                   </div>
                   <div style="font-size:11px;color:#999;margin-bottom:6px">📅 ${fmtDate(o.datum_dodani)} · ${o.pocet_polozek} pol.</div>
                   ${pol.length > 0 ? `

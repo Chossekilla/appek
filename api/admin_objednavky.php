@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_mena_lib.php'; // 💱 v3.0.642 — částky v měně dokladu (mena_doc_pole)
 require_once __DIR__ . '/_admin_auth.php';
 cors_headers();
 require_admin();
@@ -222,6 +223,8 @@ if ($method === 'GET') {
             $stmt_pol->execute(['id' => $o['id']]);
             $o['polozky'] = $stmt_pol->fetchAll();
         }
+        unset($o);
+        mena_doc_pole($pdo, 'objednavky', $obj);   // 💱 v3.0.642 — částka v měně dokladu
         json_response($obj);
     }
 
@@ -316,6 +319,10 @@ if ($method === 'GET') {
             $obj['historie_zmen'] = [];
         }
 
+        // 💱 v3.0.642 — částky v měně DOKLADU (jako na PDF), ne dnešním kurzem
+        $_one = [$obj]; mena_doc_pole($pdo, 'objednavky', $_one); $obj = $_one[0];
+        mena_doc_pole($pdo, 'dodaci_listy', $obj['dodaci_listy']);
+        mena_doc_pole($pdo, 'faktury', $obj['faktury']);
         json_response($obj);
     }
 
@@ -440,6 +447,7 @@ if ($method === 'GET') {
         $r['puvod_ikona'] = $meta['ikona'] ?? '•';
     }
     unset($r);
+    mena_doc_pole($pdo, 'objednavky', $rows);   // 💱 v3.0.642 — doc_mena/doc_celkem (dávkově, jen cizí měna načítá položky)
     json_response([
         'objednavky' => $rows,
         'total'      => $total,

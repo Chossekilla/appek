@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_mena_lib.php'; // 💱 v3.0.642 — částky v měně dokladu (mena_doc_pole)
 require_once __DIR__ . '/_schema_lib.php'; // 🐛 v3.0.274 — ensure upraveno_kdy/zpusob_* (B2B edit padal na fresh installu)
 require_once __DIR__ . '/_voucher_lib.php'; // 🆕 v3.0.631 — voucher z adminu přežije úpravu/storno odběratelem
 cors_headers();
@@ -60,6 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $obj['historie_zmen'] = [];
         }
 
+        // 💱 v3.0.642 — částky v měně DOKLADU (jako na PDF), ne dnešním kurzem
+        $_one = [$obj]; mena_doc_pole($pdo, 'objednavky', $_one); $obj = $_one[0];
         json_response($obj);
     }
 
@@ -119,7 +122,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             foreach ($list as &$o) {
                 $o['polozky'] = $polozkyMap[$o['id']] ?? [];
             }
+            unset($o);
         }
+        mena_doc_pole($pdo, 'objednavky', $list);   // 💱 v3.0.642
 
         json_response($list);
     }
@@ -135,7 +140,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         LIMIT 50
     ");
     $stmt->execute(['odb' => $odberatel_id]);
-    json_response($stmt->fetchAll());
+    $list = $stmt->fetchAll();
+    mena_doc_pole($pdo, 'objednavky', $list);   // 💱 v3.0.642 — doc_mena/doc_celkem
+    json_response($list);
 }
 
 // =============================================================

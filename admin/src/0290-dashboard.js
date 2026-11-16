@@ -588,7 +588,7 @@ async function renderDashboard(filters = {}) {
                     ${recentPolozkyLine(o)}
                   </td>
                   <td><span class="status ${o.stav}" style="font-size:10px">${statusLabel(o.stav)}</span></td>
-                  <td class="num"><strong>${fmt(o.castka_celkem)}</strong></td>
+                  <td class="num"><strong>${fmtDocCelkem(o)}</strong></td>
                   <td class="recent-actions" onclick="event.stopPropagation()">
                     ${recentRowIcons('obj', o)}
                   </td>
@@ -617,7 +617,7 @@ async function renderDashboard(filters = {}) {
                     ${recentPolozkyLine(dl)}
                   </td>
                   <td>${dlStavBadge(dl)}</td>
-                  <td class="num"><strong>${fmt(dl.castka_celkem)}</strong></td>
+                  <td class="num"><strong>${fmtDocCelkem(dl)}</strong></td>
                   <td class="recent-actions" onclick="event.stopPropagation()">
                     ${recentRowIcons('dl', dl)}
                   </td>
@@ -646,7 +646,7 @@ async function renderDashboard(filters = {}) {
                     ${recentPolozkyLine(f)}
                   </td>
                   <td>${stavUhradyBadge(f.stav_uhrady)}</td>
-                  <td class="num"><strong>${fmt(f.castka_celkem)}</strong></td>
+                  <td class="num"><strong>${fmtDocCelkem(f)}</strong></td>
                   <td class="recent-actions" onclick="event.stopPropagation()">
                     ${recentRowIcons('fa', f)}
                   </td>

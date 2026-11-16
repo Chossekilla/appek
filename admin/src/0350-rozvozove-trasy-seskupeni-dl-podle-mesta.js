@@ -84,7 +84,7 @@ async function renderRozvozy() {
                   </td>
                   <td class="num">${dl.pocet_polozek || 0}</td>
                   <td class="num">${Math.round(dl.celkem_ks || 0)}</td>
-                  <td class="num"><strong>${fmt(dl.castka_celkem)}</strong></td>
+                  <td class="num"><strong>${fmtDocCelkem(dl)}</strong></td>
                 </tr>
                 ${dl.pokyny_pro_ridice ? `
                 <tr style="background:var(--info-bg);color:var(--info-text)">

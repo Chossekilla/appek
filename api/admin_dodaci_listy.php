@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_mena_lib.php'; // 💱 v3.0.642 — částky v měně dokladu (mena_doc_pole)
 require_once __DIR__ . '/_admin_auth.php';
 cors_headers();
 require_admin();
@@ -64,6 +65,9 @@ try {
         $stmt->execute(['id' => $id]);
         $dl['faktury'] = $stmt->fetchAll();
 
+        // 💱 v3.0.642 — částky v měně DOKLADU (jako na PDF)
+        $_one = [$dl]; mena_doc_pole($pdo, 'dodaci_listy', $_one); $dl = $_one[0];
+        mena_doc_pole($pdo, 'faktury', $dl['faktury']);
         json_response($dl);
     }
 
@@ -150,6 +154,7 @@ try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $list = $stmt->fetchAll();
+        mena_doc_pole($pdo, 'dodaci_listy', $list);   // 💱 v3.0.642 — doc_mena/doc_celkem
 
         json_response([
             'dodaci_listy'        => $list,

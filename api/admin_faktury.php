@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_mena_lib.php'; // 💱 v3.0.642 — částky v měně dokladu (mena_doc_pole)
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_schema_lib.php';
 cors_headers();
@@ -163,6 +164,10 @@ if ($method === 'GET') {
             $f['dobropisy'] = [];
         }
 
+        // 💱 v3.0.642 — částky v měně DOKLADU (jako na PDF), ne dnešním kurzem
+        $_one = [$f]; mena_doc_pole($pdo, 'faktury', $_one); $f = $_one[0];
+        mena_doc_pole($pdo, 'faktury', $f['dobropisy']);
+        mena_doc_pole($pdo, 'dodaci_listy', $f['dodaci_listy']);
         json_response($f);
     }
 
@@ -282,6 +287,7 @@ if ($method === 'GET') {
         WHERE 1=1" . $where);
     $ss->execute($params);
     $souhrn = $ss->fetch();
+    mena_doc_pole($pdo, 'faktury', $faktury);   // 💱 v3.0.642 — doc_mena/doc_celkem (souhrn zůstává v Kč)
 
     json_response([
         'faktury'  => $faktury,

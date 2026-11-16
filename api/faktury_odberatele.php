@@ -8,6 +8,7 @@
  * vratek/oprav. Jen vlastní doklady (require_odberatel scope).
  */
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/_mena_lib.php'; // 💱 v3.0.642 — částky v měně dokladu (mena_doc_pole)
 require_once __DIR__ . '/_schema_lib.php';
 cors_headers();
 $odberatel_id = require_odberatel();
@@ -57,4 +58,5 @@ foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $f) {
         'stav_uhrady'     => $stav,
     ];
 }
+mena_doc_pole($pdo, 'faktury', $out);   // 💱 v3.0.642 — doc_mena/doc_celkem jako na PDF faktury
 json_response(['faktury' => $out]);

@@ -1838,6 +1838,25 @@ if ($method === 'GET' && $action === 'quick_history') {
         ");
         $st->execute(['d' => $date, 'd_next' => $date_next]);
         $orders = $st->fetchAll(PDO::FETCH_ASSOC);
+        // 💱 v3.0.642 — částka účtenky v měně DOKLADU (= jako tištěná účtenka: castka × k_doklad),
+        //   ne dnešním kurzem → stará Kč účtenka zůstane v Kč i po přepnutí prodeje na EUR. Souhrn dne zůstává v Kč.
+        try {
+            require_once __DIR__ . '/_mena_lib.php';
+            $mq = $orders ? $pdo->query("SELECT id, mena, mena_kurz, mena_zaklad FROM objednavky WHERE id IN ("
+                . implode(',', array_map(fn($o) => (int) $o['id'], $orders)) . ")")->fetchAll(PDO::FETCH_ASSOC) : [];
+            $mById = []; $mNovy = null;
+            foreach ($mq as $r) {
+                if (empty($r['mena'])) { $mNovy = $mNovy ?? mena_doklad_ro($pdo, []); $mById[(int) $r['id']] = $mNovy; }
+                else $mById[(int) $r['id']] = mena_doklad_ro($pdo, $r);
+            }
+            foreach ($orders as &$o) {
+                $m = $mById[(int) $o['id']] ?? null;
+                if (!$m) continue;
+                $o['doc_mena'] = $m['mena'];
+                $o['doc_celkem'] = $m['mena'] === 'CZK' ? round((float) $o['castka_celkem'], 2) : round((float) $o['castka_celkem'] * (float) $m['k_doklad'], 2);
+            }
+            unset($o);
+        } catch (Throwable $e) { error_log('quick_history doc_mena: ' . $e->getMessage()); }
 
         // Souhrn dne — 🐛 v3.0.230: částky (tržby/tip/hotově/karta) NEPOČÍTAJÍ zrušené;
         // počet a typy zůstávají vč. zrušených (provozní přehled, storno je vidět v seznamu).
@@ -2354,6 +2373,16 @@ if ($method === 'GET' && $action === 'quick_order_detail') {
         ");
         $p->execute(['id' => $id]);
         $obj['polozky'] = $p->fetchAll(PDO::FETCH_ASSOC);
+        // 💱 v3.0.642 — měna dokladu (jako tištěná účtenka: částka × k_doklad), ne dnešní kurz
+        try {
+            require_once __DIR__ . '/_mena_lib.php';
+            $mr = $pdo->prepare("SELECT mena, mena_kurz, mena_zaklad FROM objednavky WHERE id = ?");
+            $mr->execute([$id]);
+            $m = mena_doklad_ro($pdo, $mr->fetch(PDO::FETCH_ASSOC) ?: []);
+            $obj['doc_mena'] = $m['mena'];
+            $obj['doc_k'] = (float) $m['k_doklad'];
+            $obj['doc_celkem'] = $m['mena'] === 'CZK' ? round((float) $obj['castka_celkem'], 2) : round((float) $obj['castka_celkem'] * (float) $m['k_doklad'], 2);
+        } catch (Throwable $e) { /* bez měny dokladu → klient použije fmt() */ }
 
         json_response($obj);
     } catch (Throwable $e) {
