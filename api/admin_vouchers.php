@@ -69,37 +69,55 @@ function voucher_enrich(array $v): array {
     return $v;
 }
 
-/** Hodnota voucheru jako čitelný text (Kč nebo %), pro email i UI. */
-function voucher_hodnota_text(array $v): string {
+/** Hodnota voucheru jako čitelný text (Kč nebo %), pro email i UI.
+ *  🌍 v3.0.643 — $lang/$kod pro e-mail zákazníkovi (jazyk dokladů odběratele, měna uložených částek);
+ *  výchozí cs + CZK = přesně původní text (UI). */
+function voucher_hodnota_text(array $v, string $lang = 'cs', string $kod = 'CZK'): string {
+    if ($lang === 'cs' && $kod === 'CZK') {
+        if (($v['typ'] ?? '') === 'sleva') {
+            $pct = rtrim(rtrim(number_format((float) ($v['sleva_pct'] ?? 0), 2, ',', ' '), '0'), ',');
+            $s = $pct . ' %';
+            if (!empty($v['sleva_max_kc'])) $s .= ' (max ' . number_format((float) $v['sleva_max_kc'], 0, ',', ' ') . ' Kč)';
+            return $s;
+        }
+        return number_format((float) ($v['hodnota'] ?? 0), 2, ',', ' ') . ' Kč';
+    }
+    email_i18n_boot();
+    [$dec, $thou] = _num_seps($lang);
     if (($v['typ'] ?? '') === 'sleva') {
-        $pct = rtrim(rtrim(number_format((float) ($v['sleva_pct'] ?? 0), 2, ',', ' '), '0'), ',');
+        $pct = rtrim(rtrim(number_format((float) ($v['sleva_pct'] ?? 0), 2, $dec, $thou), '0'), $dec);
         $s = $pct . ' %';
-        if (!empty($v['sleva_max_kc'])) $s .= ' (max ' . number_format((float) $v['sleva_max_kc'], 0, ',', ' ') . ' Kč)';
+        if (!empty($v['sleva_max_kc'])) {
+            $suf = trim(substr(_fmt_money_loc(0, $lang, $kod), strlen(_fmt_num_loc(0, 2, $lang))));
+            $s .= ' (max ' . _fmt_num_loc((float) $v['sleva_max_kc'], 0, $lang) . ' ' . $suf . ')';
+        }
         return $s;
     }
-    return number_format((float) ($v['hodnota'] ?? 0), 2, ',', ' ') . ' Kč';
+    return _fmt_money_loc((float) ($v['hodnota'] ?? 0), $lang, $kod);
 }
 
 /** HTML tělo voucher emailu (samostatné, brandované firmou). */
-function voucher_email_html(string $firma, string $kod, string $hodnota, string $platnost, string $typ, string $pozn): string {
-    $nadpis = $typ === 'sleva' ? 'Slevový voucher' : ($typ === 'darkova_karta' ? 'Dárková karta' : 'Dárkový voucher');
+function voucher_email_html(string $firma, string $kod, string $hodnota, string $platnost, string $typ, string $pozn, string $lang = 'cs'): string {
+    email_i18n_boot();
+    $tv = fn(string $k) => _t_lang($lang, $k);
+    $nadpis = $tv($typ === 'sleva' ? 'Slevový voucher' : ($typ === 'darkova_karta' ? 'Dárková karta' : 'Dárkový voucher'));
     $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
     $poznHtml = $pozn !== '' ? '<p style="margin:10px 0 0;color:#6b7280;font-size:14px">' . $e($pozn) . '</p>' : '';
-    return '<!DOCTYPE html><html lang="cs"><body style="margin:0;background:#f3f4f6;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif">'
+    return '<!DOCTYPE html><html lang="' . $lang . '"><body style="margin:0;background:#f3f4f6;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif">'
         . '<div style="max-width:520px;margin:0 auto;padding:28px 18px">'
         . '<div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.08)">'
         . '<div style="background:linear-gradient(135deg,#16a34a,#059669);padding:26px 28px;color:#fff">'
         . '<div style="font-size:13px;opacity:.85;letter-spacing:.5px;text-transform:uppercase">' . $e($firma) . '</div>'
         . '<div style="font-size:24px;font-weight:700;margin-top:4px">🎟️ ' . $e($nadpis) . '</div></div>'
         . '<div style="padding:28px">'
-        . '<p style="margin:0 0 18px;color:#374151;font-size:15px">Dobrý den, posíláme Vám voucher k uplatnění při nákupu:</p>'
+        . '<p style="margin:0 0 18px;color:#374151;font-size:15px">' . $e($tv('Dobrý den, posíláme Vám voucher k uplatnění při nákupu:')) . '</p>'
         . '<div style="border:2px dashed #16a34a;border-radius:12px;padding:18px;text-align:center;background:#f0fdf4">'
-        . '<div style="font-size:12px;color:#059669;text-transform:uppercase;letter-spacing:1px">Kód voucheru</div>'
+        . '<div style="font-size:12px;color:#059669;text-transform:uppercase;letter-spacing:1px">' . $e($tv('Kód voucheru')) . '</div>'
         . '<div style="font-size:26px;font-weight:800;letter-spacing:2px;color:#065f46;margin:6px 0;font-family:monospace">' . $e($kod) . '</div>'
         . '<div style="font-size:20px;font-weight:700;color:#16a34a">' . $e($hodnota) . '</div></div>'
         . '<p style="margin:16px 0 0;color:#6b7280;font-size:14px">📅 ' . $e($platnost) . '</p>'
         . $poznHtml
-        . '<p style="margin:18px 0 0;color:#9ca3af;font-size:13px">Voucher uplatníte na prodejně nebo při objednávce — stačí nahlásit kód.</p>'
+        . '<p style="margin:18px 0 0;color:#9ca3af;font-size:13px">' . $e($tv('Voucher uplatníte na prodejně nebo při objednávce — stačí nahlásit kód.')) . '</p>'
         . '</div></div>'
         . '<p style="text-align:center;color:#9ca3af;font-size:12px;margin:16px 0 0">' . $e($firma) . '</p>'
         . '</div></body></html>';
@@ -111,11 +129,18 @@ function voucher_send_email(PDO $pdo, array $v): array {
     if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) return ['ok' => false, 'error' => 'Odběratel nemá platný email'];
     $firma     = (string) (nastaveni_get($pdo, 'firma_nazev', '') ?: 'Provoz');
     $fromEmail = (string) (nastaveni_get($pdo, 'firma_email', '') ?: ('noreply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost')));
-    $hodnota   = voucher_hodnota_text($v);
-    $platnost  = !empty($v['platnost_do']) ? 'Platnost do ' . date('d.m.Y', strtotime((string) $v['platnost_do'])) : 'Bez omezení platnosti';
-    $html  = voucher_email_html($firma, (string) $v['kod'], $hodnota, $platnost, (string) $v['typ'], (string) ($v['poznamka'] ?? ''));
-    $plain = "$firma — voucher\n\nKód: {$v['kod']}\nHodnota: $hodnota\n$platnost\n\nVoucher uplatníte na prodejně nebo při objednávce.";
-    $subj  = ($v['typ'] === 'sleva' ? 'Slevový voucher' : 'Dárkový voucher') . ' — ' . $firma;
+    // 🌍 v3.0.643 — e-mail v jazyce dokladů odběratele, hodnota v měně uložených částek
+    $lang      = email_lang_odberatele($pdo, !empty($v['odberatel_id']) ? (int) $v['odberatel_id'] : null);
+    $tv        = fn(string $k, array $x = []) => _t_lang($lang, $k, $x);
+    $kodMeny   = 'CZK';
+    try { require_once __DIR__ . '/_mena_lib.php'; $kodMeny = mena_config_load($pdo)['zakladni'] ?? 'CZK'; } catch (Throwable $e) {}
+    $hodnota   = voucher_hodnota_text($v, $lang, $kodMeny);
+    $platnost  = !empty($v['platnost_do'])
+        ? $tv('Platnost do {datum}', ['datum' => $lang === 'cs' ? date('d.m.Y', strtotime((string) $v['platnost_do'])) : _fmt_date_loc((string) $v['platnost_do'], $lang)])
+        : $tv('Bez omezení platnosti');
+    $html  = voucher_email_html($firma, (string) $v['kod'], $hodnota, $platnost, (string) $v['typ'], (string) ($v['poznamka'] ?? ''), $lang);
+    $plain = "$firma — voucher\n\n" . $tv('Kód') . ": {$v['kod']}\n" . $tv('Hodnota') . ": $hodnota\n$platnost\n\n" . $tv('Voucher uplatníte na prodejně nebo při objednávce.');
+    $subj  = $tv($v['typ'] === 'sleva' ? 'Slevový voucher' : 'Dárkový voucher') . ' — ' . $firma;
 
     $boundary = 'alt_' . md5(uniqid('v', true));
     $headers = [

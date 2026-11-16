@@ -1330,11 +1330,20 @@ if ($method === 'POST' && $action === 'pickup_ready') {
             require_once __DIR__ . '/_smtp_lib.php';
             $firma = '';
             try { $firma = (string) nastaveni_get($pdo, 'firma_nazev', ''); } catch (Throwable $e) {}
-            $subj = 'Vaše objednávka ' . $ord['cislo'] . ' je připravena k vyzvednutí';
-            $body = "Dobrý den" . ($ord['vyzvednuti_jmeno'] ? ', ' . $ord['vyzvednuti_jmeno'] : '') . ",\n\n"
-                  . "vaše objednávka " . $ord['cislo'] . " je připravena k vyzvednutí.\n"
-                  . ($ord['pos_payment'] === 'pri_vyzvednuti' ? 'K úhradě při vyzvednutí: ' . number_format((float) $ord['castka_celkem'], 2, ',', ' ') . " Kč\n" : '')
-                  . "\nDěkujeme" . ($firma ? ",\n" . $firma : '') . "\n";
+            // 🌍💱 v3.0.643 — zákazník bez odběratele → výchozí jazyk dokladů firmy; částka v měně objednávky
+            $L = email_lang_odberatele($pdo, null);
+            $tv = fn(string $k, array $x = []) => _t_lang($L, $k, $x);
+            $mRows = [['id' => $id]];
+            mena_doc_pole($pdo, 'objednavky', $mRows);
+            $mena = $mRows[0]['doc_mena'] ?? 'CZK';
+            $kUhrade = ($L === 'cs' && $mena === 'CZK')
+                ? number_format((float) $ord['castka_celkem'], 2, ',', ' ') . ' Kč'
+                : _fmt_money_loc($mena === 'CZK' ? (float) $ord['castka_celkem'] : (float) $mRows[0]['doc_celkem'], $L, $mena);
+            $subj = $tv('Vaše objednávka {cislo} je připravena k vyzvednutí', ['cislo' => $ord['cislo']]);
+            $body = ($ord['vyzvednuti_jmeno'] ? $tv('Dobrý den, {jmeno},', ['jmeno' => $ord['vyzvednuti_jmeno']]) : $tv('Dobrý den,')) . "\n\n"
+                  . $tv('vaše objednávka {cislo} je připravena k vyzvednutí.', ['cislo' => $ord['cislo']]) . "\n"
+                  . ($ord['pos_payment'] === 'pri_vyzvednuti' ? $tv('K úhradě při vyzvednutí:') . ' ' . $kUhrade . "\n" : '')
+                  . "\n" . $tv('Děkujeme') . ($firma ? ",\n" . $firma : '') . "\n";
             $mailed = (bool) appek_mail_raw($email, '=?UTF-8?B?' . base64_encode($subj) . '?=', $body, "Content-Type: text/plain; charset=UTF-8");
         } catch (Throwable $e) { $mailed = false; }
     }

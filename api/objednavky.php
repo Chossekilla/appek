@@ -518,6 +518,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $stmt->execute(['id' => $id, 'odb' => $odberatel_id]);
     $orig = $stmt->fetch();
     if (!$orig) json_error('Objednávka nenalezena', 404);
+    // 💱 v3.0.643 — původní částka v měně dokladu PŘED úpravou (pro e-mail o úpravě = jako potvrzení/PDF)
+    if (!empty($orig['id'])) {
+        try { require_once __DIR__ . '/_mena_lib.php'; $tmpDoc = [['id' => (int) $orig['id']]]; mena_doc_pole($pdo, 'objednavky', $tmpDoc);
+              if (isset($tmpDoc[0]['doc_celkem'])) $orig['_doc_celkem'] = (float) $tmpDoc[0]['doc_celkem']; } catch (Throwable $e) { /* fallback v notifikaci */ }
+    }
 
     // Editovatelnost
     $edit = objednavka_editovatelna($pdo, $orig);
@@ -729,6 +734,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     $stmt->execute(['id' => $id, 'odb' => $odberatel_id]);
     $orig = $stmt->fetch();
     if (!$orig) json_error('Objednávka nenalezena', 404);
+    // 💱 v3.0.643 — původní částka v měně dokladu PŘED úpravou (pro e-mail o úpravě = jako potvrzení/PDF)
+    if (!empty($orig['id'])) {
+        try { require_once __DIR__ . '/_mena_lib.php'; $tmpDoc = [['id' => (int) $orig['id']]]; mena_doc_pole($pdo, 'objednavky', $tmpDoc);
+              if (isset($tmpDoc[0]['doc_celkem'])) $orig['_doc_celkem'] = (float) $tmpDoc[0]['doc_celkem']; } catch (Throwable $e) { /* fallback v notifikaci */ }
+    }
 
     $edit = objednavka_editovatelna($pdo, $orig);
     if (!$edit['lze']) json_error($edit['duvod'], 409);

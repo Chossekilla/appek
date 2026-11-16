@@ -1066,58 +1066,116 @@ function notifikace_zmena_objednavky(PDO $pdo, int $obj_id, array $orig, array $
     $vsechny_emaily = array_unique(array_merge($emaily_odb, $emaily_pekarny));
     if (empty($vsechny_emaily)) return;
 
+    // 🌍 v3.0.643 — odběratel dostane e-mail ve svém jazyce (= jazyk dokladů), pekárna vždy česky.
+    //   Česky mluvící odběratel → jeden e-mail všem jako dřív (beze změny).
+    $lang = email_lang_odberatele($pdo, (int) $orig['odberatel_id']);
+    // EUR objednávka: odběratel v měně objednávky, pekárna v Kč → nelze poslat jeden společný e-mail
+    try { $menaObj = mena_doklad_ro($pdo, $orig)['mena']; } catch (Throwable $e) { $menaObj = 'CZK'; }
+    if ($lang === 'cs' && $menaObj === 'CZK') {
+        [$predmet, $telo] = notif_zmena_objednavky_text($pdo, $obj_id, $orig, $info, 'cs');
+        poslat_email($vsechny_emaily, $predmet, $telo);
+        return;
+    }
+    if ($emaily_odb) {
+        [$predmet, $telo] = notif_zmena_objednavky_text($pdo, $obj_id, $orig, $info, $lang);
+        poslat_email($emaily_odb, $predmet, $telo);
+    }
+    $jen_pekarna = array_values(array_diff($emaily_pekarny, $emaily_odb));
+    if ($jen_pekarna) {
+        [$predmet, $telo] = notif_zmena_objednavky_text($pdo, $obj_id, $orig, $info, 'cs', true);
+        poslat_email($jen_pekarna, $predmet, $telo);
+    }
+}
+
+/**
+ * 🌍 v3.0.643 — [předmět, tělo] e-mailu o úpravě/zrušení objednávky v jazyce $lang.
+ * Částky v měně objednávky (EUR objednávka = EUR, jako na PDF/v B2B); čeština v Kč = text beze změny.
+ */
+function notif_zmena_objednavky_text(PDO $pdo, int $obj_id, array $orig, array $info, string $lang, bool $interni = false): array {
+    email_i18n_boot();
     $cislo  = $orig['cislo'];
-    $datum  = fmt_date($orig['datum_dodani']);
-    $kdo    = $info['kdo'] ?? 'Odběratel';
+    $datum  = _fmt_date_loc($orig['datum_dodani'], $lang);
+    $kdo    = $info['kdo'] ?? _t_lang($lang, 'Odběratel');
+    if ($lang !== 'cs' && str_ends_with($kdo, ' (administrace)')) {
+        $kdo = substr($kdo, 0, -strlen(' (administrace)')) . ' (' . _t_lang($lang, 'administrace') . ')';
+    }
     $firma  = nastaveni_get($pdo, 'firma_nazev', 'Provoz');
+    $tv = fn(string $k, array $v = []) => _t_lang($lang, $k, $v);
 
     if (!empty($info['zruseno'])) {
-        $predmet = "Objednávka #$cislo byla ZRUŠENA";
-        $telo  = "Vážení,\n\n";
-        $telo .= "objednávka #$cislo (datum dodání $datum) byla zrušena.\n";
-        $telo .= "Změnu provedl: $kdo\n\n";
-        $telo .= "Pokud k tomu došlo omylem, vytvořte prosím novou objednávku.\n\n";
-        $telo .= "S pozdravem\n$firma";
-    } else {
-        $predmet = "Objednávka #$cislo byla UPRAVENA";
-        $telo  = "Vážení,\n\n";
-        $telo .= "v objednávce #$cislo (datum dodání $datum) byly provedeny tyto změny:\n";
-        $telo .= "Změnu provedl: $kdo\n";
-        $telo .= str_repeat('-', 50) . "\n\n";
-
-        $diff = $info['diff'] ?? [];
-        if (!empty($diff['pridane'])) {
-            $telo .= "PŘIDÁNO:\n";
-            foreach ($diff['pridane'] as $r) {
-                $telo .= "  + " . $r['nazev'] . ': ' . rtrim(rtrim(number_format($r['mnozstvi'], 2, ',', ' '), '0'), ',') . " ks\n";
-            }
-            $telo .= "\n";
-        }
-        if (!empty($diff['zmenene'])) {
-            $telo .= "ZMĚNĚNO:\n";
-            foreach ($diff['zmenene'] as $r) {
-                $telo .= "  ~ " . $r['nazev'] . ': '
-                      . rtrim(rtrim(number_format($r['puvodne'], 2, ',', ' '), '0'), ',') . " ks → "
-                      . rtrim(rtrim(number_format($r['nove'], 2, ',', ' '), '0'), ',') . " ks\n";
-            }
-            $telo .= "\n";
-        }
-        if (!empty($diff['odebrane'])) {
-            $telo .= "ODEBRÁNO:\n";
-            foreach ($diff['odebrane'] as $r) {
-                $telo .= "  - " . $r['nazev'] . ': ' . rtrim(rtrim(number_format($r['mnozstvi'], 2, ',', ' '), '0'), ',') . " ks\n";
-            }
-            $telo .= "\n";
-        }
-        $telo .= str_repeat('-', 50) . "\n";
-        $telo .= "Původní částka: " . fmt_kc($orig['castka_celkem']) . "\n";
-        if (isset($info['castka'])) {
-            $telo .= "Nová částka:    " . fmt_kc($info['castka']) . "\n";
-        }
-        $telo .= "\nS pozdravem\n$firma";
+        $predmet = $tv('Objednávka #{cislo} byla ZRUŠENA', ['cislo' => $cislo]);
+        $telo  = $tv('Vážení,') . "\n\n";
+        $telo .= $tv('objednávka #{cislo} (datum dodání {datum}) byla zrušena.', ['cislo' => $cislo, 'datum' => $datum]) . "\n";
+        $telo .= $tv('Změnu provedl: {kdo}', ['kdo' => $kdo]) . "\n\n";
+        $telo .= $tv('Pokud k tomu došlo omylem, vytvořte prosím novou objednávku.') . "\n\n";
+        $telo .= $tv('S pozdravem') . "\n$firma";
+        return [$predmet, $telo];
     }
 
-    poslat_email($vsechny_emaily, $predmet, $telo);
+    [$dec, $thou] = _num_seps($lang);
+    $mn = fn($x) => rtrim(rtrim(number_format((float) $x, 2, $dec, $thou), '0'), $dec);
+    $ks = _unit_loc('ks', $lang);
+
+    $predmet = $tv('Objednávka #{cislo} byla UPRAVENA', ['cislo' => $cislo]);
+    $telo  = $tv('Vážení,') . "\n\n";
+    $telo .= $tv('v objednávce #{cislo} (datum dodání {datum}) byly provedeny tyto změny:', ['cislo' => $cislo, 'datum' => $datum]) . "\n";
+    $telo .= $tv('Změnu provedl: {kdo}', ['kdo' => $kdo]) . "\n";
+    $telo .= str_repeat('-', 50) . "\n\n";
+
+    $diff = $info['diff'] ?? [];
+    if (!empty($diff['pridane'])) {
+        $telo .= $tv('PŘIDÁNO:') . "\n";
+        foreach ($diff['pridane'] as $r) {
+            $telo .= "  + " . $r['nazev'] . ': ' . $mn($r['mnozstvi']) . " $ks\n";
+        }
+        $telo .= "\n";
+    }
+    if (!empty($diff['zmenene'])) {
+        $telo .= $tv('ZMĚNĚNO:') . "\n";
+        foreach ($diff['zmenene'] as $r) {
+            $telo .= "  ~ " . $r['nazev'] . ': ' . $mn($r['puvodne']) . " $ks → " . $mn($r['nove']) . " $ks\n";
+        }
+        $telo .= "\n";
+    }
+    if (!empty($diff['odebrane'])) {
+        $telo .= $tv('ODEBRÁNO:') . "\n";
+        foreach ($diff['odebrane'] as $r) {
+            $telo .= "  - " . $r['nazev'] . ': ' . $mn($r['mnozstvi']) . " $ks\n";
+        }
+        $telo .= "\n";
+    }
+
+    // 💱 Částky v měně objednávky. Nová = přesně jako PDF (mena_doc_pole nad aktuálními položkami);
+    //   původní se dopočítá kurzem snapshotu (původní položky už v DB nejsou). Kč = beze změny.
+    $m = mena_doklad_ro($pdo, $orig);
+    if ($interni) $m = ['mena' => 'CZK', 'k_doklad' => 1.0] + $m;   // pekárna: interní e-mail vždy v Kč (jako dřív)
+    $puvodni = (float) $orig['castka_celkem'];
+    $nova = isset($info['castka']) ? (float) $info['castka'] : null;
+    if ($m['mena'] !== 'CZK') {
+        $puvodniKc = $puvodni;
+        // přesně jako potvrzení/PDF (spočítáno volajícím před úpravou položek); jinak přepočet hlavičky
+        $puvodni = isset($orig['_doc_celkem']) ? (float) $orig['_doc_celkem'] : round($puvodni * (float) $m['k_doklad'], 2);
+        if ($nova !== null) {
+            $novaKc = $nova;
+            $rows = [['id' => $obj_id]];
+            mena_doc_pole($pdo, 'objednavky', $rows);
+            $nova = isset($rows[0]['doc_celkem']) ? (float) $rows[0]['doc_celkem'] : round($nova * (float) $m['k_doklad'], 2);
+            // Částka se nezměnila (např. jen jiné datum) → ukaž stejné číslo, ne rozdíl ze zaokrouhlení
+            if (abs($novaKc - $puvodniKc) < 0.005) $puvodni = $nova;
+        }
+    }
+    $penize = fn($x) => _fmt_money_loc($x, $lang, $m['mena']);
+    $l1 = $tv('Původní částka:');
+    $l2 = $tv('Nová částka:');
+    $w = max(mb_strlen($l1), mb_strlen($l2)) + 1;
+    $pad = fn($s) => $s . str_repeat(' ', max(1, $w - mb_strlen($s)));
+    $telo .= str_repeat('-', 50) . "\n";
+    $telo .= $pad($l1) . $penize($puvodni) . "\n";
+    if ($nova !== null) {
+        $telo .= $pad($l2) . $penize($nova) . "\n";
+    }
+    $telo .= "\n" . $tv('S pozdravem') . "\n$firma";
+    return [$predmet, $telo];
 }
 
 /**
@@ -1323,37 +1381,326 @@ function email_template_defaults(): array {
 }
 
 /**
- * Načte šablonu z DB nebo vrátí default.
+ * 🌍 v3.0.643 — výchozí texty zákaznických šablon v angličtině a španělštině.
+ * Stejné klíče a proměnné jako email_template_defaults(); interní 'admin_nova_objednavka'
+ * (notifikace pekárně) jazykové varianty nemá — zůstává česky.
+ * Úpravy v editoru se ukládají do email_templates pod klíčem 'klic@en' / 'klic@es'.
  */
-function email_template_load(PDO $pdo, string $klic): array {
+function email_template_defaults_lang(string $lang): array {
+    $sep = "--------------------------------------------------\n";
+    if ($lang === 'en') {
+        return [
+            'objednavka_nova' => [
+                'popis'   => '📥 Order confirmation (to customer)',
+                'predmet' => 'Order confirmation #{cislo} (delivery {datum})',
+                'telo'    => "Dear customer,\n\nWe confirm receipt of your order #{cislo}.\n\n"
+                           . $sep
+                           . "Delivery date:     {datum}\n"
+                           . "Delivery address:  {misto}\n"
+                           . $sep . "\n"
+                           . "ITEMS:\n{polozky_text}\n"
+                           . $sep
+                           . "Total excl. VAT:  {castka_bez_dph}\n"
+                           . "VAT:              {castka_dph}\n"
+                           . "Total incl. VAT:  {castka_celkem}\n"
+                           . "{poznamka_block}\n"
+                           . "Thank you for your order.\n\nKind regards\n{firma}",
+            ],
+            'objednavka_potvrzena' => [
+                'popis'   => '✓ Order confirmed',
+                'predmet' => 'Order #{cislo} — confirmed',
+                'telo'    => "Dear customer,\n\nWe have confirmed your order #{cislo} (delivery date {datum}).\n\n"
+                           . "If you need to make any changes, please contact us as soon as possible.\n\nKind regards\n{firma}",
+            ],
+            'objednavka_ve_vyrobe' => [
+                'popis'   => '🔥 Order in production',
+                'predmet' => 'Order #{cislo} — in production',
+                'telo'    => "Dear customer,\n\nYour order #{cislo} (delivery date {datum}) is now being produced.\n\n"
+                           . "It will be ready for you shortly.\n\nKind regards\n{firma}",
+            ],
+            'objednavka_pripravena' => [
+                'popis'   => '📦 Ready for dispatch',
+                'predmet' => 'Order #{cislo} — ready',
+                'telo'    => "Dear customer,\n\nYour order #{cislo} is ready for dispatch.\n\n"
+                           . "Delivery date: {datum}\n\nKind regards\n{firma}",
+            ],
+            'objednavka_expedovana' => [
+                'popis'   => '🚚 Order dispatched (on its way)',
+                'predmet' => 'Order #{cislo} — DISPATCHED',
+                'telo'    => "Dear customer,\n\nYour order #{cislo} (delivery date {datum}) has been dispatched and is on its way to you.\n\n"
+                           . "Total amount: {castka_celkem}\n\nKind regards\n{firma}",
+            ],
+            'objednavka_dorucena' => [
+                'popis'   => '✅ Order delivered',
+                'predmet' => 'Order #{cislo} — DELIVERED',
+                'telo'    => "Dear customer,\n\nWe confirm that order #{cislo} has been delivered.\n\n"
+                           . "Thank you for your business.\n\nKind regards\n{firma}",
+            ],
+            'objednavka_zrusena' => [
+                'popis'   => '❌ Order cancelled',
+                'predmet' => 'Order #{cislo} — CANCELLED',
+                'telo'    => "Dear customer,\n\nYour order #{cislo} (delivery date {datum}) has been cancelled.\n\n"
+                           . "If this is a mistake, please contact us.\n\nKind regards\n{firma}",
+            ],
+        ];
+    }
+    if ($lang === 'es') {
+        return [
+            'objednavka_nova' => [
+                'popis'   => '📥 Confirmación del pedido (al cliente)',
+                'predmet' => 'Confirmación del pedido n.º {cislo} (entrega {datum})',
+                'telo'    => "Estimado cliente:\n\nLe confirmamos la recepción de su pedido n.º {cislo}.\n\n"
+                           . $sep
+                           . "Fecha de entrega:      {datum}\n"
+                           . "Dirección de entrega:  {misto}\n"
+                           . $sep . "\n"
+                           . "ARTÍCULOS:\n{polozky_text}\n"
+                           . $sep
+                           . "Total sin IVA:  {castka_bez_dph}\n"
+                           . "IVA:            {castka_dph}\n"
+                           . "Total con IVA:  {castka_celkem}\n"
+                           . "{poznamka_block}\n"
+                           . "Gracias por su pedido.\n\nAtentamente\n{firma}",
+            ],
+            'objednavka_potvrzena' => [
+                'popis'   => '✓ Pedido confirmado',
+                'predmet' => 'Pedido n.º {cislo}: confirmado',
+                'telo'    => "Estimado cliente:\n\nHemos confirmado su pedido n.º {cislo} (fecha de entrega {datum}).\n\n"
+                           . "Si necesita realizar algún cambio, póngase en contacto con nosotros lo antes posible.\n\nAtentamente\n{firma}",
+            ],
+            'objednavka_ve_vyrobe' => [
+                'popis'   => '🔥 Pedido en producción',
+                'predmet' => 'Pedido n.º {cislo}: en producción',
+                'telo'    => "Estimado cliente:\n\nEstamos elaborando su pedido n.º {cislo} (fecha de entrega {datum}).\n\n"
+                           . "En breve lo tendrá preparado.\n\nAtentamente\n{firma}",
+            ],
+            'objednavka_pripravena' => [
+                'popis'   => '📦 Listo para el envío',
+                'predmet' => 'Pedido n.º {cislo}: preparado',
+                'telo'    => "Estimado cliente:\n\nSu pedido n.º {cislo} está listo para el envío.\n\n"
+                           . "Fecha de entrega: {datum}\n\nAtentamente\n{firma}",
+            ],
+            'objednavka_expedovana' => [
+                'popis'   => '🚚 Pedido enviado (en camino)',
+                'predmet' => 'Pedido n.º {cislo}: ENVIADO',
+                'telo'    => "Estimado cliente:\n\nSu pedido n.º {cislo} (fecha de entrega {datum}) ha sido enviado y está en camino.\n\n"
+                           . "Importe total: {castka_celkem}\n\nAtentamente\n{firma}",
+            ],
+            'objednavka_dorucena' => [
+                'popis'   => '✅ Pedido entregado',
+                'predmet' => 'Pedido n.º {cislo}: ENTREGADO',
+                'telo'    => "Estimado cliente:\n\nLe confirmamos la entrega del pedido n.º {cislo}.\n\n"
+                           . "Gracias por confiar en nosotros.\n\nAtentamente\n{firma}",
+            ],
+            'objednavka_zrusena' => [
+                'popis'   => '❌ Pedido cancelado',
+                'predmet' => 'Pedido n.º {cislo}: CANCELADO',
+                'telo'    => "Estimado cliente:\n\nSu pedido n.º {cislo} (fecha de entrega {datum}) ha sido cancelado.\n\n"
+                           . "Si se trata de un error, póngase en contacto con nosotros.\n\nAtentamente\n{firma}",
+            ],
+        ];
+    }
+    return [];
+}
+
+/** Jazyky zákaznických e-mailů (= jazyky dokladů). */
+const EMAIL_LANGS = ['cs', 'en', 'es'];
+
+/** Načte překlady (_i18n.php) a měnu dokladů (_mena_lib.php) pro e-maily. */
+function email_i18n_boot(): void {
+    require_once __DIR__ . '/_i18n.php';
+    require_once __DIR__ . '/_mena_lib.php';
+}
+
+/**
+ * 🌍 Jazyk automatického e-mailu zákazníkovi = jazyk jeho dokladů:
+ *   odberatele.jazyk_dokladu → nastaveni.firma_jazyk_dokladu → 'cs'.
+ * Bez odběratele (anonymní web objednávka, vyzvednutí) = výchozí jazyk dokladů firmy.
+ * ?lang= z URL požadavku se tu záměrně NEbere (admin by jím jinak měnil jazyk notifikací).
+ */
+function email_lang_odberatele(PDO $pdo, ?int $odberatelId): string {
+    email_i18n_boot();
+    return $odberatelId ? doc_lang_resolve($pdo, $odberatelId, '') : doc_lang_firma($pdo);
+}
+
+/**
+ * Načte šablonu v jazyce $lang. Pořadí:
+ *   cs:     DB 'klic' (aktivní) → výchozí česká
+ *   en/es:  DB 'klic@lang' (aktivní) → výchozí text v jazyce → česká (DB / výchozí)
+ * Vrací [predmet, telo, format, aktivni?, jazyk] — 'jazyk' = jazyk, ve kterém text skutečně je.
+ */
+function email_template_load(PDO $pdo, string $klic, string $lang = 'cs'): array {
     ensure_email_templates_table($pdo);
+    if ($lang !== 'cs' && in_array($lang, EMAIL_LANGS, true) && $klic !== 'admin_nova_objednavka') {
+        try {
+            $stmt = $pdo->prepare("SELECT predmet, telo, format, aktivni FROM email_templates WHERE klic = :k");
+            $stmt->execute(['k' => $klic . '@' . $lang]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row && (int) $row['aktivni'] === 1) return $row + ['jazyk' => $lang];
+        } catch (Throwable $e) { /* fallback */ }
+        $defL = email_template_defaults_lang($lang)[$klic] ?? null;
+        if ($defL) return ['predmet' => $defL['predmet'], 'telo' => $defL['telo'], 'format' => 'text', 'aktivni' => 1, 'jazyk' => $lang];
+    }
     try {
         $stmt = $pdo->prepare("SELECT predmet, telo, format, aktivni FROM email_templates WHERE klic = :k");
         $stmt->execute(['k' => $klic]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($row && (int)$row['aktivni'] === 1) return $row;
+        if ($row && (int)$row['aktivni'] === 1) return $row + ['jazyk' => 'cs'];
     } catch (Throwable $e) { /* fallback */ }
     $defs = email_template_defaults();
     $def = $defs[$klic] ?? ['predmet' => '', 'telo' => '', 'aktivni' => 1];
     $def['format'] = 'text';
+    $def['jazyk'] = 'cs';
     return $def;
 }
 
 /**
  * Nahradí {proměnné} v textu hodnotami z $vars.
  * Speciální: {poznamka_block} se nahrazuje za "\nPoznámka: ...\n" pokud existuje, jinak "".
+ * $lang = jazyk šablony (popisek „Poznámka").
  */
-function email_template_render(string $text, array $vars): string {
-    // Speciální: poznamka_block
+function email_template_render(string $text, array $vars, string $lang = 'cs', string $format = 'text'): string {
+    // 🔒 v3.0.643 — HTML šablona: hodnoty escapovat (poznámka/název odběratele nesmí vložit HTML),
+    //   řádky nechává (HTML návrhy dávají {polozky_text} do <pre> s pre-wrap). Dosazení najednou (strtr)
+    //   → {proměnná} uvnitř hodnoty se už nerozvine.
+    $html = ($format === 'html');
+    $esc = fn($v) => $html ? htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8') : (string) $v;
+    $map = [];
     if (strpos($text, '{poznamka_block}') !== false) {
         $pozn = trim($vars['poznamka'] ?? '');
-        $block = $pozn !== '' ? "\nPoznámka: $pozn\n" : '';
-        $text = str_replace('{poznamka_block}', $block, $text);
+        $label = 'Poznámka';
+        if ($lang !== 'cs') { email_i18n_boot(); $label = _t_lang($lang, 'Poznámka'); }
+        $map['{poznamka_block}'] = $pozn !== '' ? $esc("\n$label: $pozn\n") : '';
     }
-    foreach ($vars as $k => $v) {
-        $text = str_replace('{' . $k . '}', (string) $v, $text);
+    foreach ($vars as $k => $v) $map['{' . $k . '}'] = $esc($v);
+    return strtr($text, $map);
+}
+
+/** Popisek stavu objednávky pro {stav} a push (česky jako dřív, jinak přeložený). */
+function email_stav_label(string $stav, string $lang = 'cs'): string {
+    $stavLabels = [
+        'nova'        => 'přijata',
+        'potvrzena'   => 'potvrzena',
+        've_vyrobe'   => 've výrobě',
+        'pripravena'  => 'připravena k expedici',
+        'expedovana'  => 'EXPEDOVÁNA',
+        'dorucena'    => 'DORUČENA',
+        'zrusena'     => 'ZRUŠENA',
+    ];
+    if (!isset($stavLabels[$stav])) return $stav;
+    if ($lang === 'cs') return $stavLabels[$stav];
+    email_i18n_boot();
+    return _t_lang($lang, $stavLabels[$stav]);
+}
+
+/**
+ * 🌍💱 v3.0.643 — proměnné šablony objednávky v jazyce $lang a v MĚNĚ OBJEDNÁVKY.
+ * $o = řádek objednavky (+ odb_nazev, misto_nazev). $polozky = řádky položek (nazev, mnozstvi,
+ * cena_bez_dph, sazba_dph, jednotka) — když null, {polozky_text} se nepočítá.
+ * Částky = mena_doc_pole (shodně s PDF a B2B); řádky v cizí měně = mena_doklad_polozky.
+ * Česká objednávka v Kč dává PŘESNĚ stejné texty jako před v3.0.643.
+ */
+function email_obj_vars(PDO $pdo, array $o, ?array $polozky, string $lang): array {
+    email_i18n_boot();
+    $rows = [['id' => (int) $o['id']]];
+    mena_doc_pole($pdo, 'objednavky', $rows);
+    $doc = $rows[0];
+    $mena = $doc['doc_mena'] ?? 'CZK';
+    $penize = fn($n) => _fmt_money_loc($n, $lang, $mena);
+    if (!isset($doc['doc_celkem'])) {   // objednávka nenačtena (nemělo by nastat) → uložené částky
+        $doc['doc_celkem'] = (float) $o['castka_celkem'];
+        $doc['doc_bez'] = (float) $o['castka_bez_dph'];
+        $doc['doc_dph'] = (float) $o['castka_dph'];
     }
-    return $text;
+
+    $vars = [
+        'firma'          => nastaveni_get($pdo, 'firma_nazev', 'Provoz'),
+        'cislo'          => $o['cislo'],
+        'datum'          => _fmt_date_loc($o['datum_dodani'], $lang),
+        'misto'          => ($o['misto_nazev'] ?? '') ?: '—',
+        'odberatel'      => $o['odb_nazev'] ?? '',
+        'castka_bez_dph' => $penize($doc['doc_bez']),
+        'castka_dph'     => $penize($doc['doc_dph']),
+        'castka_celkem'  => $penize($doc['doc_celkem']),
+        'poznamka'       => $o['poznamka'] ?? '',
+    ];
+
+    if ($polozky !== null) {
+        [$dec, $thou] = _num_seps($lang);
+        $text = '';
+        $calc = null;
+        if ($mena !== 'CZK') {
+            $m = mena_doklad_ro($pdo, $o);
+            $calc = mena_doklad_polozky(array_map(fn($p) => [(float) $p['mnozstvi'], (float) $p['cena_bez_dph'], (float) $p['sazba_dph']], $polozky), $m);
+        }
+        foreach (array_values($polozky) as $i => $p) {
+            $mn = rtrim(rtrim(number_format((float) $p['mnozstvi'], 2, $dec, $thou), '0'), $dec);
+            $jed = _unit_loc($p['jednotka'] ?? 'ks', $lang);
+            if ($calc) {
+                $cena = $calc['polozky'][$i]['cena'];
+                $celkem = $calc['polozky'][$i]['zaklad'] + $calc['polozky'][$i]['dph'];
+            } else {
+                $cena = (float) $p['cena_bez_dph'];
+                $celkem = $cena * (float) $p['mnozstvi'] * (1 + (float) $p['sazba_dph'] / 100);
+            }
+            $text .= sprintf("  • %s — %s %s × %s = %s\n", $p['nazev'], $mn, $jed, $penize($cena), $penize($celkem));
+        }
+        $vars['polozky_text'] = $text;
+    }
+    return $vars;
+}
+
+/**
+ * Sestaví e-mail + push potvrzení nové objednávky BEZ odeslání (pro notifikaci i testy).
+ * → null (objednávka nenalezena) | ['odberatel_id','jazyk','predmet','telo','format','push']
+ */
+function notif_render_nova(PDO $pdo, int $obj_id, ?string $lang = null): ?array {
+    $stmt = $pdo->prepare("
+        SELECT o.*, od.nazev AS odb_nazev, md.nazev AS misto_nazev
+        FROM objednavky o
+        JOIN odberatele od ON od.id = o.odberatel_id
+        LEFT JOIN mista_dodani md ON md.id = o.misto_dodani_id
+        WHERE o.id = :id
+    ");
+    $stmt->execute(['id' => $obj_id]);
+    $o = $stmt->fetch();
+    if (!$o) return null;
+
+    $stmt = $pdo->prepare("
+        SELECT op.mnozstvi, op.cena_bez_dph, op.sazba_dph,
+               COALESCE(v.nazev, op.vyrobek_nazev) AS nazev,
+               v.cislo,
+               COALESCE(j.kod, op.jednotka) AS jednotka
+        FROM objednavky_polozky op
+        LEFT JOIN vyrobky v ON v.id = op.vyrobek_id
+        LEFT JOIN jednotky j ON j.id = v.jednotka_id
+        WHERE op.objednavka_id = :id
+        ORDER BY nazev
+    ");
+    $stmt->execute(['id' => $obj_id]);
+    $polozky = $stmt->fetchAll();
+
+    $lang = $lang ?? email_lang_odberatele($pdo, (int) $o['odberatel_id']);   // $lang = jen pro testy/náhled
+    // 📝 Render šablony z DB (s fallbackem na default) — v jazyce odběratele
+    $tpl = email_template_load($pdo, 'objednavka_nova', $lang);
+    $tLang = $tpl['jazyk'] ?? 'cs';   // jazyk, ve kterém šablona skutečně je (fallback = čeština)
+    $vars = email_obj_vars($pdo, $o, $polozky, $tLang);
+    return [
+        'odberatel_id' => (int) $o['odberatel_id'],
+        'jazyk'   => $tLang,
+        'vars'    => $vars,
+        'predmet' => email_template_render($tpl['predmet'], $vars, $tLang),
+        'telo'    => email_template_render($tpl['telo'], $vars, $tLang, $tpl['format'] ?? 'text'),
+        'format'  => $tpl['format'] ?? 'auto',
+        // 📱 PWA push notifikace (paralelně s emailem — bonus)
+        'push'    => [
+            'title' => '✓ ' . _t_lang($lang, 'Objednávka přijata'),
+            'body'  => _t_lang($lang, 'Vaše obj. {cislo} byla přijata. Dodání: {datum}',
+                               ['cislo' => $o['cislo'], 'datum' => _fmt_date_loc($o['datum_dodani'], $lang)]),
+            'url'   => '/',
+            'typ'   => 'objednavka_nova',
+        ],
+    ];
 }
 
 /**
@@ -1386,73 +1733,76 @@ function notifikace_nova_objednavka(PDO $pdo, int $obj_id): void {
     if (!notif_zapnuto($pdo, 'notif_nova_objednavka', '1')) return;
 
     try {
-        $stmt = $pdo->prepare("
-            SELECT o.*, od.nazev AS odb_nazev, md.nazev AS misto_nazev
-            FROM objednavky o
-            JOIN odberatele od ON od.id = o.odberatel_id
-            LEFT JOIN mista_dodani md ON md.id = o.misto_dodani_id
-            WHERE o.id = :id
-        ");
-        $stmt->execute(['id' => $obj_id]);
-        $o = $stmt->fetch();
-        if (!$o) return;
-
-        $emaily = notif_email_odberatele($pdo, (int) $o['odberatel_id']);
+        $oid = $pdo->prepare("SELECT odberatel_id FROM objednavky WHERE id = :id");
+        $oid->execute(['id' => $obj_id]);
+        $odbId = (int) $oid->fetchColumn();
+        if (!$odbId) return;
+        $emaily = notif_email_odberatele($pdo, $odbId);
         if (empty($emaily)) return;
 
-        $stmt = $pdo->prepare("
-            SELECT op.mnozstvi, op.cena_bez_dph, op.sazba_dph,
-                   COALESCE(v.nazev, op.vyrobek_nazev) AS nazev,
-                   v.cislo,
-                   COALESCE(j.kod, op.jednotka) AS jednotka
-            FROM objednavky_polozky op
-            LEFT JOIN vyrobky v ON v.id = op.vyrobek_id
-            LEFT JOIN jednotky j ON j.id = v.jednotka_id
-            WHERE op.objednavka_id = :id
-            ORDER BY nazev
-        ");
-        $stmt->execute(['id' => $obj_id]);
-        $polozky = $stmt->fetchAll();
-
-        // 📝 Render šablony z DB (s fallbackem na default)
-        $tpl = email_template_load($pdo, 'objednavka_nova');
-        $polozky_text = '';
-        foreach ($polozky as $p) {
-            $mn = rtrim(rtrim(number_format((float) $p['mnozstvi'], 2, ',', ' '), '0'), ',');
-            $jed = $p['jednotka'] ?? 'ks';
-            $cena = (float) $p['cena_bez_dph'];
-            $celkem = $cena * (float) $p['mnozstvi'] * (1 + (float) $p['sazba_dph'] / 100);
-            $polozky_text .= sprintf("  • %s — %s %s × %s = %s\n",
-                $p['nazev'], $mn, $jed, fmt_kc($cena), fmt_kc($celkem));
-        }
-        $vars = [
-            'firma'          => nastaveni_get($pdo, 'firma_nazev', 'Provoz'),
-            'cislo'          => $o['cislo'],
-            'datum'          => fmt_date($o['datum_dodani']),
-            'misto'          => $o['misto_nazev'] ?: '—',
-            'odberatel'      => $o['odb_nazev'],
-            'polozky_text'   => $polozky_text,
-            'castka_bez_dph' => fmt_kc($o['castka_bez_dph']),
-            'castka_dph'     => fmt_kc($o['castka_dph']),
-            'castka_celkem'  => fmt_kc($o['castka_celkem']),
-            'poznamka'       => $o['poznamka'] ?? '',
-        ];
-        $predmet = email_template_render($tpl['predmet'], $vars);
-        $telo    = email_template_render($tpl['telo'], $vars);
-        $format  = $tpl['format'] ?? 'auto';
-
-        poslat_email($emaily, $predmet, $telo, $format);
-
-        // 📱 PWA push notifikace (paralelně s emailem — bonus)
-        notif_push_odberateli($pdo, (int) $o['odberatel_id'], [
-            'title' => '✓ Objednávka přijata',
-            'body'  => "Vaše obj. {$o['cislo']} byla přijata. Dodání: " . fmt_date($o['datum_dodani']),
-            'url'   => '/',
-            'typ'   => 'objednavka_nova',
-        ]);
+        $r = notif_render_nova($pdo, $obj_id);
+        if (!$r) return;
+        poslat_email($emaily, $r['predmet'], $r['telo'], $r['format']);
+        notif_push_odberateli($pdo, $r['odberatel_id'], $r['push']);
     } catch (Throwable $e) {
         error_log('notifikace_nova_objednavka: ' . $e->getMessage());
     }
+}
+
+/**
+ * Sestaví e-mail + push o změně stavu objednávky na $novy BEZ odeslání.
+ * → null | ['odberatel_id','jazyk','predmet','telo','format','push']
+ */
+function notif_render_stav(PDO $pdo, int $obj_id, string $novy, ?string $lang = null): ?array {
+    $stmt = $pdo->prepare("
+        SELECT o.*, od.nazev AS odb_nazev, md.nazev AS misto_nazev
+        FROM objednavky o
+        JOIN odberatele od ON od.id = o.odberatel_id
+        LEFT JOIN mista_dodani md ON md.id = o.misto_dodani_id
+        WHERE o.id = :id
+    ");
+    $stmt->execute(['id' => $obj_id]);
+    $o = $stmt->fetch();
+    if (!$o) return null;
+
+    // 📝 Mapování stav → klíč šablony
+    $stavToKey = [
+        'potvrzena'  => 'objednavka_potvrzena',
+        've_vyrobe'  => 'objednavka_ve_vyrobe',
+        'pripravena' => 'objednavka_pripravena',
+        'expedovana' => 'objednavka_expedovana',
+        'dorucena'   => 'objednavka_dorucena',
+        'zrusena'    => 'objednavka_zrusena',
+    ];
+    $tplKey = $stavToKey[$novy] ?? 'objednavka_potvrzena';
+    $lang = $lang ?? email_lang_odberatele($pdo, (int) $o['odberatel_id']);   // $lang = jen pro testy/náhled
+    $tpl = email_template_load($pdo, $tplKey, $lang);
+    $tLang = $tpl['jazyk'] ?? 'cs';
+
+    $vars = email_obj_vars($pdo, $o, null, $tLang);
+    $vars['stav'] = email_stav_label($novy, $tLang);
+
+    // 📱 PWA push notifikace — paralelně s emailem
+    $pushIkony = [
+        'potvrzena'  => '✓', 've_vyrobe' => '🔥', 'pripravena' => '📦',
+        'expedovana' => '🚚', 'dorucena'  => '✅', 'zrusena'    => '❌',
+    ];
+    $ikona = $pushIkony[$novy] ?? '📬';
+    return [
+        'odberatel_id' => (int) $o['odberatel_id'],
+        'jazyk'   => $tLang,
+        'vars'    => $vars,
+        'predmet' => email_template_render($tpl['predmet'], $vars, $tLang),
+        'telo'    => email_template_render($tpl['telo'], $vars, $tLang, $tpl['format'] ?? 'text'),
+        'format'  => $tpl['format'] ?? 'auto',
+        'push'    => [
+            'title' => "$ikona " . _t_lang($lang, 'Objednávka {cislo}', ['cislo' => $o['cislo']]),
+            'body'  => _t_lang($lang, 'Stav: {stav} · Dodání: {datum}',
+                               ['stav' => email_stav_label($novy, $lang), 'datum' => _fmt_date_loc($o['datum_dodani'], $lang)]),
+            'url'   => '/',
+            'typ'   => "stav_$novy",
+        ],
+    ];
 }
 
 /**
@@ -1468,73 +1818,17 @@ function notifikace_zmena_stavu(PDO $pdo, int $obj_id, string $stary, string $no
     if (!in_array($novy, $stavy_aktivni, true)) return;
 
     try {
-        $stmt = $pdo->prepare("
-            SELECT o.*, od.nazev AS odb_nazev, md.nazev AS misto_nazev
-            FROM objednavky o
-            JOIN odberatele od ON od.id = o.odberatel_id
-            LEFT JOIN mista_dodani md ON md.id = o.misto_dodani_id
-            WHERE o.id = :id
-        ");
-        $stmt->execute(['id' => $obj_id]);
-        $o = $stmt->fetch();
-        if (!$o) return;
-
-        $emaily = notif_email_odberatele($pdo, (int) $o['odberatel_id']);
+        $oid = $pdo->prepare("SELECT odberatel_id FROM objednavky WHERE id = :id");
+        $oid->execute(['id' => $obj_id]);
+        $odbId = (int) $oid->fetchColumn();
+        if (!$odbId) return;
+        $emaily = notif_email_odberatele($pdo, $odbId);
         if (empty($emaily)) return;
 
-        $stavLabels = [
-            'nova'        => 'přijata',
-            'potvrzena'   => 'potvrzena',
-            've_vyrobe'   => 've výrobě',
-            'pripravena'  => 'připravena k expedici',
-            'expedovana'  => 'EXPEDOVÁNA',
-            'dorucena'    => 'DORUČENA',
-            'zrusena'     => 'ZRUŠENA',
-        ];
-        $stavTxt = $stavLabels[$novy] ?? $novy;
-
-        // 📝 Mapování stav → klíč šablony
-        $stavToKey = [
-            'potvrzena'  => 'objednavka_potvrzena',
-            've_vyrobe'  => 'objednavka_ve_vyrobe',
-            'pripravena' => 'objednavka_pripravena',
-            'expedovana' => 'objednavka_expedovana',
-            'dorucena'   => 'objednavka_dorucena',
-            'zrusena'    => 'objednavka_zrusena',
-        ];
-        $tplKey = $stavToKey[$novy] ?? 'objednavka_potvrzena';
-        $tpl = email_template_load($pdo, $tplKey);
-
-        $vars = [
-            'firma'          => nastaveni_get($pdo, 'firma_nazev', 'Provoz'),
-            'cislo'          => $o['cislo'],
-            'datum'          => fmt_date($o['datum_dodani']),
-            'misto'          => $o['misto_nazev'] ?: '—',
-            'odberatel'      => $o['odb_nazev'] ?? '',
-            'stav'           => $stavTxt,
-            'castka_celkem'  => fmt_kc($o['castka_celkem']),
-            'castka_bez_dph' => fmt_kc($o['castka_bez_dph']),
-            'castka_dph'     => fmt_kc($o['castka_dph']),
-            'poznamka'       => $o['poznamka'] ?? '',
-        ];
-        $predmet = email_template_render($tpl['predmet'], $vars);
-        $telo    = email_template_render($tpl['telo'], $vars);
-        $format  = $tpl['format'] ?? 'auto';
-
-        poslat_email($emaily, $predmet, $telo, $format);
-
-        // 📱 PWA push notifikace — paralelně s emailem
-        $pushIkony = [
-            'potvrzena'  => '✓', 've_vyrobe' => '🔥', 'pripravena' => '📦',
-            'expedovana' => '🚚', 'dorucena'  => '✅', 'zrusena'    => '❌',
-        ];
-        $ikona = $pushIkony[$novy] ?? '📬';
-        notif_push_odberateli($pdo, (int) $o['odberatel_id'], [
-            'title' => "$ikona Objednávka {$o['cislo']}",
-            'body'  => "Stav: $stavTxt · Dodání: " . fmt_date($o['datum_dodani']),
-            'url'   => '/',
-            'typ'   => "stav_$novy",
-        ]);
+        $r = notif_render_stav($pdo, $obj_id, $novy);
+        if (!$r) return;
+        poslat_email($emaily, $r['predmet'], $r['telo'], $r['format']);
+        notif_push_odberateli($pdo, $r['odberatel_id'], $r['push']);
     } catch (Throwable $e) {
         error_log('notifikace_zmena_stavu: ' . $e->getMessage());
     }
