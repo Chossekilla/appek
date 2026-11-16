@@ -18,7 +18,8 @@
  *   sazby DPH          → rateVAT high (21 %) / low (12 %, dř. 15 %) / third (10 %) / none (0 %)
  *   ceny               → bez DPH (payVAT=false), základ + DPH každé položky dopočtené tak,
  *                        aby rekapitulace přesně odpovídala PDF faktury; souhrn bez zaokrouhlení
- *   měna               → domácí (CZK) — APPEK doklady vystavuje v Kč
+ *   měna               → domácí (CZK); doklad v cizí měně (v3.0.640) navíc foreignCurrency
+ *                        u položek + v souhrnu (currency/rate/amount/priceSum) — Kč částky zůstávají
  *
  * mServer: POST {url}/xml, Content-Type text/xml, hlavička STW-Authorization: Basic base64(user:heslo),
  *          test spojení GET {url}/status?companyDetail. Odpověď = rsp:responsePack (state ok|error).
@@ -158,9 +159,11 @@ function pohoda_xml_invoice(array $inv, array $opt = []): array {
         . '<inv:intNote>' . pohoda_x('Export z APPEK (id ' . (int) $inv['id'] . ')') . '</inv:intNote>'
         . '</inv:invoiceHeader>';
 
+    $cizi = $inv['cizi'] ?? null;   // 💱 v3.0.640 — doklad v cizí měně (EUR…): částky i v ní + kurz
     if ($inv['polozky']) {
         $x .= '<inv:invoiceDetail>';
-        foreach ($inv['polozky'] as $p) {
+        foreach ($inv['polozky'] as $ix => $p) {
+            $pc = $cizi['polozky'][$ix] ?? null;
             $x .= '<inv:invoiceItem>'
                 . '<inv:text>' . pohoda_x($p['nazev'], 90) . '</inv:text>'
                 . '<inv:quantity>' . ucetni_num($p['mnozstvi'], 3) . '</inv:quantity>'
@@ -173,6 +176,12 @@ function pohoda_xml_invoice(array $inv, array $opt = []): array {
                 .   '<typ:priceVAT>' . ucetni_num($p['dph'], 2) . '</typ:priceVAT>'
                 .   '<typ:priceSum>' . ucetni_num($p['zaklad'] + $p['dph'], 2) . '</typ:priceSum>'
                 . '</inv:homeCurrency>'
+                . ($pc ? '<inv:foreignCurrency>'
+                    .   '<typ:unitPrice>' . ucetni_num($pc['cena_mj'], 2) . '</typ:unitPrice>'
+                    .   '<typ:price>' . ucetni_num($pc['zaklad'], 2) . '</typ:price>'
+                    .   '<typ:priceVAT>' . ucetni_num($pc['dph'], 2) . '</typ:priceVAT>'
+                    .   '<typ:priceSum>' . ucetni_num($pc['zaklad'] + $pc['dph'], 2) . '</typ:priceSum>'
+                    . '</inv:foreignCurrency>' : '')
                 . ($p['poznamka'] !== '' ? '<inv:note>' . pohoda_x($p['poznamka'], 90) . '</inv:note>' : '')
                 . ($p['kod'] !== '' ? '<inv:code>' . pohoda_x($p['kod'], 64) . '</inv:code>' : '')
                 . '</inv:invoiceItem>';
@@ -207,6 +216,12 @@ function pohoda_xml_invoice(array $inv, array $opt = []): array {
               . '</typ:price3VAT><typ:price3Sum>' . ucetni_num($g['third'][0] + $g['third'][1]) . '</typ:price3Sum>'
             : '')
         . '</inv:homeCurrency>'
+        . ($cizi ? '<inv:foreignCurrency>'
+            . '<typ:currency><typ:ids>' . pohoda_x($cizi['mena'], 3) . '</typ:ids></typ:currency>'
+            . '<typ:rate>' . ucetni_num($cizi['kurz'], 3) . '</typ:rate>'
+            . '<typ:amount>1</typ:amount>'
+            . '<typ:priceSum>' . ucetni_num($cizi['celkem'], 2) . '</typ:priceSum>'
+            . '</inv:foreignCurrency>' : '')
         . '</inv:invoiceSummary>';
     $x .= '</inv:invoice>';
     return ['ok' => true, 'xml' => $x];

@@ -97,6 +97,32 @@ if (!function_exists('mena_config_load')) {
     }
 
     /**
+     * Doklad v cizí měně jako „nativní" doklad v ní — STEJNÝ výpočet jako účetní programy
+     * (ověřeno živě proti FlexiBee): jednotková cena zaokrouhlená na 2 místa, řádek = round(mn × cena),
+     * DPH po řádcích round(řádek × sazba), součty po sazbách. Kč (rekapitulace §29 ZDPH, export) = ×kurz.
+     * $polozky = [[mnozstvi, cena (v uložené měně), sazba], …] ve stejném pořadí jako na dokladu.
+     */
+    function mena_doklad_polozky(array $polozky, array $m): array {
+        $k = (float) $m['k_doklad']; $kurz = (float) $m['mena_kurz'];
+        $out = []; $rozpis = [];
+        foreach ($polozky as $i => [$mn, $cena, $sazba]) {
+            $c = round((float) $cena * $k, 2);
+            $z = round((float) $mn * $c, 2);
+            $d = round($z * (float) $sazba / 100, 2);
+            $out[$i] = ['cena' => $c, 'zaklad' => $z, 'dph' => $d];
+            $key = (string) (0 + (float) $sazba);
+            if (!isset($rozpis[$key])) $rozpis[$key] = ['bez' => 0.0, 'dph' => 0.0];
+            $rozpis[$key]['bez'] = round($rozpis[$key]['bez'] + $z, 2);
+            $rozpis[$key]['dph'] = round($rozpis[$key]['dph'] + $d, 2);
+        }
+        $czk = [];
+        foreach ($rozpis as $key => $r) $czk[$key] = ['bez' => round($r['bez'] * $kurz, 2), 'dph' => round($r['dph'] * $kurz, 2)];
+        $bez = round(array_sum(array_column($rozpis, 'bez')), 2);
+        $dph = round(array_sum(array_column($rozpis, 'dph')), 2);
+        return ['polozky' => $out, 'rozpis' => $rozpis, 'rozpis_czk' => $czk, 'bez' => $bez, 'dph' => $dph, 'celkem' => round($bez + $dph, 2)];
+    }
+
+    /**
      * Rozpis DPH {sazba:{bez,dph}} (v uložené měně) → měna dokladu, s haléřovým/centovým
      * zbytkem v sazbě s největším základem, aby Σ rozpisu = celkem dokladu přesně.
      */

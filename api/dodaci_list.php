@@ -417,19 +417,23 @@ $_cislo_zobrazit = $_is_objednavka_view ? ($o['cislo'] ?: $cislo_dl) : $cislo_dl
   <table class="items">
     <thead><tr><th style="width:18mm"><?= esc(_t('Kód')) ?></th><th><?= esc(_t('Výrobek')) ?></th><th class="num" style="width:24mm"><?= esc(_t('Množství')) ?></th><th class="num" style="width:26mm"><?= esc(_t('Cena/ks')) ?></th><th class="num" style="width:30mm"><?= esc(_t('Celkem')) ?></th></tr></thead>
     <tbody>
-      <?php foreach ($polozky as $p): $cena = $p['cena_bez_dph'] * $p['mnozstvi']; ?>
+      <?php
+        // 💱 cizí měna = stejný výpočet jako faktura (cena/ks na centy, řádek = mn × cena)
+        $mDl = doc_mena(); $calcDl = $mDl['mena'] !== 'CZK'
+            ? mena_doklad_polozky(array_map(fn($p) => [$p['mnozstvi'], $p['cena_bez_dph'], $p['sazba_dph'] ?? 0], $polozky), $mDl) : null;
+        foreach ($polozky as $iDl => $p): $cena = $p['cena_bez_dph'] * $p['mnozstvi']; ?>
         <tr>
           <td><?= esc($p['vyrobek_cislo']) ?></td>
           <td><strong><?= esc($p['vyrobek_nazev']) ?></strong></td>
           <td class="num"><?= _fmt_qty_loc($p['mnozstvi']) ?> <?= esc(_unit_loc($p['jednotka'] ?? 'ks')) ?></td>
-          <td class="num"><?= doc_money($p['cena_bez_dph']) ?></td>
-          <td class="num"><strong><?= doc_money($cena) ?></strong></td>
+          <td class="num"><?= $calcDl ? doc_money_raw($calcDl['polozky'][$iDl]['cena']) : doc_money($p['cena_bez_dph']) ?></td>
+          <td class="num"><strong><?= $calcDl ? doc_money_raw($calcDl['polozky'][$iDl]['zaklad']) : doc_money($cena) ?></strong></td>
         </tr>
       <?php endforeach; ?>
     </tbody>
   </table>
   <div class="summary">
-    <div class="summary-row total"><span><?= esc(_t('Celkem bez DPH')) ?></span><span><?= doc_money($celkem_kc) ?></span></div>
+    <div class="summary-row total"><span><?= esc(_t('Celkem bez DPH')) ?></span><span><?= $calcDl ? doc_money_raw($calcDl['bez']) : doc_money($celkem_kc) ?></span></div>
   </div>
   <div style="clear:both"></div>
   <?php if ($o['poznamka']): ?><div class="pozn"><strong><?= esc(_t('Poznámka')) ?>:</strong> <?= esc($o['poznamka']) ?></div><?php endif; ?>

@@ -416,9 +416,25 @@ function ucetni_nacti_fakturu(PDO $pdo, int $id): ?array {
         $puvodni = $st->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
-    $bez = round((float) $f['castka_bez_dph'], 2);
-    $dph = round((float) $f['castka_dph'], 2);
-    $cel = round((float) $f['castka_celkem'], 2);
+    // 💱 v3.0.640 — měna dokladu (snapshot). Účetnictví vede doklad v Kč (domácí měna) + u cizí
+    //   měny i částky v ní a kurz. Částky v DB jsou v `mena_zaklad` → Kč = ×k_czk, měna dokladu = ×k_doklad.
+    //   Cizí měna = „nativní" doklad v ní (mena_doklad_polozky — totéž počítá PDF faktury i FlexiBee/
+    //   POHODA: cena/ks na centy, DPH po řádcích). Kč = částky v cizí měně × kurz (rekapitulace na PDF).
+    require_once __DIR__ . '/_mena_lib.php';
+    $mena = mena_doklad($pdo, 'faktury', $f);
+    $calc = null;
+    if ($mena['mena'] !== 'CZK') {
+        $calc = mena_doklad_polozky(array_map(fn($pp) => [$pp['mnozstvi'], $pp['cena_mj'], $pp['sazba']], $polozky), $mena);
+        $kurzM = (float) $mena['mena_kurz'];
+        foreach ($polozky as $i => $pp) $polozky[$i]['cena_mj'] = round($calc['polozky'][$i]['cena'] * $kurzM, 6);
+        $bez = round(array_sum(array_column($calc['rozpis_czk'], 'bez')), 2);
+        $dph = round(array_sum(array_column($calc['rozpis_czk'], 'dph')), 2);
+        $cel = round($bez + $dph, 2);
+    } else {
+        $bez = round((float) $f['castka_bez_dph'], 2);
+        $dph = round((float) $f['castka_dph'], 2);
+        $cel = round((float) $f['castka_celkem'], 2);
+    }
     $varovani = [];
     $rekap = ucetni_rekapitulace($polozky, $bez, $dph);
     if ($polozky) {
@@ -448,7 +464,8 @@ function ucetni_nacti_fakturu(PDO $pdo, int $id): ?array {
         'datum_dph'        => (string) ($f['datum_dph'] ?: $f['datum_vystaveni']),
         'datum_splatnosti' => (string) ($f['datum_splatnosti'] ?: $f['datum_vystaveni']),
         'vs'               => $vs,
-        'mena'             => 'CZK', // APPEK vystavuje doklady v domácí měně (PDF = Kč; přepočet měny je jen informativní)
+        'mena'             => $mena['mena'],            // měna dokladu (PDF); částky níže jsou v Kč
+        'kurz'             => $mena['mena'] === 'CZK' ? 1.0 : (float) $mena['mena_kurz'],
         'platba'           => ucetni_platba_kod($zpusob),
         'poznamka'         => ucetni_clean($f['poznamka'] ?? '', 1000),
         'objednavky'       => array_values(array_unique($objednavky)),
@@ -472,6 +489,21 @@ function ucetni_nacti_fakturu(PDO $pdo, int $id): ?array {
         'celkem'           => $cel,
         'varovani'         => $varovani,
     ];
+    // 💱 částky v cizí měně dokladu — STEJNÝ výpočet jako PDF (rozpis per sazba ze zaokrouhlených
+    //   součtů, zbytek do největší sazby) → účetnictví ukáže přesně „K úhradě" z faktury.
+    if ($calc) {
+        $rekM = [];
+        foreach ($calc['rozpis'] as $sz => $r) $rekM[ucetni_num((float) $sz, 2)] = ['sazba' => (float) $sz, 'zaklad' => $r['bez'], 'dph' => $r['dph']];
+        $inv['cizi'] = [
+            'mena'         => $mena['mena'],
+            'kurz'         => (float) $mena['mena_kurz'],
+            'polozky'      => array_map(fn($c) => ['cena_mj' => $c['cena'], 'zaklad' => $c['zaklad'], 'dph' => $c['dph']], $calc['polozky']),
+            'rekapitulace' => $rekM,
+            'celkem_bez'   => $calc['bez'],
+            'celkem_dph'   => $calc['dph'],
+            'celkem'       => $calc['celkem'],
+        ];
+    }
     $inv['hash'] = ucetni_hash($inv);
     return $inv;
 }

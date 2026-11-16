@@ -13,7 +13,7 @@
  *                     (nastavení flexibee_typ_dobropis, jinak auto: DOBROPIS / první dobropisový typ)
  *   sazby → typSzbDph.dphZakl (21 %) / dphSniz (12 %, 15 %) / dphSniz2 (10 %) / dphOsv (0 %)
  *   platba → formaUhradyCis code:PREVOD / HOTOVE / KARTA / DOBIRKA
- *   měna → code:CZK; zaokrouhlení dokladu vypnuto (APPEK nezaokrouhluje), DPH na haléře
+ *   měna → code:CZK, u dokladu v cizí měně code:EUR… + kurz, ceny položek v ní (v3.0.640); zaokrouhlení dokladu vypnuto (APPEK nezaokrouhluje), DPH na haléře
  *
  * Builder funkce (flexi_build_*) jsou čisté → testovatelné bez sítě.
  */
@@ -105,7 +105,7 @@ function flexi_build_invoice(array $inv, array $opt = []): array {
         'datVyst'        => $inv['datum_vystaveni'],
         'duzpPuv'        => $inv['datum_dph'],
         'datSplat'       => $inv['datum_splatnosti'],
-        'mena'           => 'code:CZK',
+        'mena'           => 'code:' . (!empty($inv['cizi']) ? $inv['cizi']['mena'] : 'CZK'),
         'formaUhradyCis' => flexi_forma_uhrady($inv['platba']),
         'firma'          => flexi_ext('odb', (int) $o['id']),
         'nazFirmy'       => ucetni_clean($o['nazev'], 255),
@@ -122,16 +122,19 @@ function flexi_build_invoice(array $inv, array $opt = []): array {
         'zaokrNaDphK'    => 'zaokrNa.setiny',
     ];
     if ($inv['objednavky']) $d['cisObj'] = mb_substr(implode(', ', $inv['objednavky']), 0, 2000);
+    // 💱 v3.0.640 — doklad v cizí měně: kurz + ceny položek v ní (Flexi dopočte Kč kurzem)
+    $cizi = $inv['cizi'] ?? null;
+    if ($cizi) { $d['kurz'] = round((float) $cizi['kurz'], 4); $d['kurzMnozstvi'] = 1; }
 
     if (!$inv['polozky']) {
         return ['ok' => false, 'error' => 'Faktura nemá žádné položky — do FlexiBee ji nelze odeslat.'];
     }
     $pol = [];
-    foreach ($inv['polozky'] as $p) {
+    foreach ($inv['polozky'] as $ix => $p) {
         $rate = flexi_rate((float) $p['sazba']);
         if ($rate === null) return ['ok' => false, 'error' => 'Položka „' . $p['nazev'] . '" má sazbu DPH ' . ucetni_num($p['sazba'], 2) . ' %, kterou FlexiBee nezná.'];
         $mn = round((float) $p['mnozstvi'], 3);
-        $cena = round((float) $p['cena_mj'], 2);
+        $cena = $cizi ? round((float) $cizi['polozky'][$ix]['cena_mj'], 2) : round((float) $p['cena_mj'], 2);
         // Flexi u dobropisu vyžaduje ZÁPORNÉ množství a kladnou cenu (APPEK ukládá záporné ceny,
         //   kladné množství) — znaménko součinu zůstane stejné, částky sedí.
         if ($dob && $cena < 0 && $mn > 0) { $mn = -$mn; $cena = -$cena; }

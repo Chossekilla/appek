@@ -320,13 +320,18 @@ function nacti_fakturu(PDO $pdo, int $id): ?array {
         }
     }
     // 💱 v3.0.640 — měna dokladu (snapshot) + rozpis/celkem přepočtené do ní; v cizí měně i rozpis v Kč (§29 ZDPH)
+    //   Cizí měna = „nativní" doklad v ní (cena/ks na centy, DPH po řádcích) → sedí s POHODOU/FlexiBee.
     $mena = mena_doklad($pdo, 'faktury', $f);
-    $bezC = (float) $f['castka_bez_dph']; $dphC = (float) $f['castka_dph'];
-    $rozpisDoc = $mena['k_doklad'] == 1.0 ? $dph_rozpis : mena_prevod_rozpisu($dph_rozpis, $mena['k_doklad'], $bezC, $dphC);
-    $f['_celkem_doc'] = $mena['k_doklad'] == 1.0 ? round((float) $f['castka_celkem'], 2)
-        : round(array_sum(array_column($rozpisDoc, 'bez')) + array_sum(array_column($rozpisDoc, 'dph')), 2);
     $f['_mena'] = $mena['mena'];
-    $rozpisCzk = $mena['mena'] === 'CZK' ? [] : ($mena['k_czk'] == 1.0 ? $dph_rozpis : mena_prevod_rozpisu($dph_rozpis, $mena['k_czk'], $bezC, $dphC));
+    if ($mena['mena'] === 'CZK') {
+        $rozpisDoc = $dph_rozpis; $rozpisCzk = [];
+        $f['_celkem_doc'] = round((float) $f['castka_celkem'], 2);
+    } else {
+        $calc = mena_doklad_polozky(array_map(fn($p) => [$p['mnozstvi'], $p['cena_bez_dph'], $p['sazba_dph']], $polozky), $mena);
+        foreach ($polozky as $i => $p) $polozky[$i]['_doc'] = $calc['polozky'][$i];
+        $rozpisDoc = $calc['rozpis']; $rozpisCzk = $calc['rozpis_czk'];
+        $f['_celkem_doc'] = $calc['celkem'];
+    }
     $lang = doc_lang_resolve($pdo, (int) $f['odberatel_id'], $_GET['lang'] ?? null);
     return ['f' => $f, 'polozky' => $polozky, 'dph_rozpis' => $dph_rozpis, 'dph_rozpis_doc' => $rozpisDoc,
             'dph_rozpis_czk' => $rozpisCzk, 'mena' => $mena, 'lang' => $lang];
@@ -604,9 +609,9 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
             <?php endif; ?>
           </td>
           <td class="num"><?= _fmt_qty_loc($p['mnozstvi']) ?> <?= esc(_unit_loc($p['jednotka'] ?? 'ks')) ?></td>
-          <td class="num"><?= doc_money($p['cena_bez_dph']) ?></td>
+          <td class="num"><?= isset($p['_doc']) ? doc_money_raw($p['_doc']['cena']) : doc_money($p['cena_bez_dph']) ?></td>
           <td class="num"><?= number_format($sazba, 0) ?>%</td>
-          <td class="num"><strong><?= doc_money($bez + $dph) ?></strong></td>
+          <td class="num"><strong><?= isset($p['_doc']) ? doc_money_raw($p['_doc']['zaklad'] + $p['_doc']['dph']) : doc_money($bez + $dph) ?></strong></td>
         </tr>
       <?php endforeach; ?>
     </tbody>
