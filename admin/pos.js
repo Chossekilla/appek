@@ -1449,6 +1449,7 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
           sleva_pct:    State.sleva_pct || 0,
           poznamka:     State.poznamka || '',
           ...(pickup ? { vyzvednuti_cas: pickup.vyzvednuti_cas, vyzvednuti_jmeno: pickup.vyzvednuti_jmeno, vyzvednuti_tel: pickup.vyzvednuti_tel, vyzvednuti_email: pickup.vyzvednuti_email } : {}),
+          ...((State._voucherRedeem && State._voucherRedeem.kod && State.cart.some(it => it.is_voucher)) ? { voucher: { kod: State._voucherRedeem.kod, castka: (State._voucherRedeem.castka ?? State._voucherRedeem.amount) } } : {}),
           ...(plMena ? { platba_mena: plMena, kurz_klient: plMena !== 'CZK' ? (plInfo(plMena) || {}).kurz_prodej : undefined, prijato: plPrijato, vraceni_mena: plVraceni } : {}),
         }),
       });
@@ -1461,7 +1462,8 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
       if (pickup && window.POSPickup) window.POSPickup.refresh();
 
       // 🆕 v3.0.281 — voucher už je řádkem na účtence; teď odečti zůstatek (doklad=číslo).
-      if (State._voucherRedeem && State._voucherRedeem.kod && State.cart.some(it => it.is_voucher)) {
+      // 🎟️ v3.0.643 — voucher odečítá server v transakci prodeje (r.voucher_ok); fallback jen pro starý server
+      if (State._voucherRedeem && State._voucherRedeem.kod && r.voucher_ok === undefined && State.cart.some(it => it.is_voucher)) {
         try {
           await api('admin_vouchers.php?action=redeem', { method: 'POST', body: JSON.stringify({ kod: State._voucherRedeem.kod, castka: (State._voucherRedeem.castka ?? State._voucherRedeem.amount), doklad: r.cislo, kanal: 'pos' }) });
         } catch (e) { toast('⚠️ Účtenka OK, ale voucher se nepodařilo odečíst: ' + (e.message || ''), 'warn'); }

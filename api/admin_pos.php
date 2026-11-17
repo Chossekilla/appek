@@ -1071,6 +1071,12 @@ if ($method === 'POST' && $action === 'merge') {
         $chk = $pdo->prepare("SELECT COUNT(*) FROM restaurant_pos_ucty WHERE id IN ($ph0) AND stav = 'open'");
         $chk->execute($allIds);
         if ((int) $chk->fetchColumn() !== count($allIds)) { $pdo->rollBack(); json_error('Sloučit lze jen otevřené účty (některý je uzavřený)', 409); }
+        // 💱 v3.0.643 — účet s rozjetou QR platbou nesmí změnit obsah (brána by potvrdila jinou částku)
+        try {
+            $pq = $pdo->prepare("SELECT COUNT(*) FROM restaurant_pos_ucty WHERE id IN ($ph0) AND pay_status = 'pending'");
+            $pq->execute($allIds);
+            if ((int) $pq->fetchColumn() > 0) { $pdo->rollBack(); json_error('Některý účet má rozpracovanou QR platbu — nejdřív ji dokončete nebo zrušte, pak slučujte.', 409); }
+        } catch (PDOException $e) { /* bez sloupce pay_status (QR nikdy nepoužito) */ }
         // Re-link položky a platby
         $place = implode(',', array_fill(0, count($sources), '?'));
         $args = array_merge([$target], $sources);
@@ -1739,6 +1745,10 @@ if ($method === 'POST' && $action === 'quick_order') {
         } catch (Throwable $e) { /* soft-fail — pokračujeme bez idempotence */ }
     }
 
+    // 🎟️ v3.0.643 (spec 2.5) — voucher se odečítá UVNITŘ transakce prodeje; DDL musí proběhnout před ní
+    $vchIn = (is_array($data['voucher'] ?? null) && trim((string) ($data['voucher']['kod'] ?? '')) !== '') ? $data['voucher'] : null;
+    if ($vchIn) { require_once __DIR__ . '/_voucher_lib.php'; voucher_ensure_schema($pdo); }
+
     try {
         $pdo->beginTransaction();
 
@@ -1982,6 +1992,17 @@ if ($method === 'POST' && $action === 'quick_order') {
                                     'uzivatel' => $admin_login, 'idem' => 'quick:' . $objId], $mPay, $castkaMena, $hotQ);
         }
 
+        $vchOk = false;
+        if ($vchIn) {
+            try {
+                pos_voucher_redeem_tx($pdo, (string) $vchIn['kod'], (float) ($vchIn['castka'] ?? 0), (string) $cislo, (string) $admin_login);
+                $vchOk = true;
+            } catch (RuntimeException $e) {
+                $pdo->rollBack();
+                json_error('Voucher: ' . $e->getMessage() . ' — prodej nebyl uložen.', 409);
+            }
+        }
+
         $pdo->commit();
 
         // 📦 v3.0.623 — údaje vyzvednutí (samostatně po commitu, migrace soft)
@@ -2046,6 +2067,7 @@ if ($method === 'POST' && $action === 'quick_order') {
             'kurz_prodej' => (float) (($mPay['mena_kurz_prodej'] ?? 0) ?: ($mPay['mena_kurz'] ?? 1)),
             'kurz_datum'  => $mPay['kurz_datum'] ?? null,
         ];
+        if ($vchIn) $response['voucher_ok'] = $vchOk;
         if ($hotQ && $hotQ['prijato'] !== null) $response += ['prijato' => $hotQ['prijato'], 'vraceno' => $hotQ['vraceno'], 'vraceno_mena' => $hotQ['vraceno_mena'], 'vraceno_czk' => $hotQ['vraceno_czk']];
 
         // 🆕 Ulož pro idempotence (pokud klient poslal key)
@@ -2300,7 +2322,7 @@ function pos_ucet_ensure_pay_schema(PDO $pdo): void {
             try { $pdo->exec("ALTER TABLE restaurant_pos_ucty ADD UNIQUE KEY uq_pos_pay_token (pay_token)"); } catch (Throwable $e) {}
         }
         if (!in_array('pay_status', $cols, true)) {
-            $pdo->exec("ALTER TABLE restaurant_pos_ucty ADD COLUMN pay_status ENUM('none','pending','paid') NOT NULL DEFAULT 'none'");
+            $pdo->exec("ALTER TABLE restaurant_pos_ucty ADD COLUMN pay_status ENUM('none','pending','paid','failed') NOT NULL DEFAULT 'none'");
         }
     } catch (Throwable $e) {}
     $done = true;
@@ -2315,17 +2337,29 @@ function pos_finalize_ucet_payment(PDO $pdo, int $ucetId, string $zpusob = 'onli
     $z = $zMap[strtolower($zpusob)] ?? 'online';
     $pdo->beginTransaction();
     try {
-        $lock = $pdo->prepare("SELECT stav, suma_kc, cislo_dokladu FROM restaurant_pos_ucty WHERE id = :id FOR UPDATE");
+        $lock = $pdo->prepare("SELECT * FROM restaurant_pos_ucty WHERE id = :id FOR UPDATE");
         $lock->execute(['id' => $ucetId]);
         $row = $lock->fetch(PDO::FETCH_ASSOC);
         if (!$row) { $pdo->rollBack(); return ['ok' => false, 'error' => 'ucet_not_found']; }
         if ($row['stav'] === 'paid') { $pdo->commit(); return ['ok' => true, 'doklad' => $row['cislo_dokladu'], 'already' => true]; }
         if (!in_array($row['stav'], ['open','awaiting_payment'], true)) { $pdo->rollBack(); return ['ok' => false, 'error' => 'ucet_closed_' . $row['stav']]; }
+        // 💱 v3.0.643 — brána potvrdila pay_castka v pay_mena; účet se mezitím změnil → nefinalizovat
+        $payMena = strtoupper((string) ($row['pay_mena'] ?? '')) ?: 'CZK';
+        if (isset($row['pay_suma_kc']) && $row['pay_suma_kc'] !== null && abs((float) $row['suma_kc'] - (float) $row['pay_suma_kc']) > 0.005) {
+            $pdo->prepare("UPDATE restaurant_pos_ucty SET pay_status = 'failed' WHERE id = :id")->execute(['id' => $ucetId]);
+            $pdo->commit();
+            return ['ok' => false, 'error' => 'ucet_zmenen'];
+        }
         $sumPaid = round((float) $row['suma_kc'], 2);
+        $castkaMena = ($payMena !== 'CZK' && $row['pay_castka'] !== null) ? round((float) $row['pay_castka'], 2) : $sumPaid;
+        $kurzQ = ($payMena !== 'CZK') ? (float) ($row['mena_kurz'] ?? 0) : 1.0;
         $cislo   = pos_next_doklad($pdo);
-        $pdo->prepare("INSERT INTO restaurant_pos_platby (ucet_id, castka, zpusob, doklad_cislo, poznamka)
-                       VALUES (:u, :c, :z, :d, 'QR platba u stolu')")
-            ->execute(['u' => $ucetId, 'c' => $sumPaid, 'z' => $z, 'd' => $cislo]);
+        $pdo->prepare("INSERT INTO restaurant_pos_platby (ucet_id, castka, zpusob, doklad_cislo, poznamka, mena, castka_mena, kurz)
+                       VALUES (:u, :c, :z, :d, 'QR platba u stolu', :m, :cm, :k)")
+            ->execute(['u' => $ucetId, 'c' => $sumPaid, 'z' => $z, 'd' => $cislo, 'm' => $payMena, 'cm' => $castkaMena, 'k' => $kurzQ ?: 1.0]);
+        try { pos_ledger_zapis($pdo, ['zdroj' => 'qr', 'metoda' => pos_ledger_metoda($z), 'ucet_id' => $ucetId, 'uzivatel' => 'QR',
+                                      'idem' => 'qrucet:' . $ucetId], ['mena' => $payMena, 'mena_kurz' => $kurzQ ?: 1.0], $castkaMena); }
+        catch (Throwable $e) { error_log('QR ledger ucet ' . $ucetId . ': ' . $e->getMessage()); }
         $pdo->prepare("UPDATE restaurant_pos_ucty SET stav='paid', zaplaceno_v=NOW(), suma_zaplaceno=:s,
                        cislo_dokladu=:d, pay_status='paid' WHERE id=:id")
             ->execute(['s' => $sumPaid, 'd' => $cislo, 'id' => $ucetId]);
