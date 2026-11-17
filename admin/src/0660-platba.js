@@ -65,6 +65,18 @@ window.posPaymentDialog = async function() {
   `);
 };
 
+// 🐛 v3.0.644 — server odmítne zavřít účet s rozjetou QR platbou hosta (409). Po potvrzení obsluhy
+//   (host na bráně NEzaplatil) pošleme zrusit_qr → QR platba se zruší a účet se zaplatí zvoleným způsobem.
+async function posPayCall(body) {
+  try {
+    return await api('admin_pos.php?action=pay', { method: 'POST', body: JSON.stringify(body) });
+  } catch (e) {
+    if (!/rozpracovanou QR platbu/i.test(e.message || '')) throw e;
+    if (!(await confirmDialog({ msg: 'Host má rozpracovanou QR platbu tohoto účtu.\n\nOvěř, že na bráně NEzaplatil (jinak by zaplatil dvakrát). Zrušit QR platbu a zaplatit teď jinak?', danger: true }))) throw new Error('Zrušeno — QR platba zůstává rozpracovaná');
+    return await api('admin_pos.php?action=pay', { method: 'POST', body: JSON.stringify({ ...body, zrusit_qr: true }) });
+  }
+}
+
 window.posPaySingle = async function(amount, zpusob) {
   const u = posState.currentUcet;
   const pi = window._posPlatbaInfo;
@@ -75,7 +87,7 @@ window.posPaySingle = async function(amount, zpusob) {
     const body = (mena !== 'CZK')
       ? { ucet_id: u.id, payment: zpusob, mena, kurz_klient: inf ? inf.kurz_prodej : undefined, station_token: (localStorage.getItem('appek_station_token') || '') }
       : { ucet_id: u.id, platby: [{ castka: amount, zpusob }], ...((pi && pi.aktivni) ? { mena: 'CZK' } : {}), station_token: (localStorage.getItem('appek_station_token') || '') };
-    const r = await api('admin_pos.php?action=pay', { method: 'POST', body: JSON.stringify(body) });
+    const r = await posPayCall(body);
     // 🆕 v3.0.189 — server účet uzavřel (stav=paid) + uvolnil stůl. Nabídni tisk (ne auto-tisk).
     posPaidPrintPrompt(u.id, mena !== 'CZK' ? r.celkem_mena : amount, mena);
   } catch (e) { alert('Chyba: ' + e.message); if (/kurz/i.test(e.message || '')) posPlatbaInfoLoad(); }
@@ -158,9 +170,7 @@ window.posSubmitSplitPay = async function(total) {
   const pi = window._posPlatbaInfo;
   const mena = (pi && pi.aktivni) ? window.posPlatbaMena : 'CZK';
   try {
-    const r = await api('admin_pos.php?action=pay', {
-      method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby: platby.map(p => ({ ...p, mena })), ...(mena !== 'CZK' ? { mena, kurz_klient: (pi.meny[mena] || {}).kurz_prodej } : ((pi && pi.aktivni) ? { mena: 'CZK' } : {})), station_token: (localStorage.getItem('appek_station_token') || '') }),
-    });
+    const r = await posPayCall({ ucet_id: u.id, platby: platby.map(p => ({ ...p, mena })), ...(mena !== 'CZK' ? { mena, kurz_klient: (pi.meny[mena] || {}).kurz_prodej } : ((pi && pi.aktivni) ? { mena: 'CZK' } : {})), station_token: (localStorage.getItem('appek_station_token') || '') });
     // 🆕 v3.0.189 — sjednoceno s posPaySingle: nabídni tisk + zavři.
     posPaidPrintPrompt(u.id, mena !== 'CZK' ? r.celkem_mena : sum, mena);
   } catch (e) { alert('Chyba: ' + e.message); }

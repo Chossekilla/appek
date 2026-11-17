@@ -717,6 +717,7 @@
   // ─── New order / draft / print / finish ──────────────────────
   function clearOrder() {
     State.cart = [];
+    State._idem = null;   // 🐛 v3.0.644 — nový košík = nový idempotency klíč
     State.odberatel = null;
     State.poznamka = '';
     State.sleva_pct = 0;
@@ -855,9 +856,18 @@
     const btn = $('.pos-finish');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Odesílám…'; }
     try {
+      // 🐛 v3.0.644 — idempotency klíč (dřív se neposílal vůbec): stejný košík = stejný klíč i při opakování
+      //   po výpadku sítě → server vrátí už vytvořenou účtenku místo druhého prodeje. Maže se po úspěchu / clearOrder.
+      const idemSig = JSON.stringify([State.cart.map(it => [it.vyrobek_id, it.nazev, it.mnozstvi, it.cena_bez_dph, it.sazba_dph]),
+        State.odberatel?.id || null, State.pos_typ, State.pos_payment, State.pos_tip || 0, State.sleva_pct || 0, State.poznamka || '',
+        pickup || null, plMena || null]);
+      if (!State._idem || State._idem.sig !== idemSig) {
+        State._idem = { sig: idemSig, key: ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'k_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10)) };
+      }
       const r = await api('admin_pos.php?action=quick_order', {
         method: 'POST',
         body: JSON.stringify({
+          idempotency_key: State._idem.key,
           polozky: State.cart.map(it => ({
             vyrobek_id:   it.vyrobek_id,
             nazev:        it.nazev,
@@ -880,6 +890,7 @@
       if (plMena && !r.nezaplaceno && (r.mena !== 'CZK' || r.vraceno > 0)) {
         toast('✓ Účet ' + r.cislo + ' · ' + plFmt(r.celkem_mena, r.mena) + (r.vraceno > 0 ? ' · VRÁTIT ' + (r.vraceno_czk != null ? Math.round(r.vraceno_czk) + ' Kč' : plFmt(r.vraceno, r.vraceno_mena || r.mena)) : ''), 'success');
       } else toast(r.nezaplaceno ? `📦 Uloženo k vyzvednutí · ${r.cislo} · platí při vyzvednutí ${fmt(r.celkem)} Kč` : `✓ Účet ${r.cislo} · ${fmt(r.celkem)} Kč`, 'success');
+      State._idem = null;   // 🐛 v3.0.644 — prodej potvrzen
       if (pickup && window.POSPickup) window.POSPickup.refresh();
       newOrder();
     } catch (e) {
@@ -978,7 +989,7 @@
         </div>`;
       // 🆕 v3.0.268 — VRATKY: refundace zaplacené účtenky (záporná účtenka VRA-…)
       const foot = `<button class="pos-modal-btn" onclick='POS._printReceipt(${JSON.stringify(o)})'>🖨️ Tisk účtenky</button>`
-        + ((+o.castka_celkem) > 0 ? `<button class="pos-modal-btn" style="color:#DC2626" onclick="POS.refundReceipt(${o.id}, '${esc(o.cislo || '').replace(/'/g, '')}')">↩️ Vrátit</button>` : '');
+        + ((+o.castka_celkem) > 0 && o.vratitelna !== false ? `<button class="pos-modal-btn" style="color:#DC2626" onclick="POS.refundReceipt(${o.id}, '${esc(o.cislo || '').replace(/'/g, '')}')">↩️ Vrátit</button>` : '');
       modal('🧾 ' + o.cislo, body, foot);
     } catch (e) { toast('Chyba: ' + e.message, 'error'); }
   }
@@ -989,7 +1000,7 @@
     if (duvod === null) return;
     const vratitNaSklad = confirm('Vrátit vrácené zboží zpět na sklad?\n\nOK = ano (naskladní vrácené kusy)\nZrušit = ne (jen peníze).');
     try {
-      const r = await api('admin_pos.php?action=refund_order', { method: 'POST', body: JSON.stringify({ objednavka_id: id, duvod: duvod || '', vratit_na_sklad: vratitNaSklad }) });
+      const r = await api('admin_pos.php?action=refund_order', { method: 'POST', body: JSON.stringify({ objednavka_id: id, duvod: duvod || '', vratit_na_sklad: vratitNaSklad, station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })() }) });   // 🐛 v3.0.644 — allowlist
       closeModal();
       toast('✅ Vratka ' + r.cislo + ' (' + fmt(r.castka_celkem) + ' Kč)' + (vratitNaSklad ? (r.restocked > 0 ? ' · 📦 ' + r.restocked + '× na sklad' : ' · sklad beze změny') : ''), 'success');
       if (typeof renderOrders === 'function') renderOrders();

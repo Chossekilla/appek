@@ -1374,6 +1374,22 @@ if ($method === 'POST' && $action === 'apply_editor_state') {
             $pocet_stolu++;
             $celkem_mist += $mist;
         }
+        // 🐛 v3.0.644 — jako DELETE/apply_template: stůl s otevřeným (nezaplaceným) účtem nesmí z mapy zmizet.
+        //   Dřív ho editor deaktivoval → účet zmizel z mapy pokladny a na neaktivní stůl nešel ani přesunout.
+        try {
+            $sqlOpen = "SELECT DISTINCT t.id, t.nazev FROM restaurant_tables t
+                        JOIN restaurant_pos_ucty u ON u.stul_id = t.id AND u.stav IN ('open','awaiting_payment')
+                        WHERE t.aktivni = 1" . ($keptTableIds ? " AND t.id NOT IN (" . implode(',', array_map('intval', $keptTableIds)) . ")" : '');
+            $openRows = $pdo->query($sqlOpen)->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) { $openRows = []; }   // bez tabulky účtů (POS nepoužit) → nic neblokuje
+        if ($openRows) {
+            $pdo->rollBack();
+            json_response([
+                'error' => 'Nelze odebrat stůl s otevřeným účtem: ' . implode(', ', array_map(fn($r) => $r['nazev'], $openRows))
+                         . '. Nejdřív účet zaplaťte nebo přesuňte na jiný stůl, pak plán uložte znovu.',
+                'stoly' => array_map(fn($r) => ['id' => (int) $r['id'], 'nazev' => $r['nazev']], $openRows),
+            ], 409);
+        }
         // Odebrané stoly → aktivni=0 (NEmaž → zachová rezervace/historii; LIST filtruje aktivni=1)
         if ($keptTableIds) {
             $pdo->exec("UPDATE restaurant_tables SET aktivni=0 WHERE id NOT IN (" . implode(',', array_map('intval', $keptTableIds)) . ")");

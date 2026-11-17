@@ -912,6 +912,7 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
     State.sleva_pct = 0;
     State.pos_tip = 0;
     State._voucherRedeem = null; // 🆕 v3.0.281 — zruš případný uplatněný voucher
+    State._idem = null;          // 🐛 v3.0.644 — nový košík = nový idempotency klíč
     setTyp('sebou');
     setPay('hotove');
     State.platba_mena = PL().vychozi || 'CZK';   // 💱 po prodeji zpět na výchozí měnu
@@ -1426,9 +1427,36 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
     // v2.9.43 — žádný confirm dialog (user klikl velké FINISH = vědomé rozhodnutí)
     const btn = $('.pos-finish');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Odesílám…'; }
-    // 🆕 v2.9.270 — Idempotency key (chrání před duplikáty při retry / dvojkliku)
-    const idempotencyKey = (crypto?.randomUUID?.() || 'k_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10));
     try {
+      // 🆕 v2.9.270 — Idempotency key (chrání před duplikáty při retry / dvojkliku)
+      // 🐛 v3.0.644 — klíč se drží pro TENTÝŽ košík přes opakované pokusy (State._idem): když prodej na serveru
+      //   prošel, ale odpověď nedorazila (slabá Wi-Fi), druhý FINISH pošle stejný klíč → server vrátí původní
+      //   účtenku místo druhého prodeje (dřív nový klíč při každém kliku → 2× tržba i odpis skladu).
+      //   Změněný košík = jiný podpis = nový klíč. Maže se po úspěchu / resetCart().
+      const qoBody = {
+          polozky: State.cart.map(it => ({
+            vyrobek_id:   it.vyrobek_id,
+            nazev:        it.nazev,
+            jednotka:     it.jednotka,
+            mnozstvi:     it.mnozstvi,
+            cena_bez_dph: it.cena_bez_dph,
+            sazba_dph:    it.sazba_dph,
+          })),
+          odberatel_id: State.odberatel?.id || null,
+          pos_typ:      State.pos_typ,
+          pos_payment:  (pickup && pickup.zaplatit_pozdeji) ? 'pri_vyzvednuti' : State.pos_payment,
+          pos_tip:      State.pos_tip || 0,
+          sleva_pct:    State.sleva_pct || 0,
+          poznamka:     State.poznamka || '',
+          ...(pickup ? { vyzvednuti_cas: pickup.vyzvednuti_cas, vyzvednuti_jmeno: pickup.vyzvednuti_jmeno, vyzvednuti_tel: pickup.vyzvednuti_tel, vyzvednuti_email: pickup.vyzvednuti_email } : {}),
+          ...((State._voucherRedeem && State._voucherRedeem.kod && State.cart.some(it => it.is_voucher)) ? { voucher: { kod: State._voucherRedeem.kod, castka: (State._voucherRedeem.castka ?? State._voucherRedeem.amount) } } : {}),
+          ...(plMena ? { platba_mena: plMena } : {}),
+      };
+      const idemSig = JSON.stringify(qoBody);
+      if (!State._idem || State._idem.sig !== idemSig) {
+        State._idem = { sig: idemSig, key: (crypto?.randomUUID?.() || 'k_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10)) };
+      }
+      const idempotencyKey = State._idem.key;
       const r = await api('admin_pos.php?action=quick_order', {
         method: 'POST',
         body: JSON.stringify({
@@ -1453,6 +1481,7 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
           ...(plMena ? { platba_mena: plMena, kurz_klient: plMena !== 'CZK' ? (plInfo(plMena) || {}).kurz_prodej : undefined, prijato: plPrijato, vraceni_mena: plVraceni } : {}),
         }),
       });
+      State._idem = null;   // 🐛 v3.0.644 — prodej potvrzen → další košík dostane nový klíč
       if (plMena && r.mena && r.mena !== 'CZK' && !r.nezaplaceno) {
         toast('✓ ' + r.cislo + ' · ' + plFmt(r.celkem_mena, r.mena) + (r.vraceno > 0 ? ' · VRÁTIT ' + (r.vraceno_czk != null ? Math.round(r.vraceno_czk) + ' Kč' : plFmt(r.vraceno, r.vraceno_mena || r.mena)) : ''), 'success');
       } else if (plMena && r.vraceno > 0 && !r.nezaplaceno) {
@@ -2229,12 +2258,18 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
 
   window.posTableCloseUcet = async function(ucetId, payment) {
     try {
-      const r = await api('admin_pos.php?action=pay', {
-        method: 'POST',
-        body: JSON.stringify({ ucet_id: ucetId, payment: payment || 'hotove', station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })(),
+      const payBody = { ucet_id: ucetId, payment: payment || 'hotove', station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })(),
           // 💱 v3.0.643 — účet stolu zaplacený v měně zvolené přepínačem (server spočítá částku v ní)
-          ...(plAktivni() ? (State.platba_mena !== 'CZK' ? { mena: State.platba_mena, kurz_klient: (plInfo(State.platba_mena) || {}).kurz_prodej } : { mena: 'CZK' }) : {}) }),
-      });
+          ...(plAktivni() ? (State.platba_mena !== 'CZK' ? { mena: State.platba_mena, kurz_klient: (plInfo(State.platba_mena) || {}).kurz_prodej } : { mena: 'CZK' }) : {}) };
+      let r;
+      try {
+        r = await api('admin_pos.php?action=pay', { method: 'POST', body: JSON.stringify(payBody) });
+      } catch (e1) {
+        // 🐛 v3.0.644 — rozjetá QR platba hosta: server účet nezavře bez výslovného zrušení (jinak dvojí platba)
+        if (!/rozpracovanou QR platbu/i.test(e1.message || '')) throw e1;
+        if (!confirm('Host má rozpracovanou QR platbu tohoto účtu.\n\nOvěř, že na bráně NEzaplatil (jinak by zaplatil dvakrát). Zrušit QR platbu a zaplatit teď jinak?')) return;
+        r = await api('admin_pos.php?action=pay', { method: 'POST', body: JSON.stringify({ ...payBody, zrusit_qr: true }) });
+      }
       toast(t('pos_bill_closed', { cislo: r.cislo || '', amount: (r.mena && r.mena !== 'CZK') ? plFmt(r.celkem_mena, r.mena) : fmt(r.celkem || 0) + ' ' + (CFG.currency || 'Kč') }), 'success');
       const m = document.getElementById('pos-table-modal');
       if (m) m.remove();
@@ -2341,7 +2376,9 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
     hotove: '💵 Hotově', karta: '💳 Karta',
     paypal: '💼 PayPal', gift_card: '🎁 Gift card',
     voucher: '🎟️ Voucher', mobile: '📱 Mobile',
-    online: '🌐 Online', pri_vyzvednuti: '🤝 Při vyzvednutí', prevodem: '🏦 Převodem'
+    online: '🌐 Online', pri_vyzvednuti: '🤝 Při vyzvednutí', prevodem: '🏦 Převodem',
+    // 🐛 v3.0.644 — účty stolu zapisují skutečnou metodu (dřív QR/online/převod → „karta", poukaz → „hotově")
+    qr: '📲 QR platba', qr_platba: '📲 QR platba', prevod: '🏦 Převodem', poukaz: '🎟️ Poukaz'
   };
   async function renderHistory(panel, append = false) {
     if (!append) panel.innerHTML = `<div class="pos-loading" style="padding:40px;text-align:center">⏳ Načítám účtenky…</div>`;
@@ -2631,8 +2668,8 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
       <button class="btn-secondary" onclick="POS._closeModal()">Zavřít</button>
       <button class="btn-secondary" onclick="posReprintReceipt(${objId})">🖨️ Reprint</button>
       ${(d.stav !== 'zaplaceno' && d.stav !== 'zrusena' && (parseFloat(d.castka_celkem) || 0) > 0) ? `<button class="btn-secondary" onclick="posShowPayQR(${objId}, '${esc(d.cislo || '')}', ${parseFloat(d.castka_celkem) || 0})">📲 QR platba</button>` : ''}
-      ${(parseFloat(d.castka_celkem) || 0) > 0 ? `<button class="btn-secondary" style="color:#DC2626;border-color:#FCA5A5" onclick="posRefundReceipt(${objId}, '${esc(d.cislo || '').replace(/'/g, '')}')" title="Vrátit peníze — vznikne záporná účtenka (VRA-…), uzávěrka i tržby se sníží">↩️ Vrátit</button>` : ''}
-      ${(parseFloat(d.castka_celkem) || 0) > 0 ? `<button class="btn-secondary" style="color:#7c3aed;border-color:#c4b5fd" onclick="posExchange(${objId}, '${esc(d.cislo || '').replace(/'/g, '')}')" title="Výměna — vrátit vybrané položky a přidat nové, spočítá doplatek/přeplatek">🔄 Výměna</button>` : ''}
+      ${((parseFloat(d.castka_celkem) || 0) > 0 && d.vratitelna !== false) ? `<button class="btn-secondary" style="color:#DC2626;border-color:#FCA5A5" onclick="posRefundReceipt(${objId}, '${esc(d.cislo || '').replace(/'/g, '')}')" title="Vrátit peníze — vznikne záporná účtenka (VRA-…), uzávěrka i tržby se sníží">↩️ Vrátit</button>` : ''}
+      ${((parseFloat(d.castka_celkem) || 0) > 0 && d.vratitelna !== false) ? `<button class="btn-secondary" style="color:#7c3aed;border-color:#c4b5fd" onclick="posExchange(${objId}, '${esc(d.cislo || '').replace(/'/g, '')}')" title="Výměna — vrátit vybrané položky a přidat nové, spočítá doplatek/přeplatek">🔄 Výměna</button>` : ''}
       <button class="btn-primary" onclick="POS._closeModal();posOpenOrderInAdmin(${objId})">✏️ Upravit v adminu</button>
     `;
     modal('📜 Účtenka ' + (d.cislo || ''), body, foot);
@@ -2709,7 +2746,8 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
     const vratitNaSklad = !!(document.getElementById('pref-restock') || {}).checked;
     const doPost = (vynutit) => api('admin_pos.php?action=refund_order', {
       method: 'POST',
-      body: JSON.stringify({ objednavka_id: objId, duvod, polozky, vynutit, vratit_na_sklad: vratitNaSklad }),
+      // 🐛 v3.0.644 — station_token: vratka podléhá allowlistu zařízení (jako prodej)
+      body: JSON.stringify({ objednavka_id: objId, duvod, polozky, vynutit, vratit_na_sklad: vratitNaSklad, station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })() }),
     });
     try {
       let r;
@@ -2850,14 +2888,14 @@ if (!Date.prototype.toYMD) Object.defineProperty(Date.prototype, 'toYMD', { conf
       let vraCislo = null, novaCislo = null;
       // 1) Vratka (částečná) — když je co vracet
       if (vraceno.length) {
-        const r1 = await api('admin_pos.php?action=refund_order', { method: 'POST', body: JSON.stringify({ objednavka_id: src.objId, duvod: 'Výměna za ' + src.cislo, polozky: vraceno }) });
+        const r1 = await api('admin_pos.php?action=refund_order', { method: 'POST', body: JSON.stringify({ objednavka_id: src.objId, duvod: 'Výměna za ' + src.cislo, polozky: vraceno, station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })() }) });
         vraCislo = r1.cislo;
       }
       // 2) Nová účtenka — když jsou nové položky
       if (nove.length) {
         // 💱 v3.0.643 — nový prodej ve stejné měně a metodě jako originál (ledger výměny sedí: −vratka / +nový prodej)
         const okPay = ['hotove', 'karta', 'qr_platba', 'gift_card', 'voucher', 'mobile'];
-        const r2 = await api('admin_pos.php?action=quick_order', { method: 'POST', body: JSON.stringify({ pos_typ: 'sebou', pos_payment: okPay.includes(src.pos_payment) ? src.pos_payment : 'hotove', polozky: nove, poznamka: 'Výměna za účtenku ' + src.cislo,
+        const r2 = await api('admin_pos.php?action=quick_order', { method: 'POST', body: JSON.stringify({ pos_typ: 'sebou', pos_payment: okPay.includes(src.pos_payment) ? src.pos_payment : 'hotove', polozky: nove, poznamka: 'Výměna za účtenku ' + src.cislo, station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })(),
           ...(plAktivni() ? { platba_mena: src.mena || 'CZK' } : {}) }) });
         novaCislo = r2.cislo;
       }
