@@ -82,7 +82,7 @@ window.posPaidPrintPrompt = function(ucetId, amount, mena) {
   openModal('✅ Zaplaceno', `
     <div style="text-align:center;padding:8px 0 2px">
       <div style="font-size:46px;line-height:1">✅</div>
-      <div style="font-size:26px;font-weight:800;margin:8px 0 2px;color:#15803d">${(+amount).toFixed(2)} ${mena && mena !== 'CZK' ? esc(posMenaSym(mena)) : 'Kč'}</div>
+      <div style="font-size:26px;font-weight:800;margin:8px 0 2px;color:#15803d">${(+amount).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${mena && mena !== 'CZK' ? esc(posMenaSym(mena)) : 'Kč'}</div>
       <div style="color:var(--text-3);font-size:13px">Účet uzavřen · stůl uvolněn</div>
     </div>
     <p style="text-align:center;font-weight:700;margin:16px 0 8px">Vytisknout účtenku?</p>
