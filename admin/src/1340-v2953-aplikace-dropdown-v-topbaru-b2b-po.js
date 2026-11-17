@@ -308,6 +308,21 @@
     var defW = (meta.weight_kg && meta.weight_kg > 0) ? meta.weight_kg : 1;
     var dimHint = (meta.rozmery && (meta.rozmery.d || meta.rozmery.s || meta.rozmery.v))
       ? '<div style="font-size:11px;color:#888;margin-top:4px">📐 Max rozměr produktu: ' + [meta.rozmery.d, meta.rozmery.s, meta.rozmery.v].filter(Boolean).join(' × ') + ' cm</div>' : '';
+    // 🐛 v3.0.644 — adresa příjemce k ověření/úpravě (místo dodání objednávky má přednost před sídlem)
+    var pr = meta.prijemce || {};
+    var _e = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); };
+    var adrHtml =
+      '<div style="margin-top:10px;font-size:13px"><b>Doručit na</b> <span style="color:#888;font-size:12px">' +
+        (pr.zdroj === 'misto_dodani' ? '— místo dodání' + (pr.misto_nazev ? ' „' + _e(pr.misto_nazev) + '“' : '') : '— sídlo odběratele') + '</span></div>' +
+      '<input id="ship-street" class="form-input" placeholder="Ulice a č.p." value="' + _e(pr.street) + '" style="width:100%;margin-top:4px">' +
+      '<div style="display:flex;gap:8px;margin-top:6px">' +
+        '<input id="ship-city" class="form-input" placeholder="Město" value="' + _e(pr.city) + '" style="flex:2;min-width:0">' +
+        '<input id="ship-zip" class="form-input" placeholder="PSČ" value="' + _e(pr.zip) + '" style="flex:1;min-width:0">' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:6px">' +
+        '<input id="ship-phone" class="form-input" placeholder="Telefon" value="' + _e(pr.phone) + '" style="flex:1;min-width:0">' +
+        '<input id="ship-email" class="form-input" placeholder="E-mail" value="' + _e(pr.email) + '" style="flex:1;min-width:0">' +
+      '</div>';
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
     var opts = carriers.map(function (c) { return '<option value="' + c.key + '"' + (c.enabled ? '' : ' disabled') + '>' + c.label + (c.enabled ? '' : ' — nenastaveno') + '</option>'; }).join('');
@@ -315,13 +330,13 @@
       return '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid #eee"><span>' + z.carrier + ' · ' + (z.tracking_number || (z.chyba ? '⚠️ ' + z.chyba : z.stav)) + '</span>' + (z.tracking_number ? '<a href="../api/admin_shipment.php?action=label&id=' + z.id + '" target="_blank">🏷️ Štítek</a>' : '') + '</div>';
     }).join('') + '</div>' : '';
     ov.innerHTML =
-      '<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3)">' +
+      '<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;max-height:92vh;overflow:auto;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3)">' +
         '<div style="font-size:17px;font-weight:700;margin-bottom:12px">📦 Vytvořit zásilku</div>' +
         '<label style="font-size:13px">Přepravce<br><select id="ship-carrier" class="form-input" style="width:100%;margin-top:4px">' + opts + '</select></label>' +
         '<div style="display:flex;gap:8px;margin-top:10px">' +
           '<label style="flex:1;font-size:13px">Hmotnost (kg)<br><input id="ship-w" class="form-input" type="number" step="0.1" value="' + defW + '" style="width:100%"></label>' +
           '<label style="flex:1;font-size:13px">Dobírka (Kč)<br><input id="ship-cod" class="form-input" type="number" value="0" style="width:100%"></label>' +
-        '</div>' + dimHint +
+        '</div>' + dimHint + adrHtml +
         '<label style="font-size:13px;display:block;margin-top:10px">Výdejní místo ID (Zásilkovna)<br><input id="ship-pp" class="form-input" placeholder="volitelné" style="width:100%"></label>' +
         '<div id="ship-msg" style="margin-top:10px;font-size:13px;color:#a00"></div>' + exHtml +
         '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">' +
@@ -343,7 +358,12 @@
           objednavka_id: orderId, carrier: carrier,
           weight_kg: parseFloat(ov.querySelector('#ship-w').value) || 1,
           cod_kc: parseFloat(ov.querySelector('#ship-cod').value) || 0,
-          pickup_point_id: parseInt(ov.querySelector('#ship-pp').value) || 0
+          pickup_point_id: parseInt(ov.querySelector('#ship-pp').value) || 0,
+          recipient_street: ov.querySelector('#ship-street').value.trim(),
+          recipient_city: ov.querySelector('#ship-city').value.trim(),
+          recipient_zip: ov.querySelector('#ship-zip').value.trim(),
+          recipient_phone: ov.querySelector('#ship-phone').value.trim(),
+          recipient_email: ov.querySelector('#ship-email').value.trim()
         }) });
         try { toast('📦 Zásilka vytvořena: ' + (r.tracking || ''), 'success'); } catch (e) {}
         close();

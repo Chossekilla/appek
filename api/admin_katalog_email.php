@@ -164,8 +164,7 @@ $firma_mesto = nastaveni_get($pdo, 'firma_mesto', '');
 $firma_tel = nastaveni_get($pdo, 'firma_telefon', '');
 $firma_email = nastaveni_get($pdo, 'firma_email', '');
 
-$base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-          . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+$base_url = app_public_base();   // 🐛 v3.0.644 — vč. podsložky instalace
 // 🐛 v3.0.644 SECURITY — ceník skupiny jen přes podepsaný odkaz (email_tokens typ 'kat', 90 dní);
 //   holé ?skupina=N už katalog_pdf.php bez přihlášení neotevře.
 $pdf_url_q = [

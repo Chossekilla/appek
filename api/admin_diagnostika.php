@@ -477,8 +477,8 @@ if (function_exists('opcache_get_status')) {
 
 // --- 🩺 LIVE HEALTH CHECK — voláme klíčové GET endpointy (HEAD-style) ---
 $live_check = [];
-$base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-      . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+// 🐛 v3.0.644 — vč. podsložky instalace (jinak health check testoval kořen domény)
+$base = rtrim(app_public_url(''), '/');
 $test_paths = [
     '/' => 'Frontend index',
     '/admin/' => 'Admin index',

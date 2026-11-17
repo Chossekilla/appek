@@ -37,6 +37,14 @@ window.confirmDialog = function({ title = 'Potvrzení', msg = '', okText = 'Pokr
   });
 };
 
+// 🐛 v3.0.644 — customConfirm(title, msg, okText) volaly balíčkové moduly (stojany na dorty, stanice,
+//   catering, mix&match, kurýři, šarže HACCP), ale funkce nikde neexistovala → ReferenceError a tlačítka
+//   Smazat/Vrátit/Ztraceno nic nedělala. Tenký obal nad confirmDialog (destruktivní akce → danger).
+window.customConfirm = function(title, msg = '', okText = 'Pokračovat') {
+  const danger = /smaz|odstran|ztrac|zruš|zrus/i.test(String(okText) + ' ' + String(title));
+  return window.confirmDialog({ title, msg, okText, danger });
+};
+
 // 🆕 v3.0.244 — stylový prompt() (Apple-style, jako confirmDialog). Vrací zadaný text,
 //   nebo null při Zrušit/Escape. Nahrazuje nativní blokující window.prompt v adminu.
 window.promptDialog = function({ title = 'Zadej hodnotu', msg = '', value = '', placeholder = '', okText = 'OK', cancelText = 'Zrušit', icon = '✏️', inputType = 'text' } = {}) {

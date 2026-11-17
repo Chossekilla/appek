@@ -1243,6 +1243,28 @@ function app_public_base(?string $origin = null): string {
 }
 
 /**
+ * 🐛 v3.0.644 — absolutní veřejná URL do instalace (odkazy v e-mailech, QR platby, GoPay notifikace…).
+ *   Dřív se skládalo jen scheme://host (nebo APP_URL bez podsložky) + '/api/…' → u instalace v podsložce
+ *   https://firma.cz/appek/ odkaz vedl na https://firma.cz/api/… (404) a GoPay callback nedorazil.
+ *   $preferAppUrl = true → základ z APP_URL (kanonická doména z config.local.php), jinak z aktuálního požadavku.
+ *   APP_URL bez cesty se doplní o app_base_path(); APP_URL s cestou (admin ji tam zapsal) se bere tak, jak je.
+ *   Na doménovém rootu je výsledek stejný jako dřív.
+ */
+function app_public_url(string $path = '', bool $preferAppUrl = false): string {
+    $p = '/' . ltrim($path, '/');
+    $appUrl = rtrim(defined('APP_URL') ? (string) APP_URL : '', '/');
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+    if (($preferAppUrl || $host === '' || PHP_SAPI === 'cli') && $appUrl !== '') {
+        $cesta = (string) (parse_url($appUrl, PHP_URL_PATH) ?? '');
+        return $appUrl . (trim($cesta, '/') !== '' ? '' : app_base_path()) . $p;
+    }
+    $sch = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'
+        || ((int) ($_SERVER['SERVER_PORT'] ?? 0)) === 443) ? 'https' : 'http';
+    return $sch . '://' . ($host !== '' ? $host : 'localhost') . app_base_path() . $p;
+}
+
+/**
  * Uložená upload URL → cesta relativní ke kořeni instalace ('/uploads/…'), pro mapování na disk
  *   (__DIR__ . '/..' . app_url_to_rel($url)). Bere část od '/uploads/', takže funguje pro
  *   '/uploads/…' (root) i '/appek/uploads/…' (podsložka) — i když se URL uložila při přístupu

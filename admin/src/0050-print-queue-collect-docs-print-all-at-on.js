@@ -98,7 +98,9 @@ window.printQueue = (function() {
     for (const it of items) {
       let url = null;
       if (it.type === 'faktura')     url = '../api/faktura.php?id=' + it.id;
-      else if (it.type === 'dl')      url = '../api/dodaci_list.php?id=' + it.id;
+      // 🐛 v3.0.644 — it.id je id DODACÍHO LISTU (detail DL → fronta), ?id= by ho bral jako id objednávky
+      //   → 404 nebo DL úplně jiné objednávky/zákazníka. DL se načítá přes ?dl_id=.
+      else if (it.type === 'dl')      url = '../api/dodaci_list.php?dl_id=' + encodeURIComponent(it.id);
       else if (it.type === 'vyrobni_list') url = '../api/vyrobni_list_print.php?id=' + it.id;
       if (url) {
         window.open(url, '_blank');

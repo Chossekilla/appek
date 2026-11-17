@@ -10,7 +10,7 @@ window.loadWebhooks = async function() {
   try {
     if (!window._webhookEvents) {
       const ev = await api('admin_webhooks.php?action=events');
-      window._webhookEvents = ev.events || {};
+      window._webhookEvents = ev.events || {}; window._webhookEventsPlanned = ev.planned || {};
     }
     const r = await api('admin_webhooks.php?action=list');
     const hooks = r.webhooks || [];
@@ -28,7 +28,7 @@ window.loadWebhooks = async function() {
             <div style="font-weight:600;font-size:13.5px">${esc(h.nazev)}</div>
             <div style="font-size:11px;color:var(--text-3);font-family:monospace;word-break:break-all">${esc(h.url)}</div>
             <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">${events.slice(0, 4).map(e =>
-              `<span style="background:#DBEAFE;color:#1e40af;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600">${esc(window._webhookEvents[e] || e)}</span>`
+              `<span style="background:#DBEAFE;color:#1e40af;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600">${esc(window._webhookEvents[e] || ((window._webhookEventsPlanned || {})[e] ? (window._webhookEventsPlanned[e] + ' (nespouští se)') : e))}</span>`
             ).join('')}${events.length > 4 ? `<span style="color:var(--text-3);font-size:10.5px">+${events.length - 4}</span>` : ''}</div>
           </div>
           <div style="text-align:right;font-size:11px">
@@ -58,11 +58,20 @@ window.openWebhookEdit = async function(id = null) {
     } catch (e) { return alert('Chyba: ' + e.message); }
   }
   if (!window._webhookEvents) {
-    try { const ev = await api('admin_webhooks.php?action=events'); window._webhookEvents = ev.events || {}; }
+    try { const ev = await api('admin_webhooks.php?action=events'); window._webhookEvents = ev.events || {}; window._webhookEventsPlanned = ev.planned || {}; }
     catch (e) {}
+  }
+  if (!window._webhookEventsPlanned) {
+    try { const ev = await api('admin_webhooks.php?action=events'); window._webhookEventsPlanned = ev.planned || {}; } catch (e) { window._webhookEventsPlanned = {}; }
   }
   const evs = Object.entries(window._webhookEvents || {});
   const hEvents = (h.events || '').split(',').map(e => e.trim());
+  // 🐛 v3.0.644 — události, které aplikace zatím nespouští: jen informativně (nejdou nově zaškrtnout);
+  //   už uložené zůstanou zaškrtnuté, ať se úpravou webhooku neztratí. Neznámé uložené (např. '*' z API) taky.
+  const planned = window._webhookEventsPlanned || {};
+  const evPlanned = Object.entries(planned);
+  const known = new Set([...evs.map(([k]) => k), ...evPlanned.map(([k]) => k)]);
+  const evOstatni = hEvents.filter(k => k && !known.has(k)).map(k => [k, k === '*' ? '✳️ Všechny události (*)' : k]);
 
   openModal(id ? '✏️ Upravit webhook' : '+ Nový webhook', `
     <div class="form-grid form-grid-tight">
@@ -83,6 +92,20 @@ window.openWebhookEdit = async function(id = null) {
               <span>${esc(label)}</span>
             </label>
           `).join('')}
+          ${evOstatni.map(([key, label]) => `
+            <label style="display:flex;gap:8px;align-items:center;font-size:12.5px;padding:4px 6px;border-radius:4px;cursor:pointer">
+              <input type="checkbox" value="${esc(key)}" checked class="wh-event-cb">
+              <span>${esc(label)}</span>
+            </label>
+          `).join('')}
+          ${evPlanned.map(([key, label]) => {
+            const ulozeno = hEvents.includes(key);
+            return `
+            <label style="display:flex;gap:8px;align-items:center;font-size:12.5px;padding:4px 6px;border-radius:4px;opacity:.55" title="Tuto událost aplikace zatím neodesílá">
+              <input type="checkbox" value="${esc(key)}" ${ulozeno ? 'checked' : 'disabled'} class="wh-event-cb">
+              <span>${esc(label)} <small>(připravujeme)</small></span>
+            </label>`;
+          }).join('')}
         </div>
       </div>
       <div class="full">
@@ -128,8 +151,10 @@ window.saveWebhook = async function(id) {
 
 window.testWebhook = async function(id) {
   try {
-    await api('admin_webhooks.php?action=test&id=' + id, { method: 'POST' });
-    toastSuccess('🚀 Test event odeslán — zkontroluj log');
+    const r = await api('admin_webhooks.php?action=test&id=' + id, { method: 'POST' });
+    // 🐛 v3.0.644 — skutečný výsledek doručení (dřív vždy „odeslán", i když nic neodešlo)
+    if (r && r.ok) toastSuccess('🚀 Test doručen (HTTP ' + (r.http_status || '?') + ')');
+    else alert('Test se nepodařilo doručit: ' + ((r && r.error) || 'neznámá chyba'));
     setTimeout(loadWebhooks, 1500);
   } catch (e) { alert('Chyba: ' + e.message); }
 };

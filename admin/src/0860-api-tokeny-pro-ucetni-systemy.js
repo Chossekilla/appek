@@ -72,6 +72,8 @@ window.apiTokenCreate = async function() {
   if (!nazev) return alert('Vyplň název');
   try {
     const r = await api('admin_api_tokens.php', { method: 'POST', body: JSON.stringify({ nazev, opravneni }) });
+    // 🐛 v3.0.644 — URL včetně podsložky instalace (dřív location.origin → u instalace v podsložce 404)
+    const apiBase = new URL('../api/v1/', location.href).href;
     // Zobraz token jen 1×
     openModal('🔑 Token vytvořen — uložte si ho!', `
       <div style="background:#FEF3C7;border:2px solid #F59E0B;padding:14px;border-radius:8px;margin-bottom:12px;color:#854F0B">
@@ -81,8 +83,11 @@ window.apiTokenCreate = async function() {
       <textarea readonly class="form-input" rows="3" onclick="this.select()" style="font-family:monospace;font-size:13px;background:#f7f8fa">${esc(r.token)}</textarea>
       <p style="font-size:12px;color:var(--text-3);margin-top:10px">
         <strong>Použití v Money S3 / POHODA / Fakturoid:</strong><br>
-        URL: <code>${location.origin}/api/v1/faktury?token=${esc(r.token)}</code><br>
-        Nebo HTTP hlavička: <code>Authorization: Bearer ${esc(r.token)}</code>
+        URL: <code>${esc(apiBase)}faktury</code><br>
+        + HTTP hlavička (doporučeno): <code>Authorization: Bearer ${esc(r.token)}</code><br>
+        <span style="font-size:11px">Pokud účetní SW hlavičky neumí: <code>${esc(apiBase)}faktury?token=${esc(r.token)}</code>
+        (token v adrese se ale ukládá do logů serveru). Bez přepisu URL na serveru funguje vždy i
+        <code>${esc(apiBase)}index.php?path=faktury</code>.</span>
       </p>
       <div class="form-actions">
         <button class="btn-secondary" onclick="navigator.clipboard.writeText('${esc(r.token).replace(/'/g, "\\'")}').then(() => alert('✓ Zkopírováno do schránky'))">📋 Kopírovat token</button>

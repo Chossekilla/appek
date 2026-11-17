@@ -36,12 +36,44 @@ const ALL_NAV_PAGES = [
 ];
 state.rolePrava = DEFAULT_ROLE_PRAVA;
 
+// 🐛 v3.0.644 — podstránky, které nejsou samostatnou položkou menu (záložky Výroby, Nástrojů,
+//   Objednávek, stránky balíčků…), dřív nebyly v žádné roli a v editoru práv je nešlo zaškrtnout →
+//   ne-admin role (Výroba → záložka Suroviny, prodavač → Vratky…) skončila s toastem na Dashboardu.
+//   Podstránka teď dědí právo od rodičovské položky menu (stačí jedna z uvedených).
+const PODSTRANKA_RODIC = {
+  vyrobni_list:      ['vyroba'],
+  suroviny:          ['vyroba'],
+  sklad:             ['vyroba'],
+  export_vyroby:     ['vyroba'],
+  vyrobni_kalkulace: ['vyroba'],
+  vratky:            ['objednavky', 'faktury'],
+  vouchery:          ['objednavky', 'faktury'],
+  recurring:         ['objednavky'],
+  sales_report:      ['objednavky', 'faktury'],
+  rozvozy:           ['objednavky', 'dodaci_listy'],
+  kategorie:         ['vyrobky'],
+  cenove_skupiny:    ['vyrobky', 'odberatele'],
+  katalog:           ['nastroje'],
+  stitky:            ['nastroje'],
+  tiskarny:          ['nastroje'],
+  stanice:           ['nastroje'],
+  integrace:         ['nastroje', 'nastaveni'],
+  diagnostika:       ['nastaveni'],
+  users:             ['nastaveni'],
+};
+// Stránky balíčků (pkg_restaurace, pkg_cukrarna…) — provozní moduly, otevírají se z lišty balíčků
+const PKG_RODIC = ['nastroje', 'objednavky', 'vyroba'];
+
 // Pro aktuálního uživatele zjistí, zda smí navigovat na danou stránku
 function muzeNavigovat(page) {
   const role = state.admin?.role || 'admin';
   if (role === 'admin' || role === 'readonly') return true; // super admin + náhled (readonly) vidí/prochází vše
-  const allowed = state.rolePrava[role] || [];
-  return allowed.includes(page);
+  // 🐛 v3.0.644 — role bez záznamu ze serveru (např. 'pos' na starší instalaci) → výchozí práva z JS
+  //   (dřív `|| []` → menu ukázalo vše podle DEFAULT, ale každý klik skončil na Dashboardu)
+  const allowed = state.rolePrava[role] || DEFAULT_ROLE_PRAVA[role] || [];
+  if (allowed.includes(page)) return true;
+  const rodice = PODSTRANKA_RODIC[page] || ((typeof page === 'string' && page.startsWith('pkg_')) ? PKG_RODIC : null);
+  return !!(rodice && rodice.some((r) => allowed.includes(r)));
 }
 
 // Podle role schová nav items v sidebaru

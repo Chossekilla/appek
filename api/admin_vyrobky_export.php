@@ -46,8 +46,7 @@ if ($action === 'feed_info' || $action === 'feed_regenerate') {
     $mutaceOk = ($_SESSION['admin_role'] ?? '') !== 'readonly';
     if ($action === 'feed_regenerate' || (strlen($t) < 24 && $mutaceOk)) { $t = bin2hex(random_bytes(20)); _feed_set_token($pdo, $t); }
     if (strlen($t) < 24) json_error('Feed zatím nemá token — vygeneruje ho administrátor', 409);
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $origin = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $origin = app_public_base();   // 🐛 v3.0.644 — feed URL vč. podsložky instalace
     $mk = function ($f) use ($origin, $t) { return "$origin/api/admin_vyrobky_export.php?format=$f&token=$t"; };
     header('Content-Type: application/json; charset=UTF-8');
     echo json_encode(['ok' => true, 'token' => $t, 'google' => $mk('google'), 'heureka' => $mk('heureka'), 'zbozi' => $mk('zbozi')], JSON_UNESCAPED_SLASHES);
