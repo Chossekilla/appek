@@ -1204,8 +1204,8 @@ if ($method === 'POST' && $action === 'qr_generate') {
     } else {
         $token = pos_table_qr_token($pdo, $stulId);
     }
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $url = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/qr/?t=' . $token;
+    // 🐛 v3.0.644 — vč. podsložky instalace (QR na stolech jinak vedly na 404)
+    $url = app_public_url('/qr/?t=' . $token);
     json_response(['token' => $token, 'url' => $url, 'stul_id' => $stulId]);
 }
 

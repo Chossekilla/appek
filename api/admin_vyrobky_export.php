@@ -36,8 +36,8 @@ if ($action === 'feed_info' || $action === 'feed_regenerate') {
     require_admin();
     $t = (string) nastaveni_get($pdo, 'katalog_feed_token', '');
     if ($action === 'feed_regenerate' || strlen($t) < 24) { $t = bin2hex(random_bytes(20)); _feed_set_token($pdo, $t); }
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $origin = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    // 🐛 v3.0.644 — feed URL vč. podsložky instalace
+    $origin = rtrim(app_public_url(''), '/');
     $mk = function ($f) use ($origin, $t) { return "$origin/api/admin_vyrobky_export.php?format=$f&token=$t"; };
     header('Content-Type: application/json; charset=UTF-8');
     echo json_encode(['ok' => true, 'token' => $t, 'google' => $mk('google'), 'heureka' => $mk('heureka'), 'zbozi' => $mk('zbozi')], JSON_UNESCAPED_SLASHES);

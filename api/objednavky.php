@@ -536,8 +536,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try { $docC = mena_doc_castka($pdo, 'objednavky', $obj_id); } catch (Throwable $e) { error_log('objednavky doc_castka: ' . $e->getMessage()); }
         if (($platba === 'stripe' || $platba === 'gopay' || $platba === 'paypal') && $docC && $docC['celkem'] > 0) {   // voucher pokryl vše → není co platit
             require_once __DIR__ . '/_online_platba_lib.php';
-            $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-                     . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+            // 🐛 v3.0.644 — základ vč. podsložky instalace (jinak return/cancel 404 a GoPay notifikace nedorazí)
+            $baseUrl = rtrim(app_public_url(''), '/');
             $stmtOdb = $pdo->prepare("SELECT nazev, login_email, email FROM odberatele WHERE id = :id");
             $stmtOdb->execute(['id' => $odberatel_id]);
             $odb = $stmtOdb->fetch() ?: [];

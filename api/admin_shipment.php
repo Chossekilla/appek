@@ -122,8 +122,10 @@ if ($method === 'POST' && $action === 'create') {
         $payload['value_kc']        = $pr['castka_celkem'];
     }
     // ruční override z requestu
+    // 🐛 v3.0.644 — klíč poslaný v requestu platí i PRÁZDNÝ (obsluha v dialogu vymazala telefon/e-mail
+    //   → nesmí se tiše vrátit hodnota z DB). Chybějící klíč = beze změny (předvyplněno z objednávky).
     foreach (['reference','recipient_name','recipient_first_name','recipient_last_name','recipient_street','recipient_city','recipient_zip','recipient_email','recipient_phone'] as $k) {
-        if (!empty($d[$k])) $payload[$k] = $d[$k];
+        if (array_key_exists($k, $d) && $d[$k] !== null && is_scalar($d[$k])) $payload[$k] = trim((string) $d[$k]);
     }
 
     $w = (float) $payload['weight_kg'];

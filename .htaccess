@@ -98,8 +98,10 @@ DirectoryIndex index.html index.php install.php
   # Referrer policy — odesílaný referrer
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
-  # Permissions Policy — vypnout geolokaci, mikrofon, kameru (B2B nepotřebuje)
-  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+  # Permissions Policy — vypnout geolokaci, mikrofon, platby
+  # 🐛 v3.0.644 — camera=(self): kamerový skener čárových kódů v adminu/POS (getUserMedia)
+  #   by s camera=() skončil NotAllowedError i na vlastním originu. Cizí iframy kameru dál nemají.
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(self), payment=()"
 
   # XSS protection (legacy ale stále uznávaný staršími prohlížeči)
   Header always set X-XSS-Protection "1; mode=block"

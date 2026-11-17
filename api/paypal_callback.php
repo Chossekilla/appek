@@ -17,8 +17,8 @@ require_once __DIR__ . '/_online_platba_lib.php';   // 💱 v3.0.643 — ověře
 
 $ourOrderNo = trim($_GET['order'] ?? '');
 $paypalOrderId = trim($_GET['token'] ?? '');  // PayPal posílá ho jako 'token'
-$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-         . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+// 🐛 v3.0.644 — základ vč. podsložky instalace (jinak redirect na /b2b/ kořene domény = 404)
+$baseUrl = rtrim(app_public_url(''), '/');
 
 if (!$ourOrderNo || !$paypalOrderId) {
     header('Location: ' . $baseUrl . '/b2b/index.html?cancelled=' . urlencode($ourOrderNo ?: 'unknown'));

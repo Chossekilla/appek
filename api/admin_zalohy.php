@@ -88,8 +88,8 @@ if ($action === 'info') {
                        ON DUPLICATE KEY UPDATE hodnota = :v2")
             ->execute(['v' => $token, 'v2' => $token]);
     }
-    $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-              . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    // 🐛 v3.0.644 — vč. podsložky instalace
+    $base_url = rtrim(app_public_url(''), '/');
     json_response([
         'pocet'             => $pocet,
         'celkova_velikost'  => $velikost,

@@ -23,7 +23,9 @@ function vykresliPravaPanel() {
     { key: 'prodavac', label: '🛒 Prodavač',     popis: 'Obvykle objednávky, DL, faktury, výrobky' },
     { key: 'vyroba',   label: '🥖 Výroba',       popis: 'Výrobní list, výrobky, HACCP' },
     { key: 'expedice', label: '🚚 Expedice',     popis: 'Jen objednávky a dodací listy' },
-    { key: 'pos',      label: '🧾 POS kasa',     popis: 'Pouze POS terminál (/pos/), žádný admin přístup' },
+    // 🐛 v3.0.644 — popis odpovídá chování: bez pos_only vidí admin podle zaškrtnutých stránek (výchozí = vše);
+    //   „jen kasa" řeší u uživatele volba 🔒 Pouze POS terminál (pos_only)
+    { key: 'pos',      label: '🧾 POS kasa',     popis: 'POS kasa + admin podle zaškrtnutých stránek; jen kasa = „Pouze POS terminál“ u uživatele' },
   ];
 
   blok.innerHTML = `
