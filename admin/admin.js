@@ -573,7 +573,9 @@ window.printQueue = (function() {
     for (const it of items) {
       let url = null;
       if (it.type === 'faktura')     url = '../api/faktura.php?id=' + it.id;
-      else if (it.type === 'dl')      url = '../api/dodaci_list.php?id=' + it.id;
+      // 🐛 v3.0.644 — it.id je id DODACÍHO LISTU (detail DL → fronta), ?id= by ho bral jako id objednávky
+      //   → 404 nebo DL úplně jiné objednávky/zákazníka. DL se načítá přes ?dl_id=.
+      else if (it.type === 'dl')      url = '../api/dodaci_list.php?dl_id=' + encodeURIComponent(it.id);
       else if (it.type === 'vyrobni_list') url = '../api/vyrobni_list_print.php?id=' + it.id;
       if (url) {
         window.open(url, '_blank');
@@ -813,7 +815,8 @@ window.applyBrandCustomization = async function() {
     const f = await api('firma_branding.php');
     if (!f) return;
     const primary = (f.firma_brand_color || '').trim();
-    const logo    = (f.firma_logo_url    || '').trim();
+    // 🐛 v3.0.644 — firma_branding.php vrací logo jako logo_url (firma_logo_url zůstává jako fallback)
+    const logo    = (f.logo_url || f.firma_logo_url || '').trim();
 
     if (primary && /^#[0-9A-Fa-f]{6}$/.test(primary)) {
       // Derive light/dark variants
@@ -860,7 +863,7 @@ window.loadWebhooks = async function() {
   try {
     if (!window._webhookEvents) {
       const ev = await api('admin_webhooks.php?action=events');
-      window._webhookEvents = ev.events || {};
+      window._webhookEvents = ev.events || {}; window._webhookEventsPlanned = ev.planned || {};
     }
     const r = await api('admin_webhooks.php?action=list');
     const hooks = r.webhooks || [];
@@ -878,7 +881,7 @@ window.loadWebhooks = async function() {
             <div style="font-weight:600;font-size:13.5px">${esc(h.nazev)}</div>
             <div style="font-size:11px;color:var(--text-3);font-family:monospace;word-break:break-all">${esc(h.url)}</div>
             <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">${events.slice(0, 4).map(e =>
-              `<span style="background:#DBEAFE;color:#1e40af;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600">${esc(window._webhookEvents[e] || e)}</span>`
+              `<span style="background:#DBEAFE;color:#1e40af;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600">${esc(window._webhookEvents[e] || ((window._webhookEventsPlanned || {})[e] ? (window._webhookEventsPlanned[e] + ' (nespouští se)') : e))}</span>`
             ).join('')}${events.length > 4 ? `<span style="color:var(--text-3);font-size:10.5px">+${events.length - 4}</span>` : ''}</div>
           </div>
           <div style="text-align:right;font-size:11px">
@@ -908,11 +911,20 @@ window.openWebhookEdit = async function(id = null) {
     } catch (e) { return alert('Chyba: ' + e.message); }
   }
   if (!window._webhookEvents) {
-    try { const ev = await api('admin_webhooks.php?action=events'); window._webhookEvents = ev.events || {}; }
+    try { const ev = await api('admin_webhooks.php?action=events'); window._webhookEvents = ev.events || {}; window._webhookEventsPlanned = ev.planned || {}; }
     catch (e) {}
+  }
+  if (!window._webhookEventsPlanned) {
+    try { const ev = await api('admin_webhooks.php?action=events'); window._webhookEventsPlanned = ev.planned || {}; } catch (e) { window._webhookEventsPlanned = {}; }
   }
   const evs = Object.entries(window._webhookEvents || {});
   const hEvents = (h.events || '').split(',').map(e => e.trim());
+  // 🐛 v3.0.644 — události, které aplikace zatím nespouští: jen informativně (nejdou nově zaškrtnout);
+  //   už uložené zůstanou zaškrtnuté, ať se úpravou webhooku neztratí. Neznámé uložené (např. '*' z API) taky.
+  const planned = window._webhookEventsPlanned || {};
+  const evPlanned = Object.entries(planned);
+  const known = new Set([...evs.map(([k]) => k), ...evPlanned.map(([k]) => k)]);
+  const evOstatni = hEvents.filter(k => k && !known.has(k)).map(k => [k, k === '*' ? '✳️ Všechny události (*)' : k]);
 
   openModal(id ? '✏️ Upravit webhook' : '+ Nový webhook', `
     <div class="form-grid form-grid-tight">
@@ -933,6 +945,20 @@ window.openWebhookEdit = async function(id = null) {
               <span>${esc(label)}</span>
             </label>
           `).join('')}
+          ${evOstatni.map(([key, label]) => `
+            <label style="display:flex;gap:8px;align-items:center;font-size:12.5px;padding:4px 6px;border-radius:4px;cursor:pointer">
+              <input type="checkbox" value="${esc(key)}" checked class="wh-event-cb">
+              <span>${esc(label)}</span>
+            </label>
+          `).join('')}
+          ${evPlanned.map(([key, label]) => {
+            const ulozeno = hEvents.includes(key);
+            return `
+            <label style="display:flex;gap:8px;align-items:center;font-size:12.5px;padding:4px 6px;border-radius:4px;opacity:.55" title="Tuto událost aplikace zatím neodesílá">
+              <input type="checkbox" value="${esc(key)}" ${ulozeno ? 'checked' : 'disabled'} class="wh-event-cb">
+              <span>${esc(label)} <small>(připravujeme)</small></span>
+            </label>`;
+          }).join('')}
         </div>
       </div>
       <div class="full">
@@ -978,8 +1004,10 @@ window.saveWebhook = async function(id) {
 
 window.testWebhook = async function(id) {
   try {
-    await api('admin_webhooks.php?action=test&id=' + id, { method: 'POST' });
-    toastSuccess('🚀 Test event odeslán — zkontroluj log');
+    const r = await api('admin_webhooks.php?action=test&id=' + id, { method: 'POST' });
+    // 🐛 v3.0.644 — skutečný výsledek doručení (dřív vždy „odeslán", i když nic neodešlo)
+    if (r && r.ok) toastSuccess('🚀 Test doručen (HTTP ' + (r.http_status || '?') + ')');
+    else alert('Test se nepodařilo doručit: ' + ((r && r.error) || 'neznámá chyba'));
     setTimeout(loadWebhooks, 1500);
   } catch (e) { alert('Chyba: ' + e.message); }
 };
@@ -1330,32 +1358,132 @@ window.deleteNotif = async function(id) {
 // Server-side endpoint: /api/license_heartbeat.php → POSTuje na vendor.appek.cz
 // Customer admin spustí trigger jednou denně (localStorage chrání před spammen).
 // Pokud vendor odpoví status:pirate → renderPirateNagBanner() ukáže warning.
-async function triggerLicenseHeartbeatIfDue() {
+// 🐛 v3.0.644 — `force` = spusť heartbeat i když dnes už proběhl (po zaplacení pronájmu,
+//   po vložení nového klíče, po 402/423 ze serveru). Dřív se zámek uvolnil až další den.
+async function triggerLicenseHeartbeatIfDue(force) {
   try {
     const HB_KEY = 'appek_heartbeat_last_date';
     const today = new Date().toYMD(); // YYYY-MM-DD
-    const lastDate = localStorage.getItem(HB_KEY);
+    let lastDate = null;
+    try { lastDate = localStorage.getItem(HB_KEY); } catch (e) {}
     // Pokud už dnes proběhl, jen zkontroluj cached pirate flag (file → JS doesn't see; check via API)
-    if (lastDate === today) {
+    if (lastDate === today && !force) {
       // Quick check: server-side flag — admin_pirate_status.php má cache i bez heartbeat trigger
       try {
         const r = await api('admin_pirate_status.php');
         if (r && r.pirate_flag) renderPirateNagBanner(r);
+        else if (r && r.key_superseded) renderKeySupersededBanner(r);
       } catch (e) { /* endpoint může chybět na starší instalaci — ignore */ }
-      return;
+      return null;
     }
     // Spusť real heartbeat
     const r = await api('license_heartbeat.php', { method: 'POST', body: '{}' });
-    localStorage.setItem(HB_KEY, today);
+    if (r && r.status !== 'throttled') { try { localStorage.setItem(HB_KEY, today); } catch (e) {} }
     if (r && r.status === 'pirate') {
       renderPirateNagBanner(r);
+    } else if (r && r.status === 'superseded') {
+      renderKeySupersededBanner(r);
     } else {
       // Pokud existoval banner z předchozího pirate flagu a teď je clean → odstraň
       const ex = document.getElementById('appek-pirate-nag');
       if (ex) ex.remove();
     }
+    return r;
   } catch (e) {
     console.warn('[APPEK] heartbeat failed:', e.message || e);
+    return null;
+  }
+}
+
+// 🐛 v3.0.644 — server vrátil 402 (pronájem po grace) / 423 (licence locked/revoked).
+//   Vynuť heartbeat (max 1× za 60 s) — když se mezitím zaplatilo / vyřešilo u dodavatele,
+//   stránka se rovnou obnoví a appka jede. Jinak ukáže zámek s možností ověřit znovu / vložit klíč.
+window._licenseLockRecheck = async function(status, opts) {
+  opts = opts || {};
+  const TKEY = 'appek_lock_recheck_at';
+  let last = 0;
+  try { last = parseInt(sessionStorage.getItem(TKEY) || '0', 10) || 0; } catch (e) {}
+  if (!opts.manual && Date.now() - last < 60000) {
+    if (status === 402) renderRentalLockOverlay();
+    return;
+  }
+  if (window._licenseRecheckBusy) return;
+  window._licenseRecheckBusy = true;
+  try { sessionStorage.setItem(TKEY, String(Date.now())); } catch (e) {}
+  let r = null;
+  try { r = await triggerLicenseHeartbeatIfDue(true); } finally { window._licenseRecheckBusy = false; }
+  if (r && r.full_lock === false && r.enforce_ok !== false && r.status !== 'pirate' && r.status !== 'throttled') {
+    location.reload();   // odemčeno → načti appku znovu (overlaye pryč, data čerstvá)
+    return;
+  }
+  if (r && r.status === 'pirate') return;           // overlay/banner už vykreslil heartbeat
+  if (status === 423 && !(r && r.status === 'pirate')) {
+    renderLicenseLockOverlay({ reason: (r && r.reason) || 'locked', message: (r && r.message) || '' });
+    return;
+  }
+  renderRentalLockOverlay(opts.manual ? (r && r.status === 'throttled' ? r.message : 'Platba zatím nebyla potvrzena. Pokud jste právě zaplatili, zkuste to za chvíli znovu.') : '');
+};
+
+// 🐛 v3.0.644 — zámek PRONÁJMU (402) s tlačítkem „Ověřit platbu" (dřív jen chybové hlášky do zítřka).
+function renderRentalLockOverlay(note) {
+  let o = document.getElementById('appek-rental-lock');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'appek-rental-lock';
+    o.style.cssText = 'position:fixed;inset:0;z-index:999998;background:rgba(15,23,42,0.78);display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,BlinkMacSystemFont,sans-serif';
+    o.innerHTML = `
+      <div style="background:#fff;max-width:480px;width:100%;border-radius:16px;padding:28px 24px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,0.45)">
+        <div style="font-size:48px;margin-bottom:10px">🗓️</div>
+        <h1 style="font-size:21px;font-weight:800;color:#991B1B;margin:0 0 8px">Pronájem vypršel</h1>
+        <p style="font-size:13.5px;color:#374151;line-height:1.55;margin:0 0 16px">Vaše data zůstávají v bezpečí. Po prodloužení na my.appek.cz klikněte na <strong>Ověřit platbu</strong> — appka se odemkne hned.</p>
+        <div id="appek-rental-lock-note" style="font-size:12.5px;color:#92400E;margin-bottom:12px"></div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <a href="https://my.appek.cz" target="_blank" rel="noopener" style="padding:11px 18px;background:#0071e3;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Prodloužit na my.appek.cz</a>
+          <button type="button" id="appek-rental-lock-check" style="padding:11px 18px;background:#16a34a;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer">Ověřit platbu</button>
+        </div>
+      </div>`;
+    document.body.appendChild(o);
+    o.querySelector('#appek-rental-lock-check').addEventListener('click', async (ev) => {
+      const b = ev.currentTarget; b.disabled = true; b.textContent = 'Ověřuji…';
+      try { await window._licenseLockRecheck(402, { manual: true }); }
+      finally { b.disabled = false; b.textContent = 'Ověřit platbu'; }
+    });
+  }
+  const n = o.querySelector('#appek-rental-lock-note');
+  if (n) n.textContent = note || '';
+}
+
+// 🐛 v3.0.644 — starý klíč po reissue (dodavatel přidal/odebral balíček) → NE zámek, jen výzva.
+function renderKeySupersededBanner(payload) {
+  if (document.getElementById('appek-key-superseded')) return;
+  const b = document.createElement('div');
+  b.id = 'appek-key-superseded';
+  b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99990;background:#FEF3C7;border:1px solid #F59E0B;color:#78350F;border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,0.18)';
+  b.innerHTML = `
+    <span style="flex:1;min-width:200px">🔑 <strong>Dodavatel vydal nový licenční klíč.</strong> ${esc((payload && payload.message) || 'Vložte ho, ať se projeví změna balíčků.')}</span>
+    <button type="button" class="btn-primary" style="font-size:12px;padding:6px 12px" onclick="openLicenseUpdate()">Vložit nový klíč</button>
+    <button type="button" class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="this.parentNode.remove()">Později</button>`;
+  document.body.appendChild(b);
+}
+
+// 🐛 v3.0.644 — vložení nového klíče PŘÍMO v zámku (modal openLicenseUpdate je pod overlayem).
+async function _licenseLockSubmitKey() {
+  const inp = document.getElementById('appek-lock-key');
+  const msg = document.getElementById('appek-lock-key-msg');
+  const key = (inp && inp.value || '').trim().toUpperCase();
+  if (!key) { if (msg) msg.textContent = 'Zadejte licenční klíč.'; return; }
+  if (msg) msg.textContent = 'Ukládám a ověřuji…';
+  try {
+    await api('admin_license_update.php', { method: 'POST', body: JSON.stringify({ license_key: key }) });
+    try { localStorage.removeItem('appek_heartbeat_last_date'); sessionStorage.removeItem('appek_lock_recheck_at'); } catch (e) {}
+    const r = await triggerLicenseHeartbeatIfDue(true);
+    if (r && r.status === 'pirate') {
+      if (msg) msg.textContent = 'Klíč je uložený, ale dodavatel ho zatím neověřil: ' + (r.message || r.reason || '');
+      return;
+    }
+    location.reload();
+  } catch (e) {
+    if (msg) msg.textContent = 'Chyba: ' + (e.message || e);
   }
 }
 
@@ -1371,6 +1499,7 @@ function renderLicenseLockOverlay(payload) {
     key_reuse:      'Tento klíč je registrovaný pro jinou doménu',
     revoked_used:   'Tento klíč byl odvolán',
     expired_used:   'Vaše licence vypršela',
+    locked:         'Licence je zablokovaná',
   };
   const reason = reasonLabels[payload.reason] || 'Problém s licencí';
   const overlay = document.createElement('div');
@@ -1405,6 +1534,16 @@ function renderLicenseLockOverlay(payload) {
       <div style="font-size:12px;color:#7F1D1D;margin-top:6px">
         nebo telefon <a href="tel:+420774599622" style="color:#7F1D1D;font-weight:600;text-decoration:none">774 599 622</a>
       </div>
+      <!-- 🐛 v3.0.644 — nový klíč jde vložit přímo tady (dřív byl modal pod overlayem → zákazník bez cesty ven) -->
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid #eee;text-align:left">
+        <label for="appek-lock-key" style="font-size:12.5px;font-weight:700;color:#1d1d1f">Máte nový licenční klíč od dodavatele?</label>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <input id="appek-lock-key" autocomplete="off" placeholder="APPEK-XXXX-XXXX-XXXX-XXXX-XXXX"
+                 style="flex:1;min-width:0;padding:9px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:Menlo,monospace;font-size:13px;text-transform:uppercase">
+          <button type="button" id="appek-lock-key-btn" style="padding:9px 14px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">Uložit klíč</button>
+        </div>
+        <div id="appek-lock-key-msg" style="font-size:12px;color:#7F1D1D;margin-top:6px;min-height:1em"></div>
+      </div>
       <div style="font-size:11px;color:#86868b;margin-top:14px;font-family:monospace">
         Doména: ${location.hostname}<br>
         Reason: ${payload.reason || 'unknown'}
@@ -1413,6 +1552,10 @@ function renderLicenseLockOverlay(payload) {
   `;
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
+  try {
+    overlay.querySelector('#appek-lock-key-btn').addEventListener('click', _licenseLockSubmitKey);
+    overlay.querySelector('#appek-lock-key').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') _licenseLockSubmitKey(); });
+  } catch (e) {}
 
   // 🛡️ v3.0.471 — anti-tamper: obnov lock po pokusu ho skrýt/odstranit (display:none,
   //   visibility, opacity, remove z DOM). Klientský zámek = „friction not security",
@@ -1791,6 +1934,14 @@ window.confirmDialog = function({ title = 'Potvrzení', msg = '', okText = 'Pokr
     document.addEventListener('keydown', onKey);
     setTimeout(() => overlay.querySelector('.confirm-primary, .confirm-danger')?.focus(), 200);
   });
+};
+
+// 🐛 v3.0.644 — customConfirm(title, msg, okText) volaly balíčkové moduly (stojany na dorty, stanice,
+//   catering, mix&match, kurýři, šarže HACCP), ale funkce nikde neexistovala → ReferenceError a tlačítka
+//   Smazat/Vrátit/Ztraceno nic nedělala. Tenký obal nad confirmDialog (destruktivní akce → danger).
+window.customConfirm = function(title, msg = '', okText = 'Pokračovat') {
+  const danger = /smaz|odstran|ztrac|zruš|zrus/i.test(String(okText) + ' ' + String(title));
+  return window.confirmDialog({ title, msg, okText, danger });
 };
 
 // 🆕 v3.0.244 — stylový prompt() (Apple-style, jako confirmDialog). Vrací zadaný text,
@@ -2412,6 +2563,14 @@ async function api(path, opts = {}) {
         }
       } catch (e) { /* fall through na chybu níže */ }
     }
+    // 🐛 v3.0.644 — 402 = pronájem po grace, 423 = licence locked/revoked (server-side zámek).
+    //   Vynuť ověření licence u dodavatele (throttle uvnitř) → po zaplacení / vyřešení se appka
+    //   odemkne hned, ne až další den. Neblokuje (chyba se vyhodí normálně dál).
+    //   Jen s markerem license_lock (402 vrací i gating balíčků — to není zámek licence).
+    if ((res.status === 402 || res.status === 423) && data && data.license_lock && typeof window._licenseLockRecheck === 'function'
+        && !String(path).startsWith('license_heartbeat.php')) {
+      try { window._licenseLockRecheck(res.status); } catch (e) {}
+    }
     const err = new Error(data.error || 'Chyba serveru');
     if (data.request_id) {
       err.message += ' (reqId: ' + data.request_id + ')';
@@ -2915,12 +3074,44 @@ const ALL_NAV_PAGES = [
 ];
 state.rolePrava = DEFAULT_ROLE_PRAVA;
 
+// 🐛 v3.0.644 — podstránky, které nejsou samostatnou položkou menu (záložky Výroby, Nástrojů,
+//   Objednávek, stránky balíčků…), dřív nebyly v žádné roli a v editoru práv je nešlo zaškrtnout →
+//   ne-admin role (Výroba → záložka Suroviny, prodavač → Vratky…) skončila s toastem na Dashboardu.
+//   Podstránka teď dědí právo od rodičovské položky menu (stačí jedna z uvedených).
+const PODSTRANKA_RODIC = {
+  vyrobni_list:      ['vyroba'],
+  suroviny:          ['vyroba'],
+  sklad:             ['vyroba'],
+  export_vyroby:     ['vyroba'],
+  vyrobni_kalkulace: ['vyroba'],
+  vratky:            ['objednavky', 'faktury'],
+  vouchery:          ['objednavky', 'faktury'],
+  recurring:         ['objednavky'],
+  sales_report:      ['objednavky', 'faktury'],
+  rozvozy:           ['objednavky', 'dodaci_listy'],
+  kategorie:         ['vyrobky'],
+  cenove_skupiny:    ['vyrobky', 'odberatele'],
+  katalog:           ['nastroje'],
+  stitky:            ['nastroje'],
+  tiskarny:          ['nastroje'],
+  stanice:           ['nastroje'],
+  integrace:         ['nastroje', 'nastaveni'],
+  diagnostika:       ['nastaveni'],
+  users:             ['nastaveni'],
+};
+// Stránky balíčků (pkg_restaurace, pkg_cukrarna…) — provozní moduly, otevírají se z lišty balíčků
+const PKG_RODIC = ['nastroje', 'objednavky', 'vyroba'];
+
 // Pro aktuálního uživatele zjistí, zda smí navigovat na danou stránku
 function muzeNavigovat(page) {
   const role = state.admin?.role || 'admin';
   if (role === 'admin' || role === 'readonly') return true; // super admin + náhled (readonly) vidí/prochází vše
-  const allowed = state.rolePrava[role] || [];
-  return allowed.includes(page);
+  // 🐛 v3.0.644 — role bez záznamu ze serveru (např. 'pos' na starší instalaci) → výchozí práva z JS
+  //   (dřív `|| []` → menu ukázalo vše podle DEFAULT, ale každý klik skončil na Dashboardu)
+  const allowed = state.rolePrava[role] || DEFAULT_ROLE_PRAVA[role] || [];
+  if (allowed.includes(page)) return true;
+  const rodice = PODSTRANKA_RODIC[page] || ((typeof page === 'string' && page.startsWith('pkg_')) ? PKG_RODIC : null);
+  return !!(rodice && rodice.some((r) => allowed.includes(r)));
 }
 
 // Podle role schová nav items v sidebaru
@@ -9589,7 +9780,7 @@ window.skladSetPozice = async function(polozkaId) {
 window.stornoPohyb = async function(pohybId, popis) {
   if (!confirm('Stornovat pohyb?\n\n' + (popis || '') + '\n\nVytvoří se reverzní korekce — stav se opraví, původní záznam v historii zůstane dohledatelný.')) return;
   try {
-    await api('admin_sklad_pohyby.php', { method: 'POST', body: JSON.stringify({ action: 'storno', pohyb_id: pohybId }) });
+    await api('admin_sklad_pohyby.php?action=storno', { method: 'POST', body: JSON.stringify({ action: 'storno', pohyb_id: pohybId }) }); // 🐛 v3.0.644 — akce v URL
     if (typeof toast === 'function') toast('✓ Pohyb stornován', 'success');
     state._suroviny_full_cache = null;
     if (state._currentSkladId) otevritSklad(state._currentSkladId, state._currentSkladNazev || '', state._currentSkladKod || '');
@@ -9598,7 +9789,7 @@ window.stornoPohyb = async function(pohybId, popis) {
 window.upravitPohyb = async function(pohybId, skladId, typ, nazev, itemTyp, itemId, jednotka) {
   if (!confirm('Upravit pohyb „' + nazev + '"?\n\nStornuje se původní a hned zadáš správnou hodnotu.')) return;
   try {
-    await api('admin_sklad_pohyby.php', { method: 'POST', body: JSON.stringify({ action: 'storno', pohyb_id: pohybId }) });
+    await api('admin_sklad_pohyby.php?action=storno', { method: 'POST', body: JSON.stringify({ action: 'storno', pohyb_id: pohybId }) }); // 🐛 v3.0.644 — akce v URL
     state._suroviny_full_cache = null;
     if (typeof toast === 'function') toast('Původní stornován — zadej správné množství', 'info');
     const reTyp = (typ === 'vratka') ? 'prijem' : typ;
@@ -11017,7 +11208,8 @@ async function renderRecurring() {
       <div class="card-block" style="margin-bottom:14px;padding:12px 16px;background:var(--info-bg);color:var(--info-text);font-size:13px;line-height:1.6">
         💡 <strong>Jak to funguje:</strong> Vytvoříte pravidlo (např. „Hotel Beránek — pondělí, středa: 30 chlebů + 50 rohlíků").
         Každou noc cron skript (volitelně přes web s tokenem) vygeneruje objednávky pro zítřejší den.
-        Anti-duplikát zajistí, že se obj nevytvoří dvakrát.
+        Anti-duplikát zajistí, že se obj nevytvoří dvakrát (ani na den, kdy byla objednávka zrušena).
+        Položka bez ceny se nacení podle aktuálního ceníku odběratele; zablokovanému odběrateli ani neaktivním výrobkům se nic negeneruje.
       </div>
 
       ${list.length === 0 ? `
@@ -11175,15 +11367,24 @@ window.recurringEdit = async function(id) {
 
 function recurringPolozkaRow(p, idx, vyrobky) {
   return `
-    <div class="rec-polozka-row" data-idx="${idx}" style="display:grid;grid-template-columns:2fr 100px 80px 100px auto;gap:8px;margin-bottom:6px;align-items:center">
+    <div class="rec-polozka-row" data-idx="${idx}" onchange="recurringPolozkaZmena(event, this)" style="display:grid;grid-template-columns:2fr 100px 80px 100px auto;gap:8px;margin-bottom:6px;align-items:center">
       ${vyrComboRow('rec-pol-vyrobek', vyrobky, p.vyrobek_id, 'data-fld="vyrobek_id"')}
       <input class="form-input rec-pol-mn" type="number" step="0.01" min="0" data-fld="mnozstvi" value="${p.mnozstvi || ''}" placeholder="ks">
       <input class="form-input" type="text" data-fld="jednotka" value="${esc(p.jednotka || 'ks')}" placeholder="jed.">
-      <input class="form-input" type="number" step="0.01" min="0" data-fld="cena_bez_dph" value="${p.cena_bez_dph || ''}" placeholder="Cena">
+      <input class="form-input" type="number" step="0.01" min="0" data-fld="cena_bez_dph" value="${parseFloat(p.cena_bez_dph) > 0 ? p.cena_bez_dph : ''}" placeholder="dle ceníku" title="Cena bez DPH za jednotku. Prázdné = při každém vygenerování aktuální cena z ceníku odběratele (skupina, slevy, sezóna). Vyplněná = pevná cena.">
       <button type="button" class="btn-danger" style="padding:6px 10px;font-size:12px" onclick="this.closest('.rec-polozka-row').remove()">×</button>
     </div>
   `;
 }
+
+// 🐛 v3.0.644 — výběr výrobku v řádku: doplní jednotku výrobku (vyrComboPick vyšle change na skrytém inputu).
+//   Cenu záměrně NEpředvyplňujeme základní cenou — prázdná = aktuální ceník odběratele při generování.
+window.recurringPolozkaZmena = function(ev, row) {
+  const t = ev && ev.target;
+  if (!t || t.dataset.fld !== 'vyrobek_id') return;
+  const jedEl = row.querySelector('[data-fld="jednotka"]');
+  if (jedEl && t.dataset.jed) jedEl.value = t.dataset.jed;
+};
 
 window.recurringAddPolozka = function() {
   const host = document.getElementById('rec-polozky');
@@ -11199,7 +11400,9 @@ window.recurringSave = async function(id) {
     const vid = parseInt(idEl.value);
     const mn  = parseFloat(row.querySelector('[data-fld="mnozstvi"]').value) || 0;
     const jed = row.querySelector('[data-fld="jednotka"]').value || 'ks';
-    const cena = parseFloat(row.querySelector('[data-fld="cena_bez_dph"]').value) || 0;
+    // 🐛 v3.0.644 — prázdná cena = null („dle ceníku" při generování), dřív 0 → objednávky/DL/faktury za 0 Kč
+    const cenaRaw = parseFloat(row.querySelector('[data-fld="cena_bez_dph"]').value);
+    const cena = cenaRaw > 0 ? cenaRaw : null;
     if (vid && mn > 0) {
       // 🆕 v3.0.279 — DPH + název z hidden inputu comboboxu (data-* nastaví vyrComboRow/vyrComboPick)
       const dph = parseFloat(idEl.dataset.dph) || 12;
@@ -11975,7 +12178,7 @@ window.zobrazFeedUrl = async function() {
 };
 window.regenerovatFeedUrl = async function() {
   if (!confirm('Přegenerovat token? Staré feed URL přestanou fungovat — budeš je muset znovu vložit do Google / Heuréky.')) return;
-  try { await api('admin_vyrobky_export.php?action=feed_regenerate'); if (typeof toast === 'function') toast('Nový token vygenerován', 'info'); zobrazFeedUrl(); }
+  try { await api('admin_vyrobky_export.php?action=feed_regenerate', { method: 'POST' }); /* 🐛 v3.0.644 — mutace jen POST */ if (typeof toast === 'function') toast('Nový token vygenerován', 'info'); zobrazFeedUrl(); }
   catch (e) { alert('Chyba: ' + e.message); }
 };
 
@@ -12279,7 +12482,7 @@ window.openDodaciListDetail = async function(id) {
           <a href="../api/admin_export_dl.php?action=csv-detail&id=${dl.id}" class="btn-secondary" style="text-decoration:none" title="Stáhnout CSV s položkami pro Money / Pohoda / Excel">📊 CSV export</a>
           <button class="btn-secondary" onclick='tiskDodaciList(${JSON.stringify({id: dl.id, objednavka_id: dl.objednavka_id || null})})' title="Otevře tiskový dialog (PDF / tiskárna)">🖨️ Tisk</button>
           <button class="btn-secondary" onclick="printQueue.add({type:'dl', id: ${dl.id}, label: 'DL ${esc(dl.cislo || '#'+dl.id)}'})" title="Přidat do fronty pro hromadný tisk">➕🖨️</button>
-          <button class="btn-secondary" onclick="closeModal(); upravitDodaciList(${dl.id})">✏️ Upravit</button>
+          ${(dl.faktury.length > 0 || dl.fakturovano == 1) ? '' : `<button class="btn-secondary" onclick="closeModal(); upravitDodaciList(${dl.id})">✏️ Upravit</button>`}
         </div>
         <div class="form-actions-icons-row">
           <button class="btn-icon-corner" onclick="tiskNaTermo('dl', ${dl.id}, '${esc(dl.cislo).replace(/'/g, '')}')" title="Tisk na termo-tiskárnu (účtenka / bon)" aria-label="Tisk na tiskárnu">🖨️</button>
@@ -12315,16 +12518,26 @@ window.upravitDodaciList = async function(id) {
       datum_vystaveni: dl.datum_vystaveni,
       datum_dodani: dl.datum_dodani,
       poznamka: dl.poznamka || '',
-      polozky: dl.polozky.map(p => ({
-        vyrobek_id: p.vyrobek_id,
-        vyrobek_nazev: p.vyrobek_nazev,
-        vyrobek_cislo: p.vyrobek_cislo || '',
-        jednotka: p.jednotka || 'ks',
-        mnozstvi: parseFloat(p.mnozstvi) || 0,
-        cena_bez_dph: parseFloat(p.cena_bez_dph) || 0,
-        sazba_dph: parseFloat(p.sazba_dph) || 12,
-        je_z_katalogu: !!p.vyrobek_id
-      })),
+      polozky: dl.polozky.map(p => {
+        // 🐛 v3.0.644 — sazba 0 % zůstane 0 % (dřív `|| 12` dělalo z osvobozené položky / řádku
+        //   voucheru 12 % → tiše se změnilo DPH i celkem DL). 12 jen když sazba chybí.
+        const sazba = parseFloat(p.sazba_dph);
+        const cena = parseFloat(p.cena_bez_dph) || 0;
+        return {
+          vyrobek_id: p.vyrobek_id,
+          vyrobek_nazev: p.vyrobek_nazev,
+          vyrobek_cislo: p.vyrobek_cislo || '',
+          jednotka: p.jednotka || 'ks',
+          mnozstvi: parseFloat(p.mnozstvi) || 0,
+          cena_bez_dph: cena,
+          sazba_dph: Number.isFinite(sazba) ? sazba : 12,
+          poznamka: p.poznamka || null,
+          // 🐛 v3.0.644 — záporný řádek z objednávky (voucher / sleva) se v editoru nemění a smí zůstat
+          //   záporný (dřív validace „záporná cena" DL s voucherem vůbec nedovolila uložit)
+          zamcena_cena: cena < 0,
+          je_z_katalogu: !!p.vyrobek_id
+        };
+      }),
       vsechny_odberatele: odberatele || [],
       pobocky: pobocky.mista || pobocky || [],
       posledni_objednavky: [],
@@ -14677,7 +14890,7 @@ window.editVyrobek = async function(id = null) {
   state._vyEditId = id || 0;
   if (!state._vyrobky_pol_cache) {
     api('admin_vyrobky.php').then(r => {
-      state._vyrobky_pol_cache = (r.vyrobky || []).map(x => ({ id: x.id, nazev: x.nazev, je_polotovar: x.je_polotovar }));
+      state._vyrobky_pol_cache = (r.vyrobky || []).map(x => ({ id: x.id, nazev: x.nazev, je_polotovar: x.je_polotovar, jednotka_kod: x.jednotka_kod || 'ks', hmotnost_g: x.hmotnost_g })); // 🐛 v3.0.644 — jednotka/hmotnost pro převod řádku polotovaru
     }).catch(() => { state._vyrobky_pol_cache = []; });
   }
   if (Array.isArray(v.slozeni)) {
@@ -14819,7 +15032,23 @@ window.vyOdvoditAlergeny = async function(silent) {
   const sur = state._suroviny_cache || [];
   const indexById = Object.fromEntries(sur.map(s => [s.id, s]));
   const set = new Set();
+  // 🐛 v3.0.644 — řádky POLOTOVARU (nemají .sloz-sur → dřív TypeError a alergeny z těsta chyběly):
+  //   alergeny polotovaru = jeho deklarované + rekurzivní rollup receptu (bom_alergeny ze serveru).
+  const polIds = Array.from(rows).map(r => parseInt(r.querySelector('.sloz-pol')?.value) || 0).filter(Boolean);
+  state._vyPolAlerCache = state._vyPolAlerCache || {};
+  await Promise.all([...new Set(polIds)].map(async vid => {
+    if (state._vyPolAlerCache[vid]) return;
+    try {
+      const v = await api('admin_vyrobky.php?id=' + vid);
+      const a = [];
+      String(v.alergeny || '').split(/[,;]/).forEach(x => { x = x.trim(); if (x) a.push(x); });
+      (Array.isArray(v.bom_alergeny) ? v.bom_alergeny : []).forEach(x => { x = String(x).trim(); if (x) a.push(x); });
+      state._vyPolAlerCache[vid] = a;
+    } catch (e) { /* bez spojení → server alergeny doplní při uložení (add-only) */ }
+  }));
+  polIds.forEach(vid => (state._vyPolAlerCache[vid] || []).forEach(a => set.add(a)));
   rows.forEach(r => {
+    if (!r.querySelector('.sloz-sur')) return;   // řádek polotovaru — zpracován výše
     const sid = parseInt(r.querySelector('.sloz-sur').value) || 0;
     if (!sid) return;
     const s = indexById[sid];
@@ -16965,7 +17194,7 @@ async function _renderNastaveniInner() {
         <button class="btn-primary btn-green" onclick="apiTokenNew()" style="font-size:13px;padding:8px 14px">+ Nový token</button>
       </div>
       <p style="font-size:13px;color:var(--text-2);margin-bottom:12px;line-height:1.5">
-        Vytvořte token pro účetní (Money S3 / POHODA / Fakturoid). Účetní stáhne FA přes <code style="background:var(--surface-2);padding:1px 6px;border-radius:4px;font-size:11px">GET /api/v1/faktury?token=...</code>.
+        Vytvořte token pro účetní (Money S3 / POHODA / Fakturoid). Účetní stáhne FA přes <code style="background:var(--surface-2);padding:1px 6px;border-radius:4px;font-size:11px">GET ${esc(new URL('../api/v1/', location.href).pathname)}faktury</code> s hlavičkou <code style="background:var(--surface-2);padding:1px 6px;border-radius:4px;font-size:11px">Authorization: Bearer …</code>.
         <a href="../api/v1/" target="_blank" style="color:var(--primary);text-decoration:underline">📖 Dokumentace API ↗</a>
       </p>
       <div id="api-tokens-list" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
@@ -17243,8 +17472,9 @@ async function _renderNastaveniInner() {
       },
       { q: '🔌 API pro účetní systémy — jak ho zapojit?', a: `
           <p>Nastavení → 🛠️ Údržba → 🔌 API tokeny → + Nový token (zadejte název „Money S3").</p>
-          <p>Zkopírujte token (vidíte ho jen 1×!) a zadejte do účetního SW URL:</p>
-          <pre style="background:var(--surface-2);padding:10px;border-radius:6px;font-size:11px;overflow-x:auto">${esc(location.origin)}/api/v1/faktury?token=VÁŠ_TOKEN&od=2026-01-01&do=2026-12-31</pre>
+          <p>Zkopírujte token (vidíte ho jen 1×!) a zadejte do účetního SW URL a hlavičku <code>Authorization: Bearer VÁŠ_TOKEN</code>:</p>
+          <pre style="background:var(--surface-2);padding:10px;border-radius:6px;font-size:11px;overflow-x:auto">${esc(new URL('../api/v1/', location.href).href)}faktury?od=2026-01-01&do=2026-12-31</pre>
+          <p style="font-size:12px">Když účetní SW hlavičky neumí, přidejte do URL <code>&token=VÁŠ_TOKEN</code> (token se pak ale ukládá do logů serveru).</p>
           <p>Účetní stáhne všechny faktury jako JSON nebo ISDOC. Dokumentace: <a href="../api/v1/" target="_blank" style="color:var(--primary)">/api/v1/</a></p>`
       },
       { q: '🧾 Slevové skupiny / ceníky — jak fungují?', a: `
@@ -19535,6 +19765,10 @@ window.submitLicenseUpdate = async function() {
     });
     closeModal();
     alert(t('license_updated', { pkgs: (r.packages || []).join(', ') }));
+    // 🐛 v3.0.644 — po vložení nového klíče hned ověř u dodavatele (jinak by stav licence /
+    //   výzva „starý klíč" / případný zámek visely do zítřejšího heartbeatu)
+    try { localStorage.removeItem('appek_heartbeat_last_date'); } catch (e) {}
+    try { await triggerLicenseHeartbeatIfDue(true); } catch (e) {}
     location.reload();
   } catch (e) {
     alert('Chyba: ' + e.message);
@@ -20617,19 +20851,25 @@ window.cakeSubmitOrder = async function() {
     alert('Nejprve nastav velikost / příchuť / dekoraci v konfigurátoru.');
     return;
   }
+  const payload = {
+    odberatel_id: odberatelId,
+    datum_dodani: datum,
+    vyrobek_id: state._cake.prichut,
+    velikost_id: state._cake.velikost_id,
+    volby: state._cake.volby || {},
+    text: state._cake.text,
+    foto: (state._cake.foto || '').trim(),
+  };
   try {
-    const r = await api('admin_cake_configurator.php?action=create_order', {
-      method: 'POST',
-      body: JSON.stringify({
-        odberatel_id: odberatelId,
-        datum_dodani: datum,
-        vyrobek_id: state._cake.prichut,
-        velikost_id: state._cake.velikost_id,
-        volby: state._cake.volby || {},
-        text: state._cake.text,
-        foto: (state._cake.foto || '').trim(),
-      }),
-    });
+    let r;
+    try {
+      r = await api('admin_cake_configurator.php?action=create_order', { method: 'POST', body: JSON.stringify(payload) });
+    } catch (e) {
+      // 🐛 v3.0.644 — server hlídá kapacitní plán dne (zavřeno / plno) → vědomé překročení po potvrzení
+      if (!/^KAPACITA:/.test(e.message || '')) throw e;
+      if (!confirm(e.message.replace(/^KAPACITA:\s*/, '') + '\n\nPřesto objednávku vytvořit?')) return;
+      r = await api('admin_cake_configurator.php?action=create_order', { method: 'POST', body: JSON.stringify({ ...payload, prekrocit_kapacitu: true }) });
+    }
     closeModal();
     toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: fmt(r.castka) }));
     setTimeout(() => navigate('objednavky'), 600);
@@ -23083,7 +23323,13 @@ async function posLoadMenu() {
       cats[cid].items.push({
         id: parseInt(v.id),
         nazev: v.nazev,
-        cena: parseFloat(v.cena_bez_dph || v.cena || 0),
+        // 🐛 v3.0.644 — účet stolu drží cenu S DPH (jako pokladna admin/pos.js a prodej účtu na serveru);
+        //   dřív holá cena_bez_dph → host zaplatil o DPH méně. admin_vyrobky vrací sazbu v `dph` (chybí → 21 %).
+        cena: (function () {
+          const bez = parseFloat(v.cena_bez_dph || v.cena || 0) || 0;
+          const sz = (v.dph !== null && v.dph !== undefined && v.dph !== '' && !isNaN(parseFloat(v.dph))) ? parseFloat(v.dph) : 21;
+          return Math.round(bez * (1 + sz / 100) * 100) / 100;
+        })(),
         popis: v.popis || '',
         kategorie: v.kategorie_nazev || '',
       });
@@ -23401,6 +23647,18 @@ window.posPaymentDialog = async function() {
   `);
 };
 
+// 🐛 v3.0.644 — server odmítne zavřít účet s rozjetou QR platbou hosta (409). Po potvrzení obsluhy
+//   (host na bráně NEzaplatil) pošleme zrusit_qr → QR platba se zruší a účet se zaplatí zvoleným způsobem.
+async function posPayCall(body) {
+  try {
+    return await api('admin_pos.php?action=pay', { method: 'POST', body: JSON.stringify(body) });
+  } catch (e) {
+    if (!/rozpracovanou QR platbu/i.test(e.message || '')) throw e;
+    if (!(await confirmDialog({ msg: 'Host má rozpracovanou QR platbu tohoto účtu.\n\nOvěř, že na bráně NEzaplatil (jinak by zaplatil dvakrát). Zrušit QR platbu a zaplatit teď jinak?', danger: true }))) throw new Error('Zrušeno — QR platba zůstává rozpracovaná');
+    return await api('admin_pos.php?action=pay', { method: 'POST', body: JSON.stringify({ ...body, zrusit_qr: true }) });
+  }
+}
+
 window.posPaySingle = async function(amount, zpusob) {
   const u = posState.currentUcet;
   const pi = window._posPlatbaInfo;
@@ -23411,7 +23669,7 @@ window.posPaySingle = async function(amount, zpusob) {
     const body = (mena !== 'CZK')
       ? { ucet_id: u.id, payment: zpusob, mena, kurz_klient: inf ? inf.kurz_prodej : undefined, station_token: (localStorage.getItem('appek_station_token') || '') }
       : { ucet_id: u.id, platby: [{ castka: amount, zpusob }], ...((pi && pi.aktivni) ? { mena: 'CZK' } : {}), station_token: (localStorage.getItem('appek_station_token') || '') };
-    const r = await api('admin_pos.php?action=pay', { method: 'POST', body: JSON.stringify(body) });
+    const r = await posPayCall(body);
     // 🆕 v3.0.189 — server účet uzavřel (stav=paid) + uvolnil stůl. Nabídni tisk (ne auto-tisk).
     posPaidPrintPrompt(u.id, mena !== 'CZK' ? r.celkem_mena : amount, mena);
   } catch (e) { alert('Chyba: ' + e.message); if (/kurz/i.test(e.message || '')) posPlatbaInfoLoad(); }
@@ -23494,9 +23752,7 @@ window.posSubmitSplitPay = async function(total) {
   const pi = window._posPlatbaInfo;
   const mena = (pi && pi.aktivni) ? window.posPlatbaMena : 'CZK';
   try {
-    const r = await api('admin_pos.php?action=pay', {
-      method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby: platby.map(p => ({ ...p, mena })), ...(mena !== 'CZK' ? { mena, kurz_klient: (pi.meny[mena] || {}).kurz_prodej } : ((pi && pi.aktivni) ? { mena: 'CZK' } : {})), station_token: (localStorage.getItem('appek_station_token') || '') }),
-    });
+    const r = await posPayCall({ ucet_id: u.id, platby: platby.map(p => ({ ...p, mena })), ...(mena !== 'CZK' ? { mena, kurz_klient: (pi.meny[mena] || {}).kurz_prodej } : ((pi && pi.aktivni) ? { mena: 'CZK' } : {})), station_token: (localStorage.getItem('appek_station_token') || '') });
     // 🆕 v3.0.189 — sjednoceno s posPaySingle: nabídni tisk + zavři.
     posPaidPrintPrompt(u.id, mena !== 'CZK' ? r.celkem_mena : sum, mena);
   } catch (e) { alert('Chyba: ' + e.message); }
@@ -23546,7 +23802,15 @@ window.posSplitSubmit = async function() {
   const parts = Object.values(partsMap);
   if (parts.length < 2) return alert('Použij alespoň 2 různé části.');
   try {
-    await api('admin_pos.php?action=split', { method: 'POST', body: JSON.stringify({ ucet_id: u.id, parts }) });
+    try {
+      await api('admin_pos.php?action=split', { method: 'POST', body: JSON.stringify({ ucet_id: u.id, parts }) });
+    } catch (e1) {
+      // 🐛 v3.0.644 — účet s rozjetou QR platbou server nedělí (409); po potvrzení QR platbu zruš a zkus znovu
+      if (!/rozpracovanou QR platbu/i.test(e1.message || '')) throw e1;
+      if (!(await confirmDialog({ msg: 'Host má rozpracovanou QR platbu tohoto účtu.\n\nOvěř, že na bráně NEzaplatil. Zrušit QR platbu a účet rozdělit?', danger: true }))) return;
+      await api('admin_pos.php?action=qr_pay_cancel', { method: 'POST', body: JSON.stringify({ ucet_id: u.id }) });
+      await api('admin_pos.php?action=split', { method: 'POST', body: JSON.stringify({ ucet_id: u.id, parts }) });
+    }
     closeModal();
     toastSuccess(t('toast_split_parts', { n: parts.length }));
     posState.currentUcet = null;
@@ -27863,6 +28127,8 @@ window.apiTokenCreate = async function() {
   if (!nazev) return alert('Vyplň název');
   try {
     const r = await api('admin_api_tokens.php', { method: 'POST', body: JSON.stringify({ nazev, opravneni }) });
+    // 🐛 v3.0.644 — URL včetně podsložky instalace (dřív location.origin → u instalace v podsložce 404)
+    const apiBase = new URL('../api/v1/', location.href).href;
     // Zobraz token jen 1×
     openModal('🔑 Token vytvořen — uložte si ho!', `
       <div style="background:#FEF3C7;border:2px solid #F59E0B;padding:14px;border-radius:8px;margin-bottom:12px;color:#854F0B">
@@ -27872,8 +28138,11 @@ window.apiTokenCreate = async function() {
       <textarea readonly class="form-input" rows="3" onclick="this.select()" style="font-family:monospace;font-size:13px;background:#f7f8fa">${esc(r.token)}</textarea>
       <p style="font-size:12px;color:var(--text-3);margin-top:10px">
         <strong>Použití v Money S3 / POHODA / Fakturoid:</strong><br>
-        URL: <code>${location.origin}/api/v1/faktury?token=${esc(r.token)}</code><br>
-        Nebo HTTP hlavička: <code>Authorization: Bearer ${esc(r.token)}</code>
+        URL: <code>${esc(apiBase)}faktury</code><br>
+        + HTTP hlavička (doporučeno): <code>Authorization: Bearer ${esc(r.token)}</code><br>
+        <span style="font-size:11px">Pokud účetní SW hlavičky neumí: <code>${esc(apiBase)}faktury?token=${esc(r.token)}</code>
+        (token v adrese se ale ukládá do logů serveru). Bez přepisu URL na serveru funguje vždy i
+        <code>${esc(apiBase)}index.php?path=faktury</code>.</span>
       </p>
       <div class="form-actions">
         <button class="btn-secondary" onclick="navigator.clipboard.writeText('${esc(r.token).replace(/'/g, "\\'")}').then(() => alert('✓ Zkopírováno do schránky'))">📋 Kopírovat token</button>
@@ -29436,8 +29705,8 @@ window.diagLint = async function() {
 window.diagPingMail = async function() {
   const to = await promptDialog({ title: 'Testovací e-mail', msg: 'E-mail, kam poslat testovací zprávu (nech prázdné pro firma_email z nastavení).', placeholder: 'jmeno@firma.cz', okText: 'Odeslat test', icon: '📧', inputType: 'email' });
   try {
-    const url = 'admin_diagnostika.php?action=ping_mail' + (to ? '&to=' + encodeURIComponent(to) : '');
-    const r = await api(url);
+    // 🐛 v3.0.644 — POST s tělem (mutace/odeslání mailu nesmí jít GET odkazem)
+    const r = await api('admin_diagnostika.php?action=ping_mail', { method: 'POST', body: JSON.stringify({ to: to || '' }) });
     if (r.ok) {
       alert('✓ Mail odeslán\n\nNa: ' + r.to + '\nOd: ' + r.from + '\n\nPokud nedorazí během minuty, zkontroluj spam.');
     } else {
@@ -30823,7 +31092,9 @@ function vykresliPravaPanel() {
     { key: 'prodavac', label: '🛒 Prodavač',     popis: 'Obvykle objednávky, DL, faktury, výrobky' },
     { key: 'vyroba',   label: '🥖 Výroba',       popis: 'Výrobní list, výrobky, HACCP' },
     { key: 'expedice', label: '🚚 Expedice',     popis: 'Jen objednávky a dodací listy' },
-    { key: 'pos',      label: '🧾 POS kasa',     popis: 'Pouze POS terminál (/pos/), žádný admin přístup' },
+    // 🐛 v3.0.644 — popis odpovídá chování: bez pos_only vidí admin podle zaškrtnutých stránek (výchozí = vše);
+    //   „jen kasa" řeší u uživatele volba 🔒 Pouze POS terminál (pos_only)
+    { key: 'pos',      label: '🧾 POS kasa',     popis: 'POS kasa + admin podle zaškrtnutých stránek; jen kasa = „Pouze POS terminál“ u uživatele' },
   ];
 
   blok.innerHTML = `
@@ -30895,7 +31166,13 @@ window.ulozitPrava = async function() {
     if (r?.prava) state.rolePrava = r.prava;
     // Pokud zobrazujeme menu pro vlastní roli, aplikuj okamžitě
     aplikovatPravaNaMenu();
-    alert('✓ Práva uložena. Změny se projeví okamžitě.');
+    vykresliPravaPanel(); // 🐛 v3.0.644 — ukaž, co server skutečně uložil
+    // 🐛 v3.0.644 — server dřív tiše zahodil neznámé role/stránky a hlásil úspěch
+    if (Array.isArray(r?.ignorovano) && r.ignorovano.length) {
+      alert('⚠️ Práva uložena, ale tyto položky server nepřijal: ' + r.ignorovano.join(', '));
+    } else {
+      alert('✓ Práva uložena. Změny se projeví okamžitě.');
+    }
   } catch (e) {
     alert('Chyba ukládání: ' + e.message);
   }
@@ -32595,7 +32872,12 @@ function vykreslitRucniDl() {
                 <input class="form-input obj-polozka-jed" type="text" value="${esc(p.jednotka || 'ks')}" maxlength="10"
                        placeholder="ks"
                        oninput="rdlState.polozky[${i}].jednotka = this.value">
-                <input class="form-input obj-polozka-cena-input" type="number" min="0" step="0.01" value="${p.cena_bez_dph}"
+                ${p.zamcena_cena
+                  // 🐛 v3.0.644 — řádek voucheru/slevy (záporná cena) z objednávky: cena i sazba zamčené
+                  ? `<input class="form-input obj-polozka-cena-input" type="number" step="0.01" value="${p.cena_bez_dph}" readonly
+                            title="Sleva / voucher z objednávky — cenu nelze měnit">
+                     <select class="form-input obj-polozka-dph" disabled><option>${esc(String(p.sazba_dph))}%</option></select>`
+                  : `<input class="form-input obj-polozka-cena-input" type="number" min="0" step="0.01" value="${p.cena_bez_dph}"
                        placeholder="cena"
                        oninput="rdlState.polozky[${i}].cena_bez_dph = parseFloat(this.value)||0; vykreslitRucniDl()">
                 <select class="form-input obj-polozka-dph"
@@ -32603,7 +32885,8 @@ function vykreslitRucniDl() {
                   <option value="0"  ${p.sazba_dph == 0  ? 'selected' : ''}>0%</option>
                   <option value="12" ${p.sazba_dph == 12 ? 'selected' : ''}>12%</option>
                   <option value="21" ${p.sazba_dph == 21 ? 'selected' : ''}>21%</option>
-                </select>
+                  ${[0, 12, 21].includes(Number(p.sazba_dph)) ? '' : `<option value="${esc(String(p.sazba_dph))}" selected>${esc(String(p.sazba_dph))}%</option>`}
+                </select>`}
               </div>
             </div>
             <div class="obj-polozka-qty">
@@ -32925,7 +33208,7 @@ window.rdlVystavit = async function() {
     const p = s.polozky[i];
     if (!p.vyrobek_nazev?.trim()) return alert(t('row_missing_name_short', { n: i + 1 }));
     if (p.mnozstvi <= 0) return alert(t('row_invalid_qty', { n: i + 1 }));
-    if (p.cena_bez_dph < 0) return alert(t('row_negative_price', { n: i + 1 }));
+    if (p.cena_bez_dph < 0 && !p.zamcena_cena) return alert(t('row_negative_price', { n: i + 1 }));   // 🐛 v3.0.644 — voucher/sleva smí být záporná
   }
 
   const data = {
@@ -32942,6 +33225,7 @@ window.rdlVystavit = async function() {
       mnozstvi: p.mnozstvi,
       cena_bez_dph: p.cena_bez_dph,
       sazba_dph: p.sazba_dph,
+      poznamka: p.poznamka || null,   // 🐛 v3.0.644 — poznámka řádku se úpravou DL neztratí
     })),
   };
 
@@ -33409,6 +33693,7 @@ window.appekImportCommit = async function() {
         <div style="font-size:42px">✅</div>
         <h3 style="margin:8px 0">Import dokončen</h3>
         <p style="font-size:14px;line-height:1.7">Nových: <strong>${r.inserted}</strong> · Aktualizováno: <strong>${r.updated}</strong> · Přeskočeno: <strong>${r.skipped}</strong>${r.categories_created ? ` · Nových kategorií: <strong>${r.categories_created}</strong>` : ''}</p>
+        ${r.price_kept ? `<p style="font-size:13px;color:var(--text-secondary);margin:6px auto;max-width:420px">ℹ️ ${r.price_kept} aktualizovaných produktů bez ceny v souboru — původní cena ponechána.</p>` : ''}
         ${r.priced_zero ? `<p style="font-size:13px;color:#a8232f;background:#fde7e9;border-radius:8px;padding:8px 12px;margin:6px auto;max-width:420px">⚠️ ${r.priced_zero} produktů importováno za <strong>0 Kč</strong> — zkontroluj mapování ceny.</p>` : ''}
         <button class="btn-primary btn-green" onclick="closeModal();navigate('vyrobky')" style="margin-top:10px;font-weight:700">Zobrazit produkty →</button>
       </div>`;
@@ -36202,7 +36487,7 @@ Mléko polotučné;ml;22;1000;mléko"></textarea>
             return `
               <tr style="${!valid ? 'opacity:0.4' : ''}">
                 <td>${valid ? `<strong>${esc(m.nazev)}</strong>` : '<span style="color:var(--danger-text)">❌ chybí název</span>'}</td>
-                <td>${esc(m.jednotka || 'g')}</td>
+                <td>${(m.jednotka ? esc(m.jednotka) : '—')}</td>
                 <td class="num">${m.cena_baleni > 0 ? m.cena_baleni.toFixed(2).replace('.', ',') + ' Kč' : '—'}</td>
                 <td class="num">${m.obsah_baleni > 0 ? m.obsah_baleni : '—'}</td>
                 <td>${m.alergen ? `<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px">${esc(m.alergen)}</span>` : '—'}</td>
@@ -36275,13 +36560,17 @@ window.surCsvNacist = function() {
   vykreslitImportSurovin();
 };
 
+// 🐛 v3.0.644 — posílej JEN namapované a vyplněné sloupce (žádné výchozí 0 / 'g'). Dřív CSV „Název;Alergen"
+//   u existující suroviny přepsalo cenu i obsah balení na 0 a jednotku kg/ks na g. Nečíselná cena/obsah se vynechá.
 function surCsvMapRow(row, mapping) {
-  const result = { nazev: '', jednotka: 'g', cena_baleni: 0, obsah_baleni: 0, alergen: '', poznamka: '' };
+  const result = { nazev: '' };
   mapping.forEach((field, i) => {
-    if (field === 'ignore' || !row[i]) return;
+    if (field === 'ignore' || row[i] == null) return;
     const val = String(row[i]).trim();
+    if (val === '') return;
     if (field === 'cena_baleni' || field === 'obsah_baleni') {
-      result[field] = parseFloat(val.replace(',', '.').replace(/\s/g, '')) || 0;
+      const n = parseFloat(val.replace(',', '.').replace(/\s/g, ''));
+      if (Number.isFinite(n)) result[field] = n;
     } else {
       result[field] = val;
     }
@@ -37138,6 +37427,11 @@ window.vySlozeniAddRow = function(surovina_id = '', mnozstvi = '', jednotka = 'g
     if (opt && opt.dataset.jed) {
       row.querySelector('.sloz-jed').value = opt.dataset.jed;
     }
+    // 🐛 v3.0.644 — stejná surovina 2× v receptu (mouka do těsta + na posyp): server řádky sečte;
+    //   upozorni hned, ať to uživatele nepřekvapí (dřív 500 a napůl smazaný recept).
+    const dup = sel.value && Array.from(document.querySelectorAll('#vy-sloz-rows .sloz-sur'))
+      .some(o => o !== sel && o.value === sel.value);
+    if (dup && typeof toastWarn === 'function') toastWarn('Tato surovina už v receptu je — při uložení se řádky sečtou do jednoho.');
     vyTestoUpdateDisplay();
   });
 
@@ -37252,6 +37546,28 @@ window.vyCollectSlozeni = function() {
   return out;
 };
 
+// 🐛 v3.0.644 — jednotky, které jde u řádku polotovaru převést na jednotku polotovaru (server je jinak
+//   odmítne): stejný rozměr (ks / g,kg / ml,l) + g/kg u polotovaru v ks se zadanou hmotností kusu.
+//   Dřív se nabízelo ks/g/kg/ml/l/porce/dávka a „50 g těsta" se počítalo jako 50 ks (1000× víc).
+window.vyPolotovarJednotky = function(vid) {
+  const x = (state._vyrobky_pol_cache || []).find(p => p.id == vid);
+  const u = String((x && x.jednotka_kod) || 'ks').toLowerCase();
+  const dim = { g: 'm', kg: 'm', mg: 'm', ml: 'v', l: 'v', dl: 'v', cl: 'v', ks: 'k' };
+  const sady = { m: ['g', 'kg'], v: ['ml', 'l'], k: ['ks'] };
+  const out = dim[u] ? sady[dim[u]].slice() : [u];
+  if (!out.includes(u)) out.unshift(u);
+  if (u === 'ks' && x && parseFloat(x.hmotnost_g) > 0) out.push('g', 'kg');
+  return out;
+};
+window.vyPolotovarJednotkyOpts = function(vid, jednotka) {
+  const list = vyPolotovarJednotky(vid);
+  const cur = jednotka || list[0];
+  const opts = list.map(j => `<option value="${esc(j)}" ${j === cur ? 'selected' : ''}>${esc(j)}</option>`);
+  // starý řádek s jednotkou mimo nabídku — ponech viditelně (uživatel ho musí opravit, server nepřevoditelné odmítne)
+  if (cur && !list.includes(cur)) opts.unshift(`<option value="${esc(cur)}" selected>${esc(cur)} ⚠</option>`);
+  return opts.join('');
+};
+
 // 🆕 v3.0.303 — přidá řádek POLOTOVARU (jiný výrobek) do receptury (sestava/BOM).
 window.vySlozeniAddPolotovar = function(slozka_id = '', mnozstvi = '', jednotka = 'ks', slozka_nazev = '') {
   const c = document.getElementById('vy-sloz-rows');
@@ -37271,12 +37587,21 @@ window.vySlozeniAddPolotovar = function(slozka_id = '', mnozstvi = '', jednotka 
     </select>
     <input class="form-input sloz-mn" type="number" step="0.001" min="0" placeholder="Množ." value="${mnozstvi}" style="font-size:13px" oninput="vyTestoUpdateDisplay()">
     <select class="form-select sloz-jed" style="font-size:13px">
-      ${['ks','g','kg','ml','l','porce','dávka'].map(j => `<option value="${j}" ${j===jednotka?'selected':''}>${j}</option>`).join('')}
+      ${vyPolotovarJednotkyOpts(slozka_id, slozka_id ? jednotka : '')}
     </select>
     <span style="font-size:11px;color:#9333EA">🧩 polotovar (sestava)</span>
     <button class="btn-secondary" type="button" style="padding:6px 10px;font-size:13px" onclick="this.parentElement.remove();vyTestoUpdateDisplay()">✕</button>
   `;
   c.appendChild(row);
+  // 🐛 v3.0.644 — změna polotovaru → nabídni jen jednotky převoditelné na jeho jednotku
+  const polSel = row.querySelector('.sloz-pol');
+  polSel.addEventListener('change', () => {
+    const jedSel = row.querySelector('.sloz-jed');
+    const prev = jedSel.value;
+    const list = vyPolotovarJednotky(polSel.value);
+    jedSel.innerHTML = vyPolotovarJednotkyOpts(polSel.value, list.includes(prev) ? prev : list[0]);
+    vyTestoUpdateDisplay();
+  });
   vyTestoUpdateDisplay();
 };
 
@@ -43173,6 +43498,8 @@ window.exportVyrobyCsv = function() {
   try {
     // Zjistím, kdo jsem (vrací 401, pokud nepřihlášený)
     const me = await api('whoami.php');
+    // 🐛 v3.0.644 — PIN (POS) session nemá přístup do administrace → zůstaň na login obrazovce
+    if (me && Number(me.pos_only) === 1) throw new Error('pos_only');
     state.admin = me;
     localStorage.setItem('adminInfo', JSON.stringify(me));
     showApp();
@@ -46789,11 +47116,12 @@ window.applyTopbarSpacing = function() { /* no-op — spacing řeší CSS .topba
     if (match.weight_barcode && typeof match.price === 'number') {
       body.jednotkova_cena = match.price; body.mnozstvi = 1; body.nazev = match.nazev + ' (vážené)';
     } else if (match.weight_barcode && match.weight_g) {
-      body.mnozstvi = match.weight_g / 1000; body.jednotkova_cena = match.cena_bez_dph; body.nazev = match.nazev + ' (' + match.weight_g + ' g)';
+      // 🐛 v3.0.644 — cenu za kg neposíláme (dřív cena_bez_dph → účet o DPH nižší); server doplní katalogovou S DPH
+      body.mnozstvi = match.weight_g / 1000; body.nazev = match.nazev + ' (' + match.weight_g + ' g)';
     } else if (match.na_vahu) {
       var g = parseFloat(window.prompt('Hmotnost v gramech — ' + match.nazev + ':', ''));
       if (!g || g <= 0) return;
-      body.mnozstvi = g / 1000; body.jednotkova_cena = match.cena_bez_dph; body.nazev = match.nazev + ' (' + g + ' g)';
+      body.mnozstvi = g / 1000; body.nazev = match.nazev + ' (' + g + ' g)';   // 🐛 v3.0.644 — cena S DPH ze serveru
     }
     try {
       await api('admin_pos.php?action=item', { method: 'POST', body: JSON.stringify(body) });
@@ -46951,6 +47279,21 @@ window.applyTopbarSpacing = function() { /* no-op — spacing řeší CSS .topba
     var defW = (meta.weight_kg && meta.weight_kg > 0) ? meta.weight_kg : 1;
     var dimHint = (meta.rozmery && (meta.rozmery.d || meta.rozmery.s || meta.rozmery.v))
       ? '<div style="font-size:11px;color:#888;margin-top:4px">📐 Max rozměr produktu: ' + [meta.rozmery.d, meta.rozmery.s, meta.rozmery.v].filter(Boolean).join(' × ') + ' cm</div>' : '';
+    // 🐛 v3.0.644 — adresa příjemce k ověření/úpravě (místo dodání objednávky má přednost před sídlem)
+    var pr = meta.prijemce || {};
+    var _e = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); };
+    var adrHtml =
+      '<div style="margin-top:10px;font-size:13px"><b>Doručit na</b> <span style="color:#888;font-size:12px">' +
+        (pr.zdroj === 'misto_dodani' ? '— místo dodání' + (pr.misto_nazev ? ' „' + _e(pr.misto_nazev) + '“' : '') : '— sídlo odběratele') + '</span></div>' +
+      '<input id="ship-street" class="form-input" placeholder="Ulice a č.p." value="' + _e(pr.street) + '" style="width:100%;margin-top:4px">' +
+      '<div style="display:flex;gap:8px;margin-top:6px">' +
+        '<input id="ship-city" class="form-input" placeholder="Město" value="' + _e(pr.city) + '" style="flex:2;min-width:0">' +
+        '<input id="ship-zip" class="form-input" placeholder="PSČ" value="' + _e(pr.zip) + '" style="flex:1;min-width:0">' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:6px">' +
+        '<input id="ship-phone" class="form-input" placeholder="Telefon" value="' + _e(pr.phone) + '" style="flex:1;min-width:0">' +
+        '<input id="ship-email" class="form-input" placeholder="E-mail" value="' + _e(pr.email) + '" style="flex:1;min-width:0">' +
+      '</div>';
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
     var opts = carriers.map(function (c) { return '<option value="' + c.key + '"' + (c.enabled ? '' : ' disabled') + '>' + c.label + (c.enabled ? '' : ' — nenastaveno') + '</option>'; }).join('');
@@ -46958,13 +47301,13 @@ window.applyTopbarSpacing = function() { /* no-op — spacing řeší CSS .topba
       return '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid #eee"><span>' + z.carrier + ' · ' + (z.tracking_number || (z.chyba ? '⚠️ ' + z.chyba : z.stav)) + '</span>' + (z.tracking_number ? '<a href="../api/admin_shipment.php?action=label&id=' + z.id + '" target="_blank">🏷️ Štítek</a>' : '') + '</div>';
     }).join('') + '</div>' : '';
     ov.innerHTML =
-      '<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3)">' +
+      '<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;max-height:92vh;overflow:auto;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3)">' +
         '<div style="font-size:17px;font-weight:700;margin-bottom:12px">📦 Vytvořit zásilku</div>' +
         '<label style="font-size:13px">Přepravce<br><select id="ship-carrier" class="form-input" style="width:100%;margin-top:4px">' + opts + '</select></label>' +
         '<div style="display:flex;gap:8px;margin-top:10px">' +
           '<label style="flex:1;font-size:13px">Hmotnost (kg)<br><input id="ship-w" class="form-input" type="number" step="0.1" value="' + defW + '" style="width:100%"></label>' +
           '<label style="flex:1;font-size:13px">Dobírka (Kč)<br><input id="ship-cod" class="form-input" type="number" value="0" style="width:100%"></label>' +
-        '</div>' + dimHint +
+        '</div>' + dimHint + adrHtml +
         '<label style="font-size:13px;display:block;margin-top:10px">Výdejní místo ID (Zásilkovna)<br><input id="ship-pp" class="form-input" placeholder="volitelné" style="width:100%"></label>' +
         '<div id="ship-msg" style="margin-top:10px;font-size:13px;color:#a00"></div>' + exHtml +
         '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">' +
@@ -46986,7 +47329,12 @@ window.applyTopbarSpacing = function() { /* no-op — spacing řeší CSS .topba
           objednavka_id: orderId, carrier: carrier,
           weight_kg: parseFloat(ov.querySelector('#ship-w').value) || 1,
           cod_kc: parseFloat(ov.querySelector('#ship-cod').value) || 0,
-          pickup_point_id: parseInt(ov.querySelector('#ship-pp').value) || 0
+          pickup_point_id: parseInt(ov.querySelector('#ship-pp').value) || 0,
+          recipient_street: ov.querySelector('#ship-street').value.trim(),
+          recipient_city: ov.querySelector('#ship-city').value.trim(),
+          recipient_zip: ov.querySelector('#ship-zip').value.trim(),
+          recipient_phone: ov.querySelector('#ship-phone').value.trim(),
+          recipient_email: ov.querySelector('#ship-email').value.trim()
         }) });
         try { toast('📦 Zásilka vytvořena: ' + (r.tracking || ''), 'success'); } catch (e) {}
         close();
