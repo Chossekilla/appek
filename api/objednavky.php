@@ -435,6 +435,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $odbJm = (string) $pdo->query("SELECT nazev FROM odberatele WHERE id = " . (int) $odberatel_id)->fetchColumn();
             voucher_objednavka_uplatnit($pdo, $obj_id, $voucherKod, 'b2b', 'odběratel (B2B)' . ($odbJm !== '' ? ' — ' . $odbJm : ''));
         }
+        mena_ulozit_castku($pdo, 'objednavky', $obj_id);   // 💱 v3.0.643 — autoritativní celkem v měně dokladu
 
         $pdo->commit();
 
@@ -754,6 +755,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
             'nova_castka'    => round($bez + $dph, 2),
             'rozdil'         => $diff,
         ]);
+        try { mena_ulozit_castku($pdo, 'objednavky', $id); } catch (Throwable $e) { error_log('PUT castka_mena: ' . $e->getMessage()); }
 
         $pdo->commit();
 

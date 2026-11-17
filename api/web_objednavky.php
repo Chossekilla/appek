@@ -347,6 +347,7 @@ if ($action === 'order' && $method === 'POST') {
             voucher_objednavka_uplatnit($pdo, $objId, $voucherKod, 'web', 'online zákazník (' . $jmeno . ')');
             $celkem = round((float) $pdo->query("SELECT castka_celkem FROM objednavky WHERE id = " . $objId)->fetchColumn(), 2);
         }
+        mena_ulozit_castku($pdo, 'objednavky', $objId);   // 💱 v3.0.643
         $pdo->commit();
     } catch (RuntimeException $e) {                    // voucher neprošel → objednávka nevznikne, zákazník kód opraví
         if ($pdo->inTransaction()) $pdo->rollBack();
