@@ -43,7 +43,14 @@ function require_admin(): array {
             'admin_stanice.php', // 🆕 heartbeat zařízení (jen ping; správa gated na plný admin uvnitř)
             'pay_qr.php', 'payment_methods.php', 'pos_auth.php', 'version.php', 'firma_branding.php', 'whoami.php'];
         $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '')));
-        if (!in_array($script, $posAllowed, true)) {
+        // 🐛 v3.0.644 (revize) — PIN session je teď vždy POS-only → Provoz (admin/provoz.php) by u PIN přihlášení
+        //   ztratil panel rozvozů. Kurýrní dashboard povolíme JEN ke čtení (holý GET bez action);
+        //   tajné údaje integrací pro POS session admin_couriers.php vynechá.
+        $posReadOnly = $script === 'admin_couriers.php'
+            && strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'GET'
+            && (string) ($_GET['action'] ?? '') === ''
+            && ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0)) === 0;
+        if (!in_array($script, $posAllowed, true) && !$posReadOnly) {
             json_error('POS účet nemá přístup k této části administrace', 403);
         }
     }

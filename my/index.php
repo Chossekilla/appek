@@ -391,7 +391,7 @@ if (isset($_GET['t']) && $_SERVER['REQUEST_METHOD'] !== 'POST') {
         if ($r = $st->fetch()) {
             my_layout('Přihlášení', '<div class="card narrow"><h1>Přihlášení do portálu</h1>'
                 . '<p class="lead">' . e($r['email']) . '</p>'
-                . '<form method="post" action="' . e($BASE) . '/">'
+                . '<form method="post" action="' . e($BASE) . '/">' . csrf_field()
                 . '<input type="hidden" name="action" value="login_token">'
                 . '<input type="hidden" name="t" value="' . e($tok) . '">'
                 . '<button class="btn" type="submit">Přihlásit se</button></form></div>');
@@ -402,6 +402,9 @@ if (isset($_GET['t']) && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'login_token') {
+    // 🐛 v3.0.644 (revize) — login CSRF: cizí stránka by jinak přihlásila prohlížeč oběti útočníkovým tokenem.
+    //   Token se nezneplatní, takže při vypršelém formuláři stačí odkaz z e-mailu otevřít znovu.
+    if (!csrf_ok()) my_fail('Platnost formuláře vypršela, otevřete odkaz z e-mailu znovu.');
     $tok = (string) ($_POST['t'] ?? '');
     if (preg_match('/^[a-f0-9]{64}$/', $tok)) {
         $st = $pdo->prepare("SELECT * FROM my_login_tokens WHERE token = :t AND used = 0 AND expires_at >= NOW() LIMIT 1");

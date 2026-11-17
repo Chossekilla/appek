@@ -342,6 +342,12 @@ $deliveries = $pdo->query("
 ")->fetchAll();
 
 $integrations = $pdo->query("SELECT * FROM courier_integrations")->fetchAll();
+// 🐛 v3.0.644 — POS session (PIN) smí dashboard jen číst kvůli Provozu → bez API klíčů a nastavení integrací.
+if (!empty($_SESSION['pos_only_user'])) {
+    $integrations = array_map(fn($r) => [
+        'sluzba' => $r['sluzba'] ?? '', 'povolena' => (int) ($r['povolena'] ?? 0),
+    ], $integrations);
+}
 
 $stats = [
     'kuryru_aktivnich'     => (int) $pdo->query("SELECT COUNT(*) FROM couriers WHERE aktivni=1")->fetchColumn(),

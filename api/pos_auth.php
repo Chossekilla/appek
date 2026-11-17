@@ -128,20 +128,24 @@ if ($method === 'POST' && $action === 'login') {
         json_error('Příliš mnoho pokusů. Zkuste to za 15 minut.', 429);
     }
     // 🐛 v3.0.644 SECURITY — progresivní zámek účtu: 4místný PIN (10 000 kombinací) šel při 5 pokusech / 15 min
-    //   uhodnout za dny. Navíc max 20 neúspěchů / 24 h na účet (od posledního úspěšného PIN přihlášení)
-    //   → hrubá síla trvá roky. Zablokovaný pokladní se přihlásí heslem nebo admin změní PIN.
+    //   uhodnout za dny. Okno = 24 h od posledního úspěšného PIN přihlášení (změna PINu adminem staré
+    //   neúspěchy „vynuluje" — admin_users.php je přeznačí na typ pos_pin_reset, audit zůstane).
+    //   🐛 v3.0.644 (revize) — zámek NE jen per účet: seznam PIN uživatelů je veřejný, kdokoli by jinak
+    //   20 chybami zamkl celou pokladnu na směnu. Proto: 20 chyb / účet+IP (útočník zamkne jen sám sebe)
+    //   + strop 150 chyb / účet ze všech IP (distribuovaná hrubá síla = v průměru měsíce).
     if (!(defined('APPEK_DEMO_MODE') && APPEK_DEMO_MODE) && !in_array($ip, ['::1', '127.0.0.1'], true)) {
         try {
             $rl = $pdo->prepare("
-                SELECT COUNT(*) FROM prihlaseni_pokusy
+                SELECT COUNT(*) AS celkem, COALESCE(SUM(ip = :ip), 0) AS z_ip FROM prihlaseni_pokusy
                 WHERE typ = 'pos_pin' AND uspesny = 0 AND email = :em
                   AND cas > GREATEST(DATE_SUB(NOW(), INTERVAL 24 HOUR),
                       COALESCE((SELECT MAX(p2.cas) FROM prihlaseni_pokusy p2
                                 WHERE p2.typ = 'pos_pin' AND p2.uspesny = 1 AND p2.email = :em2), '1970-01-01'))
             ");
-            $rl->execute(['em' => 'pos:' . $userId, 'em2' => 'pos:' . $userId]);
-            if ((int) $rl->fetchColumn() >= 20) {
-                json_error('PIN tohoto účtu je kvůli opakovaným chybám dočasně zablokovaný (24 h). Požádejte administrátora o nový PIN.', 429);
+            $rl->execute(['ip' => $ip, 'em' => 'pos:' . $userId, 'em2' => 'pos:' . $userId]);
+            $cnt = $rl->fetch(PDO::FETCH_ASSOC) ?: [];
+            if ((int) ($cnt['z_ip'] ?? 0) >= 20 || (int) ($cnt['celkem'] ?? 0) >= 150) {
+                json_error('PIN tohoto účtu je kvůli opakovaným chybám dočasně zablokovaný. Administrátor ho odblokuje nastavením nového PINu (Nastavení → Uživatelé).', 429);
             }
         } catch (Throwable $e) { error_log('pos_auth lockout: ' . $e->getMessage()); }
     }

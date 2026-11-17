@@ -198,6 +198,15 @@ if ($method === 'PUT') {
     try {
         $pdo->prepare("UPDATE admin_users SET " . implode(', ', $sets) . " WHERE id = :id")
             ->execute($params);
+        // 🐛 v3.0.644 — nový PIN odblokuje progresivní zámek PIN loginu (pos_auth.php počítá jen typ pos_pin):
+        //   staré neúspěšné pokusy přeznačíme (audit zůstane), jinak by účet zůstal zamčený až 24 h i s novým PINem.
+        if (isset($params['pin'])) {
+            try {
+                $pdo->prepare("UPDATE prihlaseni_pokusy SET typ = 'pos_pin_reset'
+                               WHERE typ = 'pos_pin' AND uspesny = 0 AND email = :em")
+                    ->execute(['em' => 'pos:' . $id]);
+            } catch (Throwable $e) { error_log('admin_users pin reset lockout: ' . $e->getMessage()); }
+        }
         json_response(['ok' => true]);
     } catch (PDOException $e) {
         if ($e->getCode() === '23000') {
