@@ -752,6 +752,25 @@ if ($method === 'PUT') {
         );
     }
 
+    // 🐛 v3.0.644 — k faktuře objednávky už existuje DOBROPIS → položky už měnit nelze ani s vynutit:
+    //   synchronizace faktury maže a znovu zakládá faktura_polozky (nová id) → dobropisové řádky
+    //   (vraci_polozku_id) by ukazovaly do prázdna, „vrátitelné" by se vynulovalo a šlo by
+    //   dobropisovat podruhé. Další opravu plnění řešte dalším dobropisem k faktuře.
+    if ($maFA && !empty($d['polozky_zmeny'])) {
+        $maDobropis = false;
+        try {
+            $maDobropis = (bool) $pdo->query("
+                SELECT COUNT(*) FROM faktury db
+                WHERE db.je_dobropis = 1 AND db.puvodni_faktura_id IN (
+                    SELECT fdl.faktura_id FROM faktury_dodaci_listy fdl
+                    JOIN dodaci_listy dl ON dl.id = fdl.dodaci_list_id
+                    WHERE dl.objednavka_id = $obj_id)")->fetchColumn();
+        } catch (Throwable $e) { /* stará DB bez je_dobropis → dobropisy neexistují */ }
+        if ($maDobropis) {
+            json_error('K faktuře této objednávky už byl vystaven DOBROPIS — položky objednávky (a tím faktury) už nelze měnit. Další opravu řešte dalším dobropisem k faktuře.', 409);
+        }
+    }
+
     // Kdo je přihlášený admin
     $admin_id = $_SESSION['admin_id'] ?? 0;
     $admin_jmeno = $_SESSION['admin_jmeno'] ?? ($_SESSION['admin_email'] ?? 'Admin');

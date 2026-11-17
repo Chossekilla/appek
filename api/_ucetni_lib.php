@@ -348,10 +348,11 @@ function ucetni_nacti_fakturu(PDO $pdo, int $id): ?array {
     $f = $st->fetch(PDO::FETCH_ASSOC);
     if (!$f) return null;
 
-    $snap = !empty($f['rucni']);
-    $pick = function (string $col) use ($f, $snap) {
+    // 🐛 v3.0.644 — snapshot odběratele (ke dni vystavení) u KAŽDÉ faktury (dřív jen ruční → automatická
+    //   faktura exportovala aktuální adresu/DIČ); aktuální údaje jen fallback pro staré faktury bez snapshotu.
+    $pick = function (string $col) use ($f) {
         $s = $f['odb_' . $col . '_snapshot'] ?? null;
-        return ($snap && $s !== null && $s !== '') ? $s : ($f['a_' . $col] ?? '');
+        return ($s !== null && $s !== '') ? $s : ($f['a_' . $col] ?? '');
     };
 
     // položky — kaskáda

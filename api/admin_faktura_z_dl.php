@@ -68,23 +68,6 @@ if (!$datum_splatnosti) {
     $datum_splatnosti = date('Y-m-d', strtotime($datum_vystaveni . ' + ' . $dni . ' days'));
 }
 
-// === Sečti částky ze všech DL položek ===
-$polozky_stmt = $pdo->prepare("
-    SELECT mnozstvi, cena_bez_dph, sazba_dph
-    FROM dodaci_list_polozky
-    WHERE dodaci_list_id IN ($placeholders)
-");
-$polozky_stmt->execute($dl_ids);
-$bez = 0; $dph_celkem = 0;
-foreach ($polozky_stmt->fetchAll(PDO::FETCH_ASSOC) as $p) {
-    $b = (float) $p['cena_bez_dph'] * (float) $p['mnozstvi'];
-    $bez += $b;
-    $dph_celkem += $b * ((float) $p['sazba_dph'] / 100);
-}
-$bez = round($bez, 2);
-$dph_celkem = round($dph_celkem, 2);
-$celkem = round($bez + $dph_celkem, 2);
-
 // Misto dodání — vezmi z prvního DL (předpokládáme stejné)
 $misto_id = $dls[0]['misto_dodani_id'] ?: null;
 
@@ -92,8 +75,33 @@ $misto_id = $dls[0]['misto_dodani_id'] ?: null;
 require_once __DIR__ . '/_zaloha_helper.php';
 try { zaloha_snapshot($pdo, 'Před vystavením FA z ' . count($dl_ids) . ' DL'); } catch (Throwable $e) {}
 
+require_once __DIR__ . '/_faktura_lib.php';
 $pdo->beginTransaction();
 try {
+    // 🐛 v3.0.644 — souběh (2 admini / 2 zařízení): kontrola „už fakturováno" byla jen PŘED transakcí
+    //   (+ široké okno kvůli zaloha_snapshot) → oba požadavky vystavily fakturu na tentýž DL.
+    //   Teď zamkni řádky DL (zamykací čtení jako PRVNÍ v transakci → následná čtení vidí commit
+    //   souběžného požadavku) a stav ověř znovu pod zámkem.
+    $lk = $pdo->prepare("SELECT id, cislo, fakturovano FROM dodaci_listy WHERE id IN ($placeholders) ORDER BY id FOR UPDATE");
+    $lk->execute($dl_ids);
+    $zamceno = $lk->fetchAll(PDO::FETCH_ASSOC);
+    if (count($zamceno) !== count($dl_ids)) throw new RuntimeException('DL_ZMIZEL');
+    $fakt = array_filter($zamceno, fn($r) => (int) $r['fakturovano'] === 1);
+    $lnk = $pdo->prepare("SELECT DISTINCT dl.cislo FROM faktury_dodaci_listy fdl JOIN dodaci_listy dl ON dl.id = fdl.dodaci_list_id
+                          WHERE fdl.dodaci_list_id IN ($placeholders)");
+    $lnk->execute($dl_ids);
+    $cislaFakt = array_values(array_unique(array_merge(array_column($fakt, 'cislo'), $lnk->fetchAll(PDO::FETCH_COLUMN))));
+    if ($cislaFakt) {
+        $pdo->rollBack();
+        json_error('Tyto dodací listy už jsou fakturované: ' . implode(', ', $cislaFakt), 409);
+    }
+
+    // === Sečti částky ze všech DL položek (až pod zámkem — aktuální řádky) ===
+    $s = faktura_soucty_z_dl($pdo, $dl_ids) ?? ['bez' => 0.0, 'dph' => 0.0, 'celkem' => 0.0];
+    $bez = $s['bez'];
+    $dph_celkem = $s['dph'];
+    $celkem = $s['celkem'];
+
     $cislo = dalsi_cislo($pdo, 'FA', (int) date('Y', strtotime($datum_vystaveni)));
     $vs = preg_replace('/\D/', '', $cislo);
 
@@ -146,6 +154,7 @@ try {
     json_error($e->getMessage(), $e->http);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
+    if ($e->getMessage() === 'DL_ZMIZEL') json_error('Některé dodací listy mezitím zmizely', 404);
     error_log('admin_faktura_z_dl: ' . $e->getMessage());
     json_error_safe('Vystavení faktury selhalo', $e, 500);
 }

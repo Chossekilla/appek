@@ -280,30 +280,58 @@ if ($action === 'fa') {
 
     $vytvoreno = [];
 
+    require_once __DIR__ . '/_faktura_lib.php';
     $pdo->beginTransaction();
     try {
         foreach ($skupiny as $sk) {
             $dl_ids = [];
             $sum_bez = 0; $sum_dph = 0; $sum_cel = 0;
+            $objSkupiny = 0;
 
             // Zajisti DL pro každou objednávku ve skupině
             foreach ($sk['objednavky'] as $o) {
-                if ($o['dl_id']) {
-                    $dl_id = (int) $o['dl_id'];
-                    // Zajisti že je označen jako fakturovaný
-                    $pdo->prepare("UPDATE dodaci_listy SET fakturovano = 1 WHERE id = :id")
-                        ->execute(['id' => $dl_id]);
+                // 🐛 v3.0.644 — souběh (2 admini / FA z detailu / FA z DL): $obj_list je načtený PŘED transakcí.
+                //   Zamkni objednávku i její DL a stav (zrušena / DL / faktura) ověř znovu ZAMYKACÍM čtením
+                //   (to vidí poslední commit i po dřívějších čteních v této transakci) — jako akce 'dl' (v3.0.587).
+                $lo = $pdo->prepare("SELECT stav FROM objednavky WHERE id = :id FOR UPDATE");
+                $lo->execute(['id' => $o['id']]);
+                $stavNyni = $lo->fetchColumn();
+                if ($stavNyni === false || $stavNyni === 'zrusena') {
+                    $preskoceno[] = ['id' => (int) $o['id'], 'cislo' => $o['cislo'], 'duvod' => 'Objednávka je zrušena'];
+                    continue;
+                }
+                $ld = $pdo->prepare("SELECT id FROM dodaci_listy WHERE objednavka_id = :o ORDER BY id FOR UPDATE");
+                $ld->execute(['o' => $o['id']]);
+                $dlNyni = array_map('intval', $ld->fetchAll(PDO::FETCH_COLUMN));
+                if ($dlNyni) {
+                    $ph = implode(',', array_fill(0, count($dlNyni), '?'));
+                    $lf = $pdo->prepare("SELECT faktura_id FROM faktury_dodaci_listy WHERE dodaci_list_id IN ($ph) ORDER BY faktura_id LIMIT 1 FOR UPDATE");
+                    $lf->execute($dlNyni);
+                    $faNyni = (int) ($lf->fetchColumn() ?: 0);
+                    if ($faNyni) {
+                        $preskoceno[] = ['id' => (int) $o['id'], 'cislo' => $o['cislo'], 'duvod' => 'Už je na faktuře #' . $faNyni];
+                        continue;
+                    }
+                    $dl_id = $dlNyni[0];
                 } else {
                     $dl_id = vytvor_dl_pro_objednavku($pdo, $o, null);
-                    // Označ jako fakturovaný
-                    $pdo->prepare("UPDATE dodaci_listy SET fakturovano = 1 WHERE id = :id")
-                        ->execute(['id' => $dl_id]);
                 }
+                // Označ jako fakturovaný
+                $pdo->prepare("UPDATE dodaci_listy SET fakturovano = 1 WHERE id = :id")
+                    ->execute(['id' => $dl_id]);
                 $dl_ids[] = $dl_id;
+                $objSkupiny++;
                 $sum_bez += (float) $o['castka_bez_dph'];
                 $sum_dph += (float) $o['castka_dph'];
                 $sum_cel += (float) $o['castka_celkem'];
             }
+            if (!$dl_ids) continue;   // všechny objednávky skupiny mezitím vyfakturoval někdo jiný
+
+            // 🐛 v3.0.644 — hlavička faktury ze ŘÁDKŮ DL, které faktura tiskne (= admin_faktura_z_dl.php).
+            //   Dřív Σ castka_* objednávek → po úpravě DL (dodáno méně) faktura chtěla víc, než tiskla,
+            //   a rekapitulace DPH se dorovnávala na chybnou hlavičku. Bez položek DL = fallback objednávky.
+            $sDl = faktura_soucty_z_dl($pdo, $dl_ids);
+            if ($sDl) { $sum_bez = $sDl['bez']; $sum_dph = $sDl['dph']; $sum_cel = $sDl['celkem']; }
 
             // Vytvoř fakturu
             $cislo_fa = dalsi_cislo($pdo, 'FA', (int) date('Y', strtotime($datum_vystaveni)));
@@ -337,6 +365,7 @@ if ($action === 'fa') {
                 'vs'  => $vs,
             ]);
             $fa_id = (int) $pdo->lastInsertId();
+            faktura_ulozit_snapshot_odb($pdo, $fa_id);   // 🐛 v3.0.644 — údaje odběratele ke dni vystavení
             require_once __DIR__ . '/_mena_lib.php';
             mena_zdedit_z_dl($pdo, $fa_id, $dl_ids);   // 💱 v3.0.643 — měna a kurz z objednávek skupiny
 
@@ -351,7 +380,7 @@ if ($action === 'fa') {
                 'cislo'           => $cislo_fa,
                 'odberatel_id'    => $sk['odberatel_id'],
                 'odberatel_nazev' => $sk['odberatel_nazev'],
-                'pocet_objednavek'=> count($sk['objednavky']),
+                'pocet_objednavek'=> $objSkupiny,
                 'pocet_dl'        => count($dl_ids),
                 'castka_celkem'   => round($sum_cel, 2),
             ];

@@ -57,17 +57,29 @@ if (($_GET['action'] ?? '') === 'vytvor') {
     $obj_id = (int) ($_GET['objednavka_id'] ?? $body['objednavka_id'] ?? 0);
     $dl_in  = (int) ($_GET['dodaci_list_id'] ?? $body['dodaci_list_id'] ?? 0);
 
+    require_once __DIR__ . '/_faktura_lib.php';   // 🐛 v3.0.644 — součty z DL, snapshot odběratele
+
     // 🆕 v3.0.233 — fakturace PŘÍMO z dodacího listu (ruční DL bez objednávky).
     // Když DL má objednávku, použij objednávkovou cestu níž (snapshot položek je tam).
+    // 🐛 v3.0.644 — DL se čte MIMO transakci: dřív větev otevřela transakci, u DL s objednávkou
+    //   z ní bez commitu propadla a objednávková cesta volala beginTransaction podruhé → nezachycená
+    //   PDOException „There is already an active transaction" = HTTP 500 (picker „Nefakturované DL").
     if ($dl_in && !$obj_id) {
-        $pdo->beginTransaction();
-        try {
-            $st = $pdo->prepare("SELECT * FROM dodaci_listy WHERE id = :id");
-            $st->execute(['id' => $dl_in]);
-            $dl = $st->fetch();
-            if (!$dl) throw new Exception('Dodací list nenalezen');
-            if (!empty($dl['objednavka_id'])) { $obj_id = (int) $dl['objednavka_id']; } // → standardní cesta
-            else {
+        $st = $pdo->prepare("SELECT id, objednavka_id FROM dodaci_listy WHERE id = :id");
+        $st->execute(['id' => $dl_in]);
+        $dlHead = $st->fetch();
+        if (!$dlHead) { http_response_code(404); echo json_encode(['error' => 'Dodací list nenalezen']); exit; }
+        if (!empty($dlHead['objednavka_id'])) {
+            $obj_id = (int) $dlHead['objednavka_id'];   // → standardní (objednávková) cesta níž
+        } else {
+            $pdo->beginTransaction();
+            try {
+                // 🐛 v3.0.644 — souběh dvou adminů: zamkni DL a stav fakturace ověř až pod zámkem
+                //   (zamykací čtení PŘED jakýmkoli běžným čtením → snapshot transakce vidí i commit souběžného požadavku).
+                $st = $pdo->prepare("SELECT * FROM dodaci_listy WHERE id = :id FOR UPDATE");
+                $st->execute(['id' => $dl_in]);
+                $dl = $st->fetch();
+                if (!$dl) throw new Exception('Dodací list nenalezen');
                 // Už fakturováno?
                 $st = $pdo->prepare("SELECT faktura_id FROM faktury_dodaci_listy WHERE dodaci_list_id = :d LIMIT 1");
                 $st->execute(['d' => $dl_in]);
@@ -77,14 +89,9 @@ if (($_GET['action'] ?? '') === 'vytvor') {
                 $splRaw = $pdo->query("SELECT splatnost_dni FROM odberatele WHERE id = " . (int) $dl['odberatel_id'])->fetchColumn();
                 $spl = ($splRaw === false || $splRaw === null || $splRaw === '') ? 14 : (int) $splRaw;
                 // DPH rozpad z položek DL
-                $sums = $pdo->prepare("SELECT
-                        COALESCE(SUM(mnozstvi * cena_bez_dph), 0) AS bez,
-                        COALESCE(SUM(mnozstvi * cena_bez_dph * COALESCE(sazba_dph,0)/100), 0) AS dph
-                    FROM dodaci_list_polozky WHERE dodaci_list_id = :d");
-                $sums->execute(['d' => $dl_in]);
-                $s = $sums->fetch() ?: ['bez' => 0, 'dph' => 0];
-                $bez = round((float) $s['bez'], 2);
-                $dph = round((float) $s['dph'], 2);
+                $s = faktura_soucty_z_dl($pdo, [$dl_in]);
+                $bez = $s ? $s['bez'] : 0.0;
+                $dph = $s ? $s['dph'] : 0.0;
                 $cel = ($bez + $dph) > 0 ? round($bez + $dph, 2) : (float) $dl['castka_celkem'];
                 if ($bez == 0 && $cel > 0) { $bez = $cel; } // fallback když položky nemají rozpad
 
@@ -96,6 +103,7 @@ if (($_GET['action'] ?? '') === 'vytvor') {
                     VALUES (:c,:o,CURDATE(),CURDATE(),DATE_ADD(CURDATE(), INTERVAL :sp DAY),:bez,:dph,:cel,:vs)
                 ")->execute(['c' => $cislo_fa, 'o' => $dl['odberatel_id'], 'sp' => $spl, 'bez' => $bez, 'dph' => $dph, 'cel' => $cel, 'vs' => $vs]);
                 $fa_id = (int) $pdo->lastInsertId();
+                faktura_ulozit_snapshot_odb($pdo, $fa_id);   // 🐛 v3.0.644 — údaje odběratele ke dni vystavení
                 require_once __DIR__ . '/_mena_lib.php';
                 mena_zdedit_z_dl($pdo, $fa_id, [(int) $dl_in]);   // 💱 v3.0.643 — měna z DL
                 $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f,:d)")->execute(['f' => $fa_id, 'd' => $dl_in]);
@@ -104,10 +112,14 @@ if (($_GET['action'] ?? '') === 'vytvor') {
                 $pdo->commit();
                 echo json_encode(['faktura_id' => $fa_id, 'cislo' => $cislo_fa]);
                 exit;
+            } catch (MenaException $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                http_response_code($e->http ?: 409); echo json_encode(['error' => $e->getMessage()]); exit;
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                error_log('faktura.php vytvor z DL: ' . $e->getMessage());
+                http_response_code(500); echo json_encode(['error' => 'Nepodařilo se vystavit fakturu']); exit;
             }
-        } catch (Exception $e) {
-            if ($pdo->inTransaction()) $pdo->rollBack();
-            http_response_code(500); echo json_encode(['error' => $e->getMessage()]); exit;
         }
     }
 
@@ -115,11 +127,16 @@ if (($_GET['action'] ?? '') === 'vytvor') {
 
     $pdo->beginTransaction();
     try {
-        // 1) Objednávka
-        $stmt = $pdo->prepare("SELECT * FROM objednavky WHERE id = :id");
+        // 1) Objednávka — 🐛 v3.0.644 zamknutá (FOR UPDATE) + zamknuté i její DL, a to PŘED
+        //    jakýmkoli běžným čtením: dva souběžné požadavky (2 admini / hromadná FA / FA z DL)
+        //    se seřadí a druhý už uvidí fakturu prvního (dřív vznikly 2 faktury na 1 DL).
+        $stmt = $pdo->prepare("SELECT * FROM objednavky WHERE id = :id FOR UPDATE");
         $stmt->execute(['id' => $obj_id]);
         $obj = $stmt->fetch();
         if (!$obj) throw new Exception('Objednávka nenalezena');
+        $stmt = $pdo->prepare("SELECT id FROM dodaci_listy WHERE objednavka_id = :id ORDER BY id FOR UPDATE");
+        $stmt->execute(['id' => $obj_id]);
+        $dl_id = (int) ($stmt->fetchColumn() ?: 0);
 
         // 2) Existuje už faktura pro tuto objednávku? Pokud ano, vrátíme ji.
         $stmt = $pdo->prepare("
@@ -142,11 +159,7 @@ if (($_GET['action'] ?? '') === 'vytvor') {
         $splRaw = $stmt->fetchColumn();
         $spl = ($splRaw === false || $splRaw === null || $splRaw === '') ? 14 : (int) $splRaw; // v3.0.639: 0 = splatné ihned (dřív ?: 14)
 
-        // 4) Najdeme nebo vytvoříme dodací list
-        $stmt = $pdo->prepare("SELECT id FROM dodaci_listy WHERE objednavka_id = :id");
-        $stmt->execute(['id' => $obj_id]);
-        $dl_id = $stmt->fetchColumn();
-
+        // 4) Najdeme (výše, pod zámkem) nebo vytvoříme dodací list
         if (!$dl_id) {
             $cislo_dl = dalsi_cislo($pdo, 'DL', (int) date('Y', strtotime($obj['datum_dodani'])));
             $pdo->prepare("
@@ -181,6 +194,14 @@ if (($_GET['action'] ?? '') === 'vytvor') {
                 ->execute(['id' => $dl_id]);
         }
 
+        // 🐛 v3.0.644 — hlavička faktury ze ŘÁDKŮ DL, které faktura tiskne (stejně jako admin_faktura_z_dl.php).
+        //   Dřív castka_* z objednávky → po úpravě DL (dodáno méně) faktura účtovala nedodané zboží
+        //   a rekapitulace DPH neseděla s řádky. Bez položek DL = fallback na objednávku (legacy).
+        $s = faktura_soucty_z_dl($pdo, [$dl_id]);
+        $faBez = $s ? $s['bez'] : (float) $obj['castka_bez_dph'];
+        $faDph = $s ? $s['dph'] : (float) $obj['castka_dph'];
+        $faCel = $s ? $s['celkem'] : (float) $obj['castka_celkem'];
+
         // 5) Vytvoříme fakturu - atomické číslo
         $cislo_fa = dalsi_cislo($pdo, 'FA', (int) date('Y'));
         $vs       = preg_replace('/\D/', '', $cislo_fa);
@@ -191,10 +212,11 @@ if (($_GET['action'] ?? '') === 'vytvor') {
             VALUES (:c,:o,CURDATE(),CURDATE(),DATE_ADD(CURDATE(), INTERVAL :sp DAY),:bez,:dph,:cel,:vs)
         ")->execute([
             'c'   => $cislo_fa, 'o' => $obj['odberatel_id'], 'sp' => $spl,
-            'bez' => $obj['castka_bez_dph'], 'dph' => $obj['castka_dph'],
-            'cel' => $obj['castka_celkem'], 'vs' => $vs,
+            'bez' => $faBez, 'dph' => $faDph,
+            'cel' => $faCel, 'vs' => $vs,
         ]);
         $fa_id = (int) $pdo->lastInsertId();
+        faktura_ulozit_snapshot_odb($pdo, $fa_id);   // 🐛 v3.0.644 — údaje odběratele ke dni vystavení
         require_once __DIR__ . '/_mena_lib.php';
         mena_zdedit_z_dl($pdo, $fa_id, [(int) $dl_id]);   // 💱 v3.0.643 — měna z objednávky (přes DL)
 
@@ -205,9 +227,10 @@ if (($_GET['action'] ?? '') === 'vytvor') {
         $pdo->commit();
         echo json_encode(['faktura_id' => $fa_id, 'cislo' => $cislo_fa]);
         exit;
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         error_log('faktura.php vytvor: ' . $e->getMessage());
+        if ($e instanceof MenaException) { http_response_code($e->http ?: 409); echo json_encode(['error' => $e->getMessage()]); exit; }
         http_response_code(500);
         // Generická zpráva - detaily v logu
         echo json_encode(['error' => 'Nepodařilo se vystavit fakturu']);
@@ -230,36 +253,34 @@ function nacti_fakturu(PDO $pdo, int $id): ?array {
     $f = $stmt->fetch();
     if (!$f) return null;
 
-    // Pro ruční fakturu použij snapshot adresy uložené v okamžiku vystavení.
-    // Pro automatickou fakturu (z objednávky) použij aktuální adresu odběratele.
-    if (!empty($f['rucni'])) {
-        $f['odb_nazev'] = $f['odb_nazev_snapshot'] ?: $f['odb_nazev_aktualni'];
-        $f['ico']       = $f['odb_ico_snapshot']   ?: $f['odb_ico_aktualni'];
-        $f['dic']       = $f['odb_dic_snapshot']   ?: $f['odb_dic_aktualni'];
-        $f['ulice']     = $f['odb_ulice_snapshot'] ?: $f['odb_ulice_aktualni'];
-        $f['mesto']     = $f['odb_mesto_snapshot'] ?: $f['odb_mesto_aktualni'];
-        $f['psc']       = $f['odb_psc_snapshot']   ?: $f['odb_psc_aktualni'];
-    } else {
-        $f['odb_nazev'] = $f['odb_nazev_aktualni'];
-        $f['ico']       = $f['odb_ico_aktualni'];
-        $f['dic']       = $f['odb_dic_aktualni'];
-        $f['ulice']     = $f['odb_ulice_aktualni'];
-        $f['mesto']     = $f['odb_mesto_aktualni'];
-        $f['psc']       = $f['odb_psc_aktualni'];
-    }
+    // 🐛 v3.0.644 — snapshot údajů odběratele (stav ke dni vystavení) má přednost u KAŽDÉ faktury,
+    //   nejen u ruční: dřív automatická faktura (z objednávky/DL) tiskla AKTUÁLNÍ adresu/IČO/DIČ
+    //   → po změně odběratele se vydaný daňový doklad zpětně měnil. Aktuální údaje jen jako
+    //   fallback pro staré faktury bez snapshotu (per pole, stejně jako dodaci_list.php).
+    $f['odb_nazev'] = ($f['odb_nazev_snapshot'] ?? '') ?: $f['odb_nazev_aktualni'];
+    $f['ico']       = ($f['odb_ico_snapshot']   ?? '') ?: $f['odb_ico_aktualni'];
+    $f['dic']       = ($f['odb_dic_snapshot']   ?? '') ?: $f['odb_dic_aktualni'];
+    $f['ulice']     = ($f['odb_ulice_snapshot'] ?? '') ?: $f['odb_ulice_aktualni'];
+    $f['mesto']     = ($f['odb_mesto_snapshot'] ?? '') ?: $f['odb_mesto_aktualni'];
+    $f['psc']       = ($f['odb_psc_snapshot']   ?? '') ?: $f['odb_psc_aktualni'];
 
     // Položky - rozdílné zdroje pro ruční vs automatickou fakturu
-    if (!empty($f['rucni'])) {
-        $stmt = $pdo->prepare("
-            SELECT vyrobek_cislo, vyrobek_nazev, jednotka, mnozstvi,
-                   cena_bez_dph, sazba_dph, poznamka,
-                   NULL AS dl_cislo, NULL AS objednavka_cislo, NULL AS datum_dodani
-            FROM faktura_polozky
-            WHERE faktura_id = :id
-            ORDER BY poradi, id
-        ");
-        $stmt->execute(['id' => $id]);
-        $polozky = $stmt->fetchAll();
+    // 🐛 v3.0.644 — automatická faktura s VLASTNÍMI řádky (faktura_polozky: upravené položky faktury,
+    //   materializované pro dobropis, synchronizované z objednávky) tiskne je — stejná kaskáda jako
+    //   účetní export (_ucetni_lib) a ISDOC. Dřív PDF četlo dál řádky DL → po úpravě položek faktury
+    //   PDF ukazovalo původní množství, ale „K úhradě" už novou částku.
+    $stmt = $pdo->prepare("
+        SELECT vyrobek_cislo, vyrobek_nazev, jednotka, mnozstvi,
+               cena_bez_dph, sazba_dph, poznamka,
+               NULL AS dl_cislo, NULL AS objednavka_cislo, NULL AS datum_dodani
+        FROM faktura_polozky
+        WHERE faktura_id = :id
+        ORDER BY poradi, id
+    ");
+    $stmt->execute(['id' => $id]);
+    $polozky = $stmt->fetchAll();
+    if (!empty($f['rucni']) || $polozky) {
+        // ruční faktura / vlastní řádky faktury — hotovo
     } else {
         $stmt = $pdo->prepare("
             SELECT dlp.*,

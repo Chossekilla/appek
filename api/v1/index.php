@@ -130,8 +130,10 @@ if ($parts[0] === 'faktury' && count($parts) === 1 && $method === 'GET') {
     if ($od) { $where .= " AND f.datum_vystaveni >= :od"; $params['od'] = $od; }
     if ($do) { $where .= " AND f.datum_vystaveni <= :do"; $params['do'] = $do; }
 
+    // 🐛 v3.0.644 — stav úhrady se saldem včetně dobropisů (= admin seznam faktur)
+    require_once __DIR__ . '/../_faktura_lib.php';
     $stavCase = "CASE
-        WHEN f.castka_uhrazeno >= f.castka_celkem THEN 'uhrazena'
+        WHEN f.castka_uhrazeno >= f.castka_celkem + " . faktura_sql_dobropisy('f') . " THEN 'uhrazena'
         WHEN f.datum_splatnosti < CURDATE() THEN 'po_splatnosti'
         ELSE 'cekajici' END";
     if ($stav) {
@@ -213,7 +215,12 @@ if ($parts[0] === 'faktury' && isset($parts[1]) && isset($parts[2]) && $parts[2]
     $id = (int) $parts[1];
     $input = json_decode(file_get_contents('php://input'), true) ?: [];
     $datum  = $input['datum']  ?? date('Y-m-d');
-    $castka = (float) ($input['castka'] ?? 0);
+    // 🐛 v3.0.644 — `castka` chybí = plná úhrada (dokumentované chování); 0 = vynulování úhrady;
+    //   záporná / nečíselná = 400. Dřív 0 i záporná tiše znamenaly PLNOU úhradu → dluh zmizel.
+    $castkaChybi = !array_key_exists('castka', $input) || $input['castka'] === null || $input['castka'] === '';
+    if (!$castkaChybi && !is_numeric($input['castka'])) api_error('castka musí být číslo', 400);
+    $castka = $castkaChybi ? null : round((float) $input['castka'], 2);
+    if ($castka !== null && $castka < 0) api_error('castka nesmí být záporná', 400);
 
     $fa = $pdo->prepare("SELECT castka_celkem FROM faktury WHERE id = :id");
     $fa->execute(['id' => $id]);
@@ -225,15 +232,17 @@ if ($parts[0] === 'faktury' && isset($parts[1]) && isset($parts[2]) && $parts[2]
     //   `castka` zůstává v Kč (zpětná kompatibilita). Plná úhrada v měně = přesně castka_celkem.
     require_once __DIR__ . '/../_mena_lib.php';
     $rowsU = [['id' => $id]]; mena_doc_pole($pdo, 'faktury', $rowsU);
+    if (isset($input['castka_mena']) && !is_numeric($input['castka_mena'])) api_error('castka_mena musí být číslo', 400);
     if (isset($input['castka_mena']) && is_numeric($input['castka_mena'])) {
         $xm = round((float) $input['castka_mena'], 2);
         $docCel = (float) ($rowsU[0]['doc_celkem'] ?? 0); $kD = (float) ($rowsU[0]['doc_k'] ?? 1);
         if ($xm < 0 || $xm > $docCel + 0.005) api_error('castka_mena mimo rozsah 0 – ' . $docCel . ' ' . ($rowsU[0]['doc_mena'] ?? ''), 400);
         $castka = abs($xm - $docCel) < 0.005 ? (float) $cc : ($kD > 0 ? round($xm / $kD, 2) : $xm);
     }
-    $castka = $castka > 0 ? min($castka, (float) $cc) : (float) $cc;
+    $castka = $castka === null ? (float) $cc : min($castka, (float) $cc);
+    // 0 = úhrada zrušena → datum úhrady NULL (jako admin PUT u nedoplatku)
     $pdo->prepare("UPDATE faktury SET castka_uhrazeno = :c, datum_uhrazeni = :d WHERE id = :id")
-        ->execute(['c' => $castka, 'd' => $datum, 'id' => $id]);
+        ->execute(['c' => $castka, 'd' => $castka > 0 ? $datum : null, 'id' => $id]);
 
     api_response(['ok' => true, 'id' => $id, 'castka_uhrazeno' => $castka, 'datum' => $datum,
                   'doc_mena' => $rowsU[0]['doc_mena'] ?? 'CZK', 'doc_celkem' => $rowsU[0]['doc_celkem'] ?? (float) $cc]);

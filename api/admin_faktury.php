@@ -181,13 +181,14 @@ if ($method === 'GET') {
                f.castka_celkem, f.castka_uhrazeno, f.variabilni_symbol, f.odeslano_email,
                f.rucni, f.obsah_upraveno, f.je_dobropis, f.puvodni_faktura_id,
                od.nazev AS odberatel_nazev, od.email AS odberatel_email,
+               -- 🐛 v3.0.644 — saldo = celkem + dobropisy − uhrazeno (i ČÁSTEČNÝ dobropis snižuje pohledávku;
+               --   PR14 řešil jen plný). Stejný výraz ve filtru i souhrnu níž.
                CASE
-                   -- 🐛 PR14 — plně dobropisovaná faktura je vyrovnaná (ne po splatnosti)
-                   WHEN f.castka_celkem > 0 AND (SELECT COALESCE(SUM(db.castka_celkem),0) FROM faktury db WHERE db.puvodni_faktura_id = f.id AND db.je_dobropis = 1) <= -f.castka_celkem + 0.01 THEN 'uhrazena'
-                   WHEN f.castka_uhrazeno >= f.castka_celkem THEN 'uhrazena'
+                   WHEN f.castka_uhrazeno >= f.castka_celkem + __DOB__ THEN 'uhrazena'
                    WHEN f.datum_splatnosti < CURDATE() THEN 'po_splatnosti'
                    ELSE 'cekajici'
                END AS stav_uhrady,
+               __DOB__ AS dobropisovano,
                COALESCE(ag_pol.pocet, 0)         AS pocet_polozek,
                COALESCE(ag_dl.pocet_dl, 0)       AS pocet_dl,
                ag_dl.dl_cisla,
@@ -234,12 +235,17 @@ if ($method === 'GET') {
     // 🆕 v3.0.219 — filtr WHERE zvlášť (sdílí list i COUNT total pro paging)
     $where = '';
     // FIX #13: filter pushed into WHERE, ne až po LIMITu v PHP
+    // 🐛 v3.0.644 — filtr počítá s dobropisy (dřív plně dobropisovaná faktura po splatnosti
+    //   padala do „Po splatnosti" a částečný dobropis pohledávku nesnižoval)
+    require_once __DIR__ . '/_faktura_lib.php';
+    $dobSql = faktura_sql_dobropisy('f');
+    $sql = str_replace('__DOB__', $dobSql, $sql);
     if ($stav === 'uhrazena') {
-        $where .= " AND f.castka_uhrazeno >= f.castka_celkem";
+        $where .= " AND f.castka_uhrazeno >= f.castka_celkem + $dobSql";
     } elseif ($stav === 'po_splatnosti') {
-        $where .= " AND f.castka_uhrazeno < f.castka_celkem AND f.datum_splatnosti < CURDATE()";
+        $where .= " AND f.castka_uhrazeno < f.castka_celkem + $dobSql AND f.datum_splatnosti < CURDATE()";
     } elseif ($stav === 'cekajici') {
-        $where .= " AND f.castka_uhrazeno < f.castka_celkem AND f.datum_splatnosti >= CURDATE()";
+        $where .= " AND f.castka_uhrazeno < f.castka_celkem + $dobSql AND f.datum_splatnosti >= CURDATE()";
     }
 
     if ($hledat !== '') {
@@ -281,8 +287,8 @@ if ($method === 'GET') {
     $ss = $pdo->prepare("
         SELECT COUNT(*) AS celkem,
                COALESCE(SUM(f.castka_celkem), 0) AS celkem_kc,
-               COALESCE(SUM(CASE WHEN f.castka_uhrazeno < f.castka_celkem AND f.datum_splatnosti < CURDATE()
-                                 THEN f.castka_celkem - f.castka_uhrazeno ELSE 0 END), 0) AS po_splatnosti_kc
+               COALESCE(SUM(CASE WHEN f.castka_uhrazeno < f.castka_celkem + $dobSql AND f.datum_splatnosti < CURDATE()
+                                 THEN f.castka_celkem + $dobSql - f.castka_uhrazeno ELSE 0 END), 0) AS po_splatnosti_kc
         $fromF
         WHERE 1=1" . $where);
     $ss->execute($params);
@@ -344,15 +350,40 @@ if ($method === 'PUT') {
         // 🐛 PR13 — u auto-faktury (rucni=0) byla faktura_polozky prázdná a detail vrací ID
         //   z dodaci_list_polozky → UPDATE/DELETE netrefilo žádný řádek a přepočet z prázdné
         //   tabulky vynuloval fakturu na 0 Kč. Materializuj řádky z DL PŘED editací i přepočtem.
-        if ((int) $pdo->query("SELECT COUNT(*) FROM faktura_polozky WHERE faktura_id = " . (int) $fa_id)->fetchColumn() === 0) {
-            faktura_ensure_polozky($pdo, $fa_id);
+        // 🐛 v3.0.644 — faktura s dobropisem: řádky už neměnit (smazání/snížení řádku by rozbilo vazbu
+        //   dobropisových řádků vraci_polozku_id a kontrolu „zbývá vrátit"). Opravu řeší další dobropis.
+        $dobCnt = $pdo->prepare("SELECT COUNT(*) FROM faktury WHERE puvodni_faktura_id = :id AND je_dobropis = 1");
+        $dobCnt->execute(['id' => $fa_id]);
+        if ((int) $dobCnt->fetchColumn() > 0) {
+            json_error('K faktuře už byl vystaven dobropis — její položky nelze měnit. Další opravu řešte dalším dobropisem.', 409);
         }
         $pdo->beginTransaction();
         try {
+            // 🐛 v3.0.644 — detail auto-faktury bez vlastních řádků vrací ID z dodaci_list_polozky;
+            //   materializace (faktura_ensure_polozky) založí faktura_polozky s NOVÝMI id → UPDATE/DELETE
+            //   podle id z DL dřív nic netrefilo a API vrátilo ok (UI „✓ upraveno", nic se nezměnilo).
+            //   Teď: id z DL přemapuj na materializované řádky (stejné pořadí jako detail i materializace)
+            //   a id, které k faktuře nepatří, odmítni (409) místo tichého no-op.
+            $pdo->prepare("SELECT id FROM faktury WHERE id = :id FOR UPDATE")->execute(['id' => $fa_id]);
+            $dlMap = [];
+            if ((int) $pdo->query("SELECT COUNT(*) FROM faktura_polozky WHERE faktura_id = " . (int) $fa_id)->fetchColumn() === 0) {
+                $dlq = $pdo->prepare("SELECT dlp.id FROM faktury_dodaci_listy fdl
+                                      JOIN dodaci_list_polozky dlp ON dlp.dodaci_list_id = fdl.dodaci_list_id
+                                      WHERE fdl.faktura_id = :id ORDER BY dlp.dodaci_list_id, dlp.id");
+                $dlq->execute(['id' => $fa_id]);
+                $dlIdsPol = array_map('intval', $dlq->fetchAll(PDO::FETCH_COLUMN));
+                $nove = array_map(fn($r) => (int) $r['id'], faktura_ensure_polozky($pdo, $fa_id));
+                if (count($dlIdsPol) === count($nove)) $dlMap = array_combine($dlIdsPol, $nove);
+            }
+            $fpq = $pdo->prepare("SELECT id FROM faktura_polozky WHERE faktura_id = :f");
+            $fpq->execute(['f' => $fa_id]);
+            $platne = array_flip(array_map('intval', $fpq->fetchAll(PDO::FETCH_COLUMN)));
             foreach ($d['polozky_zmeny'] as $z) {
                 $pid = (int) ($z['polozka_id'] ?? 0);
                 $mn  = (float) ($z['mnozstvi'] ?? 0);
                 if (!$pid) continue;
+                if (!isset($platne[$pid]) && isset($dlMap[$pid])) $pid = $dlMap[$pid];
+                if (!isset($platne[$pid])) throw new RuntimeException('POLOZKA_NEPATRI');
                 if ($mn <= 0) {
                     $pdo->prepare("DELETE FROM faktura_polozky WHERE id = :id AND faktura_id = :f")
                         ->execute(['id' => $pid, 'f' => $fa_id]);
@@ -388,6 +419,9 @@ if ($method === 'PUT') {
             $pdo->commit();
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
+            if ($e->getMessage() === 'POLOZKA_NEPATRI') {
+                json_error('Položky faktury se mezitím změnily — načtěte detail faktury znovu a úpravu zopakujte.', 409);
+            }
             error_log('admin_faktury PUT polozky: ' . $e->getMessage());
             json_error_safe('Nepodařilo se uložit změny', $e, 500);
         }
@@ -411,10 +445,15 @@ if ($method === 'PUT') {
     // 🆕 v3.0.145 — auto-set datum_uhrazeni při plném zaplacení (jinak zůstávalo NULL).
     //   Plně uhrazeno → CURDATE (zachová existující), pod-uhrazeno → NULL.
     if (isset($d['castka_uhrazeno'])) {
+        // 🐛 v3.0.644 — „plně" = do výše salda po dobropisech (celkem + dobropisy); dobropisy zvlášť
+        //   (UPDATE faktury nesmí mít poddotaz na tutéž tabulku — MySQL 1093)
+        $dq = $pdo->prepare("SELECT COALESCE(SUM(castka_celkem), 0) FROM faktury WHERE puvodni_faktura_id = :id AND je_dobropis = 1");
+        $dq->execute(['id' => $fa_id]);
+        $dob = round((float) $dq->fetchColumn(), 2);
         $pdo->prepare("UPDATE faktury SET datum_uhrazeni = CASE
-                WHEN castka_uhrazeno >= castka_celkem THEN COALESCE(datum_uhrazeni, CURDATE())
+                WHEN castka_uhrazeno >= castka_celkem + CAST(:dob AS DECIMAL(12,2)) THEN COALESCE(datum_uhrazeni, CURDATE())
                 ELSE NULL END
-            WHERE id = :id")->execute(['id' => $fa_id]);
+            WHERE id = :id")->execute(['id' => $fa_id, 'dob' => $dob]);
     }
 
     json_response(['ok' => true]);

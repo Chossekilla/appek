@@ -96,12 +96,13 @@ $dnes = $pdo->query("
     WHERE DATE(datum_objednani) = CURDATE()
 ")->fetch();
 
+// 🐛 v3.0.644 — saldo = celkem + dobropisy − uhrazeno (i částečný dobropis snižuje pohledávku; PR14 jen plný)
+require_once __DIR__ . '/_faktura_lib.php';
+$_dobSql = faktura_sql_dobropisy('f');
 $po_splatnosti = $pdo->query("
-    SELECT COUNT(*) AS pocet, COALESCE(SUM(castka_celkem - castka_uhrazeno), 0) AS castka
+    SELECT COUNT(*) AS pocet, COALESCE(SUM(f.castka_celkem + $_dobSql - f.castka_uhrazeno), 0) AS castka
     FROM faktury f
-    WHERE f.castka_uhrazeno < f.castka_celkem AND f.datum_splatnosti < CURDATE()
-      -- 🐛 PR14 — nepočítej plně dobropisované faktury do pohledávek po splatnosti
-      AND (SELECT COALESCE(SUM(db.castka_celkem),0) FROM faktury db WHERE db.puvodni_faktura_id = f.id AND db.je_dobropis = 1) > -f.castka_celkem + 0.01
+    WHERE f.castka_uhrazeno < f.castka_celkem + $_dobSql AND f.datum_splatnosti < CURDATE()
 ")->fetch();
 
 // Časový graf
@@ -264,9 +265,8 @@ $nedavne_fa = $pdo->query("
            f.castka_celkem, f.castka_uhrazeno, f.rucni, f.je_dobropis,
            od.nazev AS odberatel,
            CASE
-               -- 🐛 PR14 — plně dobropisovaná faktura je vyrovnaná (ne po splatnosti)
-               WHEN f.castka_celkem > 0 AND (SELECT COALESCE(SUM(db.castka_celkem),0) FROM faktury db WHERE db.puvodni_faktura_id = f.id AND db.je_dobropis = 1) <= -f.castka_celkem + 0.01 THEN 'uhrazena'
-               WHEN f.castka_uhrazeno >= f.castka_celkem THEN 'uhrazena'
+               -- 🐛 v3.0.644 — saldo včetně (i částečných) dobropisů
+               WHEN f.castka_uhrazeno >= f.castka_celkem + $_dobSql THEN 'uhrazena'
                WHEN f.datum_splatnosti < CURDATE() THEN 'po_splatnosti'
                ELSE 'cekajici'
            END AS stav_uhrady,

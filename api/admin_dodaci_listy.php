@@ -185,6 +185,24 @@ try {
 
             if (!$odb_id) json_error('Chybí odběratel');
             if (!is_array($polozky) || count($polozky) === 0) json_error('DL musí mít alespoň jednu položku');
+            // 🐛 v3.0.644 — validace datumů i při editaci (dřív jen u vytvoření)
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $datum_vystaveni)) json_error('Neplatné datum vystavení');
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $datum_dodani))    json_error('Neplatné datum dodání');
+
+            // 🐛 v3.0.644 — VYFAKTUROVANÝ DL nelze upravit: faktura z DL čte řádky živě z DL, ale částka
+            //   „K úhradě" je uložená v hlavičce faktury → úprava zpětně měnila vydaný daňový doklad
+            //   (řádky ≠ součet). Opravu fakturovaného plnění řeší dobropis. Ověř i existenci DL.
+            $chk = $pdo->prepare("SELECT dl.id, dl.fakturovano,
+                                         (SELECT f.cislo FROM faktury_dodaci_listy fdl JOIN faktury f ON f.id = fdl.faktura_id
+                                           WHERE fdl.dodaci_list_id = dl.id ORDER BY f.id LIMIT 1) AS faktura_cislo
+                                  FROM dodaci_listy dl WHERE dl.id = :id");
+            $chk->execute(['id' => $dl_id]);
+            $dlStav = $chk->fetch();
+            if (!$dlStav) json_error('Dodací list nenalezen', 404);
+            if (!empty($dlStav['faktura_cislo']) || (int) $dlStav['fakturovano'] === 1) {
+                json_error('Dodací list je už vyfakturovaný' . (!empty($dlStav['faktura_cislo']) ? ' (faktura ' . $dlStav['faktura_cislo'] . ')' : '')
+                    . ' — nelze ho upravit. Opravu dodaného plnění řešte dobropisem k faktuře.', 409);
+            }
 
             // Načti ceník
             $cenik = [];
@@ -230,6 +248,13 @@ try {
 
             $pdo->beginTransaction();
             try {
+                // 🐛 v3.0.644 — souběh s vystavením faktury: znovu ověř pod zámkem řádku DL
+                $lk = $pdo->prepare("SELECT fakturovano FROM dodaci_listy WHERE id = :id FOR UPDATE");
+                $lk->execute(['id' => $dl_id]);
+                if ((int) $lk->fetchColumn() === 1) {
+                    $pdo->rollBack();
+                    json_error('Dodací list byl mezitím vyfakturován — nelze ho upravit. Opravu řešte dobropisem k faktuře.', 409);
+                }
                 // Aktualizuj hlavičku
                 $pdo->prepare("
                     UPDATE dodaci_listy SET

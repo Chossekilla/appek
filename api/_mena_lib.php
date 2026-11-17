@@ -556,13 +556,14 @@ if (!function_exists('mena_config_load')) {
             $add($pdo->query("SELECT dodaci_list_id AS doc_id, mnozstvi, cena_bez_dph, sazba_dph FROM dodaci_list_polozky
                               WHERE dodaci_list_id IN ($ids) ORDER BY dodaci_list_id, id")->fetchAll(PDO::FETCH_ASSOC));
         } elseif ($typ === 'faktury') {
-            // = nacti_fakturu() v faktura.php: ruční → faktura_polozky; z DL → dodaci_list_polozky; fallback objednavky_polozky
-            $rucni = []; $zDl = [];
-            foreach ($hlavicky as $id => $h) { if (!empty($h['rucni'])) $rucni[] = (int) $id; else $zDl[] = (int) $id; }
-            if ($rucni) {
-                $add($pdo->query("SELECT faktura_id AS doc_id, mnozstvi, cena_bez_dph, sazba_dph FROM faktura_polozky
-                                  WHERE faktura_id IN (" . implode(',', $rucni) . ") ORDER BY faktura_id, poradi, id")->fetchAll(PDO::FETCH_ASSOC));
-            }
+            // = nacti_fakturu() v faktura.php: faktura_polozky (ruční / vlastní řádky automatické faktury)
+            //   → dodaci_list_polozky → fallback objednavky_polozky
+            // 🐛 v3.0.644 — vlastní řádky (faktura_polozky) mají přednost i u automatické faktury
+            //   (upravené položky faktury / materializace) — dřív se u ní četly řádky DL.
+            $add($pdo->query("SELECT faktura_id AS doc_id, mnozstvi, cena_bez_dph, sazba_dph FROM faktura_polozky
+                              WHERE faktura_id IN ($ids) ORDER BY faktura_id, poradi, id")->fetchAll(PDO::FETCH_ASSOC));
+            $zDl = [];
+            foreach ($hlavicky as $id => $h) { if (empty($h['rucni']) && empty($pol[(int) $id])) $zDl[] = (int) $id; }
             if ($zDl) {
                 $add($pdo->query("SELECT fdl.faktura_id AS doc_id, dlp.mnozstvi, dlp.cena_bez_dph, dlp.sazba_dph
                                   FROM faktury_dodaci_listy fdl
