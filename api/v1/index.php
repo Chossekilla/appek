@@ -103,7 +103,7 @@ if ($path === '' || $path === 'docs') {
             'GET /dodaci_listy/{id}'        => 'Detail DL',
             'GET /odberatele'               => 'Seznam odběratelů',
             'GET /odberatele/{id}'          => 'Detail odběratele',
-            'POST /faktury/{id}/uhrazena'   => 'Označit FA jako uhrazenou (body: {datum, castka})',
+            'POST /faktury/{id}/uhrazena'   => 'Označit FA jako uhrazenou (body: {datum, castka | castka_mena, metoda: prevod|hotovost|karta|online})',
         ],
         'formats' => ['JSON (default)', 'XML (jen ISDOC)'],
         'contact' => nastaveni_get($pdo, 'firma_email', ''),
@@ -240,9 +240,31 @@ if ($parts[0] === 'faktury' && isset($parts[1]) && isset($parts[2]) && $parts[2]
         $castka = abs($xm - $docCel) < 0.005 ? (float) $cc : ($kD > 0 ? round($xm / $kD, 2) : $xm);
     }
     $castka = $castka === null ? (float) $cc : min($castka, (float) $cc);
+    // 🆕 v3.0.645 — volitelná `metoda` (prevod|hotovost|karta|online) pro knihu plateb; chybí = převod
+    require_once __DIR__ . '/../_faktura_platby_lib.php';
+    $metodaU = null;
+    if (isset($input['metoda']) && $input['metoda'] !== '' && $input['metoda'] !== null) {
+        $metodaU = faktura_uhrada_metoda(is_scalar($input['metoda']) ? (string) $input['metoda'] : '');
+        if ($metodaU === null) api_error('metoda musí být jedna z: ' . implode(', ', FAKTURA_UHRADA_METODY), 400);
+    }
+    faktura_platby_ensure_schema($pdo);   // DDL MIMO transakci
     // 0 = úhrada zrušena → datum úhrady NULL (jako admin PUT u nedoplatku)
-    $pdo->prepare("UPDATE faktury SET castka_uhrazeno = :c, datum_uhrazeni = :d WHERE id = :id")
-        ->execute(['c' => $castka, 'd' => $castka > 0 ? $datum : null, 'id' => $id]);
+    // 🆕 v3.0.645 — v transakci se zámkem faktury + rozdíl úhrady do knihy plateb (zdroj 'faktura');
+    //   opakované volání se stejnou částkou = rozdíl 0 = žádný další zápis (idempotentní)
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare("SELECT id FROM faktury WHERE id = :id FOR UPDATE")->execute(['id' => $id]);
+        $predU = faktura_uhrada_stav($pdo, $id);
+        $pdo->prepare("UPDATE faktury SET castka_uhrazeno = :c, datum_uhrazeni = :d WHERE id = :id")
+            ->execute(['c' => $castka, 'd' => $castka > 0 ? $datum : null, 'id' => $id]);
+        faktura_uhrada_zapis($pdo, $id, $predU, faktura_uhrada_stav($pdo, $id), $metodaU,
+                             mb_substr('API: ' . (string) ($token['nazev'] ?? 'token'), 0, 120));
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('v1 faktury uhrazena: ' . $e->getMessage());
+        api_error('Úhradu se nepodařilo uložit', 500);
+    }
 
     api_response(['ok' => true, 'id' => $id, 'castka_uhrazeno' => $castka, 'datum' => $datum,
                   'doc_mena' => $rowsU[0]['doc_mena'] ?? 'CZK', 'doc_celkem' => $rowsU[0]['doc_celkem'] ?? (float) $cc]);

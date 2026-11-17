@@ -2653,8 +2653,11 @@ function pos_uzaverka_data(PDO $pdo, string $date, ?string $pokladna = null): ar
     //   Stávající Kč údaje (stanice/total) se NEMĚNÍ.
     $dleMeny = []; $supl = [];
     try {
+        // 🆕 v3.0.645 — úhrady faktur (zdroj 'faktura': převod/hotovost/karta zadané v adminu u faktury)
+        //   NEjsou tržba pokladny ani peníze v šuplíku → z uzávěrky vyloučené (Kč údaje jdou z objednávek,
+        //   kde faktury taky nejsou — dle_meny tak zůstává konzistentní s total).
         $lq = $pdo->prepare("SELECT mena, metoda, COALESCE(idem,'') AS idem, castka_mena, castka_czk FROM platby_doklad
-                             WHERE created_at >= :d AND created_at < :dn" . ($pkFilter ? ' AND pokladna = :pk' : ''));
+                             WHERE created_at >= :d AND created_at < :dn AND zdroj <> 'faktura'" . ($pkFilter ? ' AND pokladna = :pk' : ''));
         $lb = ['d' => $date, 'dn' => $dNext];
         if ($pkFilter) $lb['pk'] = $pokladna;
         $lq->execute($lb);

@@ -581,6 +581,11 @@ function apply_full_schema(PDO $pdo): void {
         require_once __DIR__ . '/_mena_lib.php';
         if (function_exists('mena_ensure_schema')) mena_ensure_schema($pdo);
     } catch (Throwable $e) { error_log('apply_full_schema mena 5b: ' . $e->getMessage()); }
+    // 🆕 v3.0.645 — úhrady faktur v knize plateb: platby_doklad.faktura_id + index (_faktura_platby_lib.php)
+    try {
+        require_once __DIR__ . '/_faktura_platby_lib.php';
+        if (function_exists('faktura_platby_ensure_schema') && !$pdo->inTransaction()) faktura_platby_ensure_schema($pdo);
+    } catch (Throwable $e) { error_log('apply_full_schema faktura_platby: ' . $e->getMessage()); }
 
     // ════════════════════════════════════════════════════════════
     // 6. 📊 ÚČETNÍ INTEGRACE (POHODA / FlexiBee) — accounting_sync_log + accounting_export_state.

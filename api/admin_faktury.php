@@ -3,8 +3,9 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_mena_lib.php'; // 💱 v3.0.642 — částky v měně dokladu (mena_doc_pole)
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_schema_lib.php';
+require_once __DIR__ . '/_faktura_platby_lib.php'; // 🆕 v3.0.645 — úhrady faktur v knize plateb
 cors_headers();
-require_admin();
+$_admin = require_admin();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $pdo = db();
@@ -168,6 +169,8 @@ if ($method === 'GET') {
         $_one = [$f]; mena_doc_pole($pdo, 'faktury', $_one); $f = $_one[0];
         mena_doc_pole($pdo, 'faktury', $f['dobropisy']);
         mena_doc_pole($pdo, 'dodaci_listy', $f['dodaci_listy']);
+        // 🆕 v3.0.645 — pohyby úhrad z knihy plateb (evidují se od v3.0.645; starší úhrady jen jako součet)
+        $f['uhrady'] = faktura_uhrady_seznam($pdo, (int) $f['id']);
         json_response($f);
     }
 
@@ -427,6 +430,15 @@ if ($method === 'PUT') {
         }
     }
 
+    // 🆕 v3.0.645 — metoda úhrady pro knihu plateb (prevod|hotovost|karta|online; prázdná = výchozí)
+    $uhradaMetoda = null;
+    if (isset($d['uhrada_metoda']) && $d['uhrada_metoda'] !== '') {
+        $uhradaMetoda = faktura_uhrada_metoda($d['uhrada_metoda']);
+        if ($uhradaMetoda === null) json_error('Neplatný způsob úhrady (povoleno: ' . implode(', ', FAKTURA_UHRADA_METODY) . ')', 400);
+    }
+    $zmenaUhrady = isset($d['castka_uhrazeno']);
+    if ($zmenaUhrady) faktura_platby_ensure_schema($pdo);   // DDL MIMO transakci
+
     // Standardní pole (úhrada, splatnost, VS, poznámka)
     $updates = [];
     $params  = ['id' => $fa_id];
@@ -437,23 +449,41 @@ if ($method === 'PUT') {
             $params[$p] = $d[$k];
         }
     }
-    if (!empty($updates)) {
-        $pdo->prepare("UPDATE faktury SET " . implode(', ', $updates) . " WHERE id = :id")
-            ->execute($params);
-    }
+    // 🆕 v3.0.645 — změna úhrady = jedna transakce: zámek faktury → stav před → UPDATE → datum úhrady
+    //   → stav po → rozdíl do knihy plateb (platby_doklad, zdroj 'faktura'). Souběžné/opakované requesty
+    //   se na zámku seřadí; stejná cílová úhrada podruhé = rozdíl 0 = žádný další zápis.
+    $pdo->beginTransaction();
+    try {
+        $pred = null;
+        if ($zmenaUhrady) {
+            $pdo->prepare("SELECT id FROM faktury WHERE id = :id FOR UPDATE")->execute(['id' => $fa_id]);
+            $pred = faktura_uhrada_stav($pdo, $fa_id);
+        }
+        if (!empty($updates)) {
+            $pdo->prepare("UPDATE faktury SET " . implode(', ', $updates) . " WHERE id = :id")
+                ->execute($params);
+        }
 
-    // 🆕 v3.0.145 — auto-set datum_uhrazeni při plném zaplacení (jinak zůstávalo NULL).
-    //   Plně uhrazeno → CURDATE (zachová existující), pod-uhrazeno → NULL.
-    if (isset($d['castka_uhrazeno'])) {
-        // 🐛 v3.0.644 — „plně" = do výše salda po dobropisech (celkem + dobropisy); dobropisy zvlášť
-        //   (UPDATE faktury nesmí mít poddotaz na tutéž tabulku — MySQL 1093)
-        $dq = $pdo->prepare("SELECT COALESCE(SUM(castka_celkem), 0) FROM faktury WHERE puvodni_faktura_id = :id AND je_dobropis = 1");
-        $dq->execute(['id' => $fa_id]);
-        $dob = round((float) $dq->fetchColumn(), 2);
-        $pdo->prepare("UPDATE faktury SET datum_uhrazeni = CASE
-                WHEN castka_uhrazeno >= castka_celkem + CAST(:dob AS DECIMAL(12,2)) THEN COALESCE(datum_uhrazeni, CURDATE())
-                ELSE NULL END
-            WHERE id = :id")->execute(['id' => $fa_id, 'dob' => $dob]);
+        // 🆕 v3.0.145 — auto-set datum_uhrazeni při plném zaplacení (jinak zůstávalo NULL).
+        //   Plně uhrazeno → CURDATE (zachová existující), pod-uhrazeno → NULL.
+        if ($zmenaUhrady) {
+            // 🐛 v3.0.644 — „plně" = do výše salda po dobropisech (celkem + dobropisy); dobropisy zvlášť
+            //   (UPDATE faktury nesmí mít poddotaz na tutéž tabulku — MySQL 1093)
+            $dq = $pdo->prepare("SELECT COALESCE(SUM(castka_celkem), 0) FROM faktury WHERE puvodni_faktura_id = :id AND je_dobropis = 1");
+            $dq->execute(['id' => $fa_id]);
+            $dob = round((float) $dq->fetchColumn(), 2);
+            $pdo->prepare("UPDATE faktury SET datum_uhrazeni = CASE
+                    WHEN castka_uhrazeno >= castka_celkem + CAST(:dob AS DECIMAL(12,2)) THEN COALESCE(datum_uhrazeni, CURDATE())
+                    ELSE NULL END
+                WHERE id = :id")->execute(['id' => $fa_id, 'dob' => $dob]);
+            faktura_uhrada_zapis($pdo, $fa_id, $pred, faktura_uhrada_stav($pdo, $fa_id), $uhradaMetoda,
+                                 ($_admin['jmeno'] ?? '') !== '' ? $_admin['jmeno'] : 'admin');
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('admin_faktury PUT uhrada: ' . $e->getMessage());
+        json_error_safe('Nepodařilo se uložit změny', $e, 500);
     }
 
     json_response(['ok' => true]);
@@ -762,6 +792,7 @@ if ($method === 'DELETE') {
     // === AUTO-SNAPSHOT před destruktivní akcí ===
     require_once __DIR__ . '/_zaloha_helper.php';
     zaloha_snapshot($pdo, 'Před smazáním faktury ID ' . $id);
+    faktura_platby_ensure_schema($pdo);   // 🆕 v3.0.645 — DDL mimo transakci (protizápis úhrady)
 
     $pdo->beginTransaction();
     try {
@@ -771,6 +802,14 @@ if ($method === 'DELETE') {
             SET dl.fakturovano = 0
             WHERE fdl.faktura_id = :id
         ")->execute(['id' => $id]);
+        // 🆕 v3.0.645 — smazání uhrazené faktury = protizápis v knize plateb (úhrada → 0), ať součet
+        //   pohybů k faktuře sedí s tím, co v systému zůstalo. Řádky knihy se NEmažou (auditní stopa).
+        $pdo->prepare("SELECT id FROM faktury WHERE id = :id FOR UPDATE")->execute(['id' => $id]);
+        $predDel = faktura_uhrada_stav($pdo, $id);
+        if ($predDel && abs($predDel['uhrazeno']) >= 0.005) {
+            faktura_uhrada_zapis($pdo, $id, $predDel, ['uhrazeno' => 0.0] + $predDel, null,
+                                 ($_admin['jmeno'] ?? '') !== '' ? $_admin['jmeno'] : 'admin');
+        }
         $pdo->prepare("DELETE FROM faktury_dodaci_listy WHERE faktura_id = :id")
             ->execute(['id' => $id]);
         $pdo->prepare("DELETE FROM faktury WHERE id = :id")->execute(['id' => $id]);

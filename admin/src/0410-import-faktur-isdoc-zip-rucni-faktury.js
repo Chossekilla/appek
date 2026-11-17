@@ -163,6 +163,31 @@ window.importFakturProvest = async function() {
   }
 };
 
+// 🆕 v3.0.645 — pohyby úhrad faktury z knihy plateb (platby_doklad, zdroj 'faktura'): datum · způsob · částka
+//   v měně dokladu. Záporný řádek = zrušení/snížení úhrady (protizápis). Úhrady před v3.0.645 kniha nemá.
+const _FA_UHRADA_METODY = { prevod: 'Převodem', hotovost: 'Hotově', karta: 'Kartou', online: 'Online' };
+// Výchozí způsob = jak přišla poslední úhrada (snížení úhrady se tak zapíše stejnou cestou), jinak převod
+function fakturaPosledniMetoda(f) {
+  const kladne = (Array.isArray(f.uhrady) ? f.uhrady : []).filter(r => Number(r.castka_mena) > 0);
+  const m = kladne.length ? kladne[kladne.length - 1].metoda : '';
+  return _FA_UHRADA_METODY[m] ? m : 'prevod';
+}
+function fakturaUhradyHtml(f) {
+  const rows = Array.isArray(f.uhrady) ? f.uhrady : [];
+  if (!rows.length) return '';
+  return `<div style="margin:-4px 0 12px;border:1px solid var(--border, #E5E7EB);border-radius:8px;padding:8px 12px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-2);font-weight:600;margin-bottom:4px">Platby</div>
+    ${rows.map(r => {
+      const c = Number(r.castka_mena) || 0;
+      return `<div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:12px;padding:3px 0;border-top:1px dashed var(--border, #E5E7EB)">
+        <span style="color:var(--text-2)">${esc(fmtDateTime(r.created_at))}</span>
+        <span>${esc(_FA_UHRADA_METODY[r.metoda] || r.metoda || '')}</span>
+        <strong style="white-space:nowrap;color:${c < 0 ? 'var(--danger-text)' : 'var(--success-text)'}">${c > 0 ? '+' : ''}${fmtDoc(c, r.mena)}</strong>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 window.openFakturaDetail = async function(id) {
   const f = await api(`admin_faktury.php?id=${id}`);
   const uhrazeno = f.castka_uhrazeno || 0;
@@ -279,7 +304,14 @@ window.openFakturaDetail = async function(id) {
         <label class="form-label">Poznámka</label>
         <input type="text" class="form-input" id="ff-pozn" value="${esc(f.poznamka || '')}" placeholder="Volitelná...">
       </div>
+      ${!f.je_dobropis ? `<div>
+        <label class="form-label">Způsob platby</label>
+        <select class="form-input" id="ff-uhrada-metoda" onchange="this.dataset.zvoleno='1'">
+          ${Object.keys(_FA_UHRADA_METODY).map(k => `<option value="${k}"${k === fakturaPosledniMetoda(f) ? ' selected' : ''}>${_FA_UHRADA_METODY[k]}</option>`).join('')}
+        </select>
+      </div>` : ''}
     </div>
+    ${fakturaUhradyHtml(f)}
 
     <div class="form-actions">
       <div class="form-actions-tools">

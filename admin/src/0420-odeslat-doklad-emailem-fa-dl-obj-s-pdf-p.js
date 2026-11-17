@@ -88,7 +88,12 @@ window.ulozitFakturu = async function(id) {
       const el = document.getElementById('ff-uhrazeno');
       const v = parseFloat(el.value) || 0;
       if (Math.abs(v - (parseFloat(el.dataset.puvodni) || 0)) < 0.005) return {};
-      return (el.dataset.mena || 'CZK') !== 'CZK' ? { castka_uhrazeno_mena: v } : { castka_uhrazeno: v };
+      // 🆕 v3.0.645 — způsob úhrady pro knihu plateb (server zapíše rozdíl úhrady se zdrojem „faktura“).
+      //   Snížení/zrušení úhrady bez ručně zvoleného způsobu = server vrátí peníze po metodách, kudy přišly.
+      const met = document.getElementById('ff-uhrada-metoda');
+      const zvyseni = v > (parseFloat(el.dataset.puvodni) || 0);
+      const extra = met && met.value && (zvyseni || met.dataset.zvoleno === '1') ? { uhrada_metoda: met.value } : {};
+      return (el.dataset.mena || 'CZK') !== 'CZK' ? { castka_uhrazeno_mena: v, ...extra } : { castka_uhrazeno: v, ...extra };
     })(),
     variabilni_symbol: document.getElementById('ff-vs').value,
     poznamka: document.getElementById('ff-pozn').value,
