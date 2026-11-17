@@ -38,7 +38,7 @@ if (($ctx['role'] ?? '') !== 'admin') {
     //   zaplacení appka odemkne sama a nečeká se do zítřka. Mimo zámek zůstává admin-only.
     //   Throttle: max 1× za 60 s (vendor nemá být spamován z každého zamčeného zařízení).
     $zamceno = (function_exists('license_full_lock') && license_full_lock())
-        || (function_exists('license_enforce_check') && !(license_enforce_check()['ok'] ?? true));
+        || (function_exists('license_enforce_check') && (function ($e) { return empty($e['ok']) || !empty($e['soft_lock']); })(license_enforce_check()));
     $last = (int) (license_state_load()['last_check'] ?? 0);
     if (!$zamceno) {
         http_response_code(403);
@@ -174,8 +174,16 @@ try {
     //      OK → state="active"
     $newState = 'active';
     $newReason = null;
+    // 🐛 v3.0.644 — `hard` = zámek, který server VYNUCUJE (423 na admin API vč. POS, viz
+    //   license_enforce_check). Jen jednoznačné stavy: odvolaný klíč (revoked_used — sem spadá
+    //   i vendor lock_state po 3 mismatchích), vendor výslovně hlásí zámek (vendor_lock), nebo
+    //   klíč, který dodavatel nikdy nevydal (unknown_key). key_reuse POD limitem vendora
+    //   (dočasná doména *.hostingersite.com, migrace serveru, přejmenovaná DB…) = jen klientský
+    //   overlay/varování, pokladna a API jedou dál.
+    $hard = 0;
     if (($vendorReply['status'] ?? '') === 'pirate') {
         $reason = $vendorReply['reason'] ?? '';
+        if ($reason === 'revoked_used' || $reason === 'unknown_key' || !empty($vendorReply['vendor_lock'])) $hard = 1;
         if ($reason === 'expired_used') {
             // 🆕 v3.0.301 — VYPRŠENÍ ≠ pirátství: nezamyká celý admin, jen balíčky (přes valid_until).
             $newState = 'active';
@@ -194,6 +202,7 @@ try {
     license_state_save([
         'state'       => $newState,
         'reason'      => $newReason,
+        'hard'        => $hard,
         'lock_until'  => $vendorReply['lock_until'] ?? null,
         // 🐛 v3.0.644 — vendor posílá klíč expires_at VŽDY; explicitní null = licence bez expirace (∞).
         //   Dřív `?? prev` při null vzalo STARÉ datum → po zrušení expirace (převod na doživotní)

@@ -359,13 +359,25 @@ function zaloha_obnov(PDO $pdo, int $id): array {
     $zip->close();
     if ($sql === false || $sql === '') throw new RuntimeException('ZIP neobsahuje db.sql');
 
+    // 🐛 v3.0.644 — obnova je teď SKUTEČNĚ destruktivní (DROP TABLE + CREATE pro každou tabulku).
+    //   Když se nepodaří pre-restore snapshot (inode kvóta / místo na disku na sdíleném hostingu),
+    //   obnovu ZRUŠÍME — dřív se jen zalogovalo a DB se přepsala bez cesty zpět. Kontrolujeme
+    //   i to, že soubor snapshotu na disku opravdu je a není prázdný.
+    $snapshotId = null;
     try {
-        zaloha_vytvor($pdo, [
+        $snap = zaloha_vytvor($pdo, [
             'typ'   => 'snapshot',
             'label' => 'Pre-restore snapshot (před obnovou ID ' . $id . ')',
         ]);
+        $snapFile = __DIR__ . '/../zalohy/' . (string) ($snap['soubor'] ?? '');
+        if (empty($snap['id']) || empty($snap['soubor']) || !is_file($snapFile) || (int) @filesize($snapFile) <= 0) {
+            throw new RuntimeException('soubor snapshotu chybí nebo je prázdný');
+        }
+        $snapshotId = (int) $snap['id'];
     } catch (Throwable $e) {
         error_log('Pre-restore snapshot selhal: ' . $e->getMessage());
+        throw new RuntimeException('Obnova zrušena — nepodařilo se vytvořit zálohu aktuálního stavu před obnovou ('
+            . $e->getMessage() . '). Databáze zůstala beze změny. Zkontrolujte místo na disku / kvótu souborů a zkuste to znovu.', 4090);
     }
 
     // 🐛 v3.0.644 — dump píše před každé `DROP TABLE IF EXISTS` hlavičku z komentářových
@@ -398,7 +410,8 @@ function zaloha_obnov(PDO $pdo, int $id): array {
     } finally {
         try { $pdo->exec('SET FOREIGN_KEY_CHECKS=1'); } catch (Throwable $e) { /* ignore */ }
     }
-    return ['ok' => $pocet_err === 0, 'provedeno' => $pocet_ok, 'chyb' => $pocet_err, 'errors' => $errors];
+    // snapshot_id = záloha stavu PŘED obnovou (při chybách obnovy se dá vrátit zpět přes ni)
+    return ['ok' => $pocet_err === 0, 'provedeno' => $pocet_ok, 'chyb' => $pocet_err, 'errors' => $errors, 'snapshot_id' => $snapshotId];
 }
 }
 

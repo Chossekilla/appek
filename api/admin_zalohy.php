@@ -146,6 +146,8 @@ if ($action === 'restore' && $method === 'POST') {
         $r = zaloha_obnov($pdo, $id);
         json_response($r);
     } catch (Throwable $e) {
+        // 🐛 v3.0.644 — nepovedený pre-restore snapshot = obnova zrušena (DB beze změny) → srozumitelná hláška
+        if ($e instanceof RuntimeException && $e->getCode() === 4090) json_error($e->getMessage(), 409);
         json_error_safe('Obnova selhala', $e, 500);
     }
 }
