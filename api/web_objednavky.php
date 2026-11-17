@@ -396,7 +396,8 @@ if ($action === 'order' && $method === 'POST') {
             //   částka v měně objednávky (snapshot). Čeština + Kč = text beze změny.
             // 🆕 v3.0.645 — objednal-li ze stránky v jazyce (lang), píše se e-mail v něm (de/sk přes _i18n_web.php)
             $L = email_lang_odberatele($pdo, null);
-            if ($webLang) $L = $webLang;
+            //   Jazyk nezjištěný (stránka spadla na cs jen jako výchozí) výchozí jazyk dokladů firmy nepřebíjí.
+            if ($webLang && ($d['lang_src'] ?? '') !== 'vychozi') $L = $webLang;
             $tv = fn(string $k, array $x = []) => in_array($L, APPEK_DOC_LANGS, true) ? _t_lang($L, $k, $x) : web_t($L, $k, $x);
             $mRows = [['id' => $objId]];
             mena_doc_pole($pdo, 'objednavky', $mRows);

@@ -1011,7 +1011,11 @@ function poslat_email(array $emailKomu, string $predmet, string $telo, string $f
 
     // Z hlavičky 'firma_email' z nastavení
     $pdo = db();
-    $from = nastaveni_get($pdo, 'firma_email', '') ?: 'noreply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    // 🆕 v3.0.645 — v CLI (cron) doména z veřejné adresy instalace (dřív noreply@localhost)
+    $fromHost = (string) ($_SERVER['HTTP_HOST'] ?? '');
+    if ($fromHost === '' && PHP_SAPI === 'cli') $fromHost = (string) (parse_url(app_public_base(), PHP_URL_HOST) ?? '');
+    $fromHost = preg_replace('/^www\./i', '', preg_replace('/[^a-zA-Z0-9.\-]/', '', preg_replace('/:\d+$/', '', $fromHost))) ?: 'localhost';
+    $from = nastaveni_get($pdo, 'firma_email', '') ?: 'noreply@' . $fromHost;
     $fromName = nastaveni_get($pdo, 'firma_nazev', '') ?: 'Provoz';
 
     // Auto-detekce HTML (obsahuje tagy?) — pokud format='auto'

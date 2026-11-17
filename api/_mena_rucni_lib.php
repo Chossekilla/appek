@@ -23,6 +23,8 @@ if (!function_exists('mena_rucni_volba')) {
      */
     function mena_rucni_volba(PDO $pdo, $volba, int $odbId): ?array {
         if (empty(mena_config_load($pdo)['platba']['aktivni'])) return null;
+        // 🐛 v3.0.645 — poškozený payload (pole/číslo) = chyba, ne tichý doklad v Kč (jako vzor admin_objednavky)
+        if ($volba !== null && !is_string($volba)) throw new MenaException('mena_neplatna', 'Neplatná měna dokladu', 400);
         $vyslovna = is_string($volba) ? strtoupper(trim($volba)) : '';
         $mk = $vyslovna;
         if ($mk === '' && $odbId > 0) {

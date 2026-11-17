@@ -29,7 +29,8 @@ window.cronInfoLoad = async function () {
       : `<span style="color:var(--danger-text, #991B1B)">✗ ${kdy}</span>`;
   };
   const ulohy = (r.ulohy || []).map((u, i) => {
-    const prikaz = u.hpanel ? `${u.cas}   ${u.hpanel}` : u.prikaz;
+    // hPanel má čas a příkaz v samostatných polích → kopírovat jen cestu (čas je vidět nad ní)
+    const prikaz = u.hpanel ? u.hpanel : u.prikaz;
     return `
       <div style="padding:10px 0;border-top:1px dashed var(--border)">
         <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px">

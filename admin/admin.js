@@ -2412,6 +2412,30 @@ function statusLabel(s) {
   return m[s] || s;
 }
 
+
+// =============================================================
+// 💱 🆕 v3.0.645 — VOLBA MĚNY RUČNĚ ZAKLÁDANÉHO DOKLADU
+//   Catering z kalkulačky, dort z konfigurátoru, ruční dodací list — stejné UI jako
+//   „Nová objednávka" (#no-mena): výběr se ukáže JEN když instalace přijímá víc měn
+//   (Nastavení → Přístupy, ceny & měna → platba ve více měnách). Prázdná volba =
+//   měna odběratele / výchozí (rozhoduje server: api/_mena_rucni_lib.php).
+// =============================================================
+function menaVolbaAktivni() {
+  const m = window._menaCfg;
+  return !!(m && m.platba && m.platba.aktivni);
+}
+// <option>y pro <select> měny dokladu; `pevna` = jen tahle jedna měna (úprava vystaveného dokladu)
+function menaVolbaOptions(value, pevna) {
+  const lbl = m => m === 'CZK' ? 'Kč (CZK)' : esc(m);
+  if (pevna) return `<option value="${esc(pevna)}" selected>${lbl(String(pevna).toUpperCase())}</option>`;
+  const meny = ['CZK', ...(((window._menaCfg || {}).platba || {}).meny || [])];
+  return `<option value="">Podle odběratele</option>`
+    + [...new Set(meny)].map(m => `<option value="${esc(m)}" ${value === m ? 'selected' : ''}>${lbl(m)}</option>`).join('');
+}
+// Částka z odpovědi create endpointu v měně dokladu (mena + castka_mena), jinak jako dřív fmt(castka)
+function menaFmtVytvoreno(r) {
+  return (r && r.mena && r.castka_mena != null) ? fmtDoc(r.castka_mena, r.mena) : fmt(r ? r.castka : 0);
+}
 // =============================================================
 // 📡 API helper s krátkodobou GET cache (snižuje lag při přepínání stránek)
 // =============================================================
@@ -12518,6 +12542,7 @@ window.upravitDodaciList = async function(id) {
       datum_vystaveni: dl.datum_vystaveni,
       datum_dodani: dl.datum_dodani,
       poznamka: dl.poznamka || '',
+      mena_pevna: dl.doc_mena || null,   // 💱 🆕 v3.0.645 — měna vystaveného DL (jen zobrazení, nemění se)
       polozky: dl.polozky.map(p => {
         // 🐛 v3.0.644 — sazba 0 % zůstane 0 % (dřív `|| 12` dělalo z osvobozené položky / řádku
         //   voucheru 12 % → tiše se změnilo DPH i celkem DL). 12 jen když sazba chybí.
@@ -13165,6 +13190,31 @@ window.importFakturProvest = async function() {
   }
 };
 
+// 🆕 v3.0.645 — pohyby úhrad faktury z knihy plateb (platby_doklad, zdroj 'faktura'): datum · způsob · částka
+//   v měně dokladu. Záporný řádek = zrušení/snížení úhrady (protizápis). Úhrady před v3.0.645 kniha nemá.
+const _FA_UHRADA_METODY = { prevod: 'Převodem', hotovost: 'Hotově', karta: 'Kartou', online: 'Online' };
+// Výchozí způsob = jak přišla poslední úhrada (snížení úhrady se tak zapíše stejnou cestou), jinak převod
+function fakturaPosledniMetoda(f) {
+  const kladne = (Array.isArray(f.uhrady) ? f.uhrady : []).filter(r => Number(r.castka_mena) > 0);
+  const m = kladne.length ? kladne[kladne.length - 1].metoda : '';
+  return _FA_UHRADA_METODY[m] ? m : 'prevod';
+}
+function fakturaUhradyHtml(f) {
+  const rows = Array.isArray(f.uhrady) ? f.uhrady : [];
+  if (!rows.length) return '';
+  return `<div style="margin:-4px 0 12px;border:1px solid var(--border, #E5E7EB);border-radius:8px;padding:8px 12px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-2);font-weight:600;margin-bottom:4px">Platby</div>
+    ${rows.map(r => {
+      const c = Number(r.castka_mena) || 0;
+      return `<div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:12px;padding:3px 0;border-top:1px dashed var(--border, #E5E7EB)">
+        <span style="color:var(--text-2)">${esc(fmtDateTime(r.created_at))}</span>
+        <span>${esc(_FA_UHRADA_METODY[r.metoda] || r.metoda || '')}</span>
+        <strong style="white-space:nowrap;color:${c < 0 ? 'var(--danger-text)' : 'var(--success-text)'}">${c > 0 ? '+' : ''}${fmtDoc(c, r.mena)}</strong>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 window.openFakturaDetail = async function(id) {
   const f = await api(`admin_faktury.php?id=${id}`);
   const uhrazeno = f.castka_uhrazeno || 0;
@@ -13281,7 +13331,14 @@ window.openFakturaDetail = async function(id) {
         <label class="form-label">Poznámka</label>
         <input type="text" class="form-input" id="ff-pozn" value="${esc(f.poznamka || '')}" placeholder="Volitelná...">
       </div>
+      ${!f.je_dobropis ? `<div>
+        <label class="form-label">Způsob platby</label>
+        <select class="form-input" id="ff-uhrada-metoda" onchange="this.dataset.zvoleno='1'">
+          ${Object.keys(_FA_UHRADA_METODY).map(k => `<option value="${k}"${k === fakturaPosledniMetoda(f) ? ' selected' : ''}>${_FA_UHRADA_METODY[k]}</option>`).join('')}
+        </select>
+      </div>` : ''}
     </div>
+    ${fakturaUhradyHtml(f)}
 
     <div class="form-actions">
       <div class="form-actions-tools">
@@ -13660,7 +13717,12 @@ window.ulozitFakturu = async function(id) {
       const el = document.getElementById('ff-uhrazeno');
       const v = parseFloat(el.value) || 0;
       if (Math.abs(v - (parseFloat(el.dataset.puvodni) || 0)) < 0.005) return {};
-      return (el.dataset.mena || 'CZK') !== 'CZK' ? { castka_uhrazeno_mena: v } : { castka_uhrazeno: v };
+      // 🆕 v3.0.645 — způsob úhrady pro knihu plateb (server zapíše rozdíl úhrady se zdrojem „faktura“).
+      //   Snížení/zrušení úhrady bez ručně zvoleného způsobu = server vrátí peníze po metodách, kudy přišly.
+      const met = document.getElementById('ff-uhrada-metoda');
+      const zvyseni = v > (parseFloat(el.dataset.puvodni) || 0);
+      const extra = met && met.value && (zvyseni || met.dataset.zvoleno === '1') ? { uhrada_metoda: met.value } : {};
+      return (el.dataset.mena || 'CZK') !== 'CZK' ? { castka_uhrazeno_mena: v, ...extra } : { castka_uhrazeno: v, ...extra };
     })(),
     variabilni_symbol: document.getElementById('ff-vs').value,
     poznamka: document.getElementById('ff-pozn').value,
@@ -17280,6 +17342,14 @@ async function _renderNastaveniInner() {
           <span style="color:var(--text-3)">Doporučeno zapnuto — číselná řada dokladů musí být souvislá (zákon). Opravy řešte storno/dobropisem. Vypnutím umožníte trvalé smazání = díra v řadě.</span></span>
         </label>
       </div>
+      <!-- 🆕 v3.0.645 — ⏰ Plánované úlohy (CRON): adresa pro odkazy z cronu (vč. podsložky) + příkazy pro hPanel -->
+      <div class="card-block" id="ns-cron-block" style="min-width:0">
+        <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ⏰ Plánované úlohy (CRON)
+          <button type="button" class="btn-secondary" onclick="cronInfoLoad()" title="Načíst znovu" style="font-size:12px;padding:3px 9px;margin-left:auto">🔄</button>
+        </h3>
+        <div id="ns-cron-info" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
+      </div>
     </div>
 
     <!-- 🆕 v3.0.160 — Licence & aktualizace + Activity log vedle sebe (2 sloupce) -->
@@ -18149,6 +18219,7 @@ async function _renderNastaveniInner() {
     loadActivityLog();
     loadWebhooks();
     if (typeof errorsLoad === 'function') errorsLoad(); // 🆕 v2.9.321 — app_errors viewer
+    if (typeof cronInfoLoad === 'function') cronInfoLoad(); // 🆕 v3.0.645 — ⏰ adresa pro cron + příkazy hPanel
   }
   if (aktTab === 'pristupy') {
     menaLoad();   // 💱 v3.0.283 — měna & přepočet
@@ -20835,6 +20906,9 @@ window.cakeCreateOrder = async function(quote) {
       <div class="full"><label class="form-label">📅 Datum dodání * <span style="font-weight:400;color:var(--text-3);font-size:11px">(min ${minDate.toLocaleDateString('cs-CZ')})</span></label>
         <input type="date" class="form-input" id="cake-datum" value="${minDateStr}" min="${minDateStr}">
       </div>
+      ${menaVolbaAktivni() ? `<div class="full"><label class="form-label">Měna dokladu</label>
+        <select class="form-input" id="cake-mena">${menaVolbaOptions('')}</select>
+      </div>` : ''}
     </div>
     <div class="form-actions">
       <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
@@ -20859,6 +20933,7 @@ window.cakeSubmitOrder = async function() {
     volby: state._cake.volby || {},
     text: state._cake.text,
     foto: (state._cake.foto || '').trim(),
+    mena: document.getElementById('cake-mena')?.value || undefined,   // 💱 🆕 v3.0.645 — prázdné = měna odběratele / výchozí
   };
   try {
     let r;
@@ -20871,7 +20946,7 @@ window.cakeSubmitOrder = async function() {
       r = await api('admin_cake_configurator.php?action=create_order', { method: 'POST', body: JSON.stringify({ ...payload, prekrocit_kapacitu: true }) });
     }
     closeModal();
-    toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: fmt(r.castka) }));
+    toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: menaFmtVytvoreno(r) }));
     setTimeout(() => navigate('objednavky'), 600);
   } catch (e) { alert('Chyba: ' + e.message); }
 };
@@ -21193,6 +21268,9 @@ window.cateringCreateOrder = async function(quote) {
       <div class="full"><label class="form-label">📅 Datum dodání *</label>
         <input type="date" class="form-input" id="cat-datum" value="${minDate}" min="${minDate}">
       </div>
+      ${menaVolbaAktivni() ? `<div class="full"><label class="form-label">Měna dokladu</label>
+        <select class="form-input" id="cat-mena">${menaVolbaOptions('')}</select>
+      </div>` : ''}
       <div class="full">
         <label class="form-label">📸 Fotka předlohy <span style="font-weight:400;font-size:11px;color:var(--text-3)">(volitelné — aranžmá / vzor mís)</span></label>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -21229,10 +21307,11 @@ window.cateringSubmitOrder = async function() {
         odberatel_id: odberatelId, datum_dodani: datum,
         foto: (state._cateringFoto || '').trim(),
         poznamka: (document.getElementById('cat-pozn')?.value || '').trim(),
+        mena: document.getElementById('cat-mena')?.value || undefined,   // 💱 🆕 v3.0.645 — prázdné = měna odběratele / výchozí
       }),
     });
     closeModal();
-    toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: fmt(r.castka) }));
+    toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: menaFmtVytvoreno(r) }));
     setTimeout(() => navigate('objednavky'), 600);
   } catch (e) { alert('Chyba: ' + e.message); }
 };
@@ -29257,6 +29336,94 @@ window.zalohaInfo = async function() {
   } catch (e) { alert('Info selhala: ' + e.message); }
 };
 
+// =============================================================
+// 🆕 v3.0.645 — ⏰ PLÁNOVANÉ ÚLOHY (CRON) v Nastavení → Údržba
+//   Ukáže, jakou veřejnou adresu (vč. podsložky) použije cron pro odkazy v e-mailech/push,
+//   a hotové příkazy pro hPanel (formát hPanelu: JEN cesta od domovské složky + 5 polí času —
+//   „/usr/bin/php /home/<účet>/" doplní hPanel sám). Data: api/admin_cron_info.php.
+// =============================================================
+
+window.cronInfoLoad = async function () {
+  const box = document.getElementById('ns-cron-info');
+  if (!box) return;
+  box.innerHTML = '⏳ Načítám…';
+  let r;
+  try {
+    apiCacheInvalidate('admin_cron_info');
+    r = await api('admin_cron_info.php');
+  } catch (e) {
+    box.innerHTML = `<span style="color:var(--danger-text, #991B1B)">Nepodařilo se načíst: ${esc(e.message || String(e))}</span>`;
+    return;
+  }
+  const zdroj = r.zdroj === 'auto'
+    ? 'zjištěno automaticky z přihlášení super admina'
+    : (r.zdroj === 'app_url' ? 'z APP_URL v api/config.local.php' : 'neznámá');
+  const copyBtn = (id) => `<button type="button" class="btn-secondary" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="cronInfoCopy('${id}')">📋 Kopírovat</button>`;
+  const fmtPosledni = (p) => {
+    if (!p) return '<span style="color:var(--text-3)">zatím neběžel</span>';
+    const kdy = esc(String(p.started_at || '').substring(0, 16));
+    return p.ok
+      ? `<span style="color:var(--success-text)">✓ ${kdy}</span>`
+      : `<span style="color:var(--danger-text, #991B1B)">✗ ${kdy}</span>`;
+  };
+  const ulohy = (r.ulohy || []).map((u, i) => {
+    // hPanel má čas a příkaz v samostatných polích → kopírovat jen cestu (čas je vidět nad ní)
+    const prikaz = u.hpanel ? u.hpanel : u.prikaz;
+    return `
+      <div style="padding:10px 0;border-top:1px dashed var(--border)">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px">
+          <strong>${esc(u.soubor)}</strong>
+          <span style="font-size:12px">Poslední běh: ${fmtPosledni(u.posledni)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-3);margin:2px 0 6px">${esc(u.popis)}</div>
+        ${u.hpanel ? `
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:3px">Čas: <code>${esc(u.cas)}</code> · Příkaz: <code>${esc(u.hpanel)}</code></div>` : ''}
+        <div style="display:flex;gap:6px;align-items:center;min-width:0">
+          <input class="form-input" id="ns-cron-cmd-${i}" type="text" readonly value="${esc(prikaz)}" onclick="this.select()" style="font-family:monospace;font-size:11px;flex:1;min-width:0">
+          ${copyBtn('ns-cron-cmd-' + i)}
+        </div>
+      </div>`;
+  }).join('');
+  box.innerHTML = `
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:4px">Adresa pro odkazy z cronu (e-maily, push):</div>
+    <div style="display:flex;gap:6px;align-items:center;min-width:0;margin-bottom:4px">
+      <input class="form-input" id="ns-cron-base" type="text" readonly value="${esc(r.cron_base || '— neznámá —')}" onclick="this.select()" style="font-family:monospace;font-size:12px;flex:1;min-width:0">
+    </div>
+    <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Zdroj: ${esc(zdroj)}${r.web_base && r.web_base !== r.cron_base ? ` · právě přihlášeni přes <code>${esc(r.web_base)}</code>` : ''}</div>
+    ${(r.varovani || []).map(v => `
+      <div style="margin-bottom:8px;padding:8px 10px;background:#FEF3C7;border-left:3px solid #F59E0B;border-radius:6px;font-size:12px;color:#854F0B;line-height:1.5">⚠️ ${esc(v)}</div>`).join('')}
+    ${r.muze_pouzit ? `
+      <button type="button" class="btn-secondary" style="font-size:12px;padding:6px 12px;margin-bottom:10px" onclick="cronInfoPouzit()">📍 Cron má používat tuto adresu</button>` : ''}
+    <div style="font-size:12px;color:var(--text-2);margin:6px 0 2px">
+      ${r.hpanel
+        ? '<strong>hPanel → Pokročilé → Cron úlohy → Vlastní:</strong> zadejte JEN cestu a 5 polí času (<code>/usr/bin/php</code> a domovskou složku doplní hPanel sám).'
+        : '<strong>Crontab serveru:</strong> zkopírujte řádek do <code>crontab -e</code>.'}
+    </div>
+    ${ulohy || '<div style="font-size:12px;color:var(--text-3)">Žádné úlohy.</div>'}
+  `;
+};
+
+window.cronInfoCopy = function (id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const hotovo = () => (typeof toastSuccess === 'function' ? toastSuccess('Zkopírováno') : null);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(el.value).then(hotovo).catch(() => { el.select(); document.execCommand('copy'); hotovo(); });
+  } else {
+    el.select(); document.execCommand('copy'); hotovo();
+  }
+};
+
+window.cronInfoPouzit = async function () {
+  if (!confirm('Cron bude v odkazech používat adresu, přes kterou jste právě přihlášeni. Pokračovat?')) return;
+  try {
+    await api('admin_cron_info.php?action=pouzit', { method: 'POST', body: {} });
+    if (typeof toastSuccess === 'function') toastSuccess('Adresa pro cron uložena');
+  } catch (e) {
+    if (typeof toastError === 'function') toastError(e.message || String(e)); else alert(e.message || e);
+  }
+  cronInfoLoad();
+};
 // ===================================================================
 // DIAGNOSTIKA — system info, DB, schéma, endpointy, kolize, logy
 // ===================================================================
@@ -32832,6 +32999,7 @@ window.otevritRucniDl = async function() {
     odberatel_id: null, misto_dodani_id: null,
     cenik: [], polozky: [], pobocky: [], odberatel: null,
     vsechny_odberatele: [], posledni_objednavky: [],
+    mena: '',   // 💱 🆕 v3.0.645 — '' = měna odběratele / výchozí
   };
 
   try {
@@ -32966,6 +33134,11 @@ function vykreslitRucniDl() {
         <div class="doc-meta-label"><span class="doc-meta-icon">\ud83d\udcdd</span> Pozn\u00e1mka</div>
         <input class="doc-meta-input" id="rdl-poznamka" value="${esc(s.editId && s.poznamka ? s.poznamka : '')}" placeholder="Voliteln\u00e1\u2026">
       </div>
+      ${(menaVolbaAktivni() || (s.editId && s.mena_pevna && s.mena_pevna !== 'CZK')) ? `
+      <div class="doc-meta-field">
+        <div class="doc-meta-label"><span class="doc-meta-icon">\ud83d\udcb1</span> Měna dokladu</div>
+        <select class="doc-meta-input" id="rdl-mena" ${s.editId ? 'disabled' : ''} onchange="rdlState.mena = this.value">${s.editId ? menaVolbaOptions('', s.mena_pevna || 'CZK') : menaVolbaOptions(s.mena || '')}</select>
+      </div>` : ''}
     </div>
 
     <h3 style="margin:20px 0 8px;font-size:15px">Položky</h3>
@@ -33231,7 +33404,9 @@ window.rdlVystavit = async function() {
 
   if (s.editId) {
     data.id = s.editId;
-    data.action = 'upravit';
+    data.action = 'upravit';   // měna vystaveného DL se nemění (server ji drží)
+  } else if (s.mena) {
+    data.mena = s.mena;   // 💱 🆕 v3.0.645 — zvolená měna dokladu
   }
 
   if (!data.datum_vystaveni) return alert('Vyplňte datum vystavení');

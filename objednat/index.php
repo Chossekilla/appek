@@ -132,7 +132,8 @@ $h = fn(string $k) => htmlspecialchars(web_t($L, $k), ENT_QUOTES);
 
 <script>
 <?= web_i18n_js($L) ?>
-var LANG_URL = <?= json_encode($Lsrc === 'url') ?>;   // jazyk zvolený v URL → nést ho i do interních odkazů
+var LANG_URL = <?= json_encode($Lsrc === 'url') ?>;
+var LANG_SRC = <?= json_encode($Lsrc) ?>;   // 🆕 v3.0.645 — 'vychozi' = jazyk nezjištěn → e-mail dle výchozího jazyka dokladů firmy   // jazyk zvolený v URL → nést ho i do interních odkazů
 </script>
 <script>
 (function(){
@@ -375,7 +376,7 @@ var LANG_URL = <?= json_encode($Lsrc === 'url') ?>;   // jazyk zvolený v URL �
       jmeno: g('f-jmeno'), telefon: g('f-tel'), email: g('f-email'), poznamka: g('f-pozn'),
       adresa: g('f-adresa'), psc: g('f-psc'), mesto: g('f-mesto'),
       souhlas: $('f-souhlas').checked, web: g('f-web'),
-      lang: LANG,                                            // 🆕 v3.0.645 — jazyk potvrzovacího e-mailu + odkazu na stav
+      lang: LANG, lang_src: LANG_SRC,                                            // 🆕 v3.0.645 — jazyk potvrzovacího e-mailu + odkazu na stav
       polozky: cartLines().map(function(x){ return {id: x.v.id, mnozstvi: x.n}; }),
       voucher_kod: VOUCHER ? VOUCHER.kod : g('f-voucher'),  // napsaný, ale neuplatněný kód ověří server při odeslání
       mena: menaAktivni() && MENA ? MENA : undefined         // 💱 v3.0.643

@@ -815,7 +815,7 @@ if ($method === 'DELETE') {
         $pdo->prepare("DELETE FROM faktury WHERE id = :id")->execute(['id' => $id]);
         $pdo->commit();
         json_response(['ok' => true]);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {   // 🐛 v3.0.645 — i TypeError z knihy plateb → rollback
         if ($pdo->inTransaction()) $pdo->rollBack();
         error_log('admin_faktury DELETE: ' . $e->getMessage());
         json_error('Nepodařilo se smazat fakturu', 500);
