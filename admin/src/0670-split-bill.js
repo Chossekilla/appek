@@ -42,7 +42,15 @@ window.posSplitSubmit = async function() {
   const parts = Object.values(partsMap);
   if (parts.length < 2) return alert('Použij alespoň 2 různé části.');
   try {
-    await api('admin_pos.php?action=split', { method: 'POST', body: JSON.stringify({ ucet_id: u.id, parts }) });
+    try {
+      await api('admin_pos.php?action=split', { method: 'POST', body: JSON.stringify({ ucet_id: u.id, parts }) });
+    } catch (e1) {
+      // 🐛 v3.0.644 — účet s rozjetou QR platbou server nedělí (409); po potvrzení QR platbu zruš a zkus znovu
+      if (!/rozpracovanou QR platbu/i.test(e1.message || '')) throw e1;
+      if (!(await confirmDialog({ msg: 'Host má rozpracovanou QR platbu tohoto účtu.\n\nOvěř, že na bráně NEzaplatil. Zrušit QR platbu a účet rozdělit?', danger: true }))) return;
+      await api('admin_pos.php?action=qr_pay_cancel', { method: 'POST', body: JSON.stringify({ ucet_id: u.id }) });
+      await api('admin_pos.php?action=split', { method: 'POST', body: JSON.stringify({ ucet_id: u.id, parts }) });
+    }
     closeModal();
     toastSuccess(t('toast_split_parts', { n: parts.length }));
     posState.currentUcet = null;

@@ -78,7 +78,9 @@ function pay_get_order_by_token(PDO $pdo, string $token): ?array {
 function pay_resolve_token(PDO $pdo, string $token): ?array {
     $o = pay_get_order_by_token($pdo, $token);
     if ($o) return ['type'=>'obj', 'id'=>(int)$o['id'], 'cislo'=>$o['cislo'], 'castka'=>(float)$o['castka_celkem'], 'mena'=>$o['mena'] ?? null,
-                    'pay_status'=>$o['pay_status'], 'paid_at'=>$o['paid_at'] ?? null, 'pay_method'=>$o['pay_method'] ?? null, 'datum'=>$o['datum_objednani'] ?? null];
+                    // 🐛 v3.0.644 — zaplaceno na pokladně (stav) = pro hosta „zaplaceno", i když pay_status zůstal 'pending'
+                    'pay_status'=>(($o['stav'] ?? '') === 'zaplaceno' ? 'paid' : $o['pay_status']), 'paid_at'=>$o['paid_at'] ?? null, 'pay_method'=>$o['pay_method'] ?? null, 'datum'=>$o['datum_objednani'] ?? null,
+                    'stav'=>$o['stav'] ?? null, 'puvod'=>$o['puvod'] ?? null];
     $tok = preg_replace('/[^a-f0-9]/i', '', $token);
     if (strlen($tok) < 16) return null;
     try {
@@ -90,7 +92,8 @@ function pay_resolve_token(PDO $pdo, string $token): ?array {
         if (!$r) return null;
         $ps = ($r['stav'] === 'paid' || ($r['pay_status'] ?? '') === 'paid') ? 'paid' : (($r['pay_status'] ?? 'pending') ?: 'pending');
         return ['type'=>'ucet', 'id'=>(int)$r['id'], 'cislo'=>($r['cislo_dokladu'] ?: ('Účet #' . $r['id'])), 'mena'=>$r['mena'] ?? null,
-                'castka'=>(float)$r['suma_kc'], 'pay_status'=>$ps, 'paid_at'=>$r['zaplaceno_v'] ?? null, 'pay_method'=>null, 'datum'=>null];
+                'castka'=>(float)$r['suma_kc'], 'pay_status'=>$ps, 'paid_at'=>$r['zaplaceno_v'] ?? null, 'pay_method'=>null, 'datum'=>null,
+                'stav'=>$r['stav'] ?? null];
     } catch (Throwable $e) { return null; }
 }
 
@@ -151,7 +154,24 @@ function pay_set_status(PDO $pdo, int $orderId, string $status, ?string $method 
 
 function pay_base_url(): string {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    // 🐛 v3.0.644 — včetně cesty instalace (podsložka /appek/) → pay_url, návrat z brány i notifikace GoPay
+    //   míří na správné /…/pay/ a /…/api/ (dřív kořen domény = 404, i když platba prošla)
+    return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . app_base_path();
+}
+
+/**
+ * 🐛 v3.0.644 — smí host k tokenu zahájit (online/manuální) platbu? Objednávka zaplacená na pokladně
+ *   (pickup_complete apod. nechá pay_status 'pending') nebo zrušená, účet stolu už uzavřený (zaplacený jinak,
+ *   rozdělený, sloučený) → ne; dřív init kontroloval jen pay_status a host zaplatil podruhé. Null = OK.
+ */
+function pay_init_blokace(array $t): ?string {
+    $stav = (string) ($t['stav'] ?? '');
+    if ($t['type'] === 'ucet') {
+        return in_array($stav, ['open', 'awaiting_payment', ''], true) ? null : 'Účet je už uzavřený — o platbě se domluvte s obsluhou.';
+    }
+    if ($stav === 'zrusena') return 'Objednávka je zrušená';
+    if ($stav === 'zaplaceno') return 'Objednávka je už zaplacená';
+    return null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -166,10 +186,14 @@ if ($method === 'POST' && $action === 'create_token') {
     $id = (int)($d['objednavka_id'] ?? $d['id'] ?? 0);
     if (!$id) json_error('Chybí objednavka_id', 400);
 
-    $s = $pdo->prepare("SELECT id, pay_token, pay_status, stav FROM objednavky WHERE id = :id");
+    $s = $pdo->prepare("SELECT id, pay_token, pay_status, stav, puvod FROM objednavky WHERE id = :id");
     $s->execute(['id' => $id]);
     $o = $s->fetch();
     if (!$o) json_error('Objednávka nenalezena', 404);
+    // 🐛 v3.0.644 — pokladní (PIN) smí QR platbu založit jen u pokladní objednávky / webového vyzvednutí (ne B2B/fakturované)
+    if (!empty($_SESSION['pos_only_user']) && !in_array((string) ($o['puvod'] ?? ''), array_merge(kanaly_pokladni($pdo), ['web']), true)) {
+        json_error('POS účet může vytvořit QR platbu jen u pokladní objednávky', 403);
+    }
     if ($o['pay_status'] === 'paid') json_error('Objednávka je již zaplacena', 409);
     // 🐛 v3.0.643 — účtenka zaplacená na pokladně (stav zaplaceno) → druhá platba přes QR = dvojí úhrada
     if (($o['stav'] ?? '') === 'zaplaceno') json_error('Účtenka je už zaplacená na pokladně — QR platba není potřeba.', 409);
@@ -290,6 +314,7 @@ if ($method === 'POST' && ($action === 'stripe_init' || $action === 'gopay_init'
     $t = pay_resolve_token($pdo, $token);
     if (!$t) json_error('Neplatný token', 404);
     if ($t['pay_status'] === 'paid') json_error('Již zaplaceno', 409);
+    if ($blk = pay_init_blokace($t)) json_error($blk, 409);   // 🐛 v3.0.644 — zaplaceno na pokladně / zrušeno / účet zavřený
     if (!customer_int_enabled($brana)) json_error(($brana === 'stripe' ? 'Stripe' : 'GoPay') . ' není zapnutý', 503);
     $volba = isset($d['mena']) && $d['mena'] !== '' ? strtoupper((string) $d['mena']) : null;
 
@@ -337,6 +362,7 @@ if ($method === 'POST' && $action === 'mark_paid_manual') {
     $t = pay_resolve_token($pdo, $token);
     if (!$t) json_error('Neplatný token', 404);
     if ($t['pay_status'] === 'paid') json_error('Již zaplaceno', 409);
+    if ($blk = pay_init_blokace($t)) json_error($blk, 409);   // 🐛 v3.0.644
     if ($t['type'] === 'ucet') {
         // 🆕 v3.0.325 — POS účet u stolu: host platí hotově číšníkovi. Účet zůstává
         //   'awaiting_payment' a číšník ho uzavře běžným „Zaplatit" (ten awaiting_payment přijme).
@@ -357,9 +383,20 @@ if ($method === 'POST' && $action === 'admin_confirm_manual') {
     $id = (int)($d['objednavka_id'] ?? 0);
     if (!$id) json_error('Chybí objednavka_id', 400);
     pay_qr_ensure_schema($pdo);
-    $st0 = $pdo->prepare("SELECT pay_status FROM objednavky WHERE id = ?");
+    // 🐛 v3.0.644 — potvrdit jde JEN čekající ruční platbu (host zvolil „platím u číšníka" → pending_manual)
+    //   nezrušené objednávky; pokladní (PIN, pos_only) jen u pokladních objednávek. Dřív šlo komukoli
+    //   s require_admin označit za zaplacenou libovolnou (i zrušenou B2B) objednávku + hotovost do ledgeru.
+    $st0 = $pdo->prepare("SELECT id, pay_status, stav, puvod FROM objednavky WHERE id = ?");
     $st0->execute([$id]);
-    $byloZaplaceno = $st0->fetchColumn() === 'paid';
+    $o0 = $st0->fetch(PDO::FETCH_ASSOC);
+    if (!$o0) json_error('Objednávka nenalezena', 404);
+    if (($o0['pay_status'] ?? '') === 'paid') json_response(['ok' => true, 'uz_zaplaceno' => true]);   // idempotentní
+    if (($o0['stav'] ?? '') === 'zrusena') json_error('Objednávka je zrušená', 409);
+    if (($o0['pay_status'] ?? '') !== 'pending_manual') json_error('Objednávka nečeká na ruční potvrzení platby', 409);
+    if (!empty($_SESSION['pos_only_user']) && !in_array((string) ($o0['puvod'] ?? ''), array_merge(kanaly_pokladni($pdo), ['web']), true)) {
+        json_error('POS účet může potvrdit platbu jen u pokladní objednávky', 403);
+    }
+    $byloZaplaceno = false;
     pay_set_status($pdo, $id, 'paid', null);
     // 💱 v3.0.643 — hotovost u číšníka = přijatá platba → do ledgeru v měně dokladu (uzávěrka dle měn)
     if (!$byloZaplaceno) {
@@ -367,7 +404,9 @@ if ($method === 'POST' && $action === 'admin_confirm_manual') {
             $dc = mena_doc_castka($pdo, 'objednavky', $id);
             if ($dc['celkem'] > 0) {
                 $pdo->prepare("UPDATE objednavky SET pay_prijato = ? WHERE id = ?")->execute([$dc['celkem'], $id]);
-                $adm = function_exists('aktualni_admin') ? (aktualni_admin($pdo)['jmeno'] ?? null) : null;
+                // 🐛 v3.0.644 — aktualni_admin() tu není (je v admin_pos.php) → kdo potvrdil, bereme přímo ze session
+                $adm = function_exists('aktualni_admin') ? (aktualni_admin($pdo)['jmeno'] ?? null)
+                     : ($_SESSION['admin_jmeno'] ?? ($_SESSION['admin_email'] ?? null));
                 mena_platba_zapis($pdo, ['objednavka_id' => $id, 'zdroj' => 'qr', 'metoda' => 'hotovost', 'mena' => $dc['mena'],
                                          'castka_mena' => $dc['celkem'], 'kurz' => $dc['mena'] === 'CZK' ? 1.0 : (float) $dc['kurz'],
                                          'uzivatel' => $adm, 'idem' => 'manual:' . $id]);

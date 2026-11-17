@@ -145,11 +145,12 @@
     if (match.weight_barcode && typeof match.price === 'number') {
       body.jednotkova_cena = match.price; body.mnozstvi = 1; body.nazev = match.nazev + ' (vážené)';
     } else if (match.weight_barcode && match.weight_g) {
-      body.mnozstvi = match.weight_g / 1000; body.jednotkova_cena = match.cena_bez_dph; body.nazev = match.nazev + ' (' + match.weight_g + ' g)';
+      // 🐛 v3.0.644 — cenu za kg neposíláme (dřív cena_bez_dph → účet o DPH nižší); server doplní katalogovou S DPH
+      body.mnozstvi = match.weight_g / 1000; body.nazev = match.nazev + ' (' + match.weight_g + ' g)';
     } else if (match.na_vahu) {
       var g = parseFloat(window.prompt('Hmotnost v gramech — ' + match.nazev + ':', ''));
       if (!g || g <= 0) return;
-      body.mnozstvi = g / 1000; body.jednotkova_cena = match.cena_bez_dph; body.nazev = match.nazev + ' (' + g + ' g)';
+      body.mnozstvi = g / 1000; body.nazev = match.nazev + ' (' + g + ' g)';   // 🐛 v3.0.644 — cena S DPH ze serveru
     }
     try {
       await api('admin_pos.php?action=item', { method: 'POST', body: JSON.stringify(body) });

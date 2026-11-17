@@ -59,11 +59,14 @@ $pdo->prepare("
 // ─── GET menu ───────────────────────────────────────────────
 if ($action === 'menu') {
     // Načti aktivní produkty seskupené po kategoriích
+    // 🐛 v3.0.644 — host vidí (a účet stolu dostane) cenu S DPH; dřív holá cena_bez_dph → zaplatil o DPH méně.
+    //   Sazba chybí → 21 % (stejně jako prodej účtu v admin_pos pos_ucet_create_sale).
     $vyrobky = $pdo->query("
-        SELECT v.id, v.nazev, v.cena_bez_dph AS cena, v.popis, v.kategorie_id,
+        SELECT v.id, v.nazev, ROUND(v.cena_bez_dph * (1 + COALESCE(s.sazba, 21) / 100), 2) AS cena, v.popis, v.kategorie_id,
                k.nazev AS kategorie_nazev, k.barva AS kategorie_barva
         FROM vyrobky v
         LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
+        LEFT JOIN sazby_dph s ON s.id = v.sazba_dph_id
         WHERE v.aktivni = 1
         ORDER BY k.poradi, k.nazev, v.nazev
     ")->fetchAll();
@@ -125,10 +128,13 @@ if ($action === 'order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($reqIds) {
         $ids = array_keys($reqIds);
         $ph  = implode(',', array_fill(0, count($ids), '?'));
-        $qs  = $pdo->prepare("SELECT id, nazev, cena_bez_dph FROM vyrobky WHERE id IN ($ph) AND aktivni = 1");
+        // 🐛 v3.0.644 — jednotkova_cena účtu stolu je S DPH (qr_approve ji navíc přepočte ze serverového katalogu)
+        $qs  = $pdo->prepare("SELECT v.id, v.nazev, ROUND(v.cena_bez_dph * (1 + COALESCE(s.sazba, 21) / 100), 2) AS cena_s_dph
+                              FROM vyrobky v LEFT JOIN sazby_dph s ON s.id = v.sazba_dph_id
+                              WHERE v.id IN ($ph) AND v.aktivni = 1");
         $qs->execute($ids);
         foreach ($qs->fetchAll() as $r) {
-            $katalog[(int) $r['id']] = ['nazev' => $r['nazev'], 'cena' => (float) $r['cena_bez_dph']];
+            $katalog[(int) $r['id']] = ['nazev' => $r['nazev'], 'cena' => (float) $r['cena_s_dph']];
         }
     }
 

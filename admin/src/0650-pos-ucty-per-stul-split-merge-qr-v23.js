@@ -38,7 +38,13 @@ async function posLoadMenu() {
       cats[cid].items.push({
         id: parseInt(v.id),
         nazev: v.nazev,
-        cena: parseFloat(v.cena_bez_dph || v.cena || 0),
+        // 🐛 v3.0.644 — účet stolu drží cenu S DPH (jako pokladna admin/pos.js a prodej účtu na serveru);
+        //   dřív holá cena_bez_dph → host zaplatil o DPH méně. admin_vyrobky vrací sazbu v `dph` (chybí → 21 %).
+        cena: (function () {
+          const bez = parseFloat(v.cena_bez_dph || v.cena || 0) || 0;
+          const sz = (v.dph !== null && v.dph !== undefined && v.dph !== '' && !isNaN(parseFloat(v.dph))) ? parseFloat(v.dph) : 21;
+          return Math.round(bez * (1 + sz / 100) * 100) / 100;
+        })(),
         popis: v.popis || '',
         kategorie: v.kategorie_nazev || '',
       });

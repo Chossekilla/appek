@@ -111,6 +111,19 @@ function online_platba_potvrd(PDO $pdo, array $a): array {
                         strtoupper($brana), mena_fmt($minor / 100, $mena), $extId0));
                 if ($own) $pdo->commit(); return ['stav' => 'uz_zaplaceno'];
             }
+            // 🐛 v3.0.644 — objednávka mezitím zaplacená jinak (pokladna: pickup_complete / quick prodej → stav 'zaplaceno',
+            //   pay_status zůstal 'pending') → druhá úhrada; dřív se tiše zapsala do ledgeru jako další tržba.
+            //   Teď: do ledgeru NE, upozornění (jen poprvé — pay_status 'failed') a vrátit peníze u brány.
+            if (($o['stav'] ?? '') === 'zaplaceno') {
+                if (($o['pay_status'] ?? '') !== 'failed') {
+                    $pdo->prepare("UPDATE objednavky SET pay_status = 'failed' WHERE id = ?")->execute([$id]);
+                    online_platba_upozorni($pdo, '⚠️ Druhá platba — objednávka ' . $o['cislo'],
+                        sprintf('%s potvrdila platbu %s (%s), objednávka už byla zaplacená na pokladně. Platba NENÍ v tržbě — vrať peníze zákazníkovi u brány.',
+                            strtoupper($brana), mena_fmt($minor / 100, $mena), $ext));
+                }
+                if ($own) $pdo->commit();
+                return ['stav' => 'uz_zaplaceno', 'duvod' => 'zaplaceno_jinak'];
+            }
             if (($o['stav'] ?? '') === 'zrusena') {
                 $pdo->prepare("UPDATE objednavky SET pay_status = 'failed' WHERE id = ?")->execute([$id]);
                 online_platba_upozorni($pdo, '⚠️ Platba za zrušenou objednávku ' . $o['cislo'],
@@ -153,7 +166,21 @@ function online_platba_potvrd(PDO $pdo, array $a): array {
             $st->execute([$id]);
             $u = $st->fetch(PDO::FETCH_ASSOC);
             if (!$u) { if ($own) $pdo->commit(); return ['stav' => 'nenalezeno']; }
-            if (($u['stav'] ?? '') === 'paid' || ($u['pay_status'] ?? '') === 'paid') { if ($own) $pdo->commit(); return ['stav' => 'uz_zaplaceno']; }
+            if (($u['pay_status'] ?? '') === 'paid') { if ($own) $pdo->commit(); return ['stav' => 'uz_zaplaceno']; }
+            // 🐛 v3.0.644 — brána potvrdila platbu účtu, který mezitím obsluha zavřela jinak (hotově/kartou po zrušení
+            //   QR platby), rozdělila nebo sloučila → dřív tiché „uz_zaplaceno" a host zaplatil 2× / peníze mimo tržbu.
+            //   Teď upozornění (jen poprvé — pay_status se nastaví 'failed', opakovaný webhook už neupozorní).
+            if (!in_array((string) ($u['stav'] ?? ''), ['open', 'awaiting_payment'], true)) {
+                if (($u['pay_status'] ?? '') !== 'failed') {
+                    $pdo->prepare("UPDATE restaurant_pos_ucty SET pay_status = 'failed' WHERE id = ?")->execute([$id]);
+                    online_platba_upozorni($pdo, '⚠️ QR platba za uzavřený účet #' . $id,
+                        sprintf('%s potvrdila platbu %s (%s), ale účet je už %s. Peníze NEJSOU v tržbě — vrať je hostovi u brány, nebo je zaúčtuj.',
+                            strtoupper($brana), mena_fmt($minor / 100, $mena), $ext,
+                            ['paid' => 'zaplacený jinak', 'split' => 'rozdělený', 'merged' => 'sloučený', 'cancelled' => 'zrušený'][$u['stav']] ?? ('ve stavu ' . $u['stav'])), '#/pos');
+                }
+                if ($own) $pdo->commit();
+                return ['stav' => (($u['stav'] ?? '') === 'paid') ? 'uz_zaplaceno' : 'failed', 'duvod' => 'ucet_uzavren'];
+            }
             $expMena = !empty($u['pay_mena']) ? strtoupper((string) $u['pay_mena']) : 'CZK';
             $expMinor = $u['pay_castka'] !== null ? (int) round((float) $u['pay_castka'] * 100) : (int) round((float) $u['suma_kc'] * 100);
             $info = ['ocekavano' => ['mena' => $expMena, 'minor' => $expMinor], 'prijato' => ['mena' => $mena, 'minor' => $minor], 'brana' => $brana, 'ext_id' => $ext];

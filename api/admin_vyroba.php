@@ -24,7 +24,13 @@ function vyroba_potreba_src(PDO $pdo, string $datum): array {
             WHERE o.datum_dodani = :d AND o.stav NOT IN ('zrusena') AND op.vyrobek_id IS NOT NULL
             GROUP BY op.vyrobek_id");
         $st->execute(['d' => $datum]);
-        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) bom_explode($pdo, (int) $r['vid'], (float) $r['mn'], $sur, $pol);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            // 🐛 v3.0.644 — objednaný výrobek se sledovaným skladem (polotovar) = výdej hotových kusů,
+            //   ne znovu suroviny jeho receptu (ty odepsala už výroba dávky) — symetricky k pos_deduct_ingredients
+            $vidR = (int) $r['vid'];
+            if (bom_vyrobek_meta($pdo, $vidR)['sleduje_sklad']) { $pol[$vidR] = ($pol[$vidR] ?? 0) + (float) $r['mn']; continue; }
+            bom_explode($pdo, $vidR, (float) $r['mn'], $sur, $pol);
+        }
     } catch (Throwable $e) {}
     // b) přímé suroviny z volných řádků (konfigurátor: náplně/polevy/dekorace linkující surovinu)
     try {
