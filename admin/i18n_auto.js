@@ -26023,6 +26023,20 @@ const I18N_PHRASES = [
   ['Vyber aspoň jednu cizí měnu', 'Select at least one foreign currency', 'Selecciona al menos una divisa extranjera'],
   ['Platby v Kč i cizí měně zapnuté', 'Payments in CZK and foreign currency enabled', 'Pagos en CZK y divisa extranjera activados'],
   ['Uloženo (platby v cizí měně vypnuté)', 'Saved (foreign currency payments off)', 'Guardado (pagos en divisa extranjera desactivados)'],
+  // ─────────── v3.0.643b — pokladna/účet stolu/doklady v měně platby ───────────
+  ['Měna platby:', 'Payment currency:', 'Divisa de pago:'],
+  ['Kurz není k dispozici', 'Exchange rate not available', 'Tipo de cambio no disponible'],
+  ['Hotově · k úhradě', 'Cash · amount due', 'Efectivo · a pagar'],
+  ['ZADEJ DO TERMINÁLU', 'ENTER INTO TERMINAL', 'INTRODUCE EN EL TERMINAL'],
+  ['Vrátit v Kč', 'Give change in CZK', 'Devolver en CZK'],
+  ['Vrátit v €', 'Give change in €', 'Devolver en €'],
+  ['Přijato (€)', 'Received (€)', 'Recibido (€)'],
+  ['Přijato (Kč)', 'Received (CZK)', 'Recibido (CZK)'],
+  ['Na terminálu zvol měnu EUR — ne Kč.', 'Select EUR on the terminal — not CZK.', 'Selecciona EUR en el terminal, no CZK.'],
+  ['Měna dokladu', 'Document currency', 'Divisa del documento'],
+  ['Podle odběratele', 'Customer default', 'Según el cliente'],
+  ['Uhrazená částka (EUR)', 'Amount paid (EUR)', 'Importe pagado (EUR)'],
+  ['QR platba v EUR se nevytvořila — doplňte EUR účet (IBAN) v Nastavení → Přístupy, ceny & měna.', 'The EUR QR payment was not created — add an EUR account (IBAN) in Settings → Access, prices & currency.', 'No se creó el pago QR en EUR — añade una cuenta en EUR (IBAN) en Ajustes → Accesos, precios y divisa.'],
 ];
 
 // Build lookup index pro O(1) access

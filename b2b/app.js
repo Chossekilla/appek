@@ -2284,7 +2284,7 @@ async function b2bMenaQuote() {
     html += `<div class="cart-summary-row" style="font-size:12px;color:var(--text-3)"><span>Kurz ČNB${q.kurz_datum ? ' ' + esc(new Date(q.kurz_datum).toLocaleDateString('cs-CZ')) : ''}: 1 ${esc(b2bMenaSym(q.mena))} = ${(+q.kurz_prodej || +q.kurz).toLocaleString('cs-CZ', { maximumFractionDigits: 3 })} Kč</span><span></span></div>`;
     if (state.checkoutData.voucher) html += `<div class="cart-summary-row" style="font-size:12px;color:var(--text-3)"><span>Sleva z kódu se odečte v ${esc(q.mena)} při odeslání.</span><span></span></div>`;
   }
-  if (q && q.metoda_chyba) html += `<div class="cart-summary-row" style="color:#a8232f;font-size:13px"><span>⚠️ ${esc(q.metoda_chyba)} Zvolte jinou platbu.</span><span></span></div>`;
+  if (q && q.metoda_chyba) html += `<div class="cart-summary-row" style="color:#a8232f;font-size:13px"><span>⚠️ <span>${esc(q.metoda_chyba)}</span> <span>Zvolte jinou platbu.</span></span><span></span></div>`;
   if (err) html += `<div class="cart-summary-row" style="color:#a8232f;font-size:13px"><span>⚠️ ${esc(err)}</span><span></span></div>`;
   el.innerHTML = html;
 }

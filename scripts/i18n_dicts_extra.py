@@ -47766,3 +47766,36 @@ DE_EXTRA.update({
     'Platby v Kč i cizí měně zapnuté': 'Zahlungen in CZK und Fremdwährung eingeschaltet',
     'Uloženo (platby v cizí měně vypnuté)': 'Gespeichert (Zahlungen in Fremdwährung aus)',
 })
+
+
+# ─────────── v3.0.643b — pokladna/účet stolu/doklady v měně platby (SK+DE) ───────────
+SK_EXTRA.update({
+    'Měna platby:': 'Mena platby:',
+    'Kurz není k dispozici': 'Kurz nie je k dispozícii',
+    'Hotově · k úhradě': 'V hotovosti · na úhradu',
+    'ZADEJ DO TERMINÁLU': 'ZADAJ DO TERMINÁLU',
+    'Vrátit v Kč': 'Vrátiť v Kč',
+    'Vrátit v €': 'Vrátiť v €',
+    'Přijato (€)': 'Prijaté (€)',
+    'Přijato (Kč)': 'Prijaté (Kč)',
+    'Na terminálu zvol měnu EUR — ne Kč.': 'Na termináli zvoľ menu EUR — nie Kč.',
+    'Měna dokladu': 'Mena dokladu',
+    'Podle odběratele': 'Podľa odberateľa',
+    'Uhrazená částka (EUR)': 'Uhradená suma (EUR)',
+    'QR platba v EUR se nevytvořila — doplňte EUR účet (IBAN) v Nastavení → Přístupy, ceny & měna.': 'QR platba v EUR sa nevytvorila — doplňte EUR účet (IBAN) v Nastavenia → Prístupy, ceny & mena.',
+})
+DE_EXTRA.update({
+    'Měna platby:': 'Zahlungswährung:',
+    'Kurz není k dispozici': 'Wechselkurs nicht verfügbar',
+    'Hotově · k úhradě': 'Bar · zu zahlen',
+    'ZADEJ DO TERMINÁLU': 'IN DAS TERMINAL EINGEBEN',
+    'Vrátit v Kč': 'Wechselgeld in CZK',
+    'Vrátit v €': 'Wechselgeld in €',
+    'Přijato (€)': 'Erhalten (€)',
+    'Přijato (Kč)': 'Erhalten (CZK)',
+    'Na terminálu zvol měnu EUR — ne Kč.': 'Am Terminal EUR wählen — nicht CZK.',
+    'Měna dokladu': 'Belegwährung',
+    'Podle odběratele': 'Nach Abnehmer',
+    'Uhrazená částka (EUR)': 'Bezahlter Betrag (EUR)',
+    'QR platba v EUR se nevytvořila — doplňte EUR účet (IBAN) v Nastavení → Přístupy, ceny & měna.': 'Die QR-Zahlung in EUR wurde nicht erstellt — EUR-Konto (IBAN) unter Einstellungen → Zugänge, Preise & Währung ergänzen.',
+})

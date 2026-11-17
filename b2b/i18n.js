@@ -1208,6 +1208,23 @@ const B2B_PHRASES = [
   ['Souhlasím se zpracováním', 'I agree to the processing of', 'Acepto el tratamiento de'],
   ['osobních údajů', 'personal data', 'datos personales'],
   ['kdy dodávat', 'when to deliver', 'cuándo entregar'],
+  // 🍪💱 v3.0.643 — právní úryvky cookies/GDPR + měna platby v košíku
+  ['Nezbytné pro provoz, se souhlasem i', 'Essential for operation; with your consent also', 'Necesarias para el funcionamiento; con su consentimiento también'],
+  ['analytické', 'analytics', 'analíticas'],
+  ['(GA, anonym. IP).', '(GA, anonymised IP).', '(GA, IP anonimizada).'],
+  ['(dále „provozovatel"). Cookies jsou malé soubory ukládané ve vašem prohlížeči.', '(the “operator”). Cookies are small files stored in your browser.', '(en adelante, el «operador»). Las cookies son pequeños archivos que se guardan en su navegador.'],
+  ['(pouze s vaším souhlasem): Google Analytics 4 — měří návštěvnost a chování pro zlepšení služby. IP adresa je', '(only with your consent): Google Analytics 4 — measures traffic and behaviour to improve the service. The IP address is', '(solo con su consentimiento): Google Analytics 4 — mide las visitas y el comportamiento para mejorar el servicio. La dirección IP está'],
+  ['anonymizována', 'anonymised', 'anonimizada'],
+  ['kdykoli tlačítkem „🍪 Cookies" vlevo dole, nebo smazáním cookies v prohlížeči. Odvolání nemá vliv na zpracování provedené před odvoláním.', 'at any time with the “🍪 Cookies” button at the bottom left, or by deleting cookies in your browser. Withdrawal does not affect processing carried out before it.', 'en cualquier momento con el botón «🍪 Cookies» abajo a la izquierda o borrando las cookies del navegador. La retirada no afecta al tratamiento realizado antes de ella.'],
+  ['přístup, oprava, výmaz, omezení zpracování, námitka a podání stížnosti u Úřadu pro ochranu osobních údajů (uoou.cz). Kontakt na provozovatele najdete v patičce portálu.', 'access, rectification, erasure, restriction of processing, objection, and lodging a complaint with the Czech Office for Personal Data Protection (uoou.cz). The operator’s contact details are in the portal footer.', 'acceso, rectificación, supresión, limitación del tratamiento, oposición y presentación de una reclamación ante la Oficina checa de Protección de Datos Personales (uoou.cz). Los datos de contacto del operador están en el pie del portal.'],
+  ['(vrácení/oprava)', '(refund/correction)', '(devolución/corrección)'],
+  ['Platit v měně', 'Pay in currency', 'Pagar en divisa'],
+  ['K úhradě v EUR', 'Amount due in EUR', 'Importe a pagar en EUR'],
+  ['Sleva z kódu se odečte v EUR při odeslání.', 'The code discount will be deducted in EUR when the order is sent.', 'El descuento del código se restará en EUR al enviar el pedido.'],
+  ['Zvolte jinou platbu.', 'Choose another payment method.', 'Elija otro método de pago.'],
+  ['Dobírku a platbu hotově lze jen v Kč.', 'Cash on delivery and cash payment are available in CZK only.', 'El contrareembolso y el pago en efectivo solo son posibles en CZK.'],
+  ['Převodem v € nelze — firma nemá vyplněný EUR účet (IBAN).', 'Bank transfer in € is not available — the company has no EUR account (IBAN) set.', 'No se puede pagar por transferencia en € — la empresa no tiene cuenta en EUR (IBAN).'],
+  ['Tato platební brána neumí platbu v EUR.', 'This payment gateway cannot accept EUR.', 'Esta pasarela de pago no admite EUR.'],
 ];
 
 const B2B_LOOKUP = new Map();
