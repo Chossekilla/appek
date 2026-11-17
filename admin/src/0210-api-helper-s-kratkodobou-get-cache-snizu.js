@@ -149,6 +149,14 @@ async function api(path, opts = {}) {
         }
       } catch (e) { /* fall through na chybu níže */ }
     }
+    // 🐛 v3.0.644 — 402 = pronájem po grace, 423 = licence locked/revoked (server-side zámek).
+    //   Vynuť ověření licence u dodavatele (throttle uvnitř) → po zaplacení / vyřešení se appka
+    //   odemkne hned, ne až další den. Neblokuje (chyba se vyhodí normálně dál).
+    //   Jen s markerem license_lock (402 vrací i gating balíčků — to není zámek licence).
+    if ((res.status === 402 || res.status === 423) && data && data.license_lock && typeof window._licenseLockRecheck === 'function'
+        && !String(path).startsWith('license_heartbeat.php')) {
+      try { window._licenseLockRecheck(res.status); } catch (e) {}
+    }
     const err = new Error(data.error || 'Chyba serveru');
     if (data.request_id) {
       err.message += ' (reqId: ' + data.request_id + ')';

@@ -28,14 +28,16 @@
 
 // 🔒 v2.6.0 SECURITY FIX (C3): require admin session pro spuštění force-update.
 //    Předtím anonymous mohl spustit ?action=run a injektovat libovolný bundle.
-session_start();
+// 🐛 v3.0.644 — holé session_start() otevřelo PHPSESSID místo admin session APPEKSID
+//    → aktualni_uzivatel_z_session() viděla prázdnou session a vracela 403 i přihlášenému adminovi.
+//    Session teď otevírá session_secure_start() (uvnitř aktualni_uzivatel_z_session()).
 require_once __DIR__ . '/../api/config.php';
 require_once __DIR__ . '/../api/_admin_auth.php';
 require_once __DIR__ . '/../api/_authz.php';  // 🐛 fix v2.9.186 — aktualni_uzivatel_z_session() volaná níže
 require_once __DIR__ . '/../api/_update_sign.php';  // 🔐 v3.0.388 — ověření kryptopodpisu bundlu
 
 $forceUpdateUser = aktualni_uzivatel_z_session();
-if (!$forceUpdateUser || ($forceUpdateUser['role'] ?? '') !== 'admin') {
+if (!$forceUpdateUser || ($forceUpdateUser['role'] ?? '') !== 'admin' || !empty($_SESSION['pos_only_user'])) {
     http_response_code(403);
     die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>403</title></head><body style="font-family:system-ui;padding:40px;text-align:center"><h1>🔒 403 Forbidden</h1><p>Force-update vyžaduje aktivní admin session.</p><p><a href="/admin/">→ Přihlásit se</a></p></body></html>');
 }

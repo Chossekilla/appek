@@ -33,6 +33,9 @@
 
 require_once __DIR__ . '/_lib.php';
 
+// 🐛 v3.0.644 — jak dlouho po reissue se starý klíč ještě přijímá (jen z původní instalace)
+const SUPERSEDED_GRACE_DAYS = 30;
+
 header('Content-Type: application/json; charset=UTF-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -82,6 +85,9 @@ try {
     $reason = null;       // pokud pirate → důvod
     $licenseRow = null;
     $licenseStatus = 'unknown';
+    $superseded = false;     // 🐛 v3.0.644 — starý (vydaný) klíč po reissue, z původní instalace
+    $vendorLock = false;     // 🐛 v3.0.644 — licence je u vendora zamčená/odvolaná → klient vynutí 423
+    $customMessage = null;
 
     if ($key === '') {
         $reason = 'no_key';
@@ -109,7 +115,62 @@ try {
             $licenseRow = $stmt->fetch();
         }
 
+        // 🐛 v3.0.644 — REISSUE (přidání/odebrání balíčku) přepíše license_key v řádku licence
+        //   na nový klíč. Dokud zákazník nový klíč nevloží, posílá heartbeat ten starý → dřív
+        //   'unknown_key' → celoobrazovkový zámek. Teď přijmeme JEN klíč, který jsme opravdu vydali:
+        //   reissue (vendor/api.php) zapíše starý klíč do vendor_license_key_history i s tehdejším
+        //   fingerprintem/hostem. NE dohledání podle náhodné části — LICENSE_SALT je veřejná
+        //   v customer kódu, takže kdo zná náhodnou část, spočítá si klíč s libovolnými balíčky.
+        //   Starý klíč platí jako 'superseded' max SUPERSEDED_GRACE_DAYS po reissue a jen z
+        //   instalace, kde běžel (fingerprint/host); jinak key_reuse / unknown_key jako dřív.
+        $supersededHist = null;
         if (!$licenseRow) {
+            try {
+                $sh = $pdo->prepare("SELECT h.*, DATEDIFF(NOW(), h.superseded_at) AS dni_od_reissue
+                                     FROM vendor_license_key_history h WHERE h.license_key = :k
+                                     ORDER BY h.superseded_at DESC LIMIT 1");
+                $sh->execute(['k' => $key]);
+                $supersededHist = $sh->fetch() ?: null;
+                if ($supersededHist) {
+                    $sl = $pdo->prepare("SELECT * FROM vendor_licenses WHERE id = :id LIMIT 1");
+                    $sl->execute(['id' => $supersededHist['license_id']]);
+                    $licenseRow = $sl->fetch() ?: null;
+                    if (!$licenseRow) $supersededHist = null;
+                }
+            } catch (Throwable $e) {
+                $supersededHist = null;   // tabulka historie ještě neexistuje (žádný reissue od v3.0.644)
+            }
+        }
+
+        if ($supersededHist) {
+            $licenseStatus = $licenseRow['status'] ?: 'unknown';
+            if ($licenseRow['status'] === 'revoked'
+                || in_array($licenseRow['lock_state'] ?? 'active', ['locked', 'revoked'], true)) {
+                // Odvolaná / zamčená licence → i starý klíč je odvolaný.
+                $reason = 'revoked_used';
+                $vendorLock = true;
+            } elseif ((int) ($supersededHist['dni_od_reissue'] ?? 0) > SUPERSEDED_GRACE_DAYS) {
+                // Po lhůtě se starý klíč chová jako neznámý (zákazník má mít nový klíč vložený).
+                $reason = 'unknown_key';
+                $customMessage = 'Licenční klíč byl nahrazen novým před více než ' . SUPERSEDED_GRACE_DAYS
+                    . ' dny — vložte nový klíč (Nastavení → Balíčky → Aktualizovat klíč) nebo kontaktujte dodavatele.';
+            } else {
+                // Vazba na instalaci, kde starý klíč běžel (fingerprint obsahuje i klíč → po reissue
+                //   se na aktuálním řádku nuluje, proto porovnáváme s historií).
+                $histFp   = (string) ($supersededHist['install_fingerprint'] ?? '');
+                $histHost = strtolower((string) ($supersededHist['last_seen_host'] ?? ''));
+                if ($histHost === '' && !empty($supersededHist['install_url'])) {
+                    $histHost = strtolower(parse_url($supersededHist['install_url'], PHP_URL_HOST) ?: '');
+                }
+                $histHost = preg_replace('/^www\./', '', $histHost);
+                if ($histFp !== '') {
+                    if ($fingerprint === '' || !hash_equals($histFp, $fingerprint)) $reason = 'key_reuse';
+                } elseif ($histHost !== '' && $installHost !== $histHost) {
+                    $reason = 'key_reuse';
+                }
+                if (!$reason) $superseded = true;   // → legit update níž + odpověď 'superseded'
+            }
+        } elseif (!$licenseRow) {
             $reason = 'unknown_key';
         } else {
             $licenseStatus = $licenseRow['status'] ?: 'unknown';
@@ -148,6 +209,7 @@ try {
 
                     // Po 3 mismatch v řadě → LOCK
                     if ($mismatchCount >= 3) {
+                        $vendorLock = true;
                         $pdo->prepare("
                             UPDATE vendor_licenses
                             SET lock_state = 'locked',
@@ -181,6 +243,7 @@ try {
                 // 🆕 v2.6.1 — Pokud je license LOCKED (z předchozího mismatch), vrať lock command
                 if (in_array($licenseRow['lock_state'] ?? 'active', ['locked', 'revoked'], true)) {
                     $reason = 'revoked_used';  // klient zobrazí "Klíč zablokován"
+                    $vendorLock = true;
                 }
             }
         }
@@ -228,7 +291,7 @@ try {
             'status'         => 'pirate',
             'license_status' => $licenseStatus,
             'reason'         => $reason,
-            'message'        => match ($reason) {
+            'message'        => $customMessage ?? match ($reason) {
                 'no_key'         => 'Instalace bez licence — kontaktujte dodavatele.',
                 'invalid_format' => 'Neplatný formát licenčního klíče.',
                 'unknown_key'    => 'Licenční klíč není v naší databázi.',
@@ -242,6 +305,9 @@ try {
             'expires_at'     => (isset($licenseRow['expires_at']) ? $licenseRow['expires_at'] : null),
             // 🆕 pronájem flag i v pirate větvi (locked = i legit migrace serveru) — ať klient neztratí rental
             'rental'         => !empty($licenseRow['rental']) ? 1 : 0,
+            // 🐛 v3.0.644 — licence je u nás zamčená (3× mismatch / lock_state / revoked) → klient
+            //   vynutí 423 i na serveru; samotný key_reuse pod limitem je jen varování.
+            'vendor_lock'    => $vendorLock ? 1 : 0,
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
@@ -305,10 +371,15 @@ try {
         $pdo->exec("DELETE FROM vendor_license_heartbeats WHERE seen_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
     } catch (Throwable $e) { /* ignore */ }
 
+    // 🐛 v3.0.644 — starý klíč po reissue prošel stejným legit zápisem (last_seen, heartbeats,
+    //   install_emails pro resolve mobilní appky) → u vendora nevypadá jako „ztichlý" zákazník.
     echo json_encode([
-        'status'         => 'ok',
+        'status'         => $superseded ? 'superseded' : 'ok',
         'license_status' => $licenseStatus,
-        'message'        => 'Heartbeat zaznamenán.',
+        'reason'         => $superseded ? 'key_superseded' : null,
+        'message'        => $superseded
+            ? 'Dodavatel vydal pro tuto licenci nový klíč (změna balíčků). Vložte ho v Nastavení → Balíčky → Aktualizovat klíč.'
+            : 'Heartbeat zaznamenán.',
         'expires_at'     => $licenseRow['expires_at'] ?? null,
         // 🆕 PRONÁJEM (my.appek.cz): rental=1 → klient po grace hard-lockne CELOU appku (ne jen balíčky).
         'rental'         => !empty($licenseRow['rental']) ? 1 : 0,

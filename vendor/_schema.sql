@@ -204,6 +204,21 @@ CREATE TABLE IF NOT EXISTS vendor_license_heartbeats (
     INDEX idx_host (install_host)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 🔑 v3.0.644 — historie VYDANÝCH klíčů (reissue). Heartbeat přijme starý klíč ('superseded')
+--   jen když je tady, max 30 dní po reissue a z původní instalace (fingerprint/host).
+--   Tabulku zakládá i runtime vendor/api.php (action=reissue) — CREATE IF NOT EXISTS.
+CREATE TABLE IF NOT EXISTS vendor_license_key_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    license_id INT NOT NULL,
+    license_key VARCHAR(64) NOT NULL,
+    install_fingerprint VARCHAR(128) NULL,
+    last_seen_host VARCHAR(255) NULL,
+    install_url VARCHAR(500) NULL,
+    superseded_at DATETIME NOT NULL,
+    UNIQUE KEY uq_key (license_key),
+    INDEX idx_license (license_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- (vendor_licenses sloupce last_seen_*, heartbeat_count se přidávají
 --  idempotentně z vendor_ensure_pirate_columns() v _lib.php — kompatibilní
 --  s MySQL < 8.0.29 / MariaDB < 10.0.2 kde IF NOT EXISTS u ALTER nefunguje.)

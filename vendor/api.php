@@ -195,6 +195,32 @@ if ($action === 'reissue' && $method === 'POST') {
     if ($c->fetchColumn()) vendor_json_error('Nový klíč by konfliktoval — zkus znovu', 500);
 
     try {
+        // 🐛 v3.0.644 — historie VYDANÝCH klíčů: heartbeat přijme starý klíč po reissue (status
+        //   'superseded', max 30 dní a jen z instalace, kde běžel) jen když je tady — ne podle
+        //   náhodné části (LICENSE_SALT je veřejná → klíč s libovolnými balíčky jde dopočítat).
+        //   Ukládáme i tehdejší fingerprint/host (na řádku licence se níž nulují).
+        $pdo->exec("CREATE TABLE IF NOT EXISTS vendor_license_key_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            license_id INT NOT NULL,
+            license_key VARCHAR(64) NOT NULL,
+            install_fingerprint VARCHAR(128) NULL,
+            last_seen_host VARCHAR(255) NULL,
+            install_url VARCHAR(500) NULL,
+            superseded_at DATETIME NOT NULL,
+            UNIQUE KEY uq_key (license_key),
+            INDEX idx_license (license_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $pdo->prepare("INSERT INTO vendor_license_key_history
+                (license_id, license_key, install_fingerprint, last_seen_host, install_url, superseded_at)
+                VALUES (:lid, :k, :fp, :h, :u, NOW())
+                ON DUPLICATE KEY UPDATE license_id = VALUES(license_id), install_fingerprint = VALUES(install_fingerprint),
+                    last_seen_host = VALUES(last_seen_host), install_url = VALUES(install_url), superseded_at = NOW()")
+            ->execute([
+                'lid' => $id, 'k' => $r['license_key'],
+                'fp'  => ($r['install_fingerprint'] ?? '') !== '' ? $r['install_fingerprint'] : null,
+                'h'   => ($r['last_seen_host'] ?? '') !== '' ? $r['last_seen_host'] : null,
+                'u'   => ($r['install_url'] ?? '') !== '' ? $r['install_url'] : null,
+            ]);
         // 🆕 v3.0.384 — reissue dá ČISTÝ klíč: vynuluj fingerprint binding + anti-piracy lock
         //   (jinak nový klíč zdědí starý fingerprint/lock → zůstal by zamčený). Re-nabinduje se na příští heartbeat.
         $pdo->prepare("UPDATE vendor_licenses

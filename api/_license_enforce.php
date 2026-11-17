@@ -82,8 +82,11 @@ function license_state_load(): array {
     unset($data['_checksum']);
     $expected = hash_hmac('sha256', json_encode($data, JSON_UNESCAPED_UNICODE), LICENSE_SALT);
     if (!$checksum || !hash_equals($expected, $checksum)) {
-        // Tampered — treat as locked!
-        return ['state' => 'locked', 'reason' => 'Tampered license state file', 'last_check' => 0];
+        // Tampered — treat as locked! (klientský overlay + vynucený heartbeat ho přepíše verdiktem vendora)
+        // 🐛 v3.0.644 — `tampered` = server NEvynucuje 423 jen kvůli rozbitému souboru stavu (poškozený
+        //   zápis / jiný LICENSE_SALT po migraci) bez potvrzení od vendora — jinak by při nedostupném
+        //   vendoru zůstala celá instalace vč. pokladny zamčená. last_check 0 → heartbeat proběhne hned.
+        return ['state' => 'locked', 'reason' => 'Tampered license state file', 'last_check' => 0, 'tampered' => true];
     }
     return $data;
 }
@@ -102,6 +105,8 @@ function license_state_save(array $state): void {
 /**
  * Server-side gate — pokud license_state = locked, vrátí 423 (Locked) všem admin endpointům.
  * Voláno z _admin_auth.php require_admin().
+ * 🐛 v3.0.644 — dřív se ve skutečnosti NEvolalo nikde (docblock lhal); teď ho require_admin()
+ *   opravdu volá (423 + allowlist heartbeat/license_update, viz _admin_auth.php).
  *
  * Grace period: pokud lock_until > NOW, ale je v grace (např. 7 dnů), admin uvidí warning
  * ale ještě funguje.
@@ -131,7 +136,14 @@ function license_enforce_check(): array {
     $state = license_state_load();
     $now = time();
 
-    if ($state['state'] === 'locked' || $state['state'] === 'revoked') {
+    // 🐛 v3.0.644 — server (require_admin → 423, i pro POS) vynucuje jen TVRDÝ zámek potvrzený
+    //   vendorem: `hard` z heartbeatu (revoked_used / vendor_lock / unknown_key). Starší soubory
+    //   stavu bez pole `hard`: 'revoked' vzniká jen z revoked_used → tvrdý; 'locked' (key_reuse
+    //   po PRVNÍM mismatchi, vendor zamyká až po 3) → jen varování. Tampered soubor → nevynucovat
+    //   (rozhodne příští heartbeat, který stav přepíše odpovědí vendora).
+    $hard = !empty($state['tampered']) ? false
+        : (array_key_exists('hard', $state) ? !empty($state['hard']) : (($state['state'] ?? '') === 'revoked'));
+    if (($state['state'] === 'locked' || $state['state'] === 'revoked') && $hard) {
         return [
             'ok' => false,
             'state' => $state['state'],
@@ -140,7 +152,8 @@ function license_enforce_check(): array {
         ];
     }
 
-    return ['ok' => true, 'state' => $state['state'] ?? 'active'];
+    return ['ok' => true, 'state' => $state['state'] ?? 'active',
+        'soft_lock' => ($state['state'] ?? '') === 'locked' || ($state['state'] ?? '') === 'revoked'];
 }
 
 // ════════════════════════════════════════════════════════════
