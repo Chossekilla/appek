@@ -1552,9 +1552,31 @@ if ($method === 'POST' && $action === 'pickup_complete') {
         $pay = (string) ($d['pos_payment'] ?? '');
         $okPay = ['hotove', 'karta', 'qr_platba', 'gift_card', 'voucher', 'mobile', 'paypal', 'stripe', 'gopay', 'prevod', 'faktura'];
         if (!in_array($pay, $okPay, true)) json_error('Vyber způsob platby', 400);
-        // tržba patří do dne, kdy peníze přišly → datum_objednani = teď, původní čas do objednano_puvodne
-        $pdo->prepare("UPDATE objednavky SET pos_payment = :p, stav = 'zaplaceno', objednano_puvodne = COALESCE(objednano_puvodne, datum_objednani),
-                       datum_objednani = NOW(), vyzvednuto_kdy = NOW() WHERE id = :id")->execute(['p' => $pay, 'id' => $id]);
+        // 💱 v3.0.643 — měna se volí až při placení u výdeje → přepis snapshotu (doklad do teď nezaplacený)
+        $metodaP = pos_ledger_metoda($pay);
+        $mPick = pos_mena_volba($pdo, isset($d['platba_mena']) ? (string) $d['platba_mena'] : null, 'pos');
+        pos_mena_kontrola($pdo, $mPick, $metodaP, $d['kurz_klient'] ?? null, 'pos');
+        $pdo->beginTransaction();
+        try {
+            try { mena_nastav_doklad($pdo, 'objednavky', $id, $mPick, true); }
+            catch (MenaException $e) { $pdo->rollBack(); json_response(['error' => $e->getMessage(), 'kod' => $e->kod], $e->http); }
+            // tržba patří do dne, kdy peníze přišly → datum_objednani = teď, původní čas do objednano_puvodne
+            $pdo->prepare("UPDATE objednavky SET pos_payment = :p, stav = 'zaplaceno', objednano_puvodne = COALESCE(objednano_puvodne, datum_objednani),
+                           datum_objednani = NOW(), vyzvednuto_kdy = NOW() WHERE id = :id")->execute(['p' => $pay, 'id' => $id]);
+            $castkaP = mena_ulozit_castku($pdo, 'objednavky', $id);
+            $hotP = $metodaP === 'hotovost' ? pos_hotovost($pdo, $mPick, $castkaP, $d['prijato'] ?? null, $d['vraceni_mena'] ?? null) : null;
+            $admP = aktualni_admin($pdo);
+            pos_ledger_zapis($pdo, ['zdroj' => 'pickup', 'metoda' => $metodaP, 'objednavka_id' => $id, 'uzivatel' => $admP['jmeno'] ?? null,
+                                    'idem' => 'pickup:' . $id], $mPick, $castkaP, $hotP);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            json_error_safe('Platba při výdeji selhala', $e, 500);
+        }
+        $respP = ['ok' => true, 'id' => $id, 'cislo' => $ord['cislo'], 'celkem' => (float) $ord['castka_celkem'],
+                  'mena' => $mPick['mena'], 'celkem_mena' => $castkaP, 'kurz_datum' => $mPick['kurz_datum'] ?? null];
+        if ($hotP && $hotP['prijato'] !== null) $respP += ['prijato' => $hotP['prijato'], 'vraceno' => $hotP['vraceno'], 'vraceno_mena' => $hotP['vraceno_mena'], 'vraceno_czk' => $hotP['vraceno_czk']];
+        json_response($respP);
     } else {
         $pdo->prepare("UPDATE objednavky SET vyzvednuto_kdy = NOW() WHERE id = :id")->execute(['id' => $id]);
     }
@@ -1684,6 +1706,12 @@ if ($method === 'POST' && $action === 'quick_order') {
         if ($missing) json_error('Neznámý výrobek (id ' . implode(', ', $missing) . ')', 400);
     }
 
+    // 💱 v3.0.643 — měna platby (Kč | cizí měna dle Nastavení). Kurz určuje SERVER; kurz klienta se
+    //   jen porovná (změnil-li se mezi zobrazením a platbou → 409, kasa přepočítá). Vypnuto = jako dřív.
+    $metodaLedger = pos_ledger_metoda($pos_payment);
+    $mPay = pos_mena_volba($pdo, isset($data['platba_mena']) ? (string) $data['platba_mena'] : null, 'pos');
+    if ($pos_payment !== 'pri_vyzvednuti') pos_mena_kontrola($pdo, $mPay, $metodaLedger, $data['kurz_klient'] ?? null, 'pos');
+
     // 🆕 Idempotence — pokud klient pošle stejný key 2×, vrátíme předchozí výsledek
     if ($idempKey !== '' && strlen($idempKey) <= 80) {
         try {
@@ -1720,8 +1748,12 @@ if ($method === 'POST' && $action === 'quick_order') {
         $cislo = pos_next_doklad($pdo);
 
         // Spočítej částky
+        // 🐛 v3.0.643 (spec 2.1) — sleva se ukládá jako řádek PO SAZBÁCH (základ bez DPH, záporný)
+        //   a hlavička = součet řádků. Dřív byl jeden řádek s částkou VČETNĚ DPH v cena_bez_dph →
+        //   DPH se započítalo podruhé: účtenka ≠ zaplaceno, plná vratka vrátila o koruny méně.
         $bezDph = 0.0;
         $dphSum = 0.0;
+        $zakladSazby = [];
         foreach ($polozky as $p) {
             $mn   = (float)($p['mnozstvi']     ?? 1);
             $cena = (float)($p['cena_bez_dph'] ?? 0);
@@ -1729,10 +1761,17 @@ if ($method === 'POST' && $action === 'quick_order') {
             $line = $mn * $cena;
             $bezDph += $line;
             $dphSum += $line * ($saz / 100);
+            $zakladSazby[(string) $saz] = ($zakladSazby[(string) $saz] ?? 0) + $line;
         }
+        $slevaRadky = [];   // [sazba => záporný základ]
         if ($sleva_pct > 0 && $sleva_pct <= 100) {
-            $bezDph = $bezDph * (1 - $sleva_pct/100);
-            $dphSum = $dphSum * (1 - $sleva_pct/100);
+            foreach ($zakladSazby as $sz => $z) {
+                $sb = round($z * $sleva_pct / 100, 2);
+                if ($sb <= 0) continue;
+                $slevaRadky[$sz] = -$sb;
+                $bezDph -= $sb;
+                $dphSum -= $sb * ((float) $sz / 100);
+            }
         }
         $celkem = round($bezDph + $dphSum + $pos_tip, 2);
         $bezDph = round($bezDph, 2);
@@ -1850,7 +1889,7 @@ if ($method === 'POST' && $action === 'quick_order') {
             try {
                 $st->execute(array_merge(['cislo' => $cislo], $headerParams));
                 $objId = (int)$pdo->lastInsertId();
-                require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
+                mena_nastav_doklad($pdo, 'objednavky', $objId, $mPay);   // 💱 v3.0.643 — měna ZVOLENÁ u platby (dřív globální)
                 break;
             } catch (PDOException $e) {
                 $dup = ($e->getCode() === '23000') || (isset($e->errorInfo[1]) && (int)$e->errorInfo[1] === 1062);
@@ -1898,20 +1937,16 @@ if ($method === 'POST' && $action === 'quick_order') {
         // Vlastní položky (Korkovné apod.) už šly přes hlavní foreach (vyrobek_id=null).
         // Sleva + tip se ukládaly jen do POS-META poznámky → admin je neviděl jako řádky.
         // Teď je vložíme jako pseudo-polozky s vyrobek_id=NULL a popisným názvem.
-        if ($sleva_pct > 0 && $sleva_pct <= 100) {
-            $sleva_celkem = round(($bezDph_orig + $dphSum_orig) * ($sleva_pct / 100), 2);
-            // 🆕 v3.0.336 — sazba slevového řádku = sazba s NEJVĚTŠÍM základem (dřív vždy 0 →
-            //   latentní riziko při smíšených sazbách). Hlavičkové součty se NEMĚNÍ (škálované poměrně).
-            $sleva_saz = 21.0;
-            if ($zaklad_dle_sazby) { arsort($zaklad_dle_sazby); $sleva_saz = (float) array_key_first($zaklad_dle_sazby); }
+        // 💰 Sleva — řádek za každou sazbu (záporný ZÁKLAD bez DPH) → Σ řádků = hlavička (v3.0.643)
+        foreach ($slevaRadky as $sz => $zakladSleva) {
             $stItem->execute([
                 'o'   => $objId,
                 'vid' => null,
-                'n'   => sprintf('💰 Sleva %s%%', rtrim(rtrim(number_format($sleva_pct, 1, '.', ''), '0'), '.')),
+                'n'   => sprintf('💰 Sleva %s%%', rtrim(rtrim(number_format($sleva_pct, 1, '.', ''), '0'), '.')) . (count($slevaRadky) > 1 ? ' (DPH ' . rtrim(rtrim(number_format((float) $sz, 1, '.', ''), '0'), '.') . ' %)' : ''),
                 'j'   => 'ks',
                 'm'   => 1,
-                'c'   => -$sleva_celkem, // záporná cena
-                's'   => $sleva_saz,     // sazba s největším základem (NEMĚNÍ hlavičkové součty)
+                'c'   => $zakladSleva,
+                's'   => (float) $sz,
             ]);
         }
         if ($pos_tip > 0) {
@@ -1936,6 +1971,15 @@ if ($method === 'POST' && $action === 'quick_order') {
                 'c'   => $poplatekBez,
                 's'   => 21,
             ]);
+        }
+
+        // 💱 v3.0.643 — autoritativní částka v měně dokladu (= účtenka/displej), hotovost a ledger plateb
+        $castkaMena = mena_ulozit_castku($pdo, 'objednavky', $objId);
+        $hotQ = null;
+        if ($stav === 'zaplaceno') {
+            if ($metodaLedger === 'hotovost') $hotQ = pos_hotovost($pdo, $mPay, $castkaMena, $data['prijato'] ?? null, $data['vraceni_mena'] ?? null);
+            pos_ledger_zapis($pdo, ['zdroj' => 'quick', 'metoda' => $metodaLedger, 'objednavka_id' => $objId, 'pokladna' => $pokladna,
+                                    'uzivatel' => $admin_login, 'idem' => 'quick:' . $objId], $mPay, $castkaMena, $hotQ);
         }
 
         $pdo->commit();
@@ -1995,7 +2039,14 @@ if ($method === 'POST' && $action === 'quick_order') {
             'dph'     => $dphSum,
             'stav'    => $stav,
             'message' => 'POS objednávka vytvořena',
+            // 💱 v3.0.643
+            'mena'        => $mPay['mena'] ?? 'CZK',
+            'celkem_mena' => $castkaMena,
+            'kurz'        => (float) ($mPay['mena_kurz'] ?? 1),
+            'kurz_prodej' => (float) (($mPay['mena_kurz_prodej'] ?? 0) ?: ($mPay['mena_kurz'] ?? 1)),
+            'kurz_datum'  => $mPay['kurz_datum'] ?? null,
         ];
+        if ($hotQ && $hotQ['prijato'] !== null) $response += ['prijato' => $hotQ['prijato'], 'vraceno' => $hotQ['vraceno'], 'vraceno_mena' => $hotQ['vraceno_mena'], 'vraceno_czk' => $hotQ['vraceno_czk']];
 
         // 🆕 Ulož pro idempotence (pokud klient poslal key)
         if ($idempKey !== '') {
@@ -2155,14 +2206,20 @@ function pos_ucet_create_sale(PDO $pdo, int $ucetId, ?string $pokladna = null): 
         $ex->execute(['m' => '%' . $marker . '%']);
         $had = $ex->fetchColumn();
         if ($had) return (int) $had;
-        $pol = $pdo->prepare("SELECT vyrobek_id, nazev, mnozstvi, jednotkova_cena FROM restaurant_pos_polozky WHERE ucet_id = :u AND stav <> 'storno'");
+        // 💱 v3.0.643 — skutečná sazba DPH položky (dřív plošně 21 % i u jídla) — stejný vzorec jako
+        //   mena_ucet_polozky (round(cena s DPH / (1+s), 4)), aby EUR doklad seděl s platbou na cent.
+        $sazSel = mena_ma_sloupec($pdo, 'restaurant_pos_polozky', 'sazba_dph') ? 'COALESCE(sazba_dph, 21)' : '21';
+        $pol = $pdo->prepare("SELECT vyrobek_id, nazev, mnozstvi, jednotkova_cena, $sazSel AS sazba FROM restaurant_pos_polozky WHERE ucet_id = :u AND stav <> 'storno' ORDER BY id");
         $pol->execute(['u' => $ucetId]);
         $items = $pol->fetchAll(PDO::FETCH_ASSOC);
         if (!$items) return null;
-        $celkem = 0.0;
-        foreach ($items as $it) $celkem += (float) $it['mnozstvi'] * (float) $it['jednotkova_cena'];
+        $celkem = 0.0; $bezRaw = 0.0;
+        foreach ($items as $it) {
+            $celkem += (float) $it['mnozstvi'] * (float) $it['jednotkova_cena'];
+            $bezRaw += (float) $it['mnozstvi'] * round((float) $it['jednotkova_cena'] / (1 + (float) $it['sazba'] / 100), 4);
+        }
         $celkem = round($celkem, 2);
-        $bez = round($celkem / 1.21, 2); $dph = round($celkem - $bez, 2);
+        $bez = round($bezRaw, 2); $dph = round($celkem - $bez, 2);
         $zp = $pdo->prepare("SELECT zpusob FROM restaurant_pos_platby WHERE ucet_id = :u ORDER BY castka DESC LIMIT 1");
         $zp->execute(['u' => $ucetId]);
         $zpusob = strtolower((string) ($zp->fetchColumn() ?: 'hotovost'));
@@ -2181,7 +2238,13 @@ function pos_ucet_create_sale(PDO $pdo, int $ucetId, ?string $pokladna = null): 
         for ($a = 0; $a < 5; $a++) {
             try {
                 $ins->execute(['c'=>$cislo,'ob'=>(int)$walkin,'dt'=>$datum,'dd'=>date('Y-m-d', strtotime($datum)),'bd'=>$bez,'d'=>$dph,'cel'=>$celkem,'pp'=>$pos_payment,'uz'=>($ucet['otevrel_jmeno'] ?: 'POS'),'poz'=>$poz,'pk'=>$pokladna]);
-                $objId = (int) $pdo->lastInsertId(); require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId); /* 💱 v3.0.640 — měna prodeje v okamžiku vzniku */ break;
+                $objId = (int) $pdo->lastInsertId();
+                // 💱 v3.0.643 — měna z ÚČTU (zvolená při platbě), ne dnešní globál (self-heal/backfill může běžet později)
+                $mUcet = !empty($ucet['mena'])
+                    ? ['mena' => $ucet['mena'], 'mena_kurz' => (float) ($ucet['mena_kurz'] ?: 1), 'mena_kurz_prodej' => isset($ucet['mena_kurz_prodej']) && $ucet['mena_kurz_prodej'] !== null ? (float) $ucet['mena_kurz_prodej'] : null, 'mena_zaklad' => 'CZK']
+                    : ['mena' => 'CZK', 'mena_kurz' => 1.0, 'mena_zaklad' => 'CZK'];
+                mena_nastav_doklad($pdo, 'objednavky', $objId, $mUcet);
+                break;
             } catch (PDOException $e) {
                 if ((int)($e->errorInfo[1] ?? 0) === 1062 && $a < 4) {
                     // 🐛 v3.0.336 — ROOT CAUSE „Duplicate entry 'POS-…'": check-then-insert race.
@@ -2201,11 +2264,13 @@ function pos_ucet_create_sale(PDO $pdo, int $ucetId, ?string $pokladna = null): 
             }
         }
         if (!$objId) return null;
-        $ip = $pdo->prepare("INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, mnozstvi, jednotka, cena_bez_dph, sazba_dph, poznamka) VALUES (:o,:v,:n,:m,'ks',:c,21,NULL)");
+        $ip = $pdo->prepare("INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, mnozstvi, jednotka, cena_bez_dph, sazba_dph, poznamka) VALUES (:o,:v,:n,:m,'ks',:c,:s,NULL)");
         foreach ($items as $it) {
-            $cbez = round(((float) $it['jednotkova_cena']) / 1.21, 4);
-            $ip->execute(['o'=>$objId,'v'=>($it['vyrobek_id'] ?: null),'n'=>$it['nazev'],'m'=>$it['mnozstvi'],'c'=>$cbez]);
+            $sz = (float) $it['sazba'];
+            $cbez = round(((float) $it['jednotkova_cena']) / (1 + $sz / 100), 4);
+            $ip->execute(['o'=>$objId,'v'=>($it['vyrobek_id'] ?: null),'n'=>$it['nazev'],'m'=>$it['mnozstvi'],'c'=>$cbez,'s'=>$sz]);
         }
+        try { mena_ulozit_castku($pdo, 'objednavky', $objId); } catch (Throwable $e) { error_log('create_sale castka_mena: ' . $e->getMessage()); }
         return $objId;
     } catch (Throwable $e) { error_log('pos_ucet_create_sale #' . $ucetId . ': ' . $e->getMessage()); return null; }
 }
@@ -2551,7 +2616,11 @@ if ($method === 'POST' && $action === 'refund_order') {
             'pk'  => $o['pokladna'] ?? null, // 🆕 vratka zdědí pokladnu původní účtenky → per-kasa uzávěrka nettuje refundy
         ]);
         $rid = (int) $pdo->lastInsertId();
-        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $rid);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
+        // 💱 v3.0.643 — vratka ve MĚNĚ A KURZU původní účtenky (dřív globální měna v okamžiku vratky)
+        $mOrig = ['mena' => ($o['mena'] ?? '') ?: 'CZK', 'mena_kurz' => (float) (($o['mena_kurz'] ?? 0) ?: 1),
+                  'mena_kurz_prodej' => isset($o['mena_kurz_prodej']) && $o['mena_kurz_prodej'] !== null ? (float) $o['mena_kurz_prodej'] : null,
+                  'mena_zaklad' => ($o['mena_zaklad'] ?? '') ?: 'CZK'];
+        mena_nastav_doklad($pdo, 'objednavky', $rid, $mOrig);
         $insP = $pdo->prepare("
             INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph, vraci_polozku_id)
             VALUES (:o,:v,:n,:j,:m,:c,:s,:vp)");
@@ -2562,6 +2631,22 @@ if ($method === 'POST' && $action === 'refund_order') {
                 'c' => $rl['orig']['cena_bez_dph'], 's' => $rl['orig']['sazba_dph'], 'vp' => (int) $rl['orig']['id'],
             ]);
         }
+        // 💱 částka vratky v měně dokladu: strop = zaplaceno − dřívější vratky; poslední (plná) vratka = přesně zbytek
+        $cmV = mena_ulozit_castku($pdo, 'objednavky', $rid);
+        $origCm = isset($o['castka_mena']) && $o['castka_mena'] !== null ? (float) $o['castka_mena'] : mena_doc_castka($pdo, 'objednavky', $oid)['celkem'];
+        $pv = $pdo->prepare("SELECT COALESCE(SUM(-castka_mena), 0) FROM objednavky WHERE refund_of = :o AND id <> :r");
+        $pv->execute(['o' => $oid, 'r' => $rid]);
+        $zbyva = round($origCm - (float) $pv->fetchColumn(), 2);
+        $vseVraceno = true;
+        foreach ($origLines as $l) {
+            $done = ($already[(int) $l['id']] ?? 0) + ($want[(int) $l['id']] ?? 0);
+            if ((float) $l['mnozstvi'] - $done > 0.0001) { $vseVraceno = false; break; }
+        }
+        $cmNovy = $vseVraceno ? -$zbyva : -min(abs($cmV), max(0, $zbyva));
+        if (abs($cmNovy - $cmV) > 0.0001) $pdo->prepare("UPDATE objednavky SET castka_mena = ? WHERE id = ?")->execute([round($cmNovy, 2), $rid]);
+        pos_ledger_zapis($pdo, ['zdroj' => 'vratka', 'metoda' => pos_ledger_metoda((string) $o['pos_payment']), 'objednavka_id' => $rid,
+                                'pokladna' => $o['pokladna'] ?? null, 'uzivatel' => $admin['jmeno'] ?? null, 'idem' => 'vratka:' . $rid],
+                         $mOrig, round($cmNovy, 2), null);
         $pdo->commit();
         // 🆕 v3.0.395 — volitelný restock vrácených HOTOVÝCH výrobků na sklad (post-commit, soft-fail).
         $restocked = 0;
@@ -2574,7 +2659,8 @@ if ($method === 'POST' && $action === 'refund_order') {
             } catch (Throwable $e) { /* restock ne-fatal */ }
         }
         json_response(['ok' => true, 'id' => $rid, 'cislo' => $cislo,
-                       'castka_celkem' => -$cel, 'puvodni' => $o['cislo'], 'restocked' => $restocked,
+                       'castka_celkem' => -$cel, 'mena' => $mOrig['mena'], 'castka_mena' => round($cmNovy, 2),
+                       'puvodni' => $o['cislo'], 'restocked' => $restocked,
                        'castecna' => ($reqPolozky !== null), 'polozek' => count($refundLines)]);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
