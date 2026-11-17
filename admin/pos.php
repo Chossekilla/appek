@@ -394,6 +394,8 @@ $csrfToken  = csrf_token();
     ?>
     currency:   <?= json_encode($menaCfg['zobrazeni'] === 'mena' ? $menaCfg['symbol'] : 'Kč') ?>,
     mena:       <?= json_encode($menaCfg) ?>,
+    // 💱 v3.0.643 — platba v Kč i v cizí měně (přepínač u placení; vypnuto = jako dřív)
+    platba:     <?php try { echo json_encode(mena_platebni_info(db(), 'pos')); } catch (Throwable $e) { echo 'null'; } ?>,
     // 🆕 v3.0.249 — počet řádků na stránku (sdíleno s admin nastavením „Dlouhé seznamy")
     pagPocet:   <?= (function () { $p = (int) (function_exists('nastaveni') ? (nastaveni()['pagination_pocet'] ?? 50) : 50); return in_array($p, [25, 50, 100, 200], true) ? $p : 50; })() ?>,
   };

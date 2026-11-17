@@ -162,6 +162,8 @@ $csrfToken  = csrf_token();
       } catch (Throwable $e) { /* default Kč */ } ?>
     currency:   <?= json_encode($menaCfg['zobrazeni'] === 'mena' ? $menaCfg['symbol'] : 'Kč') ?>,
     mena:       <?= json_encode($menaCfg) ?>,
+    // 💱 v3.0.643 — platba v Kč i v cizí měně (přepínač u placení; vypnuto = jako dřív)
+    platba:     <?php try { echo json_encode(mena_platebni_info(db(), 'pos')); } catch (Throwable $e) { echo 'null'; } ?>,
   };
 </script>
 </head>
