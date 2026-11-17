@@ -3,7 +3,12 @@
  * 🔁 CRON: opakující se objednávky.
  *
  * Spouštět denně ráno (např. v 4:00):
- *   0 4 * * * php /var/www/api/cron_recurring.php
+ *   hPanel (Hostinger): JEN cesta + 5 polí času, /usr/bin/php a /home/<účet>/ doplní hPanel sám:
+ *     0 4 * * *   domains/<doména>/public_html[/podsložka]/api/cron_recurring.php
+ *   jinde: 0 4 * * * php /cesta/k/webu/api/cron_recurring.php
+ *   Hotové příkazy pro tuto instalaci: Nastavení → Údržba → ⏰ Plánované úlohy (CRON).
+ *   🆕 v3.0.645 — odkazy generované z cronu (e-maily, push) berou veřejnou adresu instalace
+ *   VČETNĚ podsložky z APP_URL / adresy zapamatované z přihlášení super admina (config.php).
  *
  * Co dělá: pro ZÍTŘEJŠÍ datum projde všechna aktivní pravidla a vytvoří objednávky.
  * Anti-duplikát: pokud už pro zítra existuje obj z pravidla, přeskočí.

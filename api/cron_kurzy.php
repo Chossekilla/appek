@@ -4,7 +4,8 @@
  *
  * ČNB vyhlašuje kurzy v pracovní dny ve 14:30 → spouštět denně ve 14:45:
  *   hPanel (Hostinger): JEN cesta + 5 polí času, /usr/bin/php a /home/<účet>/ doplní hPanel sám:
- *     45 14 * * *   domains/<doména>/public_html/api/cron_kurzy.php
+ *     45 14 * * *   domains/<doména>/public_html[/podsložka]/api/cron_kurzy.php
+ *   (🆕 v3.0.645 hotové příkazy: Nastavení → Údržba → ⏰ Plánované úlohy (CRON))
  *   jinde: 45 14 * * * php /cesta/k/webu/api/cron_kurzy.php
  *
  * Bez cronu to funguje taky — kurz se stáhne líně při první platbě v cizí měně

@@ -789,6 +789,14 @@ async function _renderNastaveniInner() {
           <span style="color:var(--text-3)">Doporučeno zapnuto — číselná řada dokladů musí být souvislá (zákon). Opravy řešte storno/dobropisem. Vypnutím umožníte trvalé smazání = díra v řadě.</span></span>
         </label>
       </div>
+      <!-- 🆕 v3.0.645 — ⏰ Plánované úlohy (CRON): adresa pro odkazy z cronu (vč. podsložky) + příkazy pro hPanel -->
+      <div class="card-block" id="ns-cron-block" style="min-width:0">
+        <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ⏰ Plánované úlohy (CRON)
+          <button type="button" class="btn-secondary" onclick="cronInfoLoad()" title="Načíst znovu" style="font-size:12px;padding:3px 9px;margin-left:auto">🔄</button>
+        </h3>
+        <div id="ns-cron-info" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
+      </div>
     </div>
 
     <!-- 🆕 v3.0.160 — Licence & aktualizace + Activity log vedle sebe (2 sloupce) -->
@@ -1658,6 +1666,7 @@ async function _renderNastaveniInner() {
     loadActivityLog();
     loadWebhooks();
     if (typeof errorsLoad === 'function') errorsLoad(); // 🆕 v2.9.321 — app_errors viewer
+    if (typeof cronInfoLoad === 'function') cronInfoLoad(); // 🆕 v3.0.645 — ⏰ adresa pro cron + příkazy hPanel
   }
   if (aktTab === 'pristupy') {
     menaLoad();   // 💱 v3.0.283 — měna & přepočet

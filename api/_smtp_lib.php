@@ -112,7 +112,10 @@ function appek_mail_headers_doplnit(string $headers, array $cfg, bool $smtpOn): 
         if ($smtpOn && $cfg['from'] !== '') $fromEmail = smtp_extract_email($cfg['from']);
         if ($fromEmail === '' && $smtpOn && $cfg['user'] !== '' && strpos($cfg['user'], '@') !== false) $fromEmail = $cfg['user'];
         if ($fromEmail === '') {
-            $host = preg_replace('/[^a-zA-Z0-9.\-]/', '', preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? ''))) ?: 'localhost';
+            // 🆕 v3.0.645 — v CLI (cron) doména z veřejné adresy instalace (dřív noreply@localhost)
+            $hh = (string) ($_SERVER['HTTP_HOST'] ?? '');
+            if ($hh === '' && PHP_SAPI === 'cli' && function_exists('app_public_base')) $hh = (string) (parse_url(app_public_base(), PHP_URL_HOST) ?? '');
+            $host = preg_replace('/[^a-zA-Z0-9.\-]/', '', preg_replace('/:\d+$/', '', $hh)) ?: 'localhost';
             $fromEmail = 'noreply@' . preg_replace('/^www\./i', '', $host);
         }
         $novyFrom = 'From: ' . ($jmeno !== '' && function_exists('mb_encode_mimeheader') ? mb_encode_mimeheader($jmeno, 'UTF-8') . ' <' . $fromEmail . '>' : $fromEmail);

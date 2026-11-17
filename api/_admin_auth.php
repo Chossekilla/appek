@@ -123,11 +123,15 @@ function require_admin(): array {
             json_error('csrf_invalid', 403);
         }
     }
-    return [
+    $admin = [
         'id'    => (int) $_SESSION['admin_id'],
         'jmeno' => $_SESSION['admin_jmeno'] ?? '',
         'role'  => $_SESSION['admin_role'] ?? 'admin',
     ];
+    // 🆕 v3.0.645 — zapamatuj veřejnou adresu instalace (vč. podsložky) pro cron/CLI odkazy.
+    //   Jen super admin, max 1 čtení DB za session/adresu, zápis jen při změně (viz config.php).
+    if (function_exists('app_public_base_remember')) app_public_base_remember($admin);
+    return $admin;
 }
 
 /**

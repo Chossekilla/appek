@@ -67,6 +67,9 @@ if (DB_NAME === '' || DB_USER === '') {
 // 🆕 v3.0.314 — default APP_URL se ODVOZUJE z domény instalace (dřív natvrdo dev staging
 //   doména → leakovala do QR/e-mailů/redirectů u každé čisté instalace). Produkce ho
 //   stejně přepisuje v config.local.php; tohle je jen bezpečný fallback.
+// 🆕 v3.0.645 — rozliš APP_URL zadané v config.local.php (kanonická adresa od admina/instalátoru)
+//   od fallbacku odvozeného z aktuálního požadavku (v CLI/cronu je fallback prázdný).
+if (!defined('APP_URL_EXPLICIT')) define('APP_URL_EXPLICIT', defined('APP_URL') && trim((string) APP_URL) !== '');
 if (!defined('APP_URL')) {
     $__sch = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'
@@ -1199,11 +1202,17 @@ function notif_email_odberatele(PDO $pdo, int $odb_id): array {
  *   root-absolutní '/uploads/…' → při instalaci do podsložky 404. Na doménovém rootu vrací ''
  *   → URL zůstávají přesně jako dřív. Odvozeno z běžícího skriptu: SCRIPT_NAME (URL) minus
  *   jeho cesta pod kořenem instalace (SCRIPT_FILENAME); fallback = odříznutí /api|admin|b2b|pos.
+ * 🆕 v3.0.645 — v CLI (cron) se cesta bere z veřejného základu pro cron (app_public_base_cli():
+ *   APP_URL s cestou → uložený auto základ → ''), dřív vždy '' → odkazy z cronu bez podsložky.
  */
 function app_base_path(): string {
     static $base = null;
     if ($base !== null) return $base;
-    if (PHP_SAPI === 'cli') return $base = '';
+    if (PHP_SAPI === 'cli') {
+        $base = '';   // pojistka proti zacyklení (db() → migrace → app_base_path) — vnořené volání vrátí ''
+        $p = (string) (parse_url(app_public_base_cli(), PHP_URL_PATH) ?? '');
+        return $base = rtrim($p, '/');
+    }
     $name = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
     $file = str_replace('\\', '/', (string) (realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) ?: ''));
     $root = str_replace('\\', '/', dirname(__DIR__));
@@ -1220,6 +1229,181 @@ function app_url_path(string $path): string {
     return app_base_path() . '/' . ltrim($path, '/');
 }
 
+// =============================================================
+// 🆕 v3.0.645 — VEŘEJNÁ ADRESA PRO CRON (CLI)
+//   V CLI není HTTP_HOST ani SCRIPT_NAME → app_base_path() vracel '' a APP_URL (bez hostu prázdné,
+//   z instalátoru jen scheme://host BEZ podsložky) → odkazy z cronu (e-maily, push, platby)
+//   vedly bez podsložky nebo na http://localhost. Teď si instalace při webovém požadavku
+//   PŘIHLÁŠENÉHO SUPER ADMINA uloží zjištěný veřejný základ (scheme://host + podsložka) do
+//   nastaveni.app_public_base_auto (max 1 zápis při změně; per-session cache → bez DB zápisu
+//   při každém požadavku). Cron pak bere v pořadí:
+//     1) APP_URL z config.local.php s cestou (admin ji zapsal ručně) → beze změny,
+//     2) APP_URL bez cesty + uložený základ se STEJNOU doménou (www. ignorováno) → uložený základ,
+//     3) APP_URL bez cesty a uložený základ pro jinou doménu → APP_URL (dosavadní chování),
+//     4) bez APP_URL → uložený základ, jinak dosavadní fallback (http://localhost).
+//   Ve webových požadavcích se nic nemění (tam se adresa dál odvozuje z požadavku).
+// =============================================================
+if (!defined('APP_PUBLIC_BASE_AUTO_KEY')) define('APP_PUBLIC_BASE_AUTO_KEY', 'app_public_base_auto');
+
+/**
+ * Normalizace + validace veřejného základu: 'HTTPS://Firma.cz:443/appek/' → 'https://firma.cz/appek'.
+ *   Jen http/https, platný host (doména/IPv4, volitelně port), cesta bez query/fragmentu/přihlašovacích údajů.
+ *   Neplatné → ''. (Obrana proti uložení podvrženého/rozbitého Host.)
+ */
+function app_public_base_normalize(string $url): string {
+    $url = trim($url);
+    if ($url === '' || strlen($url) > 255) return '';
+    $u = parse_url($url);
+    if (!is_array($u) || empty($u['scheme']) || empty($u['host'])) return '';
+    if (isset($u['user']) || isset($u['pass']) || isset($u['query']) || isset($u['fragment'])) return '';
+    $sch = strtolower((string) $u['scheme']);
+    if ($sch !== 'http' && $sch !== 'https') return '';
+    $host = strtolower((string) $u['host']);
+    if (!preg_match('/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$/', $host)) return '';
+    $port = isset($u['port']) ? (int) $u['port'] : 0;
+    if ($port < 0 || $port > 65535) return '';
+    if (($sch === 'https' && $port === 443) || ($sch === 'http' && $port === 80)) $port = 0;
+    $path = rtrim((string) ($u['path'] ?? ''), '/');
+    if ($path !== '' && !preg_match('#^(/[A-Za-z0-9._~%!$&\'()*+,;=:@-]+)+$#', $path)) return '';
+    return $sch . '://' . $host . ($port ? ':' . $port : '') . $path;
+}
+
+/** Klíč domény pro porovnání adres: host[:port] malými písmeny bez úvodního 'www.'. */
+function _app_public_host_key(string $url): string {
+    $h = strtolower((string) (parse_url($url, PHP_URL_HOST) ?? ''));
+    $port = parse_url($url, PHP_URL_PORT);
+    $h = (string) preg_replace('/^www\./', '', $h);
+    return $h . ($port ? ':' . (int) $port : '');
+}
+
+/** True pro adresu, která není veřejná doména (localhost, *.local/.test/.localhost, IP). */
+function _app_public_host_docasny(string $url): bool {
+    $h = strtolower((string) (parse_url($url, PHP_URL_HOST) ?? ''));
+    if ($h === '' || $h === 'localhost') return true;
+    if (filter_var($h, FILTER_VALIDATE_IP)) return true;
+    return (bool) preg_match('/\.(localhost|local|test|invalid|lan)$/', $h);
+}
+
+/**
+ * Uložený auto základ z nastaveni (normalizovaný, '' = nic/neplatné). Bez DB credentials → ''.
+ *   $fresh = true → znovu z DB (web: rozhodnutí o zápisu); jinak statická cache (CLI).
+ */
+function app_public_base_auto_get(bool $fresh = false): string {
+    static $cache = null, $loading = false;
+    if ($cache !== null && !$fresh) return $cache;
+    if ($loading) return '';
+    if (!defined('DB_NAME') || DB_NAME === '' || !defined('DB_USER') || DB_USER === '') return $cache = '';
+    $loading = true;
+    try {
+        $st = db()->prepare("SELECT hodnota FROM nastaveni WHERE klic = :k LIMIT 1");
+        $st->execute(['k' => APP_PUBLIC_BASE_AUTO_KEY]);
+        $cache = app_public_base_normalize((string) ($st->fetchColumn() ?: ''));
+    } catch (Throwable $e) {
+        $cache = '';
+    } finally {
+        $loading = false;
+    }
+    return $cache;
+}
+
+/**
+ * Čisté rozhodnutí, jaký základ použije cron (bez vedlejších efektů — i pro náhled v Nastavení).
+ *   $appUrl = APP_URL z config.local.php ('' = nezadáno), $auto = uložený auto základ.
+ *   → absolutní základ bez koncového '/', nebo '' (neznámý → volající použije dosavadní fallback).
+ */
+function app_public_base_resolve(string $appUrl, string $auto): string {
+    $appRaw = rtrim(trim($appUrl), '/');
+    $app = $appRaw !== '' ? (app_public_base_normalize($appRaw) ?: $appRaw) : '';
+    $auto = app_public_base_normalize($auto);
+    if ($app !== '' && trim((string) (parse_url($app, PHP_URL_PATH) ?? ''), '/') !== '') return $app;   // 1) APP_URL s cestou
+    if ($app === '') return $auto;                                                                        // 4)
+    if ($auto !== '' && _app_public_host_key($auto) === _app_public_host_key($app)) return $auto;         // 2)
+    return $app;                                                                                          // 3)
+}
+
+/** Veřejný základ pro CLI (cron): APP_URL / uložený auto základ — viz app_public_base_resolve(). */
+function app_public_base_cli(): string {
+    static $r = null;
+    if ($r !== null) return $r;
+    $r = '';   // pojistka proti zacyklení
+    return $r = app_public_base_resolve(APP_URL_EXPLICIT ? (string) APP_URL : '', app_public_base_auto_get());
+}
+
+/** Veřejný základ aktuálního webového požadavku (normalizovaný, '' = CLI / neplatný Host). */
+function app_public_base_current_web(): string {
+    if (PHP_SAPI === 'cli' || empty($_SERVER['HTTP_HOST'])) return '';
+    $sch = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'
+        || ((int) ($_SERVER['SERVER_PORT'] ?? 0)) === 443) ? 'https' : 'http';
+    return app_public_base_normalize($sch . '://' . $_SERVER['HTTP_HOST'] . app_base_path());
+}
+
+/**
+ * Rozhodne, zda uložený auto základ nahradit aktuálním → nová hodnota, nebo null (beze změny).
+ *   Instalace dostupná pod 2 adresami NEPŘEPÍNÁ tam a zpět: platí PRVNÍ uložená adresa; přepíše ji jen
+ *   - stejná doména s jinou cestou (instalace přesunuta do jiné složky) nebo http → https (jen směrem nahoru),
+ *   - dočasná adresa (localhost/IP/.local…) → veřejná doména,
+ *   - APP_URL zadané v config.local.php s jinou doménou, než má uložená adresa (uložená je zastaralá).
+ *   Je-li APP_URL zadané, ukládá se JEN adresa se stejnou doménou jako APP_URL (jiné domény cron stejně nepoužije).
+ *   Jinou doménu nastaví admin výslovně tlačítkem v Nastavení → Údržba (admin_cron_info.php?action=pouzit).
+ */
+function app_public_base_decide(string $stored, string $current, string $appUrl): ?string {
+    $current = app_public_base_normalize($current);
+    if ($current === '') return null;
+    $stored = app_public_base_normalize($stored);
+    $app = rtrim(trim($appUrl), '/');
+    if ($app !== '') {
+        if (trim((string) (parse_url($app, PHP_URL_PATH) ?? ''), '/') !== '') return null;   // APP_URL s cestou má přednost vždy
+        if (_app_public_host_key($current) !== _app_public_host_key($app)) return null;
+        if ($stored !== '' && _app_public_host_key($stored) !== _app_public_host_key($app)) return $current;
+    }
+    if ($stored === '') return $current;
+    if ($stored === $current) return null;
+    if (_app_public_host_key($stored) === _app_public_host_key($current)) {
+        $pS = (string) (parse_url($stored, PHP_URL_PATH) ?? '');
+        $pC = (string) (parse_url($current, PHP_URL_PATH) ?? '');
+        if ($pS !== $pC) return $current;                                                        // přesun do jiné složky
+        if (str_starts_with($stored, 'http://') && str_starts_with($current, 'https://')) return $current;   // http → https
+        return null;                                                                             // www./bez www., https → http: ponech
+    }
+    if (_app_public_host_docasny($stored) && !_app_public_host_docasny($current)) return $current;
+    return null;
+}
+
+/** Zapíše auto základ do nastaveni (validovaný). */
+function app_public_base_auto_save(PDO $pdo, string $base): bool {
+    $base = app_public_base_normalize($base);
+    if ($base === '') return false;
+    $pdo->prepare("INSERT INTO nastaveni (klic, hodnota, popis) VALUES (:k, :v, :p)
+                   ON DUPLICATE KEY UPDATE hodnota = VALUES(hodnota)")
+        ->execute(['k' => APP_PUBLIC_BASE_AUTO_KEY, 'v' => $base,
+                   'p' => 'Veřejná adresa instalace pro cron (zjištěno automaticky z přihlášení super admina)']);
+    app_public_base_auto_get(true);   // obnov cache
+    return true;
+}
+
+/**
+ * Volá require_admin(): zapamatuje veřejný základ z webového požadavku přihlášeného SUPER ADMINA.
+ *   Jen role 'admin' (ne readonly/demo náhled, prodavač, POS PIN) → podvržený Host nemůže uložit cizí
+ *   (prohlížeč posílá Host = adresa stránky, session cookie jiné domény se nepošle). Per-session cache:
+ *   DB se čte max 1× za session a adresu, zapisuje se jen při změně (app_public_base_decide).
+ */
+function app_public_base_remember(array $admin): void {
+    if (PHP_SAPI === 'cli' || ($admin['role'] ?? '') !== 'admin' || !empty($_SESSION['pos_only_user'])) return;
+    if (session_status() !== PHP_SESSION_ACTIVE) return;
+    $cur = app_public_base_current_web();
+    if ($cur === '' || ($_SESSION['_app_pub_base_seen'] ?? '') === $cur) return;
+    try {
+        $pdo = db();
+        $stored = app_public_base_auto_get(true);
+        $new = app_public_base_decide($stored, $cur, APP_URL_EXPLICIT ? (string) APP_URL : '');
+        if ($new !== null && $new !== $stored) app_public_base_auto_save($pdo, $new);
+        $_SESSION['_app_pub_base_seen'] = $cur;
+    } catch (Throwable $e) {
+        error_log('app_public_base_remember: ' . $e->getMessage());
+    }
+}
+
 /**
  * 🐛 v3.0.644 — ABSOLUTNÍ veřejná URL kořene instalace VČETNĚ podsložky, bez koncového '/':
  *   'https://firma.cz' (root) | 'https://firma.cz/appek' (podsložka). Odkazy ven (webhook/návrat
@@ -1227,10 +1411,18 @@ function app_url_path(string $path): string {
  *   ze scheme://HTTP_HOST nebo APP_URL bez podsložky → na instalaci do podsložky 404.
  *   $origin = null → doména aktuálního requestu (CLI: APP_URL); předané APP_URL zachová dosavadní
  *   preferenci kanonické domény. Origin, který už cestu obsahuje (APP_URL s podsložkou), se bere beze změny.
+ * 🆕 v3.0.645 — v CLI (cron) základ z app_public_base_cli() (APP_URL → uložený auto základ vč. podsložky).
  */
 function app_public_base(?string $origin = null): string {
     $origin = rtrim(trim((string) $origin), '/');
-    if ($origin === '' && PHP_SAPI !== 'cli' && !empty($_SERVER['HTTP_HOST'])) {
+    if (PHP_SAPI === 'cli') {
+        $cli = app_public_base_cli();
+        if ($origin === '') return $cli !== '' ? $cli : 'http://localhost';
+        if (trim((string) parse_url($origin, PHP_URL_PATH), '/') !== '') return $origin;   // už obsahuje podsložku
+        if ($cli !== '' && _app_public_host_key($origin) === _app_public_host_key($cli)) return $cli;
+        return $origin . app_base_path();
+    }
+    if ($origin === '' && !empty($_SERVER['HTTP_HOST'])) {
         $sch = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
             || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'
             || ((int) ($_SERVER['SERVER_PORT'] ?? 0)) === 443) ? 'https' : 'http';
@@ -1249,12 +1441,14 @@ function app_public_base(?string $origin = null): string {
  *   $preferAppUrl = true → základ z APP_URL (kanonická doména z config.local.php), jinak z aktuálního požadavku.
  *   APP_URL bez cesty se doplní o app_base_path(); APP_URL s cestou (admin ji tam zapsal) se bere tak, jak je.
  *   Na doménovém rootu je výsledek stejný jako dřív.
+ * 🆕 v3.0.645 — v CLI (cron) vždy app_public_base() (APP_URL → uložený auto základ vč. podsložky).
  */
 function app_public_url(string $path = '', bool $preferAppUrl = false): string {
     $p = '/' . ltrim($path, '/');
+    if (PHP_SAPI === 'cli') return app_public_base() . $p;
     $appUrl = rtrim(defined('APP_URL') ? (string) APP_URL : '', '/');
     $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
-    if (($preferAppUrl || $host === '' || PHP_SAPI === 'cli') && $appUrl !== '') {
+    if (($preferAppUrl || $host === '') && $appUrl !== '') {
         $cesta = (string) (parse_url($appUrl, PHP_URL_PATH) ?? '');
         return $appUrl . (trim($cesta, '/') !== '' ? '' : app_base_path()) . $p;
     }
@@ -1741,7 +1935,7 @@ function notif_render_nova(PDO $pdo, int $obj_id, ?string $lang = null): ?array 
             'title' => '✓ ' . _t_lang($lang, 'Objednávka přijata'),
             'body'  => _t_lang($lang, 'Vaše obj. {cislo} byla přijata. Dodání: {datum}',
                                ['cislo' => $o['cislo'], 'datum' => _fmt_date_loc($o['datum_dodani'], $lang)]),
-            'url'   => '/',
+            'url'   => app_base_path() . '/',   // 🆕 v3.0.645 — kořen instalace i v podsložce (i z cronu)
             'typ'   => 'objednavka_nova',
         ],
     ];
@@ -1843,7 +2037,7 @@ function notif_render_stav(PDO $pdo, int $obj_id, string $novy, ?string $lang = 
             'title' => "$ikona " . _t_lang($lang, 'Objednávka {cislo}', ['cislo' => $o['cislo']]),
             'body'  => _t_lang($lang, 'Stav: {stav} · Dodání: {datum}',
                                ['stav' => email_stav_label($novy, $lang), 'datum' => _fmt_date_loc($o['datum_dodani'], $lang)]),
-            'url'   => '/',
+            'url'   => app_base_path() . '/',   // 🆕 v3.0.645 — kořen instalace i v podsložce (i z cronu)
             'typ'   => "stav_$novy",
         ],
     ];

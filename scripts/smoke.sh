@@ -30,7 +30,7 @@ echo "── 2) auth-required (bez session → 401/403) ──"
 for ep in objednavky.php faktury_odberatele.php mista_dodani.php statistiky.php \
           admin_odberatele.php admin_faktury.php admin_vyrobky.php admin_pos.php \
           admin_nastaveni.php admin_import.php "faktura.php?ids=1" "dodaci_list.php?ids=1" \
-          "admin_catering_calc.php?action=produkty_pick&page=1"; do
+          "admin_catering_calc.php?action=produkty_pick&page=1" admin_cron_info.php; do
   c=$(code "$BASE/api/$ep")
   if [[ "$c" == "401" || "$c" == "403" ]]; then PASS=$((PASS+1)); else
     echo "  ❌ $ep → $c (čekám 401/403)"; FAILED+=("auth:$ep=$c"); FAIL=$((FAIL+1)); fi
