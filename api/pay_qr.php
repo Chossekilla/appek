@@ -150,8 +150,7 @@ function pay_set_status(PDO $pdo, int $orderId, string $status, ?string $method 
 }
 
 function pay_base_url(): string {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    return app_public_base();   // 🐛 v3.0.644 — vč. podsložky instalace (dřív /pay/ → 404)
 }
 
 // ─────────────────────────────────────────────────────────────

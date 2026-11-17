@@ -134,7 +134,14 @@ if ($method === 'GET') {
         $filtered = array_map(fn($m) => $m + ['meny' => payment_method_meny($pdo, $m['key'])], $filtered);
         if ($mena !== '' && $mena !== 'CZK') $filtered = array_values(array_filter($filtered, fn($m) => in_array($mena, $m['meny'], true)));
         $dopravaPub = array_values(array_filter($cfg['doprava']['metody'], fn($m) => $m['aktivni']));
-        json_response(['methods' => $filtered, 'doprava' => ['zdarma_od' => $cfg['doprava']['zdarma_od'], 'metody' => $dopravaPub]]);
+        // 🐛 v3.0.644 — zapnutí přepravci pro karty dopravy v B2B (jen true/false, žádné klíče).
+        //   B2B je dřív četl z admin_integrace.php → odběratel 401 → Zásilkovna/DPD se nikdy neukázaly.
+        $prepravci = [];
+        try {
+            require_once __DIR__ . '/_customer_integrace.php';
+            foreach (['zas', 'dpd', 'ppl', 'cp'] as $svc) $prepravci[$svc] = customer_int_enabled($svc);
+        } catch (Throwable $e) { $prepravci = []; }
+        json_response(['methods' => $filtered, 'prepravci' => (object) $prepravci, 'doprava' => ['zdarma_od' => $cfg['doprava']['zdarma_od'], 'metody' => $dopravaPub]]);
     }
     // No context → all (pro admin UI) — vč. plného configu (s IBAN) a dopravy
     require_admin(); // 🔒 v3.0.349 — plný config (IBAN) jen přihlášenému adminovi, ne anonymně

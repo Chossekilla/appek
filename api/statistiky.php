@@ -30,6 +30,7 @@ $stmt = db()->prepare("
            COALESCE(AVG(castka_celkem), 0) AS prumer
     FROM objednavky
     WHERE odberatel_id = :odb AND $dateCond
+      AND (stav IS NULL OR stav <> 'zrusena')   -- 🐛 v3.0.644 — zrušené objednávky nejsou útrata (jako admin dashboard)
 ");
 $stmt->execute(['odb' => $odberatel_id]);
 $souhrn = $stmt->fetch();
@@ -42,6 +43,7 @@ $stmt = db()->prepare("
     JOIN vyrobky v ON v.id = p.vyrobek_id
     JOIN objednavky o ON o.id = p.objednavka_id
     WHERE o.odberatel_id = :odb AND $dateCondO
+      AND (o.stav IS NULL OR o.stav <> 'zrusena')   -- 🐛 v3.0.644 — bez zrušených
     GROUP BY v.id, v.nazev
     ORDER BY mnozstvi DESC LIMIT 10
 ");

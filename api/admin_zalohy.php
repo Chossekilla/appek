@@ -88,8 +88,7 @@ if ($action === 'info') {
                        ON DUPLICATE KEY UPDATE hodnota = :v2")
             ->execute(['v' => $token, 'v2' => $token]);
     }
-    $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-              . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $base_url = app_public_base();   // 🐛 v3.0.644 — cron URL vč. podsložky instalace
     json_response([
         'pocet'             => $pocet,
         'celkova_velikost'  => $velikost,

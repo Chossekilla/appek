@@ -459,7 +459,7 @@ if ($method === 'GET' && $action === 'feed_list') {
     json_response([
         'ok' => true,
         'feeds' => $feeds,
-        'cron_url' => rtrim(APP_URL, '/') . '/api/admin_import.php?action=cron&token=' . $token,
+        'cron_url' => app_public_base(APP_URL) . '/api/admin_import.php?action=cron&token=' . $token,   // 🐛 v3.0.644 — vč. podsložky
     ]);
 }
 

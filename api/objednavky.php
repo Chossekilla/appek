@@ -9,6 +9,48 @@ $odberatel_id = require_odberatel();
 $pdo = db();
 ensure_objednavky_schema($pdo);
 
+/**
+ * 🐛 v3.0.644 — odběratel zastaví svoje pravidlo opakované objednávky (recurring_orders.aktivni=0).
+ *   Jen vlastní a aktivní pravidlo; dodavatel dostane upozornění. Vrací true, když se něco zastavilo.
+ */
+function b2b_recurring_zastavit(PDO $pdo, int $odberatel_id, int $ruleId, string $duvod): bool {
+    if ($ruleId <= 0) return false;
+    try {
+        $st = $pdo->prepare("UPDATE recurring_orders SET aktivni = 0 WHERE id = ? AND odberatel_id = ? AND aktivni = 1");
+        $st->execute([$ruleId, $odberatel_id]);
+        if ($st->rowCount() < 1) return false;
+    } catch (Throwable $e) { error_log('b2b recurring stop: ' . $e->getMessage()); return false; }
+    try {
+        $r = $pdo->prepare("SELECT r.nazev, o.nazev AS odb FROM recurring_orders r LEFT JOIN odberatele o ON o.id = r.odberatel_id WHERE r.id = ?");
+        $r->execute([$ruleId]);
+        $row = $r->fetch() ?: [];
+        $pdo->prepare("INSERT INTO notifications (kind, title, msg, link, severity) VALUES ('recurring_stop', ?, ?, '#/recurring', 'info')")
+            ->execute([mb_substr('⏹️ Odběratel zastavil pravidelnou objednávku', 0, 200),
+                       ($row['odb'] ?? 'Odběratel') . ' zastavil pravidlo „' . ($row['nazev'] ?? ('#' . $ruleId)) . '" (' . $duvod . '). Další objednávky z něj nevzniknou.']);
+    } catch (Throwable $e) { /* tabulka notifikací nemusí existovat — zastavení platí i tak */ }
+    return true;
+}
+
+/** ID pravidla z tagu „[Recurring #N]" v poznámce objednávky (0 = není z pravidla). */
+function b2b_recurring_id_z_poznamky(?string $pozn): int {
+    return preg_match('/\[Recurring #(\d+)\]/', (string) $pozn, $m) ? (int) $m[1] : 0;
+}
+
+/**
+ * 🐛 v3.0.644 — sdílený guard PŘEDOBJEDNÁVKY sezónního výrobku (POST i PUT): vrací chybovou hlášku,
+ *   když se výrobek dodává až od startu sezóny a datum dodání je dřív; jinak null.
+ */
+function b2b_predobjednavka_chyba(PDO $pdo, array $c, string $datum, int $vid): ?string {
+    if (empty($c['sezona'])) return null;
+    require_once __DIR__ . '/_seasonal_lib.php';
+    $spm = seasonal_product_meta($pdo, $c['sezona']);
+    if ($spm['predobjednavka'] && $spm['dodani_od'] && $datum < $spm['dodani_od']) {
+        $odKdy = date('j. n. Y', strtotime($spm['dodani_od']));
+        return '„' . (($c['nazev'] ?? '') !== '' ? $c['nazev'] : "výrobek $vid") . "“ je předobjednávka — dodání možné od {$odKdy}. Posuňte datum dodání.";
+    }
+    return null;
+}
+
 // =============================================================
 // GET - seznam nebo detail (pouze vlastní)
 // =============================================================
@@ -64,6 +106,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // 💱 v3.0.642 — částky v měně DOKLADU (jako na PDF), ne dnešním kurzem
         $_one = [$obj]; mena_doc_pole($pdo, 'objednavky', $_one); $obj = $_one[0];
         json_response($obj);
+    }
+
+    // 🐛 v3.0.644 — pravidelné objednávky (pravidla) přihlášeného odběratele → v Historii je může zastavit
+    if (isset($_GET['recurring'])) {
+        try {
+            $st = $pdo->prepare("
+                SELECT id, nazev, frekvence, dny_v_tydnu, datum_zacatku, datum_konce, aktivni, posledni_beh, pocet_vygen,
+                       JSON_LENGTH(polozky_json) AS pocet_polozek
+                FROM recurring_orders
+                WHERE odberatel_id = :odb
+                ORDER BY aktivni DESC, id DESC
+                LIMIT 100
+            ");
+            $st->execute(['odb' => $odberatel_id]);
+            json_response($st->fetchAll());
+        } catch (Throwable $e) {
+            json_response([]);   // tabulka zatím neexistuje (žádné pravidlo nebylo založeno)
+        }
     }
 
     // Speciální endpoint: posledních N objednávek včetně položek (pro znovu-objednání)
@@ -171,6 +231,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("UPDATE objednavky SET interni_pozn = TRIM(CONCAT(IFNULL(interni_pozn,''), '\n📩 ŽÁDOST ZÁKAZNÍKA (', :d, '): ', :z)) WHERE id = :id")
                 ->execute(['d' => date('j.n. H:i'), 'z' => $zprava, 'id' => $id]);
         } catch (Throwable $e) {}
+        json_response(['ok' => true]);
+    }
+
+    // 🐛 v3.0.644 — odběratel zastaví svůj pravidelný plán (Denně / Týdenní plán / pravidlo od dodavatele)
+    if (($_GET['action'] ?? '') === 'recurring_stop') {
+        $rid = (int) ($data['id'] ?? 0);
+        if (!$rid) json_error('Chybí ID plánu', 400);
+        if (!b2b_recurring_zastavit($pdo, $odberatel_id, $rid, 'v portálu')) {
+            // neexistuje / cizí / už zastavené → nic neprozrazovat
+            try { $chk = $pdo->prepare("SELECT aktivni FROM recurring_orders WHERE id = ? AND odberatel_id = ?"); $chk->execute([$rid, $odberatel_id]); $akt = $chk->fetchColumn(); }
+            catch (Throwable $e) { $akt = false; }
+            if ($akt === false) json_error('Plán nenalezen', 404);
+        }
         json_response(['ok' => true]);
     }
 
@@ -290,6 +363,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         json_error('Žádné položky');
     }
 
+    $jeDatum = fn($d) => is_string($d) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) && strtotime($d) !== false;
+    if (!$jeDatum($data['datum_dodani'])) json_error('Neplatné datum dodání');
+
+    // 🐛 v3.0.644 — pravidelné typy: období Platí od–do + první dodání.
+    //   Týdenní plán: první objednávka na NEJBLIŽŠÍ VYBRANÝ den v týdnu ≥ Platí od (dřív vždy na Platí od,
+    //   i když ten den vybraný nebyl → dodávka + faktura navíc, kterou zákazník nechtěl).
+    if ($typ !== 'jednorazova') {
+        if (empty($data['plati_od'])) $data['plati_od'] = $data['datum_dodani'];
+        if (!$jeDatum($data['plati_od'])) json_error('Neplatné datum „Platí od"');
+        if (!empty($data['plati_do'])) {
+            if (!$jeDatum($data['plati_do'])) json_error('Neplatné datum „Platí do"');
+            if ($data['plati_do'] < $data['plati_od']) json_error('„Platí do" nemůže být dřív než „Platí od"');
+        } else {
+            $data['plati_do'] = null;
+        }
+        $data['datum_dodani'] = $data['plati_od'];
+        if ($typ === 'tydenni_plan') {
+            $dnyPlan = (isset($data['dny_v_tydnu']) && is_array($data['dny_v_tydnu']))
+                ? array_values(array_unique(array_filter(array_map('intval', $data['dny_v_tydnu']), fn($x) => $x >= 1 && $x <= 7)))
+                : [];
+            if (!$dnyPlan) $dnyPlan = [1, 2, 3, 4, 5];   // stejný fallback jako pravidlo níže
+            $data['dny_v_tydnu'] = $dnyPlan;
+            $prvni = null;
+            for ($i = 0; $i < 7; $i++) {
+                $d = date('Y-m-d', strtotime($data['plati_od'] . " +$i day"));
+                if (in_array((int) date('N', strtotime($d)), $dnyPlan, true)) { $prvni = $d; break; }
+            }
+            if (!$prvni || (!empty($data['plati_do']) && $prvni > $data['plati_do'])) {
+                json_error('V období „Platí od–do" nepřipadá žádný z vybraných dnů v týdnu');
+            }
+            $data['datum_dodani'] = $prvni;
+        }
+    }
+
     // Validace data dodání - nesmí být v minulosti
     if ($data['datum_dodani'] < date('Y-m-d')) {
         json_error('Datum dodání nesmí být v minulosti');
@@ -356,6 +463,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'sazba'          => (float) ($row['dph'] ?? 0),
                 'min_objednavka' => $row['min_objednavka'] ?? 1,
                 'sezona'         => $row['sezona'] ?? null, // 🍰 v3.0.406 — pro guard předobjednávek
+                'jednotka'       => $row['jednotka'] ?? '',
             ];
         }
 
@@ -367,21 +475,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mn  = (float) ($p['mnozstvi'] ?? 0);
 
             $c = $cenik[$vid] ?? null;
-            if (!$c) throw new Exception("Výrobek $vid není dostupný");
-            if ($mn <= 0) throw new Exception("Neplatné množství u výrobku $vid");
+            // 🐛 v3.0.644 — hlášky s NÁZVEM výrobku (dřív jen interní ID „výrobku 57" → zákazník nevěděl který)
+            if (!$c) {
+                $nz = '';
+                try { $sn = $pdo->prepare("SELECT nazev FROM vyrobky WHERE id = ?"); $sn->execute([$vid]); $nz = (string) $sn->fetchColumn(); } catch (Throwable $e) {}
+                throw new Exception(($nz !== '' ? '„' . $nz . '“' : 'Jeden z výrobků v košíku') . ' už není v nabídce — odeberte ho z košíku.');
+            }
+            $nzC = ($c['nazev'] ?? '') !== '' ? $c['nazev'] : "výrobek $vid";
+            if ($mn <= 0) throw new Exception("Neplatné množství u „{$nzC}“");
             $min = (float) ($c['min_objednavka'] ?? 1);
-            if ($mn < $min) throw new Exception("Minimální objednávka výrobku $vid je $min");
+            if ($mn < $min) throw new Exception("Minimální objednávka „{$nzC}“ je " . rtrim(rtrim(number_format($min, 3, ',', ''), '0'), ',') . ' ' . ($c['jednotka'] ?: 'ks'));
 
             // 🍰 v3.0.406 — PŘEDOBJEDNÁVKA: sezónní výrobek viditelný v předstihu
             //   (predstih_dni před startem) lze objednat jen s dodáním OD startu sezóny.
-            if (!empty($c['sezona'])) {
-                require_once __DIR__ . '/_seasonal_lib.php';
-                $spm = seasonal_product_meta($pdo, $c['sezona']);
-                if ($spm['predobjednavka'] && $spm['dodani_od'] && ($data['datum_dodani'] ?? '') < $spm['dodani_od']) {
-                    $odKdy = date('j. n. Y', strtotime($spm['dodani_od']));
-                    throw new Exception('„' . ($c['nazev'] ?? "výrobek $vid") . "“ je předobjednávka — dodání možné od {$odKdy}. Posuňte datum dodání.");
-                }
-            }
+            if ($chybaPred = b2b_predobjednavka_chyba($pdo, $c, (string) ($data['datum_dodani'] ?? ''), $vid)) throw new Exception($chybaPred);
 
             $bez += $c['cena_bez_dph'] * $mn;
             $dph += $c['cena_bez_dph'] * $mn * ($c['sazba'] / 100);
@@ -489,11 +596,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     : null;
                 // 'tydne' bez dnů by se nikdy nespustil → fallback Po–Pá
                 if ($frekvence === 'tydne' && empty($dny)) $dny = '1,2,3,4,5';
+                // 🐛 v3.0.644 — cena_bez_dph = null → generátor bere při každém vytvoření AKTUÁLNÍ ceník
+                //   odběratele (jako každá jiná B2B objednávka); dřív se navždy zmrazila cena z prvního dne.
+                //   Řádky příplatků (doprava/poplatek, vyrobek_id=NULL) si cenu nesou dál jako dřív.
                 $recPolozky = array_map(fn($p) => [
                     'vyrobek_id'    => $p['vyrobek_id'],
                     'vyrobek_nazev' => $p['nazev'] ?? '',
                     'mnozstvi'      => $p['mnozstvi'],
-                    'cena_bez_dph'  => $p['cena'],
+                    'jednotka'      => !empty($p['vyrobek_id']) ? ($cenik[(int) $p['vyrobek_id']]['jednotka'] ?? null) : null,
+                    'cena_bez_dph'  => !empty($p['vyrobek_id']) ? null : round((float) $p['cena'], 2),
                     'sazba_dph'     => $p['sazba'],
                 ], $polozky_clean);
                 $odbNazev = (string) $pdo->query("SELECT nazev FROM odberatele WHERE id = " . (int) $odberatel_id)->fetchColumn();
@@ -536,8 +647,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try { $docC = mena_doc_castka($pdo, 'objednavky', $obj_id); } catch (Throwable $e) { error_log('objednavky doc_castka: ' . $e->getMessage()); }
         if (($platba === 'stripe' || $platba === 'gopay' || $platba === 'paypal') && $docC && $docC['celkem'] > 0) {   // voucher pokryl vše → není co platit
             require_once __DIR__ . '/_online_platba_lib.php';
-            $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-                     . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+            // 🐛 v3.0.644 — vč. podsložky instalace (dřív https://firma.cz/api/… → 404 webhook i návrat z brány)
+            $baseUrl = app_public_base();
             $stmtOdb = $pdo->prepare("SELECT nazev, login_email, email FROM odberatele WHERE id = :id");
             $stmtOdb->execute(['id' => $odberatel_id]);
             $odb = $stmtOdb->fetch() ?: [];
@@ -636,6 +747,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $cenikIdx = [];
     foreach ($cenik as $v) $cenikIdx[(int) $v['id']] = $v;
 
+    // 🐛 v3.0.644 — výrobky, které už v objednávce JSOU (guard předobjednávky jen pro nově přidané:
+    //   co prošlo při vytvoření, nesmí po změně nastavení sezóny zablokovat úpravu množství)
+    $puvodniVids = [];
+    try {
+        $sv = $pdo->prepare("SELECT DISTINCT vyrobek_id FROM objednavky_polozky WHERE objednavka_id = ? AND vyrobek_id IS NOT NULL");
+        $sv->execute([$id]);
+        $puvodniVids = array_map('intval', $sv->fetchAll(PDO::FETCH_COLUMN));
+    } catch (Throwable $e) {}
+
     $polozky_clean = [];
     foreach ($polozky as $p) {
         $vid = (int) ($p['vyrobek_id'] ?? 0);
@@ -644,6 +764,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         if (!isset($cenikIdx[$vid])) continue;
         $min = (float) ($cenikIdx[$vid]['min_objednavka'] ?? 1); // 🆕 v3.0.351 — MOQ i při editaci (parita s create)
         if ($mn < $min) json_error('Minimální objednávka výrobku ' . ($cenikIdx[$vid]['nazev'] ?? $vid) . ' je ' . $min, 400);
+        // 🐛 v3.0.644 — PŘEDOBJEDNÁVKA i při úpravě (parita s POST): sezónní výrobek s dodáním až od startu
+        //   sezóny nejde přidat do objednávky s dřívějším datem dodání (dřív PUT prošel → výroba/DL/faktura předčasně)
+        if (!in_array($vid, $puvodniVids, true)
+            && ($chybaPred = b2b_predobjednavka_chyba($pdo, $cenikIdx[$vid], (string) $orig['datum_dodani'], $vid))) {
+            json_error($chybaPred, 400);
+        }
         $polozky_clean[] = [
             'vyrobek_id' => $vid,
             'mnozstvi'   => $mn,
@@ -858,12 +984,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
         log_zmena_objednavky($pdo, $id, 'odberatel', $odberatel_id, $odberatel_nazev, 'zrusena');
 
+        // 🐛 v3.0.644 — objednávka z PRAVIDELNÉHO PLÁNU (tag [Recurring #N]): dřív zrušení pravidlo nezastavilo
+        //   a cron zrušený den dokonce vytvořil znovu. Teď: ?plan=stop → zastavit celý plán, ?plan=keep → jen
+        //   tento den (cron ho už znovu nevytvoří — anti-duplikát počítá i se zrušenými). Bez parametru:
+        //   zrušení objednávky, která plán ZALOŽILA (typ Denně / Týdenní plán), zastaví plán; zrušení
+        //   jednotlivé vygenerované objednávky jen ten den.
+        $planZastaven = false;
+        $ruleId = b2b_recurring_id_z_poznamky($orig['poznamka'] ?? '');
+        if ($ruleId) {
+            $planParam = (string) ($_GET['plan'] ?? '');
+            $zastavit = $planParam === 'stop'
+                || ($planParam === '' && in_array($orig['typ'] ?? '', ['pravidelna_denni', 'tydenni_plan'], true));
+            if ($zastavit) $planZastaven = b2b_recurring_zastavit($pdo, $odberatel_id, $ruleId, 'zrušením objednávky ' . ($orig['cislo'] ?? ('#' . $id)));
+        }
+
         notifikace_zmena_objednavky($pdo, $id, $orig, [
             'zruseno' => true,
             'kdo'     => $odberatel_nazev,
         ]);
 
-        json_response(['ok' => true]);
+        json_response(['ok' => true, 'plan_zastaven' => $planZastaven]);
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         error_log('objednavky DELETE: ' . $e->getMessage());

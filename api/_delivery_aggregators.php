@@ -129,7 +129,7 @@ function da_get_integration(string $sluzba): ?array {
  * Vrátí veřejnou webhook URL pro službu (kterou user vloží do partner portalu).
  */
 function da_webhook_url(string $sluzba): string {
-    $base = defined('APP_URL') ? rtrim(APP_URL, '/') : '';
+    $base = app_public_base(defined('APP_URL') ? APP_URL : null);   // 🐛 v3.0.644 — vč. podsložky instalace
     $files = [
         'wolt'       => '/api/wolt_webhook.php',
         'bolt'       => '/api/bolt_food_webhook.php',

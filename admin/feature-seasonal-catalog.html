@@ -246,19 +246,45 @@ function toggle(id) {
   render();
 }
 
+// 🐛 v3.0.644 — POST s CSRF tokenem (require_admin() ho u POST vyžaduje striktně → bez něj vždy 403 csrf_invalid).
+//   Token stejný jako admin api(): localStorage 'appek_csrf_token', jinak čerstvý z whoami.php; při
+//   csrf_invalid se jednou obnoví a request zopakuje.
+async function _csrfToken(fresh) {
+  let t = '';
+  if (!fresh) { try { t = localStorage.getItem('appek_csrf_token') || ''; } catch (e) {} }
+  if (!t) {
+    try {
+      const w = await fetch('../api/whoami.php', { credentials: 'include' }).then(r => r.json());
+      t = (w && w.csrf_token) || '';
+      if (t) { try { localStorage.setItem('appek_csrf_token', t); } catch (e) {} }
+    } catch (e) {}
+  }
+  return t;
+}
+async function postJson(url, data) {
+  const send = async (fresh) => fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await _csrfToken(fresh) },
+    body: JSON.stringify(data),
+  });
+  let r = await send(false);
+  if (r.status === 403) {
+    const j = await r.clone().json().catch(() => ({}));
+    if (j && j.error === 'csrf_invalid') r = await send(true);
+  }
+  return r;
+}
+
 async function doPreview() {
   if (!state.selectedIds.size) { alert('Vyber alespoň 1 výrobek.'); return; }
   $('#preview-pane').style.display = 'block';
   $('#preview-result').innerHTML = '<div class="alert">⏳ Generuji preview…</div>';
   try {
-    const r = await fetch('../api/feature_seasonal_catalog.php?action=preview', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        theme: state.theme, subject: state.subject, intro: state.intro,
-        vyrobek_ids: [...state.selectedIds],
-        recipient_filter: state.recipientFilter,
-      }),
+    const r = await postJson('../api/feature_seasonal_catalog.php?action=preview', {
+      theme: state.theme, subject: state.subject, intro: state.intro,
+      vyrobek_ids: [...state.selectedIds],
+      recipient_filter: state.recipientFilter,
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
@@ -290,14 +316,10 @@ async function doSend() {
   $('#preview-pane').style.display = 'block';
   $('#preview-result').innerHTML = '<div class="alert">📧 Odesílám e-maily…</div>';
   try {
-    const r = await fetch('../api/feature_seasonal_catalog.php?action=send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        theme: state.theme, subject: state.subject, intro: state.intro,
-        vyrobek_ids: [...state.selectedIds],
-        recipient_filter: state.recipientFilter,
-      }),
+    const r = await postJson('../api/feature_seasonal_catalog.php?action=send', {
+      theme: state.theme, subject: state.subject, intro: state.intro,
+      vyrobek_ids: [...state.selectedIds],
+      recipient_filter: state.recipientFilter,
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);

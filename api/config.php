@@ -57,7 +57,7 @@ if (DB_NAME === '' || DB_USER === '') {
     if (!str_contains($script, 'install.php') && !str_contains($script, 'force-update.php')) {
         // Pokud HTTP request: redirect na install
         if (!headers_sent() && PHP_SAPI !== 'cli') {
-            header('Location: /install.php');
+            header('Location: ' . app_base_path() . '/install.php');   // 🐛 v3.0.644 — i instalace v podsložce
             exit;
         }
     }
@@ -1218,6 +1218,28 @@ function app_base_path(): string {
 /** 'uploads/logo/x.png' → '/uploads/logo/x.png' (root) | '/appek/uploads/logo/x.png' (podsložka). */
 function app_url_path(string $path): string {
     return app_base_path() . '/' . ltrim($path, '/');
+}
+
+/**
+ * 🐛 v3.0.644 — ABSOLUTNÍ veřejná URL kořene instalace VČETNĚ podsložky, bez koncového '/':
+ *   'https://firma.cz' (root) | 'https://firma.cz/appek' (podsložka). Odkazy ven (webhook/návrat
+ *   platební brány, QR stolu, QR platby účtu, e-maily, sdílení, cron URL) se dřív skládaly jen
+ *   ze scheme://HTTP_HOST nebo APP_URL bez podsložky → na instalaci do podsložky 404.
+ *   $origin = null → doména aktuálního requestu (CLI: APP_URL); předané APP_URL zachová dosavadní
+ *   preferenci kanonické domény. Origin, který už cestu obsahuje (APP_URL s podsložkou), se bere beze změny.
+ */
+function app_public_base(?string $origin = null): string {
+    $origin = rtrim(trim((string) $origin), '/');
+    if ($origin === '' && PHP_SAPI !== 'cli' && !empty($_SERVER['HTTP_HOST'])) {
+        $sch = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'
+            || ((int) ($_SERVER['SERVER_PORT'] ?? 0)) === 443) ? 'https' : 'http';
+        $origin = $sch . '://' . $_SERVER['HTTP_HOST'];
+    }
+    if ($origin === '') $origin = rtrim((string) (defined('APP_URL') ? APP_URL : ''), '/');
+    if ($origin === '') $origin = 'http://localhost';
+    if (trim((string) parse_url($origin, PHP_URL_PATH), '/') !== '') return $origin;   // už obsahuje podsložku
+    return $origin . app_base_path();
 }
 
 /**

@@ -856,19 +856,25 @@ window.cakeSubmitOrder = async function() {
     alert('Nejprve nastav velikost / příchuť / dekoraci v konfigurátoru.');
     return;
   }
+  const payload = {
+    odberatel_id: odberatelId,
+    datum_dodani: datum,
+    vyrobek_id: state._cake.prichut,
+    velikost_id: state._cake.velikost_id,
+    volby: state._cake.volby || {},
+    text: state._cake.text,
+    foto: (state._cake.foto || '').trim(),
+  };
   try {
-    const r = await api('admin_cake_configurator.php?action=create_order', {
-      method: 'POST',
-      body: JSON.stringify({
-        odberatel_id: odberatelId,
-        datum_dodani: datum,
-        vyrobek_id: state._cake.prichut,
-        velikost_id: state._cake.velikost_id,
-        volby: state._cake.volby || {},
-        text: state._cake.text,
-        foto: (state._cake.foto || '').trim(),
-      }),
-    });
+    let r;
+    try {
+      r = await api('admin_cake_configurator.php?action=create_order', { method: 'POST', body: JSON.stringify(payload) });
+    } catch (e) {
+      // 🐛 v3.0.644 — server hlídá kapacitní plán dne (zavřeno / plno) → vědomé překročení po potvrzení
+      if (!/^KAPACITA:/.test(e.message || '')) throw e;
+      if (!confirm(e.message.replace(/^KAPACITA:\s*/, '') + '\n\nPřesto objednávku vytvořit?')) return;
+      r = await api('admin_cake_configurator.php?action=create_order', { method: 'POST', body: JSON.stringify({ ...payload, prekrocit_kapacitu: true }) });
+    }
     closeModal();
     toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: fmt(r.castka) }));
     setTimeout(() => navigate('objednavky'), 600);
