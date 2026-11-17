@@ -572,6 +572,17 @@ function apply_full_schema(PDO $pdo): void {
     }
 
     // ════════════════════════════════════════════════════════════
+    // 5b. 💱 v3.0.643 — PLATBA V KČ I V CIZÍ MĚNĚ (balík 0): mena_kurzy, ledger platby_doklad,
+    //     mena_kurz_prodej/castka_mena/pay_* na dokladech, měna účtů stolu, sazba DPH položek
+    //     účtu, odberatele.mena_platby. Definice + backfill castka_mena v _mena_lib.php
+    //     (mena_ensure_schema — jediný zdroj pravdy; marker nastaveni.mena_schema_ver).
+    // ════════════════════════════════════════════════════════════
+    try {
+        require_once __DIR__ . '/_mena_lib.php';
+        if (function_exists('mena_ensure_schema')) mena_ensure_schema($pdo);
+    } catch (Throwable $e) { error_log('apply_full_schema mena 5b: ' . $e->getMessage()); }
+
+    // ════════════════════════════════════════════════════════════
     // 6. 📊 ÚČETNÍ INTEGRACE (POHODA / FlexiBee) — accounting_sync_log + accounting_export_state.
     //    Definice v _ucetni_lib.php (jediný zdroj pravdy), idempotentní CREATE IF NOT EXISTS.
     // ════════════════════════════════════════════════════════════

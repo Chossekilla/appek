@@ -18,6 +18,12 @@
  *                                      a ceny surovin (cena/kurz) + config.zakladni = kod,
  *                                      transakce + zápis do activity logu. UI před tím
  *                                      vynucuje zálohu DB (admin_zalohy create).
+ *                                      🆕 v3.0.643 — 409, když jsou zapnuté platby ve více měnách.
+ *
+ * 🆕 v3.0.643 — PLATBA V KČ I V CIZÍ MĚNĚ (blok config.platba, viz _mena_lib.php):
+ * POST ?action=save_platba { platba:{…} } → uloží volby (aktivni jen při ceníku v Kč, jinak 409)
+ * POST ?action=kurzy_obnovit             → stáhne dnešní kurzy ČNB do mena_kurzy
+ * GET  (bez action) navíc vrací kurzy{KOD:{kurz,datum,nacteno_at}} a platba_info (stav kurzů)
  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
@@ -35,7 +41,30 @@ $action = $_GET['action'] ?? '';
 // ── GET config ────────────────────────────────────────────────────────
 if ($method === 'GET' && $action === '') {
     $cfg = mena_config_load($pdo);
-    json_response(['config' => $cfg, 'podporovane' => MENA_PODPOROVANE]);
+    json_response(['config' => $cfg, 'podporovane' => MENA_PODPOROVANE,
+                   'kurzy' => mena_admin_posledni_kurzy($pdo), 'platba_info' => mena_platebni_info($pdo, 'admin')]);
+}
+
+/** Poslední uložený kurz ČNB pro každou měnu (pro UI nastavení). */
+function mena_admin_posledni_kurzy(PDO $pdo): array {
+    $out = [];
+    try {
+        $rows = $pdo->query("SELECT k.mena, k.kurz, k.datum, k.nacteno_at FROM mena_kurzy k
+                             JOIN (SELECT mena, MAX(datum) d FROM mena_kurzy WHERE zdroj = 'cnb' GROUP BY mena) x
+                               ON x.mena = k.mena AND x.d = k.datum WHERE k.zdroj = 'cnb'")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $r) $out[$r['mena']] = ['kurz' => (float) $r['kurz'], 'datum' => $r['datum'], 'nacteno_at' => $r['nacteno_at']];
+    } catch (Throwable $e) { /* tabulka ještě není */ }
+    return $out;
+}
+
+/** Uloží celý config (legacy pole + blok platba) — jediný zápis mena_config_json. */
+function mena_admin_uloz(PDO $pdo, array $legacy, array $platba): void {
+    unset($platba['prijimane']);
+    $legacy['platba'] = $platba;
+    if (!empty($platba['aktivni'])) $legacy['zobrazeni'] = 'kc';
+    $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('mena_config_json', :v)
+                   ON DUPLICATE KEY UPDATE hodnota = VALUES(hodnota)")
+        ->execute(['v' => json_encode($legacy, JSON_UNESCAPED_UNICODE)]);
 }
 
 // ── GET kurz z ČNB ────────────────────────────────────────────────────
@@ -43,21 +72,12 @@ if ($method === 'GET' && $action === 'cnb') {
     $kod = strtoupper(trim((string) ($_GET['kod'] ?? 'EUR')));
     if ($kod === 'CZK') json_error('CZK je základní měna — kurz 1', 400);
     if (!isset(MENA_PODPOROVANE[$kod])) json_error('Nepodporovaná měna', 400);
-    $url = 'https://www.cnb.cz/cs/financni-trhy/devizovy-trh/kurzy-devizoveho-trhu/kurzy-devizoveho-trhu/denni_kurz.txt';
-    $ctx = stream_context_create(['http' => ['timeout' => 15, 'header' => "User-Agent: Appek-B2B/1.0\r\n"]]);
-    $txt = @file_get_contents($url, false, $ctx);
-    if ($txt === false || strlen($txt) < 50) json_error('ČNB kurzovní lístek nedostupný — zadej kurz ručně', 502);
-    // formát: "12.06.2026 #113\nzemě|měna|množství|kód|kurz\nEMU|euro|1|EUR|25,265\n..."
-    $lines = preg_split('/\r?\n/', trim($txt));
-    $datum = explode(' ', $lines[0] ?? '')[0] ?? '';
-    foreach ($lines as $ln) {
-        $p = explode('|', $ln);
-        if (count($p) === 5 && strtoupper(trim($p[3])) === $kod) {
-            $mnozstvi = max(1, (int) $p[2]);
-            $kurz = (float) str_replace(',', '.', $p[4]);
-            if ($kurz <= 0) break;
-            json_response(['kurz' => round($kurz / $mnozstvi, 4), 'datum' => $datum, 'kod' => $kod]);
-        }
+    // 🆕 v3.0.643 — sdílené stažení (_mena_lib) + uložení do mena_kurzy (historie kurzů)
+    $l = mena_cnb_stahni(null, 15);
+    if (!$l) json_error('ČNB kurzovní lístek nedostupný — zadej kurz ručně', 502);
+    try { mena_kurzy_uloz($pdo, $l); } catch (Throwable $e) { /* tabulka ještě není — kurz i tak vrátíme */ }
+    if (isset($l['kurzy'][$kod])) {
+        json_response(['kurz' => round($l['kurzy'][$kod], 4), 'datum' => date('d.m.Y', strtotime($l['datum'])), 'kod' => $kod]);
     }
     json_error("Měna $kod v lístku ČNB nenalezena", 404);
 }
@@ -103,10 +123,44 @@ if ($action === 'save') {
         'kurz_zdroj' => (($cfg['kurz_zdroj'] ?? 'rucni') === 'cnb' && $kod !== 'CZK') ? 'cnb' : 'rucni',
         'zakladni' => $akt['zakladni'],
     ];
-    $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('mena_config_json', :v)
-                   ON DUPLICATE KEY UPDATE hodnota = VALUES(hodnota)")
-        ->execute(['v' => json_encode($save, JSON_UNESCAPED_UNICODE)]);
+    mena_admin_uloz($pdo, $save, $akt['platba']);   // 🆕 v3.0.643 — blok platba zůstává
     json_response(['ok' => true, 'config' => mena_config_load($pdo)]);
+}
+
+// ── 🆕 v3.0.643 — uložit volby plateb ve více měnách ──────────────────
+if ($action === 'save_platba') {
+    $akt = mena_config_load($pdo);
+    $in = is_array($d['platba'] ?? null) ? $d['platba'] : [];
+    $p = mena_platba_norm($in, $akt);
+    if (!empty($in['aktivni']) && $akt['zakladni'] !== 'CZK') {
+        json_error('Ceník je trvale přepočtený do ' . $akt['zakladni'] . ' — platby v Kč i cizí měně zapnout nejde (ceník musí zůstat v Kč). Návrat = obnova zálohy DB z doby před přepočtem.', 409);
+    }
+    if ($p['aktivni'] && $p['kurz_zdroj'] === 'rucni') {
+        foreach ($p['meny'] as $m) {
+            if (empty($p['kurzy_rucni'][$m])) json_error("Zadej vlastní kurz pro $m (kolik Kč je 1 $m), nebo zvol kurz ČNB.", 400);
+        }
+    }
+    if (trim((string) ($in['iban_eur'] ?? '')) !== '' && $p['iban_eur'] === '') json_error('EUR IBAN nemá platný formát (např. CZ65 0800 0000 1920 0014 5399).', 400);
+    $legacy = ['kod' => $akt['kod'], 'kurz' => $akt['kurz'], 'zobrazeni' => $akt['zobrazeni'], 'dual_doklady' => $akt['dual_doklady'],
+               'kurz_zdroj' => $akt['kurz_zdroj'], 'zakladni' => $akt['zakladni']];
+    $prelozeno = null;
+    if ($p['aktivni'] && !$akt['platba']['aktivni'] && $akt['zobrazeni'] === 'mena' && $akt['kod'] !== 'CZK') {
+        // Starý režim „prodávat v cílové měně" → výchozí měna platby (ceník i zobrazení zůstávají v Kč)
+        if (!array_key_exists('vychozi', $in) && in_array($akt['kod'], $p['prijimane'], true)) $p['vychozi'] = $akt['kod'];
+        $prelozeno = 'Režim „prodávat v ' . $akt['kod'] . '" je nahrazen volbou měny u každé platby (výchozí ' . $p['vychozi'] . ').';
+    }
+    mena_admin_uloz($pdo, $legacy, $p);
+    // Kurz ČNB hned stáhni, ať první platba v cizí měně nečeká (selhání nevadí — zkusí to cron/líně)
+    if ($p['aktivni'] && $p['kurz_zdroj'] === 'cnb') { try { mena_kurzy_aktualizuj($pdo, null, 8); } catch (Throwable $e) { /* ignore */ } }
+    json_response(['ok' => true, 'config' => mena_config_load($pdo), 'kurzy' => mena_admin_posledni_kurzy($pdo),
+                   'platba_info' => mena_platebni_info($pdo, 'admin'), 'prelozeno' => $prelozeno]);
+}
+
+// ── 🆕 v3.0.643 — ručně obnovit kurzy ČNB ─────────────────────────────
+if ($action === 'kurzy_obnovit') {
+    $l = mena_kurzy_aktualizuj($pdo, null, 15);
+    if (!$l) json_error('ČNB kurzovní lístek nedostupný — zkus to později (platby použijí poslední známý kurz).', 502);
+    json_response(['ok' => true, 'datum' => $l['datum'], 'kurzy' => mena_admin_posledni_kurzy($pdo), 'platba_info' => mena_platebni_info($pdo, 'admin')]);
 }
 
 // ── TRVALÝ přepočet ceníku ────────────────────────────────────────────
@@ -118,6 +172,8 @@ if ($action === 'prepocet') {
     $cil = strtoupper(trim((string) ($d['kod'] ?? $akt['kod'])));
     if ($cil === 'CZK' || !isset(MENA_PODPOROVANE[$cil])) json_error('Vyber cílovou měnu (EUR, USD…) a ulož ji před přepočtem', 400);
     if ($akt['zakladni'] !== 'CZK') json_error('Ceník už je přepočtený do ' . $akt['zakladni'], 400);
+    // 🆕 v3.0.643 — trvalý přepočet a platby ve více měnách se vylučují (ceník musí zůstat v Kč)
+    if ($akt['platba']['aktivni']) json_error('Trvalý přepočet ceníku nejde, dokud jsou zapnuté platby v Kč i cizí měně — ceník musí zůstat v Kč a měna se volí u každé platby. Nejdřív platby ve více měnách vypni.', 409);
     $admin = function_exists('aktualni_admin') ? (aktualni_admin($pdo)['jmeno'] ?? 'Admin') : 'Admin';
     $pdo->beginTransaction();
     try {
@@ -144,9 +200,7 @@ if ($action === 'prepocet') {
         //   kurz zůstává = Kč za 1 jednotku (pro rekapitulaci DPH v Kč na dokladech).
         $novy = ['kod' => $cil, 'kurz' => round($kurz, 4), 'zobrazeni' => 'mena', 'dual_doklady' => $akt['dual_doklady'],
                  'kurz_zdroj' => $akt['kurz_zdroj'], 'zakladni' => $cil];
-        $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('mena_config_json', :v)
-                       ON DUPLICATE KEY UPDATE hodnota = VALUES(hodnota)")
-            ->execute(['v' => json_encode($novy, JSON_UNESCAPED_UNICODE)]);
+        mena_admin_uloz($pdo, $novy, array_merge($akt['platba'], ['aktivni' => false]));
         $pdo->commit();
         json_response(['ok' => true, 'prepocteno' => $pocet, 'kurz' => $kurz, 'config' => mena_config_load($pdo)]);
     } catch (Throwable $e) {

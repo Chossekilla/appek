@@ -226,6 +226,13 @@ if ($method === 'GET') {
     json_response($stmt->fetchAll());
 }
 
+/** 💱 v3.0.643 — měna platby odběratele: kód z MENA_PODPOROVANE, jinak NULL (= výchozí firmy). */
+function odb_mena_platby($v): ?string {
+    require_once __DIR__ . '/_mena_lib.php';
+    $v = strtoupper(trim((string) $v));
+    return ($v !== '' && isset(MENA_PODPOROVANE[$v])) ? $v : null;
+}
+
 if ($method === 'POST') {
     $d = json_input();
     if (empty($d['nazev'])) json_error('Chybí název');
@@ -239,8 +246,8 @@ if ($method === 'POST') {
                                     email, telefon, kontaktni_osoba,
                                     login_email, heslo_hash,
                                     splatnost_dni, sleva_pct, blokovan, notif_emaily, poznamka,
-                                    cenova_skupina_id, typ, jazyk_dokladu)
-            VALUES (:c,:n,:ico,:dic,:ul,:me,:psc,:em,:tel,:ko,:log,:hash,:sp,:sl,:bl,:nf,:po,:cs,:tp,:jd)
+                                    cenova_skupina_id, typ, jazyk_dokladu, mena_platby)
+            VALUES (:c,:n,:ico,:dic,:ul,:me,:psc,:em,:tel,:ko,:log,:hash,:sp,:sl,:bl,:nf,:po,:cs,:tp,:jd,:mp)
         ");
         $stmt->execute([
             'c' => $d['cislo'] ?? null, 'n' => trim($d['nazev']),
@@ -256,6 +263,7 @@ if ($method === 'POST') {
             'cs' => !empty($d['cenova_skupina_id']) ? (int) $d['cenova_skupina_id'] : null,
             'tp' => !empty($d['typ']) ? trim((string)$d['typ']) : null,
             'jd' => in_array($d['jazyk_dokladu'] ?? '', ['cs', 'en', 'es'], true) ? $d['jazyk_dokladu'] : null,
+            'mp' => odb_mena_platby($d['mena_platby'] ?? null),
         ]);
         $odb_id = (int) $pdo->lastInsertId();
 
@@ -318,6 +326,11 @@ if ($method === 'PUT') {
     if (array_key_exists('jazyk_dokladu', $d)) {
         $sql .= ", jazyk_dokladu = :jd";
         $params['jd'] = in_array($d['jazyk_dokladu'], ['cs', 'en', 'es'], true) ? $d['jazyk_dokladu'] : null;
+    }
+    // 💱 v3.0.643 — výchozí měna platby odběratele (NULL = výchozí firmy); jen když ji klient posílá
+    if (array_key_exists('mena_platby', $d)) {
+        $sql .= ", mena_platby = :mp";
+        $params['mp'] = odb_mena_platby($d['mena_platby']);
     }
     if (!empty($d['heslo'])) {
         $sql .= ", heslo_hash = :hash";
