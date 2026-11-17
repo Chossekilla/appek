@@ -2120,6 +2120,11 @@ if ($method === 'POST' && $action === 'print_receipt') {
 }
 
 // 📜 GET ?action=quick_history — POS quick objednávky pro daný den (s detaily)
+// 💱 v3.0.643 — GET ?action=platba_info → měny platby + aktuální kurzy pro pokladnu (přepínač Kč | €)
+if ($method === 'GET' && $action === 'platba_info') {
+    json_response(mena_platebni_info($pdo, 'pos'));
+}
+
 if ($method === 'GET' && $action === 'quick_history') {
     try {
         $date = $_GET['date'] ?? date('Y-m-d');
