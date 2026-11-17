@@ -280,6 +280,33 @@ if (!function_exists('mena_config_load')) {
         return $st->rowCount() > 0;
     }
 
+    /**
+     * 🆕 v3.0.643 — faktura DĚDÍ měnu a kurz ze svých dodacích listů (= z objednávek), ne z globálu
+     * (EUR objednávka → EUR faktura i po přepnutí výchozí měny). DL v různých měnách na jedné faktuře
+     * → MenaException 409 (hromadná fakturace je předem dělí podle měny). Bez snapshotu → jako dřív.
+     */
+    function mena_zdedit_z_dl(PDO $pdo, int $faId, array $dlIds): void {
+        $dlIds = array_values(array_filter(array_map('intval', $dlIds)));
+        $rows = [];
+        if ($dlIds) {
+            $kp = fn(string $t, string $a) => mena_ma_sloupec($pdo, $t, 'mena_kurz_prodej') ? "$a.mena_kurz_prodej" : 'NULL';
+            $in = implode(',', $dlIds);
+            $rows = $pdo->query("SELECT IF(dl.objednavka_id IS NULL, dl.mena, o.mena) AS mena,
+                                        IF(dl.objednavka_id IS NULL, dl.mena_kurz, o.mena_kurz) AS mena_kurz,
+                                        IF(dl.objednavka_id IS NULL, " . $kp('dodaci_listy', 'dl') . ", " . $kp('objednavky', 'o') . ") AS mena_kurz_prodej,
+                                        IF(dl.objednavka_id IS NULL, dl.mena_zaklad, o.mena_zaklad) AS mena_zaklad
+                                 FROM dodaci_listy dl LEFT JOIN objednavky o ON o.id = dl.objednavka_id
+                                 WHERE dl.id IN ($in) ORDER BY dl.id")->fetchAll(PDO::FETCH_ASSOC);
+            $rows = array_values(array_filter($rows, fn($r) => !empty($r['mena'])));
+        }
+        $meny = array_values(array_unique(array_map(fn($r) => strtoupper((string) $r['mena']), $rows)));
+        if (count($meny) > 1) {
+            throw new MenaException('meny_smisene', 'Dodací listy jsou v různých měnách (' . implode(', ', $meny) . ') — vystavte fakturu zvlášť pro každou měnu.', 409);
+        }
+        if (!$rows) { mena_snapshot_doklad($pdo, 'faktury', $faId); return; }
+        mena_nastav_doklad($pdo, 'faktury', $faId, $rows[0] + ['mena_kurz_prodej' => null]);
+    }
+
     /** Smí se snapshot přepsat? Jinak MenaException('doklad_zamceny', 409). */
     function mena_prepis_povolen(PDO $pdo, string $tab, int $id): void {
         $zamek = fn(string $proc) => new MenaException('doklad_zamceny', "Měnu dokladu už nelze změnit: $proc.", 409);
@@ -904,6 +931,7 @@ if (!function_exists('mena_config_load')) {
             'restaurant_pos_polozky' => ['sazba_dph' => 'DECIMAL(5,2) NULL'],
             'restaurant_pos_platby'  => ['mena' => "CHAR(3) NOT NULL DEFAULT 'CZK'", 'castka_mena' => 'DECIMAL(12,2) NULL', 'kurz' => 'DECIMAL(12,6) NULL'],
             'odberatele'   => ['mena_platby' => 'CHAR(3) NULL'],
+            'recurring_orders' => ['mena' => 'CHAR(3) NULL'],   // měna opakované objednávky (kurz = den generování)
         ];
         $pridanoCastka = [];
         foreach ($sloupce as $tab => $cols) {

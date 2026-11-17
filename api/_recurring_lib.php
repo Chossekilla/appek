@@ -81,6 +81,20 @@ function recurring_generate(PDO $pdo, string $datum_dodani): array {
                 continue;
             }
 
+            // 💱 v3.0.643 — měna opakované objednávky: pravidlo → výchozí měna odběratele → jako dřív (globál).
+            //   Kurz = den generování. Volba PŘED transakcí (může líně stáhnout kurz ČNB).
+            require_once __DIR__ . '/_mena_lib.php';
+            $mRec = null;
+            try {
+                $mk = strtoupper((string) ($rule['mena'] ?? ''));
+                if ($mk === '') {
+                    $sm = $pdo->prepare("SELECT mena_platby FROM odberatele WHERE id = ?");
+                    $sm->execute([(int) $rule['odberatel_id']]);
+                    $mk = strtoupper((string) $sm->fetchColumn());
+                }
+                if ($mk !== '' && mena_platebni_info($pdo, 'b2b')['aktivni']) $mRec = mena_volba_platby($pdo, $mk, 'b2b');
+            } catch (Throwable $e) { error_log('recurring mena #' . $rule['id'] . ': ' . $e->getMessage()); $mRec = null; }
+
             $pdo->beginTransaction();
 
             // Spočítej celkovou částku
@@ -138,6 +152,11 @@ function recurring_generate(PDO $pdo, string $datum_dodani): array {
                     'p' => $p['poznamka'] ?? null,
                 ]);
             }
+
+            // 💱 v3.0.643 — snapshot měny (zvolená / globál jako dřív) + autoritativní celkem v měně
+            if ($mRec) mena_nastav_doklad($pdo, 'objednavky', (int) $obj_id, $mRec, true);
+            else mena_snapshot_doklad($pdo, 'objednavky', (int) $obj_id);
+            mena_ulozit_castku($pdo, 'objednavky', (int) $obj_id);
 
             // Update pravidla
             $pdo->prepare("UPDATE recurring_orders SET posledni_beh = NOW(), pocet_vygen = pocet_vygen + 1 WHERE id = :id")

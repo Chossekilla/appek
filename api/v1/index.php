@@ -153,6 +153,9 @@ if ($parts[0] === 'faktury' && count($parts) === 1 && $method === 'GET') {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // 💱 v3.0.643 — doc_mena + doc_celkem (+ doc_uhrazeno) = částky v měně dokladu (jako PDF/ISDOC)
+    require_once __DIR__ . '/../_mena_lib.php';
+    mena_doc_pole($pdo, 'faktury', $rows);
 
     $totalStmt = $pdo->prepare("SELECT COUNT(*) FROM faktury f JOIN odberatele od ON od.id = f.odberatel_id $where");
     $totalStmt->execute($params);
@@ -173,6 +176,8 @@ if ($parts[0] === 'faktury' && isset($parts[1]) && $method === 'GET') {
     $stmt->execute(['id' => $id]);
     $fa = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$fa) api_error('Faktura nenalezena', 404);
+    require_once __DIR__ . '/../_mena_lib.php';
+    $_one = [$fa]; mena_doc_pole($pdo, 'faktury', $_one); $fa = $_one[0];   // 💱 v3.0.643 — doc_mena/doc_celkem
 
     // ISDOC export — 🆕 v3.0.383 reálné XML (sdílené funkce z admin_export_isdoc.php přes ISDOC_INCLUDE)
     if (isset($parts[2]) && $parts[2] === 'isdoc') {

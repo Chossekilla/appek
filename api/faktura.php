@@ -97,7 +97,7 @@ if (($_GET['action'] ?? '') === 'vytvor') {
                 ")->execute(['c' => $cislo_fa, 'o' => $dl['odberatel_id'], 'sp' => $spl, 'bez' => $bez, 'dph' => $dph, 'cel' => $cel, 'vs' => $vs]);
                 $fa_id = (int) $pdo->lastInsertId();
                 require_once __DIR__ . '/_mena_lib.php';
-                mena_snapshot_doklad($pdo, 'faktury', $fa_id);   // 💱 v3.0.640 — měna dokladu = měna prodeje v okamžiku vystavení
+                mena_zdedit_z_dl($pdo, $fa_id, [(int) $dl_in]);   // 💱 v3.0.643 — měna z DL
                 $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f,:d)")->execute(['f' => $fa_id, 'd' => $dl_in]);
                 $pdo->prepare("UPDATE dodaci_listy SET fakturovano = 1 WHERE id = :id")->execute(['id' => $dl_in]);
                 $pdo->commit();
@@ -195,7 +195,7 @@ if (($_GET['action'] ?? '') === 'vytvor') {
         ]);
         $fa_id = (int) $pdo->lastInsertId();
         require_once __DIR__ . '/_mena_lib.php';
-        mena_snapshot_doklad($pdo, 'faktury', $fa_id);   // 💱 v3.0.640 — měna dokladu = měna prodeje v okamžiku vystavení
+        mena_zdedit_z_dl($pdo, $fa_id, [(int) $dl_id]);   // 💱 v3.0.643 — měna z objednávky (přes DL)
 
         $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f,:d)")
             ->execute(['f' => $fa_id, 'd' => $dl_id]);
@@ -397,6 +397,16 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
         if (!empty($f['je_dobropis'])) return '';                             // dobropis = vratka, ne platba
         $castka = round((float) ($f['_celkem_doc'] ?? $f['castka_celkem'] ?? 0), 2);   // 💱 v měně dokladu
         if ($castka <= 0) return '';
+        // 💱 v3.0.643 — faktura v EUR → EUR účet (Nastavení → měna → EUR IBAN); bez něj QR NEVZNIKNE
+        //   (dřív šla EUR částka na Kč účet). Jiné cizí měny QR nemají.
+        $menaQr = strtoupper((string) ($f['_mena'] ?? 'CZK'));
+        if ($menaQr !== 'CZK') {
+            if ($menaQr !== 'EUR') return '';
+            require_once __DIR__ . '/_mena_lib.php';
+            $iban = mena_iban_eur($pdo);
+            if ($iban === '') return '';
+            goto spd_sestav;
+        }
         // 1) IBAN z platby configu
         $iban = '';
         try {
@@ -408,6 +418,7 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
         } catch (Throwable $e) { /* ignore */ }
         if ($iban === '') $iban = faktura_cz_ucet_to_iban(firma('banka', ''));  // 2) fallback z bankovního spojení
         if ($iban === '') return '';
+        spd_sestav:
         $vs  = preg_replace('/\D/', '', (string) ($f['variabilni_symbol'] ?? ''));
         $am  = number_format($castka, 2, '.', '');
         // MSG: bez diakritiky a hvězdiček, max 60 znaků (SPAYD limit)
@@ -468,6 +479,7 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
   .foot-custom{margin-top:3mm;text-align:center;font-size:8.5pt;color:#888;line-height:1.45;white-space:pre-line}
   .foot-meta{margin-top:3mm;text-align:center;font-size:8pt;color:#bbb;border-top:1px dotted #eee;padding-top:2mm}
   @media print {
+    .no-print{display:none!important}
     body { background: #fff; padding: 0; margin: 0; }
     .toolbar { display: none; }
     .page {
@@ -665,6 +677,9 @@ if (!function_exists('faktura_cz_ucet_to_iban')) {
         } catch (Throwable $e) { /* bez přepočtu */ }
         // 💸 v3.0.287 — QR Platba (SPD) — naskenuj v bankovní aplikaci, předvyplní platbu
         $spd = faktura_spd_string($f, $pdo);
+        if ($spd === '' && empty($f['je_dobropis']) && strtoupper((string) ($f['_mena'] ?? 'CZK')) === 'EUR') {
+            echo '<div class="no-print" style="font-size:8pt;color:#a8232f;margin-top:6px;max-width:150px;text-align:center">⚠️ QR platba v EUR se nevytvořila — doplňte EUR účet (IBAN) v Nastavení → Přístupy, ceny &amp; měna.</div>';
+        }
         if ($spd !== ''):
       ?>
         <div class="qr-platba" style="margin-top:8px;display:flex;flex-direction:column;align-items:center">

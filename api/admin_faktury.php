@@ -310,6 +310,26 @@ if ($method === 'PUT') {
     $faCelkem = $faRow->fetchColumn();
     if ($faCelkem === false) json_error('Faktura neexistuje', 404);
 
+    // 💱 v3.0.643 — úhrada zadaná v MĚNĚ DOKLADU (EUR faktura): plná = celkem dokladu → přesně castka_celkem,
+    //   částečná = převod prodejním kurzem dokladu (stejně jako doc_uhrazeno zpět). Ukládá se dál v Kč.
+    if (isset($d['castka_uhrazeno_mena']) && is_numeric($d['castka_uhrazeno_mena'])) {
+        require_once __DIR__ . '/_mena_lib.php';
+        $rowsU = [['id' => $fa_id]];
+        mena_doc_pole($pdo, 'faktury', $rowsU);
+        $docM = $rowsU[0]['doc_mena'] ?? 'CZK';
+        $docCel = (float) ($rowsU[0]['doc_celkem'] ?? 0);
+        $xm = round((float) $d['castka_uhrazeno_mena'], 2);
+        if ($xm < 0) json_error('Úhrada nesmí být záporná', 400);
+        if ($docM !== 'CZK') {
+            if ($xm > $docCel + 0.005) json_error('Úhrada (' . $xm . ' ' . $docM . ') přesahuje částku faktury (' . $docCel . ' ' . $docM . ')', 400);
+            $kD = (float) ($rowsU[0]['doc_k'] ?? 0);
+            $d['castka_uhrazeno'] = abs($xm - $docCel) < 0.005 ? (float) $faCelkem : ($kD > 0 ? round($xm / $kD, 2) : $xm);
+            if ($d['castka_uhrazeno'] > (float) $faCelkem) $d['castka_uhrazeno'] = (float) $faCelkem;
+        } else {
+            $d['castka_uhrazeno'] = $xm;
+        }
+    }
+
     // 🆕 v3.0.155 — validace úhrady: číselná, ≥ 0, ne přes částku faktury.
     //   Dřív: záporná → záporná pohledávka, ne-číselná → 500, přeplatek překlepem → tichý zápis.
     if (isset($d['castka_uhrazeno'])) {
@@ -506,7 +526,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
         require_once __DIR__ . '/_mena_lib.php';
         // 💱 v3.0.640 — dobropis MUSÍ být ve stejné měně a kurzu jako opravovaná faktura
         mena_snapshot_doklad($pdo, 'faktury', (int) $srcId);
-        $pdo->prepare("UPDATE faktury d JOIN faktury s ON s.id = ? SET d.mena = s.mena, d.mena_kurz = s.mena_kurz, d.mena_zaklad = s.mena_zaklad WHERE d.id = ?")
+        $pdo->prepare("UPDATE faktury d JOIN faktury s ON s.id = ? SET d.mena = s.mena, d.mena_kurz = s.mena_kurz, d.mena_kurz_prodej = s.mena_kurz_prodej, d.mena_zaklad = s.mena_zaklad WHERE d.id = ?")
             ->execute([(int) $srcId, $dobId]);
         $ins = $pdo->prepare("
             INSERT INTO faktura_polozky (faktura_id, vyrobek_id, vyrobek_cislo, vyrobek_nazev,

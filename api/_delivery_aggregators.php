@@ -901,7 +901,9 @@ function da_handle_inbound_order(string $sluzba, array $parsed): array {
         $sql = "INSERT INTO objednavky (" . implode(',', $fields) . ") VALUES (" . implode(',', $vals) . ")";
         $pdo->prepare($sql)->execute($params);
         $objId = (int) $pdo->lastInsertId();
-        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
+        require_once __DIR__ . '/_mena_lib.php';
+        // 💱 v3.0.643 — Wolt/Bolt/Foodora účtují vždy v Kč (platforma platí v CZK) → explicitně CZK, nikdy globál
+        mena_nastav_doklad($pdo, 'objednavky', $objId, ['mena' => 'CZK', 'mena_kurz' => 1.0, 'mena_zaklad' => 'CZK']);
 
         // 3) Položky — 🐛 v3.0.624: dřív INSERT do neexistujících sloupců cena_ks/cena → povinné cena_bez_dph/sazba_dph
         //   chyběly → KAŽDÁ položka tiše přeskočena (catch) → objednávka z platformy byla PRÁZDNÁ (bez kuchyně, bez odpisu).

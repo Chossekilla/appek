@@ -63,7 +63,7 @@ $placeholders = implode(',', array_fill(0, count($ids), '?'));
 $stmt = $pdo->prepare("
     SELECT o.id, o.cislo, o.odberatel_id, o.misto_dodani_id, o.datum_dodani,
            o.datum_objednani, o.castka_bez_dph, o.castka_dph, o.castka_celkem,
-           o.stav, o.zpusob_platby,
+           o.stav, o.zpusob_platby, o.mena,
            od.nazev AS odberatel_nazev, od.splatnost_dni,
            md.nazev AS misto_nazev,
            (SELECT COUNT(*) FROM objednavky_polozky op WHERE op.objednavka_id = o.id) AS pocet_polozek,
@@ -103,7 +103,7 @@ if ($action === 'preview') {
         $skupiny_dl[$kdl]['objednavky'][] = (int) $o['id'];
         $skupiny_dl[$kdl]['datumy'][] = $o['datum_dodani'];
 
-        $kfa = (string) $o['odberatel_id'];
+        $kfa = $o['odberatel_id'] . '|' . strtoupper((string) ($o['mena'] ?: 'CZK'));   // 💱 v3.0.643 — faktura jen v jedné měně
         if (!isset($skupiny_fa[$kfa])) {
             $skupiny_fa[$kfa] = [
                 'odberatel_id'    => (int) $o['odberatel_id'],
@@ -111,6 +111,7 @@ if ($action === 'preview') {
                 'splatnost_dni'   => (int) ($o['splatnost_dni'] ?? 14), // v3.0.639: 0 dní je platná hodnota (dřív ?: 14)
                 'objednavky'      => [],
                 'castka_celkem'   => 0,
+                'mena'            => strtoupper((string) ($o['mena'] ?: 'CZK')),
             ];
         }
         $skupiny_fa[$kfa]['objednavky'][] = (int) $o['id'];
@@ -240,7 +241,7 @@ if ($action === 'fa') {
             $preskoceno[] = ['id' => (int) $o['id'], 'cislo' => $o['cislo'], 'duvod' => 'Už je na faktuře #' . $o['faktura_id']];
             continue;
         }
-        $k = (int) $o['odberatel_id'];
+        $k = $o['odberatel_id'] . '|' . strtoupper((string) ($o['mena'] ?: 'CZK'));   // 💱 v3.0.643 — EUR a Kč objednávky → zvláštní faktury
         if (!isset($skupiny[$k])) {
             $skupiny[$k] = [
                 'odberatel_id'    => $k,
@@ -324,7 +325,7 @@ if ($action === 'fa') {
             ]);
             $fa_id = (int) $pdo->lastInsertId();
             require_once __DIR__ . '/_mena_lib.php';
-            mena_snapshot_doklad($pdo, 'faktury', $fa_id);   // 💱 v3.0.640 — měna dokladu = měna prodeje v okamžiku vystavení
+            mena_zdedit_z_dl($pdo, $fa_id, $dl_ids);   // 💱 v3.0.643 — měna a kurz z objednávek skupiny
 
             // Linkuj všechny DL k faktuře
             $stmt = $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f, :d)");

@@ -181,6 +181,12 @@ function vykreslitNovouObjednavku() {
         <div style="font-size:12px;color:var(--text-2);margin-bottom:4px">Datum dodání *</div>
         <input class="input" id="no-datum" type="date" value="${esc(s.datum_dodani)}"
                oninput="noState.datum_dodani = this.value" style="width:100%">
+        ${(window._menaCfg && window._menaCfg.platba && window._menaCfg.platba.aktivni) ? `
+          <div style="font-size:12px;color:var(--text-2);margin:8px 0 4px">Měna dokladu</div>
+          <select class="input" id="no-mena" onchange="noState.mena = this.value" style="width:100%">
+            <option value="">Podle odběratele</option>
+            ${['CZK', ...(window._menaCfg.platba.meny || [])].map(m => `<option value="${m}" ${s.mena === m ? 'selected' : ''}>${m === 'CZK' ? 'Kč (CZK)' : m}</option>`).join('')}
+          </select>` : ''}
       </div>
       <div>
         <div style="font-size:12px;color:var(--text-2);margin-bottom:4px">Poznámka (pro odběratele)</div>
@@ -565,6 +571,7 @@ window.ulozitNovouObjednavku = async function() {
         polozky,
         poznamka: s.poznamka || null,
         interni_pozn: s.interni_poznamka || null,
+        mena: s.mena || undefined,   // 💱 v3.0.643 — prázdné = měna odběratele / výchozí
         voucher_kod: s.voucher_kod || undefined, // 🆕 v3.0.631 — server ověří a uplatní (chyba = objednávka se nevytvoří)
       }),
     });

@@ -122,7 +122,7 @@ try {
     ]);
     $fa_id = (int) $pdo->lastInsertId();
     require_once __DIR__ . '/_mena_lib.php';
-    mena_snapshot_doklad($pdo, 'faktury', $fa_id);   // 💱 v3.0.640 — měna dokladu = měna prodeje v okamžiku vystavení
+    mena_zdedit_z_dl($pdo, $fa_id, $dl_ids);   // 💱 v3.0.643 — měna a kurz z DL/objednávek (smíšené měny → 409)
 
     // Naváž všechny DL na fakturu + označ jako fakturované
     $link = $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f, :d)");
@@ -140,6 +140,9 @@ try {
         'pocet_dl' => count($dl_ids),
         'castka_celkem' => $celkem,
     ], 201);
+} catch (MenaException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    json_error($e->getMessage(), $e->http);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     error_log('admin_faktura_z_dl: ' . $e->getMessage());

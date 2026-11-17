@@ -480,6 +480,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'dk' => $data['plati_do'] ?? null,
                 ]);
                 $ruleId = (int) $pdo->lastInsertId();
+                // 💱 v3.0.643 — pravidlo si pamatuje měnu objednávky (generuje se kurzem dne generování)
+                try { $pdo->prepare("UPDATE recurring_orders SET mena = ? WHERE id = ?")->execute([$mObj['mena'] ?? null, $ruleId]); } catch (Throwable $e) {}
                 $pdo->prepare("UPDATE objednavky SET poznamka = TRIM(CONCAT(IFNULL(poznamka,''), ' [Recurring #', :rid, ']')) WHERE id = :id")
                     ->execute(['rid' => $ruleId, 'id' => $obj_id]);
                 $recurringCreated = true;

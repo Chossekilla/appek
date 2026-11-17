@@ -558,6 +558,20 @@ if ($method === 'POST') {
             json_error('Místo dodání nepatří k vybranému odběrateli', 400);
         }
 
+        // 💱 v3.0.643 — měna ruční objednávky: volba ve formuláři → výchozí měna odběratele → jako dřív (globál)
+        require_once __DIR__ . '/_mena_lib.php';
+        $mRucni = null;
+        if (mena_platebni_info($pdo, 'admin')['aktivni']) {
+            $mk = strtoupper(trim((string) ($d['mena'] ?? '')));
+            if ($mk === '') {
+                try { $sm = $pdo->prepare("SELECT mena_platby FROM odberatele WHERE id = ?"); $sm->execute([$odb_id]); $mk = strtoupper((string) $sm->fetchColumn()); } catch (Throwable $e) {}
+            }
+            if ($mk !== '') {
+                try { $mRucni = mena_volba_platby($pdo, $mk, 'admin'); }
+                catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
+            }
+        }
+
         // 🆕 v3.0.144 — retry-on-deadlock: souběh více kanálů/adminů → 40001 (deadlock) /
         //   1205 (lock wait timeout). Zátěž odhalila 1× deadlock. Opakuj celou transakci.
         $obj_id = 0; $cislo = '';
@@ -619,7 +633,8 @@ if ($method === 'POST') {
                 'ip' => $d['interni_pozn'] ?? null,
             ]);
             $obj_id = (int) $pdo->lastInsertId();
-            require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $obj_id);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
+            if ($mRucni) mena_nastav_doklad($pdo, 'objednavky', $obj_id, $mRucni, true);   // 💱 v3.0.643 — zvolená měna
+            else mena_snapshot_doklad($pdo, 'objednavky', $obj_id);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
 
             $stmt = $pdo->prepare("
                 INSERT INTO objednavky_polozky
@@ -653,6 +668,7 @@ if ($method === 'POST') {
                 voucher_objednavka_uplatnit($pdo, $obj_id, (string) $d['voucher_kod'], 'admin', $kdoAdmin);
             }
 
+            mena_ulozit_castku($pdo, 'objednavky', $obj_id);   // 💱 v3.0.643
             $pdo->commit();
             break; // úspěch — ven z retry smyčky
         } catch (PDOException $e) {

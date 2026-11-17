@@ -129,6 +129,19 @@ foreach ($vratky as &$v) {
 }
 unset($v);
 
+// 💱 v3.0.643 — částka vratky v měně dokladu (EUR vratka = EUR, souhrn celkem_kc zůstává v Kč)
+try {
+    require_once __DIR__ . '/_mena_lib.php';
+    $poTypu = ['objednavky' => [], 'faktury' => []];
+    foreach ($vratky as $i => $v) { $t = $v['typ'] === 'faktura' ? 'faktury' : 'objednavky'; if (!empty($v['id'])) $poTypu[$t][$i] = ['id' => (int) $v['id']]; }
+    foreach ($poTypu as $t => $rowsV) {
+        if (!$rowsV) continue;
+        $keys = array_keys($rowsV); $list = array_values($rowsV);
+        mena_doc_pole($pdo, $t, $list);
+        foreach ($keys as $j => $i) if (isset($list[$j]['doc_mena'])) { $vratky[$i]['doc_mena'] = $list[$j]['doc_mena']; $vratky[$i]['doc_celkem'] = $list[$j]['doc_celkem']; }
+    }
+} catch (Throwable $e) { error_log('admin_vratky doc_mena: ' . $e->getMessage()); }
+
 json_response([
     'vratky'    => $vratky,
     'lhuta_dni' => $lhuta,
