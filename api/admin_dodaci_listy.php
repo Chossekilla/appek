@@ -269,6 +269,7 @@ try {
                     ]);
                 }
 
+                require_once __DIR__ . '/_mena_lib.php'; mena_ulozit_castku($pdo, 'dodaci_listy', $dl_id);   // 💱 v3.0.643
                 $pdo->commit();
                 json_response(['ok' => true, 'id' => $dl_id]);
             } catch (Throwable $e) {
@@ -405,6 +406,7 @@ try {
                 ]);
             }
 
+            require_once __DIR__ . '/_mena_lib.php'; mena_ulozit_castku($pdo, 'dodaci_listy', $dl_id);   // 💱 v3.0.643
             $pdo->commit();
 
             json_response([

@@ -384,6 +384,7 @@ if ($method === 'PUT') {
                 'c' => round($bez + $dph, 2), 'id' => $fa_id,
             ]);
 
+            require_once __DIR__ . '/_mena_lib.php'; mena_ulozit_castku($pdo, 'faktury', $fa_id);   // 💱 v3.0.643
             $pdo->commit();
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
@@ -541,6 +542,7 @@ if ($method === 'POST' && ($_GET['action'] ?? '') === 'dobropis') {
                 's' => $it['sazba_dph'], 'p' => $i, 'vp' => (int) $it['id'],
             ]);
         }
+        require_once __DIR__ . '/_mena_lib.php'; mena_ulozit_castku($pdo, 'faktury', $dobId);   // 💱 v3.0.643
         $pdo->commit();
         // 🆕 v3.0.395 — volitelný restock dobropisovaných HOTOVÝCH výrobků na sklad (post-commit, soft-fail).
         $restocked = 0;
@@ -697,6 +699,7 @@ if ($method === 'POST') {
             ]);
         }
 
+        require_once __DIR__ . '/_mena_lib.php'; mena_ulozit_castku($pdo, 'faktury', $fa_id);   // 💱 v3.0.643
         $pdo->commit();
         json_response(['id' => $fa_id, 'cislo' => $cislo], 201);
     } catch (Exception $e) {

@@ -161,6 +161,8 @@ function vytvor_dl_pro_objednavku(PDO $pdo, array $obj, ?string $datum_vystaveni
         LEFT JOIN jednotky j ON j.id = v.jednotka_id
         WHERE p.objednavka_id = :o
     ")->execute(['dl' => $dl_id, 'o' => $obj['id']]);
+    require_once __DIR__ . '/_mena_lib.php';
+    mena_ulozit_castku($pdo, 'dodaci_listy', $dl_id);   // 💱 v3.0.643
 
     return $dl_id;
 }
@@ -342,6 +344,7 @@ if ($action === 'fa') {
                 'pocet_dl'        => count($dl_ids),
                 'castka_celkem'   => round($sum_cel, 2),
             ];
+            mena_ulozit_castku($pdo, 'faktury', $fa_id);   // 💱 v3.0.643
         }
 
         $pdo->commit();

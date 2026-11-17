@@ -132,6 +132,7 @@ try {
         $mark->execute(['id' => $dl_id]);
     }
 
+    mena_ulozit_castku($pdo, 'faktury', $fa_id);   // 💱 v3.0.643
     $pdo->commit();
     json_response([
         'ok' => true,

@@ -100,6 +100,7 @@ if (($_GET['action'] ?? '') === 'vytvor') {
                 mena_zdedit_z_dl($pdo, $fa_id, [(int) $dl_in]);   // 💱 v3.0.643 — měna z DL
                 $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f,:d)")->execute(['f' => $fa_id, 'd' => $dl_in]);
                 $pdo->prepare("UPDATE dodaci_listy SET fakturovano = 1 WHERE id = :id")->execute(['id' => $dl_in]);
+                mena_ulozit_castku($pdo, 'faktury', $fa_id);   // 💱 v3.0.643
                 $pdo->commit();
                 echo json_encode(['faktura_id' => $fa_id, 'cislo' => $cislo_fa]);
                 exit;
@@ -200,6 +201,7 @@ if (($_GET['action'] ?? '') === 'vytvor') {
         $pdo->prepare("INSERT INTO faktury_dodaci_listy (faktura_id, dodaci_list_id) VALUES (:f,:d)")
             ->execute(['f' => $fa_id, 'd' => $dl_id]);
 
+        mena_ulozit_castku($pdo, 'dodaci_listy', (int) $dl_id); mena_ulozit_castku($pdo, 'faktury', $fa_id);   // 💱 v3.0.643
         $pdo->commit();
         echo json_encode(['faktura_id' => $fa_id, 'cislo' => $cislo_fa]);
         exit;
