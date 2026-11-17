@@ -17,6 +17,7 @@ window.otevritRucniDl = async function() {
     odberatel_id: null, misto_dodani_id: null,
     cenik: [], polozky: [], pobocky: [], odberatel: null,
     vsechny_odberatele: [], posledni_objednavky: [],
+    mena: '',   // 💱 🆕 v3.0.645 — '' = měna odběratele / výchozí
   };
 
   try {
@@ -151,6 +152,11 @@ function vykreslitRucniDl() {
         <div class="doc-meta-label"><span class="doc-meta-icon">\ud83d\udcdd</span> Pozn\u00e1mka</div>
         <input class="doc-meta-input" id="rdl-poznamka" value="${esc(s.editId && s.poznamka ? s.poznamka : '')}" placeholder="Voliteln\u00e1\u2026">
       </div>
+      ${(menaVolbaAktivni() || (s.editId && s.mena_pevna && s.mena_pevna !== 'CZK')) ? `
+      <div class="doc-meta-field">
+        <div class="doc-meta-label"><span class="doc-meta-icon">\ud83d\udcb1</span> Měna dokladu</div>
+        <select class="doc-meta-input" id="rdl-mena" ${s.editId ? 'disabled' : ''} onchange="rdlState.mena = this.value">${s.editId ? menaVolbaOptions('', s.mena_pevna || 'CZK') : menaVolbaOptions(s.mena || '')}</select>
+      </div>` : ''}
     </div>
 
     <h3 style="margin:20px 0 8px;font-size:15px">Položky</h3>
@@ -416,7 +422,9 @@ window.rdlVystavit = async function() {
 
   if (s.editId) {
     data.id = s.editId;
-    data.action = 'upravit';
+    data.action = 'upravit';   // měna vystaveného DL se nemění (server ji drží)
+  } else if (s.mena) {
+    data.mena = s.mena;   // 💱 🆕 v3.0.645 — zvolená měna dokladu
   }
 
   if (!data.datum_vystaveni) return alert('Vyplňte datum vystavení');

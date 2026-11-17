@@ -594,6 +594,11 @@ if ($action === 'create_order' && $method === 'POST') {
     $c = catering_compute($pdo, $d);
     if (empty($c['polozky'])) json_error('Nevybral jsi žádné položky', 400);
 
+    // 💱 🆕 v3.0.645 — měna dokladu jako u ruční objednávky (volba → měna odběratele → jako dřív); PŘED transakcí
+    require_once __DIR__ . '/_mena_rucni_lib.php';
+    try { $mRucni = mena_rucni_volba($pdo, $d['mena'] ?? null, $odberatel_id); }
+    catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
+
     $tot = catering_totals($c['polozky']);   // 🆕 v3.0.424 — header z per-line DPH (mix sazeb)
     $bezDPH = $tot['bez'];
     $sDPH   = $tot['celkem'];
@@ -618,7 +623,7 @@ if ($action === 'create_order' && $method === 'POST') {
             'p' => $pozn,
         ]);
         $objId = (int) $pdo->lastInsertId();
-        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
+        mena_rucni_zapsat($pdo, 'objednavky', $objId, $mRucni);   // 💱 🆕 v3.0.645 — zvolená měna (bez volby = měna prodeje v okamžiku vzniku)
 
         $stmt = $pdo->prepare("
             INSERT INTO objednavky_polozky
@@ -637,16 +642,21 @@ if ($action === 'create_order' && $method === 'POST') {
                 's'   => $p['dph'],
             ]);
         }
+        $castkaMena = mena_ulozit_castku($pdo, 'objednavky', $objId);   // 💱 🆕 v3.0.645 — celkem v měně dokladu (jako ruční objednávka)
         $pdo->commit();
 
         try { if (function_exists('notifikace_nova_objednavka')) notifikace_nova_objednavka($pdo, $objId); } catch (Throwable $e) {}
 
         $odecitanych = count(array_filter($c['polozky'], fn($p) => $p['odecte_sklad']));
+        $mq = $pdo->prepare("SELECT mena FROM objednavky WHERE id = ?"); $mq->execute([$objId]);
+        $menaDok = (string) ($mq->fetchColumn() ?: 'CZK');
         json_response([
             'ok'      => true,
             'id'      => $objId,
             'cislo'   => $cislo,
             'castka'  => $sDPH,
+            'mena'        => strtoupper((string) $menaDok),   // 💱 🆕 v3.0.645 — měna dokladu
+            'castka_mena' => $castkaMena,                      //    + celkem v ní (toast)
             'polozek' => count($c['polozky']),
             'odecitanych' => $odecitanych,
             'message' => "Objednávka vytvořena — {$odecitanych} z " . count($c['polozky']) . " položek se odečte ze skladu při výrobě.",

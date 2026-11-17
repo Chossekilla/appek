@@ -471,6 +471,11 @@ if ($action === 'create_order' && $method === 'POST') {
     $bezDPH = 0.0; foreach ($radky as $ra) $bezDPH += $ra['c'] * $ra['mn'];   // = SUM(mnozstvi*cena_bez_dph) jako faktura
     $bezDPH = round($bezDPH, 2);
 
+    // 💱 🆕 v3.0.645 — měna dokladu jako u ruční objednávky (volba → měna odběratele → jako dřív); PŘED transakcí i kontrolou kapacity
+    require_once __DIR__ . '/_mena_rucni_lib.php';
+    try { $mRucni = mena_rucni_volba($pdo, $d['mena'] ?? null, $odberatel_id); }
+    catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
+
     // 🐛 v3.0.644 — kapacitní plán dne (Cukrárna → Kapacita): zavřený den / vyčerpaná kapacita dortů.
     //   Dřív se kapacita nikde nekontrolovala. Vědomé překročení: { prekrocit_kapacitu: true }.
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $datum_dodani)) json_error('Neplatné datum dodání', 400);
@@ -497,16 +502,19 @@ if ($action === 'create_order' && $method === 'POST') {
                        VALUES (:c,:o,NOW(),:dd,:bd,:dh,:sd,'nova',:p,'dort')")
             ->execute(['c' => $cislo, 'o' => $odberatel_id, 'dd' => $datum_dodani, 'bd' => $bezDPH, 'dh' => round($sDPH - $bezDPH, 2), 'sd' => $sDPH, 'p' => "🎂 Dort z konfigurátoru:\n" . $popis]);
         $objId = (int) $pdo->lastInsertId();
-        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
+        mena_rucni_zapsat($pdo, 'objednavky', $objId, $mRucni);   // 💱 🆕 v3.0.645 — zvolená měna (bez volby = měna prodeje v okamžiku vzniku)
         $stmt = $pdo->prepare("INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, surovina_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph)
                                VALUES (:o,:vid,:sid,:n,:jed,:mn,:c,:s)");
         foreach ($radky as $ra) {
             $stmt->execute(['o' => $objId, 'vid' => $ra['vid'], 'sid' => $ra['sid'], 'n' => $ra['n'], 'jed' => $ra['jed'], 'mn' => $ra['mn'], 'c' => $ra['c'], 's' => $dph]);
         }
+        $castkaMena = mena_ulozit_castku($pdo, 'objednavky', $objId);   // 💱 🆕 v3.0.645 — celkem v měně dokladu (jako ruční objednávka)
         $pdo->commit();
         try { if (function_exists('notifikace_nova_objednavka')) notifikace_nova_objednavka($pdo, $objId); } catch (Throwable $e) {}
         $odec = count(array_filter($radky, fn($ra) => $ra['vid'] || $ra['sid']));
-        json_response(['ok' => true, 'id' => $objId, 'cislo' => $cislo, 'castka' => $sDPH, 'radku' => count($radky), 'odecitanych' => $odec, 'message' => 'Objednávka vytvořena — dort + volby se odečtou ze surovin při výrobě.'], 201);
+        $mq = $pdo->prepare("SELECT mena FROM objednavky WHERE id = ?"); $mq->execute([$objId]);
+        $menaDok = strtoupper((string) ($mq->fetchColumn() ?: 'CZK'));
+        json_response(['ok' => true, 'id' => $objId, 'cislo' => $cislo, 'castka' => $sDPH, 'mena' => $menaDok, 'castka_mena' => $castkaMena, 'radku' => count($radky), 'odecitanych' => $odec, 'message' => 'Objednávka vytvořena — dort + volby se odečtou ze surovin při výrobě.'], 201);
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         json_error_safe('Chyba vytvoření', $e, 500);
