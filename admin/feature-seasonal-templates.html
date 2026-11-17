@@ -176,15 +176,41 @@ function toggleItems(btn) {
   btn.textContent = items.classList.contains('open') ? t('hide') : t('show');
 }
 
+// 🐛 v3.0.644 — POST s CSRF tokenem (require_admin() ho u POST vyžaduje striktně → bez něj vždy 403 csrf_invalid).
+//   Token stejný jako admin api(): localStorage 'appek_csrf_token', jinak čerstvý z whoami.php; při
+//   csrf_invalid se jednou obnoví a request zopakuje.
+async function _csrfToken(fresh) {
+  let t = '';
+  if (!fresh) { try { t = localStorage.getItem('appek_csrf_token') || ''; } catch (e) {} }
+  if (!t) {
+    try {
+      const w = await fetch('../api/whoami.php', { credentials: 'include' }).then(r => r.json());
+      t = (w && w.csrf_token) || '';
+      if (t) { try { localStorage.setItem('appek_csrf_token', t); } catch (e) {} }
+    } catch (e) {}
+  }
+  return t;
+}
+async function postJson(url, data) {
+  const send = async (fresh) => fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await _csrfToken(fresh) },
+    body: JSON.stringify(data),
+  });
+  let r = await send(false);
+  if (r.status === 403) {
+    const j = await r.clone().json().catch(() => ({}));
+    if (j && j.error === 'csrf_invalid') r = await send(true);
+  }
+  return r;
+}
+
 async function apply(id, action, name) {
   const msg = (action === 'insert' ? t('confirm_ins') : t('confirm_de')) + ` "${name}"?`;
   if (!confirm(msg)) return;
   try {
-    const r = await fetch('../api/feature_seasonal_templates.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_id: id, action }),
-    });
+    const r = await postJson('../api/feature_seasonal_templates.php', { template_id: id, action });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
     if (action === 'insert') {

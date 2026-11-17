@@ -1124,11 +1124,39 @@ window.removeFromCart = function(id) {
   if (state.currentTab === 'checkout') renderCheckout();
 };
 
+// 🐛 v3.0.644 — MNOŽSTVÍ podle jednotky + MINIMÁLNÍ OBJEDNÁVKA výrobku.
+//   Dřív parseInt → 1,5 kg se uložilo jako 1 kg, 0,5 kg položku smazalo; minimum (min_objednavka)
+//   B2B neznalo → server pak celou objednávku odmítl hláškou s interním ID výrobku.
+function b2bVyr(id) { return (state.vyrobky || []).find((x) => x.id == id) || null; }
+function b2bDelitelna(jed) { const j = (jed || 'ks').toLowerCase(); return j === 'kg' || j === 'l'; }
+// zaokrouhlení dle jednotky: kg/l na 3 desetinná místa, ostatní (ks, g, ml…) na celé
+function b2bZaokrouhli(n, jed) { return b2bDelitelna(jed) ? Math.round(n * 1000) / 1000 : Math.round(n); }
+// minimum výrobku (server: mnozstvi >= min_objednavka, výchozí 1)
+function b2bMin(v) {
+  const m = parseFloat(v && v.min_objednavka);
+  return isNaN(m) ? 1 : Math.max(0, m);   // jako server (min_objednavka ?? 1; 0 = bez minima)
+}
+function b2bMinLabel(v) {
+  const m = parseFloat(v && v.min_objednavka);
+  if (!(m > 1)) return '';
+  return `<div class="card-min" style="font-size:11px;color:var(--text-3);margin-top:2px">min. ${esc(fmtMnozstvi(m, v.jednotka))}</div>`;
+}
+function b2bQtyStep(v) { return b2bDelitelna(v && v.jednotka) ? 'any' : '1'; }
+
 window.setQty = function(id, val) {
-  const n = parseInt(val, 10);
+  const v = b2bVyr(id);
+  const jed = v ? v.jednotka : 'ks';
+  let n = parseFloat(String(val ?? '').replace(',', '.').replace(/\s+/g, ''));
   if (isNaN(n) || n <= 0) {
     delete state.cart[id];
   } else {
+    n = b2bZaokrouhli(n, jed);
+    if (n <= 0) n = b2bDelitelna(jed) ? 0.001 : 1;   // kladný zápis pod zaokrouhlením nesmí položku smazat
+    const min = b2bMin(v);
+    if (n < min) {
+      n = min;
+      toast(`Minimální objednávka „${esc(v ? v.nazev : '')}" je ${esc(fmtMnozstvi(min, jed))}`, 'info');
+    }
     state.cart[id] = n;
   }
   saveCart();
@@ -1722,6 +1750,7 @@ function renderCard(v) {
       <div class="card-body">
         <div class="card-name">${esc(v.nazev)}</div>
         <div class="card-unit">${(parseFloat(v.obsah) > 0 && v.obsah_jednotka) ? String(parseFloat(v.obsah)).replace('.', ',') + ' ' + esc(v.obsah_jednotka) + ' · ' : (v.hmotnost_g ? v.hmotnost_g + ' g · ' : '')}${esc(v.jednotka || 'ks')}</div>
+        ${b2bMinLabel(v)}
         ${v.alergeny ? `<div class="card-alergeny" title="Alergeny (dle nař. 1169/2011): ${esc(v.alergeny)}" style="font-size:10.5px;color:#92400e;background:#FEF3C7;border-radius:6px;padding:2px 7px;margin-top:3px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom">⚠️ ${esc(v.alergeny)}</div>` : ''}
         <div class="card-price-row">
           ${cenaHtml}
@@ -1730,7 +1759,7 @@ function renderCard(v) {
         ${q > 0 ? `
         <div class="card-qty-row">
           <button class="qty-btn" onclick="changeQty(${v.id}, -1)">−</button>
-          <input type="number" class="qty-input" value="${q}" min="0" onchange="setQty(${v.id}, this.value)" onclick="this.select()">
+          <input type="number" class="qty-input" value="${q}" min="0" step="${b2bQtyStep(v)}" inputmode="${b2bDelitelna(v.jednotka) ? 'decimal' : 'numeric'}" onchange="setQty(${v.id}, this.value)" onclick="this.select()">
           <button class="qty-btn" onclick="changeQty(${v.id}, 1)">+</button>
         </div>
         <div class="card-qty-quick-row">
@@ -1762,8 +1791,16 @@ window.setKategorie = function(id) {
 };
 
 window.changeQty = function(id, delta) {
-  const cur = state.cart[id] || 0;
-  const next = Math.max(0, cur + delta);
+  const v = b2bVyr(id);
+  const jed = v ? v.jednotka : 'ks';
+  const min = b2bMin(v);
+  const cur = parseFloat(state.cart[id]) || 0;
+  let next = Math.max(0, b2bZaokrouhli(cur + delta, jed));
+  // 🐛 v3.0.644 — první přidání rovnou na minimum výrobku; ubrání pod minimum položku odebere
+  if (next > 0 && next < min) {
+    if (delta > 0) { next = min; if (min > 1) toast(`Minimální objednávka „${esc(v ? v.nazev : '')}" je ${esc(fmtMnozstvi(min, jed))}`, 'info'); }
+    else next = 0;
+  }
   if (next === 0) delete state.cart[id];
   else state.cart[id] = next;
   saveCart();
@@ -1825,6 +1862,15 @@ function renderCheckout() {
     }
   }
   if (preorderMin && preorderMin > minDate) minDate = preorderMin;
+
+  // 🐛 v3.0.644 — zvolené datum / Platí od–do / poznámka se drží ve state.checkoutData (oninput) a vykreslují
+  //   se z něj: košík se překresluje při každé změně množství, typu i dne v týdnu → dřív se potichu
+  //   vrátily na zítřek / prázdno a objednávka odešla na špatný den bez poznámky.
+  const cd = state.checkoutData;
+  const datumOk = (d) => (d && d >= minDate) ? d : minDate;   // starší než povolené minimum (předobjednávka) → minimum
+  const vDodani = datumOk(cd.datumDodaniPick);
+  const vOd = datumOk(cd.platiOd);
+  const vDo = (cd.platiDo && cd.platiDo >= vOd) ? cd.platiDo : '';
 
   const t = cartTotals();
 
@@ -1928,7 +1974,7 @@ function renderCheckout() {
       ${state.checkoutData.typ === 'jednorazova' ? `
         <div class="form-row">
           <label class="form-label" for="dt-dodani" style="font-weight:500">📅 Datum dodání <span class="form-hint">— defaultně zítra</span></label>
-          <input class="input" type="date" id="dt-dodani" min="${minDate}" value="${minDate}">
+          <input class="input" type="date" id="dt-dodani" min="${minDate}" value="${vDodani}" oninput="state.checkoutData.datumDodaniPick = this.value">
           ${preorderMin ? `<p class="form-hint" style="color:#7C3AED;margin-top:6px">📅 Košík obsahuje předobjednávku (${esc(preorderNazvy[0])}${preorderNazvy.length > 1 ? ' +' + (preorderNazvy.length - 1) : ''}) — dodání možné od ${preorderMin.split('-').reverse().join('. ')}.</p>` : ''}
         </div>
       ` : state.checkoutData.typ === 'naplanovana' ? `
@@ -1943,18 +1989,18 @@ function renderCheckout() {
                 </button>
               `).join('')}
             </div>
-            <input class="input" type="date" id="dt-dodani" min="${minDate}" value="${state.checkoutData.datumDodaniPick || minDate}" style="margin-top:8px">
+            <input class="input" type="date" id="dt-dodani" min="${minDate}" value="${vDodani}" oninput="state.checkoutData.datumDodaniPick = this.value" style="margin-top:8px">
             <p class="form-hint" style="margin-top:6px">Klikni na rychlou volbu nebo vyber datum z kalendáře.</p>
           </div>
         </div>
       ` : `
         <div class="form-row">
           <label class="form-label" for="dt-od" style="font-weight:500">📅 Platí od</label>
-          <input class="input" type="date" id="dt-od" min="${minDate}" value="${minDate}">
+          <input class="input" type="date" id="dt-od" min="${minDate}" value="${vOd}" oninput="state.checkoutData.platiOd = this.value">
         </div>
         <div class="form-row">
           <label class="form-label" for="dt-do" style="font-weight:500">📅 Platí do <span class="form-hint">— volitelné, jinak běží do odvolání</span></label>
-          <input class="input" type="date" id="dt-do" min="${minDate}">
+          <input class="input" type="date" id="dt-do" min="${minDate}" value="${vDo}" oninput="state.checkoutData.platiDo = this.value">
         </div>
         ${state.checkoutData.typ === 'tydenni_plan' ? `
         <div class="form-row">
@@ -1970,7 +2016,7 @@ function renderCheckout() {
 
       <div class="form-row" style="align-items: start;">
         <label class="form-label" for="poznamka" style="font-weight:500">📝 Poznámka <span class="form-hint">— volitelné</span></label>
-        <textarea class="input" id="poznamka" rows="3" placeholder="Speciální požadavky..."></textarea>
+        <textarea class="input" id="poznamka" rows="3" placeholder="Speciální požadavky..." oninput="state.checkoutData.poznamka = this.value">${esc(cd.poznamka || '')}</textarea>
       </div>
       <!-- 🔒 v3.0.431 — GDPR souhlas přesunut vedle tlačítka Odeslat (viz actionsBlock) -->
     </div>
@@ -2043,6 +2089,7 @@ function renderCheckout() {
             <div class="pr-cell pokladna-row-qty">
               <button class="pokladna-qty-minus" onclick="changeQty(${i.id}, -1)" aria-label="Méně">−</button>
               <input type="number" class="pokladna-qty-num" value="${i.mnozstvi}" min="0"
+                     step="${b2bQtyStep(i)}" inputmode="${b2bDelitelna(i.jednotka) ? 'decimal' : 'numeric'}"
                      onchange="setQty(${i.id}, this.value)" onclick="this.select()" title="${fmtMnozstvi(i.mnozstvi, i.jednotka)}">
               <button class="pokladna-qty-plus" onclick="changeQty(${i.id}, 1)" aria-label="Více">+</button>
               <div class="pokladna-qty-quick">
@@ -2113,11 +2160,16 @@ function renderCheckout() {
 // 🆕 v2.5 — DOPRAVA + PLATBA karty (z customer integrací)
 // =============================================================
 async function loadDopravaPlatbaCards() {
+  // 🐛 v3.0.644 — zapnutí přepravci z VEŘEJNÉHO payment_methods.php?context=b2b (jen true/false, žádné klíče).
+  //   Dřív admin_integrace.php → odběratel vždy 401 (require_admin) → Zásilkovna/DPD se v B2B nikdy neukázaly.
+  //   Jeden dotaz slouží i pro platební metody níže.
   let services = { stripe: false, gopay: false, zas: false, dpd: false };
+  let pm = null;
   try {
-    const r = await api('admin_integrace.php?action=all');
-    for (const s of (r.services || [])) services[s.key] = s.enabled;
-  } catch (e) { /* ne-admin route — to je v pořádku, fallback na základní opce */ }
+    const _mn = b2bMenaAktivni() ? (state.checkoutData.mena || '') : '';
+    pm = await api('payment_methods.php?context=b2b' + (_mn && _mn !== 'CZK' ? '&mena=' + encodeURIComponent(_mn) : ''));
+    Object.assign(services, (pm && pm.prepravci) || {});
+  } catch (e) { pm = null; /* fallback na základní opce */ }
 
   // Default selection (z localStorage)
   if (!state.checkoutData.doprava) {
@@ -2136,9 +2188,12 @@ async function loadDopravaPlatbaCards() {
     { key: 'zasilkovna', icon: '📦', label: 'Zásilkovna', desc: 'Výdejní místo po ČR/EU · dobírka možná', enabled: services.zas },
     { key: 'dpd',        icon: '📦', label: 'DPD CZ', desc: 'Kurýrní doručení na adresu · dobírka možná', enabled: services.dpd },
   ];
+  const dopravaVid = dopravaOpts.filter(o => o.always || o.enabled);
+  // uložená volba (localStorage) přepravce, který mezitím není zapnutý → neodesílat neviditelnou dopravu
+  if (!dopravaVid.some(o => o.key === state.checkoutData.doprava)) state.checkoutData.doprava = 'rozvoz';
   const dopravaEl = document.getElementById('b2b-doprava-cards');
   if (dopravaEl) {
-    dopravaEl.innerHTML = dopravaOpts.filter(o => o.always || o.enabled).map(o => `
+    dopravaEl.innerHTML = dopravaVid.map(o => `
       <button type="button" class="b2b-pay-card ${state.checkoutData.doprava === o.key ? 'active' : ''}"
               onclick="setDoprava('${o.key}')" data-svc="${o.key}">
         <span class="b2b-pay-ico">${o.icon}</span>
@@ -2153,12 +2208,7 @@ async function loadDopravaPlatbaCards() {
   // Platba karty — 🆕 v3.0.176 — z VEŘEJNÉHO payment_methods.php?context=b2b
   //   (dřív se četlo admin_integrace.php — to zákazník nesmí → online/faktura se nikdy
   //   nenačetly). Teď faktura + převod + online (Stripe/GoPay) dle nastavení admina.
-  let payMethods = [];
-  try {
-    const _mn = b2bMenaAktivni() ? (state.checkoutData.mena || '') : '';
-    const pm = await api('payment_methods.php?context=b2b' + (_mn && _mn !== 'CZK' ? '&mena=' + encodeURIComponent(_mn) : ''));
-    payMethods = pm.methods || [];
-  } catch (e) { /* fallback níže */ }
+  let payMethods = (pm && pm.methods) || [];
   if (!payMethods.length) {
     payMethods = [
       { key: 'faktura', label: '📄 Faktura + převod' },
@@ -2402,10 +2452,11 @@ function renderTypHelp(typ) {
     pravidelna_denni:
       '🔁 <strong>Denně</strong> — objednávka se vytvoří <strong>každý den</strong> v zadaném období. ' +
       'Když potřebuješ identickou objednávku po dobu několika dní/týdnů (např. dovolenou v hotelu). ' +
-      'Můžeš ji kdykoli upravit nebo zrušit v Historii.',
+      'Jednotlivé objednávky můžeš upravit nebo zrušit v Historii, celý plán tam kdykoli zastavíš (Pravidelné objednávky).',
     tydenni_plan:
       '📅 <strong>Týdenní plán</strong> — objednávka se opakuje <strong>každý týden</strong> ve stejné dny v zvoleném období. ' +
-      'Pro hotely / kavárny s pravidelným rytmem (např. „každý pátek a sobota").',
+      'Pro hotely / kavárny s pravidelným rytmem (např. „každý pátek a sobota"). První dodání je nejbližší vybraný den od data „Platí od". ' +
+      'Plán kdykoli zastavíš v Historii (Pravidelné objednávky).',
   };
   return `<p class="typ-help">${texty[typ] || ''}</p>`;
 }
@@ -2510,6 +2561,8 @@ window.submitOrder = async function() {
   } else {
     data.plati_od = document.getElementById('dt-od').value;
     data.plati_do = document.getElementById('dt-do').value || null;
+    if (data.plati_do && data.plati_od && data.plati_do < data.plati_od) return alert('„Platí do" nemůže být dřív než „Platí od".');
+    // první dodání = Platí od; u Týdenního plánu ho server posune na nejbližší vybraný den v týdnu
     data.datum_dodani = data.plati_od;
     // 🆕 v3.0.207 — týdenní plán: pošli vybrané dny → backend založí recurring pravidlo
     if (typBackend === 'tydenni_plan') {
@@ -2532,6 +2585,9 @@ window.submitOrder = async function() {
     state.cart = {};
     saveCart();
     state.checkoutData.voucher = null;
+    // 🐛 v3.0.644 — vstupy pokladny patří k odeslané objednávce → další začíná čistá
+    state.checkoutData.poznamka = ''; state.checkoutData.datumDodaniPick = null;
+    state.checkoutData.platiOd = null; state.checkoutData.platiDo = null;
 
     // 🆕 v2.9.203 — pokud user zvolil Stripe/GoPay, redirect na platební bránu
     if (res.payment_url) {
@@ -2573,15 +2629,64 @@ async function renderHistory() {
       : `<div class="empty">Zatím žádné objednávky</div>`;
     c.innerHTML = `
       <h1 class="section-title">Historie objednávek</h1>
+      <!-- 🐛 v3.0.644 — pravidelné objednávky (Denně / Týdenní plán) s možností je zastavit -->
+      <div id="b2b-plany"></div>
       ${ordersHtml}
       <!-- 🆕 v3.0.276 — Faktury & dobropisy (transparentnost vratek) -->
       <div id="b2b-doklady" style="margin-top:26px"></div>
     `;
     loadDoklady();
+    loadPlany();
   } catch (e) {
     c.innerHTML = `<h1 class="section-title">Historie</h1><p style="color:var(--danger-text)">Chyba: ${esc(e.message)}</p>`;
   }
 }
+
+// 🐛 v3.0.644 — PRAVIDELNÉ OBJEDNÁVKY zákazníka (pravidla, ze kterých se každý den / týden generují
+//   objednávky). Dřív je zákazník neviděl a nemohl zastavit — zrušení objednávky pravidlo nezastavilo.
+const B2B_FREKVENCE = { denne: 'Denně', tydne: 'Každý týden', dvouty: 'Každé 2 týdny', mesicne: 'Měsíčně (1. týden)' };
+async function loadPlany() {
+  const el = document.getElementById('b2b-plany');
+  if (!el) return;
+  let list;
+  try { list = await api('objednavky.php?recurring=1'); } catch (e) { return; } // volitelná sekce — ticho
+  const aktivni = (list || []).filter(r => r.aktivni == 1);
+  if (!aktivni.length) { el.innerHTML = ''; return; }
+  const dnyN = ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'];
+  el.innerHTML = `
+    <h2 class="section-title" style="font-size:18px;margin-bottom:2px">🔁 Pravidelné objednávky</h2>
+    <p class="section-sub">Z těchto plánů se objednávky vytváří automaticky. Jednu objednávku zrušíš v jejím detailu, celý plán tlačítkem Zastavit.</p>
+    <div class="orders-list" style="margin-bottom:22px">
+      ${aktivni.map(r => {
+        const dny = (r.dny_v_tydnu || '').split(',').filter(Boolean).map(d => dnyN[parseInt(d, 10) - 1]).filter(Boolean).join(', ');
+        return `
+        <div class="order-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+            <div style="min-width:0">
+              <strong>${esc(r.nazev || 'Pravidelná objednávka')}</strong>
+              <div style="font-size:12px;color:var(--text-3);margin-top:2px">${esc(B2B_FREKVENCE[r.frekvence] || r.frekvence || '')}${dny && r.frekvence !== 'denne' ? ' · ' + esc(dny) : ''}
+                · od ${fmtDate(r.datum_zacatku)}${r.datum_konce ? ' do ' + fmtDate(r.datum_konce) : ' (do odvolání)'}
+                · ${parseInt(r.pocet_polozek || 0, 10)} ${parseInt(r.pocet_polozek || 0, 10) === 1 ? 'položka' : 'položek'}</div>
+            </div>
+            <button class="btn-cancel-order" onclick="zastavitPlan(${parseInt(r.id, 10)})">⏹️ Zastavit</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+window.loadPlany = loadPlany;
+
+window.zastavitPlan = async function(id) {
+  if (!confirm('Zastavit tento pravidelný plán?\n\nDalší objednávky se z něj už nevytvoří. Objednávky, které už vznikly, zůstanou — případně je zruš jednotlivě v Historii.')) return;
+  try {
+    await api('objednavky.php?action=recurring_stop', { method: 'POST', body: JSON.stringify({ id }) });
+    toast('Plán byl zastaven.');
+    renderHistory();
+  } catch (e) {
+    alert('Chyba: ' + e.message);
+  }
+};
 
 // 🆕 v3.0.276 — Faktury & dobropisy zákazníka (volitelná sekce v Historii).
 //   Zákazník vidí i vystavené DOB- dobropisy (vrácení/oprava) → transparentnost.
@@ -2828,7 +2933,7 @@ function renderDetailObjednavky(o) {
       <button class="btn-secondary" onclick="closeModal()">Zavřít</button>
       <div class="grow"></div>
       ${lze ? `
-        <button class="btn-cancel-order" onclick="zrusitObjednavku(${o.id})">❌ Zrušit objednávku</button>
+        <button class="btn-cancel-order" onclick="zrusitObjednavku(${o.id}, ${(() => { const m = /\[Recurring #(\d+)\]/.exec(o.poznamka || ''); return m ? parseInt(m[1], 10) : 0; })()})">❌ Zrušit objednávku</button>
         <button class="btn-primary" onclick="zacniUpravuObjednavky(${o.id})">✏️ Upravit objednávku</button>
       ` : `
         <button class="btn-primary" onclick="zadatZmenu(${o.id}, '${esc(String(o.cislo || '')).replace(/'/g, '')}')" title="Objednávka už je ve výrobě/vyfakturovaná — pošli pekárně žádost o změnu nebo storno">✏️ Požádat o změnu / storno</button>
@@ -2860,12 +2965,19 @@ window.zadatZmenu = async function(id, cislo) {
 // =============================================================
 // ZRUŠENÍ OBJEDNÁVKY
 // =============================================================
-window.zrusitObjednavku = async function(id) {
+window.zrusitObjednavku = async function(id, planId) {
   if (!await confirmDelete2x({ co: 'celou tuto objednávku', detail: 'Objednávka bude zrušená a odběrateli odejde potvrzení.' })) return;
+  // 🐛 v3.0.644 — objednávka z pravidelného plánu: zastavit i plán, nebo zrušit jen tento den?
+  //   (dřív plán běžel dál a cron zrušený den dokonce vytvořil znovu)
+  let plan = '';
+  if (planId) {
+    plan = confirm('Tato objednávka patří k pravidelnému plánu.\n\nOK = zastavit i celý plán (další objednávky už nevzniknou)\nZrušit = zrušit jen tuto objednávku, plán poběží dál')
+      ? 'stop' : 'keep';
+  }
   try {
-    await api(`objednavky.php?id=${id}`, { method: 'DELETE' });
+    const r = await api(`objednavky.php?id=${id}${plan ? '&plan=' + plan : ''}`, { method: 'DELETE' });
     closeModal();
-    alert('Objednávka byla zrušena. Email s potvrzením byl odeslán.');
+    alert('Objednávka byla zrušena. Email s potvrzením byl odeslán.' + (r && r.plan_zastaven ? '\nPravidelný plán byl zastaven.' : ''));
     renderHistory();
   } catch (e) {
     alert('Chyba: ' + e.message);

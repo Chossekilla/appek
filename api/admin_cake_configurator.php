@@ -445,15 +445,41 @@ if ($action === 'create_order' && $method === 'POST') {
         if (($vo['priplatek_kc'] ?? 0) == 0 && $lt === 'none') continue; // prázdná volba „Bez…" — přeskoč
         // příplatek je PLOCHÝ za volbu; mnozstvi nese SPOTŘEBU (g suroviny) → cena/jednotku = příplatek/mnozstvi,
         // aby řádek (cena_bez_dph × mnozstvi) = příplatek a zároveň výroba odečetla správné množství.
-        $cenaJed = $mn > 0 ? round((float) $vo['priplatek_kc'] / $mn, 4) : (float) $vo['priplatek_kc'];
-        $radky[] = ['vid' => $vid, 'sid' => $sid, 'n' => $vo['skupina'] . ': ' . $vo['nazev'], 'mn' => $mn, 'c' => $cenaJed, 'jed' => ($vo['jednotka'] ?: 'ks')];
+        // 🐛 v3.0.644 — objednavky_polozky.cena_bez_dph je DECIMAL(10,2): dřív se ukládala cena na 4 místa
+        //   (70 Kč / 60 g = 1,1667 → v DB 1,17 × 60 = 70,20; 10 Kč / 300 g → 0,03 × 300 = 9,00), hlavička se
+        //   počítala z nezaokrouhlené → faktura/přepočet ≠ nabídka. Teď: jde-li příplatek přesně rozpočítat
+        //   na 2 desetinná místa, zůstává jeden řádek; jinak spotřeba (odečet ze skladu) zvlášť za 0 Kč
+        //   a příplatek jako samostatný řádek 1 × příplatek → součet řádků = nabídka = hlavička na haléř.
+        $prip = round((float) $vo['priplatek_kc'], 2);
+        $nazevVolby = $vo['skupina'] . ': ' . $vo['nazev'];
+        $jedVolby = ($vo['jednotka'] ?: 'ks');
+        $cenaJed = $mn > 0 ? round($prip / $mn, 2) : $prip;
+        if ($mn > 0 && abs(round($cenaJed * $mn, 2) - $prip) > 0.004) {
+            $radky[] = ['vid' => $vid, 'sid' => $sid, 'n' => $nazevVolby, 'mn' => $mn, 'c' => 0.0, 'jed' => $jedVolby];
+            if ($prip != 0.0) $radky[] = ['vid' => null, 'sid' => null, 'n' => $nazevVolby . ' — příplatek', 'mn' => 1, 'c' => $prip, 'jed' => 'ks'];
+        } else {
+            $radky[] = ['vid' => $vid, 'sid' => $sid, 'n' => $nazevVolby, 'mn' => $mn, 'c' => $cenaJed, 'jed' => $jedVolby];
+        }
     }
     if ($r['text'] !== '' && !empty($cfg['text_na_dortu']['povolit'])) {
         $radky[] = ['vid' => null, 'sid' => null, 'n' => 'Text na dortu: „' . mb_substr($r['text'], 0, 60) . '"', 'mn' => 1, 'c' => (float) $cfg['text_na_dortu']['priplatek_kc'], 'jed' => 'ks'];
     }
 
-    $bezDPH = 0.0; foreach ($radky as $ra) $bezDPH += $ra['c'] * $ra['mn'];
+    // 🐛 v3.0.644 — hlavička ze STEJNÝCH (na 2 místa zaokrouhlených) hodnot, jaké se uloží do řádků
+    foreach ($radky as &$ra) $ra['c'] = round((float) $ra['c'], 2);
+    unset($ra);
+    $bezDPH = 0.0; foreach ($radky as $ra) $bezDPH += $ra['c'] * $ra['mn'];   // = SUM(mnozstvi*cena_bez_dph) jako faktura
     $bezDPH = round($bezDPH, 2);
+
+    // 🐛 v3.0.644 — kapacitní plán dne (Cukrárna → Kapacita): zavřený den / vyčerpaná kapacita dortů.
+    //   Dřív se kapacita nikde nekontrolovala. Vědomé překročení: { prekrocit_kapacitu: true }.
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $datum_dodani)) json_error('Neplatné datum dodání', 400);
+    if (empty($d['prekrocit_kapacitu'])) {
+        require_once __DIR__ . '/_daily_capacity_lib.php';
+        if ($kapProblem = daily_capacity_problem($pdo, (string) $datum_dodani, 1)) {
+            json_response(['error' => 'KAPACITA: ' . $kapProblem, 'kod' => 'kapacita'], 409);
+        }
+    }
     $sDPH   = round($bezDPH * (1 + $dph / 100), 2);
 
     try {

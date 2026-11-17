@@ -243,7 +243,7 @@ if ($action === 'share' && $method === 'POST') {
         $pdo->prepare("UPDATE tydenni_menu SET public_token = :t WHERE id = :id")->execute(['t' => $tok, 'id' => $id]);
         $w['public_token'] = $tok;
     }
-    $base = defined('APP_URL') && APP_URL ? rtrim(APP_URL, '/') : ((($_SERVER['HTTPS'] ?? '') === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    $base = app_public_base(defined('APP_URL') ? APP_URL : null);   // 🐛 v3.0.644 — vč. podsložky instalace
     json_response(['ok' => true, 'url' => $base . '/api/menu_public.php?t=' . $w['public_token']]);
 }
 

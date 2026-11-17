@@ -23,7 +23,8 @@ async function renderRecurring() {
       <div class="card-block" style="margin-bottom:14px;padding:12px 16px;background:var(--info-bg);color:var(--info-text);font-size:13px;line-height:1.6">
         💡 <strong>Jak to funguje:</strong> Vytvoříte pravidlo (např. „Hotel Beránek — pondělí, středa: 30 chlebů + 50 rohlíků").
         Každou noc cron skript (volitelně přes web s tokenem) vygeneruje objednávky pro zítřejší den.
-        Anti-duplikát zajistí, že se obj nevytvoří dvakrát.
+        Anti-duplikát zajistí, že se obj nevytvoří dvakrát (ani na den, kdy byla objednávka zrušena).
+        Položka bez ceny se nacení podle aktuálního ceníku odběratele; zablokovanému odběrateli ani neaktivním výrobkům se nic negeneruje.
       </div>
 
       ${list.length === 0 ? `
@@ -181,15 +182,24 @@ window.recurringEdit = async function(id) {
 
 function recurringPolozkaRow(p, idx, vyrobky) {
   return `
-    <div class="rec-polozka-row" data-idx="${idx}" style="display:grid;grid-template-columns:2fr 100px 80px 100px auto;gap:8px;margin-bottom:6px;align-items:center">
+    <div class="rec-polozka-row" data-idx="${idx}" onchange="recurringPolozkaZmena(event, this)" style="display:grid;grid-template-columns:2fr 100px 80px 100px auto;gap:8px;margin-bottom:6px;align-items:center">
       ${vyrComboRow('rec-pol-vyrobek', vyrobky, p.vyrobek_id, 'data-fld="vyrobek_id"')}
       <input class="form-input rec-pol-mn" type="number" step="0.01" min="0" data-fld="mnozstvi" value="${p.mnozstvi || ''}" placeholder="ks">
       <input class="form-input" type="text" data-fld="jednotka" value="${esc(p.jednotka || 'ks')}" placeholder="jed.">
-      <input class="form-input" type="number" step="0.01" min="0" data-fld="cena_bez_dph" value="${p.cena_bez_dph || ''}" placeholder="Cena">
+      <input class="form-input" type="number" step="0.01" min="0" data-fld="cena_bez_dph" value="${parseFloat(p.cena_bez_dph) > 0 ? p.cena_bez_dph : ''}" placeholder="dle ceníku" title="Cena bez DPH za jednotku. Prázdné = při každém vygenerování aktuální cena z ceníku odběratele (skupina, slevy, sezóna). Vyplněná = pevná cena.">
       <button type="button" class="btn-danger" style="padding:6px 10px;font-size:12px" onclick="this.closest('.rec-polozka-row').remove()">×</button>
     </div>
   `;
 }
+
+// 🐛 v3.0.644 — výběr výrobku v řádku: doplní jednotku výrobku (vyrComboPick vyšle change na skrytém inputu).
+//   Cenu záměrně NEpředvyplňujeme základní cenou — prázdná = aktuální ceník odběratele při generování.
+window.recurringPolozkaZmena = function(ev, row) {
+  const t = ev && ev.target;
+  if (!t || t.dataset.fld !== 'vyrobek_id') return;
+  const jedEl = row.querySelector('[data-fld="jednotka"]');
+  if (jedEl && t.dataset.jed) jedEl.value = t.dataset.jed;
+};
 
 window.recurringAddPolozka = function() {
   const host = document.getElementById('rec-polozky');
@@ -205,7 +215,9 @@ window.recurringSave = async function(id) {
     const vid = parseInt(idEl.value);
     const mn  = parseFloat(row.querySelector('[data-fld="mnozstvi"]').value) || 0;
     const jed = row.querySelector('[data-fld="jednotka"]').value || 'ks';
-    const cena = parseFloat(row.querySelector('[data-fld="cena_bez_dph"]').value) || 0;
+    // 🐛 v3.0.644 — prázdná cena = null („dle ceníku" při generování), dřív 0 → objednávky/DL/faktury za 0 Kč
+    const cenaRaw = parseFloat(row.querySelector('[data-fld="cena_bez_dph"]').value);
+    const cena = cenaRaw > 0 ? cenaRaw : null;
     if (vid && mn > 0) {
       // 🆕 v3.0.279 — DPH + název z hidden inputu comboboxu (data-* nastaví vyrComboRow/vyrComboPick)
       const dph = parseFloat(idEl.dataset.dph) || 12;

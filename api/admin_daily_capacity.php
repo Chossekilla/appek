@@ -41,57 +41,9 @@ $pdo->exec("
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ");
 
-// Defaultní limity (jeden řádek v nastaveni JSON)
-function default_capacity(PDO $pdo): array {
-    try {
-        $raw = $pdo->query("SELECT hodnota FROM nastaveni WHERE klic = 'default_daily_capacity'")->fetchColumn();
-        if ($raw) {
-            $d = json_decode($raw, true);
-            if (is_array($d)) return $d;
-        }
-    } catch (Throwable $e) {}
-    return ['max_dortu' => 8, 'max_chlebicku' => 200, 'max_zakousku' => 80];
-}
-
-// Spočítá obsazenost pro daný den (kolik dortů už je objednáno)
-function get_occupancy(PDO $pdo, string $date): array {
-    $out = ['dortu' => 0, 'chlebicku' => 0, 'zakousku' => 0];
-    try {
-        // 🆕 v3.0.295 — primárně podle EXPLICITNÍHO vyrobky.obor (provázání s balíčky);
-        //   fallback na starou heuristiku z názvu kategorie pro výrobky bez nastaveného oboru.
-        $hasObor = false;
-        try { $hasObor = in_array('obor', $pdo->query("SHOW COLUMNS FROM vyrobky")->fetchAll(PDO::FETCH_COLUMN), true); } catch (Throwable $e) {}
-        $oborSel = $hasObor ? 'v.obor' : 'NULL';
-        $rows = $pdo->prepare("
-            SELECT $oborSel AS obor, k.nazev AS kat, COALESCE(SUM(op.mnozstvi), 0) AS qty
-            FROM objednavky o
-            JOIN objednavky_polozky op ON op.objednavka_id = o.id
-            LEFT JOIN vyrobky v ON v.id = op.vyrobek_id
-            LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
-            WHERE o.datum_dodani = :d AND o.stav != 'zrusena'
-            GROUP BY obor, k.nazev
-        ");
-        $rows->execute(['d' => $date]);
-        foreach ($rows->fetchAll() as $r) {
-            $qty = (float) $r['qty'];
-            $obor = $r['obor'] ?? '';
-            if ($obor === 'dort')      { $out['dortu']     += $qty; continue; }
-            if ($obor === 'chlebicek') { $out['chlebicku'] += $qty; continue; }
-            if ($obor === 'zakusek')   { $out['zakousku']  += $qty; continue; }
-            // bez oboru → fallback heuristika z názvu kategorie
-            $name = mb_strtolower($r['kat'] ?? '');
-            if (str_contains($name, 'dort'))      $out['dortu']     += $qty;
-            elseif (str_contains($name, 'chlebíč') || str_contains($name, 'chlebic')) $out['chlebicku'] += $qty;
-            elseif (str_contains($name, 'zákus')  || str_contains($name, 'zakus') || str_contains($name, 'koláč'))  $out['zakousku']  += $qty;
-        }
-        // 🆕 v3.0.295 — objednávky z dort konfigurátoru (puvod='dort', volný řádek bez vyrobek_id)
-        //   = 1 dort každá; přičti (jinak by konfigurované dorty nebyly v kapacitě vidět).
-        $cfg = $pdo->prepare("SELECT COUNT(*) FROM objednavky WHERE puvod = 'dort' AND datum_dodani = :d AND stav != 'zrusena'");
-        $cfg->execute(['d' => $date]);
-        $out['dortu'] += (float) $cfg->fetchColumn();
-    } catch (Throwable $e) { /* tabulky možná chybí */ }
-    return $out;
-}
+// 🐛 v3.0.644 — default_capacity() + get_occupancy() přesunuty do _daily_capacity_lib.php
+//   (sdílí je i konfigurátor dortů — kontrola kapacity při vytvoření objednávky)
+require_once __DIR__ . '/_daily_capacity_lib.php';
 
 if ($method === 'GET') {
     $date = $_GET['date'] ?? null;

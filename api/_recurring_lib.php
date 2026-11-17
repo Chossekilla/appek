@@ -29,7 +29,12 @@ function recurring_should_run(array $rule, string $datum): bool {
             return in_array($den, $dnyAktivni, true);
         case 'dvouty':
             // Každý druhý týden: spočítáme týden od datum_zacatku
-            $tydny = floor((strtotime($datum) - strtotime($dz)) / (7 * 86400));
+            // 🐛 v3.0.644 — počítat CELÉ KALENDÁŘNÍ DNY (UTC), ne sekundy v Europe/Prague: přes jarní
+            //   změnu času chyběla v rozdílu hodina → floor o 1 níž → objednávka 2 týdny po sobě a pak
+            //   celé léto ve špatných týdnech (na podzim zase obráceně).
+            $utc = new DateTimeZone('UTC');
+            $dnu = (new DateTimeImmutable(substr($dz, 0, 10), $utc))->diff(new DateTimeImmutable(substr($datum, 0, 10), $utc))->days;
+            $tydny = intdiv((int) $dnu, 7);
             return in_array($den, $dnyAktivni, true) && ($tydny % 2 === 0);
         case 'mesicne':
             // První den měsíce, kde připadne na zaškrtnutý den
@@ -49,18 +54,33 @@ function recurring_generate(PDO $pdo, string $datum_dodani): array {
     $stmt = $pdo->query("SELECT * FROM recurring_orders WHERE aktivni = 1");
     $rules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // 🐛 v3.0.644 — stav odběratele (zablokovaný / „smazaný" = soft-delete blokovan=1, GDPR anonymizace)
+    $odbBlok = $pdo->prepare("SELECT COALESCE(blokovan, 0) FROM odberatele WHERE id = ?");
+
     foreach ($rules as $rule) {
         if (!recurring_should_run($rule, $datum_dodani)) {
             $stats['preskoceno']++;
             continue;
         }
 
+        // 🐛 v3.0.644 — zablokovanému / smazanému odběrateli se nic negeneruje (dřív každou noc
+        //   potvrzená objednávka + e-mail + výroba + faktura zákazníkovi, se kterým se skončilo).
+        //   Pravidlo se NEvypíná — po odblokování pokračuje (zpětně nic nedogeneruje).
+        $odbBlok->execute([(int) $rule['odberatel_id']]);
+        $blok = $odbBlok->fetchColumn();
+        if ($blok === false || (int) $blok === 1) {
+            $stats['preskoceno']++;
+            $stats['detaily'][] = "Přeskočeno: pravidlo „{$rule['nazev']}“ — odběratel je zablokovaný/smazaný";
+            continue;
+        }
+
         // Anti-duplikát: existuje už pro tento datum objednávka z tohoto pravidla?
+        // 🐛 v3.0.644 — počítá se i ZRUŠENÁ: zrušení objednávky na daný den je záměr zákazníka/dodavatele,
+        //   cron ji nesmí na ten den vytvořit znovu (dřív zrušená = „neexistuje" → nová OPAK- obj.).
         $check = $pdo->prepare("
             SELECT id FROM objednavky
             WHERE odberatel_id = :o AND datum_dodani = :d
               AND poznamka LIKE :p
-              AND stav NOT IN ('zrusena')
             LIMIT 1
         ");
         $check->execute([
@@ -81,6 +101,49 @@ function recurring_generate(PDO $pdo, string $datum_dodani): array {
                 continue;
             }
 
+            // 🐛 v3.0.644 — CENY a dostupnost výrobků z AKTUÁLNÍHO ceníku odběratele (skupina/slevy/sezóna):
+            //   - prázdná / nulová cena v pravidle = „dle ceníku" (dřív se vzala doslova → objednávka,
+            //     DL i faktura za 0 Kč, když admin cenu ručně nevepsal);
+            //   - kladná cena v pravidle = vědomý override (jako dřív);
+            //   - výrobek mezitím deaktivovaný/smazaný se neobjedná (dřív se objednával dál) → upozornění.
+            $cenikRule = [];
+            foreach (cenik_pro_odberatele($pdo, (int) $rule['odberatel_id']) as $cr) $cenikRule[(int) $cr['id']] = $cr;
+            $vynechane = [];
+            $polozkyOk = [];
+            foreach ($polozky as $p) {
+                if (!is_array($p) || (float) ($p['mnozstvi'] ?? 0) <= 0) continue;
+                $vid = (int) ($p['vyrobek_id'] ?? 0);
+                $cenaRaw = $p['cena_bez_dph'] ?? null;
+                $maCenu = $cenaRaw !== null && $cenaRaw !== '' && (float) $cenaRaw > 0;
+                if ($vid > 0) {
+                    $cr = $cenikRule[$vid] ?? null;
+                    if (!$cr) { $vynechane[] = ($p['vyrobek_nazev'] ?? '') !== '' ? $p['vyrobek_nazev'] : ('výrobek #' . $vid); continue; }
+                    if (!$maCenu) {
+                        $p['cena_bez_dph'] = (float) $cr['cena_bez_dph'];
+                        $p['sazba_dph']    = (float) ($cr['dph'] ?? ($p['sazba_dph'] ?? 12));
+                    }
+                    if (($p['vyrobek_nazev'] ?? '') === '') $p['vyrobek_nazev'] = $cr['nazev'] ?? '';
+                    if (($p['jednotka'] ?? '') === '' && !empty($cr['jednotka'])) $p['jednotka'] = $cr['jednotka'];
+                } elseif (!$maCenu) {
+                    // volný řádek bez výrobku a bez ceny → nedává smysl objednávat za 0
+                    $vynechane[] = ($p['vyrobek_nazev'] ?? '') !== '' ? $p['vyrobek_nazev'] : 'položka bez výrobku a ceny';
+                    continue;
+                }
+                $polozkyOk[] = $p;
+            }
+            if ($vynechane) {
+                $stats['detaily'][] = "⚠️ Pravidlo „{$rule['nazev']}“: vynechány nedostupné položky — " . implode(', ', $vynechane);
+                try { $pdo->prepare("INSERT INTO notifications (kind, title, msg, link, severity) VALUES ('recurring_polozky', ?, ?, '#/recurring', 'warn')")
+                          ->execute([mb_substr('⚠️ Opakovaná objednávka bez některých položek', 0, 200),
+                                     'Pravidlo „' . ($rule['nazev'] ?? ('#' . $rule['id'])) . '" na ' . $datum_dodani . ': výrobky nejsou aktivní/dostupné, vynechány: ' . implode(', ', $vynechane) . '. Uprav nebo pozastav pravidlo.']); } catch (Throwable $e) {}
+            }
+            if (!$polozkyOk) {
+                $stats['preskoceno']++;
+                $stats['detaily'][] = "Přeskočeno: pravidlo „{$rule['nazev']}“ — žádná dostupná položka";
+                continue;
+            }
+            $polozky = $polozkyOk;
+
             // 💱 v3.0.643 — měna opakované objednávky: pravidlo → výchozí měna odběratele → jako dřív (globál).
             //   Kurz = den generování. Volba PŘED transakcí (může líně stáhnout kurz ČNB).
             require_once __DIR__ . '/_mena_lib.php';
@@ -98,7 +161,7 @@ function recurring_generate(PDO $pdo, string $datum_dodani): array {
                 // záloha = měna bez volby (kanál B2B bez cizí měny / bez kurzu → Kč), nikdy výchozí cizí měna naslepo
                 try { $mRec = !empty(mena_config_load($pdo)['platba']['aktivni']) ? mena_volba_platby($pdo, null, 'b2b') : null; } catch (Throwable $e3) { $mRec = null; }
                 // nemlčet: objednávka vznikne ve výchozí měně (typicky Kč) → upozornit admina
-                try { $pdo->prepare("INSERT INTO notifications (kind, title, msg, link, severity) VALUES ('recurring_mena', ?, ?, '#/objednavky', 'warning')")
+                try { $pdo->prepare("INSERT INTO notifications (kind, title, msg, link, severity) VALUES ('recurring_mena', ?, ?, '#/objednavky', 'warn')")
                           ->execute(['⚠️ Opakovaná objednávka ne v ' . ($mk ?: 'cizí měně'), 'Pravidlo „' . ($rule['nazev'] ?? ('#' . $rule['id'])) . '" na ' . $datum_dodani . ': ' . $e->getMessage() . ' Objednávka vznikla ve výchozí měně — zkontroluj ji.']); } catch (Throwable $e2) {}
             }
 

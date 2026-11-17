@@ -383,7 +383,7 @@ if ($action === 'order' && $method === 'POST') {
     } catch (Throwable $e) {}
 
     // potvrzení zákazníkovi
-    $stavUrl = rtrim((defined('APP_URL') ? APP_URL : ''), '/') . '/objednat/?stav=' . $token;
+    $stavUrl = app_public_base(defined('APP_URL') ? APP_URL : null) . '/objednat/?stav=' . $token;   // 🐛 v3.0.644 — vč. podsložky
     if ($email !== '') {
         try {
             require_once __DIR__ . '/_smtp_lib.php';

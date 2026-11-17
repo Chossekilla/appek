@@ -153,10 +153,7 @@ function pay_set_status(PDO $pdo, int $orderId, string $status, ?string $method 
 }
 
 function pay_base_url(): string {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    // 🐛 v3.0.644 — včetně cesty instalace (podsložka /appek/) → pay_url, návrat z brány i notifikace GoPay
-    //   míří na správné /…/pay/ a /…/api/ (dřív kořen domény = 404, i když platba prošla)
-    return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . app_base_path();
+    return app_public_base();   // 🐛 v3.0.644 — vč. podsložky instalace (dřív /pay/ → 404)
 }
 
 /**

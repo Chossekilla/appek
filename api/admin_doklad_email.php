@@ -51,7 +51,7 @@ $firma_nazev = nastaveni_get_cached($pdo, 'firma_nazev', '') ?: 'Provoz';
 $cislo = '';
 $nazev_souboru = '';
 $pdf_url = '';
-$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+$baseUrl = app_public_base();   // 🐛 v3.0.644 — vč. podsložky instalace (PDF odkaz v e-mailu)
 
 try {
     if ($typ === 'fa') {

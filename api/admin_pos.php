@@ -1075,8 +1075,7 @@ if ($method === 'POST' && $action === 'qr_pay_init') {
     $pdo->prepare("UPDATE restaurant_pos_ucty SET pay_token=:t, pay_status='pending' WHERE id=:id")
         ->execute(['t' => $token, 'id' => $ucetId]);
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    // 🐛 v3.0.644 — instalace v podsložce (https://firma.cz/appek/) → dřív /pay/ na kořeni domény = 404
-    $base   = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . app_base_path();
+    $base   = app_public_base();   // 🐛 v3.0.644 — vč. podsložky instalace (dřív /pay/ → 404)
     json_response(['ok' => true, 'token' => $token, 'pay_url' => $base . '/pay/?t=' . $token, 'castka' => (float) $row['suma_kc']]);
 }
 
@@ -1315,8 +1314,7 @@ if ($method === 'POST' && $action === 'qr_generate') {
         $token = pos_table_qr_token($pdo, $stulId);
     }
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    // 🐛 v3.0.644 — cesta instalace (podsložka) — dřív QR na stole vedl na /qr/ kořene domény (404 / web firmy)
-    $url = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . app_url_path('qr/?t=' . $token);
+    $url = app_public_base() . '/qr/?t=' . $token;   // 🐛 v3.0.644 — vč. podsložky (tištěný QR stolu dřív 404)
     json_response(['token' => $token, 'url' => $url, 'stul_id' => $stulId]);
 }
 

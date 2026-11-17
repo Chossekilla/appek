@@ -106,11 +106,18 @@ try {
         $tpl = SEASONAL_TEMPLATES[$tplId];
 
         if ($action === 'deactivate') {
-            // Deaktivuj všechny vyrobky s cislo začínajícím TPL prefixem
-            $prefix = strtoupper(substr($tplId, 0, 3));
-            $stmt = $pdo->prepare("UPDATE vyrobky SET aktivni = 0 WHERE cislo LIKE :p");
-            $stmt->execute(['p' => '%-' . $prefix . '-%']);
-            echo json_encode(['ok' => true, 'deactivated' => $stmt->rowCount()]);
+            // 🐛 v3.0.644 — deaktivuj PŘESNĚ položky šablony (podle jejich čísel). Dřív prefix ze 3 písmen id
+            //   ('vanoce' → '%-VAN-%', 'velikonoce' → '%-VEL-%') nenašel nic (kódy VAN-XMS-…, MAZ-EAS-…)
+            //   → Vánoce/Velikonoce zůstaly v katalogu i B2B; '%-VAL-%'/'%-HAL-%' zase mohly chytit cizí výrobky.
+            $cisla = array_values(array_unique(array_column($tpl['items'], 'cislo')));
+            $deact = 0;
+            if ($cisla) {
+                $ph = implode(',', array_fill(0, count($cisla), '?'));
+                $stmt = $pdo->prepare("UPDATE vyrobky SET aktivni = 0 WHERE aktivni <> 0 AND cislo IN ($ph)");
+                $stmt->execute($cisla);
+                $deact = $stmt->rowCount();
+            }
+            echo json_encode(['ok' => true, 'deactivated' => $deact]);
             exit;
         }
 
