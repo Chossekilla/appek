@@ -22,6 +22,7 @@
     catalog:       null,   // { kategorie, vyrobky }
     customers:     null,   // cached
     activeTab:     'products',
+    platba_mena:   ((window.POS_CONFIG || {}).platba || {}).vychozi || 'CZK',   // 💱 v3.0.643
   };
 
   // ─── DOM helpers ─────────────────────────────────────────────
@@ -388,6 +389,127 @@
     recalc();
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // 💱 v3.0.643 — PLATBA V KČ I V CIZÍ MĚNĚ (Nastavení → Přístupy, ceny & měna)
+  //   Ceník je v Kč; měnu platby volí prodavač přepínačem Kč | €. Displej počítá STEJNĚ jako
+  //   server (cena/ks v měně na centy, řádek, DPH po řádcích), autoritativní částku vrací server.
+  //   Vypnuto (CFG.platba.aktivni=false) → nic se neukazuje, pokladna jede jako dřív.
+  // ══════════════════════════════════════════════════════════════
+  const PL = () => (CFG.platba || { aktivni: false, meny: {}, prijimane: ['CZK'], vychozi: 'CZK' });
+  const plAktivni = () => !!PL().aktivni && (PL().prijimane || []).length > 1;
+  const plInfo = (m) => (PL().meny || {})[m] || null;
+  const r2c = (x) => { x = +x || 0; return Math.sign(x) * Math.round(Math.abs(x) * 100 + 1e-7) / 100; };
+  const plSym = (m) => ({ CZK: 'Kč', EUR: '€', USD: '$', GBP: '£', PLN: 'zł', HUF: 'Ft', CHF: 'CHF' })[m] || m;
+  const plFmt = (n, m) => (+n || 0).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + plSym(m);
+  // Řádky dokladu tak, jak je uloží server: položky, sleva po sazbách, spropitné, poplatek platby
+  function plRadky(poplatek) {
+    const rows = []; const zakl = {};
+    for (const it of State.cart) {
+      const s = +it.sazba_dph || 0, mn = +it.mnozstvi || 0, c = +it.cena_bez_dph || 0;
+      rows.push([mn, c, s]); zakl[s] = (zakl[s] || 0) + mn * c;
+    }
+    if (State.sleva_pct > 0) for (const s in zakl) { const sb = r2c(zakl[s] * State.sleva_pct / 100); if (sb > 0) rows.push([1, -sb, +s]); }
+    if (State.pos_tip > 0) rows.push([1, +State.pos_tip, 0]);
+    if (poplatek > 0) rows.push([1, r2c(poplatek / 1.21), 21]);
+    return rows;
+  }
+  function plCelkemMena(rows, mena) {
+    const inf = plInfo(mena);
+    if (!inf || !inf.kurz_prodej) return null;
+    const k = 1 / inf.kurz_prodej; let sum = 0, sumKc = 0;
+    for (const [mn, cena, s] of rows) { const c = r2c(cena * k); const z = r2c(mn * c); sum += z + r2c(z * s / 100); sumKc += mn * cena; }
+    return Math.abs(sumKc) < 0.005 ? 0 : r2c(sum);   // 100% sleva/voucher = přesně 0 (jako server)
+  }
+  function renderMenaBar() {
+    let bar = document.getElementById('pos-mena-bar');
+    if (!bar) {
+      const pay = document.querySelector('.pos-payment-bar');
+      if (!pay) return;
+      bar = document.createElement('div');
+      bar.id = 'pos-mena-bar';
+      bar.style.cssText = 'display:none;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 2px';
+      pay.parentNode.insertBefore(bar, pay.nextSibling);
+    }
+    if (!plAktivni()) { bar.style.display = 'none'; State.platba_mena = 'CZK'; return; }
+    const meny = PL().prijimane || ['CZK'];
+    if (!meny.includes(State.platba_mena)) State.platba_mena = PL().vychozi || 'CZK';
+    const inf = plInfo(State.platba_mena);
+    const kurzTxt = State.platba_mena !== 'CZK' && inf && inf.kurz_prodej
+      ? `1 ${plSym(State.platba_mena)} = ${(+inf.kurz_prodej).toLocaleString('cs-CZ', { maximumFractionDigits: 3 })} Kč${inf.datum ? ' · ' + inf.datum.split('-').reverse().join('.') : ''}` : '';
+    bar.innerHTML = `<span style="font-size:12px;color:#6B7280;font-weight:600">Měna platby:</span>`
+      + meny.map(m => {
+          const i = plInfo(m) || {}; const dis = m !== 'CZK' && i.ok === false;
+          return `<button type="button" class="pos-pay-btn${State.platba_mena === m ? ' is-active' : ''}" style="min-width:64px" ${dis ? 'disabled' : ''} title="${esc(dis ? (i.chyba || 'Kurz není k dispozici') : 'Platit v ' + m)}" onclick="POS.setMena('${m}')">${m === 'CZK' ? 'Kč' : esc(plSym(m)) + ' ' + m}</button>`;
+        }).join('')
+      + (kurzTxt ? `<span style="font-size:11.5px;color:#6B7280">${esc(kurzTxt)}</span>` : '');
+    bar.style.display = 'flex';
+  }
+  function setMena(m) { State.platba_mena = m; renderMenaBar(); recalc(); }
+  async function plObnovInfo() {
+    try { CFG.platba = await api('admin_pos.php?action=platba_info'); } catch (e) { /* zůstane původní */ }
+    renderMenaBar(); recalc();
+  }
+  // Hotovost: přijato → vrátit (měna vrácení dle Nastavení: měna platby / Kč / volba prodavače)
+  function plHotovostDialog(castka, mena) {
+    return new Promise((resolve) => {
+      const rez = PL().vraceni || 'mena_platby';
+      const kp = mena === 'CZK' ? 1 : (+(plInfo(mena) || {}).kurz_prodej || 1);
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px';
+      const volba = mena !== 'CZK' && rez === 'volba';
+      ov.innerHTML = `<div style="background:#fff;color:#1F2937;border-radius:18px;padding:22px;max-width:400px;width:100%;font-family:inherit;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+        <div style="font-size:13px;color:#6B7280;font-weight:600">💵 Hotově · k úhradě</div>
+        <div style="font-size:30px;font-weight:800;margin:2px 0 12px">${esc(plFmt(castka, mena))}</div>
+        <label style="font-size:13px;font-weight:600">Přijato (${esc(plSym(mena))})</label>
+        <input id="plh-in" type="number" inputmode="decimal" step="0.01" min="0" placeholder="${esc(String(castka))}" style="width:100%;font-size:24px;padding:10px 12px;border:2px solid #D1D5DB;border-radius:10px;margin:4px 0 8px">
+        <div id="plh-quick" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+        ${volba ? `<div style="display:flex;gap:14px;font-size:14px;margin-bottom:8px"><label><input type="radio" name="plh-vm" value="${mena}" checked> Vrátit v ${esc(plSym(mena))}</label><label><input type="radio" name="plh-vm" value="CZK"> Vrátit v Kč</label></div>` : ''}
+        <div id="plh-out" style="font-size:20px;font-weight:800;min-height:28px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px"><button type="button" id="plh-x" style="flex:1;padding:12px;border-radius:10px;border:1px solid #D1D5DB;background:#fff;font-size:15px">Zrušit</button>
+        <button type="button" id="plh-ok" style="flex:2;padding:12px;border-radius:10px;border:0;background:#16A34A;color:#fff;font-size:16px;font-weight:800">✓ Zaplatit</button></div></div>`;
+      document.body.appendChild(ov);
+      const inp = ov.querySelector('#plh-in'); const out = ov.querySelector('#plh-out');
+      const quick = [castka, ...[5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000].filter(v => v > castka)].slice(0, 5);
+      ov.querySelector('#plh-quick').innerHTML = quick.map(v => `<button type="button" data-v="${v}" style="padding:8px 12px;border-radius:8px;border:1px solid #D1D5DB;background:#F9FAFB;font-size:14px;font-weight:700">${esc(plFmt(v, mena))}</button>`).join('');
+      ov.querySelectorAll('#plh-quick button').forEach(b => b.onclick = () => { inp.value = b.dataset.v; upd(); });
+      const vm = () => volba ? (ov.querySelector('input[name="plh-vm"]:checked') || {}).value : (rez === 'czk' ? 'CZK' : mena);
+      function upd() {
+        const p = parseFloat(String(inp.value).replace(',', '.'));
+        if (!isFinite(p)) { out.textContent = ''; return; }
+        const v = r2c(p - castka);
+        if (v < -0.004) { out.style.color = '#DC2626'; out.textContent = 'Chybí ' + plFmt(-v, mena); return; }
+        out.style.color = '#16A34A';
+        out.textContent = (vm() === 'CZK' && mena !== 'CZK') ? 'Vrátit ' + Math.round(v * kp).toLocaleString('cs-CZ') + ' Kč' : 'Vrátit ' + plFmt(v, mena);
+      }
+      inp.oninput = upd; ov.querySelectorAll('input[name="plh-vm"]').forEach(r => r.onchange = upd);
+      const done = (val) => { ov.remove(); resolve(val); };
+      ov.querySelector('#plh-x').onclick = () => done(null);
+      ov.querySelector('#plh-ok').onclick = () => {
+        const p = parseFloat(String(inp.value).replace(',', '.'));
+        if (isFinite(p) && p + 0.004 < castka) { upd(); return; }
+        done({ prijato: isFinite(p) ? r2c(p) : null, vraceni_mena: vm() });
+      };
+      inp.onkeydown = (e) => { if (e.key === 'Enter') ov.querySelector('#plh-ok').click(); if (e.key === 'Escape') done(null); };
+      setTimeout(() => inp.focus(), 50);
+    });
+  }
+  // Karta v cizí měně: terminál se ovládá ručně → velká výzva s částkou
+  function plTerminalDialog(castka, mena) {
+    return new Promise((resolve) => {
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px';
+      ov.innerHTML = `<div style="background:#fff;color:#1F2937;border-radius:18px;padding:24px;max-width:420px;width:100%;text-align:center;font-family:inherit">
+        <div style="font-size:15px;font-weight:700;color:#6B7280">💳 ZADEJ DO TERMINÁLU</div>
+        <div style="font-size:38px;font-weight:900;margin:8px 0 6px">${esc(plFmt(castka, mena))}</div>
+        <div style="font-size:13px;color:#6B7280;margin-bottom:16px">Na terminálu zvol měnu ${esc(mena)} — ne Kč.</div>
+        <div style="display:flex;gap:8px"><button type="button" id="plt-x" style="flex:1;padding:12px;border-radius:10px;border:1px solid #D1D5DB;background:#fff;font-size:15px">Zrušit</button>
+        <button type="button" id="plt-ok" style="flex:2;padding:12px;border-radius:10px;border:0;background:#16A34A;color:#fff;font-size:16px;font-weight:800">✓ Zaplaceno</button></div></div>`;
+      document.body.appendChild(ov);
+      ov.querySelector('#plt-x').onclick = () => { ov.remove(); resolve(false); };
+      ov.querySelector('#plt-ok').onclick = () => { ov.remove(); resolve(true); };
+    });
+  }
+
   function recalc() {
     let bez = 0, dph = 0;
     for (const it of State.cart) {
@@ -397,15 +519,27 @@
     }
     let slevaAbs = 0;
     if (State.sleva_pct > 0 && State.sleva_pct <= 100) {
-      slevaAbs = (bez + dph) * (State.sleva_pct / 100);
-      bez = bez * (1 - State.sleva_pct / 100);
-      dph = dph * (1 - State.sleva_pct / 100);
+      // 🐛 v3.0.643 — stejně jako server: sleva po sazbách DPH (základ na haléře)
+      const zakl = {};
+      for (const it of State.cart) { const s = +it.sazba_dph || 0; zakl[s] = (zakl[s] || 0) + it.mnozstvi * it.cena_bez_dph; }
+      for (const s in zakl) {
+        const sb = r2c(zakl[s] * State.sleva_pct / 100);
+        if (sb <= 0) continue;
+        bez -= sb; dph -= sb * (+s / 100); slevaAbs += sb * (1 + (+s) / 100);
+      }
     }
     const total = bez + dph + (State.pos_tip || 0);
 
     $('#pos-sub-bez').textContent = fmt(bez);
     $('#pos-sub-dph').textContent = fmt(dph);
     $('#pos-total').textContent   = fmt(total) + ' ' + (CFG.currency || 'Kč');
+    // 💱 v3.0.643 — platba v cizí měně: celkem v ní (shodně se serverem) + Kč pro kontrolu
+    State._celkemKc = Math.round(total * 100) / 100;
+    State._celkemMena = null;
+    if (plAktivni() && State.platba_mena !== 'CZK') {
+      State._celkemMena = plCelkemMena(plRadky(0), State.platba_mena);
+      if (State._celkemMena !== null) $('#pos-total').innerHTML = esc(plFmt(State._celkemMena, State.platba_mena)) + ` <small style="font-size:.55em;opacity:.7;font-weight:600">(${esc(fmt(total))} Kč)</small>`;
+    }
 
     const $sr = $('#pos-sleva-row');
     if ($sr) {
@@ -580,6 +714,8 @@
     State.pos_tip = 0;
     setTyp('sebou');
     setPay('hotove');
+    State.platba_mena = PL().vychozi || 'CZK';   // 💱 po prodeji zpět na výchozí měnu
+    renderMenaBar();
     _pickCust(null);
     renderCart();
   }
@@ -691,6 +827,22 @@
       if (!pickup) return;
     }
     if (!pickup && !confirm(`Dokončit objednávku?\n\nCelkem: ${$('#pos-total').textContent}\nPlatba: ${State.pos_payment}\nTyp: ${State.pos_typ}`)) return;
+    // 💱 v3.0.643 — měna platby + hotovost (přijato/vrátit) + výzva terminálu u karty v cizí měně
+    const plMena = plAktivni() ? State.platba_mena : null;
+    let plPrijato = null, plVraceni = null;
+    if (plMena && !(pickup && pickup.zaplatit_pozdeji)) {
+      const inf = plInfo(plMena);
+      if (plMena !== 'CZK' && (!inf || !inf.ok || !inf.kurz_prodej)) return toast('Platba v ' + plMena + ' teď nejde: ' + ((inf && inf.chyba) || 'chybí kurz'), 'error');
+      const castka = plMena === 'CZK' ? State._celkemKc : State._celkemMena;
+      if (State.pos_payment === 'hotove') {
+        const res = await plHotovostDialog(castka, plMena);
+        if (!res) return;
+        plPrijato = res.prijato; plVraceni = res.vraceni_mena;
+      } else if (State.pos_payment === 'karta' && plMena !== 'CZK') {
+        if (!(PL().terminal_meny || ['CZK']).includes(plMena)) return toast('Platební terminál neumí ' + plMena + ' — zaplať kartou v Kč nebo hotově', 'error');
+        if (!(await plTerminalDialog(castka, plMena))) return;
+      }
+    }
     const btn = $('.pos-finish');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Odesílám…'; }
     try {
@@ -713,13 +865,17 @@
           poznamka:     State.poznamka || '',
           ...(pickup ? { vyzvednuti_cas: pickup.vyzvednuti_cas, vyzvednuti_jmeno: pickup.vyzvednuti_jmeno, vyzvednuti_tel: pickup.vyzvednuti_tel, vyzvednuti_email: pickup.vyzvednuti_email } : {}),
           station_token: (function(){ try { return localStorage.getItem('appek_station_token') || ''; } catch(e){ return ''; } })(),
+          ...(plMena ? { platba_mena: plMena, kurz_klient: plMena !== 'CZK' ? (plInfo(plMena) || {}).kurz_prodej : undefined, prijato: plPrijato, vraceni_mena: plVraceni } : {}),
         }),
       });
-      toast(r.nezaplaceno ? `📦 Uloženo k vyzvednutí · ${r.cislo} · platí při vyzvednutí ${fmt(r.celkem)} Kč` : `✓ Účet ${r.cislo} · ${fmt(r.celkem)} Kč`, 'success');
+      if (plMena && !r.nezaplaceno && (r.mena !== 'CZK' || r.vraceno > 0)) {
+        toast('✓ Účet ' + r.cislo + ' · ' + plFmt(r.celkem_mena, r.mena) + (r.vraceno > 0 ? ' · VRÁTIT ' + (r.vraceno_czk != null ? Math.round(r.vraceno_czk) + ' Kč' : plFmt(r.vraceno, r.vraceno_mena || r.mena)) : ''), 'success');
+      } else toast(r.nezaplaceno ? `📦 Uloženo k vyzvednutí · ${r.cislo} · platí při vyzvednutí ${fmt(r.celkem)} Kč` : `✓ Účet ${r.cislo} · ${fmt(r.celkem)} Kč`, 'success');
       if (pickup && window.POSPickup) window.POSPickup.refresh();
       newOrder();
     } catch (e) {
       toast('Chyba: ' + e.message, 'error');
+      if (/kurz/i.test(e.message || '')) plObnovInfo();   // 💱 kurz se změnil → načti nový a přepočítej
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = '✓ FINISH'; }
     }
@@ -896,6 +1052,7 @@
     pickCustomer:  pickCustomer,
     setTyp:        setTyp,
     setPay:        setPay,
+    setMena:       setMena,       // 💱 v3.0.643
     payMenu:       payMenu,
     menuToggle:    menuToggle,
     printReceipt:  printReceipt,
@@ -916,6 +1073,7 @@
 
   // ─── Init ────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => { renderMenaBar(); if (plAktivni()) plObnovInfo(); }, 0);   // 💱 v3.0.643
     // Search input live binding
     const inp = $('#pos-search');
     if (inp) {
