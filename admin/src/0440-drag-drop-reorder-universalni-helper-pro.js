@@ -764,7 +764,7 @@ window.editVyrobek = async function(id = null) {
   state._vyEditId = id || 0;
   if (!state._vyrobky_pol_cache) {
     api('admin_vyrobky.php').then(r => {
-      state._vyrobky_pol_cache = (r.vyrobky || []).map(x => ({ id: x.id, nazev: x.nazev, je_polotovar: x.je_polotovar }));
+      state._vyrobky_pol_cache = (r.vyrobky || []).map(x => ({ id: x.id, nazev: x.nazev, je_polotovar: x.je_polotovar, jednotka_kod: x.jednotka_kod || 'ks', hmotnost_g: x.hmotnost_g })); // 🐛 v3.0.644 — jednotka/hmotnost pro převod řádku polotovaru
     }).catch(() => { state._vyrobky_pol_cache = []; });
   }
   if (Array.isArray(v.slozeni)) {
@@ -906,7 +906,23 @@ window.vyOdvoditAlergeny = async function(silent) {
   const sur = state._suroviny_cache || [];
   const indexById = Object.fromEntries(sur.map(s => [s.id, s]));
   const set = new Set();
+  // 🐛 v3.0.644 — řádky POLOTOVARU (nemají .sloz-sur → dřív TypeError a alergeny z těsta chyběly):
+  //   alergeny polotovaru = jeho deklarované + rekurzivní rollup receptu (bom_alergeny ze serveru).
+  const polIds = Array.from(rows).map(r => parseInt(r.querySelector('.sloz-pol')?.value) || 0).filter(Boolean);
+  state._vyPolAlerCache = state._vyPolAlerCache || {};
+  await Promise.all([...new Set(polIds)].map(async vid => {
+    if (state._vyPolAlerCache[vid]) return;
+    try {
+      const v = await api('admin_vyrobky.php?id=' + vid);
+      const a = [];
+      String(v.alergeny || '').split(/[,;]/).forEach(x => { x = x.trim(); if (x) a.push(x); });
+      (Array.isArray(v.bom_alergeny) ? v.bom_alergeny : []).forEach(x => { x = String(x).trim(); if (x) a.push(x); });
+      state._vyPolAlerCache[vid] = a;
+    } catch (e) { /* bez spojení → server alergeny doplní při uložení (add-only) */ }
+  }));
+  polIds.forEach(vid => (state._vyPolAlerCache[vid] || []).forEach(a => set.add(a)));
   rows.forEach(r => {
+    if (!r.querySelector('.sloz-sur')) return;   // řádek polotovaru — zpracován výše
     const sid = parseInt(r.querySelector('.sloz-sur').value) || 0;
     if (!sid) return;
     const s = indexById[sid];

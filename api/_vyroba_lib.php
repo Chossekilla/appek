@@ -60,3 +60,23 @@ function vyroba_po_pobockach(array $rozpis): array {
 function vyroba_pocet_objednavek(array $rozpis): int {
     return count(array_unique(array_map(fn($r) => (int) $r['objednavka_id'], $rozpis)));
 }
+
+/**
+ * 🐛 v3.0.644 — Filtr objednávek, které se POČÍTAJÍ do výroby / spotřeby surovin daného dne.
+ *   Pokladna (puvod='pos' — walk-in, dine-in účet, QR účet) odepisuje suroviny už PŘI PRODEJI
+ *   (pos_deduct_ingredients) a prodává hotové zboží → do potřeby výroby nepatří. Dřív je
+ *   „Odepsat suroviny“ odečetl podruhé (sklad do mínusu) a výrobní list je chtěl vyrobit znovu.
+ *   Vratky (refund_of = VRA- se zápornými množstvími) potřebu nesnižují.
+ *   Vrací SQL fragment „ AND …“ pro alias objednávek $a. Sloupce nemusí existovat (staré instalace).
+ */
+function vyroba_obj_filtr_sql(PDO $pdo, string $a = 'o'): string {
+    static $cols = null;
+    if ($cols === null) {
+        try { $cols = $pdo->query("SHOW COLUMNS FROM objednavky")->fetchAll(PDO::FETCH_COLUMN); }
+        catch (Throwable $e) { $cols = []; }
+    }
+    $sql = '';
+    if (in_array('puvod', $cols, true))     $sql .= " AND COALESCE({$a}.puvod, '') <> 'pos'";
+    if (in_array('refund_of', $cols, true)) $sql .= " AND {$a}.refund_of IS NULL";
+    return $sql;
+}

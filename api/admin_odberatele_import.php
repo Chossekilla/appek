@@ -21,6 +21,21 @@ $pdo = db();
 // -----------------------------------------------------------
 // Validace záznamu
 // -----------------------------------------------------------
+/**
+ * 🐛 v3.0.644 — DIČ z Danove, kdykoli je vyplněné. Zahodí se jen u výslovného „neplátce" (PlatceDane=false/0/ne).
+ *   Dřív chybějící/prázdný sloupec PlatceDane = všichni bez DIČ (a náhled přitom DIČ ukazoval).
+ */
+function import_odb_dic(array $r): ?string {
+    $dic = trim((string) ($r['Danove'] ?? ''));
+    if ($dic === '') return null;
+    if (array_key_exists('PlatceDane', $r) && $r['PlatceDane'] !== null && $r['PlatceDane'] !== '') {
+        $p = $r['PlatceDane'];
+        $neplatce = is_bool($p) ? !$p : in_array(mb_strtolower(trim((string) $p)), ['0', 'false', 'ne', 'no', 'n'], true);
+        if ($neplatce) return null;
+    }
+    return $dic;
+}
+
 function validate_odb(array $r): array {
     $nazev = trim((string) ($r['ONazev'] ?? ''));
     if ($nazev === '') return ['ok' => false, 'duvod' => 'chybí ONazev'];
@@ -41,6 +56,10 @@ $tmp = $_FILES['soubor']['tmp_name'];
 $nazev = strtolower($_FILES['soubor']['name'] ?? '');
 $obsah = file_get_contents($tmp);
 if (!$obsah) json_error('Soubor je prázdný');
+// 🐛 v3.0.644 — UTF-8 BOM (Excel „CSV UTF-8") lepil k první hlavičce → IDOdberatel/ONazev se nenašly
+//   (párování podle čísla nefungovalo → duplicity; „chybí ONazev" u všech). JSON s BOM nešel parsovat.
+$obsah = preg_replace('/^\xEF\xBB\xBF/', '', $obsah);
+if (trim($obsah) === '') json_error('Soubor je prázdný');
 
 $je_csv = (str_ends_with($nazev, '.csv') || str_ends_with($nazev, '.tsv') ||
            (!str_ends_with($nazev, '.json') && ltrim($obsah)[0] !== '[' && ltrim($obsah)[0] !== '{'));
@@ -66,8 +85,9 @@ if ($je_csv) {
             $rec[$h] = isset($row[$j]) ? trim($row[$j]) : null;
         }
         if (isset($rec['PlatceDane'])) {
-            $v = strtolower($rec['PlatceDane']);
-            $rec['PlatceDane'] = in_array($v, ['1', 'true', 'ano', 'yes'], true);
+            $v = mb_strtolower(trim((string) $rec['PlatceDane']));
+            // 🐛 v3.0.644 — prázdná buňka = neznámo (null), ne „neplátce" (jinak se zahodilo DIČ)
+            $rec['PlatceDane'] = $v === '' ? null : in_array($v, ['1', 'true', 'ano', 'yes', 'a', 'y'], true);
         }
         $data[] = $rec;
     }
@@ -106,11 +126,11 @@ if ($mode === 'preview') {
             'cislo'        => (string) ($r['IDOdberatel'] ?? ''),
             'nazev'        => $r['ONazev'],
             'ico'          => $r['Identifikacni'] ?? '',
-            'dic'          => $r['Danove'] ?? '',
+            'dic'          => import_odb_dic($r) ?? '',
             'sidlo'        => trim(($r['Ulice'] ?? '') . ', ' . ($r['PSC'] ?? '') . ' ' . ($r['Mesto'] ?? ''), ', '),
             'pobocka'      => $r['MistoDodani'] ?? '',
             'pobocka_adr'  => trim(($r['UliceDodani'] ?? '') . ', ' . ($r['PSCDodani'] ?? '') . ' ' . ($r['MestoDodani'] ?? ''), ', '),
-            'platce'       => !empty($r['PlatceDane']),
+            'platce'       => !empty($r['PlatceDane']) || (($r['PlatceDane'] ?? null) === null && import_odb_dic($r) !== null),
         ];
     }
     json_response([
@@ -144,10 +164,12 @@ $stmt_insert = $pdo->prepare("
     VALUES (:c, :n, :ico, :dic, :ul, :me, :psc, 14, 0, 0)
 ");
 
+// 🐛 v3.0.644 — přepis mění jen VYPLNĚNÁ pole (prázdná buňka nesmaže existující IČO/DIČ/adresu,
+//   ze kterých se tisknou faktury).
 $stmt_update = $pdo->prepare("
     UPDATE odberatele SET
-        nazev = :n, ico = :ico, dic = :dic,
-        ulice = :ul, mesto = :me, psc = :psc
+        nazev = :n, ico = COALESCE(:ico, ico), dic = COALESCE(:dic, dic),
+        ulice = COALESCE(:ul, ulice), mesto = COALESCE(:me, mesto), psc = COALESCE(:psc, psc)
     WHERE id = :id
 ");
 
@@ -166,10 +188,10 @@ $stmt_pobocka_insert = $pdo->prepare("
 $pdo->beginTransaction();
 try {
     foreach ($validni as $r) {
-        $cislo = isset($r['IDOdberatel']) ? (string) $r['IDOdberatel'] : null;
+        $cislo = (isset($r['IDOdberatel']) && trim((string) $r['IDOdberatel']) !== '') ? trim((string) $r['IDOdberatel']) : null;
         $nazev = trim($r['ONazev']);
         $ico   = trim((string) ($r['Identifikacni'] ?? '')) ?: null;
-        $dic   = !empty($r['PlatceDane']) ? (trim((string) ($r['Danove'] ?? '')) ?: null) : null;
+        $dic   = import_odb_dic($r);
         $ul    = trim((string) ($r['Ulice'] ?? '')) ?: null;
         $me    = trim((string) ($r['Mesto'] ?? '')) ?: null;
         $psc   = trim((string) ($r['PSC'] ?? '')) ?: null;

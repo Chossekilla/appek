@@ -106,6 +106,28 @@ window.vyCollectSlozeni = function() {
   return out;
 };
 
+// 🐛 v3.0.644 — jednotky, které jde u řádku polotovaru převést na jednotku polotovaru (server je jinak
+//   odmítne): stejný rozměr (ks / g,kg / ml,l) + g/kg u polotovaru v ks se zadanou hmotností kusu.
+//   Dřív se nabízelo ks/g/kg/ml/l/porce/dávka a „50 g těsta" se počítalo jako 50 ks (1000× víc).
+window.vyPolotovarJednotky = function(vid) {
+  const x = (state._vyrobky_pol_cache || []).find(p => p.id == vid);
+  const u = String((x && x.jednotka_kod) || 'ks').toLowerCase();
+  const dim = { g: 'm', kg: 'm', mg: 'm', ml: 'v', l: 'v', dl: 'v', cl: 'v', ks: 'k' };
+  const sady = { m: ['g', 'kg'], v: ['ml', 'l'], k: ['ks'] };
+  const out = dim[u] ? sady[dim[u]].slice() : [u];
+  if (!out.includes(u)) out.unshift(u);
+  if (u === 'ks' && x && parseFloat(x.hmotnost_g) > 0) out.push('g', 'kg');
+  return out;
+};
+window.vyPolotovarJednotkyOpts = function(vid, jednotka) {
+  const list = vyPolotovarJednotky(vid);
+  const cur = jednotka || list[0];
+  const opts = list.map(j => `<option value="${esc(j)}" ${j === cur ? 'selected' : ''}>${esc(j)}</option>`);
+  // starý řádek s jednotkou mimo nabídku — ponech viditelně (uživatel ho musí opravit, server nepřevoditelné odmítne)
+  if (cur && !list.includes(cur)) opts.unshift(`<option value="${esc(cur)}" selected>${esc(cur)} ⚠</option>`);
+  return opts.join('');
+};
+
 // 🆕 v3.0.303 — přidá řádek POLOTOVARU (jiný výrobek) do receptury (sestava/BOM).
 window.vySlozeniAddPolotovar = function(slozka_id = '', mnozstvi = '', jednotka = 'ks', slozka_nazev = '') {
   const c = document.getElementById('vy-sloz-rows');
@@ -125,12 +147,21 @@ window.vySlozeniAddPolotovar = function(slozka_id = '', mnozstvi = '', jednotka 
     </select>
     <input class="form-input sloz-mn" type="number" step="0.001" min="0" placeholder="Množ." value="${mnozstvi}" style="font-size:13px" oninput="vyTestoUpdateDisplay()">
     <select class="form-select sloz-jed" style="font-size:13px">
-      ${['ks','g','kg','ml','l','porce','dávka'].map(j => `<option value="${j}" ${j===jednotka?'selected':''}>${j}</option>`).join('')}
+      ${vyPolotovarJednotkyOpts(slozka_id, slozka_id ? jednotka : '')}
     </select>
     <span style="font-size:11px;color:#9333EA">🧩 polotovar (sestava)</span>
     <button class="btn-secondary" type="button" style="padding:6px 10px;font-size:13px" onclick="this.parentElement.remove();vyTestoUpdateDisplay()">✕</button>
   `;
   c.appendChild(row);
+  // 🐛 v3.0.644 — změna polotovaru → nabídni jen jednotky převoditelné na jeho jednotku
+  const polSel = row.querySelector('.sloz-pol');
+  polSel.addEventListener('change', () => {
+    const jedSel = row.querySelector('.sloz-jed');
+    const prev = jedSel.value;
+    const list = vyPolotovarJednotky(polSel.value);
+    jedSel.innerHTML = vyPolotovarJednotkyOpts(polSel.value, list.includes(prev) ? prev : list[0]);
+    vyTestoUpdateDisplay();
+  });
   vyTestoUpdateDisplay();
 };
 

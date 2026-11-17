@@ -42,6 +42,11 @@ window.vySlozeniAddRow = function(surovina_id = '', mnozstvi = '', jednotka = 'g
     if (opt && opt.dataset.jed) {
       row.querySelector('.sloz-jed').value = opt.dataset.jed;
     }
+    // 🐛 v3.0.644 — stejná surovina 2× v receptu (mouka do těsta + na posyp): server řádky sečte;
+    //   upozorni hned, ať to uživatele nepřekvapí (dřív 500 a napůl smazaný recept).
+    const dup = sel.value && Array.from(document.querySelectorAll('#vy-sloz-rows .sloz-sur'))
+      .some(o => o !== sel && o.value === sel.value);
+    if (dup && typeof toastWarn === 'function') toastWarn('Tato surovina už v receptu je — při uložení se řádky sečtou do jednoho.');
     vyTestoUpdateDisplay();
   });
 

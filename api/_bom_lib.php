@@ -39,14 +39,17 @@ function bom_recipe_rows(PDO $pdo, int $vyrobek_id): array {
 function bom_vyrobek_meta(PDO $pdo, int $vid): array {
     static $cache = [];
     if (array_key_exists($vid, $cache)) return $cache[$vid];
-    $m = ['sleduje_sklad' => 0, 'je_polotovar' => 0, 'nazev' => '', 'alergeny' => '', 'jednotka' => 'ks'];
+    $m = ['sleduje_sklad' => 0, 'je_polotovar' => 0, 'nazev' => '', 'alergeny' => '', 'jednotka' => 'ks', 'hmotnost_g' => 0.0];
     try {
         static $cols = null;
         if ($cols === null) $cols = $pdo->query("SHOW COLUMNS FROM vyrobky")->fetchAll(PDO::FETCH_COLUMN);
-        $sled = in_array('sleduje_sklad', $cols, true) ? 'sleduje_sklad' : '0 AS sleduje_sklad';
-        $pol  = in_array('je_polotovar', $cols, true) ? 'je_polotovar' : '0 AS je_polotovar';
-        // POZOR: vyrobky má jednotka_id (FK), NE 'jednotka' → SELECTovat jen jisté sloupce
-        $st = $pdo->prepare("SELECT nazev, alergeny, {$sled}, {$pol} FROM vyrobky WHERE id = :id");
+        $sled = in_array('sleduje_sklad', $cols, true) ? 'v.sleduje_sklad' : '0 AS sleduje_sklad';
+        $pol  = in_array('je_polotovar', $cols, true) ? 'v.je_polotovar' : '0 AS je_polotovar';
+        $hm   = in_array('hmotnost_g', $cols, true) ? 'v.hmotnost_g' : 'NULL AS hmotnost_g';
+        // POZOR: vyrobky má jednotka_id (FK), NE 'jednotka' → kód jednotky přes JOIN jednotky
+        // 🐛 v3.0.644 — jednotka + hmotnost polotovaru (dřív natvrdo 'ks' → řádek „50 g těsta" = 50 ks)
+        $st = $pdo->prepare("SELECT v.nazev, v.alergeny, {$sled}, {$pol}, {$hm}, j.kod AS jednotka_kod
+                             FROM vyrobky v LEFT JOIN jednotky j ON j.id = v.jednotka_id WHERE v.id = :id");
         $st->execute(['id' => $vid]);
         $r = $st->fetch(PDO::FETCH_ASSOC);
         if ($r) $m = [
@@ -54,7 +57,8 @@ function bom_vyrobek_meta(PDO $pdo, int $vid): array {
             'je_polotovar'  => (int) ($r['je_polotovar'] ?? 0),
             'nazev'         => (string) $r['nazev'],
             'alergeny'      => (string) ($r['alergeny'] ?? ''),
-            'jednotka'      => 'ks',
+            'jednotka'      => trim((string) ($r['jednotka_kod'] ?? '')) !== '' ? mb_strtolower(trim((string) $r['jednotka_kod'])) : 'ks',
+            'hmotnost_g'    => (float) ($r['hmotnost_g'] ?? 0),
         ];
     } catch (Throwable $e) {}
     $cache[$vid] = $m;
@@ -94,6 +98,30 @@ function bom_unit_factor(?string $from, ?string $to): float {
     return bom_unit_factor_strict($f, $t) ?? 1.0;   // neznámá/křížová dvojice → 1:1 (původní chování)
 }
 
+/**
+ * 🐛 v3.0.644 — převod jednotky ŘÁDKU receptu s polotovarem (vyrobek_suroviny.jednotka) na jednotku
+ *   polotovaru (vyrobky.jednotka_id → jednotky.kod). Dřív se ignorovala: „50 g těsta" (těsto vedené v ks)
+ *   se počítalo jako 50 ks → odpis/kalkulace 1000× vedle.
+ *   • stejný rozměr (g↔kg, ml↔l, ks↔ks) → poměr,
+ *   • hmotnost řádku a polotovar v ks se známou hmotností (vyrobky.hmotnost_g) → gramy / hmotnost kusu,
+ *   • jinak null = nelze převést (volající rozhodne: uložení odmítne, výpočet zachová staré 1:1).
+ */
+function bom_polotovar_factor_strict(PDO $pdo, int $sub, ?string $rowUnit): ?float {
+    $meta = bom_vyrobek_meta($pdo, $sub);
+    $to   = $meta['jednotka'] ?: 'ks';
+    $from = mb_strtolower(trim((string) $rowUnit));
+    if ($from === '') return 1.0;                       // bez jednotky = jednotka polotovaru (staré řádky)
+    $f = bom_unit_factor_strict($from, $to);
+    if ($f !== null) return $f;
+    $g = bom_unit_factor_strict($from, 'g');             // řádek v hmotnosti?
+    if ($g !== null && $to === 'ks' && $meta['hmotnost_g'] > 0) return $g / $meta['hmotnost_g'];
+    return null;
+}
+/** Výpočtová varianta: nepřevoditelná dvojice → 1:1 (zpětná kompatibilita starých receptů; nové uložení validuje sync_slozeni). */
+function bom_polotovar_factor(PDO $pdo, int $sub, ?string $rowUnit): float {
+    return bom_polotovar_factor_strict($pdo, $sub, $rowUnit) ?? 1.0;
+}
+
 /** Jednotková cena suroviny (cena_baleni / obsah_baleni). */
 function bom_surovina_unit_cost(PDO $pdo, int $sid): float {
     static $cache = [];
@@ -120,6 +148,7 @@ function bom_explode(PDO $pdo, int $vid, float $qty, array &$sur, array &$pol, i
         $need = $qty * $mn;
         if (!empty($r['slozka_vyrobek_id'])) {
             $sub = (int) $r['slozka_vyrobek_id'];
+            $need *= bom_polotovar_factor($pdo, $sub, $r['jednotka'] ?? null);   // 🐛 v3.0.644 — jednotka řádku → jednotka polotovaru
             if (bom_vyrobek_meta($pdo, $sub)['sleduje_sklad']) {
                 $pol[$sub] = ($pol[$sub] ?? 0) + $need;          // leaf — ubere ze skladu polotovaru
             } else {
@@ -142,7 +171,8 @@ function bom_cost(PDO $pdo, int $vid, array $visited = []): float {
         $mn = (float) $r['mnozstvi'];
         if ($mn <= 0) continue;
         if (!empty($r['slozka_vyrobek_id'])) {
-            $cost += bom_cost($pdo, (int) $r['slozka_vyrobek_id'], $visited) * $mn;
+            $sub = (int) $r['slozka_vyrobek_id'];
+            $cost += bom_cost($pdo, $sub, $visited) * $mn * bom_polotovar_factor($pdo, $sub, $r['jednotka'] ?? null); // 🐛 v3.0.644
         } elseif (!empty($r['surovina_id'])) {
             $sid = (int) $r['surovina_id'];
             $cost += bom_surovina_unit_cost($pdo, $sid) * $mn * bom_unit_factor($r['jednotka'] ?? null, bom_surovina_jednotka($pdo, $sid)); // 🐛 PR09
@@ -171,6 +201,100 @@ function bom_allergens(PDO $pdo, int $vid, array $visited = []): array {
         }
     }
     return array_values($set);
+}
+
+/**
+ * 🐛 v3.0.644 — alergeny RECEPTU výrobku pro zápis do vyrobky.alergeny (bezpečnost potravin):
+ *   suroviny (alergen + slozeni_alergeny) + POLOTOVARY (jejich deklarované vyrobky.alergeny
+ *   + rekurzivně jejich recept). Dřív se bral jen JOIN na suroviny → lepek z „Těsta“ se do rohlíku
+ *   nepropsal. Čte čerstvě z DB (bez per-request cache — volá se hned po přepsání receptu).
+ */
+function bom_alergeny_receptu(PDO $pdo, int $vid, array $visited = []): array {
+    if ($vid <= 0 || isset($visited[$vid]) || count($visited) > BOM_MAX_DEPTH) return [];
+    $visited[$vid] = true;
+    $set = [];
+    $add = function (?string $field) use (&$set) {
+        foreach (preg_split('/[,;]+/', (string) $field) as $a) {
+            $a = trim($a);
+            if ($a !== '') $set[mb_strtolower($a)] = $set[mb_strtolower($a)] ?? $a; // dedup, zachová první podobu
+        }
+    };
+    try {
+        $st = $pdo->prepare("SELECT s.alergen, s.slozeni_alergeny
+                             FROM vyrobek_suroviny vs JOIN suroviny s ON s.id = vs.surovina_id
+                             WHERE vs.vyrobek_id = :v");
+        $st->execute(['v' => $vid]);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $add($r['alergen'] ?? ''); $add($r['slozeni_alergeny'] ?? ''); }
+    } catch (Throwable $e) { /* tabulky nemusí existovat */ }
+    try {
+        $st = $pdo->prepare("SELECT DISTINCT v.id, v.alergeny
+                             FROM vyrobek_suroviny vs JOIN vyrobky v ON v.id = vs.slozka_vyrobek_id
+                             WHERE vs.vyrobek_id = :v");
+        $st->execute(['v' => $vid]);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $add($r['alergeny'] ?? '');
+            foreach (bom_alergeny_receptu($pdo, (int) $r['id'], $visited) as $a) $add($a);
+        }
+    } catch (Throwable $e) { /* sloupec slozka_vyrobek_id nemusí existovat (stará instalace) */ }
+    return array_values($set);
+}
+
+/**
+ * Sloučí alergeny receptu do vyrobky.alergeny (UNION, add-only — nikdy neodebírá ruční záznamy
+ * typu „může obsahovat stopy ořechů“). Vrací true, pokud něco doplnil.
+ */
+function bom_merge_alergeny(PDO $pdo, int $vid): bool {
+    $recipe = bom_alergeny_receptu($pdo, $vid);
+    if (!$recipe) return false;
+    $st = $pdo->prepare("SELECT alergeny FROM vyrobky WHERE id = :id");
+    $st->execute(['id' => $vid]);
+    $cur = (string) ($st->fetchColumn() ?: '');
+    $curSet = [];
+    foreach (preg_split('/[,;]+/', $cur) as $a) { $a = trim($a); if ($a !== '') $curSet[mb_strtolower($a)] = $a; }
+    $changed = false;
+    foreach ($recipe as $a) {
+        $k = mb_strtolower($a);
+        if (!isset($curSet[$k])) { $curSet[$k] = $a; $changed = true; }
+    }
+    if ($changed) {
+        $pdo->prepare("UPDATE vyrobky SET alergeny = :a WHERE id = :id")
+            ->execute(['a' => implode(', ', array_values($curSet)), 'id' => $vid]);
+    }
+    return $changed;
+}
+
+/**
+ * 🐛 v3.0.644 — změna alergenů/receptu polotovaru → doplň alergeny všem NADŘAZENÝM výrobkům
+ * (reverzní BOM přes slozka_vyrobek_id, uzávěr). Add-only. Vrací počet doplněných výrobků.
+ */
+function bom_propaguj_alergeny_nahoru(PDO $pdo, int $vid): int {
+    $n = 0;
+    try {
+        $up = $pdo->prepare("SELECT DISTINCT vyrobek_id FROM vyrobek_suroviny WHERE slozka_vyrobek_id = ?");
+        $seen = [$vid => true]; $queue = [$vid]; $guard = 0;
+        while ($queue && $guard++ < 10000) {
+            $cur = array_shift($queue);
+            $up->execute([$cur]);
+            foreach ($up->fetchAll(PDO::FETCH_COLUMN) as $p) {
+                $p = (int) $p;
+                if ($p <= 0 || isset($seen[$p])) continue;
+                $seen[$p] = true; $queue[] = $p;
+                if (bom_merge_alergeny($pdo, $p)) $n++;
+            }
+        }
+    } catch (Throwable $e) { /* sloupec slozka_vyrobek_id nemusí existovat */ }
+    return $n;
+}
+
+/** Surovina změnila alergen/složení → doplň alergeny všem výrobkům, které ji obsahují (i přes polotovary). */
+function bom_propaguj_alergeny_suroviny(PDO $pdo, int $sid): int {
+    $n = 0;
+    try {
+        // pořadí: nejdřív přímí uživatelé, pak nadřazení (BFS v bom_products_using_surovina) → stačí jeden průchod,
+        // protože bom_alergeny_receptu čte i deklarované alergeny polotovarů, které se doplnily dřív
+        foreach (bom_products_using_surovina($pdo, $sid) as $v) { if (bom_merge_alergeny($pdo, (int) $v)) $n++; }
+    } catch (Throwable $e) {}
+    return $n;
 }
 
 /** Detekce cyklu: byl by `slozka` v receptu `vid` (přímo či nepřímo) cyklus? (vid je předek slozka?) */

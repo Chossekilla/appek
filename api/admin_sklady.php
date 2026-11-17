@@ -119,6 +119,15 @@ if ($method === 'PUT') {
         $params['pozn'] = trim((string) $d['poznamka']) ?: null;
     }
     if (isset($d['aktivni'])) {
+        // 🐛 v3.0.644 — hlavní (výchozí) sklad nejde deaktivovat (stejná ochrana jako DELETE). Dřív odškrtnutí
+        //   „Aktivní“ obešlo ochranu: s jediným skladem sklad_default_id()=0 → POS/výroba/vratky zapisovaly do
+        //   neviditelného skladu 0, se dvěma sklady se výchozí potichu přepnul a polotovary šly do mínusu.
+        if (!$d['aktivni']) {
+            $mainSkladId = (int) $pdo->query("SELECT id FROM sklady WHERE COALESCE(aktivni,1)=1 ORDER BY id LIMIT 1")->fetchColumn();
+            if ($mainSkladId && $id == $mainSkladId) {
+                json_error('Hlavní sklad nelze deaktivovat — je výchozí pro POS, výrobu a vratky.', 409);
+            }
+        }
         $sets[] = 'aktivni = :akt';
         $params['akt'] = $d['aktivni'] ? 1 : 0;
     }
