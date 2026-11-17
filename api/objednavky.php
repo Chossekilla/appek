@@ -203,12 +203,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $b2bMenaVolba = function () use ($pdo, $data, $odberatel_id): array {
         $pi = mena_platebni_info($pdo, 'b2b');
         $volba = strtoupper(trim((string) ($data['mena'] ?? '')));
+        $zOdberatele = false;
         if ($volba === '' && $pi['aktivni']) {
             try { $st = $pdo->prepare("SELECT mena_platby FROM odberatele WHERE id = ?"); $st->execute([$odberatel_id]);
-                  $mo = strtoupper((string) $st->fetchColumn()); if ($mo !== '' && in_array($mo, $pi['prijimane'], true)) $volba = $mo; } catch (Throwable $e) {}
+                  $mo = strtoupper((string) $st->fetchColumn()); if ($mo !== '' && in_array($mo, $pi['prijimane'], true)) { $volba = $mo; $zOdberatele = true; } } catch (Throwable $e) {}
         }
         try { return mena_volba_platby($pdo, $volba !== '' ? $volba : null, 'b2b'); }
-        catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
+        catch (MenaException $e) {
+            // výchozí měna odběratele bez platného kurzu (svátky) → jako bez volby (Kč), objednávka nesmí spadnout
+            if ($zOdberatele) { try { return mena_volba_platby($pdo, null, 'b2b'); } catch (MenaException $e2) {} }
+            json_error($e->getMessage(), $e->http);
+        }
     };
     // Metoda platby musí měnu umět (dobírka a hotově jen Kč; převod v € jen s EUR IBAN; brána dle integrace)
     $b2bMetodaMena = function (string $platba, string $mena) use ($pdo): ?string {
@@ -243,13 +248,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ([(float) $sur['doprava_cena'], (float) $sur['platba_poplatek']] as $amt) {
             if ($amt > 0) $lines[] = [1, round($amt / (1 + $dphPr / 100), 2), $dphPr];
         }
+        // 🎟️ slevový kód → stejné řádky jako voucher_objednavka_sync (sleva po sazbách / úhrada voucherem 0 %)
+        $vkod = strtoupper(trim((string) ($data['voucher_kod'] ?? '')));
+        if ($vkod !== '') {
+            $poS = [];
+            foreach ($lines as [$mn, $c, $sz]) { $k = (string) (float) $sz; $poS[$k] = ($poS[$k] ?? 0) + $mn * $c * (1 + $sz / 100); }
+            $poS = array_filter($poS, fn($x) => $x > 0.004);
+            $zb = round(array_sum($poS), 2);
+            try {
+                $vo = voucher_odhad($pdo, $vkod, 'b2b', $odberatel_id, $zb);
+                $cil = round((float) ($vo['odecet'] ?? 0), 2);
+                if ($cil > 0) {
+                    if (($vo['chovani'] ?? '') === 'platba') { $lines[] = [1, -$cil, 0]; }
+                    else {
+                        $zbyva = $cil; $sazby = array_keys($poS);
+                        foreach ($sazby as $i => $sk) {
+                            $dil = $i === count($sazby) - 1 ? $zbyva : round($cil * $poS[$sk] / $zb, 2);
+                            $zbyva = round($zbyva - $dil, 2);
+                            $lines[] = [1, -round($dil / (1 + (float) $sk / 100), 2), (float) $sk];
+                        }
+                    }
+                }
+            } catch (Throwable $e) { /* neplatný kód → quote bez slevy (chybu ukáže voucher_odhad v košíku) */ }
+        }
         $czk = 0.0; foreach ($lines as [$mn, $c, $sz]) $czk += round($mn * $c, 2) + round($mn * $c * $sz / 100, 2);
         $mm = mena_doklad_ro($pdo, $m);
         $calc = $mm['mena'] === 'CZK' ? ['celkem' => round($czk, 2), 'bez' => null, 'dph' => null] : mena_doklad_polozky($lines, $mm);
         json_response(['ok' => true, 'mena' => $mm['mena'], 'symbol' => $m['symbol'] ?? $mm['mena'], 'celkem' => $calc['celkem'],
                        'celkem_czk' => round($czk, 2), 'kurz' => $m['mena_kurz'], 'kurz_prodej' => $m['mena_kurz_prodej'],
                        'kurz_datum' => $m['kurz_datum'], 'doprava' => (float) $sur['doprava_cena'], 'poplatek' => (float) $sur['platba_poplatek'],
-                       'metoda_chyba' => $b2bMetodaMena(preg_replace('/[^a-z_]/', '', strtolower((string) ($data['platba'] ?? ''))), $mm['mena'])]);
+                       'metoda_chyba' => empty(mena_config_load($pdo)['platba']['aktivni']) ? null : $b2bMetodaMena(preg_replace('/[^a-z_]/', '', strtolower((string) ($data['platba'] ?? ''))), $mm['mena'])]);
     }
 
     // Validace typu
@@ -296,8 +324,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 💱 v3.0.643 — měna platby (mimo transakci) + kontrola, že ji zvolená metoda umí
     $mObj = $b2bMenaVolba();
-    if (($chyba = $b2bMetodaMena(preg_replace('/[^a-z_]/', '', strtolower(trim((string) ($data['platba'] ?? '')))), $mObj['mena'])) !== null) json_error($chyba, 400);
-    $platbaAktivni = mena_platebni_info($pdo, 'b2b')['aktivni'];
+    // platby ve více měnách zapnuté (globálně) → měna dokladu = zvolená (u kanálu bez cizí měny = Kč, nikdy výchozí cizí měna);
+    // vypnuté → přesně jako v3.0.642 (snapshot podle zobrazení, metody platby bez omezení)
+    $platbaAktivni = !empty(mena_config_load($pdo)['platba']['aktivni']);
+    // kurz, který zákazník viděl v košíku (quote) — změnil-li se mezitím (nový kurz ČNB), neodeslat potichu jinou částku
+    if ($platbaAktivni && ($mObj['mena'] ?? 'CZK') !== 'CZK' && isset($data['kurz_klient']) && is_numeric($data['kurz_klient'])
+        && abs((float) $data['kurz_klient'] - (float) ($mObj['mena_kurz_prodej'] ?: $mObj['mena_kurz'])) > 0.000001) {
+        json_response(['error' => 'Kurz ' . $mObj['mena'] . ' se mezitím změnil — zkontrolujte novou částku v košíku a odešlete znovu.', 'kod' => 'kurz_zmenen'], 409);
+    }
+    if ($platbaAktivni && ($chyba = $b2bMetodaMena(preg_replace('/[^a-z_]/', '', strtolower(trim((string) ($data['platba'] ?? '')))), $mObj['mena'])) !== null) json_error($chyba, 400);
 
     $pdo->beginTransaction();
     try {
@@ -758,6 +793,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
             'rozdil'         => $diff,
         ]);
         try { mena_ulozit_castku($pdo, 'objednavky', $id); } catch (Throwable $e) { error_log('PUT castka_mena: ' . $e->getMessage()); }
+        // 💱 v3.0.643 — rozjetá online platba platí pro STAROU částku → zneplatnit očekávání; pozdní potvrzení
+        //   brány pak porovná s novou částkou dokladu (nesedí → 'failed' + upozornění, nikdy tiché „zaplaceno")
+        if (($orig['pay_status'] ?? '') === 'pending') {
+            try { $pdo->prepare("UPDATE objednavky SET pay_mena = NULL, pay_castka = NULL, pay_status = 'none' WHERE id = ? AND pay_status = 'pending'")->execute([$id]); }
+            catch (Throwable $e) { error_log('PUT pay reset: ' . $e->getMessage()); }
+        }
 
         $pdo->commit();
 
@@ -797,6 +838,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
     $edit = objednavka_editovatelna($pdo, $orig);
     if (!$edit['lze']) json_error($edit['duvod'], 409);
+    // 💱 v3.0.643 — zaplacenou online objednávku zákazník sám nezruší (peníze vrací dodavatel)
+    if (($orig['pay_status'] ?? '') === 'paid') json_error('Objednávka je už zaplacená — o zrušení a vrácení peněz požádejte dodavatele.', 409);
 
     try {
         voucher_ensure_schema($pdo);   // 🎟️ v3.0.633 — DDL mimo transakci (jinak implicitní commit → commit() hodí výjimku)

@@ -9,7 +9,11 @@
   const CFG = window.POS_CONFIG || {};
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const callLink = (phone) => { if (phone === null || phone === undefined) return ''; let s = String(phone).split(/[,;]/)[0].replace(/[^+0-9]/g, ''); if (s.startsWith('00')) s = '+' + s.slice(2); s = s.replace(/(?!^)\+/g, ''); return /\d{3,}/.test(s) ? 'tel:' + s : ''; };   // 📞 v3.0.640
-  const money = (n) => (parseFloat(n) || 0).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kč';
+  const SYM = { CZK: 'Kč', EUR: '€', USD: '$', GBP: '£', PLN: 'zł', HUF: 'Ft', CHF: 'CHF' };
+  const money = (n, m) => (parseFloat(n) || 0).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + (SYM[m || 'CZK'] || m);
+  // 💱 v3.0.643 — platba v Kč i cizí měně (Nastavení → měna); výchozí = měna objednávky
+  const PL = () => CFG.platba || {};
+  const plMeny = () => (PL().aktivni && (PL().prijimane || []).length > 1) ? PL().prijimane : null;
   const qty = (n) => (parseFloat(n) || 0).toLocaleString('cs-CZ', { maximumFractionDigits: 3 });
 
   async function api(path, opts = {}) {
@@ -168,10 +172,10 @@
     const casTxt = cas ? (today ? '' : cas.getDate() + '. ' + (cas.getMonth() + 1) + '. ') + pad(cas.getHours()) + ':' + pad(cas.getMinutes()) : 'bez času';
     const items = (o.polozky || []).map(p => `${qty(p.mnozstvi)}× ${esc(p.nazev)}`).join(', ');
     return `
-      <div class="pk-card${late ? ' late' : ''}" data-id="${o.id}">
+      <div class="pk-card${late ? ' late' : ''}" data-id="${o.id}" data-mena="${esc(o.doc_mena || 'CZK')}">
         <div class="pk-card-h">
           <span class="pk-time">${late ? '⏰ ' : ''}${casTxt}</span>
-          <span><strong>${money(o.castka_celkem)}</strong>
+          <span><strong>${o.doc_mena ? money(o.doc_celkem, o.doc_mena) : money(o.castka_celkem)}</strong>
             ${o.zaplaceno ? '<span class="pk-badge pk-paid">zaplaceno</span>' : '<span class="pk-badge pk-unpaid">platí při vyzvednutí</span>'}
             ${o.vyzvednuti_pripraveno ? '<span class="pk-badge pk-ready">připraveno</span>' : ''}</span>
         </div>
@@ -212,10 +216,14 @@
           await api('admin_pos.php?action=pickup_complete', { method: 'POST', body: JSON.stringify({ id }) });
           toast('📦 Vydáno');
         } else if (act === 'pay') {
-          const pay = await choosePay();
-          if (!pay) return;
-          const r = await api('admin_pos.php?action=pickup_complete', { method: 'POST', body: JSON.stringify({ id, pos_payment: pay }) });
-          toast('💵 Zaplaceno a vydáno · ' + money(r.celkem));
+          const card = a.closest('[data-id]');
+          const volba = await choosePay(card ? card.dataset.mena : null);
+          if (!volba) return;
+          let st = ''; try { st = localStorage.getItem('appek_station_token') || ''; } catch (e2) {}
+          const body = { id, pos_payment: volba.pay, station_token: st };
+          if (volba.mena) { body.platba_mena = volba.mena; const i = (PL().meny || {})[volba.mena]; if (volba.mena !== 'CZK' && i) body.kurz_klient = i.kurz_prodej; }
+          const r = await api('admin_pos.php?action=pickup_complete', { method: 'POST', body: JSON.stringify(body) });
+          toast('💵 Zaplaceno a vydáno · ' + (r.mena && r.mena !== 'CZK' ? money(r.celkem_mena, r.mena) : money(r.celkem)));
         } else if (act === 'cancel') {
           if (!confirm('Zrušit nezaplacenou objednávku k vyzvednutí?')) return;
           await api('admin_pos.php?action=pickup_cancel', { method: 'POST', body: JSON.stringify({ id }) });
@@ -226,9 +234,15 @@
     });
   }
 
-  function choosePay() {
+  function choosePay(menaObj) {
     return new Promise((resolve) => {
+      const meny = plMeny();
+      let mena = (meny && meny.includes(menaObj)) ? menaObj : (meny ? (PL().vychozi || 'CZK') : null);
+      const menaRow = () => meny ? `<div class="pk-f" style="margin-bottom:6px">${meny.map(m => {
+          const i = (PL().meny || {})[m] || {}; const dis = m !== 'CZK' && i.ok === false;
+          return `<button type="button" class="pk-btn${m === mena ? ' pri' : ''}" data-m="${m}" ${dis ? 'disabled' : ''}>${m === 'CZK' ? 'Kč' : (SYM[m] || m) + ' ' + m}</button>`; }).join('')}</div>` : '';
       const ov = modal(`<h3>Jak zákazník platí?</h3>
+        <div id="pk-mena">${menaRow()}</div>
         <div class="pk-f">
           <button type="button" class="pk-btn" data-p="hotove">💵 Hotově</button>
           <button type="button" class="pk-btn" data-p="karta">💳 Kartou</button>
@@ -237,10 +251,12 @@
         <div class="pk-act"><button type="button" class="pk-btn" data-p="">Zpět</button></div>`);
       ov.addEventListener('click', (e) => {
         if (e.target === ov) { ov.remove(); return resolve(null); }
+        const mb = e.target.closest('[data-m]');
+        if (mb) { mena = mb.dataset.m; ov.querySelector('#pk-mena').innerHTML = menaRow(); return; }
         const b = e.target.closest('[data-p]');
         if (!b) return;
         ov.remove();
-        resolve(b.dataset.p || null);
+        resolve(b.dataset.p ? { pay: b.dataset.p, mena } : null);
       });
     });
   }

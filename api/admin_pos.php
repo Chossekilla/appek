@@ -1537,6 +1537,8 @@ if ($method === 'GET' && $action === 'pickup_list') {
             foreach ($pq as $x) $pol[(int) $x['objednavka_id']][] = ['nazev' => $x['vyrobek_nazev'], 'mnozstvi' => (float) $x['mnozstvi']];
             foreach ($rows as &$r) { $r['polozky'] = $pol[(int) $r['id']] ?? []; $r['zaplaceno'] = $r['pos_payment'] !== 'pri_vyzvednuti'; }
             unset($r);
+            mena_doc_pole($pdo, 'objednavky', $rows);   // 💱 v3.0.643 — doc_mena/doc_celkem (karta ukáže částku v měně objednávky)
+            unset($r);
         }
         json_response(['ok' => true, 'items' => $rows, 'count' => count($rows)]);
     } catch (Throwable $e) {
@@ -1560,19 +1562,37 @@ if ($method === 'POST' && $action === 'pickup_complete') {
         if (!in_array($pay, $okPay, true)) json_error('Vyber způsob platby', 400);
         // 💱 v3.0.643 — měna se volí až při placení u výdeje → přepis snapshotu (doklad do teď nezaplacený)
         $metodaP = pos_ledger_metoda($pay);
-        $mPick = pos_mena_volba($pdo, isset($d['platba_mena']) ? (string) $d['platba_mena'] : null, 'pos');
+        // bez výslovné volby = měna, ve které objednávku zvolil zákazník (web /objednat), ne výchozí měna pokladny
+        $volbaP = isset($d['platba_mena']) && (string) $d['platba_mena'] !== '' ? (string) $d['platba_mena'] : null;
+        if ($volbaP === null && pos_platba_aktivni($pdo)) {
+            $mo = (string) $pdo->query("SELECT mena FROM objednavky WHERE id = " . (int) $id)->fetchColumn();
+            if ($mo !== '') $volbaP = $mo;
+        }
+        $mPick = pos_mena_volba($pdo, $volbaP, 'pos');
         pos_mena_kontrola($pdo, $mPick, $metodaP, $d['kurz_klient'] ?? null, 'pos');
         $pdo->beginTransaction();
         try {
-            try { mena_nastav_doklad($pdo, 'objednavky', $id, $mPick, true); }
-            catch (MenaException $e) { $pdo->rollBack(); json_response(['error' => $e->getMessage(), 'kod' => $e->kod], $e->http); }
+            // vypnuto = jako v3.0.642: doklad drží měnu z vytvoření (žádný přepis); zapnuto = měna zvolená u výdeje
+            if (pos_platba_aktivni($pdo)) {
+                try { mena_nastav_doklad($pdo, 'objednavky', $id, $mPick, true); }
+                catch (MenaException $e) { $pdo->rollBack(); json_response(['error' => $e->getMessage(), 'kod' => $e->kod], $e->http); }
+            } else {
+                mena_snapshot_doklad($pdo, 'objednavky', $id);
+                $rowM = $pdo->query("SELECT mena, mena_kurz, mena_zaklad FROM objednavky WHERE id = " . (int) $id)->fetch(PDO::FETCH_ASSOC) ?: [];
+                if (!empty($rowM['mena'])) $mPick = ['mena' => $rowM['mena'], 'mena_kurz' => (float) $rowM['mena_kurz'], 'mena_kurz_prodej' => null, 'mena_zaklad' => $rowM['mena_zaklad'] ?: 'CZK', 'kurz_datum' => null] + $mPick;
+            }
             // tržba patří do dne, kdy peníze přišly → datum_objednani = teď, původní čas do objednano_puvodne
             $pdo->prepare("UPDATE objednavky SET pos_payment = :p, stav = 'zaplaceno', objednano_puvodne = COALESCE(objednano_puvodne, datum_objednani),
                            datum_objednani = NOW(), vyzvednuto_kdy = NOW() WHERE id = :id")->execute(['p' => $pay, 'id' => $id]);
             $castkaP = mena_ulozit_castku($pdo, 'objednavky', $id);
             $hotP = $metodaP === 'hotovost' ? pos_hotovost($pdo, $mPick, $castkaP, $d['prijato'] ?? null, $d['vraceni_mena'] ?? null) : null;
             $admP = aktualni_admin($pdo);
-            pos_ledger_zapis($pdo, ['zdroj' => 'pickup', 'metoda' => $metodaP, 'objednavka_id' => $id, 'uzivatel' => $admP['jmeno'] ?? null,
+            // pokladna z tokenu stanice (jako u stolu) → uzávěrka po kasách započítá i platby při výdeji
+            $pkP = null;
+            $stTokP = preg_replace('/[^a-zA-Z0-9]/', '', (string) ($d['station_token'] ?? ''));
+            if ($stTokP !== '') { try { $pq = $pdo->prepare("SELECT pokladna FROM stanice WHERE token = :t LIMIT 1"); $pq->execute([':t' => $stTokP]); $pv = $pq->fetchColumn(); if ($pv) $pkP = mb_substr((string) $pv, 0, 40); } catch (Throwable $e) {} }
+            if ($pkP !== null) { try { $pdo->prepare("UPDATE objednavky SET pokladna = :p WHERE id = :id")->execute(['p' => $pkP, 'id' => $id]); } catch (Throwable $e) {} }
+            pos_ledger_zapis($pdo, ['zdroj' => 'pickup', 'metoda' => $metodaP, 'objednavka_id' => $id, 'uzivatel' => $admP['jmeno'] ?? null, 'pokladna' => $pkP,
                                     'idem' => 'pickup:' . $id], $mPick, $castkaP, $hotP);
             $pdo->commit();
         } catch (Throwable $e) {
@@ -2144,7 +2164,19 @@ if ($method === 'POST' && $action === 'print_receipt') {
 // 📜 GET ?action=quick_history — POS quick objednávky pro daný den (s detaily)
 // 💱 v3.0.643 — GET ?action=platba_info → měny platby + aktuální kurzy pro pokladnu (přepínač Kč | €)
 if ($method === 'GET' && $action === 'platba_info') {
-    json_response(mena_platebni_info($pdo, 'pos'));
+    // kanál: pos (rychlý prodej, výchozí) | stul (účet stolu)
+    json_response(mena_platebni_info($pdo, ($_GET['kanal'] ?? '') === 'stul' ? 'stul' : 'pos'));
+}
+
+// 💱 v3.0.643 — GET ?action=ucet_castka&ucet_id=N&mena=EUR → přesná částka účtu v měně (po řádcích jako doklad)
+if ($method === 'GET' && $action === 'ucet_castka') {
+    $uid = (int) ($_GET['ucet_id'] ?? 0);
+    if (!$uid) json_error('Chybí ucet_id', 400);
+    try {
+        $m = pos_mena_volba($pdo, (string) ($_GET['mena'] ?? 'CZK'), 'stul');
+        $dc = mena_doc_castka($pdo, 'restaurant_pos_ucty', $uid, $m);
+        json_response(['ok' => true, 'mena' => $dc['mena'], 'celkem' => $dc['celkem'], 'celkem_czk' => $dc['celkem_czk'], 'kurz_prodej' => $dc['kurz_prodej']]);
+    } catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
 }
 
 if ($method === 'GET' && $action === 'quick_history') {
@@ -2234,7 +2266,7 @@ function pos_ucet_create_sale(PDO $pdo, int $ucetId, ?string $pokladna = null): 
         $had = $ex->fetchColumn();
         if ($had) return (int) $had;
         // 💱 v3.0.643 — skutečná sazba DPH položky (dřív plošně 21 % i u jídla) — stejný vzorec jako
-        //   mena_ucet_polozky (round(cena s DPH / (1+s), 4)), aby EUR doklad seděl s platbou na cent.
+        //   mena_ucet_polozky (round(cena s DPH / (1+s), 2) — jako uložené řádky), aby EUR doklad seděl s platbou na cent.
         $sazSel = mena_ma_sloupec($pdo, 'restaurant_pos_polozky', 'sazba_dph') ? 'COALESCE(sazba_dph, 21)' : '21';
         $pol = $pdo->prepare("SELECT vyrobek_id, nazev, mnozstvi, jednotkova_cena, $sazSel AS sazba FROM restaurant_pos_polozky WHERE ucet_id = :u AND stav <> 'storno' ORDER BY id");
         $pol->execute(['u' => $ucetId]);
@@ -2294,7 +2326,7 @@ function pos_ucet_create_sale(PDO $pdo, int $ucetId, ?string $pokladna = null): 
         $ip = $pdo->prepare("INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, mnozstvi, jednotka, cena_bez_dph, sazba_dph, poznamka) VALUES (:o,:v,:n,:m,'ks',:c,:s,NULL)");
         foreach ($items as $it) {
             $sz = (float) $it['sazba'];
-            $cbez = round(((float) $it['jednotkova_cena']) / (1 + $sz / 100), 4);
+            $cbez = round(((float) $it['jednotkova_cena']) / (1 + $sz / 100), 2);   // = mena_ucet_polozky (sloupec má 2 místa)
             $ip->execute(['o'=>$objId,'v'=>($it['vyrobek_id'] ?: null),'n'=>$it['nazev'],'m'=>$it['mnozstvi'],'c'=>$cbez,'s'=>$sz]);
         }
         try { mena_ulozit_castku($pdo, 'objednavky', $objId); } catch (Throwable $e) { error_log('create_sale castka_mena: ' . $e->getMessage()); }
@@ -2347,6 +2379,14 @@ function pos_finalize_ucet_payment(PDO $pdo, int $ucetId, string $zpusob = 'onli
         $payMena = strtoupper((string) ($row['pay_mena'] ?? '')) ?: 'CZK';
         if (isset($row['pay_suma_kc']) && $row['pay_suma_kc'] !== null && abs((float) $row['suma_kc'] - (float) $row['pay_suma_kc']) > 0.005) {
             $pdo->prepare("UPDATE restaurant_pos_ucty SET pay_status = 'failed' WHERE id = :id")->execute(['id' => $ucetId]);
+            // peníze u brány přijaté, ale účet se mezitím změnil → účet zůstává otevřený, obsluha MUSÍ vědět
+            try {
+                $pdo->prepare("INSERT INTO notifications (kind, title, msg, link, severity) VALUES ('platba_nesedi', ?, ?, '#/pos', 'error')")
+                    ->execute(['⚠️ QR platba účtu #' . $ucetId . ' — účet se změnil',
+                               sprintf('Host zaplatil přes bránu %s %s, ale účet se mezitím změnil (%s → %s Kč). Účet NENÍ uzavřen — u stolu dorovnej rozdíl (zaplacenou částku odečti).',
+                                   number_format((float) ($row['pay_castka'] ?? 0), 2, ',', ' '), $payMena,
+                                   number_format((float) $row['pay_suma_kc'], 2, ',', ' '), number_format((float) $row['suma_kc'], 2, ',', ' '))]);
+            } catch (Throwable $e) { error_log('finalize notif: ' . $e->getMessage()); }
             $pdo->commit();
             return ['ok' => false, 'error' => 'ucet_zmenen'];
         }
@@ -2532,7 +2572,7 @@ if ($method === 'GET' && $action === 'refundovatelne') {
     try { $pdo->exec("ALTER TABLE objednavky ADD COLUMN IF NOT EXISTS refund_of INT NULL"); } catch (Throwable $e) {}
     try { $pdo->exec("ALTER TABLE objednavky_polozky ADD COLUMN IF NOT EXISTS vraci_polozku_id INT NULL"); } catch (Throwable $e) {}
     $pokIn = pos_pokladni_sql($pdo, 'puvod');
-    $st = $pdo->prepare("SELECT id, cislo, castka_celkem, refund_of FROM objednavky WHERE id = :id AND {$pokIn}");
+    $st = $pdo->prepare("SELECT id, cislo, castka_celkem, refund_of, pos_payment, mena FROM objednavky WHERE id = :id AND {$pokIn}");
     $st->execute(['id' => $oid]);
     $o = $st->fetch(PDO::FETCH_ASSOC);
     if (!$o) json_error('Účtenka nenalezena', 404);
@@ -2560,7 +2600,9 @@ if ($method === 'GET' && $action === 'refundovatelne') {
             'jiz_vraceno' => round($already[$id] ?? 0, 3), 'zbyva' => round(max(0, $rem), 3),
         ];
     }
-    json_response(['uctenka' => $o['cislo'], 'castka_celkem' => (float) $o['castka_celkem'], 'polozky' => $out]);
+    // 💱 v3.0.643 — výměna dědí měnu a způsob platby originálu (nový prodej = stejná měna/metoda jako vratka)
+    json_response(['uctenka' => $o['cislo'], 'castka_celkem' => (float) $o['castka_celkem'], 'polozky' => $out,
+                   'mena' => $o['mena'] ?: 'CZK', 'pos_payment' => $o['pos_payment'] ?: 'hotove']);
 }
 
 // 🆕 v3.0.268 — VRATKY: refundace ZAPLACENÉ účtenky → záporná účtenka (VRA-…)

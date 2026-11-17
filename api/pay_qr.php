@@ -97,7 +97,7 @@ function pay_resolve_token(PDO $pdo, string $token): ?array {
 function pay_items_for(PDO $pdo, array $t): array {
     if ($t['type'] === 'ucet') {
         // 💱 v3.0.643 — jednotkova_cena účtu je S DPH; sazba z položky (balík A plní sazba_dph), jinak 21 %.
-        //   cena_bez_dph = jako mena_ucet_polozky (4 místa) → frontend dopočte stejnou cenu s DPH jako dřív bez 21 % navíc.
+        //   cena_bez_dph = jako mena_ucet_polozky (2 místa) → frontend dopočte stejnou cenu s DPH jako dřív bez 21 % navíc.
         $saz = mena_ma_sloupec($pdo, 'restaurant_pos_polozky', 'sazba_dph') ? 'COALESCE(sazba_dph, 21)' : '21';
         $p = $pdo->prepare("SELECT mnozstvi, jednotkova_cena, $saz AS sazba_dph, nazev
                             FROM restaurant_pos_polozky WHERE ucet_id = :id AND stav <> 'storno' ORDER BY id");
@@ -105,7 +105,7 @@ function pay_items_for(PDO $pdo, array $t): array {
         $out = [];
         foreach ($p->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $s = (float) $r['sazba_dph'];
-            $out[] = ['mnozstvi' => (float) $r['mnozstvi'], 'cena_bez_dph' => round((float) $r['jednotkova_cena'] / (1 + $s / 100), 4),
+            $out[] = ['mnozstvi' => (float) $r['mnozstvi'], 'cena_bez_dph' => round((float) $r['jednotkova_cena'] / (1 + $s / 100), 2),
                       'sazba_dph' => $s, 'nazev' => $r['nazev'], 'castka_czk' => round((float) $r['mnozstvi'] * (float) $r['jednotkova_cena'], 2)];
         }
         return $out;
@@ -166,11 +166,14 @@ if ($method === 'POST' && $action === 'create_token') {
     $id = (int)($d['objednavka_id'] ?? $d['id'] ?? 0);
     if (!$id) json_error('Chybí objednavka_id', 400);
 
-    $s = $pdo->prepare("SELECT id, pay_token, pay_status FROM objednavky WHERE id = :id");
+    $s = $pdo->prepare("SELECT id, pay_token, pay_status, stav FROM objednavky WHERE id = :id");
     $s->execute(['id' => $id]);
     $o = $s->fetch();
     if (!$o) json_error('Objednávka nenalezena', 404);
     if ($o['pay_status'] === 'paid') json_error('Objednávka je již zaplacena', 409);
+    // 🐛 v3.0.643 — účtenka zaplacená na pokladně (stav zaplaceno) → druhá platba přes QR = dvojí úhrada
+    if (($o['stav'] ?? '') === 'zaplaceno') json_error('Účtenka je už zaplacená na pokladně — QR platba není potřeba.', 409);
+    if (($o['stav'] ?? '') === 'zrusena') json_error('Objednávka je zrušená', 409);
 
     $token = $o['pay_token'] ?: bin2hex(random_bytes(16));
     if (!$o['pay_token']) {
@@ -354,7 +357,23 @@ if ($method === 'POST' && $action === 'admin_confirm_manual') {
     $id = (int)($d['objednavka_id'] ?? 0);
     if (!$id) json_error('Chybí objednavka_id', 400);
     pay_qr_ensure_schema($pdo);
+    $st0 = $pdo->prepare("SELECT pay_status FROM objednavky WHERE id = ?");
+    $st0->execute([$id]);
+    $byloZaplaceno = $st0->fetchColumn() === 'paid';
     pay_set_status($pdo, $id, 'paid', null);
+    // 💱 v3.0.643 — hotovost u číšníka = přijatá platba → do ledgeru v měně dokladu (uzávěrka dle měn)
+    if (!$byloZaplaceno) {
+        try {
+            $dc = mena_doc_castka($pdo, 'objednavky', $id);
+            if ($dc['celkem'] > 0) {
+                $pdo->prepare("UPDATE objednavky SET pay_prijato = ? WHERE id = ?")->execute([$dc['celkem'], $id]);
+                $adm = function_exists('aktualni_admin') ? (aktualni_admin($pdo)['jmeno'] ?? null) : null;
+                mena_platba_zapis($pdo, ['objednavka_id' => $id, 'zdroj' => 'qr', 'metoda' => 'hotovost', 'mena' => $dc['mena'],
+                                         'castka_mena' => $dc['celkem'], 'kurz' => $dc['mena'] === 'CZK' ? 1.0 : (float) $dc['kurz'],
+                                         'uzivatel' => $adm, 'idem' => 'manual:' . $id]);
+            }
+        } catch (Throwable $e) { error_log('admin_confirm_manual ledger: ' . $e->getMessage()); }
+    }
     json_response(['ok' => true]);
 }
 
@@ -378,7 +397,7 @@ if ($method === 'POST' && $action === 'stripe_webhook') {
     $event = json_decode($payload, true);
     if (!$event) json_error('Bad payload', 400);
     // 💱 v3.0.643 — PAY-/UCET-/B2B- reference; potvrdí jen při shodě částky A měny (jinak 'failed')
-    try { $res = online_platba_stripe_event($pdo, $event); }
+    try { $res = online_platba_stripe_event($pdo, $event, $sigValid === true); }
     catch (Throwable $e) { error_log('pay_qr stripe_webhook: ' . $e->getMessage()); json_error('Chyba zpracování', 500); }
     json_response(['ok' => true, 'stav' => $res['stav']]);
 }

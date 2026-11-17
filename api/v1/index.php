@@ -220,11 +220,23 @@ if ($parts[0] === 'faktury' && isset($parts[1]) && isset($parts[2]) && $parts[2]
     $cc = $fa->fetchColumn();
     if (!$cc) api_error('Faktura nenalezena', 404);
 
-    $castka = $castka > 0 ? $castka : (float) $cc;
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $datum)) api_error('Neplatné datum (RRRR-MM-DD)', 400);
+    // 💱 v3.0.643 — GET vrací doc_mena/doc_celkem; úhradu lze poslat i v měně dokladu (castka_mena),
+    //   `castka` zůstává v Kč (zpětná kompatibilita). Plná úhrada v měně = přesně castka_celkem.
+    require_once __DIR__ . '/../_mena_lib.php';
+    $rowsU = [['id' => $id]]; mena_doc_pole($pdo, 'faktury', $rowsU);
+    if (isset($input['castka_mena']) && is_numeric($input['castka_mena'])) {
+        $xm = round((float) $input['castka_mena'], 2);
+        $docCel = (float) ($rowsU[0]['doc_celkem'] ?? 0); $kD = (float) ($rowsU[0]['doc_k'] ?? 1);
+        if ($xm < 0 || $xm > $docCel + 0.005) api_error('castka_mena mimo rozsah 0 – ' . $docCel . ' ' . ($rowsU[0]['doc_mena'] ?? ''), 400);
+        $castka = abs($xm - $docCel) < 0.005 ? (float) $cc : ($kD > 0 ? round($xm / $kD, 2) : $xm);
+    }
+    $castka = $castka > 0 ? min($castka, (float) $cc) : (float) $cc;
     $pdo->prepare("UPDATE faktury SET castka_uhrazeno = :c, datum_uhrazeni = :d WHERE id = :id")
         ->execute(['c' => $castka, 'd' => $datum, 'id' => $id]);
 
-    api_response(['ok' => true, 'id' => $id, 'castka_uhrazeno' => $castka, 'datum' => $datum]);
+    api_response(['ok' => true, 'id' => $id, 'castka_uhrazeno' => $castka, 'datum' => $datum,
+                  'doc_mena' => $rowsU[0]['doc_mena'] ?? 'CZK', 'doc_celkem' => $rowsU[0]['doc_celkem'] ?? (float) $cc]);
 }
 
 // GET /dodaci_listy

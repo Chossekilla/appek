@@ -138,7 +138,14 @@ try {
         if (!$rowsV) continue;
         $keys = array_keys($rowsV); $list = array_values($rowsV);
         mena_doc_pole($pdo, $t, $list);
-        foreach ($keys as $j => $i) if (isset($list[$j]['doc_mena'])) { $vratky[$i]['doc_mena'] = $list[$j]['doc_mena']; $vratky[$i]['doc_celkem'] = $list[$j]['doc_celkem']; }
+        // autoritativní částka vratky = castka_mena (u POS vratky je zarovnaná na zbytek originálu, ne přepočet řádků)
+        $cm = [];
+        try { $cmQ = $pdo->query("SELECT id, castka_mena FROM `$t` WHERE id IN (" . implode(',', array_map(fn($r) => (int) $r['id'], $list)) . ") AND castka_mena IS NOT NULL");
+              foreach ($cmQ->fetchAll(PDO::FETCH_ASSOC) as $r) $cm[(int) $r['id']] = (float) $r['castka_mena']; } catch (Throwable $e) {}
+        foreach ($keys as $j => $i) if (isset($list[$j]['doc_mena'])) {
+            $vratky[$i]['doc_mena'] = $list[$j]['doc_mena'];
+            $vratky[$i]['doc_celkem'] = $cm[(int) $list[$j]['id']] ?? $list[$j]['doc_celkem'];
+        }
     }
 } catch (Throwable $e) { error_log('admin_vratky doc_mena: ' . $e->getMessage()); }
 

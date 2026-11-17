@@ -84,7 +84,7 @@ function recurring_generate(PDO $pdo, string $datum_dodani): array {
             // 💱 v3.0.643 — měna opakované objednávky: pravidlo → výchozí měna odběratele → jako dřív (globál).
             //   Kurz = den generování. Volba PŘED transakcí (může líně stáhnout kurz ČNB).
             require_once __DIR__ . '/_mena_lib.php';
-            $mRec = null;
+            $mRec = null; $mk = '';
             try {
                 $mk = strtoupper((string) ($rule['mena'] ?? ''));
                 if ($mk === '') {
@@ -93,7 +93,17 @@ function recurring_generate(PDO $pdo, string $datum_dodani): array {
                     $mk = strtoupper((string) $sm->fetchColumn());
                 }
                 if ($mk !== '' && mena_platebni_info($pdo, 'b2b')['aktivni']) $mRec = mena_volba_platby($pdo, $mk, 'b2b');
-            } catch (Throwable $e) { error_log('recurring mena #' . $rule['id'] . ': ' . $e->getMessage()); $mRec = null; }
+            } catch (Throwable $e) {
+                error_log('recurring mena #' . $rule['id'] . ': ' . $e->getMessage());
+                // záloha = měna bez volby (kanál B2B bez cizí měny / bez kurzu → Kč), nikdy výchozí cizí měna naslepo
+                try { $mRec = !empty(mena_config_load($pdo)['platba']['aktivni']) ? mena_volba_platby($pdo, null, 'b2b') : null; } catch (Throwable $e3) { $mRec = null; }
+                // nemlčet: objednávka vznikne ve výchozí měně (typicky Kč) → upozornit admina
+                try { $pdo->prepare("INSERT INTO notifications (kind, title, msg, link, severity) VALUES ('recurring_mena', ?, ?, '#/objednavky', 'warning')")
+                          ->execute(['⚠️ Opakovaná objednávka ne v ' . ($mk ?: 'cizí měně'), 'Pravidlo „' . ($rule['nazev'] ?? ('#' . $rule['id'])) . '" na ' . $datum_dodani . ': ' . $e->getMessage() . ' Objednávka vznikla ve výchozí měně — zkontroluj ji.']); } catch (Throwable $e2) {}
+            }
+
+            // platby ve více měnách zapnuté, ale bez volby (kanál B2B jen Kč / odběratel bez měny) → měna kanálu, ne globální výchozí
+            if (!$mRec && !empty(mena_config_load($pdo)['platba']['aktivni'])) { try { $mRec = mena_volba_platby($pdo, null, 'b2b'); } catch (Throwable $e4) {} }
 
             $pdo->beginTransaction();
 

@@ -5,7 +5,7 @@
 window._posPlatbaInfo = null;
 window.posPlatbaMena = 'CZK';
 async function posPlatbaInfoLoad() {
-  try { window._posPlatbaInfo = await api('admin_pos.php?action=platba_info'); } catch (e) { window._posPlatbaInfo = null; }
+  try { window._posPlatbaInfo = await api('admin_pos.php?action=platba_info&kanal=stul'); } catch (e) { window._posPlatbaInfo = null; }
   const pi = window._posPlatbaInfo;
   if (!pi || !pi.aktivni || !(pi.prijimane || []).includes(window.posPlatbaMena)) window.posPlatbaMena = (pi && pi.aktivni && pi.vychozi) || 'CZK';
   return pi;
@@ -19,7 +19,12 @@ window.posPaymentDialog = async function() {
   const mena = (pi && pi.aktivni) ? window.posPlatbaMena : 'CZK';
   const inf = pi && pi.meny ? pi.meny[mena] : null;
   const cizi = mena !== 'CZK' && inf && inf.kurz_prodej;
-  const total = cizi ? Math.round(totalKc / inf.kurz_prodej * 100) / 100 : totalKc;   // náhled; přesnou částku spočítá server
+  // přesná částka v měně = server (po řádcích jako doklad); záložně náhled Kč / kurz
+  let total = totalKc, presne = !cizi;
+  if (cizi) {
+    try { const q = await api(`admin_pos.php?action=ucet_castka&ucet_id=${u.id}&mena=${encodeURIComponent(mena)}`); total = +q.celkem; presne = true; }
+    catch (e) { total = Math.round(totalKc / inf.kurz_prodej * 100) / 100; }
+  }
   const menaBar = (pi && pi.aktivni && (pi.prijimane || []).length > 1) ? `<div style="display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap">
       <span style="font-size:12px;color:var(--text-3);font-weight:600">Měna platby:</span>
       ${(pi.prijimane || []).map(m => { const i = pi.meny[m] || {}; const dis = m !== 'CZK' && i.ok === false;
@@ -31,8 +36,8 @@ window.posPaymentDialog = async function() {
       ${menaBar}
       <div style="text-align:center;padding:16px;background:linear-gradient(135deg,#FFF8E7,#FEF3C7);border-radius:10px">
         <div style="font-size:11px;color:#854F0B;text-transform:uppercase;font-weight:700">K platbě</div>
-        <div style="font-size:36px;font-weight:800;color:#1d1d1f;line-height:1">${cizi ? '≈ ' + total.toFixed(2).replace('.', ',') + ' ' + esc(posMenaSym(mena)) : totalKc.toFixed(2) + ' Kč'}</div>
-        ${cizi ? `<div style="font-size:11px;color:#92400e;margin-top:2px">${totalKc.toFixed(2)} Kč · přesnou částku v ${esc(mena)} spočítá pokladna při zaplacení</div>` : ''}
+        <div style="font-size:36px;font-weight:800;color:#1d1d1f;line-height:1">${cizi ? (presne ? '' : '≈ ') + total.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + esc(posMenaSym(mena)) : totalKc.toFixed(2) + ' Kč'}</div>
+        ${cizi ? `<div style="font-size:11px;color:#92400e;margin-top:2px">${totalKc.toFixed(2)} Kč${presne ? '' : ' · přesnou částku v ' + esc(mena) + ' spočítá pokladna při zaplacení'}</div>` : ''}
         <div style="font-size:11px;color:#92400e;margin-top:4px">${(u.polozky || []).filter(p => p.stav !== 'storno').length} položek</div>
       </div>
 
@@ -69,7 +74,7 @@ window.posPaySingle = async function(amount, zpusob) {
     // 💱 cizí měna: bez castky → server spočítá přesnou částku účtu v měně (= doklad/účtenka)
     const body = (mena !== 'CZK')
       ? { ucet_id: u.id, payment: zpusob, mena, kurz_klient: inf ? inf.kurz_prodej : undefined, station_token: (localStorage.getItem('appek_station_token') || '') }
-      : { ucet_id: u.id, platby: [{ castka: amount, zpusob }], station_token: (localStorage.getItem('appek_station_token') || '') };
+      : { ucet_id: u.id, platby: [{ castka: amount, zpusob }], ...((pi && pi.aktivni) ? { mena: 'CZK' } : {}), station_token: (localStorage.getItem('appek_station_token') || '') };
     const r = await api('admin_pos.php?action=pay', { method: 'POST', body: JSON.stringify(body) });
     // 🆕 v3.0.189 — server účet uzavřel (stav=paid) + uvolnil stůl. Nabídni tisk (ne auto-tisk).
     posPaidPrintPrompt(u.id, mena !== 'CZK' ? r.celkem_mena : amount, mena);
@@ -154,7 +159,7 @@ window.posSubmitSplitPay = async function(total) {
   const mena = (pi && pi.aktivni) ? window.posPlatbaMena : 'CZK';
   try {
     const r = await api('admin_pos.php?action=pay', {
-      method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby: platby.map(p => ({ ...p, mena })), ...(mena !== 'CZK' ? { mena, kurz_klient: (pi.meny[mena] || {}).kurz_prodej } : {}), station_token: (localStorage.getItem('appek_station_token') || '') }),
+      method: 'POST', body: JSON.stringify({ ucet_id: u.id, platby: platby.map(p => ({ ...p, mena })), ...(mena !== 'CZK' ? { mena, kurz_klient: (pi.meny[mena] || {}).kurz_prodej } : ((pi && pi.aktivni) ? { mena: 'CZK' } : {})), station_token: (localStorage.getItem('appek_station_token') || '') }),
     });
     // 🆕 v3.0.189 — sjednoceno s posPaySingle: nabídni tisk + zavři.
     posPaidPrintPrompt(u.id, mena !== 'CZK' ? r.celkem_mena : sum, mena);

@@ -82,10 +82,14 @@ window.ulozitFakturu = async function(id) {
   const data = {
     id,
     datum_splatnosti: document.getElementById('ff-splatnost').value,
-    // 💱 v3.0.643 — EUR faktura: úhrada v měně dokladu (server převede kurzem dokladu)
-    ...((document.getElementById('ff-uhrazeno').dataset.mena || 'CZK') !== 'CZK'
-      ? { castka_uhrazeno_mena: parseFloat(document.getElementById('ff-uhrazeno').value) || 0 }
-      : { castka_uhrazeno: parseFloat(document.getElementById('ff-uhrazeno').value) || 0 }),
+    // 💱 v3.0.643 — EUR faktura: úhrada v měně dokladu (server převede kurzem dokladu); neměněná úhrada se
+    //   NEposílá (jinak by každé uložení posunulo Kč částku zpětným převodem EUR → Kč)
+    ...(() => {
+      const el = document.getElementById('ff-uhrazeno');
+      const v = parseFloat(el.value) || 0;
+      if (Math.abs(v - (parseFloat(el.dataset.puvodni) || 0)) < 0.005) return {};
+      return (el.dataset.mena || 'CZK') !== 'CZK' ? { castka_uhrazeno_mena: v } : { castka_uhrazeno: v };
+    })(),
     variabilni_symbol: document.getElementById('ff-vs').value,
     poznamka: document.getElementById('ff-pozn').value,
   };

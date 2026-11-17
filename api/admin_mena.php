@@ -60,8 +60,7 @@ function mena_admin_posledni_kurzy(PDO $pdo): array {
 /** Uloží celý config (legacy pole + blok platba) — jediný zápis mena_config_json. */
 function mena_admin_uloz(PDO $pdo, array $legacy, array $platba): void {
     unset($platba['prijimane']);
-    $legacy['platba'] = $platba;
-    if (!empty($platba['aktivni'])) $legacy['zobrazeni'] = 'kc';
+    $legacy['platba'] = $platba;   // zobrazeni se NEpřepisuje — při zapnutých platbách ho na 'kc' převede až mena_config_finish
     $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('mena_config_json', :v)
                    ON DUPLICATE KEY UPDATE hodnota = VALUES(hodnota)")
         ->execute(['v' => json_encode($legacy, JSON_UNESCAPED_UNICODE)]);
@@ -141,7 +140,11 @@ if ($action === 'save_platba') {
         }
     }
     if (trim((string) ($in['iban_eur'] ?? '')) !== '' && $p['iban_eur'] === '') json_error('EUR IBAN nemá platný formát (např. CZ65 0800 0000 1920 0014 5399).', 400);
-    $legacy = ['kod' => $akt['kod'], 'kurz' => $akt['kurz'], 'zobrazeni' => $akt['zobrazeni'], 'dual_doklady' => $akt['dual_doklady'],
+    // zobrazení z ULOŽENÉHO configu (načtený ho při zapnutých platbách přepíše na 'kc') → po vypnutí plateb
+    //   se vrátí původní režim (např. „prodávat v EUR"), nic se trvale neztratí
+    $rawCfg = json_decode((string) $pdo->query("SELECT hodnota FROM nastaveni WHERE klic = 'mena_config_json'")->fetchColumn(), true);
+    $zobrUlozene = (is_array($rawCfg) && ($rawCfg['zobrazeni'] ?? '') === 'mena') ? 'mena' : $akt['zobrazeni'];
+    $legacy = ['kod' => $akt['kod'], 'kurz' => $akt['kurz'], 'zobrazeni' => $zobrUlozene, 'dual_doklady' => $akt['dual_doklady'],
                'kurz_zdroj' => $akt['kurz_zdroj'], 'zakladni' => $akt['zakladni']];
     $prelozeno = null;
     if ($p['aktivni'] && !$akt['platba']['aktivni'] && $akt['zobrazeni'] === 'mena' && $akt['kod'] !== 'CZK') {

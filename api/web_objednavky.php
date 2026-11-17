@@ -312,7 +312,7 @@ if ($action === 'order' && $method === 'POST') {
     wo_ensure($pdo);
     // 💱 v3.0.643 — měna objednávky (platí se při převzetí v této měně; ceník zůstává v Kč)
     require_once __DIR__ . '/_mena_lib.php';
-    $platbaAktivni = mena_platebni_info($pdo, 'web')['aktivni'];
+    $platbaAktivni = !empty(mena_config_load($pdo)['platba']['aktivni']);   // zapnuto globálně → kanál bez cizí měny dostane Kč (ne výchozí cizí)
     try { $mObj = mena_volba_platby($pdo, ($d['mena'] ?? '') !== '' ? (string) $d['mena'] : null, 'web'); }
     catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
     $token = bin2hex(random_bytes(12));

@@ -2270,8 +2270,14 @@ async function b2bMenaQuote() {
       polozky: cartItems().map((i) => ({ vyrobek_id: parseInt(i.id), mnozstvi: i.mnozstvi })),
       platba: state.checkoutData.platba || '', doprava: state.checkoutData.doprava || '',
       mena: state.checkoutData.mena || undefined,
+      voucher_kod: (b2bVoucherLzePouzit() && state.checkoutData.voucher) ? state.checkoutData.voucher.kod : undefined,
     }) });
-    if (!state.checkoutData.mena) state.checkoutData.mena = q.mena;   // výchozí měna odběratele/firmy (server)
+    state.checkoutData._kurzQuote = (q.mena !== 'CZK') ? (q.kurz_prodej || q.kurz) : null;
+    if (!state.checkoutData.mena) {
+      state.checkoutData.mena = q.mena;   // výchozí měna odběratele/firmy (server)
+      // cizí výchozí měna → znovu načti metody platby (dobírka/převod bez EUR IBAN se skryjí)
+      if (q.mena !== 'CZK') { loadDopravaPlatbaCards(); return; }
+    }
   } catch (e) { err = e.message || ''; }
   const mena = state.checkoutData.mena || p.vychozi || 'CZK';
   const btns = (p.prijimane || []).map(m => {
@@ -2282,7 +2288,6 @@ async function b2bMenaQuote() {
   if (q && q.mena !== 'CZK') {
     html += `<div class="cart-summary-row total b2b-mena-total"><span>K úhradě v ${esc(q.mena)}</span><span>${b2bFmtMena(q.celkem, q.mena)}</span></div>`;
     html += `<div class="cart-summary-row" style="font-size:12px;color:var(--text-3)"><span>Kurz ČNB${q.kurz_datum ? ' ' + esc(new Date(q.kurz_datum).toLocaleDateString('cs-CZ')) : ''}: 1 ${esc(b2bMenaSym(q.mena))} = ${(+q.kurz_prodej || +q.kurz).toLocaleString('cs-CZ', { maximumFractionDigits: 3 })} Kč</span><span></span></div>`;
-    if (state.checkoutData.voucher) html += `<div class="cart-summary-row" style="font-size:12px;color:var(--text-3)"><span>Sleva z kódu se odečte v ${esc(q.mena)} při odeslání.</span><span></span></div>`;
   }
   if (q && q.metoda_chyba) html += `<div class="cart-summary-row" style="color:#a8232f;font-size:13px"><span>⚠️ <span>${esc(q.metoda_chyba)}</span> <span>Zvolte jinou platbu.</span></span><span></span></div>`;
   if (err) html += `<div class="cart-summary-row" style="color:#a8232f;font-size:13px"><span>⚠️ ${esc(err)}</span><span></span></div>`;
@@ -2490,7 +2495,7 @@ window.submitOrder = async function() {
     doprava: state.checkoutData.doprava || 'vlastni',
     platba:  state.checkoutData.platba  || 'prevod',
     // 💱 v3.0.643 — měna platby (server ověří, že ji metoda umí; doklad vznikne v této měně)
-    ...(b2bMenaAktivni() && state.checkoutData.mena ? { mena: state.checkoutData.mena } : {}),
+    ...(b2bMenaAktivni() && state.checkoutData.mena ? { mena: state.checkoutData.mena, ...(state.checkoutData._kurzQuote ? { kurz_klient: state.checkoutData._kurzQuote } : {}) } : {}),
     // 🎟️ v3.0.634 — slevový kód (uplatněný, nebo jen napsaný → server ho ověří při odeslání)
     voucher_kod: b2bVoucherLzePouzit()
       ? (state.checkoutData.voucher?.kod || document.getElementById('b2b-voucher-kod')?.value.trim() || null)
@@ -2545,6 +2550,7 @@ window.submitOrder = async function() {
     switchTab('history');
   } catch (e) {
     alert('Chyba: ' + e.message);
+    if (/kurz/i.test(e.message || '')) updateSurchargeDisplay();   // nový kurz → přepočítat částku v košíku
   } finally {
     window._b2bSubmitting = false;
     _subBtns.forEach(b => { b.disabled = false; if (b.dataset._txt) b.textContent = b.dataset._txt; });

@@ -528,7 +528,15 @@
         bez -= sb; dph -= sb * (+s / 100); slevaAbs += sb * (1 + (+s) / 100);
       }
     }
-    const total = bez + dph + (State.pos_tip || 0);
+    // 🐛 v3.0.643 — poplatek platby (karta-fee) jako server: z configu metody nad bez+DPH (dřív /pos/ ukazovala
+    //   nižší částku a kalkulačka hotovosti/EUR nesouhlasila se serverem)
+    let poplatek = 0;
+    const pm = (State._payMethods || []).find(m => m.key === State.pos_payment);
+    if (pm && parseFloat(pm.poplatek) > 0) {
+      poplatek = (pm.poplatek_typ === 'pct') ? r2c((r2c(bez) + r2c(dph)) * parseFloat(pm.poplatek) / 100) : parseFloat(pm.poplatek);
+    }
+    State._poplatek = poplatek;
+    const total = bez + dph + (State.pos_tip || 0) + poplatek;
 
     $('#pos-sub-bez').textContent = fmt(bez);
     $('#pos-sub-dph').textContent = fmt(dph);
@@ -537,7 +545,7 @@
     State._celkemKc = Math.round(total * 100) / 100;
     State._celkemMena = null;
     if (plAktivni() && State.platba_mena !== 'CZK') {
-      State._celkemMena = plCelkemMena(plRadky(0), State.platba_mena);
+      State._celkemMena = plCelkemMena(plRadky(poplatek), State.platba_mena);
       if (State._celkemMena !== null) $('#pos-total').innerHTML = esc(plFmt(State._celkemMena, State.platba_mena)) + ` <small style="font-size:.55em;opacity:.7;font-weight:600">(${esc(fmt(total))} Kč)</small>`;
     }
 
@@ -574,6 +582,7 @@
   function setPay(p) {
     State.pos_payment = p;
     $$('.pos-pay-btn').forEach(b => b.classList.toggle('is-active', b.dataset.pay === p));
+    recalc();   // poplatek metody (karta-fee) se promítne hned
   }
   function payMenu(e) {
     e?.stopPropagation();
@@ -1074,6 +1083,9 @@
   // ─── Init ────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { renderMenaBar(); if (plAktivni()) plObnovInfo(); }, 0);   // 💱 v3.0.643
+    // 🐛 v3.0.643 — poplatky metod platby (stejný zdroj jako admin pokladna) → součet = server
+    fetch('../api/payment_methods.php?context=pos', { cache: 'no-store' }).then(r => r.json())
+      .then(j => { State._payMethods = j.methods || []; recalc(); }).catch(() => { State._payMethods = []; });
     // Search input live binding
     const inp = $('#pos-search');
     if (inp) {

@@ -568,7 +568,10 @@ if ($method === 'POST') {
             }
             if ($mk !== '') {
                 try { $mRucni = mena_volba_platby($pdo, $mk, 'admin'); }
-                catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
+                catch (MenaException $e) {
+                    if (trim((string) ($d['mena'] ?? '')) !== '') json_error($e->getMessage(), $e->http);   // výslovná volba → chyba
+                    $mRucni = null;   // jen výchozí měna odběratele bez kurzu → jako dřív
+                }
             }
         }
 
@@ -816,6 +819,19 @@ if ($method === 'PUT') {
             if ($maFA) {
                 synchronizovat_fakturu_z_objednavky($pdo, $obj_id);
             }
+            // 💱 v3.0.643 — autoritativní celkem v měně dokladu po změně položek (objednávka + navázané DL/FA)
+            try {
+                require_once __DIR__ . '/_mena_lib.php';
+                mena_ulozit_castku($pdo, 'objednavky', $obj_id);
+                $dlIds = $pdo->prepare("SELECT id FROM dodaci_listy WHERE objednavka_id = ?");
+                $dlIds->execute([$obj_id]);
+                foreach ($dlIds->fetchAll(PDO::FETCH_COLUMN) as $dlx) {
+                    mena_ulozit_castku($pdo, 'dodaci_listy', (int) $dlx);
+                    $fq = $pdo->prepare("SELECT faktura_id FROM faktury_dodaci_listy WHERE dodaci_list_id = ?");
+                    $fq->execute([(int) $dlx]);
+                    foreach ($fq->fetchAll(PDO::FETCH_COLUMN) as $fx) mena_ulozit_castku($pdo, 'faktury', (int) $fx);
+                }
+            } catch (Throwable $e) { error_log('admin edit castka_mena: ' . $e->getMessage()); }
         }
 
         // Logování + email pouze pokud došlo k podstatné změně

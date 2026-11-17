@@ -63,7 +63,7 @@ $placeholders = implode(',', array_fill(0, count($ids), '?'));
 $stmt = $pdo->prepare("
     SELECT o.id, o.cislo, o.odberatel_id, o.misto_dodani_id, o.datum_dodani,
            o.datum_objednani, o.castka_bez_dph, o.castka_dph, o.castka_celkem,
-           o.stav, o.zpusob_platby, o.mena,
+           o.stav, o.zpusob_platby, o.mena, o.mena_kurz, o.mena_kurz_prodej,
            od.nazev AS odberatel_nazev, od.splatnost_dni,
            md.nazev AS misto_nazev,
            (SELECT COUNT(*) FROM objednavky_polozky op WHERE op.objednavka_id = o.id) AS pocet_polozek,
@@ -103,7 +103,7 @@ if ($action === 'preview') {
         $skupiny_dl[$kdl]['objednavky'][] = (int) $o['id'];
         $skupiny_dl[$kdl]['datumy'][] = $o['datum_dodani'];
 
-        $kfa = $o['odberatel_id'] . '|' . strtoupper((string) ($o['mena'] ?: 'CZK'));   // 💱 v3.0.643 — faktura jen v jedné měně
+        $kfa = hromadne_fa_klic($o);   // 💱 v3.0.643 — faktura jen v jedné měně a jednom kurzu
         if (!isset($skupiny_fa[$kfa])) {
             $skupiny_fa[$kfa] = [
                 'odberatel_id'    => (int) $o['odberatel_id'],
@@ -128,6 +128,12 @@ if ($action === 'preview') {
 // =============================================================
 // HROMADNÉ DL — 1 DL per objednávka
 // =============================================================
+/** 💱 v3.0.643 — klíč skupiny hromadné faktury: odběratel + měna (+ kurz u cizí měny — faktura má jeden kurz). */
+function hromadne_fa_klic(array $o): string {
+    $m = strtoupper((string) (($o['mena'] ?? '') ?: 'CZK'));
+    return $o['odberatel_id'] . '|' . $m . ($m === 'CZK' ? '' : '|' . round((float) ($o['mena_kurz'] ?? 0), 6) . '|' . round((float) ($o['mena_kurz_prodej'] ?? 0), 6));
+}
+
 function vytvor_dl_pro_objednavku(PDO $pdo, array $obj, ?string $datum_vystaveni_dl): int {
     $datum_vystaveni = $datum_vystaveni_dl ?: date('Y-m-d');
     $cislo_dl = dalsi_cislo($pdo, 'DL', (int) date('Y', strtotime($datum_vystaveni)));
@@ -243,7 +249,7 @@ if ($action === 'fa') {
             $preskoceno[] = ['id' => (int) $o['id'], 'cislo' => $o['cislo'], 'duvod' => 'Už je na faktuře #' . $o['faktura_id']];
             continue;
         }
-        $k = $o['odberatel_id'] . '|' . strtoupper((string) ($o['mena'] ?: 'CZK'));   // 💱 v3.0.643 — EUR a Kč objednávky → zvláštní faktury
+        $k = hromadne_fa_klic($o);   // 💱 v3.0.643 — EUR a Kč objednávky (a různé kurzy) → zvláštní faktury
         if (!isset($skupiny[$k])) {
             $skupiny[$k] = [
                 'odberatel_id'    => (int) $o['odberatel_id'],

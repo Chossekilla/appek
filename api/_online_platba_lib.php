@@ -101,7 +101,24 @@ function online_platba_potvrd(PDO $pdo, array $a): array {
             $st->execute([$id]);
             $o = $st->fetch(PDO::FETCH_ASSOC);
             if (!$o) { if ($own) $pdo->commit(); return ['stav' => 'nenalezeno']; }
-            if (($o['pay_status'] ?? '') === 'paid') { if ($own) $pdo->commit(); return ['stav' => 'uz_zaplaceno']; }
+            if (($o['pay_status'] ?? '') === 'paid') {
+                // druhá úspěšná platba téhož dokladu (jiná session/brána) = přeplatek → upozornit, ne tiše zahodit
+                $extId0 = (string) ($a['ext_id'] ?? '');
+                $dup = false;
+                try { $q = $pdo->prepare("SELECT 1 FROM platby_doklad WHERE objednavka_id = ? AND idem = ? LIMIT 1"); $q->execute([$id, substr($brana . ':' . ($extId0 !== '' ? $extId0 : ('obj' . $id)), 0, 64)]); $dup = (bool) $q->fetchColumn(); } catch (Throwable $e) {}
+                if (!$dup) online_platba_upozorni($pdo, '⚠️ Druhá platba — objednávka ' . $o['cislo'],
+                    sprintf('%s potvrdila další platbu %s (%s), objednávka už byla zaplacená. Zkontroluj u brány a případně vrať peníze.',
+                        strtoupper($brana), mena_fmt($minor / 100, $mena), $extId0));
+                if ($own) $pdo->commit(); return ['stav' => 'uz_zaplaceno'];
+            }
+            if (($o['stav'] ?? '') === 'zrusena') {
+                $pdo->prepare("UPDATE objednavky SET pay_status = 'failed' WHERE id = ?")->execute([$id]);
+                online_platba_upozorni($pdo, '⚠️ Platba za zrušenou objednávku ' . $o['cislo'],
+                    sprintf('%s potvrdila platbu %s (%s) za objednávku, která je ZRUŠENÁ. Vrať peníze zákazníkovi u brány.',
+                        strtoupper($brana), mena_fmt($minor / 100, $mena), $ext));
+                if ($own) $pdo->commit();
+                return ['stav' => 'failed', 'duvod' => 'objednavka_zrusena'];
+            }
             if (!empty($o['pay_mena']) && $o['pay_castka'] !== null) {
                 $expMena = strtoupper((string) $o['pay_mena']); $expMinor = (int) round((float) $o['pay_castka'] * 100);
             } else {   // platba založená před v3.0.643 (bez pay_*) → částka dokladu
@@ -185,10 +202,21 @@ function online_platba_reference(PDO $pdo, string $ref): ?array {
     } catch (Throwable $e) { return null; }
 }
 
-/** Stripe event (už ověřený podpisem) → potvrzení. */
-function online_platba_stripe_event(PDO $pdo, array $event): array {
+/**
+ * Stripe event → potvrzení. $overeno=false (webhook secret nenastaven → podpis nejde ověřit):
+ * data události se NEBEROU — session se načte přímo ze Stripe API (secret key), jinak by si
+ * kdokoli se znalostí tokenu (host ho má v URL) mohl poslat falešné „zaplaceno".
+ */
+function online_platba_stripe_event(PDO $pdo, array $event, bool $overeno = true): array {
     if (($event['type'] ?? '') !== 'checkout.session.completed') return ['stav' => 'ignorovano'];
     $o = $event['data']['object'] ?? [];
+    if (!$overeno) {
+        $sid = (string) ($o['id'] ?? '');
+        if (!preg_match('/^cs_[A-Za-z0-9_]+$/', $sid)) return ['stav' => 'ignorovano', 'duvod' => 'neoverena_session'];
+        $api = customer_int_stripe_request('GET', '/checkout/sessions/' . $sid);
+        if (!($api['ok'] ?? false)) return ['stav' => 'chyba', 'duvod' => 'stripe_api: ' . ($api['error'] ?? '?')];
+        $o = $api;   // autoritativní data ze Stripe, ne z (nepodepsaného) požadavku
+    }
     if (isset($o['payment_status']) && $o['payment_status'] !== 'paid') return ['stav' => 'ignorovano', 'duvod' => 'payment_status=' . $o['payment_status']];
     $r = online_platba_reference($pdo, (string) ($o['client_reference_id'] ?? ''));
     if (!$r) return ['stav' => 'nenalezeno'];

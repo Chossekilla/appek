@@ -91,7 +91,7 @@
  *      dodaci_listy | restaurant_pos_ucty. $m = náhled v jiné měně (quote před snapshotem).
  *      Účet stolu bez snapshotu = CZK (nikdy globál). Položky účtu viz mena_ucet_polozky.
  *
- *  mena_ucet_polozky(PDO, int $ucetId): array  — [[mn, round(jedn_cena/(1+s/100), 4), s]]
+ *  mena_ucet_polozky(PDO, int $ucetId): array  — [[mn, round(jedn_cena/(1+s/100), 2), s]] (2 místa = jako uložený prodejní doklad)
  *      s = COALESCE(restaurant_pos_polozky.sazba_dph, 21). Stejný vzorec MUSÍ použít
  *      pos_ucet_create_sale pro objednavky_polozky, jinak se EUR doklad o cent rozejde s platbou.
  *
@@ -268,7 +268,16 @@ if (!function_exists('mena_config_load')) {
         if ($mena === 'CZK' && $prodej !== null) $prodej = 1.0;
         $zaklad = strtoupper((string) (($m['mena_zaklad'] ?? '') ?: 'CZK'));
 
-        if ($prepsat) mena_prepis_povolen($pdo, $tab, $id);
+        if ($prepsat) {
+            // stejná měna i kurzy jako už na dokladu → nic se nemění, zámek netřeba (např. výdej v měně objednávky)
+            $kpCol = ($tab === 'restaurant_pos_ucty' || mena_ma_sloupec($pdo, $tab, 'mena_kurz_prodej')) ? ', mena_kurz_prodej' : '';
+            $cur = $pdo->prepare("SELECT mena, mena_kurz$kpCol FROM `$tab` WHERE id = ?");
+            $cur->execute([$id]);
+            $c = $cur->fetch(PDO::FETCH_ASSOC);
+            if ($c && strtoupper((string) $c['mena']) === $mena && abs((float) $c['mena_kurz'] - $kurz) < 1e-6
+                && abs((float) ($c['mena_kurz_prodej'] ?? 0) - (float) ($prodej ?? 0)) < 1e-6) return false;
+            mena_prepis_povolen($pdo, $tab, $id);
+        }
 
         $set = ['mena = ?', 'mena_kurz = ?']; $par = [$mena, $kurz];
         if ($tab !== 'restaurant_pos_ucty') { $set[] = 'mena_zaklad = ?'; $par[] = $zaklad; }
@@ -304,6 +313,11 @@ if (!function_exists('mena_config_load')) {
             throw new MenaException('meny_smisene', 'Dodací listy jsou v různých měnách (' . implode(', ', $meny) . ') — vystavte fakturu zvlášť pro každou měnu.', 409);
         }
         if (!$rows) { mena_snapshot_doklad($pdo, 'faktury', $faId); return; }
+        // cizí měna: faktura má JEDEN kurz → DL s různými kurzy by se přepočetly kurzem prvního (jiné EUR částky než objednávky)
+        if (strtoupper((string) $rows[0]['mena']) !== 'CZK') {
+            $kurzy = array_unique(array_map(fn($r) => round((float) $r['mena_kurz'], 6) . '|' . round((float) ($r['mena_kurz_prodej'] ?? 0), 6), $rows));
+            if (count($kurzy) > 1) throw new MenaException('kurzy_smisene', 'Dodací listy v ' . strtoupper((string) $rows[0]['mena']) . ' mají různé kurzy (objednávky z různých dnů) — vystavte fakturu zvlášť pro každý kurz.', 409);
+        }
         mena_nastav_doklad($pdo, 'faktury', $faId, $rows[0] + ['mena_kurz_prodej' => null]);
     }
 
@@ -311,11 +325,13 @@ if (!function_exists('mena_config_load')) {
     function mena_prepis_povolen(PDO $pdo, string $tab, int $id): void {
         $zamek = fn(string $proc) => new MenaException('doklad_zamceny', "Měnu dokladu už nelze změnit: $proc.", 409);
         if ($tab === 'objednavky') {
-            $st = $pdo->prepare("SELECT stav, pay_status FROM objednavky WHERE id = ?");
+            // pay_status vzniká líně (první QR/online platba) → na instalaci bez nich sloupec není
+            $st = $pdo->prepare("SELECT stav" . (mena_ma_sloupec($pdo, 'objednavky', 'pay_status') ? ', pay_status' : '') . " FROM objednavky WHERE id = ?");
             $st->execute([$id]);
             $o = $st->fetch(PDO::FETCH_ASSOC);
             if (!$o) throw new MenaException('doklad_nenalezen', 'Doklad nenalezen', 404);
             if (($o['pay_status'] ?? '') === 'paid' || ($o['stav'] ?? '') === 'zaplaceno') throw $zamek('objednávka je zaplacená');
+            if (($o['pay_status'] ?? '') === 'pending') throw $zamek('u platební brány probíhá platba (dokončete ji nebo zrušte)');
             $q = fn(string $sql) => (function () use ($pdo, $sql, $id) { $s = $pdo->prepare($sql); $s->execute([$id]); return (bool) $s->fetchColumn(); })();
             if ($q("SELECT 1 FROM dodaci_listy WHERE objednavka_id = ? LIMIT 1")) throw $zamek('k objednávce je dodací list');
             // faktura k objednávce vzniká jen přes DL (faktury_dodaci_listy) → pokrývá kontrola DL výše
@@ -324,7 +340,7 @@ if (!function_exists('mena_config_load')) {
             return;
         }
         if ($tab === 'restaurant_pos_ucty') {
-            $st = $pdo->prepare("SELECT stav, pay_status FROM restaurant_pos_ucty WHERE id = ?");
+            $st = $pdo->prepare("SELECT stav" . (mena_ma_sloupec($pdo, 'restaurant_pos_ucty', 'pay_status') ? ', pay_status' : '') . " FROM restaurant_pos_ucty WHERE id = ?");
             $st->execute([$id]);
             $u = $st->fetch(PDO::FETCH_ASSOC);
             if (!$u) throw new MenaException('doklad_nenalezen', 'Účet nenalezen', 404);
@@ -716,8 +732,16 @@ if (!function_exists('mena_config_load')) {
             return ['mena' => 'CZK', 'mena_kurz' => 1.0, 'mena_kurz_prodej' => 1.0, 'mena_zaklad' => 'CZK',
                     'kurz_datum' => date('Y-m-d'), 'kurz_zdroj' => 'pevny', 'kurz_stari_dni' => 0, 'prirazka_pct' => 0.0, 'symbol' => 'Kč'];
         }
-        $k = mena_kurz_dne_cfg($pdo, $cfg, $mena, null, $stahnout);
+        $czk = ['mena' => 'CZK', 'mena_kurz' => 1.0, 'mena_kurz_prodej' => 1.0, 'mena_zaklad' => 'CZK',
+                'kurz_datum' => date('Y-m-d'), 'kurz_zdroj' => 'pevny', 'kurz_stari_dni' => 0, 'prirazka_pct' => 0.0, 'symbol' => 'Kč'];
+        try {
+            $k = mena_kurz_dne_cfg($pdo, $cfg, $mena, null, $stahnout);
+        } catch (MenaException $e) {
+            if ($volba === null) return $czk;   // nikdo cizí měnu nevolil (jen výchozí) → bez kurzu se prodá v Kč, ne chyba
+            throw $e;
+        }
         if ($k['stari_dni'] > $p['max_stari_kurzu_dni']) {
+            if ($volba === null) return $czk;   // starý kurz (svátky) nesmí zablokovat prodej bez volby měny
             throw new MenaException('kurz_stary', "Kurz $mena je starý {$k['stari_dni']} dní (poslední z " . date('j. n. Y', strtotime($k['datum'])) . ') — platba v ' . $mena . ' je dočasně vypnutá.', 503);
         }
         $pp = (float) ($p['prirazka_pct'][$mena] ?? 0);
@@ -776,7 +800,8 @@ if (!function_exists('mena_config_load')) {
         $out = [];
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $s = (float) $r['sazba'];
-            $out[] = [(float) $r['mnozstvi'], round((float) $r['jednotkova_cena'] / (1 + $s / 100), 4), $s];
+            // na 2 místa = přesně jak ji uloží prodejní záznam (objednavky_polozky.cena_bez_dph DECIMAL(10,2)) → EUR účtu == EUR dokladu
+            $out[] = [(float) $r['mnozstvi'], round((float) $r['jednotkova_cena'] / (1 + $s / 100), 2), $s];
         }
         return $out;
     }

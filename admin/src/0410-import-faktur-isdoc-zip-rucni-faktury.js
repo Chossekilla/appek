@@ -270,7 +270,7 @@ window.openFakturaDetail = async function(id) {
       <div>
         <label class="form-label">Uhrazená částka (${f.doc_mena && f.doc_mena !== 'CZK' ? esc(f.doc_mena) : 'Kč'})</label>
         <div style="display:flex;gap:6px;align-items:center">
-          <input type="number" step="0.01" class="form-input" id="ff-uhrazeno" data-mena="${esc(f.doc_mena || 'CZK')}" value="${f.doc_mena && f.doc_mena !== 'CZK' ? uhrazenoDoc : uhrazeno}" style="flex:1">
+          <input type="number" step="0.01" class="form-input" id="ff-uhrazeno" data-mena="${esc(f.doc_mena || 'CZK')}" data-puvodni="${f.doc_mena && f.doc_mena !== 'CZK' ? uhrazenoDoc : uhrazeno}" value="${f.doc_mena && f.doc_mena !== 'CZK' ? uhrazenoDoc : uhrazeno}" style="flex:1">
           <button class="btn-secondary" style="font-size:12px;padding:6px 10px;white-space:nowrap" onclick="document.getElementById('ff-uhrazeno').value='${f.doc_mena && f.doc_mena !== 'CZK' ? docCelkem(f) : f.castka_celkem}'" title="Plně uhrazeno">✅</button>
           <button class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="document.getElementById('ff-uhrazeno').value='0'" title="Reset">🔄</button>
         </div>
