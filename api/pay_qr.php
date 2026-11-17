@@ -27,6 +27,7 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_customer_integrace.php';
+require_once __DIR__ . '/_online_platba_lib.php';   // 💱 v3.0.643 — platba v měně dokladu + ověření částky ve webhooku
 
 cors_headers();
 header('Content-Type: application/json; charset=UTF-8');
@@ -76,7 +77,7 @@ function pay_get_order_by_token(PDO $pdo, string $token): ?array {
 //   Objednávku zkouší PRVNÍ → existující chování beze změny. Vrací normalizovaná pole.
 function pay_resolve_token(PDO $pdo, string $token): ?array {
     $o = pay_get_order_by_token($pdo, $token);
-    if ($o) return ['type'=>'obj', 'id'=>(int)$o['id'], 'cislo'=>$o['cislo'], 'castka'=>(float)$o['castka_celkem'],
+    if ($o) return ['type'=>'obj', 'id'=>(int)$o['id'], 'cislo'=>$o['cislo'], 'castka'=>(float)$o['castka_celkem'], 'mena'=>$o['mena'] ?? null,
                     'pay_status'=>$o['pay_status'], 'paid_at'=>$o['paid_at'] ?? null, 'pay_method'=>$o['pay_method'] ?? null, 'datum'=>$o['datum_objednani'] ?? null];
     $tok = preg_replace('/[^a-f0-9]/i', '', $token);
     if (strlen($tok) < 16) return null;
@@ -88,30 +89,55 @@ function pay_resolve_token(PDO $pdo, string $token): ?array {
         $r = $u->fetch(PDO::FETCH_ASSOC);
         if (!$r) return null;
         $ps = ($r['stav'] === 'paid' || ($r['pay_status'] ?? '') === 'paid') ? 'paid' : (($r['pay_status'] ?? 'pending') ?: 'pending');
-        return ['type'=>'ucet', 'id'=>(int)$r['id'], 'cislo'=>($r['cislo_dokladu'] ?: ('Účet #' . $r['id'])),
+        return ['type'=>'ucet', 'id'=>(int)$r['id'], 'cislo'=>($r['cislo_dokladu'] ?: ('Účet #' . $r['id'])), 'mena'=>$r['mena'] ?? null,
                 'castka'=>(float)$r['suma_kc'], 'pay_status'=>$ps, 'paid_at'=>$r['zaplaceno_v'] ?? null, 'pay_method'=>null, 'datum'=>null];
     } catch (Throwable $e) { return null; }
 }
 
 function pay_items_for(PDO $pdo, array $t): array {
     if ($t['type'] === 'ucet') {
-        $p = $pdo->prepare("SELECT mnozstvi, jednotkova_cena AS cena_bez_dph, 21 AS sazba_dph, nazev
-                            FROM restaurant_pos_polozky WHERE ucet_id = :id AND stav <> 'storno'");
+        // 💱 v3.0.643 — jednotkova_cena účtu je S DPH; sazba z položky (balík A plní sazba_dph), jinak 21 %.
+        //   cena_bez_dph = jako mena_ucet_polozky (4 místa) → frontend dopočte stejnou cenu s DPH jako dřív bez 21 % navíc.
+        $saz = mena_ma_sloupec($pdo, 'restaurant_pos_polozky', 'sazba_dph') ? 'COALESCE(sazba_dph, 21)' : '21';
+        $p = $pdo->prepare("SELECT mnozstvi, jednotkova_cena, $saz AS sazba_dph, nazev
+                            FROM restaurant_pos_polozky WHERE ucet_id = :id AND stav <> 'storno' ORDER BY id");
         $p->execute(['id' => $t['id']]);
-        return $p->fetchAll();
+        $out = [];
+        foreach ($p->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $s = (float) $r['sazba_dph'];
+            $out[] = ['mnozstvi' => (float) $r['mnozstvi'], 'cena_bez_dph' => round((float) $r['jednotkova_cena'] / (1 + $s / 100), 4),
+                      'sazba_dph' => $s, 'nazev' => $r['nazev'], 'castka_czk' => round((float) $r['mnozstvi'] * (float) $r['jednotkova_cena'], 2)];
+        }
+        return $out;
     }
     $p = $pdo->prepare("SELECT op.mnozstvi, op.cena_bez_dph, op.sazba_dph, COALESCE(op.vyrobek_nazev, v.nazev) AS nazev
-                        FROM objednavky_polozky op LEFT JOIN vyrobky v ON v.id = op.vyrobek_id WHERE op.objednavka_id = :id");
+                        FROM objednavky_polozky op LEFT JOIN vyrobky v ON v.id = op.vyrobek_id WHERE op.objednavka_id = :id ORDER BY op.id");
     $p->execute(['id' => $t['id']]);
-    return $p->fetchAll();
+    return $p->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Online platba potvrzena → označ POS účet 'paid'. Skutečnou finalizaci (odpis/prodej/uvolnění
-// stolu) dodělá admin_pos.php self-heal při načtení POS (tam jsou všechny POS helpery). Drží
-// to pay_qr bez cross-file závislostí + funguje i bez otevřeného POS (doúčtuje se při dalším load).
-function pay_mark_ucet_paid(PDO $pdo, int $ucetId): void {
-    try { $pdo->prepare("UPDATE restaurant_pos_ucty SET pay_status='paid' WHERE id=:id AND pay_status<>'paid'")->execute(['id' => $ucetId]); } catch (Throwable $e) {}
+/**
+ * 💱 v3.0.643 — částky položek v měně $m (shodně s dokladem = mena_doklad_polozky po řádcích).
+ *   Kč u účtu = mn × cena s DPH (jak ji vidí obsluha); Kč u objednávky = jako dřív (bez DPH × (1+sazba)).
+ */
+function pay_items_castky(PDO $pdo, array $t, array $items, array $m): array {
+    $mm = mena_doklad_ro($pdo, ['mena' => $m['mena'], 'mena_kurz' => $m['mena_kurz'] ?? 1, 'mena_kurz_prodej' => $m['mena_kurz_prodej'] ?? null, 'mena_zaklad' => 'CZK']);
+    if ($mm['mena'] === 'CZK') {
+        return array_map(fn($it) => isset($it['castka_czk']) ? $it['castka_czk']
+            : round((float) $it['cena_bez_dph'] * (float) $it['mnozstvi'] * (1 + (float) $it['sazba_dph'] / 100), 2), $items);
+    }
+    $calc = mena_doklad_polozky(array_map(fn($it) => [(float) $it['mnozstvi'], (float) $it['cena_bez_dph'], (float) $it['sazba_dph']], $items), $mm);
+    return array_map(fn($o) => round($o['zaklad'] + $o['dph'], 2), array_values($calc['polozky']));
 }
+
+/** 💱 v3.0.643 — částka k úhradě: objednávka = měna dokladu (pevná), účet stolu = zvolená měna. */
+function pay_castka_pro(PDO $pdo, array $t, ?array $m = null): array {
+    if ($t['type'] === 'ucet') return mena_doc_castka($pdo, 'restaurant_pos_ucty', $t['id'], $m);
+    return mena_doc_castka($pdo, 'objednavky', $t['id']);
+}
+
+// Online platba účtu stolu: 'paid' nastaví _online_platba_lib (po kontrole částky/měny); skutečnou
+// finalizaci (odpis/prodej/uvolnění stolu) dodělá admin_pos.php self-heal při načtení POS.
 
 function pay_set_status(PDO $pdo, int $orderId, string $status, ?string $method = null, ?string $extra = null): void {
     $sql = "UPDATE objednavky SET pay_status = :s";
@@ -172,27 +198,64 @@ if ($method === 'GET' && $action === 'info') {
         $firma[$k] = $stmt->fetchColumn() ?: null;
     }
 
-    // Které metody jsou dostupné (podle integrace)
+    // 💱 v3.0.643 — měna platby: objednávka má měnu dokladu PEVNOU; účet stolu nabídne Kč / cizí měnu
+    //   (Nastavení → Přístupy, ceny & měna → kanál „QR"). Částky položek i celkem po řádcích jako doklad.
+    $mInfo = mena_platebni_info($pdo, 'qr');
+    $moznosti = [];
+    try {
+        if ($t['type'] === 'ucet' && $t['pay_status'] !== 'paid') {
+            foreach ($mInfo['prijimane'] as $kod) {
+                $mi = $mInfo['meny'][$kod] ?? null;
+                if (!$mi || empty($mi['ok'])) continue;
+                $m = ['mena' => $kod, 'mena_kurz' => $mi['kurz'], 'mena_kurz_prodej' => $mi['kurz_prodej']];
+                $dc = pay_castka_pro($pdo, $t, $m);
+                $moznosti[$kod] = ['castka' => $dc['celkem'], 'symbol' => $dc['symbol'], 'kurz' => $mi['kurz'], 'kurz_prodej' => $mi['kurz_prodej'],
+                                   'kurz_datum' => $mi['datum'], 'polozky' => pay_items_castky($pdo, $t, $items, $m)];
+            }
+            $vych = (!empty($t['mena']) && isset($moznosti[strtoupper($t['mena'])])) ? strtoupper($t['mena'])
+                  : (isset($moznosti[$mInfo['vychozi']]) ? $mInfo['vychozi'] : 'CZK');
+        } else {
+            $dc = pay_castka_pro($pdo, $t);
+            $m = ['mena' => $dc['mena'], 'mena_kurz' => $dc['kurz'], 'mena_kurz_prodej' => $dc['kurz_prodej']];
+            $moznosti[$dc['mena']] = ['castka' => $dc['celkem'], 'symbol' => $dc['symbol'], 'kurz' => $dc['kurz'], 'kurz_prodej' => $dc['kurz_prodej'],
+                                      'kurz_datum' => null, 'polozky' => pay_items_castky($pdo, $t, $items, $m)];
+            $vych = $dc['mena'];
+        }
+    } catch (MenaException $e) {
+        $moznosti = ['CZK' => ['castka' => $t['castka'], 'symbol' => 'Kč', 'kurz' => 1.0, 'kurz_prodej' => 1.0, 'kurz_datum' => null,
+                               'polozky' => pay_items_castky($pdo, $t, $items, ['mena' => 'CZK'])]];
+        $vych = 'CZK';
+    }
+    if (!isset($moznosti[$vych])) $vych = array_key_first($moznosti);
+    foreach ($items as $i => &$it) $it['castka'] = $moznosti[$vych]['polozky'][$i] ?? null;
+    unset($it);
+
+    // Které metody jsou dostupné (podle integrace) — + v jakých měnách je brána umí
     $methods = [
         'manual' => true,
         'stripe' => customer_int_enabled('stripe'),
         'gopay'  => customer_int_enabled('gopay'),
     ];
+    $methodsMeny = ['stripe' => customer_int_brana_meny('stripe'), 'gopay' => customer_int_brana_meny('gopay')];
 
     json_response([
         'ok' => true,
         'order' => [
             'cislo'    => $t['cislo'],
-            'castka'   => $t['castka'],
-            'mena'     => 'CZK',
+            'castka'   => $moznosti[$vych]['castka'],
+            'castka_czk' => round((float) $t['castka'], 2),
+            'mena'     => $vych,
+            'mena_pevna' => $t['type'] !== 'ucet' || count($moznosti) < 2,
             'datum'    => $t['datum'],
             'pay_status' => $t['pay_status'],
             'paid_at'  => $t['paid_at'],
             'pay_method' => $t['pay_method'],
         ],
+        'moznosti_men' => $moznosti,
         'items' => $items,
         'firma' => $firma,
         'methods' => $methods,
+        'methods_meny' => $methodsMeny,
     ]);
 }
 
@@ -212,62 +275,52 @@ if ($method === 'GET' && $action === 'status') {
 }
 
 // ─────────────────────────────────────────────────────────────
-// POST ?action=stripe_init — Public, vrátí Stripe Checkout URL
+// POST ?action=stripe_init | gopay_init { token, mena? } — Public, vrátí URL brány
+//   💱 v3.0.643 — částka = mena_doc_castka v měně dokladu (objednávka: pevná; účet stolu: zvolená
+//   měna → snapshot na účet). Před voláním brány se zapíše očekávaná platba (pay_mena/pay_castka),
+//   webhook pak potvrdí jen přesně tuto částku a měnu.
 // ─────────────────────────────────────────────────────────────
-if ($method === 'POST' && $action === 'stripe_init') {
+if ($method === 'POST' && ($action === 'stripe_init' || $action === 'gopay_init')) {
+    $brana = $action === 'stripe_init' ? 'stripe' : 'gopay';
     $d = json_decode(file_get_contents('php://input'), true) ?? [];
     $token = (string)($d['token'] ?? '');
     $t = pay_resolve_token($pdo, $token);
     if (!$t) json_error('Neplatný token', 404);
     if ($t['pay_status'] === 'paid') json_error('Již zaplaceno', 409);
-    if (!customer_int_enabled('stripe')) json_error('Stripe není zapnutý', 503);
+    if (!customer_int_enabled($brana)) json_error(($brana === 'stripe' ? 'Stripe' : 'GoPay') . ' není zapnutý', 503);
+    $volba = isset($d['mena']) && $d['mena'] !== '' ? strtoupper((string) $d['mena']) : null;
 
-    $base = pay_base_url();
-    $ref  = ($t['type'] === 'ucet' ? 'UCET-' : 'PAY-') . $t['id'] . '-' . $token;
-    $r = customer_int_stripe_create_checkout([
-        'amount_kc'      => $t['castka'],
-        'currency'       => 'czk',
-        'description'    => 'Účtenka ' . $t['cislo'],
-        'reference'      => $ref,
-        'return_url'     => $base . '/pay/?t=' . $token . '&paid=1',
-        'cancel_url'     => $base . '/pay/?t=' . $token,
-    ]);
-    if (!($r['ok'] ?? false) || empty($r['url'] ?? $r['session']['url'] ?? null)) {
-        json_error('Stripe init selhal: ' . ($r['error'] ?? 'neznámá chyba'), 500);
+    try {
+        if ($t['type'] === 'ucet') {
+            if (mena_platebni_info($pdo, 'qr')['aktivni']) {
+                $m = mena_volba_platby($pdo, $volba, 'qr');               // může líně stáhnout kurz → mimo transakci
+                mena_nastav_doklad($pdo, 'restaurant_pos_ucty', $t['id'], $m, true);   // jen nezaplacený účet
+            } elseif ($volba !== null && $volba !== 'CZK') {
+                json_error('Platba v jiné měně není zapnutá.', 400);
+            }   // vypnuto: účet bez snapshotu = Kč (jako dřív — suma_kc)
+            $dc = pay_castka_pro($pdo, $t);
+        } else {
+            $dc = pay_castka_pro($pdo, $t);
+            if ($volba !== null && $volba !== $dc['mena']) json_error('Objednávka je vystavená v ' . $dc['mena'] . ' — měnu platby nelze změnit.', 409);
+        }
+    } catch (MenaException $e) {
+        json_error($e->getMessage(), $e->http);
     }
-    if ($t['type'] === 'obj') pay_set_status($pdo, $t['id'], 'pending', 'stripe', json_encode(['stripe_session' => $r['id'] ?? null]));
-    $url = $r['url'] ?? $r['session']['url'];
-    json_response(['ok' => true, 'redirect' => $url]);
-}
-
-// ─────────────────────────────────────────────────────────────
-// POST ?action=gopay_init — Public, vrátí GoPay redirect URL
-// ─────────────────────────────────────────────────────────────
-if ($method === 'POST' && $action === 'gopay_init') {
-    $d = json_decode(file_get_contents('php://input'), true) ?? [];
-    $token = (string)($d['token'] ?? '');
-    $t = pay_resolve_token($pdo, $token);
-    if (!$t) json_error('Neplatný token', 404);
-    if ($t['pay_status'] === 'paid') json_error('Již zaplaceno', 409);
-    if (!customer_int_enabled('gopay')) json_error('GoPay není zapnutý', 503);
+    if ($dc['celkem_minor'] <= 0) json_error('Není co platit', 409);
 
     $base = pay_base_url();
-    $ref  = ($t['type'] === 'ucet' ? 'UCET-' : 'PAY-') . $t['id'] . '-' . $token;
-    $r = customer_int_gopay_create_payment([
-        'amount_kc'        => $t['castka'],
-        // 🐛 v3.0.323 — klíče musí sedět na customer_int_gopay_create_payment (čte 'reference'
-        //   + 'notification_url'). Dřív 'order_no'/'notify_url' → notification_url PRÁZDNÁ →
-        //   GoPay nikdy neposlal notifikaci → platba navždy 'pending'.
+    $ref  = ($t['type'] === 'ucet' ? 'UCET-' : 'PAY-') . $t['id'] . '-' . preg_replace('/[^a-f0-9]/i', '', $token);
+    $r = online_platba_zaloz($pdo, $t['type'] === 'ucet' ? 'restaurant_pos_ucty' : 'objednavky', $t['id'], $dc, [
+        'brana'            => $brana,
         'reference'        => $ref,
         'description'      => 'Účtenka ' . $t['cislo'],
         'return_url'       => $base . '/pay/?t=' . $token . '&paid=1',
+        'cancel_url'       => $base . '/pay/?t=' . $token,
+        // 🐛 v3.0.323 — GoPay čte 'notification_url' (dřív 'notify_url' → platba navždy 'pending')
         'notification_url' => $base . '/api/pay_qr.php?action=gopay_callback',
     ]);
-    if (!($r['ok'] ?? false) || empty($r['gw_url'])) {
-        json_error('GoPay init selhal: ' . ($r['error'] ?? 'neznámá chyba'), 500);
-    }
-    if ($t['type'] === 'obj') pay_set_status($pdo, $t['id'], 'pending', 'gopay', json_encode(['gopay_id' => $r['id'] ?? null]));
-    json_response(['ok' => true, 'redirect' => $r['gw_url']]);
+    if (!$r['ok']) json_error(($brana === 'stripe' ? 'Stripe' : 'GoPay') . ' init selhal: ' . ($r['error'] ?? 'neznámá chyba'), 500);
+    json_response(['ok' => true, 'redirect' => $r['url'], 'mena' => $dc['mena'], 'castka' => $dc['celkem']]);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -324,22 +377,10 @@ if ($method === 'POST' && $action === 'stripe_webhook') {
     }
     $event = json_decode($payload, true);
     if (!$event) json_error('Bad payload', 400);
-    if (($event['type'] ?? '') === 'checkout.session.completed') {
-        $ref = $event['data']['object']['client_reference_id'] ?? '';
-        // ref formát: PAY-<id>-<token> (objednávka) | UCET-<id>-<token> (POS účet u stolu)
-        if (preg_match('/^(PAY|UCET)-(\d+)-([a-f0-9]{32})$/', (string)$ref, $m)) {
-            $kind = $m[1]; $oid = (int)$m[2]; $token = $m[3];
-            if ($kind === 'UCET') {
-                pay_mark_ucet_paid($pdo, $oid);
-            } else {
-                $o = pay_get_order_by_token($pdo, $token);
-                if ($o && (int)$o['id'] === $oid) {
-                    pay_set_status($pdo, $oid, 'paid', 'stripe', json_encode(['session_id' => $event['data']['object']['id']]));
-                }
-            }
-        }
-    }
-    json_response(['ok' => true]);
+    // 💱 v3.0.643 — PAY-/UCET-/B2B- reference; potvrdí jen při shodě částky A měny (jinak 'failed')
+    try { $res = online_platba_stripe_event($pdo, $event); }
+    catch (Throwable $e) { error_log('pay_qr stripe_webhook: ' . $e->getMessage()); json_error('Chyba zpracování', 500); }
+    json_response(['ok' => true, 'stav' => $res['stav']]);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -350,22 +391,10 @@ if ($method === 'POST' && $action === 'stripe_webhook') {
 if ($action === 'gopay_callback') {
     $gpId = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
     if (!$gpId) json_error('Chybí id', 400);
-    $pay = customer_int_gopay_get_payment($gpId);
-    if (($pay['ok'] ?? false) && ($pay['state'] ?? '') === 'PAID') {
-        $ref = (string)($pay['order_number'] ?? '');
-        if (preg_match('/^(PAY|UCET)-(\d+)-([a-f0-9]{32})$/', $ref, $m)) {
-            $kind = $m[1]; $oid = (int)$m[2]; $token = $m[3];
-            if ($kind === 'UCET') {
-                pay_mark_ucet_paid($pdo, $oid);
-            } else {
-                $o = pay_get_order_by_token($pdo, $token);
-                if ($o && (int)$o['id'] === $oid) {
-                    pay_set_status($pdo, $oid, 'paid', 'gopay', json_encode(['gopay_id' => $gpId]));
-                }
-            }
-        }
-    }
-    json_response(['ok' => true]); // GoPay očekává 200
+    // 💱 v3.0.643 — stav i částku/měnu ověří dotaz na GoPay; nesedí → 'failed' (viz _online_platba_lib)
+    try { $res = online_platba_gopay($pdo, $gpId); }
+    catch (Throwable $e) { error_log('pay_qr gopay_callback: ' . $e->getMessage()); $res = ['stav' => 'chyba']; }
+    json_response(['ok' => true, 'stav' => $res['stav']]); // GoPay očekává 200
 }
 
 json_error('Neznámá akce: ' . $action, 400);

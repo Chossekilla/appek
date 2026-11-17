@@ -743,6 +743,7 @@ async function showApp() {
     const f = await api('firma_branding.php');
     // 💱 v3.0.283 — měna pro fmt()
     if (f && f.mena) window._mena = f.mena;
+    window._b2bPlatba = (f && f.platba) || null;   // 💱 v3.0.643 — měna platby (Kč | €)
     // 📊 v3.0.312 — Google Analytics se načte AŽ PO SOUHLASU (GDPR/ePrivacy). GA ID + firma
     //   se uloží pro cookie banner; samotné gtag vkládá cookieConsentInit() jen při souhlasu.
     window._ccFirma = f || {};
@@ -2091,6 +2092,7 @@ function renderCheckout() {
         <div id="b2b-voucher-row"></div>
         <div class="cart-summary-row checkout-total-ks"><span>📦 Kusů celkem</span><span>${cartCount()} ks</span></div>
         <div class="cart-summary-row total"><span>Celkem s DPH</span><span id="b2b-grand-total">${fmt(t.total)}</span></div>
+        <div id="b2b-mena-rows"></div>
       </div>
       <!-- 🎟️ v3.0.634 — slevový kód / voucher (plní renderB2bVoucher) -->
       <div id="b2b-voucher-box" class="b2b-voucher-box"></div>
@@ -2153,7 +2155,8 @@ async function loadDopravaPlatbaCards() {
   //   nenačetly). Teď faktura + převod + online (Stripe/GoPay) dle nastavení admina.
   let payMethods = [];
   try {
-    const pm = await api('payment_methods.php?context=b2b');
+    const _mn = b2bMenaAktivni() ? (state.checkoutData.mena || '') : '';
+    const pm = await api('payment_methods.php?context=b2b' + (_mn && _mn !== 'CZK' ? '&mena=' + encodeURIComponent(_mn) : ''));
     payMethods = pm.methods || [];
   } catch (e) { /* fallback níže */ }
   if (!payMethods.length) {
@@ -2241,8 +2244,54 @@ async function updateSurchargeDisplay() {
   // 🎟️ v3.0.634 — doprava/platba mění základ slevy → odhad voucheru přepočítat na serveru
   if (state.checkoutData.voucher) await b2bVoucherOdhad(state.checkoutData.voucher.kod);
   else renderB2bVoucher();
+  await b2bMenaQuote();
 }
 window.updateSurchargeDisplay = updateSurchargeDisplay;
+
+// 💱 v3.0.643 — MĚNA PLATBY v košíku (Kč | €). Částku v měně počítá SERVER (objednavky.php?action=quote)
+//   stejně jako doklad → košík = e-mail = PDF = platební brána. Ceník zůstává v Kč.
+function b2bMenaAktivni() {
+  const p = window._b2bPlatba;
+  return !!(p && p.aktivni && (p.prijimane || []).length > 1);
+}
+function b2bMenaSym(m) { return ({ CZK: 'Kč', EUR: '€', USD: '$', GBP: '£', PLN: 'zł', HUF: 'Ft', CHF: 'CHF' })[m] || m; }
+function b2bFmtMena(n, m) {
+  const v = (Math.round((parseFloat(n) || 0) * 100) / 100).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return m === 'CZK' ? v + ' Kč' : (m === 'EUR' ? v + ' €' : v + ' ' + b2bMenaSym(m));
+}
+async function b2bMenaQuote() {
+  const el = document.getElementById('b2b-mena-rows');
+  if (!el) return;
+  if (!b2bMenaAktivni()) { el.innerHTML = ''; return; }
+  const p = window._b2bPlatba;
+  let q = null, err = '';
+  try {
+    q = await api('objednavky.php?action=quote', { method: 'POST', body: JSON.stringify({
+      polozky: cartItems().map((i) => ({ vyrobek_id: parseInt(i.id), mnozstvi: i.mnozstvi })),
+      platba: state.checkoutData.platba || '', doprava: state.checkoutData.doprava || '',
+      mena: state.checkoutData.mena || undefined,
+    }) });
+    if (!state.checkoutData.mena) state.checkoutData.mena = q.mena;   // výchozí měna odběratele/firmy (server)
+  } catch (e) { err = e.message || ''; }
+  const mena = state.checkoutData.mena || p.vychozi || 'CZK';
+  const btns = (p.prijimane || []).map(m => {
+    const i = (p.meny || {})[m] || {}; const dis = m !== 'CZK' && i.ok === false;
+    return `<button type="button" class="b2b-mena-btn${mena === m ? ' active' : ''}" ${dis ? 'disabled title="' + esc(i.chyba || '') + '"' : ''} onclick="setB2bMena('${m}')">${m === 'CZK' ? 'Kč' : esc(b2bMenaSym(m)) + ' ' + m}</button>`;
+  }).join('');
+  let html = `<div class="cart-summary-row b2b-mena-row"><span>Platit v měně</span><span class="b2b-mena-btns">${btns}</span></div>`;
+  if (q && q.mena !== 'CZK') {
+    html += `<div class="cart-summary-row total b2b-mena-total"><span>K úhradě v ${esc(q.mena)}</span><span>${b2bFmtMena(q.celkem, q.mena)}</span></div>`;
+    html += `<div class="cart-summary-row" style="font-size:12px;color:var(--text-3)"><span>Kurz ČNB${q.kurz_datum ? ' ' + esc(new Date(q.kurz_datum).toLocaleDateString('cs-CZ')) : ''}: 1 ${esc(b2bMenaSym(q.mena))} = ${(+q.kurz_prodej || +q.kurz).toLocaleString('cs-CZ', { maximumFractionDigits: 3 })} Kč</span><span></span></div>`;
+    if (state.checkoutData.voucher) html += `<div class="cart-summary-row" style="font-size:12px;color:var(--text-3)"><span>Sleva z kódu se odečte v ${esc(q.mena)} při odeslání.</span><span></span></div>`;
+  }
+  if (q && q.metoda_chyba) html += `<div class="cart-summary-row" style="color:#a8232f;font-size:13px"><span>⚠️ ${esc(q.metoda_chyba)} Zvolte jinou platbu.</span><span></span></div>`;
+  if (err) html += `<div class="cart-summary-row" style="color:#a8232f;font-size:13px"><span>⚠️ ${esc(err)}</span><span></span></div>`;
+  el.innerHTML = html;
+}
+window.setB2bMena = function (m) {
+  state.checkoutData.mena = m;
+  loadDopravaPlatbaCards();   // metody platby podle měny (dobírka jen Kč…) + přepočet součtu
+};
 
 // 🎟️ v3.0.634 — SLEVOVÝ KÓD v košíku. Odhad počítá server (objednavky.php?action=voucher_odhad)
 //   stejně jako při vytvoření; při odeslání se kód ověří znovu (zdroj pravdy = server).
@@ -2440,6 +2489,8 @@ window.submitOrder = async function() {
     // 🆕 v2.5 — doprava + platba selection
     doprava: state.checkoutData.doprava || 'vlastni',
     platba:  state.checkoutData.platba  || 'prevod',
+    // 💱 v3.0.643 — měna platby (server ověří, že ji metoda umí; doklad vznikne v této měně)
+    ...(b2bMenaAktivni() && state.checkoutData.mena ? { mena: state.checkoutData.mena } : {}),
     // 🎟️ v3.0.634 — slevový kód (uplatněný, nebo jen napsaný → server ho ověří při odeslání)
     voucher_kod: b2bVoucherLzePouzit()
       ? (state.checkoutData.voucher?.kod || document.getElementById('b2b-voucher-kod')?.value.trim() || null)
@@ -2485,7 +2536,12 @@ window.submitOrder = async function() {
     }
 
     // prevod / dobirka — žádný redirect, jen potvrzení
-    alert(`Objednávka ${res.cislo} byla odeslána. Děkujeme!`);
+    if (res.payment_error) {
+      alert(`Objednávka ${res.cislo} byla odeslána, ale online platbu se nepodařilo založit. Dodavatel vám pošle pokyny k platbě.`);
+      switchTab('history');
+      return;
+    }
+    alert(`Objednávka ${res.cislo} byla odeslána${res.mena && res.mena !== 'CZK' && res.celkem != null ? ' (' + b2bFmtMena(res.celkem, res.mena) + ')' : ''}. Děkujeme!`);
     switchTab('history');
   } catch (e) {
     alert('Chyba: ' + e.message);

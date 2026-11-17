@@ -31,6 +31,8 @@ try {
         'favicon_url' => $rows['firma_favicon_url'] ?? null,
         'firma_nazev' => $rows['firma_nazev']       ?? null,
         'mena'        => $mena,
+        // 💱 v3.0.643 — platba v Kč nebo v cizí měně (přepínač v košíku); bez kurzu/vypnuto → aktivni:false
+        'platba'      => mena_platebni_info($pdo, 'b2b'),
         'ga_id'       => $gaId !== '' ? $gaId : null,
         // 🍪 v3.0.401 — vlastní sledovací kód (HTML/JS); b2b/app.js ho vloží AŽ po souhlasu s cookies
         'custom_tracking' => ($ct = trim((string) ($rows['tracking_custom_code'] ?? ''))) !== '' ? $ct : null,

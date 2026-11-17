@@ -4891,3 +4891,10 @@ html.dark .b2b-lang-dd-menu button { color: var(--text); }
 .b2b-voucher-note { color: var(--text-muted, #6b7280); font-size: 13px; }
 html.dark .b2b-voucher-ok { background: #052e16; border-color: #166534; color: #86efac; }
 html.dark .b2b-voucher-x { color: #86efac; }
+
+/* 💱 v3.0.643 — přepínač měny platby v košíku */
+.b2b-mena-btns { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.b2b-mena-btn { border: 1px solid var(--border, #d8d3c8); background: var(--surface, #fff); color: inherit; border-radius: 8px; padding: 5px 12px; font-weight: 600; font-size: 13px; cursor: pointer; min-height: 32px; }
+.b2b-mena-btn.active { background: var(--accent, #BA7517); border-color: var(--accent, #BA7517); color: #fff; }
+.b2b-mena-btn:disabled { opacity: .45; cursor: not-allowed; }
+.b2b-mena-row { align-items: center; flex-wrap: wrap; gap: 6px; }

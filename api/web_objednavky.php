@@ -200,7 +200,26 @@ if ($action === 'info' && $method === 'GET') {
         'rozvoz_psc_omezeno' => trim($cfg['rozvoz_psc']) !== '',
         'min_objednavka' => $cfg['min_objednavka'], 'od' => $cfg['od'], 'do' => $cfg['do'], 'dny' => $cfg['dny'],
         'okna' => $okna, 'zprava' => $cfg['zprava'],
+        'platba' => (function () use ($pdo) { require_once __DIR__ . '/_mena_lib.php'; return mena_platebni_info($pdo, 'web'); })(),   // 💱 v3.0.643
     ]);
+}
+
+// ─── veřejné: košík v měně platby (💱 v3.0.643) — stejný výpočet jako doklad ───
+if ($action === 'quote' && $method === 'POST') {
+    if (!$aktivni) json_error('Online objednávky teď nepřijímáme', 403);
+    require_once __DIR__ . '/_mena_lib.php';
+    $d = json_decode(file_get_contents('php://input'), true) ?? [];
+    $typ = ($d['typ'] ?? '') === 'rozvoz' ? 'rozvoz' : 'vyzvednuti';
+    try { $m = mena_volba_platby($pdo, ($d['mena'] ?? '') !== '' ? (string) $d['mena'] : null, 'web'); }
+    catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
+    $k = wo_kosik($pdo, $cfg, (array) ($d['polozky'] ?? []), $typ, false);
+    $lines = [];
+    foreach ($k['items'] as $id => $mn) $lines[] = [$mn, round($k['vyrMap'][$id]['cena_bez_dph'], 2), $k['vyrMap'][$id]['sazba_dph']];
+    if ($k['doprava'] > 0) $lines[] = [1, $k['dopravaBez'], $k['dphPripl']];
+    $czk = round($k['bez'] + $k['dph'], 2);
+    $mm = mena_doklad_ro($pdo, $m);
+    json_response(['ok' => true, 'mena' => $mm['mena'], 'celkem' => $mm['mena'] === 'CZK' ? $czk : mena_doklad_polozky($lines, $mm)['celkem'],
+                   'celkem_czk' => $czk, 'kurz' => $m['mena_kurz'], 'kurz_prodej' => $m['mena_kurz_prodej'], 'kurz_datum' => $m['kurz_datum']]);
 }
 
 // ─── veřejné: menu ───────────────────────────────────────────────────
@@ -291,6 +310,11 @@ if ($action === 'order' && $method === 'POST') {
     if ($voucherKod !== '') { wo_voucher_rl($pdo, $ip); voucher_ensure_schema($pdo); } // DDL mimo transakci (implicitní commit)
 
     wo_ensure($pdo);
+    // 💱 v3.0.643 — měna objednávky (platí se při převzetí v této měně; ceník zůstává v Kč)
+    require_once __DIR__ . '/_mena_lib.php';
+    $platbaAktivni = mena_platebni_info($pdo, 'web')['aktivni'];
+    try { $mObj = mena_volba_platby($pdo, ($d['mena'] ?? '') !== '' ? (string) $d['mena'] : null, 'web'); }
+    catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
     $token = bin2hex(random_bytes(12));
     try {
         $pdo->beginTransaction();
@@ -306,7 +330,9 @@ if ($action === 'order' && $method === 'POST') {
                        VALUES (:c, 'web', :o, NOW(), :dd, :b, :d, :ck, 'nova', 'web', :pt, 'pri_vyzvednuti', :pz)")
             ->execute(['c' => $cislo, 'o' => $odbId, 'dd' => date('Y-m-d', $casTs), 'b' => round($bez, 2), 'd' => round($dph, 2), 'ck' => $celkem, 'pt' => $typ, 'pz' => $poznFull]);
         $objId = (int) $pdo->lastInsertId();
-        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $objId);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
+        // 💱 v3.0.640/643 — měna dokladu: zvolená měna (platba zapnutá) / globální zobrazení (vypnutá)
+        if ($platbaAktivni) mena_nastav_doklad($pdo, 'objednavky', $objId, $mObj, true);
+        else mena_snapshot_doklad($pdo, 'objednavky', $objId);
         $ins = $pdo->prepare("INSERT INTO objednavky_polozky (objednavka_id, vyrobek_id, vyrobek_nazev, jednotka, mnozstvi, cena_bez_dph, sazba_dph)
                               VALUES (:o, :v, :n, 'ks', :m, :c, :s)");
         foreach ($items as $id => $mn) {
@@ -381,7 +407,10 @@ if ($action === 'order' && $method === 'POST') {
         } catch (Throwable $e) {}
     }
 
-    json_response(['ok' => true, 'cislo' => $cislo, 'celkem' => $celkem, 'doprava' => $dopravaSdph, 'token' => $token, 'cas' => date('Y-m-d H:i', $casTs), 'typ' => $typ]);
+    $docC = null;
+    try { $docC = mena_doc_castka($pdo, 'objednavky', $objId); } catch (Throwable $e) {}
+    json_response(['ok' => true, 'cislo' => $cislo, 'celkem' => $celkem, 'doprava' => $dopravaSdph, 'token' => $token, 'cas' => date('Y-m-d H:i', $casTs), 'typ' => $typ,
+                   'mena' => $docC['mena'] ?? 'CZK', 'celkem_mena' => $docC['celkem'] ?? $celkem]);
 }
 
 // ─── veřejné: stav objednávky ────────────────────────────────────────
@@ -419,7 +448,10 @@ if ($action === 'stav' && $method === 'GET') {
     elseif ($kuchyne['pripravuje'] > 0 || $kuchyne['hotovo'] > 0) $krok = 'pripravuje';
     $firma = '';
     try { $firma = (string) nastaveni_get($pdo, 'firma_nazev', ''); } catch (Throwable $e) {}
+    $docC = null;
+    try { require_once __DIR__ . '/_mena_lib.php'; $docC = mena_doc_castka($pdo, 'objednavky', (int) $r['id']); } catch (Throwable $e) {}
     json_response(['ok' => true, 'cislo' => $r['cislo'], 'typ' => $r['pos_typ'], 'krok' => $krok, 'celkem' => (float) $r['castka_celkem'],
+        'mena' => $docC['mena'] ?? 'CZK', 'celkem_mena' => $docC['celkem'] ?? (float) $r['castka_celkem'],
         'zaplaceno' => $r['pos_payment'] !== 'pri_vyzvednuti', 'cas' => $r['vyzvednuti_cas'], 'adresa' => $r['web_adresa'], 'firma' => $firma]);
 }
 

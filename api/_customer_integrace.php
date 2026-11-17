@@ -10,7 +10,7 @@
  *     int_stripe_secret_key      sk_live_... / sk_test_...
  *     int_stripe_publishable_key pk_live_... / pk_test_... (Apple/Google Pay PRB)
  *     int_stripe_webhook_secret  whsec_...
- *     int_stripe_currency        'czk'/'eur'/'usd'
+ *     int_stripe_currency        (v3.0.643 už se nepoužívá — měna transakce = měna dokladu)
  *
  *   GOPAY (CZ karty + bank převod):
  *     int_gopay_enabled          '1'/'0'
@@ -18,7 +18,8 @@
  *     int_gopay_goid             8-mistné GoID
  *     int_gopay_client_id
  *     int_gopay_client_secret
- *     int_gopay_currency         'CZK'/'EUR'
+ *     int_gopay_currency         'CZK'/'EUR' — v3.0.643: měna, kterou GoID umí NAVÍC ke Kč
+ *                                (měna transakce = vždy měna dokladu; viz customer_int_brana_meny)
  *
  *   ZÁSILKOVNA (Packeta):
  *     int_zas_enabled            '1'/'0'
@@ -102,6 +103,80 @@ function customer_int_settings_safe(string $service): array {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// 💱 v3.0.643 — ČÁSTKA + MĚNA PLATBY U BRÁNY (balík B „platba v Kč i EUR")
+// ════════════════════════════════════════════════════════════════════
+// Měna transakce se bere VÝHRADNĚ z dokladu (payload 'currency'); konfigurační int_*_currency
+// už NENÍ zdroj měny (dřív GoPay s int_gopay_currency=EUR strhl Kč částku jako eura).
+// 'amount' = částka v měně dokladu (mena_doc_castka); 'amount_kc' = starý alias (zpětná kompatibilita).
+
+/** Měny, které brána umí. GoPay: Kč + měna z nastavení integrace („Měna" = EUR → GoID umí i EUR). */
+function customer_int_brana_meny(string $svc): array {
+    $vse = defined('MENA_PODPOROVANE') ? array_keys(MENA_PODPOROVANE) : ['CZK', 'EUR', 'USD', 'GBP', 'PLN', 'HUF', 'CHF'];
+    if ($svc === 'gopay') {
+        $cfg = customer_int_settings('gopay');
+        $m = ['CZK'];
+        foreach (preg_split('/[\s,;]+/', strtoupper((string) (($cfg['int_gopay_meny'] ?? '') . ',' . ($cfg['int_gopay_currency'] ?? '')))) as $k) {
+            if ($k !== '' && in_array($k, ['CZK', 'EUR', 'USD', 'GBP', 'PLN', 'HUF'], true) && !in_array($k, $m, true)) $m[] = $k;
+        }
+        return $m;
+    }
+    if ($svc === 'stripe' || $svc === 'paypal') return $vse;
+    return ['CZK'];
+}
+
+/** Minimální částka platby kartou (Stripe ~0,50 €). Pod ní bránu nevolat. */
+function customer_int_min_castka(string $mena): float {
+    return ['CZK' => 15.0, 'EUR' => 0.5, 'USD' => 0.5, 'GBP' => 0.3, 'CHF' => 0.5, 'PLN' => 2.0, 'HUF' => 175.0][strtoupper($mena)] ?? 0.5;
+}
+
+/**
+ * Normalizuje částku + měnu payloadu → ['ok'=>true, amount, currency (UPPER), minor] | ['ok'=>false, error].
+ * Měna je POVINNÁ (žádný fallback z konfigurace).
+ */
+function customer_int_platba_castka(array $payload, string $svc): array {
+    $amount = $payload['amount'] ?? $payload['amount_kc'] ?? null;
+    if ($amount === null || !is_numeric($amount)) return ['ok' => false, 'error' => 'missing_amount'];
+    $cur = strtoupper(trim((string) ($payload['currency'] ?? '')));
+    if ($cur === '' || !preg_match('/^[A-Z]{3}$/', $cur)) return ['ok' => false, 'error' => 'missing_currency'];
+    if (!in_array($cur, customer_int_brana_meny($svc), true)) return ['ok' => false, 'error' => $svc . '_currency_not_allowed', 'currency' => $cur];
+    $amount = round((float) $amount, 2);
+    if ($amount < customer_int_min_castka($cur)) return ['ok' => false, 'error' => 'amount_below_minimum', 'min' => customer_int_min_castka($cur)];
+    return ['ok' => true, 'amount' => $amount, 'currency' => $cur, 'minor' => (int) round($amount * 100)];
+}
+
+/** Připojí query parametr k URL, která už může mít '?'. */
+function customer_int_url_param(string $url, string $param): string {
+    return $url . (str_contains($url, '?') ? '&' : '?') . $param;
+}
+
+/**
+ * 🧪 Testovací náhrada bran (jen lokální testy): env APPEK_GW_MOCK = adresář a DB s „test" v názvu.
+ *   Požadavky se zapisují do <dir>/gw.jsonl, odpovědi jsou kanonické (žádná síť, žádné peníze).
+ *   V produkci env nikdy není → funkce vrací null a vše jde na skutečné API.
+ */
+function customer_int_mock(string $svc, string $op, array $data = []): ?array {
+    $dir = getenv('APPEK_GW_MOCK');
+    if (!$dir || !is_dir($dir) || !defined('DB_NAME') || stripos((string) DB_NAME, 'test') === false) return null;
+    @file_put_contents(rtrim($dir, '/') . '/gw.jsonl', json_encode(['svc' => $svc, 'op' => $op, 'data' => $data], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
+    $id = substr(sha1(json_encode($data) . microtime(true)), 0, 12);
+    if ($svc === 'stripe' && $op === 'checkout') return ['ok' => true, 'id' => 'cs_test_mock_' . $id, 'url' => 'https://checkout.stripe.com/c/pay/cs_test_mock_' . $id];
+    if ($svc === 'gopay' && $op === 'create') return ['ok' => true, 'id' => (int) hexdec(substr($id, 0, 7)), 'gw_url' => 'https://gw.sandbox.gopay.com/gw/v3/mock' . $id, 'state' => 'CREATED'];
+    if ($svc === 'gopay' && $op === 'get') {
+        $f = rtrim($dir, '/') . '/gopay_' . (int) ($data['id'] ?? 0) . '.json';
+        $j = is_file($f) ? json_decode((string) file_get_contents($f), true) : null;
+        return is_array($j) ? ['ok' => true] + $j : ['ok' => false, 'error' => 'http_404'];
+    }
+    if ($svc === 'paypal' && $op === 'create') return ['ok' => true, 'id' => 'PPMOCK' . strtoupper($id), 'status' => 'CREATED',
+        'links' => [['rel' => 'approve', 'href' => 'https://www.sandbox.paypal.com/checkoutnow?token=PPMOCK' . strtoupper($id)]]];
+    if ($svc === 'paypal' && $op === 'capture') {
+        $f = rtrim($dir, '/') . '/paypal_' . preg_replace('/[^A-Za-z0-9]/', '', (string) ($data['id'] ?? '')) . '.json';
+        $j = is_file($f) ? json_decode((string) file_get_contents($f), true) : null;
+        return is_array($j) ? ['ok' => true] + $j : ['ok' => false, 'error' => 'http_404'];
+    }
+    return ['ok' => false, 'error' => 'mock_neznamy_' . $svc . '_' . $op];
+}
+
+// ════════════════════════════════════════════════════════════════════
 // 💳 STRIPE — customer-side
 // ════════════════════════════════════════════════════════════════════
 
@@ -173,28 +248,34 @@ function customer_int_stripe_verify_signature(string $payload, string $sigHeader
  * ]
  */
 function customer_int_stripe_create_checkout(array $payload): array {
-    $cfg = customer_int_settings('stripe');
     if (!customer_int_enabled('stripe')) return ['ok' => false, 'error' => 'stripe_disabled'];
-
-    $currency = strtolower($payload['currency'] ?? $cfg['int_stripe_currency'] ?? 'czk');
-    $amountCents = (int) round(((float) $payload['amount_kc']) * 100);
+    // 💱 v3.0.643 — částka + měna z DOKLADU (bez fallbacku na int_stripe_currency)
+    $c = customer_int_platba_castka($payload, 'stripe');
+    if (!$c['ok']) return $c;
+    $returnUrl = (string) ($payload['return_url'] ?? '');
 
     $params = [
         'mode'                       => 'payment',
         'payment_method_types[]'     => 'card',
-        'line_items[0][price_data][currency]'     => $currency,
+        'line_items[0][price_data][currency]'     => strtolower($c['currency']),
         'line_items[0][price_data][product_data][name]' => $payload['description'] ?? 'Platba',
-        'line_items[0][price_data][unit_amount]'  => $amountCents,
+        'line_items[0][price_data][unit_amount]'  => $c['minor'],
         'line_items[0][quantity]'    => 1,
-        'success_url'                => $payload['return_url'] . '?session_id={CHECKOUT_SESSION_ID}',
-        'cancel_url'                 => $payload['cancel_url'] ?? $payload['return_url'],
+        // 🐛 v3.0.643 — return_url už '?' obsahuje (…?paid=X / …/pay/?t=…) → dřív vznikly dva '?'
+        'success_url'                => customer_int_url_param($returnUrl, 'session_id={CHECKOUT_SESSION_ID}'),
+        'cancel_url'                 => $payload['cancel_url'] ?? $returnUrl,
         'customer_email'             => $payload['customer_email'] ?? null,
         'client_reference_id'        => $payload['reference'] ?? null,
         'metadata[reference]'        => $payload['reference'] ?? '',
+        'metadata[mena]'             => $c['currency'],
+        'metadata[castka_minor]'     => (string) $c['minor'],
         'payment_method_options[card][request_three_d_secure]' => 'automatic',
-        'allow_promotion_codes'      => 'true',
+        // 🔒 v3.0.643 — zákazník si v Checkoutu NESMÍ zadat vlastní slevový kód Stripe (zaplatil by méně,
+        //   webhook částku dřív nekontroloval → objednávka „zaplacena"). Slevy řeší jen naše vouchery.
+        'allow_promotion_codes'      => 'false',
         'billing_address_collection' => 'auto',
     ];
+    if (($m = customer_int_mock('stripe', 'checkout', $params)) !== null) return $m;
     return customer_int_stripe_request('POST', '/checkout/sessions', $params);
 }
 
@@ -247,8 +328,9 @@ function customer_int_gopay_token(): ?string {
 function customer_int_gopay_create_payment(array $payload): array {
     if (!customer_int_enabled('gopay')) return ['ok' => false, 'error' => 'gopay_disabled'];
     $cfg = customer_int_settings('gopay');
-    $token = customer_int_gopay_token();
-    if (!$token) return ['ok' => false, 'error' => 'gopay_auth_failed'];
+    // 💱 v3.0.643 — částka + měna z DOKLADU; měna musí být povolená na GoID (Kč + „Měna" z nastavení)
+    $c = customer_int_platba_castka($payload, 'gopay');
+    if (!$c['ok']) return $c;
 
     $body = [
         'payer' => [
@@ -262,8 +344,8 @@ function customer_int_gopay_create_payment(array $payload): array {
             'type' => 'ACCOUNT',
             'goid' => (int) ($cfg['int_gopay_goid'] ?? 0),
         ],
-        'amount' => (int) round(((float) $payload['amount_kc']) * 100),
-        'currency' => strtoupper($cfg['int_gopay_currency'] ?? 'CZK'),
+        'amount' => $c['minor'],
+        'currency' => $c['currency'],
         'order_number' => $payload['reference'] ?? '',
         'order_description' => $payload['description'] ?? 'Platba',
         'callback' => [
@@ -273,6 +355,9 @@ function customer_int_gopay_create_payment(array $payload): array {
         'lang' => 'CS',
     ];
 
+    if (($m = customer_int_mock('gopay', 'create', $body)) !== null) return $m;
+    $token = customer_int_gopay_token();
+    if (!$token) return ['ok' => false, 'error' => 'gopay_auth_failed'];
     $ch = curl_init(customer_int_gopay_base() . '/payments/payment');
     curl_setopt_array($ch, [
         CURLOPT_POST           => true,
@@ -299,6 +384,7 @@ function customer_int_gopay_create_payment(array $payload): array {
 //   GET {base}/payments/payment/{id} → { state: 'PAID'|'CREATED'|..., order_number, ... }
 function customer_int_gopay_get_payment(int $id): array {
     if (!customer_int_enabled('gopay')) return ['ok' => false, 'error' => 'gopay_disabled'];
+    if (($m = customer_int_mock('gopay', 'get', ['id' => $id])) !== null) return $m;
     $token = customer_int_gopay_token();
     if (!$token) return ['ok' => false, 'error' => 'gopay_auth_failed'];
     $ch = curl_init(customer_int_gopay_base() . '/payments/payment/' . $id);
@@ -399,11 +485,13 @@ function customer_int_paypal_request(string $method, string $endpoint, array $bo
 
 function customer_int_paypal_create_order(array $payload): array {
     if (!customer_int_enabled('paypal')) return ['ok' => false, 'error' => 'paypal_disabled'];
-    $cfg = customer_int_settings('paypal');
-    $currency = strtoupper($payload['currency'] ?? $cfg['int_paypal_currency'] ?? 'CZK');
-    $amount   = number_format((float) $payload['amount_kc'], 2, '.', '');
+    // 💱 v3.0.643 — částka + měna z DOKLADU (bez fallbacku na int_paypal_currency)
+    $c = customer_int_platba_castka($payload, 'paypal');
+    if (!$c['ok']) return $c;
+    $currency = $c['currency'];
+    $amount   = number_format($c['amount'], 2, '.', '');
 
-    $r = customer_int_paypal_request('POST', '/v2/checkout/orders', [
+    $req = [
         'intent' => 'CAPTURE',
         'purchase_units' => [[
             'reference_id' => $payload['order_no'] ?? '',
@@ -419,7 +507,8 @@ function customer_int_paypal_create_order(array $payload): array {
             'return_url'  => $payload['return_url'] ?? '',
             'cancel_url'  => $payload['cancel_url'] ?? ($payload['return_url'] ?? ''),
         ],
-    ]);
+    ];
+    $r = customer_int_mock('paypal', 'create', $req) ?? customer_int_paypal_request('POST', '/v2/checkout/orders', $req);
     if (!($r['ok'] ?? false)) return $r;
 
     // Najít approve link
@@ -441,6 +530,7 @@ function customer_int_paypal_create_order(array $payload): array {
 function customer_int_paypal_capture_order(string $orderId): array {
     if (!customer_int_enabled('paypal')) return ['ok' => false, 'error' => 'paypal_disabled'];
     if (!$orderId) return ['ok' => false, 'error' => 'missing_order_id'];
+    if (($m = customer_int_mock('paypal', 'capture', ['id' => $orderId])) !== null) return $m;
     $r = customer_int_paypal_request('POST', '/v2/checkout/orders/' . urlencode($orderId) . '/capture', []);
     return $r;
 }

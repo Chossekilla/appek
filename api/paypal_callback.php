@@ -13,6 +13,7 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_customer_integrace.php';
+require_once __DIR__ . '/_online_platba_lib.php';   // 💱 v3.0.643 — ověření částky + měny, ledger
 
 $ourOrderNo = trim($_GET['order'] ?? '');
 $paypalOrderId = trim($_GET['token'] ?? '');  // PayPal posílá ho jako 'token'
@@ -50,13 +51,26 @@ try {
     }
 
     if ($captureOk) {
-        // Mark paid v objednavky (sloupec uhrazena_kc / stav)
-        try {
-            $pdo->prepare("UPDATE objednavky SET stav = 'potvrzena', interni_pozn = CONCAT(IFNULL(interni_pozn,''), '\nPayPal CAPTURED: " . ($r['id'] ?? '') . "') WHERE id = :id")
-                ->execute(['id' => $order['id']]);
-        } catch (Throwable $e) { /* OK pokud sloupec nemá tu stav hodnotu */ }
-        header('Location: ' . $baseUrl . '/b2b/index.html?paid=' . urlencode($ourOrderNo));
-        exit;
+        // 💱 v3.0.643 — zaplacená částka + měna z capture MUSÍ sedět s očekávanou platbou
+        //   (pay_castka/pay_mena zapsané při vytvoření PayPal order). Nesedí → 'failed', ne zaplaceno.
+        $cap = $r['purchase_units'][0]['payments']['captures'][0]['amount'] ?? null;
+        if (!is_array($cap) || !isset($cap['value'], $cap['currency_code'])) {
+            error_log('paypal_callback: capture bez částky — odmítnuto');
+            $captureOk = false;
+        } else {
+            $res = online_platba_potvrd($pdo, ['typ' => 'objednavky', 'id' => (int) $order['id'], 'minor' => (int) round((float) $cap['value'] * 100),
+                                               'mena' => (string) $cap['currency_code'], 'brana' => 'paypal', 'ext_id' => (string) ($r['id'] ?? $paypalOrderId), 'zdroj' => 'online']);
+            if ($res['stav'] === 'paid' || $res['stav'] === 'uz_zaplaceno') {
+                try {
+                    $pdo->prepare("UPDATE objednavky SET stav = 'potvrzena', interni_pozn = CONCAT(IFNULL(interni_pozn,''), :p) WHERE id = :id AND stav IN ('nova','novy','rozpracovano')")
+                        ->execute(['p' => "\nPayPal CAPTURED: " . ($r['id'] ?? ''), 'id' => $order['id']]);
+                } catch (Throwable $e) { /* OK pokud sloupec nemá tu stav hodnotu */ }
+                header('Location: ' . $baseUrl . '/b2b/index.html?paid=' . urlencode($ourOrderNo));
+                exit;
+            }
+            error_log('paypal_callback: platba nesedí (' . ($res['duvod'] ?? $res['stav']) . ') ' . $ourOrderNo);
+            $captureOk = false;
+        }
     }
 
     error_log('paypal_callback capture failed: ' . json_encode($r));

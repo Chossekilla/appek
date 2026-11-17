@@ -32,6 +32,11 @@ function shipping_create(string $carrier, array $payload): array {
     if (!function_exists('customer_int_enabled') || !customer_int_enabled($carrier)) {
         return ['ok' => false, 'error' => $carrier . '_disabled', 'hint' => 'Zapni přepravce + klíče v Nastavení → Integrace.'];
     }
+    // 💱 v3.0.643 — dobírka (COD) jde u přepravců jen v Kč → u dokladu v cizí měně ji nezakládej
+    //   (zákazník by zaplatil Kč částku místo eur). Měnu bere z payloadu, jinak z objednávky dle čísla.
+    if ((float) ($payload['cod_kc'] ?? 0) > 0 && shipping_mena_dokladu($payload) !== 'CZK') {
+        return ['ok' => false, 'error' => 'dobirka_jen_czk', 'hint' => 'Objednávka je v ' . shipping_mena_dokladu($payload) . ' — dobírku přepravci vybírají jen v Kč. Zásilku založ bez dobírky (zaplaceno předem).'];
+    }
     $fn = shipping_create_fn($carrier);
     if (!function_exists($fn)) return ['ok' => false, 'error' => 'carrier_not_implemented', 'hint' => 'Přepravce ' . shipping_carrier_label($carrier) . ' zatím není napojen.'];
     $r = $fn($payload);
@@ -48,4 +53,23 @@ function shipping_label(string $carrier, string $tracking): array {
     $fn = shipping_label_fn($carrier);
     if (!function_exists($fn)) return ['ok' => false, 'error' => 'carrier_label_not_implemented'];
     return $fn($tracking);
+}
+
+/** 💱 v3.0.643 — měna dokladu zásilky: payload['mena'] | objednávka (id / číslo = reference). Default Kč. */
+function shipping_mena_dokladu(array $payload): string {
+    if (!empty($payload['mena'])) return strtoupper((string) $payload['mena']);
+    try {
+        $pdo = db();
+        if (!empty($payload['objednavka_id'])) {
+            $st = $pdo->prepare("SELECT mena FROM objednavky WHERE id = ?");
+            $st->execute([(int) $payload['objednavka_id']]);
+        } elseif (!empty($payload['reference'])) {
+            $st = $pdo->prepare("SELECT mena FROM objednavky WHERE cislo = ? LIMIT 1");
+            $st->execute([(string) $payload['reference']]);
+        } else {
+            return 'CZK';
+        }
+        $m = strtoupper((string) $st->fetchColumn());
+        return $m !== '' ? $m : 'CZK';
+    } catch (Throwable $e) { return 'CZK'; }
 }

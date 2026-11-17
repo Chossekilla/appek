@@ -83,6 +83,12 @@ header('Cache-Control: no-store');
   .lines div{display:flex;justify-content:space-between;gap:10px;padding:4px 0}
   .lines div span:last-child{white-space:nowrap;font-weight:650}
   .lines .tot{border-top:1px solid var(--ln);margin-top:4px;padding-top:8px;font-size:16px}
+  .lines #mena-q{display:block;padding:0}
+  .mena-row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .mena-btns{display:inline-flex;gap:6px}
+  .mena-b{border:1px solid var(--ln);background:none;color:inherit;border-radius:8px;padding:6px 12px;font:inherit;font-weight:600;cursor:pointer;min-height:34px}
+  .mena-b.on{background:var(--acc,#BA7517);border-color:var(--acc,#BA7517);color:#fff}
+  .mena-b:disabled{opacity:.45}
   .chk{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--tx2);margin:10px 0 14px;line-height:1.45}
   .chk input{width:20px;height:20px;flex-shrink:0;margin-top:1px}
   .chk a{color:var(--acc2)}
@@ -116,11 +122,15 @@ header('Cache-Control: no-store');
   var API = '../api/web_objednavky.php';
   var LS = 'appek_web_obj';
   var INFO = null, MENU = null, CART = {}, TYP = 'vyzvednuti', SENDING = false;
+  var MENA = null;      // 💱 v3.0.643 — měna platby (Kč | €), null = výchozí ze serveru
   var VOUCHER = null;   // {kod, odecet, popis, chovani} — odhad ze serveru (počítá stejně jako objednávka)
   var $ = function(id){ return document.getElementById(id); };
   var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
   // celé koruny bez haléřů, jinak vždy 2 místa (39,20 Kč, ne 39,2 Kč)
   var kc = function(n){ var r = Math.round(n * 100) / 100, d = r % 1 ? 2 : 0; return r.toLocaleString('cs-CZ', {minimumFractionDigits: d, maximumFractionDigits: d}) + ' Kč'; };
+  var SYM = {CZK: 'Kč', EUR: '€', USD: '$', GBP: '£', PLN: 'zł', HUF: 'Ft', CHF: 'CHF'};
+  var fm = function(n, m){ if (!m || m === 'CZK') return kc(n); return (Math.round(n * 100) / 100).toLocaleString('cs-CZ', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ' + (SYM[m] || m); };
+  function menaAktivni(){ var p = INFO && INFO.platba; return !!(p && p.aktivni && (p.prijimane || []).length > 1); }
   var DNY = ['', 'po', 'út', 'st', 'čt', 'pá', 'so', 'ne'];
   function lsGet(){ try { return JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) { return {}; } }
   function lsSet(o){ try { localStorage.setItem(LS, JSON.stringify(Object.assign(lsGet(), o))); } catch (e) {} }
@@ -269,7 +279,27 @@ header('Cache-Control: no-store');
       (TYP === 'rozvoz' ? '<div><span>Doprava</span><span>' + (d ? kc(d) : 'zdarma') + '</span></div>' : '') +
       (VOUCHER && VOUCHER.odecet > 0 ? '<div class="vch-l"><span>' + (VOUCHER.chovani === 'platba' ? 'Uhrazeno voucherem' : 'Sleva') + ' ' + esc(VOUCHER.kod) + '</span><span>−' + kc(VOUCHER.odecet) + '</span></div>' : '') +
       '<div class="tot"><span>Celkem</span><span>' + kc(Math.max(0, z + d - (VOUCHER ? VOUCHER.odecet : 0))) + '</span></div>' +
-      (INFO.min_objednavka > 0 && z < INFO.min_objednavka ? '<div style="color:#b91c1c;font-size:13px">Minimální objednávka je ' + kc(INFO.min_objednavka) + '</div>' : '');
+      (INFO.min_objednavka > 0 && z < INFO.min_objednavka ? '<div style="color:#b91c1c;font-size:13px">Minimální objednávka je ' + kc(INFO.min_objednavka) + '</div>' : '') +
+      (menaAktivni() ? '<div id="mena-q"></div>' : '');
+    if (menaAktivni()) menaQuote();
+  }
+  // 💱 v3.0.643 — platba v Kč nebo v € (částku v měně počítá server stejně jako doklad/účtenku)
+  var _mq = 0;
+  async function menaQuote(){
+    var my = ++_mq, p = INFO.platba, q = null, e = '';
+    try { q = await api('quote', {body: {typ: TYP, mena: MENA || undefined, polozky: cartLines().map(function(x){ return {id: x.v.id, mnozstvi: x.n}; })}}); if (!MENA) MENA = q.mena; }
+    catch (x) { e = x.message || ''; }
+    if (my !== _mq) return;
+    var el = $('mena-q'); if (!el) return;
+    var cur = MENA || p.vychozi || 'CZK';
+    el.innerHTML = '<div class="mena-row"><span>Platit v měně</span><span class="mena-btns">' + (p.prijimane || []).map(function(m){
+        var i = (p.meny || {})[m] || {}, dis = m !== 'CZK' && i.ok === false;
+        return '<button type="button" class="mena-b' + (cur === m ? ' on' : '') + '" data-m="' + m + '"' + (dis ? ' disabled' : '') + '>' + (m === 'CZK' ? 'Kč' : (SYM[m] || m) + ' ' + m) + '</button>';
+      }).join('') + '</span></div>' +
+      (q && q.mena !== 'CZK' ? '<div class="tot"><span>K úhradě v ' + esc(q.mena) + '</span><span>' + fm(q.celkem, q.mena) + '</span></div>' +
+        '<div style="font-size:12px;color:var(--tx3)">Kurz 1 ' + esc(SYM[q.mena] || q.mena) + ' = ' + (+q.kurz_prodej || +q.kurz).toLocaleString('cs-CZ', {maximumFractionDigits: 3}) + ' Kč' + (VOUCHER ? ' · sleva z kódu se odečte v ' + esc(q.mena) : '') + '</div>' : '') +
+      (e ? '<div style="color:#b91c1c;font-size:13px">' + esc(e) + '</div>' : '');
+    el.querySelectorAll('.mena-b').forEach(function(b){ b.onclick = function(){ MENA = b.dataset.m; menaQuote(); }; });
   }
   // ── SLEVOVÝ KÓD ──────────────────────────────────────────
   function renderVoucher(){
@@ -317,7 +347,8 @@ header('Cache-Control: no-store');
       adresa: g('f-adresa'), psc: g('f-psc'), mesto: g('f-mesto'),
       souhlas: $('f-souhlas').checked, web: g('f-web'),
       polozky: cartLines().map(function(x){ return {id: x.v.id, mnozstvi: x.n}; }),
-      voucher_kod: VOUCHER ? VOUCHER.kod : g('f-voucher')   // napsaný, ale neuplatněný kód ověří server při odeslání
+      voucher_kod: VOUCHER ? VOUCHER.kod : g('f-voucher'),  // napsaný, ale neuplatněný kód ověří server při odeslání
+      mena: menaAktivni() && MENA ? MENA : undefined         // 💱 v3.0.643
     };
     if (!body.jmeno) return err('Vyplňte jméno.');
     if (body.telefon.replace(/\D/g, '').length < 9) return err('Vyplňte telefon.');
@@ -352,7 +383,7 @@ header('Cache-Control: no-store');
       var h = '<div class="st-card">';
       if (/[?&]nova=1/.test(location.search)) h += '<div class="note" style="margin:0 0 12px;background:#f0fdf4;border-color:#bbf7d0;color:#166534">Děkujeme, objednávku jsme přijali.</div>';
       h += '<h2>Objednávka ' + esc(s.cislo) + '</h2><div class="meta">' + (s.typ === 'rozvoz' ? 'Rozvoz' + (s.adresa ? ' · ' + esc(s.adresa) : '') : 'Vyzvednutí') + (casTxt ? '<br>' + esc(casTxt) : '') +
-           '<br>' + (s.zaplaceno ? 'Zaplaceno' : 'K úhradě při ' + (s.typ === 'rozvoz' ? 'převzetí' : 'vyzvednutí')) + ': <b>' + kc(s.celkem) + '</b></div>';
+           '<br>' + (s.zaplaceno ? 'Zaplaceno' : 'K úhradě při ' + (s.typ === 'rozvoz' ? 'převzetí' : 'vyzvednutí')) + ': <b>' + fm(s.celkem_mena != null ? s.celkem_mena : s.celkem, s.mena) + '</b></div>';
       if (s.krok === 'zruseno') h += '<div class="note">Objednávka byla zrušena. V případě dotazů nás prosím kontaktujte.</div>';
       else h += '<ol class="steps">' + kroky.map(function(k, ix){ var c = ix < idx || (ix === idx && krok === 'hotovo') ? 'done' : ix === idx ? 'cur' : ''; return '<li class="' + c + '"><span class="dot">' + (c === 'done' ? '✓' : ix + 1) + '</span>' + k[1] + '</li>'; }).join('') + '</ol>';
       var bezi = s.krok !== 'hotovo' && s.krok !== 'zruseno';

@@ -78,6 +78,23 @@ function payment_methods_save(PDO $pdo, array $methods): void {
     $stmt->execute(['v' => $json, 'v2' => $json]);
 }
 
+/**
+ * 💱 v3.0.643 — v jakých měnách jde metodou zaplatit (Kč vždy). Online brány dle integrace
+ * (customer_int_brana_meny), dobírka jen Kč (COD u přepravců je v Kč), převod v cizí měně jen s EUR IBAN.
+ */
+function payment_method_meny(PDO $pdo, string $key): array {
+    require_once __DIR__ . '/_mena_lib.php';
+    $pl = mena_config_load($pdo)['platba'];
+    $cizi = $pl['aktivni'] && in_array('b2b', $pl['kanaly'], true) ? $pl['meny'] : [];
+    if (in_array($key, ['stripe', 'gopay', 'paypal'], true)) {
+        require_once __DIR__ . '/_customer_integrace.php';
+        return array_values(array_unique(array_merge(['CZK'], array_values(array_intersect($cizi, customer_int_brana_meny($key))))));
+    }
+    if ($key === 'prevod') return mena_iban_eur($pdo) !== '' ? array_values(array_unique(array_merge(['CZK'], array_intersect($cizi, ['EUR'])))) : ['CZK'];
+    if ($key === 'faktura') return array_values(array_unique(array_merge(['CZK'], $cizi)));   // měnu/IBAN řeší faktura (bez EUR IBAN QR nevznikne)
+    return ['CZK'];   // dobírka, hotově, …
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
@@ -111,6 +128,11 @@ if ($method === 'GET') {
 
     if ($context === 'b2b') {
         $filtered = array_map($attachCfg, array_values(array_filter($all, fn($m) => $m['enabled'] && $m['b2b'])));
+        // 💱 v3.0.643 — ?mena=EUR: skryj metody, které měnu neumí (dobírka = Kč u přepravce; GoPay bez EUR
+        //   na GoID; převod bez EUR IBAN). Každá metoda nese `meny` (v čem jde zaplatit) pro přepínač v košíku.
+        $mena = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) ($_GET['mena'] ?? '')));
+        $filtered = array_map(fn($m) => $m + ['meny' => payment_method_meny($pdo, $m['key'])], $filtered);
+        if ($mena !== '' && $mena !== 'CZK') $filtered = array_values(array_filter($filtered, fn($m) => in_array($mena, $m['meny'], true)));
         $dopravaPub = array_values(array_filter($cfg['doprava']['metody'], fn($m) => $m['aktivni']));
         json_response(['methods' => $filtered, 'doprava' => ['zdarma_od' => $cfg['doprava']['zdarma_od'], 'metody' => $dopravaPub]]);
     }

@@ -55,6 +55,10 @@ $justPaid = !empty($_GET['paid']);
   .powered a{color:inherit}
   @keyframes pulse-success{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,0.4)}50%{box-shadow:0 0 0 20px rgba(16,185,129,0)}}
   .paid-ic{animation:pulse-success 1.5s ease-out 3}
+  .top .mena-sw{display:inline-flex;gap:6px;margin-top:12px;background:rgba(255,255,255,.15);padding:4px;border-radius:12px}
+  .top .mena-sw button{border:0;background:none;color:inherit;font:inherit;font-weight:700;padding:8px 16px;border-radius:9px;cursor:pointer;min-height:38px}
+  .top .mena-sw button.on{background:#fff;color:#1d1d1f}
+  .top .kurz{font-size:11px;opacity:.8;margin-top:6px}
 </style>
 </head>
 <body>
@@ -72,6 +76,10 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 function fmt(n) { return Number(n || 0).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 let pollTimer = null;
+// 💱 v3.0.643 — měna platby (účet stolu: host volí Kč / €; objednávka: měna dokladu pevná)
+let INFO = null, MENA = null;
+const sym = (m) => ({ CZK: 'Kč', EUR: '€', USD: '$', GBP: '£', PLN: 'zł', HUF: 'Ft', CHF: 'CHF' })[m] || m;
+function setMena(m) { MENA = m; renderApp(INFO); }
 
 async function loadInfo() {
   try {
@@ -87,9 +95,18 @@ async function loadInfo() {
 }
 
 function renderApp(d) {
-  const o = d.order;
+  INFO = d;
+  const o = Object.assign({}, d.order);
   const items = d.items || [];
-  const methods = d.methods || {};
+  const methods = Object.assign({}, d.methods || {});
+  const mz = d.moznosti_men || {};
+  if (!MENA || !mz[MENA]) MENA = o.mena || 'CZK';
+  const cur = mz[MENA] || { castka: o.castka, polozky: [] };
+  o.castka = cur.castka;
+  const S = sym(MENA);
+  // brána, která zvolenou měnu neumí, se skryje
+  const mm = d.methods_meny || {};
+  ['stripe', 'gopay'].forEach(k => { if (methods[k] && mm[k] && !mm[k].includes(MENA)) methods[k] = false; });
 
   // Pokud zaplaceno — ukaž potvrzení
   if (o.pay_status === 'paid') {
@@ -104,7 +121,7 @@ function renderApp(d) {
           <h2>Platba úspěšná</h2>
           <p class="sub">
             Účtenka <strong>${esc(o.cislo)}</strong><br>
-            Částka: <strong>${fmt(o.castka)} Kč</strong><br>
+            Částka: <strong>${fmt(o.castka)} ${esc(S)}</strong><br>
             ${o.paid_at ? `Zaplaceno: ${esc(String(o.paid_at).slice(0, 16).replace('T', ' '))}` : ''}<br>
             ${o.pay_method ? `Metoda: ${esc(o.pay_method)}` : ''}
           </p>
@@ -121,7 +138,7 @@ function renderApp(d) {
       <div class="top">
         <h1>🙋 Čekám na číšníka</h1>
         <div class="firma">${esc(d.firma.firma_nazev || '')}</div>
-        <div class="amount">${fmt(o.castka)}<span class="currency">Kč</span></div>
+        <div class="amount">${fmt(o.castka)}<span class="currency">${esc(S)}</span></div>
         <div class="cislo">${esc(o.cislo)}</div>
       </div>
       <div class="container">
@@ -142,8 +159,11 @@ function renderApp(d) {
     <div class="top">
       <h1>Zaplatit účtenku</h1>
       <div class="firma">${esc(d.firma.firma_nazev || '')}</div>
-      <div class="amount">${fmt(o.castka)}<span class="currency">Kč</span></div>
+      <div class="amount">${fmt(o.castka)}<span class="currency">${esc(S)}</span></div>
       <div class="cislo">${esc(o.cislo)}</div>
+      ${!o.mena_pevna && Object.keys(mz).length > 1 ? `
+        <div class="mena-sw">${Object.keys(mz).map(m => `<button type="button" class="${m === MENA ? 'on' : ''}" onclick="setMena('${m}')">${m === 'CZK' ? 'Kč' : esc(sym(m)) + ' ' + m}</button>`).join('')}</div>
+        ${MENA !== 'CZK' ? `<div class="kurz">1 ${esc(S)} = ${(+cur.kurz_prodej || +cur.kurz).toLocaleString('cs-CZ', { maximumFractionDigits: 3 })} Kč</div>` : ''}` : ''}
     </div>
 
     <div class="container">
@@ -153,11 +173,11 @@ function renderApp(d) {
         <div class="card">
           <h2>📋 Účtenka</h2>
           <div class="items">
-            ${items.map(it => `
+            ${items.map((it, i) => `
               <div class="item">
-                <span class="qty">${parseInt(it.mnozstvi)}×</span>
+                <span class="qty">${parseFloat(it.mnozstvi)}×</span>
                 <span class="name">${esc(it.nazev || '?')}</span>
-                <span class="price">${fmt(it.cena_bez_dph * it.mnozstvi * (1 + (parseFloat(it.sazba_dph) || 0) / 100))} Kč</span>
+                <span class="price">${fmt((cur.polozky || [])[i] != null ? cur.polozky[i] : it.castka)} ${esc(S)}</span>
               </div>
             `).join('')}
           </div>
@@ -197,7 +217,7 @@ async function payStripe() {
   try {
     const r = await fetch(`${API}?action=stripe_init`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: TOKEN }),
+      body: JSON.stringify({ token: TOKEN, mena: MENA }),
     });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || 'Stripe init selhal');
@@ -211,7 +231,7 @@ async function payGopay() {
   try {
     const r = await fetch(`${API}?action=gopay_init`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: TOKEN }),
+      body: JSON.stringify({ token: TOKEN, mena: MENA }),
     });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || 'GoPay init selhal');
