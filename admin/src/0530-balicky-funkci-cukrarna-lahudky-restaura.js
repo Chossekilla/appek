@@ -156,6 +156,10 @@ window.submitLicenseUpdate = async function() {
     });
     closeModal();
     alert(t('license_updated', { pkgs: (r.packages || []).join(', ') }));
+    // 🐛 v3.0.644 — po vložení nového klíče hned ověř u dodavatele (jinak by stav licence /
+    //   výzva „starý klíč" / případný zámek visely do zítřejšího heartbeatu)
+    try { localStorage.removeItem('appek_heartbeat_last_date'); } catch (e) {}
+    try { await triggerLicenseHeartbeatIfDue(true); } catch (e) {}
     location.reload();
   } catch (e) {
     alert('Chyba: ' + e.message);

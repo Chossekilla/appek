@@ -60,5 +60,10 @@ if (file_exists($pirateFlagFile)) {
 if (!$resp['pirate_flag']) {
     $resp['status'] = 'ok';
 }
+// 🐛 v3.0.644 — starý klíč po reissue (vendor 'superseded') → výzva k vložení nového klíče i mezi heartbeaty
+try {
+    $ls = license_state_load();
+    if (!empty($ls['key_superseded'])) $resp['key_superseded'] = true;
+} catch (Throwable $e) { /* ignore */ }
 
 echo json_encode($resp, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

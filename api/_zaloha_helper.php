@@ -368,18 +368,35 @@ function zaloha_obnov(PDO $pdo, int $id): array {
         error_log('Pre-restore snapshot selhal: ' . $e->getMessage());
     }
 
+    // 🐛 v3.0.644 — dump píše před každé `DROP TABLE IF EXISTS` hlavičku z komentářových
+    //   řádků `-- ====`. Dřív se celý kus začínající '--' přeskočil → DROP se NIKDY neprovedl,
+    //   CREATE padal na „already exists", INSERTy na duplicate key a DB zůstala ve smíšeném
+    //   stavu. Teď z každého kusu odřízneme jen ÚVODNÍ komentářové řádky (hodnoty v INSERTech
+    //   nové řádky neobsahují — PDO::quote je escapuje — takže '--' na začátku řádku je vždy komentář).
     $stmts = preg_split("/;\s*\n/", $sql);
     $pocet_ok = 0; $pocet_err = 0; $errors = [];
-    foreach ($stmts as $s) {
-        $s = trim($s);
-        if ($s === '' || strpos($s, '--') === 0) continue;
-        try {
-            $pdo->exec($s);
-            $pocet_ok++;
-        } catch (Throwable $e) {
-            $pocet_err++;
-            if (count($errors) < 5) $errors[] = $e->getMessage();
+    // Kniha záloh (`zalohy`) se z dumpu NEobnovuje — jinak by obnova přepsala katalog
+    //   záloh stavem z doby zálohy (zmizel by i právě vytvořený pre-restore snapshot
+    //   a všechny novější zálohy, i když soubory na disku zůstanou).
+    $jeZalohy = static function (string $s): bool {
+        return (bool) preg_match('/^(DROP\s+TABLE\s+(IF\s+EXISTS\s+)?|CREATE\s+TABLE\s+(IF\s+NOT\s+EXISTS\s+)?|INSERT\s+INTO\s+)`?zalohy`?(?=[\s(;]|$)/i', $s);
+    };
+    try { $pdo->exec('SET FOREIGN_KEY_CHECKS=0'); } catch (Throwable $e) { /* ignore */ }
+    try {
+        foreach ($stmts as $s) {
+            $s = trim(preg_replace('/\A(?:[ \t]*--[^\n]*(?:\n|\z)|[ \t]*\r?\n)+/', '', (string) $s));
+            if ($s === '' || strpos($s, '--') === 0) continue;
+            if ($jeZalohy($s)) continue;
+            try {
+                $pdo->exec($s);
+                $pocet_ok++;
+            } catch (Throwable $e) {
+                $pocet_err++;
+                if (count($errors) < 5) $errors[] = $e->getMessage();
+            }
         }
+    } finally {
+        try { $pdo->exec('SET FOREIGN_KEY_CHECKS=1'); } catch (Throwable $e) { /* ignore */ }
     }
     return ['ok' => $pocet_err === 0, 'provedeno' => $pocet_ok, 'chyb' => $pocet_err, 'errors' => $errors];
 }

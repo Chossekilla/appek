@@ -23,10 +23,27 @@ function require_admin(): array {
     //   Allowlist self-maintenance (heartbeat/whoami/version/js-error), aby refresh licence appku
     //   po prodloužení SÁM odemkl (jinak by po zaplacení zůstala zamčená).
     if (function_exists('license_full_lock') && license_full_lock()) {
-        $lockAllow = ['license_heartbeat.php', 'whoami.php', 'version.php', 'admin_klient_chyby.php'];
+        // 🐛 v3.0.644 — + admin_license_update.php (vložení nového klíče musí jít i v zámku)
+        $lockAllow = ['license_heartbeat.php', 'whoami.php', 'version.php', 'admin_klient_chyby.php', 'admin_license_update.php'];
         $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '')));
         if (!in_array($script, $lockAllow, true)) {
-            json_error('Pronájem APPEK vypršel — obnov přístup na https://my.appek.cz', 402);
+            // 🐛 v3.0.644 — license_lock marker: klient odliší od 402 „balíček není v licenci" a spustí ověření
+            json_response(['error' => 'Pronájem APPEK vypršel — obnov přístup na https://my.appek.cz', 'license_lock' => 'rental'], 402);
+        }
+    }
+    // 🐛 v3.0.644 — stav licence locked/revoked (z heartbeatu: key_reuse / unknown_key / odvolaný klíč)
+    //   se dřív na serveru NEvynucoval (license_enforce_check nikdo nevolal) → blokoval jen klientský
+    //   overlay, přímá API volání / POS jela dál. Teď 423 se stejným allowlistem jako u pronájmu
+    //   (heartbeat = self-heal po vyřešení u dodavatele, license_update = vložení nového klíče).
+    //   Dev/localhost výjimka je uvnitř license_enforce_check().
+    if (function_exists('license_enforce_check')) {
+        $enf = license_enforce_check();
+        if (empty($enf['ok'])) {
+            $lockAllow = ['license_heartbeat.php', 'whoami.php', 'version.php', 'admin_klient_chyby.php', 'admin_license_update.php'];
+            $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '')));
+            if (!in_array($script, $lockAllow, true)) {
+                json_response(['error' => 'Licence APPEK je zablokována — vložte platný licenční klíč nebo kontaktujte dodavatele.', 'license_lock' => (string) ($enf['state'] ?? 'locked')], 423);
+            }
         }
     }
     // 🔒 v3.0.315 SECURITY: POS-only účet (přihlášený PINem) smí JEN POS endpointy.

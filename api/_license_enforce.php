@@ -102,6 +102,8 @@ function license_state_save(array $state): void {
 /**
  * Server-side gate — pokud license_state = locked, vrátí 423 (Locked) všem admin endpointům.
  * Voláno z _admin_auth.php require_admin().
+ * 🐛 v3.0.644 — dřív se ve skutečnosti NEvolalo nikde (docblock lhal); teď ho require_admin()
+ *   opravdu volá (423 + allowlist heartbeat/license_update, viz _admin_auth.php).
  *
  * Grace period: pokud lock_until > NOW, ale je v grace (např. 7 dnů), admin uvidí warning
  * ale ještě funguje.

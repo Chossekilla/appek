@@ -4,32 +4,132 @@
 // Server-side endpoint: /api/license_heartbeat.php → POSTuje na vendor.appek.cz
 // Customer admin spustí trigger jednou denně (localStorage chrání před spammen).
 // Pokud vendor odpoví status:pirate → renderPirateNagBanner() ukáže warning.
-async function triggerLicenseHeartbeatIfDue() {
+// 🐛 v3.0.644 — `force` = spusť heartbeat i když dnes už proběhl (po zaplacení pronájmu,
+//   po vložení nového klíče, po 402/423 ze serveru). Dřív se zámek uvolnil až další den.
+async function triggerLicenseHeartbeatIfDue(force) {
   try {
     const HB_KEY = 'appek_heartbeat_last_date';
     const today = new Date().toYMD(); // YYYY-MM-DD
-    const lastDate = localStorage.getItem(HB_KEY);
+    let lastDate = null;
+    try { lastDate = localStorage.getItem(HB_KEY); } catch (e) {}
     // Pokud už dnes proběhl, jen zkontroluj cached pirate flag (file → JS doesn't see; check via API)
-    if (lastDate === today) {
+    if (lastDate === today && !force) {
       // Quick check: server-side flag — admin_pirate_status.php má cache i bez heartbeat trigger
       try {
         const r = await api('admin_pirate_status.php');
         if (r && r.pirate_flag) renderPirateNagBanner(r);
+        else if (r && r.key_superseded) renderKeySupersededBanner(r);
       } catch (e) { /* endpoint může chybět na starší instalaci — ignore */ }
-      return;
+      return null;
     }
     // Spusť real heartbeat
     const r = await api('license_heartbeat.php', { method: 'POST', body: '{}' });
-    localStorage.setItem(HB_KEY, today);
+    if (r && r.status !== 'throttled') { try { localStorage.setItem(HB_KEY, today); } catch (e) {} }
     if (r && r.status === 'pirate') {
       renderPirateNagBanner(r);
+    } else if (r && r.status === 'superseded') {
+      renderKeySupersededBanner(r);
     } else {
       // Pokud existoval banner z předchozího pirate flagu a teď je clean → odstraň
       const ex = document.getElementById('appek-pirate-nag');
       if (ex) ex.remove();
     }
+    return r;
   } catch (e) {
     console.warn('[APPEK] heartbeat failed:', e.message || e);
+    return null;
+  }
+}
+
+// 🐛 v3.0.644 — server vrátil 402 (pronájem po grace) / 423 (licence locked/revoked).
+//   Vynuť heartbeat (max 1× za 60 s) — když se mezitím zaplatilo / vyřešilo u dodavatele,
+//   stránka se rovnou obnoví a appka jede. Jinak ukáže zámek s možností ověřit znovu / vložit klíč.
+window._licenseLockRecheck = async function(status, opts) {
+  opts = opts || {};
+  const TKEY = 'appek_lock_recheck_at';
+  let last = 0;
+  try { last = parseInt(sessionStorage.getItem(TKEY) || '0', 10) || 0; } catch (e) {}
+  if (!opts.manual && Date.now() - last < 60000) {
+    if (status === 402) renderRentalLockOverlay();
+    return;
+  }
+  if (window._licenseRecheckBusy) return;
+  window._licenseRecheckBusy = true;
+  try { sessionStorage.setItem(TKEY, String(Date.now())); } catch (e) {}
+  let r = null;
+  try { r = await triggerLicenseHeartbeatIfDue(true); } finally { window._licenseRecheckBusy = false; }
+  if (r && r.full_lock === false && r.enforce_ok !== false && r.status !== 'pirate' && r.status !== 'throttled') {
+    location.reload();   // odemčeno → načti appku znovu (overlaye pryč, data čerstvá)
+    return;
+  }
+  if (r && r.status === 'pirate') return;           // overlay/banner už vykreslil heartbeat
+  if (status === 423 && !(r && r.status === 'pirate')) {
+    renderLicenseLockOverlay({ reason: (r && r.reason) || 'locked', message: (r && r.message) || '' });
+    return;
+  }
+  renderRentalLockOverlay(opts.manual ? (r && r.status === 'throttled' ? r.message : 'Platba zatím nebyla potvrzena. Pokud jste právě zaplatili, zkuste to za chvíli znovu.') : '');
+};
+
+// 🐛 v3.0.644 — zámek PRONÁJMU (402) s tlačítkem „Ověřit platbu" (dřív jen chybové hlášky do zítřka).
+function renderRentalLockOverlay(note) {
+  let o = document.getElementById('appek-rental-lock');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'appek-rental-lock';
+    o.style.cssText = 'position:fixed;inset:0;z-index:999998;background:rgba(15,23,42,0.78);display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,BlinkMacSystemFont,sans-serif';
+    o.innerHTML = `
+      <div style="background:#fff;max-width:480px;width:100%;border-radius:16px;padding:28px 24px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,0.45)">
+        <div style="font-size:48px;margin-bottom:10px">🗓️</div>
+        <h1 style="font-size:21px;font-weight:800;color:#991B1B;margin:0 0 8px">Pronájem vypršel</h1>
+        <p style="font-size:13.5px;color:#374151;line-height:1.55;margin:0 0 16px">Vaše data zůstávají v bezpečí. Po prodloužení na my.appek.cz klikněte na <strong>Ověřit platbu</strong> — appka se odemkne hned.</p>
+        <div id="appek-rental-lock-note" style="font-size:12.5px;color:#92400E;margin-bottom:12px"></div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <a href="https://my.appek.cz" target="_blank" rel="noopener" style="padding:11px 18px;background:#0071e3;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Prodloužit na my.appek.cz</a>
+          <button type="button" id="appek-rental-lock-check" style="padding:11px 18px;background:#16a34a;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer">Ověřit platbu</button>
+        </div>
+      </div>`;
+    document.body.appendChild(o);
+    o.querySelector('#appek-rental-lock-check').addEventListener('click', async (ev) => {
+      const b = ev.currentTarget; b.disabled = true; b.textContent = 'Ověřuji…';
+      try { await window._licenseLockRecheck(402, { manual: true }); }
+      finally { b.disabled = false; b.textContent = 'Ověřit platbu'; }
+    });
+  }
+  const n = o.querySelector('#appek-rental-lock-note');
+  if (n) n.textContent = note || '';
+}
+
+// 🐛 v3.0.644 — starý klíč po reissue (dodavatel přidal/odebral balíček) → NE zámek, jen výzva.
+function renderKeySupersededBanner(payload) {
+  if (document.getElementById('appek-key-superseded')) return;
+  const b = document.createElement('div');
+  b.id = 'appek-key-superseded';
+  b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99990;background:#FEF3C7;border:1px solid #F59E0B;color:#78350F;border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,0.18)';
+  b.innerHTML = `
+    <span style="flex:1;min-width:200px">🔑 <strong>Dodavatel vydal nový licenční klíč.</strong> ${esc((payload && payload.message) || 'Vložte ho, ať se projeví změna balíčků.')}</span>
+    <button type="button" class="btn-primary" style="font-size:12px;padding:6px 12px" onclick="openLicenseUpdate()">Vložit nový klíč</button>
+    <button type="button" class="btn-secondary" style="font-size:12px;padding:6px 10px" onclick="this.parentNode.remove()">Později</button>`;
+  document.body.appendChild(b);
+}
+
+// 🐛 v3.0.644 — vložení nového klíče PŘÍMO v zámku (modal openLicenseUpdate je pod overlayem).
+async function _licenseLockSubmitKey() {
+  const inp = document.getElementById('appek-lock-key');
+  const msg = document.getElementById('appek-lock-key-msg');
+  const key = (inp && inp.value || '').trim().toUpperCase();
+  if (!key) { if (msg) msg.textContent = 'Zadejte licenční klíč.'; return; }
+  if (msg) msg.textContent = 'Ukládám a ověřuji…';
+  try {
+    await api('admin_license_update.php', { method: 'POST', body: JSON.stringify({ license_key: key }) });
+    try { localStorage.removeItem('appek_heartbeat_last_date'); sessionStorage.removeItem('appek_lock_recheck_at'); } catch (e) {}
+    const r = await triggerLicenseHeartbeatIfDue(true);
+    if (r && r.status === 'pirate') {
+      if (msg) msg.textContent = 'Klíč je uložený, ale dodavatel ho zatím neověřil: ' + (r.message || r.reason || '');
+      return;
+    }
+    location.reload();
+  } catch (e) {
+    if (msg) msg.textContent = 'Chyba: ' + (e.message || e);
   }
 }
 
@@ -45,6 +145,7 @@ function renderLicenseLockOverlay(payload) {
     key_reuse:      'Tento klíč je registrovaný pro jinou doménu',
     revoked_used:   'Tento klíč byl odvolán',
     expired_used:   'Vaše licence vypršela',
+    locked:         'Licence je zablokovaná',
   };
   const reason = reasonLabels[payload.reason] || 'Problém s licencí';
   const overlay = document.createElement('div');
@@ -79,6 +180,16 @@ function renderLicenseLockOverlay(payload) {
       <div style="font-size:12px;color:#7F1D1D;margin-top:6px">
         nebo telefon <a href="tel:+420774599622" style="color:#7F1D1D;font-weight:600;text-decoration:none">774 599 622</a>
       </div>
+      <!-- 🐛 v3.0.644 — nový klíč jde vložit přímo tady (dřív byl modal pod overlayem → zákazník bez cesty ven) -->
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid #eee;text-align:left">
+        <label for="appek-lock-key" style="font-size:12.5px;font-weight:700;color:#1d1d1f">Máte nový licenční klíč od dodavatele?</label>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <input id="appek-lock-key" autocomplete="off" placeholder="APPEK-XXXX-XXXX-XXXX-XXXX-XXXX"
+                 style="flex:1;min-width:0;padding:9px 10px;border:1px solid #d1d5db;border-radius:8px;font-family:Menlo,monospace;font-size:13px;text-transform:uppercase">
+          <button type="button" id="appek-lock-key-btn" style="padding:9px 14px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">Uložit klíč</button>
+        </div>
+        <div id="appek-lock-key-msg" style="font-size:12px;color:#7F1D1D;margin-top:6px;min-height:1em"></div>
+      </div>
       <div style="font-size:11px;color:#86868b;margin-top:14px;font-family:monospace">
         Doména: ${location.hostname}<br>
         Reason: ${payload.reason || 'unknown'}
@@ -87,6 +198,10 @@ function renderLicenseLockOverlay(payload) {
   `;
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
+  try {
+    overlay.querySelector('#appek-lock-key-btn').addEventListener('click', _licenseLockSubmitKey);
+    overlay.querySelector('#appek-lock-key').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') _licenseLockSubmitKey(); });
+  } catch (e) {}
 
   // 🛡️ v3.0.471 — anti-tamper: obnov lock po pokusu ho skrýt/odstranit (display:none,
   //   visibility, opacity, remove z DOM). Klientský zámek = „friction not security",

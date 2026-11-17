@@ -109,7 +109,44 @@ try {
             $licenseRow = $stmt->fetch();
         }
 
+        // 🐛 v3.0.644 — REISSUE (přidání/odebrání balíčku) přepíše license_key v řádku licence
+        //   na nový klíč se STEJNOU náhodnou částí (APPEK-R1-R2-R3-…). Dokud zákazník nový klíč
+        //   nevloží, posílá heartbeat ten starý → dřív 'unknown_key' → celoobrazovkový zámek
+        //   adminu, přes který nový klíč nešel ani zadat. Teď starý klíč dohledáme podle náhodné
+        //   části a vrátíme status 'superseded' (BEZ zámku, jen výzva k vložení nového klíče).
+        $supersededRow = null;
         if (!$licenseRow) {
+            $kp = explode('-', $key);
+            if (count($kp) >= 5) {
+                $prefix = $kp[0] . '-' . $kp[1] . '-' . $kp[2] . '-' . $kp[3] . '-';   // jen [A-Z0-9-] → bez LIKE wildcardů
+                $sp = $pdo->prepare("SELECT * FROM vendor_licenses WHERE license_key LIKE :p LIMIT 2");
+                $sp->execute(['p' => $prefix . '%']);
+                $cand = $sp->fetchAll();
+                if (count($cand) === 1 && $cand[0]['license_key'] !== $key) {
+                    $supersededRow = $cand[0];
+                }
+            }
+        }
+
+        if (!$licenseRow && $supersededRow
+            && ($supersededRow['status'] ?? '') !== 'revoked'
+            && !in_array($supersededRow['lock_state'] ?? 'active', ['locked', 'revoked'], true)) {
+            echo json_encode([
+                'status'         => 'superseded',
+                'license_status' => $supersededRow['status'] ?: 'unknown',
+                'reason'         => 'key_superseded',
+                'message'        => 'Dodavatel vydal pro tuto licenci nový klíč (změna balíčků). Vložte ho v Nastavení → Balíčky → Aktualizovat klíč.',
+                'expires_at'     => $supersededRow['expires_at'] ?? null,
+                'rental'         => !empty($supersededRow['rental']) ? 1 : 0,
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        if (!$licenseRow && $supersededRow) {
+            // Odvolaná / zamčená licence → i starý klíč je odvolaný (ne „neznámý").
+            $licenseRow = $supersededRow;
+            $licenseStatus = $supersededRow['status'] ?: 'unknown';
+            $reason = 'revoked_used';
+        } elseif (!$licenseRow) {
             $reason = 'unknown_key';
         } else {
             $licenseStatus = $licenseRow['status'] ?: 'unknown';

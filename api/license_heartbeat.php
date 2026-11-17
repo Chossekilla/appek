@@ -27,17 +27,38 @@ header('Content-Type: application/json; charset=UTF-8');
 
 // Admin-only — nesmí volat anonym
 $ctx = aktualni_uzivatel_z_session();
-if (!$ctx || ($ctx['role'] ?? '') !== 'admin') {
+if (!$ctx) {
     http_response_code(403);
     echo json_encode(['error' => 'admin only']);
     exit;
+}
+if (($ctx['role'] ?? '') !== 'admin') {
+    // 🐛 v3.0.644 — když je appka ZAMČENÁ (pronájem po grace = 402, locked/revoked = 423),
+    //   smí ověření u vendora spustit i ne-admin role (vedoucí/prodavač na pokladně), ať se po
+    //   zaplacení appka odemkne sama a nečeká se do zítřka. Mimo zámek zůstává admin-only.
+    //   Throttle: max 1× za 60 s (vendor nemá být spamován z každého zamčeného zařízení).
+    $zamceno = (function_exists('license_full_lock') && license_full_lock())
+        || (function_exists('license_enforce_check') && !(license_enforce_check()['ok'] ?? true));
+    $last = (int) (license_state_load()['last_check'] ?? 0);
+    if (!$zamceno) {
+        http_response_code(403);
+        echo json_encode(['error' => 'admin only']);
+        exit;
+    }
+    if ($last > 0 && (time() - $last) < 60) {
+        echo json_encode(['status' => 'throttled', 'message' => 'Ověření proběhlo před chvílí — zkus to za minutu.',
+            'full_lock' => (bool) (license_validity()['full_lock'] ?? false),
+            'enforce_ok' => (bool) (license_enforce_check()['ok'] ?? true)], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 }
 
 // 🛠️ v3.0.437 — DEV/localhost: NEPOSÍLEJ heartbeat na vendor. Jinak vendor flagne dev stroj
 // jako pirát (host mismatch demo klíče ↔ localhost) a znečistí pirate detekci reálného klíče.
 if (license_is_dev_host()) {
     echo json_encode(['ok' => true, 'dev' => true, 'state' => 'active',
-        'message' => 'Dev/localhost — heartbeat přeskočen (bez anti-pirát kontroly).']);
+        'message' => 'Dev/localhost — heartbeat přeskočen (bez anti-pirát kontroly).',
+        'full_lock' => (bool) (license_validity()['full_lock'] ?? false), 'enforce_ok' => true]);
     exit;
 }
 
@@ -128,6 +149,9 @@ try {
 
     // ─── Pokud pirate → ulož flag pro admin UI ─────────────────────
     $pirateFlagFile = __DIR__ . '/.pirate-flag';
+    // 🐛 v3.0.644 — 'superseded' = starý klíč po reissue (dodavatel vydal nový s jinými balíčky).
+    //   NENÍ pirátství → žádný flag ani zámek, jen výzva k vložení nového klíče (key_superseded ve stavu).
+    $superseded = (($vendorReply['status'] ?? '') === 'superseded');
     if (($vendorReply['status'] ?? '') === 'pirate') {
         $flagData = [
             'reason'   => $vendorReply['reason'] ?? 'unknown',
@@ -171,10 +195,24 @@ try {
         'state'       => $newState,
         'reason'      => $newReason,
         'lock_until'  => $vendorReply['lock_until'] ?? null,
-        'valid_until' => $vendorReply['expires_at'] ?? ($prevState['valid_until'] ?? null),
+        // 🐛 v3.0.644 — vendor posílá klíč expires_at VŽDY; explicitní null = licence bez expirace (∞).
+        //   Dřív `?? prev` při null vzalo STARÉ datum → po zrušení expirace (převod na doživotní)
+        //   se po starém datu + grace vypnuly balíčky / zamkl pronájem. Fallback jen když klíč chybí.
+        //   Pirate odpověď BEZ nalezené licence (no_key/unknown_key → license_status 'unknown')
+        //   o expiraci nic neví → tam se předchozí datum zachová.
+        'valid_until' => (array_key_exists('expires_at', $vendorReply)
+                && (($vendorReply['status'] ?? '') !== 'pirate'
+                    || !in_array($vendorReply['license_status'] ?? 'unknown', ['unknown', '', null], true)))
+            ? (($vendorReply['expires_at'] === '' || $vendorReply['expires_at'] === null) ? null : (string) $vendorReply['expires_at'])
+            : ($prevState['valid_until'] ?? null),
         'rental'      => $vendorReply['rental'] ?? ($prevState['rental'] ?? 0),  // 🆕 pronájem flag (my.appek.cz) — po grace hard-lock
+        'key_superseded' => $superseded ? 1 : 0,
         'last_check'  => time(),
     ]);
+    // Aktuální stav zámků PO uložení (bez per-request cache license_full_lock) → klient podle toho
+    //   pozná, jestli se appka odemkla (např. po zaplacení pronájmu) a může stránku obnovit.
+    $valNow = license_validity();
+    $enfNow = license_enforce_check();
 
     // Update timestamp posledního heartbeatu (pro client-side detekci)
     @file_put_contents(__DIR__ . '/.heartbeat-last', date('c'));
@@ -186,6 +224,8 @@ try {
         'message'     => $vendorReply['message'] ?? '',
         'expires_at'  => $vendorReply['expires_at'] ?? null,
         'pirate_flag' => file_exists($pirateFlagFile),
+        'full_lock'   => (bool) ($valNow['full_lock'] ?? false),
+        'enforce_ok'  => (bool) ($enfNow['ok'] ?? true),
     ], JSON_UNESCAPED_UNICODE);
 
 } catch (Throwable $e) {

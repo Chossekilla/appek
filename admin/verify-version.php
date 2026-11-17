@@ -13,12 +13,15 @@
 
 // 🔒 v2.6.0 SECURITY FIX: require admin session (předtím anonymous mohl
 //    získat seznam souborů s SHA-256 hashe + mtime — pomoc pro útok).
-session_start();
+// 🐛 v3.0.644 — holé session_start() otevřelo PHPSESSID místo admin session APPEKSID a chyběl
+//    _authz.php (aktualni_uzivatel_z_session neexistovala) → přihlášený admin dostal vždy 403.
+//    Session otevírá session_secure_start() uvnitř aktualni_uzivatel_z_session().
 @require_once __DIR__ . '/../api/config.php';
 @require_once __DIR__ . '/../api/_admin_auth.php';
+@require_once __DIR__ . '/../api/_authz.php';
 
 $verifyUser = function_exists('aktualni_uzivatel_z_session') ? aktualni_uzivatel_z_session() : null;
-if (!$verifyUser || ($verifyUser['role'] ?? '') !== 'admin') {
+if (!$verifyUser || ($verifyUser['role'] ?? '') !== 'admin' || !empty($_SESSION['pos_only_user'])) {
     http_response_code(403);
     die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>403</title></head><body style="font-family:system-ui;padding:40px;text-align:center"><h1>🔒 403 Forbidden</h1><p>Verify-version vyžaduje admin session.</p><p><a href="/admin/">→ Přihlásit</a></p></body></html>');
 }

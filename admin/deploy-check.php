@@ -19,12 +19,15 @@
  * a cestuje s každým deployem (customer ZIP / MASTER ZIP / update bundle).
  */
 
-session_start();
+// 🐛 v3.0.644 — holé session_start() otevřelo PHPSESSID místo admin session APPEKSID a chyběl
+//    _authz.php (aktualni_uzivatel_z_session neexistovala) → přihlášený admin dostal vždy 403.
+//    Session otevírá session_secure_start() uvnitř aktualni_uzivatel_z_session().
 @require_once __DIR__ . '/../api/config.php';
 @require_once __DIR__ . '/../api/_admin_auth.php';
+@require_once __DIR__ . '/../api/_authz.php';
 
 $dcUser = function_exists('aktualni_uzivatel_z_session') ? aktualni_uzivatel_z_session() : null;
-if (!$dcUser || ($dcUser['role'] ?? '') !== 'admin') {
+if (!$dcUser || ($dcUser['role'] ?? '') !== 'admin' || !empty($_SESSION['pos_only_user'])) {
     http_response_code(403);
     die('<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><title>403</title></head>'
       . '<body style="font-family:system-ui;padding:40px;text-align:center">'
