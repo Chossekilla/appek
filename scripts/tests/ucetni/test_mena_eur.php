@@ -92,7 +92,11 @@ try {
     ok($radkyOk, 'EUR položky: cena/ks na centy, řádek = množství × cena');
     $sum = 0.0; foreach ($inv['cizi']['polozky'] as $p) $sum += $p['zaklad'] + $p['dph'];
     ok(abs(round($sum, 2) - $inv['cizi']['celkem']) < 0.001, 'Σ položek v EUR = celkem v EUR');
-    ok(str_contains($html, 'CC:EUR') && str_contains($html, 'Rekapitulace DPH v Kč'), 'PDF: QR platba v EUR + rekapitulace DPH v Kč');
+    // v3.0.643 — QR v EUR jen na EUR účet (Nastavení → měna → EUR IBAN); bez něj se QR nevytvoří (dřív šla EUR částka na Kč účet)
+    $ibanEur = '';
+    try { require_once __DIR__ . '/../../../api/_mena_lib.php'; $ibanEur = mena_iban_eur(db()); } catch (Throwable $e) {}
+    ok(($ibanEur !== '' ? (str_contains($html, 'CC:EUR') && str_contains($html, 'ACC:' . $ibanEur)) : !str_contains($html, 'SPD*1.0'))
+       && str_contains($html, 'Rekapitulace DPH v Kč'), 'PDF: QR v EUR jen s EUR IBAN' . ($ibanEur !== '' ? '' : ' (bez IBAN → žádné QR)') . ' + rekapitulace DPH v Kč');
 
     if ($xsd !== '' && is_file("$xsd/data.xsd")) {
         $x = pohoda_xml_invoice($inv, []);
