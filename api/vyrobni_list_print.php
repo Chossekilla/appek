@@ -8,6 +8,9 @@ $datum = $_GET['datum'] ?? date('Y-m-d', strtotime('+1 day'));
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum)) {
     http_response_code(400); die('Neplatné datum');
 }
+// 🐛 v3.0.644 — stejný filtr jako obrazovka Výroba (bez pokladních prodejů a vratek)
+require_once __DIR__ . '/_vyroba_lib.php';
+$flt = vyroba_obj_filtr_sql($pdo, 'o');
 
 $stmt = $pdo->prepare("
     SELECT v.id, v.nazev, v.cislo, v.hmotnost_g,
@@ -19,7 +22,7 @@ $stmt = $pdo->prepare("
     JOIN vyrobky v ON v.id = p.vyrobek_id
     LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
     LEFT JOIN jednotky j ON j.id = v.jednotka_id
-    WHERE o.datum_dodani = :datum AND o.stav NOT IN ('zrusena')
+    WHERE o.datum_dodani = :datum AND o.stav NOT IN ('zrusena'){$flt}
     GROUP BY v.id, v.nazev, v.cislo, v.hmotnost_g, k.nazev, k.ikona, k.poradi, v.poradi, j.kod
     ORDER BY k.poradi, v.poradi, v.nazev
 ");
@@ -55,7 +58,7 @@ $stmt = $pdo->prepare("
     LEFT JOIN mista_dodani md ON md.id = o.misto_dodani_id
     JOIN objednavky_polozky p ON p.objednavka_id = o.id
     JOIN vyrobky v ON v.id = p.vyrobek_id
-    WHERE o.datum_dodani = :datum AND o.stav NOT IN ('zrusena')
+    WHERE o.datum_dodani = :datum AND o.stav NOT IN ('zrusena'){$flt}
     ORDER BY od.nazev, md.nazev, o.cislo, v.nazev
 ");
 $stmt->execute(['datum' => $datum]);

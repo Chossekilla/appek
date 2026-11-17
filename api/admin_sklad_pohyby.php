@@ -33,6 +33,12 @@ ensure_sklad_pohyby_schema($pdo);
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
+// 🐛 v3.0.644 — akce i z těla požadavku (Storno/Upravit v historii posílaly {action:'storno'} jen v body
+//   → „Neplatná akce: " a tlačítka nefungovala). URL má přednost.
+if ($action === '' && $method === 'POST') {
+    $bodyAction = json_input()['action'] ?? '';
+    if (is_string($bodyAction)) $action = $bodyAction;
+}
 
 // Aktuální uživatel pro audit
 $admin = $_SESSION['admin_jmeno'] ?? ($_SESSION['admin_id'] ?? 'admin');
@@ -116,6 +122,15 @@ if ($method === 'POST') {
         if (abs($delta) < 0.00001) json_error('Tento pohyb neměl vliv na stav — není co stornovat.', 400);
         $pdo->beginTransaction();
         try {
+            // 🐛 v3.0.644 — IDEMPOTENCE: pohyb jde stornovat jen jednou (dvojklik / Storno + Upravit téhož
+            //   pohybu dřív reverz provedly 2× → příjem 10 odečten 20). Zámek na původní pohyb serializuje
+            //   souběh; storno se pozná podle reverzní korekce „Storno pohybu #ID (" (i u starších storen).
+            $pdo->prepare("SELECT id FROM sklad_pohyby_v2 WHERE id = :id FOR UPDATE")->execute(['id' => $origId]);
+            $uz = $pdo->prepare("SELECT id FROM sklad_pohyby_v2
+                                 WHERE item_typ = :t AND item_id = :i AND typ = 'korekce' AND poznamka LIKE :pz
+                                 LIMIT 1 FOR UPDATE");
+            $uz->execute(['t' => $orig['item_typ'], 'i' => (int) $orig['item_id'], 'pz' => '%Storno pohybu #' . $origId . ' (%']);
+            if ($uz->fetchColumn()) { $pdo->rollBack(); json_error('Tento pohyb už byl stornován.', 409); }
             $p = get_or_create_polozka($pdo, (int) $orig['sklad_id'], $orig['item_typ'], (int) $orig['item_id'], true);
             $stavPred = (float) $p['stav'];
             $stavPo = $stavPred + $delta;

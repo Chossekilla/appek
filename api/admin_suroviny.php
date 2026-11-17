@@ -689,7 +689,16 @@ if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_kor
     $sid = (int) ($d['surovina_id'] ?? 0);
     $mnozstvi = (float) ($d['mnozstvi'] ?? 0);
     if (!$sid) json_error('Chybí surovina_id');
-    if ($mnozstvi <= 0) json_error('Množství musí být > 0');
+    // 🐛 v3.0.644 — inventura = NOVÝ reálný stav → 0 je platná hodnota (surovina došla; dřív 400 a ve skladu
+    //   zůstala fantomová zásoba). Korekce = rozdíl (+/−), jen nenulová. Ostatní typy kladné množství.
+    $typChk = str_replace('sklad_', '', $action);
+    if (!is_finite($mnozstvi)) json_error('Neplatné množství');
+    if ($typChk === 'inventura') { if ($mnozstvi < 0) json_error('Stav po inventuře nesmí být záporný'); }
+    elseif ($typChk === 'korekce') {   // nenulová; záporná (odpis) s důvodem — jako admin_sklad_pohyby.php
+        if (abs($mnozstvi) < 0.000001) json_error('Korekce musí být nenulová');
+        if ($mnozstvi < 0 && trim((string) ($d['poznamka'] ?? '')) === '') json_error('Záporná korekce vyžaduje poznámku (důvod)');
+    }
+    elseif ($mnozstvi <= 0) json_error('Množství musí být > 0');
 
     $sur = $pdo->prepare("SELECT id, nazev, jednotka FROM suroviny WHERE id = :id");
     $sur->execute(['id' => $sid]);
@@ -713,6 +722,7 @@ if (in_array($action, ['sklad_prijem','sklad_vydej','sklad_inventura','sklad_kor
         elseif ($typ === 'vydej')     $stockPo = max(0, $stockPred - $mnozstvi);
         elseif ($typ === 'inventura') $stockPo = $mnozstvi;            // mnozstvi = nový reálný stav
         else /* korekce */            $stockPo = $stockPred + $mnozstvi;
+        if ($typ === 'korekce' && $stockPo < 0) { $pdo->rollBack(); json_error('Korekce by způsobila záporný stav', 409); }
         $delta = $stockPo - $stockPred;
         $pdo->prepare("UPDATE sklad_polozky SET stav = :s WHERE id = :r")
             ->execute(['s' => $stockPo, 'r' => $rowId]);
@@ -1018,7 +1028,14 @@ if ($method === 'PUT') {
     if (empty($sets)) json_response(['ok' => true, 'nezmeneno' => true]);
     try {
         $pdo->prepare("UPDATE suroviny SET " . implode(', ', $sets) . " WHERE id = :id")->execute($params);
-        json_response(['ok' => true, 'slozeni_alergeny' => $slozeni_alergeny, 'zmeneno' => array_keys($params)]);
+        // 🐛 v3.0.644 — změna alergenu/složení suroviny → doplň alergeny výrobkům, které ji obsahují
+        //   (přímo i přes polotovary; add-only, ruční záznamy se nemažou). Soft-fail.
+        $propag = 0;
+        if (array_key_exists('alergen', $d) || array_key_exists('slozeni', $d)) {
+            try { require_once __DIR__ . '/_bom_lib.php'; $propag = bom_propaguj_alergeny_suroviny($pdo, $id); }
+            catch (Throwable $e) { error_log('propagace alergenů suroviny #' . $id . ': ' . $e->getMessage()); }
+        }
+        json_response(['ok' => true, 'slozeni_alergeny' => $slozeni_alergeny, 'zmeneno' => array_keys($params)] + ($propag ? ['alergeny_doplneny_vyrobkum' => $propag] : []));
     } catch (PDOException $e) {
         if ($e->getCode() === '23000') json_error('Surovina s tímto názvem už existuje');
         json_error_safe('Chyba úpravy', $e, 500);

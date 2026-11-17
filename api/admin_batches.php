@@ -134,32 +134,47 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     $d = json_input();
     $kod = trim($d['sarze_kod'] ?? '');
-    if (!$kod) {
-        // Auto-generuj kód: YYMMDD-NNN
-        $prefix = date('ymd');
-        $cnt = (int) $pdo->query("SELECT COUNT(*)+1 FROM production_batches WHERE sarze_kod LIKE '$prefix-%'")->fetchColumn();
-        $kod = $prefix . '-' . str_pad((string)$cnt, 3, '0', STR_PAD_LEFT);
-    }
+    $autoKod = ($kod === '');
     if (!($d['vyrobek_nazev'] ?? '') || !($d['datum_vyroby'] ?? '') || !($d['dmt'] ?? '')) {
         json_error('Vyplň výrobek, datum výroby a DMT', 400);
     }
-    try {
-        $pdo->prepare("
+    // 🐛 v3.0.644 — auto kód YYMMDD-NNN = MAX(číselná přípona dnešního prefixu)+1 (dřív COUNT(*)+1 → po smazání
+    //   šarže kolize s UNIQUE sarze_kod → 500 „DB" a šarže nešla ten den založit). Při souběhu (stejné MAX)
+    //   se zkusí další číslo.
+    $prefix = date('ymd');
+    $dalsiKod = function () use ($pdo, $prefix): string {
+        $st = $pdo->prepare("SELECT COALESCE(MAX(CAST(SUBSTRING(sarze_kod, :ln) AS UNSIGNED)), 0)
+                             FROM production_batches WHERE sarze_kod LIKE :pfx AND SUBSTRING(sarze_kod, :ln2) REGEXP '^[0-9]+$'");
+        $st->execute(['ln' => strlen($prefix) + 2, 'ln2' => strlen($prefix) + 2, 'pfx' => $prefix . '-%']);
+        return $prefix . '-' . str_pad((string) ((int) $st->fetchColumn() + 1), 3, '0', STR_PAD_LEFT);
+    };
+    $ins = $pdo->prepare("
             INSERT INTO production_batches
             (sarze_kod, vyrobek_id, vyrobek_nazev, datum_vyroby, cas_vyroby, mnozstvi, jednotka,
              dmt, teplota_min, teplota_max, sklad_misto, operator, stav, poznamka)
             VALUES (:k,:vi,:vn,:dv,:cv,:mn,:j,:dmt,:tmin,:tmax,:sm,:op,:st,:p)
-        ")->execute([
-            'k'=>$kod, 'vi'=>$d['vyrobek_id'] ?? null,
+        ");
+    $vals = [
+            'vi'=>$d['vyrobek_id'] ?? null,
             'vn'=>$d['vyrobek_nazev'], 'dv'=>$d['datum_vyroby'],
             'cv'=>$d['cas_vyroby'] ?? null, 'mn'=>$d['mnozstvi'] ?? 0,
             'j'=>$d['jednotka'] ?? 'ks', 'dmt'=>$d['dmt'],
             'tmin'=>$d['teplota_min'] ?? null, 'tmax'=>$d['teplota_max'] ?? null,
             'sm'=>$d['sklad_misto'] ?? null, 'op'=>$d['operator'] ?? null,
             'st'=>$d['stav'] ?? 'sklad', 'p'=>$d['poznamka'] ?? null,
-        ]);
-        json_response(['ok'=>true, 'id'=>(int)$pdo->lastInsertId(), 'sarze_kod'=>$kod]);
-    } catch (Throwable $e) { json_error_safe('DB', $e, 500); }
+        ];
+    for ($pokus = 0; ; $pokus++) {
+        if ($autoKod) $kod = $dalsiKod();
+        try {
+            $ins->execute(['k' => $kod] + $vals);
+            json_response(['ok'=>true, 'id'=>(int)$pdo->lastInsertId(), 'sarze_kod'=>$kod]);
+        } catch (PDOException $e) {
+            $dup = ($e->getCode() === '23000') && (($e->errorInfo[1] ?? 0) == 1062);
+            if ($dup && $autoKod && $pokus < 5) continue;                      // souběh → další číslo
+            if ($dup) json_error('Šarže s kódem „' . $kod . '" už existuje — zadej jiný kód.', 409);
+            json_error_safe('DB', $e, 500);
+        } catch (Throwable $e) { json_error_safe('DB', $e, 500); }
+    }
 }
 
 if ($method === 'PUT' && $id) {

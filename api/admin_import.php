@@ -257,7 +257,7 @@ function import_commit_rows(PDO $pdo, array $rows, array $mapping, string $match
         return is_numeric($v) ? (float) $v : null;
     };
 
-    $inserted = 0; $updated = 0; $skipped = 0; $catsCreated = 0; $pricedZero = 0;
+    $inserted = 0; $updated = 0; $skipped = 0; $catsCreated = 0; $pricedZero = 0; $priceKept = 0;
     $pdo->beginTransaction();
     try {
         $insCat = $pdo->prepare("INSERT INTO kategorie_vyrobku (nazev, ikona, poradi, aktivni) VALUES (:n, '📦', 999, 1)");
@@ -275,6 +275,10 @@ function import_commit_rows(PDO $pdo, array $rows, array $mapping, string $match
                     $cena = ($pct > 0) ? round($gross / (1 + $pct / 100), 2) : $gross;
                 }
             }
+            // 🐛 v3.0.644 — cena z řádku jen když je namapovaná a je to platné číslo. Nulu jako výchozí
+            //   použij JEN u nového výrobku; update ji vynechá (dřív import popisů/EAN nebo feed s přejmenovaným
+            //   sloupcem ceny přepsal ceny všech spárovaných výrobků na 0 Kč).
+            $cenaZRadku = $cena;
             $cena = $cena ?? 0;
             $hm    = $num($get($row, 'hmotnost_g'));
             $popis = $get($row, 'popis');
@@ -300,8 +304,10 @@ function import_commit_rows(PDO $pdo, array $rows, array $mapping, string $match
 
             if ($existId) {
                 if (!$updateExisting) { $skipped++; continue; }
-                $sets = ['nazev = :nazev', 'cena_bez_dph = :cena'];
-                $params = ['id' => $existId, 'nazev' => $nazev, 'cena' => $cena];
+                $sets = ['nazev = :nazev'];
+                $params = ['id' => $existId, 'nazev' => $nazev];
+                if ($cenaZRadku !== null)            { $sets[] = 'cena_bez_dph = :cena'; $params['cena'] = $cenaZRadku; }
+                else                                 { $priceKept++; }
                 if ($ean !== null && $ean !== '')   { $sets[] = 'ean = :ean'; $params['ean'] = $ean; }
                 if ($popis !== null)                 { $sets[] = 'popis = :popis'; $params['popis'] = $popis; }
                 if ($hm !== null)                    { $sets[] = 'hmotnost_g = :hm'; $params['hm'] = $hm; }
@@ -309,7 +315,7 @@ function import_commit_rows(PDO $pdo, array $rows, array $mapping, string $match
                 if ($minObj !== null)                { $sets[] = 'min_objednavka = :min'; $params['min'] = $minObj; }
                 $pdo->prepare("UPDATE vyrobky SET " . implode(', ', $sets) . " WHERE id = :id")->execute($params);
                 $updated++;
-                if ($cena == 0) $pricedZero++;
+                if ($cenaZRadku !== null && $cenaZRadku == 0) $pricedZero++;
             } else {
                 $pdo->prepare("
                     INSERT INTO vyrobky (cislo, ean, nazev, popis, kategorie_id, jednotka_id, cena_bez_dph, sazba_dph_id, hmotnost_g, min_objednavka, aktivni)
@@ -328,7 +334,7 @@ function import_commit_rows(PDO $pdo, array $rows, array $mapping, string $match
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $e;
     }
-    return ['inserted' => $inserted, 'updated' => $updated, 'skipped' => $skipped, 'categories_created' => $catsCreated, 'priced_zero' => $pricedZero];
+    return ['inserted' => $inserted, 'updated' => $updated, 'skipped' => $skipped, 'categories_created' => $catsCreated, 'priced_zero' => $pricedZero, 'price_kept' => $priceKept];
 }
 
 // 🆕 v3.0.371 — spuštění 1 uloženého feedu: stáhni → parsuj → přemapuj NÁZVY sloupců na indexy → commit.

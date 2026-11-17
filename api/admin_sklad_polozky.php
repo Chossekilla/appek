@@ -5,8 +5,8 @@
  *
  * GET    ?sklad_id=N             → položky v jednom skladu (s názvy z suroviny/vyrobky)
  * GET    ?item_typ=&item_id=     → kde všude položka je (suma stavů + per sklad)
- * POST                            → přiřadit položku do skladu (stav 0)
- *                                   Body: { sklad_id, item_typ, item_id, min_stav?, cil_stav? }
+ * POST                            → přiřadit položku do skladu (volitelně počáteční stav → pohyb 'inventura')
+ *                                   Body: { sklad_id, item_typ, item_id, stav?, min_stav?, cil_stav?, pozice? }
  * PUT    ?id=N                    → změnit min_stav / cil_stav (stav se mění přes pohyby)
  * DELETE ?id=N                    → odebrat ze skladu (jen pokud stav=0)
  *
@@ -247,6 +247,13 @@ if ($method === 'POST') {
     $cilStav = isset($d['cil_stav']) && $d['cil_stav'] !== '' ? (float) $d['cil_stav'] : null;
     $pozice  = isset($d['pozice']) && $d['pozice'] !== '' ? mb_substr(trim((string) $d['pozice']), 0, 50) : null;
 
+    // 🐛 v3.0.644 — počáteční stav při přiřazení = skladový POHYB (audit) + přepočet stock_aktualni (systém A
+    //   = SUM(B)). Dřív se jen vložil sklad_polozky.stav → A≠B (reporty/výroba četly jiné číslo) a naskladnění
+    //   nemělo v historii žádný záznam. Vše v jedné transakci. (DDL tabulky pohybů MIMO transakci.)
+    if (abs($stav) > 0.000001) ensure_sklad_pohyby_schema($pdo);
+    // surovina bez řádku v B (stará data) → nejdřív sjednoť A→B, ať přepočet níž neztratí legacy stav
+    if ($itemTyp === 'surovina') { try { sklad_unify_migrate($pdo); } catch (Throwable $e) {} }
+    $pdo->beginTransaction();
     try {
         $pdo->prepare("
             INSERT INTO sklad_polozky (sklad_id, item_typ, item_id, stav, min_stav, cil_stav, pozice)
@@ -255,8 +262,20 @@ if ($method === 'POST') {
             's' => $skladId, 't' => $itemTyp, 'i' => $itemId,
             'st' => $stav, 'mn' => $minStav, 'cl' => $cilStav, 'pz' => $pozice,
         ]);
-        json_response(['ok' => true, 'id' => (int) $pdo->lastInsertId()], 201);
+        $newId = (int) $pdo->lastInsertId();
+        if (abs($stav) > 0.000001) {
+            $kdo = $_SESSION['admin_jmeno'] ?? ($_SESSION['admin_id'] ?? 'admin');
+            $pdo->prepare("
+                INSERT INTO sklad_pohyby_v2 (sklad_id, item_typ, item_id, typ, mnozstvi, stav_pred, stav_po, poznamka, kdo)
+                VALUES (:s, :t, :i, 'inventura', :m, 0, :po, :pz, :k)
+            ")->execute(['s' => $skladId, 't' => $itemTyp, 'i' => $itemId, 'm' => $stav, 'po' => $stav,
+                         'pz' => 'Počáteční stav při přiřazení do skladu', 'k' => (string) $kdo]);
+        }
+        if ($itemTyp === 'surovina') surovina_recompute_total($pdo, $itemId);
+        $pdo->commit();
+        json_response(['ok' => true, 'id' => $newId], 201);
     } catch (PDOException $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         if (strpos($e->getMessage(), 'Duplicate') !== false) {
             json_error('Položka už je v tomto skladu přiřazena', 409);
         }

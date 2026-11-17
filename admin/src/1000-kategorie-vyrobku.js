@@ -440,6 +440,7 @@ window.appekImportCommit = async function() {
         <div style="font-size:42px">✅</div>
         <h3 style="margin:8px 0">Import dokončen</h3>
         <p style="font-size:14px;line-height:1.7">Nových: <strong>${r.inserted}</strong> · Aktualizováno: <strong>${r.updated}</strong> · Přeskočeno: <strong>${r.skipped}</strong>${r.categories_created ? ` · Nových kategorií: <strong>${r.categories_created}</strong>` : ''}</p>
+        ${r.price_kept ? `<p style="font-size:13px;color:var(--text-secondary);margin:6px auto;max-width:420px">ℹ️ ${r.price_kept} aktualizovaných produktů bez ceny v souboru — původní cena ponechána.</p>` : ''}
         ${r.priced_zero ? `<p style="font-size:13px;color:#a8232f;background:#fde7e9;border-radius:8px;padding:8px 12px;margin:6px auto;max-width:420px">⚠️ ${r.priced_zero} produktů importováno za <strong>0 Kč</strong> — zkontroluj mapování ceny.</p>` : ''}
         <button class="btn-primary btn-green" onclick="closeModal();navigate('vyrobky')" style="margin-top:10px;font-weight:700">Zobrazit produkty →</button>
       </div>`;

@@ -1126,7 +1126,7 @@ window.skladSetPozice = async function(polozkaId) {
 window.stornoPohyb = async function(pohybId, popis) {
   if (!confirm('Stornovat pohyb?\n\n' + (popis || '') + '\n\nVytvoří se reverzní korekce — stav se opraví, původní záznam v historii zůstane dohledatelný.')) return;
   try {
-    await api('admin_sklad_pohyby.php', { method: 'POST', body: JSON.stringify({ action: 'storno', pohyb_id: pohybId }) });
+    await api('admin_sklad_pohyby.php?action=storno', { method: 'POST', body: JSON.stringify({ action: 'storno', pohyb_id: pohybId }) }); // 🐛 v3.0.644 — akce v URL
     if (typeof toast === 'function') toast('✓ Pohyb stornován', 'success');
     state._suroviny_full_cache = null;
     if (state._currentSkladId) otevritSklad(state._currentSkladId, state._currentSkladNazev || '', state._currentSkladKod || '');
@@ -1135,7 +1135,7 @@ window.stornoPohyb = async function(pohybId, popis) {
 window.upravitPohyb = async function(pohybId, skladId, typ, nazev, itemTyp, itemId, jednotka) {
   if (!confirm('Upravit pohyb „' + nazev + '"?\n\nStornuje se původní a hned zadáš správnou hodnotu.')) return;
   try {
-    await api('admin_sklad_pohyby.php', { method: 'POST', body: JSON.stringify({ action: 'storno', pohyb_id: pohybId }) });
+    await api('admin_sklad_pohyby.php?action=storno', { method: 'POST', body: JSON.stringify({ action: 'storno', pohyb_id: pohybId }) }); // 🐛 v3.0.644 — akce v URL
     state._suroviny_full_cache = null;
     if (typeof toast === 'function') toast('Původní stornován — zadej správné množství', 'info');
     const reTyp = (typ === 'vratka') ? 'prijem' : typ;

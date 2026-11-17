@@ -35,6 +35,7 @@ try {
 $vytvoreno = 0;
 $aktualizovano = 0;
 $chyby = [];
+$alergenZmeneno = [];
 
 $pdo->beginTransaction();
 try {
@@ -45,10 +46,15 @@ try {
             continue;
         }
 
-        $jednotka     = trim((string) ($s['jednotka'] ?? 'g')) ?: 'g';
+        // 🐛 v3.0.644 — UPDATE mění jen pole, která řádek OPRAVDU obsahuje: jednotka jen explicitní (dřív se
+        //   doplnila 'g' a přepsala kg/ks), cena jen platné číslo (explicitní 0 = zdarma je OK), obsah balení
+        //   jen kladný (0 → cena/obsah = NULL → food cost 0). Výchozí 'g' platí jen pro NOVOU surovinu.
+        $jednotkaIn   = trim((string) ($s['jednotka'] ?? ''));
+        $jednotka     = $jednotkaIn !== '' ? $jednotkaIn : 'g';
         $alergen      = trim((string) ($s['alergen'] ?? '')) ?: null;
-        $cena_baleni  = isset($s['cena_baleni']) && $s['cena_baleni'] !== '' ? (float) $s['cena_baleni'] : null;
-        $obsah_baleni = isset($s['obsah_baleni']) && $s['obsah_baleni'] !== '' ? (float) $s['obsah_baleni'] : null;
+        $cena_baleni  = (isset($s['cena_baleni']) && $s['cena_baleni'] !== '' && is_numeric($s['cena_baleni'])) ? (float) $s['cena_baleni'] : null;
+        $obsah_baleni = (isset($s['obsah_baleni']) && $s['obsah_baleni'] !== '' && is_numeric($s['obsah_baleni'])) ? (float) $s['obsah_baleni'] : null;
+        if ($obsah_baleni !== null && $obsah_baleni <= 0) $obsah_baleni = null;
         $poznamka     = trim((string) ($s['poznamka'] ?? '')) ?: null;
         $slozeni      = trim((string) ($s['slozeni'] ?? '')) ?: null;
 
@@ -61,7 +67,7 @@ try {
             // UPDATE — přepíšeme jen vyplněná pole
             $sql = "UPDATE suroviny SET aktivni = 1";
             $params = ['id' => (int) $existId];
-            if ($jednotka)     { $sql .= ", jednotka = :jednotka";       $params['jednotka']     = $jednotka; }
+            if ($jednotkaIn !== '') { $sql .= ", jednotka = :jednotka";  $params['jednotka']     = $jednotkaIn; }
             if ($alergen)      { $sql .= ", alergen = :alergen";         $params['alergen']      = $alergen; }
             if ($cena_baleni !== null)  { $sql .= ", cena_baleni = :cb"; $params['cb']           = $cena_baleni; }
             if ($obsah_baleni !== null) { $sql .= ", obsah_baleni = :ob"; $params['ob']          = $obsah_baleni; }
@@ -70,6 +76,7 @@ try {
             $sql .= " WHERE id = :id";
             $pdo->prepare($sql)->execute($params);
             $aktualizovano++;
+            if ($alergen) $alergenZmeneno[] = (int) $existId;
         } else {
             // INSERT
             $pdo->prepare("
@@ -88,6 +95,13 @@ try {
         }
     }
 
+    // 🐛 v3.0.644 — importovaný alergen existující suroviny → doplň ho výrobkům, které ji obsahují (add-only)
+    if ($alergenZmeneno) {
+        try {
+            require_once __DIR__ . '/_bom_lib.php';
+            foreach (array_unique($alergenZmeneno) as $sidA) bom_propaguj_alergeny_suroviny($pdo, $sidA);
+        } catch (Throwable $e) { error_log('import surovin — propagace alergenů: ' . $e->getMessage()); }
+    }
     $pdo->commit();
     json_response([
         'ok'            => true,

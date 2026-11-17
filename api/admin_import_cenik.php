@@ -70,7 +70,7 @@ if ($action === 'upload' && $method === 'POST') {
     }
 
     // Auto-detect column → DB field mapping
-    $autoMapping = auto_detect_mapping($headers, $target);
+    $autoMapping = cenik_normalize_mapping($target, auto_detect_mapping($headers, $target));
 
     // Ulož celý parsed obsah do session souboru
     $sessionId = bin2hex(random_bytes(8));
@@ -203,6 +203,7 @@ if ($action === 'apply' && $method === 'POST') {
 
     $session = load_session($importDir, $sessionId);
     $target  = $session['target'];
+    $mapping = cenik_normalize_mapping($target, is_array($mapping) ? $mapping : []);
     $rows    = $session['rows'];
 
     $stats = ['updated' => 0, 'created' => 0, 'skipped' => 0, 'errors' => []];
@@ -272,6 +273,7 @@ function extract_from_row(array $row, array $mapping): array {
         // Numerické fields — parsuj čísla (1 234,56 → 1234.56)
         if (in_array($field, ['cena_bez_dph', 'cena_baleni', 'hmotnost_g', 'obsah', 'obsah_baleni', 'dph'], true)) {
             $val = parse_number($val);
+            if ($val === null) continue;   // 🐛 v3.0.644 — nečíselná buňka nesmí přepsat hodnotu na NULL
         }
         $out[$field] = $val;
     }
@@ -339,10 +341,23 @@ function apply_create(PDO $pdo, string $target, array $data): void {
     $pdo->prepare($sql)->execute($params);
 }
 
+/**
+ * 🐛 v3.0.644 — výrobky NEMAJÍ sloupec `poznamka` (jen `popis`). Auto-detekce (_xlsx_reader) mapuje
+ *   Popis/Description/Poznámka na 'poznamka' bez ohledu na cíl → u výrobků každý řádek padal na
+ *   „Unknown column 'poznamka'" (0 importováno). Pro výrobky přemapuj na 'popis' (i staré mapování z UI).
+ */
+function cenik_normalize_mapping(string $target, array $mapping): array {
+    if ($target === 'vyrobky' && array_key_exists('poznamka', $mapping)) {
+        if (!isset($mapping['popis']) || $mapping['popis'] === '' || $mapping['popis'] === null) $mapping['popis'] = $mapping['poznamka'];
+        unset($mapping['poznamka']);
+    }
+    return $mapping;
+}
+
 function allowed_fields(string $target): array {
     if ($target === 'vyrobky') {
         return ['nazev', 'cislo', 'ean', 'cena_bez_dph', 'hmotnost_g', 'obsah', 'obsah_jednotka',
-                'trvanlivost', 'alergeny', 'poznamka', 'aktivni'];
+                'trvanlivost', 'alergeny', 'popis', 'aktivni'];
     }
     return ['nazev', 'jednotka', 'alergen', 'cena_baleni', 'obsah_baleni', 'slozeni', 'slozeni_alergeny', 'poznamka'];
 }
@@ -358,7 +373,7 @@ function available_fields(string $target): array {
             'obsah'        => 'Obsah',
             'trvanlivost'  => 'Trvanlivost',
             'alergeny'     => 'Alergeny',
-            'poznamka'     => 'Poznámka',
+            'popis'        => 'Popis',
         ];
     }
     return [

@@ -91,7 +91,7 @@ Mléko polotučné;ml;22;1000;mléko"></textarea>
             return `
               <tr style="${!valid ? 'opacity:0.4' : ''}">
                 <td>${valid ? `<strong>${esc(m.nazev)}</strong>` : '<span style="color:var(--danger-text)">❌ chybí název</span>'}</td>
-                <td>${esc(m.jednotka || 'g')}</td>
+                <td>${(m.jednotka ? esc(m.jednotka) : '—')}</td>
                 <td class="num">${m.cena_baleni > 0 ? m.cena_baleni.toFixed(2).replace('.', ',') + ' Kč' : '—'}</td>
                 <td class="num">${m.obsah_baleni > 0 ? m.obsah_baleni : '—'}</td>
                 <td>${m.alergen ? `<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px">${esc(m.alergen)}</span>` : '—'}</td>
@@ -164,13 +164,17 @@ window.surCsvNacist = function() {
   vykreslitImportSurovin();
 };
 
+// 🐛 v3.0.644 — posílej JEN namapované a vyplněné sloupce (žádné výchozí 0 / 'g'). Dřív CSV „Název;Alergen"
+//   u existující suroviny přepsalo cenu i obsah balení na 0 a jednotku kg/ks na g. Nečíselná cena/obsah se vynechá.
 function surCsvMapRow(row, mapping) {
-  const result = { nazev: '', jednotka: 'g', cena_baleni: 0, obsah_baleni: 0, alergen: '', poznamka: '' };
+  const result = { nazev: '' };
   mapping.forEach((field, i) => {
-    if (field === 'ignore' || !row[i]) return;
+    if (field === 'ignore' || row[i] == null) return;
     const val = String(row[i]).trim();
+    if (val === '') return;
     if (field === 'cena_baleni' || field === 'obsah_baleni') {
-      result[field] = parseFloat(val.replace(',', '.').replace(/\s/g, '')) || 0;
+      const n = parseFloat(val.replace(',', '.').replace(/\s/g, ''));
+      if (Number.isFinite(n)) result[field] = n;
     } else {
       result[field] = val;
     }

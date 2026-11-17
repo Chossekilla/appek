@@ -2,6 +2,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_admin_auth.php';
 require_once __DIR__ . '/_sklad_lib.php';
+require_once __DIR__ . '/_vyroba_lib.php';
 cors_headers();
 $admin = require_admin();
 
@@ -17,11 +18,13 @@ $pdo = db();
 function vyroba_potreba_src(PDO $pdo, string $datum): array {
     require_once __DIR__ . '/_bom_lib.php';
     $sur = []; $pol = [];   // surovina_id => mn, vyrobek_id(polotovar se skladem) => mn
+    // 🐛 v3.0.644 — bez pokladních prodejů (suroviny odepsané už při prodeji) a bez vratek
+    $flt = vyroba_obj_filtr_sql($pdo, 'o');
     // a) výrobky objednané na den → VÍCEÚROVŇOVÝ rozpad sestav (bom_explode: rekurze přes polotovary)
     try {
         $st = $pdo->prepare("SELECT op.vyrobek_id AS vid, SUM(op.mnozstvi) AS mn
             FROM objednavky o JOIN objednavky_polozky op ON op.objednavka_id = o.id
-            WHERE o.datum_dodani = :d AND o.stav NOT IN ('zrusena') AND op.vyrobek_id IS NOT NULL
+            WHERE o.datum_dodani = :d AND o.stav NOT IN ('zrusena') AND op.vyrobek_id IS NOT NULL{$flt}
             GROUP BY op.vyrobek_id");
         $st->execute(['d' => $datum]);
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) bom_explode($pdo, (int) $r['vid'], (float) $r['mn'], $sur, $pol);
@@ -31,7 +34,7 @@ function vyroba_potreba_src(PDO $pdo, string $datum): array {
         if (in_array('surovina_id', $pdo->query("SHOW COLUMNS FROM objednavky_polozky")->fetchAll(PDO::FETCH_COLUMN), true)) {
             $st2 = $pdo->prepare("SELECT op.surovina_id AS sid, SUM(op.mnozstvi) AS mn
                 FROM objednavky o JOIN objednavky_polozky op ON op.objednavka_id = o.id
-                WHERE o.datum_dodani = :d AND o.stav NOT IN ('zrusena') AND op.surovina_id IS NOT NULL
+                WHERE o.datum_dodani = :d AND o.stav NOT IN ('zrusena') AND op.surovina_id IS NOT NULL{$flt}
                 GROUP BY op.surovina_id");
             $st2->execute(['d' => $datum]);
             foreach ($st2->fetchAll(PDO::FETCH_ASSOC) as $r) { $s = (int) $r['sid']; $sur[$s] = ($sur[$s] ?? 0) + (float) $r['mn']; }
@@ -189,6 +192,7 @@ if ($method === 'GET') {
         $od = sprintf('%04d-%02d-01', $rok, $mesic);
         $do = date('Y-m-t', strtotime($od));
 
+        $flt = vyroba_obj_filtr_sql($pdo, 'o');   // 🐛 v3.0.644 — bez pokladny/vratek
         $stmt = $pdo->prepare("
             SELECT o.datum_dodani AS den,
                    COUNT(DISTINCT o.id) AS pocet_objednavek,
@@ -198,7 +202,7 @@ if ($method === 'GET') {
             FROM objednavky o
             JOIN objednavky_polozky p ON p.objednavka_id = o.id
             WHERE o.datum_dodani BETWEEN :od AND :do
-              AND o.stav NOT IN ('zrusena')
+              AND o.stav NOT IN ('zrusena'){$flt}
             GROUP BY o.datum_dodani
             ORDER BY o.datum_dodani
         ");
@@ -246,6 +250,7 @@ if ($method === 'GET') {
     if (isset($_GET['datum'])) {
         $datum = $_GET['datum'];
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum)) json_error('Neplatné datum');
+        $flt = vyroba_obj_filtr_sql($pdo, 'o');   // 🐛 v3.0.644 — pokladna prodává hotové, vratky nevyrábíme
 
         $stmt = $pdo->prepare("
             SELECT v.id, v.nazev, v.cislo, v.hmotnost_g, v.obrazek_url,
@@ -258,7 +263,7 @@ if ($method === 'GET') {
             LEFT JOIN kategorie_vyrobku k ON k.id = v.kategorie_id
             LEFT JOIN jednotky j ON j.id = v.jednotka_id
             WHERE o.datum_dodani = :datum
-              AND o.stav NOT IN ('zrusena')
+              AND o.stav NOT IN ('zrusena'){$flt}
             GROUP BY v.id, v.nazev, v.cislo, v.hmotnost_g, v.obrazek_url, k.nazev, k.ikona, k.poradi, v.poradi, j.kod
             ORDER BY k.poradi, v.poradi, v.nazev
         ");
@@ -278,7 +283,7 @@ if ($method === 'GET') {
             LEFT JOIN mista_dodani md ON md.id = o.misto_dodani_id
             JOIN objednavky_polozky p ON p.objednavka_id = o.id
             JOIN vyrobky v ON v.id = p.vyrobek_id
-            WHERE o.datum_dodani = :datum AND o.stav NOT IN ('zrusena')
+            WHERE o.datum_dodani = :datum AND o.stav NOT IN ('zrusena'){$flt}
             ORDER BY od.nazev, md.nazev, o.cislo, v.nazev
         ");
         $stmt->execute(['datum' => $datum]);

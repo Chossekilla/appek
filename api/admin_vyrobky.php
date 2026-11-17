@@ -95,6 +95,19 @@ $pdo = db();
     }
 })();
 
+// 🐛 v3.0.644 — JEDNORÁZOVÝ backfill alergenů z polotovarů: dřív se do vyrobky.alergeny propisovaly jen
+//   suroviny, ne polotovary (lepek z těsta chyběl rohlíku). Doplní (add-only, ruční záznamy zůstávají)
+//   alergeny všem výrobkům s polotovarem v receptu. Idempotentní přes nastaveni.alergeny_bom_backfill_644.
+(function () use ($pdo) {
+    try {
+        if ((string) nastaveni_get($pdo, 'alergeny_bom_backfill_644', '') === '1') return;
+        require_once __DIR__ . '/_bom_lib.php';
+        $ids = $pdo->query("SELECT DISTINCT vyrobek_id FROM vyrobek_suroviny WHERE slozka_vyrobek_id IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($ids as $vid) bom_merge_alergeny($pdo, (int) $vid);
+        $pdo->prepare("INSERT INTO nastaveni (klic, hodnota) VALUES ('alergeny_bom_backfill_644', '1') ON DUPLICATE KEY UPDATE hodnota = '1'")->execute();
+    } catch (Throwable $e) { error_log('backfill alergenů z polotovarů: ' . $e->getMessage()); }
+})();
+
 // =============================================================
 // UPLOAD obrázku - re-enkóduje přes GD a tím odstraní případný
 // payload schovaný v EXIFu/metadatech.
@@ -536,28 +549,13 @@ if ($method === 'GET') {
 // Helper - synchronizuje pivot vyrobek_suroviny (replace-all)
 // =============================================================
 /**
- * 🆕 v3.0.223 — server-side odvození alergenů z receptury (vyrobek_suroviny → suroviny.alergen
- *   + slozeni_alergeny). Vrací set (case-insensitive dedup). Zdroj pravdy pro provázání alergenů.
+ * 🆕 v3.0.223 — server-side odvození alergenů z receptury. Zdroj pravdy pro provázání alergenů.
+ * 🐛 v3.0.644 — včetně POLOTOVARŮ (dřív JOIN jen na suroviny → lepek z těsta se do výrobku
+ *   nepropsal). Implementace sdílená v _bom_lib.php (bom_alergeny_receptu).
  */
 function alergeny_z_receptury(PDO $pdo, int $vyrobek_id): array {
-    $set = [];
-    try {
-        $st = $pdo->prepare("
-            SELECT s.alergen, s.slozeni_alergeny
-            FROM vyrobek_suroviny vs JOIN suroviny s ON s.id = vs.surovina_id
-            WHERE vs.vyrobek_id = :v
-        ");
-        $st->execute(['v' => $vyrobek_id]);
-        foreach ($st->fetchAll() as $r) {
-            foreach ([(string) ($r['alergen'] ?? ''), (string) ($r['slozeni_alergeny'] ?? '')] as $field) {
-                foreach (preg_split('/[,;]+/', $field) as $a) {
-                    $a = trim($a);
-                    if ($a !== '') $set[mb_strtolower($a)] = $a; // dedup, zachová první podobu
-                }
-            }
-        }
-    } catch (Throwable $e) { /* tabulky nemusí existovat */ }
-    return array_values($set);
+    require_once __DIR__ . '/_bom_lib.php';
+    return bom_alergeny_receptu($pdo, $vyrobek_id);
 }
 
 /**
@@ -566,23 +564,8 @@ function alergeny_z_receptury(PDO $pdo, int $vyrobek_id): array {
  *   ale NEODEBÍRÁ manuální (např. „může obsahovat stopy ořechů"). Vrací true, pokud doplnil.
  */
 function merge_alergeny_z_receptury(PDO $pdo, int $vyrobek_id): bool {
-    $recipe = alergeny_z_receptury($pdo, $vyrobek_id);
-    if (!$recipe) return false;
-    $st = $pdo->prepare("SELECT alergeny FROM vyrobky WHERE id = :id");
-    $st->execute(['id' => $vyrobek_id]);
-    $cur = (string) ($st->fetchColumn() ?: '');
-    $curSet = [];
-    foreach (preg_split('/[,;]+/', $cur) as $a) { $a = trim($a); if ($a !== '') $curSet[mb_strtolower($a)] = $a; }
-    $changed = false;
-    foreach ($recipe as $a) {
-        $k = mb_strtolower($a);
-        if (!isset($curSet[$k])) { $curSet[$k] = $a; $changed = true; }
-    }
-    if ($changed) {
-        $pdo->prepare("UPDATE vyrobky SET alergeny = :a WHERE id = :id")
-            ->execute(['a' => implode(', ', array_values($curSet)), 'id' => $vyrobek_id]);
-    }
-    return $changed;
+    require_once __DIR__ . '/_bom_lib.php';
+    return bom_merge_alergeny($pdo, $vyrobek_id);
 }
 
 /**
@@ -627,57 +610,101 @@ function nutrice_z_receptury(PDO $pdo, int $vyrobek_id): ?array {
     return $out;
 }
 
-/** Vrací seznam zahozených řádků (🐛 v3.0.598 — dřív cyklická složka zmizela potichu, uživatel nevěděl). */
-function sync_slozeni(PDO $pdo, int $vyrobek_id, array $polozky): array {
-    $skipped = [];
-    try {
-        $pdo->prepare("DELETE FROM vyrobek_suroviny WHERE vyrobek_id = :v")
-            ->execute(['v' => $vyrobek_id]);
-        if (empty($polozky)) return $skipped;
-
-        // 🆕 v3.0.303 — řádek receptu může být SUROVINA nebo POLOTOVAR (slozka_vyrobek_id).
-        $hasSlozka = in_array('slozka_vyrobek_id', $pdo->query("SHOW COLUMNS FROM vyrobek_suroviny")->fetchAll(PDO::FETCH_COLUMN), true);
-        if ($hasSlozka) require_once __DIR__ . '/_bom_lib.php';
-
-        $ins = $hasSlozka
-            ? $pdo->prepare("INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, slozka_vyrobek_id, mnozstvi, jednotka, poradi, poznamka)
-                             VALUES (:v, :s, :sl, :m, :j, :p, :pozn)")
-            : $pdo->prepare("INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, mnozstvi, jednotka, poradi, poznamka)
-                             VALUES (:v, :s, :m, :j, :p, :pozn)
-                             ON DUPLICATE KEY UPDATE mnozstvi = VALUES(mnozstvi), jednotka = VALUES(jednotka), poradi = VALUES(poradi), poznamka = VALUES(poznamka)");
-        foreach ($polozky as $i => $p) {
-            $sid    = (int) ($p['surovina_id'] ?? 0);
-            $slozka = $hasSlozka ? (int) ($p['slozka_vyrobek_id'] ?? 0) : 0;
+/**
+ * 🐛 v3.0.644 — PŘÍPRAVA + VALIDACE receptu PŘED zápisem (volat mimo transakci; při chybě json_error 400,
+ *   v DB se nic nezmění). Dřív sync_slozeni nejdřív smazal recept a pak vkládal: stejná surovina 2×
+ *   (mouka do těsta + na posyp) narazila na UNIQUE ux_vyr_sur → 500 a recept zůstal napůl smazaný.
+ *   • duplicitní surovina → řádky se SLOUČÍ (množství převedené na jednotku prvního řádku, poznámky spojené),
+ *     nepřevoditelné jednotky (g vs ks) → 400 s jasnou hláškou,
+ *   • řádek polotovaru: jednotka musí jít převést na jednotku polotovaru (ks↔ks, g↔kg, g→ks přes
+ *     hmotnost kusu); známá nepřevoditelná dvojice → 400 (dřív „50 g těsta" = 50 ks),
+ *   • cyklus polotovaru → řádek se zahodí s varováním (jako dřív).
+ * Vrací ['rows' => [...normalizované řádky...], 'warnings' => [...], 'has_slozka' => bool].
+ */
+function slozeni_priprav(PDO $pdo, int $vyrobek_id, array $polozky): array {
+    $warnings = [];
+    $hasSlozka = false;
+    try { $hasSlozka = in_array('slozka_vyrobek_id', $pdo->query("SHOW COLUMNS FROM vyrobek_suroviny")->fetchAll(PDO::FETCH_COLUMN), true); }
+    catch (Throwable $e) { return ['rows' => [], 'warnings' => [], 'has_slozka' => false, 'no_table' => true]; }
+    require_once __DIR__ . '/_bom_lib.php';
+    $nazevSur = function (int $sid) use ($pdo): string {
+        try { $q = $pdo->prepare("SELECT nazev FROM suroviny WHERE id = :i"); $q->execute(['i' => $sid]); return (string) $q->fetchColumn() ?: ('#' . $sid); }
+        catch (Throwable $e) { return '#' . $sid; }
+    };
+    $znameJednotky = ['g', 'kg', 'mg', 'ml', 'l', 'dl', 'cl', 'ks'];
+    $rows = [];           // normalizované řádky v pořadí
+    $surIdx = [];         // surovina_id => index v $rows (slučování duplicit)
+    foreach (array_values($polozky) as $i => $p) {
+        if (!is_array($p)) continue;
+        $sid    = (int) ($p['surovina_id'] ?? 0);
+        $slozka = $hasSlozka ? (int) ($p['slozka_vyrobek_id'] ?? 0) : 0;
+        $mn     = (float) ($p['mnozstvi'] ?? 0);
+        $pozn   = isset($p['poznamka']) && trim((string) $p['poznamka']) !== '' ? trim((string) $p['poznamka']) : null;
+        $jedIn  = trim((string) ($p['jednotka'] ?? ''));
+        if ($slozka > 0) {
+            $meta = bom_vyrobek_meta($pdo, $slozka);
+            $nm   = $meta['nazev'] !== '' ? $meta['nazev'] : ('#' . $slozka);
             // BOM cyklus-guard: polotovar nesmí být sám sebe ani (ne)přímo tvořit cyklus → řádek zahodíme
-            if ($slozka > 0) {
-                if ($slozka === $vyrobek_id || (function_exists('bom_would_cycle') && bom_would_cycle($pdo, $vyrobek_id, $slozka))) {
-                    $nm = '';
-                    try { $q = $pdo->prepare("SELECT nazev FROM vyrobky WHERE id = :i"); $q->execute(['i' => $slozka]); $nm = (string) $q->fetchColumn(); } catch (Throwable $e) {}
-                    $skipped[] = 'Složka „' . ($nm !== '' ? $nm : '#' . $slozka) . '" by vytvořila cyklus (výrobek by obsahoval sám sebe) — nebyla uložena.';
-                    continue;
-                }
-                $sid = 0; // polotovar řádek nemá surovinu
+            if ($vyrobek_id > 0 && ($slozka === $vyrobek_id || bom_would_cycle($pdo, $vyrobek_id, $slozka))) {
+                $warnings[] = 'Složka „' . $nm . '" by vytvořila cyklus (výrobek by obsahoval sám sebe) — nebyla uložena.';
+                continue;
             }
-            if ($sid <= 0 && $slozka <= 0) continue;
-            $params = [
-                'v'    => $vyrobek_id,
-                's'    => $sid ?: null,
-                'm'    => (float) ($p['mnozstvi'] ?? 0),
-                'j'    => trim($p['jednotka'] ?? 'g') ?: 'g',
-                'p'    => (int) ($p['poradi'] ?? $i),
-                'pozn' => isset($p['poznamka']) && trim($p['poznamka']) !== '' ? trim($p['poznamka']) : null,
-            ];
-            if ($hasSlozka) $params['sl'] = $slozka ?: null;
-            $ins->execute($params);
+            $jed = $jedIn !== '' ? $jedIn : ($meta['jednotka'] ?: 'ks');   // bez jednotky = jednotka polotovaru
+            if (bom_polotovar_factor_strict($pdo, $slozka, $jed) === null && in_array(mb_strtolower($jed), $znameJednotky, true)) {
+                json_error('Polotovar „' . $nm . '" je veden v jednotce „' . ($meta['jednotka'] ?: 'ks') . '" — množství v „' . $jed . '" nejde převést'
+                    . (($meta['jednotka'] ?: 'ks') === 'ks' ? ' (doplň u polotovaru hmotnost kusu, nebo zadej množství v ks).' : '. Zadej množství v jednotce polotovaru.'), 400);
+            }
+            $rows[] = ['s' => null, 'sl' => $slozka, 'm' => $mn, 'j' => $jed, 'p' => (int) ($p['poradi'] ?? $i), 'pozn' => $pozn];
+            continue;
         }
-    } catch (PDOException $e) {
-        // Pokud tabulky ještě neexistují, ignoruj - frontend zatím neposílá
-        if (str_contains($e->getMessage(), "doesn't exist") || str_contains($e->getMessage(), 'Base table')) return $skipped;
-        throw $e;
+        if ($sid <= 0) continue;
+        $jed = $jedIn !== '' ? $jedIn : 'g';
+        if (isset($surIdx[$sid])) {
+            $k = $surIdx[$sid];
+            $f = bom_unit_factor_strict($jed, $rows[$k]['j']);
+            if ($f === null) {
+                json_error('Surovina „' . $nazevSur($sid) . '" je v receptu vícekrát v jednotkách, které nejde sečíst („'
+                    . $rows[$k]['j'] . '" a „' . $jed . '"). Sjednoť jednotku, nebo řádky slouč do jednoho.', 400);
+            }
+            $rows[$k]['m'] += $mn * $f;
+            if ($pozn !== null) $rows[$k]['pozn'] = $rows[$k]['pozn'] !== null ? mb_substr($rows[$k]['pozn'] . ' + ' . $pozn, 0, 200) : $pozn;
+            $rows[$k]['merged'] = true;
+            continue;
+        }
+        $surIdx[$sid] = count($rows);
+        $rows[] = ['s' => $sid, 'sl' => null, 'm' => $mn, 'j' => $jed, 'p' => (int) ($p['poradi'] ?? $i), 'pozn' => $pozn];
     }
-    // 🆕 v3.0.223 — PROVÁZÁNÍ: recept se změnil → doplň alergeny ze surovin do výrobku (union,
-    //   add-only). Zabraňuje drift / podhodnocení alergenů při změně receptury (bezpečnost). Soft-fail.
-    try { merge_alergeny_z_receptury($pdo, $vyrobek_id); }
+    foreach ($rows as $r) {
+        if (!empty($r['merged'])) {
+            $warnings[] = 'Surovina „' . $nazevSur((int) $r['s']) . '" byla v receptu vícekrát — řádky sloučeny do jednoho (celkem '
+                . rtrim(rtrim(number_format($r['m'], 3, ',', ''), '0'), ',') . ' ' . $r['j'] . ').';
+        }
+    }
+    return ['rows' => $rows, 'warnings' => $warnings, 'has_slozka' => $hasSlozka];
+}
+
+/**
+ * Zapíše připravený recept (replace-all). Volat UVNITŘ transakce volajícího (DELETE+INSERT atomicky).
+ * Vrací varování (zahozené cykly, sloučené duplicity).
+ * 🐛 v3.0.644 — vstupem je výstup slozeni_priprav() (validace proběhla před transakcí).
+ */
+function sync_slozeni(PDO $pdo, int $vyrobek_id, array $prep): array {
+    if (!empty($prep['no_table'])) return [];
+    $pdo->prepare("DELETE FROM vyrobek_suroviny WHERE vyrobek_id = :v")->execute(['v' => $vyrobek_id]);
+    $ins = !empty($prep['has_slozka'])
+        ? $pdo->prepare("INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, slozka_vyrobek_id, mnozstvi, jednotka, poradi, poznamka)
+                         VALUES (:v, :s, :sl, :m, :j, :p, :pozn)")
+        : $pdo->prepare("INSERT INTO vyrobek_suroviny (vyrobek_id, surovina_id, mnozstvi, jednotka, poradi, poznamka)
+                         VALUES (:v, :s, :m, :j, :p, :pozn)");
+    foreach ($prep['rows'] as $r) {
+        $params = ['v' => $vyrobek_id, 's' => $r['s'], 'm' => round((float) $r['m'], 3), 'j' => mb_substr((string) $r['j'], 0, 20),
+                   'p' => $r['p'], 'pozn' => $r['pozn']];
+        if (!empty($prep['has_slozka'])) $params['sl'] = $r['sl'];
+        $ins->execute($params);
+    }
+    // 🆕 v3.0.223 — PROVÁZÁNÍ: recept se změnil → doplň alergeny (suroviny + 🐛 v3.0.644 i polotovary)
+    //   do výrobku (union, add-only) a 🐛 v3.0.644 i do výrobků, které tento výrobek používají jako polotovar.
+    try { merge_alergeny_z_receptury($pdo, $vyrobek_id); bom_propaguj_alergeny_nahoru($pdo, $vyrobek_id); }
     catch (Throwable $e) { error_log('merge alergeny #' . $vyrobek_id . ': ' . $e->getMessage()); }
 
     // 🆕 v3.0.223 — nutrice z receptury: vyplň JEN když je prázdná (NEpřepisuj manuální/laboratorní
@@ -693,7 +720,7 @@ function sync_slozeni(PDO $pdo, int $vyrobek_id, array $polozky): array {
             }
         }
     } catch (Throwable $e) { error_log('nutri z receptury #' . $vyrobek_id . ': ' . $e->getMessage()); }
-    return $skipped;
+    return $prep['warnings'] ?? [];
 }
 
 // =============================================================
@@ -703,6 +730,11 @@ if ($method === 'POST') {
     $d = json_input();
     if (empty($d['nazev'])) json_error('Chybí název');
 
+    // 🐛 v3.0.644 — recept validuj PŘED zápisem a výrobek+recept zapiš v JEDNÉ transakci. Dřív chyba
+    //   v receptu (duplicitní surovina → 500) nechala výrobek bez receptu a opakované kliknutí založilo duplikát.
+    $prepSloz = (isset($d['slozeni_polozky']) && is_array($d['slozeni_polozky'])) ? slozeni_priprav($pdo, 0, $d['slozeni_polozky']) : null;
+    $pdo->beginTransaction();
+    try {
     $stmt = $pdo->prepare("
         INSERT INTO vyrobky (cislo, ean, nazev, popis, slozeni, alergeny, nutricni_hodnoty,
                              kategorie_id, jednotka_id, cena_bez_dph, sazba_dph_id,
@@ -761,8 +793,13 @@ if ($method === 'POST') {
     $new_id = (int) $pdo->lastInsertId();
 
     // Volitelně - položky složení
-    if (isset($d['slozeni_polozky']) && is_array($d['slozeni_polozky'])) {
-        $warnings = sync_slozeni($pdo, $new_id, $d['slozeni_polozky']);
+    if ($prepSloz !== null) {
+        $warnings = sync_slozeni($pdo, $new_id, $prepSloz);
+    }
+    $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error_safe('Výrobek se nepodařilo uložit', $e, 500);
     }
 
     // 🆕 v3.0.221 — auto-HACCP pro nový výrobek (drží provázání: přiřadí graf + vyplní haccp_data
@@ -845,14 +882,28 @@ if ($method === 'PUT') {
     $maRecept = isset($d['slozeni_polozky']) && is_array($d['slozeni_polozky']);
     if (empty($sets) && !$maRecept) json_error('Žádné změny');
 
-    if (!empty($sets)) {
-        $sql = "UPDATE vyrobky SET " . implode(', ', $sets) . " WHERE id = :id";
-        $pdo->prepare($sql)->execute($params);
-    }
+    // 🐛 v3.0.644 — validace receptu PŘED zápisem + výrobek i recept atomicky (dřív DELETE receptu
+    //   a pád na duplicitě = recept napůl smazaný, bez transakce).
+    $prepSloz = $maRecept ? slozeni_priprav($pdo, (int) $d['id'], $d['slozeni_polozky']) : null;
+    $pdo->beginTransaction();
+    try {
+        if (!empty($sets)) {
+            $sql = "UPDATE vyrobky SET " . implode(', ', $sets) . " WHERE id = :id";
+            $pdo->prepare($sql)->execute($params);
+        }
 
-    // Položky složení → sync receptury + auto-merge alergenů ze surovin (uvnitř sync_slozeni)
-    if ($maRecept) {
-        $warnings = sync_slozeni($pdo, (int) $d['id'], $d['slozeni_polozky']);
+        // Položky složení → sync receptury + auto-merge alergenů ze surovin i polotovarů (uvnitř sync_slozeni)
+        if ($prepSloz !== null) {
+            $warnings = sync_slozeni($pdo, (int) $d['id'], $prepSloz);
+        } elseif (array_key_exists('alergeny', $d)) {
+            // 🐛 v3.0.644 — ručně změněné alergeny polotovaru → doplň je i nadřazeným výrobkům (add-only)
+            try { require_once __DIR__ . '/_bom_lib.php'; bom_propaguj_alergeny_nahoru($pdo, (int) $d['id']); }
+            catch (Throwable $e) { error_log('propagace alergenů #' . (int) $d['id'] . ': ' . $e->getMessage()); }
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        json_error_safe('Výrobek se nepodařilo uložit', $e, 500);
     }
     json_response(['ok' => true] + (!empty($warnings) ? ['warnings' => $warnings] : []));
 }
