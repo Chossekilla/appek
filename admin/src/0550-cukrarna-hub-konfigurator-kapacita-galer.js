@@ -840,6 +840,9 @@ window.cakeCreateOrder = async function(quote) {
       <div class="full"><label class="form-label">📅 Datum dodání * <span style="font-weight:400;color:var(--text-3);font-size:11px">(min ${minDate.toLocaleDateString('cs-CZ')})</span></label>
         <input type="date" class="form-input" id="cake-datum" value="${minDateStr}" min="${minDateStr}">
       </div>
+      ${menaVolbaAktivni() ? `<div class="full"><label class="form-label">Měna dokladu</label>
+        <select class="form-input" id="cake-mena">${menaVolbaOptions('')}</select>
+      </div>` : ''}
     </div>
     <div class="form-actions">
       <button class="btn-secondary" onclick="closeModal()">Zrušit</button>
@@ -864,6 +867,7 @@ window.cakeSubmitOrder = async function() {
     volby: state._cake.volby || {},
     text: state._cake.text,
     foto: (state._cake.foto || '').trim(),
+    mena: document.getElementById('cake-mena')?.value || undefined,   // 💱 🆕 v3.0.645 — prázdné = měna odběratele / výchozí
   };
   try {
     let r;
@@ -876,7 +880,7 @@ window.cakeSubmitOrder = async function() {
       r = await api('admin_cake_configurator.php?action=create_order', { method: 'POST', body: JSON.stringify({ ...payload, prekrocit_kapacitu: true }) });
     }
     closeModal();
-    toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: fmt(r.castka) }));
+    toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: menaFmtVytvoreno(r) }));
     setTimeout(() => navigate('objednavky'), 600);
   } catch (e) { alert('Chyba: ' + e.message); }
 };

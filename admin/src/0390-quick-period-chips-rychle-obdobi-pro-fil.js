@@ -290,6 +290,7 @@ window.upravitDodaciList = async function(id) {
       datum_vystaveni: dl.datum_vystaveni,
       datum_dodani: dl.datum_dodani,
       poznamka: dl.poznamka || '',
+      mena_pevna: dl.doc_mena || null,   // 💱 🆕 v3.0.645 — měna vystaveného DL (jen zobrazení, nemění se)
       polozky: dl.polozky.map(p => {
         // 🐛 v3.0.644 — sazba 0 % zůstane 0 % (dřív `|| 12` dělalo z osvobozené položky / řádku
         //   voucheru 12 % → tiše se změnilo DPH i celkem DL). 12 jen když sazba chybí.

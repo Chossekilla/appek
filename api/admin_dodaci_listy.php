@@ -203,6 +203,14 @@ try {
                 json_error('Dodací list je už vyfakturovaný' . (!empty($dlStav['faktura_cislo']) ? ' (faktura ' . $dlStav['faktura_cislo'] . ')' : '')
                     . ' — nelze ho upravit. Opravu dodaného plnění řešte dobropisem k faktuře.', 409);
             }
+            // 💱 🆕 v3.0.645 — měna vystaveného DL je pevná (snapshot; mena_prepis_povolen DL nepřepisuje).
+            //   Úprava ji zachová; výslovná žádost o JINOU měnu = chyba (ne tiché ignorování).
+            $menaChce = strtoupper(trim((string) ($d['mena'] ?? '')));
+            if ($menaChce !== '') {
+                $_one = [['id' => $dl_id]]; mena_doc_pole($pdo, 'dodaci_listy', $_one);
+                $menaMa = strtoupper((string) ($_one[0]['doc_mena'] ?? 'CZK'));
+                if ($menaChce !== $menaMa) json_error("Měnu vystaveného dodacího listu nelze změnit (je v $menaMa). Vystavte nový dodací list v požadované měně.", 409);
+            }
 
             // Načti ceník
             $cenik = [];
@@ -376,6 +384,11 @@ try {
             $polozky_clean[] = $row;
         }
 
+        // 💱 🆕 v3.0.645 — měna ručního DL jako u ruční objednávky (volba → měna odběratele → jako dřív); PŘED transakcí
+        require_once __DIR__ . '/_mena_rucni_lib.php';
+        try { $mRucni = mena_rucni_volba($pdo, $d['mena'] ?? null, $odb_id); }
+        catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
+
         $pdo->beginTransaction();
         try {
             // Vygeneruj číslo DL
@@ -408,7 +421,7 @@ try {
                 'psc' => $odb['psc'],
             ]);
             $dl_id = (int) $pdo->lastInsertId();
-            require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'dodaci_listy', $dl_id);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
+            mena_rucni_zapsat($pdo, 'dodaci_listy', $dl_id, $mRucni);   // 💱 🆕 v3.0.645 — zvolená měna (bez volby = měna prodeje v okamžiku vzniku)
 
             // Vlož položky
             $stmt = $pdo->prepare("
@@ -431,13 +444,16 @@ try {
                 ]);
             }
 
-            require_once __DIR__ . '/_mena_lib.php'; mena_ulozit_castku($pdo, 'dodaci_listy', $dl_id);   // 💱 v3.0.643
+            $castkaMena = mena_ulozit_castku($pdo, 'dodaci_listy', $dl_id);   // 💱 v3.0.643
             $pdo->commit();
 
+            $mq = $pdo->prepare("SELECT mena FROM dodaci_listy WHERE id = ?"); $mq->execute([$dl_id]);
             json_response([
                 'ok'    => true,
                 'id'    => $dl_id,
                 'cislo' => $cislo,
+                'mena'        => strtoupper((string) ($mq->fetchColumn() ?: 'CZK')),   // 💱 🆕 v3.0.645 — měna dokladu
+                'castka_mena' => $castkaMena,
             ]);
         } catch (Throwable $e) {
             $pdo->rollBack();

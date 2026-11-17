@@ -315,6 +315,9 @@ window.cateringCreateOrder = async function(quote) {
       <div class="full"><label class="form-label">📅 Datum dodání *</label>
         <input type="date" class="form-input" id="cat-datum" value="${minDate}" min="${minDate}">
       </div>
+      ${menaVolbaAktivni() ? `<div class="full"><label class="form-label">Měna dokladu</label>
+        <select class="form-input" id="cat-mena">${menaVolbaOptions('')}</select>
+      </div>` : ''}
       <div class="full">
         <label class="form-label">📸 Fotka předlohy <span style="font-weight:400;font-size:11px;color:var(--text-3)">(volitelné — aranžmá / vzor mís)</span></label>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -351,10 +354,11 @@ window.cateringSubmitOrder = async function() {
         odberatel_id: odberatelId, datum_dodani: datum,
         foto: (state._cateringFoto || '').trim(),
         poznamka: (document.getElementById('cat-pozn')?.value || '').trim(),
+        mena: document.getElementById('cat-mena')?.value || undefined,   // 💱 🆕 v3.0.645 — prázdné = měna odběratele / výchozí
       }),
     });
     closeModal();
-    toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: fmt(r.castka) }));
+    toastSuccess(t('toast_order_created_amount', { cislo: r.cislo, amount: menaFmtVytvoreno(r) }));
     setTimeout(() => navigate('objednavky'), 600);
   } catch (e) { alert('Chyba: ' + e.message); }
 };
