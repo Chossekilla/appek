@@ -198,6 +198,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // 💱 v3.0.643 — měna platby B2B: volba z košíku → výchozí měna odběratele → výchozí z nastavení.
+    //   Volí se PŘED transakcí (mena_volba_platby může líně stáhnout kurz ČNB).
+    $b2bMenaVolba = function () use ($pdo, $data, $odberatel_id): array {
+        $pi = mena_platebni_info($pdo, 'b2b');
+        $volba = strtoupper(trim((string) ($data['mena'] ?? '')));
+        if ($volba === '' && $pi['aktivni']) {
+            try { $st = $pdo->prepare("SELECT mena_platby FROM odberatele WHERE id = ?"); $st->execute([$odberatel_id]);
+                  $mo = strtoupper((string) $st->fetchColumn()); if ($mo !== '' && in_array($mo, $pi['prijimane'], true)) $volba = $mo; } catch (Throwable $e) {}
+        }
+        try { return mena_volba_platby($pdo, $volba !== '' ? $volba : null, 'b2b'); }
+        catch (MenaException $e) { json_error($e->getMessage(), $e->http); }
+    };
+    // Metoda platby musí měnu umět (dobírka a hotově jen Kč; převod v € jen s EUR IBAN; brána dle integrace)
+    $b2bMetodaMena = function (string $platba, string $mena) use ($pdo): ?string {
+        if ($mena === 'CZK' || $platba === '') return null;
+        if (in_array($platba, ['dobirka', 'hotove', 'hotovost'], true)) return 'Dobírku a platbu hotově lze jen v Kč.';
+        if ($platba === 'prevod' && $mena === 'EUR' && mena_iban_eur($pdo) === '') return 'Převodem v € nelze — firma nemá vyplněný EUR účet (IBAN).';
+        if ($platba === 'prevod' && $mena !== 'EUR') return 'Převodem lze platit jen v Kč nebo v €.';
+        if (in_array($platba, ['stripe', 'gopay', 'paypal'], true)) {
+            require_once __DIR__ . '/_customer_integrace.php';
+            if (!in_array($mena, customer_int_brana_meny($platba), true)) return 'Tato platební brána neumí platbu v ' . $mena . '.';
+        }
+        return null;
+    };
+
+    // 💱 v3.0.643 — POST ?action=quote: košík přepočtený do měny platby PŘESNĚ jako doklad (= brána/e-mail/PDF)
+    if (($_GET['action'] ?? '') === 'quote') {
+        $m = $b2bMenaVolba();
+        $cen = [];
+        foreach (cenik_pro_odberatele($pdo, $odberatel_id) as $row) $cen[(int) $row['id']] = $row;
+        $lines = []; $sub = 0.0;
+        foreach ((array) ($data['polozky'] ?? []) as $p) {
+            $c = $cen[(int) ($p['vyrobek_id'] ?? 0)] ?? null;
+            $mn = (float) ($p['mnozstvi'] ?? 0);
+            if (!$c || $mn <= 0) continue;
+            $lines[] = [$mn, (float) $c['cena_bez_dph'], (float) ($c['dph'] ?? 0)];
+            $sub += (float) $c['cena_bez_dph'] * $mn * (1 + (float) ($c['dph'] ?? 0) / 100);
+        }
+        require_once __DIR__ . '/_platby_lib.php';
+        $sur = platby_surcharges($pdo, preg_replace('/[^a-z_]/', '', strtolower((string) ($data['platba'] ?? ''))),
+                                       preg_replace('/[^a-z_]/', '', strtolower((string) ($data['doprava'] ?? ''))), round($sub, 2));
+        $dphPr = (float) nastaveni_get($pdo, 'dph_sazba_priplatky', 21);
+        foreach ([(float) $sur['doprava_cena'], (float) $sur['platba_poplatek']] as $amt) {
+            if ($amt > 0) $lines[] = [1, round($amt / (1 + $dphPr / 100), 2), $dphPr];
+        }
+        $czk = 0.0; foreach ($lines as [$mn, $c, $sz]) $czk += round($mn * $c, 2) + round($mn * $c * $sz / 100, 2);
+        $mm = mena_doklad_ro($pdo, $m);
+        $calc = $mm['mena'] === 'CZK' ? ['celkem' => round($czk, 2), 'bez' => null, 'dph' => null] : mena_doklad_polozky($lines, $mm);
+        json_response(['ok' => true, 'mena' => $mm['mena'], 'symbol' => $m['symbol'] ?? $mm['mena'], 'celkem' => $calc['celkem'],
+                       'celkem_czk' => round($czk, 2), 'kurz' => $m['mena_kurz'], 'kurz_prodej' => $m['mena_kurz_prodej'],
+                       'kurz_datum' => $m['kurz_datum'], 'doprava' => (float) $sur['doprava_cena'], 'poplatek' => (float) $sur['platba_poplatek'],
+                       'metoda_chyba' => $b2bMetodaMena(preg_replace('/[^a-z_]/', '', strtolower((string) ($data['platba'] ?? ''))), $mm['mena'])]);
+    }
+
     // Validace typu
     $typ = $data['typ'] ?? 'jednorazova';
     if (!in_array($typ, ['jednorazova','pravidelna_denni','tydenni_plan'])) {
@@ -239,6 +293,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($typ !== 'jednorazova') json_error('Slevový kód lze použít jen u jednorázové objednávky', 400);
         voucher_ensure_schema($pdo);   // DDL mimo transakci
     }
+
+    // 💱 v3.0.643 — měna platby (mimo transakci) + kontrola, že ji zvolená metoda umí
+    $mObj = $b2bMenaVolba();
+    if (($chyba = $b2bMetodaMena(preg_replace('/[^a-z_]/', '', strtolower(trim((string) ($data['platba'] ?? '')))), $mObj['mena'])) !== null) json_error($chyba, 400);
+    $platbaAktivni = mena_platebni_info($pdo, 'b2b')['aktivni'];
 
     $pdo->beginTransaction();
     try {
@@ -354,7 +413,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'gsat' => !empty($data['gdpr_souhlas']) ? date('Y-m-d H:i:s') : null,
         ]);
         $obj_id = (int) $pdo->lastInsertId();
-        require_once __DIR__ . '/_mena_lib.php'; mena_snapshot_doklad($pdo, 'objednavky', $obj_id);   // 💱 v3.0.640 — měna prodeje v okamžiku vzniku
+        // 💱 v3.0.640/643 — měna dokladu: zvolená měna platby (zapnuto) / globální zobrazení (vypnuto, jako dřív)
+        if ($platbaAktivni) mena_nastav_doklad($pdo, 'objednavky', $obj_id, $mObj, true);
+        else mena_snapshot_doklad($pdo, 'objednavky', $obj_id);
 
         // Vlož položky (🆕 v3.0.272 — vyrobek_nazev kvůli volným řádkům příplatků s vyrobek_id=NULL)
         $stmt = $pdo->prepare("
@@ -431,59 +492,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // a vrať payment_url pro redirect. Pro 'prevod' / 'dobirka' jen json OK.
         $platba = strtolower(trim((string) ($data['platba'] ?? 'prevod')));
         $paymentUrl = null;
-        $kUhrade = round((float) $pdo->query("SELECT castka_celkem FROM objednavky WHERE id = " . (int) $obj_id)->fetchColumn(), 2);
-        if (($platba === 'stripe' || $platba === 'gopay' || $platba === 'paypal') && $kUhrade > 0) {   // voucher pokryl vše → není co platit
-            require_once __DIR__ . '/_customer_integrace.php';
-            // 🎟️ v3.0.634 — k úhradě až po voucheru (hlavičku přepočítal voucher_objednavka_sync)
-            $celkemKc = round((float) $pdo->query("SELECT castka_celkem FROM objednavky WHERE id = " . (int) $obj_id)->fetchColumn(), 2);
+        // 💱 v3.0.643 — k úhradě = částka v MĚNĚ DOKLADU (po voucheru); brána dostane přesně ji
+        //   (mena_doc_castka = jediný zdroj: košík/quote, e-mail, PDF, brána, webhook).
+        $paymentErr = null; $docC = null;
+        try { $docC = mena_doc_castka($pdo, 'objednavky', $obj_id); } catch (Throwable $e) { error_log('objednavky doc_castka: ' . $e->getMessage()); }
+        if (($platba === 'stripe' || $platba === 'gopay' || $platba === 'paypal') && $docC && $docC['celkem'] > 0) {   // voucher pokryl vše → není co platit
+            require_once __DIR__ . '/_online_platba_lib.php';
             $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
                      . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-
-            // Načti email odběratele pro Stripe Checkout / GoPay
             $stmtOdb = $pdo->prepare("SELECT nazev, login_email, email FROM odberatele WHERE id = :id");
             $stmtOdb->execute(['id' => $odberatel_id]);
             $odb = $stmtOdb->fetch() ?: [];
-            $custEmail = $odb['login_email'] ?: ($odb['email'] ?: '');
-            $custName  = $odb['nazev'] ?: 'Zákazník';
-
-            $payload = [
-                'order_no'         => $cislo,
-                'amount_kc'        => $celkemKc,
-                'currency'         => 'CZK',
-                'description'      => 'Objednávka ' . $cislo,
-                'customer_email'   => $custEmail,
-                'customer_name'    => $custName,
-                'return_url'       => $baseUrl . '/b2b/index.html?paid=' . urlencode($cislo),
-                'cancel_url'       => $baseUrl . '/b2b/index.html?cancelled=' . urlencode($cislo),
-                'notification_url' => $baseUrl . '/api/customer_payment_webhook.php?gw=' . $platba . '&order=' . urlencode($cislo),
-            ];
             try {
-                if ($platba === 'stripe' && function_exists('customer_int_stripe_create_checkout')) {
-                    $sess = customer_int_stripe_create_checkout($payload);
-                    if (!empty($sess['ok']) && !empty($sess['session_url'])) {
-                        $paymentUrl = $sess['session_url'];
+                $tok = online_obj_token($pdo, $obj_id);
+                $r = online_platba_zaloz($pdo, 'objednavky', $obj_id, $docC, [
+                    'brana'            => $platba,
+                    'reference'        => 'B2B-' . $obj_id . '-' . $tok,
+                    'order_no'         => $cislo,
+                    'description'      => 'Objednávka ' . $cislo,
+                    'customer_email'   => ($odb['login_email'] ?? '') ?: (($odb['email'] ?? '') ?: null),
+                    'return_url'       => $platba === 'paypal'
+                        ? $baseUrl . '/api/paypal_callback.php?gw=paypal&order=' . urlencode($cislo)
+                        : $baseUrl . '/b2b/index.html?paid=' . urlencode($cislo),
+                    'cancel_url'       => $baseUrl . '/b2b/index.html?cancelled=' . urlencode($cislo),
+                    'notification_url' => $baseUrl . '/api/customer_payment_webhook.php?gw=gopay',
+                ]);
+                if ($r['ok']) {
+                    $paymentUrl = $r['url'];
+                    if ($platba === 'paypal' && !empty($r['id'])) {
+                        $pdo->prepare("UPDATE objednavky SET interni_pozn = CONCAT(IFNULL(interni_pozn,''), :p) WHERE id = :id")
+                            ->execute(['p' => "\nPayPal order_id: " . $r['id'], 'id' => $obj_id]);
                     }
-                }
-                if ($platba === 'gopay' && function_exists('customer_int_gopay_create_payment')) {
-                    $sess = customer_int_gopay_create_payment($payload);
-                    if (!empty($sess['ok']) && !empty($sess['gateway_url'])) {
-                        $paymentUrl = $sess['gateway_url'];
-                    }
-                }
-                if ($platba === 'paypal' && function_exists('customer_int_paypal_create_order')) {
-                    // PayPal vyžaduje return_url s ?token={order_id} přidáme query parametr ve return
-                    $payload['return_url'] = $baseUrl . '/api/paypal_callback.php?gw=paypal&order=' . urlencode($cislo);
-                    $sess = customer_int_paypal_create_order($payload);
-                    if (!empty($sess['ok']) && !empty($sess['approve_url'])) {
-                        $paymentUrl = $sess['approve_url'];
-                        // Uložíme PayPal order_id pro pozdější capture
-                        try {
-                            $pdo->prepare("UPDATE objednavky SET interni_pozn = CONCAT(IFNULL(interni_pozn,''), '\nPayPal order_id: " . ($sess['order_id'] ?? '') . "') WHERE id = :id")
-                                ->execute(['id' => $obj_id]);
-                        } catch (Throwable $e) { /* idempotent */ }
-                    }
+                } else {
+                    $paymentErr = $r['error'] ?? 'brana';
+                    error_log('objednavky payment_init (' . $platba . '): ' . $paymentErr);
                 }
             } catch (Throwable $e) {
+                $paymentErr = 'brana';
                 error_log('objednavky payment_init (' . $platba . '): ' . $e->getMessage());
             }
         }
@@ -493,6 +538,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'cislo' => $cislo,
             'platba' => $platba,
             'payment_url' => $paymentUrl,
+            'payment_error' => $paymentErr,
+            'mena' => $docC['mena'] ?? 'CZK',
+            'celkem' => $docC['celkem'] ?? null,
             'recurring_created' => $recurringCreated,
         ], 201);
     } catch (Exception $e) {
@@ -523,6 +571,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         try { require_once __DIR__ . '/_mena_lib.php'; $tmpDoc = [['id' => (int) $orig['id']]]; mena_doc_pole($pdo, 'objednavky', $tmpDoc);
               if (isset($tmpDoc[0]['doc_celkem'])) $orig['_doc_celkem'] = (float) $tmpDoc[0]['doc_celkem']; } catch (Throwable $e) { /* fallback v notifikaci */ }
     }
+
+    // 💱 v3.0.643 — zaplacenou objednávku (online brána) nelze měnit: zaplacená částka by neseděla s dokladem
+    if (($orig['pay_status'] ?? '') === 'paid') json_error('Objednávka je už zaplacená — změnu domluvte s dodavatelem.', 409);
 
     // Editovatelnost
     $edit = objednavka_editovatelna($pdo, $orig);
