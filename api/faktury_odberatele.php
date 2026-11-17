@@ -36,11 +36,12 @@ foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $f) {
     $jeDob  = ((int) $f['je_dobropis']) === 1;
     $stav   = 'uhrazena';
     if (!$jeDob && $uhr + 0.01 < $celkem) {
-        // 🐛 PR14 — plně dobropisovaná faktura je vyrovnaná (ne po splatnosti/neuhrazená)
+        // 🐛 v3.0.644 — saldo = celkem + dobropisy − uhrazeno: i ČÁSTEČNÝ dobropis snižuje dluh
+        //   (dřív jen plný → po dobropisu 400 a úhradě 600 z 1000 svítilo „po splatnosti" navždy)
         $cr = db()->prepare("SELECT COALESCE(SUM(castka_celkem),0) FROM faktury WHERE puvodni_faktura_id = :f AND je_dobropis = 1");
         $cr->execute(['f' => (int) $f['id']]);
         $credited = (float) $cr->fetchColumn();
-        if ($celkem > 0 && $credited <= -$celkem + 0.01) {
+        if ($uhr + 0.01 >= $celkem + $credited) {
             $stav = 'uhrazena';
         } else {
             $stav = (!empty($f['datum_splatnosti']) && $f['datum_splatnosti'] < $dnes) ? 'po_splatnosti' : 'neuhrazena';

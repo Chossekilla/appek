@@ -254,7 +254,7 @@ window.openDodaciListDetail = async function(id) {
           <a href="../api/admin_export_dl.php?action=csv-detail&id=${dl.id}" class="btn-secondary" style="text-decoration:none" title="Stáhnout CSV s položkami pro Money / Pohoda / Excel">📊 CSV export</a>
           <button class="btn-secondary" onclick='tiskDodaciList(${JSON.stringify({id: dl.id, objednavka_id: dl.objednavka_id || null})})' title="Otevře tiskový dialog (PDF / tiskárna)">🖨️ Tisk</button>
           <button class="btn-secondary" onclick="printQueue.add({type:'dl', id: ${dl.id}, label: 'DL ${esc(dl.cislo || '#'+dl.id)}'})" title="Přidat do fronty pro hromadný tisk">➕🖨️</button>
-          <button class="btn-secondary" onclick="closeModal(); upravitDodaciList(${dl.id})">✏️ Upravit</button>
+          ${(dl.faktury.length > 0 || dl.fakturovano == 1) ? '' : `<button class="btn-secondary" onclick="closeModal(); upravitDodaciList(${dl.id})">✏️ Upravit</button>`}
         </div>
         <div class="form-actions-icons-row">
           <button class="btn-icon-corner" onclick="tiskNaTermo('dl', ${dl.id}, '${esc(dl.cislo).replace(/'/g, '')}')" title="Tisk na termo-tiskárnu (účtenka / bon)" aria-label="Tisk na tiskárnu">🖨️</button>
@@ -290,16 +290,26 @@ window.upravitDodaciList = async function(id) {
       datum_vystaveni: dl.datum_vystaveni,
       datum_dodani: dl.datum_dodani,
       poznamka: dl.poznamka || '',
-      polozky: dl.polozky.map(p => ({
-        vyrobek_id: p.vyrobek_id,
-        vyrobek_nazev: p.vyrobek_nazev,
-        vyrobek_cislo: p.vyrobek_cislo || '',
-        jednotka: p.jednotka || 'ks',
-        mnozstvi: parseFloat(p.mnozstvi) || 0,
-        cena_bez_dph: parseFloat(p.cena_bez_dph) || 0,
-        sazba_dph: parseFloat(p.sazba_dph) || 12,
-        je_z_katalogu: !!p.vyrobek_id
-      })),
+      polozky: dl.polozky.map(p => {
+        // 🐛 v3.0.644 — sazba 0 % zůstane 0 % (dřív `|| 12` dělalo z osvobozené položky / řádku
+        //   voucheru 12 % → tiše se změnilo DPH i celkem DL). 12 jen když sazba chybí.
+        const sazba = parseFloat(p.sazba_dph);
+        const cena = parseFloat(p.cena_bez_dph) || 0;
+        return {
+          vyrobek_id: p.vyrobek_id,
+          vyrobek_nazev: p.vyrobek_nazev,
+          vyrobek_cislo: p.vyrobek_cislo || '',
+          jednotka: p.jednotka || 'ks',
+          mnozstvi: parseFloat(p.mnozstvi) || 0,
+          cena_bez_dph: cena,
+          sazba_dph: Number.isFinite(sazba) ? sazba : 12,
+          poznamka: p.poznamka || null,
+          // 🐛 v3.0.644 — záporný řádek z objednávky (voucher / sleva) se v editoru nemění a smí zůstat
+          //   záporný (dřív validace „záporná cena" DL s voucherem vůbec nedovolila uložit)
+          zamcena_cena: cena < 0,
+          je_z_katalogu: !!p.vyrobek_id
+        };
+      }),
       vsechny_odberatele: odberatele || [],
       pobocky: pobocky.mista || pobocky || [],
       posledni_objednavky: [],

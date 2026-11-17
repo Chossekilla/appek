@@ -54,34 +54,29 @@ function isdoc_nacti_fakturu(PDO $pdo, int $fa_id): ?array {
     $f = $stmt->fetch();
     if (!$f) return null;
 
-    // Snapshot pro ruční fakturu, jinak aktuální
-    if (!empty($f['rucni'])) {
-        $f['odb_nazev'] = $f['odb_nazev_snapshot'] ?: $f['odb_nazev_aktualni'];
-        $f['odb_ico']   = $f['odb_ico_snapshot']   ?: $f['odb_ico_aktualni'];
-        $f['odb_dic']   = $f['odb_dic_snapshot']   ?: $f['odb_dic_aktualni'];
-        $f['odb_ulice'] = $f['odb_ulice_snapshot'] ?: $f['odb_ulice_aktualni'];
-        $f['odb_mesto'] = $f['odb_mesto_snapshot'] ?: $f['odb_mesto_aktualni'];
-        $f['odb_psc']   = $f['odb_psc_snapshot']   ?: $f['odb_psc_aktualni'];
-    } else {
-        $f['odb_nazev'] = $f['odb_nazev_aktualni'];
-        $f['odb_ico']   = $f['odb_ico_aktualni'];
-        $f['odb_dic']   = $f['odb_dic_aktualni'];
-        $f['odb_ulice'] = $f['odb_ulice_aktualni'];
-        $f['odb_mesto'] = $f['odb_mesto_aktualni'];
-        $f['odb_psc']   = $f['odb_psc_aktualni'];
-    }
+    // 🐛 v3.0.644 — snapshot odběratele (stav ke dni vystavení) u KAŽDÉ faktury, aktuální jen fallback
+    //   (dřív automatická faktura nesla aktuální adresu/DIČ → vydaný doklad se zpětně měnil). = faktura.php
+    $f['odb_nazev'] = ($f['odb_nazev_snapshot'] ?? '') ?: $f['odb_nazev_aktualni'];
+    $f['odb_ico']   = ($f['odb_ico_snapshot']   ?? '') ?: $f['odb_ico_aktualni'];
+    $f['odb_dic']   = ($f['odb_dic_snapshot']   ?? '') ?: $f['odb_dic_aktualni'];
+    $f['odb_ulice'] = ($f['odb_ulice_snapshot'] ?? '') ?: $f['odb_ulice_aktualni'];
+    $f['odb_mesto'] = ($f['odb_mesto_snapshot'] ?? '') ?: $f['odb_mesto_aktualni'];
+    $f['odb_psc']   = ($f['odb_psc_snapshot']   ?? '') ?: $f['odb_psc_aktualni'];
 
     // Položky - rozdílné zdroje pro ruční vs automatickou fakturu
-    if (!empty($f['rucni'])) {
-        $stmt = $pdo->prepare("
-            SELECT vyrobek_cislo, vyrobek_nazev, jednotka, mnozstvi,
-                   cena_bez_dph, sazba_dph, poznamka
-            FROM faktura_polozky
-            WHERE faktura_id = :id
-            ORDER BY poradi, id
-        ");
-        $stmt->execute(['id' => $fa_id]);
-        $f['polozky'] = $stmt->fetchAll();
+    // 🐛 v3.0.644 — vlastní řádky faktury (faktura_polozky) mají přednost i u automatické faktury
+    //   (upravené položky / materializace) — stejná kaskáda jako PDF (faktura.php) a _ucetni_lib.
+    $stmt = $pdo->prepare("
+        SELECT vyrobek_cislo, vyrobek_nazev, jednotka, mnozstvi,
+               cena_bez_dph, sazba_dph, poznamka
+        FROM faktura_polozky
+        WHERE faktura_id = :id
+        ORDER BY poradi, id
+    ");
+    $stmt->execute(['id' => $fa_id]);
+    $f['polozky'] = $stmt->fetchAll();
+    if (!empty($f['rucni']) || $f['polozky']) {
+        // ruční faktura / vlastní řádky faktury — hotovo
     } else {
         $stmt = $pdo->prepare("
             SELECT dlp.vyrobek_cislo, dlp.vyrobek_nazev, dlp.jednotka,

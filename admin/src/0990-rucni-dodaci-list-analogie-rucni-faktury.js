@@ -57,7 +57,12 @@ function vykreslitRucniDl() {
                 <input class="form-input obj-polozka-jed" type="text" value="${esc(p.jednotka || 'ks')}" maxlength="10"
                        placeholder="ks"
                        oninput="rdlState.polozky[${i}].jednotka = this.value">
-                <input class="form-input obj-polozka-cena-input" type="number" min="0" step="0.01" value="${p.cena_bez_dph}"
+                ${p.zamcena_cena
+                  // 🐛 v3.0.644 — řádek voucheru/slevy (záporná cena) z objednávky: cena i sazba zamčené
+                  ? `<input class="form-input obj-polozka-cena-input" type="number" step="0.01" value="${p.cena_bez_dph}" readonly
+                            title="Sleva / voucher z objednávky — cenu nelze měnit">
+                     <select class="form-input obj-polozka-dph" disabled><option>${esc(String(p.sazba_dph))}%</option></select>`
+                  : `<input class="form-input obj-polozka-cena-input" type="number" min="0" step="0.01" value="${p.cena_bez_dph}"
                        placeholder="cena"
                        oninput="rdlState.polozky[${i}].cena_bez_dph = parseFloat(this.value)||0; vykreslitRucniDl()">
                 <select class="form-input obj-polozka-dph"
@@ -65,7 +70,8 @@ function vykreslitRucniDl() {
                   <option value="0"  ${p.sazba_dph == 0  ? 'selected' : ''}>0%</option>
                   <option value="12" ${p.sazba_dph == 12 ? 'selected' : ''}>12%</option>
                   <option value="21" ${p.sazba_dph == 21 ? 'selected' : ''}>21%</option>
-                </select>
+                  ${[0, 12, 21].includes(Number(p.sazba_dph)) ? '' : `<option value="${esc(String(p.sazba_dph))}" selected>${esc(String(p.sazba_dph))}%</option>`}
+                </select>`}
               </div>
             </div>
             <div class="obj-polozka-qty">
@@ -387,7 +393,7 @@ window.rdlVystavit = async function() {
     const p = s.polozky[i];
     if (!p.vyrobek_nazev?.trim()) return alert(t('row_missing_name_short', { n: i + 1 }));
     if (p.mnozstvi <= 0) return alert(t('row_invalid_qty', { n: i + 1 }));
-    if (p.cena_bez_dph < 0) return alert(t('row_negative_price', { n: i + 1 }));
+    if (p.cena_bez_dph < 0 && !p.zamcena_cena) return alert(t('row_negative_price', { n: i + 1 }));   // 🐛 v3.0.644 — voucher/sleva smí být záporná
   }
 
   const data = {
@@ -404,6 +410,7 @@ window.rdlVystavit = async function() {
       mnozstvi: p.mnozstvi,
       cena_bez_dph: p.cena_bez_dph,
       sazba_dph: p.sazba_dph,
+      poznamka: p.poznamka || null,   // 🐛 v3.0.644 — poznámka řádku se úpravou DL neztratí
     })),
   };
 
