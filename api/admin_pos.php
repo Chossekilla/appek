@@ -2411,8 +2411,29 @@ function pos_uzaverka_data(PDO $pdo, string $date, ?string $pokladna = null): ar
         $pq->execute(['d' => $date, 'dn' => $dNext]);
         $pokladny = $pq->fetchAll(PDO::FETCH_COLUMN);
     } catch (Throwable $e) {}
+    // 💱 v3.0.643 — po měnách z ledgeru přijatých peněz (platby_doklad): tržby dle měny × metody
+    //   a hotovost v šuplíku zvlášť pro každou měnu (výměny drobných „smena" jen v šuplíku, ne v tržbě).
+    //   Stávající Kč údaje (stanice/total) se NEMĚNÍ.
+    $dleMeny = []; $supl = [];
+    try {
+        $lq = $pdo->prepare("SELECT mena, metoda, COALESCE(idem,'') AS idem, castka_mena, castka_czk FROM platby_doklad
+                             WHERE created_at >= :d AND created_at < :dn" . ($pkFilter ? ' AND pokladna = :pk' : ''));
+        $lb = ['d' => $date, 'dn' => $dNext];
+        if ($pkFilter) $lb['pk'] = $pokladna;
+        $lq->execute($lb);
+        foreach ($lq->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $mn = $r['mena']; $met = $r['metoda']; $cm = (float) $r['castka_mena'];
+            if ($met === 'hotovost') $supl[$mn] = round(($supl[$mn] ?? 0) + $cm, 2);
+            if (strpos($r['idem'], ':smena-') !== false) continue;          // výměna drobných ≠ tržba
+            if (!isset($dleMeny[$mn])) $dleMeny[$mn] = ['celkem' => 0.0, 'celkem_czk' => 0.0, 'metody' => []];
+            $dleMeny[$mn]['celkem'] = round($dleMeny[$mn]['celkem'] + $cm, 2);
+            $dleMeny[$mn]['celkem_czk'] = round($dleMeny[$mn]['celkem_czk'] + (float) $r['castka_czk'], 2);
+            $dleMeny[$mn]['metody'][$met] = round(($dleMeny[$mn]['metody'][$met] ?? 0) + $cm, 2);
+        }
+    } catch (Throwable $e) { /* ledger nemusí existovat na staré instalaci */ }
     return ['date' => $date, 'metody' => $METODY, 'stanice' => $arr, 'total' => $total,
-            'pokladny' => $pokladny, 'pokladna' => ($pokladna !== null && $pokladna !== '') ? $pokladna : null];
+            'pokladny' => $pokladny, 'pokladna' => ($pokladna !== null && $pokladna !== '') ? $pokladna : null,
+            'dle_meny' => $dleMeny, 'supl' => $supl];
 }
 function pos_uzaverky_ensure(PDO $pdo): void {
     static $done = false; if ($done) return; $done = true;

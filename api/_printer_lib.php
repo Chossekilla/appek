@@ -230,7 +230,7 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
         $tab = $order['_mena_tab'] ?? 'objednavky';
         $radekMeny = $order;
         if ($tab === 'dodaci_listy' && !empty($order['objednavka_id'])) {
-            $q = db()->prepare("SELECT id, mena, mena_kurz, mena_zaklad FROM objednavky WHERE id = ?");
+            $q = db()->prepare("SELECT id, mena, mena_kurz, mena_kurz_prodej, mena_zaklad FROM objednavky WHERE id = ?");
             $q->execute([(int) $order['objednavka_id']]);
             $radekMeny = $q->fetch(PDO::FETCH_ASSOC) ?: $order;
         }
@@ -244,10 +244,12 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
 
     foreach (array_values($order['polozky'] ?? []) as $ixP => $p) {
         $nm  = (string)($p['vyrobek_nazev'] ?? '?');
-        $mn  = (int)($p['mnozstvi'] ?? 1);
+        $mnF = (float)($p['mnozstvi'] ?? 1);
+        $mn  = $mnF;
         $cena = (float)($p['cena_celkem'] ?? ($p['cena_bez_dph'] ?? 0) * $mn);
-        // Řádek: "2× Espresso          50.00"
-        $prefix = $mn . '× ';
+        // Řádek: "2× Espresso          50.00" — 🐛 v3.0.643 zlomkové množství (0,5 kg dřív „0×")
+        $mnTxt = abs($mnF - round($mnF)) < 0.0005 ? (string) (int) round($mnF) : rtrim(rtrim(number_format($mnF, 3, ',', ''), '0'), ',');
+        $prefix = $mnTxt . '× ';
         $price = sprintf('%.2f', $calcM ? $calcM['polozky'][$ixP]['zaklad'] + $calcM['polozky'][$ixP]['dph'] : round($cena * $kM, 2));
         $maxNm = $w - mb_strlen($prefix, 'UTF-8') - mb_strlen($price, 'UTF-8') - 1;
         $nmShort = mb_strimwidth($nm, 0, $maxNm, '..', 'UTF-8');
@@ -256,9 +258,25 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
 
     $out .= pr_hr($w, '=');
     $out .= pr_bold(true) . pr_size(1, 2);
-    $celk = sprintf('CELKEM: %.2f %s', $calcM ? $calcM['celkem'] : round((float)($order['castka_celkem'] ?? 0) * $kM, 2), $symM);
+    $celkemM = $calcM ? (isset($order['castka_mena']) && $order['castka_mena'] !== null && ($order['_mena_tab'] ?? 'objednavky') === 'objednavky' ? (float) $order['castka_mena'] : $calcM['celkem'])
+                      : round((float)($order['castka_celkem'] ?? 0) * $kM, 2);
+    $celk = sprintf('CELKEM: %.2f %s', $celkemM, $symM);
     $out .= pr_text(str_pad($celk, $w, ' ', STR_PAD_LEFT) . "\n", $enc);
     $out .= pr_size() . pr_bold(false);
+    // 💱 v3.0.643 — doklad v cizí měně: kurz + rekapitulace DPH v Kč (§29/§38 ZDPH — DPH v Kč kurzem ČNB)
+    if ($calcM) {
+        try {
+            $kurzCnb = (float) ($mm['mena_kurz'] ?? 0);
+            $kd = null;
+            if (function_exists('pos_kurz_datum')) $kd = pos_kurz_datum(db(), $menaM, $kurzCnb, (string) ($order['datum_objednani'] ?? ''));
+            $out .= pr_text(sprintf("Kurz ČNB 1 %s = %s Kč%s\n", $menaM, number_format($kurzCnb, 3, ',', ' '), $kd ? ' (' . date('j.n.Y', strtotime($kd)) . ')' : ''), $enc);
+            $rcz = $calcM['rozpis_czk_cnb'] ?? $calcM['rozpis_czk'];
+            foreach ($rcz as $sz => $r) {
+                $out .= pr_text(pr_two_col(sprintf('DPH %s%% zakl. %s', rtrim(rtrim(number_format((float) $sz, 1, ',', ''), '0'), ','), number_format($r['bez'], 2, ',', ' ')),
+                                           number_format($r['dph'], 2, ',', ' ') . ' Kč', $w), $enc);
+            }
+        } catch (Throwable $e) { /* bez rekapitulace */ }
+    }
     // 💱 v3.0.283 — informativní přepočet na cílovou měnu (mena_config_json, dual_doklady)
     try {
         $mcSt = db()->prepare("SELECT hodnota FROM nastaveni WHERE klic = 'mena_config_json'");
@@ -271,8 +289,29 @@ function printer_build_receipt(array $order, array $printer, array $firma = []):
     } catch (Throwable $e) { /* bez přepočtu */ }
 
     if (!empty($order['pos_payment'])) {
-        $out .= pr_text(pr_two_col('Platba:', (string)$order['pos_payment'], $w), $enc);
+        $platbaTxt = ['hotove' => 'Hotově', 'karta' => 'Kartou', 'qr_platba' => 'QR platba', 'gift_card' => 'Dárková karta', 'voucher' => 'Voucher',
+                      'mobile' => 'Mobilem', 'paypal' => 'PayPal', 'stripe' => 'Kartou online', 'gopay' => 'GoPay', 'prevod' => 'Převodem',
+                      'faktura' => 'Na fakturu', 'dobirka' => 'Dobírka', 'pri_vyzvednuti' => 'Při vyzvednutí'][(string) $order['pos_payment']] ?? (string) $order['pos_payment'];
+        $out .= pr_text(pr_two_col('Platba:', $platbaTxt, $w), $enc);
     }
+    // 💱 v3.0.643 — přijato / vráceno (hotovost) z ledgeru plateb
+    try {
+        if (!empty($order['id']) && ($order['_mena_tab'] ?? 'objednavky') === 'objednavky') {
+            $lq = db()->prepare("SELECT mena, prijato_mena, vraceno_mena, castka_mena, idem FROM platby_doklad WHERE objednavka_id = ? AND metoda = 'hotovost' ORDER BY id");
+            $lq->execute([(int) $order['id']]);
+            $drobneKc = null; $hl = null;
+            foreach ($lq->fetchAll(PDO::FETCH_ASSOC) as $lr) {
+                if (strpos((string) $lr['idem'], ':smena-czk') !== false) $drobneKc = -(float) $lr['castka_mena'];
+                elseif ($lr['prijato_mena'] !== null && $hl === null) $hl = $lr;
+            }
+            if ($hl) {
+                $sm = $hl['mena'] === 'CZK' ? 'Kč' : $hl['mena'];
+                $out .= pr_text(pr_two_col('Přijato:', number_format((float) $hl['prijato_mena'], 2, ',', ' ') . ' ' . $sm, $w), $enc);
+                if ($drobneKc !== null) $out .= pr_text(pr_two_col('Vráceno:', number_format($drobneKc, 0, ',', ' ') . ' Kč', $w), $enc);
+                elseif ($hl['vraceno_mena'] !== null) $out .= pr_text(pr_two_col('Vráceno:', number_format((float) $hl['vraceno_mena'], 2, ',', ' ') . ' ' . $sm, $w), $enc);
+            }
+        }
+    } catch (Throwable $e) { /* ledger nemusí existovat */ }
     if (!empty($order['pos_tip']) && (float)$order['pos_tip'] > 0) {
         $out .= pr_text(pr_two_col('Spropitné:', sprintf('%.2f %s', round((float) $order['pos_tip'] * $kM, 2), $symM), $w), $enc);
     }
