@@ -133,7 +133,12 @@ try {
     // vypnout → přepočet už není blokovaný platbami (jen náhled, nic nepřepočítáme)
     $r = $req('POST', 'admin_mena.php?action=save_platba', ['platba' => array_merge($p, ['aktivni' => false])]);
     t('vypnutí uloží', $r['code'] === 200 && !$r['json']['config']['platba']['aktivni'] && $r['json']['config']['platba']['kurzy_rucni']['EUR'] == 25.17);
-    t('vypnuto: volba EUR odmítnuta', (function () use ($pdo) { try { mena_volba_platby($pdo, 'EUR', 'pos'); return false; } catch (MenaException $e) { return true; } })());
+    // v3.0.644 — po vypnutí se vrátí uložený legacy režim (výše uložen „prodávat v EUR") → EUR = legacy měna, jiná měna odmítnuta
+    $cf2 = mena_config_load($pdo);
+    t('vypnuto: legacy režim obnoven (zobrazení v EUR)', $cf2['zobrazeni'] === 'mena' && $cf2['kod'] === 'EUR');
+    t('vypnuto: volba USD odmítnuta', (function () use ($pdo) { try { mena_volba_platby($pdo, 'USD', 'pos'); return false; } catch (MenaException $e) { return true; } })());
+    $legacyEur = (function () use ($pdo) { try { return mena_volba_platby($pdo, 'EUR', 'pos')['mena'] === 'EUR'; } catch (MenaException $e) { return false; } })();
+    t('vypnuto: EUR = legacy měna prodeje (bez přepočtu ceníku)', $legacyEur);
 
     // trvale přepočtený ceník (simulace v configu) → aktivace 409
     $cfg = json_decode(nastaveni_get($pdo, 'mena_config_json', '{}'), true);
