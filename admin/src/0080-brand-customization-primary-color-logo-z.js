@@ -21,7 +21,8 @@ window.applyBrandCustomization = async function() {
     const f = await api('firma_branding.php');
     if (!f) return;
     const primary = (f.firma_brand_color || '').trim();
-    const logo    = (f.firma_logo_url    || '').trim();
+    // 🐛 v3.0.644 — firma_branding.php vrací logo jako logo_url (firma_logo_url zůstává jako fallback)
+    const logo    = (f.logo_url || f.firma_logo_url || '').trim();
 
     if (primary && /^#[0-9A-Fa-f]{6}$/.test(primary)) {
       // Derive light/dark variants

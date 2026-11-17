@@ -16,6 +16,9 @@ if ($_email_token !== '') {
     $_tok_row = verify_email_token(db(), $_email_token);
     if ($_tok_row && in_array($_tok_row['typ'], ['dl', 'obj'], true)) {
         $_token_typ = $_tok_row['typ'];
+        // 🐛 v3.0.644 SECURITY (IDOR) — token platí JEN pro svůj doklad: zahoď všechny ID parametry z URL
+        //   (dřív zůstal ?dl_id= vedle 'obj' tokenu a single větev mu dala přednost → cizí DL).
+        unset($_GET['id'], $_GET['dl_id'], $_GET['ids'], $_GET['dl_ids']);
         if ($_tok_row['typ'] === 'dl') {
             $_GET['dl_id'] = (int) $_tok_row['doklad_id'];
         } else {

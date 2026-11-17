@@ -56,6 +56,9 @@ session_regenerate_id(true);
 $_SESSION['admin_id']    = (int) $user['id'];
 $_SESSION['admin_jmeno'] = $user['jmeno'];
 $_SESSION['admin_role']  = $user['role'];
+// 🐛 v3.0.644 — heslo-login ruší příznaky PIN session (PIN session je vždy POS-only → jinak by
+//   po předchozím PIN přihlášení ve stejném prohlížeči zůstal admin zamčený v POS allowlistu).
+unset($_SESSION['pos_session'], $_SESSION['pos_only_user'], $_SESSION['pos_login_at']);
 
 // 🔒 v2.6.0 SECURITY: regenerate session ID po loginu (anti session fixation)
 session_regenerate_id(true);

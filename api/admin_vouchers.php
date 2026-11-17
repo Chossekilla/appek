@@ -160,6 +160,15 @@ function voucher_send_email(PDO $pdo, array $v): array {
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $action = $_GET['action'] ?? '';
+
+// 🐛 v3.0.644 SECURITY — endpoint je v POS allowlistu jen kvůli vyhledání (GET ?kod=) a uplatnění (redeem).
+//   PIN (pos_only) session dřív smělo i create/topup (dárková karta libovolné hodnoty bez zaplacení),
+//   deactivate, send_email a výpis všech kódů zákazníků → pro POS session jen tyhle dvě operace.
+if (!empty($_SESSION['pos_only_user'])) {
+    $posOk = ($method === 'GET' && !empty($_GET['kod'])) || ($method === 'POST' && $action === 'redeem');
+    if (!$posOk) json_error('POS účet smí voucher jen vyhledat a uplatnit', 403);
+}
+
 $admin  = function_exists('aktualni_admin') ? (aktualni_admin($pdo)['jmeno'] ?? 'Admin') : 'Admin';
 
 // ── GET ───────────────────────────────────────────────────────────────

@@ -130,6 +130,12 @@ if ($action === '' || $action === 'list') {
     json_response(['stanice' => $rows, 'online_threshold' => $threshold, 'printers' => $printers, 'allowlist' => $allowlist]);
 }
 
+// 🐛 v3.0.644 SECURITY — správa stanic mění data → jen POST (CSRF + readonly guard v require_admin běží
+//   jen pro POST/PUT/DELETE; dřív GET s tělem přes php://input obešel readonly a zapnul allowlist → POS stál).
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    json_error('Pouze POST', 405);
+}
+
 // ─── RENAME ──────────────────────────────────────────────────────────────────
 if ($action === 'rename') {
     $in = _stanice_body();

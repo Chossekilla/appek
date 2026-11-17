@@ -46,7 +46,10 @@ if ($action === 'cron') {
 }
 
 // Pro všechno ostatní vyžaduj admin login
-require_admin();
+// 🐛 v3.0.644 SECURITY — zálohy = kompletní dump DB (hashe hesel/PINů, SMTP heslo, klíče plateb a integrací)
+//   + info vrací tajný CRON token → list/info/create/download/restore/delete JEN super admin.
+//   Dřív stačilo require_admin() → stáhnout zálohu smělo i readonly (veřejné demo), prodavac, výroba, expedice.
+require_super_admin();
 zaloha_setup($pdo);
 
 // =============================================================

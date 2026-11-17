@@ -8,6 +8,27 @@ require_admin();
 $method = $_SERVER['REQUEST_METHOD'];
 $pdo = db();
 $action = $_GET['action'] ?? '';
+
+// 🐛 v3.0.644 SECURITY — nastavení firmy (bankovní účet na dokladech/QR, SMTP, sledovací JS pro B2B portál,
+//   šablony e-mailů, logo, kanály) smí měnit JEN super admin. Dřív stačilo require_admin() → role
+//   prodavac/vyroba/expedice si přes PUT přepsala firma_banka, SMTP i tracking_custom_code (stored XSS na B2B).
+//   Ostatní role smí jen provozní přepínače, které UI ukládá mimo Nastavení (sklad, dashboard, HACCP, skener…).
+const NASTAVENI_PROVOZNI_KLICE = [
+    'scanner_config', 'naklady_polozky', 'haccp_defaults', 'suroviny_kategorie',
+    'sklad_sledovatelnost', 'sklad_sled_enforce', 'dashboard_alerts_off',
+    'pagination_styl', 'pagination_pocet', 'vykon_lite', 'skryt_ikony', 'seznam_obrazky',
+];
+if (!in_array($method, ['GET', 'HEAD'], true) && !is_super_admin()) {
+    $nsOk = false;
+    if ($method === 'POST' && $action === 'email_template_preview') {
+        $nsOk = true; // čistý render náhledu, nic neukládá
+    } elseif ($method === 'PUT' && $action === '') {
+        $nsBody = json_input();
+        $nsOk = !empty($nsBody) && !array_diff(array_keys($nsBody), NASTAVENI_PROVOZNI_KLICE);
+    }
+    if (!$nsOk) json_error('Toto nastavení smí měnit jen super admin', 403);
+}
+
 appek_ensure_pwa_icons();  // 🆕 v3.0.364 — naseeduj PWA install ikony (default APPEK), pokud chybí
 
 // =============================================================
@@ -382,6 +403,15 @@ if ($method === 'GET') {
     if (isset($data['smtp_pass'])) {
         $data['smtp_pass'] = $data['smtp_pass'] !== '' ? '••••••••' : '';
     }
+    // 🐛 v3.0.644 SECURITY — tajné hodnoty (CRON token záloh, feed token, API klíče/hesla integrací)
+    //   jen super adminovi; ostatní role (vč. readonly na veřejném demu) je nedostanou.
+    if (!is_super_admin()) {
+        foreach (array_keys($data) as $k) {
+            if (preg_match('/token|secret|heslo|pass|api_?key|_key$|webhook|credentials/i', (string) $k)) {
+                unset($data[$k]);
+            }
+        }
+    }
 
     json_response($data);
 }
@@ -396,6 +426,8 @@ if ($method === 'PUT') {
         'firma_banka', 'firma_email', 'firma_telefon', 'firma_web',
         // Logo + favicon (URL relativní k webroot, např. /uploads/logo/logo.png)
         'firma_logo_url', 'firma_favicon_url', 'firma_logo_na_dokladech',
+        // 🐛 v3.0.644 — primární barva aplikace (#RRGGBB); dřív chyběla ve whitelistu → UI hlásilo uloženo, ale nic
+        'firma_brand_color',
         // Patička dokladů (faktura, dodací list)
         'firma_paticka_dokladu',
         // 🌍 v3.0.640 — výchozí jazyk dokladů (cs/en/es; odběratel může mít vlastní)
@@ -474,6 +506,11 @@ if ($method === 'PUT') {
             $hodnota = is_string($val) ? trim($val) : (string) $val;
             // 📧 v3.0.289 — SMTP heslo: prázdné / maska = NEPŘEPISUJ uložené (UI ho maskuje)
             if ($klic === 'smtp_pass' && ($hodnota === '' || $hodnota === '••••••••')) { continue; }
+            // 🐛 v3.0.644 — barva jen validní HEX (jde do CSS proměnné), prázdná = výchozí
+            if ($klic === 'firma_brand_color' && $hodnota !== '' && !preg_match('/^#[0-9A-Fa-f]{6}$/', $hodnota)) {
+                $ignored[] = $klic;
+                continue;
+            }
             $stmt->execute(['k' => $klic, 'v' => $hodnota, 'v2' => $hodnota]);
             $applied[] = $klic;
         }

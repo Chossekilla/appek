@@ -146,7 +146,10 @@ if ($method === 'GET') {
 }
 
 if ($method === 'PUT' || $method === 'POST') {
-    require_admin();  // jen admin smí měnit
+    // 🐛 v3.0.644 SECURITY — zápis (IBAN pro QR platby na fakturách, poplatky, doprava) JEN plný super admin
+    //   heslem. Endpoint je v POS allowlistu kvůli GET ?context=pos → dřív pokladní s PINem přepsal IBAN.
+    require_super_admin();
+    if (!empty($_SESSION['pos_only_user'])) json_error('POS účet nemůže měnit platební metody', 403);
     $d = json_input();
     // on/off mapa (zpětně kompatibilní)
     if (isset($d['methods']) && is_array($d['methods'])) {

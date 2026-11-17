@@ -18,6 +18,38 @@ $vyrobek_ids   = !empty($_GET['vyrobky'])   ? array_filter(array_map('intval', e
 $skupina_id    = !empty($_GET['skupina'])   ? (int) $_GET['skupina'] : 0;
 $nazev_nabidky = trim($_GET['nazev'] ?? '');
 
+// 🐛 v3.0.644 SECURITY — ceník cenové skupiny (slevy, pevné ceny) jen oprávněnému:
+//   admin (náhled z administrace), přihlášený B2B odběratel SVÉ skupiny, nebo podepsaný odkaz z e-mailu
+//   (email_tokens typ 'kat', doklad_id = skupina). Dřív stačilo holé ?skupina=N (sekvenční ID)
+//   → anonym i jiný odběratel vyčetl sjednané ceníky všech skupin. Bez skupiny = základní ceník (veřejný).
+if ($skupina_id > 0) {
+    session_secure_start();
+    $kat_ok = false;
+    if (!empty($_SESSION['admin_id']) && empty($_SESSION['pos_only_user'])) {
+        require_once __DIR__ . '/_admin_auth.php';
+        _admin_auth_refresh_from_db();   // deaktivovaný účet → 401
+        $kat_ok = true;
+    } elseif (!empty($_SESSION['odberatel_id'])) {
+        try {
+            $q = $pdo->prepare("SELECT cenova_skupina_id FROM odberatele WHERE id = :id");
+            $q->execute(['id' => (int) $_SESSION['odberatel_id']]);
+            $kat_ok = ((int) $q->fetchColumn() === $skupina_id);
+        } catch (Throwable $e) { $kat_ok = false; }
+    }
+    if (!$kat_ok && !empty($_GET['token'])) {
+        require_once __DIR__ . '/_email_token.php';
+        $tok = verify_email_token($pdo, (string) $_GET['token'], 'kat');
+        $kat_ok = $tok && (int) $tok['doklad_id'] === $skupina_id;
+    }
+    if (!$kat_ok) {
+        http_response_code(403);
+        echo '<!doctype html><meta charset="utf-8"><title>Nabídka</title>'
+           . '<p style="font-family:sans-serif;padding:24px">Odkaz na nabídku je neplatný nebo vypršel. '
+           . 'Požádejte prosím dodavatele o zaslání nové nabídky.</p>';
+        exit;
+    }
+}
+
 // Per-product poznámky: pozn[ID]=text (např. "poslední kusy", "akce -10%")
 $poznamky_raw = $_GET['pozn'] ?? [];
 $poznamky = [];

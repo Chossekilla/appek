@@ -19,6 +19,13 @@ header('Content-Type: application/json; charset=UTF-8');
 $pdo = db();
 $action = $_GET['action'] ?? '';
 
+// 🐛 v3.0.644 SECURITY — všechny akce kromě preview mění data → jen POST (CSRF + readonly guard v require_admin
+//   běží jen pro POST/PUT/DELETE). Dřív šel seed spustit GET odkazem (SameSite=Lax cookie → stačilo,
+//   aby přihlášený super admin klikl na cizí odkaz) a do ostré DB se vložila demo data i účty s PINem.
+if ($action !== 'preview' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    json_error('Pouze POST', 405);
+}
+
 // ════════════════════════════════════════════════════════════
 // DEMO DATA — sample sets
 // ════════════════════════════════════════════════════════════
@@ -1369,6 +1376,12 @@ if ($action === 'apply') {
                     // 🔒 v3.0.317 — heslo demo1234 jen na DEMO instalaci (APPEK_DEMO_MODE);
                     //   na zákaznické instalaci náhodné (demo účty nesmí být přihlašitelné veřejným heslem)
                     $seedPwd = (defined('APPEK_DEMO_MODE') && APPEK_DEMO_MODE) ? $u['heslo'] : bin2hex(random_bytes(12));
+                    // 🐛 v3.0.644 SECURITY — PINy demo účtů (0000/9999/1234/5678) jsou natvrdo v distribuovaném kódu
+                    //   a seznam PIN uživatelů je veřejný (pos_auth ?action=users) → na zákaznické instalaci
+                    //   demo účty PIN NEDOSTANOU (admin ho nastaví v Uživatelé, pokud účet chce používat).
+                    $seedPin = (defined('APPEK_DEMO_MODE') && APPEK_DEMO_MODE)
+                        ? password_hash($u['pin'], PASSWORD_BCRYPT, ['cost' => 8])
+                        : null;
                     $pdo->prepare("
                         INSERT INTO admin_users (email, jmeno, heslo_hash, role, pin_hash, pos_only, aktivni)
                         VALUES (:em, :j, :h, :r, :pin, :po, 1)
@@ -1377,7 +1390,7 @@ if ($action === 'apply') {
                         'j'   => $u['jmeno'],
                         'h'   => password_hash($seedPwd, PASSWORD_DEFAULT),
                         'r'   => $u['role'],
-                        'pin' => password_hash($u['pin'], PASSWORD_BCRYPT, ['cost' => 8]),
+                        'pin' => $seedPin,
                         'po'  => (int) $u['pos_only'],
                     ]);
                     $stats['pos_users']++;

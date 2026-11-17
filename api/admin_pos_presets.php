@@ -71,6 +71,12 @@ if ($method === 'GET') {
     }
 }
 
+// 🐛 v3.0.644 SECURITY — úprava rychlých tlačítek POS jen z administrace (POS je jen čte);
+//   PIN (pos_only) session save/reset nesmí.
+if ($method === 'POST' && in_array($action, ['save', 'reset'], true) && !empty($_SESSION['pos_only_user'])) {
+    json_error('POS účet nemůže měnit rychlá tlačítka', 403);
+}
+
 if ($method === 'POST' && $action === 'save') {
     $data = json_decode(file_get_contents('php://input'), true) ?? [];
     $input = $data['presets'] ?? [];

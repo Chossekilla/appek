@@ -359,7 +359,7 @@ window.zobrazFeedUrl = async function() {
 };
 window.regenerovatFeedUrl = async function() {
   if (!confirm('Přegenerovat token? Staré feed URL přestanou fungovat — budeš je muset znovu vložit do Google / Heuréky.')) return;
-  try { await api('admin_vyrobky_export.php?action=feed_regenerate'); if (typeof toast === 'function') toast('Nový token vygenerován', 'info'); zobrazFeedUrl(); }
+  try { await api('admin_vyrobky_export.php?action=feed_regenerate', { method: 'POST' }); /* 🐛 v3.0.644 — mutace jen POST */ if (typeof toast === 'function') toast('Nový token vygenerován', 'info'); zobrazFeedUrl(); }
   catch (e) { alert('Chyba: ' + e.message); }
 };
 

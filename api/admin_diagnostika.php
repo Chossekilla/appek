@@ -4,7 +4,7 @@
  * Vrací JSON se všemi důležitými informacemi o systému, DB, schématu, chybách atd.
  *
  * GET ?action=info        — vše najednou (default)
- * GET ?action=ping_mail   — pošle testovací mail na adresu z firma_email
+ * POST ?action=ping_mail {to?} — pošle testovací mail (jen super admin; prázdné to = firma_email)
  * GET ?action=lint        — projede všechny api/*.php přes token_get_all (zachytí parse errors)
  */
 
@@ -43,7 +43,12 @@ function dir_size_recursive(string $dir): array {
 // ACTION: ping_mail — test odeslání mailu
 // ===================================================================
 if ($action === 'ping_mail') {
-    $to = trim($_GET['to'] ?? '');
+    // 🐛 v3.0.644 SECURITY — odeslání mailu na libovolnou adresu → jen POST (CSRF + readonly guard
+    //   v require_admin) a jen super admin. Dřív GET (readonly/odkaz přes SameSite=Lax) = mail-bombing z domény firmy.
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') json_error('Pouze POST', 405);
+    require_super_admin();
+    $pmIn = json_input();
+    $to = trim((string) ($pmIn['to'] ?? ''));
     if (!$to) $to = nastaveni_get($pdo, 'firma_email', '');
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) json_error('Neplatný email');
 

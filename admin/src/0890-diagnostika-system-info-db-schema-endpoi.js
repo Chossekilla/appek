@@ -446,8 +446,8 @@ window.diagLint = async function() {
 window.diagPingMail = async function() {
   const to = await promptDialog({ title: 'Testovací e-mail', msg: 'E-mail, kam poslat testovací zprávu (nech prázdné pro firma_email z nastavení).', placeholder: 'jmeno@firma.cz', okText: 'Odeslat test', icon: '📧', inputType: 'email' });
   try {
-    const url = 'admin_diagnostika.php?action=ping_mail' + (to ? '&to=' + encodeURIComponent(to) : '');
-    const r = await api(url);
+    // 🐛 v3.0.644 — POST s tělem (mutace/odeslání mailu nesmí jít GET odkazem)
+    const r = await api('admin_diagnostika.php?action=ping_mail', { method: 'POST', body: JSON.stringify({ to: to || '' }) });
     if (r.ok) {
       alert('✓ Mail odeslán\n\nNa: ' + r.to + '\nOd: ' + r.from + '\n\nPokud nedorazí během minuty, zkontroluj spam.');
     } else {

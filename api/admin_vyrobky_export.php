@@ -33,9 +33,19 @@ function _feed_set_token(PDO $pdo, string $t): void {
 // Akce feed_info / feed_regenerate (admin) — vrátí veřejné URL feedů (vygeneruje token pokud chybí)
 $action = $_GET['action'] ?? '';
 if ($action === 'feed_info' || $action === 'feed_regenerate') {
-    require_admin();
+    // 🐛 v3.0.644 SECURITY — feed_regenerate mění token (staré URL v Merchant Center/Heuréce/Zboží přestanou
+    //   fungovat) → jen POST (CSRF + readonly guard v require_admin) a jen super admin. Dřív šel GET odkazem
+    //   (SameSite=Lax) i readonly účtem. feed_info zůstává GET a token založí jen když chybí (ne readonly).
+    if ($action === 'feed_regenerate') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') json_error('Pouze POST', 405);
+        require_super_admin();
+    } else {
+        require_admin();
+    }
     $t = (string) nastaveni_get($pdo, 'katalog_feed_token', '');
-    if ($action === 'feed_regenerate' || strlen($t) < 24) { $t = bin2hex(random_bytes(20)); _feed_set_token($pdo, $t); }
+    $mutaceOk = ($_SESSION['admin_role'] ?? '') !== 'readonly';
+    if ($action === 'feed_regenerate' || (strlen($t) < 24 && $mutaceOk)) { $t = bin2hex(random_bytes(20)); _feed_set_token($pdo, $t); }
+    if (strlen($t) < 24) json_error('Feed zatím nemá token — vygeneruje ho administrátor', 409);
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $origin = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
     $mk = function ($f) use ($origin, $t) { return "$origin/api/admin_vyrobky_export.php?format=$f&token=$t"; };

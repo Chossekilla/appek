@@ -15,6 +15,9 @@ require_super_admin();
 $method = $_SERVER['REQUEST_METHOD'];
 $pdo = db();
 
+// Povolené role (musí odpovídat roleDef v admin/src/0940; readonly = náhledový účet, jen čtení)
+const ADMIN_USERS_ROLE = ['admin', 'prodavac', 'vyroba', 'expedice', 'pos', 'readonly'];
+
 // 🆕 v2.9.270 — idempotentní migrace pro PIN + pos_only
 (function() use ($pdo) {
     try {
@@ -89,8 +92,9 @@ if ($method === 'POST') {
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) json_error('Neplatný email');
     if (strlen($heslo) < 6) json_error('Heslo musí mít alespoň 6 znaků');
-    if (!in_array($role, ['admin','prodavac','vyroba','expedice','pos'], true)) {
-        json_error('Neplatná role (admin/prodavac/vyroba/expedice/pos)');
+    // 🐛 v3.0.644 — + readonly („Náhled" v editoru uživatele); dřív ho backend odmítal → nešel vytvořit ani upravit
+    if (!in_array($role, ADMIN_USERS_ROLE, true)) {
+        json_error('Neplatná role (admin/prodavac/vyroba/expedice/pos/readonly)');
     }
     if ($pin !== '' && !validate_pin($pin)) json_error('PIN musí mít 4-6 cifer');
     // pos_only vyžaduje PIN (jinak by se uživatel nemohl nikde přihlásit)
@@ -142,8 +146,8 @@ if ($method === 'PUT') {
         $sets[] = "email = :e"; $params['e'] = $d['email'];
     }
     if (isset($d['role'])) {
-        if (!in_array($d['role'], ['admin','prodavac','vyroba','expedice','pos'], true)) {
-            json_error('Neplatná role (admin/prodavac/vyroba/expedice/pos)');
+        if (!in_array($d['role'], ADMIN_USERS_ROLE, true)) {
+            json_error('Neplatná role (admin/prodavac/vyroba/expedice/pos/readonly)');
         }
         $sets[] = "role = :r"; $params['r'] = $d['role'];
     }

@@ -48,7 +48,8 @@ function ensure_email_tokens_table(PDO $pdo): void {
 }
 
 function create_email_token(PDO $pdo, string $typ, int $doklad_id, int $valid_days = 30): string {
-    if (!in_array($typ, ['fa', 'dl', 'obj'], true)) {
+    // 🐛 v3.0.644 — + 'kat' = odkaz na PDF nabídku s ceníkem cenové skupiny (doklad_id = skupina_id)
+    if (!in_array($typ, ['fa', 'dl', 'obj', 'kat'], true)) {
         throw new InvalidArgumentException('Invalid token typ');
     }
     if ($doklad_id <= 0) {

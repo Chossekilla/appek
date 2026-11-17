@@ -19,6 +19,11 @@ function require_admin(): array {
     if (empty($_SESSION['admin_id'])) {
         json_error('Vyžadováno admin přihlášení', 401);
     }
+    // 🐛 v3.0.644 SECURITY — účet ověř proti DB při KAŽDÉM požadavku (dřív se věřilo jen session):
+    //   deaktivovaný / smazaný uživatel měl dál platnou session, přeřazený si nesl starou roli
+    //   (vč. super admina) až do vypršení session. Teď: neaktivní/chybějící → session zrušit + 401,
+    //   role a pos_only vždy z DB (pos_only=1 v DB → session omezená na POS allowlist).
+    _admin_auth_refresh_from_db();
     // 🆕 PRONÁJEM vypršel (po grace) → HARD-LOCK celé appky (čtení i zápis). Obnova na my.appek.cz.
     //   Allowlist self-maintenance (heartbeat/whoami/version/js-error), aby refresh licence appku
     //   po prodloužení SÁM odemkl (jinak by po zaplacení zůstala zamčená).
@@ -47,6 +52,12 @@ function require_admin(): array {
     //   Výjimka = neškodná self-maintenance (heartbeat, JS-error log, whoami),
     //   jinak by náhledová session házela 403 na pozadí. GET/HEAD projdou → vše se dá prohlédnout.
     //   INERTNÍ dokud žádný účet nemá role='readonly'.
+    // 🐛 v3.0.644 SECURITY — GET/HEAD s tělem požadavku (curl -X GET --data …) — endpointy čtou vstup
+    //   z php://input bez ohledu na metodu, takže tělo u GET obcházelo readonly blok i CSRF. Prohlížeč
+    //   GET s tělem poslat neumí → legitimní klient to nikdy nedělá; s tělem bereme GET jako mutaci.
+    $reqMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    $hasBody = in_array($reqMethod, ['GET', 'HEAD'], true)
+        && (((int) ($_SERVER['CONTENT_LENGTH'] ?? 0)) > 0 || !empty($_SERVER['HTTP_TRANSFER_ENCODING']));
     if (($_SESSION['admin_role'] ?? '') === 'readonly') {
         // 🔒 v3.0.611 — veřejné DEMO (APPEK_DEMO_MODE): HACCP zamčený i pro ČTENÍ (šablony dokumentace = know-how);
         //   jen náhledový účet na demo instalaci, zákaznické readonly účty ani admin na demu netknuté.
@@ -59,7 +70,7 @@ function require_admin(): array {
             }
         }
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-        if (in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true)) {
+        if (in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true) || $hasBody) {
             $roAllowed = ['license_heartbeat.php', 'admin_klient_chyby.php', 'whoami.php'];
             $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '')));
             // 🐛 v3.0.599 — heartbeat zařízení (ping) je self-maintenance → jinak 403 každých pár sekund
@@ -78,7 +89,7 @@ function require_admin(): array {
     //    GET jsou idempotentní → bez CSRF.
     //    Lze deaktivovat per-endpoint definicí konstanty SKIP_CSRF před require.
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-    if (!defined('SKIP_CSRF') && in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
+    if (!defined('SKIP_CSRF') && (in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true) || $hasBody)) {
         // 🔒 v3.0.228 STRICT: frontend rozjel tokeny všude (admin.js api()+raw fetche, pos.js,
         // whoami self-heal). Neplatný/chybějící token = 403. Klient se zotaví přes whoami retry.
         if (!csrf_check()) {
@@ -93,6 +104,49 @@ function require_admin(): array {
         'jmeno' => $_SESSION['admin_jmeno'] ?? '',
         'role'  => $_SESSION['admin_role'] ?? 'admin',
     ];
+}
+
+/**
+ * 🐛 v3.0.644 — obnoví stav přihlášeného admina z DB (aktivni, role, pos_only).
+ *   Neaktivní nebo smazaný účet → zničí session a vrátí 401. Chyba DB = ponech session
+ *   (endpoint stejně selže na vlastním dotazu; nechceme kvůli výpadku odhlašovat).
+ */
+function _admin_auth_refresh_from_db(): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    $id = (int) ($_SESSION['admin_id'] ?? 0);
+    if ($id <= 0) return;
+    try {
+        $pdo = db();
+        try {
+            $st = $pdo->prepare("SELECT aktivni, role, COALESCE(pos_only, 0) AS pos_only FROM admin_users WHERE id = :id LIMIT 1");
+            $st->execute(['id' => $id]);
+        } catch (Throwable $e) {
+            // starší instalace bez sloupce pos_only
+            $st = $pdo->prepare("SELECT aktivni, role, 0 AS pos_only FROM admin_users WHERE id = :id LIMIT 1");
+            $st->execute(['id' => $id]);
+        }
+        $u = $st->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        error_log('require_admin refresh: ' . $e->getMessage());
+        return;
+    }
+    if (!$u || (int) $u['aktivni'] !== 1) {
+        $_SESSION = [];
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            if (ini_get('session.use_cookies')) {
+                $p = session_get_cookie_params();
+                setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+            }
+            session_destroy();
+        }
+        json_error('Účet byl deaktivován nebo odstraněn — přihlaste se znovu', 401);
+    }
+    $_SESSION['admin_role'] = (string) $u['role'];
+    if ((int) $u['pos_only'] === 1) {
+        $_SESSION['pos_only_user'] = 1;
+    }
 }
 
 /**

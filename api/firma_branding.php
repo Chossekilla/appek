@@ -16,7 +16,7 @@ appek_ensure_pwa_icons();  // 🆕 v3.0.364 — naseeduj PWA install ikony (defa
 try {
     $rows = $pdo->query("
         SELECT klic, hodnota FROM nastaveni
-        WHERE klic IN ('firma_logo_url', 'firma_favicon_url', 'firma_nazev', 'mena_config_json', 'ga_measurement_id', 'tracking_custom_code', 'gdpr_souhlas_povinny', 'b2b_sticky_cart', 'b2b_cart_mode')
+        WHERE klic IN ('firma_logo_url', 'firma_favicon_url', 'firma_nazev', 'mena_config_json', 'ga_measurement_id', 'tracking_custom_code', 'gdpr_souhlas_povinny', 'b2b_sticky_cart', 'b2b_cart_mode', 'firma_brand_color')
     ")->fetchAll(PDO::FETCH_KEY_PAIR);
     // v3.0.283 — měna pro B2B fmt() (display konverze; necitlivé, DB zůstává v Kč)
     //   v3.0.640 — sdílený loader (_mena_lib) → i `delitel` (1 po trvalém přepočtu ceníku)
@@ -30,6 +30,8 @@ try {
         'logo_url'    => $rows['firma_logo_url']    ?? null,
         'favicon_url' => $rows['firma_favicon_url'] ?? null,
         'firma_nazev' => $rows['firma_nazev']       ?? null,
+        // 🐛 v3.0.644 — primární barva adminu (admin/src/0080 applyBrandCustomization); jen validní HEX
+        'firma_brand_color' => preg_match('/^#[0-9A-Fa-f]{6}$/', (string) ($rows['firma_brand_color'] ?? '')) ? $rows['firma_brand_color'] : null,
         'mena'        => $mena,
         // 💱 v3.0.643 — platba v Kč nebo v cizí měně (přepínač v košíku); bez kurzu/vypnuto → aktivni:false
         'platba'      => mena_platebni_info($pdo, 'b2b'),

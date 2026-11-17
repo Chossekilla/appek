@@ -887,6 +887,8 @@ if ($method === 'GET' && !$action) {
 
 // 🆕 v3.0.201 — uložit otevírací dobu (celý týden najednou)
 if ($method === 'POST' && $action === 'save_hours') {
+    // 🐛 v3.0.644 SECURITY — otevírací doba jen z administrace, ne z PIN (pos_only) session
+    if (!empty($_SESSION['pos_only_user'])) json_error('POS účet nemůže měnit otevírací dobu', 403);
     $d = json_input();
     $hours = $d['hours'] ?? [];
     if (!is_array($hours)) json_error('Chybí hours', 400);

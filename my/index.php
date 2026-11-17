@@ -55,6 +55,12 @@ try {
         INDEX idx_email (email)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 } catch (Throwable $e) { /* portál nesmí spadnout kvůli migraci */ }
+// 🐛 v3.0.644 — IP žadatele kvůli limitu odesílání odkazů (idempotentně)
+try {
+    if (!$pdo->query("SHOW COLUMNS FROM my_login_tokens LIKE 'ip'")->fetchAll()) {
+        $pdo->exec("ALTER TABLE my_login_tokens ADD COLUMN ip VARCHAR(45) NULL, ADD INDEX idx_ip_created (ip, created_at)");
+    }
+} catch (Throwable $e) { /* ignore */ }
 
 // PRODLOUŽENÍ: sloupec pro navázání objednávky na prodlužovanou licenci (idempotentně)
 try {
@@ -374,13 +380,36 @@ if (isset($_GET['logout'])) {
 }
 
 // ── Ověření magic-link tokenu (?t=…) ──
-if (isset($_GET['t'])) {
+// 🐛 v3.0.644 — GET token NESPOTŘEBUJE (skenery pošty typu Outlook Safe Links / Defender odkaz předem
+//   otevřou → zákazník pak viděl „Odkaz je neplatný"). GET jen ukáže potvrzovací stránku, přihlášení
+//   a zneplatnění tokenu proběhne až po POST „Přihlásit se".
+if (isset($_GET['t']) && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     $tok = (string) $_GET['t'];
+    if (preg_match('/^[a-f0-9]{64}$/', $tok)) {
+        $st = $pdo->prepare("SELECT email FROM my_login_tokens WHERE token = :t AND used = 0 AND expires_at >= NOW() LIMIT 1");
+        $st->execute(['t' => $tok]);
+        if ($r = $st->fetch()) {
+            my_layout('Přihlášení', '<div class="card narrow"><h1>Přihlášení do portálu</h1>'
+                . '<p class="lead">' . e($r['email']) . '</p>'
+                . '<form method="post" action="' . e($BASE) . '/">'
+                . '<input type="hidden" name="action" value="login_token">'
+                . '<input type="hidden" name="t" value="' . e($tok) . '">'
+                . '<button class="btn" type="submit">Přihlásit se</button></form></div>');
+            exit;
+        }
+    }
+    my_layout('Přihlášení', '<div class="card narrow"><div class="alert bad">Odkaz je neplatný nebo vypršel (platí 20 minut, jen jednou).</div><a class="btn ghost" href="' . e($BASE) . '">Poslat nový odkaz</a></div>');
+    exit;
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'login_token') {
+    $tok = (string) ($_POST['t'] ?? '');
     if (preg_match('/^[a-f0-9]{64}$/', $tok)) {
         $st = $pdo->prepare("SELECT * FROM my_login_tokens WHERE token = :t AND used = 0 AND expires_at >= NOW() LIMIT 1");
         $st->execute(['t' => $tok]);
-        if ($r = $st->fetch()) {
-            $pdo->prepare("UPDATE my_login_tokens SET used = 1 WHERE token = :t")->execute(['t' => $tok]);
+        $r = $st->fetch();
+        // atomické zneplatnění — souběžný druhý POST stejného tokenu neprojde
+        $upd = $pdo->prepare("UPDATE my_login_tokens SET used = 1 WHERE token = :t AND used = 0");
+        if ($r && $upd->execute(['t' => $tok]) && $upd->rowCount() === 1) {
             session_regenerate_id(true);   // anti-fixation
             $_SESSION['my_email'] = $r['email'];
             $_SESSION['my_csrf'] = bin2hex(random_bytes(16));
@@ -395,21 +424,42 @@ if (isset($_GET['t'])) {
 // ── Odeslání magic-linku (POST) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_link') {
     $email = strtolower(trim((string) ($_POST['email'] ?? '')));
+    $ip = substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
     // Vždy stejná odpověď (žádná enumerace). Odešli jen když e-mail reálně má licenci.
+    $mail = null;
     if (filter_var($email, FILTER_VALIDATE_EMAIL) && my_licenses($pdo, $email)) {
-        $token = bin2hex(random_bytes(32));
-        $pdo->prepare("INSERT INTO my_login_tokens (token, email, created_at, expires_at)
-                       VALUES (:t, :e, NOW(), DATE_ADD(NOW(), INTERVAL :ttl MINUTE))")
-            ->execute(['t' => $token, 'e' => $email, 'ttl' => MY_TOKEN_TTL_MIN]);
-        $link = $BASE . '/?t=' . $token;
-        $html = '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;color:#1d1d1f">'
-              . '<p>Dobrý den,</p><p>klikněte pro přihlášení do zákaznického portálu APPEK:</p>'
-              . '<p><a href="' . e($link) . '" style="display:inline-block;background:#BA7517;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700">Přihlásit se</a></p>'
-              . '<p style="color:#6e6e73;font-size:13px">Odkaz platí 20 minut a lze jej použít jen jednou. Pokud jste o přihlášení nežádali, ignorujte tento e-mail.</p></div>';
-        $text = "Přihlášení do portálu APPEK:\n$link\n\nOdkaz platí 20 minut, jednorázově.";
-        try { vendor_send_mail($email, 'Přihlášení do portálu APPEK', $html, $text); } catch (Throwable $e) { /* neprozrazuj */ }
+        // 🐛 v3.0.644 — limit odkazů: max 3 / e-mail / hodinu a 10 / IP / hodinu (dřív bez limitu →
+        //   zahlcení schránky majitele licence + vyčerpání SMTP kvóty dodavatele). Nad limitem tiše nic.
+        $lim = true;
+        try {
+            $c1 = $pdo->prepare("SELECT COUNT(*) FROM my_login_tokens WHERE email = :e AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+            $c1->execute(['e' => $email]);
+            $c2 = $pdo->prepare("SELECT COUNT(*) FROM my_login_tokens WHERE ip = :ip AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+            $c2->execute(['ip' => $ip]);
+            $lim = ((int) $c1->fetchColumn() >= 3) || ((int) $c2->fetchColumn() >= 10);
+        } catch (Throwable $e) { $lim = false; }
+        if (!$lim) {
+            $token = bin2hex(random_bytes(32));
+            $pdo->prepare("INSERT INTO my_login_tokens (token, email, created_at, expires_at, ip)
+                           VALUES (:t, :e, NOW(), DATE_ADD(NOW(), INTERVAL :ttl MINUTE), :ip)")
+                ->execute(['t' => $token, 'e' => $email, 'ttl' => MY_TOKEN_TTL_MIN, 'ip' => $ip]);
+            $link = $BASE . '/?t=' . $token;
+            $html = '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;color:#1d1d1f">'
+                  . '<p>Dobrý den,</p><p>klikněte pro přihlášení do zákaznického portálu APPEK:</p>'
+                  . '<p><a href="' . e($link) . '" style="display:inline-block;background:#BA7517;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700">Přihlásit se</a></p>'
+                  . '<p style="color:#6e6e73;font-size:13px">Odkaz platí 20 minut a lze jej použít jen jednou. Pokud jste o přihlášení nežádali, ignorujte tento e-mail.</p></div>';
+            $text = "Přihlášení do portálu APPEK:\n$link\n\nOdkaz platí 20 minut, jednorázově.";
+            $mail = [$email, $html, $text];
+        }
     }
+    // 🐛 v3.0.644 — odpověď odešli PŘED SMTP odesláním (jinak délka odpovědi prozradí, zda e-mail má licenci)
+    ignore_user_abort(true);
     my_layout('Odkaz odeslán', '<div class="card narrow"><h1>Zkontrolujte e-mail</h1><p class="lead">Pokud e-mail patří k licenci APPEK, poslali jsme na něj přihlašovací odkaz. Podívejte se i do spamu.</p><p class="muted">Odkaz platí 20 minut a dá se použít jen jednou.</p><a class="btn ghost" href="' . e($BASE) . '">← Zpět</a></div>');
+    if (function_exists('fastcgi_finish_request')) { @fastcgi_finish_request(); }
+    elseif (function_exists('litespeed_finish_request')) { @litespeed_finish_request(); }
+    if ($mail) {
+        try { vendor_send_mail($mail[0], 'Přihlášení do portálu APPEK', $mail[1], $mail[2]); } catch (Throwable $e) { /* neprozrazuj */ }
+    }
     exit;
 }
 

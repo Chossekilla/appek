@@ -91,6 +91,13 @@ $pdo->exec("
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
+// 🐛 v3.0.644 SECURITY — endpoint je v POS allowlistu kvůli KDS (přehled + order_status). Správa kuchyně
+//   (nastavení vč. auto_fire, stanice POST/DELETE) jen z administrace — PIN (pos_only) session ji nesmí
+//   (dřív pokladní vypnul auto_fire → položky přestaly chodit do kuchyně).
+if (!empty($_SESSION['pos_only_user']) && in_array($action, ['settings', 'station'], true) && $method !== 'GET') {
+    json_error('POS účet nemůže měnit nastavení kuchyně', 403);
+}
+
 if ($action === 'settings' && $method === 'POST') {
     $d = json_input();
     $pdo->prepare("

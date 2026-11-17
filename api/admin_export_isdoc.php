@@ -603,6 +603,9 @@ if ($action === 'csv') {
 // Pošli na email — ZIP s ISDOC v příloze
 // =============================================================
 if ($action === 'email') {
+    // 🐛 v3.0.644 SECURITY — odeslání mailu + zápis nastavení → jen POST (CSRF + readonly guard);
+    //   dřív GET s tělem obešel readonly účet (ZIP faktur na libovolnou adresu).
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') json_error('Pouze POST', 405);
     $body = json_input();
     $ids = $body['ids'] ?? null;
     $od  = $body['od'] ?? null;

@@ -166,11 +166,19 @@ $firma_email = nastaveni_get($pdo, 'firma_email', '');
 
 $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
           . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-$pdf_url_params = http_build_query([
+// 🐛 v3.0.644 SECURITY — ceník skupiny jen přes podepsaný odkaz (email_tokens typ 'kat', 90 dní);
+//   holé ?skupina=N už katalog_pdf.php bez přihlášení neotevře.
+$pdf_url_q = [
     'vyrobky' => implode(',', $vyrobek_ids),
     'skupina' => $skupina_id,
     'nazev' => $nazev_nabidky,
-]);
+];
+if ($skupina_id > 0) {
+    require_once __DIR__ . '/_email_token.php';
+    try { $pdf_url_q['token'] = create_email_token($pdo, 'kat', $skupina_id, 90); }
+    catch (Throwable $e) { error_log('katalog email token: ' . $e->getMessage()); }
+}
+$pdf_url_params = http_build_query($pdf_url_q);
 $pdf_url = $base_url . '/api/katalog_pdf.php?' . $pdf_url_params;
 
 // Pozn.: fmt_kc() už je definovaná globálně v config.php (zdvojení = Fatal error).

@@ -211,6 +211,8 @@ if ($action === 'preview') {
 // APPLY
 // =============================================================
 if ($action === 'apply') {
+    // 🐛 v3.0.644 SECURITY — přepisuje recepty/suroviny → jen POST (CSRF + readonly guard v require_admin).
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') json_error('Pouze POST', 405);
     $body = json_input();
     $jen_id = isset($body['id']) ? (int) $body['id'] : null;
     $prepsatAlerg = !empty($body['prepsat_alergeny']);
