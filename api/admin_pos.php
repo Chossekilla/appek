@@ -984,9 +984,8 @@ if ($method === 'POST' && $action === 'qr_pay_init') {
     // i hotově zavřít). QR-pending sleduje jen pay_status; self-heal finalizuje po online platbě.
     $pdo->prepare("UPDATE restaurant_pos_ucty SET pay_token=:t, pay_status='pending' WHERE id=:id")
         ->execute(['t' => $token, 'id' => $ucetId]);
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $base   = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    json_response(['ok' => true, 'token' => $token, 'pay_url' => $base . '/pay/?t=' . $token, 'castka' => (float) $row['suma_kc']]);
+    // 🐛 v3.0.644 — včetně podsložky instalace (dřív jen host → QR účtu u stolu vedl na 404)
+    json_response(['ok' => true, 'token' => $token, 'pay_url' => app_public_url('pay/?t=' . $token), 'castka' => (float) $row['suma_kc']]);
 }
 
 // ✂️ POST ?action=split → rozděl účet na N pod-účtů

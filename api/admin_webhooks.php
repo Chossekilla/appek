@@ -26,7 +26,7 @@ $action = $_GET['action'] ?? '';
 $id     = (int) ($_GET['id'] ?? 0);
 
 if ($action === 'events') {
-    json_response(['events' => webhook_events_list()]);
+    json_response(['events' => webhook_events_list(), 'planned' => webhook_events_planned()]);
 }
 
 if ($action === 'list' || ($method === 'GET' && !$action)) {
@@ -53,13 +53,15 @@ if ($action === 'test' && $method === 'POST') {
     $w->execute(['id' => $id]);
     $row = $w->fetch();
     if (!$row) json_error('Webhook neexistuje', 404);
-    // Fire test event s tímhle konkrétním webhookem (i kdyby nebyl na list)
-    webhook_fire('test.event', [
+    // 🐛 v3.0.644 — test jde PŘÍMO na tenhle webhook (bez filtru událostí); dřív se neodeslalo nic a hlásilo ok
+    $res = webhook_fire('test.event', [
         'message' => 'Toto je testovací webhook z Appek B2B admina.',
         'webhook_id' => $id,
         'sent_at' => date('c'),
-    ]);
-    json_response(['ok' => true]);
+    ], $id);
+    $r0 = $res[0] ?? null;
+    if (!$r0) json_error('Test se nepodařilo odeslat', 500);
+    json_response(['ok' => (bool) $r0['ok'], 'http_status' => $r0['http_status'], 'error' => $r0['error'], 'duration_ms' => $r0['duration_ms']]);
 }
 
 if ($method === 'POST') {

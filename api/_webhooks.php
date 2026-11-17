@@ -55,21 +55,31 @@ function ensure_webhooks_schema(PDO $pdo): void {
  * Asynchronně (background) — non-blocking přes fastcgi_finish_request pokud dostupné,
  * jinak synchronně s krátkým timeoutem.
  */
-function webhook_fire(string $event, array $payload): void {
+// 🐛 v3.0.644 — $onlyHookId: pošli JEN na tento webhook bez filtru událostí a aktivity (tlačítko Test).
+//   Dřív test volal obecné webhook_fire('test.event') → žádný webhook ho neměl zaškrtnutý → nic neodešlo,
+//   ale UI hlásilo úspěch (a webhooky s '*' ho dostaly všechny). Vrací výsledky volání pro UI.
+function webhook_fire(string $event, array $payload, ?int $onlyHookId = null): array {
+    $vysledky = [];
     try {
         $pdo = db();
         ensure_webhooks_schema($pdo);
 
-        $stmt = $pdo->prepare("SELECT * FROM webhooks WHERE aktivni = 1");
-        $stmt->execute();
-        $hooks = $stmt->fetchAll();
+        if ($onlyHookId !== null) {
+            $stmt = $pdo->prepare("SELECT * FROM webhooks WHERE id = :id");
+            $stmt->execute(['id' => $onlyHookId]);
+            $matching = $stmt->fetchAll();
+        } else {
+            $stmt = $pdo->prepare("SELECT * FROM webhooks WHERE aktivni = 1");
+            $stmt->execute();
+            $hooks = $stmt->fetchAll();
 
-        $matching = array_filter($hooks, function($h) use ($event) {
-            $events = array_map('trim', explode(',', $h['events']));
-            return in_array($event, $events, true) || in_array('*', $events, true);
-        });
+            $matching = array_filter($hooks, function($h) use ($event) {
+                $events = array_map('trim', explode(',', $h['events']));
+                return in_array($event, $events, true) || in_array('*', $events, true);
+            });
+        }
 
-        if (empty($matching)) return;
+        if (empty($matching)) return $vysledky;
 
         $body = json_encode([
             'event'     => $event,
@@ -107,6 +117,7 @@ function webhook_fire(string $event, array $payload): void {
 
             $duration = (int) ((microtime(true) - $startTs) * 1000);
             $ok = $status >= 200 && $status < 300 && empty($err);
+            $vysledky[] = ['webhook_id' => (int) $h['id'], 'ok' => $ok, 'http_status' => $status, 'error' => $ok ? null : ($err ?: "HTTP $status"), 'duration_ms' => $duration];
 
             try {
                 $pdo->prepare("
@@ -135,14 +146,27 @@ function webhook_fire(string $event, array $payload): void {
             } catch (Throwable $e) { error_log('webhook log save: ' . $e->getMessage()); }
         }
     } catch (Throwable $e) { error_log('webhook_fire: ' . $e->getMessage()); }
+    return $vysledky;
 }
 
 /**
  * Seznam podporovaných eventů (pro UI dropdown).
+ * 🐛 v3.0.644 — jen události, které aplikace SKUTEČNĚ spouští (webhook_fire). Dřív UI nabízelo 10 událostí,
+ *   ale volalo se jen order.created → webhook na fakturu/DL/úhradu tiše nikdy nic nedostal.
+ *   Ostatní jsou ve webhook_events_planned() — UI je ukáže jako „připravujeme" a nenechá je nově zaškrtnout
+ *   (už uložené zůstanou zachované).
  */
 function webhook_events_list(): array {
     return [
         'order.created'   => '🛒 Nová objednávka',
+    ];
+}
+
+/**
+ * Události zatím nenapojené na žádné místo v aplikaci (nespouští se).
+ */
+function webhook_events_planned(): array {
+    return [
         'order.updated'   => '✏️ Objednávka upravena',
         'order.deleted'   => '🗑️ Objednávka smazána',
         'order.status_changed' => '🔄 Změna stavu objednávky',

@@ -71,10 +71,70 @@ function appek_mail_sink_write(string $to, string $subjectEnc): bool {
  * Drop-in náhrada mail(): SMTP když zapnuté, jinak @mail(). Nikdy nehází — vrací bool.
  * $headers = už složené hlavičky (From/MIME/Content-Type…), stejně jako pro mail().
  */
+/**
+ * 🐛 v3.0.644 — sjednocení hlaviček odchozího e-mailu:
+ *   - SMTP zapnuté + vyplněný Odesílatel (smtp_from): From = „smtp_from_name <smtp_from>" (dřív šel smtp_from
+ *     jen do obálky MAIL FROM a From zůstal firma_email → O365 SendAsDenied / DMARC fail → spam);
+ *     původní From (firma_email) se zachová jako Reply-To, ať odpovědi chodí firmě.
+ *   - chybí From úplně (potvrzení web objednávky, „připraveno k vyzvednutí") → doplní se
+ *     (smtp_from / firma_email / noreply@host) — bez From zprávu Gmail/Seznam odmítnou (RFC 5322).
+ *   - doplní MIME-Version a Message-ID, pokud chybí.
+ */
+function appek_mail_headers_doplnit(string $headers, array $cfg, bool $smtpOn): string {
+    $hdr = trim(preg_replace('/\r\n|\r|\n/', "\r\n", $headers), "\r\n");
+    $fromRe = '/^From:[^\r\n]*(?:\r\n[ \t][^\r\n]*)*/mi';
+    $maFrom = (bool) preg_match($fromRe, $hdr, $mFrom);
+    $puvodniFrom = $maFrom ? smtp_extract_email(substr($mFrom[0], 5)) : '';
+
+    $novyFrom = null;
+    if ($smtpOn && $cfg['from'] !== '') {
+        $fromEmail = smtp_extract_email($cfg['from']);
+        $jmeno = $cfg['from_name'];
+        if ($jmeno === '' && $maFrom && preg_match('/^From:\s*(.*?)\s*<[^>]+>/si', $mFrom[0], $mj)) {
+            $jmeno = trim($mj[1]); // zachovej (už zakódované) jméno z původní hlavičky
+            $novyFrom = 'From: ' . $jmeno . ' <' . $fromEmail . '>';
+        } elseif ($jmeno !== '') {
+            $novyFrom = 'From: ' . (function_exists('mb_encode_mimeheader') ? mb_encode_mimeheader($jmeno, 'UTF-8') : $jmeno) . ' <' . $fromEmail . '>';
+        } else {
+            $novyFrom = 'From: ' . $fromEmail;
+        }
+        if ($maFrom && $puvodniFrom !== '' && strcasecmp($puvodniFrom, $fromEmail) !== 0 && !preg_match('/^Reply-To:/mi', $hdr)) {
+            $hdr .= "\r\nReply-To: " . $puvodniFrom;
+        }
+    } elseif (!$maFrom) {
+        $fromEmail = '';
+        $jmeno = '';
+        try {
+            $pdo = db();
+            $fromEmail = trim((string) nastaveni_get($pdo, 'firma_email', ''));
+            $jmeno = trim((string) nastaveni_get($pdo, 'firma_nazev', ''));
+        } catch (Throwable $e) {}
+        if ($smtpOn && $cfg['from'] !== '') $fromEmail = smtp_extract_email($cfg['from']);
+        if ($fromEmail === '' && $smtpOn && $cfg['user'] !== '' && strpos($cfg['user'], '@') !== false) $fromEmail = $cfg['user'];
+        if ($fromEmail === '') {
+            $host = preg_replace('/[^a-zA-Z0-9.\-]/', '', preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? ''))) ?: 'localhost';
+            $fromEmail = 'noreply@' . preg_replace('/^www\./i', '', $host);
+        }
+        $novyFrom = 'From: ' . ($jmeno !== '' && function_exists('mb_encode_mimeheader') ? mb_encode_mimeheader($jmeno, 'UTF-8') . ' <' . $fromEmail . '>' : $fromEmail);
+    }
+    if ($novyFrom !== null) {
+        if ($maFrom) $hdr = preg_replace($fromRe, str_replace(['\\', '$'], ['\\\\', '\\$'], $novyFrom), $hdr, 1);
+        else $hdr = $hdr === '' ? $novyFrom : ($novyFrom . "\r\n" . $hdr);
+    }
+    if (!preg_match('/^MIME-Version:/mi', $hdr)) $hdr .= "\r\nMIME-Version: 1.0";
+    if (!preg_match('/^Message-ID:/mi', $hdr)) {
+        $dom = substr(strrchr(smtp_extract_email(preg_match($fromRe, $hdr, $mf) ? substr($mf[0], 5) : ''), '@') ?: '@appek.local', 1);
+        $hdr .= "\r\nMessage-ID: <" . bin2hex(random_bytes(12)) . '.' . time() . '@' . ($dom ?: 'appek.local') . '>';
+    }
+    return $hdr;
+}
+
 function appek_mail_raw(string $to, string $subjectEnc, string $body, string $headers): bool {
     if (appek_mail_sink_active()) return appek_mail_sink_write($to, $subjectEnc);
     $cfg = smtp_cfg(db());
-    if (!smtp_is_on($cfg)) return @mail($to, $subjectEnc, $body, $headers);
+    $smtpOn = smtp_is_on($cfg);
+    try { $headers = appek_mail_headers_doplnit($headers, $cfg, $smtpOn); } catch (Throwable $e) { error_log('mail hlavičky: ' . $e->getMessage()); }
+    if (!$smtpOn) return @mail($to, $subjectEnc, $body, $headers);
     try {
         smtp_deliver($cfg, $to, $subjectEnc, $body, $headers);
         return true;

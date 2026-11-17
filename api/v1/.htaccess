@@ -1,0 +1,14 @@
+# 🐛 v3.0.644 — REST API v1: hezké URL /api/v1/faktury → index.php?path=faktury
+#   Dřív přepis chyběl → dokumentované URL vracely na Apache/LiteSpeed 404 (fungovalo jen index.php?path=…).
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # landing-only instalace (apex) — stejně jako api/.htaccess (vlastní RewriteEngine by pravidla rodiče přebil)
+  RewriteCond %{DOCUMENT_ROOT}/.landing-only -f
+  RewriteRule .* /? [R=302,L]
+  # Předej hlavičku Authorization (Bearer) do PHP i na CGI/FastCGI
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ index.php?path=$1 [QSA,L]
+</IfModule>

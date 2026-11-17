@@ -55,10 +55,33 @@ function ensure_push_tables(PDO $pdo): void {
  * Generuje VAPID klíče (jednorázově). Uloží do nastaveni.
  * Vyžaduje OpenSSL s podporou P-256 ECDSA.
  */
+/**
+ * 🐛 v3.0.644 — openssl_pkey_get_details()['ec'] vrací x/y/d BEZ úvodních nulových bajtů (~1/256 klíčů je
+ *   kratší než 32 B) → veřejný klíč 64 B místo 65 B (prohlížeč odmítne applicationServerKey), vadný DER
+ *   privátu (podpis selže) a ~1 % push zpráv s nedešifrovatelným keyid. Doplň zleva nulami na 32 B.
+ */
+function ec_pad32(string $v): string {
+    return strlen($v) >= 32 ? $v : str_pad($v, 32, "\0", STR_PAD_LEFT);
+}
+
 function vapid_keys_get_or_create(PDO $pdo): array {
     $pub = nastaveni_get($pdo, 'push_vapid_public', null);
     $priv = nastaveni_get($pdo, 'push_vapid_private', null);
-    if ($pub && $priv) return ['public' => $pub, 'private' => $priv];
+    if ($pub && $priv) {
+        // 🐛 v3.0.644 — kontrola už uložených klíčů (z doby před opravou)
+        $pubRaw  = b64_url_decode((string) $pub);
+        $privRaw = b64_url_decode((string) $priv);
+        $pubOk = strlen($pubRaw) === 65 && $pubRaw[0] === "\x04";
+        if ($pubOk && strlen($privRaw) === 32) return ['public' => $pub, 'private' => $priv];
+        if ($pubOk && strlen($privRaw) > 0 && strlen($privRaw) < 32) {
+            // Privát jen bez úvodních nul → doplň (veřejný klíč i odběry zůstanou platné)
+            $privB64 = b64_url_encode(ec_pad32($privRaw));
+            $pdo->prepare("UPDATE nastaveni SET hodnota = :v WHERE klic = 'push_vapid_private'")->execute(['v' => $privB64]);
+            return ['public' => $pub, 'private' => $privB64];
+        }
+        // Veřejný klíč vadný (64 B) → odběr s ním nikdy nevznikl → vygeneruj nový pár níže
+        error_log('push: uložené VAPID klíče jsou vadné (pub ' . strlen($pubRaw) . ' B, priv ' . strlen($privRaw) . ' B) → generuji nové');
+    }
 
     // Generuj ECDSA P-256 klíč
     if (!function_exists('openssl_pkey_new')) {
@@ -71,10 +94,10 @@ function vapid_keys_get_or_create(PDO $pdo): array {
     if (!$key) throw new RuntimeException('Nepodařilo se vytvořit VAPID klíče');
     $details = openssl_pkey_get_details($key);
     // Veřejný klíč: 65 bajtů (uncompressed): 0x04 || X (32) || Y (32)
-    $publicKey = "\x04" . $details['ec']['x'] . $details['ec']['y'];
+    $publicKey = "\x04" . ec_pad32($details['ec']['x']) . ec_pad32($details['ec']['y']);
     openssl_pkey_export($key, $privateKeyPem);
     // Z PEM extrahuj raw 32-bajtový private exponent
-    $privateKey = $details['ec']['d'];
+    $privateKey = ec_pad32($details['ec']['d']);
 
     $pubB64 = b64_url_encode($publicKey);
     $privB64 = b64_url_encode($privateKey);
@@ -164,7 +187,7 @@ function parse_audience_url(string $url): string {
  * Vrátí raw 64-bajtový signature (R || S).
  */
 function vapid_sign(string $unsigned, string $privateKeyB64): ?string {
-    $privRaw = b64_url_decode($privateKeyB64);
+    $privRaw = ec_pad32(b64_url_decode($privateKeyB64)); // 🐛 v3.0.644 — krátký d → doplň na 32 B (DER má pevnou délku)
     // Vytvoř PEM key ze raw private + matching pub
     $der = asn1_ec_private_key_der($privRaw);
     $pem = "-----BEGIN EC PRIVATE KEY-----\n"
@@ -241,8 +264,8 @@ function aes128gcm_encrypt(string $payload, string $p256dhB64, string $authB64):
     ]);
     if (!$server) return null;
     $det = openssl_pkey_get_details($server);
-    $serverPub = "\x04" . $det['ec']['x'] . $det['ec']['y'];
-    $serverPriv = $det['ec']['d'];
+    $serverPub = "\x04" . ec_pad32($det['ec']['x']) . ec_pad32($det['ec']['y']); // 🐛 v3.0.644 — vždy 65 B
+    $serverPriv = ec_pad32($det['ec']['d']);
 
     // ECDH shared secret — neexistuje native PHP API, použijeme křivku ručně
     $shared = ecdh_p256_shared($serverPriv, $clientPub);

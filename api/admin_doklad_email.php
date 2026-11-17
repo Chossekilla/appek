@@ -13,6 +13,9 @@ require_once __DIR__ . '/_email_token.php';
 require_once __DIR__ . '/_i18n.php';   // 🌍 v3.0.640 — e-mail v jazyce odběratele (= jazyk dokladu)
 cors_headers();
 require_admin();
+// 🐛 v3.0.644 — uvolni zámek session hned po ověření (dál se do ní nezapisuje). Dřív ho skript držel
+//   po celou dobu odesílání → ostatní požadavky stejného admina (jiné záložky, polling) čekaly.
+if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_error('POST only', 405);
 
@@ -51,7 +54,6 @@ $firma_nazev = nastaveni_get_cached($pdo, 'firma_nazev', '') ?: 'Provoz';
 $cislo = '';
 $nazev_souboru = '';
 $pdf_url = '';
-$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
 
 try {
     if ($typ === 'fa') {
@@ -92,46 +94,19 @@ try {
 
     // 🔐 v2.9.164 — generuj signed token pro public e-mail link (vyhne se admin loginu pro odběratele)
     $email_token = create_email_token($pdo, $typ, $id, 30);
-    $pdf_url = $baseUrl . '/api/' . $renderer . '?token=' . $email_token;
+    // 🐛 v3.0.644 — včetně podsložky instalace (dřív jen host → u instalace v podsložce odkaz 404)
+    $pdf_url = app_public_url('api/' . $renderer . '?token=' . $email_token);
 } catch (Throwable $e) {
     json_error_safe('Chyba při načítání dokladu', $e, 500);
 }
 
 if ($predmet === '') $predmet = $default_predmet;
 
-// === Stáhni PDF (interní HTTP request) ===
+// 🐛 v3.0.644 — PDF se tu NEgeneruje: renderery (faktura.php / dodaci_list.php) vrací HTML (tisk z prohlížeče),
+//   takže dřívější interní HTTP request na vlastní server byl k ničemu — a navíc s cookie admina čekal na zámek
+//   jeho session (vnitřní session_start vs. vnější request) až do 30s timeoutu → každé „Odeslat e-mailem"
+//   trvalo ≥30 s (hromadné odeslání minuty, za proxy 504). Zákazník dostane podepsaný odkaz na doklad.
 $pdf_content = null;
-try {
-    // Předat session cookies pro autentizaci
-    $opts = [
-        'http' => [
-            'method' => 'GET',
-            'header' => 'Cookie: ' . ($_SERVER['HTTP_COOKIE'] ?? ''),
-            'timeout' => 30,
-        ],
-        'ssl' => [
-            'verify_peer'      => false,
-            'verify_peer_name' => false,
-        ],
-    ];
-    $ctx = stream_context_create($opts);
-    $pdf_content = @file_get_contents($pdf_url, false, $ctx);
-    if (!$pdf_content || strlen($pdf_content) < 100) {
-        throw new RuntimeException('PDF se nepodařilo načíst (prázdné nebo příliš krátké)');
-    }
-    // 🐛 fix v2.9.165 — renderer (faktura.php / dodaci_list.php) vrací HTML, ne PDF.
-    // Bez magic-byte kontroly bychom HTML poslali jako .pdf přílohu → klient by
-    // dostal nečitelný soubor a žádný link (intro_html v této větvi link neuvádí).
-    // Proto: pokud content nezačíná na %PDF-, zahodíme attachment a pošleme link.
-    if (substr($pdf_content, 0, 5) !== '%PDF-') {
-        error_log('admin_doklad_email: renderer vrátil non-PDF (HTML?), posílám jen link');
-        $pdf_content = null;
-    }
-} catch (Throwable $e) {
-    error_log('admin_doklad_email PDF fetch: ' . $e->getMessage());
-    // Pokračujeme bez přílohy — pošleme jen odkaz
-    $pdf_content = null;
-}
 
 // === Sestavení emailu (multipart s PDF přílohou) ===
 function send_email_with_attachment(string $komu, string $predmet, string $html_telo, string $plain_telo, ?string $pdf_content, string $pdf_filename, string $from_email, string $from_name): bool {

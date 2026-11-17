@@ -129,7 +129,8 @@ function da_get_integration(string $sluzba): ?array {
  * Vrátí veřejnou webhook URL pro službu (kterou user vloží do partner portalu).
  */
 function da_webhook_url(string $sluzba): string {
-    $base = defined('APP_URL') ? rtrim(APP_URL, '/') : '';
+    // 🐛 v3.0.644 — vč. podsložky instalace (APP_URL je jen doména)
+    $base = function_exists('app_public_url') ? rtrim(app_public_url('', true), '/') : (defined('APP_URL') ? rtrim(APP_URL, '/') : '');
     $files = [
         'wolt'       => '/api/wolt_webhook.php',
         'bolt'       => '/api/bolt_food_webhook.php',
@@ -782,11 +783,17 @@ function da_sync_menu(string $sluzba): array {
     try {
         $pdo = db();
         // Vezmi jen restaurační produkty (R-* prefix nebo restaurační kategorie)
-        $items = [];
-        try {
-            $items = $pdo->query("
-                SELECT v.id, v.nazev, v.popis, v.cena, v.cena_s_dph, v.obrazek_url, v.kategorie_id, v.neaktivni
+        // 🐛 v3.0.644 — vyrobky nemá sloupce cena/cena_s_dph/neaktivni (má cena_bez_dph, sazba_dph_id, aktivni)
+        //   → SQL 1054, tichý catch → vždy „Žádné restaurační výrobky". Cena s DPH se dopočítá ze sazby;
+        //   aliasy cena/cena_s_dph/neaktivni zůstávají, ať klienti služeb níž nic neměnili.
+        $items = $pdo->query("
+                SELECT v.id, v.nazev, v.popis,
+                       v.cena_bez_dph AS cena,
+                       ROUND(v.cena_bez_dph * (1 + COALESCE(sd.sazba, 0) / 100), 2) AS cena_s_dph,
+                       v.obrazek_url, v.kategorie_id,
+                       CASE WHEN COALESCE(v.aktivni, 1) = 1 THEN 0 ELSE 1 END AS neaktivni
                 FROM vyrobky v
+                LEFT JOIN sazby_dph sd ON sd.id = v.sazba_dph_id
                 WHERE v.cislo LIKE 'R-%' OR v.kategorie_id IN (
                     SELECT id FROM kategorie_vyrobku
                     WHERE nazev LIKE '%pizza%' OR nazev LIKE '%nápoj%' OR nazev LIKE '%jídl%'
@@ -794,7 +801,18 @@ function da_sync_menu(string $sluzba): array {
                        OR nazev LIKE '%burger%' OR nazev LIKE '%dezert%'
                 )
             ")->fetchAll(PDO::FETCH_ASSOC);
-        } catch (Throwable $e) { $items = []; }
+        // Obrázky jsou uložené jako cesta ('/uploads/…') → platforma potřebuje absolutní URL
+        $origin = '';
+        if (function_exists('app_public_url')) {
+            $pu = parse_url(app_public_url('', true));
+            if (!empty($pu['host'])) $origin = ($pu['scheme'] ?? 'https') . '://' . $pu['host'] . (!empty($pu['port']) ? ':' . $pu['port'] : '');
+        }
+        foreach ($items as &$it) {
+            $img = (string) ($it['obrazek_url'] ?? '');
+            if ($img === '') $it['obrazek_url'] = null;
+            elseif ($origin !== '' && $img[0] === '/' && substr($img, 0, 2) !== '//') $it['obrazek_url'] = $origin . $img;
+        }
+        unset($it);
 
         $categories = [];
         try {

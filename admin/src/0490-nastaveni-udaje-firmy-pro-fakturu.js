@@ -703,7 +703,7 @@ async function _renderNastaveniInner() {
         <button class="btn-primary btn-green" onclick="apiTokenNew()" style="font-size:13px;padding:8px 14px">+ Nový token</button>
       </div>
       <p style="font-size:13px;color:var(--text-2);margin-bottom:12px;line-height:1.5">
-        Vytvořte token pro účetní (Money S3 / POHODA / Fakturoid). Účetní stáhne FA přes <code style="background:var(--surface-2);padding:1px 6px;border-radius:4px;font-size:11px">GET /api/v1/faktury?token=...</code>.
+        Vytvořte token pro účetní (Money S3 / POHODA / Fakturoid). Účetní stáhne FA přes <code style="background:var(--surface-2);padding:1px 6px;border-radius:4px;font-size:11px">GET ${esc(new URL('../api/v1/', location.href).pathname)}faktury</code> s hlavičkou <code style="background:var(--surface-2);padding:1px 6px;border-radius:4px;font-size:11px">Authorization: Bearer …</code>.
         <a href="../api/v1/" target="_blank" style="color:var(--primary);text-decoration:underline">📖 Dokumentace API ↗</a>
       </p>
       <div id="api-tokens-list" style="font-size:13px;color:var(--text-3)">⏳ Načítám…</div>
@@ -981,8 +981,9 @@ async function _renderNastaveniInner() {
       },
       { q: '🔌 API pro účetní systémy — jak ho zapojit?', a: `
           <p>Nastavení → 🛠️ Údržba → 🔌 API tokeny → + Nový token (zadejte název „Money S3").</p>
-          <p>Zkopírujte token (vidíte ho jen 1×!) a zadejte do účetního SW URL:</p>
-          <pre style="background:var(--surface-2);padding:10px;border-radius:6px;font-size:11px;overflow-x:auto">${esc(location.origin)}/api/v1/faktury?token=VÁŠ_TOKEN&od=2026-01-01&do=2026-12-31</pre>
+          <p>Zkopírujte token (vidíte ho jen 1×!) a zadejte do účetního SW URL a hlavičku <code>Authorization: Bearer VÁŠ_TOKEN</code>:</p>
+          <pre style="background:var(--surface-2);padding:10px;border-radius:6px;font-size:11px;overflow-x:auto">${esc(new URL('../api/v1/', location.href).href)}faktury?od=2026-01-01&do=2026-12-31</pre>
+          <p style="font-size:12px">Když účetní SW hlavičky neumí, přidejte do URL <code>&token=VÁŠ_TOKEN</code> (token se pak ale ukládá do logů serveru).</p>
           <p>Účetní stáhne všechny faktury jako JSON nebo ISDOC. Dokumentace: <a href="../api/v1/" target="_blank" style="color:var(--primary)">/api/v1/</a></p>`
       },
       { q: '🧾 Slevové skupiny / ceníky — jak fungují?', a: `

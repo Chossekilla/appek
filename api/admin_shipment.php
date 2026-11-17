@@ -14,6 +14,42 @@ $pdo = db();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
+// 🐛 v3.0.644 — příjemce zásilky: místo dodání objednávky (pobočka) má přednost před sídlem odběratele.
+//   Dřív se bralo jen sídlo → DPD/PPL/ČP vezly balík pobočky na fakturační adresu.
+function shipment_prijemce(PDO $pdo, int $oid): ?array {
+    if (!$oid) return null;
+    $o = $pdo->prepare("SELECT o.cislo, o.castka_celkem, o.misto_dodani_id,
+                               od.nazev AS odb_nazev, od.email AS odb_email, od.telefon AS odb_telefon,
+                               od.ulice AS odb_ulice, od.mesto AS odb_mesto, od.psc AS odb_psc,
+                               md.nazev AS md_nazev, md.ulice AS md_ulice, md.mesto AS md_mesto, md.psc AS md_psc,
+                               md.kontaktni_osoba AS md_kontakt, md.telefon AS md_telefon, md.email AS md_email
+                        FROM objednavky o
+                        LEFT JOIN odberatele od ON od.id = o.odberatel_id
+                        LEFT JOIN mista_dodani md ON md.id = o.misto_dodani_id
+                        WHERE o.id = :id");
+    $o->execute(['id' => $oid]);
+    $row = $o->fetch(PDO::FETCH_ASSOC);
+    if (!$row) return null;
+    $nz = fn($v) => ($v !== null && trim((string) $v) !== '') ? trim((string) $v) : null;
+    // Adresa místa dodání se použije jen jako celek (ulice+město), ať nevznikne mix sídla a pobočky
+    $maMisto = !empty($row['misto_dodani_id']) && $nz($row['md_ulice']) && $nz($row['md_mesto']);
+    $nazev = trim((string) ($row['odb_nazev'] ?? ''));
+    $kontakt = $maMisto ? $nz($row['md_kontakt']) : null;
+    return [
+        'cislo'          => $row['cislo'] ?: (string) $oid,
+        'castka_celkem'  => (float) ($row['castka_celkem'] ?? 0),
+        'zdroj'          => $maMisto ? 'misto_dodani' : 'odberatel',
+        'misto_nazev'    => $maMisto ? (string) $row['md_nazev'] : null,
+        'name'           => $nazev,
+        'kontakt'        => $kontakt,
+        'street'         => $maMisto ? (string) $row['md_ulice'] : (string) ($row['odb_ulice'] ?? ''),
+        'city'           => $maMisto ? (string) $row['md_mesto'] : (string) ($row['odb_mesto'] ?? ''),
+        'zip'            => $maMisto ? (string) ($row['md_psc'] ?? '') : (string) ($row['odb_psc'] ?? ''),
+        'email'          => ($maMisto ? $nz($row['md_email']) : null) ?? (string) ($row['odb_email'] ?? ''),
+        'phone'          => ($maMisto ? $nz($row['md_telefon']) : null) ?? (string) ($row['odb_telefon'] ?? ''),
+    ];
+}
+
 if ($method === 'GET' && $action === 'carriers') {
     $out = [];
     foreach (shipping_supported_carriers() as $c) {
@@ -43,7 +79,9 @@ if ($method === 'GET' && $action === 'order_meta') {
             if ($r && ($r['d'] || $r['s'] || $r['vv'])) $maxDim = ['d' => $r['d'], 's' => $r['s'], 'v' => $r['vv']];
         }
     } catch (Throwable $e) {}
-    json_response(['ok' => true, 'weight_kg' => $grams > 0 ? round($grams / 1000, 2) : 0, 'rozmery' => $maxDim]);
+    $prijemce = null;
+    try { $prijemce = shipment_prijemce($pdo, $oid); } catch (Throwable $e) {}
+    json_response(['ok' => true, 'weight_kg' => $grams > 0 ? round($grams / 1000, 2) : 0, 'rozmery' => $maxDim, 'prijemce' => $prijemce]);
 }
 
 if ($method === 'GET' && ($action === 'list' || $action === '')) {
@@ -66,25 +104,22 @@ if ($method === 'POST' && $action === 'create') {
         'recipient_phone' => '', 'weight_kg' => (float) ($d['weight_kg'] ?? 1), 'value_kc' => 0,
         'cod_kc' => (float) ($d['cod_kc'] ?? 0), 'pickup_point_id' => (int) ($d['pickup_point_id'] ?? 0),
     ];
-    if ($oid) {
-        $o = $pdo->prepare("SELECT o.cislo, o.castka_celkem, od.nazev AS odb_nazev, od.email, od.telefon, od.ulice, od.mesto, od.psc
-                            FROM objednavky o LEFT JOIN odberatele od ON od.id = o.odberatel_id WHERE o.id = :id");
-        $o->execute(['id' => $oid]);
-        if ($row = $o->fetch(PDO::FETCH_ASSOC)) {
-            $payload['reference']       = $row['cislo'] ?: (string) $oid;
-            $nazev = trim($row['odb_nazev'] ?? '');
-            $payload['recipient_name']  = $nazev;
-            // Zásilkovna vyžaduje jméno i příjmení zvlášť → rozdělíme název (B2B = firma → 1. slovo / zbytek)
-            $jmParts = preg_split('/\s+/', $nazev, 2);
-            $payload['recipient_first_name'] = $jmParts[0] ?? '';
-            $payload['recipient_last_name']  = (isset($jmParts[1]) && $jmParts[1] !== '') ? $jmParts[1] : ($jmParts[0] ?? '');
-            $payload['recipient_street'] = $row['ulice'] ?? '';
-            $payload['recipient_city']  = $row['mesto'] ?? '';
-            $payload['recipient_zip']   = $row['psc'] ?? '';
-            $payload['recipient_email'] = $row['email'] ?? '';
-            $payload['recipient_phone'] = $row['telefon'] ?? '';
-            $payload['value_kc']        = (float) ($row['castka_celkem'] ?? 0);
-        }
+    if ($oid && ($pr = shipment_prijemce($pdo, $oid))) {
+        $payload['reference']       = $pr['cislo'];
+        $nazev = $pr['name'];
+        $payload['recipient_name']  = $nazev;
+        // Zásilkovna vyžaduje jméno i příjmení zvlášť → u pobočky s kontaktní osobou ji použij,
+        //   jinak rozdělíme název (B2B = firma → 1. slovo / zbytek)
+        $osoba = $pr['kontakt'] ?: $nazev;
+        $jmParts = preg_split('/\s+/', $osoba, 2);
+        $payload['recipient_first_name'] = $jmParts[0] ?? '';
+        $payload['recipient_last_name']  = (isset($jmParts[1]) && $jmParts[1] !== '') ? $jmParts[1] : ($jmParts[0] ?? '');
+        $payload['recipient_street'] = $pr['street'];
+        $payload['recipient_city']  = $pr['city'];
+        $payload['recipient_zip']   = $pr['zip'];
+        $payload['recipient_email'] = $pr['email'];
+        $payload['recipient_phone'] = $pr['phone'];
+        $payload['value_kc']        = $pr['castka_celkem'];
     }
     // ruční override z requestu
     foreach (['reference','recipient_name','recipient_first_name','recipient_last_name','recipient_street','recipient_city','recipient_zip','recipient_email','recipient_phone'] as $k) {

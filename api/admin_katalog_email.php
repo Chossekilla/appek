@@ -164,8 +164,8 @@ $firma_mesto = nastaveni_get($pdo, 'firma_mesto', '');
 $firma_tel = nastaveni_get($pdo, 'firma_telefon', '');
 $firma_email = nastaveni_get($pdo, 'firma_email', '');
 
-$base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-          . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+// 🐛 v3.0.644 — včetně podsložky instalace (dřív jen host → odkaz na PDF katalog 404)
+$base_url = rtrim(app_public_url(''), '/');
 $pdf_url_params = http_build_query([
     'vyrobky' => implode(',', $vyrobek_ids),
     'skupina' => $skupina_id,

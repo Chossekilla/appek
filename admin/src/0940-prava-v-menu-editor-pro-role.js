@@ -95,7 +95,13 @@ window.ulozitPrava = async function() {
     if (r?.prava) state.rolePrava = r.prava;
     // Pokud zobrazujeme menu pro vlastní roli, aplikuj okamžitě
     aplikovatPravaNaMenu();
-    alert('✓ Práva uložena. Změny se projeví okamžitě.');
+    vykresliPravaPanel(); // 🐛 v3.0.644 — ukaž, co server skutečně uložil
+    // 🐛 v3.0.644 — server dřív tiše zahodil neznámé role/stránky a hlásil úspěch
+    if (Array.isArray(r?.ignorovano) && r.ignorovano.length) {
+      alert('⚠️ Práva uložena, ale tyto položky server nepřijal: ' + r.ignorovano.join(', '));
+    } else {
+      alert('✓ Práva uložena. Změny se projeví okamžitě.');
+    }
   } catch (e) {
     alert('Chyba ukládání: ' + e.message);
   }
