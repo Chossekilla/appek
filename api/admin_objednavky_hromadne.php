@@ -244,7 +244,7 @@ if ($action === 'fa') {
         $k = $o['odberatel_id'] . '|' . strtoupper((string) ($o['mena'] ?: 'CZK'));   // 💱 v3.0.643 — EUR a Kč objednávky → zvláštní faktury
         if (!isset($skupiny[$k])) {
             $skupiny[$k] = [
-                'odberatel_id'    => $k,
+                'odberatel_id'    => (int) $o['odberatel_id'],
                 'odberatel_nazev' => $o['odberatel_nazev'],
                 'splatnost_dni'   => (int) ($o['splatnost_dni'] ?? 14), // v3.0.639: 0 dní je platná hodnota (dřív ?: 14)
                 'platby'          => [],
