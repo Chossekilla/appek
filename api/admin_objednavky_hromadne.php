@@ -111,7 +111,7 @@ if ($action === 'preview') {
                 'splatnost_dni'   => (int) ($o['splatnost_dni'] ?? 14), // v3.0.639: 0 dní je platná hodnota (dřív ?: 14)
                 'objednavky'      => [],
                 'castka_celkem'   => 0,
-                'mena'            => strtoupper((string) ($o['mena'] ?: 'CZK')),
+                'mena'            => explode('|', hromadne_fa_klic($o))[1],
             ];
         }
         $skupiny_fa[$kfa]['objednavky'][] = (int) $o['id'];
@@ -130,6 +130,11 @@ if ($action === 'preview') {
 // =============================================================
 /** 💱 v3.0.643 — klíč skupiny hromadné faktury: odběratel + měna (+ kurz u cizí měny — faktura má jeden kurz). */
 function hromadne_fa_klic(array $o): string {
+    static $vychozi = null;
+    if (empty($o['mena'])) {   // objednávka bez snapshotu → měna, ve které by vznikla faktura (mena_zdedit_z_dl → snapshot)
+        if ($vychozi === null) { require_once __DIR__ . '/_mena_lib.php'; $mv = mena_pro_novy_doklad(db()); $vychozi = $mv; }
+        $o['mena'] = $vychozi['mena']; $o['mena_kurz'] = $vychozi['mena_kurz'] ?? 1; $o['mena_kurz_prodej'] = $vychozi['mena_kurz_prodej'] ?? null;
+    }
     $m = strtoupper((string) (($o['mena'] ?? '') ?: 'CZK'));
     return $o['odberatel_id'] . '|' . $m . ($m === 'CZK' ? '' : '|' . round((float) ($o['mena_kurz'] ?? 0), 6) . '|' . round((float) ($o['mena_kurz_prodej'] ?? 0), 6));
 }

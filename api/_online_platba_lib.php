@@ -160,6 +160,20 @@ function online_platba_potvrd(PDO $pdo, array $a): array {
             $duvod = null;
             if ($mena !== $expMena) $duvod = 'mena_nesedi';
             elseif ($minor !== $expMinor) $duvod = 'castka_nesedi';
+            // host mezitím zahájil platbu v jiné měně (EUR → Kč) a dokončil tu PŮVODNÍ: sedí-li zaplacená částka
+            //   přesně na účet v té měně a účet se nezměnil → je to platná úhrada (ne 'failed')
+            if ($duvod !== null && $u['pay_suma_kc'] !== null && abs((float) $u['suma_kc'] - (float) $u['pay_suma_kc']) <= 0.005) {
+                try {
+                    $mAlt = $mena === 'CZK' ? ['mena' => 'CZK', 'mena_kurz' => 1.0, 'mena_kurz_prodej' => 1.0]
+                                            : mena_volba_platby($pdo, $mena, 'qr');
+                    $dcAlt = mena_doc_castka($pdo, 'restaurant_pos_ucty', $id, $mAlt);
+                    if ($dcAlt['mena'] === $mena && $dcAlt['celkem_minor'] === $minor) {
+                        mena_nastav_doklad($pdo, 'restaurant_pos_ucty', $id, $mAlt + ['mena_zaklad' => 'CZK'], true);
+                        $pdo->prepare("UPDATE restaurant_pos_ucty SET pay_mena = ?, pay_castka = ? WHERE id = ?")->execute([$mena, round($minor / 100, 2), $id]);
+                        $duvod = null;
+                    }
+                } catch (Throwable $e) { /* zůstane 'failed' + upozornění */ }
+            }
             elseif ($u['pay_suma_kc'] !== null && abs((float) $u['suma_kc'] - (float) $u['pay_suma_kc']) > 0.005) $duvod = 'ucet_zmenen';   // číšník po init přidal/ubral položku
             if ($duvod) {
                 $pdo->prepare("UPDATE restaurant_pos_ucty SET pay_status = 'failed' WHERE id = ?")->execute([$id]);

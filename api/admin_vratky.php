@@ -140,7 +140,7 @@ try {
         mena_doc_pole($pdo, $t, $list);
         // autoritativní částka vratky = castka_mena (u POS vratky je zarovnaná na zbytek originálu, ne přepočet řádků)
         $cm = [];
-        try { $cmQ = $pdo->query("SELECT id, castka_mena FROM `$t` WHERE id IN (" . implode(',', array_map(fn($r) => (int) $r['id'], $list)) . ") AND castka_mena IS NOT NULL");
+        try { $cmQ = $pdo->query("SELECT id, castka_mena FROM `$t` WHERE id IN (" . implode(',', array_map(fn($r) => (int) $r['id'], $list)) . ") AND castka_mena IS NOT NULL AND mena IS NOT NULL");   // bez snapshotu měny = backfill v Kč → nepoužít
               foreach ($cmQ->fetchAll(PDO::FETCH_ASSOC) as $r) $cm[(int) $r['id']] = (float) $r['castka_mena']; } catch (Throwable $e) {}
         foreach ($keys as $j => $i) if (isset($list[$j]['doc_mena'])) {
             $vratky[$i]['doc_mena'] = $list[$j]['doc_mena'];

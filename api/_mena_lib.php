@@ -688,7 +688,12 @@ if (!function_exists('mena_config_load')) {
             return $st->fetch(PDO::FETCH_ASSOC) ?: null;
         };
         $row = $nacti();
-        if ($stahnout && (!$row || $row['datum'] < $D) && !mena_pokus_nedavno($pdo, $D)) {
+        // ČNB vyhlašuje v pracovní dny ~14:30 → nejnovější možný lístek = dnes po 14:40, jinak poslední pracovní den.
+        //   Máme-li ho, nestahovat (dřív o víkendu/ráno synchronní pokus v pokladně/B2B každých 30 min).
+        $ocek = $D;
+        if ($D === date('Y-m-d') && (int) date('N') <= 5 && date('H:i') < '14:40') $ocek = date('Y-m-d', strtotime($D . ' -1 day'));
+        while ((int) date('N', strtotime($ocek)) >= 6) $ocek = date('Y-m-d', strtotime($ocek . ' -1 day'));
+        if ($stahnout && (!$row || $row['datum'] < $ocek) && !mena_pokus_nedavno($pdo, $D)) {
             try { mena_kurzy_aktualizuj($pdo, $D, 6); } catch (Throwable $e) { error_log('mena_kurz_dne ČNB: ' . $e->getMessage()); }
             $row = $nacti();
         }
