@@ -28,6 +28,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/_customer_integrace.php';
 require_once __DIR__ . '/_online_platba_lib.php';   // 💱 v3.0.643 — platba v měně dokladu + ověření částky ve webhooku
+require_once __DIR__ . '/_i18n_web.php';            // 🆕 v3.0.645 — jazyk platební stránky (pay/?lang=)
 
 cors_headers();
 header('Content-Type: application/json; charset=UTF-8');
@@ -202,6 +203,8 @@ if ($method === 'POST' && $action === 'create_token') {
             ->execute(['t' => $token, 'id' => $id]);
     }
     $url = pay_base_url() . '/pay/?t=' . $token;
+    // 🆕 v3.0.645 — odkaz/QR nese jazyk dokladu odběratele (jen je-li u odběratele nastavený; jinak rozhodne prohlížeč hosta)
+    if ($lang = web_lang_pay_token($pdo, $token)) $url .= '&lang=' . $lang;
     json_response(['ok' => true, 'token' => $token, 'pay_url' => $url]);
 }
 
@@ -335,12 +338,14 @@ if ($method === 'POST' && ($action === 'stripe_init' || $action === 'gopay_init'
 
     $base = pay_base_url();
     $ref  = ($t['type'] === 'ucet' ? 'UCET-' : 'PAY-') . $t['id'] . '-' . preg_replace('/[^a-f0-9]/i', '', $token);
+    // 🆕 v3.0.645 — návrat z brány na pay/ ve stejném jazyce, v jakém host stránku měl
+    $langQ = ($lang = web_lang_normalize($d['lang'] ?? null)) ? '&lang=' . $lang : '';
     $r = online_platba_zaloz($pdo, $t['type'] === 'ucet' ? 'restaurant_pos_ucty' : 'objednavky', $t['id'], $dc, [
         'brana'            => $brana,
         'reference'        => $ref,
         'description'      => 'Účtenka ' . $t['cislo'],
-        'return_url'       => $base . '/pay/?t=' . $token . '&paid=1',
-        'cancel_url'       => $base . '/pay/?t=' . $token,
+        'return_url'       => $base . '/pay/?t=' . $token . '&paid=1' . $langQ,
+        'cancel_url'       => $base . '/pay/?t=' . $token . $langQ,
         // 🐛 v3.0.323 — GoPay čte 'notification_url' (dřív 'notify_url' → platba navždy 'pending')
         'notification_url' => $base . '/api/pay_qr.php?action=gopay_callback',
     ]);

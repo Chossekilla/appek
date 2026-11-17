@@ -9,12 +9,19 @@
  * Bez dekorativních emoji (na Windows/starších zařízeních se renderují jako boxíky).
  */
 header('Cache-Control: no-store');
+// 🆕 v3.0.645 — stránka v jazycích cs/en/es/de/sk: ?lang= → Accept-Language → cs (bez DB; odkaz na stav
+//   objednávky z e-mailu nese ?lang= jazyka, ve kterém zákazník objednával)
+require_once __DIR__ . '/../api/_i18n_web.php';
+[$L, $Lsrc] = web_lang_resolve();
+header('Vary: Accept-Language');
+header('Content-Language: ' . $L);
+$h = fn(string $k) => htmlspecialchars(web_t($L, $k), ENT_QUOTES);
 ?><!DOCTYPE html>
-<html lang="cs">
+<html lang="<?= $L ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Objednávka online</title>
+<title><?= $h('Objednávka online') ?></title>
 <meta name="theme-color" content="#c2410c">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -108,14 +115,25 @@ header('Cache-Control: no-store');
   .steps li.cur .dot{border-color:var(--acc);color:var(--acc)}
   .muted{color:var(--tx3);font-size:12.5px;margin-top:10px}
   .last-link{display:block;text-align:center;margin-top:12px;font-size:14px;color:var(--acc2);font-weight:650}
+  /* 🆕 v3.0.645 — nenápadný přepínač jazyka v záhlaví */
+  .top-in>div:not(.lang-sw){flex:1;min-width:0}
+  .lang-sw{display:flex;gap:1px;flex-shrink:0;align-self:flex-start;font-size:11.5px;font-weight:700;letter-spacing:.02em}
+  .lang-sw a{color:#fff;opacity:.7;text-decoration:none;padding:4px 5px;border-radius:6px}
+  .lang-sw a:hover,.lang-sw a:focus-visible{opacity:1;background:rgba(255,255,255,.18)}
+  .lang-sw a.on{opacity:1;text-decoration:underline;text-underline-offset:3px}
+  @media (max-width:380px){.lang-sw{flex-wrap:wrap;max-width:76px;justify-content:flex-end}}
 </style>
 </head>
 <body>
-<header class="top"><div class="top-in"><img id="logo" alt="" hidden onerror="this.hidden=true"><div><h1 id="firma">Objednávka online</h1><div class="sub" id="sub">Načítám…</div></div></div></header>
+<header class="top"><div class="top-in"><img id="logo" alt="" hidden onerror="this.hidden=true"><div><h1 id="firma"><?= $h('Objednávka online') ?></h1><div class="sub" id="sub"><?= $h('Načítám…') ?></div></div><?= web_lang_switcher($L) ?></div></header>
 <main class="wrap" id="app"></main>
-<div class="bar" id="bar" hidden><div class="bar-in"><div class="sum"><small id="bar-cnt"></small><b id="bar-sum"></b></div><button class="btn" id="bar-go">Pokračovat</button></div></div>
+<div class="bar" id="bar" hidden><div class="bar-in"><div class="sum"><small id="bar-cnt"></small><b id="bar-sum"></b></div><button class="btn" id="bar-go"><?= $h('Pokračovat') ?></button></div></div>
 <div class="sheet-bg" id="sheet-bg"><div class="sheet" id="sheet"></div></div>
 
+<script>
+<?= web_i18n_js($L) ?>
+var LANG_URL = <?= json_encode($Lsrc === 'url') ?>;   // jazyk zvolený v URL → nést ho i do interních odkazů
+</script>
 <script>
 (function(){
   'use strict';
@@ -127,9 +145,12 @@ header('Cache-Control: no-store');
   var $ = function(id){ return document.getElementById(id); };
   var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
   // celé koruny bez haléřů, jinak vždy 2 místa (39,20 Kč, ne 39,2 Kč)
-  var kc = function(n){ var r = Math.round(n * 100) / 100, d = r % 1 ? 2 : 0; return r.toLocaleString('cs-CZ', {minimumFractionDigits: d, maximumFractionDigits: d}) + ' Kč'; };
-  var SYM = {CZK: 'Kč', EUR: '€', USD: '$', GBP: '£', PLN: 'zł', HUF: 'Ft', CHF: 'CHF'};
-  var fm = function(n, m){ if (!m || m === 'CZK') return kc(n); return (Math.round(n * 100) / 100).toLocaleString('cs-CZ', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ' + (SYM[m] || m); };
+  //   🆕 v3.0.645 — formát a symbol dle jazyka (MONEY/SYM z _i18n_web.php; čeština beze změny)
+  var kc = function(n){ return MONEY(n, 'CZK', true); };
+  var fm = function(n, m){ if (!m || m === 'CZK') return kc(n); return MONEY(n, m, false); };
+  // 🆕 v3.0.645 — interní odkazy nesou ?lang=, pokud ho zvolil zákazník (přepínač / odkaz z e-mailu)
+  var withLang = function(u){ return LANG_URL ? u + (u.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + LANG : u; };
+  var bad = function(x){ return x instanceof TypeError || x instanceof SyntaxError ? T('Něco se nepovedlo. Zkuste to prosím znovu.') : (x && x.message) || ''; };
   function menaAktivni(){ var p = INFO && INFO.platba; return !!(p && p.aktivni && (p.prijimane || []).length > 1); }
   var DNY = ['', 'po', 'út', 'st', 'čt', 'pá', 'so', 'ne'];
   function lsGet(){ try { return JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) { return {}; } }
@@ -138,21 +159,28 @@ header('Cache-Control: no-store');
   async function api(action, opts){
     var r = await fetch(API + '?action=' + action + (opts && opts.q ? '&' + opts.q : ''), opts && opts.body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(opts.body)} : {cache: 'no-store'});
     var j = {}; try { j = await r.json(); } catch (e) {}
-    if (!r.ok || j.ok === false) throw new Error(j.error || j.message || ('Chyba ' + r.status));
+    if (!r.ok || j.ok === false) throw new Error(j.error || j.message ? TS(j.error || j.message) : T('Chyba {n}', {n: r.status}));
     return j;
   }
 
   function header(info){
-    if (info.firma) { $('firma').textContent = info.firma; document.title = 'Objednávka — ' + info.firma; }
+    if (info.firma) { $('firma').textContent = info.firma; document.title = T('Objednávka — {firma}', {firma: info.firma}); }
     if (info.logo) { $('logo').src = info.logo; $('logo').hidden = false; }
   }
 
-  function denLabel(d){
-    var dt = new Date(d + 'T12:00:00'), dnes = new Date(); dnes.setHours(12, 0, 0, 0);
-    var diff = Math.round((dt - dnes) / 864e5);
-    var base = DNY[dt.getDay() === 0 ? 7 : dt.getDay()] + ' ' + dt.getDate() + '. ' + (dt.getMonth() + 1) + '.';
-    return diff === 0 ? 'Dnes (' + base + ')' : diff === 1 ? 'Zítra (' + base + ')' : base;
+  function denDiff(d){ var dt = new Date(d + 'T12:00:00'), dnes = new Date(); dnes.setHours(12, 0, 0, 0); return Math.round((dt - dnes) / 864e5); }
+  // 🆕 v3.0.645 — den dle jazyka (cs beze změny: „po 17. 11."; jinak Intl, např. „Tue 18/11", „Di., 18.11.")
+  function denBase(d){
+    var dt = new Date(d + 'T12:00:00');
+    if (LANG === 'cs') return DNY[dt.getDay() === 0 ? 7 : dt.getDay()] + ' ' + dt.getDate() + '. ' + (dt.getMonth() + 1) + '.';
+    return dt.toLocaleDateString(LOCALE, {weekday: 'short', day: 'numeric', month: 'numeric'});
   }
+  function denLabel(d){
+    var diff = denDiff(d), base = denBase(d);
+    return diff === 0 ? T('Dnes ({den})', {den: base}) : diff === 1 ? T('Zítra ({den})', {den: base}) : base;
+  }
+  // „Nejdřív dnes / zítra / po 17. 11. v 10:30" (cs stejné jako dřív)
+  function denKratce(d){ var diff = denDiff(d); return diff === 0 ? T('dnes') : diff === 1 ? T('zítra') : (LANG === 'cs' ? denBase(d).toLowerCase() : denBase(d)); }
   // časy po 15 min v okně (první = nejbližší možný)
   function casy(okno){
     var out = [okno.od], p = okno.od.split(':'), q = okno.do.split(':');
@@ -165,27 +193,27 @@ header('Cache-Control: no-store');
   function renderMenu(){
     var i = INFO, m = MENU, h = '';
     var bits = [];
-    if (i.vyzvednuti) bits.push('vyzvednutí');
-    if (i.rozvoz) bits.push('rozvoz');
-    $('sub').textContent = 'Online objednávka · ' + bits.join(' i ') + ' · ' + i.od + '–' + i.do;
+    if (i.vyzvednuti) bits.push(T('vyzvednutí'));
+    if (i.rozvoz) bits.push(T('rozvoz'));
+    $('sub').textContent = T('Online objednávka · {typy} · {od}–{do}', {typy: bits.length > 1 ? T('{a} i {b}', {a: bits[0], b: bits[1]}) : bits.join(''), od: i.od, do: i.do});
     if (i.zprava) h += '<div class="note">' + esc(i.zprava) + '</div>';
     var r = [];
-    if (i.min_objednavka > 0) r.push('Min. objednávka ' + kc(i.min_objednavka));
-    if (i.rozvoz) r.push(i.rozvoz_cena > 0 ? 'Rozvoz ' + kc(i.rozvoz_cena) + (i.rozvoz_zdarma_od > 0 ? ', od ' + kc(i.rozvoz_zdarma_od) + ' zdarma' : '') : 'Rozvoz zdarma');
-    r.push('Platba při převzetí');
-    if (i.okna.length) r.push('Nejdřív ' + denLabel(i.okna[0].den).replace(/ \(.*\)/, '').toLowerCase() + ' v ' + i.okna[0].od);
+    if (i.min_objednavka > 0) r.push(T('Min. objednávka {castka}', {castka: kc(i.min_objednavka)}));
+    if (i.rozvoz) r.push(i.rozvoz_cena > 0 ? (i.rozvoz_zdarma_od > 0 ? T('Rozvoz {cena}, od {od} zdarma', {cena: kc(i.rozvoz_cena), od: kc(i.rozvoz_zdarma_od)}) : T('Rozvoz {cena}', {cena: kc(i.rozvoz_cena)})) : T('Rozvoz zdarma'));
+    r.push(T('Platba při převzetí'));
+    if (i.okna.length) r.push(T('Nejdřív {den} v {cas}', {den: denKratce(i.okna[0].den), cas: i.okna[0].od}));
     h += '<div class="rules">' + r.map(function(x){ return '<span class="rule">' + esc(x) + '</span>'; }).join('') + '</div>';
-    if (!i.okna.length) h += '<div class="note">Momentálně nelze objednat — dnes už je zavřeno a předobjednávky nejsou k dispozici.</div>';
+    if (!i.okna.length) h += '<div class="note">' + esc(T('Momentálně nelze objednat — dnes už je zavřeno a předobjednávky nejsou k dispozici.')) + '</div>';
     var byCat = {};
     m.vyrobky.forEach(function(v){ var k = v.kategorie_id || 0; (byCat[k] = byCat[k] || []).push(v); });
     var cats = m.kategorie.filter(function(k){ return byCat[k.id]; });
-    if (byCat[0]) cats.push({id: 0, nazev: 'Ostatní'});
+    if (byCat[0]) cats.push({id: 0, nazev: T('Ostatní')});
     if (cats.length > 1) h += '<nav class="cats" id="cats">' + cats.map(function(k, ix){ return '<button class="cat' + (ix ? '' : ' on') + '" data-k="' + k.id + '">' + esc(k.nazev) + '</button>'; }).join('') + '</nav>';
     cats.forEach(function(k){
       h += '<section class="sec" id="k' + k.id + '"><h2>' + esc(k.nazev) + '</h2>' + byCat[k.id].map(itemHtml).join('') + '</section>';
     });
-    if (!m.vyrobky.length) h += '<div class="empty"><h2>Nabídka je zatím prázdná</h2></div>';
-    if (lsGet().last) h += '<a class="last-link" href="?stav=' + esc(lsGet().last) + '">Moje poslední objednávka</a>';
+    if (!m.vyrobky.length) h += '<div class="empty"><h2>' + esc(T('Nabídka je zatím prázdná')) + '</h2></div>';
+    if (lsGet().last) h += '<a class="last-link" href="' + esc(withLang('?stav=' + lsGet().last)) + '">' + esc(T('Moje poslední objednávka')) + '</a>';
     $('app').innerHTML = h;
     var nav = $('cats');
     if (nav) nav.addEventListener('click', function(e){
@@ -202,9 +230,9 @@ header('Cache-Control: no-store');
       (v.obrazek_url ? '<img loading="lazy" src="' + esc(v.obrazek_url) + '" alt="">' : '') +
       '<div class="inf"><div class="nm">' + esc(v.nazev) + '</div>' +
       (v.popis ? '<div class="ds">' + esc(v.popis) + '</div>' : '') +
-      (v.alergeny ? '<div class="al">Alergeny: ' + esc(v.alergeny) + '</div>' : '') +
+      (v.alergeny ? '<div class="al">' + esc(T('Alergeny:')) + ' ' + esc(v.alergeny) + '</div>' : '') +
       '<div class="pr">' + kc(v.cena) + (v.hmotnost_g ? ' <span style="color:var(--tx3);font-weight:500;font-size:12.5px">· ' + esc(v.hmotnost_g) + ' g</span>' : '') + '</div></div>' +
-      '<div class="qty">' + (q ? '<button data-d="-1" aria-label="Ubrat">−</button><span>' + q + '</span>' : '') + '<button class="add" data-d="1" aria-label="Přidat">+</button></div></div>';
+      '<div class="qty">' + (q ? '<button data-d="-1" aria-label="' + esc(T('Ubrat')) + '">−</button><span>' + q + '</span>' : '') + '<button class="add" data-d="1" aria-label="' + esc(T('Přidat')) + '">+</button></div></div>';
   }
   function onQty(e){
     var b = e.target.closest('.qty button'); if (!b) return;
@@ -228,7 +256,7 @@ header('Cache-Control: no-store');
     var l = cartLines(), cnt = l.reduce(function(s, x){ return s + x.n; }, 0);
     $('bar').hidden = !cnt;
     if (!cnt) return;
-    $('bar-cnt').textContent = cnt + ' ks v košíku';
+    $('bar-cnt').textContent = T('{n} ks v košíku', {n: cnt});
     $('bar-sum').textContent = kc(zbozi());
     $('bar-go').disabled = !INFO.okna.length;
   }
@@ -237,22 +265,23 @@ header('Cache-Control: no-store');
   function openCheckout(){
     var i = INFO, s = lsGet().kontakt || {};
     if (!i.vyzvednuti) TYP = 'rozvoz'; else if (!i.rozvoz) TYP = 'vyzvednuti';
-    var h = '<h3>Dokončit objednávku <button type="button" id="x" aria-label="Zavřít">×</button></h3><div class="err" id="err"></div>';
-    if (i.vyzvednuti && i.rozvoz) h += '<div class="seg" id="seg"><button type="button" data-t="vyzvednuti">Vyzvednu si</button><button type="button" data-t="rozvoz">Rozvoz</button></div>';
-    h += '<div class="row2"><label class="fld"><span>Den</span><select id="f-den">' + i.okna.map(function(o, ix){ return '<option value="' + ix + '">' + esc(denLabel(o.den)) + '</option>'; }).join('') + '</select></label>' +
-         '<label class="fld"><span id="l-cas">Čas</span><select id="f-cas"></select></label></div>';
-    h += '<div id="adr"><label class="fld"><span>Ulice a číslo</span><input id="f-adresa" autocomplete="street-address" value="' + esc(s.adresa) + '"></label>' +
-         '<div class="row-psc"><label class="fld"><span>PSČ</span><input id="f-psc" inputmode="numeric" autocomplete="postal-code" maxlength="6" value="' + esc(s.psc) + '"></label>' +
-         '<label class="fld"><span>Město</span><input id="f-mesto" autocomplete="address-level2" value="' + esc(s.mesto) + '"></label></div></div>';
-    h += '<label class="fld"><span>Jméno</span><input id="f-jmeno" autocomplete="name" value="' + esc(s.jmeno) + '"></label>' +
-         '<div class="row2"><label class="fld"><span>Telefon</span><input id="f-tel" type="tel" autocomplete="tel" value="' + esc(s.tel) + '"></label>' +
-         '<label class="fld"><span>E-mail (potvrzení)</span><input id="f-email" type="email" autocomplete="email" value="' + esc(s.email) + '"></label></div>' +
-         '<label class="fld"><span>Poznámka (nepovinné)</span><textarea id="f-pozn" maxlength="500"></textarea></label>' +
+    var h = '<h3>' + esc(T('Dokončit objednávku')) + ' <button type="button" id="x" aria-label="' + esc(T('Zavřít')) + '">×</button></h3><div class="err" id="err"></div>';
+    if (i.vyzvednuti && i.rozvoz) h += '<div class="seg" id="seg"><button type="button" data-t="vyzvednuti">' + esc(T('Vyzvednu si')) + '</button><button type="button" data-t="rozvoz">' + esc(T('Rozvoz')) + '</button></div>';
+    h += '<div class="row2"><label class="fld"><span>' + esc(T('Den')) + '</span><select id="f-den">' + i.okna.map(function(o, ix){ return '<option value="' + ix + '">' + esc(denLabel(o.den)) + '</option>'; }).join('') + '</select></label>' +
+         '<label class="fld"><span id="l-cas">' + esc(T('Čas')) + '</span><select id="f-cas"></select></label></div>';
+    h += '<div id="adr"><label class="fld"><span>' + esc(T('Ulice a číslo')) + '</span><input id="f-adresa" autocomplete="street-address" value="' + esc(s.adresa) + '"></label>' +
+         '<div class="row-psc"><label class="fld"><span>' + esc(T('PSČ')) + '</span><input id="f-psc" inputmode="numeric" autocomplete="postal-code" maxlength="6" value="' + esc(s.psc) + '"></label>' +
+         '<label class="fld"><span>' + esc(T('Město')) + '</span><input id="f-mesto" autocomplete="address-level2" value="' + esc(s.mesto) + '"></label></div></div>';
+    h += '<label class="fld"><span>' + esc(T('Jméno')) + '</span><input id="f-jmeno" autocomplete="name" value="' + esc(s.jmeno) + '"></label>' +
+         '<div class="row2"><label class="fld"><span>' + esc(T('Telefon')) + '</span><input id="f-tel" type="tel" autocomplete="tel" value="' + esc(s.tel) + '"></label>' +
+         '<label class="fld"><span>' + esc(T('E-mail (potvrzení)')) + '</span><input id="f-email" type="email" autocomplete="email" value="' + esc(s.email) + '"></label></div>' +
+         '<label class="fld"><span>' + esc(T('Poznámka (nepovinné)')) + '</span><textarea id="f-pozn" maxlength="500"></textarea></label>' +
          '<input class="hp" id="f-web" tabindex="-1" autocomplete="off" aria-hidden="true">';
     h += '<div id="vch"></div>';
     h += '<div class="lines" id="lines"></div>';
-    h += '<label class="chk"><input type="checkbox" id="f-souhlas"><span>Souhlasím se <a href="#" id="gdpr">zpracováním osobních údajů</a> pro vyřízení objednávky.</span></label>';
-    h += '<button class="btn full" id="send">Objednat</button><p class="muted" id="pay-note"></p>';
+    // souhlas: [ ] v překladu = odkaz na zásady zpracování osobních údajů
+    h += '<label class="chk"><input type="checkbox" id="f-souhlas"><span>' + esc(T('Souhlasím se [zpracováním osobních údajů] pro vyřízení objednávky.')).replace(/\[([^\]]+)\]/, '<a href="#" id="gdpr">$1</a>') + '</span></label>';
+    h += '<button class="btn full" id="send">' + esc(T('Objednat')) + '</button><p class="muted" id="pay-note"></p>';
     $('sheet').innerHTML = h;
     $('sheet-bg').classList.add('show');
     $('x').onclick = closeSheet;
@@ -272,14 +301,14 @@ header('Cache-Control: no-store');
     var seg = $('seg');
     if (seg) seg.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.t === TYP); });
     $('adr').hidden = TYP !== 'rozvoz';
-    $('l-cas').textContent = TYP === 'rozvoz' ? 'Doručit v' : 'Vyzvednu v';
-    $('pay-note').textContent = 'Platíte až při ' + (TYP === 'rozvoz' ? 'převzetí' : 'vyzvednutí') + ' (hotově nebo kartou).';
+    $('l-cas').textContent = TYP === 'rozvoz' ? T('Doručit v') : T('Vyzvednu v');
+    $('pay-note').textContent = TYP === 'rozvoz' ? T('Platíte až při převzetí (hotově nebo kartou).') : T('Platíte až při vyzvednutí (hotově nebo kartou).');
     var l = cartLines(), d = doprava(), z = zbozi();
     $('lines').innerHTML = l.map(function(x){ return '<div><span>' + x.n + '× ' + esc(x.v.nazev) + '</span><span>' + kc(x.n * x.v.cena) + '</span></div>'; }).join('') +
-      (TYP === 'rozvoz' ? '<div><span>Doprava</span><span>' + (d ? kc(d) : 'zdarma') + '</span></div>' : '') +
-      (VOUCHER && VOUCHER.odecet > 0 ? '<div class="vch-l"><span>' + (VOUCHER.chovani === 'platba' ? 'Uhrazeno voucherem' : 'Sleva') + ' ' + esc(VOUCHER.kod) + '</span><span>−' + kc(VOUCHER.odecet) + '</span></div>' : '') +
-      '<div class="tot"><span>Celkem</span><span>' + kc(Math.max(0, z + d - (VOUCHER ? VOUCHER.odecet : 0))) + '</span></div>' +
-      (INFO.min_objednavka > 0 && z < INFO.min_objednavka ? '<div style="color:#b91c1c;font-size:13px">Minimální objednávka je ' + kc(INFO.min_objednavka) + '</div>' : '') +
+      (TYP === 'rozvoz' ? '<div><span>' + esc(T('Doprava')) + '</span><span>' + (d ? kc(d) : esc(T('zdarma'))) + '</span></div>' : '') +
+      (VOUCHER && VOUCHER.odecet > 0 ? '<div class="vch-l"><span>' + esc(VOUCHER.chovani === 'platba' ? T('Uhrazeno voucherem') : T('Sleva')) + ' ' + esc(VOUCHER.kod) + '</span><span>−' + kc(VOUCHER.odecet) + '</span></div>' : '') +
+      '<div class="tot"><span>' + esc(T('Celkem')) + '</span><span>' + kc(Math.max(0, z + d - (VOUCHER ? VOUCHER.odecet : 0))) + '</span></div>' +
+      (INFO.min_objednavka > 0 && z < INFO.min_objednavka ? '<div style="color:#b91c1c;font-size:13px">' + esc(T('Minimální objednávka je {castka}', {castka: kc(INFO.min_objednavka)})) + '</div>' : '') +
       (menaAktivni() ? '<div id="mena-q"></div>' : '');
     if (menaAktivni()) menaQuote();
   }
@@ -288,16 +317,16 @@ header('Cache-Control: no-store');
   async function menaQuote(){
     var my = ++_mq, p = INFO.platba, q = null, e = '';
     try { q = await api('quote', {body: {typ: TYP, mena: MENA || undefined, polozky: cartLines().map(function(x){ return {id: x.v.id, mnozstvi: x.n}; })}}); if (!MENA) MENA = q.mena; }
-    catch (x) { e = x.message || ''; }
+    catch (x) { e = bad(x); }
     if (my !== _mq) return;
     var el = $('mena-q'); if (!el) return;
     var cur = MENA || p.vychozi || 'CZK';
-    el.innerHTML = '<div class="mena-row"><span>Platit v měně</span><span class="mena-btns">' + (p.prijimane || []).map(function(m){
+    el.innerHTML = '<div class="mena-row"><span>' + esc(T('Platit v měně')) + '</span><span class="mena-btns">' + (p.prijimane || []).map(function(m){
         var i = (p.meny || {})[m] || {}, dis = m !== 'CZK' && i.ok === false;
-        return '<button type="button" class="mena-b' + (cur === m ? ' on' : '') + '" data-m="' + m + '"' + (dis ? ' disabled' : '') + '>' + (m === 'CZK' ? 'Kč' : (SYM[m] || m) + ' ' + m) + '</button>';
+        return '<button type="button" class="mena-b' + (cur === m ? ' on' : '') + '" data-m="' + esc(m) + '"' + (dis ? ' disabled' : '') + '>' + esc(m === 'CZK' ? SYM('CZK') : SYM(m) + ' ' + m) + '</button>';
       }).join('') + '</span></div>' +
-      (q && q.mena !== 'CZK' ? '<div class="tot"><span>K úhradě v ' + esc(q.mena) + '</span><span>' + fm(q.celkem, q.mena) + '</span></div>' +
-        '<div style="font-size:12px;color:var(--tx3)">Kurz 1 ' + esc(SYM[q.mena] || q.mena) + ' = ' + (+q.kurz_prodej || +q.kurz).toLocaleString('cs-CZ', {maximumFractionDigits: 3}) + ' Kč' + (VOUCHER ? ' · sleva z kódu se odečte v ' + esc(q.mena) : '') + '</div>' : '') +
+      (q && q.mena !== 'CZK' ? '<div class="tot"><span>' + esc(T('K úhradě v {mena}', {mena: q.mena})) + '</span><span>' + fm(q.celkem, q.mena) + '</span></div>' +
+        '<div style="font-size:12px;color:var(--tx3)">' + esc(T('Kurz 1 {sym} = {kurz}', {sym: SYM(q.mena), kurz: NUM(+q.kurz_prodej || +q.kurz, 0, 3) + ' ' + SYM('CZK')})) + (VOUCHER ? ' · ' + esc(T('sleva z kódu se odečte v {mena}', {mena: q.mena})) : '') + '</div>' : '') +
       (e ? '<div style="color:#b91c1c;font-size:13px">' + esc(e) + '</div>' : '');
     el.querySelectorAll('.mena-b').forEach(function(b){ b.onclick = function(){ MENA = b.dataset.m; menaQuote(); }; });
   }
@@ -305,9 +334,9 @@ header('Cache-Control: no-store');
   function renderVoucher(){
     var box = $('vch'); if (!box) return;
     box.innerHTML = VOUCHER
-      ? '<div class="vch-ok"><span>Kód <b>' + esc(VOUCHER.kod) + '</b> · ' + esc(VOUCHER.popis) + '</span><button type="button" id="vch-x" aria-label="Odebrat kód">×</button></div>'
-      : '<label class="fld"><span>Slevový kód / voucher (nepovinné)</span><div class="vch-row"><input id="f-voucher" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40">' +
-        '<button type="button" class="btn sec" id="vch-go">Uplatnit</button></div></label>';
+      ? '<div class="vch-ok"><span>' + esc(T('Kód')) + ' <b>' + esc(VOUCHER.kod) + '</b> · ' + esc(TS(VOUCHER.popis, true)) + '</span><button type="button" id="vch-x" aria-label="' + esc(T('Odebrat kód')) + '">×</button></div>'
+      : '<label class="fld"><span>' + esc(T('Slevový kód / voucher (nepovinné)')) + '</span><div class="vch-row"><input id="f-voucher" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40">' +
+        '<button type="button" class="btn sec" id="vch-go">' + esc(T('Uplatnit')) + '</button></div></label>';
     if (VOUCHER) $('vch-x').onclick = function(){ VOUCHER = null; renderVoucher(); syncTyp(); };
     else {
       $('vch-go').onclick = function(){ uplatnitVoucher($('f-voucher').value); };
@@ -316,14 +345,14 @@ header('Cache-Control: no-store');
   }
   async function uplatnitVoucher(kod){
     kod = String(kod || '').trim();
-    if (!kod) return err('Zadejte slevový kód.');
-    var b = $('vch-go'); if (b) { b.disabled = true; b.textContent = 'Ověřuji…'; }
+    if (!kod) return err(T('Zadejte slevový kód.'));
+    var b = $('vch-go'); if (b) { b.disabled = true; b.textContent = T('Ověřuji…'); }
     try {
       VOUCHER = await api('voucher', {body: {kod: kod, typ: TYP, polozky: cartLines().map(function(x){ return {id: x.v.id, mnozstvi: x.n}; })}});
       $('err').style.display = 'none';
     } catch (x) {
       VOUCHER = null;
-      err(x.message);
+      err(bad(x));
     }
     renderVoucher(); syncTyp();
   }
@@ -334,7 +363,7 @@ header('Cache-Control: no-store');
     try {
       var r = await fetch('../api/gdpr_verejne.php').then(function(x){ return x.json(); });
       var w = window.open('', '_blank');
-      if (w) { w.document.title = 'Zpracování osobních údajů'; w.document.body.style.cssText = 'font-family:sans-serif;max-width:720px;margin:24px auto;padding:0 16px;line-height:1.55;white-space:pre-wrap'; w.document.body.textContent = r.text || ''; }
+      if (w) { w.document.documentElement.lang = LANG; w.document.title = T('Zpracování osobních údajů'); w.document.body.style.cssText = 'font-family:sans-serif;max-width:720px;margin:24px auto;padding:0 16px;line-height:1.55;white-space:pre-wrap'; w.document.body.textContent = r.text || ''; }
     } catch (x) {}
   }
   async function send(){
@@ -346,54 +375,55 @@ header('Cache-Control: no-store');
       jmeno: g('f-jmeno'), telefon: g('f-tel'), email: g('f-email'), poznamka: g('f-pozn'),
       adresa: g('f-adresa'), psc: g('f-psc'), mesto: g('f-mesto'),
       souhlas: $('f-souhlas').checked, web: g('f-web'),
+      lang: LANG,                                            // 🆕 v3.0.645 — jazyk potvrzovacího e-mailu + odkazu na stav
       polozky: cartLines().map(function(x){ return {id: x.v.id, mnozstvi: x.n}; }),
       voucher_kod: VOUCHER ? VOUCHER.kod : g('f-voucher'),  // napsaný, ale neuplatněný kód ověří server při odeslání
       mena: menaAktivni() && MENA ? MENA : undefined         // 💱 v3.0.643
     };
-    if (!body.jmeno) return err('Vyplňte jméno.');
-    if (body.telefon.replace(/\D/g, '').length < 9) return err('Vyplňte telefon.');
-    if (TYP === 'rozvoz' && (!body.adresa || !body.mesto || body.psc.replace(/\D/g, '').length !== 5)) return err('Vyplňte adresu, PSČ a město.');
-    if (!body.souhlas) return err('Potvrďte prosím souhlas se zpracováním údajů.');
-    SENDING = true; $('send').disabled = true; $('send').textContent = 'Odesílám…';
+    if (!body.jmeno) return err(T('Vyplňte jméno.'));
+    if (body.telefon.replace(/\D/g, '').length < 9) return err(T('Vyplňte telefon.'));
+    if (TYP === 'rozvoz' && (!body.adresa || !body.mesto || body.psc.replace(/\D/g, '').length !== 5)) return err(T('Vyplňte adresu, PSČ a město.'));
+    if (!body.souhlas) return err(T('Potvrďte prosím souhlas se zpracováním údajů.'));
+    SENDING = true; $('send').disabled = true; $('send').textContent = T('Odesílám…');
     try {
       var r = await api('order', {body: body});
       lsSet({kontakt: {jmeno: body.jmeno, tel: body.telefon, email: body.email, adresa: body.adresa, psc: body.psc, mesto: body.mesto}, cart: {}, last: r.token});
       CART = {};
-      location.href = '?stav=' + encodeURIComponent(r.token) + '&nova=1';
+      location.href = withLang('?stav=' + encodeURIComponent(r.token) + '&nova=1');
     } catch (x) {
-      err(x.message);
-      SENDING = false; $('send').disabled = false; $('send').textContent = 'Objednat';
+      err(bad(x));
+      SENDING = false; $('send').disabled = false; $('send').textContent = T('Objednat');
     }
   }
 
   // ── STAV OBJEDNÁVKY ──────────────────────────────────────
-  var KROKY_V = [['prijato', 'Přijato'], ['pripravuje', 'Připravujeme'], ['pripraveno', 'Připraveno k vyzvednutí'], ['hotovo', 'Vydáno']];
-  var KROKY_R = [['prijato', 'Přijato'], ['pripravuje', 'Připravujeme'], ['na_ceste', 'Na cestě'], ['hotovo', 'Doručeno']];
+  var KROKY_V = [['prijato', T('Přijato')], ['pripravuje', T('Připravujeme')], ['pripraveno', T('Připraveno k vyzvednutí')], ['hotovo', T('Vydáno')]];
+  var KROKY_R = [['prijato', T('Přijato')], ['pripravuje', T('Připravujeme')], ['na_ceste', T('Na cestě')], ['hotovo', T('Doručeno')]];
   async function renderStav(token){
     $('bar').hidden = true;
     try {
       var s = await api('stav', {q: 't=' + encodeURIComponent(token)});
-      if (s.firma) { $('firma').textContent = s.firma; document.title = 'Objednávka ' + s.cislo + ' — ' + s.firma; }
-      $('sub').textContent = 'Stav objednávky';
+      if (s.firma) { $('firma').textContent = s.firma; document.title = T('Objednávka {cislo} — {firma}', {cislo: s.cislo, firma: s.firma}); }
+      $('sub').textContent = T('Stav objednávky');
       var kroky = s.typ === 'rozvoz' ? KROKY_R : KROKY_V;
       var krok = s.krok === 'pripraveno' && s.typ === 'rozvoz' ? 'pripravuje' : s.krok;
       var idx = kroky.findIndex(function(k){ return k[0] === krok; });
       var cas = s.cas ? new Date(s.cas.replace(' ', 'T')) : null;
-      var casTxt = cas ? cas.toLocaleString('cs-CZ', {weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit'}) : '';
+      var casTxt = cas && !isNaN(cas) ? cas.toLocaleString(LOCALE, {weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit'}) : '';
       var h = '<div class="st-card">';
-      if (/[?&]nova=1/.test(location.search)) h += '<div class="note" style="margin:0 0 12px;background:#f0fdf4;border-color:#bbf7d0;color:#166534">Děkujeme, objednávku jsme přijali.</div>';
-      h += '<h2>Objednávka ' + esc(s.cislo) + '</h2><div class="meta">' + (s.typ === 'rozvoz' ? 'Rozvoz' + (s.adresa ? ' · ' + esc(s.adresa) : '') : 'Vyzvednutí') + (casTxt ? '<br>' + esc(casTxt) : '') +
-           '<br>' + (s.zaplaceno ? 'Zaplaceno' : 'K úhradě při ' + (s.typ === 'rozvoz' ? 'převzetí' : 'vyzvednutí')) + ': <b>' + fm(s.celkem_mena != null ? s.celkem_mena : s.celkem, s.mena) + '</b></div>';
-      if (s.krok === 'zruseno') h += '<div class="note">Objednávka byla zrušena. V případě dotazů nás prosím kontaktujte.</div>';
-      else h += '<ol class="steps">' + kroky.map(function(k, ix){ var c = ix < idx || (ix === idx && krok === 'hotovo') ? 'done' : ix === idx ? 'cur' : ''; return '<li class="' + c + '"><span class="dot">' + (c === 'done' ? '✓' : ix + 1) + '</span>' + k[1] + '</li>'; }).join('') + '</ol>';
+      if (/[?&]nova=1/.test(location.search)) h += '<div class="note" style="margin:0 0 12px;background:#f0fdf4;border-color:#bbf7d0;color:#166534">' + esc(T('Děkujeme, objednávku jsme přijali.')) + '</div>';
+      h += '<h2>' + esc(T('Objednávka {cislo}', {cislo: s.cislo})) + '</h2><div class="meta">' + (s.typ === 'rozvoz' ? esc(T('Rozvoz')) + (s.adresa ? ' · ' + esc(s.adresa) : '') : esc(T('Vyzvednutí'))) + (casTxt ? '<br>' + esc(casTxt) : '') +
+           '<br>' + esc(s.zaplaceno ? T('Zaplaceno') : (s.typ === 'rozvoz' ? T('K úhradě při převzetí') : T('K úhradě při vyzvednutí'))) + ': <b>' + fm(s.celkem_mena != null ? s.celkem_mena : s.celkem, s.mena) + '</b></div>';
+      if (s.krok === 'zruseno') h += '<div class="note">' + esc(T('Objednávka byla zrušena. V případě dotazů nás prosím kontaktujte.')) + '</div>';
+      else h += '<ol class="steps">' + kroky.map(function(k, ix){ var c = ix < idx || (ix === idx && krok === 'hotovo') ? 'done' : ix === idx ? 'cur' : ''; return '<li class="' + c + '"><span class="dot">' + (c === 'done' ? '✓' : ix + 1) + '</span>' + esc(k[1]) + '</li>'; }).join('') + '</ol>';
       var bezi = s.krok !== 'hotovo' && s.krok !== 'zruseno';
-      if (bezi) h += '<p class="muted">Stránka se sama obnovuje.</p>';
-      h += '</div><a class="last-link" href="./">Nová objednávka</a>';
+      if (bezi) h += '<p class="muted">' + esc(T('Stránka se sama obnovuje.')) + '</p>';
+      h += '</div><a class="last-link" href="' + esc(withLang('./')) + '">' + esc(T('Nová objednávka')) + '</a>';
       $('app').innerHTML = h;
       if (bezi) setTimeout(function(){ renderStav(token); }, 30000);
     } catch (x) {
       $('sub').textContent = '';
-      $('app').innerHTML = '<div class="empty"><h2>Objednávka nenalezena</h2><p>' + esc(x.message) + '</p><a class="last-link" href="./">Zpět na nabídku</a></div>';
+      $('app').innerHTML = '<div class="empty"><h2>' + esc(T('Objednávka nenalezena')) + '</h2><p>' + esc(bad(x)) + '</p><a class="last-link" href="' + esc(withLang('./')) + '">' + esc(T('Zpět na nabídku')) + '</a></div>';
     }
   }
 
@@ -405,7 +435,7 @@ header('Cache-Control: no-store');
       if (tok) return renderStav(tok);
       if (!INFO.aktivni) {
         $('sub').textContent = '';
-        $('app').innerHTML = '<div class="empty"><h2>Online objednávky teď nepřijímáme</h2><p>Zkuste to prosím později.</p></div>' + (lsGet().last ? '<a class="last-link" href="?stav=' + esc(lsGet().last) + '">Moje poslední objednávka</a>' : '');
+        $('app').innerHTML = '<div class="empty"><h2>' + esc(T('Online objednávky teď nepřijímáme')) + '</h2><p>' + esc(T('Zkuste to prosím později.')) + '</p></div>' + (lsGet().last ? '<a class="last-link" href="' + esc(withLang('?stav=' + lsGet().last)) + '">' + esc(T('Moje poslední objednávka')) + '</a>' : '');
         return;
       }
       MENU = await api('menu');
@@ -414,7 +444,7 @@ header('Cache-Control: no-store');
       renderMenu();
     } catch (x) {
       $('sub').textContent = '';
-      $('app').innerHTML = '<div class="empty"><h2>Nepodařilo se načíst nabídku</h2><p>' + esc(x.message) + '</p></div>';
+      $('app').innerHTML = '<div class="empty"><h2>' + esc(T('Nepodařilo se načíst nabídku')) + '</h2><p>' + esc(bad(x)) + '</p></div>';
     }
   }
   $('bar-go').onclick = openCheckout;

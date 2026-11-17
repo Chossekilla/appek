@@ -383,25 +383,31 @@ if ($action === 'order' && $method === 'POST') {
     } catch (Throwable $e) {}
 
     // potvrzení zákazníkovi
-    $stavUrl = app_public_base(defined('APP_URL') ? APP_URL : null) . '/objednat/?stav=' . $token;   // 🐛 v3.0.644 — vč. podsložky
+    // 🆕 v3.0.645 — jazyk stránky /objednat (cs/en/es/de/sk), ve kterém zákazník objednával → e-mail i odkaz na stav
+    require_once __DIR__ . '/_i18n_web.php';
+    $webLang = web_lang_normalize($d['lang'] ?? null);
+    $stavUrl = app_public_base(defined('APP_URL') ? APP_URL : null) . '/objednat/?stav=' . $token   // 🐛 v3.0.644 — vč. podsložky
+             . ($webLang ? '&lang=' . $webLang : '');
     if ($email !== '') {
         try {
             require_once __DIR__ . '/_smtp_lib.php';
             $firma = (string) nastaveni_get($pdo, 'firma_nazev', '');
             // 🌍💱 v3.0.643 — anonymní zákazník nemá odběratele → jazyk = výchozí jazyk dokladů firmy;
             //   částka v měně objednávky (snapshot). Čeština + Kč = text beze změny.
+            // 🆕 v3.0.645 — objednal-li ze stránky v jazyce (lang), píše se e-mail v něm (de/sk přes _i18n_web.php)
             $L = email_lang_odberatele($pdo, null);
-            $tv = fn(string $k, array $x = []) => _t_lang($L, $k, $x);
+            if ($webLang) $L = $webLang;
+            $tv = fn(string $k, array $x = []) => in_array($L, APPEK_DOC_LANGS, true) ? _t_lang($L, $k, $x) : web_t($L, $k, $x);
             $mRows = [['id' => $objId]];
             mena_doc_pole($pdo, 'objednavky', $mRows);
             $mena = $mRows[0]['doc_mena'] ?? 'CZK';
             $kUhrade = ($L === 'cs' && $mena === 'CZK')
                 ? number_format($celkem, 2, ',', ' ') . ' Kč'
-                : _fmt_money_loc($mena === 'CZK' ? $celkem : (float) $mRows[0]['doc_celkem'], $L, $mena);
+                : web_fmt_money($mena === 'CZK' ? $celkem : (float) $mRows[0]['doc_celkem'], $L, $mena);
             $subj = $tv('Objednávka {cislo} přijata', ['cislo' => $cislo]);
             $body = $tv('Dobrý den, {jmeno},', ['jmeno' => $jmeno]) . "\n\n" . $tv('děkujeme, vaši objednávku {cislo} jsme přijali.', ['cislo' => $cislo]) . "\n"
                   . ($typ === 'rozvoz' ? $tv('Doručíme ji na: {adresa}', ['adresa' => "$adresa, $psc $mesto"]) . "\n" : $tv('Vyzvednutí:') . ' ')
-                  . ($typ === 'rozvoz' ? $tv('Kdy:') . ' ' : '') . _fmt_date_loc($casTs, $L, true) . "\n"
+                  . ($typ === 'rozvoz' ? $tv('Kdy:') . ' ' : '') . web_fmt_date($casTs, $L, true) . "\n"
                   . $tv($typ === 'rozvoz' ? 'K úhradě při převzetí:' : 'K úhradě při vyzvednutí:') . ' ' . $kUhrade . "\n\n"
                   . $tv('Stav objednávky:') . " $stavUrl\n\n" . $tv('Děkujeme') . ($firma ? ",\n$firma" : '') . "\n";
             appek_mail_raw($email, '=?UTF-8?B?' . base64_encode($subj) . '?=', $body, "Content-Type: text/plain; charset=UTF-8");
