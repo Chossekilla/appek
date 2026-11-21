@@ -17,11 +17,10 @@
 
 // 🔒 v3.0.353 — info-disclosure gate (jako diag.php): jen demo mód nebo localhost
 $_ip = $_SERVER['REMOTE_ADDR'] ?? '';
-if (!(defined('APPEK_DEMO_MODE') && APPEK_DEMO_MODE === true)
-    && !in_array($_ip, ['127.0.0.1', '::1', $_SERVER['SERVER_ADDR'] ?? ''], true)) {
+if (!in_array($_ip, ['127.0.0.1', '::1', $_SERVER['SERVER_ADDR'] ?? ''], true)) {   // 🔒 demo výjimka zrušena (demo má veřejný login)
     http_response_code(403);
     header('Content-Type: text/plain; charset=UTF-8');
-    echo 'Diagnostika je dostupná jen v demo módu nebo z localhost.';
+    echo 'Diagnostika je dostupná jen ze serveru (localhost).';
     exit;
 }
 

@@ -23,8 +23,10 @@ if ($cfgExists) @require_once $cfgPath;
 
 $isDemoMode = defined('APPEK_DEMO_MODE') && APPEK_DEMO_MODE === true;
 
-if (!$isDemoMode && !$isLocal) {
-    echo '<h1>403</h1><p>Diagnostika je dostupná jen v demo módu nebo z localhost.</p>';
+// 🔒 jen z localhost — v demo módu dřív veřejně ukazovala DB jméno/uživatele/část hesla a licenční klíč
+if (!$isLocal) {
+    http_response_code(403);
+    echo '<h1>403</h1><p>Diagnostika je dostupná jen ze serveru (localhost).</p>';
     exit;
 }
 

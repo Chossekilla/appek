@@ -52,3 +52,8 @@ ServerSignature Off
   Header set X-APPEK-Demo "true"
   Header set X-APPEK-Session-TTL "900"
 </IfModule>
+
+# 🔒 PHP log hostingu (bez přípony) — může obsahovat e-maily zákazníků
+<FilesMatch "^(error_log|php_errorlog)$">
+  Require all denied
+</FilesMatch>

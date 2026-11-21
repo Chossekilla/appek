@@ -1,0 +1,14 @@
+# 🔒 Ochrana souborů — nic z tohoto nesmí jít stáhnout z webu
+Options -Indexes
+# skryté soubory (.installed, .appek-version, …) a lokální konfigurace s hesly
+<FilesMatch "^\.|\.local\.php$">
+  Require all denied
+</FilesMatch>
+# logy (error_log = PHP log hostingu bez přípony), dumpy, dokumentace, zálohy
+<FilesMatch "^(error_log|php_errorlog)$|\.(log|sql|gz|zip|md|bak|old|tmp|swp|key|pem|crt|ini|sh)$">
+  Require all denied
+</FilesMatch>
+# knihovny _*.php se jen includují, přímo je volat nejde
+<FilesMatch "^_.*\.php$">
+  Require all denied
+</FilesMatch>

@@ -128,7 +128,8 @@ DirectoryIndex index.html index.php install.php
 # ────────────────────────────────────────────────────────────
 # 5️⃣ BLOKACE CITLIVÝCH SOUBORŮ — funguje s i bez Authz Core
 # ────────────────────────────────────────────────────────────
-<FilesMatch "(^\.htaccess|^\.htpasswd|^\.env|\.(env|local|log|sql|sql\.gz|bak|swp|tar|tar\.gz|tgz|zip|md|git|gitignore|sh|ini|conf|psd|ai|fla|swf|key|pem|crt)$)">
+# error_log = PHP log hostingu (bez přípony → .log ho nechytí); může obsahovat e-maily zákazníků
+<FilesMatch "(^\.htaccess|^\.htpasswd|^\.env|^error_log$|^php_errorlog$|\.(env|local|log|sql|sql\.gz|bak|swp|tar|tar\.gz|tgz|zip|md|git|gitignore|sh|ini|conf|psd|ai|fla|swf|key|pem|crt)$)">
   # Apache 2.4+ (mod_authz_core)
   <IfModule mod_authz_core.c>
     Require all denied

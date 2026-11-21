@@ -47,3 +47,8 @@ ServerSignature Off
 <FilesMatch "\.local\.php$">
   Require all denied
 </FilesMatch>
+
+# 🔒 PHP log hostingu (bez přípony) — může obsahovat e-maily zákazníků
+<FilesMatch "^(error_log|php_errorlog)$">
+  Require all denied
+</FilesMatch>
