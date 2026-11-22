@@ -133,6 +133,9 @@ try {
         'pr'   => $order['total_kc'],
     ]);
     $licenseId = (int) $pdo->lastInsertId();
+    // 🎁 v3.0.647 — balíček zdarma ke core → na licenci (tahle cesta často předběhne webhook)
+    require_once __DIR__ . '/_shop_pricing_lib.php';
+    try { shop_licence_apply_free($pdo, $licenseId, $order); } catch (Throwable $e) { error_log('free_package: ' . $e->getMessage()); }
     $pdo->prepare("UPDATE vendor_shop_orders SET license_id = :lid, license_key = :lk WHERE id = :id")
         ->execute(['lid' => $licenseId, 'lk' => $key, 'id' => $order['id']]);
 

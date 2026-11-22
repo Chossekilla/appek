@@ -63,13 +63,16 @@ if (!is_array($d)) {
 $name  = trim($d['customer_name'] ?? '');
 $email = trim($d['customer_email'] ?? '');
 $tier  = trim($d['tier'] ?? '');
-$total = (float) ($d['total_kc'] ?? 0);
+// 💰 v3.0.647 — cena se počítá NA SERVERU z vendor_packages (total_kc z klienta se ignoruje,
+//   dřív šel podvrhnout). Klient ho posílá jen kvůli kontrole — rozdíl se zaloguje.
+$clientTotal = (float) ($d['total_kc'] ?? 0);
+$total = 0.0;
 // 🆕 PRONÁJEM (Fáze 2): rental_months > 0 → objednávka pronájmu (licence rental=1, expires=+N měsíců).
 //   0 = klasický roční/perpetual prodej (beze změny). Povolené periody: 1/3/6/12.
 $rentalMonths = (int) ($d['rental_months'] ?? 0);
 if (!in_array($rentalMonths, [0, 1, 3, 6, 12], true)) $rentalMonths = 0;
 
-if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || $tier === '' || $total <= 0) {
+if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || $tier === '') {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'missing_fields']);
     exit;
@@ -104,6 +107,21 @@ try {
         }
     } catch (Throwable $e) { /* neblokuj objednávku */ }
 
+    // 💰 Autoritativní cena košíku + 🎁 balíček zdarma ke core (nejdražší vybraný)
+    require_once __DIR__ . '/_shop_pricing_lib.php';
+    $priced = shop_price_cart($pdo, is_array($d['packages'] ?? null) ? $d['packages'] : [], $rentalMonths);
+    $total  = $priced['total'];
+    if (!$priced['packages'] || $total <= 0) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'missing_fields']);
+        exit;
+    }
+    if (abs($clientTotal - $total) > 0.5) {
+        error_log(sprintf('shop_buy: klient poslal total %.2f, server spočítal %.2f (%s)',
+            $clientTotal, $total, implode(',', $priced['packages'])));
+    }
+    shop_pricing_ensure_cols($pdo);
+
     $couponCode    = strtoupper(trim($d['coupon_code'] ?? ''));
     $discountKc    = 0.0;
     $couponApplied = null;
@@ -134,9 +152,8 @@ try {
     // Generuj order_no — formát APPEK-ORD-YYYYMMDD-XXXX
     $orderNo = 'APPEK-ORD-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(2)));
 
-    $packages = is_array($d['packages'] ?? null) ? $d['packages'] : [];
-    // v3.0.588 — catering (v Lahůdkách) a sezona (zdarma) se samostatně neprodávají
-    $packages = array_values(array_diff($packages, ['catering', 'sezona']));
+    // platné prodejné klíče (lib už vyřadil catering/sezona + neznámé/neaktivní)
+    $packages = $priced['packages'];
     $packagesJson = json_encode(array_values($packages));
 
     $stmt = $pdo->prepare("
@@ -145,11 +162,11 @@ try {
            customer_country, customer_ico, customer_dic, customer_address,
            tier, packages_json, install_url, notes, total_kc, currency,
            payment_method, payment_status, locale, ip, user_agent, rental_months, landing_variant,
-           coupon_code, discount_kc)
+           coupon_code, discount_kc, free_package, free_kc)
         VALUES
           (:no, :n, :c, :e, :p, :co, :ico, :dic, :addr,
            :tier, :pkg, :url, :notes, :total, :curr,
-           :pm, 'pending', :loc, :ip, :ua, :rm, :lv, :coupon, :disc)
+           :pm, 'pending', :loc, :ip, :ua, :rm, :lv, :coupon, :disc, :fp, :fkc)
     ");
     $stmt->execute([
         'no'   => $orderNo,
@@ -175,6 +192,8 @@ try {
         'lv'   => preg_replace('/[^a-z0-9_-]/', '', strtolower((string) ($d['landing_variant'] ?? ''))) ?: null,
         'coupon' => $couponApplied,
         'disc'   => $discountKc,
+        'fp'     => $priced['free_key'],
+        'fkc'    => $priced['free_kc'],
     ]);
 
     // 🎟️ Kupon použit → započítej použití (best-effort, neblokuj objednávku)
@@ -208,6 +227,8 @@ try {
         'ok'       => true,
         'order_no' => $orderNo,
         'total_kc' => $total,
+        'free_package' => $priced['free_key'],
+        'free_kc'      => $priced['free_kc'],
         // Defaultní platební instrukce — zákazník zaplatí převodem na účet,
         // následně vendor manuálně označí jako paid v vendor/shop.php.
         // V další iteraci tudy vrátíme Stripe Checkout URL apod.

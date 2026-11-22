@@ -214,7 +214,9 @@ try {
                     || !in_array($vendorReply['license_status'] ?? 'unknown', ['unknown', '', null], true)))
             ? (($vendorReply['expires_at'] === '' || $vendorReply['expires_at'] === null) ? null : (string) $vendorReply['expires_at'])
             : ($prevState['valid_until'] ?? null),
-        'rental'      => $vendorReply['rental'] ?? ($prevState['rental'] ?? 0),  // 🆕 pronájem flag (my.appek.cz) — po grace hard-lock
+        'rental'      => $vendorReply['rental'] ?? ($prevState['rental'] ?? 0),
+        // 🎁 v3.0.647 — balíček zdarma ke core (jede i po vypršení roční licence)
+        'free_package' => array_key_exists('free_package', $vendorReply) ? $vendorReply['free_package'] : ($prevState['free_package'] ?? null),  // 🆕 pronájem flag (my.appek.cz) — po grace hard-lock
         'key_superseded' => $superseded ? 1 : 0,
         'last_check'  => time(),
     ]);

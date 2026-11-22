@@ -39,7 +39,13 @@ if (!function_exists('package_enabled')) {
             $enf = __DIR__ . '/_license_enforce.php';
             if (is_file($enf)) { require_once $enf; }
         }
-        if (function_exists('license_packages_active') && !license_packages_active()) return false;
+        if (function_exists('license_packages_active') && !license_packages_active()) {
+            // 🎁 v3.0.647 — balíček zdarma ke core je součást core → po vypršení ROČNÍ licence jede dál.
+            //   Pronájem po vypršení = vše zamčené (platí se měsíčně i za core) → výjimka neplatí.
+            $lst = function_exists('license_state_load') ? license_state_load() : [];
+            $free = strtolower((string) ($lst['free_package'] ?? ''));
+            if (!empty($lst['rental']) || $free === '' || $free !== $key) return false;
+        }
         static $cache = null;
         if ($cache === null) {
             try { $cache = packages_state_get(db()); }

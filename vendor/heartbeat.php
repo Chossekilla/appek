@@ -381,6 +381,8 @@ try {
             ? 'Dodavatel vydal pro tuto licenci nový klíč (změna balíčků). Vložte ho v Nastavení → Balíčky → Aktualizovat klíč.'
             : 'Heartbeat zaznamenán.',
         'expires_at'     => $licenseRow['expires_at'] ?? null,
+        // 🎁 v3.0.647 — balíček zdarma ke core: po vypršení roční licence jede dál
+        'free_package'   => $licenseRow['free_package'] ?? null,
         // 🆕 PRONÁJEM (my.appek.cz): rental=1 → klient po grace hard-lockne CELOU appku (ne jen balíčky).
         'rental'         => !empty($licenseRow['rental']) ? 1 : 0,
     ], JSON_UNESCAPED_UNICODE);

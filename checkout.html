@@ -92,6 +92,9 @@
     background: #fff;
   }
   .pkg:hover { border-color: #BA7517; background: #faf6ef; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(186,117,23,0.08); }
+  .free-hint { margin:0 0 10px; padding:10px 12px; border-radius:10px; background:#eef8f0; color:#1d6b32; font-size:13px; font-weight:600; }
+  .pkg-free { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px; background:#208438; color:#fff; font-size:11px; font-weight:700; vertical-align:middle; }
+  .pkg-price s { color:#86868b; font-weight:400; }
   .pkg.selected { border-color: #BA7517; background: rgba(186,117,23,0.06); box-shadow: 0 2px 8px rgba(186,117,23,0.12); }
   .pkg.core { background: linear-gradient(135deg, rgba(186,117,23,0.08), rgba(186,117,23,0.02)); border-color: #BA7517; border-width: 2px; }
   .pkg.core .pkg-name::after { content: " ⭐"; }
@@ -436,6 +439,7 @@
             Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.
           </div>
           <!-- (přepínač režimu koupě přesunut nahoru jako hlavní taby — viz .buy-mode-top, v3.0.525) -->
+          <div class="free-hint" data-i18n="free_hint">Ke core máte jeden balíček zdarma — vyberte si ho. Když vyberete víc, zdarma je ten nejdražší.</div>
           <div class="pkg-list" id="pkg-list">
             <div style="text-align:center;padding:40px;color:#86868b" data-i18n="loading">Načítání balíčků…</div>
           </div>
@@ -717,6 +721,8 @@ const I18N = {
     ph_notes: 'Něco co bychom měli vědět…',
     summary: 'Souhrn objednávky',
     sum_empty: 'Zatím nic nevybráno',
+    free_hint: 'Ke core máte jeden balíček zdarma — vyberte si ho. Když vyberete víc, zdarma je ten nejdražší.',
+    free_badge: 'zdarma', free_line: 'Balíček zdarma ke core',
     total: 'Celkem',
     btn_buy: 'Objednat →',
     note: 'Po odeslání zaplatíte rovnou kartou (Stripe / GoPay) nebo zvolíte platbu převodem na fakturu. Licenční klíč přijde okamžitě po platbě kartou (nebo do 24 h po převodu).',
@@ -796,6 +802,8 @@ const I18N = {
     ph_notes: 'Anything we should know…',
     summary: 'Order summary',
     sum_empty: 'Nothing selected yet',
+    free_hint: 'One package is free with Core — pick it. If you select more, the most expensive one is free.',
+    free_badge: 'free', free_line: 'Free package with Core',
     total: 'Total',
     btn_buy: 'Order →',
     note: 'After submitting you will pay directly by card (Stripe / GoPay) or choose bank transfer with invoice. License key arrives immediately after card payment (or within 24 h after transfer).',
@@ -871,6 +879,8 @@ const I18N = {
     ph_notes: 'Algo que debamos saber…',
     summary: 'Resumen del pedido',
     sum_empty: 'Aún nada seleccionado',
+    free_hint: 'Con Core tienes un paquete gratis — elígelo. Si eliges varios, el más caro es gratis.',
+    free_badge: 'gratis', free_line: 'Paquete gratis con Core',
     total: 'Total',
     btn_buy: 'Pedir →',
     note: 'Tras enviar pagará directamente con tarjeta (Stripe / GoPay) o eligirá transferencia con factura. La clave llega inmediatamente tras pago con tarjeta (o en 24 h tras transferencia).',
@@ -957,6 +967,20 @@ function pkgPrice(p) {
   return parseFloat(p.price_kc) || 0;
 }
 
+// 🎁 v3.0.647 — ke core jeden balíček zdarma: nejdražší vybraný ne-core balíček.
+//   ZRCADLO api/_shop_pricing_lib.php shop_apply_free_package() — server počítá autoritativně.
+function freePackageKey() {
+  let hasCore = false, key = null, best = 0;
+  PACKAGES.forEach(p => {
+    if (!(p.is_core || SELECTED.has(p.key))) return;
+    if (p.is_core) { hasCore = true; return; }
+    const pr = pkgPrice(p);
+    if (pr > best) { best = pr; key = p.key; }
+  });
+  return hasCore ? key : null;
+}
+function effPrice(p) { return p.key === freePackageKey() ? 0 : pkgPrice(p); }
+
 function setBuyMode(mode) {
   RENTAL_MONTHS = (mode === 'rental') ? 3 : 0;   // pronájem default 3 měsíce
   document.querySelectorAll('#buy-mode .bm-btn').forEach((b, i) => b.classList.toggle('active', (i === 0) === (RENTAL_MONTHS === 0)));
@@ -1039,7 +1063,7 @@ function renderPackages() {
         <div class="pkg-name">${escapeHtml(name)}</div>
         <div class="pkg-desc">${escapeHtml(desc)}</div>
       </div>
-      <div class="pkg-price">${formatPriceHtml(pkgPrice(p))}${RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} měs.</small>` : ''}</div>
+      <div class="pkg-price">${p.key === freePackageKey() ? `<s>${formatPriceHtml(pkgPrice(p))}</s><span class="pkg-free">${escapeHtml(I18N[lang].free_badge || 'zdarma')}</span>` : formatPriceHtml(pkgPrice(p))}${RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} měs.</small>` : ''}</div>
     `;
     if (!p.is_core) {
       label.querySelector('.pkg-check').addEventListener('change', (e) => onPkgToggle(p.key, e.target.checked, label));
@@ -1053,7 +1077,21 @@ function renderPackages() {
 function onPkgToggle(key, checked, labelEl) {
   if (checked) SELECTED.add(key); else SELECTED.delete(key);
   if (labelEl) labelEl.classList.toggle('selected', checked);
+  renderPackagePrices();
   renderSummary();
+}
+
+// 🎁 Přepiš jen ceny v kartách (bez re-renderu checkboxů → žádný ghost-click double-toggle)
+function renderPackagePrices() {
+  const fk = freePackageKey();
+  document.querySelectorAll('#pkg-list .pkg').forEach(el => {
+    const p = PACKAGES.find(x => x.key === el.dataset.key); if (!p) return;
+    const pe = el.querySelector('.pkg-price'); if (!pe) return;
+    const rent = RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} měs.</small>` : '';
+    pe.innerHTML = (p.key === fk
+      ? `<s>${formatPriceHtml(pkgPrice(p))}</s><span class="pkg-free">${escapeHtml(I18N[lang].free_badge || 'zdarma')}</span>`
+      : formatPriceHtml(pkgPrice(p))) + rent;
+  });
 }
 
 // ─── 🎟️ Slevový kupon ───
@@ -1064,7 +1102,7 @@ const COUPON_T = {
   es: { applied:'Cupón aplicado', invalid:'Código inválido', not_found:'Código inválido', inactive:'Código inactivo', expired:'Código expirado', used_up:'Código agotado', discount:'Descuento' },
 };
 function currentSubtotal() {
-  let t = 0; PACKAGES.forEach(p => { if (SELECTED.has(p.key)) t += pkgPrice(p); }); return t;
+  let t = 0; PACKAGES.forEach(p => { if (SELECTED.has(p.key)) t += effPrice(p); }); return t;
 }
 async function applyCoupon() {
   const input = document.getElementById('coupon-code');
@@ -1106,9 +1144,10 @@ function renderSummary() {
   const lines = [];
   PACKAGES.forEach(p => {
     if (SELECTED.has(p.key)) {
-      total += pkgPrice(p);
+      total += effPrice(p);
       const name = p[`name_${lang}`] || p.name_cs;
-      lines.push(`<div class="sum-row"><span>${escapeHtml(name)}</span><span>${formatPrice(pkgPrice(p))}</span></div>`);
+      const free = p.key === freePackageKey();
+      lines.push(`<div class="sum-row"${free ? ' style="color:#208438;font-weight:600"' : ''}><span>${escapeHtml(name)}</span><span>${free ? escapeHtml(I18N[lang].free_badge || 'zdarma') : formatPrice(pkgPrice(p))}</span></div>`);
     }
   });
   if (lines.length === 0) {
@@ -1177,7 +1216,7 @@ async function submitOrder() {
   // jednou-použitelná digitální dodávka a po předání není refundovatelný).
 
   const total = Array.from(SELECTED).reduce((s, k) => {
-    const p = PACKAGES.find(p => p.key === k); return s + (p ? pkgPrice(p) : 0);
+    const p = PACKAGES.find(p => p.key === k); return s + (p ? effPrice(p) : 0);
   }, 0);
 
   // 🆕 v2.9.200 — payment method z radio (stripe / gopay / invoice)

@@ -4246,15 +4246,15 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
   var loaded = false;   // true = API odpovědělo (i prázdně)
 
   var T = {
-    cs: { core: 'vždy v ceně', cur: 'Kč',
+    cs: { core: 'vždy v ceně', free: 'zdarma ke core', cur: 'Kč',
           loading: 'Načítám aktuální nabídku balíčků…',
           fallback: 'Aktuální balíčky a ceny uvidíš na stránce objednávky.',
           count: function (n) { return n + ' ' + (n === 1 ? 'položka' : (n >= 2 && n <= 4 ? 'položky' : 'položek')); } },
-    en: { core: 'always included', cur: 'Kč',
+    en: { core: 'always included', free: 'free with Core', cur: 'Kč',
           loading: 'Loading current packages…',
           fallback: 'Current packages and prices are shown on the order page.',
           count: function (n) { return n + ' item' + (n === 1 ? '' : 's'); } },
-    es: { core: 'siempre incluido', cur: 'Kč',
+    es: { core: 'siempre incluido', free: 'gratis con Core', cur: 'Kč',
           loading: 'Cargando paquetes actuales…',
           fallback: 'Los paquetes y precios actuales se muestran en la página de pedido.',
           count: function (n) { return n + ' artículo' + (n === 1 ? '' : 's'); } }
@@ -4318,12 +4318,22 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
     if (msep) msep.style.display = avail ? 'block' : 'none';
     if (!avail) RM = 0;
 
+    // v3.0.647 — ke core jeden balíček zdarma (nejdražší vybraný) — stejně jako checkout + server
+    var freeKey = null, freeBest = 0, hasCore = false;
+    PKGS.forEach(function (p) {
+      if (p.is_core) { hasCore = true; return; }
+      if (!SEL[p.key]) return;
+      var pr = priceOf(p); if (pr > freeBest) { freeBest = pr; freeKey = p.key; }
+    });
+    if (!hasCore) freeKey = null;
+
     listEl.innerHTML = PKGS.map(function (p) {
       var core = !!p.is_core;
       var on = core || !!SEL[p.key];
       var cls = 'eshop-addon' + (core ? ' included' : (on ? ' on' : ''));
       var price = (core && RM === 0) ? ('✓ ' + t.core)
-        : ('+' + fmt(priceOf(p)) + ' ' + t.cur + (RM > 0 ? ' /' + RM + 'm' : ''));
+        : (p.key === freeKey ? t.free
+        : ('+' + fmt(priceOf(p)) + ' ' + t.cur + (RM > 0 ? ' /' + RM + 'm' : '')));
       var click = core ? '' : ' onclick="eshopTogglePkg(\'' + esc(p.key) + '\')"';
       return '<button type="button" class="' + cls + '"' + click + '>'
         + '<span class="ea-emoji">' + (esc(p.icon) || '📦') + '</span>'
@@ -4336,10 +4346,10 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
     var chosen = PKGS.filter(function (p) { return p.is_core || SEL[p.key]; });
     var total = 0, html = '';
     chosen.forEach(function (p) {
-      var pr = priceOf(p);
+      var pr = p.key === freeKey ? 0 : priceOf(p);
       total += pr;
       html += '<div class="es-line"><span>' + esc(nameOf(p))
-        + '</span><span>' + fmt(pr) + ' ' + t.cur + '</span></div>';
+        + '</span><span>' + (p.key === freeKey ? t.free : fmt(pr) + ' ' + t.cur) + '</span></div>';
     });
     if (linesEl) linesEl.innerHTML = html;
     if (countEl) countEl.textContent = t.count(chosen.length);

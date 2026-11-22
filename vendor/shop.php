@@ -87,6 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'rt' => $isRental ? 1 : 0,
             ]);
             $licenseId = (int) $pdo->lastInsertId();
+            // 🎁 v3.0.647 — balíček zdarma ke core → na licenci (+ roční jen core+zdarma = bez expirace)
+            require_once __DIR__ . '/../api/_shop_pricing_lib.php';
+            try { shop_licence_apply_free($pdo, $licenseId, $order); } catch (Throwable $e) { error_log('free_package: ' . $e->getMessage()); }
 
             $pdo->prepare("UPDATE vendor_shop_orders SET license_id = :lid, license_key = :lk WHERE id = :id")
                 ->execute(['lid' => $licenseId, 'lk' => $key, 'id' => $orderId]);
@@ -398,6 +401,9 @@ if ($detailId > 0) {
           </td>
           <td>
             <strong><?= number_format((float) $o['total_kc'], 0, ',', ' ') ?> Kč</strong>
+            <?php if (!empty($o['free_package'])): ?>
+              <br><span title="Balíček zdarma ke core<?= (float) ($o['free_kc'] ?? 0) > 0 ? ' (−' . number_format((float) $o['free_kc'], 0, ',', ' ') . ' Kč)' : '' ?>" style="font-size:11px;color:#208438;white-space:nowrap;font-weight:700">🎁 <?= htmlspecialchars($o['free_package']) ?></span>
+            <?php endif; ?>
             <?php if (!empty($o['coupon_code'])): ?>
               <br><span title="Slevový kupon: <?= htmlspecialchars($o['coupon_code']) ?><?= (isset($o['discount_kc']) && (float) $o['discount_kc'] > 0) ? ' (−' . number_format((float) $o['discount_kc'], 0, ',', ' ') . ' Kč)' : '' ?>" style="font-size:11px;color:#208438;white-space:nowrap;font-weight:700">🎟️ <?= htmlspecialchars($o['coupon_code']) ?></span>
             <?php endif; ?>

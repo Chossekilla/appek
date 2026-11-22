@@ -107,14 +107,20 @@ function my_pkg_rows(PDO $pdo, string $key): array {
     } catch (Throwable $e) { return []; }
 }
 
-/** Cena prodloužení: pronájem = součet měsíčních cen (vč. core); roční = součet ročních cen add-on balíčků (core je napořád). */
+/** Cena prodloužení: pronájem = součet měsíčních cen (vč. core); roční = součet ročních cen add-on balíčků (core je napořád).
+ *  🎁 v3.0.647: licence s core má jeden balíček zdarma (nejdražší) — stejné pravidlo jako eshop (_shop_pricing_lib.php). */
 function my_renew_price(PDO $pdo, array $lic, int $months): float {
     $rows = my_pkg_rows($pdo, (string) $lic['license_key']);
-    if (!empty($lic['rental'])) {
-        return array_sum(array_map(fn($r) => (float) $r['price_month_kc'], $rows)) * $months;
+    $rental = !empty($lic['rental']);
+    // Zdarma je balíček uložený na licenci při prodeji (staré licence bez free_package = beze změny ceny)
+    $free = strtolower(trim((string) ($lic['free_package'] ?? '')));
+    $sum = 0.0;
+    foreach ($rows as $r) {
+        if ($free !== '' && strtolower((string) $r['key']) === $free) continue;
+        $sum += $rental ? (float) $r['price_month_kc'] * $months
+                        : (!empty($r['is_core']) ? 0.0 : (float) $r['price_kc'] * ($months / 12));
     }
-    $rocne = array_sum(array_map(fn($r) => !empty($r['is_core']) ? 0.0 : (float) $r['price_kc'], $rows));
-    return $rocne * ($months / 12);
+    return round($sum, 2);
 }
 
 /** Nabídka období prodloužení pro licenci. */
@@ -657,7 +663,8 @@ if ($email) {
         $vydano = $l['issued_at'] ?? ($l['created_at'] ?? null);
         $renewFrom = my_renew_price($pdo, $l, my_renew_periods($l)[0]);
         $canRenew = ($l['status'] ?? '') !== 'revoked' && ($s['rental'] || $s['vu']) && $renewFrom > 0;
-        $coreOnly = !$s['rental'] && $s['vu'] && $renewFrom <= 0; ?>
+        $coreOnly = !$s['rental'] && $s['vu'] && $renewFrom <= 0;
+        $freePkg = (!$s['rental'] && !empty($l['free_package'])) ? (string) $l['free_package'] : ''; ?>
       <section class="card">
         <div class="lic-top">
           <div><p class="lic-name"><?= e($nazev ?: 'APPEK licence') ?></p>
@@ -679,8 +686,10 @@ if ($email) {
           <dt>Licenční klíč</dt><dd><span class="key"><?= e($masked) ?></span> <button class="btn ghost sm" type="button" data-copy="<?= e($key) ?>">Kopírovat</button></dd>
           <?php if ($vydano): ?><dt>Vydáno</dt><dd><?= e(d($vydano)) ?></dd><?php endif; ?>
         </dl>
-        <?php if ($coreOnly): ?>
-        <p class="muted" style="margin:14px 0 0">Základ (Core) vám běží napořád — datum platnosti se týká jen placených balíčků. Balíčky můžete přikoupit na <a href="https://appek.cz/checkout.html">appek.cz</a>.</p>
+        <?php if ($freePkg !== '' && (!$s['vu'] || in_array($s['key'], ['expired'], true))): ?>
+        <p class="muted" style="margin:14px 0 0">Základ (Core) i balíček zdarma (<?= e($freePkg) ?>) vám běží napořád<?= $s['vu'] ? ' — vypnuté jsou jen placené balíčky, obnovíte je prodloužením.' : '.' ?></p>
+        <?php elseif ($coreOnly): ?>
+        <p class="muted" style="margin:14px 0 0">Základ (Core)<?= $freePkg !== '' ? ' i balíček zdarma (' . e($freePkg) . ')' : '' ?> vám běží napořád — datum platnosti se týká jen placených balíčků. Balíčky můžete přikoupit na <a href="https://appek.cz/checkout.html">appek.cz</a>.</p>
         <?php endif; ?>
         <?php if ($canRenew): ?>
         <div class="actions">
