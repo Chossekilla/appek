@@ -119,8 +119,9 @@ if ($action === 'generate' && $method === 'POST') {
             'p'   => $d['customer_phone']   ?? null,
             'u'   => $d['install_url']      ?? null,
             'nt'  => $d['note']             ?? null,
-            // 🆕 v3.0.302 — default ROČNÍ licence: bez zadaného data → platnost 1 rok od vystavení.
-            'ex'  => !empty($d['expires_at']) ? $d['expires_at'] : date('Y-m-d', strtotime('+1 year')),
+            // v3.0.648 — koupená licence je NAVŽDY: bez zadaného data → bez expirace (NULL).
+            //   Pronájem bez data → 1 měsíc (platí jen zaplacené období).
+            'ex'  => !empty($d['expires_at']) ? $d['expires_at'] : (!empty($d['rental']) ? date('Y-m-d', strtotime('+1 month')) : null),
             'uid' => $user['id'],
             'pr'  => isset($d['price_kc']) ? (float) $d['price_kc'] : null,
             'pd'  => !empty($d['paid']) ? 1 : 0,

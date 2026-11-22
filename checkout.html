@@ -395,9 +395,9 @@
       <button type="button" class="bm-btn" onclick="setBuyMode('rental')" data-i18n="mode_rent">Pronájem měsíčně</button>
     </div>
     <div class="rental-periods" id="rental-periods">
-      <button type="button" class="rp-btn" onclick="setRentalMonths(1)" data-m="1">1 měsíc</button>
-      <button type="button" class="rp-btn active" onclick="setRentalMonths(3)" data-m="3">3 měsíce</button>
-      <button type="button" class="rp-btn" onclick="setRentalMonths(6)" data-m="6">6 měsíců</button>
+      <button type="button" class="rp-btn" onclick="setRentalMonths(1)" data-m="1" data-i18n="rp_1">1 měsíc</button>
+      <button type="button" class="rp-btn active" onclick="setRentalMonths(3)" data-m="3" data-i18n="rp_3">3 měsíce</button>
+      <button type="button" class="rp-btn" onclick="setRentalMonths(6)" data-m="6" data-i18n="rp_6">6 měsíců</button>
     </div>
   </div>
 
@@ -421,11 +421,11 @@
         <span class="hl-badge" id="badge-license" data-i18n="badge_license">✅ Doživotní licence</span>
         <ul class="hl-list">
           <li id="hl-payment"><strong>Jednorázová platba</strong> — žádné měsíční poplatky</li>
-          <li><strong>Vaše data</strong> na vašem zařízení / hostingu</li>
-          <li>Český systém <strong>+ EN a ES</strong> překlady</li>
+          <li data-i18n="hl_data"><strong>Vaše data</strong> na vašem zařízení / hostingu</li>
+          <li data-i18n="hl_lang">Český systém <strong>+ SK, EN, DE, ES</strong> překlady</li>
           <li id="badge-updates" data-i18n="badge_updates"><strong>1 rok updates</strong> zdarma</li>
         </ul>
-        <div class="hl-foot">🔑 Licenční klíč přijde e-mailem do pár minut po zaplacení.</div>
+        <div class="hl-foot" data-i18n="hl_foot">🔑 Licenční klíč přijde e-mailem pár minut po platbě kartou.</div>
       </aside>
     </div>
   </div>
@@ -434,7 +434,7 @@
     <div class="grid">
       <!-- KROK 1: VOLBA BALÍČKŮ -->
       <div class="card pkg-card">
-        <h2 data-i18n="step1">📦 Vyberte balíčky <small data-i18n="step1_sub">— Core je vždy zahrnut</small></h2>
+        <h2><span data-i18n="step1">📦 Vyberte balíčky</span> <small data-i18n="step1_sub">— Core je vždy zahrnut, jeden balíček k němu zdarma</small></h2>
           <div class="info-banner" data-i18n="banner" id="info-banner">
             Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.
           </div>
@@ -461,7 +461,7 @@
           <div class="form-row split">
             <div>
               <label data-i18n="lbl_email">E-mail *</label>
-              <input type="email" id="customer_email" required autocomplete="email" placeholder="vase@firma.cz">
+              <input type="email" id="customer_email" required autocomplete="email" data-i18n-placeholder="ph_email" placeholder="vase@firma.cz">
             </div>
             <div>
               <label data-i18n="lbl_phone">Telefon *</label>
@@ -470,7 +470,7 @@
           </div>
           <div class="form-row">
             <label data-i18n="lbl_email2">E-mail znovu (pro kontrolu) *</label>
-            <input type="email" id="customer_email2" required autocomplete="off" placeholder="vase@firma.cz" onpaste="return false" ondrop="return false">
+            <input type="email" id="customer_email2" required autocomplete="off" data-i18n-placeholder="ph_email" placeholder="vase@firma.cz" onpaste="return false" ondrop="return false">
           </div>
           <div class="form-row split">
             <div>
@@ -484,7 +484,7 @@
           </div>
           <div class="form-row">
             <label data-i18n="lbl_address">Fakturační adresa <small data-i18n="lbl_optional">(volitelné)</small></label>
-            <input type="text" id="customer_address" placeholder="Ulice, město, PSČ">
+            <input type="text" id="customer_address" data-i18n-placeholder="ph_address" placeholder="Ulice, město, PSČ">
           </div>
           <div class="form-row">
             <label data-i18n="lbl_install_url">URL kam instalujete <small data-i18n="lbl_install_hint">(např. https://b2b.firma.cz)</small></label>
@@ -506,11 +506,11 @@
           <!-- 🎟️ Slevový kód -->
           <div id="coupon-box" style="margin:10px 0 4px;border-top:1px dashed #e5e5e7;padding-top:12px">
             <div style="display:flex;gap:6px">
-              <input type="text" id="coupon-code" placeholder="Slevový kód" autocomplete="off"
+              <input type="text" id="coupon-code" data-i18n-placeholder="ph_coupon" placeholder="Slevový kód" autocomplete="off"
                      onkeydown="if(event.key==='Enter'){event.preventDefault();applyCoupon();}"
                      style="flex:1;min-width:0;padding:8px 10px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;text-transform:uppercase">
               <button type="button" id="coupon-apply" onclick="applyCoupon()"
-                      style="padding:8px 14px;border:1px solid #BA7517;background:#fff;color:#BA7517;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">Použít</button>
+                      style="padding:8px 14px;border:1px solid #BA7517;background:#fff;color:#BA7517;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap" data-i18n="coupon_apply">Použít</button>
             </div>
             <div id="coupon-msg" style="font-size:12px;margin-top:6px;display:none"></div>
           </div>
@@ -526,62 +526,34 @@
 
           <!-- 🆕 v2.9.214 — clean radio labels + info pop-overs s detaily aktivace -->
           <div style="margin:14px 0 6px;border-top:1px solid #e5e5e7;padding-top:14px">
-            <div style="font-size:13px;font-weight:600;color:#1d1d1f;margin-bottom:8px">💳 Způsob platby</div>
+            <div style="font-size:13px;font-weight:600;color:#1d1d1f;margin-bottom:8px" data-i18n="pay_h">💳 Způsob platby</div>
             <div class="pay-radios">
 
               <!-- 💳 GoPay (CZ karty + banka) — primární pro CZ trh -->
               <label class="pay-radio-row">
                 <input type="radio" name="pay_method" value="gopay" checked>
-                <span class="pay-radio-text">💳 <strong>Platba kartou / bankou</strong> — GoPay (Visa, Mastercard, Apple&nbsp;Pay, Google&nbsp;Pay, bankovní tlačítka)</span>
+                <span class="pay-radio-text" data-i18n="pay_gopay_lbl">💳 <strong>Platba kartou / bankou</strong> — GoPay (Visa, Mastercard, Apple&nbsp;Pay, Google&nbsp;Pay, bankovní tlačítka)</span>
                 <button type="button" class="pay-info-btn" aria-label="Detail GoPay platby" onclick="togglePayInfo('gopay', event)">i</button>
               </label>
-              <div class="pay-info-box" id="pay-info-gopay">
-                <strong>⚡ Co se stane po kliknutí „Objednat"?</strong>
-                <ol>
-                  <li>Přesměrujeme tě na zabezpečenou platební bránu <strong>GoPay</strong></li>
-                  <li>Zaplatíte kartou, Apple&nbsp;Pay / Google&nbsp;Pay nebo přímým bankovním převodem</li>
-                  <li>Po úspěšné platbě se vrátíš zpět na APPEK potvrzovací stránku</li>
-                  <li>Licenční klíč dorazí na zadaný e-mail (formát <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li>
-                  <li>Stáhnete APPEK přes odkaz v e-mailu a aktivujete klíčem v instalátoru</li>
-                </ol>
-                <p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 GoPay je licencovaná platební instituce (ČNB). APPEK nikdy nevidí číslo vaší karty.</p>
+              <div class="pay-info-box" id="pay-info-gopay" data-i18n="pay_info_gopay"><strong>⚡ Co se stane po kliknutí „Objednat“?</strong><ol><li>Přesměrujeme vás na zabezpečenou platební bránu <strong>GoPay</strong></li><li>Zaplatíte kartou, Apple&nbsp;Pay / Google&nbsp;Pay nebo přímým bankovním převodem</li><li>Po úspěšné platbě se vrátíte na potvrzovací stránku APPEK</li><li>Licenční klíč dorazí na zadaný e-mail (formát <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li><li>APPEK stáhnete přes odkaz v e-mailu a aktivujete klíčem v instalátoru</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 GoPay je licencovaná platební instituce (ČNB). APPEK nikdy nevidí číslo vaší karty.</p>
               </div>
 
               <!-- 💳 Karta (Stripe) — mezinárodní alternativa -->
               <label class="pay-radio-row">
                 <input type="radio" name="pay_method" value="stripe">
-                <span class="pay-radio-text">💳 <strong>Platba kartou</strong> — Visa, Mastercard, Apple Pay, Google Pay</span>
+                <span class="pay-radio-text" data-i18n="pay_stripe_lbl">💳 <strong>Platba kartou</strong> — Visa, Mastercard, Apple Pay, Google Pay</span>
                 <button type="button" class="pay-info-btn" aria-label="Detail platby kartou" onclick="togglePayInfo('stripe', event)">i</button>
               </label>
-              <div class="pay-info-box" id="pay-info-stripe">
-                <strong>⚡ Co se stane po kliknutí „Objednat"?</strong>
-                <ol>
-                  <li>Přesměrujeme tě na zabezpečenou Stripe Checkout stránku</li>
-                  <li>Zadáš číslo karty (nebo využiješ Apple Pay / Google Pay)</li>
-                  <li>Stripe vám účtuje platbu <strong>okamžitě</strong> (3D Secure pokud banka vyžaduje)</li>
-                  <li>Po úspěšné platbě se vrátíš zpět na APPEK potvrzovací stránku</li>
-                  <li>Licenční klíč <strong>okamžitě</strong> dorazí na zadaný e-mail (formát <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li>
-                  <li>Stáhnete si APPEK ZIP přes odkaz v e-mailu a aktivujete klíčem v instalátoru</li>
-                </ol>
-                <p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 Stripe je PCI DSS Level 1 certifikován. APPEK nikdy nevidí číslo vaší karty.</p>
+              <div class="pay-info-box" id="pay-info-stripe" data-i18n="pay_info_stripe"><strong>⚡ Co se stane po kliknutí „Objednat“?</strong><ol><li>Přesměrujeme vás na zabezpečenou stránku Stripe Checkout</li><li>Zadáte číslo karty (nebo použijete Apple Pay / Google Pay)</li><li>Stripe vám platbu strhne <strong>okamžitě</strong> (s 3D Secure, pokud to banka vyžaduje)</li><li>Po úspěšné platbě se vrátíte na potvrzovací stránku APPEK</li><li>Licenční klíč <strong>okamžitě</strong> dorazí na zadaný e-mail (formát <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li><li>APPEK stáhnete přes odkaz v e-mailu a aktivujete klíčem v instalátoru</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 Stripe má certifikaci PCI DSS Level 1. APPEK nikdy nevidí číslo vaší karty.</p>
               </div>
 
               <!-- 🏦 Faktura + převod -->
               <label class="pay-radio-row">
                 <input type="radio" name="pay_method" value="invoice">
-                <span class="pay-radio-text">🏦 <strong>Faktura + bankovní převod</strong></span>
+                <span class="pay-radio-text" data-i18n="pay_bank_lbl">🏦 <strong>Faktura + bankovní převod</strong></span>
                 <button type="button" class="pay-info-btn" aria-label="Detail platby převodem" onclick="togglePayInfo('invoice', event)">i</button>
               </label>
-              <div class="pay-info-box" id="pay-info-invoice">
-                <strong>📄 Co se stane po kliknutí „Objednat"?</strong>
-                <ol>
-                  <li>Vystavíme fakturu (PDF) na zadané fakturační údaje (IČO / DIČ)</li>
-                  <li>Fakturu obdržíš <strong>okamžitě</strong> na e-mail s instrukcemi (číslo účtu, VS, částka)</li>
-                  <li>Provedeš převod ze svého bankovního účtu</li>
-                  <li>Po připsání částky (obvykle <strong>do 24 h</strong> v pracovní den) vám odešleme licenční klíč</li>
-                  <li>Klíč přijde stejným e-mailem + odkaz na stažení APPEK ZIP</li>
-                </ol>
-                <p style="margin:8px 0 0;font-size:11px;color:#86868b">💡 Vhodné pro firmy s účtováním na fakturu. Splatnost faktury 14 dní.</p>
+              <div class="pay-info-box" id="pay-info-invoice" data-i18n="pay_info_invoice"><strong>📄 Co se stane po kliknutí „Objednat“?</strong><ol><li>Vystavíme fakturu (PDF) na zadané fakturační údaje (IČO / DIČ)</li><li>Fakturu obdržíte <strong>okamžitě</strong> e-mailem s instrukcemi (číslo účtu, VS, částka)</li><li>Provedete převod ze svého bankovního účtu</li><li>Po připsání částky (obvykle <strong>do 24 h</strong> v pracovní den) vám pošleme licenční klíč</li><li>Klíč přijde e-mailem spolu s odkazem na stažení APPEK</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">💡 Vhodné pro firmy s účtováním na fakturu. Splatnost faktury 14 dní.</p>
               </div>
 
             </div>
@@ -601,9 +573,9 @@
             Po odeslání budete podle volby přesměrováni na platební bránu, nebo dostanete fakturu k převodu. Licenční klíč přijde ihned po platbě kartou (nebo do 24 h po převodu).
           </p>
           <p class="legal-links" style="text-align:center;font-size:12px;margin:8px 0 0">
-            <a href="obchodni-podminky.html" target="_blank" rel="noopener" style="color:#86868b;text-decoration:underline">Obchodní podmínky</a>
+            <a href="obchodni-podminky.html" target="_blank" rel="noopener" style="color:#86868b;text-decoration:underline" data-i18n="legal_tos">Obchodní podmínky</a>
             <span style="color:#c7c7cc;margin:0 7px">·</span>
-            <a href="zasady-ochrany-soukromi.html" target="_blank" rel="noopener" style="color:#86868b;text-decoration:underline">GDPR / Soukromí</a>
+            <a href="zasady-ochrany-soukromi.html" target="_blank" rel="noopener" style="color:#86868b;text-decoration:underline" data-i18n="legal_gdpr">GDPR / Soukromí</a>
           </p>
         </div>
       </div>
@@ -684,27 +656,27 @@ const I18N = {
     sc3_t_rent: 'Přístup po platbě', sc3_d_rent: 'Ihned po zaplacení',
     ct_1_t: 'Doživotní licence', ct_1_d: 'žádné předplatné',
     ct_2_t: 'Váš hosting, vaše data', ct_2_d: 'plná kontrola GDPR',
-    ct_3_t: 'Český systém', ct_3_d: '+ EN, ES překlady',
+    ct_3_t: 'Český systém', ct_3_d: '+ SK, EN, DE, ES překlady',
     ct_4_t: 'Updates zdarma', ct_4_d: 'první rok',
     vs_h: '✨ Co dostanete s APPEK B2B',
-    ap_1: '✅ <strong>Jednorázová licence 9 990 Kč</strong> — bez měsíčních poplatků',
+    ap_1: '✅ <strong>Jednorázová licence napořád</strong> — bez měsíčních poplatků, jeden balíček ke core zdarma',
     ap_2: '✅ Data <strong>u vás na hostingu</strong> — plná kontrola GDPR',
     ap_3: '✅ Vypnete → <strong>data zůstávají vám</strong> (žádný vendor lock-in)',
     ap_4: '✅ <strong>Přizpůsobitelné</strong> — úpravy dle potřeby',
     ap_5: '✅ <strong>Vlastní integrace</strong> přes REST API (POHODA, FlexiBee, Stripe, GoPay, Zásilkovna)',
     ap_6: '✅ Updates první rok zdarma · česká podpora · CZ/SK/EN/DE/ES překlady',
     sc_title: '⏱️ Cesta od objednávky k živému provozu — pod 30 minut',
-    sc1_t: 'Vyberte balíčky', sc1_d: 'Core + add-ony. 2 minuty.',
+    sc1_t: 'Vyberte balíčky', sc1_d: 'Core + jeden balíček zdarma. 2 minuty.',
     sc2_t: 'Zaplaťte',         sc2_d: 'Karta / GoPay / bank. Hned.',
     sc3_t: 'Klíč e-mailem',    sc3_d: 'Auto-vystavení. ~5 min.',
-    sc4_t: 'Nainstalujte',     sc4_d: 'install.php wizard. 5 min.',
+    sc4_t: 'Nainstalujte',     sc4_d: 'Průvodce install.php. 5 min.',
     sc5_t: 'Provoz',           sc5_d: 'Hotovo.',
 
     step1: '📦 Vyberte balíčky',
-    step1_sub: '— Core je vždy zahrnut',
-    banner: 'Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.',
+    step1_sub: '— Core je vždy zahrnut, jeden balíček k němu zdarma',
+    banner: 'Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem hned po platbě kartou, po převodu do 24 h.',
     mode_buy: 'Koupit napořád', mode_rent: 'Pronájem měsíčně',
-    banner_rent: 'Váš účet i data u APPEKu zůstávají platné pořád — aplikaci si aktivujete jen na sezónní měsíce, které potřebujete. Mimo aktivní období běží v režimu jen pro čtení (jako demo / údržba / offline): data máte pořád u sebe, jen se nedá nic měnit. Kdykoli obnovíte prodloužením na my.appek.cz a jedete dál.',
+    banner_rent: 'Data zůstávají u vás — aplikaci si aktivujete jen na měsíce, které potřebujete. Po skončení zaplaceného období se aplikace uzamkne (data se nemažou) a po prodloužení na my.appek.cz jedete hned dál.',
     loading: 'Načítání balíčků…',
     step2: '👤 Kontaktní údaje',
     lbl_name: 'Jméno a příjmení *',
@@ -723,6 +695,27 @@ const I18N = {
     sum_empty: 'Zatím nic nevybráno',
     free_hint: 'Ke core máte jeden balíček zdarma — vyberte si ho. Když vyberete víc, zdarma je ten nejdražší.',
     free_badge: 'zdarma', free_line: 'Balíček zdarma ke core',
+    rp_1: '1 měsíc',
+    rp_3: '3 měsíce',
+    rp_6: '6 měsíců',
+    hl_data: '<strong>Vaše data</strong> na vašem zařízení / hostingu',
+    hl_lang: 'Český systém <strong>+ SK, EN, DE, ES</strong> překlady',
+    hl_foot: '🔑 Licenční klíč přijde e-mailem pár minut po platbě kartou.',
+    coupon_apply: 'Použít',
+    pay_h: '💳 Způsob platby',
+    pay_gopay_lbl: '💳 <strong>Platba kartou / bankou</strong> — GoPay (Visa, Mastercard, Apple&nbsp;Pay, Google&nbsp;Pay, bankovní tlačítka)',
+    pay_stripe_lbl: '💳 <strong>Platba kartou</strong> — Visa, Mastercard, Apple Pay, Google Pay',
+    pay_bank_lbl: '🏦 <strong>Faktura + bankovní převod</strong>',
+    pay_info_gopay: '<strong>⚡ Co se stane po kliknutí „Objednat“?</strong><ol><li>Přesměrujeme vás na zabezpečenou platební bránu <strong>GoPay</strong></li><li>Zaplatíte kartou, Apple&nbsp;Pay / Google&nbsp;Pay nebo přímým bankovním převodem</li><li>Po úspěšné platbě se vrátíte na potvrzovací stránku APPEK</li><li>Licenční klíč dorazí na zadaný e-mail (formát <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li><li>APPEK stáhnete přes odkaz v e-mailu a aktivujete klíčem v instalátoru</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 GoPay je licencovaná platební instituce (ČNB). APPEK nikdy nevidí číslo vaší karty.</p>',
+    pay_info_stripe: '<strong>⚡ Co se stane po kliknutí „Objednat“?</strong><ol><li>Přesměrujeme vás na zabezpečenou stránku Stripe Checkout</li><li>Zadáte číslo karty (nebo použijete Apple Pay / Google Pay)</li><li>Stripe vám platbu strhne <strong>okamžitě</strong> (s 3D Secure, pokud to banka vyžaduje)</li><li>Po úspěšné platbě se vrátíte na potvrzovací stránku APPEK</li><li>Licenční klíč <strong>okamžitě</strong> dorazí na zadaný e-mail (formát <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li><li>APPEK stáhnete přes odkaz v e-mailu a aktivujete klíčem v instalátoru</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 Stripe má certifikaci PCI DSS Level 1. APPEK nikdy nevidí číslo vaší karty.</p>',
+    pay_info_invoice: '<strong>📄 Co se stane po kliknutí „Objednat“?</strong><ol><li>Vystavíme fakturu (PDF) na zadané fakturační údaje (IČO / DIČ)</li><li>Fakturu obdržíte <strong>okamžitě</strong> e-mailem s instrukcemi (číslo účtu, VS, částka)</li><li>Provedete převod ze svého bankovního účtu</li><li>Po připsání částky (obvykle <strong>do 24 h</strong> v pracovní den) vám pošleme licenční klíč</li><li>Klíč přijde e-mailem spolu s odkazem na stažení APPEK</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">💡 Vhodné pro firmy s účtováním na fakturu. Splatnost faktury 14 dní.</p>',
+    legal_tos: 'Obchodní podmínky',
+    legal_gdpr: 'GDPR / Soukromí',
+    ph_address: 'Ulice, město, PSČ',
+    ph_coupon: 'Slevový kód',
+    ph_email: 'vase@firma.cz',
+    tos_consent: 'Souhlasím s <a href="obchodni-podminky.html" target="_blank" style="color:#BA7517;font-weight:600">Obchodními podmínkami</a> a <a href="zasady-ochrany-soukromi.html" target="_blank" style="color:#BA7517;font-weight:600">Zásadami ochrany soukromí</a>.',
+    mo_short: 'měs.', rent_for: n => 'Pronájem na ' + n + ' ' + (n === 1 ? 'měsíc' : (n < 5 ? 'měsíce' : 'měsíců')),
     total: 'Celkem',
     btn_buy: 'Objednat →',
     note: 'Po odeslání zaplatíte rovnou kartou (Stripe / GoPay) nebo zvolíte platbu převodem na fakturu. Licenční klíč přijde okamžitě po platbě kartou (nebo do 24 h po převodu).',
@@ -744,7 +737,6 @@ const I18N = {
     err_tos: 'Musíte souhlasit s obchodními podmínkami.',
     err_instant: 'Musíte souhlasit s okamžitým dodáním.',
     err_server: 'Server error. Zkuste znovu.',
-    tos_consent: 'Souhlasím s Obchodními podmínkami a Zásadami ochrany soukromí.',
     instant_consent: 'Souhlasím s okamžitým dodáním licence — ztrácím právo odstoupit od smlouvy.',
     pay_vs: 'Variabilní symbol',
     pay_amount: 'Částka',
@@ -765,27 +757,27 @@ const I18N = {
     sc3_t_rent: 'Access after payment', sc3_d_rent: 'Right after payment',
     ct_1_t: 'Lifetime license', ct_1_d: 'no subscription',
     ct_2_t: 'Your hosting, your data', ct_2_d: 'full GDPR control',
-    ct_3_t: 'Czech-made', ct_3_d: '+ EN, ES translations',
+    ct_3_t: 'Czech-made', ct_3_d: '+ SK, EN, DE, ES translations',
     ct_4_t: 'Free updates', ct_4_d: 'first year',
     vs_h: '✨ What you get with APPEK B2B',
-    ap_1: '✅ <strong>One-time license €399</strong> — no monthly fees',
+    ap_1: '✅ <strong>One-time license, yours forever</strong> — no monthly fees, one package free with Core',
     ap_2: '✅ Data <strong>on your hosting</strong> — full GDPR control',
     ap_3: '✅ Cancel anytime → <strong>data stays yours</strong> (no vendor lock-in)',
     ap_4: '✅ <strong>Fully customizable</strong> — tailor as needed',
     ap_5: '✅ <strong>Your own integrations</strong> via REST API (POHODA, FlexiBee, Stripe, GoPay, Packeta)',
     ap_6: '✅ Free updates first year · Czech support · CZ/SK/EN/DE/ES translations',
     sc_title: '⏱️ From order to live system — under 30 minutes',
-    sc1_t: 'Pick packages', sc1_d: 'Core + add-ons. 2 minutes.',
+    sc1_t: 'Pick packages', sc1_d: 'Core + one free package. 2 minutes.',
     sc2_t: 'Pay',            sc2_d: 'Card / GoPay / bank. Instant.',
     sc3_t: 'Key via e-mail', sc3_d: 'Auto-issued. ~5 min.',
     sc4_t: 'Install',        sc4_d: 'install.php wizard. 5 min.',
     sc5_t: 'Live',           sc5_d: 'Done.',
 
     step1: '📦 Choose packages',
-    step1_sub: '— Core is always included',
-    banner: 'One-time price, no monthly fees. Key arrives by e-mail within 24 h.',
+    step1_sub: '— Core is always included, plus one package free',
+    banner: 'One-time price, no monthly fees. The key arrives by e-mail right after card payment, within 24 h for bank transfer.',
     mode_buy: 'Buy forever', mode_rent: 'Monthly rental',
-    banner_rent: 'Your APPEK account and data stay valid the whole time — you only activate the app for the seasonal months you need. Outside the active period it runs in read-only mode (like the demo / maintenance / offline): your data is always with you, you just cannot change anything. Renew anytime at my.appek.cz and carry on.',
+    banner_rent: 'Your data stays with you — you activate the app only for the months you need. When the paid period ends, the app locks (no data is deleted), and once you renew at my.appek.cz you carry on right away.',
     loading: 'Loading packages…',
     step2: '👤 Contact details',
     lbl_name: 'Full name *',
@@ -804,6 +796,27 @@ const I18N = {
     sum_empty: 'Nothing selected yet',
     free_hint: 'One package is free with Core — pick it. If you select more, the most expensive one is free.',
     free_badge: 'free', free_line: 'Free package with Core',
+    rp_1: '1 month',
+    rp_3: '3 months',
+    rp_6: '6 months',
+    hl_data: '<strong>Your data</strong> on your device / hosting',
+    hl_lang: 'Czech system <strong>+ SK, EN, DE, ES</strong> translations',
+    hl_foot: '🔑 The license key arrives by e-mail a few minutes after card payment.',
+    coupon_apply: 'Apply',
+    pay_h: '💳 Payment method',
+    pay_gopay_lbl: '💳 <strong>Card / bank payment</strong> — GoPay (Visa, Mastercard, Apple&nbsp;Pay, Google&nbsp;Pay, bank buttons)',
+    pay_stripe_lbl: '💳 <strong>Card payment</strong> — Visa, Mastercard, Apple Pay, Google Pay',
+    pay_bank_lbl: '🏦 <strong>Invoice + bank transfer</strong>',
+    pay_info_gopay: '<strong>⚡ What happens after you click “Order”?</strong><ol><li>We redirect you to the secure <strong>GoPay</strong> payment gateway</li><li>You pay by card, Apple&nbsp;Pay / Google&nbsp;Pay or direct bank transfer</li><li>After a successful payment you return to the APPEK confirmation page</li><li>The license key arrives at the e-mail you entered (format <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li><li>You download APPEK via the link in the e-mail and activate it with the key in the installer</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 GoPay is a licensed payment institution (Czech National Bank). APPEK never sees your card number.</p>',
+    pay_info_stripe: '<strong>⚡ What happens after you click “Order”?</strong><ol><li>We redirect you to the secure Stripe Checkout page</li><li>You enter your card number (or use Apple Pay / Google Pay)</li><li>Stripe charges the payment <strong>immediately</strong> (with 3D Secure if your bank requires it)</li><li>After a successful payment you return to the APPEK confirmation page</li><li>The license key arrives <strong>immediately</strong> at the e-mail you entered (format <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li><li>You download APPEK via the link in the e-mail and activate it with the key in the installer</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 Stripe is PCI DSS Level 1 certified. APPEK never sees your card number.</p>',
+    pay_info_invoice: '<strong>📄 What happens after you click “Order”?</strong><ol><li>We issue an invoice (PDF) to the billing details you entered (company ID / VAT ID)</li><li>You receive the invoice <strong>immediately</strong> by e-mail with instructions (account number, reference, amount)</li><li>You make the transfer from your bank account</li><li>Once the payment arrives (usually <strong>within 24 h</strong> on a business day) we send you the license key</li><li>The key arrives by e-mail together with the APPEK download link</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">💡 Suitable for companies paying by invoice. Invoice due in 14 days.</p>',
+    legal_tos: 'Terms and conditions',
+    legal_gdpr: 'GDPR / Privacy',
+    ph_address: 'Street, city, postcode',
+    ph_coupon: 'Discount code',
+    ph_email: 'you@company.com',
+    tos_consent: 'I agree to the <a href="obchodni-podminky.html" target="_blank" style="color:#BA7517;font-weight:600">Terms and Conditions</a> and the <a href="zasady-ochrany-soukromi.html" target="_blank" style="color:#BA7517;font-weight:600">Privacy Policy</a>.',
+    mo_short: 'mo.', rent_for: n => 'Rental for ' + n + ' ' + (n === 1 ? 'month' : 'months'),
     total: 'Total',
     btn_buy: 'Order →',
     note: 'After submitting you will pay directly by card (Stripe / GoPay) or choose bank transfer with invoice. License key arrives immediately after card payment (or within 24 h after transfer).',
@@ -842,27 +855,27 @@ const I18N = {
     sc3_t_rent: 'Acceso tras el pago', sc3_d_rent: 'Justo tras el pago',
     ct_1_t: 'Licencia de por vida', ct_1_d: 'sin suscripción',
     ct_2_t: 'Tu hosting, tus datos', ct_2_d: 'control RGPD total',
-    ct_3_t: 'Sistema checo', ct_3_d: '+ EN, ES traducciones',
+    ct_3_t: 'Sistema checo', ct_3_d: '+ traducciones SK, EN, DE, ES',
     ct_4_t: 'Updates gratis', ct_4_d: 'primer año',
     vs_h: '✨ Qué obtienes con APPEK B2B',
-    ap_1: '✅ <strong>Licencia única €399</strong> — sin cuotas mensuales',
+    ap_1: '✅ <strong>Licencia única para siempre</strong> — sin cuotas mensuales, un paquete gratis con Core',
     ap_2: '✅ Datos <strong>en tu hosting</strong> — control GDPR completo',
     ap_3: '✅ Cancela cuando quieras → <strong>datos tuyos</strong> (sin vendor lock-in)',
     ap_4: '✅ <strong>Personalizable</strong> — adáptalo a tus necesidades',
     ap_5: '✅ <strong>Integraciones propias</strong> vía REST API (POHODA, FlexiBee, Stripe, GoPay, Packeta)',
     ap_6: '✅ Updates gratis primer año · soporte checo · traducciones CZ/SK/EN/DE/ES',
     sc_title: '⏱️ Del pedido al sistema en vivo — menos de 30 minutos',
-    sc1_t: 'Elige paquetes', sc1_d: 'Core + add-ons. 2 minutos.',
+    sc1_t: 'Elige paquetes', sc1_d: 'Core + un paquete gratis. 2 minutos.',
     sc2_t: 'Paga',            sc2_d: 'Tarjeta / GoPay / banco. Inmediato.',
     sc3_t: 'Clave por correo', sc3_d: 'Auto-emitida. ~5 min.',
     sc4_t: 'Instala',         sc4_d: 'asistente install.php. 5 min.',
     sc5_t: 'En vivo',         sc5_d: 'Listo.',
 
     step1: '📦 Elija paquetes',
-    step1_sub: '— Core siempre incluido',
-    banner: 'Precio único, sin cuotas mensuales. La clave llega por correo en 24 h.',
+    step1_sub: '— Core siempre incluido, más un paquete gratis',
+    banner: 'Precio único, sin cuotas mensuales. La clave llega por correo justo después del pago con tarjeta, en 24 h si paga por transferencia.',
     mode_buy: 'Comprar para siempre', mode_rent: 'Alquiler mensual',
-    banner_rent: 'Tu cuenta y tus datos de APPEK siguen válidos todo el tiempo — solo activas la app los meses de temporada que necesitas. Fuera del periodo activo funciona en modo de solo lectura (como la demo / mantenimiento / sin conexión): tus datos siempre están contigo, solo que no puedes cambiar nada. Renueva cuando quieras en my.appek.cz y sigue adelante.',
+    banner_rent: 'Sus datos se quedan con usted — active la app solo los meses que necesite. Al terminar el periodo pagado, la app se bloquea (no se borra ningún dato) y al renovar en my.appek.cz sigue al instante.',
     loading: 'Cargando paquetes…',
     step2: '👤 Datos de contacto',
     lbl_name: 'Nombre completo *',
@@ -881,6 +894,27 @@ const I18N = {
     sum_empty: 'Aún nada seleccionado',
     free_hint: 'Con Core tienes un paquete gratis — elígelo. Si eliges varios, el más caro es gratis.',
     free_badge: 'gratis', free_line: 'Paquete gratis con Core',
+    rp_1: '1 mes',
+    rp_3: '3 meses',
+    rp_6: '6 meses',
+    hl_data: '<strong>Sus datos</strong> en su dispositivo / alojamiento',
+    hl_lang: 'Sistema checo <strong>+ traducciones SK, EN, DE, ES</strong>',
+    hl_foot: '🔑 La clave de licencia llega por correo pocos minutos después del pago con tarjeta.',
+    coupon_apply: 'Aplicar',
+    pay_h: '💳 Método de pago',
+    pay_gopay_lbl: '💳 <strong>Pago con tarjeta / banco</strong> — GoPay (Visa, Mastercard, Apple&nbsp;Pay, Google&nbsp;Pay, botones bancarios)',
+    pay_stripe_lbl: '💳 <strong>Pago con tarjeta</strong> — Visa, Mastercard, Apple Pay, Google Pay',
+    pay_bank_lbl: '🏦 <strong>Factura + transferencia bancaria</strong>',
+    pay_info_gopay: '<strong>⚡ ¿Qué pasa al hacer clic en «Pedir»?</strong><ol><li>Le redirigimos a la pasarela de pago segura <strong>GoPay</strong></li><li>Paga con tarjeta, Apple&nbsp;Pay / Google&nbsp;Pay o transferencia bancaria directa</li><li>Tras el pago vuelve a la página de confirmación de APPEK</li><li>La clave de licencia llega al correo indicado (formato <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li><li>Descarga APPEK desde el enlace del correo y lo activa con la clave en el instalador</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 GoPay es una entidad de pago autorizada (Banco Nacional Checo). APPEK nunca ve el número de su tarjeta.</p>',
+    pay_info_stripe: '<strong>⚡ ¿Qué pasa al hacer clic en «Pedir»?</strong><ol><li>Le redirigimos a la página segura de Stripe Checkout</li><li>Introduce el número de tarjeta (o usa Apple Pay / Google Pay)</li><li>Stripe cobra el pago <strong>al instante</strong> (con 3D Secure si su banco lo exige)</li><li>Tras el pago vuelve a la página de confirmación de APPEK</li><li>La clave de licencia llega <strong>al instante</strong> al correo indicado (formato <code>APPEK-XXXX-XXXX-XXXX-XXXX</code>)</li><li>Descarga APPEK desde el enlace del correo y lo activa con la clave en el instalador</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">🔒 Stripe cuenta con la certificación PCI DSS Level 1. APPEK nunca ve el número de su tarjeta.</p>',
+    pay_info_invoice: '<strong>📄 ¿Qué pasa al hacer clic en «Pedir»?</strong><ol><li>Emitimos una factura (PDF) con los datos de facturación indicados (NIF / NIF-IVA)</li><li>Recibe la factura <strong>al instante</strong> por correo con las instrucciones (cuenta, referencia, importe)</li><li>Realiza la transferencia desde su cuenta bancaria</li><li>Al recibir el pago (normalmente <strong>en 24 h</strong> en día laborable) le enviamos la clave de licencia</li><li>La clave llega por correo junto con el enlace de descarga de APPEK</li></ol><p style="margin:8px 0 0;font-size:11px;color:#86868b">💡 Adecuado para empresas que pagan por factura. Vencimiento de la factura: 14 días.</p>',
+    legal_tos: 'Términos y condiciones',
+    legal_gdpr: 'RGPD / Privacidad',
+    ph_address: 'Calle, ciudad, código postal',
+    ph_coupon: 'Código de descuento',
+    ph_email: 'usted@empresa.com',
+    tos_consent: 'Acepto los <a href="obchodni-podminky.html" target="_blank" style="color:#BA7517;font-weight:600">Términos y condiciones</a> y la <a href="zasady-ochrany-soukromi.html" target="_blank" style="color:#BA7517;font-weight:600">Política de privacidad</a>.',
+    mo_short: 'mes.', rent_for: n => 'Alquiler por ' + n + ' ' + (n === 1 ? 'mes' : 'meses'),
     total: 'Total',
     btn_buy: 'Pedir →',
     note: 'Tras enviar pagará directamente con tarjeta (Stripe / GoPay) o eligirá transferencia con factura. La clave llega inmediatamente tras pago con tarjeta (o en 24 h tras transferencia).',
@@ -937,6 +971,7 @@ function applyBuyModeBand() {
   set('#hl-payment',                r ? 'hl_payment_rent' : 'hl_payment');
   set('[data-i18n="sc3_t"]',        r ? 'sc3_t_rent' : 'sc3_t');
   set('[data-i18n="sc3_d"]',        r ? 'sc3_d_rent' : 'sc3_d');
+  set('#info-banner',                r ? 'banner_rent' : 'banner');
 }
 
 function applyI18n() {
@@ -946,6 +981,12 @@ function applyI18n() {
     if (t[k] !== undefined) {
       // pokud hodnota obsahuje HTML tagy → použij innerHTML, jinak textContent
       if (/<\w+/.test(t[k])) el.innerHTML = t[k];
+      else if (el.querySelector('[data-i18n]')) {
+        // v3.0.648 — prvek s vnořeným překládaným prvkem (např. „Firma <small>(volitelné)</small>“):
+        //   přepiš jen vlastní text, vnořený prvek nech (dřív textContent smazal „(volitelné)“ i podnadpisy)
+        const tn = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+        if (tn) tn.textContent = t[k] + ' '; else el.insertBefore(document.createTextNode(t[k] + ' '), el.firstChild);
+      }
       else el.textContent = t[k];
     }
   });
@@ -988,7 +1029,7 @@ function setBuyMode(mode) {
   const banner = document.getElementById('info-banner');
   if (banner) banner.textContent = RENTAL_MONTHS > 0
     ? (I18N[lang].banner_rent || 'Měsíční pronájem — platíte jen za využité měsíce. Po vypršení se aplikace uzamkne.')
-    : (I18N[lang].banner || 'Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem do 24 h.');
+    : (I18N[lang].banner || 'Jednorázová cena, žádné měsíční poplatky. Klíč přijde e-mailem hned po platbě kartou, po převodu do 24 h.');
   applyBuyModeBand();   // 🆕 přepni i horní pruh (eyebrow/lead/odznaky/krok3)
   renderPackages(); renderSummary();
 }
@@ -1063,7 +1104,7 @@ function renderPackages() {
         <div class="pkg-name">${escapeHtml(name)}</div>
         <div class="pkg-desc">${escapeHtml(desc)}</div>
       </div>
-      <div class="pkg-price">${p.key === freePackageKey() ? `<s>${formatPriceHtml(pkgPrice(p))}</s><span class="pkg-free">${escapeHtml(I18N[lang].free_badge || 'zdarma')}</span>` : formatPriceHtml(pkgPrice(p))}${RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} měs.</small>` : ''}</div>
+      <div class="pkg-price">${p.key === freePackageKey() ? `<s>${formatPriceHtml(pkgPrice(p))}</s><span class="pkg-free">${escapeHtml(I18N[lang].free_badge || 'zdarma')}</span>` : formatPriceHtml(pkgPrice(p))}${RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} ${I18N[lang].mo_short || 'měs.'}</small>` : ''}</div>
     `;
     if (!p.is_core) {
       label.querySelector('.pkg-check').addEventListener('change', (e) => onPkgToggle(p.key, e.target.checked, label));
@@ -1087,7 +1128,7 @@ function renderPackagePrices() {
   document.querySelectorAll('#pkg-list .pkg').forEach(el => {
     const p = PACKAGES.find(x => x.key === el.dataset.key); if (!p) return;
     const pe = el.querySelector('.pkg-price'); if (!pe) return;
-    const rent = RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} měs.</small>` : '';
+    const rent = RENTAL_MONTHS > 0 ? `<small style="display:block;font-weight:400;color:#86868b">${RENTAL_MONTHS} ${I18N[lang].mo_short || 'měs.'}</small>` : '';
     pe.innerHTML = (p.key === fk
       ? `<s>${formatPriceHtml(pkgPrice(p))}</s><span class="pkg-free">${escapeHtml(I18N[lang].free_badge || 'zdarma')}</span>`
       : formatPriceHtml(pkgPrice(p))) + rent;
@@ -1155,7 +1196,7 @@ function renderSummary() {
     document.getElementById('btn-buy').disabled = true;
   } else {
     const header = RENTAL_MONTHS > 0
-      ? `<div class="sum-row" style="color:#0071e3;font-weight:600">🗓️ Pronájem na ${RENTAL_MONTHS} ${RENTAL_MONTHS === 1 ? 'měsíc' : (RENTAL_MONTHS < 5 ? 'měsíce' : 'měsíců')}</div>`
+      ? `<div class="sum-row" style="color:#0071e3;font-weight:600">🗓️ ${escapeHtml(I18N[lang].rent_for(RENTAL_MONTHS))}</div>`
       : '';
     wrap.innerHTML = header + lines.join('');
     document.getElementById('btn-buy').disabled = false;

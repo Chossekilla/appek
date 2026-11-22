@@ -16,10 +16,10 @@ window.loadBalicky = async function() {
       const licensed = !!p.licensed;
       const enabled = !!p.enabled;
 
-      // 💳 v3.0.292 — balíčky = roční licence; cenu řídí dodavatel na vendoru (žádné fixní číslo v appce)
+      // 💳 v3.0.648 — koupený balíček = licence napořád (dřív roční); cenu řídí dodavatel na vendoru
       const priceLabel = isCore
         ? `<span style="font-weight:600;color:var(--success-text)">Zdarma · vždy zapnuto</span>`
-        : `<span style="font-weight:700;font-size:14px;color:var(--primary-dark)">🗓️ Roční licence</span> <span style="font-size:11px;color:var(--text-3)">${licensed ? '· zakoupeno' : ''}</span>`;
+        : `<span style="font-weight:700;font-size:14px;color:var(--primary-dark)">Licence napořád</span> <span style="font-size:11px;color:var(--text-3)">${licensed ? '· zakoupeno' : ''}</span>`;
 
       let toggleHtml;
       if (isCore) {

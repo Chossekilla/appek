@@ -26037,6 +26037,16 @@ const I18N_PHRASES = [
   ['Podle odběratele', 'Customer default', 'Según el cliente'],
   ['Uhrazená částka (EUR)', 'Amount paid (EUR)', 'Importe pagado (EUR)'],
   ['QR platba v EUR se nevytvořila — doplňte EUR účet (IBAN) v Nastavení → Přístupy, ceny & měna.', 'The EUR QR payment was not created — add an EUR account (IBAN) in Settings → Access, prices & currency.', 'No se creó el pago QR en EUR — añade una cuenta en EUR (IBAN) en Ajustes → Accesos, precios y divisa.'],
+  // v3.0.648 dopreklady UI (balicek zdarma ke core, licence naporad) (+9)
+  ['Aktivuje je dodavatel ve vašem licenčním klíči — po aktivaci se objeví v liště', 'The supplier activates them in your licence key — once active they appear in the bar', 'El proveedor los activa en su clave de licencia — tras activarlos aparecen en la barra'],
+  ['APPEK má rozšiřující moduly (balíčky). Ke core dostanete jeden balíček zdarma, další koupíte jednorázově s licencí napořád, nebo v měsíčním pronájmu.', 'APPEK has add-on modules (packages). You get one package free with Core; you buy others once with a lifetime licence, or as a monthly rental.', 'APPEK tiene módulos adicionales (paquetes). Con Core obtiene un paquete gratis; los demás los compra una sola vez con licencia de por vida o en alquiler mensual.'],
+  ['Bez příslušného balíčku jsou funkce skryté nebo vrátí „Vyžaduje balíček". Ceny najdete na appek.cz, licence a platby spravujete na my.appek.cz.', 'Without the package the features are hidden or return “Requires package”. Prices are on appek.cz; you manage licences and payments at my.appek.cz.', 'Sin el paquete, las funciones están ocultas o devuelven «Requiere paquete». Los precios están en appek.cz; las licencias y pagos se gestionan en my.appek.cz.'],
+  ['Lahůdky (vč. velkého cateringu)', 'Deli (incl. large catering)', 'Delicatessen (incl. gran catering)'],
+  ['Licence a platby na my.appek.cz →', 'Licences and payments at my.appek.cz →', 'Licencias y pagos en my.appek.cz →'],
+  ['Licence napořád', 'Licence forever', 'Licencia para siempre'],
+  ['nahoře a v Nastavení → 🎁 Balíčky.', 'at the top and in Settings → 🎁 Packages.', 'arriba y en Ajustes → 🎁 Paquetes.'],
+  ['Rozšíření systému pro váš obor. Ke core máte jeden balíček zdarma, další koupíte jednorázově (licence napořád) nebo v měsíčním pronájmu. Zakoupené balíčky zapnete přepínačem, ostatní se aktivují po zakoupení.', 'Extensions for your field. One package is free with Core; you buy others once (lifetime licence) or as a monthly rental. Turn purchased packages on with the switch; the others activate after purchase.', 'Ampliaciones para su sector. Con Core tiene un paquete gratis; los demás los compra una vez (licencia de por vida) o en alquiler mensual. Active los paquetes comprados con el interruptor; los demás se activan tras la compra.'],
+  ['zdarma v základu: vlastní sezóny + sezónní katalog / hromadný email (Vánoce, Velikonoce…)', 'free in the base: custom seasons + seasonal catalogue / bulk e-mail (Christmas, Easter…)', 'gratis en la base: temporadas propias + catálogo de temporada / correo masivo (Navidad, Pascua…)'],
 ];
 
 // Build lookup index pro O(1) access

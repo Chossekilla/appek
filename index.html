@@ -2007,7 +2007,7 @@ if(t)document.getElementById('site-theme').href='theme.css.php?theme='+encodeURI
       <div class="feature">
         <div class="feature-icon">🧁</div>
         <h3 data-i18n="feat_packages_t">Specializované balíčky</h3>
-        <p data-i18n="feat_packages_d">Cukrárna (konfigurátor dortů), Lahůdky (vč. velkého cateringu), Restaurace (stoly a kasa). Sezónní nabídky jsou zdarma v základu.</p>
+        <p data-i18n="feat_packages_d">Cukrárna (konfigurátor dortů), Lahůdky (vč. velkého cateringu), Restaurace (stoly a kasa). Jeden balíček máš ke core zdarma, sezónní nabídky jsou v základu.</p>
       </div>
       <div class="feature">
         <div class="feature-icon">🌍</div>
@@ -4078,7 +4078,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
     <div class="eshop" id="eshop">
       <div class="eshop-head">
         <h3 data-i18n="eshop_title">Sestav si APPEK</h3>
-        <p data-i18n="eshop_sub">Core je vždy v ceně — přidej jen specializované balíčky, které potřebuješ.</p>
+        <p data-i18n="eshop_sub">Core je vždy v ceně a jeden specializovaný balíček k němu dostaneš zdarma — další přidej podle potřeby.</p>
       </div>
       <div class="eshop-body">
         <div class="eshop-addons">
@@ -4105,7 +4105,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
             <span data-i18n="eshop_pkgs_label">Balíčky</span>
             <button type="button" class="es-info" onclick="esToggleInfo('pkg')" aria-label="Info">i</button>
           </div>
-          <div class="es-info-box" id="es-info-pkg" data-i18n="es_pkg_info" hidden>Core (základ) je vždy v ceně — objednávky, faktury, výroba, HACCP, B2B portál. Přidej jen specializované balíčky pro svůj obor (cukrárna, lahůdky, restaurace…).</div>
+          <div class="es-info-box" id="es-info-pkg" data-i18n="es_pkg_info" hidden>Core (základ) je vždy v ceně — objednávky, faktury, výroba, HACCP, B2B portál. Jeden specializovaný balíček pro svůj obor k němu dostaneš zdarma, další přidáš podle potřeby.</div>
           <div class="eshop-addon-list" id="eshop-pkg-list">
             <div class="eshop-loading" data-i18n="eshop_loading">Načítám aktuální nabídku balíčků…</div>
           </div>
@@ -4117,7 +4117,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
           </div>
           <div class="es-lines" id="es-lines"></div>
           <div class="es-total">
-            <span data-i18n="eshop_total">Celkem bez DPH</span>
+            <span data-i18n="eshop_total">Celkem</span>
             <strong id="es-total">—</strong>
           </div>
           <a id="es-buy" class="btn btn-primary eshop-buy" href="checkout.html" data-i18n="eshop_buy">Pokračovat k objednávce →</a>
@@ -4127,7 +4127,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, li, td, th {
     </div>
 
     <p style="text-align:center;margin-top:32px;color:#86868b;font-size:14px" data-i18n="price_note">
-      Ceny bez DPH. Pro EU/global ceny v EUR / USD.
+      Nejsme plátci DPH — ceny jsou konečné.
     </p>
   </div>
 </section>
@@ -4670,7 +4670,7 @@ const SALES_I18N = {
   feat_routes_t: { cs: 'Rozvozové trasy', sk: 'Rozvozové trasy', en: 'Delivery routes', de: 'Lieferrouten', es: 'Rutas de reparto' },
   feat_routes_d: { cs: 'Z dodacích listů sestaví denní rozvozový plán seskupený podle města a PSČ.', sk: 'Z dodacích listov zostaví denný rozvozový plán zoskupený podľa mesta a PSČ.', en: 'Builds a daily delivery plan from delivery notes, grouped by city and ZIP.', de: 'Erstellt aus Lieferscheinen einen täglichen Lieferplan, gruppiert nach Stadt und PLZ.', es: 'Crea un plan de reparto diario desde los albaranes, agrupado por ciudad y CP.' },
   feat_packages_t: { cs: 'Specializované balíčky', sk: 'Špecializované balíčky', en: 'Specialized packages', de: 'Spezialisierte Pakete', es: 'Paquetes especializados' },
-  feat_packages_d: { cs: 'Cukrárna (konfigurátor dortů), Lahůdky (vč. velkého cateringu), Restaurace (stoly a kasa). Sezónní nabídky jsou zdarma v základu.', sk: 'Cukráreň (konfigurátor tort), Lahôdky (vrátane veľkého cateringu), Reštaurácia (stoly a pokladňa). Sezónne ponuky sú zadarmo v základe.', en: 'Patisserie (cake configurator), Deli (incl. large catering), Restaurant (tables and POS). Seasonal offers are free in the core.', de: 'Konditorei (Torten-Konfigurator), Feinkost (inkl. großem Catering), Restaurant (Tische und Kasse). Saisonangebote sind im Basispaket kostenlos.', es: 'Pastelería (configurador de tartas), Delicatessen (incl. catering grande), Restaurante (mesas y TPV). Las ofertas de temporada son gratis en el núcleo.' },
+  feat_packages_d: { cs: 'Cukrárna (konfigurátor dortů), Lahůdky (vč. velkého cateringu), Restaurace (stoly a kasa). Jeden balíček máš ke core zdarma, sezónní nabídky jsou v základu.', sk: 'Cukráreň (konfigurátor tort), Lahôdky (vrátane veľkého cateringu), Reštaurácia (stoly a pokladňa). Jeden balíček máte ku core zadarmo, sezónne ponuky sú v základe.', en: 'Confectionery (cake configurator), Deli (incl. large catering), Restaurant (tables and till). One package is free with Core; seasonal offers are included in the base.', de: 'Konditorei (Torten-Konfigurator), Feinkost (inkl. großem Catering), Restaurant (Tische und Kasse). Ein Paket gibt es zu Core gratis, Saisonangebote sind im Basispaket enthalten.', es: 'Pastelería (configurador de tartas), Delicatessen (incl. gran catering), Restaurante (mesas y caja). Un paquete es gratis con Core; las ofertas de temporada están incluidas en la base.' },
   feat_pwa_t:    { cs: 'PWA + Push', sk: 'PWA + Push', en: 'PWA + Push', de: 'PWA + Push', es: 'PWA + Push' },
   feat_pwa_d:    { cs: 'Funguje offline, push notifikace o nových objednávkách. Instaluje se na mobil jako aplikace.', sk: 'Funguje offline, push notifikácie o nových objednávkach. Inštaluje sa na mobil ako aplikácia.', en: 'Works offline, push notifications for new orders. Installs on mobile as an app.', de: 'Funktioniert offline, Push-Benachrichtigungen für neue Bestellungen. Installation am Handy als App.', es: 'Funciona offline, notificaciones push de nuevos pedidos. Se instala en móvil como app.' },
   feat_multi_t:  { cs: 'Multilanguage', sk: 'Multilanguage', en: 'Multilanguage', de: 'Multilanguage', es: 'Multiidioma' },
@@ -4760,19 +4760,19 @@ const SALES_I18N = {
   prem_f6: { cs: '3 roky updaty zdarma', sk: '3 roky aktualizácie zadarmo', en: '3 years free updates', de: '3 Jahre kostenlose Updates', es: '3 años actualizaciones gratis' },
   prem_f7: { cs: 'Prioritní podpora (4h SLA)', sk: 'Prioritná podpora (4h SLA)', en: 'Priority support (4h SLA)', de: 'Prioritäts-Support (4h SLA)', es: 'Soporte prioritario (4h SLA)' },
   prem_f8: { cs: 'Implementace + školení', sk: 'Implementácia + školenie', en: 'Implementation + training', de: 'Implementierung + Schulung', es: 'Implementación + formación' },
-  price_note: { cs: 'Ceny bez DPH. Pro EU/global ceny v EUR / USD.', sk: 'Ceny bez DPH. Pre EÚ/global ceny v EUR / USD.', en: 'Prices excl. VAT. EU/global in EUR / USD.', de: 'Preise zzgl. MwSt. Für EU/global Preise in EUR / USD.', es: 'Precios sin IVA. UE/global en EUR / USD.' },
+  price_note: { cs: 'Nejsme plátci DPH — ceny jsou konečné.', sk: 'Nie sme platcami DPH — ceny sú konečné.', en: 'We are not VAT registered — prices are final.', de: 'Wir sind nicht umsatzsteuerpflichtig — die Preise sind Endpreise.', es: 'No estamos registrados a efectos del IVA — los precios son finales.' },
   eshop_title:         { cs: 'Sestav si APPEK', sk: 'Zostavte si APPEK', en: 'Build your APPEK', de: 'Stellen Sie Ihr APPEK zusammen', es: 'Configura tu APPEK' },
-  eshop_sub:           { cs: 'Core je vždy v ceně — přidej jen specializované balíčky, které potřebuješ.', sk: 'Core je vždy v cene — pridajte len špecializované balíčky, ktoré potrebujete.', en: 'Core is always included — add only the specialized packages you need.', de: 'Core ist immer im Preis enthalten — fügen Sie nur die spezialisierten Pakete hinzu, die Sie benötigen.', es: 'El Core siempre está incluido — añade solo los paquetes especializados que necesites.' },
+  eshop_sub:           { cs: 'Core je vždy v ceně a jeden specializovaný balíček k němu dostaneš zdarma — další přidej podle potřeby.', sk: 'Core je vždy v cene a jeden špecializovaný balíček k nemu dostanete zadarmo — ďalšie pridajte podľa potreby.', en: 'Core is always included, and you get one specialized package with it for free — add more as you need.', de: 'Core ist immer inklusive, und ein spezialisiertes Paket bekommen Sie dazu gratis — weitere fügen Sie nach Bedarf hinzu.', es: 'El Core siempre está incluido y con él obtienes un paquete especializado gratis — añade más según necesites.' },
   eshop_pkgs_label:    { cs: 'Balíčky', sk: 'Balíčky', en: 'Packages', de: 'Pakete', es: 'Paquetes' },
   eshop_summary_label: { cs: 'Souhrn objednávky', sk: 'Súhrn objednávky', en: 'Order summary', de: 'Bestellübersicht', es: 'Resumen del pedido' },
-  eshop_total:         { cs: 'Celkem bez DPH', sk: 'Celkom bez DPH', en: 'Total excl. VAT', de: 'Gesamt zzgl. MwSt.', es: 'Total sin IVA' },
+  eshop_total:         { cs: 'Celkem', sk: 'Spolu', en: 'Total', de: 'Gesamt', es: 'Total' },
   eshop_buy:           { cs: 'Pokračovat k objednávce →', sk: 'Pokračovať k objednávke →', en: 'Continue to order →', de: 'Weiter zur Bestellung →', es: 'Continuar al pedido →' },
   eshop_note:          { cs: 'Napořád jednorázově, nebo měsíční pronájem · faktura na firmu', sk: 'Navždy jednorazovo, alebo mesačný prenájom · faktúra na firmu', en: 'One-time forever, or monthly rental · company invoice', de: 'Einmalig für immer oder monatliche Miete · Firmenrechnung', es: 'Único para siempre, o alquiler mensual · factura a empresa' },
   mode_buy:            { cs: 'Koupit napořád', sk: 'Kúpiť navždy', en: 'Buy forever', de: 'Für immer kaufen', es: 'Comprar para siempre' },
   mode_rent:           { cs: 'Pronájem měsíčně', sk: 'Prenájom mesačne', en: 'Monthly rental', de: 'Monatliche Miete', es: 'Alquiler mensual' },
   es_dur_label:        { cs: 'Na jak dlouho', sk: 'Na ako dlho', en: 'For how long', de: 'Für wie lange', es: 'Por cuánto tiempo' },
   es_dur_info:         { cs: 'Napořád = zaplatíš jednou a máš navždy. Pronájem = platíš měsíčně; 3 dny před koncem ti přijde upozornění, prodloužíš jedním klikem na my.appek.cz a data ti zůstávají.', sk: 'Navždy = zaplatíte raz a máte navždy. Prenájom = platíte mesačne; 3 dni pred koncom príde upozornenie, predĺžite jedným klikom na my.appek.cz a dáta vám zostávajú.', en: 'Forever = pay once, yours for good. Rental = pay monthly; we remind you 3 days before it ends, you renew in one click at my.appek.cz and your data stays.', de: 'Für immer = einmal zahlen, für immer Ihres. Miete = monatlich zahlen; 3 Tage vor Ablauf erinnern wir Sie, Verlängerung mit einem Klick auf my.appek.cz, Ihre Daten bleiben.', es: 'Para siempre = paga una vez, tuyo para siempre. Alquiler = pago mensual; te avisamos 3 días antes, renuevas con un clic en my.appek.cz y tus datos permanecen.' },
-  es_pkg_info:         { cs: 'Core (základ) je vždy v ceně — objednávky, faktury, výroba, HACCP, B2B portál. Přidej jen specializované balíčky pro svůj obor (cukrárna, lahůdky, restaurace…).', sk: 'Core (základ) je vždy v cene — objednávky, faktúry, výroba, HACCP, B2B portál. Pridajte len špecializované balíčky pre svoj odbor.', en: 'Core is always included — orders, invoices, production, HACCP, B2B portal. Add only the specialized packages for your field.', de: 'Core ist immer enthalten — Bestellungen, Rechnungen, Produktion, HACCP, B2B-Portal. Fügen Sie nur die Pakete für Ihre Branche hinzu.', es: 'El Core siempre está incluido — pedidos, facturas, producción, HACCP, portal B2B. Añade solo los paquetes de tu sector.' },
+  es_pkg_info:         { cs: 'Core (základ) je vždy v ceně — objednávky, faktury, výroba, HACCP, B2B portál. Jeden specializovaný balíček pro svůj obor k němu dostaneš zdarma, další přidáš podle potřeby.', sk: 'Core (základ) je vždy v cene — objednávky, faktúry, výroba, HACCP, B2B portál. Jeden špecializovaný balíček pre svoj odbor k nemu dostanete zadarmo, ďalšie pridáte podľa potreby.', en: 'Core is always included — orders, invoices, production, HACCP, B2B portal. One specialized package for your field is free with it; add more as you need.', de: 'Core ist immer enthalten — Bestellungen, Rechnungen, Produktion, HACCP, B2B-Portal. Ein Paket für Ihre Branche gibt es gratis dazu, weitere fügen Sie nach Bedarf hinzu.', es: 'El Core siempre está incluido — pedidos, facturas, producción, HACCP, portal B2B. Un paquete especializado de tu sector es gratis; añade más según necesites.' },
   eshop_loading:       { cs: 'Načítám aktuální nabídku balíčků…', sk: 'Načítavam aktuálnu ponuku balíčkov…', en: 'Loading current packages…', de: 'Aktuelle Paketauswahl wird geladen…', es: 'Cargando paquetes actuales…' },
 
   // FAQ

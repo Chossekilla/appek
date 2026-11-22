@@ -1177,14 +1177,15 @@ async function _renderNastaveniInner() {
           <p><strong>Restore:</strong> Údržba → "📥 Obnovit ze zálohy" → vyber SQL soubor → potvrď. <strong>POZOR:</strong> přepíše aktuální data!</p>`
       },
       { q: '🎁 Balíčky (rozšiřující moduly) — co to je a jak je aktivovat?', a: `
-          <p>APPEK má rozšiřující moduly placené <strong>roční licencí</strong>. Aktivuje je dodavatel ve vašem licenčním klíči — po aktivaci se objeví v liště <strong>„🎁 Tvé balíčky"</strong> nahoře a v Nastavení → 🎁 Balíčky.</p>
+          <p>APPEK má rozšiřující moduly (balíčky). Ke core dostanete jeden balíček zdarma, další koupíte jednorázově s licencí napořád, nebo v měsíčním pronájmu.</p>
+          <p>Aktivuje je dodavatel ve vašem licenčním klíči — po aktivaci se objeví v liště <strong>„🎁 Tvé balíčky"</strong> nahoře a v Nastavení → 🎁 Balíčky.</p>
           <ul style="line-height:1.8">
             <li><strong>🎂 Cukrárna</strong> — konfigurátor dortů (velikost / příchuť / dekorace, foto předlohy), počítá se do denní kapacity pečení</li>
-            <li><strong>🥗 Lahůdky &amp; Catering</strong> — kalkulačka nabídek (položky, nápoje, zálohy 50 %), cenové úrovně dle počtu osob, PDF smlouvy</li>
+            <li><strong>🥗 Lahůdky (vč. velkého cateringu)</strong> — kalkulačka nabídek (položky, nápoje, zálohy 50 %), cenové úrovně dle počtu osob, PDF smlouvy</li>
             <li><strong>🍽️ Restaurace</strong> — POS Kasa, KDS, Výdej, stoly, QR objednávky, uzávěrka</li>
-            <li><strong>🍂 Sezónní</strong> — vlastní sezóny + sezónní katalog / hromadný email (Vánoce, Velikonoce…)</li>
+            <li><strong>🍂 Sezónní nabídky</strong> — zdarma v základu: vlastní sezóny + sezónní katalog / hromadný email (Vánoce, Velikonoce…)</li>
           </ul>
-          <p>Bez příslušného balíčku jsou funkce skryté nebo vrátí „Vyžaduje balíček". Cenu řídí dodavatel, v appce vidíte jen „🗓️ Roční licence".</p>`
+          <p>Bez příslušného balíčku jsou funkce skryté nebo vrátí „Vyžaduje balíček". Ceny najdete na appek.cz, licence a platby spravujete na my.appek.cz.</p>`
       },
       { q: '↩️ Vratky, dobropisy a storna — jak vrátit zboží nebo opravit doklad?', a: `
           <p><strong>Storno</strong> (dokud není vystavený dodací list): Objednávky → detail → 🗑️ Stornovat.</p>
@@ -1260,11 +1261,11 @@ async function _renderNastaveniInner() {
   const blokBalicky = `
     <div class="card-block" style="padding:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 6px">
-        <h2 style="margin:0;font-size:18px;letter-spacing:-0.01em">🎁 Balíčky funkcí — roční licence</h2>
+        <h2 style="margin:0;font-size:18px;letter-spacing:-0.01em">🎁 Balíčky funkcí</h2>
         <!-- v3.0.606 — prodloužení / dokoupení licence v zákaznickém portálu -->
-        <a href="https://my.appek.cz" target="_blank" rel="noopener" class="btn-primary" style="font-size:13px;padding:8px 14px;text-decoration:none;white-space:nowrap">🔄 Prodloužit licenci na my.appek.cz →</a>
+        <a href="https://my.appek.cz" target="_blank" rel="noopener" class="btn-primary" style="font-size:13px;padding:8px 14px;text-decoration:none;white-space:nowrap">🔑 Licence a platby na my.appek.cz →</a>
       </div>
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Rozšíření systému pro váš obor, jako <strong>roční licence</strong>. Zakoupené balíčky zapnete přepínačem; ostatní se aktivují <strong>po zakoupení</strong>.</p>
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 14px">Rozšíření systému pro váš obor. Ke core máte jeden balíček zdarma, další koupíte jednorázově (licence napořád) nebo v měsíčním pronájmu. Zakoupené balíčky zapnete přepínačem, ostatní se aktivují po zakoupení.</p>
       <div id="ns-balicky-host">⏳ Načítám…</div>
     </div>
   `;

@@ -7,7 +7,8 @@
  * objednávky a vidí HISTORII PLATEB.
  *
  * 🆕 v3.0.597 — profesionální vzhled + platby:
- *   • prodloužení pronájmu 1/3/6/12 měs. i roční licence o 1 rok (cena = roční ceny balíčků v klíči)
+ *   • prodloužení pronájmu 1/3/6/12 měs.; koupené licence jsou od v3.0.648 navždy (bez expirace) —
+ *     starší licence s datem lze dál prodloužit o 1 rok (cena = roční ceny placených balíčků v klíči)
  *   • volba platby: karta (GoPay) / převod (účet, IBAN, VS, QR SPAYD z vendor → Firma)
  *   • nezaplacené objednávky (Zaplatit) + detail objednávky + historie plateb
  *   • CSRF token pro všechny POST akce

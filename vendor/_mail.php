@@ -298,7 +298,7 @@ function vendor_mail_template_license(array $license, array $order = []): array 
     $validUntil = $isRental ? date('j. n. Y', strtotime("+{$rentalMonths} months")) : '';
     $licSubtitle = $isRental
         ? "🗓️ Měsíční pronájem · platí do <strong>{$validUntil}</strong>"
-        : "Doživotní licence pro jedno zařízení · Aktualizace zdarma 12 měsíců";
+        : "Doživotní licence pro jednu instalaci · Aktualizace zdarma 12 měsíců";
     // Blok portálu — u pronájmu zvýrazněný (prodloužení), u trvalé licence jen jemný odkaz
     $portalBox = $isRental
         ? '<div style="background:rgba(0,113,227,0.06);border-left:4px solid #0071e3;padding:16px 20px;border-radius:8px;margin:20px 0">'
@@ -389,7 +389,7 @@ HTML;
     $text .= "  Variabilní symbol:  {$vs}\n\n";
     $text .= "LICENČNÍ KLÍČ\n";
     $text .= "    {$license['license_key']}\n\n";
-    $text .= "Doživotní licence pro jedno zařízení · Aktualizace zdarma 12 měsíců.\n\n";
+    $text .= "Doživotní licence pro jednu instalaci · Aktualizace zdarma 12 měsíců.\n\n";
     $text .= "CO DÁL?\n";
     $text .= "  1. Stáhněte APPEK z: {$downloadUrl}\n";
     $text .= "  2. Rozbalte ZIP na hostingu do public_html/\n";

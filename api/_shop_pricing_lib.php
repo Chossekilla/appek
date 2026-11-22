@@ -83,18 +83,21 @@ function shop_pricing_ensure_cols(PDO $pdo): void {
 }
 
 /**
- * Po vygenerování licence z objednávky: přenes balíček zdarma na licenci.
- * Roční licence, kde kromě core je JEN balíček zdarma → nic k placení → bez expirace (∞).
- * (Smíšený případ core + zdarma + placené: expirace zůstává; po vypršení balíček zdarma jede
- *  dál — řeší package_enabled() přes free_package z heartbeatu.)
+ * Po vygenerování licence z objednávky (volají VŠECHNY cesty vystavení):
+ *   • KOUPĚ (rental_months=0) = licence NAVŽDY → expires_at NULL (core i všechny koupené balíčky;
+ *     od v3.0.648 — dřív roční). Updaty zdarma 12 měsíců řeší obchodní podmínky, ne expirace.
+ *   • PRONÁJEM = expirace zůstává (platí jen zaplacené období).
+ *   • free_package (balíček zdarma ke core) se uloží na licenci (prodloužení pronájmu ho neúčtuje).
  */
 function shop_licence_apply_free(PDO $pdo, int $licenseId, array $order): void {
-    $free = strtolower(trim((string) ($order['free_package'] ?? '')));
-    if ($licenseId <= 0 || $free === '') return;
+    if ($licenseId <= 0) return;
     shop_pricing_ensure_cols($pdo);
-    $pk = json_decode($order['packages_json'] ?? '[]', true) ?: [];
-    $paid = array_values(array_diff(array_map('strtolower', $pk), ['core', $free]));
-    $perpetual = ((int) ($order['rental_months'] ?? 0)) === 0 && !$paid;
-    $pdo->prepare("UPDATE vendor_licenses SET free_package = :f" . ($perpetual ? ", expires_at = NULL" : "") . " WHERE id = :id")
-        ->execute(['f' => $free, 'id' => $licenseId]);
+    $free = strtolower(trim((string) ($order['free_package'] ?? '')));
+    $perpetual = ((int) ($order['rental_months'] ?? 0)) === 0 && ($order['tier'] ?? '') !== 'renewal';
+    $set = [];
+    $par = ['id' => $licenseId];
+    if ($free !== '') { $set[] = 'free_package = :f'; $par['f'] = $free; }
+    if ($perpetual)   { $set[] = 'expires_at = NULL'; }
+    if (!$set) return;
+    $pdo->prepare("UPDATE vendor_licenses SET " . implode(', ', $set) . " WHERE id = :id")->execute($par);
 }

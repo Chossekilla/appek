@@ -47799,3 +47799,27 @@ DE_EXTRA.update({
     'Uhrazená částka (EUR)': 'Bezahlter Betrag (EUR)',
     'QR platba v EUR se nevytvořila — doplňte EUR účet (IBAN) v Nastavení → Přístupy, ceny & měna.': 'Die QR-Zahlung in EUR wurde nicht erstellt — EUR-Konto (IBAN) unter Einstellungen → Zugänge, Preise & Währung ergänzen.',
 })
+
+# v3.0.648 dopreklady UI (balicek zdarma ke core, licence naporad) (+9)
+SK_EXTRA.update({
+    'Aktivuje je dodavatel ve vašem licenčním klíči — po aktivaci se objeví v liště': 'Aktivuje ich dodávateľ vo vašom licenčnom kľúči — po aktivácii sa objavia v lište',
+    'APPEK má rozšiřující moduly (balíčky). Ke core dostanete jeden balíček zdarma, další koupíte jednorázově s licencí napořád, nebo v měsíčním pronájmu.': 'APPEK má rozširujúce moduly (balíčky). Ku core dostanete jeden balíček zadarmo, ďalšie kúpite jednorazovo s licenciou navždy alebo v mesačnom prenájme.',
+    'Bez příslušného balíčku jsou funkce skryté nebo vrátí „Vyžaduje balíček". Ceny najdete na appek.cz, licence a platby spravujete na my.appek.cz.': 'Bez príslušného balíčka sú funkcie skryté alebo vrátia „Vyžaduje balíček“. Ceny nájdete na appek.cz, licencie a platby spravujete na my.appek.cz.',
+    'Lahůdky (vč. velkého cateringu)': 'Lahôdky (vr. veľkého cateringu)',
+    'Licence a platby na my.appek.cz →': 'Licencie a platby na my.appek.cz →',
+    'Licence napořád': 'Licencia navždy',
+    'nahoře a v Nastavení → 🎁 Balíčky.': 'hore a v Nastaveniach → 🎁 Balíčky.',
+    'Rozšíření systému pro váš obor. Ke core máte jeden balíček zdarma, další koupíte jednorázově (licence napořád) nebo v měsíčním pronájmu. Zakoupené balíčky zapnete přepínačem, ostatní se aktivují po zakoupení.': 'Rozšírenia systému pre váš odbor. Ku core máte jeden balíček zadarmo, ďalšie kúpite jednorazovo (licencia navždy) alebo v mesačnom prenájme. Zakúpené balíčky zapnete prepínačom, ostatné sa aktivujú po zakúpení.',
+    'zdarma v základu: vlastní sezóny + sezónní katalog / hromadný email (Vánoce, Velikonoce…)': 'zadarmo v základe: vlastné sezóny + sezónny katalóg / hromadný e-mail (Vianoce, Veľká noc…)',
+})
+DE_EXTRA.update({
+    'Aktivuje je dodavatel ve vašem licenčním klíči — po aktivaci se objeví v liště': 'Der Anbieter aktiviert sie in Ihrem Lizenzschlüssel — danach erscheinen sie in der Leiste',
+    'APPEK má rozšiřující moduly (balíčky). Ke core dostanete jeden balíček zdarma, další koupíte jednorázově s licencí napořád, nebo v měsíčním pronájmu.': 'APPEK hat Zusatzmodule (Pakete). Zu Core erhalten Sie ein Paket gratis, weitere kaufen Sie einmalig mit unbefristeter Lizenz oder als monatliche Miete.',
+    'Bez příslušného balíčku jsou funkce skryté nebo vrátí „Vyžaduje balíček". Ceny najdete na appek.cz, licence a platby spravujete na my.appek.cz.': 'Ohne das Paket sind die Funktionen ausgeblendet oder melden „Paket erforderlich“. Preise finden Sie auf appek.cz, Lizenzen und Zahlungen verwalten Sie auf my.appek.cz.',
+    'Lahůdky (vč. velkého cateringu)': 'Feinkost (inkl. großem Catering)',
+    'Licence a platby na my.appek.cz →': 'Lizenzen und Zahlungen auf my.appek.cz →',
+    'Licence napořád': 'Lizenz für immer',
+    'nahoře a v Nastavení → 🎁 Balíčky.': 'oben und unter Einstellungen → 🎁 Pakete.',
+    'Rozšíření systému pro váš obor. Ke core máte jeden balíček zdarma, další koupíte jednorázově (licence napořád) nebo v měsíčním pronájmu. Zakoupené balíčky zapnete přepínačem, ostatní se aktivují po zakoupení.': 'Erweiterungen für Ihre Branche. Ein Paket ist zu Core gratis, weitere kaufen Sie einmalig (unbefristete Lizenz) oder als monatliche Miete. Gekaufte Pakete schalten Sie per Schalter ein, die übrigen werden nach dem Kauf aktiviert.',
+    'zdarma v základu: vlastní sezóny + sezónní katalog / hromadný email (Vánoce, Velikonoce…)': 'gratis im Basispaket: eigene Saisons + Saisonkatalog / Massen-E-Mail (Weihnachten, Ostern…)',
+})
