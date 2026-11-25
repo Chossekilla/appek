@@ -31,30 +31,92 @@ require_once __DIR__ . '/../_sync_schema.php';
  */
 function sync_tables_config(): array {
     return [
+        // 'fk' = cizí klíč → synchronizovaná rodičovská tabulka. ID se mezi uzly liší (auto-increment),
+        //   proto se posílá sync_uuid rodiče (__ref) a příjemce ho přeloží na své vlastní ID (sync_apply_batch).
+        //   Pořadí tabulek = pořadí odesílání (rodiče před dětmi).
+
         // Catalog — push only (master is source of truth)
-        'kategorie_vyrobku'   => ['direction' => 'push', 'pk' => 'id'],
-        'vyrobky'             => ['direction' => 'push', 'pk' => 'id'],
         'sazby_dph'           => ['direction' => 'push', 'pk' => 'id'],
         'jednotky'            => ['direction' => 'push', 'pk' => 'id'],
-
-        // Customers — push only
-        'odberatele'          => ['direction' => 'push', 'pk' => 'id'],
-        'mista_dodani'        => ['direction' => 'push', 'pk' => 'id'],
-        'cenove_skupiny'      => ['direction' => 'push', 'pk' => 'id'],
-
-        // Orders — bidirectional (cloud creates new, master updates status)
-        'objednavky'          => ['direction' => 'both', 'pk' => 'id'],
-        'objednavky_polozky'  => ['direction' => 'both', 'pk' => 'id'],
-
-        // Documents — push only (master creates DL/FA)
-        'dodaci_listy'        => ['direction' => 'push', 'pk' => 'id'],
-        'dodaci_list_polozky' => ['direction' => 'push', 'pk' => 'id'],
-        'faktury'             => ['direction' => 'push', 'pk' => 'id'],
-        'faktura_polozky'     => ['direction' => 'push', 'pk' => 'id'],
-
+        'kategorie_vyrobku'   => ['direction' => 'push', 'pk' => 'id', 'fk' => ['parent_id' => 'kategorie_vyrobku']],
+        'vyrobky'             => ['direction' => 'push', 'pk' => 'id', 'fk' => ['kategorie_id' => 'kategorie_vyrobku', 'jednotka_id' => 'jednotky', 'sazba_dph_id' => 'sazby_dph']],
         // Ingredients — push only (optional)
         'suroviny'            => ['direction' => 'push', 'pk' => 'id'],
+
+        // Customers — push only
+        'cenove_skupiny'      => ['direction' => 'push', 'pk' => 'id'],
+        'odberatele'          => ['direction' => 'push', 'pk' => 'id', 'fk' => ['cenova_skupina_id' => 'cenove_skupiny']],
+        'mista_dodani'        => ['direction' => 'push', 'pk' => 'id', 'fk' => ['odberatel_id' => 'odberatele']],
+
+        // Orders — bidirectional (cloud creates new, master updates status)
+        'objednavky'          => ['direction' => 'both', 'pk' => 'id', 'fk' => ['odberatel_id' => 'odberatele', 'misto_dodani_id' => 'mista_dodani']],
+        'objednavky_polozky'  => ['direction' => 'both', 'pk' => 'id', 'fk' => ['objednavka_id' => 'objednavky', 'vyrobek_id' => 'vyrobky', 'surovina_id' => 'suroviny', 'vraci_polozku_id' => 'objednavky_polozky']],
+
+        // Documents — push only (master creates DL/FA)
+        'dodaci_listy'        => ['direction' => 'push', 'pk' => 'id', 'fk' => ['objednavka_id' => 'objednavky', 'odberatel_id' => 'odberatele', 'misto_dodani_id' => 'mista_dodani']],
+        'dodaci_list_polozky' => ['direction' => 'push', 'pk' => 'id', 'fk' => ['dodaci_list_id' => 'dodaci_listy', 'vyrobek_id' => 'vyrobky']],
+        'faktury'             => ['direction' => 'push', 'pk' => 'id', 'fk' => ['odberatel_id' => 'odberatele', 'misto_dodani_id' => 'mista_dodani', 'puvodni_faktura_id' => 'faktury']],
+        'faktura_polozky'     => ['direction' => 'push', 'pk' => 'id', 'fk' => ['faktura_id' => 'faktury', 'vyrobek_id' => 'vyrobky', 'vraci_polozku_id' => 'faktura_polozky']],
     ];
+}
+
+/**
+ * Přiloží k záznamům sync_uuid rodičů (__ref: {sloupec: uuid}) — ID se mezi uzly liší.
+ * Rodič bez sync_uuid / neexistující → bez __ref (příjemce nechá ID, jak je — starší chování).
+ */
+function sync_attach_refs(PDO $pdo, string $table, array $rows): array {
+    $fk = sync_tables_config()[$table]['fk'] ?? [];
+    if (!$fk || !$rows) return $rows;
+    foreach ($fk as $col => $parent) {
+        $ids = array_values(array_unique(array_filter(array_map(fn($r) => (int) ($r[$col] ?? 0), $rows))));
+        if (!$ids) continue;
+        $mapa = [];
+        try {
+            $st = $pdo->query("SELECT id, sync_uuid FROM `$parent` WHERE id IN (" . implode(',', $ids) . ") AND sync_uuid IS NOT NULL");
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $p) $mapa[(int) $p['id']] = $p['sync_uuid'];
+        } catch (Throwable $e) { continue; }   // rodičovská tabulka na tomto uzlu chybí
+        foreach ($rows as &$r) {
+            $id = (int) ($r[$col] ?? 0);
+            if ($id && isset($mapa[$id])) $r['__ref'][$col] = $mapa[$id];
+        }
+        unset($r);
+    }
+    return $rows;
+}
+
+/**
+ * 🔢 Přijatý doklad s číslem (WEB-2026-0048) posune místní číselnou řadu (tabulka cislovani) za sebe,
+ * aby další vlastní doklad nedostal stejné číslo. Řada se pozná podle nejdelšího odpovídajícího předčíslí.
+ */
+function sync_cislo_posun(PDO $pdo, string $cislo): void {
+    static $rady = null;
+    if ($cislo === '') return;
+    try {
+        if ($rady === null) $rady = $pdo->query("SELECT typ, rok, predcisli FROM cislovani")->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) { $rady = []; return; }
+    $best = null; $uzel = '';
+    foreach ($rady as $r) {
+        $p = (string) $r['predcisli'];
+        if ($p === '' || !str_starts_with($cislo, $p)) continue;
+        $zbytek = substr($cislo, strlen($p));
+        // „0048“ = stejná řada; „C0048“ = řada druhého uzlu (cloud) se stejným základem → vede se zvlášť (typ@C)
+        if (!preg_match('/^([A-Z]?)(\d+)$/', $zbytek, $m)) continue;
+        if (str_contains((string) $r['typ'], '@') && $m[1] !== '') continue;   // řada uzlu sama sebe neodvozuje
+        if (!$best || strlen($p) > strlen($best['predcisli'])) { $best = $r; $uzel = $m[1]; }
+    }
+    if (!$best) return;
+    $n = (int) substr($cislo, strlen($best['predcisli']) + strlen($uzel));
+    try {
+        if ($uzel === '') {
+            $pdo->prepare("UPDATE cislovani SET posledni = GREATEST(posledni, :n) WHERE typ = :t AND rok = :r")
+                ->execute(['n' => $n, 't' => $best['typ'], 'r' => $best['rok']]);
+        } else {
+            // řada druhého uzlu (WEB@C) — ať ji zná i tahle databáze (kopie / obnova ze zálohy pak nečísluje znovu od 1)
+            $t = $best['typ'] . '@' . $uzel; $p = $best['predcisli'] . $uzel;
+            $pdo->prepare("INSERT IGNORE INTO cislovani (typ, rok, predcisli, posledni) VALUES (:t, :r, :p, 0)")->execute(['t' => $t, 'r' => $best['rok'], 'p' => $p]);
+            $pdo->prepare("UPDATE cislovani SET posledni = GREATEST(posledni, :n) WHERE typ = :t AND rok = :r")->execute(['n' => $n, 't' => $t, 'r' => $best['rok']]);
+        }
+    } catch (Throwable $e) { error_log('sync_cislo_posun: ' . $e->getMessage()); }
 }
 
 /**
@@ -151,7 +213,7 @@ function sync_collect_push_batch(PDO $pdo): array {
             if ($rows) {
                 $batch[] = [
                     'table'   => $table,
-                    'records' => $rows,
+                    'records' => sync_attach_refs($pdo, $table, $rows),   // 🔗 uuid rodičů pro překlad cizích klíčů
                 ];
                 $remaining -= count($rows);
             }
@@ -170,7 +232,9 @@ function sync_mark_synced(PDO $pdo, string $table, array $uuids): void {
     if (empty($uuids)) return;
     $placeholders = implode(',', array_fill(0, count($uuids), '?'));
     try {
-        $stmt = $pdo->prepare("UPDATE `$table` SET synced_at = NOW() WHERE sync_uuid IN ($placeholders)");
+        // 🐛 updated_at = updated_at: sloupec má ON UPDATE CURRENT_TIMESTAMP → samotné označení „odesláno“
+        //   přepsalo čas poslední změny u všech odeslaných záznamů (rozbité last-write-wins i „upraveno“ v UI)
+        $stmt = $pdo->prepare("UPDATE `$table` SET synced_at = NOW(), updated_at = updated_at WHERE sync_uuid IN ($placeholders)");
         $stmt->execute($uuids);
     } catch (Throwable $e) {
         error_log("sync_mark_synced $table: " . $e->getMessage());
@@ -190,8 +254,10 @@ function sync_mark_synced(PDO $pdo, string $table, array $uuids): void {
  * @return array Stats [accepted, updated, inserted, conflicts, errors]
  */
 function sync_apply_batch(PDO $pdo, array $batch): array {
-    $stats = ['accepted' => 0, 'updated' => 0, 'inserted' => 0, 'conflicts' => 0, 'errors' => []];
+    // 'failed' = sync_uuid záznamů, které se nepodařilo zapsat → odesílatel je neoznačí jako synced a pošle je znovu
+    $stats = ['accepted' => 0, 'updated' => 0, 'inserted' => 0, 'conflicts' => 0, 'errors' => [], 'failed' => []];
     $allowedTables = array_keys(sync_tables_config());
+    $refCache = [];   // "tabulka|uuid" → místní ID (rodiče v jedné dávce se nedohledávají opakovaně)
 
     foreach ($batch as $item) {
         $table = $item['table'] ?? '';
@@ -220,6 +286,10 @@ function sync_apply_batch(PDO $pdo, array $batch): array {
                 continue;
             }
 
+            // sync_uuid rodičů (__ref) — přeloží se na místní ID níž (ID se mezi uzly liší)
+            $refs = is_array($rec['__ref'] ?? null) ? $rec['__ref'] : [];
+            unset($rec['__ref']);
+
             // Vyfiltruj jen sloupce co existují v lokální tabulce
             $filtered = [];
             foreach ($rec as $k => $v) {
@@ -230,9 +300,24 @@ function sync_apply_batch(PDO $pdo, array $batch): array {
             // Zkontroluj zda už existuje
             $existsStmt = $pdo->prepare("SELECT id, updated_at FROM `$table` WHERE sync_uuid = :u LIMIT 1");
             $existsStmt->execute(['u' => $rec['sync_uuid']]);
-            $existing = $existsStmt->fetch();
+            $existing = $existsStmt->fetch(PDO::FETCH_ASSOC);
 
             try {
+                // 🔗 cizí klíče: uuid rodiče → místní ID. Rodič ještě nedorazil → záznam selže a zkusí se znovu příště
+                //   (dřív zůstalo ID odesílatele → položka bez objednávky, nebo přilepená k cizí objednávce)
+                $fkCfg = sync_tables_config()[$table]['fk'] ?? [];
+                foreach ($refs as $col => $puuid) {
+                    if (!isset($colsSet[$col]) || empty($fkCfg[$col]) || !is_string($puuid) || $puuid === '') continue;
+                    $key = $fkCfg[$col] . '|' . $puuid;
+                    if (!array_key_exists($key, $refCache)) {
+                        $ps = $pdo->prepare("SELECT id FROM `{$fkCfg[$col]}` WHERE sync_uuid = :u LIMIT 1");
+                        $ps->execute(['u' => $puuid]);
+                        $refCache[$key] = ($v = $ps->fetchColumn()) !== false ? (int) $v : null;
+                    }
+                    if ($refCache[$key] === null) throw new Exception("chybí nadřazený záznam {$fkCfg[$col]} ($puuid) — zkusí se znovu");
+                    $filtered[$col] = $refCache[$key];
+                }
+
                 if ($existing) {
                     // UPDATE — ale jen pokud incoming updated_at > existing (last-write-wins)
                     $incomingTs = isset($filtered['updated_at']) ? strtotime($filtered['updated_at']) : 0;
@@ -247,25 +332,26 @@ function sync_apply_batch(PDO $pdo, array $batch): array {
                     $setParts = [];
                     $params = [];
                     foreach ($filtered as $k => $v) {
-                        if ($k === 'id' || $k === 'sync_uuid') continue;
+                        // 🐛 synced_at nastavuje přijímající strana (níž) — dřív byl v SET dvakrát
+                        //   → PDO „HY093 Invalid parameter number“ a KAŽDÁ aktualizace existujícího záznamu selhala
+                        if ($k === 'id' || $k === 'sync_uuid' || $k === 'synced_at') continue;
                         $setParts[] = "`$k` = :$k";
                         $params[$k] = $v;
                     }
                     $params['uuid'] = $rec['sync_uuid'];
-                    $params['synced_at'] = date('Y-m-d H:i:s');
-                    if (isset($colsSet['synced_at'])) {
+                    if (isset($colsSet['synced_at'])) {   // parametr jen se sloupcem (jinak HY093)
                         $setParts[] = '`synced_at` = :synced_at';
+                        $params['synced_at'] = date('Y-m-d H:i:s');
                     }
+                    // updated_at bez hodnoty od odesílatele → zachovat (ON UPDATE CURRENT_TIMESTAMP by ho přepsal)
+                    if (isset($colsSet['updated_at']) && !array_key_exists('updated_at', $params)) $setParts[] = '`updated_at` = `updated_at`';
                     $sql = "UPDATE `$table` SET " . implode(', ', $setParts) . " WHERE sync_uuid = :uuid";
                     $pdo->prepare($sql)->execute($params);
                     $stats['updated']++;
                 } else {
                     // INSERT
+                    if (isset($colsSet['synced_at'])) $filtered['synced_at'] = date('Y-m-d H:i:s');   // čas přijetí, ne odesílatele
                     $insertCols = array_keys($filtered);
-                    if (isset($colsSet['synced_at']) && !in_array('synced_at', $insertCols)) {
-                        $filtered['synced_at'] = date('Y-m-d H:i:s');
-                        $insertCols[] = 'synced_at';
-                    }
                     // Odebrat 'id' — nech auto-increment
                     $insertCols = array_filter($insertCols, fn($c) => $c !== 'id');
                     $filtered = array_intersect_key($filtered, array_flip($insertCols));
@@ -275,10 +361,15 @@ function sync_apply_batch(PDO $pdo, array $batch): array {
                     $sql = "INSERT INTO `$table` ($colList) VALUES ($placeholders)";
                     $pdo->prepare($sql)->execute($filtered);
                     $stats['inserted']++;
+                    // nový rodič v téže dávce → děti ho najdou bez dalšího dotazu
+                    $refCache[$table . '|' . $rec['sync_uuid']] = (int) $pdo->lastInsertId();
                 }
+                // 🔢 přijaté číslo dokladu posune místní řadu (jinak by další vlastní doklad dostal stejné číslo)
+                if (!empty($filtered['cislo'])) sync_cislo_posun($pdo, (string) $filtered['cislo']);
                 $stats['accepted']++;
             } catch (Throwable $e) {
                 $stats['errors'][] = "$table sync_uuid={$rec['sync_uuid']}: " . $e->getMessage();
+                $stats['failed'][] = (string) $rec['sync_uuid'];
             }
         }
     }
@@ -346,19 +437,43 @@ function sync_pull_from_cloud(PDO $pdo): array {
     if (empty($cfg['cloud_endpoint']) || empty($cfg['shared_secret'])) {
         throw new Exception('Sync není nakonfigurován');
     }
-    $since = $cfg['last_sync_at'] ?? '1970-01-01 00:00:00';
+    // 📍 kurzor pro každou tabulku = poslední stažený (updated_at, id) V CLOUDU (stránkování podle klíče).
+    //   Dřív jeden čas posledního běhu masteru → záznamy nad limit dávky, se stejným časem nebo ty, které selhaly,
+    //   se už nikdy nestáhly.
+    $kurzor = json_decode((string) ($cfg['pull_kurzor'] ?? ''), true);
+    if (!is_array($kurzor)) $kurzor = [];
     $url = rtrim($cfg['cloud_endpoint'], '/') . '/sync/pending.php';
 
-    $r = sync_http_request($url, 'POST', ['since' => $since], $cfg['shared_secret']);
+    $r = sync_http_request($url, 'POST', ['since' => '1970-01-01 00:00:00', 'kurzor' => (object) $kurzor], $cfg['shared_secret']);
     if ($r['status'] !== 200) {
         throw new Exception("Cloud vrátil HTTP {$r['status']}: " . substr($r['body'], 0, 200));
     }
     if (!is_array($r['json']) || !isset($r['json']['batch'])) {
         throw new Exception('Neplatná odpověď z cloudu');
     }
+    if (!is_array($r['json']['kurzor'] ?? null)) {
+        throw new Exception('Cloud má starší verzi synchronizace (chybí kurzor) — aktualizujte obě instalace na stejnou verzi');
+    }
 
     // Aplikuj batch lokálně
-    return sync_apply_batch($pdo, $r['json']['batch']);
+    $batch = $r['json']['batch'];
+    $stats = sync_apply_batch($pdo, $batch);
+
+    // nové kurzory od cloudu; tabulka se záznamem, který se nepodařilo zapsat, jen těsně před něj (zkusí se znovu)
+    $novy = $r['json']['kurzor'];
+    $failed = array_flip(array_map('strval', $stats['failed'] ?? []));
+    foreach ($batch as $item) {
+        $t = (string) ($item['table'] ?? '');
+        foreach ((array) ($item['records'] ?? []) as $rec) {
+            if (!isset($failed[(string) ($rec['sync_uuid'] ?? '')]) || empty($rec['updated_at'])) continue;
+            $pred = [(string) $rec['updated_at'], (int) ($rec['id'] ?? 0) - 1];
+            $cur = $novy[$t] ?? null;
+            if (!is_array($cur) || $pred[0] < $cur[0] || ($pred[0] === $cur[0] && $pred[1] < (int) $cur[1])) $novy[$t] = $pred;
+        }
+    }
+    try { $pdo->prepare("UPDATE sync_config SET pull_kurzor = :k WHERE id = 1")->execute(['k' => json_encode($novy)]); }
+    catch (Throwable $e) { error_log('sync pull_kurzor: ' . $e->getMessage()); }
+    return $stats;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -387,11 +502,13 @@ function sync_push_to_cloud(PDO $pdo): array {
     }
     $stats = $r['json']['stats'] ?? [];
 
-    // Označit záznamy jako synced
+    // Označit záznamy jako synced — JEN ty, které cloud opravdu přijal (odmítnuté se pošlou znovu příště;
+    // dřív se označilo vše a změna, kterou cloud nezapsal, se tiše ztratila)
+    $failed = array_flip(array_map('strval', (array) ($stats['failed'] ?? [])));
     $total = 0;
     foreach ($batch as $item) {
-        $uuids = array_column($item['records'], 'sync_uuid');
-        sync_mark_synced($pdo, $item['table'], $uuids);
+        $uuids = array_values(array_filter(array_column($item['records'], 'sync_uuid'), fn($u) => !isset($failed[(string) $u])));
+        if ($uuids) sync_mark_synced($pdo, $item['table'], $uuids);
         $total += count($uuids);
     }
     $stats['records_pushed'] = $total;

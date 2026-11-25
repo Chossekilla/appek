@@ -79,6 +79,9 @@ try {
     } catch (Throwable $e) {
         $result['errors'][] = 'PULL failed: ' . $e->getMessage();
     }
+    // jednotlivé záznamy, které druhá strana nezapsala (pošlou se znovu) — do stavu a logu, ať se chyba neschová za „success“
+    foreach (array_slice((array) ($result['push']['errors'] ?? []), 0, 5) as $er) $result['errors'][] = 'PUSH záznam: ' . $er;
+    foreach (array_slice((array) ($result['pull']['errors'] ?? []), 0, 5) as $er) $result['errors'][] = 'PULL záznam: ' . $er;
 
     $result['duration_ms'] = (int) ((microtime(true) - $startTs) * 1000);
     $status = empty($result['errors']) ? 'success' : (($result['records_pushed'] + $result['records_pulled'] > 0) ? 'partial' : 'error');

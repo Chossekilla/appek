@@ -77,6 +77,17 @@ function ensure_sync_schema(PDO $pdo): void {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
 
+        // 📍 kurzory stahování z cloudu: JSON {tabulka: [updated_at, id]} — viz sync_pull_from_cloud
+        try {
+            if (!$pdo->query("SHOW COLUMNS FROM sync_config LIKE 'pull_kurzor'")->fetch()) {
+                $pdo->exec("ALTER TABLE sync_config ADD COLUMN pull_kurzor TEXT NULL");
+            }
+        } catch (Throwable $e) { error_log('sync_schema pull_kurzor: ' . $e->getMessage()); }
+
+        // ⚡ sync vypnutý (výchozí stav) → dál nic: dřív se při KAŽDÉM požadavku na server procházelo
+        //   14 tabulek (information_schema + UPDATE backfill sync_uuid). Po zapnutí sync se doplní hned při dalším požadavku.
+        if (!sync_is_enabled($pdo)) return;
+
         // ─────────────────────────────────────────────────────
         // 4. SYNCABLE TABLES — přidání sloupců pro sync tracking
         // Tabulky které potřebují sync: vyrobky, odberatele, objednavky,
@@ -145,7 +156,7 @@ function ensure_sync_schema(PDO $pdo): void {
                         HEX(RANDOM_BYTES(2)), '-',
                         HEX(RANDOM_BYTES(2)), '-',
                         HEX(RANDOM_BYTES(6))
-                    ))
+                    )), updated_at = updated_at   -- backfill nesmí přepsat čas poslední změny
                     WHERE sync_uuid IS NULL
                 ");
             } catch (Throwable $e) {
@@ -159,7 +170,7 @@ function ensure_sync_schema(PDO $pdo): void {
                             LPAD(HEX(FLOOR(RAND()*65535)), 4, '0'), '-',
                             LPAD(HEX(FLOOR(RAND()*65535)), 4, '0'), '-',
                             LPAD(HEX(FLOOR(RAND()*281474976710655)), 12, '0')
-                        ))
+                        )), updated_at = updated_at
                         WHERE sync_uuid IS NULL
                     ");
                 } catch (Throwable $e2) { /* ignore — UUID bude null */ }

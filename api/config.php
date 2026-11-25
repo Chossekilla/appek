@@ -211,8 +211,23 @@ function firma(string $klic, string $default = ''): string {
  * @return string formátované číslo, např. 'FA-2026-0042'
  */
 function dalsi_cislo(PDO $pdo, string $typ, int $rok): string {
+    // 🔄 hybridní sync: cloud má vlastní řadu (klíč „WEB@C“, předčíslí „WEB-2026-C“)
+    $uzel = cislo_uzel($pdo);
+    $zaklad = $typ;
+    if ($uzel !== '') $typ = $typ . '@' . $uzel;
+
     // Výchozí předčíslí pokud řádek ještě neexistuje
-    $vychozi_predcisli = $typ . '-' . $rok . '-';
+    $vychozi_predcisli = $zaklad . '-' . $rok . '-' . $uzel;
+    if ($uzel !== '') {
+        // appek: vlastní předčíslí místní řady (např. FA → „FAK-2026-“) → cloudová řada „FAK-2026-C“
+        $zp = $pdo->prepare("SELECT predcisli FROM cislovani WHERE typ = :t AND rok = :r");
+        $zp->execute(['t' => $zaklad, 'r' => $rok]);
+        $zakl_predcisli = (string) $zp->fetchColumn();
+        if ($zakl_predcisli !== '' && str_ends_with($zakl_predcisli, $rok . '-')
+            && strlen($zakl_predcisli) + strlen($uzel) <= 20) {   // cislovani.predcisli = VARCHAR(20)
+            $vychozi_predcisli = $zakl_predcisli . $uzel;
+        }
+    }
 
     // Zajistíme řádek pro daný typ+rok (s výchozím předčíslím)
     $pdo->prepare("INSERT IGNORE INTO cislovani (typ, rok, predcisli, posledni) VALUES (:t, :r, :p, 0)")
@@ -225,7 +240,7 @@ function dalsi_cislo(PDO $pdo, string $typ, int $rok): string {
     $cur = $pdo->prepare("SELECT predcisli FROM cislovani WHERE typ = :t AND rok = :r");
     $cur->execute(['t' => $typ, 'r' => $rok]);
     $cur_predcisli = (string) $cur->fetchColumn();
-    $expected_suffix = $rok . '-';
+    $expected_suffix = $rok . '-' . $uzel;
     if ($cur_predcisli !== '' && !str_ends_with($cur_predcisli, $expected_suffix)) {
         // Legacy formát — upgrade.
         $pdo->prepare("UPDATE cislovani SET predcisli = :p WHERE typ = :t AND rok = :r")
@@ -255,6 +270,22 @@ function dalsi_cislo(PDO $pdo, string $typ, int $rok): string {
     // Předtím "FA-2026-1" / "FA-2026-2" / ... / "FA-2026-1000"; teď "FA-2026-0001".
     // Konzistentní s demo seedem a docstringem ("FA-2026-0042").
     return $predcisli . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+}
+
+/**
+ * 🔄 Značka uzlu pro číselné řady při hybridní synchronizaci (lokální PC ↔ cloud):
+ * cloud (role mirror) čísluje vlastní řadou s „C“ (WEB-2026-C0001), lokální PC beze změny (WEB-2026-0050).
+ * Oba uzly tak mohou vystavovat doklady současně bez kolize čísel. Bez zapnutého sync vždy '' (nic se nemění).
+ */
+function cislo_uzel(PDO $pdo): string {
+    static $u = null;
+    if ($u !== null) return $u;
+    $u = '';
+    try {
+        $r = $pdo->query("SELECT enabled, role FROM sync_config WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+        if ($r && (int) $r['enabled'] === 1 && ($r['role'] ?? '') === 'mirror') $u = 'C';
+    } catch (Throwable $e) { /* tabulka sync_config chybí → bez sync */ }
+    return $u;
 }
 
 /* ────────────────────────────────────────────────────────────────────────

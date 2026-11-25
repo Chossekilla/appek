@@ -38,30 +38,43 @@ try {
     $tables = sync_tables_config();
     $batch = [];
     $totalRecords = 0;
+    // 📍 kurzor PRO KAŽDOU TABULKU = poslední vydaný (updated_at, id) — stránkování podle klíče.
+    //   Dřív jeden společný čas: záznamy nad limit dávky a záznamy se stejným časem (hromadná úprava/import)
+    //   se přeskočily nebo stahování uvázlo. Tabulka, na kterou v dávce nevyšlo místo, pokračuje příště od svého kurzoru.
+    $kurzor = is_array($payload['kurzor'] ?? null) ? $payload['kurzor'] : [];
+    $novyKurzor = [];
 
     foreach ($tables as $table => $opts) {
-        if ($totalRecords >= SYNC_BATCH_SIZE) break;
         // Pull only 'pull' or 'both' directions (mirror returns these)
         if ($opts['direction'] === 'push') continue;
+        if ($totalRecords >= SYNC_BATCH_SIZE) break;   // zbytek příště — kurzory nevydaných tabulek se nemění
 
         $exists = $pdo->query("SHOW TABLES LIKE " . $pdo->quote($table))->fetch();
         if (!$exists) continue;
+
+        [$kTs, $kId] = [$since, 0];
+        $k = $kurzor[$table] ?? null;
+        if (is_array($k) && isset($k[0], $k[1]) && preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) $k[0])) [$kTs, $kId] = [(string) $k[0], (int) $k[1]];
 
         $limit = SYNC_BATCH_SIZE - $totalRecords;
         try {
             $stmt = $pdo->prepare("
                 SELECT * FROM `$table`
-                WHERE updated_at > :since
-                ORDER BY updated_at ASC
+                WHERE updated_at > :ts OR (updated_at = :ts2 AND id > :id)
+                ORDER BY updated_at ASC, id ASC
                 LIMIT :lim
             ");
-            $stmt->bindValue(':since', $since);
+            $stmt->bindValue(':ts', $kTs);
+            $stmt->bindValue(':ts2', $kTs);
+            $stmt->bindValue(':id', $kId, PDO::PARAM_INT);
             $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
             $stmt->execute();
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             if ($rows) {
-                $batch[] = ['table' => $table, 'records' => $rows];
+                $batch[] = ['table' => $table, 'records' => sync_attach_refs($pdo, $table, $rows)];   // 🔗 uuid rodičů
                 $totalRecords += count($rows);
+                $last = end($rows);
+                $novyKurzor[$table] = [(string) $last['updated_at'], (int) $last['id']];
             }
         } catch (Throwable $e) {
             // Tabulka může nemít updated_at (chybí migrace) — přeskoč
@@ -76,6 +89,7 @@ try {
         'ok'    => true,
         'batch' => $batch,
         'count' => $totalRecords,
+        'kurzor' => $novyKurzor + $kurzor,   // kam smí master posunout kurzory (vydané tabulky nově, ostatní beze změny)
         'duration_ms' => $duration,
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
